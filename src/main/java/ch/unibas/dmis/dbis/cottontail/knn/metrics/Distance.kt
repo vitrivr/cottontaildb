@@ -1,6 +1,23 @@
 package ch.unibas.dmis.dbis.cottontail.knn.metrics
 
 enum class Distance : DistanceFunction {
+    L1 {
+        override fun invoke(a: FloatArray, b: FloatArray): Float {
+            var dist = 0.0
+            for (i in a.indices) {
+                dist += Math.abs(b[i] - a[i]).toDouble()
+            }
+            return dist.toFloat()
+        }
+
+        override fun invoke(a: DoubleArray, b: DoubleArray): Double {
+            var dist = 0.0
+            for (i in a.indices) {
+                dist += Math.abs(b[i] - a[i]).toDouble()
+            }
+            return dist
+        }
+    },
     L2 {
         override fun invoke(a: FloatArray, b: FloatArray): Float {
             var dist = 0.0
