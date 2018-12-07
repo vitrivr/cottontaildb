@@ -14,6 +14,7 @@ import org.mapdb.Serializer
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.Paths
 import java.util.*
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.ReentrantReadWriteLock
@@ -46,8 +47,8 @@ constructor(config: Config) {
     private val lock_timeout_ms: Int
 
     init {
-        this.dataFolder = config.dataFolder
-        this.lock_timeout_ms = config.lockTimeoutMs()
+        this.dataFolder = Paths.get(config.dataFolder)
+        this.lock_timeout_ms = config.lockTimeout
 
         /* Create folder (if it doesn't exist). */
         if (!Files.exists(this.dataFolder)) {
