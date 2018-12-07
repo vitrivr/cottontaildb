@@ -5,6 +5,8 @@ import ch.unibas.dmis.dbis.cottontail.database.definition.EntityDefinition
 import ch.unibas.dmis.dbis.cottontail.model.DatabaseException
 import ch.unibas.dmis.dbis.cottontail.model.LockedException
 import ch.unibas.dmis.dbis.cottontail.serializer.schema.Serializers
+import ch.unibas.dmis.dbis.cottontail.util.heldOrTry
+import ch.unibas.dmis.dbis.cottontail.util.tryWith
 import org.apache.logging.log4j.Level
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
@@ -90,7 +92,7 @@ constructor(config: Config) {
     @Throws(DatabaseException::class)
     fun createEntity(name: String): Entity {
         try {
-            if (this.lock.writeLock().tryLock(this.lock_timeout_ms.toLong(), TimeUnit.MILLISECONDS)) { /* Acquire write-lock on schema. */
+            if (this.lock.writeLock().heldOrTry(this.lock_timeout_ms.toLong(), TimeUnit.MILLISECONDS)) { /* Acquire write-lock on schema. */
                 try {
                     /* Check if entity with that name exists. */
                     if (this.entities.containsKey(name)) {
@@ -142,7 +144,7 @@ constructor(config: Config) {
     @Throws(DatabaseException::class)
     fun dropEntity(name: String) {
         try {
-            if (this.lock.writeLock().tryLock(this.lock_timeout_ms.toLong(), TimeUnit.MILLISECONDS)) { /* Acquire write-lock on schema. */
+            if (this.lock.writeLock().heldOrTry(this.lock_timeout_ms.toLong(), TimeUnit.MILLISECONDS)) { /* Acquire write-lock on schema. */
                 try {
                     /* Unmount entity from this catalogue. */
                     val entity = this.entities.remove(name)
@@ -190,10 +192,13 @@ constructor(config: Config) {
      * @return Optional [Entity] associated with the given name.
      */
     fun entityForName(name: String): Entity? {
-        this.lock.readLock().tryLock()
-        val entity = this.entities[name]
-        this.lock.readLock().unlock()
-        return entity
+//        this.lock.readLock().tryLock()
+//        val entity = this.entities[name]
+//        this.lock.readLock().unlock()
+//        return entity
+        return this.lock.readLock().tryWith {
+            this.entities[name]
+        }
     }
 
     /**
@@ -203,10 +208,13 @@ constructor(config: Config) {
      * @return List of [Entity] names.
      */
     fun entities(): Collection<String> {
-        this.lock.readLock().tryLock()
-        val entities = Collections.unmodifiableCollection(this.entities.keys)
-        this.lock.readLock().unlock()
-        return entities
+//        this.lock.readLock().tryLock()
+//        val entities = Collections.unmodifiableCollection(this.entities.keys)
+//        this.lock.readLock().unlock()
+//        return entities
+        return this.lock.readLock().tryWith {
+            Collections.unmodifiableCollection(this.entities.keys)
+        }
     }
 
     companion object {

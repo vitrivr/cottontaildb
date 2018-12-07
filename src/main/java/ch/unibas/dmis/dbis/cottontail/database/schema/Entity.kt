@@ -9,6 +9,7 @@ import ch.unibas.dmis.dbis.cottontail.database.general.TransactionStatus
 import ch.unibas.dmis.dbis.cottontail.model.DatabaseException
 import ch.unibas.dmis.dbis.cottontail.model.LockedException
 import ch.unibas.dmis.dbis.cottontail.serializer.schema.Serializers
+import ch.unibas.dmis.dbis.cottontail.util.heldOrTry
 import org.apache.logging.log4j.Level
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
@@ -338,7 +339,7 @@ internal constructor(private val definition: EntityDefinition, private val lock_
             if (this.status === TransactionStatus.CLOSED) throw IllegalStateException(String.format("Tx '%s' has been closed; it cannot be used to make any changes to the entity '%s'.", this.txid, this@Entity.definition.name))
             var error: DatabaseException? = null
             try {
-                if (this@Entity.tupleIdLock.writeLock().tryLock(lock_timeout_ms.toLong(), TimeUnit.MILLISECONDS)) {
+                if (this@Entity.tupleIdLock.writeLock().heldOrTry(lock_timeout_ms.toLong(), TimeUnit.MILLISECONDS)) {
                     /* Update status. */
                     this.status = TransactionStatus.DIRTY
                     this.insert = true
@@ -369,6 +370,7 @@ internal constructor(private val definition: EntityDefinition, private val lock_
                         this.rollback()
                         throw error
                     }
+
                 } else {
                     throw LockedException("Could not obtain lock on row ID for entity '%s'. Timeout of %dms exceeded.", this@Entity.definition.name, this@Entity.lock_timeout_ms)
                 }

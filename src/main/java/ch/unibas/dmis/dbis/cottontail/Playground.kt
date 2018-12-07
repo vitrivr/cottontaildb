@@ -9,10 +9,13 @@ import ch.unibas.dmis.dbis.cottontail.knn.KnnContainer
 import ch.unibas.dmis.dbis.cottontail.knn.metrics.Distance
 import ch.unibas.dmis.dbis.cottontail.model.DatabaseException
 import com.google.gson.GsonBuilder
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.json.JSON
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Paths
 import kotlin.concurrent.thread
+import kotlin.random.Random
 
 object Playground {
 
@@ -20,10 +23,15 @@ object Playground {
     fun main(args: Array<String>) {
         val path = args[0]
         Files.newBufferedReader(Paths.get(path)).use { reader ->
-            val gson = GsonBuilder().create()
-            val config = gson.fromJson(reader, Config::class.java)
+            val config = try{
+                JSON.parse(Config.serializer(), reader.readText())
+            } catch (e: SerializationException) {
+                e.printStackTrace()
+                null
+            }
             if (config != null) {
-                loadAndRead(config)
+                //loadAndRead(config)
+                loadAndPersist(config)
             }
         }
     }
@@ -32,8 +40,8 @@ object Playground {
         try {
             val schema = Schema(config)
 
-            val id = schema.entityForName("feature_surf")?.columnForName("id", StringColumnType())
-            val feature = schema.entityForName("feature_surf")?.columnForName("feature", FloatArrayColumnType())
+            val id = schema.entityForName("random")?.columnForName("id", StringColumnType())
+            val feature = schema.entityForName("random")?.columnForName("feature", FloatArrayColumnType())
 
             val block = {
                 val start = System.currentTimeMillis()
@@ -66,11 +74,11 @@ object Playground {
     @Throws(IOException::class, DatabaseException::class)
     fun loadAndPersist(config: Config) {
         val schema = Schema(config)
-        val entity = schema.createEntity("feature_surf")
+        val entity = schema.createEntity("random")
         entity.createColumn("id", StringColumnType())
         entity.createColumn("feature", FloatArrayColumnType())
 
-        for (i in 1..63) {
+        /*for (i in 1..63) {
             Files.newBufferedReader(Paths.get(String.format("/Users/rgasser/Downloads/Ikarus/Import/features_surfmf25k512_%d.json", i))).use { reader ->
                 val gson = GsonBuilder().create()
                 val features = gson.fromJson(reader, Array<Feature>::class.java)
@@ -82,7 +90,35 @@ object Playground {
                 tx.commit()
                 println(String.format("Writing %d vectors took %d ms", features.size, System.currentTimeMillis() - start))
             }
+        }*/
+
+        val n = 100_000
+
+        for (i in 1..10){
+            val tx = entity.newTransaction(listOf("id", "feature"), AccessorMode.READWRITE_TX)
+            val start = System.currentTimeMillis()
+            for (f in generateFeatures(n, 512, i - 1 * n)) {
+                tx.insert(mapOf(Pair("id", f.id), Pair("feature", f.feature)));
+            }
+            tx.commit()
+            tx.close()
+            println(String.format("Writing %d vectors took %d ms", n, System.currentTimeMillis() - start))
+
         }
+
+    }
+
+    fun generateFeatures(number: Int, dimensions: Int, startId: Int) : List<Feature>{
+        val random = Random(startId)
+
+        return (1..number).map{
+            Feature().apply{
+                id = "${startId + it - 1}"
+                feature = (1..dimensions).map { random.nextFloat() }.toFloatArray()
+            }
+
+        }
+
     }
 
 }
