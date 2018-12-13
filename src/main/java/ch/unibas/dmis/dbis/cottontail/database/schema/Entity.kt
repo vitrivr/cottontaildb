@@ -144,7 +144,7 @@ internal constructor(private val definition: EntityDefinition, private val lock_
                     /* Make changes to catalogue. */
                     DBMaker.fileDB(this.definition.path.resolve(FILE_CATALOGUE).toFile()).fileMmapEnableIfSupported().transactionEnable().make().use { catalogue ->
                         /* Create and store new ColumnDefinition. */
-                        val def = ColumnDefinition(name, this.definition.path.resolve(String.format("c_%s.mapdb", name)), type)
+                        val def = ColumnDefinition(name, this.definition.path.resolve("c_$name.mapdb"), type)
                         val col = Column(def)
 
                         /* Update catalogue. */
