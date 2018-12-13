@@ -26,9 +26,13 @@ sealed class ColumnType<T : Any> {
          */
         fun typeForName(name: String): ColumnType<*>? {
             return when(name.toLowerCase()) {
+                "int" -> IntColumnType()
                 "long" -> LongColumnType()
+                "float" -> FloatColumnType()
+                "double" -> DoubleColumnType()
                 "string" -> StringColumnType()
                 "farray_dense" -> FloatArrayColumnType()
+                "larray_dense" -> LongArrayColumnType()
                 else -> null
             }
         }
@@ -41,6 +45,24 @@ class LongColumnType : ColumnType<Long>() {
     override val type: KClass<Long> = Long::class
 }
 
+class IntColumnType : ColumnType<Int>() {
+    override val name = "int"
+    override val serializer: GroupSerializer<Int> = Serializer.INTEGER_PACKED
+    override val type: KClass<Int> = Int::class
+}
+
+class FloatColumnType : ColumnType<Float>() {
+    override val name = "float"
+    override val serializer: GroupSerializer<Float> = Serializer.FLOAT
+    override val type: KClass<Float> = Float::class
+}
+
+class DoubleColumnType : ColumnType<Double>() {
+    override val name = "double"
+    override val serializer: GroupSerializer<Double> = Serializer.DOUBLE
+    override val type: KClass<Double> = Double::class
+}
+
 class StringColumnType : ColumnType<String>() {
     override val name = "string"
     override val serializer: GroupSerializer<String> = Serializer.STRING
@@ -51,4 +73,10 @@ class FloatArrayColumnType : ColumnType<FloatArray>() {
     override val name = "farray_dense"
     override val serializer: GroupSerializer<FloatArray> = Serializer.FLOAT_ARRAY
     override val type: KClass<FloatArray> = FloatArray::class
+}
+
+class LongArrayColumnType : ColumnType<LongArray>() {
+    override val name = "larray_dense"
+    override val serializer: GroupSerializer<LongArray> = Serializer.LONG_ARRAY
+    override val type: KClass<LongArray> = LongArray::class
 }
