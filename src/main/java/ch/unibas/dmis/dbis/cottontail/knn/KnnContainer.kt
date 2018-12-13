@@ -23,8 +23,8 @@ class KnnContainer(private val n: Int, private val query: FloatArray, private va
         if (this.knn.size < this.n) {
             this.knn.add(Pair(id, dist))
         } else if (dist < this.knn.last().second) {
-            this.knn.add(Pair(id, dist))
             this.knn.pollLast()
+            this.knn.add(Pair(id, dist))
         }
     }
 
