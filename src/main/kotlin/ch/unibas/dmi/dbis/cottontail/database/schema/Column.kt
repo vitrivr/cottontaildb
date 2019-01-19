@@ -1,41 +1,44 @@
 package ch.unibas.dmi.dbis.cottontail.database.schema
 
-import ch.unibas.dmi.dbis.cottontail.database.definition.ColumnDefinition
-import ch.unibas.dmi.dbis.cottontail.database.definition.ColumnType
-import ch.unibas.dmi.dbis.cottontail.database.general.AccessorMode
-import ch.unibas.dmi.dbis.cottontail.database.general.Transaction
 import ch.unibas.dmi.dbis.cottontail.database.general.TransactionStatus
+import ch.unibas.dmi.dbis.cottontail.model.DatabaseException
 
 import org.mapdb.*
+import org.mapdb.volume.MappedFileVol
 
+import java.nio.file.Files
 import java.nio.file.Path
-import java.util.Optional
-import java.util.UUID
+import java.util.*
+import java.util.concurrent.locks.ReentrantReadWriteLock
+import kotlin.concurrent.read
+
+
+/** Typealias for a definition of a column. */
+typealias ColumnDef = Pair<String,ColumnType<*>>
 
 /**
- * A single column in the Cottontail DB schema. A [Column] entry is identified by a tuple ID (long) and holds an arbitrary value.
+ * Represents a single column in the Cottontail DB schema. A [Column] record is identified by a tuple
+ * ID (long) and can hold an arbitrary value.
  *
  * @param <T> Type of the value held by this [Column].
  *
  * @author Ralph Gasser
  * @version 1.0
-</T> */
-class Column<T : Any>(private val definition: ColumnDefinition<T>) {
-    /**
-     * Getter for [Column.definition].
-     *
-     * @return Name of this [Column].
-     */
-    val name: String
-        get() = this.definition.name
+ */
+class Column<T: Any>(val name: String, val path: Path) {
+    /** Internal reference to the [Store] underpinning this [Column]. */
+    private var store: StoreWAL = try {
+        StoreWAL.make(file = this.path.resolve("col_$name.db").toString(), volumeFactory = MappedFileVol.FACTORY)
+    } catch (e: DBException) {
+        throw DatabaseException("Failed to open column at '$path': ${e.message}'")
+    }
 
-    /**
-     * Getter for [Column.definition].
-     *
-     * @return Name of this [Column].
-     */
-    val path: Path
-        get() = this.definition.path
+    /** Internal reference to the [Header] of this [Column]. */
+    private val header = try {
+        store.get(HEADER_RECORD_ID, ColumnHeaderSerializer) ?: throw DatabaseException("Failed to open column $path: Could not read column header!'")
+    } catch (e: DatabaseException) {
+        throw DatabaseException("Failed to open column at $path: ${e.message}'")
+    }
 
     /**
      * Getter for [Column.definition].
@@ -43,211 +46,265 @@ class Column<T : Any>(private val definition: ColumnDefinition<T>) {
      * @return The [ColumnType] of this [Column].
      */
     val type: ColumnType<T>
-        get() = this.definition.type
+        get() = this.header.type as ColumnType<T>
+
+
+    /** A internal lock that is used to synchronize [Transaction]s affecting this [Column]. */
+    private val columnLock = ReentrantReadWriteLock()
 
     /**
-     * Generates and returns a new [Tx] for this [Column].
-     *
-     * @param mode The [AccessorMode] of the new [Tx].
-     *
-     * @return New [Tx]
+     * Companion object with some constants.
      */
-    fun getTransaction(mode: AccessorMode): Tx {
-        return getTransaction(UUID.randomUUID(), mode)
+    companion object {
+        private const val HEADER_RECORD_ID: Long = 1L
+
+        /**
+         * Initializes a new, empty [Column]
+         *
+         * @param parent The folder that contains the data file.
+         * @param definition The [ColumnDef] that specified the [Column]
+         */
+        fun initialize(parent: Path, definition: ColumnDef) {
+            if (!Files.exists(parent)) {
+                Files.createDirectories(parent)
+            }
+            val store = StoreWAL.make(file = parent.resolve("col_${definition.first}.db").toString(), volumeFactory = MappedFileVol.FACTORY)
+            store.put(ColumnHeader(type = definition.second, size = 0), ColumnHeaderSerializer)
+            store.commit()
+            store.close()
+        }
     }
 
     /**
-     * Generates and returns a new [Tx] for this [Column].
      *
-     * @param txid The transaction ID of the new [Tx].
-     * @param mode The [AccessorMode] of the new [Tx].
-     *
-     * @return New [Tx]
      */
-    fun getTransaction(txid: UUID, mode: AccessorMode): Tx {
-        return Tx(txid, mode)
-    }
-
-    /**
-     * Represents a single read / write transaction on the enclosing [Column].
-     */
-    inner class Tx constructor(private val txid: UUID, override val mode: AccessorMode) : Transaction {
-
-        /** Reference to the [DB] object associated with this [Tx].  */
-        private val database: DB
-
-        /** Reference to the [HTreeMap] object associated with this [Tx].  */
-        private val map: BTreeMap<Long,T>
-
-        /** The current [TransactionStatus] of this [Tx].  */
-        @Volatile
-        override var status = TransactionStatus.CLEAN
+    inner class Tx(val readonly: Boolean, val tid: UUID = UUID.randomUUID()): Transaction {
+        /** Flag indicating whether or not this [Entity.Tx] was closed */
+        @Volatile var status: TransactionStatus = TransactionStatus.CLEAN
 
         /**
-         * Initializes [Tx].
-         */
-        init {
-            /* Open / create the database file for column. */
-            var maker: DBMaker.Maker = DBMaker.fileDB(this@Column.definition.path.toFile())
-                    .concurrencyScale(Runtime.getRuntime().availableProcessors())
-                    .fileMmapEnableIfSupported()
-            when (mode) {
-                AccessorMode.READONLY -> maker = maker.readOnly()
-                AccessorMode.READWRITE_TX -> maker = maker.transactionEnable()
-                else -> {}
-            }
-            this.database = maker.make()
-
-            /* Generate the HTreeMap for this Transactional. */
-            this.map = this.database
-                    .treeMap(this@Column.name, Serializer.RECID, this@Column.type.serializer)
-                    .counterEnable()
-                    .createOrOpen()
-        }
-
-        /**
-         * Returns the type of the value returned by this [Column.Tx].
-         */
-        fun type() : ColumnType<T> {
-           return this@Column.type
-        }
-
-        /**
-         * Accesses and returns the entry for the specified tuple ID.
-         *
-         * @param tid The tuple ID of the entry to return.
-         * @return Value of the entry specified by txid or null, if it is not defined.
-         */
-        fun read(tid: Long): T? {
-            return this.map[tid]
-        }
-
-        /**
-         * Checks if there is an entry for the specified tuple ID.
-         *
-         * @param tid The tuple ID of the entry to check.
-         * @return True if entry exists, false otherwise.
-         */
-        fun exists(tid: Long): Boolean {
-            return this.map.containsKey(tid)
-        }
-
-        /**
-         * Returns the number of entries in this [Column].
-         *
-         * @return Number of entries in this [Column].
-         */
-        fun count(): Int {
-            return this.map.size
-        }
-
-        /**
-         * Returns an [Iterable] that can be used to scan all the entries..
-         *
-         * @return Iterable<T> of all the [Column]'s entries.
-        </T> */
-        fun scan(): Sequence<Map.Entry<Long, T>> = this.map.asSequence()
-
-        /**
-         * Returns an [Iterable] that can be used to scan all the values.
-         *
-         * @return Iterable<T> of all the [Column]'s values.
-        </T> */
-        fun scanValues(): Sequence<T?> = this.map.values.asSequence()
-
-        /**
-         * Inserts the provided value for the provided tuple ID if, and only if, no value exists for the provided Tuple ID.
-         *
-         * @param tid The Tuple ID for which to insert a value.
-         * @param value The value to insert.
-         * @return True if value was inserted, false otherwise.
-         * @throws IllegalStateException If [Tx] is either read-only or has been closed.
-         */
-        @Synchronized
-        fun writeIfAbsent(tid: Long, value: T): Boolean {
-            if (this.mode === AccessorMode.READONLY) throw IllegalStateException(String.format("Transactional '%s' is read-only; it cannot be used to make any changes.", this.txid))
-            if (this.status === TransactionStatus.CLOSED) throw IllegalStateException(String.format("Transactional '%s' has been closed; it cannot be used to make any changes.", this.txid))
-
-            val inserted = ((this.map as MutableMap<Long, T>).putIfAbsent(tid, value) == null)
-            if (inserted) {
-                this.status = TransactionStatus.DIRTY
-            }
-            return inserted
-        }
-
-        /**
-         * Writers the provided value for the provided tuple ID if.
-         *
-         * @param tid The Tuple ID for which to insert a value.
-         * @param value The value to insert.
-         * @throws IllegalStateException If [Tx] is either read-only or has been closed.
-         */
-        @Synchronized
-        fun write(tid: Long, value: T) {
-            if (this.mode === AccessorMode.READONLY) throw IllegalStateException(String.format("Transactional '%s' is read-only; it cannot be used to make any changes.", this.txid))
-            if (this.status === TransactionStatus.CLOSED) throw IllegalStateException(String.format("Transactional '%s' has been closed; it cannot be used to make any changes.", this.txid))
-
-            this.map[tid] = value
-            this.status = TransactionStatus.DIRTY
-        }
-
-        /**
-         * Removes the the entry identified by the provided tuple ID, if it exists.
-         *
-         * @param tid Tuple ID for which to return the entry.
-         * @return Value of the entry that has been removed or null, if no such value exists.
-         */
-        @Synchronized
-        fun remove(tid: Long): Optional<T> {
-            if (this.mode === AccessorMode.READONLY) throw IllegalStateException(String.format("Transactional '%s' is read-only; it cannot be used to make any changes.", this.txid))
-            if (this.status === TransactionStatus.CLOSED) throw IllegalStateException(String.format("Transactional '%s' has been closed; it cannot be used to make any changes.", this.txid))
-
-            val removed = this.map.remove(tid)
-            if (removed != null) {
-                this.status = TransactionStatus.DIRTY
-            }
-            return Optional.ofNullable(removed)
-        }
-
-        /**
-         * Commits all changes that were made since the last commit. Causes the [Transaction] to complete and close.
-         *
-         * Only works, if [Tx] has been created in mode [AccessorMode.READWRITE_TX].
-         * Otherwise, calling this method has no effect.
+         * Commits all changes made through this [Transaction] since the last commit or rollback.
          */
         @Synchronized
         override fun commit() {
-            if (this.status === TransactionStatus.CLOSED) throw IllegalStateException(String.format("Transactional '%s' has been closed; it cannot be committed.", this.txid))
-            if (this.status === TransactionStatus.DIRTY) {
-                this.database.commit()
-                this.close()
+            if (this.status == TransactionStatus.DIRTY) {
+                this@Column.store.commit()
+                this.status = TransactionStatus.CLEAN
+                this@Column.columnLock.writeLock().unlock()
             }
         }
 
         /**
-         * Rolls back all changes that were made since the last commit. Causes the [Transaction] to complete and close.
-         *
-         * Rollback only works, if [Tx] has been created in mode [AccessorMode.READWRITE_TX].
-         * Otherwise, calling this method has no effect.
+         * Rolls all changes made through this [Transaction] back to the last commit.
          */
         @Synchronized
         override fun rollback() {
-            if (this.status === TransactionStatus.CLOSED) throw IllegalStateException(String.format("Transactional '%s' has been closed; it cannot be committed.", this.txid))
-            if (this.status === TransactionStatus.DIRTY) {
-                this.database.commit()
-                this.close()
+            if (this.status == TransactionStatus.DIRTY) {
+                this@Column.store.rollback()
+                this.status = TransactionStatus.CLEAN
+                this@Column.columnLock.writeLock().unlock()
             }
         }
 
         /**
-         * Closes the underlying [DB] and ends the transaction.
+         * Closes this [Transaction] and relinquishes the associated [ReentrantReadWriteLock].
          */
         @Synchronized
         override fun close() {
-            this.database.close()
+            if (this.status == TransactionStatus.DIRTY) {
+                this.rollback()
+            }
             this.status = TransactionStatus.CLOSED
+        }
+
+        /**
+         * Gets and returns an entry from this [Column]. Action acquires a global read dataLock for the [Column].
+         *
+         * @param tupleId The ID of the desired entry
+         * @return The desired entry.
+         *
+         * @throws DatabaseException If the tuple with the desired ID doesn't exist OR is invalid.
+         */
+        fun read(tupleId: Long) : T? = this@Column.columnLock.read {
+            checkOpenOrThrow()
+            checkValidTupleId(tupleId)
+            return this@Column.store.get(tupleId, this@Column.type.serializer)
+        }
+
+        /**
+         * Returns the number of entries in this [Column]. Action acquires a global read dataLock for the [Column].
+         *
+         * @return The number of entries in this [Column].
+         */
+        fun count(): Long = this@Column.columnLock.read {
+            return this@Column.header.size
+        }
+
+        /**
+         * Applies the provided mapping function on each value found in this [Column], returning a
+         * collection of the desired output values.
+         *
+         * @param action The action that should be applied.
+         * @return A collection of Pairs mapping the tupleId to the generated value.
+         */
+        fun <R> map(action: (T?) -> R?): Collection<Pair<Long,R?>> = this@Column.columnLock.read {
+            checkOpenOrThrow()
+            val list = mutableListOf<Pair<Long,R?>>()
+            this@Column.store.getAllRecids().forEach {
+                list.add(Pair(it,action(this.read(it))))
+            }
+            return list
+        }
+
+        /**
+         * Applies the provided function on each element found in this [Column].
+         */
+        fun forEach(action: (Long,T) -> Unit) = this@Column.columnLock.read {
+            checkOpenOrThrow()
+            this@Column.store.getAllRecids().forEach {
+                if (it != HEADER_RECORD_ID) {
+                    action(it,this.read(it)!!)
+                }
+            }
+        }
+
+        /**
+         * Inserts a new record in this [Column].
+         *
+         * @param record The record that should be inserted. Can be null!
+         * @return The tupleId of the inserted record OR the allocated space in case of a null value.
+         */
+        fun insert(record: T?): Long {
+            acquireWriteLock()
+            val tupleId = if (record == null) {
+                this@Column.store.preallocate()
+            } else {
+                this@Column.store.put(record, this@Column.type.serializer)
+            }
+
+            /* Update header. */
+            this@Column.header.size += 1
+            this@Column.header.modified = System.currentTimeMillis()
+            this@Column.store.update(HEADER_RECORD_ID, this@Column.header, ColumnHeaderSerializer)
+            return tupleId
+        }
+
+        /**
+         * Inserts a list of new records in this [Column].
+         *
+         * @param records The records that should be inserted. Can contain null values!
+         * @return The tupleId of the inserted record OR the allocated space in case of a null value.
+         */
+        fun insertAll(records: Collection<T?>): Collection<Long> {
+            acquireWriteLock()
+            val tupleIds = records.map {
+                if (it == null) {
+                this@Column.store.preallocate()
+            } else {
+                this@Column.store.put(it, this@Column.type.serializer)
+            } }
+
+            /* Update header. */
+            this@Column.header.size += records.size
+            this@Column.header.modified = System.currentTimeMillis()
+            this@Column.store.update(HEADER_RECORD_ID, this@Column.header, ColumnHeaderSerializer)
+            return tupleIds
+        }
+
+        /**
+         * Deletes a record from this [Column]. Action acquires a global write dataLock for the [Column].
+         *
+         * @param tupleId The ID of the record that should be deleted
+         * @return The tupleId of the inserted record.
+         */
+        fun delete(tupleId: Long) {
+            acquireWriteLock()
+            checkValidTupleId(tupleId)
+            this@Column.store.delete(tupleId, this@Column.type.serializer)
+
+            /* Update header. */
+            this@Column.header.size -= 1
+            this@Column.header.modified = System.currentTimeMillis()
+            this@Column.store.update(HEADER_RECORD_ID, this@Column.header, ColumnHeaderSerializer)
+        }
+
+        /**
+         *
+         */
+        fun deleteAll(tupleIds: Collection<Long>) {
+            acquireWriteLock()
+            tupleIds.forEach{
+                checkValidTupleId(it)
+                this@Column.store.delete(it, this@Column.type.serializer)
+            }
+
+            /* Update header. */
+            this@Column.header.size -= tupleIds.size
+            this@Column.header.modified = System.currentTimeMillis()
+            this@Column.store.update(HEADER_RECORD_ID, this@Column.header, ColumnHeaderSerializer)
+        }
+
+        /**
+         * Returns the [ColumnType] of the [Column] associated with this [Column.Tx].
+         *
+         * @return [ColumnType]
+         */
+        val type: ColumnType<T>
+            get() = this@Column.type
+
+        /**
+         * Checks if the provided tupleID is valid. Otherwise, an exception will be thrown.
+         */
+        private fun checkValidTupleId(tupleId: Long) {
+            if ((tupleId < 0L) or (tupleId == HEADER_RECORD_ID)) {
+                throw DatabaseException.InvalidTupleId(tupleId)
+            }
+        }
+
+        /**
+         * Checks if this [Column.Tx] is still open. Otherwise, an exception will be thrown.
+         */
+        @Synchronized
+        private fun checkOpenOrThrow() {
+            if (this.status == TransactionStatus.CLOSED) throw DatabaseException.TransactionClosedException(tid)
+        }
+
+        /**
+         * Tries to acquire a write-lock. If method fails, an exception will be thrown
+         */
+        @Synchronized
+        private fun acquireWriteLock() {
+            if (this.readonly) throw DatabaseException.TransactionReadOnlyException(tid)
+            if (this.status == TransactionStatus.CLOSED) throw DatabaseException.TransactionClosedException(tid)
+            if (this.status != TransactionStatus.DIRTY) {
+                if (this@Column.columnLock.writeLock().tryLock()) {
+                    this.status = TransactionStatus.DIRTY
+                } else {
+                    throw DatabaseException.TransactionLockException(this.tid)
+                }
+            }
         }
     }
 }
 
+/**
+ * The header data structure of any [Column]
+ */
+class ColumnHeader(val type: ColumnType<*>, var size: Long, var created: Long = System.currentTimeMillis(), var modified: Long = System.currentTimeMillis())
+
+/**
+ * A [Serializer] for [ColumnHeader].
+ */
+object ColumnHeaderSerializer: Serializer<ColumnHeader> {
+    override fun serialize(out: DataOutput2, value: ColumnHeader) {
+        out.writeUTF(value.type.name)
+        out.packLong(value.size)
+        out.writeLong(value.created)
+        out.writeLong(value.modified)
+    }
+
+    override fun deserialize(input: DataInput2, available: Int): ColumnHeader {
+        return ColumnHeader(ColumnType.typeForName(input.readUTF()), input.unpackLong(), input.readLong(), input.readLong())
+    }
+}
 
