@@ -1,5 +1,6 @@
 package ch.unibas.dmi.dbis.cottontail.database.schema
 
+import ch.unibas.dmi.dbis.cottontail.database.general.Transaction
 import ch.unibas.dmi.dbis.cottontail.database.general.TransactionStatus
 import ch.unibas.dmi.dbis.cottontail.model.DatabaseException
 
@@ -80,8 +81,9 @@ class Column<T: Any>(val name: String, val path: Path) {
      */
     inner class Tx(val readonly: Boolean, val tid: UUID = UUID.randomUUID()): Transaction {
         /** Flag indicating whether or not this [Entity.Tx] was closed */
-        @Volatile var status: TransactionStatus = TransactionStatus.CLEAN
-
+        @Volatile override var status: TransactionStatus = TransactionStatus.CLEAN
+            private set
+        
         /**
          * Commits all changes made through this [Transaction] since the last commit or rollback.
          */

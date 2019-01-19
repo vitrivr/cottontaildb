@@ -1,466 +1,350 @@
 package ch.unibas.dmi.dbis.cottontail.database.schema
 
-import ch.unibas.dmi.dbis.cottontail.database.definition.ColumnDefinition
-import ch.unibas.dmi.dbis.cottontail.database.definition.ColumnType
-import ch.unibas.dmi.dbis.cottontail.database.definition.EntityDefinition
-import ch.unibas.dmi.dbis.cottontail.database.general.AccessorMode
 import ch.unibas.dmi.dbis.cottontail.database.general.Transaction
 import ch.unibas.dmi.dbis.cottontail.database.general.TransactionStatus
 import ch.unibas.dmi.dbis.cottontail.model.DatabaseException
-import ch.unibas.dmi.dbis.cottontail.model.LockedException
-import ch.unibas.dmi.dbis.cottontail.serializer.schema.Serializers
-import org.apache.logging.log4j.Level
-import org.apache.logging.log4j.LogManager
-import org.apache.logging.log4j.Logger
+
 import org.mapdb.*
-
+import org.mapdb.volume.MappedFileVol
 import java.io.IOException
-
 import java.nio.file.Files
+
 import java.nio.file.Path
 import java.util.*
 
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.ReentrantReadWriteLock
-import java.util.stream.Collectors
+import javax.xml.crypto.Data
+import kotlin.concurrent.read
+
+
+/** Type alias for a tuple. */
+typealias Tuple = Map<ColumnDef,*>
 
 /**
- * Represents an entity in the Cottontail DB data schema. A [Entity] has name that must remain unique in an instance of Cottontail and the [Entity]
- * contains zero to many [Column]s holding the actual data.
- *
- * This class mediates atomic access to the [Entity], its [Column]s and the underlying data store by the means of [Transaction]s. The class
- * is thread safe in the sense, that access to the data store is properly handled as long as different threads use the same [Entity] instance for the same
- * entity. So for a given entity, the corresponding [Entity] instance is effectively a singleton. It is up to the [Schema] to assure that.
+ * Represents an entity in the Cottontail DB data schema. An [Entity] has name that must remain unique
+ * in an instance of Cottontail and the [Entity] contains zero to many [Column]s holding the actual data.
  *
  * @see Column
- *
  * @see Schema
- *
  * @see Entity.Tx
  */
-class Entity
-/**
- * Constructor for [Entity].
- *
- * @param def [EntityDefinition] from which to construct a new [Entity].
- */
-@Throws(IOException::class)
-internal constructor(private val definition: EntityDefinition, private val lock_timeout_ms: Int) {
+class Entity(val name: String, val path: Path) {
+    /** Internal reference to the [StoreWAL] underpinning this [Entity]. */
+    private val store: StoreWAL = try {
+        StoreWAL.make(file = this.path.resolve(name).resolve(FILE_CATALOGUE).toString(), volumeFactory = MappedFileVol.FACTORY)
+    } catch (e: DBException) {
+        throw DatabaseException("Failed to open entity '$name' ($path): ${e.message}'.")
+    }
 
-    /** A map containing all the named columns in this [Entity].  */
-    private val columns = HashMap<String, Column<*>>()
+    /** The header of this [Entity]. */
+    private val header: EntityHeader = this.store.get(HEADER_RECORD_ID, EntityHeaderSerializer) ?: throw DatabaseException("Failed to open entity '$name' ($path): Could not read entity header!'")
 
-    /** An internal flag indicating whether this [Entity] is locked (i.e. no new transactions can be created).  */
-    private val catalogueLock = ReentrantReadWriteLock()
-
-    /** An internal flag indicating whether this [Entity]'s tuple ID counter is locked.  */
-    private val tupleIdLock = ReentrantReadWriteLock()
+    /** A internal lock that is used to synchronize [Transaction]s affecting this [Column]. */
+    private val transactionLock = ReentrantReadWriteLock()
 
     /**
-     * Getter for [Entity.definition].
-     *
-     * @return Name of [Entity]
+     * List of all the [Column]s associated with this [Entity].
      */
-    val name: String
-        get() = this.definition.name
-
-    /**
-     * Getter for [Entity.definition].
-     *
-     * @return Path to the [Entity]
-     */
-    internal val path: Path
-        get() = this.definition.path
-
-    init {
-        /* Create folder (if it doesn't exist). */
-        if (!Files.exists(this.definition.path)) {
-            Files.createDirectories(this.definition.path)
-        }
-
-        /* Open / create the catalogue and its entries. */
-        val catalogue = DBMaker.fileDB(this.definition.path.resolve(FILE_CATALOGUE).toFile()).fileMmapEnableIfSupported().transactionEnable().make()
-        val columns = catalogue.hashMap(PROPERTY_COLUMNS)
-                .keySerializer(Serializer.STRING)
-                .valueSerializer(Serializers.COLUMN_DEF_SERIALIZER)
-                .createOrOpen()
-
-
-        for ((key, value) in columns) {
-            this.columns[key] = Column(value)
-        }
-
-        /* Open / create the catalogue and its entries. */
-        val rowid = DBMaker.fileDB(this.definition.path.resolve(FILE_ROWID).toFile()).fileMmapEnableIfSupported().allocateStartSize(8).allocateIncrement(8).fileMmapEnableIfSupported().make()
-        rowid.atomicLong(PROPERTY_TUPLEID, 0).createOrOpen()
-
-        /* Update basic properties. */
-        val now = System.currentTimeMillis()
-        catalogue.atomicLong(PROPERTY_LAST_MODIFIED, now).createOrOpen()
-        catalogue.atomicLong(PROPERTY_CREATED, now).createOrOpen()
-        catalogue.atomicInteger(PROPERTY_VERSION, 0).createOrOpen()
-
-        /* Commit changes to entity. */
-        catalogue.commit()
-        rowid.commit()
-
-        /* Close files. */
-        catalogue.close()
-        rowid.close()
+    private val columns: List<Column<*>> = header.columns.map {
+        Column<Any>(this.store.get(it, Serializer.STRING) ?:  throw DatabaseException("Failed to open entity '$name' ($path): Could not read column at index $it!'"), path.resolve(name))
     }
 
     /**
-     *
-     * @return
+     * Number of [Column]s held by this [Entity].
      */
-    fun <T : Any> columnForName(name: String, type: ColumnType<T>): Column<T>? {
-        val column = this.columns[name]
-        return if (column != null && column.type == type) {
-            column as Column<T>?
-        } else {
-            null
-        }
-    }
+    val columnColumn: Int
+        get() = this.header.columns.size
 
     /**
-     * Adds a new [Column] to this [Entity]. Since [Entity]'s catalogue needs to be updated in order to perform this operation
-     * calling this method will lock the entire [Entity].
      *
-     * @throws DatabaseException If an error occurred with the underlying database while adding a column.
-     * @throws LockedException If method failed to lock the catalogue.
      */
-    @Synchronized
-    @Throws(DatabaseException::class)
-    fun <T : Any> createColumn(name: String, type: ColumnType<T>) {
-        try {
-            if (this.catalogueLock.writeLock().tryLock(this.lock_timeout_ms.toLong(), TimeUnit.MILLISECONDS)) {
-                try {
-                    /* Check if column exists. */
-                    if (columns.containsKey(name)) {
-                        throw DatabaseException("Failed to create column. The column '%s' already exists on entity '%s'.", name, this.definition.name)
-                    }
-
-                    /* Make changes to catalogue. */
-                    DBMaker.fileDB(this.definition.path.resolve(FILE_CATALOGUE).toFile()).fileMmapEnableIfSupported().transactionEnable().make().use { catalogue ->
-                        /* Create and store new ColumnDefinition. */
-                        val def = ColumnDefinition(name, this.definition.path.resolve(String.format("c_%s.mapdb", name)), type)
-                        val col = Column(def)
-
-                        /* Update catalogue. */
-                        catalogue.hashMap(PROPERTY_COLUMNS).keySerializer(Serializer.STRING).valueSerializer(Serializers.COLUMN_DEF_SERIALIZER).open()[name] = def
-                        catalogue.atomicLong(PROPERTY_LAST_MODIFIED).open().set(System.currentTimeMillis())
-                        catalogue.atomicInteger(PROPERTY_VERSION).open().incrementAndGet()
-                        catalogue.commit()
-
-                        /* Put new column and commit. */
-                        this.columns.put(name, col)
-                    }
-                } finally {
-                    this.catalogueLock.writeLock().unlock() /* Relinquish lock on catalogue. */
-                }
-            } else {
-                throw LockedException("Failed to acquire write-lock on catalogue of entity '%s'. Timeout of %dms has elapsed.", this.definition.name, this.lock_timeout_ms)
-            }
-        } catch (e: InterruptedException) {
-            throw LockedException("Failed to acquire write-lock on catalogue of entity '%s'. Thread was interrupted while waiting for lock to become free.", this.definition.name)
-        }
-    }
-
-    /**
-     * Removes a [Column] from this [Entity]. Since [Entity]'s catalogue needs to be updated in order to perform this operation
-     * calling this method will lock the entire [Entity].
-     *
-     * @throws DatabaseException If an error occurred with the underlying database while removing a column.
-     * @throws LockedException If method failed to lock the catalogue.
-     */
-    @Synchronized
-    @Throws(DatabaseException::class)
-    fun dropColumn(name: String) {
-        try {
-            if (this.catalogueLock.writeLock().tryLock(this.lock_timeout_ms.toLong(), TimeUnit.MILLISECONDS)) { /* Acquire write-lock on catalogue. */
-                try {
-                    /* Unmount column from this catalogue. */
-                    val column = this.columns.remove(name)
-                            ?: throw DatabaseException("Failed to drop column. The column '%s' does not exists on entity '%s'.", name, this.definition.name)
-
-                    /* Make changes to catalogue. */
-                    try {
-                        DBMaker.fileDB(this.definition.path.resolve(FILE_CATALOGUE).toFile()).fileMmapEnableIfSupported().transactionEnable().make().use { catalogue ->
-                            /* Remove entry from catalogue. */
-                            catalogue.hashMap(PROPERTY_COLUMNS).keySerializer(Serializer.STRING).valueSerializer(Serializers.COLUMN_DEF_SERIALIZER).open().remove(name) /* Update catalogue. */
-                            catalogue.atomicLong(PROPERTY_LAST_MODIFIED).open().set(System.currentTimeMillis())
-                            catalogue.atomicInteger(PROPERTY_VERSION).open().incrementAndGet()
-                            catalogue.commit()
-                        }
-                    } catch (e: Exception) {
-                        this.columns[name] = column
-                        LOGGER.log(Level.ERROR, "Failed to drop column '{}'. Could not update catalogue due to exception: {}", name, e)
-                        throw DatabaseException("Failed to drop column '%s'. Could not update catalogue due to an exception.", name)
-                    }
-
-                    /* Delete associated files. */
-                    try {
-                        val files = Files.walk(column.path).sorted(Comparator.reverseOrder()).collect(Collectors.toList())
-                        for (p in files) Files.deleteIfExists(p)
-                    } catch (e: IOException) {
-                        LOGGER.log(Level.WARN, "Could not delete files associated with column '{}' due to an IOException: {}", name, e)
-                    }
-
-                } finally {
-                    this.catalogueLock.writeLock().unlock() /* Relinquish write-lock on catalogue. */
-                }
-            } else {
-                throw LockedException("Failed to drop column '%s'. Could not acquire write-lock on catalogue of entity '%s'. Timeout of %dms has elapsed.", name, this.definition.name, this.lock_timeout_ms)
-            }
-        } catch (e: InterruptedException) {
-            throw LockedException("Failed to drop column '%s'. Could not acquire write-lock on catalogue of entity '%s'. Thread was interrupted while waiting for lock to become free.", name, this.definition.name)
-        }
-
-    }
-
-    /**
-     * Creates and returns a new [Entity.Tx]
-     *
-     * @param columns The name of the [Column]s for which the [Tx] should be created.
-     * @param mode The [Tx]'s [AccessorMode]
-     * @return [Entity.Tx]
-     *
-     * @throws LockedException If [Entity] has been locked.
-     * @throws DatabaseException If an error occurred while creating the [Tx].
-     */
-    @Throws(LockedException::class, DatabaseException::class)
-    fun newTransaction(columns: Collection<String>, mode: AccessorMode): Tx {
-        return Tx(columns, mode)
-    }
-
-    /**
-     * Represents a single read / write transaction on the enclosing [Entity]. This [Tx] may involve multiple [Column.Tx] objects.
-     *
-     * @author Ralph Gasser
-     * @version 1.0
-     */
-    inner class Tx constructor(columnNames: Collection<String>, override val mode: AccessorMode) : Transaction {
-
-        /** The [Column.Tx]s that make up this [Tx].  */
-        private val columns = HashMap<String, Column<*>.Tx>()
-
-        /** The ID of this [Column.Tx].  */
-        private val txid: UUID
-
-        /** Reference to [Entity]'s catalogue (read-only).  */
-        private val catalogue: DB
-
-        /** Reference to the file that holds the [Entity]'s tuple ID.  */
-        private val tupleid: DB
-
-        /** Whether this [Column.Tx] as conducted and insert operation. */
-        private var insert: Boolean = false
-
-        /** The current [TransactionStatus] of this [Column.Tx].  */
-        @Volatile
-        override var status = TransactionStatus.CLEAN
-
-        init {
-            this.txid = UUID.randomUUID()
-            try {
-                if (this@Entity.catalogueLock.readLock().tryLock(this@Entity.lock_timeout_ms.toLong(), TimeUnit.MILLISECONDS)) {
-                    /* Get read-only reference to catalogue. */
-                    this.catalogue = DBMaker.fileDB(this@Entity.definition.path.resolve(FILE_CATALOGUE).toFile()).readOnly().fileMmapEnableIfSupported().transactionEnable().make()
-
-                    /* Check columns (they must exist). */
-                    for (name in columnNames) {
-                        val column = this@Entity.columns[name]
-                        if (column != null) {
-                            this.columns[name] = column.getTransaction(txid, mode)
-                        } else {
-                            this.close()
-                            throw DatabaseException("Failed to create transaction. The provided column '%s' does not exist on entity '%s.", name, this@Entity.definition.name)
-                        }
-                    }
-
-                    /* Open file that holds current tuple ID for entity. */
-                    when (mode) {
-                        AccessorMode.READONLY -> this.tupleid = DBMaker.fileDB(this@Entity.definition.path.resolve(FILE_ROWID).toFile()).fileMmapEnableIfSupported().readOnly().make()
-                        AccessorMode.READWRITE -> this.tupleid = DBMaker.fileDB(this@Entity.definition.path.resolve(FILE_ROWID).toFile()).fileMmapEnableIfSupported().make()
-                        AccessorMode.READWRITE_TX -> this.tupleid = DBMaker.fileDB(this@Entity.definition.path.resolve(FILE_ROWID).toFile()).fileMmapEnableIfSupported().transactionEnable().make()
-                    }
-                } else {
-                    throw LockedException("Failed to lock catalogue for entity '%s'. Timeout of %dms has elapsed.", this@Entity.definition.name, this@Entity.lock_timeout_ms)
-                }
-            } catch (e: InterruptedException) {
-                throw LockedException("Failed to lock catalogue for entity '%s'. Thread was interrupted while waiting for lock to become free.", this@Entity.definition.name)
-            }
-
-        }
-
-        /**
-         * Returns the current tuple ID value.
-         *
-         * @return Current tuple ID value.
-         * @throws LockedException If no read-lock could be obtained for tuple ID field.
-         */
-        @Throws(DatabaseException::class)
-        fun currentTid(): Long {
-            return try {
-                if (this.insert || this@Entity.tupleIdLock.readLock().tryLock(lock_timeout_ms.toLong(), TimeUnit.MILLISECONDS)) {
-                    this.tupleid.atomicLong(PROPERTY_TUPLEID).open().get()
-                } else {
-                    throw LockedException("Could not obtain read-lock on row ID for entity '%s'. Timeout of %dms exceeded.", this@Entity.definition.name, this@Entity.lock_timeout_ms)
-                }
-            } catch (e: InterruptedException) {
-                throw LockedException("Could not obtain read-lock on row ID for entity '%s'. Thread was interrupted while waiting for lock to become free.")
-            }
-        }
-
-        /**
-         *
-         * @param tid
-         * @return
-         */
-        operator fun get(tid: Long): Map<String, Any?> {
-            if (this.status === TransactionStatus.CLOSED) throw IllegalStateException(String.format("Transactional '%s' has been closed; it cannot be used to read from the entity '%s'.", this.txid, this@Entity.definition.name))
-            val result = HashMap<String, Any?>(this.columns.size)
-            for ((key, value) in this.columns) {
-                result[key] = value.read(tid)
-            }
-            return result
-        }
-
-        /**
-         *
-         * @param values
-         * @throws DatabaseException
-         */
-        @Synchronized
-        @Throws(DatabaseException::class)
-        fun insert(values: Map<String, *>) {
-            if (this.mode === AccessorMode.READONLY) throw IllegalStateException(String.format("Transactional '%s' is read-only; it cannot be used to make any changes to the entity '%s'.", this.txid, this@Entity.definition.name))
-            if (this.status === TransactionStatus.CLOSED) throw IllegalStateException(String.format("Transactional '%s' has been closed; it cannot be used to make any changes to the entity '%s'.", this.txid, this@Entity.definition.name))
-            var error: DatabaseException? = null
-            try {
-                if (this@Entity.tupleIdLock.writeLock().tryLock(lock_timeout_ms.toLong(), TimeUnit.MILLISECONDS)) {
-                    /* Update status. */
-                    this.status = TransactionStatus.DIRTY
-                    this.insert = true
-
-                    /* Perform insert. */
-                    val currentId = this.tupleid.atomicLong(PROPERTY_TUPLEID).open().andIncrement
-                    for ((key, value) in values) {
-                        val ctx = this.columns[key]
-                        if (ctx != null) {
-                            val type = ctx.type().cast(value!!)
-                            if (type != null) {
-                                if (!(ctx as Column<Any>.Tx).writeIfAbsent(currentId, type)) {
-                                    error = DatabaseException("Failed to insert. An internal error occurred when inserting value for column '%s'.", key)
-                                    break
-                                }
-                            } else {
-                                error = DatabaseException("Failed to insert. The type of the provided column '%s' (%s) is not compatible with the provided type %s.", key, ctx.type(), value!!.javaClass.simpleName)
-                                break
-                            }
-                        } else {
-                            error = DatabaseException("Failed to insert. The provided column '%s' has not been defined in transaction.", key)
-                            break
-                        }
-                    }
-
-                    /* On error: rollback changes. */
-                    if (error != null) {
-                        this.rollback()
-                        throw error
-                    }
-                } else {
-                    throw LockedException("Could not obtain lock on row ID for entity '%s'. Timeout of %dms exceeded.", this@Entity.definition.name, this@Entity.lock_timeout_ms)
-                }
-            } catch (e: InterruptedException) {
-                throw LockedException("Could not obtain lock on row ID for entity '%s'. Thread was interrupted while waiting for lock to become free.")
-            }
-        }
-
-        /**
-         * Commits all changes that were made since the last commit. Causes the [Transaction] to complete and close.
-         *
-         * Only works, if [Column.Tx] has been created in mode [AccessorMode.READWRITE_TX].
-         * Otherwise, calling this method has no effect.
-         */
-        @Synchronized
-        override fun commit() {
-            if (this.status === TransactionStatus.CLOSED) throw IllegalStateException(String.format("Transactional '%s' has been closed; it cannot be committed.", this.txid))
-            if (this.status === TransactionStatus.DIRTY) {
-                this.tupleid.commit()
-                this.columns.values.forEach { it -> it.commit() }
-                if (this.insert) {
-                    this@Entity.tupleIdLock.writeLock().unlock()
-                    this.insert = false;
-                }
-                this.status == TransactionStatus.CLEAN
-            }
-        }
-
-        /**
-         * Rolls back all changes that were made since the last commit. Causes the [Transaction] to complete and close.
-         *
-         * Rollback only works, if [Column.Tx] has been created in mode [AccessorMode.READWRITE_TX].
-         * Otherwise, calling this method has no effect.
-         */
-        @Synchronized
-        override fun rollback() {
-            if (this.status === TransactionStatus.CLOSED) throw IllegalStateException(String.format("Transactional '%s' has been closed; it cannot be committed.", this.txid))
-            if (this.status === TransactionStatus.DIRTY) {
-                this.tupleid.rollback()
-                this.columns.values.forEach { it -> it.rollback() }
-                if (this.insert) {
-                    this@Entity.tupleIdLock.writeLock().unlock()
-                    this.insert = false;
-                }
-                this.status == TransactionStatus.CLEAN
-            }
-        }
-
-        /**
-         * Closes the underlying [DB] and ends this [Entity.Tx].
-         */
-        @Synchronized
-        override fun close() {
-            /* Return if Transactional is already closed. */
-            if (this.status === TransactionStatus.CLOSED) return
-
-            /* Close catalogue and tuple. */
-            this.catalogue.close()
-            this.tupleid.close()
-
-            /* Close sub-transactions. */
-            this.columns.values.forEach {it -> it.close()}
-
-            /* Relinquish the catalogue level read-lock that have been obtained by this Transactional. */
-            this.status = TransactionStatus.CLOSED
-            this@Entity.catalogueLock.readLock().unlock()
-        }
-    }
-
     companion object {
         /** Filename for the [Entity] catalogue.  */
         private const val FILE_CATALOGUE = "index.mapdb"
 
-        /** Filename for the [Entity] tuple ID file.  */
-        private const val FILE_ROWID = "tid.mapdb"
+        /** Filename for the [Entity] catalogue.  */
+        private const val HEADER_RECORD_ID = 1L
 
-        /** Name of the tuple ID property (i.e. current value of the tuple ID).  */
-        private const val PROPERTY_TUPLEID = "tid"
+        /** Initializes a new [Entity] at the given path. */
+        fun initialize(name: String, path: Path, vararg columns: ColumnDef): Entity {
+            val data = path.resolve(name)
+            if (!Files.exists(data)) {
+                Files.createDirectories(data)
+            } else {
+                throw DatabaseException("Failed to create entity '$name'. Data directory '$data' seems to be occupied.")
+            }
 
-        /** Name of the [Entity]'s columns property.  */
-        private const val PROPERTY_COLUMNS = "columns"
+            /* Generate the store. */
+            val store = StoreWAL.make(file = data.resolve(FILE_CATALOGUE).toString(), volumeFactory = MappedFileVol.FACTORY)
+            store.preallocate() /* Pre-allocates the header. */
 
-        /** Name of the [Entity]'s columns modified property.  */
-        private const val PROPERTY_LAST_MODIFIED = "modified"
+            /* Initialize the columns. */
+            val columnIds = columns.map {
+                Column.initialize(data, ColumnDef(it.first,it.second))
+                store.put(it.first, Serializer.STRING)
+            }.toLongArray()
+            store.update(HEADER_RECORD_ID, EntityHeader(columns = columnIds), EntityHeaderSerializer)
+            store.commit()
+            store.close()
 
-        /** Name of the [Entity]'s created property.  */
-        private const val PROPERTY_CREATED = "created"
+            return Entity(name, path)
+        }
+    }
 
-        /** Name of the [Entity]'s version property.  */
-        private const val PROPERTY_VERSION = "version"
+    /**
+     * A [Transaction] that affects this [Entity].
+     *
+     * Opening such a [Transaction] will spawn a associated [Column.Tx] for every [Column] associated with this [Entity].
+     */
+    inner class Tx(val readonly: Boolean, val tid: UUID = UUID.randomUUID()) : Transaction {
+        /** List of [Column.Tx] associated with this [Entity.Tx]. */
+        private val transactions: Map<ColumnDef,Column<*>.Tx> = mapOf(* this@Entity.columns.map { Pair(Pair(it.name, it.type), it.Tx(readonly, tid)) }.toTypedArray())
 
-        /** The [Logger] instance used to log errors and information.  */
-        private val LOGGER = LogManager.getLogger()
+        /** Flag indicating whether or not this [Entity.Tx] was closed */
+        @Volatile
+        override var status: TransactionStatus = TransactionStatus.CLEAN
+            private set
+
+        /**
+         * Commits all changes made through this [Entity.Tx] since the last commit or rollback.
+         */
+        @Synchronized
+        override fun commit() {
+            if (this.status == TransactionStatus.DIRTY) {
+                this.transactions.values.forEach { it.commit() }
+                this@Entity.store.commit()
+                this@Entity.transactionLock.writeLock().unlock()
+                this.status = TransactionStatus.CLEAN
+            }
+        }
+
+        /**
+         * Rolls all changes made through this [Entity.Tx] back to the last commit.
+         */
+        @Synchronized
+        override fun rollback() {
+            if (this.status == TransactionStatus.DIRTY) {
+                this.transactions.values.forEach { it.rollback() }
+                this@Entity.store.rollback()
+                this@Entity.transactionLock.writeLock().unlock()
+                this.status = TransactionStatus.CLEAN
+            }
+        }
+
+        /**
+         * Closes this [Entity.Tx] and thereby releases all the [Column.Tx] and locks. Closed [Entity.Tx] cannot be used anymore!
+         */
+        @Synchronized
+        override fun close() {
+            if (this.status == TransactionStatus.DIRTY) {
+                this.rollback()
+            }
+            this.status = TransactionStatus.CLOSED
+        }
+
+        /**
+         * Reads the values of one or many [Column]s and returns it as a [Tuple]
+         *
+         * @param tupleId The ID of the desired entry.
+         * @param columns The the [Column]s that should be read.
+         * @return The desired [Tuple].
+         *
+         * @throws DatabaseException If tuple with the desired ID doesn't exist OR is invalid.
+         */
+        fun read(tupleId: Long, vararg columns: ColumnDef): Tuple = this@Entity.transactionLock.read {
+            checkOpenOrThrow()
+            checkValidTupleId(tupleId)
+            checkColumnsExist(*columns)
+
+            /* Return value of all the desired columns. */
+            return mapOf(* columns.map { Pair(it, transactions[it]!!.read(tupleId)) }.toTypedArray())
+        }
+
+        /**
+         * Returns the number of entries in this [Entity].
+         *
+         * @return The number of entries in this [Entity].
+         */
+        fun count(): Long = this@Entity.transactionLock.read {
+            checkOpenOrThrow()
+            return this@Entity.header.size
+        }
+
+        /**
+         *
+         */
+        fun <R> map(action: (Tuple) -> R, vararg columns: ColumnDef) = this@Entity.transactionLock.read {
+            checkOpenOrThrow()
+            checkColumnsExist(*columns)
+        }
+
+        /**
+         * Applies the provided mapping function on each value found in this [Column], returning a collection of the desired output values.
+         *
+         * @param action The mapping that should be applied to each [Column] entry.
+         * @param column The [ColumnSpec] that identifies the [Column] that should be mapped..
+         *
+         * @return A collection of Pairs mapping the tupleId to the generated value.
+         */
+        fun <R,T: Any> mapColumn(action: (T) -> R, column: ColumnDef): Collection<Pair<Long,R?>> = this@Entity.transactionLock.read {
+            checkOpenOrThrow()
+            checkColumnsExist(column)
+            return this.transactions[column]!!.map { action(it as T)}
+        }
+
+        /**
+         * Applies the provided function on each element found in this [Column].
+         *
+         * @param action The function to apply to each [Column] entry.
+         * @param column The [ColumnSpec] that identifies the [Column] that should be mapped..
+         */
+        fun <T: Any> forEachColumn(action: (Long,T) -> Unit, column: ColumnDef) = this@Entity.transactionLock.read {
+            checkOpenOrThrow()
+            checkColumnsExist(column)
+            this.transactions[column]!!.forEach { l: Long, any: Any -> action(l, any as T)}
+        }
+
+        /**
+         * Attempts to insert the provided [Tuple] into the [Entity]. Columns contained in the [Tuple] that are not part
+         * of the [Entity] will be ignored!
+         *
+         * If insert fails for some reason, the [Entity] will make sure, that the [Column]s involved are rolled back.
+         *
+         * @param t The [Tuple] that should be inserted.
+         * @return The ID of the record or null, if nothing was inserted.
+         * @throws DatabaseException If something goes wrong during insert.
+         */
+        fun insert(t: Tuple): Long? {
+            checkOpenOrThrow()
+            acquireWriteLock()
+            try {
+                var lastRecId: Long? = null
+                for ((column,tx) in this.transactions) {
+                    val recId = (tx as Column<Any>.Tx).insert(tx.type.cast(t[column]))
+                    if (lastRecId != recId && lastRecId != null) {
+                        throw DatabaseException.DataCorruptionException("Entity ${this@Entity.name} is corrupt. Insert did not yield same record ID for all columns involved!")
+                    }
+                    lastRecId = recId;
+                }
+
+                /* Update the header of this entity. */
+                if (lastRecId != null) {
+                    this@Entity.header.size += 1
+                    this@Entity.header.modified = System.currentTimeMillis()
+                    this@Entity.store.update(HEADER_RECORD_ID, this@Entity.header, EntityHeaderSerializer)
+                }
+
+                return lastRecId
+            } catch (e: DatabaseException) {
+                this@Entity.store.rollback()
+                throw e
+            }
+        }
+
+        /**
+         * Attempts to delete the provided [Tuple] from the [Entity].
+         *
+         * If delete fails for some reason, the [Entity] will make sure, that the [Column]s involved are rolled back.
+         *
+         * @param tupleId The ID of the  [Tuple] that should be deleted.
+         * @throws DatabaseException If something goes wrong during insert.
+         */
+        fun delete(tupleId: Long) {
+            checkOpenOrThrow()
+            acquireWriteLock()
+            try {
+                /* Perform delete on each column. */
+                this.transactions.values.forEach { it.delete(tupleId) }
+
+                /* Update header. */
+                this@Entity.header.size -= 1
+                this@Entity.header.modified = System.currentTimeMillis()
+                this@Entity.store.update(HEADER_RECORD_ID, this@Entity.header, EntityHeaderSerializer)
+
+            } catch (e: DatabaseException) {
+                this@Entity.store.rollback()
+                throw e
+            }
+        }
+
+        /**
+         * Check if all the provided column names exist on this [Entity] and that they have the type that was expected!
+         */
+        private fun checkColumnsExist(vararg columns: ColumnDef) = columns.forEach {
+            if (!transactions.contains(it)) {
+                throw DatabaseException.ColumnNotExistException(it.first, this@Entity.name)
+            }
+            if (transactions[it]!!.type != it.second) {
+                throw DatabaseException.ColumnTypeUnexpectedException(it.first, this@Entity.name, it.second, transactions[it]!!.type)
+            }
+        }
+
+        /**
+         * Checks if the provided tupleID is valid. Otherwise, an exception will be thrown.
+         */
+        private fun checkValidTupleId(tupleId: Long) {
+            if ((tupleId < 0L) or (tupleId == Entity.HEADER_RECORD_ID)) {
+                throw DatabaseException.InvalidTupleId(tupleId)
+            }
+        }
+
+        /**
+         * Checks if this [Column.Tx] is still open. Otherwise, an exception will be thrown.
+         */
+        @Synchronized
+        private fun checkOpenOrThrow() {
+            if (this.status == TransactionStatus.CLOSED) throw DatabaseException.TransactionClosedException(tid)
+        }
+
+        /**
+         * Tries to acquire a write-lock. If method fails, an exception will be thrown
+         */
+        @Synchronized
+        private fun acquireWriteLock() {
+            if (this.readonly) throw DatabaseException.TransactionReadOnlyException(tid)
+            if (this.status == TransactionStatus.CLOSED) throw DatabaseException.TransactionClosedException(tid)
+            if (this.status != TransactionStatus.DIRTY) {
+                if (this@Entity.transactionLock.writeLock().tryLock()) {
+                    this.status = TransactionStatus.DIRTY
+                } else {
+                    throw DatabaseException.TransactionLockException(this.tid)
+                }
+            }
+        }
+    }
+}
+
+/**
+ * The header section of the [Entity] data structure.
+ */
+class EntityHeader(var size: Long = 0, var created: Long = System.currentTimeMillis(), var modified: Long  = System.currentTimeMillis(), var columns: LongArray = LongArray(0), var indexes: LongArray = LongArray(0))
+
+/**
+ * The [Serializer] for the [EntityHeader].
+ */
+object EntityHeaderSerializer : Serializer<EntityHeader> {
+    override fun serialize(out: DataOutput2, value: EntityHeader) {
+        out.packLong(value.size)
+        out.writeLong(value.created)
+        out.writeLong(value.modified)
+        out.writeShort(value.columns.size)
+        value.columns.forEach { out.packLong(it) }
+        out.writeShort(value.indexes.size)
+        value.indexes.forEach { out.packLong(it) }
+    }
+
+    override fun deserialize(input: DataInput2, available: Int): EntityHeader {
+        val size = input.unpackLong()
+        val created = input.readLong()
+        val modified = input.readLong()
+        val columns = LongArray(input.readShort().toInt())
+        for (i in 0 until columns.size) {
+            columns[i] = input.unpackLong()
+        }
+        val indexes = LongArray(input.readShort().toInt())
+        for (i in 0 until indexes.size) {
+            indexes[i] = input.unpackLong()
+        }
+        return EntityHeader(size, created, modified, columns, indexes)
     }
 }
