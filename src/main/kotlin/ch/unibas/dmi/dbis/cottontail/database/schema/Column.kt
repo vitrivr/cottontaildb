@@ -209,7 +209,8 @@ class Column<T: Any>(val name: String, val path: Path): DBO {
         }
 
         /**
-         * Inserts a new record in this [Column].
+         * Inserts a new record in this [Column]. This action will set this [Column.Tx] to [TransactionStatus.DIRTY]
+         * and acquire a column-wide write lock until the [Column.Tx] either commit or rollback is issued.
          *
          * @param record The record that should be inserted. Can be null!
          * @return The tupleId of the inserted record OR the allocated space in case of a null value.
@@ -230,7 +231,8 @@ class Column<T: Any>(val name: String, val path: Path): DBO {
         }
 
         /**
-         * Inserts a list of new records in this [Column].
+         * Inserts a list of new records in this [Column]. This action will set this [Column.Tx] to [TransactionStatus.DIRTY]
+         * and acquire a column-wide write lock until the [Column.Tx] either commit or rollback is issued.
          *
          * @param records The records that should be inserted. Can contain null values!
          * @return The tupleId of the inserted record OR the allocated space in case of a null value.
@@ -252,10 +254,37 @@ class Column<T: Any>(val name: String, val path: Path): DBO {
         }
 
         /**
-         * Deletes a record from this [Column]. Action acquires a global write dataLock for the [Column].
+         * Updates the entry with the specified tuple ID and sets it to the new value. This action will set this [Column.Tx]
+         * to [TransactionStatus.DIRTY] and acquire a column-wide write lock until the [Column.Tx] either commit or rollback is issued.
+         *
+         * @param tupleId The ID of the record that should be updated
+         * @param value The new value.
+         */
+        fun update(tupleId: Long, value: T) {
+            acquireWriteLock()
+            checkValidTupleId(tupleId)
+            this@Column.store.update(tupleId, value, this@Column.type.serializer)
+        }
+
+        /**
+         * Updates the entry with the specified tuple ID and sets it to the new value. This action will set this [Column.Tx]
+         * to [TransactionStatus.DIRTY] and acquire a column-wide write lock until the [Column.Tx] either commit or rollback is issued.
+         *
+         * @param tupleId The ID of the record that should be updated
+         * @param value The new value.
+         * @param expected The value expected to be there.
+         */
+        fun compareAndUpdate(tupleId: Long, value: T, expected: T): Boolean {
+            acquireWriteLock()
+            checkValidTupleId(tupleId)
+            return this@Column.store.compareAndSwap(tupleId, expected, value, this@Column.type.serializer)
+        }
+
+        /**
+         * Deletes a record from this [Column]. This action will set this [Column.Tx] to [TransactionStatus.DIRTY]
+         * and acquire a column-wide write lock until the [Column.Tx] either commit or rollback is issued.
          *
          * @param tupleId The ID of the record that should be deleted
-         * @return The tupleId of the inserted record.
          */
         fun delete(tupleId: Long) {
             acquireWriteLock()
@@ -269,7 +298,10 @@ class Column<T: Any>(val name: String, val path: Path): DBO {
         }
 
         /**
+         * Deletes all the specified records from this [Column]. This action will set this [Column.Tx] to [TransactionStatus.DIRTY]
+         * and acquire a column-wide write lock until the [Column.Tx] either commit or rollback is issued.
          *
+         * @param tupleIds The IDs of the records that should be deleted.
          */
         fun deleteAll(tupleIds: Collection<Long>) {
             acquireWriteLock()
