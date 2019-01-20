@@ -3,8 +3,9 @@ package ch.unibas.dmi.dbis.cottontail.database.schema
 import ch.unibas.dmi.dbis.cottontail.database.general.DBO
 import ch.unibas.dmi.dbis.cottontail.database.general.Transaction
 import ch.unibas.dmi.dbis.cottontail.database.general.TransactionStatus
-import ch.unibas.dmi.dbis.cottontail.database.schema.Schema.SchemaHeader
-import ch.unibas.dmi.dbis.cottontail.model.DatabaseException
+
+import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
+import ch.unibas.dmi.dbis.cottontail.model.exceptions.TransactionException
 
 import org.mapdb.*
 import org.mapdb.volume.MappedFileVol
@@ -42,7 +43,8 @@ class Entity(val name: String, val path: Path): DBO {
     }
 
     /** The header of this [Entity]. */
-    private val header: EntityHeader = this.store.get(HEADER_RECORD_ID, EntityHeaderSerializer) ?: throw DatabaseException.DataCorruptionException("Failed to open entity '$name' ($path): Could not read header!'")
+    private val header: EntityHeader
+        get() = this.store.get(HEADER_RECORD_ID, EntityHeaderSerializer) ?: throw DatabaseException.DataCorruptionException("Failed to open header of entity '$name'!'")
 
     /** A internal lock that is used to synchronize [Entity.Tx] affecting this [Entity]. */
     private val txLock = ReentrantReadWriteLock()
@@ -123,13 +125,13 @@ class Entity(val name: String, val path: Path): DBO {
     }
 
     /**
-     * A [Transaction] that affects this [Entity].
+     * A [Tx] that affects this [Entity].
      *
-     * Opening such a [Transaction] will spawn a associated [Column.Tx] for every [Column] associated with this [Entity].
+     * Opening such a [Tx] will spawn a associated [Column.Tx] for every [Column] associated with this [Entity].
      */
-    inner class Tx(val readonly: Boolean, val tid: UUID = UUID.randomUUID()) : Transaction {
+    inner class Tx(override val readonly: Boolean, override val tid: UUID = UUID.randomUUID()) : Transaction {
         /** List of [Column.Tx] associated with this [Entity.Tx]. */
-        private val transactions: Map<ColumnDef,Column<*>.Tx> = mapOf(* this@Entity.columns.map { Pair(Pair(it.name, it.type), it.Tx(readonly, tid)) }.toTypedArray())
+        private val transactions: Map<ColumnDef, Column<*>.Tx> = mapOf(* this@Entity.columns.map { Pair(Pair(it.name, it.type), it.Tx(readonly, tid)) }.toTypedArray())
 
         /** Flag indicating whether or not this [Entity.Tx] was closed */
         @Volatile
@@ -140,7 +142,7 @@ class Entity(val name: String, val path: Path): DBO {
         init {
             this@Entity.globalLock.read {
                 if (this@Entity.closed) {
-                    throw DatabaseException.TransactionDBOClosedException(tid)
+                    throw TransactionException.TransactionDBOClosedException(tid)
                 }
                 this@Entity.globalLock.readLock().tryLock()
             }
@@ -178,7 +180,8 @@ class Entity(val name: String, val path: Path): DBO {
         @Synchronized
         override fun close() {
             if (this.status == TransactionStatus.DIRTY) {
-                this.rollback()
+                this@Entity.store.rollback()
+                this@Entity.txLock.writeLock().unlock()
             }
             this.status = TransactionStatus.CLOSED
             this@Entity.globalLock.readLock().unlock()
@@ -194,7 +197,7 @@ class Entity(val name: String, val path: Path): DBO {
          * @throws DatabaseException If tuple with the desired ID doesn't exist OR is invalid.
          */
         fun read(tupleId: Long, vararg columns: ColumnDef): Tuple = this@Entity.txLock.read {
-            checkOpenOrThrow()
+            checkValidOrThrow()
             checkValidTupleId(tupleId)
             checkColumnsExist(*columns)
 
@@ -208,15 +211,20 @@ class Entity(val name: String, val path: Path): DBO {
          * @return The number of entries in this [Entity].
          */
         fun count(): Long = this@Entity.txLock.read {
-            checkOpenOrThrow()
+            checkValidOrThrow()
             return this@Entity.header.size
         }
 
         /**
+         * Applies the provided mapping function on each [Tuple] found in this [Entity], returning a collection of the desired output values.
          *
+         * @param action The mapping that should be applied to each [Tuple].
+         * @param columns The list of [ColumnSpec]s that identify the [Column]s that should be included in the [Tuple].
+         *
+         * @return A collection of Pairs mapping the tupleId to the generated value.
          */
         fun <R> map(action: (Tuple) -> R, vararg columns: ColumnDef) = this@Entity.txLock.read {
-            checkOpenOrThrow()
+            checkValidOrThrow()
             checkColumnsExist(*columns)
         }
 
@@ -229,7 +237,7 @@ class Entity(val name: String, val path: Path): DBO {
          * @return A collection of Pairs mapping the tupleId to the generated value.
          */
         fun <R,T: Any> mapColumn(action: (T) -> R, column: ColumnDef): Collection<Pair<Long,R?>> = this@Entity.txLock.read {
-            checkOpenOrThrow()
+            checkValidOrThrow()
             checkColumnsExist(column)
             return this.transactions[column]!!.map { action(it as T)}
         }
@@ -241,83 +249,156 @@ class Entity(val name: String, val path: Path): DBO {
          * @param column The [ColumnSpec] that identifies the [Column] that should be mapped..
          */
         fun <T: Any> forEachColumn(action: (Long,T) -> Unit, column: ColumnDef) = this@Entity.txLock.read {
-            checkOpenOrThrow()
+            checkValidOrThrow()
             checkColumnsExist(column)
-            this.transactions[column]!!.forEach { l: Long, any: Any -> action(l, any as T)}
-        }
-
-        /**
-         * Attempts to insert the provided [Tuple] into the [Entity]. Columns contained in the [Tuple] that are not part
-         * of the [Entity] will be ignored!
-         *
-         * If insert fails for some reason, the [Entity] will make sure, that the [Column]s involved are rolled back.
-         *
-         * @param t The [Tuple] that should be inserted.
-         * @return The ID of the record or null, if nothing was inserted.
-         * @throws DatabaseException If something goes wrong during insert.
-         */
-        fun insert(t: Tuple): Long? {
-            checkOpenOrThrow()
-            acquireWriteLock()
             try {
-                var lastRecId: Long? = null
-                for ((column,tx) in this.transactions) {
-                    val recId = (tx as Column<Any>.Tx).insert(tx.type.cast(t[column]))
-                    if (lastRecId != recId && lastRecId != null) {
-                        throw DatabaseException.DataCorruptionException("Entity ${this@Entity.name} is corrupt. Insert did not yield same record ID for all columns involved!")
-                    }
-                    lastRecId = recId;
-                }
-
-                /* Update the header of this entity. */
-                if (lastRecId != null) {
-                    this@Entity.header.size += 1
-                    this@Entity.header.modified = System.currentTimeMillis()
-                    this@Entity.store.update(HEADER_RECORD_ID, this@Entity.header, EntityHeaderSerializer)
-                }
-
-                return lastRecId
-            } catch (e: DatabaseException) {
-                this@Entity.store.rollback()
+                this.transactions[column]!!.forEach { l: Long, any: Any -> action(l, any as T)}
+            } catch (e: TransactionException) {
+                this.status = TransactionStatus.ERROR
                 throw e
             }
         }
 
         /**
-         * Attempts to delete the provided [Tuple] from the [Entity].
+         * Attempts to insert the provided [Tuple] into the [Entity]. Columns specified in the [Tuple] that are not part
+         * of the [Entity] will cause an error!
          *
-         * If delete fails for some reason, the [Entity] will make sure, that the [Column]s involved are rolled back.
+         * @param tuple The [Tuple] that should be inserted.
+         * @return The ID of the record or null, if nothing was inserted.
+         * @throws TransactionException If some of the sub-transactions on [Column] level caused an error.
+         * @throws DatabaseException If a general database error occurs during the insert.
+         */
+        fun insert(tuple: Tuple): Long? {
+            checkColumnsExist(*tuple.keys.toTypedArray()) /* Perform sanity check on columns before locking. */
+            acquireWriteLock()
+            try {
+                var lastRecId: Long? = null
+                for ((column,tx) in this.transactions) {
+                    val recId = (tx as Column<Any>.Tx).insert(tx.type.cast(tuple[column]))
+                    if (lastRecId != recId && lastRecId != null) {
+                        throw DatabaseException.DataCorruptionException("Entity ${this@Entity.name} is corrupt. Insert did not yield same record ID for all columns involved!")
+                    }
+                    lastRecId = recId
+                }
+
+                /* Update the header of this entity. */
+                if (lastRecId != null) {
+                    val header = this@Entity.header
+                    header.size += 1
+                    header.modified = System.currentTimeMillis()
+                    this@Entity.store.update(HEADER_RECORD_ID, header, EntityHeaderSerializer)
+                }
+
+                return lastRecId
+            } catch (e: DatabaseException) {
+                this.status = TransactionStatus.ERROR
+                throw e
+            }
+        }
+
+        /**
+         * Attempts to insert the provided [Tuple]s into the [Entity]. Columns specified in the [Tuple] that are not part
+         * of the [Entity] will cause an error!
          *
-         * @param tupleId The ID of the  [Tuple] that should be deleted.
-         * @throws DatabaseException If something goes wrong during insert.
+         * @param tuples The [Tuple] that should be inserted.
+         * @return The ID of the record or null, if nothing was inserted.
+         * @throws TransactionException If some of the sub-transactions on [Column] level caused an error.
+         * @throws DatabaseException If a general database error occurs during the insert.
+         */
+        fun insertAll(tuples: Collection<Tuple>): Collection<Long?> {
+            tuples.forEach { checkColumnsExist(*it.keys.toTypedArray()) }  /* Perform sanity check on columns before locking.. */
+            acquireWriteLock()
+            try {
+                /* Perform delete on each column. */
+                val tuplesIds = tuples.map {
+                    var lastRecId: Long? = null
+                    for ((column,tx) in this.transactions) {
+                        val recId = (tx as Column<Any>.Tx).insert(tx.type.cast(it[column]))
+                        if (lastRecId != recId && lastRecId != null) {
+                            throw DatabaseException.DataCorruptionException("Entity ${this@Entity.name} is corrupt. Insert did not yield same record ID for all columns involved!")
+                        }
+                        lastRecId = recId
+                    }
+                    lastRecId
+                }
+
+                /* Update header. */
+                val header = this@Entity.header
+                header.size += tuples.size
+                header.modified = System.currentTimeMillis()
+                store.update(HEADER_RECORD_ID, header, EntityHeaderSerializer)
+
+                return tuplesIds
+            } catch (e: DatabaseException) {
+                this.status = TransactionStatus.ERROR
+                throw e
+            }
+        }
+
+        /**
+         * Attempts to delete the provided [Tuple] from the [Entity]. This action will set this [Entity.Tx] to
+         * [TransactionStatus.DIRTY] and acquire a [Entity]-wide write lock until the [Entity.Tx] either commit
+         * or rollback is issued.
+         *
+         * @param tupleId The ID of the [Tuple] that should be deleted.
+         *
+         * @throws TransactionException If some of the sub-transactions on [Column] level caused an error.
+         * @throws DatabaseException If a general database error occurs during the insert.
          */
         fun delete(tupleId: Long) {
-            checkOpenOrThrow()
             acquireWriteLock()
             try {
                 /* Perform delete on each column. */
                 this.transactions.values.forEach { it.delete(tupleId) }
 
                 /* Update header. */
-                this@Entity.header.size -= 1
-                this@Entity.header.modified = System.currentTimeMillis()
-                this@Entity.store.update(HEADER_RECORD_ID, this@Entity.header, EntityHeaderSerializer)
-
+                val header = this@Entity.header
+                header.size -= 1
+                header.modified = System.currentTimeMillis()
+                store.update(HEADER_RECORD_ID, header, EntityHeaderSerializer)
             } catch (e: DatabaseException) {
-                this@Entity.store.rollback()
+                this.status = TransactionStatus.ERROR
                 throw e
             }
         }
 
         /**
-         * Check if all the provided column names exist on this [Entity] and that they have the type that was expected!
+         * Attempts to delete all the provided [Tuple] from the [Entity]. This action will set this [Entity.Tx] to
+         * [TransactionStatus.DIRTY] and acquire a [Entity]-wide write lock until the [Entity.Tx] either commit
+         * or rollback is issued.
+         *
+         * @param tupleIds The IDs of the [Tuple]s that should be deleted.
+         *
+         * @throws TransactionException If some of the sub-transactions on [Column] level caused an error.
+         * @throws DatabaseException If a general database error occurs during the insert.
+         */
+        fun deleteAll(tupleIds: Collection<Long>) {
+            acquireWriteLock()
+            try {
+                /* Perform delete on each column. */
+                tupleIds.forEach {tupleId ->
+                    this.transactions.values.forEach { it.delete(tupleId) }
+                }
+
+                /* Update header. */
+                val header = this@Entity.header
+                header.size -= tupleIds.size
+                header.modified = System.currentTimeMillis()
+                store.update(HEADER_RECORD_ID, header, EntityHeaderSerializer)
+            } catch (e: DatabaseException) {
+                this.status = TransactionStatus.ERROR
+                throw e
+            }
+        }
+
+        /**
+         * Check if all the provided [Column]s exist on this [Entity] and that they have the type that was expected!
+         *
+         * @params The list of [Column]s that should be checked.
          */
         private fun checkColumnsExist(vararg columns: ColumnDef) = columns.forEach {
-            if (!transactions.contains(it)) {
-                throw DatabaseException.ColumnNotExistException(it.first, this@Entity.name)
-            }
-            if (transactions[it]!!.type != it.second) {
-                throw DatabaseException.ColumnTypeUnexpectedException(it.first, this@Entity.name, it.second, transactions[it]!!.type)
+            if (!transactions.contains(it) || transactions[it]!!.type != it.second) {
+                throw TransactionException.ColumnUnknownException(tid, it, this@Entity.name)
             }
         }
 
@@ -326,7 +407,7 @@ class Entity(val name: String, val path: Path): DBO {
          */
         private fun checkValidTupleId(tupleId: Long) {
             if ((tupleId < 0L) or (tupleId == Entity.HEADER_RECORD_ID)) {
-                throw DatabaseException.InvalidTupleId(tupleId)
+                throw TransactionException.InvalidTupleId(tid, tupleId)
             }
         }
 
@@ -334,8 +415,9 @@ class Entity(val name: String, val path: Path): DBO {
          * Checks if this [Column.Tx] is still open. Otherwise, an exception will be thrown.
          */
         @Synchronized
-        private fun checkOpenOrThrow() {
-            if (this.status == TransactionStatus.CLOSED) throw DatabaseException.TransactionClosedException(tid)
+        private fun checkValidOrThrow() {
+            if (this.status == TransactionStatus.CLOSED) throw TransactionException.TransactionClosedException(tid)
+            if (this.status == TransactionStatus.ERROR) throw TransactionException.TransactionInErrorException(tid)
         }
 
         /**
@@ -343,13 +425,14 @@ class Entity(val name: String, val path: Path): DBO {
          */
         @Synchronized
         private fun acquireWriteLock() {
-            if (this.readonly) throw DatabaseException.TransactionReadOnlyException(tid)
-            if (this.status == TransactionStatus.CLOSED) throw DatabaseException.TransactionClosedException(tid)
+            if (this.readonly) throw TransactionException.TransactionReadOnlyException(tid)
+            if (this.status == TransactionStatus.CLOSED) throw TransactionException.TransactionClosedException(tid)
+            if (this.status == TransactionStatus.ERROR) throw TransactionException.TransactionInErrorException(tid)
             if (this.status != TransactionStatus.DIRTY) {
                 if (this@Entity.txLock.writeLock().tryLock()) {
                     this.status = TransactionStatus.DIRTY
                 } else {
-                    throw DatabaseException.TransactionLockException(this.tid)
+                    throw TransactionException.TransactionWriteLockException(this.tid)
                 }
             }
         }

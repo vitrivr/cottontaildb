@@ -1,6 +1,6 @@
 package ch.unibas.dmi.dbis.cottontail.database.schema
 
-import ch.unibas.dmi.dbis.cottontail.model.DatabaseException
+import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
 
 import org.mapdb.Serializer
 import org.mapdb.serializer.GroupSerializer

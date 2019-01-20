@@ -3,7 +3,8 @@ package ch.unibas.dmi.dbis.cottontail.database.schema
 import ch.unibas.dmi.dbis.cottontail.database.general.DBO
 import ch.unibas.dmi.dbis.cottontail.database.general.Transaction
 import ch.unibas.dmi.dbis.cottontail.database.general.TransactionStatus
-import ch.unibas.dmi.dbis.cottontail.model.DatabaseException
+import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
+import ch.unibas.dmi.dbis.cottontail.model.exceptions.TransactionException
 
 import org.mapdb.*
 import org.mapdb.volume.MappedFileVol
@@ -37,11 +38,8 @@ class Column<T: Any>(val name: String, val path: Path): DBO {
     }
 
     /** Internal reference to the [Header] of this [Column]. */
-    private val header = try {
-        store.get(HEADER_RECORD_ID, ColumnHeaderSerializer) ?: throw DatabaseException("Failed to open column $path: Could not read column header!'")
-    } catch (e: DatabaseException) {
-        throw DatabaseException("Failed to open column at $path: ${e.message}'")
-    }
+    private val header
+        get() = store.get(HEADER_RECORD_ID, ColumnHeaderSerializer) ?: throw DatabaseException.DataCorruptionException("Failed to open header of column '$name'!'")
 
     /**
      * Getter for [Column.definition].
@@ -106,7 +104,7 @@ class Column<T: Any>(val name: String, val path: Path): DBO {
     /**
      * A [Transaction] that affects this [Column].
      */
-    inner class Tx(val readonly: Boolean, val tid: UUID = UUID.randomUUID()): Transaction {
+    inner class Tx(override val readonly: Boolean, override val tid: UUID = UUID.randomUUID()): Transaction {
         /** Flag indicating whether or not this [Entity.Tx] was closed */
         @Volatile override var status: TransactionStatus = TransactionStatus.CLEAN
             private set
@@ -115,14 +113,14 @@ class Column<T: Any>(val name: String, val path: Path): DBO {
         init {
             this@Column.globalLock.read {
                 if (this@Column.closed) {
-                    throw DatabaseException.TransactionDBOClosedException(tid)
+                    throw TransactionException.TransactionDBOClosedException(tid)
                 }
                 this@Column.globalLock.readLock().tryLock()
             }
         }
 
         /**
-         * Commits all changes made through this [Transaction] since the last commit or rollback.
+         * Commits all changes made through this [Tx] since the last commit or rollback.
          */
         @Synchronized
         override fun commit() {
@@ -134,11 +132,12 @@ class Column<T: Any>(val name: String, val path: Path): DBO {
         }
 
         /**
-         * Rolls all changes made through this [Transaction] back to the last commit.
+         * Rolls all changes made through this [Tx] back to the last commit. Can only be executed, if [Tx] is
+         * in status [TransactionStatus.DIRTY] or [TransactionStatus.ERROR].
          */
         @Synchronized
         override fun rollback() {
-            if (this.status == TransactionStatus.DIRTY) {
+            if (this.status == TransactionStatus.DIRTY || this.status == TransactionStatus.ERROR) {
                 this@Column.store.rollback()
                 this.status = TransactionStatus.CLEAN
                 this@Column.txLock.writeLock().unlock()
@@ -146,12 +145,13 @@ class Column<T: Any>(val name: String, val path: Path): DBO {
         }
 
         /**
-         * Closes this [Transaction] and relinquishes the associated [ReentrantReadWriteLock].
+         * Closes this [Tx] and relinquishes the associated [ReentrantReadWriteLock].
          */
         @Synchronized
         override fun close() {
-            if (this.status == TransactionStatus.DIRTY) {
-                this.rollback()
+            if (this.status == TransactionStatus.DIRTY || this.status == TransactionStatus.ERROR) {
+                this@Column.store.rollback()
+                this@Column.txLock.writeLock().unlock()
             }
             this.status = TransactionStatus.CLOSED
             this@Column.globalLock.readLock().unlock()
@@ -166,7 +166,7 @@ class Column<T: Any>(val name: String, val path: Path): DBO {
          * @throws DatabaseException If the tuple with the desired ID doesn't exist OR is invalid.
          */
         fun read(tupleId: Long) : T? = this@Column.txLock.read {
-            checkOpenOrThrow()
+            checkValidOrThrow()
             checkValidTupleId(tupleId)
             return this@Column.store.get(tupleId, this@Column.type.serializer)
         }
@@ -177,6 +177,7 @@ class Column<T: Any>(val name: String, val path: Path): DBO {
          * @return The number of entries in this [Column].
          */
         fun count(): Long = this@Column.txLock.read {
+            checkValidOrThrow()
             return this@Column.header.size
         }
 
@@ -188,7 +189,7 @@ class Column<T: Any>(val name: String, val path: Path): DBO {
          * @return A collection of Pairs mapping the tupleId to the generated value.
          */
         fun <R> map(action: (T?) -> R?): Collection<Pair<Long,R?>> = this@Column.txLock.read {
-            checkOpenOrThrow()
+            checkValidOrThrow()
             val list = mutableListOf<Pair<Long,R?>>()
             this@Column.store.getAllRecids().forEach {
                 list.add(Pair(it,action(this.read(it))))
@@ -200,7 +201,7 @@ class Column<T: Any>(val name: String, val path: Path): DBO {
          * Applies the provided function on each element found in this [Column].
          */
         fun forEach(action: (Long,T) -> Unit) = this@Column.txLock.read {
-            checkOpenOrThrow()
+            checkValidOrThrow()
             this@Column.store.getAllRecids().forEach {
                 if (it != HEADER_RECORD_ID) {
                     action(it,this.read(it)!!)
@@ -215,7 +216,7 @@ class Column<T: Any>(val name: String, val path: Path): DBO {
          * @param record The record that should be inserted. Can be null!
          * @return The tupleId of the inserted record OR the allocated space in case of a null value.
          */
-        fun insert(record: T?): Long {
+        fun insert(record: T?): Long = try {
             acquireWriteLock()
             val tupleId = if (record == null) {
                 this@Column.store.preallocate()
@@ -224,10 +225,14 @@ class Column<T: Any>(val name: String, val path: Path): DBO {
             }
 
             /* Update header. */
-            this@Column.header.size += 1
-            this@Column.header.modified = System.currentTimeMillis()
-            this@Column.store.update(HEADER_RECORD_ID, this@Column.header, ColumnHeaderSerializer)
-            return tupleId
+            val header = this@Column.header
+            header.size += 1
+            header.modified = System.currentTimeMillis()
+            store.update(HEADER_RECORD_ID, header, ColumnHeaderSerializer)
+            tupleId
+        } catch (e: DBException) {
+            this.status = TransactionStatus.ERROR
+            throw TransactionException.TransactionStorageException(this.tid, e.message ?: "Unknown")
         }
 
         /**
@@ -237,7 +242,7 @@ class Column<T: Any>(val name: String, val path: Path): DBO {
          * @param records The records that should be inserted. Can contain null values!
          * @return The tupleId of the inserted record OR the allocated space in case of a null value.
          */
-        fun insertAll(records: Collection<T?>): Collection<Long> {
+        fun insertAll(records: Collection<T?>): Collection<Long> = try {
             acquireWriteLock()
             val tupleIds = records.map {
                 if (it == null) {
@@ -247,10 +252,14 @@ class Column<T: Any>(val name: String, val path: Path): DBO {
             } }
 
             /* Update header. */
-            this@Column.header.size += records.size
-            this@Column.header.modified = System.currentTimeMillis()
-            this@Column.store.update(HEADER_RECORD_ID, this@Column.header, ColumnHeaderSerializer)
-            return tupleIds
+            val header = this@Column.header
+            header.size += records.size
+            header.modified = System.currentTimeMillis()
+            store.update(HEADER_RECORD_ID, header, ColumnHeaderSerializer)
+            tupleIds
+        } catch (e: DBException) {
+            this.status = TransactionStatus.ERROR
+            throw TransactionException.TransactionStorageException(this.tid, e.message ?: "Unknown")
         }
 
         /**
@@ -260,10 +269,13 @@ class Column<T: Any>(val name: String, val path: Path): DBO {
          * @param tupleId The ID of the record that should be updated
          * @param value The new value.
          */
-        fun update(tupleId: Long, value: T) {
+        fun update(tupleId: Long, value: T) = try {
             acquireWriteLock()
             checkValidTupleId(tupleId)
             this@Column.store.update(tupleId, value, this@Column.type.serializer)
+        } catch (e: DBException) {
+            this.status = TransactionStatus.ERROR
+            throw TransactionException.TransactionStorageException(this.tid, e.message ?: "Unknown")
         }
 
         /**
@@ -274,10 +286,13 @@ class Column<T: Any>(val name: String, val path: Path): DBO {
          * @param value The new value.
          * @param expected The value expected to be there.
          */
-        fun compareAndUpdate(tupleId: Long, value: T, expected: T): Boolean {
+        fun compareAndUpdate(tupleId: Long, value: T, expected: T): Boolean = try {
             acquireWriteLock()
             checkValidTupleId(tupleId)
-            return this@Column.store.compareAndSwap(tupleId, expected, value, this@Column.type.serializer)
+            this@Column.store.compareAndSwap(tupleId, expected, value, this@Column.type.serializer)
+        } catch (e: DBException) {
+            this.status = TransactionStatus.ERROR
+            throw TransactionException.TransactionStorageException(this.tid, e.message ?: "Unknown")
         }
 
         /**
@@ -286,15 +301,19 @@ class Column<T: Any>(val name: String, val path: Path): DBO {
          *
          * @param tupleId The ID of the record that should be deleted
          */
-        fun delete(tupleId: Long) {
+        fun delete(tupleId: Long) = try {
             acquireWriteLock()
             checkValidTupleId(tupleId)
             this@Column.store.delete(tupleId, this@Column.type.serializer)
 
             /* Update header. */
-            this@Column.header.size -= 1
-            this@Column.header.modified = System.currentTimeMillis()
-            this@Column.store.update(HEADER_RECORD_ID, this@Column.header, ColumnHeaderSerializer)
+            val header = this@Column.header
+            header.size -= 1
+            header.modified = System.currentTimeMillis()
+            this@Column.store.update(HEADER_RECORD_ID, header, ColumnHeaderSerializer)
+        } catch (e: DBException) {
+            this.status = TransactionStatus.ERROR
+            throw TransactionException.TransactionStorageException(this.tid, e.message ?: "Unknown")
         }
 
         /**
@@ -303,7 +322,7 @@ class Column<T: Any>(val name: String, val path: Path): DBO {
          *
          * @param tupleIds The IDs of the records that should be deleted.
          */
-        fun deleteAll(tupleIds: Collection<Long>) {
+        fun deleteAll(tupleIds: Collection<Long>) = try {
             acquireWriteLock()
             tupleIds.forEach{
                 checkValidTupleId(it)
@@ -311,9 +330,13 @@ class Column<T: Any>(val name: String, val path: Path): DBO {
             }
 
             /* Update header. */
-            this@Column.header.size -= tupleIds.size
-            this@Column.header.modified = System.currentTimeMillis()
-            this@Column.store.update(HEADER_RECORD_ID, this@Column.header, ColumnHeaderSerializer)
+            val header = this@Column.header
+            header.size -= tupleIds.size
+            header.modified = System.currentTimeMillis()
+            store.update(HEADER_RECORD_ID, header, ColumnHeaderSerializer)
+        } catch (e: DBException) {
+            this.status = TransactionStatus.ERROR
+            throw TransactionException.TransactionStorageException(this.tid, e.message ?: "Unknown")
         }
 
         /**
@@ -329,7 +352,7 @@ class Column<T: Any>(val name: String, val path: Path): DBO {
          */
         private fun checkValidTupleId(tupleId: Long) {
             if ((tupleId < 0L) or (tupleId == HEADER_RECORD_ID)) {
-                throw DatabaseException.InvalidTupleId(tupleId)
+                throw TransactionException.InvalidTupleId(tid, tupleId)
             }
         }
 
@@ -337,8 +360,9 @@ class Column<T: Any>(val name: String, val path: Path): DBO {
          * Checks if this [Column.Tx] is still open. Otherwise, an exception will be thrown.
          */
         @Synchronized
-        private fun checkOpenOrThrow() {
-            if (this.status == TransactionStatus.CLOSED) throw DatabaseException.TransactionClosedException(tid)
+        private fun checkValidOrThrow() {
+            if (this.status == TransactionStatus.CLOSED) throw TransactionException.TransactionClosedException(tid)
+            if (this.status == TransactionStatus.ERROR) throw TransactionException.TransactionInErrorException(tid)
         }
 
         /**
@@ -346,13 +370,14 @@ class Column<T: Any>(val name: String, val path: Path): DBO {
          */
         @Synchronized
         private fun acquireWriteLock() {
-            if (this.readonly) throw DatabaseException.TransactionReadOnlyException(tid)
-            if (this.status == TransactionStatus.CLOSED) throw DatabaseException.TransactionClosedException(tid)
+            if (this.readonly) throw TransactionException.TransactionReadOnlyException(tid)
+            if (this.status == TransactionStatus.CLOSED) throw TransactionException.TransactionClosedException(tid)
+            if (this.status == TransactionStatus.ERROR) throw TransactionException.TransactionInErrorException(tid)
             if (this.status != TransactionStatus.DIRTY) {
                 if (this@Column.txLock.writeLock().tryLock()) {
                     this.status = TransactionStatus.DIRTY
                 } else {
-                    throw DatabaseException.TransactionLockException(this.tid)
+                    throw TransactionException.TransactionWriteLockException(this.tid)
                 }
             }
         }
