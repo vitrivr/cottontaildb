@@ -4,7 +4,7 @@ interface DistanceFunction {
     /**
      *
      */
-    operator fun invoke(a: FloatArray, b: FloatArray): Float
+    operator fun invoke(a: FloatArray, b: FloatArray): Double
 
     /**
      *
