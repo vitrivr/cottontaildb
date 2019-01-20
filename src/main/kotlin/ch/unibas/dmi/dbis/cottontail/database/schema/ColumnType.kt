@@ -10,7 +10,10 @@ import kotlin.reflect.KClass
 import kotlin.reflect.full.safeCast
 
 /**
+ * Specifies the type of a Cottontail DB [Column]. This construct allows for some degree of type safety in the eye
+ * de-/serialization. The column types are stored as strings and mapped to the respective class using [ColumnType.typeForName].
  *
+ * @see Column
  */
 sealed class ColumnType<T : Any> {
     abstract val name : String
