@@ -7,6 +7,9 @@ import java.util.*
 open class DatabaseException(message: String) : Throwable(message) {
 
     /** */
+    class TransactionDBOClosedException(tid: UUID): DBException("DBO has been closed. Transaction $tid could not be created!")
+
+    /** */
     class TransactionClosedException(tid: UUID): DBException("Transaction $tid has been closed and cannot be used anymore.")
 
     /** */
@@ -21,9 +24,10 @@ open class DatabaseException(message: String) : Throwable(message) {
     /** */
     class ColumnTypeUnexpectedException(column: String, entity: String, expected: ColumnType<*>, actual: ColumnType<*>): DBException("Column '$column' on entity '$entity' has wrong type (expected: ${expected.name}, actual: ${actual.name}).")
 
-    /**
-     *
-     */
+    /** */
+    class InvalidFileException(type: String): DBException("The provided file is not a valid $type file!")
+
+    /** */
     class DataCorruptionException(message: String): DBException(message)
 
     /**

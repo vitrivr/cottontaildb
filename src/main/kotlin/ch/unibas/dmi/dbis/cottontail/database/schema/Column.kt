@@ -1,5 +1,6 @@
 package ch.unibas.dmi.dbis.cottontail.database.schema
 
+import ch.unibas.dmi.dbis.cottontail.database.general.DBO
 import ch.unibas.dmi.dbis.cottontail.database.general.Transaction
 import ch.unibas.dmi.dbis.cottontail.database.general.TransactionStatus
 import ch.unibas.dmi.dbis.cottontail.model.DatabaseException
@@ -12,6 +13,7 @@ import java.nio.file.Path
 import java.util.*
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.concurrent.read
+import kotlin.concurrent.write
 
 
 /** Typealias for a definition of a column. */
@@ -26,7 +28,7 @@ typealias ColumnDef = Pair<String,ColumnType<*>>
  * @author Ralph Gasser
  * @version 1.0
  */
-class Column<T: Any>(val name: String, val path: Path) {
+class Column<T: Any>(val name: String, val path: Path): DBO {
     /** Internal reference to the [Store] underpinning this [Column]. */
     private var store: StoreWAL = try {
         StoreWAL.make(file = this.path.resolve("col_$name.db").toString(), volumeFactory = MappedFileVol.FACTORY)
@@ -49,15 +51,40 @@ class Column<T: Any>(val name: String, val path: Path) {
     val type: ColumnType<T>
         get() = this.header.type as ColumnType<T>
 
+    /**
+     * Status indicating whether this [Column] is open or closed.
+     */
+    @Volatile
+    override var closed: Boolean = false
+        private set
 
-    /** A internal lock that is used to synchronize [Transaction]s affecting this [Column]. */
-    private val columnLock = ReentrantReadWriteLock()
+    /** A internal lock that is used to synchronize [Column.Tx]s affecting this [Column]. */
+    private val txLock = ReentrantReadWriteLock()
+
+    /** A internal lock that is used to synchronize closing of an [Column] with running [Column.Tx]. */
+    private val globalLock = ReentrantReadWriteLock()
 
     /**
-     * Companion object with some constants.
+     * Closes the [Column]. Closing an [Column] is a delicate matter since ongoing [Column.Tx]  are involved.
+     * Therefore, access to the method is mediated by an global [Column] wide lock.
+     */
+    override fun close() = this.globalLock.write {
+        this.closed = true
+        this.store.close()
+    }
+
+    /**
+     * Companion object with some important constants.
      */
     companion object {
+        /** Record ID of the [ColumnHeader]. */
         private const val HEADER_RECORD_ID: Long = 1L
+
+        /** The identifier that is used to identify a Cottontail DB [Column] file. */
+        private const val HEADER_IDENTIFIER: String = "COTTONC"
+
+        /** The version of the Cottontail DB [Column]  file. */
+        private const val HEADER_VERSION: Short = 1
 
         /**
          * Initializes a new, empty [Column]
@@ -77,13 +104,23 @@ class Column<T: Any>(val name: String, val path: Path) {
     }
 
     /**
-     *
+     * A [Transaction] that affects this [Column].
      */
     inner class Tx(val readonly: Boolean, val tid: UUID = UUID.randomUUID()): Transaction {
         /** Flag indicating whether or not this [Entity.Tx] was closed */
         @Volatile override var status: TransactionStatus = TransactionStatus.CLEAN
             private set
-        
+
+        /** Tries to acquire a global read-lock on the [Column]. */
+        init {
+            this@Column.globalLock.read {
+                if (this@Column.closed) {
+                    throw DatabaseException.TransactionDBOClosedException(tid)
+                }
+                this@Column.globalLock.readLock().tryLock()
+            }
+        }
+
         /**
          * Commits all changes made through this [Transaction] since the last commit or rollback.
          */
@@ -92,7 +129,7 @@ class Column<T: Any>(val name: String, val path: Path) {
             if (this.status == TransactionStatus.DIRTY) {
                 this@Column.store.commit()
                 this.status = TransactionStatus.CLEAN
-                this@Column.columnLock.writeLock().unlock()
+                this@Column.txLock.writeLock().unlock()
             }
         }
 
@@ -104,7 +141,7 @@ class Column<T: Any>(val name: String, val path: Path) {
             if (this.status == TransactionStatus.DIRTY) {
                 this@Column.store.rollback()
                 this.status = TransactionStatus.CLEAN
-                this@Column.columnLock.writeLock().unlock()
+                this@Column.txLock.writeLock().unlock()
             }
         }
 
@@ -117,6 +154,7 @@ class Column<T: Any>(val name: String, val path: Path) {
                 this.rollback()
             }
             this.status = TransactionStatus.CLOSED
+            this@Column.globalLock.readLock().unlock()
         }
 
         /**
@@ -127,7 +165,7 @@ class Column<T: Any>(val name: String, val path: Path) {
          *
          * @throws DatabaseException If the tuple with the desired ID doesn't exist OR is invalid.
          */
-        fun read(tupleId: Long) : T? = this@Column.columnLock.read {
+        fun read(tupleId: Long) : T? = this@Column.txLock.read {
             checkOpenOrThrow()
             checkValidTupleId(tupleId)
             return this@Column.store.get(tupleId, this@Column.type.serializer)
@@ -138,7 +176,7 @@ class Column<T: Any>(val name: String, val path: Path) {
          *
          * @return The number of entries in this [Column].
          */
-        fun count(): Long = this@Column.columnLock.read {
+        fun count(): Long = this@Column.txLock.read {
             return this@Column.header.size
         }
 
@@ -149,7 +187,7 @@ class Column<T: Any>(val name: String, val path: Path) {
          * @param action The action that should be applied.
          * @return A collection of Pairs mapping the tupleId to the generated value.
          */
-        fun <R> map(action: (T?) -> R?): Collection<Pair<Long,R?>> = this@Column.columnLock.read {
+        fun <R> map(action: (T?) -> R?): Collection<Pair<Long,R?>> = this@Column.txLock.read {
             checkOpenOrThrow()
             val list = mutableListOf<Pair<Long,R?>>()
             this@Column.store.getAllRecids().forEach {
@@ -161,7 +199,7 @@ class Column<T: Any>(val name: String, val path: Path) {
         /**
          * Applies the provided function on each element found in this [Column].
          */
-        fun forEach(action: (Long,T) -> Unit) = this@Column.columnLock.read {
+        fun forEach(action: (Long,T) -> Unit) = this@Column.txLock.read {
             checkOpenOrThrow()
             this@Column.store.getAllRecids().forEach {
                 if (it != HEADER_RECORD_ID) {
@@ -279,7 +317,7 @@ class Column<T: Any>(val name: String, val path: Path) {
             if (this.readonly) throw DatabaseException.TransactionReadOnlyException(tid)
             if (this.status == TransactionStatus.CLOSED) throw DatabaseException.TransactionClosedException(tid)
             if (this.status != TransactionStatus.DIRTY) {
-                if (this@Column.columnLock.writeLock().tryLock()) {
+                if (this@Column.txLock.writeLock().tryLock()) {
                     this.status = TransactionStatus.DIRTY
                 } else {
                     throw DatabaseException.TransactionLockException(this.tid)
@@ -287,26 +325,42 @@ class Column<T: Any>(val name: String, val path: Path) {
             }
         }
     }
-}
 
-/**
- * The header data structure of any [Column]
- */
-class ColumnHeader(val type: ColumnType<*>, var size: Long, var created: Long = System.currentTimeMillis(), var modified: Long = System.currentTimeMillis())
+    /**
+     * The header data structure of any [Column]
+     */
+    class ColumnHeader(val type: ColumnType<*>, var size: Long, var created: Long = System.currentTimeMillis(), var modified: Long = System.currentTimeMillis())
 
-/**
- * A [Serializer] for [ColumnHeader].
- */
-object ColumnHeaderSerializer: Serializer<ColumnHeader> {
-    override fun serialize(out: DataOutput2, value: ColumnHeader) {
-        out.writeUTF(value.type.name)
-        out.packLong(value.size)
-        out.writeLong(value.created)
-        out.writeLong(value.modified)
-    }
+    /**
+     * A [Serializer] for [ColumnHeader].
+     */
+    object ColumnHeaderSerializer: Serializer<ColumnHeader> {
+        override fun serialize(out: DataOutput2, value: ColumnHeader) {
+            out.writeUTF(Column.HEADER_IDENTIFIER)
+            out.writeShort(Column.HEADER_VERSION.toInt())
+            out.writeUTF(value.type.name)
+            out.packLong(value.size)
+            out.writeLong(value.created)
+            out.writeLong(value.modified)
+        }
 
-    override fun deserialize(input: DataInput2, available: Int): ColumnHeader {
-        return ColumnHeader(ColumnType.typeForName(input.readUTF()), input.unpackLong(), input.readLong(), input.readLong())
+        override fun deserialize(input: DataInput2, available: Int): ColumnHeader {
+            if (!this.validate(input)) {
+                throw DatabaseException.InvalidFileException("Cottontail DB Column")
+            }
+            return ColumnHeader(ColumnType.typeForName(input.readUTF()), input.unpackLong(), input.readLong(), input.readLong())
+        }
+
+        /**
+         * Validates the [ColumnHeader]. Must be executed before deserialization
+         *
+         * @return True if validation was successful, false otherwise.
+         */
+        private fun validate(input: DataInput2): Boolean {
+            val identifier = input.readUTF()
+            val version = input.readShort()
+            return (version == Column.HEADER_VERSION) and (identifier == Column.HEADER_IDENTIFIER)
+        }
     }
 }
 
