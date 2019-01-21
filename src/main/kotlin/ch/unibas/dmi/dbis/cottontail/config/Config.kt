@@ -1,10 +1,21 @@
 package ch.unibas.dmi.dbis.cottontail.config
 
-import kotlinx.serialization.Serializable
+import kotlinx.serialization.*
+import kotlinx.serialization.internal.StringDescriptor
+import java.nio.file.Path
+import java.nio.file.Paths
 
 @Serializable
-data class Config(val _root: String, val lockTimeout: Int) {
+data class Config(@Serializable(with=PathSerializer::class) val root: Path, val lockTimeout: Int)
 
+@Serializer(forClass = Path::class)
+object PathSerializer : KSerializer<Path> {
+    override val descriptor: SerialDescriptor
+        get() = StringDescriptor.withName("Path")
 
+    override fun deserialize(input: Decoder): Path = Paths.get(input.decodeString())
 
+    override fun serialize(output: Encoder, obj: Path) {
+        output.encodeString(obj.toString())
+    }
 }
