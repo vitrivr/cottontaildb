@@ -29,17 +29,27 @@ typealias ColumnDef = Pair<String,ColumnType<*>>
  * @author Ralph Gasser
  * @version 1.0
  */
-class Column<T: Any>(val name: String, val path: Path): DBO {
+internal class Column<T: Any>(override val name: String, entity: Entity): DBO {
+
+    /** The [Path] to the [Entity]'s main folder. */
+    override val path: Path = entity.path.resolve("col_$name.db")
+
+    /** The fully qualified name of this [Column] */
+    override val fqn: String = "${entity.parent!!.name}.${entity.name}.$name"
+
+    /** The parent [DBO], which is the [Entity] in case of an [Column]. */
+    override val parent: DBO? = entity
+
     /** Internal reference to the [Store] underpinning this [Column]. */
     private var store: StoreWAL = try {
-        StoreWAL.make(file = this.path.resolve("col_$name.db").toString(), volumeFactory = MappedFileVol.FACTORY)
+        StoreWAL.make(file = this.path.toString(), volumeFactory = MappedFileVol.FACTORY)
     } catch (e: DBException) {
         throw DatabaseException("Failed to open column at '$path': ${e.message}'")
     }
 
     /** Internal reference to the [Header] of this [Column]. */
     private val header
-        get() = store.get(HEADER_RECORD_ID, ColumnHeaderSerializer) ?: throw DatabaseException.DataCorruptionException("Failed to open header of column '$name'!'")
+        get() = store.get(HEADER_RECORD_ID, ColumnHeaderSerializer) ?: throw DatabaseException.DataCorruptionException("Failed to open header of column '$fqn'!'")
 
     /**
      * Getter for [Column.definition].
@@ -111,12 +121,10 @@ class Column<T: Any>(val name: String, val path: Path): DBO {
 
         /** Tries to acquire a global read-lock on the [Column]. */
         init {
-            this@Column.globalLock.read {
-                if (this@Column.closed) {
-                    throw TransactionException.TransactionDBOClosedException(tid)
-                }
-                this@Column.globalLock.readLock().tryLock()
+            if (this@Column.closed) {
+                throw TransactionException.TransactionDBOClosedException(tid)
             }
+            this@Column.globalLock.readLock().lock()
         }
 
         /**
@@ -386,12 +394,12 @@ class Column<T: Any>(val name: String, val path: Path): DBO {
     /**
      * The header data structure of any [Column]
      */
-    class ColumnHeader(val type: ColumnType<*>, var size: Long, var created: Long = System.currentTimeMillis(), var modified: Long = System.currentTimeMillis())
+    private class ColumnHeader(val type: ColumnType<*>, var size: Long, var created: Long = System.currentTimeMillis(), var modified: Long = System.currentTimeMillis())
 
     /**
      * A [Serializer] for [ColumnHeader].
      */
-    object ColumnHeaderSerializer: Serializer<ColumnHeader> {
+    private object ColumnHeaderSerializer: Serializer<ColumnHeader> {
         override fun serialize(out: DataOutput2, value: ColumnHeader) {
             out.writeUTF(Column.HEADER_IDENTIFIER)
             out.writeShort(Column.HEADER_VERSION.toInt())

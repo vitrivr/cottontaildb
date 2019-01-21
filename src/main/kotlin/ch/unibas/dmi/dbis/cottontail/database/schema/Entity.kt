@@ -9,6 +9,7 @@ import ch.unibas.dmi.dbis.cottontail.model.exceptions.TransactionException
 
 import org.mapdb.*
 import org.mapdb.volume.MappedFileVol
+import java.io.IOException
 
 import java.nio.file.Files
 import java.nio.file.Path
@@ -17,7 +18,7 @@ import java.util.*
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.concurrent.read
 import kotlin.concurrent.write
-
+import java.util.stream.Collectors
 
 /** Type alias for a tuple. */
 typealias Tuple = Map<ColumnDef,*>
@@ -34,17 +35,26 @@ typealias Tuple = Map<ColumnDef,*>
  *
  * @see Entity.Tx
  */
-class Entity(val name: String, val path: Path): DBO {
+internal class Entity(override val name: String, schema: Schema): DBO {
+    /** The [Path] to the [Entity]'s main folder. */
+    override val path: Path = schema.path.resolve("entity_$name")
+
+    /** The fully qualified name of this [Entity] */
+    override val fqn: String = "${schema.name}.$name"
+
+    /** The parent [DBO], which is the [Schema] in case of an [Entity]. */
+    override val parent: DBO? = schema
+
     /** Internal reference to the [StoreWAL] underpinning this [Entity]. */
     private val store: StoreWAL = try {
-        StoreWAL.make(file = this.path.resolve(name).resolve(FILE_CATALOGUE).toString(), volumeFactory = MappedFileVol.FACTORY)
+        StoreWAL.make(file = this.path.resolve(FILE_CATALOGUE).toString(), volumeFactory = MappedFileVol.FACTORY)
     } catch (e: DBException) {
-        throw DatabaseException("Failed to open entity '$name' ($path): ${e.message}'.")
+        throw DatabaseException("Failed to open entity '$fqn': ${e.message}'.")
     }
 
     /** The header of this [Entity]. */
     private val header: EntityHeader
-        get() = this.store.get(HEADER_RECORD_ID, EntityHeaderSerializer) ?: throw DatabaseException.DataCorruptionException("Failed to open header of entity '$name'!'")
+        get() = this.store.get(HEADER_RECORD_ID, EntityHeaderSerializer) ?: throw DatabaseException.DataCorruptionException("Failed to open header of entity '$fqn'!'")
 
     /** A internal lock that is used to synchronize [Entity.Tx] affecting this [Entity]. */
     private val txLock = ReentrantReadWriteLock()
@@ -56,7 +66,7 @@ class Entity(val name: String, val path: Path): DBO {
      * List of all the [Column]s associated with this [Entity].
      */
     private val columns: List<Column<*>> = header.columns.map {
-        Column<Any>(this.store.get(it, Serializer.STRING) ?:  throw DatabaseException.DataCorruptionException("Failed to open entity '$name' ($path): Could not read column at index $it!'"), this.path.resolve(name))
+        Column<Any>(this.store.get(it, Serializer.STRING) ?:  throw DatabaseException.DataCorruptionException("Failed to open entity '$fqn': Could not read column at index $it!'"), this)
     }
 
     /**
@@ -83,6 +93,16 @@ class Entity(val name: String, val path: Path): DBO {
     }
 
     /**
+     * Handles finalization, in case the Garbage Collector reaps a cached [Entity] soft-reference.
+     */
+    @Synchronized
+    protected fun finalize() {
+        if (!this.closed) {
+            this.close()
+        }
+    }
+
+    /**
      *
      */
     companion object {
@@ -99,28 +119,38 @@ class Entity(val name: String, val path: Path): DBO {
         private const val HEADER_VERSION: Short = 1
 
         /** Initializes a new [Entity] at the given path. */
-        fun initialize(name: String, path: Path, vararg columns: ColumnDef): Entity {
-            val data = path.resolve(name)
-            if (!Files.exists(data)) {
-                Files.createDirectories(data)
-            } else {
-                throw DatabaseException("Failed to create entity '$name'. Data directory '$data' seems to be occupied.")
+        internal fun initialize(name: String, schema: Schema, vararg columns: ColumnDef): Entity {
+            /* Create empty folder for entity. */
+            val data = schema.path.resolve("entity_$name")
+            try {
+                if (!Files.exists(data)) {
+                    Files.createDirectories(data)
+                } else {
+                    throw DatabaseException("Failed to create entity '${schema.name}.$name'. Data directory '$data' seems to be occupied.")
+                }
+            } catch (e: IOException) {
+                throw DatabaseException("Failed to create entity '${schema.name}.$name' due to an IO exception: {${e.message}")
             }
 
             /* Generate the store. */
-            val store = StoreWAL.make(file = data.resolve(FILE_CATALOGUE).toString(), volumeFactory = MappedFileVol.FACTORY)
-            store.preallocate() /* Pre-allocates the header. */
+            try {
+                val store = StoreWAL.make(file = data.resolve(FILE_CATALOGUE).toString(), volumeFactory = MappedFileVol.FACTORY)
+                store.preallocate() /* Pre-allocates the header. */
 
-            /* Initialize the columns. */
-            val columnIds = columns.map {
-                Column.initialize(data, ColumnDef(it.first,it.second))
-                store.put(it.first, Serializer.STRING)
-            }.toLongArray()
-            store.update(HEADER_RECORD_ID, EntityHeader(columns = columnIds), EntityHeaderSerializer)
-            store.commit()
-            store.close()
-
-            return Entity(name, path)
+                /* Initialize the columns. */
+                val columnIds = columns.map {
+                    Column.initialize(data, ColumnDef(it.first, it.second))
+                    store.put(it.first, Serializer.STRING)
+                }.toLongArray()
+                store.update(HEADER_RECORD_ID, EntityHeader(columns = columnIds), EntityHeaderSerializer)
+                store.commit()
+                store.close()
+                return Entity(name, schema)
+            } catch (e: DBException) {
+                val pathsToDelete = Files.walk(data).sorted(Comparator.reverseOrder()).collect(Collectors.toList())
+                pathsToDelete.forEach { Files.delete(it) }
+                throw DatabaseException("Failed to create entity '${schema.name}.$name' due to a storage exception: {${e.message}")
+            }
         }
     }
 
@@ -140,12 +170,10 @@ class Entity(val name: String, val path: Path): DBO {
 
         /** Tries to acquire a global read-lock on this [Entity]. */
         init {
-            this@Entity.globalLock.read {
-                if (this@Entity.closed) {
-                    throw TransactionException.TransactionDBOClosedException(tid)
-                }
-                this@Entity.globalLock.readLock().tryLock()
+            if (this@Entity.closed) {
+                throw TransactionException.TransactionDBOClosedException(tid)
             }
+            this@Entity.globalLock.readLock().lock()
         }
 
         /**
@@ -276,7 +304,7 @@ class Entity(val name: String, val path: Path): DBO {
                 for ((column,tx) in this.transactions) {
                     val recId = (tx as Column<Any>.Tx).insert(tx.type.cast(tuple[column]))
                     if (lastRecId != recId && lastRecId != null) {
-                        throw DatabaseException.DataCorruptionException("Entity ${this@Entity.name} is corrupt. Insert did not yield same record ID for all columns involved!")
+                        throw DatabaseException.DataCorruptionException("Entity ${this@Entity.fqn} is corrupt. Insert did not yield same record ID for all columns involved!")
                     }
                     lastRecId = recId
                 }
@@ -315,7 +343,7 @@ class Entity(val name: String, val path: Path): DBO {
                     for ((column,tx) in this.transactions) {
                         val recId = (tx as Column<Any>.Tx).insert(tx.type.cast(it[column]))
                         if (lastRecId != recId && lastRecId != null) {
-                            throw DatabaseException.DataCorruptionException("Entity ${this@Entity.name} is corrupt. Insert did not yield same record ID for all columns involved!")
+                            throw DatabaseException.DataCorruptionException("Entity ${this@Entity.fqn} is corrupt. Insert did not yield same record ID for all columns involved!")
                         }
                         lastRecId = recId
                     }
@@ -441,12 +469,12 @@ class Entity(val name: String, val path: Path): DBO {
     /**
      * The header section of the [Entity] data structure.
      */
-    class EntityHeader(var size: Long = 0, var created: Long = System.currentTimeMillis(), var modified: Long  = System.currentTimeMillis(), var columns: LongArray = LongArray(0), var indexes: LongArray = LongArray(0))
+    private class EntityHeader(var size: Long = 0, var created: Long = System.currentTimeMillis(), var modified: Long  = System.currentTimeMillis(), var columns: LongArray = LongArray(0), var indexes: LongArray = LongArray(0))
 
     /**
      * The [Serializer] for the [EntityHeader].
      */
-    object EntityHeaderSerializer : Serializer<EntityHeader> {
+    private object EntityHeaderSerializer : Serializer<EntityHeader> {
         override fun serialize(out: DataOutput2, value: EntityHeader) {
             out.writeUTF(Entity.HEADER_IDENTIFIER)
             out.writeShort(Entity.HEADER_VERSION.toInt())

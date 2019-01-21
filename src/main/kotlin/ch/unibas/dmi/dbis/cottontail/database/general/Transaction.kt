@@ -1,5 +1,6 @@
 package ch.unibas.dmi.dbis.cottontail.database.general
 
+import java.lang.Exception
 import java.util.*
 
 
@@ -15,6 +16,21 @@ interface Transaction : AutoCloseable {
 
     /** The UUID that identifies this [Transaction]. */
     val tid: UUID
+
+    /**
+     *
+     */
+    fun begin(action: () -> Boolean) = try {
+        if (action()) {
+            commit()
+        } else {
+            rollback()
+        }
+    } catch (e: Exception) {
+        rollback()
+    } finally {
+        close()
+    }
 
     /**
      * Commits the transaction, saving all changes. Causes the [Transaction] to complete and close.
