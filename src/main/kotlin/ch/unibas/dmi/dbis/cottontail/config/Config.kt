@@ -1,2 +1,10 @@
 package ch.unibas.dmi.dbis.cottontail.config
-data class Config(val dataFolder: String, val lockTimeout: Int)
+
+import kotlinx.serialization.Serializable
+
+@Serializable
+data class Config(val _root: String, val lockTimeout: Int) {
+
+
+
+}
