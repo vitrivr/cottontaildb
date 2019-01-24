@@ -2,7 +2,7 @@ package ch.unibas.dmi.dbis.cottontail.knn.metrics
 
 enum class Distance : DistanceFunction {
     /**
-     * L1 or Manhattan distance between two vectorss
+     * L1 or Manhattan distance between two vectors. Vectors must be of the same size!
      */
     L1 {
         override fun invoke(a: FloatArray, b: FloatArray): Double {
