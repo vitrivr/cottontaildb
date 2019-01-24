@@ -78,5 +78,5 @@ open class TransactionException(message: String) : DatabaseException(message) {
      * @param column The name of the [Column] that is missing.
      * @param column The name of the [Entity] in which the column is missing.
      */
-    class ColumnUnknownException(tid: UUID, column: ColumnDef, entity: String): TransactionException("Transaction $tid could not be executed, because column '$entity.${column.first}' (type= ${column.second}) does not exist or has different type.")
+    class ColumnUnknownException(tid: UUID, column: ColumnDef, entity: String): TransactionException("Transaction $tid could not be executed, because column '$entity.${column.name}' (type= ${column.type}) does not exist or has different type.")
 }

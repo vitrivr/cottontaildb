@@ -43,7 +43,7 @@ sealed class ColumnType<T : Any> {
         }
 
         /** */
-        fun specForName(column: String, type: String): ColumnDef = Pair(column, typeForName(type))
+        fun specForName(column: String, type: String, size: Int = 1, nullable: Boolean = true): ColumnDef = ColumnDef(column, typeForName(type), size, nullable)
     }
 
     fun cast(value: Any?) : T? = type.safeCast(value);

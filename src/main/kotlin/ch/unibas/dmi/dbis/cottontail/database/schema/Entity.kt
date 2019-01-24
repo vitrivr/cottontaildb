@@ -139,8 +139,8 @@ internal class Entity(override val name: String, schema: Schema): DBO {
 
                 /* Initialize the columns. */
                 val columnIds = columns.map {
-                    Column.initialize(data, ColumnDef(it.first, it.second))
-                    store.put(it.first, Serializer.STRING)
+                    Column.initialize(data, it)
+                    store.put(it.name, Serializer.STRING)
                 }.toLongArray()
                 store.update(HEADER_RECORD_ID, EntityHeader(columns = columnIds), EntityHeaderSerializer)
                 store.commit()
@@ -161,7 +161,7 @@ internal class Entity(override val name: String, schema: Schema): DBO {
      */
     inner class Tx(override val readonly: Boolean, override val tid: UUID = UUID.randomUUID()) : Transaction {
         /** List of [Column.Tx] associated with this [Entity.Tx]. */
-        private val transactions: Map<ColumnDef, Column<*>.Tx> = mapOf(* this@Entity.columns.map { Pair(Pair(it.name, it.type), it.Tx(readonly, tid)) }.toTypedArray())
+        private val transactions: Map<ColumnDef, Column<*>.Tx> = mapOf(* this@Entity.columns.map { Pair(ColumnDef(it.name, it.type), it.Tx(readonly, tid)) }.toTypedArray())
 
         /** Flag indicating whether or not this [Entity.Tx] was closed */
         @Volatile
@@ -425,7 +425,7 @@ internal class Entity(override val name: String, schema: Schema): DBO {
          * @params The list of [Column]s that should be checked.
          */
         private fun checkColumnsExist(vararg columns: ColumnDef) = columns.forEach {
-            if (!transactions.contains(it) || transactions[it]!!.type != it.second) {
+            if (!transactions.contains(it) || transactions[it]!!.type != it.type) {
                 throw TransactionException.ColumnUnknownException(tid, it, this@Entity.name)
             }
         }

@@ -16,10 +16,6 @@ import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.concurrent.read
 import kotlin.concurrent.write
 
-
-/** Typealias for a definition of a column. */
-typealias ColumnDef = Pair<String,ColumnType<*>>
-
 /**
  * Represents a single column in the Cottontail DB schema. A [Column] record is identified by a tuple
  * ID (long) and can hold an arbitrary value.
@@ -104,8 +100,8 @@ internal class Column<T: Any>(override val name: String, entity: Entity): DBO {
             if (!Files.exists(parent)) {
                 Files.createDirectories(parent)
             }
-            val store = StoreWAL.make(file = parent.resolve("col_${definition.first}.db").toString(), volumeFactory = MappedFileVol.FACTORY)
-            store.put(ColumnHeader(type = definition.second, size = 0), ColumnHeaderSerializer)
+            val store = StoreWAL.make(file = parent.resolve("col_${definition.name}.db").toString(), volumeFactory = MappedFileVol.FACTORY)
+            store.put(ColumnHeader(type = definition.type, size = definition.size, nullable = definition.nullable), ColumnHeaderSerializer)
             store.commit()
             store.close()
         }
@@ -186,7 +182,7 @@ internal class Column<T: Any>(override val name: String, entity: Entity): DBO {
          */
         fun count(): Long = this@Column.txLock.read {
             checkValidOrThrow()
-            return this@Column.header.size
+            return this@Column.header.count
         }
 
         /**
@@ -234,7 +230,7 @@ internal class Column<T: Any>(override val name: String, entity: Entity): DBO {
 
             /* Update header. */
             val header = this@Column.header
-            header.size += 1
+            header.count += 1
             header.modified = System.currentTimeMillis()
             store.update(HEADER_RECORD_ID, header, ColumnHeaderSerializer)
             tupleId
@@ -261,7 +257,7 @@ internal class Column<T: Any>(override val name: String, entity: Entity): DBO {
 
             /* Update header. */
             val header = this@Column.header
-            header.size += records.size
+            header.count += records.size
             header.modified = System.currentTimeMillis()
             store.update(HEADER_RECORD_ID, header, ColumnHeaderSerializer)
             tupleIds
@@ -316,7 +312,7 @@ internal class Column<T: Any>(override val name: String, entity: Entity): DBO {
 
             /* Update header. */
             val header = this@Column.header
-            header.size -= 1
+            header.count -= 1
             header.modified = System.currentTimeMillis()
             this@Column.store.update(HEADER_RECORD_ID, header, ColumnHeaderSerializer)
         } catch (e: DBException) {
@@ -339,7 +335,7 @@ internal class Column<T: Any>(override val name: String, entity: Entity): DBO {
 
             /* Update header. */
             val header = this@Column.header
-            header.size -= tupleIds.size
+            header.count -= tupleIds.size
             header.modified = System.currentTimeMillis()
             store.update(HEADER_RECORD_ID, header, ColumnHeaderSerializer)
         } catch (e: DBException) {
@@ -394,7 +390,7 @@ internal class Column<T: Any>(override val name: String, entity: Entity): DBO {
     /**
      * The header data structure of any [Column]
      */
-    private class ColumnHeader(val type: ColumnType<*>, var size: Long, var created: Long = System.currentTimeMillis(), var modified: Long = System.currentTimeMillis())
+    private class ColumnHeader(val type: ColumnType<*>, var size: Int = 0, var nullable: Boolean = true, var count: Long = 0, var created: Long = System.currentTimeMillis(), var modified: Long = System.currentTimeMillis())
 
     /**
      * A [Serializer] for [ColumnHeader].
@@ -404,7 +400,9 @@ internal class Column<T: Any>(override val name: String, entity: Entity): DBO {
             out.writeUTF(Column.HEADER_IDENTIFIER)
             out.writeShort(Column.HEADER_VERSION.toInt())
             out.writeUTF(value.type.name)
-            out.packLong(value.size)
+            out.writeInt(value.size)
+            out.writeBoolean(value.nullable)
+            out.packLong(value.count)
             out.writeLong(value.created)
             out.writeLong(value.modified)
         }
@@ -413,7 +411,7 @@ internal class Column<T: Any>(override val name: String, entity: Entity): DBO {
             if (!this.validate(input)) {
                 throw DatabaseException.InvalidFileException("Cottontail DB Column")
             }
-            return ColumnHeader(ColumnType.typeForName(input.readUTF()), input.unpackLong(), input.readLong(), input.readLong())
+            return ColumnHeader(ColumnType.typeForName(input.readUTF()), input.readInt(), input.readBoolean(), input.unpackLong(), input.readLong(), input.readLong())
         }
 
         /**
