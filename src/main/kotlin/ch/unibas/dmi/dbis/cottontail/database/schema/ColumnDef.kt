@@ -6,7 +6,7 @@ package ch.unibas.dmi.dbis.cottontail.database.schema
  * @author Ralph Gasser
  * @version 1.0
  */
-class ColumnDef(val name: String, val type: ColumnType<*>, val size: Int = 1, val nullable: Boolean = true) {
+class ColumnDef(val name: String, val type: ColumnType<*>, val size: Int = -1, val nullable: Boolean = true) {
     companion object {
         /**
          * Returns a [ColumnDef] with the provided attributes. The only difference as compared to using the constructor,
