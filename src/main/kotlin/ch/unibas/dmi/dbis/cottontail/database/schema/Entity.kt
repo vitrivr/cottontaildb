@@ -43,11 +43,11 @@ internal class Entity(override val name: String, schema: Schema): DBO {
     override val fqn: String = "${schema.name}.$name"
 
     /** The parent [DBO], which is the [Schema] in case of an [Entity]. */
-    override val parent: DBO? = schema
+    override val parent: Schema? = schema
 
     /** Internal reference to the [StoreWAL] underpinning this [Entity]. */
     private val store: StoreWAL = try {
-        StoreWAL.make(file = this.path.resolve(FILE_CATALOGUE).toString(), volumeFactory = MappedFileVol.FACTORY)
+        StoreWAL.make(file = this.path.resolve(FILE_CATALOGUE).toString(), volumeFactory = MappedFileVol.FACTORY , fileLockWait = schema.config.lockTimeout)
     } catch (e: DBException) {
         throw DatabaseException("Failed to open entity '$fqn': ${e.message}'.")
     }
@@ -107,19 +107,19 @@ internal class Entity(override val name: String, schema: Schema): DBO {
      */
     companion object {
         /** Filename for the [Entity] catalogue.  */
-        private const val FILE_CATALOGUE = "index.mapdb"
+        internal const val FILE_CATALOGUE = "index.db"
 
         /** Filename for the [Entity] catalogue.  */
-        private const val HEADER_RECORD_ID = 1L
+        internal const val HEADER_RECORD_ID = 1L
 
         /** The identifier that is used to identify a Cottontail DB [Entity] file. */
-        private const val HEADER_IDENTIFIER: String = "COTTONE"
+        internal const val HEADER_IDENTIFIER: String = "COTTONE"
 
         /** The version of the Cottontail DB [Entity]  file. */
-        private const val HEADER_VERSION: Short = 1
+        internal const val HEADER_VERSION: Short = 1
 
         /** Initializes a new [Entity] at the given path. */
-        internal fun initialize(name: String, schema: Schema, vararg columns: ColumnDef): Entity {
+        internal fun initialize(name: String, schema: Schema, vararg columns: ColumnDef) {
             /* Create empty folder for entity. */
             val data = schema.path.resolve("entity_$name")
             try {
@@ -132,24 +132,23 @@ internal class Entity(override val name: String, schema: Schema): DBO {
                 throw DatabaseException("Failed to create entity '${schema.name}.$name' due to an IO exception: {${e.message}")
             }
 
-            /* Generate the store. */
+            /* Generate the entity. */
             try {
-                val store = StoreWAL.make(file = data.resolve(FILE_CATALOGUE).toString(), volumeFactory = MappedFileVol.FACTORY)
+                val store = StoreWAL.make(file = data.resolve(FILE_CATALOGUE).toString(), volumeFactory = MappedFileVol.FACTORY, fileLockWait = schema.config.lockTimeout)
                 store.preallocate() /* Pre-allocates the header. */
 
-                /* Initialize the columns. */
+                /* Initialize the entities header. */
                 val columnIds = columns.map {
-                    Column.initialize(data, it)
+                    Column.initialize(it, data)
                     store.put(it.name, Serializer.STRING)
                 }.toLongArray()
                 store.update(HEADER_RECORD_ID, EntityHeader(columns = columnIds), EntityHeaderSerializer)
                 store.commit()
                 store.close()
-                return Entity(name, schema)
             } catch (e: DBException) {
                 val pathsToDelete = Files.walk(data).sorted(Comparator.reverseOrder()).collect(Collectors.toList())
                 pathsToDelete.forEach { Files.delete(it) }
-                throw DatabaseException("Failed to create entity '${schema.name}.$name' due to a storage exception: {${e.message}")
+                throw e
             }
         }
     }

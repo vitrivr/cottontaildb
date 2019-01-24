@@ -12,15 +12,16 @@ import java.lang.ref.SoftReference
 import java.nio.file.Files
 
 import java.nio.file.Path
-import java.nio.file.Paths
+
 import java.util.*
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import java.util.stream.Collectors
+
 import kotlin.concurrent.read
 
 import kotlin.concurrent.write
 
-internal class Schema(override val name: String, config: Config) : DBO {
+internal class Schema(override val name: String, val config: Config) : DBO {
 
     /** Resolve the path to the schema. */
     override val path: Path = config.root.resolve( "schema_$name")
@@ -33,7 +34,7 @@ internal class Schema(override val name: String, config: Config) : DBO {
 
     /** Internal reference to the [Store] underpinning this [Column]. */
     private val store: StoreWAL = try {
-        StoreWAL.make(file = this.path.resolve(FILE_CATALOGUE).toString(), volumeFactory = MappedFileVol.FACTORY)
+        StoreWAL.make(file = this.path.resolve(FILE_CATALOGUE).toString(), volumeFactory = MappedFileVol.FACTORY, fileLockWait = config.lockTimeout)
     } catch (e: DBException) {
         throw DatabaseException("Failed to open schema $name at '$path': ${e.message}'")
     }
@@ -52,13 +53,14 @@ internal class Schema(override val name: String, config: Config) : DBO {
     /** A map of loaded [Entity] references. The [SoftReference] allow for coping with changing memory conditions. */
     private val loaded = HashMap<String, SoftReference<Entity>>()
 
-    /**
-     *
-     */
+    /** Flag indicating whether or not this [Schema] has been closed. */
     @Volatile
     override var closed: Boolean = false
         private set
 
+    /** Size of the [Schema] in terms of [Entity] objects it contains. */
+    val size
+        get() = this.header.entities.size
 
     /**
      * Creates a new [Entity] in this [Schema].
@@ -74,17 +76,15 @@ internal class Schema(override val name: String, config: Config) : DBO {
             /* Update schema header. */
             val header = this.header
             header.modified = System.currentTimeMillis()
-            header.entities = Arrays.copyOf(header.entities, header.entities.size + 1)
+            header.entities = header.entities.copyOf(header.entities.size + 1)
             header.entities[header.entities.size-1] = recId
             this.store.update(HEADER_RECORD_ID, header, SchemaHeaderSerializer)
 
             /* Initialize new entity; catch exception if any occurs. */
-            val entity = Entity.initialize(name, this, *columns)
+            Entity.initialize(name, this, *columns)
 
             /* Commit changes and load entity. */
             this.store.commit()
-            this.loaded[name] = SoftReference(entity)
-            entity
         } catch (e: Exception) {
             this.store.rollback()
             throw e
@@ -181,16 +181,16 @@ internal class Schema(override val name: String, config: Config) : DBO {
      */
     companion object {
         /** ID of the schema header! */
-        private const val HEADER_RECORD_ID: Long = 1L
+        internal const val HEADER_RECORD_ID: Long = 1L
 
         /** The identifier that is used to identify a Cottontail DB [Schema] file. */
-        private const val HEADER_IDENTIFIER: String = "COTTONS"
+        internal const val HEADER_IDENTIFIER: String = "COTTONS"
 
         /** The version of the Cottontail DB [Schema]  file. */
-        private const val HEADER_VERSION: Short = 1
+        internal const val HEADER_VERSION: Short = 1
 
         /** Filename for the [Schema] catalogue.  */
-        private const val FILE_CATALOGUE = "catalogue.db"
+        internal const val FILE_CATALOGUE = "catalogue.db"
 
         /** */
         fun create(name: String, config: Config): Schema {
@@ -208,7 +208,7 @@ internal class Schema(override val name: String, config: Config) : DBO {
 
             /* Generate the store. */
             try {
-                val store = StoreWAL.make(file = data.resolve(Schema.FILE_CATALOGUE).toString(), volumeFactory = MappedFileVol.FACTORY)
+                val store = StoreWAL.make(file = data.resolve(Schema.FILE_CATALOGUE).toString(), volumeFactory = MappedFileVol.FACTORY, fileLockWait = config.lockTimeout)
                 store.preallocate() /* Pre-allocates the header. */
                 store.update(Schema.HEADER_RECORD_ID, SchemaHeader(), SchemaHeaderSerializer)
                 store.commit()

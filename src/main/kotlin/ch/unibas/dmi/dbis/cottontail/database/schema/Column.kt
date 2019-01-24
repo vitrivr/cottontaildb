@@ -34,11 +34,11 @@ internal class Column<T: Any>(override val name: String, entity: Entity): DBO {
     override val fqn: String = "${entity.parent!!.name}.${entity.name}.$name"
 
     /** The parent [DBO], which is the [Entity] in case of an [Column]. */
-    override val parent: DBO? = entity
+    override val parent: Entity? = entity
 
     /** Internal reference to the [Store] underpinning this [Column]. */
     private var store: StoreWAL = try {
-        StoreWAL.make(file = this.path.toString(), volumeFactory = MappedFileVol.FACTORY)
+        StoreWAL.make(file = this.path.toString(), volumeFactory = MappedFileVol.FACTORY, fileLockWait = this.parent!!.parent!!.config.lockTimeout)
     } catch (e: DBException) {
         throw DatabaseException("Failed to open column at '$path': ${e.message}'")
     }
@@ -87,7 +87,7 @@ internal class Column<T: Any>(override val name: String, entity: Entity): DBO {
         /** The identifier that is used to identify a Cottontail DB [Column] file. */
         private const val HEADER_IDENTIFIER: String = "COTTONC"
 
-        /** The version of the Cottontail DB [Column]  file. */
+        /** The version of the Cottontail DB [Column] file. */
         private const val HEADER_VERSION: Short = 1
 
         /**
@@ -96,11 +96,8 @@ internal class Column<T: Any>(override val name: String, entity: Entity): DBO {
          * @param parent The folder that contains the data file.
          * @param definition The [ColumnDef] that specified the [Column]
          */
-        fun initialize(parent: Path, definition: ColumnDef) {
-            if (!Files.exists(parent)) {
-                Files.createDirectories(parent)
-            }
-            val store = StoreWAL.make(file = parent.resolve("col_${definition.name}.db").toString(), volumeFactory = MappedFileVol.FACTORY)
+        fun initialize(definition: ColumnDef, path: Path) {
+            val store = StoreWAL.make(file = path.resolve("col_${definition.name}.db").toString(), volumeFactory = MappedFileVol.FACTORY)
             store.put(ColumnHeader(type = definition.type, size = definition.size, nullable = definition.nullable), ColumnHeaderSerializer)
             store.commit()
             store.close()
