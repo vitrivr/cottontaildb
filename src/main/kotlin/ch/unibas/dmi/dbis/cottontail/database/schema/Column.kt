@@ -282,7 +282,7 @@ internal class Column<T: Any>(override val name: String, entity: Entity): DBO {
          * @param tupleId The ID of the record that should be updated
          * @param value The new value.
          */
-        fun update(tupleId: Long, value: T) = try {
+        fun update(tupleId: Long, value: T?) = try {
             acquireWriteLock()
             checkValidTupleId(tupleId)
             this@Column.store.update(tupleId, value, this.serializer)
@@ -299,7 +299,7 @@ internal class Column<T: Any>(override val name: String, entity: Entity): DBO {
          * @param value The new value.
          * @param expected The value expected to be there.
          */
-        fun compareAndUpdate(tupleId: Long, value: T, expected: T): Boolean = try {
+        fun compareAndUpdate(tupleId: Long, value: T?, expected: T?): Boolean = try {
             acquireWriteLock()
             checkValidTupleId(tupleId)
             this@Column.store.compareAndSwap(tupleId, expected, value, this.serializer)
