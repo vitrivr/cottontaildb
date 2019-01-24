@@ -48,12 +48,19 @@ internal class Column<T: Any>(override val name: String, entity: Entity): DBO {
         get() = store.get(HEADER_RECORD_ID, ColumnHeaderSerializer) ?: throw DatabaseException.DataCorruptionException("Failed to open header of column '$fqn'!'")
 
     /**
-     * Getter for [Column.definition].
+     * Getter for [Column.type].
      *
      * @return The [ColumnType] of this [Column].
      */
     val type: ColumnType<T>
         get() = this.header.type as ColumnType<T>
+
+    /**
+     * Getter for the size of this [Column]'s data. Defaults to -1 for most [ColumnType]s. However,
+     * for example vector [Column]s have a size (the number of elements in the vector).
+     */
+    val size: Int
+        get() = this.header.size
 
     /**
      * Status indicating whether this [Column] is open or closed.
@@ -112,6 +119,9 @@ internal class Column<T: Any>(override val name: String, entity: Entity): DBO {
         @Volatile override var status: TransactionStatus = TransactionStatus.CLEAN
             private set
 
+        /** The [Serializer] used for de-/serialization of [Column] entries. */
+        val serializer = this@Column.type.serializer(this@Column.size)
+
         /** Tries to acquire a global read-lock on the [Column]. */
         init {
             if (this@Column.closed) {
@@ -169,7 +179,7 @@ internal class Column<T: Any>(override val name: String, entity: Entity): DBO {
         fun read(tupleId: Long) : T? = this@Column.txLock.read {
             checkValidOrThrow()
             checkValidTupleId(tupleId)
-            return this@Column.store.get(tupleId, this@Column.type.serializer)
+            return this@Column.store.get(tupleId, this.serializer)
         }
 
         /**
@@ -222,7 +232,7 @@ internal class Column<T: Any>(override val name: String, entity: Entity): DBO {
             val tupleId = if (record == null) {
                 this@Column.store.preallocate()
             } else {
-                this@Column.store.put(record, this@Column.type.serializer)
+                this@Column.store.put(record, this.serializer)
             }
 
             /* Update header. */
@@ -245,11 +255,13 @@ internal class Column<T: Any>(override val name: String, entity: Entity): DBO {
          */
         fun insertAll(records: Collection<T?>): Collection<Long> = try {
             acquireWriteLock()
+
+
             val tupleIds = records.map {
                 if (it == null) {
                 this@Column.store.preallocate()
             } else {
-                this@Column.store.put(it, this@Column.type.serializer)
+                this@Column.store.put(it, serializer)
             } }
 
             /* Update header. */
@@ -273,7 +285,7 @@ internal class Column<T: Any>(override val name: String, entity: Entity): DBO {
         fun update(tupleId: Long, value: T) = try {
             acquireWriteLock()
             checkValidTupleId(tupleId)
-            this@Column.store.update(tupleId, value, this@Column.type.serializer)
+            this@Column.store.update(tupleId, value, this.serializer)
         } catch (e: DBException) {
             this.status = TransactionStatus.ERROR
             throw TransactionException.TransactionStorageException(this.tid, e.message ?: "Unknown")
@@ -290,7 +302,7 @@ internal class Column<T: Any>(override val name: String, entity: Entity): DBO {
         fun compareAndUpdate(tupleId: Long, value: T, expected: T): Boolean = try {
             acquireWriteLock()
             checkValidTupleId(tupleId)
-            this@Column.store.compareAndSwap(tupleId, expected, value, this@Column.type.serializer)
+            this@Column.store.compareAndSwap(tupleId, expected, value, this.serializer)
         } catch (e: DBException) {
             this.status = TransactionStatus.ERROR
             throw TransactionException.TransactionStorageException(this.tid, e.message ?: "Unknown")
@@ -305,7 +317,7 @@ internal class Column<T: Any>(override val name: String, entity: Entity): DBO {
         fun delete(tupleId: Long) = try {
             acquireWriteLock()
             checkValidTupleId(tupleId)
-            this@Column.store.delete(tupleId, this@Column.type.serializer)
+            this@Column.store.delete(tupleId, this.serializer)
 
             /* Update header. */
             val header = this@Column.header
@@ -327,7 +339,7 @@ internal class Column<T: Any>(override val name: String, entity: Entity): DBO {
             acquireWriteLock()
             tupleIds.forEach{
                 checkValidTupleId(it)
-                this@Column.store.delete(it, this@Column.type.serializer)
+                this@Column.store.delete(it, this.serializer)
             }
 
             /* Update header. */
@@ -408,7 +420,7 @@ internal class Column<T: Any>(override val name: String, entity: Entity): DBO {
             if (!this.validate(input)) {
                 throw DatabaseException.InvalidFileException("Cottontail DB Column")
             }
-            return ColumnHeader(ColumnType.typeForName(input.readUTF()), input.readInt(), input.readBoolean(), input.unpackLong(), input.readLong(), input.readLong())
+            return ColumnHeader(ColumnType.forName(input.readUTF()), input.readInt(), input.readBoolean(), input.unpackLong(), input.readLong(), input.readLong())
         }
 
         /**
