@@ -1,0 +1,9 @@
+# Files related to the project
+.idea
+.gradle
+build
+
+# Java Dependencies
+*.jar
+*.war
+*.ear
