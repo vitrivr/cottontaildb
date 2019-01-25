@@ -44,8 +44,8 @@ internal class Catalogue(val config: Config): DBO {
     /** A lock used to mediate access to this [Catalogue]. */
     private val lock = ReentrantReadWriteLock()
 
-    /** A map of all the [Schema]s contained in this [Catalogue]. When a [Catalogue] is opened, all the  */
-    private val schemas: HashMap<String, Schema> = HashMap()
+    /** A in-memory registry of all the [Schema]s contained in this [Catalogue]. When a [Catalogue] is opened, all the [Schema]s will be loaded. */
+    private val registry: HashMap<String, Schema> = HashMap()
 
     /** The [StoreWAL] that contains the Cottontail DB catalogue. */
     private val store: StoreWAL = try {
@@ -82,7 +82,7 @@ internal class Catalogue(val config: Config): DBO {
             if (!Files.exists(schema.path)) {
                 throw DatabaseException.DataCorruptionException("Broken catalogue entry ${schema.name} (${schema.path}). Schema does not exist!")
             }
-            this.schemas[schema.name] = Schema(schema.name, schema.path, this)
+            this.registry[schema.name] = Schema(schema.name, schema.path, this)
         }
     }
 
@@ -94,7 +94,7 @@ internal class Catalogue(val config: Config): DBO {
      */
     fun createSchema(name: String, data: Path = this.path.resolve("schema_$name")) = this.lock.write {
         /* Check if schema with that name exists. */
-        if (this.schemas.containsKey(name)) {
+        if (this.registry.containsKey(name)) {
             throw DatabaseException("Failed to create schema '$name'. Schema with that name already exists.")
         }
 
@@ -132,7 +132,7 @@ internal class Catalogue(val config: Config): DBO {
         }
 
         /* Add schema to local map. */
-        this.schemas[name] = Schema(name, path, this)
+        this.registry[name] = Schema(name, path, this)
     }
 
     /**
@@ -141,8 +141,8 @@ internal class Catalogue(val config: Config): DBO {
      * @param name The name of the [Schema] to be dropped.
      */
     fun dropSchema(name: String) = this.lock.write {
-        /* Try to close the schema. Open schemas cannot be dropped. */
-        (this.schemas[name] ?: throw DatabaseException("Failed to drop schema '$name'. Schema does not exist.")).close()
+        /* Try to close the schema. Open registry cannot be dropped. */
+        (this.registry[name] ?: throw DatabaseException("Failed to drop schema '$name'. Schema does not exist.")).close()
 
         /* Extract the catalogue entry. */
         val catalogueEntry = this.header.schemas
@@ -160,7 +160,7 @@ internal class Catalogue(val config: Config): DBO {
         }
 
         /* Remove schema from registry. */
-        this.schemas.remove(name)
+        this.registry.remove(name)
 
         /* Delete files that belong to the schema. */
         val pathsToDelete = Files.walk(catalogueEntry.second.path).sorted(Comparator.reverseOrder()).collect(Collectors.toList())
@@ -172,21 +172,21 @@ internal class Catalogue(val config: Config): DBO {
      *
      * @return The list of [Schema] names registered in this [Catalogue]
      */
-    fun listSchemas(): List<String> = this.lock.read { this.schemas.keys.toList() }
+    fun listSchemas(): List<String> = this.lock.read { this.registry.keys.toList() }
 
     /**
      * Returns the [Schema] for the given name.
      *
      * @param name Name of the [Schema].
      */
-    fun getSchema(name: String): Schema? = this.lock.read { this.schemas[name] }
+    fun getSchema(name: String): Schema = this.lock.read { registry[name] ?: throw DatabaseException("Schema $name cannot be opened, because it does not exists!") }
 
     /**
      * Returns true, if this [Catalogue] contains a [Schema] with the provided name.
      *
      * @param name Name of the [Schema].
      */
-    fun hasSchema(name: String) = this.lock.read { this.schemas.containsKey(name) }
+    fun hasSchema(name: String) = this.lock.read { this.registry.containsKey(name) }
 
     /**
      * Companion object to [Catalogue]
