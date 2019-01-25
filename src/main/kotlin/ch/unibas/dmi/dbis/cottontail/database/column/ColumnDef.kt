@@ -1,7 +1,9 @@
-package ch.unibas.dmi.dbis.cottontail.database.schema
+package ch.unibas.dmi.dbis.cottontail.database.column
 
 /**
  * A definition class for a [Column]. Specifies all the properties of such [Column].
+ *
+ * @see Column
  *
  * @author Ralph Gasser
  * @version 1.0

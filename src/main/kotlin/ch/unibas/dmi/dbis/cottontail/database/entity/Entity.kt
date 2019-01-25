@@ -1,8 +1,11 @@
-package ch.unibas.dmi.dbis.cottontail.database.schema
+package ch.unibas.dmi.dbis.cottontail.database.entity
 
 import ch.unibas.dmi.dbis.cottontail.database.general.DBO
 import ch.unibas.dmi.dbis.cottontail.database.general.Transaction
 import ch.unibas.dmi.dbis.cottontail.database.general.TransactionStatus
+import ch.unibas.dmi.dbis.cottontail.database.column.Column
+import ch.unibas.dmi.dbis.cottontail.database.column.ColumnDef
+import ch.unibas.dmi.dbis.cottontail.database.schema.Schema
 
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.TransactionException
@@ -24,16 +27,18 @@ import java.util.stream.Collectors
 typealias Tuple = Map<ColumnDef,*>
 
 /**
- * Represents an entity in the Cottontail DB data schema. An [Entity] has name that must remain unique within a [Schema].
- * The [Entity] contains one to many [Column]s holding the actual data.
+ * Represents a single entity in the Cottontail DB data model. An [Entity] has name that must remain unique within a [Schema].
+ * The [Entity] contains one to many [Column]s holding the actual data. Hence, it can be seen as a table containing tuples.
  *
  * Calling the default constructor for [Entity] opens that [Entity]. It can only be opened once due to file locks and it
  * will remain open until the [Entity.close()] method is called.
  *
  * @see Schema
  * @see Column
- *
  * @see Entity.Tx
+ *
+ * @author Ralph Gasser
+ * @version 1.0f
  */
 internal class Entity(override val name: String, schema: Schema): DBO {
     /** The [Path] to the [Entity]'s main folder. */
@@ -66,7 +71,8 @@ internal class Entity(override val name: String, schema: Schema): DBO {
      * List of all the [Column]s associated with this [Entity].
      */
     private val columns: List<Column<*>> = header.columns.map {
-        Column<Any>(this.store.get(it, Serializer.STRING) ?:  throw DatabaseException.DataCorruptionException("Failed to open entity '$fqn': Could not read column at index $it!'"), this)
+        Column<Any>(this.store.get(it, Serializer.STRING)
+                ?: throw DatabaseException.DataCorruptionException("Failed to open entity '$fqn': Could not read column at index $it!'"), this)
     }
 
     /**
@@ -111,12 +117,6 @@ internal class Entity(override val name: String, schema: Schema): DBO {
 
         /** Filename for the [Entity] catalogue.  */
         internal const val HEADER_RECORD_ID = 1L
-
-        /** The identifier that is used to identify a Cottontail DB [Entity] file. */
-        internal const val HEADER_IDENTIFIER: String = "COTTONE"
-
-        /** The version of the Cottontail DB [Entity]  file. */
-        internal const val HEADER_VERSION: Short = 1
 
         /** Initializes a new [Entity] at the given path. */
         internal fun initialize(name: String, schema: Schema, vararg columns: ColumnDef) {
@@ -433,7 +433,7 @@ internal class Entity(override val name: String, schema: Schema): DBO {
          * Checks if the provided tupleID is valid. Otherwise, an exception will be thrown.
          */
         private fun checkValidTupleId(tupleId: Long) {
-            if ((tupleId < 0L) or (tupleId == Entity.HEADER_RECORD_ID)) {
+            if ((tupleId < 0L) or (tupleId == HEADER_RECORD_ID)) {
                 throw TransactionException.InvalidTupleId(tid, tupleId)
             }
         }
@@ -462,57 +462,6 @@ internal class Entity(override val name: String, schema: Schema): DBO {
                     throw TransactionException.TransactionWriteLockException(this.tid)
                 }
             }
-        }
-    }
-
-    /**
-     * The header section of the [Entity] data structure.
-     */
-    private class EntityHeader(var size: Long = 0, var created: Long = System.currentTimeMillis(), var modified: Long  = System.currentTimeMillis(), var columns: LongArray = LongArray(0), var indexes: LongArray = LongArray(0))
-
-    /**
-     * The [Serializer] for the [EntityHeader].
-     */
-    private object EntityHeaderSerializer : Serializer<EntityHeader> {
-        override fun serialize(out: DataOutput2, value: EntityHeader) {
-            out.writeUTF(Entity.HEADER_IDENTIFIER)
-            out.writeShort(Entity.HEADER_VERSION.toInt())
-            out.packLong(value.size)
-            out.writeLong(value.created)
-            out.writeLong(value.modified)
-            out.writeShort(value.columns.size)
-            value.columns.forEach { out.packLong(it) }
-            out.writeShort(value.indexes.size)
-            value.indexes.forEach { out.packLong(it) }
-        }
-
-        override fun deserialize(input: DataInput2, available: Int): EntityHeader {
-            if (!this.validate(input)) {
-                throw DatabaseException.InvalidFileException("Cottontail DB Entity")
-            }
-            val size = input.unpackLong()
-            val created = input.readLong()
-            val modified = input.readLong()
-            val columns = LongArray(input.readShort().toInt())
-            for (i in 0 until columns.size) {
-                columns[i] = input.unpackLong()
-            }
-            val indexes = LongArray(input.readShort().toInt())
-            for (i in 0 until indexes.size) {
-                indexes[i] = input.unpackLong()
-            }
-            return EntityHeader(size, created, modified, columns, indexes)
-        }
-
-        /**
-         * Validates the [EntityHeader]. Must be executed before deserialization
-         *
-         * @return True if validation was successful, false otherwise.
-         */
-        private fun validate(input: DataInput2): Boolean {
-            val identifier = input.readUTF()
-            val version = input.readShort()
-            return (version == Entity.HEADER_VERSION) and (identifier == Entity.HEADER_IDENTIFIER)
         }
     }
 }

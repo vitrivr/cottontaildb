@@ -1,15 +1,15 @@
-package ch.unibas.dmi.dbis.cottontail.database.schema
+package ch.unibas.dmi.dbis.cottontail.database.column
 
 import ch.unibas.dmi.dbis.cottontail.database.general.DBO
 import ch.unibas.dmi.dbis.cottontail.database.general.Transaction
 import ch.unibas.dmi.dbis.cottontail.database.general.TransactionStatus
+import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.TransactionException
 
 import org.mapdb.*
 import org.mapdb.volume.MappedFileVol
 
-import java.nio.file.Files
 import java.nio.file.Path
 import java.util.*
 import java.util.concurrent.locks.ReentrantReadWriteLock
@@ -17,8 +17,10 @@ import kotlin.concurrent.read
 import kotlin.concurrent.write
 
 /**
- * Represents a single column in the Cottontail DB schema. A [Column] record is identified by a tuple
- * ID (long) and can hold an arbitrary value.
+ * Represents a single column in the Cottontail DB model. A [Column] record is identified by a tuple ID (long)
+ * and can hold an arbitrary value. Usually, multiple [Column]s make up an [Entity].
+ *
+ * @see Entity
  *
  * @param <T> Type of the value held by this [Column].
  *
@@ -90,12 +92,6 @@ internal class Column<T: Any>(override val name: String, entity: Entity): DBO {
     companion object {
         /** Record ID of the [ColumnHeader]. */
         private const val HEADER_RECORD_ID: Long = 1L
-
-        /** The identifier that is used to identify a Cottontail DB [Column] file. */
-        private const val HEADER_IDENTIFIER: String = "COTTONC"
-
-        /** The version of the Cottontail DB [Column] file. */
-        private const val HEADER_VERSION: Short = 1
 
         /**
          * Initializes a new, empty [Column]
@@ -393,45 +389,6 @@ internal class Column<T: Any>(override val name: String, entity: Entity): DBO {
                     throw TransactionException.TransactionWriteLockException(this.tid)
                 }
             }
-        }
-    }
-
-    /**
-     * The header data structure of any [Column]
-     */
-    private class ColumnHeader(val type: ColumnType<*>, var size: Int = 0, var nullable: Boolean = true, var count: Long = 0, var created: Long = System.currentTimeMillis(), var modified: Long = System.currentTimeMillis())
-
-    /**
-     * A [Serializer] for [ColumnHeader].
-     */
-    private object ColumnHeaderSerializer: Serializer<ColumnHeader> {
-        override fun serialize(out: DataOutput2, value: ColumnHeader) {
-            out.writeUTF(Column.HEADER_IDENTIFIER)
-            out.writeShort(Column.HEADER_VERSION.toInt())
-            out.writeUTF(value.type.name)
-            out.writeInt(value.size)
-            out.writeBoolean(value.nullable)
-            out.packLong(value.count)
-            out.writeLong(value.created)
-            out.writeLong(value.modified)
-        }
-
-        override fun deserialize(input: DataInput2, available: Int): ColumnHeader {
-            if (!this.validate(input)) {
-                throw DatabaseException.InvalidFileException("Cottontail DB Column")
-            }
-            return ColumnHeader(ColumnType.forName(input.readUTF()), input.readInt(), input.readBoolean(), input.unpackLong(), input.readLong(), input.readLong())
-        }
-
-        /**
-         * Validates the [ColumnHeader]. Must be executed before deserialization
-         *
-         * @return True if validation was successful, false otherwise.
-         */
-        private fun validate(input: DataInput2): Boolean {
-            val identifier = input.readUTF()
-            val version = input.readShort()
-            return (version == Column.HEADER_VERSION) and (identifier == Column.HEADER_IDENTIFIER)
         }
     }
 }

@@ -1,7 +1,10 @@
 package ch.unibas.dmi.dbis.cottontail.database.schema
 
 import ch.unibas.dmi.dbis.cottontail.config.Config
+import ch.unibas.dmi.dbis.cottontail.database.column.Column
 import ch.unibas.dmi.dbis.cottontail.database.general.DBO
+import ch.unibas.dmi.dbis.cottontail.database.column.ColumnDef
+import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
 
 import org.mapdb.*
@@ -21,6 +24,20 @@ import kotlin.concurrent.read
 
 import kotlin.concurrent.write
 
+/**
+ * Represents an schema in the Cottontail DB data model. A [Schema] is a collection of [Entity] objects that belong together
+ * (e.g., because they belong to the same application). Every [Schema] can be seen as a dedicated database and different
+ * [Schema]s in Cottontail can reside in different locations.
+ *
+ * Calling the default constructor for [Schema] opens that [Schema]. It can only be opened once due to file locks and it
+ * will remain open until the [Schema.close()] method is called.
+ *
+ * @see Entity
+ * @see Column
+ *
+ * @author Ralph Gasser
+ * @version 1.0f
+ */
 internal class Schema(override val name: String, val config: Config) : DBO {
 
     /** Resolve the path to the schema. */
@@ -183,12 +200,6 @@ internal class Schema(override val name: String, val config: Config) : DBO {
         /** ID of the schema header! */
         internal const val HEADER_RECORD_ID: Long = 1L
 
-        /** The identifier that is used to identify a Cottontail DB [Schema] file. */
-        internal const val HEADER_IDENTIFIER: String = "COTTONS"
-
-        /** The version of the Cottontail DB [Schema]  file. */
-        internal const val HEADER_VERSION: Short = 1
-
         /** Filename for the [Schema] catalogue.  */
         internal const val FILE_CATALOGUE = "catalogue.db"
 
@@ -219,54 +230,6 @@ internal class Schema(override val name: String, val config: Config) : DBO {
                 pathsToDelete.forEach { Files.delete(it) }
                 throw DatabaseException("Failed to create schema '$name' due to a storage exception: {${e.message}")
             }
-        }
-    }
-
-    /** The header of the [Schema]. Contains information regarding its content! */
-    private class SchemaHeader(val created: Long = System.currentTimeMillis(), var modified: Long = System.currentTimeMillis(), var entities: LongArray = LongArray(0));
-
-    /**
-     * The [Serializer] for [SchemaHeader]
-     */
-    private object SchemaHeaderSerializer: Serializer<SchemaHeader> {
-        override fun serialize(out: DataOutput2, value: SchemaHeader) {
-            out.writeUTF(Schema.HEADER_IDENTIFIER)
-            out.writeShort(Schema.HEADER_VERSION.toInt())
-            out.writeLong(value.created)
-            out.writeLong(value.modified)
-            out.writeInt(value.entities.size)
-            for (i in 0 until value.entities.size) {
-                out.writeLong(value.entities[i])
-            }
-        }
-
-        override fun deserialize(input: DataInput2, available: Int): SchemaHeader {
-            if (!this.validate(input)) {
-                throw DatabaseException.InvalidFileException("Cottontail DB Schema")
-            }
-
-            /* Deserialize header. */
-            val created = input.readLong()
-            val modified = input.readLong()
-            val size = input.readInt()
-            val entities = LongArray(size)
-            for (i in 0 until size) {
-                entities[i] = input.readLong()
-            }
-
-            /* Return header. */
-            return SchemaHeader(created, modified, entities)
-        }
-
-        /**
-         * Validates the [SchemaHeader]. Must be executed before deserialization
-         *
-         * @return True if validation was successful, false otherwise.
-         */
-        private fun validate(input: DataInput2): Boolean {
-            val header = input.readUTF()
-            val version: Short = input.readShort()
-            return (version == Schema.HEADER_VERSION) and (header == Schema.HEADER_IDENTIFIER)
         }
     }
 }

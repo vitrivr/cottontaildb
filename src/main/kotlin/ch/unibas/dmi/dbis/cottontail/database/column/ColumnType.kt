@@ -1,4 +1,4 @@
-package ch.unibas.dmi.dbis.cottontail.database.schema
+package ch.unibas.dmi.dbis.cottontail.database.column
 
 import ch.unibas.dmi.dbis.cottontail.database.serializers.FixedDoubleVectorSerializer
 import ch.unibas.dmi.dbis.cottontail.database.serializers.FixedFloatVectorSerializer
@@ -15,6 +15,9 @@ import kotlin.reflect.full.safeCast
  * The column types are stored as strings and mapped to the respective class using [ColumnType.typeForName].
  *
  * @see Column
+ *
+ * @author Ralph Gasser
+ * @version 1.0
  */
 sealed class ColumnType<T : Any> {
     abstract val name : String
