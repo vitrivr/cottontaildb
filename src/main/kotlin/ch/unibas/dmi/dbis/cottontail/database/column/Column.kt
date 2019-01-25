@@ -156,12 +156,14 @@ internal class Column<T: Any>(override val name: String, entity: Entity): DBO {
          */
         @Synchronized
         override fun close() {
-            if (this.status == TransactionStatus.DIRTY || this.status == TransactionStatus.ERROR) {
-                this@Column.store.rollback()
-                this@Column.txLock.writeLock().unlock()
+            if (this.status != TransactionStatus.CLOSED) {
+                if (this.status == TransactionStatus.DIRTY || this.status == TransactionStatus.ERROR) {
+                    this@Column.store.rollback()
+                    this@Column.txLock.writeLock().unlock()
+                }
+                this.status = TransactionStatus.CLOSED
+                this@Column.globalLock.readLock().unlock()
             }
-            this.status = TransactionStatus.CLOSED
-            this@Column.globalLock.readLock().unlock()
         }
 
         /**

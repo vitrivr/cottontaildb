@@ -12,16 +12,12 @@ import ch.unibas.dmi.dbis.cottontail.model.exceptions.TransactionException
 
 import org.mapdb.*
 import org.mapdb.volume.MappedFileVol
-import java.io.IOException
-
-import java.nio.file.Files
 import java.nio.file.Path
 import java.util.*
 
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.concurrent.read
 import kotlin.concurrent.write
-import java.util.stream.Collectors
 
 /** Type alias for a tuple. */
 typealias Tuple = Map<ColumnDef,*>
@@ -170,12 +166,14 @@ internal class Entity(override val name: String, schema: Schema): DBO {
          */
         @Synchronized
         override fun close() {
-            if (this.status == TransactionStatus.DIRTY) {
-                this@Entity.store.rollback()
-                this@Entity.txLock.writeLock().unlock()
+            if (this.status != TransactionStatus.CLOSED) {
+                if (this.status == TransactionStatus.DIRTY) {
+                    this@Entity.store.rollback()
+                    this@Entity.txLock.writeLock().unlock()
+                }
+                this.status = TransactionStatus.CLOSED
+                this@Entity.globalLock.readLock().unlock()
             }
-            this.status = TransactionStatus.CLOSED
-            this@Entity.globalLock.readLock().unlock()
         }
 
         /**
