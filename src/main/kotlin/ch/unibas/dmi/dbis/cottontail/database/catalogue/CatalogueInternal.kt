@@ -1,4 +1,4 @@
-package ch.unibas.dmi.dbis.cottontail.database.schema.catalogue
+package ch.unibas.dmi.dbis.cottontail.database.catalogue
 
 import ch.unibas.dmi.dbis.cottontail.database.schema.Schema
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
@@ -6,6 +6,7 @@ import org.mapdb.DataInput2
 import org.mapdb.DataOutput2
 import org.mapdb.Serializer
 import java.nio.file.Path
+import java.nio.file.Paths
 
 /**
  * The header section of the [Catalogue] data structure.
@@ -15,13 +16,35 @@ import java.nio.file.Path
  * @author Ralph Gasser
  * @version 1.0
  */
-internal data class CatalogueHeader(var size: Long = 0, var created: Long = System.currentTimeMillis(), var modified: Long  = System.currentTimeMillis()) {
+internal data class CatalogueHeader(val size: Long = 0, val created: Long = System.currentTimeMillis(), val modified: Long  = System.currentTimeMillis(), val schemas: LongArray = LongArray(0)) {
     companion object {
         /** The identifier that is used to identify a Cottontail DB [Catalogue] file. */
         internal const val IDENTIFIER: String = "COTTONT_CAT"
 
         /** The version of the Cottontail DB [Catalogue]  file. */
         internal const val VERSION: Short = 1
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as CatalogueHeader
+
+        if (size != other.size) return false
+        if (created != other.created) return false
+        if (modified != other.modified) return false
+        if (!schemas.contentEquals(other.schemas)) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = size.hashCode()
+        result = 31 * result + created.hashCode()
+        result = 31 * result + modified.hashCode()
+        result = 31 * result + schemas.contentHashCode()
+        return result
     }
 }
 
@@ -38,6 +61,10 @@ internal object CatalogueHeaderSerializer : Serializer<CatalogueHeader> {
         out.packLong(value.size)
         out.writeLong(value.created)
         out.writeLong(value.modified)
+        out.writeInt(value.schemas.size)
+        for (i in 0 until value.schemas.size) {
+            out.writeLong(value.schemas[i])
+        }
     }
 
     override fun deserialize(input: DataInput2, available: Int): CatalogueHeader {
@@ -47,7 +74,12 @@ internal object CatalogueHeaderSerializer : Serializer<CatalogueHeader> {
         val size = input.unpackLong()
         val created = input.readLong()
         val modified = input.readLong()
-        return CatalogueHeader(size, created, modified)
+        val schema_count = input.readInt()
+        val schemas = LongArray(schema_count)
+        for (i in 0 until schema_count) {
+            schemas[i] = input.readLong()
+        }
+        return CatalogueHeader(size, created, modified, schemas)
     }
 
     /**
@@ -73,4 +105,21 @@ internal object CatalogueHeaderSerializer : Serializer<CatalogueHeader> {
  */
 internal data class CatalogueEntry(val name: String, val path: Path)
 
+
+/**
+ * The [Serializer] for a [CatalogueEntry].
+ *
+ * @author Ralph Gasser
+ * @version 1.0
+ */
+internal object CatalogueEntrySerializer : Serializer<CatalogueEntry> {
+    override fun serialize(out: DataOutput2, value: CatalogueEntry) {
+        out.writeUTF(value.name)
+        out.writeUTF(value.path.toString())
+    }
+
+    override fun deserialize(input: DataInput2, available: Int): CatalogueEntry {
+        return CatalogueEntry(input.readUTF(), Paths.get(input.readUTF()))
+    }
+}
 

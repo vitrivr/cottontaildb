@@ -40,7 +40,7 @@ internal class Column<T: Any>(override val name: String, entity: Entity): DBO {
 
     /** Internal reference to the [Store] underpinning this [Column]. */
     private var store: StoreWAL = try {
-        StoreWAL.make(file = this.path.toString(), volumeFactory = MappedFileVol.FACTORY, fileLockWait = this.parent!!.parent!!.config.lockTimeout)
+        StoreWAL.make(file = this.path.toString(), volumeFactory = MappedFileVol.FACTORY, fileLockWait = this.parent!!.parent!!.parent.config.lockTimeout)
     } catch (e: DBException) {
         throw DatabaseException("Failed to open column at '$path': ${e.message}'")
     }
@@ -82,8 +82,8 @@ internal class Column<T: Any>(override val name: String, entity: Entity): DBO {
      * Therefore, access to the method is mediated by an global [Column] wide lock.
      */
     override fun close() = this.globalLock.write {
-        this.closed = true
         this.store.close()
+        this.closed = true
     }
 
     /**

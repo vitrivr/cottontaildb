@@ -44,15 +44,12 @@ internal class Entity(override val name: String, schema: Schema): DBO {
     /** The [Path] to the [Entity]'s main folder. */
     override val path: Path = schema.path.resolve("entity_$name")
 
-    /** The fully qualified name of this [Entity] */
-    override val fqn: String = "${schema.name}.$name"
-
     /** The parent [DBO], which is the [Schema] in case of an [Entity]. */
     override val parent: Schema? = schema
 
     /** Internal reference to the [StoreWAL] underpinning this [Entity]. */
     private val store: StoreWAL = try {
-        StoreWAL.make(file = this.path.resolve(FILE_CATALOGUE).toString(), volumeFactory = MappedFileVol.FACTORY , fileLockWait = schema.config.lockTimeout)
+        StoreWAL.make(file = this.path.resolve(FILE_CATALOGUE).toString(), volumeFactory = MappedFileVol.FACTORY , fileLockWait = this.parent!!.parent.config.lockTimeout)
     } catch (e: DBException) {
         throw DatabaseException("Failed to open entity '$fqn': ${e.message}'.")
     }
@@ -93,9 +90,10 @@ internal class Entity(override val name: String, schema: Schema): DBO {
      * Therefore, access to the method is mediated by an global [Entity] wide lock.
      */
     override fun close() = this.globalLock.write {
-        this.closed = true
+
         this.columns.forEach { it.close() }
         this.store.close()
+        this.closed = true
     }
 
     /**
@@ -109,7 +107,7 @@ internal class Entity(override val name: String, schema: Schema): DBO {
     }
 
     /**
-     *
+     * Companion object of the [Entity]
      */
     companion object {
         /** Filename for the [Entity] catalogue.  */
@@ -117,40 +115,6 @@ internal class Entity(override val name: String, schema: Schema): DBO {
 
         /** Filename for the [Entity] catalogue.  */
         internal const val HEADER_RECORD_ID = 1L
-
-        /** Initializes a new [Entity] at the given path. */
-        internal fun initialize(name: String, schema: Schema, vararg columns: ColumnDef) {
-            /* Create empty folder for entity. */
-            val data = schema.path.resolve("entity_$name")
-            try {
-                if (!Files.exists(data)) {
-                    Files.createDirectories(data)
-                } else {
-                    throw DatabaseException("Failed to create entity '${schema.name}.$name'. Data directory '$data' seems to be occupied.")
-                }
-            } catch (e: IOException) {
-                throw DatabaseException("Failed to create entity '${schema.name}.$name' due to an IO exception: {${e.message}")
-            }
-
-            /* Generate the entity. */
-            try {
-                val store = StoreWAL.make(file = data.resolve(FILE_CATALOGUE).toString(), volumeFactory = MappedFileVol.FACTORY, fileLockWait = schema.config.lockTimeout)
-                store.preallocate() /* Pre-allocates the header. */
-
-                /* Initialize the entities header. */
-                val columnIds = columns.map {
-                    Column.initialize(it, data)
-                    store.put(it.name, Serializer.STRING)
-                }.toLongArray()
-                store.update(HEADER_RECORD_ID, EntityHeader(columns = columnIds), EntityHeaderSerializer)
-                store.commit()
-                store.close()
-            } catch (e: DBException) {
-                val pathsToDelete = Files.walk(data).sorted(Comparator.reverseOrder()).collect(Collectors.toList())
-                pathsToDelete.forEach { Files.delete(it) }
-                throw e
-            }
-        }
     }
 
     /**

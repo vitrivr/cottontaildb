@@ -13,6 +13,7 @@ interface DBO : AutoCloseable {
 
     /** The fully qualified name of this [DBO]. */
     val fqn: String
+        get() = if (parent?.name != null) { "${parent!!.name}/$name" } else { name }
 
     /** The parent DBO (if such exists). */
     val parent: DBO?

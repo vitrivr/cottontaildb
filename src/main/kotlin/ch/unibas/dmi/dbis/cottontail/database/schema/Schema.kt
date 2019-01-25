@@ -1,10 +1,12 @@
 package ch.unibas.dmi.dbis.cottontail.database.schema
 
-import ch.unibas.dmi.dbis.cottontail.config.Config
+import ch.unibas.dmi.dbis.cottontail.database.catalogue.Catalogue
 import ch.unibas.dmi.dbis.cottontail.database.column.Column
 import ch.unibas.dmi.dbis.cottontail.database.general.DBO
 import ch.unibas.dmi.dbis.cottontail.database.column.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
+import ch.unibas.dmi.dbis.cottontail.database.entity.EntityHeader
+import ch.unibas.dmi.dbis.cottontail.database.entity.EntityHeaderSerializer
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
 
 import org.mapdb.*
@@ -36,22 +38,13 @@ import kotlin.concurrent.write
  * @see Column
  *
  * @author Ralph Gasser
- * @version 1.0f
+ * @version 1.0
  */
-internal class Schema(override val name: String, val config: Config) : DBO {
-
-    /** Resolve the path to the schema. */
-    override val path: Path = config.root.resolve( "schema_$name")
-
-    /** The fully qualified name of this [Schema], which is equal to its name. */
-    override val fqn: String = name
-
-    /** The fully parent of this [Schema], which is null. */
-    override val parent: DBO? = null
+internal class Schema(override val name: String, override val path: Path, override val parent: Catalogue) : DBO {
 
     /** Internal reference to the [Store] underpinning this [Column]. */
     private val store: StoreWAL = try {
-        StoreWAL.make(file = this.path.resolve(FILE_CATALOGUE).toString(), volumeFactory = MappedFileVol.FACTORY, fileLockWait = config.lockTimeout)
+        StoreWAL.make(file = this.path.resolve(FILE_CATALOGUE).toString(), volumeFactory = MappedFileVol.FACTORY, fileLockWait = this.parent.config.lockTimeout)
     } catch (e: DBException) {
         throw DatabaseException("Failed to open schema $name at '$path': ${e.message}'")
     }
@@ -63,32 +56,63 @@ internal class Schema(override val name: String, val config: Config) : DBO {
     /** A lock used to mediate access to this [Schema]. */
     private val lock = ReentrantReadWriteLock()
 
+    /** A map of loaded [Entity] references. The [SoftReference] allow for coping with changing memory conditions. */
+    private val loaded = HashMap<String, SoftReference<Entity>>()
+
     /** Returns a list of [Entity] held by this [Schema]. */
     val entities: List<String>
         get() = header.entities.map { this.store.get(it, Serializer.STRING) ?: throw DatabaseException.DataCorruptionException("Failed to read schema $name ($path): Could not find entity name of ID $it.") }
 
-    /** A map of loaded [Entity] references. The [SoftReference] allow for coping with changing memory conditions. */
-    private val loaded = HashMap<String, SoftReference<Entity>>()
+    /** Size of the [Schema] in terms of [Entity] objects it contains. */
+    val size
+        get() = this.lock.read { this.header.entities.size }
 
     /** Flag indicating whether or not this [Schema] has been closed. */
     @Volatile
     override var closed: Boolean = false
         private set
 
-    /** Size of the [Schema] in terms of [Entity] objects it contains. */
-    val size
-        get() = this.header.entities.size
-
     /**
      * Creates a new [Entity] in this [Schema].
      *
-     * @param The name of the [Entity] that should be dropped.
+     * @param name The name of the [Entity] that should be created.
      */
     fun createEntity(name: String, vararg columns: ColumnDef) = this.lock.write {
         if (entities.contains(name)) throw DatabaseException("Entity $name.${this.name} cannot be created, because it already exists!")
         try {
+            /* Create empty folder for entity. */
+            val data = path.resolve("entity_$name")
+            try {
+                if (!Files.exists(data)) {
+                    Files.createDirectories(data)
+                } else {
+                    throw DatabaseException("Failed to create entity '${name}.$name'. Data directory '$data' seems to be occupied.")
+                }
+            } catch (e: IOException) {
+                throw DatabaseException("Failed to create entity '${name}.$name' due to an IO exception: {${e.message}")
+            }
+
             /* Store entry for new entity. */
             val recId = this.store.put(name, Serializer.STRING)
+
+            /* Generate the entity. */
+            try {
+                val store = StoreWAL.make(file = data.resolve(Entity.FILE_CATALOGUE).toString(), volumeFactory = MappedFileVol.FACTORY, fileLockWait = parent.config.lockTimeout)
+                store.preallocate() /* Pre-allocates the header. */
+
+                /* Initialize the entities header. */
+                val columnIds = columns.map {
+                    Column.initialize(it, data)
+                    store.put(it.name, Serializer.STRING)
+                }.toLongArray()
+                store.update(Entity.HEADER_RECORD_ID, EntityHeader(columns = columnIds), EntityHeaderSerializer)
+                store.commit()
+                store.close()
+            } catch (e: DBException) {
+                val pathsToDelete = Files.walk(data).sorted(Comparator.reverseOrder()).collect(Collectors.toList())
+                pathsToDelete.forEach { Files.delete(it) }
+                throw e
+            }
 
             /* Update schema header. */
             val header = this.header
@@ -97,10 +121,7 @@ internal class Schema(override val name: String, val config: Config) : DBO {
             header.entities[header.entities.size-1] = recId
             this.store.update(HEADER_RECORD_ID, header, SchemaHeaderSerializer)
 
-            /* Initialize new entity; catch exception if any occurs. */
-            Entity.initialize(name, this, *columns)
-
-            /* Commit changes and load entity. */
+            /* Commit changes to local schema. */
             this.store.commit()
         } catch (e: Exception) {
             this.store.rollback()
@@ -142,15 +163,21 @@ internal class Schema(override val name: String, val config: Config) : DBO {
         pathsToDelete.forEach { Files.delete(it) }
     }
 
-    /**
-     * Drops the entire [Schema] and deletes all the [Entity] objects that are contained within.
-     */
-    fun drop() = this.lock.write {
-        this.close()
 
-        /* Delete all files associated with the schema. */
-        val pathsToDelete = Files.walk(path).sorted(Comparator.reverseOrder()).collect(Collectors.toList())
-        pathsToDelete.forEach { Files.delete(it) }
+    /**
+     * Returns an instance of [Entity] if such an instance exists. If the [Entity] has been loaded before, that [Entity] is re-used.
+     * Otherwise, the [Entity] will be loaded from disk.
+     */
+    fun get(name: String): Entity = this.lock.read {
+        var entity = this.loaded[name]?.get()
+        if (entity != null) {
+            return entity
+        } else {
+            if (!entities.contains(name)) throw DatabaseException("Entity $name.${this.name} cannot be opened, because it does not exists!")
+            entity = Entity(name, this)
+            this.loaded[name] = SoftReference(entity)
+            return entity
+        }
     }
 
     /**
@@ -170,22 +197,6 @@ internal class Schema(override val name: String, val config: Config) : DBO {
     }
 
     /**
-     * Returns an instance of [Entity] if such an instance exists. If the [Entity] has been loaded before, that [Entity] is re-used.
-     * Otherwise, the [Entity] will be loaded from disk.
-     */
-    fun get(name: String): Entity = this.lock.read {
-        var entity = this.loaded[name]?.get()
-        if (entity != null) {
-            return entity
-        } else {
-            if (!entities.contains(name)) throw DatabaseException("Entity $name.${this.name} cannot be opened, because it does not exists!")
-            entity = Entity(name, this)
-            this.loaded[name] = SoftReference(entity)
-            return entity
-        }
-    }
-
-    /**
      * Explicitly unloads (closes) an instance of [Entity] if such an instance exists. Otherwise, this function has now effect.
      */
     private fun unload(name: String) = this.lock.write {
@@ -201,36 +212,7 @@ internal class Schema(override val name: String, val config: Config) : DBO {
         internal const val HEADER_RECORD_ID: Long = 1L
 
         /** Filename for the [Schema] catalogue.  */
-        internal const val FILE_CATALOGUE = "catalogue.db"
-
-        /** */
-        fun create(name: String, config: Config): Schema {
-            /* Create empty folder for entity. */
-            val data = config.root.resolve("schema_$name")
-            try {
-                if (!Files.exists(data)) {
-                    Files.createDirectories(data)
-                } else {
-                    throw DatabaseException("Failed to create schema '$name'. Data directory '$data' seems to be occupied.")
-                }
-            } catch (e: IOException) {
-                throw DatabaseException("Failed to create schema '${name}' due to an IO exception: {${e.message}")
-            }
-
-            /* Generate the store. */
-            try {
-                val store = StoreWAL.make(file = data.resolve(Schema.FILE_CATALOGUE).toString(), volumeFactory = MappedFileVol.FACTORY, fileLockWait = config.lockTimeout)
-                store.preallocate() /* Pre-allocates the header. */
-                store.update(Schema.HEADER_RECORD_ID, SchemaHeader(), SchemaHeaderSerializer)
-                store.commit()
-                store.close()
-                return Schema(name, config)
-            } catch (e: DBException) {
-                val pathsToDelete = Files.walk(data).sorted(Comparator.reverseOrder()).collect(Collectors.toList())
-                pathsToDelete.forEach { Files.delete(it) }
-                throw DatabaseException("Failed to create schema '$name' due to a storage exception: {${e.message}")
-            }
-        }
+        internal const val FILE_CATALOGUE = "index.db"
     }
 }
 
