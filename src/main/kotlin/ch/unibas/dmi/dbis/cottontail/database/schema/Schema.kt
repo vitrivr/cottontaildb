@@ -165,10 +165,12 @@ internal class Schema(override val name: String, override val path: Path, overri
 
 
     /**
-     * Returns an instance of [Entity] if such an instance exists. If the [Entity] has been loaded before, that [Entity] is re-used.
-     * Otherwise, the [Entity] will be loaded from disk.
+     * Returns an instance of [Entity] if such an instance exists. If the [Entity] has been loaded before,
+     * that [Entity] is re-used. Otherwise, the [Entity] will be loaded from disk.
+     *
+     * @param name Name of the [Entity] to access.
      */
-    fun get(name: String): Entity = this.lock.read {
+    fun getEntity(name: String): Entity = this.lock.read {
         var entity = this.loaded[name]?.get()
         if (entity != null) {
             return entity
