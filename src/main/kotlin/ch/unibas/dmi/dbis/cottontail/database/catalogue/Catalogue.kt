@@ -132,7 +132,7 @@ internal class Catalogue(val config: Config): DBO {
         }
 
         /* Add schema to local map. */
-        this.registry[name] = Schema(name, path, this)
+        this.registry[name] = Schema(name, data, this)
     }
 
     /**
@@ -197,5 +197,25 @@ internal class Catalogue(val config: Config): DBO {
 
         /** Filename for the [Entity] catalogue.  */
         internal const val FILE_CATALOGUE = "catalogue.db"
+
+        /**
+         * Initializes a new Cottontail DB [Catalogue] for the given [Config]. This method is for
+         * bootstraping a new instance of Cottontail DB.
+         */
+        fun init(config: Config) {
+            try {
+                if (!Files.exists(config.root)) {
+                    Files.createDirectories(config.root)
+                }
+            } catch (e: IOException) {
+                throw DatabaseException("Failed to create Cottontail DB catalogue due to an IO exception: ${e.message}")
+            }
+
+            /* Create and initialize new store. */
+            val store = StoreWAL.make(file = config.root.resolve(Catalogue.FILE_CATALOGUE).toString(), volumeFactory = MappedFileVol.FACTORY, fileLockWait = config.lockTimeout)
+            store.put(CatalogueHeader(), CatalogueHeaderSerializer)
+            store.commit()
+            store.close()
+        }
     }
 }
