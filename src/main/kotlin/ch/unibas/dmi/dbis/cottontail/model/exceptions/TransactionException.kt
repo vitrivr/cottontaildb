@@ -75,8 +75,8 @@ open class TransactionException(message: String) : DatabaseException(message) {
      * Read/write could not be executed because some of the colums don't exist.
      *
      * @param tid The ID of the [Transaction] in which this error occurred.
-     * @param column The name of the [Column] that is missing.
-     * @param column The name of the [Entity] in which the column is missing.
+     * @param column The definition of the [Column] that is missing.
+     * @param entity The name of the [Entity] in which the column is missing.
      */
-    class ColumnUnknownException(tid: UUID, column: ColumnDef, entity: String): TransactionException("Transaction $tid could not be executed, because column '$entity.${column.name}' (type=${column.type.name}) does not either not exist or has a different type.")
+    class ColumnUnknownException(tid: UUID, column: ColumnDef<*>, entity: String): TransactionException("Transaction $tid could not be executed, because column '$entity.${column.name}' (type=${column.type.name}) does not either not exist or has a different type.")
 }
