@@ -43,6 +43,7 @@ dependencies {
     ////// Log4J
     compile group: 'org.apache.logging.log4j', name: 'log4j-api', version: '2.11.1'
     compile group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.11.1'
+    compile group: 'org.slf4j', name: 'slf4j-log4j12', version: '1.7.25'
 
     ////// Dexecutor
     compile  group: 'com.github.dexecutor', name: 'dexecutor-core', version: '2.1.0'
