@@ -36,6 +36,8 @@ sealed class ColumnType<T : Any> {
             "SHORT" -> ShortColumnType()
             "INTEGER" -> IntColumnType()
             "LONG" -> LongColumnType()
+            "FLOAT" -> FloatColumnType()
+            "DOUBLE" -> DoubleColumnType()
             "STRING" -> StringColumnType()
             "BYTE_VEC" -> ByteArrayColumnType()
             "SHORT_VEC" -> ShortArrayColumnType()
@@ -48,8 +50,8 @@ sealed class ColumnType<T : Any> {
     }
 
 
-    fun cast(value: Any?) : T? = type.safeCast(value)
-    fun compatible(value: Any) = type.isInstance(value)
+    fun cast(value: Any?) : T? = this.type.safeCast(value)
+    fun compatible(value: Any?) = this.type.isInstance(value)
 
     /**
      * Returns a [Serializer] for this [ColumnType]. Some [ColumnType] require a size attribute
