@@ -1,18 +1,25 @@
 package ch.unibas.dmi.dbis.cottontail
 
 import ch.unibas.dmi.dbis.cottontail.config.Config
-import ch.unibas.dmi.dbis.cottontail.database.schema.*
-import ch.unibas.dmi.dbis.cottontail.knn.KnnContainer
+import ch.unibas.dmi.dbis.cottontail.database.catalogue.Catalogue
+import ch.unibas.dmi.dbis.cottontail.database.column.ColumnDef
+import ch.unibas.dmi.dbis.cottontail.database.column.FloatArrayColumnType
+import ch.unibas.dmi.dbis.cottontail.database.column.StringColumnType
+import ch.unibas.dmi.dbis.cottontail.database.general.begin
+import ch.unibas.dmi.dbis.cottontail.execution.ExecutionPlan
+import ch.unibas.dmi.dbis.cottontail.execution.tasks.knn.FullscanFloatKnnTask
+import ch.unibas.dmi.dbis.cottontail.execution.tasks.projection.ColumnProjectionTask
 import ch.unibas.dmi.dbis.cottontail.knn.metrics.Distance
+import ch.unibas.dmi.dbis.cottontail.model.basics.Recordset
+import ch.unibas.dmi.dbis.cottontail.model.basics.StandaloneRecord
+import ch.unibas.dmi.dbis.cottontail.utilities.VectorUtility
 
 import com.google.gson.GsonBuilder
 import kotlinx.serialization.json.JSON
 
-import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Paths
 
-import kotlin.concurrent.thread
 
 object Playground {
 
@@ -21,60 +28,57 @@ object Playground {
         val path = args[0]
         Files.newBufferedReader(Paths.get(path)).use { reader ->
             val config = JSON.parse(Config.serializer(), reader.readText())
-                loadAndPersist(config)
+                loadAndRead(config)
         }
     }
 
     fun loadAndRead(config: Config) {
-        try {
-            val schema = Schema("adampro", config)
-            val entity = schema.get("test")
-            val tx = entity.Tx(readonly = true)
 
-            val block = {
-                val start = System.currentTimeMillis()
-                val container = KnnContainer(10000,FloatArray(512), Distance.L1)
+        val catalogue = Catalogue(config)
+        val schema = catalogue.getSchema("cottontail")
+        val entity = schema.getEntity("test")
 
-                tx.forEachColumn({ l: Long, floats: FloatArray -> container.add(l,floats) }, ColumnType.specForName("feature","DFARRAY"))
-                println(String.format("%s: kNN for n=%d, s=%d vectors took %d ms", Thread.currentThread().name, container.knn.size, tx.count(), System.currentTimeMillis() - start))
-            }
+        val engine = ch.unibas.dmi.dbis.cottontail.execution.ExecutionEngine(config)
 
+        val plan = engine.newExecutionPlan()
+        val d = 512
+        val n = 10000
 
-            for (i in 1..1) {
-                thread(start = true, block = block);
-            }
+        val init = plan.addTask(FullscanFloatKnnTask(entity, ColumnDef.withAttributes("feature","FLOAT_VEC", d), VectorUtility.randomFloatVector(d), Distance.L2, n))
+        plan.addOutput(ColumnProjectionTask(entity, ColumnDef.withAttributes("id","STRING")))
 
-
-        } catch (e: IOException) {
-            e.printStackTrace()
-        }
-
+        val start = System.currentTimeMillis()
+        plan.execute()
+       // println("kNN for n=$d, s=${result.first.result.columns} vectors took ${System.currentTimeMillis() - start} ms.")
     }
 
 
     fun loadAndPersist(config: Config) {
 
 
-        val schema = Schema.create("adampro", config)
-        val entity = schema.createEntity("test", ColumnDef("id", StringColumnType()), ColumnDef("feature", FloatArrayColumnType()))
-        val tx = entity.Tx(readonly = false)
-        tx.begin {
-            for (i in 1..76) {
-                Files.newBufferedReader(Paths.get(String.format("/Volumes/Data (Mac)/Extracted/features_surfmf25k512_%d.json", i))).use { reader ->
-                    val gson = GsonBuilder().create()
-                    val features = gson.fromJson(reader, Array<Feature>::class.java)
-                    val start = System.currentTimeMillis()
+        Catalogue.init(config)
+
+        val catalogue = Catalogue(config)
+        catalogue.createSchema("cottontail")
+
+        /* Load schema. */
+        val schema = catalogue.getSchema("cottontail")
+        schema.createEntity("test", ColumnDef("id", StringColumnType()), ColumnDef("feature", FloatArrayColumnType(), 512))
+        val entity = schema.getEntity("test")
+
+        for (i in 1..76) {
+            Files.newBufferedReader(Paths.get("/Volumes/Data (Mac)/Extracted/features_surfmf25k512_$i.json")).use { reader ->
+                val gson = GsonBuilder().create()
+                val features = gson.fromJson(reader, Array<Feature>::class.java)
+                val start = System.currentTimeMillis()
+                entity.Tx(readonly = false).begin {
                     for (f in features) {
-                        tx.insert(mapOf(
-                                Pair(ColumnType.specForName("id","STRING"), f.id),
-                                Pair(ColumnType.specForName("feature","DFARRAY"), f.feature)
-                        ))
+                        it.insert(StandaloneRecord(null, ColumnDef.withAttributes("id","STRING"), ColumnDef.withAttributes("feature","FLOAT_VEC")).assign(f.id, f.feature))
                     }
-                    println(String.format("Writing %d vectors took %d ms", features.size, System.currentTimeMillis() - start))
+                    true
                 }
+                println("Writing ${features.size} vectors took ${System.currentTimeMillis() - start} ms.")
             }
-            true
         }
-        tx.close()
     }
 }
