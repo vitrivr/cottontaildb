@@ -99,7 +99,7 @@ internal class Column<T: Any>(override val name: String, entity: Entity): DBO {
          * @param parent The folder that contains the data file.
          * @param definition The [ColumnDef] that specified the [Column]
          */
-        fun initialize(definition: ColumnDef, path: Path) {
+        fun initialize(definition: ColumnDef<*>, path: Path) {
             val store = StoreWAL.make(file = path.resolve("col_${definition.name}.db").toString(), volumeFactory = MappedFileVol.FACTORY)
             store.put(ColumnHeader(type = definition.type, size = definition.size, nullable = definition.nullable), ColumnHeaderSerializer)
             store.commit()
@@ -167,17 +167,33 @@ internal class Column<T: Any>(override val name: String, entity: Entity): DBO {
         }
 
         /**
-         * Gets and returns an entry from this [Column]. Action acquires a global read dataLock for the [Column].
+         * Gets and returns an entry from this [Column].
          *
          * @param tupleId The ID of the desired entry
          * @return The desired entry.
          *
          * @throws DatabaseException If the tuple with the desired ID doesn't exist OR is invalid.
          */
-        fun read(tupleId: Long) : T? = this@Column.txLock.read {
+        fun read(tupleId: Long): T? = this@Column.txLock.read {
             checkValidOrThrow()
             checkValidTupleId(tupleId)
             return this@Column.store.get(tupleId, this.serializer)
+        }
+
+        /**
+         * Gets and returns several entries from this [Column].
+         *
+         * @param tupleIds The IDs of the desired entries
+         * @return List of the desired entries.
+         *
+         * @throws DatabaseException If the tuple with the desired ID doesn't exist OR is invalid.
+         */
+        fun readAll(tupleIds: Collection<Long>): Collection<T?> = this@Column.txLock.read {
+            checkValidOrThrow()
+            tupleIds.map {
+                checkValidTupleId(it)
+                this@Column.store.get(it, this.serializer)
+            }
         }
 
         /**
@@ -194,14 +210,16 @@ internal class Column<T: Any>(override val name: String, entity: Entity): DBO {
          * Applies the provided mapping function on each value found in this [Column], returning a
          * collection of the desired output values.
          *
-         * @param action The action that should be applied.
+         * @param action The tasks that should be applied.
          * @return A collection of Pairs mapping the tupleId to the generated value.
          */
-        fun <R> map(action: (T?) -> R?): Collection<Pair<Long,R?>> = this@Column.txLock.read {
+        fun <R> map(action: (T?) -> R?): Collection<R?> = this@Column.txLock.read {
             checkValidOrThrow()
-            val list = mutableListOf<Pair<Long,R?>>()
+            val list = mutableListOf<R?>()
             this@Column.store.getAllRecids().forEach {
-                list.add(Pair(it,action(this.read(it))))
+                if (it != HEADER_RECORD_ID) {
+                    list.add(action(this@Column.store.get(it, this.serializer)))
+                }
             }
             return list
         }
@@ -209,17 +227,17 @@ internal class Column<T: Any>(override val name: String, entity: Entity): DBO {
         /**
          * Applies the provided function on each element found in this [Column].
          */
-        fun forEach(action: (Long,T) -> Unit) = this@Column.txLock.read {
+        fun forEach(action: (Long,T?) -> Unit) = this@Column.txLock.read {
             checkValidOrThrow()
             this@Column.store.getAllRecids().forEach {
                 if (it != HEADER_RECORD_ID) {
-                    action(it,this.read(it)!!)
+                    action(it,this@Column.store.get(it, this.serializer))
                 }
             }
         }
 
         /**
-         * Inserts a new record in this [Column]. This action will set this [Column.Tx] to [TransactionStatus.DIRTY]
+         * Inserts a new record in this [Column]. This tasks will set this [Column.Tx] to [TransactionStatus.DIRTY]
          * and acquire a column-wide write lock until the [Column.Tx] either commit or rollback is issued.
          *
          * @param record The record that should be inserted. Can be null!
@@ -245,7 +263,7 @@ internal class Column<T: Any>(override val name: String, entity: Entity): DBO {
         }
 
         /**
-         * Inserts a list of new records in this [Column]. This action will set this [Column.Tx] to [TransactionStatus.DIRTY]
+         * Inserts a list of new records in this [Column]. This tasks will set this [Column.Tx] to [TransactionStatus.DIRTY]
          * and acquire a column-wide write lock until the [Column.Tx] either commit or rollback is issued.
          *
          * @param records The records that should be inserted. Can contain null values!
@@ -274,7 +292,7 @@ internal class Column<T: Any>(override val name: String, entity: Entity): DBO {
         }
 
         /**
-         * Updates the entry with the specified tuple ID and sets it to the new value. This action will set this [Column.Tx]
+         * Updates the entry with the specified tuple ID and sets it to the new value. This tasks will set this [Column.Tx]
          * to [TransactionStatus.DIRTY] and acquire a column-wide write lock until the [Column.Tx] either commit or rollback is issued.
          *
          * @param tupleId The ID of the record that should be updated
@@ -290,7 +308,7 @@ internal class Column<T: Any>(override val name: String, entity: Entity): DBO {
         }
 
         /**
-         * Updates the entry with the specified tuple ID and sets it to the new value. This action will set this [Column.Tx]
+         * Updates the entry with the specified tuple ID and sets it to the new value. This tasks will set this [Column.Tx]
          * to [TransactionStatus.DIRTY] and acquire a column-wide write lock until the [Column.Tx] either commit or rollback is issued.
          *
          * @param tupleId The ID of the record that should be updated
@@ -307,7 +325,7 @@ internal class Column<T: Any>(override val name: String, entity: Entity): DBO {
         }
 
         /**
-         * Deletes a record from this [Column]. This action will set this [Column.Tx] to [TransactionStatus.DIRTY]
+         * Deletes a record from this [Column]. This tasks will set this [Column.Tx] to [TransactionStatus.DIRTY]
          * and acquire a column-wide write lock until the [Column.Tx] either commit or rollback is issued.
          *
          * @param tupleId The ID of the record that should be deleted
@@ -328,7 +346,7 @@ internal class Column<T: Any>(override val name: String, entity: Entity): DBO {
         }
 
         /**
-         * Deletes all the specified records from this [Column]. This action will set this [Column.Tx] to [TransactionStatus.DIRTY]
+         * Deletes all the specified records from this [Column]. This tasks will set this [Column.Tx] to [TransactionStatus.DIRTY]
          * and acquire a column-wide write lock until the [Column.Tx] either commit or rollback is issued.
          *
          * @param tupleIds The IDs of the records that should be deleted.

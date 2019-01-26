@@ -6,6 +6,9 @@ import ch.unibas.dmi.dbis.cottontail.database.general.TransactionStatus
 import ch.unibas.dmi.dbis.cottontail.database.column.Column
 import ch.unibas.dmi.dbis.cottontail.database.column.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.database.schema.Schema
+import ch.unibas.dmi.dbis.cottontail.model.basics.Recordset
+import ch.unibas.dmi.dbis.cottontail.model.basics.Record
+import ch.unibas.dmi.dbis.cottontail.model.basics.StandaloneRecord
 
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.TransactionException
@@ -18,9 +21,6 @@ import java.util.*
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.concurrent.read
 import kotlin.concurrent.write
-
-/** Type alias for a tuple. */
-typealias Tuple = Map<ColumnDef,*>
 
 /**
  * Represents a single entity in the Cottontail DB data model. An [Entity] has name that must remain unique within a [Schema].
@@ -120,7 +120,7 @@ internal class Entity(override val name: String, schema: Schema): DBO {
      */
     inner class Tx(override val readonly: Boolean, override val tid: UUID = UUID.randomUUID()) : Transaction {
         /** List of [Column.Tx] associated with this [Entity.Tx]. */
-        private val transactions: Map<ColumnDef, Column<*>.Tx> = mapOf(* this@Entity.columns.map { Pair(ColumnDef(it.name, it.type), it.Tx(readonly, tid)) }.toTypedArray())
+        private val transactions: Map<ColumnDef<*>, Column<*>.Tx> = mapOf(* this@Entity.columns.map { Pair(ColumnDef(it.name, it.type), it.Tx(readonly, tid)) }.toTypedArray())
 
         /** Flag indicating whether or not this [Entity.Tx] was closed */
         @Volatile
@@ -185,13 +185,33 @@ internal class Entity(override val name: String, schema: Schema): DBO {
          *
          * @throws DatabaseException If tuple with the desired ID doesn't exist OR is invalid.
          */
-        fun read(tupleId: Long, vararg columns: ColumnDef): Tuple = this@Entity.txLock.read {
+        fun read(tupleId: Long, vararg columns: ColumnDef<*>): Record = this@Entity.txLock.read {
             checkValidOrThrow()
             checkValidTupleId(tupleId)
             checkColumnsExist(*columns)
 
             /* Return value of all the desired columns. */
-            return mapOf(* columns.map { Pair(it, transactions[it]!!.read(tupleId)) }.toTypedArray())
+            StandaloneRecord(tupleId, *columns).assign(*columns.map { transactions.getValue(it).read(tupleId) }.toTypedArray())
+        }
+
+        /**
+         * Reads the values of one or many [Column]s and returns it as a [Tuple]
+         *
+         * @param tupleId The ID of the desired entry.
+         * @param columns The the [Column]s that should be read.
+         * @return The desired [Tuple].
+         *
+         * @throws DatabaseException If tuple with the desired ID doesn't exist OR is invalid.
+         */
+        fun readAll(tupleIds: Collection<Long>, vararg columns: ColumnDef<*>): Recordset = this@Entity.txLock.read {
+            checkValidOrThrow()
+            checkColumnsExist(*columns)
+            val dataset = Recordset(*columns)
+            tupleIds.forEach {tid ->
+                checkValidTupleId(tid)
+                dataset.addRow(tid, *columns.map { transactions.getValue(it).read(tid) }.toTypedArray())
+            }
+            dataset
         }
 
         /**
@@ -212,7 +232,7 @@ internal class Entity(override val name: String, schema: Schema): DBO {
          *
          * @return A collection of Pairs mapping the tupleId to the generated value.
          */
-        fun <R> map(action: (Tuple) -> R, vararg columns: ColumnDef) = this@Entity.txLock.read {
+        fun <R> map(action: (Record) -> R, vararg columns: ColumnDef<*>) = this@Entity.txLock.read {
             checkValidOrThrow()
             checkColumnsExist(*columns)
         }
@@ -225,45 +245,40 @@ internal class Entity(override val name: String, schema: Schema): DBO {
          *
          * @return A collection of Pairs mapping the tupleId to the generated value.
          */
-        fun <R,T: Any> mapColumn(action: (T) -> R, column: ColumnDef): Collection<Pair<Long,R?>> = this@Entity.txLock.read {
+        fun <T: Any,R> mapColumn(action: (T?) -> R?, column: ColumnDef<T>): Collection<R?> = this@Entity.txLock.read {
             checkValidOrThrow()
             checkColumnsExist(column)
-            return this.transactions[column]!!.map { action(it as T)}
+            return this.transactions.getValue(column).map { action(it as T?)}
         }
 
         /**
-         * Applies the provided function on each element found in this [Column].
+         * Applies the provided function on each element found in this [Column]. Does not change the data stored by the [Column]!
          *
          * @param action The function to apply to each [Column] entry.
          * @param column The [ColumnSpec] that identifies the [Column] that should be mapped..
          */
-        fun <T: Any> forEachColumn(action: (Long,T) -> Unit, column: ColumnDef) = this@Entity.txLock.read {
+        fun <T: Any> forEachColumn(action: (Long,T) -> Unit, column: ColumnDef<*>) = this@Entity.txLock.read {
             checkValidOrThrow()
             checkColumnsExist(column)
-            try {
-                this.transactions[column]!!.forEach { l: Long, any: Any -> action(l, any as T)}
-            } catch (e: TransactionException) {
-                this.status = TransactionStatus.ERROR
-                throw e
-            }
+            this.transactions.getValue(column).forEach { l: Long, any: Any? -> action(l, any as T)}
         }
 
         /**
          * Attempts to insert the provided [Tuple] into the [Entity]. Columns specified in the [Tuple] that are not part
          * of the [Entity] will cause an error!
          *
-         * @param tuple The [Tuple] that should be inserted.
+         * @param record The [Record] that should be inserted.
          * @return The ID of the record or null, if nothing was inserted.
          * @throws TransactionException If some of the sub-transactions on [Column] level caused an error.
          * @throws DatabaseException If a general database error occurs during the insert.
          */
-        fun insert(tuple: Tuple): Long? {
-            checkColumnsExist(*tuple.keys.toTypedArray()) /* Perform sanity check on columns before locking. */
+        fun insert(record: Record): Long? {
+            checkColumnsExist(*record.columns) /* Perform sanity check on columns before locking. */
             acquireWriteLock()
             try {
                 var lastRecId: Long? = null
                 for ((column,tx) in this.transactions) {
-                    val recId = (tx as Column<Any>.Tx).insert(tx.type.cast(tuple[column]))
+                    val recId = (tx as Column<Any>.Tx).insert(tx.type.cast(record[column]))
                     if (lastRecId != recId && lastRecId != null) {
                         throw DatabaseException.DataCorruptionException("Entity ${this@Entity.fqn} is corrupt. Insert did not yield same record ID for all columns involved!")
                     }
@@ -294,8 +309,8 @@ internal class Entity(override val name: String, schema: Schema): DBO {
          * @throws TransactionException If some of the sub-transactions on [Column] level caused an error.
          * @throws DatabaseException If a general database error occurs during the insert.
          */
-        fun insertAll(tuples: Collection<Tuple>): Collection<Long?> {
-            tuples.forEach { checkColumnsExist(*it.keys.toTypedArray()) }  /* Perform sanity check on columns before locking.. */
+        fun insertAll(tuples: Collection<Record>): Collection<Long?> {
+            tuples.forEach { checkColumnsExist(*it.columns) }  /* Perform sanity check on columns before locking. */
             acquireWriteLock()
             try {
                 /* Perform delete on each column. */
@@ -325,7 +340,7 @@ internal class Entity(override val name: String, schema: Schema): DBO {
         }
 
         /**
-         * Attempts to delete the provided [Tuple] from the [Entity]. This action will set this [Entity.Tx] to
+         * Attempts to delete the provided [Tuple] from the [Entity]. This tasks will set this [Entity.Tx] to
          * [TransactionStatus.DIRTY] and acquire a [Entity]-wide write lock until the [Entity.Tx] either commit
          * or rollback is issued.
          *
@@ -352,7 +367,7 @@ internal class Entity(override val name: String, schema: Schema): DBO {
         }
 
         /**
-         * Attempts to delete all the provided [Tuple] from the [Entity]. This action will set this [Entity.Tx] to
+         * Attempts to delete all the provided [Tuple] from the [Entity]. This tasks will set this [Entity.Tx] to
          * [TransactionStatus.DIRTY] and acquire a [Entity]-wide write lock until the [Entity.Tx] either commit
          * or rollback is issued.
          *
@@ -385,7 +400,7 @@ internal class Entity(override val name: String, schema: Schema): DBO {
          *
          * @params The list of [Column]s that should be checked.
          */
-        private fun checkColumnsExist(vararg columns: ColumnDef) = columns.forEach {
+        private fun checkColumnsExist(vararg columns: ColumnDef<*>) = columns.forEach {
             if (!transactions.contains(it) || transactions[it]!!.type != it.type) {
                 throw TransactionException.ColumnUnknownException(tid, it, this@Entity.name)
             }

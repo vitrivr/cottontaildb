@@ -77,7 +77,7 @@ internal class Schema(override val name: String, override val path: Path, overri
      *
      * @param name The name of the [Entity] that should be created.
      */
-    fun createEntity(name: String, vararg columns: ColumnDef) = this.lock.write {
+    fun createEntity(name: String, vararg columns: ColumnDef<*>) = this.lock.write {
         if (entities.contains(name)) throw DatabaseException("Entity $name.${this.name} cannot be created, because it already exists!")
         try {
             /* Create empty folder for entity. */
