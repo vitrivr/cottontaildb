@@ -14,39 +14,59 @@ import com.github.dexecutor.core.task.Task
  * @author Ralph Gasser
  * @version 1.0
  */
-abstract class ExecutionTask: Task<Int, Recordset>() {
+abstract class ExecutionTask(_id: String): Task<String, Recordset>() {
 
+    /** Initializes this [ExecutionTask]'s ID. */
+    init {
+        this.id = _id
+    }
 
     /**
+     * Convenience method: Returns the first result, if it was successful
      *
+     * @return Optional, first result.
      */
-    protected fun first(): Recordset = this.parentResults.first.result
+    protected fun first(): Recordset? = if (this.parentResults?.first!!.isSuccess) {this.parentResults?.first!!.result} else {null}
 
     /**
+     * Convenience method: Returns all results (regardless of being successful).
      *
+     * @return List of all results.
      */
     protected fun all(): Collection<Recordset> = this.parentResults.all.map { it.result }
 
     /**
+     * Convenience method: Returns all successful results.
      *
+     * @return List of all successful results.
      */
     protected fun allSuccessful(): Collection<Recordset> = this.parentResults.all.filter {it.isSuccess} .map { it.result }
 
     /**
-     * Asserts that the input provided by the parent [ExecutionTask] is unary (i.e. exactly one input
-     * that did not fail).
+     * Asserts that the input provided by the parent [ExecutionTask] is unary (i.e. exactly one input that did not fail).
+     *
+     * @throws TaskExecutionException If parent task provided non-unary output.
      */
     protected fun assertUnaryInput() {
         if (!this.parentResults.hasAnyResult()) {
-            throw TaskExecutionException(this, "Parent task did not provide any output.")
+            throw TaskExecutionException(this, "Parent task did not provide any output but is expected to be unary. Please connect a valid parent task.")
         }
 
         if (this.parentResults.all.size > 1) {
-            throw TaskExecutionException(this, "Parent task did provide more than one output record set. Please foresee a merging stage.")
+            throw TaskExecutionException(this, "Parent task did provide more than one output but is expected to be unary. Please foresee a merging stage.")
         }
 
         if (!this.parentResults.first.isSuccess) {
-            throw TaskExecutionException(this, "Output of parent task failed..")
+            throw TaskExecutionException(this, "Parent task failed.")
+        }
+    }
+
+    /**
+     * Asserts that the input provided by the parent [ExecutionTask] is nullary (i.e. that no parent task exists).
+     */
+    protected fun assertNullaryInput() {
+        if (this.parentResults.hasAnyResult()) {
+            throw TaskExecutionException(this, "Parent task did provide output but is expected to be nullary!")
         }
     }
 }
