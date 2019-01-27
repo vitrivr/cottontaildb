@@ -6,12 +6,11 @@ import ch.unibas.dmi.dbis.cottontail.database.column.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.database.column.FloatArrayColumnType
 import ch.unibas.dmi.dbis.cottontail.database.column.StringColumnType
 import ch.unibas.dmi.dbis.cottontail.database.general.begin
-import ch.unibas.dmi.dbis.cottontail.execution.ExecutionPlan
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.knn.FullscanFloatKnnTask
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.projection.ColumnProjectionTask
 import ch.unibas.dmi.dbis.cottontail.knn.metrics.Distance
-import ch.unibas.dmi.dbis.cottontail.model.basics.Recordset
 import ch.unibas.dmi.dbis.cottontail.model.basics.StandaloneRecord
+import ch.unibas.dmi.dbis.cottontail.sql.Context
 import ch.unibas.dmi.dbis.cottontail.utilities.VectorUtility
 
 import com.google.gson.GsonBuilder
@@ -28,8 +27,24 @@ object Playground {
         val path = args[0]
         Files.newBufferedReader(Paths.get(path)).use { reader ->
             val config = JSON.parse(Config.serializer(), reader.readText())
-                loadAndRead(config)
+            parse(config)
         }
+    }
+
+
+
+    fun parse(config: Config) {
+        val catalogue = Catalogue(config)
+
+
+        val vector = VectorUtility.randomFloatVector(512)
+        val literal = "[${vector.joinToString(",")}]"
+
+        val statement = "SELECT KNN(feature,L2,$literal), id FROM cottontail.test ORDER BY distance LIMIT 10000"
+        val engine = ch.unibas.dmi.dbis.cottontail.execution.ExecutionEngine(config)
+
+        val context = engine.parse(statement, Context(catalogue, emptyList()))
+        context.statements
     }
 
     fun loadAndRead(config: Config) {
@@ -44,12 +59,15 @@ object Playground {
         val d = 512
         val n = 10000
 
-        val init = plan.addTask(FullscanFloatKnnTask(entity, ColumnDef.withAttributes("feature","FLOAT_VEC", d), VectorUtility.randomFloatVector(d), Distance.L2, n))
-        plan.addOutput(ColumnProjectionTask(entity, ColumnDef.withAttributes("id","STRING")))
 
-        val start = System.currentTimeMillis()
-        plan.execute()
-       // println("kNN for n=$d, s=${result.first.result.columns} vectors took ${System.currentTimeMillis() - start} ms.")
+        val kNNTask = FullscanFloatKnnTask(entity, ColumnDef.withAttributes("feature","FLOAT_VEC", d), VectorUtility.randomFloatVector(d), Distance.L2, n)
+
+        plan.addTask(kNNTask)
+        plan.addTask(ColumnProjectionTask(entity, ColumnDef.withAttributes("id","STRING")), kNNTask.id)
+
+
+        val results = plan.execute()
+        println("Success!")
     }
 
 

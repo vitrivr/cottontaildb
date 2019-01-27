@@ -17,6 +17,7 @@ buildscript {
 apply plugin: 'java'
 apply plugin: 'kotlin'
 apply plugin: 'kotlinx-serialization'
+apply plugin: 'antlr'
 apply plugin: 'com.google.protobuf'
 
 sourceCompatibility = 1.8
@@ -33,7 +34,25 @@ compileTestKotlin {
     kotlinOptions.jvmTarget = "1.8"
 }
 
+generateGrammarSource {
+    outputDirectory = file("build/generated/source/antlr/main/java/ch/unibas/dmi/dbis/cottontail/sql/antlr")
+}
+
+sourceSets {
+    main {
+        kotlin {
+            srcDir {
+                'build/generated/source/antlr/main/java'
+            }
+        }
+    }
+}
+
 dependencies {
+    ///// Antlr 4 dependency
+    antlr group: 'org.antlr', name: 'antlr4', version: '4.7.2'
+    
+    ///// MapDB dependency
     compile group: 'org.mapdb', name: 'mapdb', version: '3.0.7'
 
     /////// GRPC & ProtoBuf
@@ -53,7 +72,7 @@ dependencies {
     testCompile group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: '5.3.2'
 
     ///// Kotlin
-    compile group:  'org.jetbrains.kotlin', name: 'kotlin-stdlib', version: '1.3.11'
-    compile group:  'org.jetbrains.kotlin', name: 'kotlin-reflect', version: '1.3.11'
-    compile group:  'org.jetbrains.kotlinx', name: 'kotlinx-serialization-runtime', version: '0.9.1'
+    compile group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib', version: '1.3.11'
+    compile group: 'org.jetbrains.kotlin', name: 'kotlin-reflect', version: '1.3.11'
+    compile group: 'org.jetbrains.kotlinx', name: 'kotlinx-serialization-runtime', version: '0.9.1'
 }
