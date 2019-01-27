@@ -108,12 +108,8 @@ class ExecutionPlan(executor: ExecutorService) {
                 throw ExecutionPlanException(this@ExecutionPlan, "Invalid execution plan! Final stage in execution plan did produce more than one result set.")
             }
 
-            if (!this.parentResults.first.isSuccess) {
-                throw ExecutionPlanException(this@ExecutionPlan, "Final stage in execution plan failed!")
-            }
-
             /* Log successful execution. */
-            val output = this.first()
+            val output = this.first() ?: throw ExecutionPlanException(this@ExecutionPlan, "Final stage in execution plan failed!")
             LOGGER.debug("Execution plan ${this@ExecutionPlan.id} successful! Produced ${output.rowCount} x ${output.columns} record set.")
             return output
         }
