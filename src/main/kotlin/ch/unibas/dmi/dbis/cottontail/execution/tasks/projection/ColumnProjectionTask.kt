@@ -7,6 +7,7 @@ import ch.unibas.dmi.dbis.cottontail.execution.tasks.ExecutionTask
 import ch.unibas.dmi.dbis.cottontail.model.basics.Recordset
 
 import com.github.dexecutor.core.task.Task
+import com.github.dexecutor.core.task.TaskExecutionException
 
 /**
  * A [Task] used during query execution. It takes a single [Recordset] as input and fetches the specified [Column] values from the
@@ -28,10 +29,13 @@ internal class ColumnProjectionTask (
     override fun execute(): Recordset {
         assertUnaryInput()
 
+        /* Get records from parent task. */
+        val parent = this.first() ?: throw TaskExecutionException("Projection could not be executed because parent task has failed.")
+
         /* Create new Recordset with new columns. */
-        val recordset = Recordset(*this.first().columns, *this.columns)
+        val recordset = Recordset(*parent.columns, *this.columns)
         this.entity.Tx(true).begin {tx ->
-            this.first().forEach {rec ->
+            parent.forEach {rec ->
                 if (rec.tupleId != null) {
                     recordset.addRow(rec.tupleId!!, *rec.values, *tx.read(rec.tupleId!!, *this.columns).values)
                 }

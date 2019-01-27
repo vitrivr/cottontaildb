@@ -55,10 +55,6 @@ abstract class ExecutionTask(_id: String): Task<String, Recordset>() {
         if (this.parentResults.all.size > 1) {
             throw TaskExecutionException(this, "Parent task did provide more than one output but is expected to be unary. Please foresee a merging stage.")
         }
-
-        if (!this.parentResults.first.isSuccess) {
-            throw TaskExecutionException(this, "Parent task failed.")
-        }
     }
 
     /**
