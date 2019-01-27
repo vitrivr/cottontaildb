@@ -6,7 +6,7 @@ import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
 import ch.unibas.dmi.dbis.cottontail.database.general.begin
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.ExecutionTask
 
-import ch.unibas.dmi.dbis.cottontail.execution.tasks.TaskSpecificationException
+import ch.unibas.dmi.dbis.cottontail.execution.tasks.TaskSetupException
 
 import ch.unibas.dmi.dbis.cottontail.knn.metrics.Distance
 import ch.unibas.dmi.dbis.cottontail.knn.metrics.DistanceFunction
@@ -26,17 +26,17 @@ internal class FullscanFloatKnnTask(
         private val query: FloatArray,
         private val distance: DistanceFunction = Distance.L2,
         private val k: Int = 500
-): ExecutionTask() {
+): ExecutionTask("KnnFullscan[${entity.fqn}][${column.name}][${distance::class.simpleName}][$k][q=${query.hashCode()}]") {
 
 
     /** Assert that the provided [ColumnDef] complies with the parameters specified in [FullscanFloatKnnTask]. */
     init {
         if (column.size != query.size) {
-            throw TaskSpecificationException(this, "The size of the specified column ${column.name} (dc=${column.size}) does not match the size of the query vector (dq=${query.size}!")
+            throw TaskSetupException(this, "The size of the specified column ${column.name} (dc=${column.size}) does not match the size of the query vector (dq=${query.size}!")
         }
 
         if (column.type !is FloatArrayColumnType) {
-            throw TaskSpecificationException(this, "The specified column ${column.name} does not have the correct type!")
+            throw TaskSetupException(this, "The specified column ${column.name} does not have the correct type!")
         }
     }
 
@@ -52,11 +52,12 @@ internal class FullscanFloatKnnTask(
         this.entity.Tx(true).begin { tx ->
             tx.forEachColumn({ tid, v: FloatArray ->
                 val dist = this.distance(this.query, v)
-                if (knn.size < this.k) {
+                if (knn.size <= this.k) {
                     knn.add(Pair(tid, dist))
                 } else if (dist < knn.last().second) {
-                    knn.add(Pair(tid, dist))
                     knn.pollLast()
+                    knn.add(Pair(tid, dist))
+
                 }
             }, this.column)
             true
