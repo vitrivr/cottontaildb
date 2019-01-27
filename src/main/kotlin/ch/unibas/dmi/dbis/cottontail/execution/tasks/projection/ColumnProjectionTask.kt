@@ -17,7 +17,10 @@ import com.github.dexecutor.core.task.Task
  * @author Ralph Gasser
  * @version 1.0
  */
-internal class ColumnProjectionTask (private val entity: Entity, private vararg val columns: ColumnDef<*>): ExecutionTask() {
+internal class ColumnProjectionTask (
+        private val entity: Entity,
+        private vararg val columns: ColumnDef<*>
+): ExecutionTask("Projection[${entity.fqn}]${columns.joinToString(separator = "") { "[${it.name}]" }}") {
 
     /**
      *
