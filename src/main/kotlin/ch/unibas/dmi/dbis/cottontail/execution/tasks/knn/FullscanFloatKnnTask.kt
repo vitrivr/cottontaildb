@@ -5,6 +5,7 @@ import ch.unibas.dmi.dbis.cottontail.database.column.FloatArrayColumnType
 import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
 import ch.unibas.dmi.dbis.cottontail.database.general.begin
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.ExecutionTask
+import ch.unibas.dmi.dbis.cottontail.execution.tasks.TaskExecutionException
 
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.TaskSetupException
 
@@ -32,7 +33,7 @@ internal class FullscanFloatKnnTask(
     /** Assert that the provided [ColumnDef] complies with the parameters specified in [FullscanFloatKnnTask]. */
     init {
         if (column.size != query.size) {
-            throw TaskSetupException(this, "The size of the specified column ${column.name} (dc=${column.size}) does not match the size of the query vector (dq=${query.size}!")
+            throw TaskSetupException(this, "The size of the specified column ${column.name} (dc=${column.size}) does not match the size of the query vector (dq=${query.size})!")
         }
 
         if (column.type !is FloatArrayColumnType) {
@@ -46,13 +47,17 @@ internal class FullscanFloatKnnTask(
      * @return The resulting [Recordset] containing the tupleId and the calculated distance.
      */
     override fun execute(): Recordset {
+        /* Make some checks. */
+        if (this.column.size != query.size) {
+            throw TaskExecutionException(this, "Size of the column '${entity.name}.${column.name}' (dc=${column.size}) and query vector (dq=${query.size}) don't match.")
+        }
 
         /* Execute kNN lookup. */
         val knn = TreeSet<Pair<Long,Double>> { o1, o2 -> o1.second.compareTo(o2.second) }
         this.entity.Tx(true).begin { tx ->
             tx.forEachColumn({ tid, v: FloatArray ->
                 val dist = this.distance(this.query, v)
-                if (knn.size <= this.k) {
+                if (knn.size < this.k) {
                     knn.add(Pair(tid, dist))
                 } else if (dist < knn.last().second) {
                     knn.pollLast()
