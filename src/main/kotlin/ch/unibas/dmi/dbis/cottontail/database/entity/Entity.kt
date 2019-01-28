@@ -60,9 +60,7 @@ internal class Entity(override val name: String, schema: Schema): DBO {
     /** A internal lock that is used to synchronize closing of an [Entity] with running [Entity.Tx]. */
     private val globalLock = ReentrantReadWriteLock()
 
-    /**
-     * List of all the [Column]s associated with this [Entity].
-     */
+    /** List of all the [Column]s associated with this [Entity]. */
     private val columns: List<Column<*>> = header.columns.map {
         Column<Any>(this.store.get(it, Serializer.STRING)
                 ?: throw DatabaseException.DataCorruptionException("Failed to open entity '$fqn': Could not read column at index $it!'"), this)
@@ -74,19 +72,25 @@ internal class Entity(override val name: String, schema: Schema): DBO {
     @Volatile
     override var closed: Boolean = false
         private set
-
     /**
      * Number of [Column]s held by this [Entity].
      */
-    val columnColumn: Int
+    val columnCount: Int
         get() = this.header.columns.size
+
+    /**
+     * Returns the [ColumnDef] for the specified name.
+     *
+     * @param name The name of the [Column].
+     * @return [ColumnDef] of the [Column].
+     */
+    fun columnForName(name: String): ColumnDef<*>? = this.columns.find { it.name == name }?.columnDef()
 
     /**
      * Closes the [Entity]. Closing an [Entity] is a delicate matter since ongoing [Entity.Tx] objects as well as all involved [Column]s are involved.
      * Therefore, access to the method is mediated by an global [Entity] wide lock.
      */
     override fun close() = this.globalLock.write {
-
         this.columns.forEach { it.close() }
         this.store.close()
         this.closed = true
@@ -120,7 +124,7 @@ internal class Entity(override val name: String, schema: Schema): DBO {
      */
     inner class Tx(override val readonly: Boolean, override val tid: UUID = UUID.randomUUID()) : Transaction {
         /** List of [Column.Tx] associated with this [Entity.Tx]. */
-        private val transactions: Map<ColumnDef<*>, Column<*>.Tx> = mapOf(* this@Entity.columns.map { Pair(ColumnDef(it.name, it.type), it.Tx(readonly, tid)) }.toTypedArray())
+        private val transactions: Map<ColumnDef<*>, Column<*>.Tx> = mapOf(* this@Entity.columns.map { Pair(ColumnDef(it.name, it.type, it.size), it.Tx(readonly, tid)) }.toTypedArray())
 
         /** Flag indicating whether or not this [Entity.Tx] was closed */
         @Volatile
@@ -401,7 +405,7 @@ internal class Entity(override val name: String, schema: Schema): DBO {
          * @params The list of [Column]s that should be checked.
          */
         private fun checkColumnsExist(vararg columns: ColumnDef<*>) = columns.forEach {
-            if (!transactions.contains(it) || transactions[it]!!.type != it.type) {
+            if (!transactions.contains(it)) {
                 throw TransactionException.ColumnUnknownException(tid, it, this@Entity.name)
             }
         }

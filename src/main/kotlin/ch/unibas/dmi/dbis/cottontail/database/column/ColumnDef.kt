@@ -8,7 +8,7 @@ package ch.unibas.dmi.dbis.cottontail.database.column
  * @author Ralph Gasser
  * @version 1.0
  */
-class ColumnDef<T: Any>(val name: String, val type: ColumnType<T>, val size: Int = 1, val nullable: Boolean = true) {
+class ColumnDef<T: Any>(val name: String, val type: ColumnType<T>, val size: Int = -1, val nullable: Boolean = true) {
     companion object {
         /**
          * Returns a [ColumnDef] with the provided attributes. The only difference as compared to using the constructor,
@@ -30,6 +30,7 @@ class ColumnDef<T: Any>(val name: String, val type: ColumnType<T>, val size: Int
 
         if (name != other.name) return false
         if (type != other.type) return false
+        if (size != other.size) return false
 
         return true
     }
@@ -37,6 +38,7 @@ class ColumnDef<T: Any>(val name: String, val type: ColumnType<T>, val size: Int
     override fun hashCode(): Int {
         var result = name.hashCode()
         result = 31 * result + type.hashCode()
+        result = 31 * result + size.hashCode()
         return result
     }
 }
