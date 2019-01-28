@@ -1,8 +1,7 @@
 package ch.unibas.dmi.dbis.cottontail.model.exceptions
 
-import ch.unibas.dmi.dbis.cottontail.database.schema.ColumnType
+import ch.unibas.dmi.dbis.cottontail.database.column.ColumnType
 import org.mapdb.DBException
-import java.util.*
 
 open class DatabaseException(message: String) : Throwable(message) {
 

@@ -1,4 +1,4 @@
-package ch.unibas.dmi.dbis.cottontail.database.schema
+package ch.unibas.dmi.dbis.cottontail.database.column
 
 import ch.unibas.dmi.dbis.cottontail.database.serializers.FixedDoubleVectorSerializer
 import ch.unibas.dmi.dbis.cottontail.database.serializers.FixedFloatVectorSerializer
@@ -15,6 +15,9 @@ import kotlin.reflect.full.safeCast
  * The column types are stored as strings and mapped to the respective class using [ColumnType.typeForName].
  *
  * @see Column
+ *
+ * @author Ralph Gasser
+ * @version 1.0
  */
 sealed class ColumnType<T : Any> {
     abstract val name : String
@@ -33,6 +36,8 @@ sealed class ColumnType<T : Any> {
             "SHORT" -> ShortColumnType()
             "INTEGER" -> IntColumnType()
             "LONG" -> LongColumnType()
+            "FLOAT" -> FloatColumnType()
+            "DOUBLE" -> DoubleColumnType()
             "STRING" -> StringColumnType()
             "BYTE_VEC" -> ByteArrayColumnType()
             "SHORT_VEC" -> ShortArrayColumnType()
@@ -45,8 +50,8 @@ sealed class ColumnType<T : Any> {
     }
 
 
-    fun cast(value: Any?) : T? = type.safeCast(value)
-    fun compatible(value: Any) = type.isInstance(value)
+    fun cast(value: Any?) : T? = this.type.safeCast(value)
+    fun compatible(value: Any?) = this.type.isInstance(value)
 
     /**
      * Returns a [Serializer] for this [ColumnType]. Some [ColumnType] require a size attribute

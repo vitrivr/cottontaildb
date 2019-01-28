@@ -6,7 +6,11 @@ import java.nio.file.Path
 import java.nio.file.Paths
 
 @Serializable
-data class Config(@Serializable(with=PathSerializer::class) val root: Path, @Optional val lockTimeout: Long = 1000L)
+data class Config(
+    @Serializable(with=PathSerializer::class) val root: Path,
+    @Optional val lockTimeout: Long = 1000L,
+    @Optional val executionConfig: ExecutionConfig = ExecutionConfig()
+)
 
 @Serializer(forClass = Path::class)
 object PathSerializer : KSerializer<Path> {

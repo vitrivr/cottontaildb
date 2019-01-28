@@ -1,53 +1,51 @@
-package ch.unibas.dmi.dbis.cottontail.database.schema
+package ch.unibas.dmi.dbis.cottontail.database.entity
 
 import ch.unibas.dmi.dbis.cottontail.database.general.DBO
 import ch.unibas.dmi.dbis.cottontail.database.general.Transaction
 import ch.unibas.dmi.dbis.cottontail.database.general.TransactionStatus
+import ch.unibas.dmi.dbis.cottontail.database.column.Column
+import ch.unibas.dmi.dbis.cottontail.database.column.ColumnDef
+import ch.unibas.dmi.dbis.cottontail.database.schema.Schema
+import ch.unibas.dmi.dbis.cottontail.model.basics.Recordset
+import ch.unibas.dmi.dbis.cottontail.model.basics.Record
+import ch.unibas.dmi.dbis.cottontail.model.basics.StandaloneRecord
 
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.TransactionException
 
 import org.mapdb.*
 import org.mapdb.volume.MappedFileVol
-import java.io.IOException
-
-import java.nio.file.Files
 import java.nio.file.Path
 import java.util.*
 
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.concurrent.read
 import kotlin.concurrent.write
-import java.util.stream.Collectors
-
-/** Type alias for a tuple. */
-typealias Tuple = Map<ColumnDef,*>
 
 /**
- * Represents an entity in the Cottontail DB data schema. An [Entity] has name that must remain unique within a [Schema].
- * The [Entity] contains one to many [Column]s holding the actual data.
+ * Represents a single entity in the Cottontail DB data model. An [Entity] has name that must remain unique within a [Schema].
+ * The [Entity] contains one to many [Column]s holding the actual data. Hence, it can be seen as a table containing tuples.
  *
  * Calling the default constructor for [Entity] opens that [Entity]. It can only be opened once due to file locks and it
  * will remain open until the [Entity.close()] method is called.
  *
  * @see Schema
  * @see Column
- *
  * @see Entity.Tx
+ *
+ * @author Ralph Gasser
+ * @version 1.0f
  */
 internal class Entity(override val name: String, schema: Schema): DBO {
     /** The [Path] to the [Entity]'s main folder. */
     override val path: Path = schema.path.resolve("entity_$name")
-
-    /** The fully qualified name of this [Entity] */
-    override val fqn: String = "${schema.name}.$name"
 
     /** The parent [DBO], which is the [Schema] in case of an [Entity]. */
     override val parent: Schema? = schema
 
     /** Internal reference to the [StoreWAL] underpinning this [Entity]. */
     private val store: StoreWAL = try {
-        StoreWAL.make(file = this.path.resolve(FILE_CATALOGUE).toString(), volumeFactory = MappedFileVol.FACTORY , fileLockWait = schema.config.lockTimeout)
+        StoreWAL.make(file = this.path.resolve(FILE_CATALOGUE).toString(), volumeFactory = MappedFileVol.FACTORY , fileLockWait = this.parent!!.parent.config.lockTimeout)
     } catch (e: DBException) {
         throw DatabaseException("Failed to open entity '$fqn': ${e.message}'.")
     }
@@ -66,7 +64,8 @@ internal class Entity(override val name: String, schema: Schema): DBO {
      * List of all the [Column]s associated with this [Entity].
      */
     private val columns: List<Column<*>> = header.columns.map {
-        Column<Any>(this.store.get(it, Serializer.STRING) ?:  throw DatabaseException.DataCorruptionException("Failed to open entity '$fqn': Could not read column at index $it!'"), this)
+        Column<Any>(this.store.get(it, Serializer.STRING)
+                ?: throw DatabaseException.DataCorruptionException("Failed to open entity '$fqn': Could not read column at index $it!'"), this)
     }
 
     /**
@@ -87,9 +86,10 @@ internal class Entity(override val name: String, schema: Schema): DBO {
      * Therefore, access to the method is mediated by an global [Entity] wide lock.
      */
     override fun close() = this.globalLock.write {
-        this.closed = true
+
         this.columns.forEach { it.close() }
         this.store.close()
+        this.closed = true
     }
 
     /**
@@ -103,7 +103,7 @@ internal class Entity(override val name: String, schema: Schema): DBO {
     }
 
     /**
-     *
+     * Companion object of the [Entity]
      */
     companion object {
         /** Filename for the [Entity] catalogue.  */
@@ -111,46 +111,6 @@ internal class Entity(override val name: String, schema: Schema): DBO {
 
         /** Filename for the [Entity] catalogue.  */
         internal const val HEADER_RECORD_ID = 1L
-
-        /** The identifier that is used to identify a Cottontail DB [Entity] file. */
-        internal const val HEADER_IDENTIFIER: String = "COTTONE"
-
-        /** The version of the Cottontail DB [Entity]  file. */
-        internal const val HEADER_VERSION: Short = 1
-
-        /** Initializes a new [Entity] at the given path. */
-        internal fun initialize(name: String, schema: Schema, vararg columns: ColumnDef) {
-            /* Create empty folder for entity. */
-            val data = schema.path.resolve("entity_$name")
-            try {
-                if (!Files.exists(data)) {
-                    Files.createDirectories(data)
-                } else {
-                    throw DatabaseException("Failed to create entity '${schema.name}.$name'. Data directory '$data' seems to be occupied.")
-                }
-            } catch (e: IOException) {
-                throw DatabaseException("Failed to create entity '${schema.name}.$name' due to an IO exception: {${e.message}")
-            }
-
-            /* Generate the entity. */
-            try {
-                val store = StoreWAL.make(file = data.resolve(FILE_CATALOGUE).toString(), volumeFactory = MappedFileVol.FACTORY, fileLockWait = schema.config.lockTimeout)
-                store.preallocate() /* Pre-allocates the header. */
-
-                /* Initialize the entities header. */
-                val columnIds = columns.map {
-                    Column.initialize(it, data)
-                    store.put(it.name, Serializer.STRING)
-                }.toLongArray()
-                store.update(HEADER_RECORD_ID, EntityHeader(columns = columnIds), EntityHeaderSerializer)
-                store.commit()
-                store.close()
-            } catch (e: DBException) {
-                val pathsToDelete = Files.walk(data).sorted(Comparator.reverseOrder()).collect(Collectors.toList())
-                pathsToDelete.forEach { Files.delete(it) }
-                throw e
-            }
-        }
     }
 
     /**
@@ -160,7 +120,7 @@ internal class Entity(override val name: String, schema: Schema): DBO {
      */
     inner class Tx(override val readonly: Boolean, override val tid: UUID = UUID.randomUUID()) : Transaction {
         /** List of [Column.Tx] associated with this [Entity.Tx]. */
-        private val transactions: Map<ColumnDef, Column<*>.Tx> = mapOf(* this@Entity.columns.map { Pair(ColumnDef(it.name, it.type), it.Tx(readonly, tid)) }.toTypedArray())
+        private val transactions: Map<ColumnDef<*>, Column<*>.Tx> = mapOf(* this@Entity.columns.map { Pair(ColumnDef(it.name, it.type), it.Tx(readonly, tid)) }.toTypedArray())
 
         /** Flag indicating whether or not this [Entity.Tx] was closed */
         @Volatile
@@ -206,12 +166,14 @@ internal class Entity(override val name: String, schema: Schema): DBO {
          */
         @Synchronized
         override fun close() {
-            if (this.status == TransactionStatus.DIRTY) {
-                this@Entity.store.rollback()
-                this@Entity.txLock.writeLock().unlock()
+            if (this.status != TransactionStatus.CLOSED) {
+                if (this.status == TransactionStatus.DIRTY) {
+                    this@Entity.store.rollback()
+                    this@Entity.txLock.writeLock().unlock()
+                }
+                this.status = TransactionStatus.CLOSED
+                this@Entity.globalLock.readLock().unlock()
             }
-            this.status = TransactionStatus.CLOSED
-            this@Entity.globalLock.readLock().unlock()
         }
 
         /**
@@ -223,13 +185,33 @@ internal class Entity(override val name: String, schema: Schema): DBO {
          *
          * @throws DatabaseException If tuple with the desired ID doesn't exist OR is invalid.
          */
-        fun read(tupleId: Long, vararg columns: ColumnDef): Tuple = this@Entity.txLock.read {
+        fun read(tupleId: Long, vararg columns: ColumnDef<*>): Record = this@Entity.txLock.read {
             checkValidOrThrow()
             checkValidTupleId(tupleId)
             checkColumnsExist(*columns)
 
             /* Return value of all the desired columns. */
-            return mapOf(* columns.map { Pair(it, transactions[it]!!.read(tupleId)) }.toTypedArray())
+            StandaloneRecord(tupleId, *columns).assign(*columns.map { transactions.getValue(it).read(tupleId) }.toTypedArray())
+        }
+
+        /**
+         * Reads the values of one or many [Column]s and returns it as a [Tuple]
+         *
+         * @param tupleId The ID of the desired entry.
+         * @param columns The the [Column]s that should be read.
+         * @return The desired [Tuple].
+         *
+         * @throws DatabaseException If tuple with the desired ID doesn't exist OR is invalid.
+         */
+        fun readAll(tupleIds: Collection<Long>, vararg columns: ColumnDef<*>): Recordset = this@Entity.txLock.read {
+            checkValidOrThrow()
+            checkColumnsExist(*columns)
+            val dataset = Recordset(*columns)
+            tupleIds.forEach {tid ->
+                checkValidTupleId(tid)
+                dataset.addRow(tid, *columns.map { transactions.getValue(it).read(tid) }.toTypedArray())
+            }
+            dataset
         }
 
         /**
@@ -250,7 +232,7 @@ internal class Entity(override val name: String, schema: Schema): DBO {
          *
          * @return A collection of Pairs mapping the tupleId to the generated value.
          */
-        fun <R> map(action: (Tuple) -> R, vararg columns: ColumnDef) = this@Entity.txLock.read {
+        fun <R> map(action: (Record) -> R, vararg columns: ColumnDef<*>) = this@Entity.txLock.read {
             checkValidOrThrow()
             checkColumnsExist(*columns)
         }
@@ -263,45 +245,40 @@ internal class Entity(override val name: String, schema: Schema): DBO {
          *
          * @return A collection of Pairs mapping the tupleId to the generated value.
          */
-        fun <R,T: Any> mapColumn(action: (T) -> R, column: ColumnDef): Collection<Pair<Long,R?>> = this@Entity.txLock.read {
+        fun <T: Any,R> mapColumn(action: (T?) -> R?, column: ColumnDef<T>): Collection<R?> = this@Entity.txLock.read {
             checkValidOrThrow()
             checkColumnsExist(column)
-            return this.transactions[column]!!.map { action(it as T)}
+            return this.transactions.getValue(column).map { action(it as T?)}
         }
 
         /**
-         * Applies the provided function on each element found in this [Column].
+         * Applies the provided function on each element found in this [Column]. Does not change the data stored by the [Column]!
          *
          * @param action The function to apply to each [Column] entry.
          * @param column The [ColumnSpec] that identifies the [Column] that should be mapped..
          */
-        fun <T: Any> forEachColumn(action: (Long,T) -> Unit, column: ColumnDef) = this@Entity.txLock.read {
+        fun <T: Any> forEachColumn(action: (Long,T) -> Unit, column: ColumnDef<*>) = this@Entity.txLock.read {
             checkValidOrThrow()
             checkColumnsExist(column)
-            try {
-                this.transactions[column]!!.forEach { l: Long, any: Any -> action(l, any as T)}
-            } catch (e: TransactionException) {
-                this.status = TransactionStatus.ERROR
-                throw e
-            }
+            this.transactions.getValue(column).forEach { l: Long, any: Any? -> action(l, any as T)}
         }
 
         /**
          * Attempts to insert the provided [Tuple] into the [Entity]. Columns specified in the [Tuple] that are not part
          * of the [Entity] will cause an error!
          *
-         * @param tuple The [Tuple] that should be inserted.
+         * @param record The [Record] that should be inserted.
          * @return The ID of the record or null, if nothing was inserted.
          * @throws TransactionException If some of the sub-transactions on [Column] level caused an error.
          * @throws DatabaseException If a general database error occurs during the insert.
          */
-        fun insert(tuple: Tuple): Long? {
-            checkColumnsExist(*tuple.keys.toTypedArray()) /* Perform sanity check on columns before locking. */
+        fun insert(record: Record): Long? {
+            checkColumnsExist(*record.columns) /* Perform sanity check on columns before locking. */
             acquireWriteLock()
             try {
                 var lastRecId: Long? = null
                 for ((column,tx) in this.transactions) {
-                    val recId = (tx as Column<Any>.Tx).insert(tx.type.cast(tuple[column]))
+                    val recId = (tx as Column<Any>.Tx).insert(tx.type.cast(record[column]))
                     if (lastRecId != recId && lastRecId != null) {
                         throw DatabaseException.DataCorruptionException("Entity ${this@Entity.fqn} is corrupt. Insert did not yield same record ID for all columns involved!")
                     }
@@ -332,8 +309,8 @@ internal class Entity(override val name: String, schema: Schema): DBO {
          * @throws TransactionException If some of the sub-transactions on [Column] level caused an error.
          * @throws DatabaseException If a general database error occurs during the insert.
          */
-        fun insertAll(tuples: Collection<Tuple>): Collection<Long?> {
-            tuples.forEach { checkColumnsExist(*it.keys.toTypedArray()) }  /* Perform sanity check on columns before locking.. */
+        fun insertAll(tuples: Collection<Record>): Collection<Long?> {
+            tuples.forEach { checkColumnsExist(*it.columns) }  /* Perform sanity check on columns before locking. */
             acquireWriteLock()
             try {
                 /* Perform delete on each column. */
@@ -363,7 +340,7 @@ internal class Entity(override val name: String, schema: Schema): DBO {
         }
 
         /**
-         * Attempts to delete the provided [Tuple] from the [Entity]. This action will set this [Entity.Tx] to
+         * Attempts to delete the provided [Tuple] from the [Entity]. This tasks will set this [Entity.Tx] to
          * [TransactionStatus.DIRTY] and acquire a [Entity]-wide write lock until the [Entity.Tx] either commit
          * or rollback is issued.
          *
@@ -390,7 +367,7 @@ internal class Entity(override val name: String, schema: Schema): DBO {
         }
 
         /**
-         * Attempts to delete all the provided [Tuple] from the [Entity]. This action will set this [Entity.Tx] to
+         * Attempts to delete all the provided [Tuple] from the [Entity]. This tasks will set this [Entity.Tx] to
          * [TransactionStatus.DIRTY] and acquire a [Entity]-wide write lock until the [Entity.Tx] either commit
          * or rollback is issued.
          *
@@ -423,7 +400,7 @@ internal class Entity(override val name: String, schema: Schema): DBO {
          *
          * @params The list of [Column]s that should be checked.
          */
-        private fun checkColumnsExist(vararg columns: ColumnDef) = columns.forEach {
+        private fun checkColumnsExist(vararg columns: ColumnDef<*>) = columns.forEach {
             if (!transactions.contains(it) || transactions[it]!!.type != it.type) {
                 throw TransactionException.ColumnUnknownException(tid, it, this@Entity.name)
             }
@@ -433,7 +410,7 @@ internal class Entity(override val name: String, schema: Schema): DBO {
          * Checks if the provided tupleID is valid. Otherwise, an exception will be thrown.
          */
         private fun checkValidTupleId(tupleId: Long) {
-            if ((tupleId < 0L) or (tupleId == Entity.HEADER_RECORD_ID)) {
+            if ((tupleId < 0L) or (tupleId == HEADER_RECORD_ID)) {
                 throw TransactionException.InvalidTupleId(tid, tupleId)
             }
         }
@@ -462,57 +439,6 @@ internal class Entity(override val name: String, schema: Schema): DBO {
                     throw TransactionException.TransactionWriteLockException(this.tid)
                 }
             }
-        }
-    }
-
-    /**
-     * The header section of the [Entity] data structure.
-     */
-    private class EntityHeader(var size: Long = 0, var created: Long = System.currentTimeMillis(), var modified: Long  = System.currentTimeMillis(), var columns: LongArray = LongArray(0), var indexes: LongArray = LongArray(0))
-
-    /**
-     * The [Serializer] for the [EntityHeader].
-     */
-    private object EntityHeaderSerializer : Serializer<EntityHeader> {
-        override fun serialize(out: DataOutput2, value: EntityHeader) {
-            out.writeUTF(Entity.HEADER_IDENTIFIER)
-            out.writeShort(Entity.HEADER_VERSION.toInt())
-            out.packLong(value.size)
-            out.writeLong(value.created)
-            out.writeLong(value.modified)
-            out.writeShort(value.columns.size)
-            value.columns.forEach { out.packLong(it) }
-            out.writeShort(value.indexes.size)
-            value.indexes.forEach { out.packLong(it) }
-        }
-
-        override fun deserialize(input: DataInput2, available: Int): EntityHeader {
-            if (!this.validate(input)) {
-                throw DatabaseException.InvalidFileException("Cottontail DB Entity")
-            }
-            val size = input.unpackLong()
-            val created = input.readLong()
-            val modified = input.readLong()
-            val columns = LongArray(input.readShort().toInt())
-            for (i in 0 until columns.size) {
-                columns[i] = input.unpackLong()
-            }
-            val indexes = LongArray(input.readShort().toInt())
-            for (i in 0 until indexes.size) {
-                indexes[i] = input.unpackLong()
-            }
-            return EntityHeader(size, created, modified, columns, indexes)
-        }
-
-        /**
-         * Validates the [EntityHeader]. Must be executed before deserialization
-         *
-         * @return True if validation was successful, false otherwise.
-         */
-        private fun validate(input: DataInput2): Boolean {
-            val identifier = input.readUTF()
-            val version = input.readShort()
-            return (version == Entity.HEADER_VERSION) and (identifier == Entity.HEADER_IDENTIFIER)
         }
     }
 }
