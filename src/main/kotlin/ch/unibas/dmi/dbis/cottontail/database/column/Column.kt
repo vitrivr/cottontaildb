@@ -65,6 +65,16 @@ internal class Column<T: Any>(override val name: String, entity: Entity): DBO {
         get() = this.header.size
 
     /**
+     * Getter for this [Column]'s [ColumnDef].
+     *
+     * @return [ColumnDef] for this [Column]
+     */
+    fun columnDef(): ColumnDef<T> {
+        val header = header
+        return ColumnDef(this.name, header.type as ColumnType<T>, header.size)
+    }
+
+    /**
      * Status indicating whether this [Column] is open or closed.
      */
     @Volatile
@@ -229,10 +239,12 @@ internal class Column<T: Any>(override val name: String, entity: Entity): DBO {
          */
         fun forEach(action: (Long,T?) -> Unit) = this@Column.txLock.read {
             checkValidOrThrow()
-            this@Column.store.getAllRecids().forEach {
-                if (it != HEADER_RECORD_ID) {
-                    action(it,this@Column.store.get(it, this.serializer))
-                }
+            val recordIds = this@Column.store.getAllRecids()
+            if (recordIds.next() != HEADER_RECORD_ID) {
+                throw TransactionException.TransactionValidationException(this.tid, "The column '${this@Column.fqn}' does not seem to contain a valid header record!")
+            }
+            recordIds.forEachRemaining {
+                action(it,this@Column.store.get(it, this.serializer))
             }
         }
 
