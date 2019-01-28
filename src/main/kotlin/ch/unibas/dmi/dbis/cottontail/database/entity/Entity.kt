@@ -256,15 +256,32 @@ internal class Entity(override val name: String, schema: Schema): DBO {
         }
 
         /**
-         * Applies the provided function on each element found in this [Column]. Does not change the data stored by the [Column]!
+         * Applies the provided function to each entry found in this [Column]. The provided function cannot not change
+         * the data stored in the [Column]!
          *
          * @param action The function to apply to each [Column] entry.
-         * @param column The [ColumnSpec] that identifies the [Column] that should be mapped..
+         * @param column The [ColumnSpec] that identifies the [Column] that should be processed.
          */
         fun <T: Any> forEachColumn(action: (Long,T) -> Unit, column: ColumnDef<*>) = this@Entity.txLock.read {
             checkValidOrThrow()
             checkColumnsExist(column)
             this.transactions.getValue(column).forEach { l: Long, any: Any? -> action(l, any as T)}
+        }
+
+        /**
+         * Applies the provided function to each entry found in this [Column] and does so in a parallel fashion using co-routines, which
+         * each operate on a disjoint partition of the data. The provided function cannot not change the data stored in the [Column]!
+         *
+         * It is up to the developer of the function to make sure, that the provided function operates in a thread-safe manner.
+         *
+         * @param action The function to apply to each [Column] entry.
+         * @param column The [ColumnSpec] that identifies the [Column] that should be processed.
+         * @param parallelism The desired amount of parallelism (i.e. the number of co-routines to spawn).
+         */
+        fun <T: Any> parallelForEachColumn(action: (Long,T) -> Unit, column: ColumnDef<*>, parallelism: Short = 2) = this@Entity.txLock.read {
+            checkValidOrThrow()
+            checkColumnsExist(column)
+            this.transactions.getValue(column).parallelForEach({ l: Long, any: Any? -> action(l, any as T)}, parallelism)
         }
 
         /**

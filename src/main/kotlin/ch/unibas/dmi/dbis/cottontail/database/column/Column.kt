@@ -6,13 +6,14 @@ import ch.unibas.dmi.dbis.cottontail.database.general.TransactionStatus
 import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.TransactionException
-
+import kotlinx.coroutines.*
 import org.mapdb.*
 import org.mapdb.volume.MappedFileVol
 
 import java.nio.file.Path
 import java.util.*
 import java.util.concurrent.locks.ReentrantReadWriteLock
+import kotlin.collections.ArrayList
 import kotlin.concurrent.read
 import kotlin.concurrent.write
 
@@ -235,7 +236,10 @@ internal class Column<T: Any>(override val name: String, entity: Entity): DBO {
         }
 
         /**
-         * Applies the provided function on each element found in this [Column].
+         * Applies the provided function on each element found in this [Column]. The provided function cannot not change
+         * the data stored in the [Column]!
+         *
+         * @param action The function to apply to each [Column] entry.
          */
         fun forEach(action: (Long,T?) -> Unit) = this@Column.txLock.read {
             checkValidOrThrow()
@@ -246,6 +250,33 @@ internal class Column<T: Any>(override val name: String, entity: Entity): DBO {
             recordIds.forEachRemaining {
                 action(it,this@Column.store.get(it, this.serializer))
             }
+        }
+
+        /**
+         * Applies the provided function on each element found in this [Column]. The provided function cannot not change
+         * the data stored in the [Column]!
+         *
+         * @param action The function to apply to each [Column] entry.
+         * @param parallelism The desired amount of parallelism (i.e. the number of co-routines to spawn).
+         */
+        fun parallelForEach(action: (Long,T?) -> Unit, parallelism: Short = 2) = runBlocking {
+            checkValidOrThrow()
+            val list = ArrayList<Long>(this@Tx.count().toInt()) /** TODO: only works if column contains at most MAX_INT entries */
+            val recordIds = this@Column.store.getAllRecids()
+            if (recordIds.next() != HEADER_RECORD_ID) {
+                throw TransactionException.TransactionValidationException(this@Tx.tid, "The column '${this@Column.fqn}' does not seem to contain a valid header record!")
+            }
+            this@Column.store.getAllRecids().forEachRemaining{ list.add(it) }
+            val block = list.size / parallelism
+            val jobs = Array(parallelism.toInt()) {
+                GlobalScope.launch {
+                    for (x in ((it * block) until Math.min((it * block) + block, list.size))) {
+                        val tupleId = list[x]
+                        action(tupleId,this@Column.store.get(tupleId, this@Tx.serializer))
+                    }
+                }
+            }
+            jobs.forEach { it.join() }
         }
 
         /**
