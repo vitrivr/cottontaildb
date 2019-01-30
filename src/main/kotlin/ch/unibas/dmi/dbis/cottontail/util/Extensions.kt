@@ -1,4 +1,4 @@
-package ch.unibas.dmis.dbis.cottontail.util
+package ch.unibas.dmi.dbis.cottontail.util
 
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.Lock
