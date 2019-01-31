@@ -5,28 +5,29 @@ import ch.unibas.dmi.dbis.cottontail.database.column.FloatArrayColumnType
 import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
 import ch.unibas.dmi.dbis.cottontail.database.general.begin
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.ExecutionTask
-import ch.unibas.dmi.dbis.cottontail.execution.tasks.TaskExecutionException
-
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.TaskSetupException
-
+import ch.unibas.dmi.dbis.cottontail.execution.tasks.knn.KnnTask.DISTANCE_COL
 import ch.unibas.dmi.dbis.cottontail.knn.metrics.Distance
 import ch.unibas.dmi.dbis.cottontail.knn.metrics.DistanceFunction
 import ch.unibas.dmi.dbis.cottontail.model.basics.Recordset
 
 import com.github.dexecutor.core.task.Task
-
-import java.util.*
+import java.util.concurrent.ConcurrentSkipListSet
 
 
 /**
- * A [Task] that executed a fullscan kNN on a specified [Entity]
+ * A [Task] that executes a parallel scan kNN on a float [Column] of the specified [Entity].
+ *
+ * @author Ralph Gasser
+ * @version 1.0
  */
-internal class FullscanFloatKnnTask(
+internal class ParallelFloatKnnTask(
         private val entity: Entity,
         private val column: ColumnDef<*>,
         private val query: FloatArray,
         private val distance: DistanceFunction = Distance.L2,
-        private val k: Int = 500
+        private val k: Int = 500,
+        private val parallelism: Short = 2
 ): ExecutionTask("KnnFullscan[${entity.fqn}][${column.name}][${distance::class.simpleName}][$k][q=${query.hashCode()}]") {
 
 
@@ -47,15 +48,10 @@ internal class FullscanFloatKnnTask(
      * @return The resulting [Recordset] containing the tupleId and the calculated distance.
      */
     override fun execute(): Recordset {
-        /* Make some checks. */
-        if (this.column.size != query.size) {
-            throw TaskExecutionException(this, "Size of the column '${entity.name}.${column.name}' (dc=${column.size}) and query vector (dq=${query.size}) don't match.")
-        }
-
         /* Execute kNN lookup. */
-        val knn = TreeSet<Pair<Long,Double>> { o1, o2 -> o1.second.compareTo(o2.second) }
+        val knn = ConcurrentSkipListSet<Pair<Long,Double>> { o1, o2 -> o1.second.compareTo(o2.second) }
         this.entity.Tx(true).begin { tx ->
-            tx.forEachColumn({ tid, v: FloatArray ->
+            tx.parallelForEachColumn({ tid, v: FloatArray ->
                 val dist = this.distance(this.query, v)
                 if (knn.size < this.k) {
                     knn.add(Pair(tid, dist))
@@ -64,7 +60,7 @@ internal class FullscanFloatKnnTask(
                     knn.add(Pair(tid, dist))
 
                 }
-            }, this.column)
+            }, this.column, this.parallelism)
             true
         }
 
@@ -72,13 +68,5 @@ internal class FullscanFloatKnnTask(
         val dataset = Recordset(DISTANCE_COL)
         knn.forEach { dataset.addRow(it.first, it.second) }
         return dataset
-    }
-
-    /**
-     * Companion object for [FullscanFloatKnnTask].
-     */
-    companion object {
-        /** Definition for the distance column. */
-        val DISTANCE_COL = ColumnDef.withAttributes("distance", "DOUBLE")
     }
 }
