@@ -1,11 +1,15 @@
 package ch.unibas.dmi.dbis.cottontail.server.grpc
 
 import ch.unibas.dmi.dbis.cottontail.config.ServerConfig
+import ch.unibas.dmi.dbis.cottontail.database.catalogue.Catalogue
 import ch.unibas.dmi.dbis.cottontail.server.grpc.services.CottonDDLService
 import ch.unibas.dmi.dbis.cottontail.server.grpc.services.CottonDMLService
 import ch.unibas.dmi.dbis.cottontail.server.grpc.services.CottonDQLService
 
 import io.grpc.ServerBuilder
+import org.apache.log4j.LogManager
+import org.apache.log4j.Logger
+import java.util.concurrent.*
 
 /**
  * Main server class for the GRPC endpoint provided by Cottotail DB.
@@ -13,23 +17,33 @@ import io.grpc.ServerBuilder
  * @author Ralph Gasser
  * @version 1.0
  */
-class CottontailGrpcServer(private val config: ServerConfig) {
+internal class CottontailGrpcServer(config: ServerConfig, var catalogue: Catalogue) {
+
+    /** The [ThreadPoolExecutor] used for handling the individual GRPC calls. */
+    private val executor: ExecutorService = ThreadPoolExecutor(config.coreThreads, config.maxThreads, config.keepAliveTime, TimeUnit.MILLISECONDS, SynchronousQueue())
 
     /** Reference to the GRPC server. */
-    private val server = ServerBuilder.forPort(this.config.port)
-            .maxInboundMessageSize(this.config.messageSize)
-            .addService(CottonDDLService())
-            .addService(CottonDQLService())
-            .addService(CottonDMLService())
+    private val server = ServerBuilder.forPort(config.port)
+            .executor(this.executor)
+            .maxInboundMessageSize(config.messageSize)
+            .addService(CottonDDLService(this.catalogue))
+            .addService(CottonDQLService(this.catalogue))
+            .addService(CottonDMLService(this.catalogue))
             .let {
-                if (this.config.useTls) {
-                    val certFile = this.config.certFile?.toFile() ?: throw Exception()
-                    val privateKeyFile = this.config.privateKey?.toFile() ?: throw Exception()
+                if (config.useTls) {
+                    val certFile = config.certFile?.toFile() ?: throw Exception()
+                    val privateKeyFile = config.privateKey?.toFile() ?: throw Exception()
                     it.useTransportSecurity(certFile,privateKeyFile)
                 } else {
                     it
                 }
             }.build()
+
+
+    /** Companion object with Logger reference. */
+    companion object {
+        val LOGGER: Logger = LogManager.getLogger(CottontailGrpcServer::class.qualifiedName)
+    }
 
     /**
      * Returns true if this [CottontailGrpcServer] is currently running, and false otherwise.
@@ -40,10 +54,16 @@ class CottontailGrpcServer(private val config: ServerConfig) {
     /**
      * Starts this instance of [CottontailGrpcServer].
      */
-    fun start() = this.server.start()
+    fun start() {
+        this.server.start()
+        LOGGER.info("Cottontail DB server is up and running! Hop along...")
+    }
 
     /**
      * Stops this instance of [CottontailGrpcServer].
      */
-    fun stop() = this.server.shutdown()
+    fun stop() {
+        this.server.shutdown()
+        LOGGER.info("Cottontail DB was shut down. Have a binky day!")
+    }
 }
