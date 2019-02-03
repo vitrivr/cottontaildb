@@ -9,6 +9,7 @@ import ch.unibas.dmi.dbis.cottontail.database.schema.Schema
 import ch.unibas.dmi.dbis.cottontail.model.basics.Recordset
 import ch.unibas.dmi.dbis.cottontail.model.basics.Record
 import ch.unibas.dmi.dbis.cottontail.model.basics.StandaloneRecord
+import ch.unibas.dmi.dbis.cottontail.model.basics.Tuple
 
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.TransactionException
@@ -245,14 +246,29 @@ internal class Entity(override val name: String, schema: Schema): DBO {
          * Applies the provided mapping function on each value found in this [Column], returning a collection of the desired output values.
          *
          * @param action The mapping that should be applied to each [Column] entry.
-         * @param column The [ColumnSpec] that identifies the [Column] that should be mapped..
+         * @param column The [ColumnSpec] that identifies the [Column] that should be mapped.
          *
          * @return A collection of Pairs mapping the tupleId to the generated value.
          */
-        fun <T: Any,R> mapColumn(action: (T?) -> R?, column: ColumnDef<T>): Collection<R?> = this@Entity.txLock.read {
+        fun <T: Any,R> mapColumn(action: (T?) -> R?, column: ColumnDef<T>): Collection<Tuple<R?>> = this@Entity.txLock.read {
             checkValidOrThrow()
             checkColumnsExist(column)
-            return this.transactions.getValue(column).map { action(it as T?)}
+            return (this.transactions.getValue(column) as Column<T>.Tx).map(action)
+        }
+
+        /**
+         * Applies the provided predicate function on each value found in the specified [Column], returning a collection
+         * of output values that pass the predicate's test (i.e. return true)
+         *
+         * @param predicate The tasks that should be applied.
+         * @param column The [ColumnSpec] that identifies the [Column] that should be filtered.
+         *
+         * @return A filtered collection of [Column] values that passed the test.
+         */
+        fun <T: Any> filterColumn(predicate: (T?) -> Boolean, column: ColumnDef<T>): Collection<Tuple<T?>> = this@Entity.txLock.read {
+            checkValidOrThrow()
+            checkColumnsExist(column)
+            return (this.transactions.getValue(column) as Column<T>.Tx).filter(predicate)
         }
 
         /**
@@ -262,10 +278,10 @@ internal class Entity(override val name: String, schema: Schema): DBO {
          * @param action The function to apply to each [Column] entry.
          * @param column The [ColumnSpec] that identifies the [Column] that should be processed.
          */
-        fun <T: Any> forEachColumn(action: (Long,T) -> Unit, column: ColumnDef<*>) = this@Entity.txLock.read {
+        fun <T: Any> forEachColumn(action: (Long,T?) -> Unit, column: ColumnDef<T>) = this@Entity.txLock.read {
             checkValidOrThrow()
             checkColumnsExist(column)
-            this.transactions.getValue(column).forEach { l: Long, any: Any? -> action(l, any as T)}
+            (this.transactions.getValue(column) as Column<T>.Tx).forEach(action)
         }
 
         /**
@@ -278,10 +294,10 @@ internal class Entity(override val name: String, schema: Schema): DBO {
          * @param column The [ColumnSpec] that identifies the [Column] that should be processed.
          * @param parallelism The desired amount of parallelism (i.e. the number of co-routines to spawn).
          */
-        fun <T: Any> parallelForEachColumn(action: (Long,T) -> Unit, column: ColumnDef<*>, parallelism: Short = 2) = this@Entity.txLock.read {
+        fun <T: Any> parallelForEachColumn(action: (Long,T?) -> Unit, column: ColumnDef<T>, parallelism: Short = 2) = this@Entity.txLock.read {
             checkValidOrThrow()
             checkColumnsExist(column)
-            this.transactions.getValue(column).parallelForEach({ l: Long, any: Any? -> action(l, any as T)}, parallelism)
+            (this.transactions.getValue(column) as Column<T>.Tx).parallelForEach(action, parallelism)
         }
 
         /**

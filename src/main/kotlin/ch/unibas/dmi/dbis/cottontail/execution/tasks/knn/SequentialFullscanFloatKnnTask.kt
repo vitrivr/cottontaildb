@@ -29,7 +29,7 @@ import java.util.*
  */
 internal class SequentialFullscanFloatKnnTask(
         private val entity: Entity,
-        private val column: ColumnDef<*>,
+        private val column: ColumnDef<FloatArray>,
         private val query: FloatArray,
         private val distance: DistanceFunction = Distance.L2,
         private val k: Int = 500
@@ -61,9 +61,11 @@ internal class SequentialFullscanFloatKnnTask(
         /* Execute kNN lookup. */
         val knn = HeapSelect<ComparablePair<Long,Double>>(this.k)
         this.entity.Tx(true).begin { tx ->
-            tx.forEachColumn({ tid, v: FloatArray ->
-                val dist = this.distance(this.query, v)
-                knn.add(ComparablePair(tid, dist))
+            tx.forEachColumn({ tid: Long, v: FloatArray? ->
+                if (v != null) {
+                    val dist = this.distance(this.query, v)
+                    knn.add(ComparablePair(tid, dist))
+                }
             }, this.column)
             true
         }

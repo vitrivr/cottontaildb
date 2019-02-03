@@ -23,7 +23,7 @@ import java.util.concurrent.ConcurrentSkipListSet
  */
 internal class ParallelFloatKnnTask(
         private val entity: Entity,
-        private val column: ColumnDef<*>,
+        private val column: ColumnDef<FloatArray>,
         private val query: FloatArray,
         private val distance: DistanceFunction = Distance.L2,
         private val k: Int = 500,
@@ -51,14 +51,16 @@ internal class ParallelFloatKnnTask(
         /* Execute kNN lookup. */
         val knn = ConcurrentSkipListSet<Pair<Long,Double>> { o1, o2 -> o1.second.compareTo(o2.second) }
         this.entity.Tx(true).begin { tx ->
-            tx.parallelForEachColumn({ tid, v: FloatArray ->
-                val dist = this.distance(this.query, v)
-                if (knn.size < this.k) {
-                    knn.add(Pair(tid, dist))
-                } else if (dist < knn.last().second) {
-                    knn.pollLast()
-                    knn.add(Pair(tid, dist))
+            tx.parallelForEachColumn({ tid, v: FloatArray? ->
+                if (v != null) {
+                    val dist = this.distance(this.query, v)
+                    if (knn.size < this.k) {
+                        knn.add(Pair(tid, dist))
+                    } else if (dist < knn.last().second) {
+                        knn.pollLast()
+                        knn.add(Pair(tid, dist))
 
+                    }
                 }
             }, this.column, this.parallelism)
             true

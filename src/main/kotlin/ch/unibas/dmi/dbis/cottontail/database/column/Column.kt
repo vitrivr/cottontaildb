@@ -4,6 +4,7 @@ import ch.unibas.dmi.dbis.cottontail.database.general.DBO
 import ch.unibas.dmi.dbis.cottontail.database.general.Transaction
 import ch.unibas.dmi.dbis.cottontail.database.general.TransactionStatus
 import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
+import ch.unibas.dmi.dbis.cottontail.model.basics.Tuple
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.TransactionException
 import kotlinx.coroutines.*
@@ -218,19 +219,40 @@ internal class Column<T: Any>(override val name: String, entity: Entity): DBO {
         }
 
         /**
-         * Applies the provided mapping function on each value found in this [Column], returning a
-         * collection of the desired output values.
+         * Applies the provided mapping function on each value found in this [Column], returning a collection
+         * of the desired output values.
          *
          * @param action The tasks that should be applied.
          * @return A collection of Pairs mapping the tupleId to the generated value.
          */
-        fun <R> map(action: (T?) -> R?): Collection<R?> = this@Column.txLock.read {
+        fun <R> map(action: (T?) -> R?): Collection<Tuple<R?>> = this@Column.txLock.read {
             checkValidOrThrow()
-            val list = mutableListOf<R?>()
+            val list = mutableListOf<Tuple<R?>>()
             this@Column.store.getAllRecids().forEach {
                 if (it != HEADER_RECORD_ID) {
-                    list.add(action(this@Column.store.get(it, this.serializer)))
+                    list.add(Tuple(it,action(this@Column.store.get(it, this.serializer))))
                 }
+            }
+            return list
+        }
+
+        /**
+         * Applies the provided predicate function on each value found in this [Column], returning a collection
+         * of output values that pass the predicate's test (i.e. return true)
+         *
+         * @param predicate The tasks that should be applied.
+         * @return A filtered collection [Column] values that passed the test.
+         */
+        fun filter(predicate: (T?) -> Boolean): Collection<Tuple<T?>> = this@Column.txLock.read {
+            checkValidOrThrow()
+            val list = mutableListOf<Tuple<T?>>()
+            val recordIds = this@Column.store.getAllRecids()
+            if (recordIds.next() != HEADER_RECORD_ID) {
+                throw TransactionException.TransactionValidationException(this.tid, "The column '${this@Column.fqn}' does not seem to contain a valid header record!")
+            }
+            recordIds.forEach {
+                val data = this@Column.store.get(it, this.serializer);
+                if (predicate(data)) list.add(Tuple(it, data))
             }
             return list
         }
