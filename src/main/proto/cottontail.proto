@@ -1,0 +1,241 @@
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+
+option java_package = "ch.unibas.dmi.dbis.cottontail.grpc";
+option java_outer_classname = "CottontailGrpc";
+
+service CottonDDL {
+    /* Handling DB schemas. */
+    rpc ListSchemas (google.protobuf.Empty) returns (Schema);
+    rpc CreateSchema (Schema) returns (Status);
+    rpc DropSchema (Schema) returns (Status);
+
+    /* Handling entities. */
+    rpc ListEntities (Schema) returns (Entity);
+    rpc CreateEntity (CreateEntityMessage) returns (Status);
+    rpc DropEntity (Entity) returns (Status);
+    rpc OptimizeEntity (Entity) returns (Status);
+    rpc TruncateEntity (Entity) returns (Status);
+}
+
+service CottonDML {
+
+    /* Insert data into entities (either in a single message or a streaming manner). */
+    rpc Insert (InsertMessage) returns (Status);
+    rpc InsertStream (stream InsertMessage) returns (stream Status);
+}
+
+
+service CottonDQL {
+    rpc Query(QueryMessage) returns (stream QueryResponseMessage);
+    rpc BatchedQuery(BatchedQueryMessage) returns (stream QueryResponseMessage);
+}
+
+/** Identifier for a single schema.  */
+message Schema {
+    string schema = 1;
+}
+
+/** Identifier for a single entity. */
+message Entity {
+    Schema schema = 1;
+    string name = 2;
+}
+
+/** A status as returned by Cottontail DB in response to an action. */
+message Status {
+    int32 code = 1;
+    Type type = 2;
+    string message = 3;
+    int64 timestamp = 4;
+    enum Type {
+        INFO = 0;
+        WARNING = 1;
+        ERROR = 2;
+    }
+}
+
+/** A basic tuple as used in insert or update statements OR results. */
+message Tuple {
+    map<string, Data> data = 1;
+}
+
+/* The basic data types supported by Cottontail DB. */
+enum Type {
+    BOOLEAN = 0;
+    BYTE = 1;
+    SHORT = 2;
+    INTEGER = 3;
+    LONG = 4;
+    STRING = 5;
+    DOUBLE_ARRAY = 6;
+    FLOAT_ARRAY = 7;
+    LONG_ARRAY = 8;
+    INT_ARRAY = 9;
+    SHORT_ARRAY = 10;
+    BLOB = 11;
+}
+
+/** The data payload that can be contained in a tuple. */
+message Data {
+    oneof data {
+        bool booleanData = 1;
+        int32 intData = 2;
+        float floatData = 3;
+        double doubleData = 4;
+        string stringData = 5;
+        Vector vectorData = 6;
+    }
+}
+
+/** Vector data (as opposed to scalar data). */
+message Vector {
+    oneof vectorData {
+        FloatVector floatVector = 1;
+        DoubleVector doubleVector = 2;
+        IntVector intVector = 3;
+        LongVector longVector = 4;
+        BoolVector booleanVector = 5;
+    }
+}
+
+/** A float vector. */
+message FloatVector {
+    repeated float vector = 1;
+}
+
+/** A double vector. */
+message DoubleVector {
+    repeated double vector = 1;
+}
+
+/** A int vector. */
+message IntVector {
+    repeated int32 vector = 1;
+}
+
+/** A long vector. */
+message LongVector {
+    repeated int64 vector = 1;
+}
+
+/** A boolean vector. */
+message BoolVector {
+    repeated bool vector = 1;
+}
+
+
+/*
+ * Data Definition Language (DDL) messages
+ */
+
+/** Definition of a column in Cottontail DB. */
+message ColumnDefinition {
+    string name = 1;
+    Type type = 2;
+    uint32 length = 3;
+    bool unique = 4;
+    bool nullable = 5;
+}
+
+
+/** Message for creating an entity. */
+message CreateEntityMessage {
+    Entity identifier = 1;
+    repeated ColumnDefinition columns = 2;
+}
+
+/** Message for inserting data into an entity. */
+message InsertMessage {
+    Entity identifier = 1;
+    repeated Tuple tuple = 2;
+}
+
+
+/*
+ * Data Definition Language (DQL)
+ */
+
+/* A simple query message. */
+message QueryMessage {
+    From from = 1;
+    Projection projection = 2;
+    Predicate predicate = 3;
+    Knn knn = 4;
+    bool useIndex = 5;
+    uint32 count = 6; /* Size of the result-set (default: unlimited). */
+    uint32 skip = 7; /* Number of records to skip. */
+}
+
+/* A batch of queries that should be executed. The individual queries will return under a single query ID. */
+message BatchedQueryMessage {
+    repeated QueryMessage queries = 1;
+}
+
+/* A query response message. */
+message QueryResponseMessage {
+    string queryId = 1;
+    bool start = 2;
+    uint32 size = 3;
+    uint32 total = 4;
+    repeated Tuple results = 5;
+}
+
+
+/* The from part for a query. */
+message From {
+    oneof from {
+        Entity entity = 1;
+    }
+}
+
+/* The projection part of a query (select + attributes / count / exists) . */
+message Projection {
+    Operation op = 1;
+    repeated string attributes = 2;
+    enum Operation {
+        SELECT = 0;
+        COUNT = 1;
+        EXISTS = 2;
+    }
+}
+
+/* The kNN lookup part for a query message. */
+message Knn {
+    string attribute = 1;
+    uint32 k = 2;
+    Distance distance = 3;
+    Vector query = 4;
+    Vector weights = 5;
+    bool inexact = 6;
+    string index_force = 7;
+    enum Distance {
+        EUCLIDIAN = 0;
+        MANHATTAN = 1;
+        COSINE = 3;
+    }
+}
+
+/* The kNN lookup part for a query message. */
+message Predicate {
+    repeated Where where = 1;
+    message Where {
+        string attribute = 1;
+        Operation op = 2;
+        repeated Data data = 3;
+        enum Operation {
+            EQUAL = 0;
+            NEQUAL = 1;
+            GREQUAL = 2;
+            LSEQUAL = 3;
+            GREATER = 4;
+            LESS = 5;
+            ISNULL = 6;
+            NOTNULL = 7;
+            IN = 8;
+            NOTIN = 9;
+        }
+    }
+}
+
