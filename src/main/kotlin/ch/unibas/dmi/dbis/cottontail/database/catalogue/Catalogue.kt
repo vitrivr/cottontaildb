@@ -95,7 +95,7 @@ internal class Catalogue(val config: Config): DBO {
     fun createSchema(name: String, data: Path = this.path.resolve("schema_$name")) = this.lock.write {
         /* Check if schema with that name exists. */
         if (this.registry.containsKey(name)) {
-            throw DatabaseException("Failed to create schema '$name'. Schema with that name already exists.")
+            throw DatabaseException.SchemaAlreadyExistsException(name)
         }
 
         /* Create empty folder for entity. */
@@ -142,7 +142,7 @@ internal class Catalogue(val config: Config): DBO {
      */
     fun dropSchema(name: String) = this.lock.write {
         /* Try to close the schema. Open registry cannot be dropped. */
-        (this.registry[name] ?: throw DatabaseException("Failed to drop schema '$name'. Schema does not exist.")).close()
+        (this.registry[name] ?: throw DatabaseException.SchemaDoesNotExistException(name)).close()
 
         /* Extract the catalogue entry. */
         val catalogueEntry = this.header.schemas
@@ -179,7 +179,7 @@ internal class Catalogue(val config: Config): DBO {
      *
      * @param name Name of the [Schema].
      */
-    fun getSchema(name: String): Schema = this.lock.read { registry[name] ?: throw DatabaseException("Schema $name cannot be opened, because it does not exists!") }
+    fun getSchema(name: String): Schema = this.lock.read { registry[name] ?: throw DatabaseException.SchemaDoesNotExistException(name) }
 
     /**
      * Returns true, if this [Catalogue] contains a [Schema] with the provided name.

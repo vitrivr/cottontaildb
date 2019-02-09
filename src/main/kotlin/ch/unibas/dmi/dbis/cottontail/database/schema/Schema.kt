@@ -78,7 +78,7 @@ internal class Schema(override val name: String, override val path: Path, overri
      * @param name The name of the [Entity] that should be created.
      */
     fun createEntity(name: String, vararg columns: ColumnDef<*>) = this.lock.write {
-        if (entities.contains(name)) throw DatabaseException("Entity $name.${this.name} cannot be created, because it already exists!")
+        if (entities.contains(name)) throw DatabaseException.EntityAlreadyExistsException(this.parent.name, this.name)
         try {
             /* Create empty folder for entity. */
             val data = path.resolve("entity_$name")
@@ -86,10 +86,10 @@ internal class Schema(override val name: String, override val path: Path, overri
                 if (!Files.exists(data)) {
                     Files.createDirectories(data)
                 } else {
-                    throw DatabaseException("Failed to create entity '${name}.$name'. Data directory '$data' seems to be occupied.")
+                    throw DatabaseException("Failed to create entity '$fqn'. Data directory '$data' seems to be occupied.")
                 }
             } catch (e: IOException) {
-                throw DatabaseException("Failed to create entity '${name}.$name' due to an IO exception: {${e.message}")
+                throw DatabaseException("Failed to create entity '$fqn' due to an IO exception: {${e.message}")
             }
 
             /* Store entry for new entity. */
@@ -135,7 +135,7 @@ internal class Schema(override val name: String, override val path: Path, overri
      * @param The name of the [Entity] that should be dropped.
      */
     fun dropEntity(name: String) = this.lock.write {
-        val entityRecId = this.header.entities.find { this.store.get(it, Serializer.STRING) == name } ?: throw DatabaseException("Entity $name.${this.name} cannot be dropped, because it does not exist!")
+        val entityRecId = this.header.entities.find { this.store.get(it, Serializer.STRING) == name } ?: throw DatabaseException.EntityDoesNotExistException(this.parent.name, this.name)
 
         /* Unload the entity and remove it. */
         this.unload(name)
@@ -175,7 +175,7 @@ internal class Schema(override val name: String, override val path: Path, overri
         if (entity != null) {
             return entity
         } else {
-            if (!entities.contains(name)) throw DatabaseException("Entity $name.${this.name} cannot be opened, because it does not exists!")
+            if (!entities.contains(name)) throw DatabaseException.EntityDoesNotExistException(this.parent.name, this.name)
             entity = Entity(name, this)
             this.loaded[name] = SoftReference(entity)
             return entity
