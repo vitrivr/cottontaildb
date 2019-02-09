@@ -40,11 +40,33 @@ generateGrammarSource {
 
 sourceSets {
     main {
-        kotlin {
+        proto {
             srcDir {
-                'build/generated/source/antlr/main/java'
+                'src/main/proto'
             }
         }
+        kotlin {
+            srcDirs += "$projectDir/build/generated/source/antlr/main/java"
+            srcDirs += "$projectDir/build/generated/source/proto/main/java"
+        }
+    }
+}
+
+protobuf {
+    generatedFilesBaseDir = "$projectDir/build/generated/source/proto"
+    plugins {
+        grpc {
+            artifact = 'io.grpc:protoc-gen-grpc-java:1.18.0'
+        }
+    }
+    protoc {
+        artifact = 'com.google.protobuf:protoc:3.6.1'
+    }
+
+    generateProtoTasks {
+        all()*.plugins { grpc {
+            outputSubDir = 'java'
+        }}
     }
 }
 
@@ -56,6 +78,7 @@ dependencies {
     compile group: 'org.mapdb', name: 'mapdb', version: '3.0.7'
 
     /////// GRPC & ProtoBuf
+    compile group: 'javax.annotation', name: 'javax.annotation-api', version: '1.2'
     compile group: 'com.google.protobuf', name: 'protobuf-java', version: '3.6.1'
     compile group: 'io.grpc', name: 'grpc-all', version: '1.18.0'
 
