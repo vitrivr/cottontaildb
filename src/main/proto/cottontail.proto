@@ -8,22 +8,22 @@ option java_outer_classname = "CottontailGrpc";
 service CottonDDL {
     /* Handling DB schemas. */
     rpc ListSchemas (google.protobuf.Empty) returns (Schema);
-    rpc CreateSchema (Schema) returns (Status);
-    rpc DropSchema (Schema) returns (Status);
+    rpc CreateSchema (Schema) returns (google.protobuf.Empty);
+    rpc DropSchema (Schema) returns (google.protobuf.Empty);
 
     /* Handling entities. */
     rpc ListEntities (Schema) returns (Entity);
-    rpc CreateEntity (CreateEntityMessage) returns (Status);
-    rpc DropEntity (Entity) returns (Status);
-    rpc OptimizeEntity (Entity) returns (Status);
-    rpc TruncateEntity (Entity) returns (Status);
+    rpc CreateEntity (CreateEntityMessage) returns (google.protobuf.Empty);
+    rpc DropEntity (Entity) returns (google.protobuf.Empty);
+    rpc OptimizeEntity (Entity) returns (google.protobuf.Empty);
+    rpc TruncateEntity (Entity) returns (google.protobuf.Empty);
 }
 
 service CottonDML {
 
     /* Insert data into entities (either in a single message or a streaming manner). */
-    rpc Insert (InsertMessage) returns (Status);
-    rpc InsertStream (stream InsertMessage) returns (stream Status);
+    rpc Insert (InsertMessage) returns (InsertStatus);
+    rpc InsertStream (stream InsertMessage) returns (stream InsertStatus);
 }
 
 
@@ -34,7 +34,7 @@ service CottonDQL {
 
 /** Identifier for a single schema.  */
 message Schema {
-    string schema = 1;
+    string name = 1;
 }
 
 /** Identifier for a single entity. */
@@ -43,17 +43,11 @@ message Entity {
     string name = 2;
 }
 
-/** A status as returned by Cottontail DB in response to an action. */
-message Status {
-    int32 code = 1;
+/** A status as returned by Cottontail DB in response to an insert action. */
+message InsertStatus {
+    bool success = 1;
     Type type = 2;
-    string message = 3;
     int64 timestamp = 4;
-    enum Type {
-        INFO = 0;
-        WARNING = 1;
-        ERROR = 2;
-    }
 }
 
 /** A basic tuple as used in insert or update statements OR results. */
@@ -142,7 +136,7 @@ message ColumnDefinition {
 
 /** Message for creating an entity. */
 message CreateEntityMessage {
-    Entity identifier = 1;
+    Entity entity = 1;
     repeated ColumnDefinition columns = 2;
 }
 

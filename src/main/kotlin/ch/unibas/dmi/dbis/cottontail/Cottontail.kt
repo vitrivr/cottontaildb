@@ -1,18 +1,32 @@
 package ch.unibas.dmi.dbis.cottontail
 
-import ch.unibas.dmi.dbis.cottontail.cli.CottontailDemon
-import com.github.rvesse.airline.annotations.Cli
+import ch.unibas.dmi.dbis.cottontail.config.Config
+import ch.unibas.dmi.dbis.cottontail.database.catalogue.Catalogue
+import ch.unibas.dmi.dbis.cottontail.server.grpc.CottontailGrpcServer
 
-@Cli(name = "Cottontail", description = "Cottontail DB CLI.", defaultCommand = CottontailDemon::class, commands = arrayOf(CottontailDemon::class))
+import kotlinx.serialization.json.JSON
+
+import java.nio.file.Files
+import java.nio.file.Paths
+
 object Cottontail {
+
     /**
+     * Entry point for Cottontail DB demon.
      *
-     * @param args
+     * @param args Program arguments.
      */
     @JvmStatic
     fun main(args: Array<String>) {
-        val cli = com.github.rvesse.airline.Cli<Runnable>(Cottontail::class.java)
-        val cmd = cli.parse(*args)
-        cmd.run()
+        val path = args[0]
+        Files.newBufferedReader(Paths.get(path)).use { reader ->
+            val config = JSON.parse(Config.serializer(), reader.readText())
+            val catalogue = Catalogue(config)
+            val server = CottontailGrpcServer(config.serverConfig, catalogue)
+            server.start()
+            while(server.isRunning) {
+                Thread.sleep(1000)
+            }
+        }
     }
 }
