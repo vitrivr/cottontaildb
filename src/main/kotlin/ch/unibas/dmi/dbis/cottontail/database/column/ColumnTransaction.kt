@@ -4,7 +4,6 @@ import ch.unibas.dmi.dbis.cottontail.database.general.Transaction
 import ch.unibas.dmi.dbis.cottontail.model.basics.Tuple
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
 
-
 /**
  * A [Transaction] that operates on a single [Column]. [Transaction]s are a unit of isolation for data
  * operations (read/write). This interface defines the basic operations supported by such a [Transaction].
