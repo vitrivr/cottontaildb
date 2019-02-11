@@ -6,7 +6,7 @@ import ch.unibas.dmi.dbis.cottontail.database.general.Transaction
 import ch.unibas.dmi.dbis.cottontail.database.general.TransactionStatus
 import ch.unibas.dmi.dbis.cottontail.database.column.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.database.column.ColumnTransaction
-import ch.unibas.dmi.dbis.cottontail.database.queries.BooleanPredicate
+import ch.unibas.dmi.dbis.cottontail.database.column.mapdb.MapDBColumn
 import ch.unibas.dmi.dbis.cottontail.database.schema.Schema
 import ch.unibas.dmi.dbis.cottontail.model.basics.Recordset
 import ch.unibas.dmi.dbis.cottontail.model.basics.Record
@@ -65,8 +65,7 @@ internal class Entity(override val name: String, schema: Schema): DBO {
 
     /** List of all the [Column]s associated with this [Entity]. */
     private val columns: List<Column<*>> = header.columns.map {
-        Column<Any>(this.store.get(it, Serializer.STRING)
-                ?: throw DatabaseException.DataCorruptionException("Failed to open entity '$fqn': Could not read column at index $it!'"), this)
+        MapDBColumn<Any>(this.store.get(it, Serializer.STRING) ?: throw DatabaseException.DataCorruptionException("Failed to open entity '$fqn': Could not read column at index $it!'"), this)
     }
 
     /**
@@ -185,11 +184,11 @@ internal class Entity(override val name: String, schema: Schema): DBO {
         }
 
         /**
-         * Reads the specified value of one or many [Column]s and returns it as a [Record]
+         * Reads the values of one or many [Column]s and returns it as a [Tuple]
          *
          * @param tupleId The ID of the desired entry.
          * @param columns The the [Column]s that should be read.
-         * @return The resulting [Recordset].
+         * @return The desired [Tuple].
          *
          * @throws DatabaseException If tuple with the desired ID doesn't exist OR is invalid.
          */
@@ -203,64 +202,21 @@ internal class Entity(override val name: String, schema: Schema): DBO {
         }
 
         /**
-         * Reads the specified values of one or many [Column]s and returns them as a [Recordset]
+         * Reads the values of one or many [Column]s and returns it as a [Tuple]
          *
          * @param tupleId The ID of the desired entry.
          * @param columns The the [Column]s that should be read.
-         * @return The resulting [Recordset].
+         * @return The desired [Tuple].
          *
          * @throws DatabaseException If tuple with the desired ID doesn't exist OR is invalid.
          */
-        fun readMany(tupleIds: Collection<Long>, vararg columns: ColumnDef<*>): Recordset = this@Entity.txLock.read {
+        fun readAll(tupleIds: Collection<Long>, vararg columns: ColumnDef<*>): Recordset = this@Entity.txLock.read {
             checkValidOrThrow()
             checkColumnsExist(*columns)
             val dataset = Recordset(*columns)
             tupleIds.forEach {tid ->
                 checkValidTupleId(tid)
                 dataset.addRow(tid, *columns.map { transactions.getValue(it).read(tid) }.toTypedArray())
-            }
-            dataset
-        }
-
-        /**
-         * Reads all values of one or many [Column]s and returns them as a [Recordset].
-         *
-         * @param columns The the [Column]s that should be read.
-         * @return The desired [Tuple].
-         */
-        fun readAll(vararg columns: ColumnDef<*>): Recordset = this@Entity.txLock.read {
-            checkValidOrThrow()
-            checkColumnsExist(*columns)
-            val dataset = Recordset(*columns)
-            val data = Array<Any?>(columns.size, {})
-            this.transactions.getValue(columns[0]).forEach { id, value ->
-                data[0] = value
-                for (i in 1 until columns.size) {
-                    data[i] = this.transactions.getValue(columns[i]).read(id)
-
-                }
-                dataset.addRow(id, *data)
-            }
-            return dataset
-        }
-
-        /**
-         * Reads all values of one or many [Column]s and returns those that match the provided predicate as a [Recordset].
-         *
-         * @param columns The the [Column]s that should be read.
-         * @return The desired [Tuple].
-         */
-        fun filter(predicate: BooleanPredicate, vararg columns: ColumnDef<*>): Recordset = this@Entity.txLock.read {
-            checkValidOrThrow()
-            checkColumnsExist(*columns)
-            val dataset = Recordset(*columns)
-            val data = Array<Any?>(columns.size, {})
-            this.transactions.getValue(columns[0]).forEach { id, value ->
-                data[0] = value
-                for (i in 1 until columns.size) {
-                    data[i] = this.transactions.getValue(columns[i]).read(id)
-                }
-                dataset.addRowIf(id, predicate, *data)
             }
             dataset
         }
@@ -321,7 +277,7 @@ internal class Entity(override val name: String, schema: Schema): DBO {
          * Applies the provided function to each entry found in this [Column]. The provided function cannot not change
          * the data stored in the [Column]!
          *
-         * @param action The function to match to each [Column] entry.
+         * @param action The function to apply to each [Column] entry.
          * @param column The [ColumnSpec] that identifies the [Column] that should be processed.
          */
         fun <T: Any> forEachColumn(action: (Long,T?) -> Unit, column: ColumnDef<T>) = this@Entity.txLock.read {
@@ -336,7 +292,7 @@ internal class Entity(override val name: String, schema: Schema): DBO {
          *
          * It is up to the developer of the function to make sure, that the provided function operates in a thread-safe manner.
          *
-         * @param action The function to match to each [Column] entry.
+         * @param action The function to apply to each [Column] entry.
          * @param column The [ColumnSpec] that identifies the [Column] that should be processed.
          * @param parallelism The desired amount of parallelism (i.e. the number of co-routines to spawn).
          */

@@ -330,7 +330,7 @@ internal class MapDBColumn<T: Any>(override val name: String, entity: Entity): C
             val tupleId = if (record == null) {
                 this@MapDBColumn.store.preallocate()
             } else {
-                this@MapDBColumn.store.put(record, this.serializer)
+                this@MapDBColumn.store.put(this@MapDBColumn.type.cast(record), this.serializer)
             }
 
             /* Update header. */
@@ -359,7 +359,7 @@ internal class MapDBColumn<T: Any>(override val name: String, entity: Entity): C
                 if (it == null) {
                 this@MapDBColumn.store.preallocate()
             } else {
-                this@MapDBColumn.store.put(it, serializer)
+                this@MapDBColumn.store.put(this@MapDBColumn.type.cast(it), serializer)
             } }
 
             /* Update header. */
