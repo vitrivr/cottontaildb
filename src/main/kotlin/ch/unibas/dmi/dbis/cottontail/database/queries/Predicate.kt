@@ -22,6 +22,11 @@ sealed class Predicate
  */
 sealed class BooleanPredicate: Predicate() {
     /**
+     * Set of [ColumnDef] that are inspected by this [BooleanPredicate].
+     */
+    abstract val columns: Set<ColumnDef<*>>
+
+    /**
      * Returns true, if the provided [Record] matches the [Predicate] and false otherwise.
      *
      * @param record The [Record] that should be checked against the predicate.
@@ -36,6 +41,7 @@ sealed class BooleanPredicate: Predicate() {
  * @version 1.0
  */
 data class AtomicBooleanPredicate<T: Any>(val column: ColumnDef<T>, val operator: Operator, val not: Boolean = false, val values: Array<T>): BooleanPredicate() {
+    override val columns: Set<ColumnDef<*>> = setOf(column)
     override fun matches(record: Record): Boolean {
         if (record.has(column)) {
             return if (not) {
@@ -56,6 +62,11 @@ data class AtomicBooleanPredicate<T: Any>(val column: ColumnDef<T>, val operator
  * @version 1.0
  */
 data class CompoundBooleanPredicate(val connector: Connector, val p1: BooleanPredicate, val p2: BooleanPredicate): BooleanPredicate() {
+    override val columns: Set<ColumnDef<*>> = mutableSetOf()
+    init {
+        columns.plus(p1.columns)
+        columns.plus(p2.columns)
+    }
     override fun matches(record: Record): Boolean = when(connector) {
         Connector.AND -> p1.matches(record) && p2.matches(record)
         Connector.OR -> p1.matches(record) || p2.matches(record)

@@ -1,5 +1,6 @@
 package ch.unibas.dmi.dbis.cottontail.database.general
 
+import ch.unibas.dmi.dbis.cottontail.model.basics.Recordset
 import java.lang.Exception
 import java.util.*
 
@@ -49,6 +50,29 @@ fun <T:Transaction> T.begin(block: (tx: T) -> Boolean) = try {
     }
 } catch (e: Exception) {
     rollback()
+} finally {
+    close()
+}
+
+/**
+ * An inline function that can be used to create a transactional context from a [Transaction].
+ *
+ * The provided block will be executed as a [Transaction] and any exception thrown in the block will result
+ * in a rollback. Once the block has been executed successfully, the [Transaction] is committed and a [Recordset]
+ * will be returned.
+ *
+ * In both cases, the [Transaction] that has been used will be closed.
+ *
+ * @param block The block that should be executed in a [Transaction] context.
+ * @return The [Recordset] that resulted from the [Transaction].
+ */
+fun <T:Transaction> T.query(block: (tx: T) -> Recordset): Recordset? = try {
+    val result = block(this )
+    commit()
+    result
+} catch (e: Exception) {
+    rollback()
+    null
 } finally {
     close()
 }

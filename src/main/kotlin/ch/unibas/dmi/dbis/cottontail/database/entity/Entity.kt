@@ -7,6 +7,7 @@ import ch.unibas.dmi.dbis.cottontail.database.general.TransactionStatus
 import ch.unibas.dmi.dbis.cottontail.database.column.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.database.column.ColumnTransaction
 import ch.unibas.dmi.dbis.cottontail.database.column.mapdb.MapDBColumn
+import ch.unibas.dmi.dbis.cottontail.database.queries.BooleanPredicate
 import ch.unibas.dmi.dbis.cottontail.database.schema.Schema
 import ch.unibas.dmi.dbis.cottontail.model.basics.Recordset
 import ch.unibas.dmi.dbis.cottontail.model.basics.Record
@@ -202,21 +203,65 @@ internal class Entity(override val name: String, schema: Schema): DBO {
         }
 
         /**
-         * Reads the values of one or many [Column]s and returns it as a [Tuple]
+         * Reads the specified values of one or many [Column]s and returns them as a [Recordset]
          *
          * @param tupleId The ID of the desired entry.
          * @param columns The the [Column]s that should be read.
-         * @return The desired [Tuple].
+         * @return The resulting [Recordset].
          *
          * @throws DatabaseException If tuple with the desired ID doesn't exist OR is invalid.
          */
-        fun readAll(tupleIds: Collection<Long>, vararg columns: ColumnDef<*>): Recordset = this@Entity.txLock.read {
+        fun readMany(tupleIds: Collection<Long>, vararg columns: ColumnDef<*>): Recordset = this@Entity.txLock.read {
             checkValidOrThrow()
             checkColumnsExist(*columns)
             val dataset = Recordset(*columns)
             tupleIds.forEach {tid ->
                 checkValidTupleId(tid)
                 dataset.addRow(tid, *columns.map { transactions.getValue(it).read(tid) }.toTypedArray())
+            }
+            dataset
+        }
+
+        /**
+         * Reads all values of one or many [Column]s and returns them as a [Recordset].
+         *
+         * @param columns The the [Column]s that should be read.
+         * @return The resulting [Recordset].
+         */
+        fun readAll(vararg columns: ColumnDef<*>): Recordset = this@Entity.txLock.read {
+            checkValidOrThrow()
+            checkColumnsExist(*columns)
+            val dataset = Recordset(*columns)
+            val data = Array<Any?>(columns.size, {})
+            this.transactions.getValue(columns[0]).forEach { id, value ->
+                data[0] = value
+                for (i in 1 until columns.size) {
+                    data[i] = this.transactions.getValue(columns[i]).read(id)
+
+                }
+                dataset.addRow(id, *data)
+            }
+            return dataset
+        }
+
+        /**
+         * Reads all values of one or many [Column]s and returns those that match the provided predicate as a [Recordset].
+         *
+         * @param predicate The [BooleanPredicate] to apply. Only columns contained in that [BooleanPredicate] will be read.
+         * @return The resulting [Recordset].
+         */
+        fun filter(predicate: BooleanPredicate): Recordset = this@Entity.txLock.read {
+            checkValidOrThrow()
+            val columns = predicate.columns.toTypedArray()
+            checkColumnsExist(*columns)
+            val dataset = Recordset(*columns)
+            val data = Array<Any?>(columns.size, {})
+            this.transactions.getValue(columns[0]).forEach { id, value ->
+                data[0] = value
+                for (i in 1 until columns.size) {
+                    data[i] = this.transactions.getValue(columns[i]).read(id)
+                }
+                dataset.addRowIf(id, predicate, *data)
             }
             dataset
         }
