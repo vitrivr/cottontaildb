@@ -1,6 +1,7 @@
 package ch.unibas.dmi.dbis.cottontail.model.basics
 
 import ch.unibas.dmi.dbis.cottontail.database.column.ColumnDef
+import ch.unibas.dmi.dbis.cottontail.database.queries.BooleanPredicate
 
 import java.util.*
 
@@ -46,6 +47,24 @@ class Recordset (vararg val columns: ColumnDef<*>) {
      */
     fun addRow(tupleId: Long, vararg values: Any?) {
         this.list.add(DatasetRecord(tupleId).assign(*values))
+    }
+
+    /**
+     * Creates a new [Record] given the provided tupleId and values and appends them to this [Recordset]
+     * if they match the provided [BooleanPredicate].
+     *
+     * @param tupleId The tupleId of the new [Record].
+     * @param predicate The [BooleanPredicate] to match the [Record] against
+     * @param values The values to add to this [Recordset].
+     * @return True if [Record] was added, false otherwise.
+     */
+    fun addRowIf(tupleId: Long, predicate: BooleanPredicate, vararg values: Any?): Boolean {
+        val record = DatasetRecord(tupleId).assign(*values)
+        return if (predicate.matches(record)) {
+            this.list.add(record)
+        } else {
+            false
+        }
     }
 
     /**

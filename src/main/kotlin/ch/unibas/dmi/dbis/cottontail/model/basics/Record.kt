@@ -50,6 +50,14 @@ interface Record {
     }
 
     /**
+     * Returns true, if this [Record] contains the specified [ColumnDef] and false otherwise.
+     *
+     * @param column The [ColumnDef] specifying the column
+     * @return True if record contains the [ColumnDef], false otherwise.
+     */
+    fun has(column: ColumnDef<*>): Boolean = columns.indexOf(column) > -1
+
+    /**
      * Retrieves the value for the specified [ColumnDef] from this [Record].
      *
      * @param column The [ColumnDef] for which to retrieve the value.

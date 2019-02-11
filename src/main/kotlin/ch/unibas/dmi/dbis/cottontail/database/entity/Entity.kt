@@ -6,6 +6,7 @@ import ch.unibas.dmi.dbis.cottontail.database.general.Transaction
 import ch.unibas.dmi.dbis.cottontail.database.general.TransactionStatus
 import ch.unibas.dmi.dbis.cottontail.database.column.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.database.column.ColumnTransaction
+import ch.unibas.dmi.dbis.cottontail.database.queries.BooleanPredicate
 import ch.unibas.dmi.dbis.cottontail.database.schema.Schema
 import ch.unibas.dmi.dbis.cottontail.model.basics.Recordset
 import ch.unibas.dmi.dbis.cottontail.model.basics.Record
@@ -184,11 +185,11 @@ internal class Entity(override val name: String, schema: Schema): DBO {
         }
 
         /**
-         * Reads the values of one or many [Column]s and returns it as a [Tuple]
+         * Reads the specified value of one or many [Column]s and returns it as a [Record]
          *
          * @param tupleId The ID of the desired entry.
          * @param columns The the [Column]s that should be read.
-         * @return The desired [Tuple].
+         * @return The resulting [Recordset].
          *
          * @throws DatabaseException If tuple with the desired ID doesn't exist OR is invalid.
          */
@@ -202,21 +203,64 @@ internal class Entity(override val name: String, schema: Schema): DBO {
         }
 
         /**
-         * Reads the values of one or many [Column]s and returns it as a [Tuple]
+         * Reads the specified values of one or many [Column]s and returns them as a [Recordset]
          *
          * @param tupleId The ID of the desired entry.
          * @param columns The the [Column]s that should be read.
-         * @return The desired [Tuple].
+         * @return The resulting [Recordset].
          *
          * @throws DatabaseException If tuple with the desired ID doesn't exist OR is invalid.
          */
-        fun readAll(tupleIds: Collection<Long>, vararg columns: ColumnDef<*>): Recordset = this@Entity.txLock.read {
+        fun readMany(tupleIds: Collection<Long>, vararg columns: ColumnDef<*>): Recordset = this@Entity.txLock.read {
             checkValidOrThrow()
             checkColumnsExist(*columns)
             val dataset = Recordset(*columns)
             tupleIds.forEach {tid ->
                 checkValidTupleId(tid)
                 dataset.addRow(tid, *columns.map { transactions.getValue(it).read(tid) }.toTypedArray())
+            }
+            dataset
+        }
+
+        /**
+         * Reads all values of one or many [Column]s and returns them as a [Recordset].
+         *
+         * @param columns The the [Column]s that should be read.
+         * @return The desired [Tuple].
+         */
+        fun readAll(vararg columns: ColumnDef<*>): Recordset = this@Entity.txLock.read {
+            checkValidOrThrow()
+            checkColumnsExist(*columns)
+            val dataset = Recordset(*columns)
+            val data = Array<Any?>(columns.size, {})
+            this.transactions.getValue(columns[0]).forEach { id, value ->
+                data[0] = value
+                for (i in 1 until columns.size) {
+                    data[i] = this.transactions.getValue(columns[i]).read(id)
+
+                }
+                dataset.addRow(id, *data)
+            }
+            return dataset
+        }
+
+        /**
+         * Reads all values of one or many [Column]s and returns those that match the provided predicate as a [Recordset].
+         *
+         * @param columns The the [Column]s that should be read.
+         * @return The desired [Tuple].
+         */
+        fun filter(predicate: BooleanPredicate, vararg columns: ColumnDef<*>): Recordset = this@Entity.txLock.read {
+            checkValidOrThrow()
+            checkColumnsExist(*columns)
+            val dataset = Recordset(*columns)
+            val data = Array<Any?>(columns.size, {})
+            this.transactions.getValue(columns[0]).forEach { id, value ->
+                data[0] = value
+                for (i in 1 until columns.size) {
+                    data[i] = this.transactions.getValue(columns[i]).read(id)
+                }
+                dataset.addRowIf(id, predicate, *data)
             }
             dataset
         }
@@ -277,7 +321,7 @@ internal class Entity(override val name: String, schema: Schema): DBO {
          * Applies the provided function to each entry found in this [Column]. The provided function cannot not change
          * the data stored in the [Column]!
          *
-         * @param action The function to apply to each [Column] entry.
+         * @param action The function to match to each [Column] entry.
          * @param column The [ColumnSpec] that identifies the [Column] that should be processed.
          */
         fun <T: Any> forEachColumn(action: (Long,T?) -> Unit, column: ColumnDef<T>) = this@Entity.txLock.read {
@@ -292,7 +336,7 @@ internal class Entity(override val name: String, schema: Schema): DBO {
          *
          * It is up to the developer of the function to make sure, that the provided function operates in a thread-safe manner.
          *
-         * @param action The function to apply to each [Column] entry.
+         * @param action The function to match to each [Column] entry.
          * @param column The [ColumnSpec] that identifies the [Column] that should be processed.
          * @param parallelism The desired amount of parallelism (i.e. the number of co-routines to spawn).
          */
@@ -317,7 +361,7 @@ internal class Entity(override val name: String, schema: Schema): DBO {
             try {
                 var lastRecId: Long? = null
                 for ((column,tx) in this.transactions) {
-                    val recId = (tx as ColumnTransaction<Any>).insert(tx.type.cast(it[column]))
+                    val recId = (tx as ColumnTransaction<Any>).insert(record[column])
                     if (lastRecId != recId && lastRecId != null) {
                         throw DatabaseException.DataCorruptionException("Entity ${this@Entity.fqn} is corrupt. Insert did not yield same record ID for all columns involved!")
                     }
@@ -356,7 +400,7 @@ internal class Entity(override val name: String, schema: Schema): DBO {
                 val tuplesIds = tuples.map {
                     var lastRecId: Long? = null
                     for ((column,tx) in this.transactions) {
-                        val recId = (tx as ColumnTransaction<Any>).insert(tx.type.cast(it[column]))
+                        val recId = (tx as ColumnTransaction<Any>).insert(it[column])
                         if (lastRecId != recId && lastRecId != null) {
                             throw DatabaseException.DataCorruptionException("Entity ${this@Entity.fqn} is corrupt. Insert did not yield same record ID for all columns involved!")
                         }
