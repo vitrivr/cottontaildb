@@ -11,10 +11,10 @@ import kotlin.reflect.KClass
 import kotlin.reflect.full.safeCast
 
 /**
- * Specifies the type of a Cottontail DB [Column]. This construct allows for some degree of type safety in the eye  de-/serialization.
+ * Specifies the type of a Cottontail DB [MapDBColumn]. This construct allows for some degree of type safety in the eye  de-/serialization.
  * The column types are stored as strings and mapped to the respective class using [ColumnType.typeForName].
  *
- * @see Column
+ * @see MapDBColumn
  *
  * @author Ralph Gasser
  * @version 1.0

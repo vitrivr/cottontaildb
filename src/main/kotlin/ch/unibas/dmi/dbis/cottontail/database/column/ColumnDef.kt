@@ -14,10 +14,10 @@ class ColumnDef<T: Any>(val name: String, val type: ColumnType<T>, val size: Int
          * Returns a [ColumnDef] with the provided attributes. The only difference as compared to using the constructor,
          * is that the [ColumnType] can be provided by name.
          *
-         * @param column Name of the new [Column]
-         * @param type Name of the [ColumnType] of the new [Column]
-         * @param size Size of the new [Column] (e.g. for vectors), where eligible.
-         * @param nullable Whether or not the [Column] should be nullable.
+         * @param column Name of the new [MapDBColumn]
+         * @param type Name of the [ColumnType] of the new [MapDBColumn]
+         * @param size Size of the new [MapDBColumn] (e.g. for vectors), where eligible.
+         * @param nullable Whether or not the [MapDBColumn] should be nullable.
          */
         fun withAttributes(column: String, type: String, size: Int = -1, nullable: Boolean = true): ColumnDef<*> = ColumnDef(column, ColumnType.forName(type), size, nullable)
     }

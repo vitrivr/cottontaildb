@@ -1,9 +1,12 @@
 package ch.unibas.dmi.dbis.cottontail.database
 
 import ch.unibas.dmi.dbis.cottontail.TestConstants
-import ch.unibas.dmi.dbis.cottontail.database.schema.ColumnDef
-import ch.unibas.dmi.dbis.cottontail.database.schema.ColumnType
+import ch.unibas.dmi.dbis.cottontail.database.catalogue.Catalogue
+import ch.unibas.dmi.dbis.cottontail.database.column.ColumnDef
+import ch.unibas.dmi.dbis.cottontail.database.general.begin
 import ch.unibas.dmi.dbis.cottontail.database.schema.Schema
+import ch.unibas.dmi.dbis.cottontail.model.basics.StandaloneRecord
+
 import ch.unibas.dmi.dbis.cottontail.utilities.VectorUtility
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
@@ -20,19 +23,23 @@ import org.junit.jupiter.api.Assertions.*
 class DataTest {
     private val schemaName = "data-test"
 
-    private var schema: Schema? = null
-
     private val random = Random()
+
+    /** */
+    private val catalogue = Catalogue(TestConstants.config)
+
+    private var schema: Schema? = null
 
 
     @BeforeEach
     fun initialize() {
-        schema = Schema.create(schemaName, TestConstants.config)
+        catalogue.createSchema(schemaName)
+        schema = catalogue.getSchema(schemaName)
     }
 
     @AfterEach
     fun teardown() {
-        schema?.drop()
+        catalogue.dropSchema(schemaName)
     }
 
     /**
@@ -48,7 +55,7 @@ class DataTest {
         val vectorField = ColumnDef.withAttributes("vector", "FLOAT_VEC", size)
 
         schema?.createEntity("vector-test", intField, vectorField)
-        val entity = schema?.get("vector-test")
+        val entity = schema?.getEntity("vector-test")
 
         /* Insert the float vectors. */
         val tx = entity?.Tx(false)
@@ -58,10 +65,13 @@ class DataTest {
         var counter = 0
         tx?.begin {
             iterator.forEach {
-                val tid = tx.insert(mapOf(Pair(intField, counter), Pair(vectorField, it)))
+                val record = StandaloneRecord(null, intField, vectorField)
+                record[intField] = counter
+                record[vectorField] = it
+                val tid = tx.insert(record)
                 assertNotNull(tid)
                 vectorMap[tid!!] = it
-                counterMap[tid!!] = counter
+                counterMap[tid] = counter
                 counter += 1
             }
             true

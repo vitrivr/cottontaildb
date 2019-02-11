@@ -1,23 +1,24 @@
-package ch.unibas.dmi.dbis.cottontail.database.column
+package ch.unibas.dmi.dbis.cottontail.database.column.mapdb
 
+import ch.unibas.dmi.dbis.cottontail.database.column.ColumnType
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
 import org.mapdb.DataInput2
 import org.mapdb.DataOutput2
 import org.mapdb.Serializer
 
 /**
- * The header data structure of any [Column]
+ * The header data structure of any [MapDBColumn]
  *
- * @see Column
+ * @see MapDBColumn
  * @author Ralph Gasser
  * @version 1.0
  */
 internal class ColumnHeader(val type: ColumnType<*>, var size: Int = 0, var nullable: Boolean = true, var count: Long = 0, var created: Long = System.currentTimeMillis(), var modified: Long = System.currentTimeMillis()) {
     companion object {
-        /** The identifier that is used to identify a Cottontail DB [Column] file. */
+        /** The identifier that is used to identify a Cottontail DB [MapDBColumn] file. */
         internal const val IDENTIFIER: String = "COTTONT_COL"
 
-        /** The version of the Cottontail DB [Column] file. */
+        /** The version of the Cottontail DB [MapDBColumn] file. */
         internal const val VERSION: Short = 1
     }
 }

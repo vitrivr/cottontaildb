@@ -1,10 +1,11 @@
 package ch.unibas.dmi.dbis.cottontail.database.entity
 
+import ch.unibas.dmi.dbis.cottontail.database.column.Column
 import ch.unibas.dmi.dbis.cottontail.database.general.DBO
 import ch.unibas.dmi.dbis.cottontail.database.general.Transaction
 import ch.unibas.dmi.dbis.cottontail.database.general.TransactionStatus
-import ch.unibas.dmi.dbis.cottontail.database.column.Column
 import ch.unibas.dmi.dbis.cottontail.database.column.ColumnDef
+import ch.unibas.dmi.dbis.cottontail.database.column.ColumnTransaction
 import ch.unibas.dmi.dbis.cottontail.database.schema.Schema
 import ch.unibas.dmi.dbis.cottontail.model.basics.Recordset
 import ch.unibas.dmi.dbis.cottontail.model.basics.Record
@@ -73,6 +74,7 @@ internal class Entity(override val name: String, schema: Schema): DBO {
     @Volatile
     override var closed: Boolean = false
         private set
+
     /**
      * Number of [Column]s held by this [Entity].
      */
@@ -85,7 +87,7 @@ internal class Entity(override val name: String, schema: Schema): DBO {
      * @param name The name of the [Column].
      * @return [ColumnDef] of the [Column].
      */
-    fun columnForName(name: String): ColumnDef<*>? = this.columns.find { it.name == name }?.columnDef()
+    fun columnForName(name: String): ColumnDef<*>? = this.columns.find { it.name == name }?.columnDef
 
     /**
      * Closes the [Entity]. Closing an [Entity] is a delicate matter since ongoing [Entity.Tx] objects as well as all involved [Column]s are involved.
@@ -125,7 +127,7 @@ internal class Entity(override val name: String, schema: Schema): DBO {
      */
     inner class Tx(override val readonly: Boolean, override val tid: UUID = UUID.randomUUID()) : Transaction {
         /** List of [Column.Tx] associated with this [Entity.Tx]. */
-        private val transactions: Map<ColumnDef<*>, Column<*>.Tx> = mapOf(* this@Entity.columns.map { Pair(ColumnDef(it.name, it.type, it.size), it.Tx(readonly, tid)) }.toTypedArray())
+        private val transactions: Map<ColumnDef<*>, ColumnTransaction<*>> = mapOf(* this@Entity.columns.map { Pair(ColumnDef(it.name, it.type, it.size), it.newTransaction(readonly, tid)) }.toTypedArray())
 
         /** Flag indicating whether or not this [Entity.Tx] was closed */
         @Volatile
@@ -253,7 +255,7 @@ internal class Entity(override val name: String, schema: Schema): DBO {
         fun <T: Any,R> mapColumn(action: (T?) -> R?, column: ColumnDef<T>): Collection<Tuple<R?>> = this@Entity.txLock.read {
             checkValidOrThrow()
             checkColumnsExist(column)
-            return (this.transactions.getValue(column) as Column<T>.Tx).map(action)
+            return (this.transactions.getValue(column) as ColumnTransaction<T>).map(action)
         }
 
         /**
@@ -268,7 +270,7 @@ internal class Entity(override val name: String, schema: Schema): DBO {
         fun <T: Any> filterColumn(predicate: (T?) -> Boolean, column: ColumnDef<T>): Collection<Tuple<T?>> = this@Entity.txLock.read {
             checkValidOrThrow()
             checkColumnsExist(column)
-            return (this.transactions.getValue(column) as Column<T>.Tx).filter(predicate)
+            return (this.transactions.getValue(column) as ColumnTransaction<T>).filter(predicate)
         }
 
         /**
@@ -281,7 +283,7 @@ internal class Entity(override val name: String, schema: Schema): DBO {
         fun <T: Any> forEachColumn(action: (Long,T?) -> Unit, column: ColumnDef<T>) = this@Entity.txLock.read {
             checkValidOrThrow()
             checkColumnsExist(column)
-            (this.transactions.getValue(column) as Column<T>.Tx).forEach(action)
+            (this.transactions.getValue(column) as ColumnTransaction<T>).forEach(action)
         }
 
         /**
@@ -297,7 +299,7 @@ internal class Entity(override val name: String, schema: Schema): DBO {
         fun <T: Any> parallelForEachColumn(action: (Long,T?) -> Unit, column: ColumnDef<T>, parallelism: Short = 2) = this@Entity.txLock.read {
             checkValidOrThrow()
             checkColumnsExist(column)
-            (this.transactions.getValue(column) as Column<T>.Tx).parallelForEach(action, parallelism)
+            (this.transactions.getValue(column) as ColumnTransaction<T>).parallelForEach(action, parallelism)
         }
 
         /**
@@ -315,7 +317,7 @@ internal class Entity(override val name: String, schema: Schema): DBO {
             try {
                 var lastRecId: Long? = null
                 for ((column,tx) in this.transactions) {
-                    val recId = (tx as Column<Any>.Tx).insert(tx.type.cast(record[column]))
+                    val recId = (tx as ColumnTransaction<Any>).insert(tx.type.cast(it[column]))
                     if (lastRecId != recId && lastRecId != null) {
                         throw DatabaseException.DataCorruptionException("Entity ${this@Entity.fqn} is corrupt. Insert did not yield same record ID for all columns involved!")
                     }
@@ -354,7 +356,7 @@ internal class Entity(override val name: String, schema: Schema): DBO {
                 val tuplesIds = tuples.map {
                     var lastRecId: Long? = null
                     for ((column,tx) in this.transactions) {
-                        val recId = (tx as Column<Any>.Tx).insert(tx.type.cast(it[column]))
+                        val recId = (tx as ColumnTransaction<Any>).insert(tx.type.cast(it[column]))
                         if (lastRecId != recId && lastRecId != null) {
                             throw DatabaseException.DataCorruptionException("Entity ${this@Entity.fqn} is corrupt. Insert did not yield same record ID for all columns involved!")
                         }

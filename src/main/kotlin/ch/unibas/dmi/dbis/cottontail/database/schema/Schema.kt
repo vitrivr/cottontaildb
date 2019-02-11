@@ -1,7 +1,7 @@
 package ch.unibas.dmi.dbis.cottontail.database.schema
 
 import ch.unibas.dmi.dbis.cottontail.database.catalogue.Catalogue
-import ch.unibas.dmi.dbis.cottontail.database.column.Column
+import ch.unibas.dmi.dbis.cottontail.database.column.mapdb.MapDBColumn
 import ch.unibas.dmi.dbis.cottontail.database.general.DBO
 import ch.unibas.dmi.dbis.cottontail.database.column.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
@@ -35,14 +35,14 @@ import kotlin.concurrent.write
  * will remain open until the [Schema.close()] method is called.
  *
  * @see Entity
- * @see Column
+ * @see MapDBColumn
  *
  * @author Ralph Gasser
  * @version 1.0
  */
 internal class Schema(override val name: String, override val path: Path, override val parent: Catalogue) : DBO {
 
-    /** Internal reference to the [Store] underpinning this [Column]. */
+    /** Internal reference to the [Store] underpinning this [MapDBColumn]. */
     private val store: StoreWAL = try {
         StoreWAL.make(file = this.path.resolve(FILE_CATALOGUE).toString(), volumeFactory = MappedFileVol.FACTORY, fileLockWait = this.parent.config.lockTimeout)
     } catch (e: DBException) {
@@ -102,7 +102,7 @@ internal class Schema(override val name: String, override val path: Path, overri
 
                 /* Initialize the entities header. */
                 val columnIds = columns.map {
-                    Column.initialize(it, data)
+                    MapDBColumn.initialize(it, data)
                     store.put(it.name, Serializer.STRING)
                 }.toLongArray()
                 store.update(Entity.HEADER_RECORD_ID, EntityHeader(columns = columnIds), EntityHeaderSerializer)

@@ -1,8 +1,9 @@
 package ch.unibas.dmi.dbis.cottontail.database
 
 import ch.unibas.dmi.dbis.cottontail.TestConstants
-import ch.unibas.dmi.dbis.cottontail.database.schema.ColumnDef
-import ch.unibas.dmi.dbis.cottontail.database.schema.Entity
+import ch.unibas.dmi.dbis.cottontail.database.catalogue.Catalogue
+import ch.unibas.dmi.dbis.cottontail.database.column.ColumnDef
+import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
 import ch.unibas.dmi.dbis.cottontail.database.schema.Schema
 import org.junit.jupiter.api.AfterEach
 import java.nio.file.Files
@@ -15,17 +16,21 @@ class SchemaTest {
 
     private val schemaName = "schema-test"
 
+    /** */
+    private val catalogue = Catalogue(TestConstants.config)
+
     private var schema: Schema? = null
 
 
     @BeforeEach
     fun initialize() {
-        schema = Schema.create(schemaName, TestConstants.config)
+        catalogue.createSchema(schemaName)
+        schema = catalogue.getSchema(schemaName)
     }
 
     @AfterEach
     fun teardown() {
-        schema?.drop()
+        catalogue.dropSchema(schemaName)
     }
 
     /**
@@ -45,7 +50,7 @@ class SchemaTest {
         assertEquals(0, schema?.size)
 
         /* Drop schema. */
-        schema?.drop()
+        catalogue.dropSchema(schemaName)
         schema = null
 
         /* Check if directory exists. */
