@@ -74,7 +74,20 @@ internal class Catalogue(val config: Config): DBO {
      * Closes the [Catalogue] and all objects contained within.
      */
     override fun close() = this.lock.write {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+        this.registry.forEach {_,v -> v.close()}
+        this.store.close()
+        this.closed = true
+    }
+
+    /**
+     * Handles finalization of the [Catalogue].
+     */
+    @Synchronized
+    protected fun finalize() {
+        if (!this.closed) {
+            /* Should not happen! */
+            this.close()
+        }
     }
 
     /** Initialization logic for [Catalogue]. */
