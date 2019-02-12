@@ -1,10 +1,10 @@
 package ch.unibas.dmi.dbis.cottontail.server.grpc.services
 
 import ch.unibas.dmi.dbis.cottontail.database.catalogue.Catalogue
-import ch.unibas.dmi.dbis.cottontail.database.column.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.database.column.ColumnType
 import ch.unibas.dmi.dbis.cottontail.grpc.CottonDDLGrpc
 import ch.unibas.dmi.dbis.cottontail.grpc.CottontailGrpc
+import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
 import ch.unibas.dmi.dbis.cottontail.server.grpc.helper.fqn
 
