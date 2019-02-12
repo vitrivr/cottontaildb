@@ -193,13 +193,13 @@ internal class Entity(override val name: String, schema: Schema): DBO {
          *
          * @throws DatabaseException If tuple with the desired ID doesn't exist OR is invalid.
          */
-        fun read(tupleId: Long, vararg columns: ColumnDef<*>): Record = this@Entity.txLock.read {
+        fun read(tupleId: Long, columns: Array<ColumnDef<*>>): Record = this@Entity.txLock.read {
             checkValidOrThrow()
             checkValidTupleId(tupleId)
             checkColumnsExist(*columns)
 
             /* Return value of all the desired columns. */
-            StandaloneRecord(tupleId, *columns).assign(*columns.map { transactions.getValue(it).read(tupleId) }.toTypedArray())
+            StandaloneRecord(tupleId, columns).assign(*columns.map { transactions.getValue(it).read(tupleId) }.toTypedArray())
         }
 
         /**
@@ -211,13 +211,13 @@ internal class Entity(override val name: String, schema: Schema): DBO {
          *
          * @throws DatabaseException If tuple with the desired ID doesn't exist OR is invalid.
          */
-        fun readMany(tupleIds: Collection<Long>, vararg columns: ColumnDef<*>): Recordset = this@Entity.txLock.read {
+        fun readMany(tupleIds: Collection<Long>, columns: Array<ColumnDef<*>>): Recordset = this@Entity.txLock.read {
             checkValidOrThrow()
             checkColumnsExist(*columns)
-            val dataset = Recordset(*columns)
+            val dataset = Recordset(columns)
             tupleIds.forEach {tid ->
                 checkValidTupleId(tid)
-                dataset.addRow(tid, *columns.map { transactions.getValue(it).read(tid) }.toTypedArray())
+                dataset.addRow(tid, columns.map { transactions.getValue(it).read(tid) }.toTypedArray())
             }
             dataset
         }
@@ -228,16 +228,15 @@ internal class Entity(override val name: String, schema: Schema): DBO {
          * @param columns The the [Column]s that should be read.
          * @return The resulting [Recordset].
          */
-        fun readAll(vararg columns: ColumnDef<*>): Recordset = this@Entity.txLock.read {
+        fun readAll(columns: Array<ColumnDef<*>>): Recordset = this@Entity.txLock.read {
             checkValidOrThrow()
             checkColumnsExist(*columns)
-            val dataset = Recordset(*columns)
+            val dataset = Recordset(columns)
             val data = Array<Any?>(columns.size, {})
             this.transactions.getValue(columns[0]).forEach { id, value ->
                 data[0] = value
                 for (i in 1 until columns.size) {
                     data[i] = this.transactions.getValue(columns[i]).read(id)
-
                 }
                 dataset.addRow(id, *data)
             }
@@ -254,8 +253,8 @@ internal class Entity(override val name: String, schema: Schema): DBO {
             checkValidOrThrow()
             val columns = predicate.columns.toTypedArray()
             checkColumnsExist(*columns)
-            val dataset = Recordset(*columns)
-            val data = Array<Any?>(columns.size, {})
+            val dataset = Recordset(columns)
+            val data = Array<Any?>(columns.size) {}
             this.transactions.getValue(columns[0]).forEach { id, value ->
                 data[0] = value
                 for (i in 1 until columns.size) {
@@ -280,11 +279,11 @@ internal class Entity(override val name: String, schema: Schema): DBO {
          * Applies the provided mapping function on each [Tuple] found in this [Entity], returning a collection of the desired output values.
          *
          * @param action The mapping that should be applied to each [Tuple].
-         * @param columns The list of [ColumnSpec]s that identify the [Column]s that should be included in the [Tuple].
+         * @param columns The list of [ColumnDef]s that identify the [Column]s that should be included in the [Tuple].
          *
          * @return A collection of Pairs mapping the tupleId to the generated value.
          */
-        fun <R> map(action: (Record) -> R, vararg columns: ColumnDef<*>) = this@Entity.txLock.read {
+        fun <R> map(action: (Record) -> R, columns: Array<ColumnDef<*>>) = this@Entity.txLock.read {
             checkValidOrThrow()
             checkColumnsExist(*columns)
         }
@@ -293,7 +292,7 @@ internal class Entity(override val name: String, schema: Schema): DBO {
          * Applies the provided mapping function on each value found in this [Column], returning a collection of the desired output values.
          *
          * @param action The mapping that should be applied to each [Column] entry.
-         * @param column The [ColumnSpec] that identifies the [Column] that should be mapped.
+         * @param column The [ColumnDef] that identifies the [Column] that should be mapped.
          *
          * @return A collection of Pairs mapping the tupleId to the generated value.
          */

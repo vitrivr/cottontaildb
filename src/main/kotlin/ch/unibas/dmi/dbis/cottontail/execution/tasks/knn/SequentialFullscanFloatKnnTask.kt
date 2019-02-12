@@ -69,7 +69,7 @@ internal class SequentialFullscanFloatKnnTask(
         }
 
         /* Generate dataset and return it. */
-        val dataset = Recordset(DISTANCE_COL)
+        val dataset = Recordset(arrayOf(DISTANCE_COL))
         for (i in 0 until knn.size) {
             dataset.addRow(knn[i].first, knn[i].second)
         }

@@ -20,7 +20,7 @@ import com.github.dexecutor.core.task.TaskExecutionException
  */
 internal class ColumnProjectionTask (
         private val entity: Entity,
-        private vararg val columns: ColumnDef<*>
+        private val columns: Array<ColumnDef<*>>
 ): ExecutionTask("Projection[${entity.fqn}]${columns.joinToString(separator = "") { "[${it.name}]" }}") {
 
     /**
@@ -33,11 +33,11 @@ internal class ColumnProjectionTask (
         val parent = this.first() ?: throw TaskExecutionException("Projection could not be executed because parent task has failed.")
 
         /* Create new Recordset with new columns. */
-        val recordset = Recordset(*parent.columns, *this.columns)
+        val recordset = Recordset(parent.columns + this.columns)
         this.entity.Tx(true).begin {tx ->
             parent.forEach {rec ->
                 if (rec.tupleId != null) {
-                    recordset.addRow(rec.tupleId!!, *rec.values, *tx.read(rec.tupleId!!, *this.columns).values)
+                    recordset.addRow(rec.tupleId!!, *rec.values, *tx.read(rec.tupleId!!, this.columns).values)
                 }
             }
             true

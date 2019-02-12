@@ -67,7 +67,7 @@ internal class ParallelFloatKnnTask(
         }
 
         /* Generate dataset and return it. */
-        val dataset = Recordset(DISTANCE_COL)
+        val dataset = Recordset(arrayOf(DISTANCE_COL))
         knn.forEach { dataset.addRow(it.first, it.second) }
         return dataset
     }

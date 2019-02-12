@@ -18,5 +18,5 @@ import com.github.dexecutor.core.task.Task
 internal class TableScanFilterTask(private val entity: Entity, private val predicate: BooleanPredicate) : ExecutionTask("TableScanFilter[${entity.fqn}][$predicate]") {
     override fun execute(): Recordset = entity.Tx(true).query {
         it.filter(this.predicate)
-    } ?: Recordset(*predicate.columns.toTypedArray())
+    } ?: Recordset(predicate.columns.toTypedArray())
 }
