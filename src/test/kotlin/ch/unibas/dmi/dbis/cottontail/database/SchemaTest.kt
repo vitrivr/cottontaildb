@@ -5,57 +5,37 @@ import ch.unibas.dmi.dbis.cottontail.database.catalogue.Catalogue
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
 import ch.unibas.dmi.dbis.cottontail.database.schema.Schema
+import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.AfterEach
 import java.nio.file.Files
 
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
+import java.util.Comparator
+import java.util.stream.Collectors
 
 class SchemaTest {
 
     private val schemaName = "schema-test"
 
     /** */
-    private val catalogue = Catalogue(TestConstants.config)
+    private var catalogue: Catalogue = Catalogue(TestConstants.config)
 
     private var schema: Schema? = null
 
 
     @BeforeEach
     fun initialize() {
-        catalogue.createSchema(schemaName)
-        schema = catalogue.getSchema(schemaName)
+        this.catalogue.createSchema(schemaName)
+        this.schema = this.catalogue.getSchema(schemaName)
     }
 
     @AfterEach
     fun teardown() {
-        catalogue.dropSchema(schemaName)
-    }
-
-    /**
-     * Creates a new [Schema] and runs some basic tests on the existence of the required files and initialization of the correct attributes.
-     */
-    @Test
-    fun SchemaCreateDropTest() {
-        /* Check if directory exists. */
-        assertTrue(Files.isReadable(TestConstants.config.root.resolve("schema_${schemaName}")))
-        assertTrue(Files.isDirectory(TestConstants.config.root.resolve("schema_${schemaName}")))
-
-        /* Check if catalogue file exists. */
-        assertTrue(Files.isReadable(TestConstants.config.root.resolve("schema_${schemaName}").resolve(Schema.FILE_CATALOGUE)))
-        assertFalse(Files.isDirectory(TestConstants.config.root.resolve("schema_${schemaName}").resolve(Schema.FILE_CATALOGUE)))
-
-        /* Check if schema contains the expected number of entities (zero). */
-        assertEquals(0, schema?.size)
-
-        /* Drop schema. */
-        catalogue.dropSchema(schemaName)
-        schema = null
-
-        /* Check if directory exists. */
-        assertFalse(Files.exists(TestConstants.config.root.resolve("schema_${schemaName}")))
-        assertFalse(Files.exists(TestConstants.config.root.resolve("schema_${schemaName}").resolve(Schema.FILE_CATALOGUE)))
+        this.catalogue.close()
+        val pathsToDelete = Files.walk(TestConstants.config.root).sorted(Comparator.reverseOrder()).collect(Collectors.toList())
+        pathsToDelete.forEach { Files.delete(it) }
     }
 
     /**

@@ -8,6 +8,7 @@ import ch.unibas.dmi.dbis.cottontail.database.schema.Schema
 import ch.unibas.dmi.dbis.cottontail.model.basics.StandaloneRecord
 
 import ch.unibas.dmi.dbis.cottontail.utilities.VectorUtility
+import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.RepeatedTest
@@ -18,6 +19,8 @@ import kotlin.math.absoluteValue
 
 
 import org.junit.jupiter.api.Assertions.*
+import java.nio.file.Files
+import java.util.stream.Collectors
 
 
 class DataTest {
@@ -30,16 +33,17 @@ class DataTest {
 
     private var schema: Schema? = null
 
-
     @BeforeEach
     fun initialize() {
-        catalogue.createSchema(schemaName)
-        schema = catalogue.getSchema(schemaName)
+        this.catalogue.createSchema(schemaName)
+        this.schema = this.catalogue.getSchema(schemaName)
     }
 
     @AfterEach
     fun teardown() {
-        catalogue.dropSchema(schemaName)
+        this.catalogue.close()
+        val pathsToDelete = Files.walk(TestConstants.config.root).sorted(Comparator.reverseOrder()).collect(Collectors.toList())
+        pathsToDelete.forEach { Files.delete(it) }
     }
 
     /**
@@ -65,7 +69,7 @@ class DataTest {
         var counter = 0
         tx?.begin {
             iterator.forEach {
-                val record = StandaloneRecord(null, intField, vectorField)
+                val record = StandaloneRecord(null, arrayOf(intField, vectorField))
                 record[intField] = counter
                 record[vectorField] = it
                 val tid = tx.insert(record)
@@ -82,7 +86,7 @@ class DataTest {
         assertEquals(count.toLong(), tx2?.count())
         tx2?.begin {
             vectorMap.forEach { t, u ->
-                val tuple = tx2.read(t, intField, vectorField)
+                val tuple = tx2.read(t, arrayOf(intField, vectorField))
                 assertArrayEquals(u, tuple[vectorField] as FloatArray)
                 assertEquals(counterMap[t], tuple[intField] as Int)
             }
