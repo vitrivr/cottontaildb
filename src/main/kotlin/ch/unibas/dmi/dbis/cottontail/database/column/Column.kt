@@ -2,6 +2,7 @@ package ch.unibas.dmi.dbis.cottontail.database.column
 
 import ch.unibas.dmi.dbis.cottontail.database.column.mapdb.MapDBColumn
 import ch.unibas.dmi.dbis.cottontail.database.general.DBO
+import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 
 import java.util.*
 
@@ -15,6 +16,7 @@ interface Column<T: Any> : DBO {
      * @return The [ColumnType] of this [Column].
      */
     val type: ColumnType<T>
+        get() = columnDef.type
 
     /**
      * Size of the content of this [Column]. The size is -1 (undefined) for most type of [Column]s.
@@ -23,6 +25,7 @@ interface Column<T: Any> : DBO {
      * @return size of this [Column].
      */
     val size: Int
+        get() = columnDef.size
 
     /**
      * Whether or not this [Column] is nullable. Columns that are not nullable, cannot hold any
@@ -31,6 +34,7 @@ interface Column<T: Any> : DBO {
      * @return Nullability property of this [Column].
      */
     val nullable: Boolean
+        get() = columnDef.nullable
 
     /**
      * This [Column]'s [ColumnDef]. It contains all the relevant information that defines a [Column]

@@ -1,6 +1,6 @@
 package ch.unibas.dmi.dbis.cottontail.execution.tasks.knn
 
-import ch.unibas.dmi.dbis.cottontail.database.column.ColumnDef
+import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 
 object KnnTask {
     /** Definition for the distance column. */

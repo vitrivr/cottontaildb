@@ -1,6 +1,5 @@
 package ch.unibas.dmi.dbis.cottontail.model.basics
 
-import ch.unibas.dmi.dbis.cottontail.database.column.ColumnDef
 import java.lang.IllegalArgumentException
 
 /**
@@ -41,6 +40,7 @@ interface Record {
     fun assign(vararg values: Any?): Record {
         if (values.size <= this.size) {
             for (i in 0 until values.size) {
+                this.columns[i].validateOrThrow(values[i])
                 this.values[i] = values[i]
             }
             return this
@@ -66,12 +66,7 @@ interface Record {
     operator fun <T: Any> get(column: ColumnDef<T>): T? {
         val index = columns.indexOf(column)
         return if (index > -1) {
-            val value = values[index]
-            if (value != null && column.type.compatible(value)) {
-                values[index] as T
-            } else {
-                null
-            }
+            column.type.cast(values[index])
         } else {
             throw IllegalArgumentException("The specified column ${column.name} is not contained in this record.")
         }
@@ -86,11 +81,8 @@ interface Record {
     operator fun set(column: ColumnDef<*>, value: Any?) {
         val index = columns.indexOf(column)
         if (index > -1) {
-            if (column.type.compatible(value)) {
-                values[index] = value
-            } else {
-                throw IllegalArgumentException("Value $value incompatible with column ${column.name} (type=${column.type.name}).")
-            }
+            column.validateOrThrow(value)
+            values[index] = value
         } else {
             throw IllegalArgumentException("The specified column ${column.name} (type=${column.type.name}) is not contained in this record.")
         }

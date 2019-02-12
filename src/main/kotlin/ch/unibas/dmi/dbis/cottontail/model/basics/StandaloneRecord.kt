@@ -1,7 +1,5 @@
 package ch.unibas.dmi.dbis.cottontail.model.basics
 
-import ch.unibas.dmi.dbis.cottontail.database.column.ColumnDef
-
 /**
  * A [Record] implementation as returned and processed by Cottontail DB. These types of records can exist
  * without an enclosing [Recordset] and are necessary for some applications.
@@ -12,9 +10,13 @@ import ch.unibas.dmi.dbis.cottontail.database.column.ColumnDef
  * @author Ralph Gasser
  * @version 1.0
  */
-class StandaloneRecord(override val tupleId: Long? = null, override vararg val columns: ColumnDef<*>) : Record {
-    /** Array of column values (one entry per column). Initializes with null. */
-    override val values: Array<Any?> = Array(columns.size, { })
+class StandaloneRecord(override val tupleId: Long? = null, override val columns: Array<ColumnDef<*>>, init: Array<Any?>? = null) : Record {
+
+    /** Array of column values (one entry per column). Initializes with either the init parameter (if validated) or the default value for the column. */
+    override val values: Array<Any?> = if (init != null) {
+        init.forEachIndexed { index, any ->  columns[index].validateOrThrow(any) }
+        init
+    } else Array(columns.size) { columns[it].defaultValue() }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

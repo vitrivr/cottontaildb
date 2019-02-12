@@ -51,7 +51,7 @@ sealed class ColumnType<T : Any> {
 
 
     fun cast(value: Any?) : T? = this.type.safeCast(value)
-    fun compatible(value: Any?) = this.type.isInstance(value)
+    fun compatible(value: Any) = this.type.isInstance(value)
 
     /**
      * Returns a [Serializer] for this [ColumnType]. Some [ColumnType] require a size attribute
@@ -72,6 +72,8 @@ sealed class ColumnType<T : Any> {
     override fun hashCode(): Int {
         return name.hashCode()
     }
+
+    override fun toString(): String = this.name
 }
 
 class BooleanColumnType : ColumnType<Boolean>() {

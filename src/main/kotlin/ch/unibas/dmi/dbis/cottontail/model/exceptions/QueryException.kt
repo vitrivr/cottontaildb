@@ -1,7 +1,6 @@
 package ch.unibas.dmi.dbis.cottontail.model.exceptions
 
-import ch.unibas.dmi.dbis.cottontail.database.column.ColumnDef
-import java.util.*
+import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 
 /**
  * These exceptions are thrown whenever a query cannot be executed properly.

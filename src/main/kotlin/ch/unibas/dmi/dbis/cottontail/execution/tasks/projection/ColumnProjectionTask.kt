@@ -1,6 +1,6 @@
 package ch.unibas.dmi.dbis.cottontail.execution.tasks.projection
 
-import ch.unibas.dmi.dbis.cottontail.database.column.ColumnDef
+import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
 import ch.unibas.dmi.dbis.cottontail.database.general.begin
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.ExecutionTask

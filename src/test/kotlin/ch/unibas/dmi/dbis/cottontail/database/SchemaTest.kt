@@ -2,7 +2,7 @@ package ch.unibas.dmi.dbis.cottontail.database
 
 import ch.unibas.dmi.dbis.cottontail.TestConstants
 import ch.unibas.dmi.dbis.cottontail.database.catalogue.Catalogue
-import ch.unibas.dmi.dbis.cottontail.database.column.ColumnDef
+import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
 import ch.unibas.dmi.dbis.cottontail.database.schema.Schema
 import org.junit.jupiter.api.AfterEach

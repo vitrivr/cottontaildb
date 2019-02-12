@@ -5,6 +5,7 @@ import ch.unibas.dmi.dbis.cottontail.database.general.DBO
 import ch.unibas.dmi.dbis.cottontail.database.general.Transaction
 import ch.unibas.dmi.dbis.cottontail.database.general.TransactionStatus
 import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
+import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.basics.Tuple
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.TransactionException
@@ -50,30 +51,6 @@ internal class MapDBColumn<T: Any>(override val name: String, entity: Entity): C
     /** Internal reference to the [Header] of this [MapDBColumn]. */
     private val header
         get() = store.get(HEADER_RECORD_ID, ColumnHeaderSerializer) ?: throw DatabaseException.DataCorruptionException("Failed to open header of column '$fqn'!'")
-
-    /**
-     * Getter for the [ColumnType] of this [MapDBColumn].
-     *
-     * @return [ColumnType] of this [MapDBColumn].
-     */
-    override val type: ColumnType<T>
-        get() = this.header.type as ColumnType<T>
-
-    /**
-     * Getter for the size of this [MapDBColumn].
-     *
-     * @return size of this [MapDBColumn].
-     */
-    override val size: Int
-        get() = this.header.size
-
-    /**
-     * Getter for the nullability property of this [MapDBColumn].
-     *
-     * @return Nullability property of this [MapDBColumn].
-     */
-    override val nullable: Boolean
-        get() = this.header.nullable
 
     /**
      * Getter for this [MapDBColumn]'s [ColumnDef].

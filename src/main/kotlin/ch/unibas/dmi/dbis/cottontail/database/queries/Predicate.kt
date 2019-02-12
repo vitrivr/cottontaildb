@@ -1,6 +1,6 @@
 package ch.unibas.dmi.dbis.cottontail.database.queries
 
-import ch.unibas.dmi.dbis.cottontail.database.column.ColumnDef
+import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.basics.Record
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
 
@@ -76,4 +76,4 @@ data class CompoundBooleanPredicate(val connector: Connector, val p1: BooleanPre
 /**
  *
  */
-data class KnnPredicate<T: Any>(val column: ColumnDef<T>,  val k: Int, val value: Array<Number>): Predicate()
+data class KnnPredicate<T: Any>(val column: ColumnDef<T>, val k: Int, val value: Array<Number>): Predicate()

@@ -1,6 +1,5 @@
 package ch.unibas.dmi.dbis.cottontail.model.basics
 
-import ch.unibas.dmi.dbis.cottontail.database.column.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.database.queries.BooleanPredicate
 
 import java.util.*
@@ -18,7 +17,7 @@ import java.util.*
  * @author Ralph Gasser
  * @version 1.0
  */
-class Recordset (vararg val columns: ColumnDef<*>) {
+class Recordset (val columns: Array<ColumnDef<*>>) {
     /** List of all the [Record]s contained in this [Recordset]. */
     private val list: LinkedList<Record> = LinkedList()
 
@@ -85,14 +84,17 @@ class Recordset (vararg val columns: ColumnDef<*>) {
      * @author Ralph Gasser
      * @version 1.0
      */
-    inner class DatasetRecord(override val tupleId: Long? = null) : Record {
+    inner class DatasetRecord(override val tupleId: Long? = null, init: Array<Any?>? = null) : Record {
 
         /** Array of [ColumnDef]s that describes the [Columns] of this [Record]. */
         override val columns: Array<out ColumnDef<*>>
             get() = this@Recordset.columns
 
         /** Array of column values (one entry per column). Initializes with null. */
-        override val values: Array<Any?> = Array(columns.size, { })
+        override val values: Array<Any?> = if (init != null) {
+            init.forEachIndexed { index, any ->  columns[index].validateOrThrow(any) }
+            init
+        } else Array(columns.size) { columns[it].defaultValue() }
 
         override fun equals(other: Any?): Boolean {
             if (this === other) return true

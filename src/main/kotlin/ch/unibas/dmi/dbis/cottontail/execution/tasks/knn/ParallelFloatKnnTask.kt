@@ -1,6 +1,6 @@
 package ch.unibas.dmi.dbis.cottontail.execution.tasks.knn
 
-import ch.unibas.dmi.dbis.cottontail.database.column.ColumnDef
+import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.database.column.FloatArrayColumnType
 import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
 import ch.unibas.dmi.dbis.cottontail.database.general.begin

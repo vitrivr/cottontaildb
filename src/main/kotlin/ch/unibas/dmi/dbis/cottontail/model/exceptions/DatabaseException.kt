@@ -28,6 +28,9 @@ open class DatabaseException(message: String) : Throwable(message) {
 
     /** */
     class DataCorruptionException(message: String): DatabaseException(message)
+
+
+    class ValidationException(message: String): DatabaseException(message)
 }
 
 

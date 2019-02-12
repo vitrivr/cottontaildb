@@ -4,7 +4,7 @@ import ch.unibas.dmi.dbis.cottontail.database.column.Column
 import ch.unibas.dmi.dbis.cottontail.database.general.DBO
 import ch.unibas.dmi.dbis.cottontail.database.general.Transaction
 import ch.unibas.dmi.dbis.cottontail.database.general.TransactionStatus
-import ch.unibas.dmi.dbis.cottontail.database.column.ColumnDef
+import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.database.column.ColumnTransaction
 import ch.unibas.dmi.dbis.cottontail.database.column.mapdb.MapDBColumn
 import ch.unibas.dmi.dbis.cottontail.database.queries.BooleanPredicate
