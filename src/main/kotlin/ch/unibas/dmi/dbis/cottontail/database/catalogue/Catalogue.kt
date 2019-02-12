@@ -48,10 +48,13 @@ internal class Catalogue(val config: Config): DBO {
     private val registry: HashMap<String, Schema> = HashMap()
 
     /** The [StoreWAL] that contains the Cottontail DB catalogue. */
-    private val store: StoreWAL = try {
-        StoreWAL.make(file = this.path.resolve(FILE_CATALOGUE).toString(), volumeFactory = MappedFileVol.FACTORY, fileLockWait = config.lockTimeout)
-    } catch (e: DBException) {
-        throw DatabaseException("Failed to open Cottontail DB catalogue: ${e.message}'.")
+    private val store: StoreWAL = path.let {
+        val file = this.path.resolve(FILE_CATALOGUE)
+        if (Files.exists(file)) {
+            openStore(file)
+        } else {
+            initStore(file)
+        }
     }
 
     /** Reference to the [CatalogueHeader] of the [Catalogue]. Accessing it will read right from the underlying store. */
@@ -188,6 +191,43 @@ internal class Catalogue(val config: Config): DBO {
      */
     fun hasSchema(name: String) = this.lock.read { this.registry.containsKey(name) }
 
+
+    /**
+     * Opens the data store underlying this Cottontail DB [Catalogue]
+     *
+     * @param path The path to the data store file.
+     * @return [StoreWAL] object.
+     */
+    private fun openStore(path: Path): StoreWAL = try {
+        StoreWAL.make(file = path.toString(), volumeFactory = MappedFileVol.FACTORY, fileLockWait = config.lockTimeout)
+    } catch (e: DBException) {
+        throw DatabaseException("Failed to open Cottontail DB catalogue: ${e.message}'.")
+    }
+
+    /**
+     * Initializes a new Cottontail DB [Catalogue] under the given path.
+     *
+     * @param path The path to the data store file.
+     * @return [StoreWAL] object.
+     */
+    private fun initStore(path: Path) = try {
+        try {
+            if (!Files.exists(path.parent)) {
+                Files.createDirectories(path.parent)
+            }
+        } catch (e: IOException) {
+            throw DatabaseException("Failed to create Cottontail DB catalogue due to an IO exception: ${e.message}")
+        }
+
+        /* Create and initialize new store. */
+        val store = StoreWAL.make(file = config.root.resolve(Catalogue.FILE_CATALOGUE).toString(), volumeFactory = MappedFileVol.FACTORY, fileLockWait = config.lockTimeout)
+        store.put(CatalogueHeader(), CatalogueHeaderSerializer)
+        store.commit()
+        store
+    } catch (e: DBException) {
+        throw DatabaseException("Failed to initialize the Cottontail DB catalogue: ${e.message}'.")
+    }
+
     /**
      * Companion object to [Catalogue]
      */
@@ -197,25 +237,5 @@ internal class Catalogue(val config: Config): DBO {
 
         /** Filename for the [Entity] catalogue.  */
         internal const val FILE_CATALOGUE = "catalogue.db"
-
-        /**
-         * Initializes a new Cottontail DB [Catalogue] for the given [Config]. This method is for
-         * bootstraping a new instance of Cottontail DB.
-         */
-        fun init(config: Config) {
-            try {
-                if (!Files.exists(config.root)) {
-                    Files.createDirectories(config.root)
-                }
-            } catch (e: IOException) {
-                throw DatabaseException("Failed to create Cottontail DB catalogue due to an IO exception: ${e.message}")
-            }
-
-            /* Create and initialize new store. */
-            val store = StoreWAL.make(file = config.root.resolve(Catalogue.FILE_CATALOGUE).toString(), volumeFactory = MappedFileVol.FACTORY, fileLockWait = config.lockTimeout)
-            store.put(CatalogueHeader(), CatalogueHeaderSerializer)
-            store.commit()
-            store.close()
-        }
     }
 }
