@@ -142,7 +142,7 @@ message CreateEntityMessage {
 
 /** Message for inserting data into an entity. */
 message InsertMessage {
-    Entity identifier = 1;
+    Entity entity = 1;
     repeated Tuple tuple = 2;
 }
 
