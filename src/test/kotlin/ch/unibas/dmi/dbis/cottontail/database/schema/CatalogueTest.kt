@@ -1,8 +1,7 @@
-package ch.unibas.dmi.dbis.cottontail.database
+package ch.unibas.dmi.dbis.cottontail.database.schema
 
 import ch.unibas.dmi.dbis.cottontail.TestConstants
 import ch.unibas.dmi.dbis.cottontail.database.catalogue.Catalogue
-import ch.unibas.dmi.dbis.cottontail.database.schema.Schema
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
 import org.junit.jupiter.api.*
 import java.nio.file.Files
