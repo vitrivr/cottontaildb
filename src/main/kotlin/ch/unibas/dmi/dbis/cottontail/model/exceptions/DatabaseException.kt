@@ -17,6 +17,15 @@ open class DatabaseException(message: String) : Throwable(message) {
     /** */
     class EntityDoesNotExistException(schema: String, entity: String): DatabaseException("Entity '$entity' does not exist in schema '$schema'!")
 
+    /**
+     * Thrown upon creation of an [Entity] if the definition contains duplicate column names.
+     *
+     * @param schema Name of the affected [Schema]
+     * @param entity Name of the affected [Entity]
+     * @param columns Name of the [Column]s in the definition.
+     */
+    class DuplicateColumnException(schema: String, entity: String, columns: String): DatabaseException("Entity $schema.$entity contains duplicate column names: $columns")
+
     /** */
     class ColumnNotExistException(column: String, entity: String): DatabaseException("Column '$column' does not exist on entity '$entity'.")
 

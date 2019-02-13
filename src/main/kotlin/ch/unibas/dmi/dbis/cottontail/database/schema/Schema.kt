@@ -78,7 +78,8 @@ internal class Schema(override val name: String, override val path: Path, overri
      * @param name The name of the [Entity] that should be created.
      */
     fun createEntity(name: String, vararg columns: ColumnDef<*>) = this.lock.write {
-        if (entities.contains(name)) throw DatabaseException.EntityAlreadyExistsException(this.parent.name, this.name)
+        if (entities.contains(name)) throw DatabaseException.EntityAlreadyExistsException(this.name, name)
+        if (columns.map { it.name }.distinct().size != columns.size) throw DatabaseException.DuplicateColumnException(this.name, name, columns.map { it }.joinToString())
         try {
             /* Create empty folder for entity. */
             val data = path.resolve("entity_$name")
@@ -171,14 +172,9 @@ internal class Schema(override val name: String, override val path: Path, overri
      * @param name Name of the [Entity] to access.
      */
     fun getEntity(name: String): Entity = this.lock.read {
-        var entity = this.loaded[name]?.get()
-        if (entity != null) {
-            return entity
-        } else {
-            if (!entities.contains(name)) throw DatabaseException.EntityDoesNotExistException(this.parent.name, this.name)
-            entity = Entity(name, this)
-            this.loaded[name] = SoftReference(entity)
-            return entity
+        if (!this.entities.contains(name)) throw DatabaseException.EntityDoesNotExistException(this.parent.name, this.name)
+        return this.loaded[name]?.get() ?: Entity(name, this).also {
+            this.loaded[name] = SoftReference(it)
         }
     }
 
@@ -190,7 +186,7 @@ internal class Schema(override val name: String, override val path: Path, overri
      */
     override fun close() = this.lock.write {
         if (!this.closed) {
-            this.loaded.entries.removeIf() {
+            this.loaded.entries.removeIf {
                 it.value.get()?.close()
                 true
             }
