@@ -10,4 +10,14 @@ interface DistanceFunction {
      *
      */
     operator fun invoke(a: DoubleArray, b: DoubleArray): Double
+
+    /**
+     *
+     */
+    operator fun invoke(a: LongArray, b: LongArray): Double
+
+    /**
+     *
+     */
+    operator fun invoke(a: IntArray, b: IntArray): Double
 }

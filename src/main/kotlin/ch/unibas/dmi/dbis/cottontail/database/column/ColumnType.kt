@@ -39,8 +39,6 @@ sealed class ColumnType<T : Any> {
             "FLOAT" -> FloatColumnType()
             "DOUBLE" -> DoubleColumnType()
             "STRING" -> StringColumnType()
-            "BYTE_VEC" -> ByteArrayColumnType()
-            "SHORT_VEC" -> ShortArrayColumnType()
             "INT_VEC" -> IntArrayColumnType()
             "LONG_VEC" -> LongArrayColumnType()
             "FLOAT_VEC" -> FloatArrayColumnType()
@@ -122,24 +120,6 @@ class StringColumnType : ColumnType<String>() {
     override val name = "STRING"
     override val type: KClass<String> = String::class
     override fun serializer(size: Int): Serializer<String> = Serializer.STRING
-}
-
-class ByteArrayColumnType : ColumnType<ByteArray>() {
-    override val name = "BYTE_VEC"
-    override val type: KClass<ByteArray> = ByteArray::class
-    override fun serializer(size: Int): Serializer<ByteArray> {
-        if (size <= 0) throw IllegalArgumentException("Size attribute for a $name type must be > 0 (is $size).")
-        return Serializer.BYTE_ARRAY
-    }
-}
-
-class ShortArrayColumnType : ColumnType<ShortArray>() {
-    override val name = "SHORT_VEC"
-    override val type: KClass<ShortArray> = ShortArray::class
-    override fun serializer(size: Int): Serializer<ShortArray> {
-        if (size <= 0) throw IllegalArgumentException("Size attribute for a $name type must be > 0 (is $size).")
-        return Serializer.SHORT_ARRAY
-    }
 }
 
 class IntArrayColumnType : ColumnType<IntArray>() {

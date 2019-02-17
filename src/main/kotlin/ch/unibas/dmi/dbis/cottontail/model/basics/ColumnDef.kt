@@ -92,8 +92,6 @@ class ColumnDef<T: Any>(val name: String, val type: ColumnType<T>, val size: Int
         this.type is FloatArrayColumnType -> DoubleArray(this.size)
         this.type is LongArrayColumnType -> LongArray(this.size)
         this.type is IntArrayColumnType -> IntArray(this.size)
-        this.type is ShortArrayColumnType -> ShortArray(this.size)
-        this.type is ByteArrayColumnType -> ByteArray(this.size)
         else -> throw RuntimeException("Default value for the specified type $type has not been specified yet!")
     }
 

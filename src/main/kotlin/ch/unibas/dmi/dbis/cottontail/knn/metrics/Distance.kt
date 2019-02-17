@@ -20,6 +20,22 @@ enum class Distance : DistanceFunction {
             }
             return b.sum()
         }
+
+        override fun invoke(a: LongArray, b: LongArray): Double {
+            for (i in 0 until b.size) {
+                b[i] = b[i] - a[i]
+                if (b[i] < 0L) b[i] = 0L-b[i]
+            }
+            return b.sum().toDouble()
+        }
+
+        override fun invoke(a: IntArray, b: IntArray): Double {
+            for (i in 0 until b.size) {
+                b[i] = b[i] - a[i]
+                if (b[i] < 0) b[i] = 0-b[i]
+            }
+            return b.sum().toDouble()
+        }
     },
 
     /**
@@ -39,6 +55,20 @@ enum class Distance : DistanceFunction {
             }
             return StrictMath.sqrt(b.sum())
         }
+
+        override fun invoke(a: LongArray, b: LongArray): Double {
+            for (i in 0 until b.size) {
+                b[i] = (b[i] - a[i]) * (b[i] - a[i])
+            }
+            return StrictMath.sqrt(b.sum().toDouble())
+        }
+
+        override fun invoke(a: IntArray, b: IntArray): Double {
+            for (i in 0 until b.size) {
+                b[i] = (b[i] - a[i]) * (b[i] - a[i])
+            }
+            return StrictMath.sqrt(b.sum().toDouble())
+        }
     },
 
     /**
@@ -57,6 +87,20 @@ enum class Distance : DistanceFunction {
                 b[i] = (b[i] - a[i]) * (b[i] - a[i])
             }
             return b.sum()
+        }
+
+        override fun invoke(a: LongArray, b: LongArray): Double {
+            for (i in 0 until b.size) {
+                b[i] = (b[i] - a[i]) * (b[i] - a[i])
+            }
+            return b.sum().toDouble()
+        }
+
+        override fun invoke(a: IntArray, b: IntArray): Double {
+            for (i in 0 until b.size) {
+                b[i] = (b[i] - a[i]) * (b[i] - a[i])
+            }
+            return b.sum().toDouble()
         }
     }
 }
