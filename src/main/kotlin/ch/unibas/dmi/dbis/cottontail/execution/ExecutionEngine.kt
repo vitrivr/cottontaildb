@@ -1,33 +1,22 @@
 package ch.unibas.dmi.dbis.cottontail.execution
 
-import ch.unibas.dmi.dbis.cottontail.config.Config
-import ch.unibas.dmi.dbis.cottontail.sql.antlr.CottonSQLLexer
-import ch.unibas.dmi.dbis.cottontail.sql.antlr.CottonSQLParser
-import ch.unibas.dmi.dbis.cottontail.sql.Context
-import ch.unibas.dmi.dbis.cottontail.sql.metamodel.StatementList
-import ch.unibas.dmi.dbis.cottontail.sql.toAst
-import org.antlr.v4.runtime.CharStreams
-import org.antlr.v4.runtime.CommonTokenStream
+import ch.unibas.dmi.dbis.cottontail.config.ExecutionConfig
 
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 
 
-
-class ExecutionEngine(config: Config) {
+/**
+ * The default [ExecutionEngine] for CottontailDB. It hosts all the necessary facilities to create and execute query [ExecutionPlan]s.
+ *
+ * @author Ralph Gasser
+ * @version 1.0
+ */
+class ExecutionEngine(config: ExecutionConfig) {
 
     /** The [ThreadPoolExecutor] used for executing queries. */
-    private val executor = ThreadPoolExecutor(config.executionConfig.coreThreads, config.executionConfig.maxThreads, config.executionConfig.keepAliveMs, TimeUnit.MILLISECONDS, ArrayBlockingQueue(config.executionConfig.queueSize))
-
-    /**
-     *
-     */
-    internal fun parse(sql: String, context: Context): StatementList {
-        val lexer = CottonSQLLexer(CharStreams.fromString(sql))
-        val tokens = CommonTokenStream(lexer)
-        return CottonSQLParser(tokens).root().sql_stmt_list().toAst(context)
-    }
+    private val executor = ThreadPoolExecutor(config.coreThreads, config.maxThreads, config.keepAliveMs, TimeUnit.MILLISECONDS, ArrayBlockingQueue(config.queueSize))
 
     /**
      * Creates and returns a new [ExecutionPlan].
@@ -35,6 +24,4 @@ class ExecutionEngine(config: Config) {
      * @return [ExecutionPlan]
      */
     fun newExecutionPlan() = ExecutionPlan(this.executor)
-
-
 }

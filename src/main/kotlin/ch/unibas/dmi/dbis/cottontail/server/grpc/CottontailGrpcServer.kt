@@ -2,6 +2,7 @@ package ch.unibas.dmi.dbis.cottontail.server.grpc
 
 import ch.unibas.dmi.dbis.cottontail.config.ServerConfig
 import ch.unibas.dmi.dbis.cottontail.database.catalogue.Catalogue
+import ch.unibas.dmi.dbis.cottontail.execution.ExecutionEngine
 import ch.unibas.dmi.dbis.cottontail.server.grpc.services.CottonDDLService
 import ch.unibas.dmi.dbis.cottontail.server.grpc.services.CottonDMLService
 import ch.unibas.dmi.dbis.cottontail.server.grpc.services.CottonDQLService
@@ -17,7 +18,7 @@ import java.util.concurrent.*
  * @author Ralph Gasser
  * @version 1.0
  */
-internal class CottontailGrpcServer(config: ServerConfig, var catalogue: Catalogue) {
+internal class CottontailGrpcServer(config: ServerConfig, val catalogue: Catalogue, val engine: ExecutionEngine) {
 
     /** The [ThreadPoolExecutor] used for handling the individual GRPC calls. */
     private val executor: ExecutorService = ThreadPoolExecutor(config.coreThreads, config.maxThreads, config.keepAliveTime, TimeUnit.MILLISECONDS, SynchronousQueue())
@@ -27,7 +28,7 @@ internal class CottontailGrpcServer(config: ServerConfig, var catalogue: Catalog
             .executor(this.executor)
             .maxInboundMessageSize(config.messageSize)
             .addService(CottonDDLService(this.catalogue))
-            .addService(CottonDQLService(this.catalogue))
+            .addService(CottonDQLService(this.catalogue, this.engine))
             .addService(CottonDMLService(this.catalogue))
             .let {
                 if (config.useTls) {
