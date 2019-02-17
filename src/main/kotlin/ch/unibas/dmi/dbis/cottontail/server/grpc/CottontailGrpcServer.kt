@@ -28,7 +28,7 @@ internal class CottontailGrpcServer(config: ServerConfig, val catalogue: Catalog
             .executor(this.executor)
             .maxInboundMessageSize(config.messageSize)
             .addService(CottonDDLService(this.catalogue))
-            .addService(CottonDQLService(this.catalogue, this.engine))
+            .addService(CottonDQLService(this.catalogue, this.engine, config.messageSize))
             .addService(CottonDMLService(this.catalogue))
             .let {
                 if (config.useTls) {

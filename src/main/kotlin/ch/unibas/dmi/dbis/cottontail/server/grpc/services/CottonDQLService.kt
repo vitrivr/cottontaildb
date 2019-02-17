@@ -4,14 +4,16 @@ import ch.unibas.dmi.dbis.cottontail.database.catalogue.Catalogue
 import ch.unibas.dmi.dbis.cottontail.execution.ExecutionEngine
 import ch.unibas.dmi.dbis.cottontail.grpc.CottonDQLGrpc
 import ch.unibas.dmi.dbis.cottontail.grpc.CottontailGrpc
+import ch.unibas.dmi.dbis.cottontail.model.basics.Record
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
 import ch.unibas.dmi.dbis.cottontail.server.grpc.helper.DataHelper
 import ch.unibas.dmi.dbis.cottontail.server.grpc.helper.GrpcQueryBinder
+import ch.unibas.dmi.dbis.cottontail.utilities.math.BitUtil
 import io.grpc.Status
 import io.grpc.stub.StreamObserver
 import java.util.*
 
-internal class CottonDQLService (val catalogue: Catalogue, val engine: ExecutionEngine): CottonDQLGrpc.CottonDQLImplBase() {
+internal class CottonDQLService (val catalogue: Catalogue, val engine: ExecutionEngine, val maxMessageSize: Int): CottonDQLGrpc.CottonDQLImplBase() {
 
     /**
      *
@@ -20,24 +22,24 @@ internal class CottonDQLService (val catalogue: Catalogue, val engine: Execution
         /* Bind query and generate execution plan */
         val binder = GrpcQueryBinder(catalogue = this.catalogue, engine = this.engine)
         val plan = binder.parseAndBind(request.query)
-        val batchSize = 100
 
         /* Start the query by giving the start signal. */
         val queryId = request.queryId ?: UUID.randomUUID().toString()
-        responseObserver.onNext(CottontailGrpc.QueryResponseMessage.newBuilder().setTotal(-1).setSize(batchSize).setStart(true).setQueryId(queryId).build())
+        responseObserver.onNext(CottontailGrpc.QueryResponseMessage.newBuilder().setStart(true).setQueryId(queryId).build())
 
         /* Execute query. */
         val results = plan.execute()
-        val iterator = results.iterator()
+
+        /* Calculate batch size based on an example message and the maxMessageSize. */
+        val exampleSize = BitUtil.nextPowerOfTwo(recordToTuple(results[0]).build().serializedSize)
+        val batchSize = (maxMessageSize/exampleSize)
 
         /* Return results. */
-        for (i in 0 until (results.rowCount/batchSize)) {
+        val iterator = results.iterator()
+        for (i in 0..Math.floorDiv(results.rowCount,batchSize)) {
             val responseBuilder = CottontailGrpc.QueryResponseMessage.newBuilder().setStart(false).setSize(batchSize).setTotal(results.rowCount)
             for (j in i * batchSize until Math.min(results.rowCount, i*batchSize + batchSize)) {
-                val record = iterator.next()
-                val tuple = CottontailGrpc.Tuple.newBuilder()
-                tuple.putAllData(record.toMap().mapValues { DataHelper.toData(value = it.value) })
-                responseBuilder.addResults(tuple)
+                responseBuilder.addResults(recordToTuple(iterator.next()))
             }
             responseObserver.onNext(responseBuilder.build())
         }
@@ -49,4 +51,17 @@ internal class CottonDQLService (val catalogue: Catalogue, val engine: Execution
     } catch (e: QueryException.QueryBindException) {
         responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("${e.message}").asException())
     }
+
+
+
+
+
+
+    /**
+     * Generates a new [CottontailGrpc.Tuple.Builder] from a given [Record].
+     *
+     * @param record [Record] to create a [CottontailGrpc.Tuple.Builder] from.
+     * @return Resulting [CottontailGrpc.Tuple.Builder]
+     */
+    private fun recordToTuple(record: Record) : CottontailGrpc.Tuple.Builder = CottontailGrpc.Tuple.newBuilder().putAllData(record.toMap().mapValues { DataHelper.toData(it.value) })
 }
