@@ -110,7 +110,7 @@ class ExecutionPlan(executor: ExecutorService) {
 
             /* Log successful execution. */
             val output = this.first() ?: throw ExecutionPlanException(this@ExecutionPlan, "Final stage in execution plan failed!")
-            LOGGER.debug("Execution plan ${this@ExecutionPlan.id} successful! Produced ${output.rowCount} x ${output.columnCount} record set.")
+            LOGGER.debug("Execution plan ${this@ExecutionPlan.id} was run successful! It produced a ${output.rowCount} x ${output.columnCount} record set.")
             return output
         }
     }
