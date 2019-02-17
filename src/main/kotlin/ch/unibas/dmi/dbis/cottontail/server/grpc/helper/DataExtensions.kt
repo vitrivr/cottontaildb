@@ -2,6 +2,34 @@ package ch.unibas.dmi.dbis.cottontail.server.grpc.helper
 
 import ch.unibas.dmi.dbis.cottontail.grpc.CottontailGrpc
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
+import com.google.protobuf.Empty
+import java.lang.IllegalArgumentException
+
+/**
+ * Helper class to convert Kotlin data types to GRPC [Data] objects
+ *
+ * @author Ralph Gasser
+ * @version 1.0
+ */
+object DataHelper {
+    fun toData(value: Any?): CottontailGrpc.Data? = when(value) {
+        is String -> CottontailGrpc.Data.newBuilder().setStringData(value).build()
+        is Long -> CottontailGrpc.Data.newBuilder().setLongData(value).build()
+        is Int -> CottontailGrpc.Data.newBuilder().setIntData(value).build()
+        is Short -> CottontailGrpc.Data.newBuilder().setIntData(value.toInt()).build()
+        is Byte -> CottontailGrpc.Data.newBuilder().setIntData(value.toInt()).build()
+        is Double -> CottontailGrpc.Data.newBuilder().setDoubleData(value).build()
+        is Float -> CottontailGrpc.Data.newBuilder().setFloatData(value).build()
+        is Boolean -> CottontailGrpc.Data.newBuilder().setBooleanData(value).build()
+        is DoubleArray -> CottontailGrpc.Data.newBuilder().setVectorData(CottontailGrpc.Vector.newBuilder().setDoubleVector(CottontailGrpc.DoubleVector.newBuilder().addAllVector(value.asIterable()))).build()
+        is FloatArray -> CottontailGrpc.Data.newBuilder().setVectorData(CottontailGrpc.Vector.newBuilder().setFloatVector(CottontailGrpc.FloatVector.newBuilder().addAllVector(value.asIterable()))).build()
+        is LongArray -> CottontailGrpc.Data.newBuilder().setVectorData(CottontailGrpc.Vector.newBuilder().setLongVector(CottontailGrpc.LongVector.newBuilder().addAllVector(value.asIterable()))).build()
+        is IntArray -> CottontailGrpc.Data.newBuilder().setVectorData(CottontailGrpc.Vector.newBuilder().setIntVector(CottontailGrpc.IntVector.newBuilder().addAllVector(value.asIterable()))).build()
+        null -> null
+        else -> throw IllegalArgumentException("The specified value cannot be converted to a GRPC Data object.")
+    }
+}
+
 
 /**
  * Returns the value of [CottontailGrpc.Data] as String.

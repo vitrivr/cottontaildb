@@ -27,7 +27,11 @@ import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
  * @author Ralph Gasser
  * @version 1.0
  */
-internal class GrpcQueryBinder(val factor: ExecutionPlanFactory, val catalogue: Catalogue) {
+internal class GrpcQueryBinder(val catalogue: Catalogue, engine: ExecutionEngine) {
+
+    /** [ExecutionPlanFactor] used to generate [ExecutionPlan]s from query definitions. */
+    private val factory = ExecutionPlanFactory(engine)
+
     /**
      * Binds the given [CottontailGrpc.Query] to the database objects and thereby creates an [ExecutionPlan].
      *
@@ -64,7 +68,7 @@ internal class GrpcQueryBinder(val factor: ExecutionPlanFactory, val catalogue: 
         val whereClause = if (query.hasWhere()) parseAndBindBooleanPredicate(entity, query.where) else null
 
         /* Transform to ExecutionPlan. */
-        return factor.simpleExecutionPlan(entity, projectionClause, knnClause = knnClause, whereClause = whereClause)
+        return this.factory.simpleExecutionPlan(entity, projectionClause, knnClause = knnClause, whereClause = whereClause)
     }
 
     /**

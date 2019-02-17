@@ -1,6 +1,7 @@
 package ch.unibas.dmi.dbis.cottontail.model.basics
 
 import ch.unibas.dmi.dbis.cottontail.database.queries.BooleanPredicate
+import java.lang.IllegalArgumentException
 
 import java.util.*
 
@@ -67,6 +68,14 @@ class Recordset (val columns: Array<ColumnDef<*>>) {
     }
 
     /**
+     * Retrieves the value for the specified [ColumnDef] from this [Record].
+     *
+     * @param column The [ColumnDef] for which to retrieve the value.
+     * @return The value for the [ColumnDef]
+     */
+    operator fun <T: Any> get(index: Int): Record = this.list[index]
+
+    /**
      * Apples the provided action to each [Record] in this [Recordset].
      *
      * @param action The action that should be applied.
@@ -74,9 +83,18 @@ class Recordset (val columns: Array<ColumnDef<*>>) {
     fun forEach(action: (Record) -> Unit) = this.list.forEach(action)
 
     /**
-     * Returns a list of all the [Record]s held by this
+     * Returns a list view of this [Recordset]
+     *
+     * @return The [List] underpinning this [Recordset].
      */
     fun toList(): List<Record> = this.list
+
+    /**
+     * Returns an [Iterator] of this [Recordset]
+     *
+     * @return [Iterator] of this [Recordset].
+     */
+    fun iterator() : Iterator<Record> = this.list.iterator()
 
     /**
      * A [Record] implementation that depends on the existence of the enclosing [Recordset].

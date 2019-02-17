@@ -58,6 +58,13 @@ interface Record {
     fun has(column: ColumnDef<*>): Boolean = columns.indexOf(column) > -1
 
     /**
+     * Generates a Map of the data contained in this [Record]
+     *
+     * @return Map of column name to value.
+     */
+    fun toMap(): Map<String,Any?> = mapOf(*this.columns.mapIndexed {index, column -> Pair(column.name, this.values[index]) }.toTypedArray())
+
+    /**
      * Retrieves the value for the specified [ColumnDef] from this [Record].
      *
      * @param column The [ColumnDef] for which to retrieve the value.
