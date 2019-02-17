@@ -23,8 +23,9 @@ internal class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.Cotton
     /**
      * GRPC endpoint for creating a new [Schema]
      */
-    override fun createSchema(request: CottontailGrpc.Schema, responseObserver: StreamObserver<Empty>) = try {
+    override fun createSchema(request: CottontailGrpc.Schema, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) = try {
         this.catalogue.createSchema(request.name)
+        responseObserver.onNext(CottontailGrpc.SuccessStatus.newBuilder().setTimestamp(System.currentTimeMillis()).build())
         responseObserver.onCompleted()
     } catch (e: DatabaseException.SchemaAlreadyExistsException) {
         responseObserver.onError(Status.ALREADY_EXISTS.withDescription("Schema '${request.name} cannot be created because it already exists!").asException())
@@ -35,8 +36,9 @@ internal class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.Cotton
     /**
      * GRPC endpoint for dropping a [Schema]
      */
-    override fun dropSchema(request: CottontailGrpc.Schema, responseObserver: StreamObserver<Empty>) = try {
+    override fun dropSchema(request: CottontailGrpc.Schema, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) = try {
         this.catalogue.dropSchema(request.name)
+        responseObserver.onNext(CottontailGrpc.SuccessStatus.newBuilder().setTimestamp(System.currentTimeMillis()).build())
         responseObserver.onCompleted()
     } catch (e: DatabaseException.SchemaDoesNotExistException) {
         responseObserver.onError(Status.NOT_FOUND.withDescription("Schema '${request.name} does not exist!").asException())
@@ -59,13 +61,14 @@ internal class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.Cotton
      *
      * GRPC endpoint for creating a new [Entity]
      */
-    override fun createEntity(request: CottontailGrpc.CreateEntityMessage, responseObserver: StreamObserver<Empty>) = try {
+    override fun createEntity(request: CottontailGrpc.CreateEntityMessage, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) = try {
         val schema = this.catalogue.getSchema(request.entity.schema.name)
         val columns = request.columnsList.map {
             val type = ColumnType.forName(it.type.name)
             ColumnDef(it.name, type, it.length, it.nullable)
         }
         schema.createEntity(request.entity.name, *columns.toTypedArray())
+        responseObserver.onNext(CottontailGrpc.SuccessStatus.newBuilder().setTimestamp(System.currentTimeMillis()).build())
         responseObserver.onCompleted()
     } catch (e: DatabaseException.SchemaDoesNotExistException) {
         responseObserver.onError(Status.NOT_FOUND.withDescription("Schema '${request.entity.schema.name} does not exist!").asException())
@@ -78,8 +81,9 @@ internal class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.Cotton
     /**
      * GRPC endpoint for dropping a particular [Schema]
      */
-    override fun dropEntity(request: CottontailGrpc.Entity, responseObserver: StreamObserver<Empty>) = try {
+    override fun dropEntity(request: CottontailGrpc.Entity, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) = try {
         this.catalogue.getSchema(request.schema.name).dropEntity(request.name)
+        responseObserver.onNext(CottontailGrpc.SuccessStatus.newBuilder().setTimestamp(System.currentTimeMillis()).build())
         responseObserver.onCompleted()
     } catch (e: DatabaseException.SchemaDoesNotExistException) {
         responseObserver.onError(Status.NOT_FOUND.withDescription("Schema '${request.schema.name} does not exist!").asException())
