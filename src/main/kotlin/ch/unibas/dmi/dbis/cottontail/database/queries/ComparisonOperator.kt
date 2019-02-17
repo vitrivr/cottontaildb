@@ -4,12 +4,12 @@ import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
 
 /**
- * List of query [Operator]s.
+ * List of query [ComparisonOperator]s.
  *
  * @author Ralph Gasser
  * @version 1.0
  */
-enum class Operator {
+enum class ComparisonOperator {
     EQUAL, /* One entry on right-hand side required! */
     GREATER, /* One entry on right-hand side required! */
     LESS, /* One entry on right-hand side required! */
@@ -21,7 +21,7 @@ enum class Operator {
     ISNOTNULL; /* No right-hand side required! */
 
     /**
-     * Matches the left hand side to the right hand side given this [Operator].
+     * Matches the left hand side to the right hand side given this [ComparisonOperator].
      *
      * @param left Left-hand side of the operator.
      * @param right Right-hand side of the operator.
