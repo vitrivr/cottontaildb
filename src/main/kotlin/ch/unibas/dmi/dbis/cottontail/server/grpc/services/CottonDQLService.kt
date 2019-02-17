@@ -32,13 +32,13 @@ internal class CottonDQLService (val catalogue: Catalogue, val engine: Execution
 
         /* Calculate batch size based on an example message and the maxMessageSize. */
         val exampleSize = BitUtil.nextPowerOfTwo(recordToTuple(results[0]).build().serializedSize)
-        val batchSize = (maxMessageSize/exampleSize)
-
+        val pageSize = (maxMessageSize/exampleSize)
+        val maxPages = Math.floorDiv(results.rowCount,pageSize)
         /* Return results. */
         val iterator = results.iterator()
-        for (i in 0..Math.floorDiv(results.rowCount,batchSize)) {
-            val responseBuilder = CottontailGrpc.QueryResponseMessage.newBuilder().setStart(false).setSize(batchSize).setTotal(results.rowCount)
-            for (j in i * batchSize until Math.min(results.rowCount, i*batchSize + batchSize)) {
+        for (i in 0..maxPages) {
+            val responseBuilder = CottontailGrpc.QueryResponseMessage.newBuilder().setStart(false).setPageSize(pageSize).setPage(i).setMaxPage(maxPages).setTotalHits(results.rowCount)
+            for (j in i * pageSize until Math.min(results.rowCount, i*pageSize + pageSize)) {
                 responseBuilder.addResults(recordToTuple(iterator.next()))
             }
             responseObserver.onNext(responseBuilder.build())
