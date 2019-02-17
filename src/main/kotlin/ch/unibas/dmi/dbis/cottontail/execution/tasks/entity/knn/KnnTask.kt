@@ -1,4 +1,4 @@
-package ch.unibas.dmi.dbis.cottontail.execution.tasks.knn
+package ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.knn
 
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 

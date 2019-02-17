@@ -1,4 +1,4 @@
-package ch.unibas.dmi.dbis.cottontail.execution.tasks.projection
+package ch.unibas.dmi.dbis.cottontail.execution.tasks.recordset.projection
 
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
@@ -18,10 +18,10 @@ import com.github.dexecutor.core.task.TaskExecutionException
  * @author Ralph Gasser
  * @version 1.0
  */
-internal class ColumnProjectionTask (
-        private val entity: Entity,
-        private val columns: Array<ColumnDef<*>>
-): ExecutionTask("Projection[${entity.fqn}]${columns.joinToString(separator = "") { "[${it.name}]" }}") {
+internal class RecordsetSelectProjectionTask (
+    private val entity: Entity,
+    private val columns: Array<ColumnDef<*>>
+): ExecutionTask("RecordsetSelectProjectionTask[${entity.fqn}]${columns.joinToString(separator = "") { "[${it.name}]" }}") {
 
     /**
      *
