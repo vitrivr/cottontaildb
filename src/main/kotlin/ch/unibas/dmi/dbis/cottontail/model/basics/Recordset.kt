@@ -36,7 +36,7 @@ class Recordset (val columns: Array<ColumnDef<*>>) {
      * @param values The values to add to this [Recordset].
      */
     fun addRow(vararg values: Any?) {
-        this.list.add(DatasetRecord().assign(values))
+        this.list.add(DatasetRecord().assign(*values))
     }
 
     /**
@@ -73,7 +73,7 @@ class Recordset (val columns: Array<ColumnDef<*>>) {
      * @param column The [ColumnDef] for which to retrieve the value.
      * @return The value for the [ColumnDef]
      */
-    operator fun <T: Any> get(index: Int): Record = this.list[index]
+    operator fun get(index: Int): Record = this.list[index]
 
     /**
      * Apples the provided action to each [Record] in this [Recordset].
