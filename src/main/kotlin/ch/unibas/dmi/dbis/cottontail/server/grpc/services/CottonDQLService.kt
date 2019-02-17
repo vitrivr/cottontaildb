@@ -36,7 +36,7 @@ internal class CottonDQLService (val catalogue: Catalogue, val engine: Execution
             for (j in i * batchSize until Math.min(results.rowCount, i*batchSize + batchSize)) {
                 val record = iterator.next()
                 val tuple = CottontailGrpc.Tuple.newBuilder()
-                tuple.putAllData(record.toMap().mapValues { DataHelper.toData(value = it) })
+                tuple.putAllData(record.toMap().mapValues { DataHelper.toData(value = it.value) })
                 responseBuilder.addResults(tuple)
             }
             responseObserver.onNext(responseBuilder.build())
