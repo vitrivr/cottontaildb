@@ -286,35 +286,16 @@ internal class Entity(override val name: String, schema: Schema): DBO {
         fun <R> map(action: (Record) -> R, columns: Array<ColumnDef<*>>) = this@Entity.txLock.read {
             checkValidOrThrow()
             checkColumnsExist(*columns)
-        }
-
-        /**
-         * Applies the provided mapping function on each value found in this [Column], returning a collection of the desired output values.
-         *
-         * @param action The mapping that should be applied to each [Column] entry.
-         * @param column The [ColumnDef] that identifies the [Column] that should be mapped.
-         *
-         * @return A collection of Pairs mapping the tupleId to the generated value.
-         */
-        fun <T: Any,R> mapColumn(action: (T?) -> R?, column: ColumnDef<T>): Collection<Tuple<R?>> = this@Entity.txLock.read {
-            checkValidOrThrow()
-            checkColumnsExist(column)
-            return (this.transactions.getValue(column) as ColumnTransaction<T>).map(action)
-        }
-
-        /**
-         * Applies the provided predicate function on each value found in the specified [Column], returning a collection
-         * of output values that pass the predicate's test (i.e. return true)
-         *
-         * @param predicate The tasks that should be applied.
-         * @param column The [ColumnSpec] that identifies the [Column] that should be filtered.
-         *
-         * @return A filtered collection of [Column] values that passed the test.
-         */
-        fun <T: Any> filterColumn(predicate: (T?) -> Boolean, column: ColumnDef<T>): Collection<Tuple<T?>> = this@Entity.txLock.read {
-            checkValidOrThrow()
-            checkColumnsExist(column)
-            return (this.transactions.getValue(column) as ColumnTransaction<T>).filter(predicate)
+            val data = Array<Any?>(columns.size) {}
+            val list = mutableListOf<R>()
+            this.transactions.getValue(columns[0]).forEach { id, value ->
+                data[0] = value
+                for (i in 1 until columns.size) {
+                    data[i] = this.transactions.getValue(columns[i]).read(id)
+                }
+                list.add(action(StandaloneRecord(id, columns).assign(data)))
+            }
+            list
         }
 
         /**
@@ -322,12 +303,19 @@ internal class Entity(override val name: String, schema: Schema): DBO {
          * the data stored in the [Column]!
          *
          * @param action The function to apply to each [Column] entry.
-         * @param column The [ColumnSpec] that identifies the [Column] that should be processed.
+         * @param column The [ColumnDef]s that identify the [Column]s that should be processed.
          */
-        fun <T: Any> forEachColumn(action: (Long,T?) -> Unit, column: ColumnDef<T>) = this@Entity.txLock.read {
+        fun forEach(action: (Record) -> Unit, columns: Array<ColumnDef<*>>) = this@Entity.txLock.read {
             checkValidOrThrow()
-            checkColumnsExist(column)
-            (this.transactions.getValue(column) as ColumnTransaction<T>).forEach(action)
+            checkColumnsExist(*columns)
+            val data = Array<Any?>(columns.size) {}
+            this.transactions.getValue(columns[0]).forEach { id, value ->
+                data[0] = value
+                for (i in 1 until columns.size) {
+                    data[i] = this.transactions.getValue(columns[i]).read(id)
+                }
+                action(StandaloneRecord(id, columns).assign(data))
+            }
         }
 
         /**
@@ -337,13 +325,20 @@ internal class Entity(override val name: String, schema: Schema): DBO {
          * It is up to the developer of the function to make sure, that the provided function operates in a thread-safe manner.
          *
          * @param action The function to apply to each [Column] entry.
-         * @param column The [ColumnSpec] that identifies the [Column] that should be processed.
+         * @param columns The [ColumnDef]s that identify the [Column]s that should be processed.
          * @param parallelism The desired amount of parallelism (i.e. the number of co-routines to spawn).
          */
-        fun <T: Any> parallelForEachColumn(action: (Long,T?) -> Unit, column: ColumnDef<T>, parallelism: Short = 2) = this@Entity.txLock.read {
+        fun <T: Any> parallelForEach(action: (Record) -> Unit, columns: Array<ColumnDef<*>>, parallelism: Short = 2) = this@Entity.txLock.read {
             checkValidOrThrow()
-            checkColumnsExist(column)
-            (this.transactions.getValue(column) as ColumnTransaction<T>).parallelForEach(action, parallelism)
+            checkColumnsExist(*columns)
+            this.transactions.getValue(columns[0]).parallelForEach({ id, value ->
+                val data =  Array<Any?>(columns.size) {}
+                data[0] = value
+                for (i in 1 until columns.size) {
+                    data[i] = this.transactions.getValue(columns[i]).read(id)
+                }
+                action(StandaloneRecord(id, columns).assign(data))
+            }, parallelism)
         }
 
         /**
