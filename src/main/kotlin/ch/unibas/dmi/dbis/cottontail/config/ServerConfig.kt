@@ -10,7 +10,7 @@ import java.nio.file.Path
  *
  *
  * @param port The port under which Cottontail DB demon should be listening for calls. Defaults to 1865
- * @param messageSize The the maximum size an incoming GRPC message can have. Defaults to 8192 bytes.
+ * @param messageSize The the maximum size an incoming GRPC message can have. Defaults to 524'288 bytes (512 kbytes).
  * @param coreThreads The core size of the thread pool used to run the GRPC server.
  * @param maxThreads The maximum number of threads that handle calls to the GRPC server.
  * @param keepAliveTime The number of milliseconds to wait before decommissioning unused threads.
@@ -23,7 +23,7 @@ import java.nio.file.Path
 @Serializable
 data class ServerConfig(
     @Optional val port: Int = 1865,
-    @Optional val messageSize: Int = 8192,
+    @Optional val messageSize: Int = 524288,
     @Optional val coreThreads: Int = Runtime.getRuntime().availableProcessors() / 2,
     @Optional val maxThreads: Int = Runtime.getRuntime().availableProcessors() * 2,
     @Optional val keepAliveTime: Long = 500,
