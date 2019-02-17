@@ -6,6 +6,7 @@ import ch.unibas.dmi.dbis.cottontail.grpc.CottonDMLGrpc
 import ch.unibas.dmi.dbis.cottontail.grpc.CottontailGrpc
 import ch.unibas.dmi.dbis.cottontail.model.basics.StandaloneRecord
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
+import ch.unibas.dmi.dbis.cottontail.server.grpc.helper.toKotlinValue
 import io.grpc.Status
 import io.grpc.stub.StreamObserver
 
@@ -20,11 +21,12 @@ internal class CottonDMLService (val catalogue: Catalogue): CottonDMLGrpc.Cotton
         entity.Tx(false).begin { tx ->
             request.tupleList.map { it.dataMap }.forEach {
                 val columns = it.map { col -> entity.columnForName(col.key) ?: throw DatabaseException.ColumnNotExistException(col.key, entity.name) }.toTypedArray()
-                val values = it.map { col -> col.value }
+                val values = it.map { col -> col.value.toKotlinValue() }
                 tx.insert(StandaloneRecord(columns = columns, init = values.toTypedArray()))
             }
             true
         }
+        responseObserver.onNext(CottontailGrpc.InsertStatus.newBuilder().setSuccess(true).setTimestamp(System.currentTimeMillis()).build())
         responseObserver.onCompleted()
     } catch (e: DatabaseException.SchemaDoesNotExistException) {
         responseObserver.onError(Status.NOT_FOUND.withDescription("Insert failed because schema '${request.entity.schema.name} does not exist!").asException())
@@ -47,11 +49,12 @@ internal class CottonDMLService (val catalogue: Catalogue): CottonDMLGrpc.Cotton
             entity.Tx(false).begin { tx ->
                 request.tupleList.map { it.dataMap }.forEach {
                     val columns = it.map { col -> entity.columnForName(col.key) ?: throw DatabaseException.ColumnNotExistException(col.key, entity.name) }.toTypedArray()
-                    val values = it.map { col -> col.value }
+                    val values = it.map { col -> col.value.toKotlinValue() }
                     tx.insert(StandaloneRecord(columns = columns, init = values.toTypedArray()))
                 }
                 true
             }
+            responseObserver.onNext(CottontailGrpc.InsertStatus.newBuilder().setSuccess(true).setTimestamp(System.currentTimeMillis()).build())
             responseObserver.onCompleted()
         } catch (e: DatabaseException.SchemaDoesNotExistException) {
             responseObserver.onError(Status.NOT_FOUND.withDescription("Insert failed because schema '${request.entity.schema.name} does not exist!").asException())

@@ -32,6 +32,30 @@ object DataHelper {
 
 
 /**
+ * Returns the value of [CottontailGrpc.Data] as its Kotlin native representation.
+ *
+ * @return [Any] value
+ */
+fun CottontailGrpc.Data.toKotlinValue(): Any? = when (this.dataCase) {
+    CottontailGrpc.Data.DataCase.BOOLEANDATA -> this.booleanData
+    CottontailGrpc.Data.DataCase.INTDATA -> this.intData
+    CottontailGrpc.Data.DataCase.LONGDATA -> this.longData
+    CottontailGrpc.Data.DataCase.FLOATDATA -> this.floatData
+    CottontailGrpc.Data.DataCase.DOUBLEDATA -> this.doubleData
+    CottontailGrpc.Data.DataCase.STRINGDATA -> this.stringData
+    CottontailGrpc.Data.DataCase.VECTORDATA -> when (this.vectorData.vectorDataCase) {
+        CottontailGrpc.Vector.VectorDataCase.FLOATVECTOR -> this.vectorData.toFloatVectorValue()
+        CottontailGrpc.Vector.VectorDataCase.DOUBLEVECTOR -> this.vectorData.toDoubleVectorValue()
+        CottontailGrpc.Vector.VectorDataCase.INTVECTOR -> this.vectorData.toIntVectorValue()
+        CottontailGrpc.Vector.VectorDataCase.LONGVECTOR -> this.vectorData.toLongVectorValue()
+        CottontailGrpc.Vector.VectorDataCase.VECTORDATA_NOT_SET -> null
+        null -> null
+    }
+    CottontailGrpc.Data.DataCase.DATA_NOT_SET -> null
+    null -> null
+}
+
+/**
  * Returns the value of [CottontailGrpc.Data] as String.
  *
  * @return [String] values
