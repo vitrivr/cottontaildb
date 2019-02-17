@@ -126,7 +126,7 @@ internal class GrpcQueryBinder(val catalogue: Catalogue, engine: ExecutionEngine
      */
     @Suppress("UNCHECKED_CAST")
     private fun parseAndBindAtomicBooleanPredicate(entity: Entity, atomic: CottontailGrpc.AtomicLiteralBooleanPredicate): AtomicBooleanPredicate<*> {
-        val column = entity.columnForName(atomic.attribute) ?: throw QueryException.QueryBindException("Failed to bind column ${atomic.attribute}. Column does not exist on entity ${entity.fqn}!")
+        val column = entity.columnForName(atomic.attribute) ?: throw QueryException.QueryBindException("Failed to bind column '${atomic.attribute}'. Column does not exist on entity '${entity.fqn}'.")
         val operator = try {
             ComparisonOperator.valueOf(atomic.op.name)
         } catch (e: IllegalArgumentException) {
@@ -159,7 +159,7 @@ internal class GrpcQueryBinder(val catalogue: Catalogue, engine: ExecutionEngine
      */
     @Suppress("UNCHECKED_CAST")
     private fun parseAndBindKnnPredicate(entity: Entity, knn: CottontailGrpc.Knn): KnnPredicate<*> {
-        val column = entity.columnForName(knn.attribute) ?: throw QueryException.QueryBindException("Failed to bind column ${knn.attribute}. Column does not exist on entity ${entity.fqn}!")
+        val column = entity.columnForName(knn.attribute) ?: throw QueryException.QueryBindException("Failed to bind column '${knn.attribute}'. Column does not exist on entity '${entity.fqn}'!")
 
         /* Extracts the query vector. */
         val query: Array<Number> = when (knn.query.vectorDataCase){
