@@ -293,7 +293,7 @@ internal class Entity(override val name: String, schema: Schema): DBO {
                 for (i in 1 until columns.size) {
                     data[i] = this.transactions.getValue(columns[i]).read(id)
                 }
-                list.add(action(StandaloneRecord(id, columns).assign(data)))
+                list.add(action(StandaloneRecord(id, columns).assign(*data)))
             }
             list
         }
@@ -314,7 +314,7 @@ internal class Entity(override val name: String, schema: Schema): DBO {
                 for (i in 1 until columns.size) {
                     data[i] = this.transactions.getValue(columns[i]).read(id)
                 }
-                action(StandaloneRecord(id, columns).assign(data))
+                action(StandaloneRecord(id, columns).assign(*data))
             }
         }
 
@@ -337,7 +337,7 @@ internal class Entity(override val name: String, schema: Schema): DBO {
                 for (i in 1 until columns.size) {
                     data[i] = this.transactions.getValue(columns[i]).read(id)
                 }
-                action(StandaloneRecord(id, columns).assign(data))
+                action(StandaloneRecord(id, columns).assign(*data))
             }, parallelism)
         }
 
