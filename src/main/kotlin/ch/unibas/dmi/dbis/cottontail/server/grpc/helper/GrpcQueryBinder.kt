@@ -12,7 +12,7 @@ import ch.unibas.dmi.dbis.cottontail.execution.tasks.ExecutionTask
 
 import ch.unibas.dmi.dbis.cottontail.grpc.CottontailGrpc
 
-import ch.unibas.dmi.dbis.cottontail.knn.metrics.Distance
+import ch.unibas.dmi.dbis.cottontail.math.knn.metrics.Distance
 
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException

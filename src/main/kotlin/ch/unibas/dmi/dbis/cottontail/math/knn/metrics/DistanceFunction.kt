@@ -1,4 +1,4 @@
-package ch.unibas.dmi.dbis.cottontail.knn.metrics
+package ch.unibas.dmi.dbis.cottontail.math.knn.metrics
 
 
 /**

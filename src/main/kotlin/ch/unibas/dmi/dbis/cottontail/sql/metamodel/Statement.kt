@@ -1,7 +1,7 @@
 package ch.unibas.dmi.dbis.cottontail.sql.metamodel
 
-import ch.unibas.dmi.dbis.cottontail.knn.metrics.Distance
-import ch.unibas.dmi.dbis.cottontail.knn.metrics.DistanceFunction
+import ch.unibas.dmi.dbis.cottontail.math.knn.metrics.Distance
+import ch.unibas.dmi.dbis.cottontail.math.knn.metrics.DistanceFunction
 import ch.unibas.dmi.dbis.cottontail.sql.Context
 import ch.unibas.dmi.dbis.cottontail.sql.QueryParsingException
 import ch.unibas.dmi.dbis.cottontail.sql.antlr.CottonSQLParser
