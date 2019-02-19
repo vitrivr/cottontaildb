@@ -1,4 +1,4 @@
-package ch.unibas.dmi.dbis.cottontail.knn.metrics
+package ch.unibas.dmi.dbis.cottontail.math.knn.metrics
 
 
 /**
@@ -28,7 +28,7 @@ interface DistanceFunction {
      *
      * @return Distance between a and b.
      */
-    fun invoke(a: DoubleArray, b: DoubleArray, weights: DoubleArray)
+    fun invoke(a: DoubleArray, b: DoubleArray, weights: DoubleArray): Double
 
     /**
      * Calculates the weighted distance between two [LongArray]s
@@ -39,7 +39,7 @@ interface DistanceFunction {
      *
      * @return Distance between a and b.
      */
-    fun invoke(a: LongArray, b: LongArray, weights: LongArray)
+    fun invoke(a: LongArray, b: LongArray, weights: LongArray): Double
 
     /**
      * Calculates the weighted distance between two [IntArray]s
@@ -50,7 +50,7 @@ interface DistanceFunction {
      *
      * @return Distance between a and b.
      */
-    fun invoke(a: IntArray, b: IntArray, weights: IntArray)
+    fun invoke(a: IntArray, b: IntArray, weights: IntArray): Double
 
     /**
      * Calculates the distance between two [FloatArray]s
