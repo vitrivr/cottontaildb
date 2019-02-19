@@ -83,6 +83,13 @@ internal class Entity(override val name: String, schema: Schema): DBO {
         get() = this.header.columns.size
 
     /**
+     * Returns all [ColumnDef] for the [Column]s contained in this [Entity].
+     *
+     * @return Collection of [ColumnDef].
+     */
+    fun allColumns(): Collection<ColumnDef<*>> = this.columns.map { it.columnDef }
+
+    /**
      * Returns the [ColumnDef] for the specified name.
      *
      * @param name The name of the [Column].

@@ -43,7 +43,6 @@ internal class GrpcQueryBinder(val catalogue: Catalogue, engine: ExecutionEngine
      */
     fun parseAndBind(query: CottontailGrpc.Query): ExecutionPlan{
         if (!query.hasFrom()) throw QueryException.QuerySyntaxException("The query lacks a valid FROM-clause.")
-        if (!query.hasProjection()) throw QueryException.QuerySyntaxException("The query lacks a valid SELECT-clause (projection).")
         return when {
             query.from.hasEntity() -> parseAndBindSimpleQuery(query)
             else -> throw QueryException.QuerySyntaxException("The query lacks a valid FROM-clause.")
@@ -62,8 +61,12 @@ internal class GrpcQueryBinder(val catalogue: Catalogue, engine: ExecutionEngine
             throw QueryException.QueryBindException("Failed to bind ${query.from.entity.fqn()}. Schema or entity does not exist!")
         }
 
-        /* Create projection task. */
-        val projectionClause = parseAndBindProjection(entity, query.projection)
+        /* Create projection clause. */
+        val projectionClause = if (query.hasProjection()) {
+            parseAndBindProjection(entity, query.projection)
+        } else {
+            bindStarProjection(entity)
+        }
         val knnClause = if (query.hasKnn()) parseAndBindKnnPredicate(entity, query.knn) else null
         val whereClause = if (query.hasWhere()) parseAndBindBooleanPredicate(entity, query.where) else null
 
@@ -198,8 +201,25 @@ internal class GrpcQueryBinder(val catalogue: Catalogue, engine: ExecutionEngine
      * @return The resulting [Projection].
      */
     private fun parseAndBindProjection(entity: Entity, projection: CottontailGrpc.Projection): Projection = try {
-        Projection(type = ProjectionType.valueOf(projection.op.name), columns = projection.attributesList.map { entity.columnForName(it) ?: throw QueryException.QueryBindException("Failed to bind column $it. Column does not exist on entity ${entity.fqn}")}.toTypedArray())
+        val columns = mutableSetOf<ColumnDef<*>>()
+        projection.attributesList.forEach {
+            if (it == "*") {
+                columns.addAll(entity.allColumns())
+            } else {
+                columns.add(entity.columnForName(it) ?: throw QueryException.QueryBindException("Failed to bind column $it. Column does not exist on entity ${entity.fqn}"))
+            }
+        }
+        Projection(type = ProjectionType.valueOf(projection.op.name), columns = columns.toTypedArray())
     } catch (e: java.lang.IllegalArgumentException) {
         throw QueryException.QuerySyntaxException("The query lacks a valid SELECT-clause (projection): ${projection.op} is not supported.")
     }
+
+    /**
+     * Generates a default star projection clause.
+     *
+     * @param entity The [Entity] from which fetch columns.
+     *
+     * @return The resulting [Projection].
+     */
+    private fun bindStarProjection(entity: Entity): Projection = Projection(type = ProjectionType.SELECT, columns = entity.allColumns().toTypedArray())
 }
