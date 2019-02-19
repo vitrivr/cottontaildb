@@ -21,20 +21,33 @@ internal class LinearEntityScanDoubleKnnTask(val entity: Entity, val knn: KnnPre
     override fun execute(): Recordset {
         /* Extract the necessary data. */
         val query = knn.queryAsDoubleArray()
+        val weights = knn.weightsAsDoubleArray()
         val columns = arrayOf<ColumnDef<*>>(this.knn.column).plus(predicate?.columns?.toTypedArray() ?: emptyArray())
 
         /* Execute kNN lookup. */
         val knn = HeapSelect<ComparablePair<Long,Double>>(this.knn.k)
         entity.Tx(true).begin { tx ->
-            tx.forEach({
-                if (this.predicate == null || this.predicate.matches(it)) {
-                    val value = it[this.knn.column]
-                    if (value != null) {
-                        val dist = this.knn.distance(query, value)
-                        knn.add(ComparablePair(it.tupleId!!, dist))
+            if (weights != null) {
+                tx.forEach({
+                    if (this.predicate == null || this.predicate.matches(it)) {
+                        val value = it[this.knn.column]
+                        if (value != null) {
+                            val dist = this.knn.distance(query, value, weights)
+                            knn.add(ComparablePair(it.tupleId!!, dist))
+                        }
                     }
-                }
-            }, columns)
+                }, columns)
+            } else {
+                tx.forEach({
+                    if (this.predicate == null || this.predicate.matches(it)) {
+                        val value = it[this.knn.column]
+                        if (value != null) {
+                            val dist = this.knn.distance(query, value)
+                            knn.add(ComparablePair(it.tupleId!!, dist))
+                        }
+                    }
+                }, columns)
+            }
             true
         }
 

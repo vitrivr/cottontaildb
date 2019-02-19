@@ -24,21 +24,35 @@ import com.github.dexecutor.core.task.Task
 internal class LinearEntityScanFloatKnnTask(val entity: Entity, val knn: KnnPredicate<FloatArray>, val predicate: BooleanPredicate? = null) : ExecutionTask("LinearEntityScanFloatKnnTask[${entity.fqn}][${knn.column.name}][${knn.distance::class.simpleName}][${knn.k}][q=${knn.query.hashCode()}]") {
     override fun execute(): Recordset {
         /* Extract the necessary data. */
-        val query = knn.queryAsFloatArray()
+        val query = this.knn.queryAsFloatArray()
+        val weights = this.knn.weightsAsFloatArray()
         val columns = arrayOf<ColumnDef<*>>(this.knn.column).plus(predicate?.columns?.toTypedArray() ?: emptyArray())
 
         /* Execute kNN lookup. */
         val knn = HeapSelect<ComparablePair<Long,Double>>(this.knn.k)
         entity.Tx(true).begin { tx ->
-            tx.forEach({
-                if (this.predicate == null || this.predicate.matches(it)) {
-                    val value = it[this.knn.column]
-                    if (value != null) {
-                        val dist = this.knn.distance(query, value)
-                        knn.add(ComparablePair(it.tupleId!!, dist))
+            if (weights != null) {
+                tx.forEach({
+                    if (this.predicate == null || this.predicate.matches(it)) {
+                        val value = it[this.knn.column]
+                        if (value != null) {
+                            val dist = this.knn.distance(query, value, weights)
+                            knn.add(ComparablePair(it.tupleId!!, dist))
+                        }
                     }
-                }
-            }, columns)
+                }, columns)
+            } else {
+                tx.forEach({
+                    if (this.predicate == null || this.predicate.matches(it)) {
+                        val value = it[this.knn.column]
+                        if (value != null) {
+                            val dist = this.knn.distance(query, value)
+                            knn.add(ComparablePair(it.tupleId!!, dist))
+                        }
+                    }
+                }, columns)
+            }
+
             true
         }
 

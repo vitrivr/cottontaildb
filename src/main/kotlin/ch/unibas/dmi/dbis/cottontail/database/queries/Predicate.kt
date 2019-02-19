@@ -108,7 +108,7 @@ internal data class CompoundBooleanPredicate(val connector: ConnectionOperator, 
  * @author Ralph Gasser
  * @version 1.0
  */
-internal data class  KnnPredicate<T: Any>(val column: ColumnDef<T>, val k: Int, val query: Array<Number>, val distance: Distance, val weights: Array<Number>? = null): Predicate() {
+internal data class KnnPredicate<T: Any>(val column: ColumnDef<T>, val k: Int, val query: Array<Number>, val distance: Distance, val weights: Array<Number>? = null): Predicate() {
     init {
         /* Some basic sanity checks. */
         if (k <= 0) throw QueryException.QuerySyntaxException("The value of k for a kNN query cannot be smaller than one (is $k)s!")
@@ -143,6 +143,34 @@ internal data class  KnnPredicate<T: Any>(val column: ColumnDef<T>, val k: Int, 
      * @return [LongArray]
      */
     fun queryAsLongArray() = LongArray(this.query.size) { this.query[it].toLong() }
+
+    /**
+     * Returns the weights vector as [FloatArray].
+     *
+     * @return [FloatArray]
+     */
+    fun weightsAsFloatArray() = if (this.weights != null) { FloatArray(this.weights.size) { this.weights[it].toFloat() } } else { null }
+
+    /**
+     * Returns the weights vector as [DoubleArray].
+     *
+     * @return [DoubleArray]
+     */
+    fun weightsAsDoubleArray() = if (this.weights != null) { DoubleArray(this.weights.size) { this.weights[it].toDouble() } } else { null }
+
+    /**
+     * Returns the weights vector as [IntArray].
+     *
+     * @return [IntArray]
+     */
+    fun weightsAsIntArray() = if (this.weights != null) { IntArray(this.weights.size) { this.weights[it].toInt() } } else { null }
+
+    /**
+     * Returns the weights vector as [LongArray].
+     *
+     * @return [LongArray]
+     */
+    fun weightsAsLongArray() = if (this.weights != null) { LongArray(this.query.size) { this.query[it].toLong() } } else { null }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

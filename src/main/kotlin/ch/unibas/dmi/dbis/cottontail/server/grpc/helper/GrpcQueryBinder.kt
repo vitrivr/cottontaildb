@@ -186,7 +186,7 @@ internal class GrpcQueryBinder(val catalogue: Catalogue, engine: ExecutionEngine
 
         /* Generate the predicate. */
         return try {
-            KnnPredicate(column = column, k = knn.k, query = query, weights = weights,  distance = Distance.valueOf(knn.distance.name))
+            KnnPredicate(column = column, k = knn.k, query = query, weights = weights, distance = Distance.valueOf(knn.distance.name))
         } catch (e: IllegalArgumentException) {
             throw QueryException.QuerySyntaxException("The '${knn.distance}' is not a valid distance function for a kNN predicate.")
         }

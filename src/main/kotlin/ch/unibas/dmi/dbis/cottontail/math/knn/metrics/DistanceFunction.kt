@@ -17,7 +17,7 @@ interface DistanceFunction {
      *
      * @return Distance between a and b.
      */
-    fun invoke(a: FloatArray, b: FloatArray, weights: FloatArray): Double
+    operator fun invoke(a: FloatArray, b: FloatArray, weights: FloatArray): Double
 
     /**
      * Calculates the weighted distance between two [DoubleArray]s
@@ -28,7 +28,7 @@ interface DistanceFunction {
      *
      * @return Distance between a and b.
      */
-    fun invoke(a: DoubleArray, b: DoubleArray, weights: DoubleArray): Double
+    operator fun invoke(a: DoubleArray, b: DoubleArray, weights: DoubleArray): Double
 
     /**
      * Calculates the weighted distance between two [LongArray]s
@@ -39,7 +39,7 @@ interface DistanceFunction {
      *
      * @return Distance between a and b.
      */
-    fun invoke(a: LongArray, b: LongArray, weights: LongArray): Double
+    operator fun invoke(a: LongArray, b: LongArray, weights: LongArray): Double
 
     /**
      * Calculates the weighted distance between two [IntArray]s
@@ -50,7 +50,7 @@ interface DistanceFunction {
      *
      * @return Distance between a and b.
      */
-    fun invoke(a: IntArray, b: IntArray, weights: IntArray): Double
+    operator fun invoke(a: IntArray, b: IntArray, weights: IntArray): Double
 
     /**
      * Calculates the distance between two [FloatArray]s
