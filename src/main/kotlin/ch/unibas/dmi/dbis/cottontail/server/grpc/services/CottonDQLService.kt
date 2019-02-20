@@ -31,17 +31,19 @@ internal class CottonDQLService (val catalogue: Catalogue, val engine: Execution
         val results = plan.execute()
 
         /* Calculate batch size based on an example message and the maxMessageSize. */
-        val exampleSize = BitUtil.nextPowerOfTwo(recordToTuple(results[0]).build().serializedSize)
-        val pageSize = (maxMessageSize/exampleSize)
-        val maxPages = Math.floorDiv(results.rowCount,pageSize)
-        /* Return results. */
-        val iterator = results.iterator()
-        for (i in 0..maxPages) {
-            val responseBuilder = CottontailGrpc.QueryResponseMessage.newBuilder().setStart(false).setPageSize(pageSize).setPage(i).setMaxPage(maxPages).setTotalHits(results.rowCount)
-            for (j in i * pageSize until Math.min(results.rowCount, i*pageSize + pageSize)) {
-                responseBuilder.addResults(recordToTuple(iterator.next()))
+        if (results.rowCount > 0) {
+            val exampleSize = BitUtil.nextPowerOfTwo(recordToTuple(results[0]).build().serializedSize)
+            val pageSize = (maxMessageSize/exampleSize)
+            val maxPages = Math.floorDiv(results.rowCount,pageSize)
+            /* Return results. */
+            val iterator = results.iterator()
+            for (i in 0..maxPages) {
+                val responseBuilder = CottontailGrpc.QueryResponseMessage.newBuilder().setStart(false).setPageSize(pageSize).setPage(i).setMaxPage(maxPages).setTotalHits(results.rowCount)
+                for (j in i * pageSize until Math.min(results.rowCount, i*pageSize + pageSize)) {
+                    responseBuilder.addResults(recordToTuple(iterator.next()))
+                }
+                responseObserver.onNext(responseBuilder.build())
             }
-            responseObserver.onNext(responseBuilder.build())
         }
 
         /* Complete query. */
