@@ -158,20 +158,6 @@ internal data class KnnPredicate<T: Any>(val column: ColumnDef<T>, val k: Int, v
      */
     fun weightsAsDoubleArray() = if (this.weights != null) { DoubleArray(this.weights.size) { this.weights[it].toDouble() } } else { null }
 
-    /**
-     * Returns the weights vector as [IntArray].
-     *
-     * @return [IntArray]
-     */
-    fun weightsAsIntArray() = if (this.weights != null) { IntArray(this.weights.size) { this.weights[it].toInt() } } else { null }
-
-    /**
-     * Returns the weights vector as [LongArray].
-     *
-     * @return [LongArray]
-     */
-    fun weightsAsLongArray() = if (this.weights != null) { LongArray(this.query.size) { this.query[it].toLong() } } else { null }
-
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false

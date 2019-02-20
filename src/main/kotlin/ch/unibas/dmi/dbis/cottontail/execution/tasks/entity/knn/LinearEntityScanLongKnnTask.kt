@@ -21,7 +21,7 @@ internal class LinearEntityScanLongKnnTask(val entity: Entity, val knn: KnnPredi
     override fun execute(): Recordset {
         /* Extract the necessary data. */
         val query = this.knn.queryAsLongArray()
-        val weights = this.knn.weightsAsLongArray()
+        val weights = this.knn.weightsAsFloatArray()
         val columns = arrayOf<ColumnDef<*>>(this.knn.column).plus(predicate?.columns?.toTypedArray() ?: emptyArray())
 
         /* Execute kNN lookup. */
