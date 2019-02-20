@@ -1,12 +1,14 @@
 package ch.unibas.dmi.dbis.cottontail.server.grpc.services
 
 import ch.unibas.dmi.dbis.cottontail.database.catalogue.Catalogue
+import ch.unibas.dmi.dbis.cottontail.database.column.*
 import ch.unibas.dmi.dbis.cottontail.database.general.begin
 import ch.unibas.dmi.dbis.cottontail.grpc.CottonDMLGrpc
 import ch.unibas.dmi.dbis.cottontail.grpc.CottontailGrpc
+import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.basics.StandaloneRecord
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
-import ch.unibas.dmi.dbis.cottontail.server.grpc.helper.toKotlinValue
+import ch.unibas.dmi.dbis.cottontail.server.grpc.helper.*
 import io.grpc.Status
 import io.grpc.stub.StreamObserver
 
@@ -19,10 +21,15 @@ internal class CottonDMLService (val catalogue: Catalogue): CottonDMLGrpc.Cotton
         val schema = this.catalogue.getSchema(request.entity.schema.name)
         val entity = schema.getEntity(request.entity.name)
         entity.Tx(false).begin { tx ->
-            request.tupleList.map { it.dataMap }.forEach {
-                val columns = it.map { col -> entity.columnForName(col.key) ?: throw DatabaseException.ColumnNotExistException(col.key, entity.name) }.toTypedArray()
-                val values = it.map { col -> col.value.toKotlinValue() }
-                tx.insert(StandaloneRecord(columns = columns, init = values.toTypedArray()))
+            request.tupleList.map { it.dataMap }.forEach { entry ->
+                val columns = mutableListOf<ColumnDef<*>>()
+                val values = mutableListOf<Any?>()
+                entry.map {
+                    val col = entity.columnForName(it.key) ?: throw DatabaseException.ColumnNotExistException(it.key, entity.name)
+                    columns.add(col)
+                    values.add(castToColumn(it.value, col))
+                }
+                tx.insert(StandaloneRecord(columns = columns.toTypedArray(), init = values.toTypedArray()))
             }
             true
         }
@@ -47,10 +54,15 @@ internal class CottonDMLService (val catalogue: Catalogue): CottonDMLGrpc.Cotton
             val schema = this@CottonDMLService.catalogue.getSchema(request.entity.schema.name)
             val entity = schema.getEntity(request.entity.name)
             entity.Tx(false).begin { tx ->
-                request.tupleList.map { it.dataMap }.forEach {
-                    val columns = it.map { col -> entity.columnForName(col.key) ?: throw DatabaseException.ColumnNotExistException(col.key, entity.name) }.toTypedArray()
-                    val values = it.map { col -> col.value.toKotlinValue() }
-                    tx.insert(StandaloneRecord(columns = columns, init = values.toTypedArray()))
+                request.tupleList.map { it.dataMap }.forEach { entry ->
+                    val columns = mutableListOf<ColumnDef<*>>()
+                    val values = mutableListOf<Any?>()
+                    entry.map {
+                        val col = entity.columnForName(it.key) ?: throw DatabaseException.ColumnNotExistException(it.key, entity.name)
+                        columns.add(col)
+                        values.add(castToColumn(it.value, col))
+                    }
+                    tx.insert(StandaloneRecord(columns = columns.toTypedArray(), init = values.toTypedArray()))
                 }
                 true
             }
@@ -69,5 +81,33 @@ internal class CottonDMLService (val catalogue: Catalogue): CottonDMLGrpc.Cotton
         override fun onError(t: Throwable?) = responseObserver.onError(Status.UNKNOWN.withCause(t).asException())
 
         override fun onCompleted() = responseObserver.onCompleted()
+    }
+
+    /**
+     * Casts the provided [CottontailGrpc.Data] to a data type supported by the provided [ColumnDef]
+     *
+     * @param value The [CottontailGrpc.Data] to cast.
+     * @param col The [ColumnDef] of the column, the data should be stored in.
+     * @return The converted value.
+     */
+    private fun castToColumn(value: CottontailGrpc.Data, col: ColumnDef<*>) : Any? = if (
+            value.dataCase == CottontailGrpc.Data.DataCase.DATA_NOT_SET || value.dataCase == null
+    ) {
+        null
+    } else {
+        when (col.type) {
+            is BooleanColumnType -> value.toBooleanValue()
+            is ByteColumnType -> value.toByteValue()
+            is ShortColumnType -> value.toShortValue()
+            is IntColumnType -> value.toIntValue()
+            is LongColumnType -> value.toLongValue()
+            is FloatColumnType -> value.toFloatValue()
+            is DoubleColumnType -> value.toDoubleValue()
+            is StringColumnType -> value.toStringValue()
+            is IntArrayColumnType -> value.toIntVectorValue()
+            is LongArrayColumnType -> value.toLongVectorValue()
+            is FloatArrayColumnType -> value.toFloatVectorValue()
+            is DoubleArrayColumnType -> value.toDoubleVectorValue()
+        }
     }
 }
