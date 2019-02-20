@@ -48,7 +48,7 @@ fun <T:Transaction> T.begin(block: (tx: T) -> Boolean) = try {
     } else {
         rollback()
     }
-} catch (e: Exception) {
+} catch (e: Throwable) {
     rollback()
 } finally {
     close()
@@ -70,7 +70,7 @@ fun <T:Transaction> T.query(block: (tx: T) -> Recordset): Recordset? = try {
     val result = block(this )
     commit()
     result
-} catch (e: Exception) {
+} catch (e: Throwable) {
     rollback()
     null
 } finally {
