@@ -3,6 +3,7 @@ package ch.unibas.dmi.dbis.cottontail.server.grpc.services
 import ch.unibas.dmi.dbis.cottontail.database.catalogue.Catalogue
 import ch.unibas.dmi.dbis.cottontail.database.column.*
 import ch.unibas.dmi.dbis.cottontail.database.general.begin
+import ch.unibas.dmi.dbis.cottontail.execution.ExecutionPlan
 import ch.unibas.dmi.dbis.cottontail.grpc.CottonDMLGrpc
 import ch.unibas.dmi.dbis.cottontail.grpc.CottontailGrpc
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
@@ -11,8 +12,14 @@ import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
 import ch.unibas.dmi.dbis.cottontail.server.grpc.helper.*
 import io.grpc.Status
 import io.grpc.stub.StreamObserver
+import org.slf4j.LoggerFactory
 
 internal class CottonDMLService (val catalogue: Catalogue): CottonDMLGrpc.CottonDMLImplBase() {
+    /** Logger used for logging the output. */
+    companion object {
+        private val LOGGER = LoggerFactory.getLogger(CottonDMLService::class.java)
+    }
+
     /**
      * GRPC endpoint for inserting data in a batch mode. All the data provided with the [CottontailGrpc.InsertMessage] will be inserted
      * in a single transaction. I.e. either the insert succeeds or fails completely.
@@ -31,6 +38,7 @@ internal class CottonDMLService (val catalogue: Catalogue): CottonDMLGrpc.Cotton
                 }
                 tx.insert(StandaloneRecord(columns = columns.toTypedArray(), init = values.toTypedArray()))
             }
+            LOGGER.trace("Successfully persisted ${request.tupleList.size} tuples to '${request.entity.fqn()}'.")
             true
         }
         responseObserver.onNext(CottontailGrpc.InsertStatus.newBuilder().setSuccess(true).setTimestamp(System.currentTimeMillis()).build())
@@ -63,6 +71,7 @@ internal class CottonDMLService (val catalogue: Catalogue): CottonDMLGrpc.Cotton
                         values.add(castToColumn(it.value, col))
                     }
                     tx.insert(StandaloneRecord(columns = columns.toTypedArray(), init = values.toTypedArray()))
+                    LOGGER.trace("Successfully persisted ${request.tupleList.size} tuples to '${request.entity.fqn()}'.")
                 }
                 true
             }
