@@ -3,6 +3,7 @@ package ch.unibas.dmi.dbis.cottontail.config
 import ch.unibas.dmi.dbis.cottontail.utilities.serializers.PathSerializer
 import kotlinx.serialization.Optional
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import java.nio.file.Path
 
 /**
@@ -33,7 +34,7 @@ data class ServerConfig(
     /**
      * True if TLS should be used for GRPC communication, false otherwise.
      */
-    val useTls
+    @Transient val useTls
         get() = this.certFile != null && this.privateKey != null
 
 }
