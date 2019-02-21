@@ -22,7 +22,7 @@ sealed class Predicate
  * @author Ralph Gasser
  * @version 1.0
  */
-sealed class BooleanPredicate: Predicate() {
+sealed class BooleanPredicate : Predicate() {
     /**
      * Set of [ColumnDef] that are inspected by this [BooleanPredicate].
      */
@@ -42,7 +42,14 @@ sealed class BooleanPredicate: Predicate() {
  * @author Ralph Gasser
  * @version 1.0
  */
-internal data class AtomicBooleanPredicate<T: Any>(val column: ColumnDef<T>, val operator: ComparisonOperator, val not: Boolean = false, val values: Array<T>): BooleanPredicate() {
+internal data class AtomicBooleanPredicate<T : Any>(private val column: ColumnDef<T>, private val operator: ComparisonOperator, private val not: Boolean = false, private var values: Collection<T>) : BooleanPredicate() {
+
+    init {
+        if (operator == ComparisonOperator.IN) {
+            values = values.toSet()
+        }
+    }
+
     override val columns: Set<ColumnDef<*>> = setOf(column)
     override fun matches(record: Record): Boolean {
         if (record.has(column)) {
@@ -55,30 +62,6 @@ internal data class AtomicBooleanPredicate<T: Any>(val column: ColumnDef<T>, val
             throw QueryException.ColumnDoesNotExistException(column)
         }
     }
-
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (javaClass != other?.javaClass) return false
-
-        other as AtomicBooleanPredicate<*>
-
-        if (column != other.column) return false
-        if (operator != other.operator) return false
-        if (not != other.not) return false
-        if (!values.contentEquals(other.values)) return false
-        if (columns != other.columns) return false
-
-        return true
-    }
-
-    override fun hashCode(): Int {
-        var result = column.hashCode()
-        result = 31 * result + operator.hashCode()
-        result = 31 * result + not.hashCode()
-        result = 31 * result + values.contentHashCode()
-        result = 31 * result + columns.hashCode()
-        return result
-    }
 }
 
 /**
@@ -87,13 +70,15 @@ internal data class AtomicBooleanPredicate<T: Any>(val column: ColumnDef<T>, val
  * @author Ralph Gasser
  * @version 1.0
  */
-internal data class CompoundBooleanPredicate(val connector: ConnectionOperator, val p1: BooleanPredicate, val p2: BooleanPredicate): BooleanPredicate() {
+internal data class CompoundBooleanPredicate(val connector: ConnectionOperator, val p1: BooleanPredicate, val p2: BooleanPredicate) : BooleanPredicate() {
     override val columns: Set<ColumnDef<*>> = mutableSetOf()
+
     init {
         columns.plus(p1.columns)
         columns.plus(p2.columns)
     }
-    override fun matches(record: Record): Boolean = when(connector) {
+
+    override fun matches(record: Record): Boolean = when (connector) {
         ConnectionOperator.AND -> p1.matches(record) && p2.matches(record)
         ConnectionOperator.OR -> p1.matches(record) || p2.matches(record)
     }
@@ -108,7 +93,7 @@ internal data class CompoundBooleanPredicate(val connector: ConnectionOperator, 
  * @author Ralph Gasser
  * @version 1.0
  */
-internal data class KnnPredicate<T: Any>(val column: ColumnDef<T>, val k: Int, val query: Array<Number>, val distance: Distance, val weights: Array<Number>? = null): Predicate() {
+internal data class KnnPredicate<T : Any>(val column: ColumnDef<T>, val k: Int, val query: Array<Number>, val distance: Distance, val weights: Array<Number>? = null) : Predicate() {
     init {
         /* Some basic sanity checks. */
         if (k <= 0) throw QueryException.QuerySyntaxException("The value of k for a kNN query cannot be smaller than one (is $k)s!")
@@ -149,14 +134,22 @@ internal data class KnnPredicate<T: Any>(val column: ColumnDef<T>, val k: Int, v
      *
      * @return [FloatArray]
      */
-    fun weightsAsFloatArray() = if (this.weights != null) { FloatArray(this.weights.size) { this.weights[it].toFloat() } } else { null }
+    fun weightsAsFloatArray() = if (this.weights != null) {
+        FloatArray(this.weights.size) { this.weights[it].toFloat() }
+    } else {
+        null
+    }
 
     /**
      * Returns the weights vector as [DoubleArray].
      *
      * @return [DoubleArray]
      */
-    fun weightsAsDoubleArray() = if (this.weights != null) { DoubleArray(this.weights.size) { this.weights[it].toDouble() } } else { null }
+    fun weightsAsDoubleArray() = if (this.weights != null) {
+        DoubleArray(this.weights.size) { this.weights[it].toDouble() }
+    } else {
+        null
+    }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

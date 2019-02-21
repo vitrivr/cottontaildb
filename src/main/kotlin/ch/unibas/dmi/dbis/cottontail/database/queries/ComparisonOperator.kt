@@ -27,14 +27,14 @@ enum class ComparisonOperator {
      * @param right Right-hand side of the operator.
      * @return True on match, false otherwise.
      */
-    fun <T: Any> match(left: T?, right: Array<T>) : Boolean = when {
-        this == EQUAL && left != null -> matchEqual(left, right[0])
-        this == GREATER && left is Number -> matchGreater(left, right[0] as Number)
-        this == LESS && left is Number -> matchLess(left, right[0] as Number)
-        this == GEQUAL && left is Number -> matchGreaterEqual(left, right[0] as Number)
-        this == LEQUAL && left is Number -> matchLessEqual(left, right[0] as Number)
+    fun <T: Any> match(left: T?, right: Collection<T>) : Boolean = when {
+        this == EQUAL && left != null -> matchEqual(left, right.first())
+        this == GREATER && left is Number -> matchGreater(left, right.first() as Number)
+        this == LESS && left is Number -> matchLess(left, right.first() as Number)
+        this == GEQUAL && left is Number -> matchGreaterEqual(left, right.first() as Number)
+        this == LEQUAL && left is Number -> matchLessEqual(left, right.first() as Number)
         this == IN && left != null -> matchIn(left,right)
-        this == BETWEEN && left is Number -> matchBetween(left, right[0] as Number, right[1] as Number)
+        this == BETWEEN && left is Number -> matchBetween(left, right.first() as Number, right.last() as Number)
         this == ISNULL -> left == null
         this == ISNOTNULL -> left != null
         else -> throw QueryException("Unknown operator '$this' or incompatible type!")
@@ -125,7 +125,7 @@ enum class ComparisonOperator {
     /**
      *
      */
-    private fun <T: Any> matchIn(value: T, values: Array<T>) : Boolean = (values.contains(value))
+    private fun <T: Any> matchIn(value: T, values: Collection<T>) : Boolean = (values.contains(value))
 
     /**
      *
