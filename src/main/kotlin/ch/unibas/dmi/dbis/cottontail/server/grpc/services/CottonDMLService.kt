@@ -2,6 +2,8 @@ package ch.unibas.dmi.dbis.cottontail.server.grpc.services
 
 import ch.unibas.dmi.dbis.cottontail.database.catalogue.Catalogue
 import ch.unibas.dmi.dbis.cottontail.database.column.*
+import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
+import ch.unibas.dmi.dbis.cottontail.database.general.Transaction
 import ch.unibas.dmi.dbis.cottontail.database.general.begin
 import ch.unibas.dmi.dbis.cottontail.execution.ExecutionPlan
 import ch.unibas.dmi.dbis.cottontail.grpc.CottonDMLGrpc
@@ -38,30 +40,64 @@ internal class CottonDMLService (val catalogue: Catalogue): CottonDMLGrpc.Cotton
                 }
                 tx.insert(StandaloneRecord(columns = columns.toTypedArray(), init = values.toTypedArray()))
             }
-            LOGGER.trace("Successfully persisted ${request.tupleList.size} tuples to '${request.entity.fqn()}'.")
             true
         }
         responseObserver.onNext(CottontailGrpc.InsertStatus.newBuilder().setSuccess(true).setTimestamp(System.currentTimeMillis()).build())
         responseObserver.onCompleted()
+
+        /* Log... */
+        LOGGER.trace("Successfully persisted ${request.tupleList.size} tuples to '${request.entity.fqn()}' (with commit).")
     } catch (e: DatabaseException.SchemaDoesNotExistException) {
         responseObserver.onError(Status.NOT_FOUND.withDescription("Insert failed because schema '${request.entity.schema.name} does not exist!").asException())
     } catch (e: DatabaseException.EntityDoesNotExistException) {
         responseObserver.onError(Status.NOT_FOUND.withDescription("Insert failed because entity '${request.entity.name} does not exist!").asException())
     } catch (e: DatabaseException.ValidationException) {
         responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Insert failed because data validation failed: ${e.message}").asException())
-    }  catch (e: DatabaseException.ValidationException) {
-        responseObserver.onError(Status.UNKNOWN.withDescription("Insert failed because of a database error: ${e.message}").asException())
+    }  catch (e: DatabaseException) {
+        responseObserver.onError(Status.INTERNAL.withDescription("Insert failed because of a database error: ${e.message}").asException())
+    } catch (e: Throwable) {
+        responseObserver.onError(Status.UNKNOWN.withDescription("Insert failed because of a unknown error: ${e.message}").asException())
     }
 
     /**
-     * GRPC endpoint for inserting data in a streaming mode. All the data provided with the [CottontailGrpc.InsertMessage] will be inserted
-     * in a single transaction. i.e. either the insert succeeds or fails completely.
+     * GRPC endpoint for inserting data in a streaming mode; transactions will stay open until the caller explicitly completes them
+     * or until an error occurs. As new entities are being inserted, new transactions will be created and thus new lock will be acquired.
      */
     override fun insertStream(responseObserver: StreamObserver<CottontailGrpc.InsertStatus>): StreamObserver<CottontailGrpc.InsertMessage> = object:StreamObserver<CottontailGrpc.InsertMessage>{
-        override fun onNext(request: CottontailGrpc.InsertMessage) = try {
-            val schema = this@CottonDMLService.catalogue.getSchema(request.entity.schema.name)
-            val entity = schema.getEntity(request.entity.name)
-            entity.Tx(false).begin { tx ->
+
+        /** List of all the [Tx] associated with this call. */
+        private val transactions = mutableMapOf<String, Entity.Tx>()
+
+        /** Flag indicating that call was closed. */
+        @Volatile
+        private var closed = false
+
+        init {
+            LOGGER.trace("Insert transaction was started by client.")
+        }
+
+        /**
+         * Called whenever a new [CottontailGrpc.InsertMessage] arrives.
+         *
+         * @param request The next [CottontailGrpc.InsertMessage] message.
+         */
+        override fun onNext(request: CottontailGrpc.InsertMessage) {
+            try {
+                /* Check if call was closed and return. */
+                if (closed) return
+
+                /* Extract required schema and entity. */
+                val schema = this@CottonDMLService.catalogue.getSchema(request.entity.schema.name)
+                val entity = schema.getEntity(request.entity.name)
+
+                /* Re-use or create Transaction. */
+                var tx = this.transactions[request.entity.fqn()]
+                if (tx == null) {
+                    tx = entity.Tx(false)
+                    this.transactions[request.entity.fqn()] = tx
+                }
+
+                /* Do the insert. */
                 request.tupleList.map { it.dataMap }.forEach { entry ->
                     val columns = mutableListOf<ColumnDef<*>>()
                     val values = mutableListOf<Any?>()
@@ -71,25 +107,73 @@ internal class CottonDMLService (val catalogue: Catalogue): CottonDMLGrpc.Cotton
                         values.add(castToColumn(it.value, col))
                     }
                     tx.insert(StandaloneRecord(columns = columns.toTypedArray(), init = values.toTypedArray()))
-                    LOGGER.trace("Successfully persisted ${request.tupleList.size} tuples to '${request.entity.fqn()}'.")
                 }
-                true
+
+                /* Respond with status. */
+                responseObserver.onNext(CottontailGrpc.InsertStatus.newBuilder().setSuccess(true).setTimestamp(System.currentTimeMillis()).build())
+
+                /* Log... */
+                LOGGER.trace("Successfully inserted ${request.tupleList.size} tuples into '${request.entity.fqn()}' (no commit).")
+            } catch (e: DatabaseException.SchemaDoesNotExistException) {
+                responseObserver.onError(Status.NOT_FOUND.withDescription("Insert failed because schema '${request.entity.schema.name} does not exist!").asException())
+                closed = true
+                this.cleanup()
+            } catch (e: DatabaseException.EntityDoesNotExistException) {
+                responseObserver.onError(Status.NOT_FOUND.withDescription("Insert failed because entity '${request.entity.fqn()} does not exist!").asException())
+                closed = true
+                this.cleanup()
+            } catch (e: DatabaseException.ValidationException) {
+                responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Insert failed because data validation failed: ${e.message}").asException())
+                closed = true
+                this.cleanup()
+            }  catch (e: DatabaseException) {
+                responseObserver.onError(Status.INTERNAL.withDescription("Insert failed because of a database error: ${e.message}").asException())
+                closed = true
+                this.cleanup()
+            } catch (e: Throwable) {
+                responseObserver.onError(Status.UNKNOWN.withDescription("Insert failed because of a unknown error: ${e.message}").asException())
+                closed = true
+                this.cleanup()
             }
-            responseObserver.onNext(CottontailGrpc.InsertStatus.newBuilder().setSuccess(true).setTimestamp(System.currentTimeMillis()).build())
-            responseObserver.onCompleted()
-        } catch (e: DatabaseException.SchemaDoesNotExistException) {
-            responseObserver.onError(Status.NOT_FOUND.withDescription("Insert failed because schema '${request.entity.schema.name} does not exist!").asException())
-        } catch (e: DatabaseException.EntityDoesNotExistException) {
-            responseObserver.onError(Status.NOT_FOUND.withDescription("Insert failed because entity '${request.entity.name} does not exist!").asException())
-        } catch (e: DatabaseException.ValidationException) {
-            responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Insert failed because data validation failed: ${e.message}").asException())
-        }  catch (e: DatabaseException.ValidationException) {
-            responseObserver.onError(Status.UNKNOWN.withDescription("Insert failed because of a database error: ${e.message}").asException())
         }
 
-        override fun onError(t: Throwable?) = responseObserver.onError(Status.UNKNOWN.withCause(t).asException())
+        /**
+         * Called when the client-side indicates an error condition.
+         */
+        override fun onError(t: Throwable?) {
+            LOGGER.trace("Insert transaction was aborted by client. Reason: ${t?.message ?: "unknown"}")
+            this.closed = true
+            this.cleanup()
+        }
 
-        override fun onCompleted() = responseObserver.onCompleted()
+        /**
+         * Called when client-side completes invocation, effectively ending the [Transaction].
+         */
+        override fun onCompleted() {
+            LOGGER.trace("Insert transaction was committed by client.")
+            responseObserver.onCompleted()
+            this.closed = true
+            this.cleanup(true)
+        }
+
+        /**
+         * Commits or rolls back all the  [Transaction]s associated with this call and closes them afterwards.
+         *
+         * @param commit If true [Transaction]s are commited before closing. Otherwise, they are rolled back.
+         */
+        private fun cleanup(commit: Boolean = false) {
+            this.transactions.forEach {
+                try {
+                    if (commit) {
+                        it.value.commit()
+                    } else {
+                        it.value.rollback()
+                    }
+                } finally {
+                    it.value.close()
+                }
+            }
+        }
     }
 
     /**
