@@ -14,26 +14,42 @@ import ch.unibas.dmi.dbis.cottontail.utilities.math.BitUtil
 import com.google.protobuf.Empty
 import io.grpc.Status
 import io.grpc.stub.StreamObserver
+import org.slf4j.LoggerFactory
 import java.util.*
 
 internal class CottonDQLService (val catalogue: Catalogue, val engine: ExecutionEngine, val maxMessageSize: Int): CottonDQLGrpc.CottonDQLImplBase() {
+    /** Logger used for logging the output. */
+    companion object {
+        private val LOGGER = LoggerFactory.getLogger(CottonDMLService::class.java)
+    }
 
     /**
      * GRPC endpoint for handling simple (non-batched) query requests.
      */
     override fun query(request: CottontailGrpc.QueryMessage, responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) = try {
+        /* Start the query by giving the start signal. */
+        val queryId = if (request.queryId == null || request.queryId == "") {
+            UUID.randomUUID().toString()
+        } else {
+            request.queryId
+        }
+
         /* Bind query and generate execution plan */
+        val startBinding = System.currentTimeMillis()
         val binder = GrpcQueryBinder(catalogue = this.catalogue, engine = this.engine)
         val plan = binder.parseAndBind(request.query)
+        LOGGER.trace("Parsing & binding query $queryId took ${System.currentTimeMillis()-startBinding}ms.")
 
         /* Start the query by giving the start signal. */
-        val queryId = request.queryId ?: UUID.randomUUID().toString()
         responseObserver.onNext(CottontailGrpc.QueryResponseMessage.newBuilder().setStart(true).setQueryId(queryId).build())
 
         /* Execute query. */
+        val startExecution = System.currentTimeMillis()
         val results = plan.execute()
+        LOGGER.trace("Executing query $queryId took ${System.currentTimeMillis()-startExecution}ms.")
 
         /* Calculate batch size based on an example message and the maxMessageSize. */
+        val startSending = System.currentTimeMillis()
         if (results.rowCount > 0) {
             val exampleSize = BitUtil.nextPowerOfTwo(recordToTuple(results[0]).build().serializedSize)
             val pageSize = (maxMessageSize/exampleSize)
@@ -48,8 +64,10 @@ internal class CottonDQLService (val catalogue: Catalogue, val engine: Execution
                 responseObserver.onNext(responseBuilder.build())
             }
         }
+        LOGGER.trace("Sending back ${results.rowCount} rows for query $queryId took ${System.currentTimeMillis()-startSending}ms.")
 
         /* Complete query. */
+        LOGGER.info("Query $queryId took ${System.currentTimeMillis()-startBinding}ms.")
         responseObserver.onCompleted()
     } catch (e: QueryException.QuerySyntaxException) {
         responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Query syntax is invalid: ${e.message}").asException())
