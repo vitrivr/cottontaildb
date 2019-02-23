@@ -12,7 +12,10 @@ import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
  * @author Ralph Gasser
  * @version 1.0
  */
-sealed class Predicate
+sealed class Predicate {
+    /** An estimation of the operations required to apply this [Predicate] to a [Record]. */
+    abstract val operations: Int
+}
 
 /**
  * A boolean [Predicate] that can be used to compare a [Record] to a given value.
@@ -50,6 +53,7 @@ internal data class AtomicBooleanPredicate<T : Any>(private val column: ColumnDe
         }
     }
 
+    override val operations: Int = 1
     override val columns: Set<ColumnDef<*>> = setOf(column)
     override fun matches(record: Record): Boolean {
         if (record.has(column)) {
@@ -71,13 +75,8 @@ internal data class AtomicBooleanPredicate<T : Any>(private val column: ColumnDe
  * @version 1.0
  */
 internal data class CompoundBooleanPredicate(val connector: ConnectionOperator, val p1: BooleanPredicate, val p2: BooleanPredicate) : BooleanPredicate() {
-    override val columns: Set<ColumnDef<*>> = mutableSetOf()
-
-    init {
-        columns.plus(p1.columns)
-        columns.plus(p2.columns)
-    }
-
+    override val columns: Set<ColumnDef<*>> = p1.columns + p2.columns
+    override val operations = p1.operations + p2.operations
     override fun matches(record: Record): Boolean = when (connector) {
         ConnectionOperator.AND -> p1.matches(record) && p2.matches(record)
         ConnectionOperator.OR -> p1.matches(record) || p2.matches(record)
@@ -100,6 +99,14 @@ internal data class KnnPredicate<T : Any>(val column: ColumnDef<T>, val k: Int, 
         if (column.size != query.size) throw QueryException.QueryBindException("The size of the provided column ${column.name} (s_c=${column.size}) does not match the size of the query vector (s_q=${query.size}).")
         if (weights != null && column.size != weights.size) throw QueryException.QueryBindException("The size of the provided column ${column.name} (s_c=${column.size}) does not match the size of the weight vector (s_w=${query.size}).")
     }
+
+    /**
+     * Number of operations required for this [KnnPredicate]. Calculated by applying the base operations
+     * for the [Distance] to each vector components.
+     *
+     * If weights are used, this will be added to the cost.
+     */
+    override val operations: Int = distance.operations * query.size + (this.weights?.size ?: 0)
 
     /**
      * Returns the query vector as [FloatArray].

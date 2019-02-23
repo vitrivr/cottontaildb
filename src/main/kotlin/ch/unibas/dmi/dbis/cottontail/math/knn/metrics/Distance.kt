@@ -5,6 +5,8 @@ enum class Distance : DistanceFunction {
      * L1 or Manhattan distance between two vectors. Vectors must be of the same size!
      */
     L1 {
+        override val operations: Int = 1
+
         override fun invoke(a: FloatArray, b: FloatArray, weights: FloatArray): Double {
             for (i in 0 until b.size) {
                 b[i] = b[i] - a[i]
@@ -80,6 +82,8 @@ enum class Distance : DistanceFunction {
      * L2 or Euclidian distance between two vectors. Vectors must be of the same size!
      */
     L2 {
+        override val operations: Int = 2
+
         override fun invoke(a: FloatArray, b: FloatArray, weights: FloatArray): Double {
             for (i in 0 until b.size) {
                 b[i] = (b[i] - a[i]) * (b[i] - a[i]) * weights[i]
@@ -143,6 +147,8 @@ enum class Distance : DistanceFunction {
      * Squared L2 or Euclidian distance between two vectors. Vectors must be of the same size!
      */
     L2SQUARED {
+        override val operations: Int = 2
+
         override fun invoke(a: FloatArray, b: FloatArray, weights: FloatArray): Double {
             for (i in 0 until b.size) {
                 b[i] = (b[i] - a[i]) * (b[i] - a[i]) * weights[i]
@@ -207,6 +213,9 @@ enum class Distance : DistanceFunction {
      * Chi Squared distance between two vectors. Vectors must be of the same size!
      */
     CHISQUARED {
+
+        override val operations: Int = 3
+
         override fun invoke(a: FloatArray, b: FloatArray, weights: FloatArray): Double {
             for (i in 0 until b.size) {
                 if (Math.abs(a[i] + b[i]) < 1e-6) {

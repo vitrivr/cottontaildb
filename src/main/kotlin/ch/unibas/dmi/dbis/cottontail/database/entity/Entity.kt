@@ -77,10 +77,11 @@ internal class Entity(override val name: String, schema: Schema): DBO {
         private set
 
     /**
-     * Number of [Column]s held by this [Entity].
+     * Creates and returns an [EntityStatistics] snapshot.
+     *
+     * @return [EntityStatistics] for this [Entity].
      */
-    val columnCount: Int
-        get() = this.header.columns.size
+    val statistics: EntityStatistics = this.header.let { EntityStatistics(it.columns.size, it.size) }
 
     /**
      * Returns all [ColumnDef] for the [Column]s contained in this [Entity].

@@ -9,10 +9,7 @@ import ch.unibas.dmi.dbis.cottontail.database.queries.BooleanPredicate
 import ch.unibas.dmi.dbis.cottontail.database.queries.KnnPredicate
 import ch.unibas.dmi.dbis.cottontail.database.queries.Projection
 import ch.unibas.dmi.dbis.cottontail.database.queries.ProjectionType
-import ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.knn.LinearEntityScanDoubleKnnTask
-import ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.knn.LinearEntityScanFloatKnnTask
-import ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.knn.LinearEntityScanIntKnnTask
-import ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.knn.LinearEntityScanLongKnnTask
+import ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.knn.*
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.projection.EntityCountProjectionTask
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.projection.EntityExistsProjectionTask
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.scan.LinearEntityFilterScanTask
@@ -45,13 +42,7 @@ internal class ExecutionPlanFactory (val executionEngine: ExecutionEngine) {
                 ProjectionType.EXISTS -> plan.addTask(EntityExistsProjectionTask(entity))
             }
         } else if (knnClause != null) {
-            val stage1 = when(knnClause.column.type) {
-                is DoubleArrayColumnType -> LinearEntityScanDoubleKnnTask(entity, knnClause as KnnPredicate<DoubleArray>)
-                is FloatArrayColumnType -> LinearEntityScanFloatKnnTask(entity, knnClause as KnnPredicate<FloatArray>)
-                is LongArrayColumnType -> LinearEntityScanLongKnnTask(entity, knnClause as KnnPredicate<LongArray>)
-                is IntArrayColumnType -> LinearEntityScanIntKnnTask(entity, knnClause as KnnPredicate<IntArray>)
-                else -> throw QueryException.QueryBindException("A column of type '${knnClause.column.type} is not supported for kNN queries.")
-            }
+            val stage1 = KnnTask.entityScanTaskForPredicate(entity, knnClause, whereClause)
             val stage2 = when (projectionClause.type) {
                 ProjectionType.SELECT -> RecordsetSelectProjectionTask(entity, projectionClause.columns)
                 ProjectionType.COUNT -> RecordsetCountProjectionTask()

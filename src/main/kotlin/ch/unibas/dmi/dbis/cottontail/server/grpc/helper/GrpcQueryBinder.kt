@@ -59,9 +59,9 @@ internal class GrpcQueryBinder(val catalogue: Catalogue, engine: ExecutionEngine
         val entity = try {
             this.catalogue.getSchema(query.from.entity.schema.name).getEntity(query.from.entity.name)
         } catch (e: DatabaseException.SchemaDoesNotExistException) {
-            throw QueryException.QueryBindException("Failed to bind ${query.from.entity.fqn()}. Schema does not exist!")
+            throw QueryException.QueryBindException("Failed to bind '${query.from.entity.fqn()}'. Schema does not exist!")
         } catch (e: DatabaseException.EntityDoesNotExistException) {
-            throw QueryException.QueryBindException("Failed to bind ${query.from.entity.fqn()}. Entity does not exist!")
+            throw QueryException.QueryBindException("Failed to bind '${query.from.entity.fqn()}'. Entity does not exist!")
         } catch (e: DatabaseException) {
             throw QueryException("Failed to bind ${query.from.entity.fqn()}. Database error!")
         }
