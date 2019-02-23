@@ -2,9 +2,11 @@ package ch.unibas.dmi.dbis.cottontail.server.grpc.services
 
 import ch.unibas.dmi.dbis.cottontail.database.catalogue.Catalogue
 import ch.unibas.dmi.dbis.cottontail.execution.ExecutionEngine
+import ch.unibas.dmi.dbis.cottontail.execution.tasks.ExecutionPlanException
 import ch.unibas.dmi.dbis.cottontail.grpc.CottonDQLGrpc
 import ch.unibas.dmi.dbis.cottontail.grpc.CottontailGrpc
 import ch.unibas.dmi.dbis.cottontail.model.basics.Record
+import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
 import ch.unibas.dmi.dbis.cottontail.server.grpc.helper.DataHelper
 import ch.unibas.dmi.dbis.cottontail.server.grpc.helper.GrpcQueryBinder
@@ -50,9 +52,15 @@ internal class CottonDQLService (val catalogue: Catalogue, val engine: Execution
         /* Complete query. */
         responseObserver.onCompleted()
     } catch (e: QueryException.QuerySyntaxException) {
-        responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("${e.message}").asException())
+        responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Query syntax is invalid: ${e.message}").asException())
     } catch (e: QueryException.QueryBindException) {
-        responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("${e.message}").asException())
+        responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Query binding failed: ${e.message}").asException())
+    } catch (e: ExecutionPlanException) {
+        responseObserver.onError(Status.INTERNAL.withDescription("Query execution failed because execution engine signaled an error: ${e.message}").asException())
+    }  catch (e: DatabaseException) {
+        responseObserver.onError(Status.INTERNAL.withDescription("Query execution failed because of a database error: ${e.message}").asException())
+    } catch (e: Throwable) {
+        responseObserver.onError(Status.UNKNOWN.withDescription("Query execution failed failed because of a unknown error: ${e.message}").asException())
     }
 
     /**
