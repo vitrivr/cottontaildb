@@ -9,6 +9,7 @@ import ch.unibas.dmi.dbis.cottontail.math.knn.ComparablePair
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.basics.Recordset
 import com.github.dexecutor.core.task.Task
+import java.util.*
 import java.util.concurrent.ConcurrentSkipListSet
 
 /**
@@ -18,10 +19,10 @@ import java.util.concurrent.ConcurrentSkipListSet
  * @author Ralph Gasser
  * @version 1.0
  */
-internal abstract class ParallelEntityScanFloatKnnTask(val entity: Entity, val knn: KnnPredicate<FloatArray>, val predicate: BooleanPredicate? = null, val parallelism: Short = 2) : ExecutionTask("ParallelEntityScanDoubleKnnTask[${entity.fqn}][${knn.column.name}][${knn.distance::class.simpleName}][${knn.k}][q=${knn.query.hashCode()}]") {
+internal class ParallelEntityScanFloatKnnTask(val entity: Entity, val knn: KnnPredicate<FloatArray>, val predicate: BooleanPredicate? = null, val parallelism: Short = 2) : ExecutionTask("ParallelEntityScanDoubleKnnTask[${entity.fqn}][${knn.column.name}][${knn.distance::class.simpleName}][${knn.k}][q=${knn.query.hashCode()}]") {
 
     /** Set containing the kNN values. */
-    private val knnSet = ConcurrentSkipListSet<ComparablePair<Long,Double>>()
+    private val knnSet = TreeSet<ComparablePair<Long,Double>>()
 
     /**
      * Executes the kNN query.
@@ -39,11 +40,9 @@ internal abstract class ParallelEntityScanFloatKnnTask(val entity: Entity, val k
                     val value = it[this.knn.column]
                     if (value != null) {
                         if (weights != null) {
-                            val dist = this.knn.distance(query, value, weights)
-                            this.addCandidate(it.tupleId!!, dist)
+                            this.addCandidate(it.tupleId!!, this.knn.distance(query, value, weights))
                         } else {
-                            val dist = this.knn.distance(query, value)
-                            this.addCandidate(it.tupleId!!, dist)
+                            this.addCandidate(it.tupleId!!, this.knn.distance(query, value))
                         }
                     }
                 }
@@ -66,10 +65,11 @@ internal abstract class ParallelEntityScanFloatKnnTask(val entity: Entity, val k
      * @param tupleId The tupleID of the candidate.
      * @param distance: The distance of the candidate.
      */
+    @Synchronized
     private fun addCandidate(tupleId: Long, distance: Double) {
         if (this.knnSet.size < this.knn.k) {
             this.knnSet.add(ComparablePair(tupleId, distance))
-        } else if (this.knnSet.last().second < distance) {
+        } else if (distance <= this.knnSet.last().second) {
             this.knnSet.pollLast()
             this.knnSet.add(ComparablePair(tupleId, distance))
         }
