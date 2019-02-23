@@ -335,7 +335,7 @@ internal class Entity(override val name: String, schema: Schema): DBO {
          * @param columns The [ColumnDef]s that identify the [Column]s that should be processed.
          * @param parallelism The desired amount of parallelism (i.e. the number of co-routines to spawn).
          */
-        fun <T: Any> parallelForEach(action: (Record) -> Unit, columns: Array<ColumnDef<*>>, parallelism: Short = 2) = this@Entity.txLock.read {
+        fun parallelForEach(action: (Record) -> Unit, columns: Array<ColumnDef<*>>, parallelism: Short = 2) = this@Entity.txLock.read {
             checkValidOrThrow()
             checkColumnsExist(*columns)
             this.transactions.getValue(columns[0]).parallelForEach({ id, value ->
