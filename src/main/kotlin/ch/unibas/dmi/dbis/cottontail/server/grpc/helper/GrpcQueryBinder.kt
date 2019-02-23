@@ -15,6 +15,7 @@ import ch.unibas.dmi.dbis.cottontail.grpc.CottontailGrpc
 import ch.unibas.dmi.dbis.cottontail.math.knn.metrics.Distance
 
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
+import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
 
 /**
@@ -57,8 +58,12 @@ internal class GrpcQueryBinder(val catalogue: Catalogue, engine: ExecutionEngine
     private fun parseAndBindSimpleQuery(query: CottontailGrpc.Query): ExecutionPlan {
         val entity = try {
             this.catalogue.getSchema(query.from.entity.schema.name).getEntity(query.from.entity.name)
-        } catch (e: QueryException) {
-            throw QueryException.QueryBindException("Failed to bind ${query.from.entity.fqn()}. Schema or entity does not exist!")
+        } catch (e: DatabaseException.SchemaDoesNotExistException) {
+            throw QueryException.QueryBindException("Failed to bind ${query.from.entity.fqn()}. Schema does not exist!")
+        } catch (e: DatabaseException.EntityDoesNotExistException) {
+            throw QueryException.QueryBindException("Failed to bind ${query.from.entity.fqn()}. Entity does not exist!")
+        } catch (e: DatabaseException) {
+            throw QueryException("Failed to bind ${query.from.entity.fqn()}. Database error!")
         }
 
         /* Create projection clause. */
