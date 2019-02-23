@@ -1,59 +1,77 @@
 package ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.knn
 
-import ch.unibas.dmi.dbis.cottontail.database.column.*
 import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
 import ch.unibas.dmi.dbis.cottontail.database.general.begin
 import ch.unibas.dmi.dbis.cottontail.database.queries.BooleanPredicate
 import ch.unibas.dmi.dbis.cottontail.database.queries.KnnPredicate
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.ExecutionTask
-
 import ch.unibas.dmi.dbis.cottontail.math.knn.ComparablePair
-import ch.unibas.dmi.dbis.cottontail.math.knn.HeapSelect
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.basics.Recordset
-
 import com.github.dexecutor.core.task.Task
-
+import java.util.concurrent.ConcurrentSkipListSet
 
 /**
- * A [Task] that executes a sequential scan kNN on a long [Column] of the specified [Entity].
+ * A [Task] that executes a parallel scan kNN on a float [Column] of the specified [Entity].
+ * Parallelism is achieved through the use of co-routines.
  *
  * @author Ralph Gasser
  * @version 1.0
  */
-internal class LinearEntityScanFloatKnnTask(val entity: Entity, val knn: KnnPredicate<FloatArray>, val predicate: BooleanPredicate? = null) : ExecutionTask("LinearEntityScanFloatKnnTask[${entity.fqn}][${knn.column.name}][${knn.distance::class.simpleName}][${knn.k}][q=${knn.query.hashCode()}]") {
+internal abstract class ParallelEntityScanIntKnnTask(val entity: Entity, val knn: KnnPredicate<IntArray>, val predicate: BooleanPredicate? = null, val parallelism: Short = 2) : ExecutionTask("ParallelEntityScanDoubleKnnTask[${entity.fqn}][${knn.column.name}][${knn.distance::class.simpleName}][${knn.k}][q=${knn.query.hashCode()}]") {
+
+    /** Set containing the kNN values. */
+    private val knnSet = ConcurrentSkipListSet<ComparablePair<Long,Double>>()
+
+    /**
+     * Executes the kNN query.
+     */
     override fun execute(): Recordset {
         /* Extract the necessary data. */
-        val query = this.knn.queryAsFloatArray()
+        val query = this.knn.queryAsIntArray()
         val weights = this.knn.weightsAsFloatArray()
         val columns = arrayOf<ColumnDef<*>>(this.knn.column).plus(predicate?.columns?.toTypedArray() ?: emptyArray())
 
         /* Execute kNN lookup. */
-        val knn = HeapSelect<ComparablePair<Long,Double>>(this.knn.k)
         this.entity.Tx(true).begin { tx ->
-            tx.forEach({
+            tx.parallelForEach({
                 if (this.predicate == null || this.predicate.matches(it)) {
                     val value = it[this.knn.column]
                     if (value != null) {
                         if (weights != null) {
                             val dist = this.knn.distance(query, value, weights)
-                            knn.add(ComparablePair(it.tupleId!!, dist))
+                            this.addCandidate(it.tupleId!!, dist)
                         } else {
                             val dist = this.knn.distance(query, value)
-                            knn.add(ComparablePair(it.tupleId!!, dist))
+                            this.addCandidate(it.tupleId!!, dist)
                         }
-
                     }
                 }
-            }, columns)
+            }, columns, this.parallelism)
             true
         }
 
         /* Generate dataset and return it. */
         val dataset = Recordset(arrayOf(KnnTask.DISTANCE_COL))
-        for (i in 0 until knn.size) {
-            dataset.addRow(knn[i].first, knn[i].second)
+        for (e in knnSet) {
+            dataset.addRow(e.first, e.second)
         }
         return dataset
+    }
+
+    /**
+     * Adds a candidate to the list of kNN entries if its distance is smaller than
+     * the last entry in the list.
+     *
+     * @param tupleId The tupleID of the candidate.
+     * @param distance: The distance of the candidate.
+     */
+    private fun addCandidate(tupleId: Long, distance: Double) {
+        if (this.knnSet.size < this.knn.k) {
+            this.knnSet.add(ComparablePair(tupleId, distance))
+        } else if (this.knnSet.last().second < distance) {
+            this.knnSet.pollLast()
+            this.knnSet.add(ComparablePair(tupleId, distance))
+        }
     }
 }

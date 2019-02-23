@@ -26,28 +26,22 @@ internal class LinearEntityScanDoubleKnnTask(val entity: Entity, val knn: KnnPre
 
         /* Execute kNN lookup. */
         val knn = HeapSelect<ComparablePair<Long,Double>>(this.knn.k)
-        entity.Tx(true).begin { tx ->
-            if (weights != null) {
-                tx.forEach({
-                    if (this.predicate == null || this.predicate.matches(it)) {
-                        val value = it[this.knn.column]
-                        if (value != null) {
+        this.entity.Tx(true).begin { tx ->
+            tx.forEach({
+                if (this.predicate == null || this.predicate.matches(it)) {
+                    val value = it[this.knn.column]
+                    if (value != null) {
+                        if (weights != null) {
                             val dist = this.knn.distance(query, value, weights)
                             knn.add(ComparablePair(it.tupleId!!, dist))
-                        }
-                    }
-                }, columns)
-            } else {
-                tx.forEach({
-                    if (this.predicate == null || this.predicate.matches(it)) {
-                        val value = it[this.knn.column]
-                        if (value != null) {
+                        } else {
                             val dist = this.knn.distance(query, value)
                             knn.add(ComparablePair(it.tupleId!!, dist))
                         }
+
                     }
-                }, columns)
-            }
+                }
+            }, columns)
             true
         }
 
