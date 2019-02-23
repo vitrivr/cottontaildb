@@ -9,6 +9,7 @@ import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
 import ch.unibas.dmi.dbis.cottontail.server.grpc.helper.DataHelper
 import ch.unibas.dmi.dbis.cottontail.server.grpc.helper.GrpcQueryBinder
 import ch.unibas.dmi.dbis.cottontail.utilities.math.BitUtil
+import com.google.protobuf.Empty
 import io.grpc.Status
 import io.grpc.stub.StreamObserver
 import java.util.*
@@ -16,7 +17,7 @@ import java.util.*
 internal class CottonDQLService (val catalogue: Catalogue, val engine: ExecutionEngine, val maxMessageSize: Int): CottonDQLGrpc.CottonDQLImplBase() {
 
     /**
-     *
+     * GRPC endpoint for handling simple (non-batched) query requests.
      */
     override fun query(request: CottontailGrpc.QueryMessage, responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) = try {
         /* Bind query and generate execution plan */
@@ -54,10 +55,13 @@ internal class CottonDQLService (val catalogue: Catalogue, val engine: Execution
         responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("${e.message}").asException())
     }
 
-
-
-
-
+    /**
+     * GRPC endpoint for handling PING requests.
+     */
+    override fun ping(request: Empty, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) {
+        responseObserver.onNext(CottontailGrpc.SuccessStatus.newBuilder().setTimestamp(System.currentTimeMillis()).build())
+        responseObserver.onCompleted()
+    }
 
     /**
      * Generates a new [CottontailGrpc.Tuple.Builder] from a given [Record].
