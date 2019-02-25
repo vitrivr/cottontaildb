@@ -31,22 +31,22 @@ class Recordset (val columns: Array<ColumnDef<*>>) {
         get() = this.list.size
 
     /**
-     * Creates and appends a new [Record] (without a tupleId) given the provided values and appends them to this [Recordset].
+     * Creates and appends a new [Record] (without a tupleId) given the provided values and appends it to this [Recordset].
      *
      * @param values The values to add to this [Recordset].
      */
-    fun addRow(vararg values: Any?) {
-        this.list.add(DatasetRecord().assign(*values))
+    fun addRow(values: Array<Any?>) {
+        this.list.add(DatasetRecord().assign(values))
     }
 
     /**
-     * Creates a new [Record] given the provided tupleId and values and appends them to this [Recordset].
+     * Creates a new [Record] given the provided tupleId and values and appends it to this [Recordset].
      *
      * @param tupleId The tupleId of the new [Record].
      * @param values The values to add to this [Recordset].
      */
-    fun addRow(tupleId: Long, vararg values: Any?) {
-        this.list.add(DatasetRecord(tupleId).assign(*values))
+    fun addRow(tupleId: Long, values: Array<Any?>) {
+        this.list.add(DatasetRecord(tupleId).assign(values))
     }
 
     /**
@@ -58,8 +58,8 @@ class Recordset (val columns: Array<ColumnDef<*>>) {
      * @param values The values to add to this [Recordset].
      * @return True if [Record] was added, false otherwise.
      */
-    fun addRowIf(tupleId: Long, predicate: BooleanPredicate, vararg values: Any?): Boolean {
-        val record = DatasetRecord(tupleId).assign(*values)
+    fun addRowIf(tupleId: Long, predicate: BooleanPredicate, values: Array<Any?>): Boolean {
+        val record = DatasetRecord(tupleId).assign(values)
         return if (predicate.matches(record)) {
             this.list.add(record)
         } else {

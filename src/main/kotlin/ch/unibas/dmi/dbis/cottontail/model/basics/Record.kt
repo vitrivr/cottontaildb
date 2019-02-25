@@ -37,11 +37,11 @@ interface Record {
      *
      * @param values The values to assign. Cannot contain more than [Record.size] values.
      */
-    fun assign(vararg values: Any?): Record {
+    fun assign(values: Array<Any?>): Record {
         if (values.size <= this.size) {
-            for (i in 0 until values.size) {
-                this.columns[i].validateOrThrow(values[i])
-                this.values[i] = values[i]
+            values.forEachIndexed { i, v ->
+                this.columns[i].validateOrThrow(v)
+                this.values[i] = v
             }
             return this
         } else {
