@@ -1,9 +1,11 @@
 package ch.unibas.dmi.dbis.cottontail.database.entity
 
+import ch.unibas.dmi.dbis.cottontail.database.index.IndexType
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
 import org.mapdb.DataInput2
 import org.mapdb.DataOutput2
 import org.mapdb.Serializer
+import java.lang.IllegalArgumentException
 
 /**
  * The header section of the [Entity] data structure.
@@ -13,13 +15,37 @@ import org.mapdb.Serializer
  * @author Ralph Gasser
  * @version 1.0
  */
-internal class EntityHeader(var size: Long = 0, var created: Long = System.currentTimeMillis(), var modified: Long  = System.currentTimeMillis(), var columns: LongArray = LongArray(0), var indexes: LongArray = LongArray(0)) {
+internal data class EntityHeader(var size: Long = 0, var created: Long = System.currentTimeMillis(), var modified: Long  = System.currentTimeMillis(), var columns: LongArray = LongArray(0), var indexes: LongArray = LongArray(0)) {
     companion object {
         /** The identifier that is used to identify a Cottontail DB [Entity] file. */
         internal const val IDENTIFIER: String = "COTTONT_ENT"
 
         /** The version of the Cottontail DB [Entity]  file. */
         internal const val VERSION: Short = 1
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as EntityHeader
+
+        if (size != other.size) return false
+        if (created != other.created) return false
+        if (modified != other.modified) return false
+        if (!columns.contentEquals(other.columns)) return false
+        if (!indexes.contentEquals(other.indexes)) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = size.hashCode()
+        result = 31 * result + created.hashCode()
+        result = 31 * result + modified.hashCode()
+        result = 31 * result + columns.contentHashCode()
+        result = 31 * result + indexes.contentHashCode()
+        return result
     }
 }
 
@@ -69,5 +95,35 @@ internal object EntityHeaderSerializer : Serializer<EntityHeader> {
         val identifier = input.readUTF()
         val version = input.readShort()
         return (version == EntityHeader.VERSION) and (identifier == EntityHeader.IDENTIFIER)
+    }
+}
+
+/**
+ * An entry pointing to an [Index]
+ *
+ * @see Entity
+ * @see Index
+ *
+ * @author Ralph Gasser
+ * @version 1.0
+ */
+internal data class IndexEntry (val name: String, val type: IndexType, val dirty: Boolean)
+
+/**
+ * The [Serializer] for the [IndexEntry].
+ *
+ * @author Ralph Gasser
+ * @version 1.0
+ */
+internal object IndexEntrySerializer: Serializer<IndexEntry> {
+    override fun serialize(out: DataOutput2, value: IndexEntry) {
+        out.writeUTF(value.name)
+        out.writeUTF(value.type.name)
+        out.writeBoolean(value.dirty)
+    }
+    override fun deserialize(input: DataInput2, available: Int): IndexEntry = try {
+        IndexEntry(input.readUTF(), IndexType.valueOf(input.readUTF()), input.readBoolean())
+    } catch (e: IllegalArgumentException) {
+        throw DatabaseException.DataCorruptionException("Unsupported index type: ${e.message}")
     }
 }

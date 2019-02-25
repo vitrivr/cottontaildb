@@ -1,5 +1,6 @@
 package ch.unibas.dmi.dbis.cottontail.database.entity
 
+import ch.unibas.dmi.dbis.cottontail.database.catalogue.*
 import ch.unibas.dmi.dbis.cottontail.database.column.Column
 import ch.unibas.dmi.dbis.cottontail.database.general.DBO
 import ch.unibas.dmi.dbis.cottontail.database.general.Transaction
@@ -7,6 +8,8 @@ import ch.unibas.dmi.dbis.cottontail.database.general.TransactionStatus
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.database.column.ColumnTransaction
 import ch.unibas.dmi.dbis.cottontail.database.column.mapdb.MapDBColumn
+import ch.unibas.dmi.dbis.cottontail.database.index.Index
+import ch.unibas.dmi.dbis.cottontail.database.index.IndexType
 import ch.unibas.dmi.dbis.cottontail.database.queries.BooleanPredicate
 import ch.unibas.dmi.dbis.cottontail.database.schema.Schema
 import ch.unibas.dmi.dbis.cottontail.model.basics.Recordset
@@ -19,10 +22,12 @@ import ch.unibas.dmi.dbis.cottontail.model.exceptions.TransactionException
 
 import org.mapdb.*
 import org.mapdb.volume.MappedFileVol
+import java.nio.file.Files
 import java.nio.file.Path
 import java.util.*
 
 import java.util.concurrent.locks.ReentrantReadWriteLock
+import java.util.stream.Collectors
 import kotlin.concurrent.read
 import kotlin.concurrent.write
 
@@ -38,9 +43,9 @@ import kotlin.concurrent.write
  * @see Entity.Tx
  *
  * @author Ralph Gasser
- * @version 1.0f
+ * @version 1.0
  */
-internal class Entity(override val name: String, schema: Schema): DBO {
+internal class Entity(override val name: String, schema: Schema) : DBO {
     /** The [Path] to the [Entity]'s main folder. */
     override val path: Path = schema.path.resolve("entity_$name")
 
@@ -49,14 +54,15 @@ internal class Entity(override val name: String, schema: Schema): DBO {
 
     /** Internal reference to the [StoreWAL] underpinning this [Entity]. */
     private val store: StoreWAL = try {
-        StoreWAL.make(file = this.path.resolve(FILE_CATALOGUE).toString(), volumeFactory = MappedFileVol.FACTORY , fileLockWait = this.parent!!.parent.config.lockTimeout)
+        StoreWAL.make(file = this.path.resolve(FILE_CATALOGUE).toString(), volumeFactory = MappedFileVol.FACTORY, fileLockWait = this.parent!!.parent.config.lockTimeout)
     } catch (e: DBException) {
         throw DatabaseException("Failed to open entity '$fqn': ${e.message}'.")
     }
 
     /** The header of this [Entity]. */
     private val header: EntityHeader
-        get() = this.store.get(HEADER_RECORD_ID, EntityHeaderSerializer) ?: throw DatabaseException.DataCorruptionException("Failed to open header of entity '$fqn'!'")
+        get() = this.store.get(HEADER_RECORD_ID, EntityHeaderSerializer)
+                ?: throw DatabaseException.DataCorruptionException("Failed to open header of entity '$fqn'!")
 
     /** A internal lock that is used to synchronize [Entity.Tx] affecting this [Entity]. */
     private val txLock = ReentrantReadWriteLock()
@@ -65,8 +71,16 @@ internal class Entity(override val name: String, schema: Schema): DBO {
     private val globalLock = ReentrantReadWriteLock()
 
     /** List of all the [Column]s associated with this [Entity]. */
-    private val columns: List<Column<*>> = header.columns.map {
-        MapDBColumn<Any>(this.store.get(it, Serializer.STRING) ?: throw DatabaseException.DataCorruptionException("Failed to open entity '$fqn': Could not read column at index $it!'"), this)
+    private val columns: Collection<Column<*>> = this.header.columns.map {
+        MapDBColumn<Any>(this.store.get(it, Serializer.STRING)
+                ?: throw DatabaseException.DataCorruptionException("Failed to open entity '$fqn': Could not read column definition at position $it!"), this)
+    }
+
+    /** List of all the [Index]es associated with this [Entity]. */
+    private val indexes: Collection<Index> = this.header.indexes.map {
+        val index = this.store.get(it, IndexEntrySerializer)
+                ?: throw DatabaseException.DataCorruptionException("Failed to open entity '$fqn': Could not read index definition at position $it!")
+        index.type.open(index.name, this)
     }
 
     /**
@@ -97,6 +111,95 @@ internal class Entity(override val name: String, schema: Schema): DBO {
      * @return [ColumnDef] of the [Column].
      */
     fun columnForName(name: String): ColumnDef<*>? = this.columns.find { it.name == name }?.columnDef
+
+
+    /**
+     * Creates the [Index] with the given settings
+     *
+     * @param name Name of the [Index] to create.
+     * @param type Type of the [Index] to create.
+     * @param columns The list of [columns] to [Index].
+     */
+    fun createIndex(name: String, type: IndexType, columns: Array<ColumnDef<*>>) = this.globalLock.write {
+        val indexEntry = this.header.indexes.map {
+            Pair(it, this.store.get(it, IndexEntrySerializer) ?: throw DatabaseException.DataCorruptionException("Failed to create index '$fqn.$name': Could not read index definition at position $it!"))
+        }.find { it.second.name == name }
+
+        if (indexEntry != null) throw DatabaseException.IndexAlreadyExistsException("$fqn.$name")
+
+
+        /* Creates and opens the index. */
+        val index = type.open(name, this)
+        index.Tx(true).update(columns)
+
+        /* Update catalogue + header. */
+        try {
+            /* Update catalogue. */
+            val sid = this.store.put(IndexEntry(name, type, false), IndexEntrySerializer)
+
+            /* Update header. */
+            val new = this.header.let { EntityHeader(it.size, it.created, System.currentTimeMillis(), it.columns, it.indexes.copyOf(it.indexes.size + 1)) }
+            new.indexes[new.indexes.size-1] = sid
+            this.store.update(Entity.HEADER_RECORD_ID, new, EntityHeaderSerializer)
+            this.store.commit()
+        } catch (e: DBException) {
+            this.store.rollback()
+            val pathsToDelete = Files.walk(index.path).sorted(Comparator.reverseOrder()).collect(Collectors.toList())
+            pathsToDelete.forEach { Files.delete(it) }
+            throw DatabaseException("Failed to create index '$.fqn.$name' due to a storage exception: ${e.message}")
+        }
+    }
+
+    /**
+     * Drops the [Index] with the given name.
+     *
+     * @param name Name of the [Index] to drop.
+     */
+    fun dropIndex(name: String) = this.globalLock.write {
+        val indexEntry = this.header.indexes.map {
+            Pair(it, this.store.get(it, IndexEntrySerializer) ?: throw DatabaseException.DataCorruptionException("Failed to drop index '$fqn.$name': Could not read index definition at position $it!"))
+        }.find { it.second.name == name }?.let { ie ->
+            Triple(ie.first, ie.second, this.indexes.find { it.name == ie.second.name })
+        } ?: throw DatabaseException.IndexDoesNotExistException("$fqn.$name")
+
+        /* Close index. */
+        indexEntry.third?.close()
+
+        /* Update header. */
+        try {
+            val new = this.header.let { EntityHeader(it.size, it.created, System.currentTimeMillis(), it.columns, it.indexes.filter { it != indexEntry.first }.toLongArray()) }
+            this.store.update(Entity.HEADER_RECORD_ID, new, EntityHeaderSerializer)
+            this.store.commit()
+        } catch (e: DBException) {
+            this.store.rollback()
+            throw DatabaseException("Failed to drop index '$fqn.$name' due to a storage exception: ${e.message}")
+        }
+
+        /* Delete files that belong to the index. */
+        if (indexEntry.third != null) {
+            val pathsToDelete = Files.walk(indexEntry.third!!.path).sorted(Comparator.reverseOrder()).collect(Collectors.toList())
+            pathsToDelete.forEach { Files.delete(it) }
+        }
+    }
+
+    /**
+     * Updates the [Index] with the given name.
+     *
+     * @param name The name of the [Index]
+     */
+    fun updateIndex(name: String) {
+        val index = this.indexes.find { it.name == name }
+        index?.Tx(false)?.update()
+    }
+
+    /**
+     * Updates all [Index]es for this [Entity]
+     */
+    fun updateAllIndexes() {
+        this.indexes.forEach {
+            it.Tx(false).update()
+        }
+    }
 
     /**
      * Closes the [Entity]. Closing an [Entity] is a delicate matter since ongoing [Entity.Tx] objects as well as all involved [Column]s are involved.
@@ -136,7 +239,7 @@ internal class Entity(override val name: String, schema: Schema): DBO {
      */
     inner class Tx(override val readonly: Boolean, override val tid: UUID = UUID.randomUUID()) : Transaction {
         /** List of [Column.Tx] associated with this [Entity.Tx]. */
-        private val transactions: Map<ColumnDef<*>, ColumnTransaction<*>> = mapOf(* this@Entity.columns.map { Pair(ColumnDef(it.name, it.type, it.size), it.newTransaction(readonly, tid)) }.toTypedArray())
+        private val transactions: Map<ColumnDef<*>, ColumnTransaction<*>> = mapOf(* this@Entity.columns.map { ColumnDef(it.name, it.type, it.size) to it.newTransaction(readonly, tid) }.toTypedArray())
 
         /** Flag indicating whether or not this [Entity.Tx] was closed */
         @Volatile
@@ -207,7 +310,7 @@ internal class Entity(override val name: String, schema: Schema): DBO {
             checkColumnsExist(*columns)
 
             /* Return value of all the desired columns. */
-            StandaloneRecord(tupleId, columns).assign(*columns.map { transactions.getValue(it).read(tupleId) }.toTypedArray())
+            StandaloneRecord(tupleId, columns).assign(columns.map { transactions.getValue(it).read(tupleId) }.toTypedArray())
         }
 
         /**
@@ -223,7 +326,7 @@ internal class Entity(override val name: String, schema: Schema): DBO {
             checkValidOrThrow()
             checkColumnsExist(*columns)
             val dataset = Recordset(columns)
-            tupleIds.forEach {tid ->
+            tupleIds.forEach { tid ->
                 checkValidTupleId(tid)
                 dataset.addRow(tid, columns.map { transactions.getValue(it).read(tid) }.toTypedArray())
             }
@@ -246,7 +349,7 @@ internal class Entity(override val name: String, schema: Schema): DBO {
                 for (i in 1 until columns.size) {
                     data[i] = this.transactions.getValue(columns[i]).read(id)
                 }
-                dataset.addRow(id, *data)
+                dataset.addRow(id, data)
             }
             return dataset
         }
@@ -268,7 +371,7 @@ internal class Entity(override val name: String, schema: Schema): DBO {
                 for (i in 1 until columns.size) {
                     data[i] = this.transactions.getValue(columns[i]).read(id)
                 }
-                dataset.addRowIf(id, predicate, *data)
+                dataset.addRowIf(id, predicate, data)
             }
             dataset
         }
@@ -301,7 +404,7 @@ internal class Entity(override val name: String, schema: Schema): DBO {
                 for (i in 1 until columns.size) {
                     data[i] = this.transactions.getValue(columns[i]).read(id)
                 }
-                list.add(action(StandaloneRecord(id, columns).assign(*data)))
+                list.add(action(StandaloneRecord(id, columns).assign(data)))
             }
             list
         }
@@ -322,7 +425,7 @@ internal class Entity(override val name: String, schema: Schema): DBO {
                 for (i in 1 until columns.size) {
                     data[i] = this.transactions.getValue(columns[i]).read(id)
                 }
-                action(StandaloneRecord(id, columns).assign(*data))
+                action(StandaloneRecord(id, columns).assign(data))
             }
         }
 
@@ -340,12 +443,12 @@ internal class Entity(override val name: String, schema: Schema): DBO {
             checkValidOrThrow()
             checkColumnsExist(*columns)
             this.transactions.getValue(columns[0]).parallelForEach({ id, value ->
-                val data =  Array<Any?>(columns.size) {}
+                val data = Array<Any?>(columns.size) {}
                 data[0] = value
                 for (i in 1 until columns.size) {
                     data[i] = this.transactions.getValue(columns[i]).read(id)
                 }
-                action(StandaloneRecord(id, columns).assign(*data))
+                action(StandaloneRecord(id, columns).assign(data))
             }, parallelism)
         }
 
@@ -363,7 +466,7 @@ internal class Entity(override val name: String, schema: Schema): DBO {
             acquireWriteLock()
             try {
                 var lastRecId: Long? = null
-                for ((column,tx) in this.transactions) {
+                for ((column, tx) in this.transactions) {
                     val recId = (tx as ColumnTransaction<Any>).insert(record[column])
                     if (lastRecId != recId && lastRecId != null) {
                         throw DatabaseException.DataCorruptionException("Entity ${this@Entity.fqn} is corrupt. Insert did not yield same record ID for all columns involved!")
@@ -402,7 +505,7 @@ internal class Entity(override val name: String, schema: Schema): DBO {
                 /* Perform delete on each column. */
                 val tuplesIds = tuples.map {
                     var lastRecId: Long? = null
-                    for ((column,tx) in this.transactions) {
+                    for ((column, tx) in this.transactions) {
                         val recId = (tx as ColumnTransaction<Any>).insert(it[column])
                         if (lastRecId != recId && lastRecId != null) {
                             throw DatabaseException.DataCorruptionException("Entity ${this@Entity.fqn} is corrupt. Insert did not yield same record ID for all columns involved!")
@@ -466,7 +569,7 @@ internal class Entity(override val name: String, schema: Schema): DBO {
             acquireWriteLock()
             try {
                 /* Perform delete on each column. */
-                tupleIds.forEach {tupleId ->
+                tupleIds.forEach { tupleId ->
                     this.transactions.values.forEach { it.delete(tupleId) }
                 }
 
