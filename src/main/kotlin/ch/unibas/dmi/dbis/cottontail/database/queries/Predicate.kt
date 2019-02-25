@@ -45,7 +45,7 @@ sealed class BooleanPredicate : Predicate() {
  * @author Ralph Gasser
  * @version 1.0
  */
-internal data class AtomicBooleanPredicate<T : Any>(private val column: ColumnDef<T>, private val operator: ComparisonOperator, private val not: Boolean = false, private var values: Collection<T>) : BooleanPredicate() {
+internal data class AtomicBooleanPredicate<T : Any>(private val column: ColumnDef<T>, val operator: ComparisonOperator, val not: Boolean = false, var values: Collection<T>) : BooleanPredicate() {
 
     init {
         if (operator == ComparisonOperator.IN) {
