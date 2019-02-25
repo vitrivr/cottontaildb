@@ -42,4 +42,13 @@ open class QueryException(message: String) : DatabaseException(message) {
      * @param message Message describing the issue with the query.
      */
     class UnsupportedCastException(message: String): DatabaseException(message)
+
+    /**
+     * This kind of exception is thrown whenever a [Predicate] is routed through an [Index] that does not
+     * support that kind of [Predicate].
+     *
+     * @param index FQN of the index.
+     * @param message Error message
+     */
+    class IndexLookupFailedException(index: String, message: String): QueryException("Lookup through index '$index' failed: $message")
 }

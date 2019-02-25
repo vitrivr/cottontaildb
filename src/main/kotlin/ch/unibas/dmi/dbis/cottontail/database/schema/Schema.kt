@@ -51,7 +51,7 @@ internal class Schema(override val name: String, override val path: Path, overri
 
     /** Reference to the [SchemaHeader] of the [Schema]. */
     private val header
-            get() = this.store.get(HEADER_RECORD_ID, SchemaHeaderSerializer) ?: throw DatabaseException.DataCorruptionException("Failed to open header of schema $name!")
+            get() = this.store.get(HEADER_RECORD_ID, SchemaHeaderSerializer) ?: throw DatabaseException.DataCorruptionException("Failed to open header of schema $fqn!")
 
     /** A lock used to mediate access to this [Schema]. */
     private val lock = ReentrantReadWriteLock()
@@ -61,7 +61,7 @@ internal class Schema(override val name: String, override val path: Path, overri
 
     /** Returns a list of [Entity] held by this [Schema]. */
     val entities: List<String>
-        get() = header.entities.map { this.store.get(it, Serializer.STRING) ?: throw DatabaseException.DataCorruptionException("Failed to read schema $name ($path): Could not find entity name of ID $it.") }
+        get() = header.entities.map { this.store.get(it, Serializer.STRING) ?: throw DatabaseException.DataCorruptionException("Failed to read schema $fqn ($path): Could not find entity name of ID $it.") }
 
     /** Size of the [Schema] in terms of [Entity] objects it contains. */
     val size
@@ -79,41 +79,33 @@ internal class Schema(override val name: String, override val path: Path, overri
      */
     fun createEntity(name: String, vararg columns: ColumnDef<*>) = this.lock.write {
         if (entities.contains(name)) throw DatabaseException.EntityAlreadyExistsException(this.name, name)
-        if (columns.map { it.name }.distinct().size != columns.size) throw DatabaseException.DuplicateColumnException(this.name, name, columns.map { it }.joinToString())
+        if (columns.map { it.name }.distinct().size != columns.size) throw DatabaseException.DuplicateColumnException("$fqn.$name", columns.map { it }.joinToString())
+
+        /* Create empty folder for entity. */
+        val data = path.resolve("entity_$name")
+
         try {
-            /* Create empty folder for entity. */
-            val data = path.resolve("entity_$name")
-            try {
-                if (!Files.exists(data)) {
-                    Files.createDirectories(data)
-                } else {
-                    throw DatabaseException("Failed to create entity '$fqn'. Data directory '$data' seems to be occupied.")
-                }
-            } catch (e: IOException) {
-                throw DatabaseException("Failed to create entity '$fqn' due to an IO exception: {${e.message}")
+            if (!Files.exists(data)) {
+                Files.createDirectories(data)
+            } else {
+                throw DatabaseException("Failed to create entity '$fqn.$name'. Data directory '$data' seems to be occupied.")
             }
 
             /* Store entry for new entity. */
             val recId = this.store.put(name, Serializer.STRING)
 
             /* Generate the entity. */
-            try {
-                val store = StoreWAL.make(file = data.resolve(Entity.FILE_CATALOGUE).toString(), volumeFactory = MappedFileVol.FACTORY, fileLockWait = parent.config.lockTimeout)
-                store.preallocate() /* Pre-allocates the header. */
+            val store = StoreWAL.make(file = data.resolve(Entity.FILE_CATALOGUE).toString(), volumeFactory = MappedFileVol.FACTORY, fileLockWait = parent.config.lockTimeout)
+            store.preallocate() /* Pre-allocates the header. */
 
-                /* Initialize the entities header. */
-                val columnIds = columns.map {
-                    MapDBColumn.initialize(it, data)
-                    store.put(it.name, Serializer.STRING)
-                }.toLongArray()
-                store.update(Entity.HEADER_RECORD_ID, EntityHeader(columns = columnIds), EntityHeaderSerializer)
-                store.commit()
-                store.close()
-            } catch (e: DBException) {
-                val pathsToDelete = Files.walk(data).sorted(Comparator.reverseOrder()).collect(Collectors.toList())
-                pathsToDelete.forEach { Files.delete(it) }
-                throw e
-            }
+            /* Initialize the entities header. */
+            val columnIds = columns.map {
+                MapDBColumn.initialize(it, data)
+                store.put(it.name, Serializer.STRING)
+            }.toLongArray()
+            store.update(Entity.HEADER_RECORD_ID, EntityHeader(columns = columnIds), EntityHeaderSerializer)
+            store.commit()
+            store.close()
 
             /* Update schema header. */
             val header = this.header
@@ -124,9 +116,13 @@ internal class Schema(override val name: String, override val path: Path, overri
 
             /* Commit changes to local schema. */
             this.store.commit()
-        } catch (e: Exception) {
+        } catch (e: DBException) {
             this.store.rollback()
-            throw e
+            val pathsToDelete = Files.walk(data).sorted(Comparator.reverseOrder()).collect(Collectors.toList())
+            pathsToDelete.forEach { Files.delete(it) }
+            throw DatabaseException("Failed to create entity '$fqn.$name' due to error in the underlying data store: {${e.message}")
+        } catch (e: IOException) {
+            throw DatabaseException("Failed to create entity '$fqn.$name' due to an IO exception: {${e.message}")
         }
     }
 
@@ -136,7 +132,7 @@ internal class Schema(override val name: String, override val path: Path, overri
      * @param The name of the [Entity] that should be dropped.
      */
     fun dropEntity(name: String) = this.lock.write {
-        val entityRecId = this.header.entities.find { this.store.get(it, Serializer.STRING) == name } ?: throw DatabaseException.EntityDoesNotExistException(this.parent.name, this.name)
+        val entityRecId = this.header.entities.find { this.store.get(it, Serializer.STRING) == name } ?: throw DatabaseException.EntityDoesNotExistException("$fqn.$name")
 
         /* Unload the entity and remove it. */
         this.unload(name)
@@ -156,7 +152,7 @@ internal class Schema(override val name: String, override val path: Path, overri
             this.store.commit()
         } catch (e: DBException) {
             this.store.rollback()
-            throw DatabaseException("Entity $name.${this.name} could not be dropped, because of an error in the underlying data store: ${e.message}!")
+            throw DatabaseException("Entity '$fqn.$name' could not be dropped, because of an error in the underlying data store: ${e.message}!")
         }
 
         /* Delete all files associated with the entity. */
@@ -172,7 +168,7 @@ internal class Schema(override val name: String, override val path: Path, overri
      * @param name Name of the [Entity] to access.
      */
     fun getEntity(name: String): Entity = this.lock.read {
-        if (!this.entities.contains(name)) throw DatabaseException.EntityDoesNotExistException(this.parent.name, this.name)
+        if (!this.entities.contains(name)) throw DatabaseException.EntityDoesNotExistException("$fqn.$name")
         return this.loaded[name]?.get() ?: Entity(name, this).also {
             this.loaded[name] = SoftReference(it)
         }
