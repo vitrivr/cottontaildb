@@ -142,6 +142,7 @@ internal class Catalogue(val config: Config): DBO {
             this.store.update(HEADER_RECORD_ID, new, CatalogueHeaderSerializer)
             this.store.commit()
         } catch (e: DBException) {
+            this.store.rollback()
             val pathsToDelete = Files.walk(data).sorted(Comparator.reverseOrder()).collect(Collectors.toList())
             pathsToDelete.forEach { Files.delete(it) }
             throw DatabaseException("Failed to create schema '$name' due to a storage exception: ${e.message}")
@@ -172,7 +173,8 @@ internal class Catalogue(val config: Config): DBO {
             this.store.update(HEADER_RECORD_ID, new, CatalogueHeaderSerializer)
             this.store.commit()
         } catch (e: DBException) {
-            throw DatabaseException("Failed to dop schema '$name' due to a storage exception: ${e.message}")
+            this.store.rollback()
+            throw DatabaseException("Failed to drop schema '$name' due to a storage exception: ${e.message}")
         }
 
         /* Remove schema from registry. */
@@ -203,7 +205,6 @@ internal class Catalogue(val config: Config): DBO {
      * @param name Name of the [Schema].
      */
     fun hasSchema(name: String) = this.lock.read { this.registry.containsKey(name) }
-
 
     /**
      * Opens the data store underlying this Cottontail DB [Catalogue]
