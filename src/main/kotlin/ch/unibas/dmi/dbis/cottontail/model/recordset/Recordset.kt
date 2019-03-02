@@ -1,7 +1,11 @@
-package ch.unibas.dmi.dbis.cottontail.model.basics
+package ch.unibas.dmi.dbis.cottontail.model.recordset
 
 import ch.unibas.dmi.dbis.cottontail.database.queries.BooleanPredicate
-import java.lang.IllegalArgumentException
+import ch.unibas.dmi.dbis.cottontail.database.queries.Predicate
+import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
+import ch.unibas.dmi.dbis.cottontail.model.basics.Filterable
+import ch.unibas.dmi.dbis.cottontail.model.basics.Record
+import ch.unibas.dmi.dbis.cottontail.model.basics.Scanable
 
 import java.util.*
 
@@ -18,7 +22,8 @@ import java.util.*
  * @author Ralph Gasser
  * @version 1.0
  */
-class Recordset (val columns: Array<ColumnDef<*>>) {
+class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterable {
+
     /** List of all the [Record]s contained in this [Recordset]. */
     private val list: LinkedList<Record> = LinkedList()
 
@@ -76,11 +81,57 @@ class Recordset (val columns: Array<ColumnDef<*>>) {
     operator fun get(index: Int): Record = this.list[index]
 
     /**
-     * Apples the provided action to each [Record] in this [Recordset].
+     * Applies the provided action to each [Record] in this [Recordset].
      *
      * @param action The action that should be applied.
      */
-    fun forEach(action: (Record) -> Unit) = this.list.forEach(action)
+    override fun forEach(action: (Record) -> Unit) = this.list.forEach(action)
+
+    /**
+     * Applies the provided mapping function to each [Record] in this [Recordset].
+     *
+     * @param action The mapping function that should be applied.
+     */
+    override fun <R> map(action: (Record) -> R): Collection<R> = this.list.map(action)
+
+    /**
+     * Applies the provided action to each [Record] that matches the given [Predicate].
+     *
+     * @param action The action that should be applied.
+     */
+    override fun forEach(predicate: Predicate, action: (Record) -> Unit) {
+        if (predicate is BooleanPredicate) {
+            this.list.asSequence().filter { predicate.matches(it) }.forEach { action(it) }
+        }
+    }
+
+    /**
+     * Applies the provided mapping function to each [Record] that matches the given [Predicate].
+     *
+     * @param predicate [Predicate] to filter [Record]s.
+     * @param action The mapping function that should be applied.
+     */
+    override fun <R> map(predicate: Predicate, action: (Record) -> R): Collection<R> {
+        val list = mutableListOf<R>()
+        if (predicate is BooleanPredicate) {
+            this.list.asSequence().filter { predicate.matches(it) }.map(action).forEach { list.add(it) }
+        }
+        return list
+    }
+
+    /**
+     * Filters this [Filterable] thereby creating and returning a new [Filterable].
+     *
+     * @param predicate [Predicate] to filter [Record]s.
+     * @return New [Filterable]
+     */
+    override fun filter(predicate: Predicate): Recordset {
+        val recordset = Recordset(this.columns)
+        if (predicate is BooleanPredicate) {
+            this.list.asSequence().filter { predicate.matches(it) }.forEach { recordset.addRow(it.values) }
+        }
+        return recordset
+    }
 
     /**
      * Returns a list view of this [Recordset]
@@ -94,7 +145,7 @@ class Recordset (val columns: Array<ColumnDef<*>>) {
      *
      * @return [Iterator] of this [Recordset].
      */
-    fun iterator() : Iterator<Record> = this.list.iterator()
+    fun iterator(): Iterator<Record> = this.list.iterator()
 
     /**
      * A [Record] implementation that depends on the existence of the enclosing [Recordset].
@@ -110,7 +161,7 @@ class Recordset (val columns: Array<ColumnDef<*>>) {
 
         /** Array of column values (one entry per column). Initializes with null. */
         override val values: Array<Any?> = if (init != null) {
-            init.forEachIndexed { index, any ->  columns[index].validateOrThrow(any) }
+            init.forEachIndexed { index, any -> columns[index].validateOrThrow(any) }
             init
         } else Array(columns.size) { columns[it].defaultValue() }
 

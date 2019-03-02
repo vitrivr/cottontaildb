@@ -4,7 +4,7 @@ import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
 import ch.unibas.dmi.dbis.cottontail.database.general.begin
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.ExecutionTask
-import ch.unibas.dmi.dbis.cottontail.model.basics.Recordset
+import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
 
 import com.github.dexecutor.core.task.Task
 import com.github.dexecutor.core.task.TaskExecutionException

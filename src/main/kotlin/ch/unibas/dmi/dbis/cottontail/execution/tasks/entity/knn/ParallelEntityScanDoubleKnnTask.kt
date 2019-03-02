@@ -7,9 +7,8 @@ import ch.unibas.dmi.dbis.cottontail.database.queries.KnnPredicate
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.ExecutionTask
 import ch.unibas.dmi.dbis.cottontail.math.knn.ComparablePair
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
-import ch.unibas.dmi.dbis.cottontail.model.basics.Recordset
+import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
 import com.github.dexecutor.core.task.Task
-import com.ibm.icu.impl.coll.CollationWeights
 import java.util.concurrent.ConcurrentSkipListSet
 
 /**

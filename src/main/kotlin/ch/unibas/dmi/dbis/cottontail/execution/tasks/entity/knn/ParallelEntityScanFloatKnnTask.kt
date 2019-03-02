@@ -7,10 +7,9 @@ import ch.unibas.dmi.dbis.cottontail.database.queries.KnnPredicate
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.ExecutionTask
 import ch.unibas.dmi.dbis.cottontail.math.knn.ComparablePair
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
-import ch.unibas.dmi.dbis.cottontail.model.basics.Recordset
+import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
 import com.github.dexecutor.core.task.Task
 import java.util.*
-import java.util.concurrent.ConcurrentSkipListSet
 
 /**
  * A [Task] that executes a parallel scan kNN on a float [Column] of the specified [Entity].

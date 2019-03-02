@@ -8,7 +8,7 @@ import ch.unibas.dmi.dbis.cottontail.execution.tasks.ExecutionTask
 import ch.unibas.dmi.dbis.cottontail.math.knn.ComparablePair
 import ch.unibas.dmi.dbis.cottontail.math.knn.HeapSelect
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
-import ch.unibas.dmi.dbis.cottontail.model.basics.Recordset
+import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
 import com.github.dexecutor.core.task.Task
 
 /**

@@ -1,4 +1,7 @@
-package ch.unibas.dmi.dbis.cottontail.model.basics
+package ch.unibas.dmi.dbis.cottontail.model.recordset
+
+import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
+import ch.unibas.dmi.dbis.cottontail.model.basics.Record
 
 /**
  * A [Record] implementation as returned and processed by Cottontail DB. These types of records can exist

@@ -3,7 +3,7 @@ package ch.unibas.dmi.dbis.cottontail.execution
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.ExecutionPlanException
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.ExecutionPlanSetupException
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.ExecutionTask
-import ch.unibas.dmi.dbis.cottontail.model.basics.Recordset
+import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
 
 import com.github.dexecutor.core.DefaultDexecutor
 import com.github.dexecutor.core.DexecutorConfig
@@ -41,7 +41,7 @@ class ExecutionPlan(executor: ExecutorService) {
     private val provider: ExecutionPlanTaskProvider = this.ExecutionPlanTaskProvider()
 
     /** The [DexecutorConfig] used to setup the DAG execution. */
-    private val config = DexecutorConfig<String,Recordset>(executor, this.provider)
+    private val config = DexecutorConfig<String, Recordset>(executor, this.provider)
 
     /** Logger used for logging the output of the final stage. */
     companion object {
@@ -121,7 +121,7 @@ class ExecutionPlan(executor: ExecutorService) {
      * @author Ralph Gasser
      * @version 1.0
      */
-    private inner class ExecutionPlanTaskProvider: TaskProvider<String,Recordset> {
+    private inner class ExecutionPlanTaskProvider: TaskProvider<String, Recordset> {
 
         /** List of [Task]s that will be executed in this [ExecutionPlan]. */
         private val tasks: HashMap<String,ExecutionTask> = HashMap()
