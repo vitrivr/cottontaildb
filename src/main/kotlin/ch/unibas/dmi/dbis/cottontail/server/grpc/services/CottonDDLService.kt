@@ -122,7 +122,6 @@ internal class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.Cotton
 
         /* Creates and updates the index. */
         entity.createIndex(request.index.name, IndexType.valueOf(request.index.type.toString()), columns, request.paramsMap)
-        entity.updateIndex(request.index.name)
     } catch (e: DatabaseException.SchemaDoesNotExistException) {
         responseObserver.onError(Status.NOT_FOUND.withDescription("Schema '${request.index.entity.schema.fqn()} does not exist!").asException())
     } catch (e: DatabaseException.EntityDoesNotExistException) {

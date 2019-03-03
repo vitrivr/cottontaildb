@@ -34,7 +34,7 @@ import kotlin.concurrent.write
  * @author Ralph Gasser
  * @version 1.0f
  */
-internal class UniqueHashIndex(override val name: String, override val parent: Entity) : Index() {
+internal class UniqueHashIndex(override val name: String, override val parent: Entity, forColumns: Array<ColumnDef<*>>? = null) : Index() {
 
     /**
      * Index-wide constants.
@@ -47,8 +47,10 @@ internal class UniqueHashIndex(override val name: String, override val parent: E
     /** Path to the [UniqueHashIndex] file. */
     override val path: Path = this.parent.path.resolve("idx_$name.db")
 
-    /** The internal [DB] reference. */
-    private val db = DBMaker.fileDB(this.path.toFile()).fileMmapEnableIfSupported().transactionEnable().make()
+
+
+    /** The type of [Index] */
+    override val type: IndexType = IndexType.HASH_UQ
 
     /**
      * Returns the list of [ColumnDef] handled by this [UniqueHashIndex]
@@ -56,13 +58,21 @@ internal class UniqueHashIndex(override val name: String, override val parent: E
      * @return Collection of [ColumnDef].
      */
     override val columns: Array<ColumnDef<*>>
-        get() = arrayOf(db.atomicString(COLUMN_FIELD_NAME).let { parent.columnForName(it.toString()) ?: throw DatabaseException.ColumnNotExistException(it.toString(), parent.name) })
+        get() = arrayOf(this.db.atomicString(COLUMN_FIELD_NAME).createOrOpen().get().let { this.parent.columnForName(it) ?: throw DatabaseException.ColumnNotExistException(it, parent.name) })
+
+    /** The internal [DB] reference. */
+    private val db = DBMaker.fileDB(this.path.toFile()).fileMmapEnableIfSupported().transactionEnable().make()
+
+
+    /** Initializes this [UniqueHashIndex]. */
+    init {
+        if (forColumns != null) {
+            this.db.atomicString(COLUMN_FIELD_NAME).createOrOpen().set(forColumns.map { it.name }.joinToString(","))
+        }
+    }
 
     /** Map structure used for [UniqueHashIndex]. */
-    private val map: HTreeMap<out Value<out Any>, Long> = db.hashMap(MAP_FIELD_NAME, columns.first().type.serializer(columns.size), Serializer.LONG_PACKED).counterEnable().createOrOpen()
-
-    /** The type of [Index] */
-    override val type: IndexType = IndexType.HASH_UQ
+    private val map: HTreeMap<out Value<out Any>, Long> = this.db.hashMap(MAP_FIELD_NAME, this.columns.first().type.serializer(this.columns.size), Serializer.LONG_PACKED).counterEnable().createOrOpen()
 
     /**
      * Flag indicating if this [UniqueHashIndex] has been closed.
@@ -135,8 +145,8 @@ internal class UniqueHashIndex(override val name: String, override val parent: E
                 } else {
                     throw ValidationException.IndexUpdateException(this.fqn, "LongValue must be unique for instances of unique hash-index but '$value' (tid=${it.tupleId}) is not !")
                 }
-                this.db.commit()
             }
+            this.db.commit()
             true
         }
     }
