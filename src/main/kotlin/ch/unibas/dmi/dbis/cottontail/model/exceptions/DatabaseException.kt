@@ -49,7 +49,7 @@ open class DatabaseException(message: String) : Throwable(message) {
     class PredicateNotSupportedBxIndexException(schema: String, entity: String, index: String): DatabaseException("Index '$schema.$entity.$index' cannot be used to executed given predicate.")
 
     /** */
-    class ColumnNotExistException(column: String, entity: String): DatabaseException("Column '$column' does not exist on entity '$entity'.")
+    class ColumnNotExistException(column: String, entity: String): DatabaseException("Column $column does not exist on entity '$entity'.")
 
     /** */
     class ColumnTypeUnexpectedException(column: String, entity: String, expected: ColumnType<*>, actual: ColumnType<*>): DatabaseException("Column '$column' on entity '$entity' has wrong type (expected: ${expected.name}, actual: ${actual.name}).")
