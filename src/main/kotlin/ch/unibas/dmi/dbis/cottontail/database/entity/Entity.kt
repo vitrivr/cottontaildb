@@ -301,9 +301,10 @@ internal class Entity(override val name: String, schema: Schema) : DBO {
         override fun close() {
             if (this.status != TransactionStatus.CLOSED) {
                 if (this.status == TransactionStatus.DIRTY) {
-                    this@Entity.store.rollback()
-                    this@Entity.txLock.writeLock().unlock()
+                    this.rollback()
                 }
+                this.indexes.forEach { it.close() }
+                this.columns.values.forEach { it.close() }
                 this.status = TransactionStatus.CLOSED
                 this@Entity.globalLock.readLock().unlock()
             }
