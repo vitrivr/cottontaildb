@@ -123,7 +123,7 @@ internal class Entity(override val name: String, schema: Schema) : DBO {
      * @param type Type of the [Index] to create.
      * @param columns The list of [columns] to [Index].
      */
-    fun createIndex(name: String, type: IndexType, columns: Array<ColumnDef<*>>) = this.globalLock.write {
+    fun createIndex(name: String, type: IndexType, columns: Array<ColumnDef<*>>, params: Map<String,String> = emptyMap()) = this.globalLock.write {
         val indexEntry = this.header.indexes.map {
             Pair(it, this.store.get(it, IndexEntrySerializer) ?: throw DatabaseException.DataCorruptionException("Failed to create index '$fqn.$name': Could not read index definition at position $it!"))
         }.find { it.second.name == name }
@@ -132,7 +132,7 @@ internal class Entity(override val name: String, schema: Schema) : DBO {
 
 
         /* Creates and opens the index. */
-        val index = type.open(name, this)
+        val index = type.open(name, this, params)
         index.Tx(true).update(columns)
 
         /* Update catalogue + header. */

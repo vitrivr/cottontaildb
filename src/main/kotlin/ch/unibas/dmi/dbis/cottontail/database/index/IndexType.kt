@@ -18,7 +18,7 @@ internal enum class IndexType {
      * @param name Name of the [Index]
      * @param entity The [Entity] the desired [Index] belongs to.
      */
-    fun open(name: String, entity: Entity): Index = when(this) {
+    fun open(name: String, entity: Entity, params: Map<String,String> = emptyMap()): Index = when(this) {
         IndexType.HASH_UQ -> UniqueHashIndex(name, entity)
         else -> TODO()
     }

@@ -95,6 +95,25 @@ internal class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.Cotton
     }
 
     /**
+     * gRPC endpoint listing the available [Entity]s for the provided [Schema].
+     */
+    override fun listEntities(request: CottontailGrpc.Schema, responseObserver: StreamObserver<CottontailGrpc.Entity>) = try {
+        if (request.name == null) {
+            responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("You must provide a valid schema in order to list entities.").asException())
+        } else {
+            val builder = CottontailGrpc.Entity.newBuilder()
+            this.catalogue.getSchema(request.name).entities.forEach {
+                responseObserver.onNext(builder.setName(it).setSchema(request).build())
+            }
+            responseObserver.onCompleted()
+        }
+    } catch (e: DatabaseException.SchemaDoesNotExistException) {
+        responseObserver.onError(Status.NOT_FOUND.withDescription("Schema '${request.name} does not exist!").asException())
+    } catch (e: DatabaseException) {
+        responseObserver.onError(Status.UNKNOWN.withDescription("Failed to list entities for schema ${request.name} because of database error: ${e.message}").asException())
+    }
+
+    /**
      * gRPC endpoint for creating a particular [Index]
      */
     override fun createIndex(request: CottontailGrpc.CreateIndexMessage, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) = try {
@@ -102,7 +121,7 @@ internal class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.Cotton
         val columns = request.columnsList.map { entity.columnForName(it) ?: throw DatabaseException.ColumnNotExistException(it, entity.name) }.toTypedArray()
 
         /* Creates and updates the index. */
-        entity.createIndex(request.index.name, IndexType.valueOf(request.index.type.toString()), columns)
+        entity.createIndex(request.index.name, IndexType.valueOf(request.index.type.toString()), columns, request.paramsMap)
         entity.updateIndex(request.index.name)
     } catch (e: DatabaseException.SchemaDoesNotExistException) {
         responseObserver.onError(Status.NOT_FOUND.withDescription("Schema '${request.index.entity.schema.fqn()} does not exist!").asException())
@@ -129,24 +148,5 @@ internal class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.Cotton
         responseObserver.onError(Status.NOT_FOUND.withDescription("Index '${request.fqn()} does not exist!").asException())
     } catch (e: DatabaseException) {
         responseObserver.onError(Status.UNKNOWN.withDescription("Failed to drop index '${request.fqn()}' because of database error: ${e.message}").asException())
-    }
-
-    /**
-     * gRPC endpoint listing the available [Entity]s for the provided [Schema].
-     */
-    override fun listEntities(request: CottontailGrpc.Schema, responseObserver: StreamObserver<CottontailGrpc.Entity>) = try {
-        if (request.name == null) {
-            responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("You must provide a valid schema in order to list entities.").asException())
-        } else {
-            val builder = CottontailGrpc.Entity.newBuilder()
-            this.catalogue.getSchema(request.name).entities.forEach {
-                responseObserver.onNext(builder.setName(it).setSchema(request).build())
-            }
-            responseObserver.onCompleted()
-        }
-    } catch (e: DatabaseException.SchemaDoesNotExistException) {
-        responseObserver.onError(Status.NOT_FOUND.withDescription("Schema '${request.name} does not exist!").asException())
-    } catch (e: DatabaseException) {
-        responseObserver.onError(Status.UNKNOWN.withDescription("Failed to list entities for schema ${request.name} because of database error: ${e.message}").asException())
     }
 }
