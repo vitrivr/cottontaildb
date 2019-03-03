@@ -5,7 +5,8 @@ import ch.unibas.dmi.dbis.cottontail.database.catalogue.Catalogue
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.database.general.begin
 import ch.unibas.dmi.dbis.cottontail.database.schema.Schema
-import ch.unibas.dmi.dbis.cottontail.model.basics.StandaloneRecord
+import ch.unibas.dmi.dbis.cottontail.model.recordset.StandaloneRecord
+import ch.unibas.dmi.dbis.cottontail.model.values.*
 
 import ch.unibas.dmi.dbis.cottontail.utilities.VectorUtility
 import org.junit.jupiter.api.AfterEach
@@ -67,9 +68,9 @@ class VectorDataTest {
         var counter = 0
         tx?.begin {
             iterator.forEach {
-                val record = StandaloneRecord(null, arrayOf(intField, vectorField))
-                record[intField] = counter
-                record[vectorField] = it
+                val record = StandaloneRecord(columns = arrayOf(intField, vectorField))
+                record[intField] = IntValue(counter)
+                record[vectorField] = IntArrayValue(it)
                 val tid = tx.insert(record)
                 assertNotNull(tid)
                 vectorMap[tid!!] = it
@@ -80,13 +81,13 @@ class VectorDataTest {
         }
 
         /* Fetch and compare the int vectors. */
-        val tx2 = entity?.Tx(true)
+        val tx2 = entity?.Tx(readonly = true, columns = arrayOf(intField, vectorField))
         assertEquals(count.toLong(), tx2?.count())
         tx2?.begin {
             vectorMap.forEach { t, u ->
-                val tuple = tx2.read(t, arrayOf(intField, vectorField))
-                assertArrayEquals(u, tuple[vectorField] as IntArray)
-                assertEquals(counterMap[t], tuple[intField] as Int)
+                val tuple = tx2.read(t)
+                assertArrayEquals(u, tuple[vectorField]!!.value as IntArray)
+                assertEquals(counterMap[t], tuple[intField]!!.value as Int)
             }
             true
         }
@@ -114,9 +115,9 @@ class VectorDataTest {
         var counter = 0
         tx?.begin {
             iterator.forEach {
-                val record = StandaloneRecord(null, arrayOf(intField, vectorField))
-                record[intField] = counter
-                record[vectorField] = it
+                val record = StandaloneRecord(columns = arrayOf(intField, vectorField))
+                record[intField] = IntValue(counter)
+                record[vectorField] = LongArrayValue(it)
                 val tid = tx.insert(record)
                 assertNotNull(tid)
                 vectorMap[tid!!] = it
@@ -127,13 +128,13 @@ class VectorDataTest {
         }
 
         /* Fetch and compare the long vectors. */
-        val tx2 = entity?.Tx(true)
+        val tx2 = entity?.Tx(readonly = true, columns = arrayOf(intField, vectorField))
         assertEquals(count.toLong(), tx2?.count())
         tx2?.begin {
             vectorMap.forEach { t, u ->
-                val tuple = tx2.read(t, arrayOf(intField, vectorField))
-                assertArrayEquals(u, tuple[vectorField] as LongArray)
-                assertEquals(counterMap[t], tuple[intField] as Int)
+                val tuple = tx2.read(t)
+                assertArrayEquals(u, tuple[vectorField]!!.value as LongArray)
+                assertEquals(counterMap[t], tuple[intField]!!.value as Int)
             }
             true
         }
@@ -161,9 +162,9 @@ class VectorDataTest {
         var counter = 0
         tx?.begin {
             iterator.forEach {
-                val record = StandaloneRecord(null, arrayOf(intField, vectorField))
-                record[intField] = counter
-                record[vectorField] = it
+                val record = StandaloneRecord(columns = arrayOf(intField, vectorField))
+                record[intField] = IntValue(counter)
+                record[vectorField] = FloatArrayValue(it)
                 val tid = tx.insert(record)
                 assertNotNull(tid)
                 vectorMap[tid!!] = it
@@ -174,13 +175,13 @@ class VectorDataTest {
         }
 
         /* Fetch and compare the float vectors. */
-        val tx2 = entity?.Tx(true)
+        val tx2 = entity?.Tx(readonly = true, columns = arrayOf(intField, vectorField))
         assertEquals(count.toLong(), tx2?.count())
         tx2?.begin {
             vectorMap.forEach { t, u ->
-                val tuple = tx2.read(t, arrayOf(intField, vectorField))
-                assertArrayEquals(u, tuple[vectorField] as FloatArray)
-                assertEquals(counterMap[t], tuple[intField] as Int)
+                val tuple = tx2.read(t)
+                assertArrayEquals(u, tuple[vectorField]!!.value as FloatArray)
+                assertEquals(counterMap[t], tuple[intField]!!.value as Int)
             }
             true
         }
@@ -208,9 +209,9 @@ class VectorDataTest {
         var counter = 0
         tx?.begin {
             iterator.forEach {
-                val record = StandaloneRecord(null, arrayOf(intField, vectorField))
-                record[intField] = counter
-                record[vectorField] = it
+                val record = StandaloneRecord(columns = arrayOf(intField, vectorField))
+                record[intField] = IntValue(counter)
+                record[vectorField] = DoubleArrayValue(it)
                 val tid = tx.insert(record)
                 assertNotNull(tid)
                 vectorMap[tid!!] = it
@@ -221,13 +222,13 @@ class VectorDataTest {
         }
 
         /* Fetch and compare the double vectors. */
-        val tx2 = entity?.Tx(true)
+        val tx2 = entity?.Tx(readonly = true, columns = arrayOf(intField, vectorField))
         assertEquals(count.toLong(), tx2?.count())
         tx2?.begin {
             vectorMap.forEach { t, u ->
-                val tuple = tx2.read(t, arrayOf(intField, vectorField))
-                assertArrayEquals(u, tuple[vectorField] as DoubleArray)
-                assertEquals(counterMap[t], tuple[intField] as Int)
+                val tuple = tx2.read(t)
+                assertArrayEquals(u, tuple[vectorField]!!.value as DoubleArray)
+                assertEquals(counterMap[t], tuple[intField]!!.value as Int)
             }
             true
         }

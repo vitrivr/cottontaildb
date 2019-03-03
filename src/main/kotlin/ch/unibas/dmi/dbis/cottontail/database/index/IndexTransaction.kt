@@ -3,7 +3,9 @@ package ch.unibas.dmi.dbis.cottontail.database.index
 import ch.unibas.dmi.dbis.cottontail.database.general.Transaction
 import ch.unibas.dmi.dbis.cottontail.database.queries.Predicate
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
-import ch.unibas.dmi.dbis.cottontail.model.basics.Recordset
+import ch.unibas.dmi.dbis.cottontail.model.basics.Filterable
+import ch.unibas.dmi.dbis.cottontail.model.basics.Record
+import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
 
 /**
  * A [Transaction] that operates on a single [Index]. [Transaction]s are a unit of isolation for data operations (read/write).
@@ -11,7 +13,7 @@ import ch.unibas.dmi.dbis.cottontail.model.basics.Recordset
  * @author Ralph Gasser
  * @version 1.0
  */
-interface IndexTransaction : Transaction {
+interface IndexTransaction : Transaction, Filterable {
 
     /**
      * (Re-)builds the underlying [Index] and can also be used to initialize it.
@@ -21,14 +23,12 @@ interface IndexTransaction : Transaction {
     fun update(columns: Array<ColumnDef<*>>? = null)
 
     /**
-     * Performs a lookup through the underlying [Index] and returns a [Recordset].
+     * Checks if this [IndexTransaction] can process the provided [Predicate].
      *
-     * @param predicate The [Predicate] to perform the lookup.
-     * @return The resulting [Recordset].
-     *
-     * @throws DatabaseException.PredicateNotSupportedBxIndexException If predicate is not supported by [Index].
+     * @param predicate [Predicate] to check.
+     * @return True if [Predicate] can be processed, false otherwise.
      */
-    fun lookup(predicate: Predicate): Recordset
+    fun canProcess(predicate: Predicate): Boolean
 
     /**
      * Performs a lookup through this [IndexTransaction] and returns a [Recordset].

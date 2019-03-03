@@ -69,7 +69,7 @@ open class TransactionException(message: String) : DatabaseException(message) {
      * @param tid The ID of the [Transaction] in which this error occurred.
      * @param tupleId The tupleId that was wrong.
      */
-    class InvalidTupleId(tid: UUID, tupleId: Long): DBException("The provided tuple ID $tupleId is out of bounds and therefore invalid.")
+    class InvalidTupleId(tid: UUID, tupleId: Long): DBException("Transaction $tid reported an error: The provided tuple ID $tupleId is out of bounds and therefore invalid.")
 
     /**
      * Read/write could not be executed because some of the colums don't exist.

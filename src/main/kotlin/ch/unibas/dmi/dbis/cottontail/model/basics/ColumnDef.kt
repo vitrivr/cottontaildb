@@ -2,6 +2,8 @@ package ch.unibas.dmi.dbis.cottontail.model.basics
 
 import ch.unibas.dmi.dbis.cottontail.database.column.*
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
+import ch.unibas.dmi.dbis.cottontail.model.exceptions.ValidationException
+import ch.unibas.dmi.dbis.cottontail.model.values.*
 import java.lang.RuntimeException
 
 /**
@@ -30,22 +32,20 @@ class ColumnDef<T: Any>(val name: String, val type: ColumnType<T>, val size: Int
      * @param value The value that should be validated.
      * @throws [DatabaseException.ValidationException] If validation fails.
      */
-    fun validateOrThrow(value: Any?) {
+    fun validateOrThrow(value: Value<*>?) {
         if (value != null) {
             if (!this.type.compatible(value)) {
-                throw DatabaseException.ValidationException("The type $type of column '$name' is not compatible with value $value.")
+                throw ValidationException("The type $type of column '$name' is not compatible with value $value.")
             }
             val cast = this.type.cast(value)
             when {
-                cast is DoubleArray && cast.size != this.size -> throw DatabaseException.ValidationException("The size of column '$name' (sc=${this.size}) is not compatible with size of value (sv=${cast.size}).")
-                cast is FloatArray && cast.size != this.size -> throw DatabaseException.ValidationException("The size of column '$name' (sc=${this.size}) is not compatible with size of value (sv=${cast.size}).")
-                cast is LongArray && cast.size != this.size -> throw DatabaseException.ValidationException("The size of column '$name' (sc=${this.size}) is not compatible with size of value (sv=${cast.size}).")
-                cast is IntArray && cast.size != this.size -> throw DatabaseException.ValidationException("The size of column '$name' (sc=${this.size}) is not compatible with size of value (sv=${cast.size}).")
-                cast is ShortArray && cast.size != this.size -> throw DatabaseException.ValidationException("The size of column '$name' (sc=${this.size}) is not compatible with size of value (sv=${cast.size}).")
-                cast is ByteArray && cast.size != this.size -> throw DatabaseException.ValidationException("The size of column '$name' (sc=${this.size}) is not compatible with size of value (sv=${cast.size}).")
+                cast is DoubleArrayValue && cast.size != this.size -> throw ValidationException("The size of column '$name' (sc=${this.size}) is not compatible with size of value (sv=${cast.size}).")
+                cast is FloatArrayValue && cast.size != this.size -> throw ValidationException("The size of column '$name' (sc=${this.size}) is not compatible with size of value (sv=${cast.size}).")
+                cast is LongArrayValue && cast.size != this.size -> throw ValidationException("The size of column '$name' (sc=${this.size}) is not compatible with size of value (sv=${cast.size}).")
+                cast is IntArrayValue && cast.size != this.size -> throw ValidationException("The size of column '$name' (sc=${this.size}) is not compatible with size of value (sv=${cast.size}).")
             }
         } else if (!this.nullable) {
-            throw DatabaseException.ValidationException("The column '$name' cannot be null!")
+            throw ValidationException("The column '$name' cannot be null!")
         }
     }
 
@@ -55,19 +55,17 @@ class ColumnDef<T: Any>(val name: String, val type: ColumnType<T>, val size: Int
      * @param value The value that should be validated.
      * @return True if value passes validation, false otherwise.
      */
-    fun validate(value: Any?) : Boolean {
+    fun validate(value: Value<*>?) : Boolean {
         if (value != null) {
             if (!this.type.compatible(value)) {
                 return false
             }
             val cast = this.type.cast(value)
             return when {
-                cast is DoubleArray && cast.size != this.size -> false
-                cast is FloatArray && cast.size != this.size -> false
-                cast is LongArray && cast.size != this.size -> false
-                cast is IntArray && cast.size != this.size -> false
-                cast is ShortArray && cast.size != this.size -> false
-                cast is ByteArray && cast.size != this.size -> false
+                cast is DoubleArrayValue && cast.size != this.size -> false
+                cast is FloatArrayValue && cast.size != this.size -> false
+                cast is LongArrayValue && cast.size != this.size -> false
+                cast is IntArrayValue && cast.size != this.size -> false
                 else -> true
             }
         } else return this.nullable
@@ -78,20 +76,20 @@ class ColumnDef<T: Any>(val name: String, val type: ColumnType<T>, val size: Int
      *
      * @return Default value for this [ColumnDef].
      */
-    fun defaultValue(): Any? = when {
+    fun defaultValue(): Value<*>? = when {
         this.nullable -> null
-        this.type is StringColumnType -> ""
-        this.type is FloatColumnType -> 0.0f
-        this.type is DoubleColumnType -> 0.0
-        this.type is IntColumnType -> 0
-        this.type is LongColumnType -> 0L
-        this.type is ShortColumnType -> 0.toShort()
-        this.type is ByteColumnType -> 0.toByte()
-        this.type is BooleanColumnType -> false
-        this.type is DoubleArrayColumnType -> DoubleArray(this.size)
-        this.type is FloatArrayColumnType -> DoubleArray(this.size)
-        this.type is LongArrayColumnType -> LongArray(this.size)
-        this.type is IntArrayColumnType -> IntArray(this.size)
+        this.type is StringColumnType -> StringValue("")
+        this.type is FloatColumnType -> FloatValue(0.0f)
+        this.type is DoubleColumnType -> DoubleValue(0.0)
+        this.type is IntColumnType -> IntValue(0)
+        this.type is LongColumnType -> LongValue(0L)
+        this.type is ShortColumnType -> ShortValue(0.toShort())
+        this.type is ByteColumnType -> ByteValue(0.toByte())
+        this.type is BooleanColumnType -> BooleanValue(false)
+        this.type is DoubleArrayColumnType -> DoubleArrayValue(DoubleArray(this.size))
+        this.type is FloatArrayColumnType -> FloatArrayValue(FloatArray(this.size))
+        this.type is LongArrayColumnType -> LongArrayValue(LongArray(this.size))
+        this.type is IntArrayColumnType -> IntArrayValue(IntArray(this.size))
         else -> throw RuntimeException("Default value for the specified type $type has not been specified yet!")
     }
 

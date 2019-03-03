@@ -1,6 +1,7 @@
 package ch.unibas.dmi.dbis.cottontail.model.basics
 
 import ch.unibas.dmi.dbis.cottontail.database.queries.Predicate
+import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
 
 /**
  * An objects that holds [Record] values and allows for filtering & scanning operation on those [Record] values.
@@ -12,11 +13,25 @@ import ch.unibas.dmi.dbis.cottontail.database.queries.Predicate
  */
 interface Filterable {
     /**
+     * Filters this [Filterable] thereby creating and returning a new [Filterable].
+     *
+     * @param predicate [Predicate] to filter [Record]s.
+     * @return New [Filterable]
+     *
+     * @throws QueryException.UnsupportedPredicateException If predicate is not supported by data structure.
+     */
+    @Throws(QueryException.UnsupportedPredicateException::class)
+    fun filter(predicate: Predicate): Filterable
+
+    /**
      * Applies the provided action to each [Record]  that matches the given [Predicate].
      *
      * @param predicate [Predicate] to filter [Record]s.
      * @param action The action that should be applied.
+     *
+     * @throws QueryException.UnsupportedPredicateException If predicate is not supported by data structure.
      */
+    @Throws(QueryException.UnsupportedPredicateException::class)
     fun forEach(predicate: Predicate, action: (Record) -> Unit)
 
     /**
@@ -25,17 +40,11 @@ interface Filterable {
      * @param predicate [Predicate] to filter [Record]s.
      * @param action The mapping function that should be applied.
      * @return Collection of the results of the mapping function.
-     */
-    fun <R> map(predicate: Predicate, action: (Record) -> R): Collection<R>
-
-
-    /**
-     * Filters this [Filterable] thereby creating and returning a new [Filterable].
      *
-     * @param predicate [Predicate] to filter [Record]s.
-     * @return New [Filterable]
+     * @throws QueryException.UnsupportedPredicateException If predicate is not supported by data structure.
      */
-    fun filter(predicate: Predicate): Filterable
+    @Throws(QueryException.UnsupportedPredicateException::class)
+    fun <R> map(predicate: Predicate, action: (Record) -> R): Collection<R>
 }
 
 

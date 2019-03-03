@@ -5,6 +5,7 @@ import ch.unibas.dmi.dbis.cottontail.math.knn.metrics.Distance
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.basics.Record
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
+import ch.unibas.dmi.dbis.cottontail.model.values.Value
 
 /**
  * A general purpose [Predicate] that describes a Cottontail DB query. It can either operate on [Recordset]s or data read from an [Entity].
@@ -15,6 +16,9 @@ import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
 sealed class Predicate {
     /** An estimation of the operations required to apply this [Predicate] to a [Record]. */
     abstract val operations: Int
+
+    /** Set of [ColumnDef] that are affected by this [Predicate]. */
+    abstract val columns: Set<ColumnDef<*>>
 }
 
 /**
@@ -26,11 +30,6 @@ sealed class Predicate {
  * @version 1.0
  */
 sealed class BooleanPredicate : Predicate() {
-    /**
-     * Set of [ColumnDef] that are inspected by this [BooleanPredicate].
-     */
-    abstract val columns: Set<ColumnDef<*>>
-
     /**
      * Returns true, if the provided [Record] matches the [Predicate] and false otherwise.
      *
@@ -45,7 +44,7 @@ sealed class BooleanPredicate : Predicate() {
  * @author Ralph Gasser
  * @version 1.0
  */
-internal data class AtomicBooleanPredicate<T : Any>(private val column: ColumnDef<T>, val operator: ComparisonOperator, val not: Boolean = false, var values: Collection<T>) : BooleanPredicate() {
+internal data class AtomicBooleanPredicate<T : Any>(private val column: ColumnDef<T>, val operator: ComparisonOperator, val not: Boolean = false, var values: Collection<Value<T>>) : BooleanPredicate() {
 
     init {
         if (operator == ComparisonOperator.IN) {
@@ -99,6 +98,11 @@ internal data class KnnPredicate<T : Any>(val column: ColumnDef<T>, val k: Int, 
         if (column.size != query.size) throw QueryException.QueryBindException("The size of the provided column ${column.name} (s_c=${column.size}) does not match the size of the query vector (s_q=${query.size}).")
         if (weights != null && column.size != weights.size) throw QueryException.QueryBindException("The size of the provided column ${column.name} (s_c=${column.size}) does not match the size of the weight vector (s_w=${query.size}).")
     }
+
+    /**
+     * Columns affected by this [KnnPredicate].
+     */
+    override val columns: Set<ColumnDef<*>> = setOf(column)
 
     /**
      * Number of operations required for this [KnnPredicate]. Calculated by applying the base operations

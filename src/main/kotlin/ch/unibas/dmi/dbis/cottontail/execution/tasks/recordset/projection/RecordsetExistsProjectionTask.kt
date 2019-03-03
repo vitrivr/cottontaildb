@@ -3,6 +3,7 @@ package ch.unibas.dmi.dbis.cottontail.execution.tasks.recordset.projection
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.ExecutionTask
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
+import ch.unibas.dmi.dbis.cottontail.model.values.BooleanValue
 import com.github.dexecutor.core.task.Task
 import com.github.dexecutor.core.task.TaskExecutionException
 
@@ -22,7 +23,7 @@ internal class RecordsetExistsProjectionTask (val alias: String? = null): Execut
         /* Create new Recordset with new columns. */
         val recordset = Recordset(arrayOf(ColumnDef.withAttributes(alias
                 ?: "exists(*)", "BOOLEAN")))
-        recordset.addRow(parent.rowCount > 0)
+        recordset.addRow(arrayOf(BooleanValue(parent.rowCount > 0)))
         return recordset
     }
 }

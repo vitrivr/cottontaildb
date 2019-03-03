@@ -6,8 +6,11 @@ import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.basics.Filterable
 import ch.unibas.dmi.dbis.cottontail.model.basics.Record
 import ch.unibas.dmi.dbis.cottontail.model.basics.Scanable
+import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
+import ch.unibas.dmi.dbis.cottontail.model.values.Value
 
 import java.util.*
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * A record set as returned and processed by Cottontail DB. [Recordset]s are tables. Their columns are defined by the [ColumnDef]'s
@@ -27,6 +30,9 @@ class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterable {
     /** List of all the [Record]s contained in this [Recordset]. */
     private val list: LinkedList<Record> = LinkedList()
 
+    /** Internal counter for maximum tupleId. */
+    private val maxTupleId = AtomicLong(0)
+
     /** The number of columns contained in this [Recordset]. */
     val columnCount: Int
         get() = this.columns.size
@@ -40,8 +46,8 @@ class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterable {
      *
      * @param values The values to add to this [Recordset].
      */
-    fun addRow(values: Array<Any?>) {
-        this.list.add(DatasetRecord().assign(values))
+    fun addRow(values: Array<Value<*>?>) {
+        this.list.add(DatasetRecord(this.maxTupleId.incrementAndGet()).assign(values))
     }
 
     /**
@@ -50,7 +56,7 @@ class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterable {
      * @param tupleId The tupleId of the new [Record].
      * @param values The values to add to this [Recordset].
      */
-    fun addRow(tupleId: Long, values: Array<Any?>) {
+    fun addRow(tupleId: Long, values: Array<Value<*>?>) {
         this.list.add(DatasetRecord(tupleId).assign(values))
     }
 
@@ -63,7 +69,7 @@ class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterable {
      * @param values The values to add to this [Recordset].
      * @return True if [Record] was added, false otherwise.
      */
-    fun addRowIf(tupleId: Long, predicate: BooleanPredicate, values: Array<Any?>): Boolean {
+    fun addRowIf(tupleId: Long, predicate: BooleanPredicate, values: Array<Value<*>?>): Boolean {
         val record = DatasetRecord(tupleId).assign(values)
         return if (predicate.matches(record)) {
             this.list.add(record)
@@ -102,6 +108,8 @@ class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterable {
     override fun forEach(predicate: Predicate, action: (Record) -> Unit) {
         if (predicate is BooleanPredicate) {
             this.list.asSequence().filter { predicate.matches(it) }.forEach { action(it) }
+        } else {
+            throw QueryException.UnsupportedPredicateException("Only boolean predicates are supported for invocation of forEach() on a Recordset.")
         }
     }
 
@@ -112,11 +120,13 @@ class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterable {
      * @param action The mapping function that should be applied.
      */
     override fun <R> map(predicate: Predicate, action: (Record) -> R): Collection<R> {
-        val list = mutableListOf<R>()
         if (predicate is BooleanPredicate) {
+            val list = mutableListOf<R>()
             this.list.asSequence().filter { predicate.matches(it) }.map(action).forEach { list.add(it) }
+            return list
+        } else {
+            throw QueryException.UnsupportedPredicateException("Only boolean predicates are supported for invocation of map() on a Recordset.")
         }
-        return list
     }
 
     /**
@@ -126,11 +136,13 @@ class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterable {
      * @return New [Filterable]
      */
     override fun filter(predicate: Predicate): Recordset {
-        val recordset = Recordset(this.columns)
         if (predicate is BooleanPredicate) {
+            val recordset = Recordset(this.columns)
             this.list.asSequence().filter { predicate.matches(it) }.forEach { recordset.addRow(it.values) }
+            return recordset
+        } else {
+            throw QueryException.UnsupportedPredicateException("Only boolean predicates are supported for invocation of filter() on a Recordset.")
         }
-        return recordset
     }
 
     /**
@@ -153,14 +165,14 @@ class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterable {
      * @author Ralph Gasser
      * @version 1.0
      */
-    inner class DatasetRecord(override val tupleId: Long? = null, init: Array<Any?>? = null) : Record {
+    inner class DatasetRecord(override val tupleId: Long, init: Array<Value<*>?>? = null) : Record {
 
         /** Array of [ColumnDef]s that describes the [Columns] of this [Record]. */
         override val columns: Array<out ColumnDef<*>>
             get() = this@Recordset.columns
 
         /** Array of column values (one entry per column). Initializes with null. */
-        override val values: Array<Any?> = if (init != null) {
+        override val values: Array<Value<*>?> = if (init != null) {
             init.forEachIndexed { index, any -> columns[index].validateOrThrow(any) }
             init
         } else Array(columns.size) { columns[it].defaultValue() }

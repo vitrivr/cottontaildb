@@ -8,6 +8,8 @@ import ch.unibas.dmi.dbis.cottontail.execution.tasks.ExecutionTask
 import ch.unibas.dmi.dbis.cottontail.math.knn.ComparablePair
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
+import ch.unibas.dmi.dbis.cottontail.model.values.DoubleValue
+import ch.unibas.dmi.dbis.cottontail.model.values.LongValue
 import com.github.dexecutor.core.task.Task
 import java.util.concurrent.ConcurrentSkipListSet
 
@@ -33,26 +35,26 @@ internal class ParallelEntityScanIntKnnTask(val entity: Entity, val knn: KnnPred
         val columns = arrayOf<ColumnDef<*>>(this.knn.column).plus(predicate?.columns?.toTypedArray() ?: emptyArray())
 
         /* Execute kNN lookup. */
-        this.entity.Tx(true).begin { tx ->
-            tx.parallelForEach({
+        this.entity.Tx(readonly = true, columns = columns).begin { tx ->
+            tx.forEach(this.parallelism) {
                 if (this.predicate == null || this.predicate.matches(it)) {
                     val value = it[this.knn.column]
                     if (value != null) {
                         if (weights != null) {
-                            this.addCandidate(it.tupleId!!, this.knn.distance(query, value, weights))
+                            this.addCandidate(it.tupleId, this.knn.distance(query, value.value, weights))
                         } else {
-                            this.addCandidate(it.tupleId!!, this.knn.distance(query, value))
+                            this.addCandidate(it.tupleId, this.knn.distance(query, value.value))
                         }
                     }
                 }
-            }, columns, this.parallelism)
+            }
             true
         }
 
         /* Generate dataset and return it. */
         val dataset = Recordset(arrayOf(KnnTask.DISTANCE_COL))
         for (e in knnSet) {
-            dataset.addRow(e.first, e.second)
+            dataset.addRow(e.first, arrayOf(DoubleValue(e.second)))
         }
         return dataset
     }

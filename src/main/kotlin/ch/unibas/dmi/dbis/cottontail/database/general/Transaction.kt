@@ -1,7 +1,6 @@
 package ch.unibas.dmi.dbis.cottontail.database.general
 
-import ch.unibas.dmi.dbis.cottontail.model.basics.Recordset
-import java.lang.Exception
+import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
 import java.util.*
 
 
@@ -21,14 +20,10 @@ interface Transaction : AutoCloseable {
     /** The UUID that identifies this [Transaction]. */
     val tid: UUID
 
-    /**
-     * Commits the transaction, saving all changes. Causes the [Transaction] to complete and close.
-     */
+    /** Commits the transaction, saving all changes. Causes the [Transaction] to complete and close. */
     fun commit()
 
-    /**
-     * Rolls the [Transaction], causing changes to be lost. Causes the [Transaction] to complete and close.
-     */
+    /** Rolls the [Transaction], causing changes to be lost. Causes the [Transaction] to complete and close. */
     fun rollback()
 }
 

@@ -14,7 +14,7 @@ import com.github.dexecutor.core.task.Task
  * @version 1.0
  */
 internal class LinearEntityScanTask(private val entity: Entity, private val columns: Array<ColumnDef<*>>) : ExecutionTask("LinearEntityScanTask[${entity.fqn}][${columns.map { it.name }.joinToString(",")}]") {
-    override fun execute(): Recordset = this.entity.Tx(true).query {
-        it.readAll(this.columns)
+    override fun execute(): Recordset = this.entity.Tx(readonly = true, columns = this.columns).query {
+        it.readAll()
     } ?: Recordset(columns)
 }

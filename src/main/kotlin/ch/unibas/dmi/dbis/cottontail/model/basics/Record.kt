@@ -1,5 +1,6 @@
 package ch.unibas.dmi.dbis.cottontail.model.basics
 
+import ch.unibas.dmi.dbis.cottontail.model.values.Value
 import java.lang.IllegalArgumentException
 
 /**
@@ -18,14 +19,14 @@ import java.lang.IllegalArgumentException
  */
 interface Record {
 
-    /** The Tuple ID of the [Record]. May be null [Record]s that cannot be mapped to a specific tuple anymore. */
-    val tupleId: Long?
+    /** The Tuple ID of the [Record]. Usually corresponds to a tupleId in the underlying database. */
+    val tupleId: Long
 
     /** Array of [ColumnDef]s that describes the [Columns] of this [Record]. */
     val columns: Array<out ColumnDef<*>>
 
     /** Array of column values (one entry per column). */
-    val values: Array<Any?>
+    val values: Array<Value<*>?>
 
     /** Size of this [Record] in terms of [ColumnDef] it encompasses. */
     val size: Int
@@ -37,7 +38,7 @@ interface Record {
      *
      * @param values The values to assign. Cannot contain more than [Record.size] values.
      */
-    fun assign(values: Array<Any?>): Record {
+    fun assign(values: Array<Value<*>?>): Record {
         if (values.size <= this.size) {
             values.forEachIndexed { i, v ->
                 this.columns[i].validateOrThrow(v)
@@ -62,7 +63,7 @@ interface Record {
      *
      * @return Map of column name to value.
      */
-    fun toMap(): Map<String,Any?> = mapOf(*this.columns.mapIndexed {index, column -> Pair(column.name, this.values[index]) }.toTypedArray())
+    fun toMap(): Map<String,Value<*>?> = mapOf(*this.columns.mapIndexed {index, column -> Pair(column.name, this.values[index]) }.toTypedArray())
 
     /**
      * Retrieves the value for the specified [ColumnDef] from this [Record].
@@ -70,7 +71,7 @@ interface Record {
      * @param column The [ColumnDef] for which to retrieve the value.
      * @return The value for the [ColumnDef]
      */
-    operator fun <T: Any> get(column: ColumnDef<T>): T? {
+    operator fun <T: Any> get(column: ColumnDef<T>): Value<T>? {
         val index = columns.indexOf(column)
         return if (index > -1) {
             column.type.cast(values[index])
@@ -85,7 +86,7 @@ interface Record {
      * @param column The [ColumnDef] for which to set the value.
      * @param value The new value for the [ColumnDef]
      */
-    operator fun set(column: ColumnDef<*>, value: Any?) {
+    operator fun set(column: ColumnDef<*>, value: Value<*>?) {
         val index = columns.indexOf(column)
         if (index > -1) {
             column.validateOrThrow(value)

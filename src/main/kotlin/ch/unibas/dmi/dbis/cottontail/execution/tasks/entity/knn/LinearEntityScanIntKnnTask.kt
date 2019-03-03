@@ -9,6 +9,8 @@ import ch.unibas.dmi.dbis.cottontail.math.knn.ComparablePair
 import ch.unibas.dmi.dbis.cottontail.math.knn.HeapSelect
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
+import ch.unibas.dmi.dbis.cottontail.model.values.DoubleValue
+import ch.unibas.dmi.dbis.cottontail.model.values.LongValue
 import com.github.dexecutor.core.task.Task
 
 /**
@@ -26,29 +28,29 @@ internal class LinearEntityScanIntKnnTask(val entity: Entity, val knn: KnnPredic
 
         /* Execute kNN lookup. */
         val knn = HeapSelect<ComparablePair<Long,Double>>(this.knn.k)
-        this.entity.Tx(true).begin { tx ->
-            tx.forEach({
+        this.entity.Tx(readonly = true, columns = columns).begin { tx ->
+            tx.forEach {
                 if (this.predicate == null || this.predicate.matches(it)) {
                     val value = it[this.knn.column]
                     if (value != null) {
                         if (weights != null) {
-                            val dist = this.knn.distance(query, value, weights)
-                            knn.add(ComparablePair(it.tupleId!!, dist))
+                            val dist = this.knn.distance(query, value.value, weights)
+                            knn.add(ComparablePair(it.tupleId, dist))
                         } else {
-                            val dist = this.knn.distance(query, value)
-                            knn.add(ComparablePair(it.tupleId!!, dist))
+                            val dist = this.knn.distance(query, value.value)
+                            knn.add(ComparablePair(it.tupleId, dist))
                         }
 
                     }
                 }
-            }, columns)
+            }
             true
         }
 
         /* Generate dataset and return it. */
         val dataset = Recordset(arrayOf(KnnTask.DISTANCE_COL))
         for (i in 0 until knn.size) {
-            dataset.addRow(knn[i].first, knn[i].second)
+            dataset.addRow(knn[i].first, arrayOf(DoubleValue(knn[i].second)))
         }
         return dataset
     }

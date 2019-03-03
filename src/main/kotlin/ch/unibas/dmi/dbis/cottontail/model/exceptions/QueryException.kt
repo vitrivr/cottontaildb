@@ -44,6 +44,13 @@ open class QueryException(message: String) : DatabaseException(message) {
     class UnsupportedCastException(message: String): DatabaseException(message)
 
     /**
+     * This kind of exception is thrown whenever a [Predicate] is applied that is not supported by the data structure it is supplied to.
+     *
+     * @param message Message describing the issue with the query.
+     */
+    class UnsupportedPredicateException(message: String): DatabaseException(message)
+
+    /**
      * This kind of exception is thrown whenever a [Predicate] is routed through an [Index] that does not
      * support that kind of [Predicate].
      *

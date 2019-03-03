@@ -5,6 +5,7 @@ import ch.unibas.dmi.dbis.cottontail.database.general.query
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.ExecutionTask
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
+import ch.unibas.dmi.dbis.cottontail.model.values.LongValue
 import com.github.dexecutor.core.task.Task
 
 /**
@@ -20,7 +21,7 @@ internal class EntityCountProjectionTask (val entity: Entity, val alias: String?
         val column = arrayOf(ColumnDef.withAttributes(alias ?: "count(*)", "INTEGER"))
         return this.entity.Tx(true).query {
             val recordset = Recordset(column)
-            recordset.addRow(it.count())
+            recordset.addRow(arrayOf(LongValue(it.count())))
             recordset
         } ?: Recordset(column)
     }

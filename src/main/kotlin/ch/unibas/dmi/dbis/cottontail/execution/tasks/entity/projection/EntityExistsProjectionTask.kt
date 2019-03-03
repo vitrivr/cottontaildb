@@ -5,6 +5,7 @@ import ch.unibas.dmi.dbis.cottontail.database.general.query
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.ExecutionTask
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
+import ch.unibas.dmi.dbis.cottontail.model.values.BooleanValue
 
 import com.github.dexecutor.core.task.Task
 
@@ -21,7 +22,7 @@ internal class EntityExistsProjectionTask(val entity: Entity, val alias: String?
         val column = arrayOf(ColumnDef.withAttributes(alias ?: "exists(*)", "BOOLEAN"))
         return this.entity.Tx(true).query {
             val recordset = Recordset(column)
-            recordset.addRow(it.count() > 0)
+            recordset.addRow(arrayOf(BooleanValue(it.count() > 0)))
             recordset
         } ?: Recordset(column)
     }

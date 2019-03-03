@@ -16,7 +16,7 @@ import com.github.dexecutor.core.task.Task
  * @version 1.0
  */
 internal class LinearEntityFilterScanTask(private val entity: Entity, private val predicate: BooleanPredicate) : ExecutionTask("LinearEntityFilterScanTask[${entity.fqn}][$predicate]") {
-    override fun execute(): Recordset = entity.Tx(true).query {
+    override fun execute(): Recordset = this.entity.Tx(readonly = true, columns = this.predicate.columns.toTypedArray()).query {
         it.filter(this.predicate)
-    } ?: Recordset(predicate.columns.toTypedArray())
+    } ?: Recordset(this.predicate.columns.toTypedArray())
 }

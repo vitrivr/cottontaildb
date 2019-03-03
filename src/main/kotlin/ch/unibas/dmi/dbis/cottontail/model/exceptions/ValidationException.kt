@@ -15,5 +15,5 @@ open class ValidationException(message: String) : DatabaseException(message) {
      * @param index The FQN of the index that was affected.
      * @param message A message describing the problem.
      */
-    class IndexUpdateException(index: String, message: String): ValidationException("Index update failed due to an error: $message")
+    class IndexUpdateException(index: String, message: String): ValidationException("Index '$index' update failed due to an error: $message")
 }

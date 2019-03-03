@@ -34,11 +34,9 @@ internal class RecordsetSelectProjectionTask (
 
         /* Create new Recordset with new columns. */
         val recordset = Recordset(parent.columns + this.columns)
-        this.entity.Tx(true).begin {tx ->
+        this.entity.Tx(readonly = true, columns = columns).begin {tx ->
             parent.forEach {rec ->
-                if (rec.tupleId != null) {
-                    recordset.addRow(rec.tupleId!!, *rec.values, *tx.read(rec.tupleId!!, this.columns).values)
-                }
+                recordset.addRow(rec.tupleId, rec.values + tx.read(rec.tupleId).values)
             }
             true
         }

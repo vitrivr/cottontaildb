@@ -8,12 +8,12 @@ import ch.unibas.dmi.dbis.cottontail.database.general.TransactionStatus
 import ch.unibas.dmi.dbis.cottontail.database.queries.Predicate
 import ch.unibas.dmi.dbis.cottontail.database.schema.Schema
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
-import ch.unibas.dmi.dbis.cottontail.model.basics.Recordset
+import ch.unibas.dmi.dbis.cottontail.model.basics.Record
+import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.TransactionException
 import java.util.*
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.concurrent.read
-import kotlin.concurrent.write
 
 
 /**
@@ -83,7 +83,36 @@ internal abstract class Index : DBO {
      *
      * @throws DatabaseException.PredicateNotSupportedBxIndexException If predicate is not supported by [Index].
      */
-    protected abstract fun lookup(predicate: Predicate): Recordset
+    protected abstract fun filter(predicate: Predicate): Recordset
+
+    /**
+     * Applies the given action to all the [Index] entries that match the given [Predicate]. This is an internal method!
+     * External invocation is only possible through a [Index.Tx] object.
+     *
+     * The default implementation simply performs a lookup and applies the action in memory. More efficient implementations
+     * are possible in many cases.
+     *
+     * @param predicate The [Predicate] to perform the lookup.
+     * @param action The action that should be applied.
+     *
+     * @throws DatabaseException.PredicateNotSupportedBxIndexException If predicate is not supported by [Index].
+     */
+    protected fun forEach(predicate: Predicate, action: (Record) -> Unit) = this.filter(predicate).forEach(action)
+
+    /**
+     * Applies the given mapping function to all the [Index] entries that match the given [Predicate]. This is an internal
+     * method! External invocation is only possible through a [Index.Tx] object.
+     *
+     * The default implementation simply performs a lookup and applies the mapping function in memory.
+     * More efficient implementations are possible in many cases.
+     *
+     * @param predicate The [Predicate] to perform the lookup.
+     * @param action The action that should be applied.
+
+     *
+     * @throws DatabaseException.PredicateNotSupportedBxIndexException If predicate is not supported by [Index].
+     */
+    protected fun <R> map(predicate: Predicate, action: (Record) -> R): Collection<R> = this.filter(predicate).map(action)
 
     /**
      * Performs a lookup through this [Index] and returns a [Recordset]. This is an internal method! External
@@ -117,6 +146,12 @@ internal abstract class Index : DBO {
         }
 
         /**
+         *
+         */
+        override fun canProcess(predicate: Predicate): Boolean = this@Index.canProcess(predicate)
+
+
+        /**
          * (Re-)builds the underlying [Index] and can be used to initialize the [Index].
          *
          * @param columns List of columns to build the index. If null, the existing columns will be used.
@@ -134,8 +169,32 @@ internal abstract class Index : DBO {
          *
          * @throws DatabaseException.PredicateNotSupportedBxIndexException If predicate is not supported by [Index].
          */
-        override fun lookup(predicate: Predicate): Recordset = this@Index.txLock.read {
-            return this@Index.lookup(predicate)
+        override fun filter(predicate: Predicate): Recordset = this@Index.txLock.read {
+            return this@Index.filter(predicate)
+        }
+
+        /**
+         * Applies the given action to all the [Index] entries that match the given [Predicate].
+         *
+         * @param predicate The [Predicate] to perform the lookup.
+         * @param action The action that should be applied.
+         *
+         * @throws DatabaseException.PredicateNotSupportedBxIndexException If predicate is not supported by [Index].
+         */
+        override fun forEach(predicate: Predicate, action: (Record) -> Unit) = this@Index.txLock.read {
+            this@Index.forEach(predicate, action)
+        }
+
+        /**
+         * Applies the given mapping function to all the [Index] entries that match the given [Predicate].
+         *
+         * @param predicate The [Predicate] to perform the lookup.
+         * @param action The action that should be applied.
+         *
+         * @throws DatabaseException.PredicateNotSupportedBxIndexException If predicate is not supported by [Index].
+         */
+        override fun <R> map(predicate: Predicate, action: (Record) -> R): Collection<R> = this@Index.txLock.read {
+            return this@Index.map(predicate, action)
         }
 
         /**
