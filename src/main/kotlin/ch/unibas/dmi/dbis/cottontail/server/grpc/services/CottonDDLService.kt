@@ -2,6 +2,7 @@ package ch.unibas.dmi.dbis.cottontail.server.grpc.services
 
 import ch.unibas.dmi.dbis.cottontail.database.catalogue.Catalogue
 import ch.unibas.dmi.dbis.cottontail.database.column.ColumnType
+import ch.unibas.dmi.dbis.cottontail.database.index.IndexType
 import ch.unibas.dmi.dbis.cottontail.grpc.CottonDDLGrpc
 import ch.unibas.dmi.dbis.cottontail.grpc.CottontailGrpc
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
@@ -21,7 +22,7 @@ import io.grpc.stub.StreamObserver
  */
 internal class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.CottonDDLImplBase() {
     /**
-     * GRPC endpoint for creating a new [Schema]
+     * gRPC endpoint for creating a new [Schema]
      */
     override fun createSchema(request: CottontailGrpc.Schema, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) = try {
         this.catalogue.createSchema(request.name)
@@ -34,7 +35,7 @@ internal class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.Cotton
     }
 
     /**
-     * GRPC endpoint for dropping a [Schema]
+     * gRPC endpoint for dropping a [Schema]
      */
     override fun dropSchema(request: CottontailGrpc.Schema, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) = try {
         this.catalogue.dropSchema(request.name)
@@ -47,7 +48,7 @@ internal class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.Cotton
     }
 
     /**
-     * GRPC endpoint listing the available [Schema]s.
+     * gRPC endpoint listing the available [Schema]s.
      */
     override fun listSchemas(request: Empty?, responseObserver: StreamObserver<CottontailGrpc.Schema>) = try {
         this.catalogue.listSchemas().forEach {
@@ -59,7 +60,7 @@ internal class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.Cotton
     }
     /**
      *
-     * GRPC endpoint for creating a new [Entity]
+     * gRPC endpoint for creating a new [Entity]
      */
     override fun createEntity(request: CottontailGrpc.CreateEntityMessage, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) = try {
         val schema = this.catalogue.getSchema(request.entity.schema.name)
@@ -73,28 +74,65 @@ internal class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.Cotton
     } catch (e: DatabaseException.SchemaDoesNotExistException) {
         responseObserver.onError(Status.NOT_FOUND.withDescription("Schema '${request.entity.schema.name} does not exist!").asException())
     } catch (e: DatabaseException.EntityAlreadyExistsException) {
-        responseObserver.onError(Status.NOT_FOUND.withDescription("Entity '${request.entity.fqn()} does already exist!").asException())
+        responseObserver.onError(Status.ALREADY_EXISTS.withDescription("Entity '${request.entity.fqn()} does already exist!").asException())
     } catch (e: DatabaseException) {
         responseObserver.onError(Status.UNKNOWN.withDescription("Failed to create entity '${request.entity.fqn()}' because of database error: ${e.message}").asException())
     }
 
     /**
-     * GRPC endpoint for dropping a particular [Schema]
+     * gRPC endpoint for dropping a particular [Schema]
      */
     override fun dropEntity(request: CottontailGrpc.Entity, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) = try {
         this.catalogue.getSchema(request.schema.name).dropEntity(request.name)
         responseObserver.onNext(CottontailGrpc.SuccessStatus.newBuilder().setTimestamp(System.currentTimeMillis()).build())
         responseObserver.onCompleted()
     } catch (e: DatabaseException.SchemaDoesNotExistException) {
-        responseObserver.onError(Status.NOT_FOUND.withDescription("Schema '${request.schema.name} does not exist!").asException())
+        responseObserver.onError(Status.NOT_FOUND.withDescription("Schema '${request.schema.fqn()}' does not exist!").asException())
     } catch (e: DatabaseException.EntityDoesNotExistException) {
-        responseObserver.onError(Status.NOT_FOUND.withDescription("Entity '${request.fqn()} does not exist!").asException())
+        responseObserver.onError(Status.NOT_FOUND.withDescription("Entity '${request.fqn()}' does not exist!").asException())
     } catch (e: DatabaseException) {
         responseObserver.onError(Status.UNKNOWN.withDescription("Failed to drop entity '${request.fqn()}' because of database error: ${e.message}").asException())
     }
 
     /**
-     * GRPC endpoint listing the available [Entity]s for the provided [Schema].
+     * gRPC endpoint for creating a particular [Index]
+     */
+    override fun createIndex(request: CottontailGrpc.CreateIndexMessage, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) = try {
+        val entity = this.catalogue.getSchema(request.index.entity.schema.name).getEntity(request.index.entity.name)
+        val columns = request.columnsList.map { entity.columnForName(it) ?: throw DatabaseException.ColumnNotExistException(it, entity.name) }.toTypedArray()
+
+        /* Creates and updates the index. */
+        entity.createIndex(request.index.name, IndexType.valueOf(request.index.type.toString()), columns)
+        entity.updateIndex(request.index.name)
+    } catch (e: DatabaseException.SchemaDoesNotExistException) {
+        responseObserver.onError(Status.NOT_FOUND.withDescription("Schema '${request.index.entity.schema.fqn()} does not exist!").asException())
+    } catch (e: DatabaseException.EntityDoesNotExistException) {
+        responseObserver.onError(Status.NOT_FOUND.withDescription("Entity '${request.index.entity.fqn()} does not exist!").asException())
+    } catch (e: DatabaseException.IndexAlreadyExistsException) {
+        responseObserver.onError(Status.ALREADY_EXISTS.withDescription("Index '${request.index.fqn()}' does already exist!").asException())
+    } catch (e: DatabaseException.ColumnNotExistException) {
+        responseObserver.onError(Status.NOT_FOUND.withDescription(e.message).asException())
+    } catch (e: DatabaseException) {
+        responseObserver.onError(Status.UNKNOWN.withDescription("Failed to create index '${request.index.fqn()}' because of database error: ${e.message}").asException())
+    }
+
+    /**
+     * gRPC endpoint for dropping a particular [Index]
+     */
+    override fun dropIndex(request: CottontailGrpc.Index, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) = try {
+        this.catalogue.getSchema(request.entity.schema.name).getEntity(request.entity.name).dropIndex(request.name)
+    } catch (e: DatabaseException.SchemaDoesNotExistException) {
+        responseObserver.onError(Status.NOT_FOUND.withDescription("Schema '${request.entity.schema.fqn()} does not exist!").asException())
+    } catch (e: DatabaseException.EntityDoesNotExistException) {
+        responseObserver.onError(Status.NOT_FOUND.withDescription("Entity '${request.entity.fqn()} does not exist!").asException())
+    } catch (e: DatabaseException.IndexDoesNotExistException) {
+        responseObserver.onError(Status.NOT_FOUND.withDescription("Index '${request.fqn()} does not exist!").asException())
+    } catch (e: DatabaseException) {
+        responseObserver.onError(Status.UNKNOWN.withDescription("Failed to drop index '${request.fqn()}' because of database error: ${e.message}").asException())
+    }
+
+    /**
+     * gRPC endpoint listing the available [Entity]s for the provided [Schema].
      */
     override fun listEntities(request: CottontailGrpc.Schema, responseObserver: StreamObserver<CottontailGrpc.Entity>) = try {
         if (request.name == null) {
