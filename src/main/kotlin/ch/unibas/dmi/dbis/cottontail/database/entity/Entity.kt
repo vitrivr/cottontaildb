@@ -132,8 +132,8 @@ internal class Entity(override val name: String, schema: Schema) : DBO {
 
 
         /* Creates and opens the index. */
-        val index = type.open(name, this, params)
-        index.Tx(true).update(columns)
+        val index = type.create(name, this, columns, params)
+        index.Tx(readonly = false).update(columns)
 
         /* Update catalogue + header. */
         try {
