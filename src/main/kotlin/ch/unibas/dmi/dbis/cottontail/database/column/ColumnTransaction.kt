@@ -14,7 +14,7 @@ import ch.unibas.dmi.dbis.cottontail.model.values.Value
  * @author Ralph Gasser
  * @version 1.0
  */
-interface ColumnTransaction<T: Any> : Transaction, Countable, Scanable, ParallelScanable, Filterable {
+interface ColumnTransaction<T: Any> : Transaction, Countable, Scanable, ParallelScanable, Filterable, Deletable {
     /**
      * Gets and returns an entry from this [Column].
      *
@@ -67,18 +67,4 @@ interface ColumnTransaction<T: Any> : Transaction, Countable, Scanable, Parallel
      * @param expected The value expected to be there.
      */
     fun compareAndUpdate(tupleId: Long, value: Value<T>?, expected: Value<T>?): Boolean
-
-    /**
-     * Deletes a record from this [Column].
-     *
-     * @param tupleId The ID of the record that should be deleted
-     */
-    fun delete(tupleId: Long)
-
-    /**
-     * Deletes all the specified records from this [Column].
-     *
-     * @param tupleIds The IDs of the records that should be deleted.
-     */
-    fun deleteAll(tupleIds: Collection<Long>)
 }

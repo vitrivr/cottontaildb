@@ -697,7 +697,7 @@ internal class Entity(override val name: String, schema: Schema) : DBO {
          * @throws TransactionException If some of the sub-transactions on [Column] level caused an error.
          * @throws DatabaseException If a general database error occurs during the insert.
          */
-        fun delete(tupleId: Long) {
+        override fun delete(tupleId: Long) {
             acquireWriteLock()
             try {
                 /* Perform delete on each column. */
@@ -724,7 +724,7 @@ internal class Entity(override val name: String, schema: Schema) : DBO {
          * @throws TransactionException If some of the sub-transactions on [Column] level caused an error.
          * @throws DatabaseException If a general database error occurs during the insert.
          */
-        fun deleteAll(tupleIds: Collection<Long>) {
+        override  fun deleteAll(tupleIds: Collection<Long>) {
             acquireWriteLock()
             try {
                 /* Perform delete on each column. */
