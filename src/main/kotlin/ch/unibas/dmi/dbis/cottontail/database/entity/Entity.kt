@@ -430,45 +430,42 @@ internal class Entity(override val name: String, schema: Schema) : DBO {
          * @param action The action that should be applied.
          */
         override fun forEach(predicate: Predicate, action: (Record) -> Unit)= this@Entity.txLock.read {
-            if (predicate is BooleanPredicate) {
-                checkValidOrThrow()
-                checkColumnsExist(*predicate.columns.toTypedArray())
+            checkValidOrThrow()
+            checkColumnsExist(*predicate.columns.toTypedArray())
 
-                /* Extract necessary data structures. */
-                val columns = this.columns.keys.toTypedArray()
-                val data = Array<Value<*>?>(columns.size) { null }
-                val filterable = this.indexes.find { it.canProcess(predicate) }
+            /* Extract necessary data structures. */
+            val columns = this.columns.keys.toTypedArray()
+            val data = Array<Value<*>?>(columns.size) { null }
+            val filterable = this.indexes.find { it.canProcess(predicate) }
 
-                /* Handle forEach() for different cases. */
-                when {
-                    /* Case 1: Predicate satisfiable by index. */
-                    filterable != null -> filterable.forEach(predicate) {
-                        for (i in 0 until columns.size) {
-                            data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
-                        }
-                        action(StandaloneRecord(it.tupleId, columns).assign(data))
+            /* Handle forEach() for different cases. */
+            when {
+                /* Case 1: Predicate is satisfiable by index. */
+                filterable != null -> filterable.forEach(predicate) {
+                    for (i in 0 until columns.size) {
+                        data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
                     }
-                    /* Case 2: Predicate affects single column (AtomicBooleanPredicate). */
-                    predicate is AtomicBooleanPredicate<*> -> this.columns.getValue(predicate.columns.first()).forEach(predicate) {
-                        for (i in 0 until columns.size) {
-                            data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
-                        }
-                        action(StandaloneRecord(it.tupleId, columns).assign(data))
+                    action(StandaloneRecord(it.tupleId, columns).assign(data))
+                }
+                /* Case 2: Predicate affects single column (AtomicBooleanPredicate). */
+                predicate is AtomicBooleanPredicate<*> -> this.columns.getValue(predicate.columns.first()).forEach(predicate) {
+                    for (i in 0 until columns.size) {
+                        data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
                     }
-                    /* Case 3 (general): Multi-column predicate. */
-                    else -> this.columns.getValue(columns[0]).forEach {
-                        data[0] = it.values[0]
-                        for (i in 1 until columns.size) {
-                            data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
-                        }
-                        val record = StandaloneRecord(it.tupleId, columns).assign(data)
-                        if (predicate.matches(record)) {
-                            action(record)
-                        }
+                    action(StandaloneRecord(it.tupleId, columns).assign(data))
+                }
+                /* Case 3 (general): Multi-column boolean predicate. */
+                predicate is BooleanPredicate -> this.columns.getValue(columns[0]).forEach {
+                    data[0] = it.values[0]
+                    for (i in 1 until columns.size) {
+                        data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
+                    }
+                    val record = StandaloneRecord(it.tupleId, columns).assign(data)
+                    if (predicate.matches(record)) {
+                        action(record)
                     }
                 }
-            }  else {
-                throw QueryException.UnsupportedPredicateException("Only boolean predicates are supported for invocation of forEach() on an Entity.")
+                else -> throw QueryException.UnsupportedPredicateException("The provided predicate of type '${predicate::class.java.simpleName}' is not supported for invocation of forEach() on entity '${this@Entity.fqn}'.")
             }
         }
 
@@ -480,47 +477,44 @@ internal class Entity(override val name: String, schema: Schema) : DBO {
          * @return Collection of the results of the mapping function.
          */
         override fun <R> map(predicate: Predicate, action: (Record) -> R): Collection<R> = this@Entity.txLock.read {
-            if (predicate is BooleanPredicate) {
-                checkValidOrThrow()
-                checkColumnsExist(*predicate.columns.toTypedArray())
+            checkValidOrThrow()
+            checkColumnsExist(*predicate.columns.toTypedArray())
 
-                val columns = this.columns.keys.toTypedArray()
-                val data = Array<Value<*>?>(columns.size) { null }
-                val list = mutableListOf<R>()
-                val filterable = this.indexes.find { it.canProcess(predicate) }
+            val columns = this.columns.keys.toTypedArray()
+            val data = Array<Value<*>?>(columns.size) { null }
+            val list = mutableListOf<R>()
+            val filterable = this.indexes.find { it.canProcess(predicate) }
 
-                /* Handle map() for different cases. */
-                when {
-                    /* Case 1: Predicate satisfiable by index. */
-                    filterable != null -> filterable.forEach(predicate) {
-                        for (i in 0 until columns.size) {
-                            data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
-                        }
-                        list.add(action(StandaloneRecord(it.tupleId, columns).assign(data)))
+            /* Handle map() for different cases. */
+            when {
+                /* Case 1: Predicate satisfiable by index. */
+                filterable != null -> filterable.forEach(predicate) {
+                    for (i in 0 until columns.size) {
+                        data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
                     }
-                    /* Case 2: Predicate affects single column (AtomicBooleanPredicate). */
-                    predicate is AtomicBooleanPredicate<*> -> this.columns.getValue(predicate.columns.first()).forEach(predicate) {
-                        for (i in 0 until columns.size) {
-                            data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
-                        }
-                        list.add(action(StandaloneRecord(it.tupleId, columns).assign(data)))
+                    list.add(action(StandaloneRecord(it.tupleId, columns).assign(data)))
+                }
+                /* Case 2: Predicate affects single column (AtomicBooleanPredicate). */
+                predicate is AtomicBooleanPredicate<*> -> this.columns.getValue(predicate.columns.first()).forEach(predicate) {
+                    for (i in 0 until columns.size) {
+                        data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
                     }
-                    /* Case 3 (general): Multi-column predicate. */
-                    else -> this.columns.getValue(columns[0]).forEach {
-                        data[0] = it.values[0]
-                        for (i in 1 until columns.size) {
-                            data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
-                        }
-                        val record = StandaloneRecord(it.tupleId, columns).assign(data)
-                        if (predicate.matches(record)) {
-                            list.add(action(record))
-                        }
+                    list.add(action(StandaloneRecord(it.tupleId, columns).assign(data)))
+                }
+                /* Case 3 (general): Multi-column boolean predicate. */
+                predicate is BooleanPredicate -> this.columns.getValue(columns[0]).forEach {
+                    data[0] = it.values[0]
+                    for (i in 1 until columns.size) {
+                        data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
+                    }
+                    val record = StandaloneRecord(it.tupleId, columns).assign(data)
+                    if (predicate.matches(record)) {
+                        list.add(action(record))
                     }
                 }
-                list
-            }  else {
-                throw QueryException.UnsupportedPredicateException("Only boolean predicates are supported for invocation of map() on an Entity.")
+                else -> throw QueryException.UnsupportedPredicateException("The provided predicate of type '${predicate::class.java.simpleName}' is not supported for invocation of map() on entity '${this@Entity.fqn}'.")
             }
+            list
         }
 
         /**
@@ -530,7 +524,6 @@ internal class Entity(override val name: String, schema: Schema) : DBO {
          * @return The resulting [Recordset].
          */
         override fun filter(predicate: Predicate): Recordset = this@Entity.txLock.read {
-            if (predicate is BooleanPredicate) {
                 checkValidOrThrow()
                 checkColumnsExist(*predicate.columns.toTypedArray())
 
@@ -555,19 +548,17 @@ internal class Entity(override val name: String, schema: Schema) : DBO {
                         }
                         dataset.addRow(it.tupleId, data)
                     }
-                    /* Case 3 (general): Multi-column predicate. */
-                    else -> this.columns.getValue(columns[0]).forEach {
+                    /* Case 3 (general): Multi-column boolean predicate. */
+                    predicate is BooleanPredicate -> this.columns.getValue(columns[0]).forEach {
                         data[0] = it.values[0]
                         for (i in 1 until columns.size) {
                             data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
                         }
                         dataset.addRowIf(it.tupleId , predicate, data)
                     }
+                    else -> throw QueryException.UnsupportedPredicateException("The provided predicate of type '${predicate::class.java.simpleName}' is not supported for invocation of filter() on entity '${this@Entity.fqn}'.")
                 }
                 dataset
-            } else {
-                throw QueryException.UnsupportedPredicateException("Only boolean predicates are supported for invocation of filter() on an Entity.")
-            }
         }
 
         /**
