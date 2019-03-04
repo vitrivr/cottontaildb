@@ -1,7 +1,13 @@
 package ch.unibas.dmi.dbis.cottontail.model.basics
 
+
 /**
+ * An objects that holds [Record] values and allows for counting them.
  *
+ * @see Record
+ *
+ * @author Ralph Gasser
+ * @version 1.0
  */
 interface Countable {
     /**

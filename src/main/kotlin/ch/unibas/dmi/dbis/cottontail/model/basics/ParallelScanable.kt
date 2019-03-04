@@ -3,8 +3,7 @@ package ch.unibas.dmi.dbis.cottontail.model.basics
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
 
 /**
- * An object that holds [Record] values and allows for scanning operation on those [Record] values
- * in a parallel manner.
+ * An object that holds [Record] values and allows for scanning operation on those [Record] values in a parallel manner.
  *
  * @see Record
  *

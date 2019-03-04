@@ -4,7 +4,7 @@ import ch.unibas.dmi.dbis.cottontail.database.queries.Predicate
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
 
 /**
- * An objects that holds [Record] values and allows for filtering & scanning operation on those [Record] values.
+ * An objects that holds [Record] values and allows for filtering & filtered scanning operation on those [Record] values.
  *
  * @see Record
  *
