@@ -1,6 +1,9 @@
 group 'ch.unibas.dmi.dbis'
 version '1.0-SNAPSHOT'
 
+
+String luceneVersion = '7.7.1'
+
 buildscript {
     ext.kotlin_version = '1.3.21'
 
@@ -19,6 +22,8 @@ apply plugin: 'kotlin'
 apply plugin: 'kotlinx-serialization'
 apply plugin: 'antlr'
 apply plugin: 'com.google.protobuf'
+
+
 
 sourceCompatibility = 1.8
 
@@ -88,6 +93,11 @@ dependencies {
 
     ////// Dexecutor
     compile  group: 'com.github.dexecutor', name: 'dexecutor-core', version: '2.1.0'
+
+    ////// Lucene
+    compile group: 'org.apache.lucene', name: 'lucene-core', version: luceneVersion
+    compile group: 'org.apache.lucene', name: 'lucene-analyzers-common', version: luceneVersion
+    testCompile group: 'org.apache.lucene', name: 'lucene-codecs', version: luceneVersion
 
     ///// JUnit 5
     testCompile group: 'org.junit.jupiter', name: 'junit-jupiter-api', version: '5.3.2'
