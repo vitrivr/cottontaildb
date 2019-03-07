@@ -6,6 +6,7 @@ import ch.unibas.dmi.dbis.cottontail.database.index.Index
 import ch.unibas.dmi.dbis.cottontail.database.index.IndexType
 import ch.unibas.dmi.dbis.cottontail.database.queries.Predicate
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
+import ch.unibas.dmi.dbis.cottontail.model.basics.Record
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.ValidationException
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
 import ch.unibas.dmi.dbis.cottontail.model.values.StringValue
@@ -16,6 +17,8 @@ import org.apache.lucene.document.Field
 import org.apache.lucene.document.NumericDocValuesField
 import org.apache.lucene.document.TextField
 import org.apache.lucene.index.*
+import org.apache.lucene.queryparser.flexible.core.QueryParserHelper
+import org.apache.lucene.queryparser.flexible.standard.StandardQueryParser
 import org.apache.lucene.search.FuzzyQuery
 import org.apache.lucene.search.IndexSearcher
 import org.apache.lucene.store.Directory
@@ -27,7 +30,7 @@ import kotlin.concurrent.write
 internal class LuceneIndex(override val name: String, override val parent: Entity, override val columns: Array<ColumnDef<*>>) : Index() {
 
 
-    override val path: Path = this.parent.path.resolve("idx_$name")
+    override val path: Path = this.parent.path.resolve("idx_lucene_$name")
 
     override val type: IndexType = IndexType.LUCENE
 
@@ -41,6 +44,7 @@ internal class LuceneIndex(override val name: String, override val parent: Entit
     private val indexWriterConf: IndexWriterConfig
     private val indexReader: IndexReader
     private val indexSearcher: IndexSearcher
+    private val queryParser: StandardQueryParser
 
     init {
         directory = MMapDirectory.open(this.path)
@@ -49,23 +53,24 @@ internal class LuceneIndex(override val name: String, override val parent: Entit
         indexWriter = IndexWriter(directory, indexWriterConf)
         indexReader = DirectoryReader.open(directory)
         indexSearcher = IndexSearcher(indexReader)
+        queryParser = StandardQueryParser(analyzer)
     }
 
-    private fun document(text: String, tid: Long): Document = Document().apply {
-            add(TextField("text", text, Field.Store.NO))
-            add(NumericDocValuesField("tid", tid))
+    private fun document(record: Record): Document = Document().apply {
+        add(NumericDocValuesField("tid", record.tupleId))
+        record.columns.forEach {
+            val value = record[it]?.value as? String
+            if(value != null){
+                add(TextField(it.name, value, Field.Store.NO))
+            }
+        }
     }
-
 
     override fun rebuild()  = txLock.write {
         this.indexWriter.deleteAll()
         this.parent.Tx(readonly = true, columns = this.columns).begin { tx ->
             tx.forEach {
-                val value = it.values.joinToString(separator = ", ")
-                val document = document(value, it.tupleId)
-
-                this.indexWriter.addDocument(document)
-
+                this.indexWriter.addDocument(document(it))
             }
             this.indexWriter.flush()
             this.indexWriter.commit()
@@ -77,9 +82,7 @@ internal class LuceneIndex(override val name: String, override val parent: Entit
 
         val queryString = "" //TODO get from predicate
 
-        val queryTerm = Term("text", queryString)
-
-        val query = FuzzyQuery(queryTerm) //TODO query type based on predicate
+        val query = this.queryParser.parse(queryString, predicate.columns.first().name)
 
         val results = this.indexSearcher.search(query, 100) //TODO specify n
 
