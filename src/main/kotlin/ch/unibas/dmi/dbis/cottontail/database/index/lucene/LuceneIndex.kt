@@ -15,10 +15,8 @@ import org.apache.lucene.document.Document
 import org.apache.lucene.document.Field
 import org.apache.lucene.document.NumericDocValuesField
 import org.apache.lucene.document.TextField
-import org.apache.lucene.index.DirectoryReader
-import org.apache.lucene.index.IndexReader
-import org.apache.lucene.index.IndexWriter
-import org.apache.lucene.index.IndexWriterConfig
+import org.apache.lucene.index.*
+import org.apache.lucene.search.FuzzyQuery
 import org.apache.lucene.search.IndexSearcher
 import org.apache.lucene.store.Directory
 import org.apache.lucene.store.MMapDirectory
@@ -70,7 +68,7 @@ internal class LuceneIndex(override val name: String, override val parent: Entit
         this.indexWriter.deleteAll()
 
         this.parent.Tx(readonly = true, columns = this.columns).begin { tx ->
-            tx.forEach(2) {
+            tx.forEach {
 
                 val stringColumns = this.columns.filter { def ->
                     def.type.type == StringValue::class
@@ -95,6 +93,13 @@ internal class LuceneIndex(override val name: String, override val parent: Entit
     override fun filter(predicate: Predicate): Recordset = this.txLock.read {
 
 
+        val queryString = "" //TODO get from predicate
+
+        val queryTerm = Term("text", queryString)
+
+        val query = FuzzyQuery(queryTerm) //TODO query type based on predicate
+
+        val results = this.indexSearcher.search(query, 100) //TODO specify n
 
 
         TODO("not implemented")
