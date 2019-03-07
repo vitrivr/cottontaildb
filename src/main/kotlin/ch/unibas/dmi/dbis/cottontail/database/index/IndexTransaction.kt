@@ -16,11 +16,9 @@ import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
 interface IndexTransaction : Transaction, Filterable {
 
     /**
-     * (Re-)builds the underlying [Index] and can also be used to initialize it.
-     *
-     * @param columns List of columns to build the index. If null, the existing columns will be used.
+     * (Re-)builds the underlying [Index].
      */
-    fun update(columns: Array<ColumnDef<*>>? = null)
+    fun rebuild()
 
     /**
      * Checks if this [IndexTransaction] can process the provided [Predicate].

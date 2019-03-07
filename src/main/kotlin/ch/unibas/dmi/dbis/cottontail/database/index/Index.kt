@@ -20,7 +20,7 @@ import kotlin.concurrent.read
  * Represents an index in the Cottontail DB data model. An [Index] belongs to an [Entity] and can be used to index one to many
  * [Column]s. Usually, [Index]es allow for faster data access. They process [Predicate]s and return [Recordset]s.
  *
- * Calling the default constructor for an [Index] should open that [Index]. In order to initialize or update it, a call to
+ * Calling the default constructor for an [Index] should open that [Index]. In order to initialize or rebuild it, a call to
  * [Index.update] us necessary. For concurrency reason, that call can only be issued through an [IndexTransaction].
  *
  * @see Schema
@@ -65,14 +65,12 @@ internal abstract class Index : DBO {
     }
 
     /**
-     * (Re-)builds the [Index] and can also be used to initialize it. Invoking this method should update the
-     * [Index] immediately, without the need to commit (i.e. commit actions must take place inside).
+     * (Re-)builds the [Index]. Invoking this method should rebuild the [Index] immediately, without the
+     * need to commit (i.e. commit actions must take place inside).
      *
      * This is an internal method! External invocation is only possible through a [Index.Tx] object.
-     *
-     * @param columns List of columns to build the index. If null, the existing columns will be used.
      */
-    protected abstract fun update(columns: Array<ColumnDef<*>>? = null)
+    protected abstract fun rebuild()
 
     /**
      * Performs a lookup through this [Index] and returns [Recordset]. This is an internal method! External
@@ -152,13 +150,11 @@ internal abstract class Index : DBO {
 
 
         /**
-         * (Re-)builds the underlying [Index] and can be used to initialize the [Index].
-         *
-         * @param columns List of columns to build the index. If null, the existing columns will be used.
+         * (Re-)builds the underlying [Index].
          */
-        override fun update(columns: Array<ColumnDef<*>>?) {
+        override fun rebuild() {
             this.acquireWriteLock()
-            this@Index.update(columns)
+            this@Index.rebuild()
         }
 
         /**

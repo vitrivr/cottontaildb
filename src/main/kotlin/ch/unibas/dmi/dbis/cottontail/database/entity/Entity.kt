@@ -2,7 +2,6 @@ package ch.unibas.dmi.dbis.cottontail.database.entity
 
 import ch.unibas.dmi.dbis.cottontail.database.column.Column
 import ch.unibas.dmi.dbis.cottontail.database.general.DBO
-import ch.unibas.dmi.dbis.cottontail.database.general.Transaction
 import ch.unibas.dmi.dbis.cottontail.database.general.TransactionStatus
 import ch.unibas.dmi.dbis.cottontail.database.column.ColumnTransaction
 import ch.unibas.dmi.dbis.cottontail.database.column.mapdb.MapDBColumn
@@ -29,7 +28,6 @@ import java.nio.file.Path
 import java.util.*
 
 import java.util.concurrent.locks.ReentrantReadWriteLock
-import java.util.logging.Filter
 import java.util.stream.Collectors
 import kotlin.concurrent.read
 import kotlin.concurrent.write
@@ -80,10 +78,9 @@ internal class Entity(override val name: String, schema: Schema) : DBO {
     }
 
     /** List of all the [Index]es associated with this [Entity]. */
-    private val indexes: Collection<Index> = this.header.indexes.map {
-        val index = this.store.get(it, IndexEntrySerializer)
-                ?: throw DatabaseException.DataCorruptionException("Failed to open entity '$fqn': Could not read index definition at position $it!")
-        index.type.open(index.name, this)
+    private val indexes: Collection<Index> = this.header.indexes.map {idx ->
+        val index = this.store.get(idx, IndexEntrySerializer) ?: throw DatabaseException.DataCorruptionException("Failed to open entity '$fqn': Could not read index definition at position $idx!")
+        index.type.open(index.name, this, index.columns.map { col -> this.columnForName(col) ?: throw DatabaseException.DataCorruptionException("Failed to open entity '$fqn': It hosts an index for column '$col' that does not exist on the entity!") }.toTypedArray())
     }
 
     /**
@@ -133,12 +130,12 @@ internal class Entity(override val name: String, schema: Schema) : DBO {
 
         /* Creates and opens the index. */
         val index = type.create(name, this, columns, params)
-        index.Tx(readonly = false).update(columns)
+        index.Tx(readonly = false).rebuild()
 
         /* Update catalogue + header. */
         try {
             /* Update catalogue. */
-            val sid = this.store.put(IndexEntry(name, type, false), IndexEntrySerializer)
+            val sid = this.store.put(IndexEntry(name, type, false, columns.map { it.name }.toTypedArray()), IndexEntrySerializer)
 
             /* Update header. */
             val new = this.header.let { EntityHeader(it.size, it.created, System.currentTimeMillis(), it.columns, it.indexes.copyOf(it.indexes.size + 1)) }
@@ -192,7 +189,7 @@ internal class Entity(override val name: String, schema: Schema) : DBO {
      */
     fun updateIndex(name: String) {
         val index = this.indexes.find { it.name == name }
-        index?.Tx(false)?.update()
+        index?.Tx(false)?.rebuild()
     }
 
     /**
@@ -200,7 +197,7 @@ internal class Entity(override val name: String, schema: Schema) : DBO {
      */
     fun updateAllIndexes() {
         this.indexes.forEach {
-            it.Tx(false).update()
+            it.Tx(false).rebuild()
         }
     }
 

@@ -24,15 +24,12 @@ import java.nio.file.Path
 import kotlin.concurrent.read
 import kotlin.concurrent.write
 
-internal class LuceneIndex(override val name: String, override val parent: Entity, forColumns: Array<ColumnDef<*>>? = null) : Index() {
+internal class LuceneIndex(override val name: String, override val parent: Entity, override val columns: Array<ColumnDef<*>>) : Index() {
 
 
     override val path: Path = this.parent.path.resolve("idx_$name")
 
     override val type: IndexType = IndexType.LUCENE
-
-    override val columns: Array<ColumnDef<*>>
-        get() = arrayOf() //TODO
 
     @Volatile
     override var closed: Boolean = false
@@ -60,24 +57,11 @@ internal class LuceneIndex(override val name: String, override val parent: Entit
     }
 
 
-    override fun update(columns: Array<ColumnDef<*>>?)  = txLock.write {
-
-        //TODO update columns
-        //TODO check if column type is string
-
+    override fun rebuild()  = txLock.write {
         this.indexWriter.deleteAll()
-
         this.parent.Tx(readonly = true, columns = this.columns).begin { tx ->
             tx.forEach {
-
-                val stringColumns = this.columns.filter { def ->
-                    def.type.type == StringValue::class
-                }
-
-                val value = stringColumns.map {col ->
-                    it[col]?.value as? String ?: ValidationException.IndexUpdateException(this.fqn, "A values cannot be null for instances of lucene index but tid=${it.tupleId} is")
-                }.joinToString(separator = ", ")
-
+                val value = it.values.joinToString(separator = ", ")
                 val document = document(value, it.tupleId)
 
                 this.indexWriter.addDocument(document)
@@ -87,11 +71,9 @@ internal class LuceneIndex(override val name: String, override val parent: Entit
             this.indexWriter.commit()
             true
         }
-
     }
 
     override fun filter(predicate: Predicate): Recordset = this.txLock.read {
-
 
         val queryString = "" //TODO get from predicate
 

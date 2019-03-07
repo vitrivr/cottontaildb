@@ -10,10 +10,10 @@ package ch.unibas.dmi.dbis.cottontail.model.exceptions
 open class ValidationException(message: String) : DatabaseException(message) {
 
     /**
-     * Thrown by [Index] structures whenever their update fails because of data constraints.
+     * Thrown by [Index] structures whenever their rebuild fails because of data constraints.
      *
      * @param index The FQN of the index that was affected.
      * @param message A message describing the problem.
      */
-    class IndexUpdateException(index: String, message: String): ValidationException("Index '$index' update failed due to an error: $message")
+    class IndexUpdateException(index: String, message: String): ValidationException("Index '$index' rebuild failed due to an error: $message")
 }
