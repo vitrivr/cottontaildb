@@ -1,4 +1,4 @@
-package ch.unibas.dmi.dbis.cottontail.database.index.hash
+package ch.unibas.dmi.dbis.cottontail.database.index.lucene
 
 import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
 import ch.unibas.dmi.dbis.cottontail.database.general.begin
