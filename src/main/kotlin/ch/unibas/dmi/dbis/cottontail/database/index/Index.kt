@@ -95,7 +95,7 @@ internal abstract class Index : DBO {
      *
      * @throws DatabaseException.PredicateNotSupportedBxIndexException If predicate is not supported by [Index].
      */
-    protected fun forEach(predicate: Predicate, action: (Record) -> Unit) = this.filter(predicate).forEach(action)
+    protected open fun forEach(predicate: Predicate, action: (Record) -> Unit) = this.filter(predicate).forEach(action)
 
     /**
      * Applies the given mapping function to all the [Index] entries that match the given [Predicate]. This is an internal
@@ -110,7 +110,7 @@ internal abstract class Index : DBO {
      *
      * @throws DatabaseException.PredicateNotSupportedBxIndexException If predicate is not supported by [Index].
      */
-    protected fun <R> map(predicate: Predicate, action: (Record) -> R): Collection<R> = this.filter(predicate).map(action)
+    protected open fun <R> map(predicate: Predicate, action: (Record) -> R): Collection<R> = this.filter(predicate).map(action)
 
     /**
      * Performs a lookup through this [Index] and returns a [Recordset]. This is an internal method! External

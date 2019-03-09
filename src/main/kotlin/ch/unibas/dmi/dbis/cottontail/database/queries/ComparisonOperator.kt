@@ -15,6 +15,7 @@ enum class ComparisonOperator {
     LESS, /* One entry on right-hand side required! */
     GEQUAL, /* One entry on right-hand side required! */
     LEQUAL, /* One entry on right-hand side required! */
+    LIKE, /* One entry on right-hand side required! */
     IN, /* One to n entries on right-hand side required! */
     BETWEEN, /* Two entries on right-hand side required! */
     ISNULL, /* No right-hand side required! */

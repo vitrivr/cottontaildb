@@ -25,7 +25,7 @@ import java.util.concurrent.atomic.AtomicLong
  * @author Ralph Gasser
  * @version 1.0
  */
-class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterable {
+internal class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterable {
 
     /** List of all the [Record]s contained in this [Recordset]. */
     private val list: LinkedList<Record> = LinkedList()

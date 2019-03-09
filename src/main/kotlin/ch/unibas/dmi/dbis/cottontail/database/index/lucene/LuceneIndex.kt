@@ -4,12 +4,13 @@ import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
 import ch.unibas.dmi.dbis.cottontail.database.general.begin
 import ch.unibas.dmi.dbis.cottontail.database.index.Index
 import ch.unibas.dmi.dbis.cottontail.database.index.IndexType
-import ch.unibas.dmi.dbis.cottontail.database.queries.Predicate
+import ch.unibas.dmi.dbis.cottontail.database.queries.*
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.basics.Record
-import ch.unibas.dmi.dbis.cottontail.model.exceptions.ValidationException
+import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
-import ch.unibas.dmi.dbis.cottontail.model.values.StringValue
+import ch.unibas.dmi.dbis.cottontail.model.recordset.StandaloneRecord
+
 import org.apache.lucene.analysis.Analyzer
 import org.apache.lucene.analysis.standard.StandardAnalyzer
 import org.apache.lucene.document.Document
@@ -17,18 +18,42 @@ import org.apache.lucene.document.Field
 import org.apache.lucene.document.NumericDocValuesField
 import org.apache.lucene.document.TextField
 import org.apache.lucene.index.*
-import org.apache.lucene.queryparser.flexible.core.QueryParserHelper
-import org.apache.lucene.queryparser.flexible.standard.StandardQueryParser
-import org.apache.lucene.search.FuzzyQuery
 import org.apache.lucene.search.IndexSearcher
 import org.apache.lucene.store.Directory
 import org.apache.lucene.store.MMapDirectory
+
 import java.nio.file.Path
-import kotlin.concurrent.read
 import kotlin.concurrent.write
 
+/**
+ * Represents a Apache Lucene based index in the Cottontail DB data model. The [LuceneIndex] allows for string comparisons using the LIKE operator.
+ *
+ * @author Luca Rossetto & Ralph Gasser
+ * @version 1.0
+ */
 internal class LuceneIndex(override val name: String, override val parent: Entity, override val columns: Array<ColumnDef<*>>) : Index() {
 
+
+    companion object {
+        /** Name of the tuple ID field. */
+        const val FIELD_NAME_TID = "_tid"
+
+        /**
+         * Maps a [Record] to a [Document] that can be processed by Lucene.
+         *
+         * @param record The [Record]
+         * @return The resulting [Document]
+         */
+        private fun document(record: Record): Document = Document().apply {
+            add(NumericDocValuesField(FIELD_NAME_TID, record.tupleId))
+            record.columns.forEach {
+                val value = record[it]?.value as? String
+                if(value != null){
+                    add(TextField(it.name, value, Field.Store.NO))
+                }
+            }
+        }
+    }
 
     override val path: Path = this.parent.path.resolve("idx_lucene_$name")
 
@@ -38,59 +63,33 @@ internal class LuceneIndex(override val name: String, override val parent: Entit
     override var closed: Boolean = false
         private set
 
-    private val directory: Directory
-    private val analyzer: Analyzer
-    private val indexWriter: IndexWriter
-    private val indexWriterConf: IndexWriterConfig
-    private val indexReader: IndexReader
-    private val indexSearcher: IndexSearcher
-    private val queryParser: StandardQueryParser
+    private val directory: Directory = MMapDirectory.open(this.path)
+    private val analyzer: Analyzer = StandardAnalyzer()
+    private val indexWriter: IndexWriter = IndexWriter(this.directory, IndexWriterConfig(this.analyzer).setOpenMode(IndexWriterConfig.OpenMode.CREATE_OR_APPEND))
+    private val indexReader: IndexReader = DirectoryReader.open(this.directory)
+    private val indexSearcher: IndexSearcher = IndexSearcher(this.indexReader)
 
-    init {
-        directory = MMapDirectory.open(this.path)
-        analyzer = StandardAnalyzer(); //TODO depending on settings
-        indexWriterConf = IndexWriterConfig(analyzer)
-        indexWriter = IndexWriter(directory, indexWriterConf)
-        indexReader = DirectoryReader.open(directory)
-        indexSearcher = IndexSearcher(indexReader)
-        queryParser = StandardQueryParser(analyzer)
-    }
 
-    private fun document(record: Record): Document = Document().apply {
-        add(NumericDocValuesField("tid", record.tupleId))
-        record.columns.forEach {
-            val value = record[it]?.value as? String
-            if(value != null){
-                add(TextField(it.name, value, Field.Store.NO))
-            }
-        }
-    }
-
-    override fun rebuild()  = txLock.write {
-        this.indexWriter.deleteAll()
+    /**
+     * (Re-)builds the [LuceneIndex].
+     */
+    override fun rebuild() {
+        indexWriter.deleteAll()
         this.parent.Tx(readonly = true, columns = this.columns).begin { tx ->
             tx.forEach {
-                this.indexWriter.addDocument(document(it))
+                indexWriter.addDocument(document(it))
             }
-            this.indexWriter.flush()
-            this.indexWriter.commit()
+            indexWriter.flush()
+            indexWriter.commit()
             true
         }
+        indexWriter.close()
     }
 
-    override fun filter(predicate: Predicate): Recordset = this.txLock.read {
-
-        val queryString = "" //TODO get from predicate
-
-        val query = this.queryParser.parse(queryString, predicate.columns.first().name)
-
-        val results = this.indexSearcher.search(query, 100) //TODO specify n
-
-
-        TODO("not implemented")
-    }
-
-    override fun close()  = this.globalLock.write {
+    /**
+     * Closes this [LuceneIndex] and the associated data structures.
+     */
+    override fun close() = this.globalLock.write {
         if (!this.closed) {
             this.indexReader.close()
             this.indexWriter.close()
@@ -99,9 +98,116 @@ internal class LuceneIndex(override val name: String, override val parent: Entit
         }
     }
 
-    override fun canProcess(predicate: Predicate): Boolean {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    /**
+     * Performs a lookup through this [LuceneIndex] and returns [Recordset] containing only the [Record]'s tuple ID. This is an internal method
+     * External invocation is only possible through a [Index.Tx] object.
+     *
+     * @param predicate The [Predicate] to perform the lookup. Must be a LIKE query.
+     * @return The resulting [Recordset].
+     *
+     * @throws DatabaseException.PredicateNotSupportedBxIndexException If predicate is not supported by [Index].
+     */
+    override fun filter(predicate: Predicate): Recordset = if (predicate is BooleanPredicate) {
+        if (!predicate.columns.all { this.columns.contains(it) })
+            throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (lucene-index) is lacking certain fields the provided predicate requires.")
+
+        if (!predicate.allAtomic().all { it.operator == ComparisonOperator.LIKE })
+            throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (lucene-index) can only process LIKE comparisons.")
+
+        /* Generate query. */
+        val query = when (predicate) {
+            is AtomicBooleanPredicate<*> -> predicate.toLuceneQuery()
+            is CompoundBooleanPredicate -> predicate.toLuceneQuery()
+        }
+
+        /* Construct empty Recordset. */
+        val resultset = Recordset(emptyArray())
+
+        /* Execute query and add results. */
+        val results = this.indexSearcher.search(query, Integer.MAX_VALUE)
+        results.scoreDocs.forEach {
+            resultset.addRow(tupleId = this.indexSearcher.doc(it.doc)[FIELD_NAME_TID].toLong(), values = emptyArray())
+        }
+        resultset
+    } else {
+        throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (lucene-index) does not support predicates of type '${predicate::class.simpleName}'.")
     }
 
+    /**
+     * Applies the given action to all the [LuceneIndex] entries that match the given [Predicate]. This is an internal method!
+     * External invocation is only possible through a [Index.Tx] object.
+     *
+     * @param predicate The [Predicate] to perform the lookup.
+     * @param action The action that should be applied.
+     *
+     * @throws DatabaseException.PredicateNotSupportedBxIndexException If predicate is not supported by [Index].
+     */
+    override fun forEach(predicate: Predicate, action: (Record) -> Unit) = if (predicate is BooleanPredicate) {
+        if (!predicate.columns.all { this.columns.contains(it) })
+            throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (lucene-index) is lacking certain fields the provided predicate requires.")
 
+        if (!predicate.allAtomic().all { it.operator == ComparisonOperator.LIKE })
+            throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (lucene-index) can only process LIKE comparisons.")
+
+        /* Generate query. */
+        val query = when (predicate) {
+            is AtomicBooleanPredicate<*> -> predicate.toLuceneQuery()
+            is CompoundBooleanPredicate -> predicate.toLuceneQuery()
+        }
+
+        /* Execute query and add results. */
+        val results = this.indexSearcher.search(query, Integer.MAX_VALUE)
+        results.scoreDocs.forEach {
+            action(StandaloneRecord(tupleId = this.indexSearcher.doc(it.doc)[FIELD_NAME_TID].toLong(), columns = emptyArray()))
+        }
+    } else {
+        throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (lucene-index) does not support predicates of type '${predicate::class.simpleName}'.")
+    }
+
+    /**
+     * Applies the given mapping function to all the [LuceneIndex] entries that match the given [Predicate]. This is an internal method!
+     * External invocation is only possible through a [Index.Tx] object.
+     *
+     * @param predicate The [Predicate] to perform the lookup.
+     * @param action The action that should be applied.
+     *
+     * @throws DatabaseException.PredicateNotSupportedBxIndexException If predicate is not supported by [Index].
+     */
+    override fun <R> map(predicate: Predicate, action: (Record) -> R): Collection<R> = if (predicate is BooleanPredicate) {
+        if (!predicate.columns.all { this.columns.contains(it) })
+            throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (lucene-index) is lacking certain fields the provided predicate requires.")
+
+        if (!predicate.allAtomic().all { it.operator == ComparisonOperator.LIKE })
+            throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (lucene-index) can only process LIKE comparisons.")
+
+        /* Generate query. */
+        val query = when (predicate) {
+            is AtomicBooleanPredicate<*> -> predicate.toLuceneQuery()
+            is CompoundBooleanPredicate -> predicate.toLuceneQuery()
+        }
+
+        /* Execute query and add results. */
+        val results = this.indexSearcher.search(query, Integer.MAX_VALUE)
+        results.scoreDocs.map {
+            action(StandaloneRecord(tupleId = this.indexSearcher.doc(it.doc)[FIELD_NAME_TID].toLong(), columns = emptyArray()))
+        }
+    } else {
+        throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (lucene-index) does not support predicates of type '${predicate::class.simpleName}'.")
+    }
+
+    /**
+     * Checks if this [LuceneIndex] can process the given [Predicate].
+     *
+     * @param predicate [Predicate] to test.
+     * @return True if [Predicate] can be processed, false otherwise.
+     */
+    override fun canProcess(predicate: Predicate): Boolean {
+        if (predicate is BooleanPredicate) {
+            if (!predicate.columns.all { this.columns.contains(it) }) return false
+            if (!predicate.allAtomic().all { it.operator == ComparisonOperator.LIKE }) return false
+            return true
+        } else {
+            return false
+        }
+    }
 }
