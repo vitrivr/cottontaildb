@@ -68,44 +68,54 @@ internal class UniqueHashIndex(override val name: String, override val parent: E
      * @param predicate The [Predicate] for the lookup
      * @return The resulting [Recordset]
      */
-    override fun filter(predicate: Predicate): Recordset = this.txLock.read {
-        /* Make necessary check. */
-        if (predicate is AtomicBooleanPredicate<*>) {
-            /* Create empty recordset. */
-            val recordset = Recordset(this.columns)
+    override fun filter(predicate: Predicate): Recordset = if (predicate is AtomicBooleanPredicate<*>) {
+        /* Create empty recordset. */
+        val recordset = Recordset(this.columns)
 
-            /* Fetch the columns that match the predicate. */
-            val results = when(predicate.operator) {
-                ComparisonOperator.IN -> predicate.values.map { it to this.map[it] }.toMap()
-                ComparisonOperator.EQUAL -> mapOf(Pair(predicate.values.first(),this.map[predicate.values.first()] ))
-                else -> throw QueryException.IndexLookupFailedException(this.fqn, "Instance of unique hash-index does not support ${predicate.operator} comparison operators.")
-            }
-
-            /* Generate record set .*/
-            if (predicate.not) {
-                this.map.forEach {value, tid ->
-                    if (results.containsKey(value)) {
-                        recordset.addRow(tupleId = tid, values = arrayOf(value))
-                    }
-                }
-            } else {
-                results.forEach {
-                    if (it.value != null) {
-                        recordset.addRow(tupleId = it.value!!, values = arrayOf(it.key))
-                    }
-                }
-            }
-
-            recordset
-        } else {
-            throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (unique hash-index) does not support predicates of type '${predicate::class.simpleName}'.")
+        /* Fetch the columns that match the predicate. */
+        val results = when(predicate.operator) {
+            ComparisonOperator.IN -> predicate.values.map { it to this.map[it] }.toMap()
+            ComparisonOperator.EQUAL -> mapOf(Pair(predicate.values.first(),this.map[predicate.values.first()] ))
+            else -> throw QueryException.IndexLookupFailedException(this.fqn, "Instance of unique hash-index does not support ${predicate.operator} comparison operators.")
         }
+
+        /* Generate record set .*/
+        if (predicate.not) {
+            this.map.forEach {value, tid ->
+                if (results.containsKey(value)) {
+                    recordset.addRow(tupleId = tid, values = arrayOf(value))
+                }
+            }
+        } else {
+            results.forEach {
+                if (it.value != null) {
+                    recordset.addRow(tupleId = it.value!!, values = arrayOf(it.key))
+                }
+            }
+        }
+
+        recordset
+    } else {
+        throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (unique hash-index) does not support predicates of type '${predicate::class.simpleName}'.")
+    }
+
+    /**
+     * Checks if the provided [Predicate] can be processed by this instance of [UniqueHashIndex]. [UniqueHashIndex] can be used to process IN and EQUALS
+     * comparison operations on the specified column
+     *
+     * @param predicate The [Predicate] to check.
+     * @return True if [Predicate] can be processed, false otherwise.
+     */
+    override fun canProcess(predicate: Predicate): Boolean = if (predicate is AtomicBooleanPredicate<*>) {
+        predicate.columns.first() == this.columns[0] && (predicate.operator == ComparisonOperator.IN || predicate.operator == ComparisonOperator.EQUAL)
+    } else {
+        false
     }
 
     /**
      * (Re-)builds the [UniqueHashIndex].
      */
-    override fun rebuild() = txLock.write {
+    override fun rebuild() {
         /* Clear existing map. */
         this.map.clear()
 
@@ -123,19 +133,6 @@ internal class UniqueHashIndex(override val name: String, override val parent: E
             this.db.commit()
             true
         }
-    }
-
-    /**
-     * Checks if the provided [Predicate] can be processed by this instance of [UniqueHashIndex]. [UniqueHashIndex] can be used to process IN and EQUALS
-     * comparison operations on the specified column
-     *
-     * @param predicate The [Predicate] to check.
-     * @return True if [Predicate] can be processed, false otherwise.
-     */
-    override fun canProcess(predicate: Predicate): Boolean = if (predicate is AtomicBooleanPredicate<*>) {
-        predicate.columns.first() == this.columns[0] && (predicate.operator == ComparisonOperator.IN || predicate.operator == ComparisonOperator.EQUAL)
-    } else {
-        false
     }
 
     /**
