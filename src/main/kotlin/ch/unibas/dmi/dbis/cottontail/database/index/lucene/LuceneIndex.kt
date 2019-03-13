@@ -1,5 +1,8 @@
 package ch.unibas.dmi.dbis.cottontail.database.index.lucene
 
+import ch.unibas.dmi.dbis.cottontail.database.column.ColumnType
+import ch.unibas.dmi.dbis.cottontail.database.column.DoubleColumnType
+import ch.unibas.dmi.dbis.cottontail.database.column.FloatColumnType
 import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
 import ch.unibas.dmi.dbis.cottontail.database.general.begin
 import ch.unibas.dmi.dbis.cottontail.database.index.Index
@@ -10,6 +13,8 @@ import ch.unibas.dmi.dbis.cottontail.model.basics.Record
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
 import ch.unibas.dmi.dbis.cottontail.model.recordset.StandaloneRecord
+import ch.unibas.dmi.dbis.cottontail.model.values.FloatValue
+import ch.unibas.dmi.dbis.cottontail.model.values.Value
 
 import org.apache.lucene.analysis.Analyzer
 import org.apache.lucene.analysis.standard.StandardAnalyzer
@@ -37,6 +42,9 @@ internal class LuceneIndex(override val name: String, override val parent: Entit
     companion object {
         /** Name of the tuple ID field. */
         const val FIELD_NAME_TID = "_tid"
+
+        /** Name of the tuple ID field. */
+        val SCORE_COLUMN = ColumnDef("lucene_score", FloatColumnType())
 
         /**
          * Maps a [Record] to a [Document] that can be processed by Lucene.
@@ -121,12 +129,12 @@ internal class LuceneIndex(override val name: String, override val parent: Entit
         }
 
         /* Construct empty Recordset. */
-        val resultset = Recordset(emptyArray())
+        val resultset = Recordset(columns = arrayOf(SCORE_COLUMN))
 
         /* Execute query and add results. */
         val results = this.indexSearcher.search(query, Integer.MAX_VALUE)
         results.scoreDocs.forEach {
-            resultset.addRow(tupleId = this.indexSearcher.doc(it.doc)[FIELD_NAME_TID].toLong(), values = emptyArray())
+            resultset.addRow(tupleId = this.indexSearcher.doc(it.doc)[FIELD_NAME_TID].toLong(), values = arrayOf(FloatValue(it.score)))
         }
         resultset
     } else {
@@ -158,7 +166,7 @@ internal class LuceneIndex(override val name: String, override val parent: Entit
         /* Execute query and add results. */
         val results = this.indexSearcher.search(query, Integer.MAX_VALUE)
         results.scoreDocs.forEach {
-            action(StandaloneRecord(tupleId = this.indexSearcher.doc(it.doc)[FIELD_NAME_TID].toLong(), columns = emptyArray()))
+            action(StandaloneRecord(tupleId = this.indexSearcher.doc(it.doc)[FIELD_NAME_TID].toLong(), columns = arrayOf(SCORE_COLUMN)).assign(arrayOf(FloatValue(it.score))))
         }
     } else {
         throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (lucene-index) does not support predicates of type '${predicate::class.simpleName}'.")
@@ -189,7 +197,7 @@ internal class LuceneIndex(override val name: String, override val parent: Entit
         /* Execute query and add results. */
         val results = this.indexSearcher.search(query, Integer.MAX_VALUE)
         results.scoreDocs.map {
-            action(StandaloneRecord(tupleId = this.indexSearcher.doc(it.doc)[FIELD_NAME_TID].toLong(), columns = emptyArray()))
+            action(StandaloneRecord(tupleId = this.indexSearcher.doc(it.doc)[FIELD_NAME_TID].toLong(), columns = arrayOf(SCORE_COLUMN)).assign(arrayOf(FloatValue(it.score))))
         }
     } else {
         throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (lucene-index) does not support predicates of type '${predicate::class.simpleName}'.")
