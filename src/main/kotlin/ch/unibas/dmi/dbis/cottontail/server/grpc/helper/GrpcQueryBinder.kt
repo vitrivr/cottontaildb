@@ -3,6 +3,7 @@ package ch.unibas.dmi.dbis.cottontail.server.grpc.helper
 import ch.unibas.dmi.dbis.cottontail.database.catalogue.Catalogue
 import ch.unibas.dmi.dbis.cottontail.database.column.*
 import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
+import ch.unibas.dmi.dbis.cottontail.database.index.IndexType
 import ch.unibas.dmi.dbis.cottontail.database.queries.*
 
 import ch.unibas.dmi.dbis.cottontail.execution.ExecutionEngine
@@ -17,6 +18,7 @@ import ch.unibas.dmi.dbis.cottontail.math.knn.metrics.Distance
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
+import ch.unibas.dmi.dbis.cottontail.model.values.Value
 
 /**
  * This helper class parses and binds queries issued through the GRPC endpoint. The process encompasses three steps:
@@ -141,19 +143,25 @@ internal class GrpcQueryBinder(val catalogue: Catalogue, engine: ExecutionEngine
             throw QueryException.QuerySyntaxException("'${atomic.op.name}' is not a valid comparison operator for a boolean predicate!")
         }
 
+        /* Perform some sanity checks. */
+        when {
+            operator == ComparisonOperator.LIKE && !entity.hasIndexForColumn(column, IndexType.LUCENE) -> throw QueryException.QueryBindException("Failed to bind query '${atomic.attribute} LIKE :1' on entity '${entity.fqn}'. The entity does not have a text-index on the specified column '${column.name}, which is required for LIKE comparisons.")
+        }
+
+        /* Return the resulting AtomicBooleanPredicate. */
         return when (column.type) {
-            is DoubleColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Double>, operator = operator, not = atomic.not, values = atomic.dataList.map { it.toDoubleValue() })
-            is FloatColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Float>, operator = operator, not = atomic.not, values = atomic.dataList.map { it.toFloatValue() })
-            is LongColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Long>, operator = operator, not = atomic.not, values = atomic.dataList.map { it.toLongValue() })
-            is IntColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Int>, operator = operator, not = atomic.not, values = atomic.dataList.map { it.toIntValue() })
-            is ShortColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Short>, operator = operator, not = atomic.not, values = atomic.dataList.map { it.toShortValue() })
-            is ByteColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Byte>, operator = operator, not = atomic.not, values = atomic.dataList.map { it.toByteValue() })
-            is BooleanColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Boolean>, operator = operator, not = atomic.not, values = atomic.dataList.map { it.toBooleanValue() })
-            is StringColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<String>, operator = operator, not = atomic.not, values = atomic.dataList.map { it.toStringValue() })
-            is FloatArrayColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<FloatArray>, operator = operator, not = atomic.not, values = atomic.dataList.map { it.toFloatVectorValue() })
-            is DoubleArrayColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<DoubleArray>, operator = operator, not = atomic.not, values = atomic.dataList.map { it.toDoubleVectorValue() })
-            is LongArrayColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<LongArray>, operator = operator, not = atomic.not, values = atomic.dataList.map { it.toLongVectorValue() })
-            is IntArrayColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<IntArray>, operator = operator, not = atomic.not, values = atomic.dataList.map { it.toIntVectorValue() })
+            is DoubleColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Value<Double>>, operator = operator, not = atomic.not, values = atomic.dataList.map { it.toDoubleValue() })
+            is FloatColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Value<Float>>, operator = operator, not = atomic.not, values = atomic.dataList.map { it.toFloatValue() })
+            is LongColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Value<Long>>, operator = operator, not = atomic.not, values = atomic.dataList.map { it.toLongValue() })
+            is IntColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Value<Int>>, operator = operator, not = atomic.not, values = atomic.dataList.map { it.toIntValue() })
+            is ShortColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Value<Short>>, operator = operator, not = atomic.not, values = atomic.dataList.map { it.toShortValue() })
+            is ByteColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Value<Byte>>, operator = operator, not = atomic.not, values = atomic.dataList.map { it.toByteValue() })
+            is BooleanColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Value<Boolean>>, operator = operator, not = atomic.not, values = atomic.dataList.map { it.toBooleanValue() })
+            is StringColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Value<String>>, operator = operator, not = atomic.not, values = atomic.dataList.map { it.toStringValue() })
+            is FloatArrayColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Value<FloatArray>>, operator = operator, not = atomic.not, values = atomic.dataList.map { it.toFloatVectorValue() })
+            is DoubleArrayColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Value<DoubleArray>>, operator = operator, not = atomic.not, values = atomic.dataList.map { it.toDoubleVectorValue() })
+            is LongArrayColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Value<LongArray>>, operator = operator, not = atomic.not, values = atomic.dataList.map { it.toLongVectorValue() })
+            is IntArrayColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Value<IntArray>>, operator = operator, not = atomic.not, values = atomic.dataList.map { it.toIntVectorValue() })
         }
     }
 
