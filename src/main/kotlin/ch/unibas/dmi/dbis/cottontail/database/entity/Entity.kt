@@ -112,6 +112,14 @@ internal class Entity(override val name: String, schema: Schema) : DBO {
      */
     fun columnForName(name: String): ColumnDef<*>? = this.columns.find { it.name == name }?.columnDef
 
+    /**
+     * Checks, if this [Entity] has an index for the given [ColumnDef] and (optionally) of the given [IndexType]
+     *
+     * @param column The [ColumnDef] for which to check.
+     * @param type The [IndexType] for which to check.
+     * @return True if this [Entity] has an [Index] that satisfies the condition, false otherwise.
+     */
+    fun hasIndexForColumn(column: ColumnDef<*>, type: IndexType? = null): Boolean = this.indexes.find { it.columns.contains(column) && (type == null || it.type == type) } != null
 
     /**
      * Creates the [Index] with the given settings
