@@ -3,29 +3,29 @@ package ch.unibas.dmi.dbis.cottontail.database.index.lucene
 import ch.unibas.dmi.dbis.cottontail.database.queries.*
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
 import ch.unibas.dmi.dbis.cottontail.model.values.StringValue
+import org.apache.lucene.analysis.standard.StandardAnalyzer
 
 import org.apache.lucene.index.Term
+import org.apache.lucene.queryparser.classic.QueryParser
+import org.apache.lucene.queryparser.flexible.standard.QueryParserUtil
 import org.apache.lucene.search.*
+import sun.jvm.hotspot.oops.CellTypeState.value
 
 /**
  * Converts an [AtomicBooleanPredicate] to a [Query] supported by Apache Lucene.
  */
-internal fun AtomicBooleanPredicate<*>.toLuceneQuery(): Query = if (this.operator == ComparisonOperator.LIKE && this.values.first() is StringValue) {
+internal fun AtomicBooleanPredicate<*>.toLuceneQuery(): Query = if (this.values.first() is StringValue) {
     val column = this.columns.first()
-    val value = (this.values.first().value as StringValue).value.replace("%","*").replace("_","?")
-    if (value.contains("*") || value.contains("_")) {
-        WildcardQuery(Term(column.name, value))
-    } else if (value.contains(" ")) {
-        val builder = PhraseQuery.Builder()
-        value.split(" ").forEach { builder.add(Term(column.name, it)) }
-        builder.build()
-    } else if (value.matches(Regex("~([0-9](.[0-9]*)?)$"))) {
-        FuzzyQuery(Term(column.name, value))
-    } else {
+    val value = (this.values.first().value as StringValue).value
+    if (this.operator == ComparisonOperator.LIKE) {
+        QueryParserUtil.parse(arrayOf(column.name), arrayOf(value), StandardAnalyzer())
+    } else if (this.operator == ComparisonOperator.EQUAL) {
         TermQuery(Term(column.name, value))
+    } else {
+        throw QueryException("Only EQUALS and LIKE queries an be mapped to Apache Lucene!")
     }
 } else {
-    throw QueryException("Only LIKE queries with String values can be mapped to Apache Lucene!")
+    throw QueryException("Only String values can be handled by Apache Lucene!")
 }
 
 /**
