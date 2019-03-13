@@ -144,10 +144,24 @@ internal abstract class Index : DBO {
         }
 
         /**
+         * The [ColumnDef]s handled by the [Index] that underpins this [IndexTransaction].
+         */
+        override val columns: Array<ColumnDef<*>>
+            get() = this@Index.columns
+
+        /**
+         * The [IndexType] of the [Index] that underpins this [IndexTransaction].
+         */
+        override val type: IndexType
+            get() = this@Index.type
+
+        /**
+         * Checks if this [IndexTransaction] can process the provided [Predicate].
          *
+         * @param predicate [Predicate] to check.
+         * @return True if [Predicate] can be processed, false otherwise.
          */
         override fun canProcess(predicate: Predicate): Boolean = this@Index.canProcess(predicate)
-
 
         /**
          * (Re-)builds the underlying [Index].

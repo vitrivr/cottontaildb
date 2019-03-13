@@ -246,6 +246,7 @@ internal class Entity(override val name: String, schema: Schema) : DBO {
      * Opening such a [Tx] will spawn a associated [Column.Tx] for every [Column] associated with this [Entity].
      */
     inner class Tx(override val readonly: Boolean, override val tid: UUID = UUID.randomUUID(), columns: Array<ColumnDef<*>>? = null, ommitIndex: Boolean = false) : EntityTransaction {
+
         /** List of [ColumnTransaction]s associated with this [Entity.Tx]. */
         private val columns: Map<ColumnDef<*>, ColumnTransaction<*>> = if (columns != null && this.readonly) {
             this@Entity.columns.filter{columns.contains(it.columnDef)}.associateBy({ColumnDef(it.name, it.type, it.size)}, {it.newTransaction(readonly, tid)})
@@ -608,6 +609,18 @@ internal class Entity(override val name: String, schema: Schema) : DBO {
                 results.add(action(StandaloneRecord(it.tupleId, columns).assign(data)))
             }
             results
+        }
+
+        /**
+         * Returns a collection of all the [IndexTransaction] available to this [EntityTransaction], that match the given [ColumnDef] and [IndexType] constraint.
+         *
+         * @param columns The list of [ColumnDef] that should be handled by this [IndexTransaction].
+         * @param type The (optional) [IndexType]. If omitted, [IndexTransaction]s of any type are returned.
+         *
+         * @return Collection of [IndexTransaction]s. May be empty.
+         */
+        override fun indexes(columns: Array<ColumnDef<*>>?, type: IndexType?): Collection<IndexTransaction> = this.indexes.filter { tx ->
+            (columns?.all { tx.columns.contains(it) } ?: true) && (type == null || tx.type == type)
         }
 
         /**
