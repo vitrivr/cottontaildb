@@ -111,7 +111,7 @@ internal class LuceneIndex(override val name: String, override val parent: Entit
         if (!predicate.columns.all { this.columns.contains(it) })
             throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (lucene-index) is lacking certain fields the provided predicate requires.")
 
-        if (!predicate.allAtomic().all { it.operator == ComparisonOperator.LIKE })
+        if (!predicate.allAtomic().all { it.operator == ComparisonOperator.LIKE || it.operator == ComparisonOperator.EQUAL})
             throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (lucene-index) can only process LIKE comparisons.")
 
         /* Generate query. */
@@ -146,7 +146,7 @@ internal class LuceneIndex(override val name: String, override val parent: Entit
         if (!predicate.columns.all { this.columns.contains(it) })
             throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (lucene-index) is lacking certain fields the provided predicate requires.")
 
-        if (!predicate.allAtomic().all { it.operator == ComparisonOperator.LIKE })
+        if (!predicate.allAtomic().all { it.operator == ComparisonOperator.LIKE || it.operator == ComparisonOperator.EQUAL})
             throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (lucene-index) can only process LIKE comparisons.")
 
         /* Generate query. */
@@ -177,7 +177,7 @@ internal class LuceneIndex(override val name: String, override val parent: Entit
         if (!predicate.columns.all { this.columns.contains(it) })
             throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (lucene-index) is lacking certain fields the provided predicate requires.")
 
-        if (!predicate.allAtomic().all { it.operator == ComparisonOperator.LIKE })
+        if (!predicate.allAtomic().all { it.operator == ComparisonOperator.LIKE || it.operator == ComparisonOperator.EQUAL})
             throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (lucene-index) can only process LIKE comparisons.")
 
         /* Generate query. */
