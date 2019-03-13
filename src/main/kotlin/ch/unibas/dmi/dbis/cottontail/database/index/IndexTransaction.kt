@@ -13,7 +13,7 @@ import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
  * @author Ralph Gasser
  * @version 1.0
  */
-interface IndexTransaction : Transaction, Filterable {
+internal interface IndexTransaction : Transaction, Filterable {
 
     /**
      * (Re-)builds the underlying [Index].
