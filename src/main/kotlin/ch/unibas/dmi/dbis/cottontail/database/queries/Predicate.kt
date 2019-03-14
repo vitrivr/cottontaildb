@@ -30,6 +30,9 @@ sealed class Predicate {
  * @version 1.0
  */
 internal sealed class BooleanPredicate : Predicate() {
+    /** The [AtomicBooleanPredicate]s that make up this [BooleanPredicate]. */
+    abstract val atomics: Set<AtomicBooleanPredicate<*>>
+
     /**
      * Returns true, if the provided [Record] matches the [Predicate] and false otherwise.
      *
@@ -37,12 +40,7 @@ internal sealed class BooleanPredicate : Predicate() {
      */
     abstract fun matches(record: Record): Boolean
 
-    /**
-     * Converts this [BooleanPredicate] into a collection of [AtomicBooleanPredicate] that make up this [BooleanPredicate].
-     *
-     * @return Collection of [AtomicBooleanPredicate]s
-     */
-    abstract fun allAtomic(): Collection<AtomicBooleanPredicate<*>>
+
 }
 
 /**
@@ -59,8 +57,22 @@ internal data class AtomicBooleanPredicate<T : Value<*>>(private val column: Col
         }
     }
 
+    /** The number of operations required by this [AtomicBooleanPredicate]. */
     override val operations: Int = 1
-    override val columns: Set<ColumnDef<T>> = setOf(column)
+
+    /** Set of [ColumnDef] that are affected by this [AtomicBooleanPredicate]. */
+    override val columns: Set<ColumnDef<T>> = setOf(this.column)
+
+    /** The [AtomicBooleanPredicate]s that make up this [BooleanPredicate]. */
+    override val atomics: Set<AtomicBooleanPredicate<*>>
+        get() = setOf(this)
+
+    /**
+     * Checks if the provided [Record] matches this [AtomicBooleanPredicate] and returns true or false respectively.
+     *
+     * @param record The [Record] to check.
+     * @return true if [Record] matches this [AtomicBooleanPredicate], false otherwise.
+     */
     override fun matches(record: Record): Boolean {
         if (record.has(column)) {
             return if (not) {
@@ -72,13 +84,6 @@ internal data class AtomicBooleanPredicate<T : Value<*>>(private val column: Col
             throw QueryException.ColumnDoesNotExistException(column)
         }
     }
-
-    /**
-     * Returns a list containing this [AtomicBooleanPredicate]
-     *
-     * @return Collection of this [AtomicBooleanPredicate]
-     */
-    override fun allAtomic() = listOf(this)
 }
 
 /**
@@ -88,19 +93,25 @@ internal data class AtomicBooleanPredicate<T : Value<*>>(private val column: Col
  * @version 1.0
  */
 internal data class CompoundBooleanPredicate(val connector: ConnectionOperator, val p1: BooleanPredicate, val p2: BooleanPredicate) : BooleanPredicate() {
+    /** The [AtomicBooleanPredicate]s that make up this [CompoundBooleanPredicate]. */
+    override val atomics = this.p1.atomics + this.p2.atomics
+
+    /** Set of [ColumnDef] that are affected by this [CompoundBooleanPredicate]. */
     override val columns: Set<ColumnDef<*>> = p1.columns + p2.columns
+
+    /** The total number of operations required by this [CompoundBooleanPredicate]. */
     override val operations = p1.operations + p2.operations
+
+    /**
+     * Checks if the provided [Record] matches this [CompoundBooleanPredicate] and returns true or false respectively.
+     *
+     * @param record The [Record] to check.
+     * @return true if [Record] matches this [CompoundBooleanPredicate], false otherwise.
+     */
     override fun matches(record: Record): Boolean = when (connector) {
         ConnectionOperator.AND -> p1.matches(record) && p2.matches(record)
         ConnectionOperator.OR -> p1.matches(record) || p2.matches(record)
     }
-
-    /**
-     * Returns a list of the [AtomicBooleanPredicate]s that make up this [CompoundBooleanPredicate]
-     *
-     * @return Collection of [AtomicBooleanPredicate]s that make up this [CompoundBooleanPredicate]
-     */
-    override fun allAtomic() = p1.allAtomic() + p2.allAtomic()
 }
 
 /**

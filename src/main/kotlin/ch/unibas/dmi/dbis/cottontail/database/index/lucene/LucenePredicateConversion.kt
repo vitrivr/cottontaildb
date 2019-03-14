@@ -6,10 +6,8 @@ import ch.unibas.dmi.dbis.cottontail.model.values.StringValue
 import org.apache.lucene.analysis.standard.StandardAnalyzer
 
 import org.apache.lucene.index.Term
-import org.apache.lucene.queryparser.classic.QueryParser
 import org.apache.lucene.queryparser.flexible.standard.QueryParserUtil
 import org.apache.lucene.search.*
-import sun.jvm.hotspot.oops.CellTypeState.value
 
 /**
  * Converts an [AtomicBooleanPredicate] to a [Query] supported by Apache Lucene.

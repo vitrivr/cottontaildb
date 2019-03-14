@@ -14,7 +14,7 @@ import com.github.dexecutor.core.task.Task
  * @author Ralph Gasser
  * @version 1.0
  */
-abstract class ExecutionTask(_id: String): Task<String, Recordset>() {
+internal abstract class ExecutionTask(_id: String): Task<String, Recordset>() {
 
     /** Initializes this [ExecutionTask]'s ID. */
     init {

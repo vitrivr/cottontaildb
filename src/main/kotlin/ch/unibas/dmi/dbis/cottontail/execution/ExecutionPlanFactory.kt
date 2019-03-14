@@ -1,14 +1,7 @@
 package ch.unibas.dmi.dbis.cottontail.execution
 
-import ch.unibas.dmi.dbis.cottontail.database.column.DoubleArrayColumnType
-import ch.unibas.dmi.dbis.cottontail.database.column.FloatArrayColumnType
-import ch.unibas.dmi.dbis.cottontail.database.column.IntArrayColumnType
-import ch.unibas.dmi.dbis.cottontail.database.column.LongArrayColumnType
 import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
-import ch.unibas.dmi.dbis.cottontail.database.queries.BooleanPredicate
-import ch.unibas.dmi.dbis.cottontail.database.queries.KnnPredicate
-import ch.unibas.dmi.dbis.cottontail.database.queries.Projection
-import ch.unibas.dmi.dbis.cottontail.database.queries.ProjectionType
+import ch.unibas.dmi.dbis.cottontail.database.queries.*
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.knn.*
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.projection.EntityCountProjectionTask
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.projection.EntityExistsProjectionTask
@@ -16,7 +9,6 @@ import ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.scan.LinearEntityFil
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.recordset.projection.RecordsetCountProjectionTask
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.recordset.projection.RecordsetExistsProjectionTask
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.recordset.projection.RecordsetSelectProjectionTask
-import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
 
 
 /**
@@ -68,3 +60,5 @@ internal class ExecutionPlanFactory (val executionEngine: ExecutionEngine) {
         return plan
     }
 }
+
+

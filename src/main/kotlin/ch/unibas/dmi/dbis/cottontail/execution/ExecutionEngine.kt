@@ -13,7 +13,7 @@ import java.util.concurrent.TimeUnit
  * @author Ralph Gasser
  * @version 1.0
  */
-class ExecutionEngine(config: ExecutionConfig) {
+internal class ExecutionEngine(config: ExecutionConfig) {
 
     /** The [ThreadPoolExecutor] used for executing queries. */
     private val executor = ThreadPoolExecutor(config.coreThreads, config.maxThreads, config.keepAliveMs, TimeUnit.MILLISECONDS, ArrayBlockingQueue(config.queueSize))
