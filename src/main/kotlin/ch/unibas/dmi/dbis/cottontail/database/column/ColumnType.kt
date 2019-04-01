@@ -41,6 +41,7 @@ sealed class ColumnType<T : Any> {
             "LONG_VEC" -> LongArrayColumnType()
             "FLOAT_VEC" -> FloatArrayColumnType()
             "DOUBLE_VEC" -> DoubleArrayColumnType()
+            "BOOLEAN_VEC" -> BooleanArrayColumnType()
             else -> throw java.lang.IllegalArgumentException("The column type $name does not exists!")
         }
     }
@@ -165,6 +166,16 @@ class DoubleArrayColumnType : ColumnType<DoubleArray>() {
     override fun serializer(size: Int): Serializer<Value<DoubleArray>> {
         if (size <= 0) throw IllegalArgumentException("Size attribute for a $name type must be > 0 (is $size).")
         return FixedDoubleVectorSerializer(size) as Serializer<Value<DoubleArray>>
+    }
+}
+
+@Suppress("UNCHECKED_CAST")
+class BooleanArrayColumnType : ColumnType<BooleanArray>() {
+    override val name = "BOOLEAN_VEC"
+    override val type: KClass<BooleanArrayValue> = BooleanArrayValue::class
+    override fun serializer(size: Int): Serializer<Value<BooleanArray>> {
+        if (size <= 0) throw IllegalArgumentException("Size attribute for a $name type must be > 0 (is $size).")
+        return FixedBooleanVectorSerializer(size) as Serializer<Value<BooleanArray>>
     }
 }
 
