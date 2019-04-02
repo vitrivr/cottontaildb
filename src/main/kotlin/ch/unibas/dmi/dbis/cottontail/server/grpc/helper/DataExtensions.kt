@@ -248,6 +248,18 @@ fun CottontailGrpc.Data.toIntVectorValue(): Value<IntArray> = IntArrayValue(when
     null -> throw QueryException.UnsupportedCastException("A value of NULL cannot be cast to VECTOR[INT].")
 })
 
+fun CottontailGrpc.Data.toBooleanVectorValue(): Value<BooleanArray> = BooleanArrayValue(when (this.dataCase) {
+    CottontailGrpc.Data.DataCase.BOOLEANDATA -> BooleanArray(1) { this.booleanData }
+    CottontailGrpc.Data.DataCase.INTDATA -> BooleanArray(1) { this.intData > 0 }
+    CottontailGrpc.Data.DataCase.LONGDATA -> BooleanArray(1) { this.longData > 0 }
+    CottontailGrpc.Data.DataCase.FLOATDATA -> BooleanArray(1) { this.floatData > 0f }
+    CottontailGrpc.Data.DataCase.DOUBLEDATA -> BooleanArray(1) { this.doubleData > 0.0 }
+    CottontailGrpc.Data.DataCase.STRINGDATA -> BooleanArray(1) { this.stringData == "true" }
+    CottontailGrpc.Data.DataCase.VECTORDATA -> this.vectorData.toIntVectorValue().map { it > 0 }.toBooleanArray() //TODO this is not a proper solution
+    CottontailGrpc.Data.DataCase.DATA_NOT_SET -> throw QueryException.UnsupportedCastException("A value of NULL cannot be cast to VECTOR[BOOL].")
+    null -> throw QueryException.UnsupportedCastException("A value of NULL cannot be cast to VECTOR[BOOL].")
+})
+
 /**
  * Returns the value of [CottontailGrpc.Vector] as FloatVector.
  *

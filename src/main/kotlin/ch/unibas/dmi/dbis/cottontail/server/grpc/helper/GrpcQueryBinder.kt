@@ -162,6 +162,7 @@ internal class GrpcQueryBinder(val catalogue: Catalogue, engine: ExecutionEngine
             is DoubleArrayColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Value<DoubleArray>>, operator = operator, not = atomic.not, values = atomic.dataList.map { it.toDoubleVectorValue() })
             is LongArrayColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Value<LongArray>>, operator = operator, not = atomic.not, values = atomic.dataList.map { it.toLongVectorValue() })
             is IntArrayColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Value<IntArray>>, operator = operator, not = atomic.not, values = atomic.dataList.map { it.toIntVectorValue() })
+            is BooleanArrayColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Value<BooleanArray>>, operator = operator, not = atomic.not, values = atomic.dataList.map { it.toBooleanVectorValue() })
         }
     }
 
