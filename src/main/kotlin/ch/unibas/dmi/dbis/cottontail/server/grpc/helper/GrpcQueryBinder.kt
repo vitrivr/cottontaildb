@@ -9,7 +9,7 @@ import ch.unibas.dmi.dbis.cottontail.database.queries.*
 import ch.unibas.dmi.dbis.cottontail.execution.ExecutionEngine
 import ch.unibas.dmi.dbis.cottontail.execution.ExecutionPlan
 import ch.unibas.dmi.dbis.cottontail.execution.ExecutionPlanFactory
-import ch.unibas.dmi.dbis.cottontail.execution.tasks.ExecutionTask
+import ch.unibas.dmi.dbis.cottontail.execution.tasks.basics.ExecutionTask
 
 import ch.unibas.dmi.dbis.cottontail.grpc.CottontailGrpc
 

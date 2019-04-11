@@ -1,6 +1,7 @@
 package ch.unibas.dmi.dbis.cottontail.execution.tasks
 
 import ch.unibas.dmi.dbis.cottontail.execution.ExecutionPlan
+import ch.unibas.dmi.dbis.cottontail.execution.tasks.basics.ExecutionTask
 
 /**
  * This exceptions is thrown whenever a single [ExecutionPlan] fails.
