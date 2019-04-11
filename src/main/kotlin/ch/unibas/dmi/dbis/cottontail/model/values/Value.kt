@@ -8,6 +8,7 @@ interface Value<T> {
             is FloatArray -> (value as FloatArray).size
             is LongArray -> (value as LongArray).size
             is IntArray -> (value as IntArray).size
+            is BooleanArray -> (value as BooleanArray).size
             else -> -1
         }
 }
