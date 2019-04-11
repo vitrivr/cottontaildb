@@ -2,7 +2,7 @@ package ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.scan
 
 import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
 import ch.unibas.dmi.dbis.cottontail.database.general.query
-import ch.unibas.dmi.dbis.cottontail.execution.tasks.ExecutionTask
+import ch.unibas.dmi.dbis.cottontail.execution.tasks.basics.ExecutionTask
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
 import com.github.dexecutor.core.task.Task
@@ -14,6 +14,13 @@ import com.github.dexecutor.core.task.Task
  * @version 1.0
  */
 internal class LinearEntityScanTask(private val entity: Entity, private val columns: Array<ColumnDef<*>>) : ExecutionTask("LinearEntityScanTask[${entity.fqn}][${columns.map { it.name }.joinToString(",")}]") {
+
+    /** The cost of this [LinearEntityScanTask] is constant */
+    override val cost = (entity.statistics.columns * columns.size).toFloat()
+
+    /**
+     * Executes this [LinearEntityScanTask]
+     */
     override fun execute(): Recordset = this.entity.Tx(readonly = true, columns = this.columns).query {
         it.readAll()
     } ?: Recordset(columns)

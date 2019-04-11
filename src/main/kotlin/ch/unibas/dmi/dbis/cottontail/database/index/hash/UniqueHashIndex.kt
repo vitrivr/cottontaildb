@@ -11,7 +11,6 @@ import ch.unibas.dmi.dbis.cottontail.database.queries.Predicate
 import ch.unibas.dmi.dbis.cottontail.database.schema.Schema
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
-import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.ValidationException
 import ch.unibas.dmi.dbis.cottontail.model.values.Value
@@ -19,7 +18,6 @@ import org.mapdb.DBMaker
 import org.mapdb.HTreeMap
 import java.nio.file.Path
 import org.mapdb.Serializer
-import kotlin.concurrent.read
 import kotlin.concurrent.write
 
 
@@ -35,12 +33,12 @@ import kotlin.concurrent.write
  * @version 1.0f
  */
 internal class UniqueHashIndex(override val name: String, override val parent: Entity, override val columns: Array<ColumnDef<*>>) : Index() {
-
     /**
      * Index-wide constants.
      */
     companion object {
         const val MAP_FIELD_NAME = "map"
+        const val ATOMIC_COST = 0.01f /** Cost of a single lookup. TODO: Determine real value. */
     }
 
     /** Path to the [UniqueHashIndex] file. */
@@ -110,6 +108,19 @@ internal class UniqueHashIndex(override val name: String, override val parent: E
         predicate.columns.first() == this.columns[0] && (predicate.operator == ComparisonOperator.IN || predicate.operator == ComparisonOperator.EQUAL)
     } else {
         false
+    }
+
+    /**
+     * Calculates the cost estimate of this [UniqueHashIndex] processing the provided [Predicate].
+     *
+     * @param predicate [Predicate] to check.
+     * @return Cost estimate for the [Predicate]
+     */
+    override fun cost(predicate: Predicate): Float = when {
+        predicate !is AtomicBooleanPredicate<*> || predicate.columns.first() != this.columns[0] -> Float.MAX_VALUE
+        predicate.operator == ComparisonOperator.IN -> ATOMIC_COST * predicate.values.size
+        predicate.operator == ComparisonOperator.IN -> ATOMIC_COST
+        else -> Float.MAX_VALUE
     }
 
     /**

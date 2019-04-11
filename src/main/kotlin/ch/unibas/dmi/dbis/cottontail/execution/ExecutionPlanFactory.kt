@@ -1,7 +1,9 @@
 package ch.unibas.dmi.dbis.cottontail.execution
 
 import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
+import ch.unibas.dmi.dbis.cottontail.database.index.Index
 import ch.unibas.dmi.dbis.cottontail.database.queries.*
+import ch.unibas.dmi.dbis.cottontail.execution.tasks.basics.ExecutionStage
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.knn.*
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.projection.EntityCountProjectionTask
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.projection.EntityExistsProjectionTask
@@ -9,6 +11,7 @@ import ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.scan.LinearEntityFil
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.recordset.projection.RecordsetCountProjectionTask
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.recordset.projection.RecordsetExistsProjectionTask
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.recordset.projection.RecordsetSelectProjectionTask
+import java.util.*
 
 
 /**
@@ -58,6 +61,26 @@ internal class ExecutionPlanFactory (val executionEngine: ExecutionEngine) {
         }
 
         return plan
+    }
+
+    /**
+     *
+     */
+    fun planAndLayoutWhere(entity: Entity, whereClause: BooleanPredicate, plan: ExecutionPlan) {
+        val queue = ArrayDeque<BooleanPredicate>()
+        val candidates = mutableListOf<ExecutionStage>()
+        queue.push(whereClause)
+
+
+        /** Decompose predicate into parts that are connected by conjunction. */
+        while (!queue.isEmpty()) {
+            val check = queue.poll()
+            candidates.addAll(entity.allIndexes().filter { it.canProcess(check) }.map { Pair(check, it) })
+            if (check is CompoundBooleanPredicate && check.connector == ConnectionOperator.AND) {
+                queue.push(check.p1)
+                queue.push(check.p2)
+            }
+        }
     }
 }
 

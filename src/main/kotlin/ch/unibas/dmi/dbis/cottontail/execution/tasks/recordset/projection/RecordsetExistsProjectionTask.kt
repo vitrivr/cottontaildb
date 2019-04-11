@@ -1,6 +1,6 @@
 package ch.unibas.dmi.dbis.cottontail.execution.tasks.recordset.projection
 
-import ch.unibas.dmi.dbis.cottontail.execution.tasks.ExecutionTask
+import ch.unibas.dmi.dbis.cottontail.execution.tasks.basics.ExecutionTask
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
 import ch.unibas.dmi.dbis.cottontail.model.values.BooleanValue
@@ -14,6 +14,14 @@ import com.github.dexecutor.core.task.TaskExecutionException
  * @version 1.0
  */
 internal class RecordsetExistsProjectionTask (val alias: String? = null): ExecutionTask("RecordsetExistsProjectionTask") {
+
+    /** The cost of this [RecordsetCountProjectionTask] is constant */
+    override val cost = 0.1f
+
+
+    /**
+     * Executes this [RecordsetExistsProjectionTask]
+     */
     override fun execute(): Recordset {
         assertUnaryInput()
 

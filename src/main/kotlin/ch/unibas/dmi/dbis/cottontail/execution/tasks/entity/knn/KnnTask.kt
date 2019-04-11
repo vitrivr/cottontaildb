@@ -8,7 +8,7 @@ import ch.unibas.dmi.dbis.cottontail.database.column.LongArrayColumnType
 import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
 import ch.unibas.dmi.dbis.cottontail.database.queries.BooleanPredicate
 import ch.unibas.dmi.dbis.cottontail.database.queries.KnnPredicate
-import ch.unibas.dmi.dbis.cottontail.execution.tasks.ExecutionTask
+import ch.unibas.dmi.dbis.cottontail.execution.tasks.basics.ExecutionTask
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
 

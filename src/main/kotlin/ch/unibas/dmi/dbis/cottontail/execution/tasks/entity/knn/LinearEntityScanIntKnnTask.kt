@@ -4,13 +4,12 @@ import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
 import ch.unibas.dmi.dbis.cottontail.database.general.begin
 import ch.unibas.dmi.dbis.cottontail.database.queries.BooleanPredicate
 import ch.unibas.dmi.dbis.cottontail.database.queries.KnnPredicate
-import ch.unibas.dmi.dbis.cottontail.execution.tasks.ExecutionTask
+import ch.unibas.dmi.dbis.cottontail.execution.tasks.basics.ExecutionTask
 import ch.unibas.dmi.dbis.cottontail.math.knn.ComparablePair
 import ch.unibas.dmi.dbis.cottontail.math.knn.HeapSelect
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
 import ch.unibas.dmi.dbis.cottontail.model.values.DoubleValue
-import ch.unibas.dmi.dbis.cottontail.model.values.LongValue
 import com.github.dexecutor.core.task.Task
 
 /**
@@ -20,6 +19,12 @@ import com.github.dexecutor.core.task.Task
  * @version 1.0
  */
 internal class LinearEntityScanIntKnnTask(val entity: Entity, val knn: KnnPredicate<IntArray>, val predicate: BooleanPredicate? = null) : ExecutionTask("KnnFullscan[${entity.fqn}][${knn.column.name}][${knn.distance::class.simpleName}][${knn.k}][q=${knn.query.hashCode()}]") {
+    /** The cost of this [LinearEntityScanIntKnnTask] is constant */
+    override val cost = entity.statistics.columns * (knn.operations + (predicate?.operations ?: 0)).toFloat()
+
+    /**
+     * Executes this [LinearEntityScanIntKnnTask]
+     */
     override fun execute(): Recordset {
         /* Extract the necessary data. */
         val query = this.knn.queryAsIntArray()

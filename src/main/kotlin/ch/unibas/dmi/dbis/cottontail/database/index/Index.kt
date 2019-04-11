@@ -58,7 +58,17 @@ internal abstract class Index : DBO {
      */
     abstract fun canProcess(predicate: Predicate): Boolean
 
-    /** Handles finalization, in case the Garbage Collector reaps a cached [Index]. */
+    /**
+     * Calculates the cost estimate if this [Index] processing the provided [Predicate].
+     *
+     * @param predicate [Predicate] to check.
+     * @return Cost estimate for the [Predicate]
+     */
+    abstract fun cost(predicate: Predicate): Float
+
+    /**
+     * Handles finalization, in case the Garbage Collector reaps a cached [Index].
+     */
     @Synchronized
     protected fun finalize() {
         this.close()

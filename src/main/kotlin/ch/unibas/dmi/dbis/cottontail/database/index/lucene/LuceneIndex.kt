@@ -7,6 +7,7 @@ import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
 import ch.unibas.dmi.dbis.cottontail.database.general.begin
 import ch.unibas.dmi.dbis.cottontail.database.index.Index
 import ch.unibas.dmi.dbis.cottontail.database.index.IndexType
+import ch.unibas.dmi.dbis.cottontail.database.index.hash.UniqueHashIndex
 import ch.unibas.dmi.dbis.cottontail.database.queries.*
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.basics.Record
@@ -42,6 +43,8 @@ internal class LuceneIndex(override val name: String, override val parent: Entit
     companion object {
         /** Name of the tuple ID field. */
         const val FIELD_NAME_TID = "_tid"
+
+        const val ATOMIC_COST = 0.01f /** Cost of a single lookup. TODO: Determine real value. */
 
         /** Name of the tuple ID field. */
         val SCORE_COLUMN = ColumnDef("lucene_score", FloatColumnType())
@@ -212,10 +215,21 @@ internal class LuceneIndex(override val name: String, override val parent: Entit
     override fun canProcess(predicate: Predicate): Boolean {
         if (predicate is BooleanPredicate) {
             if (!predicate.columns.all { this.columns.contains(it) }) return false
-            if (!predicate.atomics.all { it.operator == ComparisonOperator.LIKE }) return false
+            if (!predicate.atomics.all { it.operator == ComparisonOperator.LIKE  || it.operator == ComparisonOperator.EQUAL}) return false
             return true
         } else {
             return false
         }
+    }
+
+    /**
+     * Calculates the cost estimate of this [UniqueHashIndex] processing the provided [Predicate].
+     *
+     * @param predicate [Predicate] to check.
+     * @return Cost estimate for the [Predicate]
+     */
+    override fun cost(predicate: Predicate): Float = when {
+        !canProcess(predicate) -> Float.MAX_VALUE
+        else -> predicate.columns.size * ATOMIC_COST
     }
 }

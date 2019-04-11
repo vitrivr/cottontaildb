@@ -1,5 +1,6 @@
-package ch.unibas.dmi.dbis.cottontail.execution.tasks
+package ch.unibas.dmi.dbis.cottontail.execution.tasks.basics
 
+import ch.unibas.dmi.dbis.cottontail.execution.tasks.TaskExecutionException
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
 import com.github.dexecutor.core.task.Task
 
@@ -20,6 +21,9 @@ internal abstract class ExecutionTask(_id: String): Task<String, Recordset>() {
     init {
         this.id = _id
     }
+
+    /** The estimated cost of executing this [ExecutionTask]. */
+    abstract val cost: Float
 
     /**
      * Convenience method: Returns the first result, if it was successful

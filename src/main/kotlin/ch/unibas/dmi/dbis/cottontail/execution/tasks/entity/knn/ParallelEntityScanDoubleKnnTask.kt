@@ -4,12 +4,11 @@ import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
 import ch.unibas.dmi.dbis.cottontail.database.general.begin
 import ch.unibas.dmi.dbis.cottontail.database.queries.BooleanPredicate
 import ch.unibas.dmi.dbis.cottontail.database.queries.KnnPredicate
-import ch.unibas.dmi.dbis.cottontail.execution.tasks.ExecutionTask
+import ch.unibas.dmi.dbis.cottontail.execution.tasks.basics.ExecutionTask
 import ch.unibas.dmi.dbis.cottontail.math.knn.ComparablePair
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
 import ch.unibas.dmi.dbis.cottontail.model.values.DoubleValue
-import ch.unibas.dmi.dbis.cottontail.model.values.LongValue
 import com.github.dexecutor.core.task.Task
 import java.util.concurrent.ConcurrentSkipListSet
 
@@ -25,8 +24,11 @@ internal class ParallelEntityScanDoubleKnnTask(val entity: Entity, val knn: KnnP
     /** Set containing the kNN values. */
     private val knnSet = ConcurrentSkipListSet<ComparablePair<Long,Double>>()
 
+    /** The cost of this [ParallelEntityScanDoubleKnnTask] is constant */
+    override val cost = entity.statistics.columns * (knn.operations + (predicate?.operations ?: 0)).toFloat() / parallelism
+
     /**
-     * Executes the kNN query.
+     * Executes this [ParallelEntityScanDoubleKnnTask]
      */
     override fun execute(): Recordset {
         /* Extract the necessary data. */

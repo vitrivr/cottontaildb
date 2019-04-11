@@ -3,7 +3,7 @@ package ch.unibas.dmi.dbis.cottontail.execution.tasks.recordset.projection
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
 import ch.unibas.dmi.dbis.cottontail.database.general.begin
-import ch.unibas.dmi.dbis.cottontail.execution.tasks.ExecutionTask
+import ch.unibas.dmi.dbis.cottontail.execution.tasks.basics.ExecutionTask
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
 
 import com.github.dexecutor.core.task.Task
@@ -23,8 +23,11 @@ internal class RecordsetSelectProjectionTask (
     private val columns: Array<ColumnDef<*>>
 ): ExecutionTask("RecordsetSelectProjectionTask[${entity.fqn}]${columns.joinToString(separator = "") { "[${it.name}]" }}") {
 
+    /** Cost estimate for a [RecordsetSelectProjectionTask] is (cols * rows * 0.1). */
+    override val cost = (columns.size * entity.statistics.rows * 0.1).toFloat()
+
     /**
-     *
+     * Executes this [RecordsetSelectProjectionTask]
      */
     override fun execute(): Recordset {
         assertUnaryInput()

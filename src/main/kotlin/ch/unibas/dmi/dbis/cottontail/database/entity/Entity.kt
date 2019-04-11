@@ -105,6 +105,13 @@ internal class Entity(override val name: String, schema: Schema) : DBO {
     fun allColumns(): Collection<ColumnDef<*>> = this.columns.map { it.columnDef }
 
     /**
+     * Returns all [Index]es for this [Entity].
+     *
+     * @return Collection of [Index].
+     */
+    fun allIndexes(): Collection<Index> = this.indexes
+
+    /**
      * Returns the [ColumnDef] for the specified name.
      *
      * @param name The name of the [Column].

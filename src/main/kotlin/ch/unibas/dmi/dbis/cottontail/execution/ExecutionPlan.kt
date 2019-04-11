@@ -2,7 +2,8 @@ package ch.unibas.dmi.dbis.cottontail.execution
 
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.ExecutionPlanException
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.ExecutionPlanSetupException
-import ch.unibas.dmi.dbis.cottontail.execution.tasks.ExecutionTask
+import ch.unibas.dmi.dbis.cottontail.execution.tasks.basics.ExecutionStage
+import ch.unibas.dmi.dbis.cottontail.execution.tasks.basics.ExecutionTask
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
 
 import com.github.dexecutor.core.DefaultDexecutor
@@ -52,7 +53,7 @@ internal class ExecutionPlan(executor: ExecutorService) {
      * Adds a new [ExecutionTask] to this [ExecutionPlan].
      *
      * @param task The [ExecutionTask] to add to the plan.
-     * @param dependsOn The ID's of the [ExecutionTask] the new [ExecutionTask] depends on. If none are given, the [ExecutionTask] is independent.
+     * @param dependsOn The ID's of the [ExecutionTask]s the new [ExecutionTask] depends on. If none are given, the [ExecutionTask] is independent.
      */
     fun addTask(task: ExecutionTask, vararg dependsOn: String) {
         this.provider.addTask(task)
@@ -62,6 +63,31 @@ internal class ExecutionPlan(executor: ExecutorService) {
             }
         } else {
             this.config.dexecutorState.addIndependent(task.id)
+        }
+    }
+
+    /**
+     * Adds a new [ExecutionStage] to this [ExecutionPlan].
+     *
+     * @param stage The [ExecutionStage] to add to the plan.
+     * @param dependsOn The ID's of the [ExecutionTask]s the new [ExecutionStage] depends on. If none are given, the [ExecutionStage] is independent.
+     */
+    fun addStage(stage: ExecutionStage, vararg dependsOn: String) {
+        var previous: ExecutionTask? = null
+        for (task in stage.tasks) {
+            this.provider.addTask(task)
+            if (previous == null) {
+                if (dependsOn.isNotEmpty()) {
+                    for (id in dependsOn) {
+                        this.config.dexecutorState.addDependency(id, task.id)
+                    }
+                } else {
+                    this.config.dexecutorState.addIndependent(task.id)
+                }
+            } else {
+                this.config.dexecutorState.addDependency(previous.id, task.id)
+            }
+            previous = task
         }
     }
 
@@ -99,6 +125,7 @@ internal class ExecutionPlan(executor: ExecutorService) {
      * @version 1.0
      */
     private inner class FinalStageExecutionTask: ExecutionTask("FinalStage[${this@ExecutionPlan.id}]") {
+        override val cost = 0.0f
         override fun execute(): Recordset {
             if (!this.parentResults.hasAnyResult()) {
                 throw ExecutionPlanException(this@ExecutionPlan, "Final stage in execution plan did not produce any results.")
@@ -124,7 +151,7 @@ internal class ExecutionPlan(executor: ExecutorService) {
     private inner class ExecutionPlanTaskProvider: TaskProvider<String, Recordset> {
 
         /** List of [Task]s that will be executed in this [ExecutionPlan]. */
-        private val tasks: HashMap<String,ExecutionTask> = HashMap()
+        private val tasks: HashMap<String, ExecutionTask> = HashMap()
 
         /**
          * Returns the task for the given ID.
