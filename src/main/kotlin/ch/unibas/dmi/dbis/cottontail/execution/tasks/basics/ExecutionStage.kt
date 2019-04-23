@@ -1,33 +1,28 @@
 package ch.unibas.dmi.dbis.cottontail.execution.tasks.basics
 
+import ch.unibas.dmi.dbis.cottontail.execution.ExecutionPlan
+
 
 /**
- * An class for organizing linearly dependent [ExecutionTask]s into a single [ExecutionStage]. This class can be used
- * to organize tasks. It does not influence the execution of the individual [ExecutionTask]s.
+ * An class for organizing [ExecutionTask]s into a single [ExecutionStage].
  *
  * @version 1.0
  * @author Ralph Gasser
  */
 internal class ExecutionStage {
-
-    /** List of [ExecutionTask]s contained in this [ExecutionStage]. */
-    val tasks = mutableListOf<ExecutionTask>()
+    /** */
+    val tasks = mutableMapOf<ExecutionTask,Collection<String>>()
 
     /** Total cost incurred by executing this [ExecutionStage]. */
-
-    val cost
-        get() = tasks.map { it.cost }.sum()
+    val cost: Float = this.tasks.keys.map { it.cost }.sum()
 
     /**
-     * Adds the provided [ExecutionTask] to this [ExecutionStage].
+     * Adds a new [ExecutionTask] to this [ExecutionPlan].
      *
-     * @param The [ExecutionTask] to add.
-     * @return Reference to this [ExecutionStage].
+     * @param task The [ExecutionTask] to add to the plan.
+     * @param dependsOn The ID's of the [ExecutionTask]s the new [ExecutionTask] depends on. If none are given, the [ExecutionTask] is independent.
      */
-    fun addTask(task: ExecutionTask): ExecutionStage {
-        if (!this.tasks.contains(task)) {
-            this.tasks.add(task)
-        }
-        return this
+    fun addTask(task: ExecutionTask, vararg dependsOn: String) {
+        this.tasks[task] = dependsOn.toList()
     }
 }
