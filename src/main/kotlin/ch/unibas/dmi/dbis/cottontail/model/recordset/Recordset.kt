@@ -135,6 +135,14 @@ internal class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterabl
     }
 
     /**
+     * Returns the first [Record] in this [Recordset].
+     *
+     * @return The first [Record] of this [Recordset]
+     */
+    fun first(): Record? = this.map[this.map.firstKey()]
+
+
+    /**
      * Applies the provided action to each [Record] in this [Recordset].
      *
      * @param action The action that should be applied.

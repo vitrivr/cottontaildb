@@ -50,10 +50,12 @@ internal class CottonDQLService (val catalogue: Catalogue, val engine: Execution
 
         /* Calculate batch size based on an example message and the maxMessageSize. */
         val startSending = System.currentTimeMillis()
-        if (results.rowCount > 0) {
-            val exampleSize = BitUtil.nextPowerOfTwo(recordToTuple(results[0]).build().serializedSize)
+        val first = results.first()
+        if (first != null) {
+            val exampleSize = BitUtil.nextPowerOfTwo(recordToTuple(first).build().serializedSize)
             val pageSize = (maxMessageSize/exampleSize)
             val maxPages = Math.floorDiv(results.rowCount,pageSize)
+
             /* Return results. */
             val iterator = results.iterator()
             for (i in 0..maxPages) {
