@@ -39,8 +39,6 @@ internal sealed class BooleanPredicate : Predicate() {
      * @param record The [Record] that should be checked against the predicate.
      */
     abstract fun matches(record: Record): Boolean
-
-
 }
 
 /**
@@ -50,10 +48,9 @@ internal sealed class BooleanPredicate : Predicate() {
  * @version 1.0
  */
 internal data class AtomicBooleanPredicate<T : Value<*>>(private val column: ColumnDef<T>, val operator: ComparisonOperator, val not: Boolean = false, var values: Collection<Value<*>>) : BooleanPredicate() {
-
     init {
-        if (operator == ComparisonOperator.IN) {
-            values = values.toSet()
+        if (this.operator == ComparisonOperator.IN) {
+            this.values = this.values.toSet()
         }
     }
 

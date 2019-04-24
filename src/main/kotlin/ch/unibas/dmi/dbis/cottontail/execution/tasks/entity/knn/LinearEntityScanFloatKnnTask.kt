@@ -17,7 +17,7 @@ import com.github.dexecutor.core.task.Task
 
 
 /**
- * A [Task] that executes a sequential scan kNN on a long [Column] of the specified [Entity].
+ * A [Task] that executes a sequential boolean kNN on a long [Column] of the specified [Entity].
  *
  * @author Ralph Gasser
  * @version 1.0

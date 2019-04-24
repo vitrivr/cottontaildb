@@ -13,7 +13,7 @@ import com.github.dexecutor.core.task.Task
 import java.util.concurrent.ConcurrentSkipListSet
 
 /**
- * A [Task] that executes a parallel scan kNN on a float [Column] of the specified [Entity].
+ * A [Task] that executes a parallel boolean kNN on a float [Column] of the specified [Entity].
  * Parallelism is achieved through the use of co-routines.
  *
  * @author Ralph Gasser
