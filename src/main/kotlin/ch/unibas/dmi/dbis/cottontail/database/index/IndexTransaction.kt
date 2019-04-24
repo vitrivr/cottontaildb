@@ -30,12 +30,12 @@ internal interface IndexTransaction : Transaction, Filterable {
     fun rebuild()
 
     /**
-     * Checks if this [IndexTransaction] can process the provided [Predicate].
+     * Performs a lookup through this [IndexTransaction] and returns a [Recordset].
      *
-     * @param predicate [Predicate] to check.
-     * @return True if [Predicate] can be processed, false otherwise.
+     * @param predicate The [Predicate] to perform the lookup.
+     * @return The resulting [Recordset].
      */
-    fun canProcess(predicate: Predicate): Boolean
+    override fun filter(predicate: Predicate): Recordset
 
     /**
      * Performs a lookup through this [IndexTransaction] and returns a [Recordset].

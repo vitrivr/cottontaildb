@@ -1,7 +1,9 @@
 package ch.unibas.dmi.dbis.cottontail.model.recordset
 
+import ch.unibas.dmi.dbis.cottontail.database.queries.*
+import ch.unibas.dmi.dbis.cottontail.database.queries.AtomicBooleanPredicate
 import ch.unibas.dmi.dbis.cottontail.database.queries.BooleanPredicate
-import ch.unibas.dmi.dbis.cottontail.database.queries.Predicate
+import ch.unibas.dmi.dbis.cottontail.database.queries.CompoundBooleanPredicate
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.basics.Filterable
 import ch.unibas.dmi.dbis.cottontail.model.basics.Record
@@ -141,7 +143,6 @@ internal class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterabl
      */
     fun first(): Record? = this.map[this.map.firstKey()]
 
-
     /**
      * Applies the provided action to each [Record] in this [Recordset].
      *
@@ -157,6 +158,34 @@ internal class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterabl
      */
     @Synchronized
     override fun <R> map(action: (Record) -> R): Collection<R> = this.map.values.map(action)
+
+    /**
+     * Checks if this [Filterable] can process the provided [Predicate].
+     *
+     * @param predicate [Predicate] to check.
+     * @return True if [Predicate] can be processed, false otherwise.
+     */
+    override fun canProcess(predicate: Predicate): Boolean = when {
+        predicate is BooleanPredicate && predicate.atomics.all { it.operator != ComparisonOperator.LIKE } -> true
+        else -> false
+    }
+
+    /**
+     * Filters this [Filterable] thereby creating and returning a new [Filterable].
+     *
+     * @param predicate [Predicate] to filter [Record]s.
+     * @return New [Filterable]
+     */
+    @Synchronized
+    override fun filter(predicate: Predicate): Recordset {
+        if (predicate is BooleanPredicate) {
+            val recordset = Recordset(this.columns)
+            this.map.values.asSequence().filter { predicate.matches(it) }.forEach { recordset.addRow(it.values) }
+            return recordset
+        } else {
+            throw QueryException.UnsupportedPredicateException("Only boolean predicates are supported for invocation of filter() on a Recordset.")
+        }
+    }
 
     /**
      * Applies the provided action to each [Record] that matches the given [Predicate].
@@ -186,23 +215,6 @@ internal class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterabl
             return list
         } else {
             throw QueryException.UnsupportedPredicateException("Only boolean predicates are supported for invocation of map() on a Recordset.")
-        }
-    }
-
-    /**
-     * Filters this [Filterable] thereby creating and returning a new [Filterable].
-     *
-     * @param predicate [Predicate] to filter [Record]s.
-     * @return New [Filterable]
-     */
-    @Synchronized
-    override fun filter(predicate: Predicate): Recordset {
-        if (predicate is BooleanPredicate) {
-            val recordset = Recordset(this.columns)
-            this.map.values.asSequence().filter { predicate.matches(it) }.forEach { recordset.addRow(it.values) }
-            return recordset
-        } else {
-            throw QueryException.UnsupportedPredicateException("Only boolean predicates are supported for invocation of filter() on a Recordset.")
         }
     }
 

@@ -13,6 +13,14 @@ import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
  */
 interface Filterable {
     /**
+     * Checks if this [Filterable] can process the provided [Predicate].
+     *
+     * @param predicate [Predicate] to check.
+     * @return True if [Predicate] can be processed, false otherwise.
+     */
+    fun canProcess(predicate: Predicate): Boolean
+
+    /**
      * Filters this [Filterable] thereby creating and returning a new [Filterable].
      *
      * @param predicate [Predicate] to filter [Record]s.

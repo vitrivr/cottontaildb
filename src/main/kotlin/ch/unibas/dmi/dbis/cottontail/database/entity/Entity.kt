@@ -10,6 +10,7 @@ import ch.unibas.dmi.dbis.cottontail.database.index.IndexTransaction
 import ch.unibas.dmi.dbis.cottontail.database.index.IndexType
 import ch.unibas.dmi.dbis.cottontail.database.queries.AtomicBooleanPredicate
 import ch.unibas.dmi.dbis.cottontail.database.queries.BooleanPredicate
+import ch.unibas.dmi.dbis.cottontail.database.queries.ComparisonOperator
 import ch.unibas.dmi.dbis.cottontail.database.queries.Predicate
 import ch.unibas.dmi.dbis.cottontail.database.schema.Schema
 import ch.unibas.dmi.dbis.cottontail.model.basics.*
@@ -96,6 +97,17 @@ internal class Entity(override val name: String, schema: Schema) : DBO {
      * @return [EntityStatistics] for this [Entity].
      */
     val statistics: EntityStatistics = this.header.let { EntityStatistics(it.columns.size, it.size) }
+
+    /**
+     * Checks if this [Entity] can process the provided [Predicate] natively (without index).
+     *
+     * @param predicate [Predicate] to check.
+     * @return True if [Predicate] can be processed, false otherwise.
+     */
+    fun canProcess(predicate: Predicate): Boolean = when {
+        predicate is BooleanPredicate && predicate.atomics.all { it.operator != ComparisonOperator.LIKE } -> true
+        else -> false
+    }
 
     /**
      * Returns all [ColumnDef] for the [Column]s contained in this [Entity].
@@ -253,7 +265,6 @@ internal class Entity(override val name: String, schema: Schema) : DBO {
      * Opening such a [Tx] will spawn a associated [Column.Tx] for every [Column] associated with this [Entity].
      */
     inner class Tx(override val readonly: Boolean, override val tid: UUID = UUID.randomUUID(), columns: Array<ColumnDef<*>>? = null, ommitIndex: Boolean = false) : EntityTransaction {
-
         /** List of [ColumnTransaction]s associated with this [Entity.Tx]. */
         private val columns: Map<ColumnDef<*>, ColumnTransaction<*>> = if (columns != null && this.readonly) {
             this@Entity.columns.filter{columns.contains(it.columnDef)}.associateBy({ColumnDef(it.name, it.type, it.size)}, {it.newTransaction(readonly, tid)})
@@ -437,6 +448,53 @@ internal class Entity(override val name: String, schema: Schema) : DBO {
         }
 
         /**
+         * Checks if this [Entity.Tx] can process the provided [Predicate] natively (without index).
+         *
+         * @param predicate [Predicate] to check.
+         * @return True if [Predicate] can be processed, false otherwise.
+         */
+        override fun canProcess(predicate: Predicate): Boolean = when {
+            predicate is BooleanPredicate && predicate.atomics.all { it.operator != ComparisonOperator.LIKE } -> true
+            else -> false
+        }
+
+        /**
+         * Reads all values of one or many [Column]s and returns those that match the provided predicate as a [Recordset].
+         *
+         * @param predicate The [BooleanPredicate] to apply. Only columns contained in that [BooleanPredicate] will be read.
+         * @return The resulting [Recordset].
+         */
+        override fun filter(predicate: Predicate): Recordset = this@Entity.txLock.read {
+            checkValidOrThrow()
+            checkColumnsExist(*predicate.columns.toTypedArray())
+
+            val columns = this.columns.keys.toTypedArray()
+            val dataset = Recordset(columns)
+            val data = Array<Value<*>?>(columns.size) { null }
+
+            /* Handle filter() for different cases. */
+            when (predicate) {
+                /* Case 1: Predicate affects single column (AtomicBooleanPredicate). */
+                is AtomicBooleanPredicate<*> -> this.columns.getValue(predicate.columns.first()).forEach(predicate) {
+                    for (i in 0 until columns.size) {
+                        data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
+                    }
+                    dataset.addRow(it.tupleId, data)
+                }
+                /* Case 2 (general): Multi-column boolean predicate. */
+                is BooleanPredicate -> this.columns.getValue(columns[0]).forEach {
+                    data[0] = it.values[0]
+                    for (i in 1 until columns.size) {
+                        data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
+                    }
+                    dataset.addRowIf(it.tupleId , predicate, data)
+                }
+                else -> throw QueryException.UnsupportedPredicateException("The provided predicate of type '${predicate::class.java.simpleName}' is not supported for invocation of filter() on entity '${this@Entity.fqn}'.")
+            }
+            dataset
+        }
+
+        /**
          * Applies the provided action to each [Record] that matches the given [Predicate].
          *
          * @param predicate [Predicate] to filter [Record]s.
@@ -530,49 +588,7 @@ internal class Entity(override val name: String, schema: Schema) : DBO {
             list
         }
 
-        /**
-         * Reads all values of one or many [Column]s and returns those that match the provided predicate as a [Recordset].
-         *
-         * @param predicate The [BooleanPredicate] to apply. Only columns contained in that [BooleanPredicate] will be read.
-         * @return The resulting [Recordset].
-         */
-        override fun filter(predicate: Predicate): Recordset = this@Entity.txLock.read {
-                checkValidOrThrow()
-                checkColumnsExist(*predicate.columns.toTypedArray())
 
-                val columns = this.columns.keys.toTypedArray()
-                val dataset = Recordset(columns)
-                val data = Array<Value<*>?>(columns.size) { null }
-                val filterable = this.indexes.find { it.canProcess(predicate) }
-
-                /* Handle filter() for different cases. */
-                when {
-                    /* Case 1: Predicate satisfiable by index. */
-                    filterable != null -> filterable.forEach(predicate) {
-                        for (i in 0 until columns.size) {
-                            data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
-                        }
-                        dataset.addRow(it.tupleId, data)
-                    }
-                    /* Case 2: Predicate affects single column (AtomicBooleanPredicate). */
-                    predicate is AtomicBooleanPredicate<*> -> this.columns.getValue(predicate.columns.first()).forEach(predicate) {
-                        for (i in 0 until columns.size) {
-                            data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
-                        }
-                        dataset.addRow(it.tupleId, data)
-                    }
-                    /* Case 3 (general): Multi-column boolean predicate. */
-                    predicate is BooleanPredicate -> this.columns.getValue(columns[0]).forEach {
-                        data[0] = it.values[0]
-                        for (i in 1 until columns.size) {
-                            data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
-                        }
-                        dataset.addRowIf(it.tupleId , predicate, data)
-                    }
-                    else -> throw QueryException.UnsupportedPredicateException("The provided predicate of type '${predicate::class.java.simpleName}' is not supported for invocation of filter() on entity '${this@Entity.fqn}'.")
-                }
-                dataset
-        }
 
         /**
          * Applies the provided function to each entry found in this [Column] and does so in a parallel fashion using co-routines, which
