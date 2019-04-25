@@ -79,10 +79,10 @@ internal class Entity(override val name: String, schema: Schema) : DBO {
     }
 
     /** List of all the [Index]es associated with this [Entity]. */
-    private val indexes: Collection<Index> = this.header.indexes.map {idx ->
+    private val indexes: MutableCollection<Index> = this.header.indexes.map {idx ->
         val index = this.store.get(idx, IndexEntrySerializer) ?: throw DatabaseException.DataCorruptionException("Failed to open entity '$fqn': Could not read index definition at position $idx!")
         index.type.open(index.name, this, index.columns.map { col -> this.columnForName(col) ?: throw DatabaseException.DataCorruptionException("Failed to open entity '$fqn': It hosts an index for column '$col' that does not exist on the entity!") }.toTypedArray())
-    }
+    }.toMutableSet()
 
     /**
      * Status indicating whether this [Entity] is open or closed.
@@ -154,10 +154,9 @@ internal class Entity(override val name: String, schema: Schema) : DBO {
 
         if (indexEntry != null) throw DatabaseException.IndexAlreadyExistsException("$fqn.$name")
 
-
         /* Creates and opens the index. */
         val index = type.create(name, this, columns, params)
-        index.Tx(readonly = false).rebuild()
+        this.indexes.add(index)
 
         /* Update catalogue + header. */
         try {
@@ -175,6 +174,11 @@ internal class Entity(override val name: String, schema: Schema) : DBO {
             pathsToDelete.forEach { Files.delete(it) }
             throw DatabaseException("Failed to create index '$.fqn.$name' due to a storage exception: ${e.message}")
         }
+
+        /* Rebuilds the index. */
+        val tx = index.Tx(readonly = false)
+        tx.rebuild()
+        tx.close()
     }
 
     /**
@@ -190,7 +194,8 @@ internal class Entity(override val name: String, schema: Schema) : DBO {
         } ?: throw DatabaseException.IndexDoesNotExistException("$fqn.$name")
 
         /* Close index. */
-        indexEntry.third?.close()
+        indexEntry.third!!.close()
+        this.indexes.remove(indexEntry.third!!)
 
         /* Update header. */
         try {
@@ -587,8 +592,6 @@ internal class Entity(override val name: String, schema: Schema) : DBO {
             }
             list
         }
-
-
 
         /**
          * Applies the provided function to each entry found in this [Column] and does so in a parallel fashion using co-routines, which
