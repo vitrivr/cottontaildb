@@ -202,6 +202,7 @@ internal class CottonDMLService (val catalogue: Catalogue): CottonDMLGrpc.Cotton
             is LongArrayColumnType -> value.toLongVectorValue()
             is FloatArrayColumnType -> value.toFloatVectorValue()
             is DoubleArrayColumnType -> value.toDoubleVectorValue()
+            is BooleanArrayColumnType -> value.toBooleanVectorValue()
         }
     }
 }
