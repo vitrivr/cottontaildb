@@ -73,21 +73,21 @@ internal class ExecutionPlan(executor: ExecutorService) {
      * @param dependsOn The ID's of the [ExecutionTask]s the new [ExecutionStage] depends on. If none are given, the [ExecutionStage] is independent.
      */
     fun addStage(stage: ExecutionStage, vararg dependsOn: String) {
-        var previous: ExecutionTask? = null
         for (task in stage.tasks) {
-            this.provider.addTask(task)
-            if (previous == null) {
-                if (dependsOn.isNotEmpty()) {
-                    for (id in dependsOn) {
-                        this.config.dexecutorState.addDependency(id, task.id)
-                    }
+            this.provider.addTask(task.key)
+            if (task.value.isEmpty()) {
+                if (dependsOn.isEmpty()) {
+                    this.config.dexecutorState.addIndependent(task.key.id)
                 } else {
-                    this.config.dexecutorState.addIndependent(task.id)
+                    for (dependency in dependsOn) {
+                        this.config.dexecutorState.addDependency(dependency, task.key.id)
+                    }
                 }
             } else {
-                this.config.dexecutorState.addDependency(previous.id, task.id)
+                for (dependency in task.value) {
+                    this.config.dexecutorState.addDependency(task.key.id, dependency)
+                }
             }
-            previous = task
         }
     }
 
