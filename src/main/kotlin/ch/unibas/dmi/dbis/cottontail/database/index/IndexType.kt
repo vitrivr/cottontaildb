@@ -21,8 +21,8 @@ internal enum class IndexType {
      * @param entity The [Entity] the desired [Index] belongs to.
      */
     fun open(name: String, entity: Entity, columns: Array<ColumnDef<*>>): Index = when(this) {
-        IndexType.HASH_UQ -> UniqueHashIndex(name, entity, columns)
-        IndexType.LUCENE -> LuceneIndex(name, entity, columns)
+        HASH_UQ -> UniqueHashIndex(name, entity, columns)
+        LUCENE -> LuceneIndex(name, entity, columns)
         else -> TODO()
     }
 
@@ -35,8 +35,8 @@ internal enum class IndexType {
      * @param params Additions configuration params.
      */
     fun create(name: String, entity: Entity, columns: Array<ColumnDef<*>>, params: Map<String,String> = emptyMap()) = when (this) {
-        IndexType.HASH_UQ -> UniqueHashIndex(name, entity, columns)
-        IndexType.LUCENE -> LuceneIndex(name, entity, columns)
+        HASH_UQ -> UniqueHashIndex(name, entity, columns)
+        LUCENE -> LuceneIndex(name, entity, columns)
         else -> TODO()
     }
 }
