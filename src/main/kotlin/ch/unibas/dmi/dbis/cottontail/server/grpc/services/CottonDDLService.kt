@@ -13,6 +13,7 @@ import com.google.protobuf.Empty
 
 import io.grpc.Status
 import io.grpc.stub.StreamObserver
+import java.lang.Exception
 
 /**
  * This is a GRPC service endpoint that handles DDL (=Data Definition Language) request for Cottontail DB.
@@ -122,6 +123,10 @@ internal class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.Cotton
 
         /* Creates and updates the index. */
         entity.createIndex(request.index.name, IndexType.valueOf(request.index.type.toString()), columns, request.paramsMap)
+
+        /* Notify caller of success. */
+        responseObserver.onNext(CottontailGrpc.SuccessStatus.newBuilder().setTimestamp(System.currentTimeMillis()).build())
+        responseObserver.onCompleted()
     } catch (e: DatabaseException.SchemaDoesNotExistException) {
         responseObserver.onError(Status.NOT_FOUND.withDescription("Schema '${request.index.entity.schema.fqn()} does not exist!").asException())
     } catch (e: DatabaseException.EntityDoesNotExistException) {
@@ -132,6 +137,8 @@ internal class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.Cotton
         responseObserver.onError(Status.NOT_FOUND.withDescription(e.message).asException())
     } catch (e: DatabaseException) {
         responseObserver.onError(Status.UNKNOWN.withDescription("Failed to create index '${request.index.fqn()}' because of database error: ${e.message}").asException())
+    } catch (e: Exception) {
+        responseObserver.onError(Status.UNKNOWN.withDescription("Failed to drop index '${request.index.fqn()}' because of an unknown error: ${e.message}").asException())
     }
 
     /**
@@ -139,6 +146,10 @@ internal class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.Cotton
      */
     override fun dropIndex(request: CottontailGrpc.Index, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) = try {
         this.catalogue.getSchema(request.entity.schema.name).getEntity(request.entity.name).dropIndex(request.name)
+
+        /* Notify caller of success. */
+        responseObserver.onNext(CottontailGrpc.SuccessStatus.newBuilder().setTimestamp(System.currentTimeMillis()).build())
+        responseObserver.onCompleted()
     } catch (e: DatabaseException.SchemaDoesNotExistException) {
         responseObserver.onError(Status.NOT_FOUND.withDescription("Schema '${request.entity.schema.fqn()} does not exist!").asException())
     } catch (e: DatabaseException.EntityDoesNotExistException) {
@@ -147,5 +158,7 @@ internal class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.Cotton
         responseObserver.onError(Status.NOT_FOUND.withDescription("Index '${request.fqn()} does not exist!").asException())
     } catch (e: DatabaseException) {
         responseObserver.onError(Status.UNKNOWN.withDescription("Failed to drop index '${request.fqn()}' because of database error: ${e.message}").asException())
+    } catch (e: Exception) {
+        responseObserver.onError(Status.UNKNOWN.withDescription("Failed to drop index '${request.fqn()}' because of an unknown error: ${e.message}").asException())
     }
 }
