@@ -16,10 +16,7 @@ import ch.unibas.dmi.dbis.cottontail.model.values.FloatValue
 
 import org.apache.lucene.analysis.Analyzer
 import org.apache.lucene.analysis.standard.StandardAnalyzer
-import org.apache.lucene.document.Document
-import org.apache.lucene.document.Field
-import org.apache.lucene.document.NumericDocValuesField
-import org.apache.lucene.document.TextField
+import org.apache.lucene.document.*
 import org.apache.lucene.index.*
 import org.apache.lucene.search.IndexSearcher
 import org.apache.lucene.store.Directory
@@ -53,11 +50,12 @@ internal class LuceneIndex(override val name: String, override val parent: Entit
          * @param record The [Record]
          * @return The resulting [Document]
          */
-        private fun document(record: Record): Document = Document().apply {
+        private fun documentFromRecord(record: Record): Document = Document().apply {
             add(NumericDocValuesField(FIELD_NAME_TID, record.tupleId))
+            add(StoredField(FIELD_NAME_TID, record.tupleId))
             record.columns.forEach {
                 val value = record[it]?.value as? String
-                if(value != null){
+                if (value != null) {
                     add(TextField(it.name, value, Field.Store.NO))
                 }
             }
@@ -91,7 +89,7 @@ internal class LuceneIndex(override val name: String, override val parent: Entit
         indexWriter.deleteAll()
         this.parent.Tx(readonly = true, columns = this.columns).begin { tx ->
             tx.forEach {
-                indexWriter.addDocument(document(it))
+                indexWriter.addDocument(documentFromRecord(it))
             }
             indexWriter.flush()
             indexWriter.commit()
