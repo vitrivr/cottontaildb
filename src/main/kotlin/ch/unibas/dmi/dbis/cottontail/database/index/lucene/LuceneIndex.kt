@@ -74,26 +74,25 @@ internal class LuceneIndex(override val name: String, override val parent: Entit
     /** The [Directory] containing the data for this [LuceneIndex]. */
     private val directory: Directory = FSDirectory.open(this.path, NativeFSLockFactory.getDefault())
 
-    /** The [IndexWriter] used to write to this [LuceneIndex]. */
-    private val writer = IndexWriter(this.directory, IndexWriterConfig(StandardAnalyzer()).setOpenMode(IndexWriterConfig.OpenMode.CREATE_OR_APPEND).setCommitOnClose(true))
-
     /** Initial commit in case writer was created. */
     init {
-        this.writer.commit()
+        val writer = IndexWriter(this.directory, IndexWriterConfig(StandardAnalyzer()).setOpenMode(IndexWriterConfig.OpenMode.CREATE_OR_APPEND).setCommitOnClose(true))
+        writer.close()
     }
 
     /**
      * (Re-)builds the [LuceneIndex].
      */
     override fun rebuild() {
-        this.writer.deleteAll()
+        val writer = IndexWriter(this.directory, IndexWriterConfig(StandardAnalyzer()).setOpenMode(IndexWriterConfig.OpenMode.APPEND).setCommitOnClose(true))
+        writer.deleteAll()
         this.parent.Tx(readonly = true, columns = this.columns).begin { tx ->
             tx.forEach (parallelism = 2) {
-                this.writer.addDocument(documentFromRecord(it))
+                writer.addDocument(documentFromRecord(it))
             }
             true
         }
-        this.writer.commit()
+        writer.close()
     }
 
     /**
@@ -101,7 +100,6 @@ internal class LuceneIndex(override val name: String, override val parent: Entit
      */
     override fun close() = this.globalLock.write {
         if (!this.closed) {
-            this.writer.close()
             this.directory.close()
             this.closed = true
         }
