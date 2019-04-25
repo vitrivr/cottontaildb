@@ -20,6 +20,7 @@ import org.apache.lucene.document.*
 import org.apache.lucene.index.*
 import org.apache.lucene.search.IndexSearcher
 import org.apache.lucene.store.Directory
+import org.apache.lucene.store.FSDirectory
 import org.apache.lucene.store.MMapDirectory
 import org.apache.lucene.store.NativeFSLockFactory
 
@@ -70,32 +71,29 @@ internal class LuceneIndex(override val name: String, override val parent: Entit
     override var closed: Boolean = false
         private set
 
-    private val directory: Directory = MMapDirectory.open(this.path, NativeFSLockFactory.getDefault())
+    /** The [Directory] containing the data for this [LuceneIndex]. */
+    private val directory: Directory = FSDirectory.open(this.path, NativeFSLockFactory.getDefault())
 
+    /** The [IndexWriter] used to write to this [LuceneIndex]. */
+    private val writer = IndexWriter(this.directory, IndexWriterConfig(StandardAnalyzer()).setOpenMode(IndexWriterConfig.OpenMode.CREATE_OR_APPEND).setCommitOnClose(true))
+
+    /** Initial commit in case writer was created. */
     init {
-        val config = IndexWriterConfig(StandardAnalyzer()).setOpenMode(IndexWriterConfig.OpenMode.CREATE_OR_APPEND)
-        val writer = IndexWriter(this.directory, config)
-        writer.commit()
-        writer.close()
+        this.writer.commit()
     }
-
 
     /**
      * (Re-)builds the [LuceneIndex].
      */
     override fun rebuild() {
-        val config = IndexWriterConfig(StandardAnalyzer()).setOpenMode(IndexWriterConfig.OpenMode.APPEND)
-        val indexWriter = IndexWriter(this.directory, config)
-        indexWriter.deleteAll()
+        this.writer.deleteAll()
         this.parent.Tx(readonly = true, columns = this.columns).begin { tx ->
-            tx.forEach {
-                indexWriter.addDocument(documentFromRecord(it))
+            tx.forEach (parallelism = 2) {
+                this.writer.addDocument(documentFromRecord(it))
             }
-            indexWriter.flush()
-            indexWriter.commit()
             true
         }
-        indexWriter.close()
+        this.writer.commit()
     }
 
     /**
@@ -103,6 +101,7 @@ internal class LuceneIndex(override val name: String, override val parent: Entit
      */
     override fun close() = this.globalLock.write {
         if (!this.closed) {
+            this.writer.close()
             this.directory.close()
             this.closed = true
         }
