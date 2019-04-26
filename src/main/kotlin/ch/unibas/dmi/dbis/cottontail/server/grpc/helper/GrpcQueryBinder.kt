@@ -145,7 +145,7 @@ internal class GrpcQueryBinder(val catalogue: Catalogue, engine: ExecutionEngine
 
         /* Perform some sanity checks. */
         when {
-            operator == ComparisonOperator.LIKE && !entity.hasIndexForColumn(column, IndexType.LUCENE) -> throw QueryException.QueryBindException("Failed to bind query '${atomic.attribute} LIKE :1' on entity '${entity.fqn}'. The entity does not have a text-index on the specified column '${column.name}, which is required for LIKE comparisons.")
+            operator == ComparisonOperator.LIKE && !entity.hasIndexForColumn(column, IndexType.LUCENE) -> throw QueryException.QueryBindException("Failed to bind query '${atomic.attribute} LIKE :1' on entity '${entity.fqn}'. The entity does not have a text-index on the specified column '${column.name}', which is required for LIKE comparisons.")
         }
 
         /* Return the resulting AtomicBooleanPredicate. */
