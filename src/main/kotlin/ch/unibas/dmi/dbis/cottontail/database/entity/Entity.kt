@@ -200,7 +200,7 @@ internal class Entity(override val name: String, schema: Schema) : DBO {
         /* Update header. */
         try {
             val new = this.header.let { EntityHeader(it.size, it.created, System.currentTimeMillis(), it.columns, it.indexes.filter { it != indexEntry.first }.toLongArray()) }
-            this.store.update(Entity.HEADER_RECORD_ID, new, EntityHeaderSerializer)
+            this.store.update(HEADER_RECORD_ID, new, EntityHeaderSerializer)
             this.store.commit()
         } catch (e: DBException) {
             this.store.rollback()
