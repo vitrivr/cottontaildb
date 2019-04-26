@@ -1,15 +1,14 @@
 package ch.unibas.dmi.dbis.cottontail.model.recordset
 
 import ch.unibas.dmi.dbis.cottontail.database.queries.*
-import ch.unibas.dmi.dbis.cottontail.database.queries.AtomicBooleanPredicate
 import ch.unibas.dmi.dbis.cottontail.database.queries.BooleanPredicate
-import ch.unibas.dmi.dbis.cottontail.database.queries.CompoundBooleanPredicate
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.basics.Filterable
 import ch.unibas.dmi.dbis.cottontail.model.basics.Record
 import ch.unibas.dmi.dbis.cottontail.model.basics.Scanable
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
 import ch.unibas.dmi.dbis.cottontail.model.values.Value
+
 import java.lang.IllegalArgumentException
 
 import java.util.*
@@ -102,7 +101,7 @@ internal class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterabl
      */
     fun union(other: Recordset): Recordset {
         if (!other.columns.contentDeepEquals(this.columns)) {
-            throw IllegalArgumentException("")
+            throw IllegalArgumentException("UNION of record sets not possible; columns of the two record sets are not the same!")
         }
 
         return Recordset(this.columns).also {new ->
@@ -120,7 +119,7 @@ internal class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterabl
      */
     fun intersect(other: Recordset): Recordset {
         if (!other.columns.contentDeepEquals(this.columns)) {
-            throw IllegalArgumentException("")
+            throw IllegalArgumentException("INTERSECT of record sets not possible; columns of the two record sets are not the same!")
         }
 
         val records = this.map.keys.intersect(other.map.keys)
