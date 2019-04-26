@@ -5,6 +5,7 @@ import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
 import ch.unibas.dmi.dbis.cottontail.database.general.begin
 import ch.unibas.dmi.dbis.cottontail.database.index.Index
 import ch.unibas.dmi.dbis.cottontail.database.index.IndexType
+import ch.unibas.dmi.dbis.cottontail.database.index.lucene.LuceneIndex
 import ch.unibas.dmi.dbis.cottontail.database.queries.AtomicBooleanPredicate
 import ch.unibas.dmi.dbis.cottontail.database.queries.ComparisonOperator
 import ch.unibas.dmi.dbis.cottontail.database.queries.Predicate
@@ -47,6 +48,9 @@ internal class UniqueHashIndex(override val name: String, override val parent: E
     /** The type of [Index] */
     override val type: IndexType = IndexType.HASH_UQ
 
+    /** The [UniqueHashIndex] implementation returns exactly the columns that is indexed. */
+    override val produces: Array<ColumnDef<*>> = this.columns
+
     /** The internal [DB] reference. */
     private val db = DBMaker.fileDB(this.path.toFile()).fileMmapEnableIfSupported().transactionEnable().make()
 
@@ -79,7 +83,7 @@ internal class UniqueHashIndex(override val name: String, override val parent: E
 
         /* Generate record set .*/
         if (predicate.not) {
-            this.map.forEach {value, tid ->
+            this.map.forEach { (value, tid) ->
                 if (results.containsKey(value)) {
                     recordset.addRow(tupleId = tid, values = arrayOf(value))
                 }

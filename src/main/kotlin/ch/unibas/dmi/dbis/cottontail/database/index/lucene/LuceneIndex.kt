@@ -1,6 +1,6 @@
 package ch.unibas.dmi.dbis.cottontail.database.index.lucene
 
-import ch.unibas.dmi.dbis.cottontail.database.column.FloatColumnType
+import ch.unibas.dmi.dbis.cottontail.database.column.*
 import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
 import ch.unibas.dmi.dbis.cottontail.database.general.begin
 import ch.unibas.dmi.dbis.cottontail.database.index.Index
@@ -12,7 +12,7 @@ import ch.unibas.dmi.dbis.cottontail.model.basics.Record
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
 import ch.unibas.dmi.dbis.cottontail.model.recordset.StandaloneRecord
-import ch.unibas.dmi.dbis.cottontail.model.values.FloatValue
+import ch.unibas.dmi.dbis.cottontail.model.values.*
 
 import org.apache.lucene.analysis.Analyzer
 import org.apache.lucene.analysis.standard.StandardAnalyzer
@@ -37,13 +37,13 @@ internal class LuceneIndex(override val name: String, override val parent: Entit
 
 
     companion object {
-        /** Name of the tuple ID field. */
-        const val FIELD_NAME_TID = "_tid"
-
         const val ATOMIC_COST = 0.01f /** Cost of a single lookup. TODO: Determine real value. */
 
-        /** Name of the tuple ID field. */
-        val SCORE_COLUMN = ColumnDef("lucene_score", FloatColumnType())
+        /** [ColumnDef] of the _tid column. */
+        val TID_COLUMN = ColumnDef("_tid", LongColumnType())
+
+        /** [ColumnDef] of the score column. */
+        val SCORE_COLUMN = ColumnDef("score", FloatColumnType())
 
         /**
          * Maps a [Record] to a [Document] that can be processed by Lucene.
@@ -52,8 +52,8 @@ internal class LuceneIndex(override val name: String, override val parent: Entit
          * @return The resulting [Document]
          */
         private fun documentFromRecord(record: Record): Document = Document().apply {
-            add(NumericDocValuesField(FIELD_NAME_TID, record.tupleId))
-            add(StoredField(FIELD_NAME_TID, record.tupleId))
+            add(NumericDocValuesField(TID_COLUMN.name, record.tupleId))
+            add(StoredField(TID_COLUMN.name, record.tupleId))
             record.columns.forEach {
                 val value = record[it]?.value as? String
                 if (value != null) {
@@ -62,6 +62,9 @@ internal class LuceneIndex(override val name: String, override val parent: Entit
             }
         }
     }
+
+    /** The [LuceneIndex] implementation produces an additional score column. */
+    override val produces: Array<ColumnDef<*>> = arrayOf(SCORE_COLUMN)
 
     override val path: Path = this.parent.path.resolve("idx_lucene_$name")
 
@@ -130,12 +133,13 @@ internal class LuceneIndex(override val name: String, override val parent: Entit
         }
 
         /* Construct empty Recordset. */
-        val resultset = Recordset(columns = arrayOf(SCORE_COLUMN))
+        val resultset = Recordset(columns = arrayOf(*this.produces))
 
         /* Execute query and add results. */
         val results = indexSearcher.search(query, Integer.MAX_VALUE)
-        results.scoreDocs.forEach {
-            resultset.addRow(tupleId = indexSearcher.doc(it.doc)[FIELD_NAME_TID].toLong(), values = arrayOf(FloatValue(it.score)))
+        results.scoreDocs.forEach {sdoc ->
+            val doc = indexSearcher.doc(sdoc.doc)
+            resultset.addRow(doc[TID_COLUMN.name].toLong(), values = arrayOf(FloatValue(sdoc.score)))
         }
         indexReader.close()
         resultset
@@ -170,8 +174,9 @@ internal class LuceneIndex(override val name: String, override val parent: Entit
 
         /* Execute query and add results. */
         val results = indexSearcher.search(query, Integer.MAX_VALUE)
-        results.scoreDocs.forEach {
-            action(StandaloneRecord(tupleId = indexSearcher.doc(it.doc)[FIELD_NAME_TID].toLong(), columns = arrayOf(SCORE_COLUMN)).assign(arrayOf(FloatValue(it.score))))
+        results.scoreDocs.forEach {sdoc ->
+            val doc = indexSearcher.doc(sdoc.doc)
+            action(StandaloneRecord(tupleId = doc[TID_COLUMN.name].toLong(), columns = arrayOf(*this.produces)).assign(arrayOf(FloatValue(sdoc.score))))
         }
         indexReader.close()
     } else {
@@ -204,8 +209,9 @@ internal class LuceneIndex(override val name: String, override val parent: Entit
         }
 
         /* Execute query and add results. */
-        val results = indexSearcher.search(query, Integer.MAX_VALUE).scoreDocs.map {
-            action(StandaloneRecord(tupleId = indexSearcher.doc(it.doc)[FIELD_NAME_TID].toLong(), columns = arrayOf(SCORE_COLUMN)).assign(arrayOf(FloatValue(it.score))))
+        val results = indexSearcher.search(query, Integer.MAX_VALUE).scoreDocs.map {sdoc ->
+            val doc = indexSearcher.doc(sdoc.doc)
+            action(StandaloneRecord(tupleId = doc[TID_COLUMN.name].toLong(), columns = arrayOf(*this.produces)).assign(arrayOf(FloatValue(sdoc.score))))
         }
         indexReader.close()
         results

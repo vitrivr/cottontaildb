@@ -40,8 +40,14 @@ internal abstract class Index : DBO {
     /** Reference to the [Entity], this index belongs to. */
     abstract override val parent: Entity
 
-    /** The [ColumnDef] that are covered by this index. */
+    /** The [ColumnDef] that are covered (i.e. indexed) by this [Index]. */
     abstract val columns: Array<ColumnDef<*>>
+
+    /**
+     * The [ColumnDef] that are produces by this [Index]. They may differ from the indexed columns, since some [Index] implementations
+     * only return a tuple ID OR because some implementations may add some kind of score.
+     */
+    abstract val produces: Array<ColumnDef<*>>
 
     /** Flag indicating whether or not this [Index] supports parallel execution. */
     val supportsParallelExecution
@@ -153,11 +159,13 @@ internal abstract class Index : DBO {
             this@Index.globalLock.readLock().lock()
         }
 
-        /**
-         * The [ColumnDef]s handled by the [Index] that underpins this [IndexTransaction].
-         */
+        /** The [ColumnDef]s covered by the [Index] that underpins this [IndexTransaction]. */
         override val columns: Array<ColumnDef<*>>
             get() = this@Index.columns
+
+        /** The [ColumnDef]s returned by the [Index] that underpins this [IndexTransaction]. */
+        override val produces: Array<ColumnDef<*>>
+            get() = this@Index.produces
 
         /**
          * The [IndexType] of the [Index] that underpins this [IndexTransaction].

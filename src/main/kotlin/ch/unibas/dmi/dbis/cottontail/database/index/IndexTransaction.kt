@@ -15,9 +15,14 @@ import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
  */
 internal interface IndexTransaction : Transaction, Filterable {
     /**
-     * The [ColumnDef]s handled by the [Index] that underpins this [IndexTransaction].
+     * The [ColumnDef]s covered by the [Index] that underpins this [IndexTransaction].
      */
     val columns: Array<ColumnDef<*>>
+
+    /**
+     * The [ColumnDef]s produced by the [Index] that underpins this [IndexTransaction].
+     */
+    val produces: Array<ColumnDef<*>>
 
     /**
      * The [IndexType] of the [Index] that underpins this [IndexTransaction].
