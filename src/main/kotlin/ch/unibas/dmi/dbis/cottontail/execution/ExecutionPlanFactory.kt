@@ -13,6 +13,7 @@ import ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.boolean.EntityLinear
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.recordset.projection.RecordsetCountProjectionTask
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.recordset.projection.RecordsetExistsProjectionTask
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.recordset.projection.RecordsetSelectProjectionTask
+import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
 
 
 /**
@@ -92,12 +93,8 @@ internal class ExecutionPlanFactory (val executionEngine: ExecutionEngine) {
             candidates.add(stage)
         }
 
-        /* Take cheapes execution path. */
-        candidates.sortBy { it.cost }
-        return candidates.first()
 
-
-        /* TODO: Explore more strains of executon by decomposing the WHERE-clause. */
+        /* TODO: Explore more strains of execution by decomposing the WHERE-clause. */
         /* Now start decomposing query and generating alternative strains of execution. */
 
 
@@ -131,6 +128,15 @@ internal class ExecutionPlanFactory (val executionEngine: ExecutionEngine) {
                 depth += 1
             }
         } */
+
+        /* Check if list of candidates contains elements. */
+        if (candidates.size == 0) {
+            throw QueryException.QueryBindException("Failed to generate a valid execution plan; no path found to satisfy WHERE-clause.")
+        }
+
+        /* Take cheapest execution path and return it. */
+        candidates.sortBy { it.cost }
+        return candidates.first()
     }
 }
 
