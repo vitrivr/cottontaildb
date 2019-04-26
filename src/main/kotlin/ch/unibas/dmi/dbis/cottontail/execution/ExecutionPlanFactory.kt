@@ -49,7 +49,7 @@ internal class ExecutionPlanFactory (val executionEngine: ExecutionEngine) {
             plan.addTask(stage1)
             plan.addTask(stage2, stage1.id)
         } else if (whereClause != null) {
-            val stage1 = EntityLinearScanFilterTask(entity, whereClause)
+            val stage1 = planAndLayoutWhere(entity, whereClause)
             val stage2 = when (projectionClause.type) {
                 ProjectionType.SELECT -> RecordsetSelectProjectionTask(entity, projectionClause.columns)
                 ProjectionType.COUNT -> RecordsetCountProjectionTask()
@@ -57,33 +57,47 @@ internal class ExecutionPlanFactory (val executionEngine: ExecutionEngine) {
             }
 
             /* Add tasks to ExecutionPlan. */
-            plan.addTask(stage1)
-            plan.addTask(stage2, stage1.id)
+            plan.addStage(stage1)
+            plan.addTask(stage2, stage1.output!!)
         }
 
         return plan
     }
 
     /**
+     * Plans different execution paths for the [BooleanPredicate] and returns the most efficient one in terms of cost.
      *
+     * @param entity [Entity] on which to execute the [BooleanPredicate]
+     * @param whereClause The [BooleanPredicate] to execute.
+     * @return [ExecutionStage] that is expected to be most efficient in terms of costs.
      */
-    fun planAndLayoutWhere(entity: Entity, whereClause: BooleanPredicate, plan: ExecutionPlan) {
+    private fun planAndLayoutWhere(entity: Entity, whereClause: BooleanPredicate): ExecutionStage {
 
         /* Generate empty list of execution branches. */
-        val candidates = mutableListOf<ExecutionTask>()
+        val candidates = mutableListOf<ExecutionStage>()
 
         /* Add default case 1: Full table scan. */
         if (entity.canProcess(whereClause)) {
-            candidates.add(EntityLinearScanFilterTask(entity, whereClause))
+            val stage = ExecutionStage()
+            stage.addTask(EntityLinearScanFilterTask(entity, whereClause))
+            candidates.add(stage)
         }
 
         /* Add default case 2: Cheapest index for full query. */
         val indexes = entity.allIndexes()
         val index = indexes.filter { it.canProcess(whereClause) }.sortedBy { it.cost(whereClause) }.firstOrNull()
         if (index != null) {
-            candidates.add(EntityIndexedFilterTask(entity, whereClause, index))
+            val stage = ExecutionStage()
+            stage.addTask(EntityIndexedFilterTask(entity, whereClause, index))
+            candidates.add(stage)
         }
 
+        /* Take cheapes execution path. */
+        candidates.sortBy { it.cost }
+        return candidates.first()
+
+
+        /* TODO: Explore more strains of executon by decomposing the WHERE-clause. */
         /* Now start decomposing query and generating alternative strains of execution. */
 
 
