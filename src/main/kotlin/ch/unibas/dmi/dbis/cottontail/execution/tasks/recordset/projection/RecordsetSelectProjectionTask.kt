@@ -44,7 +44,7 @@ internal class RecordsetSelectProjectionTask (
         val lookup = this.columns.filter { !common.contains(it) }.toTypedArray()
 
         /* Make lookup if necessary, otherwise just drop columns that are not required. */
-        if (lookup.size > 0) {
+        if (lookup.isNotEmpty()) {
             this.entity.Tx(readonly = true, columns = lookup).begin {tx ->
                 parent.forEach {rec ->
                     val values: Array<Value<*>?> = common.map { rec[it] }.toTypedArray()
