@@ -26,7 +26,7 @@ internal class EntityIndexedFilterTask(private val entity: Entity, private val p
     override fun execute(): Recordset = this.entity.Tx(readonly = true, columns = this.predicate.columns.toTypedArray()).query {tx ->
         val columns = this.predicate.columns.toTypedArray()
         val dataset = Recordset(columns)
-        tx.indexes(columns, this.type).first().filter(this.predicate).forEach {
+        tx.indexes(columns, this.type).first().forEach(this.predicate) {
             dataset.addRow(it.tupleId, tx.read(it.tupleId).values)
         }
         dataset
