@@ -51,7 +51,7 @@ internal class ExecutionPlanFactory (val executionEngine: ExecutionEngine) {
         } else if (whereClause != null) {
             val stage1 = planAndLayoutWhere(entity, whereClause)
             val stage2 = when (projectionClause.type) {
-                ProjectionType.SELECT -> RecordsetSelectProjectionTask(entity, projectionClause.columns)
+                ProjectionType.SELECT -> RecordsetSelectProjectionTask(entity, projectionClause.columns, projectionClause.star)
                 ProjectionType.COUNT -> RecordsetCountProjectionTask()
                 ProjectionType.EXISTS -> RecordsetExistsProjectionTask()
             }

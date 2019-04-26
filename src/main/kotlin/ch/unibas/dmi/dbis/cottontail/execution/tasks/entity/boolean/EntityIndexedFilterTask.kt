@@ -23,11 +23,11 @@ internal class EntityIndexedFilterTask(private val entity: Entity, private val p
     /**
      * Executes this [EntityIndexedFilterTask]
      */
-    override fun execute(): Recordset = this.entity.Tx(readonly = true, columns = this.predicate.columns.toTypedArray()).query {tx ->
-        val columns = this.predicate.columns.toTypedArray()
-        val dataset = Recordset(columns)
-        tx.indexes(columns, this.type).first().forEach(this.predicate) {
-            dataset.addRow(it.tupleId, tx.read(it.tupleId).values)
+    override fun execute(): Recordset = this.entity.Tx(readonly = true, columns = emptyArray()).query {tx ->
+        val index = tx.indexes(this.predicate.columns.toTypedArray(), this.type).first()
+        val dataset = Recordset(index.produces)
+        index.forEach(this.predicate) {
+            dataset.addRow(it.tupleId, it.values)
         }
         dataset
     } ?: Recordset(this.predicate.columns.toTypedArray())

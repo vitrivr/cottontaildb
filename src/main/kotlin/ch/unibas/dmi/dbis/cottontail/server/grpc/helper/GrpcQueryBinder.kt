@@ -216,14 +216,16 @@ internal class GrpcQueryBinder(val catalogue: Catalogue, engine: ExecutionEngine
      */
     private fun parseAndBindProjection(entity: Entity, projection: CottontailGrpc.Projection): Projection = try {
         val columns = mutableSetOf<ColumnDef<*>>()
+        var star = false
         projection.attributesList.forEach {
             if (it == "*") {
+                star = true
                 columns.addAll(entity.allColumns())
             } else {
                 columns.add(entity.columnForName(it) ?: throw QueryException.QueryBindException("Failed to bind column $it. Column does not exist on entity ${entity.fqn}"))
             }
         }
-        Projection(type = ProjectionType.valueOf(projection.op.name), columns = columns.toTypedArray())
+        Projection(type = ProjectionType.valueOf(projection.op.name), columns = columns.toTypedArray(), star = star)
     } catch (e: java.lang.IllegalArgumentException) {
         throw QueryException.QuerySyntaxException("The query lacks a valid SELECT-clause (projection): ${projection.op} is not supported.")
     }
