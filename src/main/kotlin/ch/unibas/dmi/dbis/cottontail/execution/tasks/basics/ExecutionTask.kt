@@ -20,7 +20,7 @@ internal abstract class ExecutionTask(name: String): Task<String, Recordset>() {
 
     /** Initializes this [ExecutionTask]'s ID. */
     init {
-        this.id = "name[${UUID.randomUUID()}]"
+        this.id = "$name[${UUID.randomUUID()}]"
     }
 
     /** The estimated cost of executing this [ExecutionTask]. */
@@ -70,7 +70,7 @@ internal abstract class ExecutionTask(name: String): Task<String, Recordset>() {
             throw TaskExecutionException(this, "Parent task did not provide any output but is expected to be unary. Please connect a valid parent task.")
         }
 
-        if (this.parentResults.all.size != 2) {
+        if (this.parentResults.all.size != 1) {
             throw TaskExecutionException(this, "Parent task did provide more than one output but is expected to be unary. Please foresee a merging stage.")
         }
     }
