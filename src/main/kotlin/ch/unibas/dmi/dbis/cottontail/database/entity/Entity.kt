@@ -219,7 +219,7 @@ internal class Entity(override val name: String, schema: Schema) : DBO {
      *
      * @param name The name of the [Index]
      */
-    fun updateIndex(name: String) {
+    fun updateIndex(name: String) = this.globalLock.read {
         val index = this.indexes.find { it.name == name }
         index?.Tx(false)?.rebuild()
     }
@@ -227,7 +227,7 @@ internal class Entity(override val name: String, schema: Schema) : DBO {
     /**
      * Updates all [Index]es for this [Entity]
      */
-    fun updateAllIndexes() {
+    fun updateAllIndexes() = this.globalLock.read {
         this.indexes.forEach {
             it.Tx(false).rebuild()
         }
