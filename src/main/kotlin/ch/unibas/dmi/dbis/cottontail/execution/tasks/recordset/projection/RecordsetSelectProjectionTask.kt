@@ -5,6 +5,7 @@ import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
 import ch.unibas.dmi.dbis.cottontail.database.general.begin
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.basics.ExecutionTask
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
+import ch.unibas.dmi.dbis.cottontail.model.values.Value
 
 import com.github.dexecutor.core.task.Task
 import com.github.dexecutor.core.task.TaskExecutionException
@@ -35,14 +36,30 @@ internal class RecordsetSelectProjectionTask (
         /* Get records from parent task. */
         val parent = this.first() ?: throw TaskExecutionException("Projection could not be executed because parent task has failed.")
 
-        /* Create new Recordset with new columns. */
-        val recordset = Recordset(parent.columns + this.columns)
-        this.entity.Tx(readonly = true, columns = columns).begin {tx ->
-            parent.forEach {rec ->
-                recordset.addRow(rec.tupleId, rec.values + tx.read(rec.tupleId).values)
+        /* Create new Recordset with specified columns . */
+        val recordset = Recordset(this.columns)
+
+        /* Specify the columns that are already contained in the parent Recordset and those that need a new lookup. */
+        val common = this.columns.filter { parent.columns.contains(it) }.toTypedArray()
+        val lookup = this.columns.filter { !common.contains(it) }.toTypedArray()
+
+        /* Make lookup if necessary, otherwise just drop columns that are not required. */
+        if (lookup.size > 0) {
+            this.entity.Tx(readonly = true, columns = lookup).begin {tx ->
+                parent.forEach {rec ->
+                    val values: Array<Value<*>?> = common.map { rec[it] }.toTypedArray()
+                    recordset.addRow(rec.tupleId, values + tx.read(rec.tupleId).values)
+                }
+                true
             }
-            true
+        } else {
+            parent.forEach {rec ->
+                val values: Array<Value<*>?> = common.map { rec[it] }.toTypedArray()
+                recordset.addRow(rec.tupleId, values)
+            }
         }
+
+        /* Return new Recordset. */
         return recordset
     }
 }
