@@ -144,21 +144,42 @@ internal class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.Cotton
     /**
      * gRPC endpoint for dropping a particular [Index]
      */
-    override fun dropIndex(request: CottontailGrpc.Index, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) = try {
-        this.catalogue.getSchema(request.entity.schema.name).getEntity(request.entity.name).dropIndex(request.name)
+    override fun dropIndex(request: CottontailGrpc.DropIndexMessage, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) = try {
+        this.catalogue.getSchema(request.index.entity.schema.name).getEntity(request.index.entity.name).dropIndex(request.index.name)
 
         /* Notify caller of success. */
         responseObserver.onNext(CottontailGrpc.SuccessStatus.newBuilder().setTimestamp(System.currentTimeMillis()).build())
         responseObserver.onCompleted()
     } catch (e: DatabaseException.SchemaDoesNotExistException) {
-        responseObserver.onError(Status.NOT_FOUND.withDescription("Schema '${request.entity.schema.fqn()} does not exist!").asException())
+        responseObserver.onError(Status.NOT_FOUND.withDescription("Schema '${request.index.entity.schema.fqn()} does not exist!").asException())
     } catch (e: DatabaseException.EntityDoesNotExistException) {
-        responseObserver.onError(Status.NOT_FOUND.withDescription("Entity '${request.entity.fqn()} does not exist!").asException())
+        responseObserver.onError(Status.NOT_FOUND.withDescription("Entity '${request.index.entity.fqn()} does not exist!").asException())
     } catch (e: DatabaseException.IndexDoesNotExistException) {
-        responseObserver.onError(Status.NOT_FOUND.withDescription("Index '${request.fqn()} does not exist!").asException())
+        responseObserver.onError(Status.NOT_FOUND.withDescription("Index '${request.index.fqn()} does not exist!").asException())
     } catch (e: DatabaseException) {
-        responseObserver.onError(Status.UNKNOWN.withDescription("Failed to drop index '${request.fqn()}' because of database error: ${e.message}").asException())
+        responseObserver.onError(Status.UNKNOWN.withDescription("Failed to drop index '${request.index.fqn()}' because of database error: ${e.message}").asException())
     } catch (e: Exception) {
-        responseObserver.onError(Status.UNKNOWN.withDescription("Failed to drop index '${request.fqn()}' because of an unknown error: ${e.message}").asException())
+        responseObserver.onError(Status.UNKNOWN.withDescription("Failed to drop index '${request.index.fqn()}' because of an unknown error: ${e.message}").asException())
+    }
+
+    /**
+     * gRPC endpoint for rebuilding a particular [Index]
+     */
+    override fun rebuildIndex(request: CottontailGrpc.RebuildIndexMessage, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) = try {
+        this.catalogue.getSchema(request.index.entity.schema.name).getEntity(request.index.entity.name).updateIndex(request.index.name)
+
+        /* Notify caller of success. */
+        responseObserver.onNext(CottontailGrpc.SuccessStatus.newBuilder().setTimestamp(System.currentTimeMillis()).build())
+        responseObserver.onCompleted()
+    } catch (e: DatabaseException.SchemaDoesNotExistException) {
+        responseObserver.onError(Status.NOT_FOUND.withDescription("Schema '${request.index.entity.schema.fqn()} does not exist!").asException())
+    } catch (e: DatabaseException.EntityDoesNotExistException) {
+        responseObserver.onError(Status.NOT_FOUND.withDescription("Entity '${request.index.entity.fqn()} does not exist!").asException())
+    } catch (e: DatabaseException.IndexDoesNotExistException) {
+        responseObserver.onError(Status.NOT_FOUND.withDescription("Index '${request.index.fqn()} does not exist!").asException())
+    } catch (e: DatabaseException) {
+        responseObserver.onError(Status.UNKNOWN.withDescription("Failed to rebuild index '${request.index.fqn()}' because of database error: ${e.message}").asException())
+    } catch (e: Exception) {
+        responseObserver.onError(Status.UNKNOWN.withDescription("Failed to rebuild index '${request.index.fqn()}' because of an unknown error: ${e.message}").asException())
     }
 }
