@@ -25,6 +25,7 @@ import org.apache.lucene.store.MMapDirectory
 import org.apache.lucene.store.NativeFSLockFactory
 
 import java.nio.file.Path
+import kotlin.concurrent.read
 import kotlin.concurrent.write
 
 /**
@@ -37,7 +38,8 @@ internal class LuceneIndex(override val name: String, override val parent: Entit
 
 
     companion object {
-        const val ATOMIC_COST = 0.01f /** Cost of a single lookup. TODO: Determine real value. */
+        /** Cost of a single lookup operation (i.e. comparison of a term in the index). */
+        const val ATOMIC_COST = 1e-6f
 
         /** [ColumnDef] of the _tid column. */
         val TID_COLUMN = ColumnDef("_tid", LongColumnType())
@@ -66,10 +68,13 @@ internal class LuceneIndex(override val name: String, override val parent: Entit
     /** The [LuceneIndex] implementation produces an additional score column. */
     override val produces: Array<ColumnDef<*>> = arrayOf(SCORE_COLUMN)
 
+    /** The path to the directory that contains the data for this [LuceneIndex]. */
     override val path: Path = this.parent.path.resolve("idx_lucene_$name")
 
+    /** The type of this [Index]. */
     override val type: IndexType = IndexType.LUCENE
 
+    /** Flag indicating whether or not this [LuceneIndex] is open and usable. */
     @Volatile
     override var closed: Boolean = false
         private set
@@ -82,6 +87,9 @@ internal class LuceneIndex(override val name: String, override val parent: Entit
         val writer = IndexWriter(this.directory, IndexWriterConfig(StandardAnalyzer()).setOpenMode(IndexWriterConfig.OpenMode.CREATE_OR_APPEND).setCommitOnClose(true))
         writer.close()
     }
+
+    /** The [IndexReader] instance used for accessing the [LuceneIndex]. */
+    private var indexReader = DirectoryReader.open(this.directory)
 
     /**
      * (Re-)builds the [LuceneIndex].
@@ -96,6 +104,13 @@ internal class LuceneIndex(override val name: String, override val parent: Entit
             true
         }
         writer.close()
+
+        /* Open new IndexReader and close new one. */
+        this.globalLock.write {
+            val oldReader = this.indexReader
+            this.indexReader = DirectoryReader.open(this.directory)
+            oldReader.close()
+        }
     }
 
     /**
@@ -103,6 +118,7 @@ internal class LuceneIndex(override val name: String, override val parent: Entit
      */
     override fun close() = this.globalLock.write {
         if (!this.closed) {
+            this.indexReader.close()
             this.directory.close()
             this.closed = true
         }
@@ -118,8 +134,7 @@ internal class LuceneIndex(override val name: String, override val parent: Entit
      * @throws DatabaseException.PredicateNotSupportedBxIndexException If predicate is not supported by [Index].
      */
     override fun filter(predicate: Predicate): Recordset = if (predicate is BooleanPredicate) {
-        val indexReader = DirectoryReader.open(this.directory)
-        val indexSearcher = IndexSearcher(indexReader)
+        val indexSearcher = IndexSearcher(this.indexReader)
         if (!predicate.columns.all { this.columns.contains(it) })
             throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (lucene-index) is lacking certain fields the provided predicate requires.")
 
@@ -141,7 +156,6 @@ internal class LuceneIndex(override val name: String, override val parent: Entit
             val doc = indexSearcher.doc(sdoc.doc)
             resultset.addRow(doc[TID_COLUMN.name].toLong(), values = arrayOf(FloatValue(sdoc.score)))
         }
-        indexReader.close()
         resultset
     } else {
         throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (lucene-index) does not support predicates of type '${predicate::class.simpleName}'.")
@@ -157,8 +171,7 @@ internal class LuceneIndex(override val name: String, override val parent: Entit
      * @throws DatabaseException.PredicateNotSupportedBxIndexException If predicate is not supported by [Index].
      */
     override fun forEach(predicate: Predicate, action: (Record) -> Unit) = if (predicate is BooleanPredicate) {
-        val indexReader = DirectoryReader.open(this.directory)
-        val indexSearcher = IndexSearcher(indexReader)
+        val indexSearcher = IndexSearcher(this.indexReader)
 
         if (!predicate.columns.all { this.columns.contains(it) })
             throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (lucene-index) is lacking certain fields the provided predicate requires.")
@@ -178,7 +191,6 @@ internal class LuceneIndex(override val name: String, override val parent: Entit
             val doc = indexSearcher.doc(sdoc.doc)
             action(StandaloneRecord(tupleId = doc[TID_COLUMN.name].toLong(), columns = arrayOf(*this.produces)).assign(arrayOf(FloatValue(sdoc.score))))
         }
-        indexReader.close()
     } else {
         throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (lucene-index) does not support predicates of type '${predicate::class.simpleName}'.")
     }
@@ -193,8 +205,7 @@ internal class LuceneIndex(override val name: String, override val parent: Entit
      * @throws DatabaseException.PredicateNotSupportedBxIndexException If predicate is not supported by [Index].
      */
     override fun <R> map(predicate: Predicate, action: (Record) -> R): Collection<R> = if (predicate is BooleanPredicate) {
-        val indexReader = DirectoryReader.open(this.directory)
-        val indexSearcher = IndexSearcher(indexReader)
+        val indexSearcher = IndexSearcher(this.indexReader)
 
         if (!predicate.columns.all { this.columns.contains(it) })
             throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (lucene-index) is lacking certain fields the provided predicate requires.")
@@ -213,7 +224,6 @@ internal class LuceneIndex(override val name: String, override val parent: Entit
             val doc = indexSearcher.doc(sdoc.doc)
             action(StandaloneRecord(tupleId = doc[TID_COLUMN.name].toLong(), columns = arrayOf(*this.produces)).assign(arrayOf(FloatValue(sdoc.score))))
         }
-        indexReader.close()
         results
     } else {
         throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (lucene-index) does not support predicates of type '${predicate::class.simpleName}'.")
@@ -242,7 +252,10 @@ internal class LuceneIndex(override val name: String, override val parent: Entit
      * @return Cost estimate for the [Predicate]
      */
     override fun cost(predicate: Predicate): Float = when {
-        !canProcess(predicate) -> Float.MAX_VALUE
-        else -> predicate.columns.size * ATOMIC_COST
+        canProcess(predicate) -> {
+            val searcher = IndexSearcher(this.indexReader)
+            predicate.columns.map {searcher.collectionStatistics(it.name).sumTotalTermFreq() * ATOMIC_COST}.sum()
+        }
+        else -> Float.MAX_VALUE
     }
 }
