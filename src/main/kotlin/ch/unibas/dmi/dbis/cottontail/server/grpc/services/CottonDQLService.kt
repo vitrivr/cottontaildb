@@ -49,24 +49,28 @@ internal class CottonDQLService (val catalogue: Catalogue, val engine: Execution
         LOGGER.trace("Executing query $queryId took ${System.currentTimeMillis()-startExecution}ms.")
 
         /* Calculate batch size based on an example message and the maxMessageSize. */
-        val startSending = System.currentTimeMillis()
-        val first = results.first()
-        if (first != null) {
-            val exampleSize = BitUtil.nextPowerOfTwo(recordToTuple(first).build().serializedSize)
-            val pageSize = (maxMessageSize/exampleSize)
-            val maxPages = Math.floorDiv(results.rowCount,pageSize)
+        if (results.rowCount > 0) {
+            val startSending = System.currentTimeMillis()
+            val first = results.first()
+            if (first != null) {
+                val exampleSize = BitUtil.nextPowerOfTwo(recordToTuple(first).build().serializedSize)
+                val pageSize = (maxMessageSize/exampleSize)
+                val maxPages = Math.floorDiv(results.rowCount,pageSize)
 
-            /* Return results. */
-            val iterator = results.iterator()
-            for (i in 0..maxPages) {
-                val responseBuilder = CottontailGrpc.QueryResponseMessage.newBuilder().setStart(false).setPageSize(pageSize).setPage(i).setMaxPage(maxPages).setTotalHits(results.rowCount)
-                for (j in i * pageSize until Math.min(results.rowCount, i*pageSize + pageSize)) {
-                    responseBuilder.addResults(recordToTuple(iterator.next()))
+                /* Return results. */
+                val iterator = results.iterator()
+                for (i in 0..maxPages) {
+                    val responseBuilder = CottontailGrpc.QueryResponseMessage.newBuilder().setStart(false).setPageSize(pageSize).setPage(i).setMaxPage(maxPages).setTotalHits(results.rowCount)
+                    for (j in i * pageSize until Math.min(results.rowCount, i*pageSize + pageSize)) {
+                        responseBuilder.addResults(recordToTuple(iterator.next()))
+                    }
+                    responseObserver.onNext(responseBuilder.build())
                 }
-                responseObserver.onNext(responseBuilder.build())
             }
+            LOGGER.trace("Sending back ${results.rowCount} rows for query $queryId took ${System.currentTimeMillis()-startSending}ms.")
+        } else {
+            LOGGER.trace("Query yielded now results.")
         }
-        LOGGER.trace("Sending back ${results.rowCount} rows for query $queryId took ${System.currentTimeMillis()-startSending}ms.")
 
         /* Complete query. */
         LOGGER.info("Query $queryId took ${System.currentTimeMillis()-startBinding}ms.")
