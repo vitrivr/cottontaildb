@@ -14,7 +14,8 @@ internal class ExecutionStage {
     val tasks = mutableMapOf<ExecutionTask,Collection<String>>()
 
     /** Total cost incurred by executing this [ExecutionStage]. */
-    val cost: Float = this.tasks.keys.map { it.cost }.sum()
+    val cost: Float
+        get() = this.tasks.keys.map { it.cost }.sum()
 
     /** The ID of the output task. */
     var output: String? = null
