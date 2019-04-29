@@ -61,6 +61,7 @@ internal class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterabl
      */
     @Synchronized
     fun addRow(tupleId: Long, values: Array<Value<*>?>) {
+        this.maxTupleId.set(Math.max(this.maxTupleId.get(), tupleId))
         this.map[tupleId] = RecordsetRecord(tupleId).assign(values)
     }
 
@@ -77,6 +78,7 @@ internal class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterabl
     fun addRowIf(tupleId: Long, predicate: BooleanPredicate, values: Array<Value<*>?>): Boolean {
         val record = RecordsetRecord(tupleId).assign(values)
         return if (predicate.matches(record)) {
+            this.maxTupleId.set(Math.max(this.maxTupleId.get(), tupleId))
             this.map[tupleId] = record
             true
         } else {
