@@ -129,7 +129,7 @@ internal class Schema(override val name: String, override val path: Path, overri
     /**
      * Drops an [Entity] in this [Schema]. The act of dropping an [Entity] requires a lock on that [Entity].
      *
-     * @param The name of the [Entity] that should be dropped.
+     * @param name The name of the [Entity] that should be dropped.
      */
     fun dropEntity(name: String) = this.lock.write {
         val entityRecId = this.header.entities.find { this.store.get(it, Serializer.STRING) == name } ?: throw DatabaseException.EntityDoesNotExistException("$fqn.$name")
@@ -167,7 +167,7 @@ internal class Schema(override val name: String, override val path: Path, overri
      *
      * @param name Name of the [Entity] to access.
      */
-    fun getEntity(name: String): Entity = this.lock.read {
+    fun entityForName(name: String): Entity = this.lock.read {
         if (!this.entities.contains(name)) throw DatabaseException.EntityDoesNotExistException("$fqn.$name")
         return this.loaded[name]?.get() ?: Entity(name, this).also {
             this.loaded[name] = SoftReference(it)

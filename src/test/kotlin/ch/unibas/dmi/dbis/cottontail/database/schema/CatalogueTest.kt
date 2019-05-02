@@ -27,7 +27,7 @@ class CatalogueTest {
     @Test
     fun CreateSchemaTest() {
         catalogue.createSchema(schemaName)
-        val schema = catalogue.getSchema(schemaName)
+        val schema = catalogue.schemaForName(schemaName)
 
         /* Check if directory exists. */
         Assertions.assertTrue(Files.isReadable(TestConstants.config.root.resolve("schema_${schemaName}")))
@@ -64,7 +64,7 @@ class CatalogueTest {
         Assertions.assertFalse(Files.isReadable(TestConstants.config.root.resolve("schema_${schemaName}").resolve(Schema.FILE_CATALOGUE)))
 
         /* Check that correct exception is thrown. */
-        Assertions.assertThrows(DatabaseException.SchemaDoesNotExistException::class.java, {catalogue.getSchema(schemaName) })
+        Assertions.assertThrows(DatabaseException.SchemaDoesNotExistException::class.java, {catalogue.schemaForName(schemaName) })
     }
 
 }

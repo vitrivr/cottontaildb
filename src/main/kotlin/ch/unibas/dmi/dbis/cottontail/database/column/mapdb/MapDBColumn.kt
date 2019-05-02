@@ -39,19 +39,13 @@ import kotlin.concurrent.write
  * @author Ralph Gasser
  * @version 1.0
  */
-internal class MapDBColumn<T : Any>(override val name: String, entity: Entity) : Column<T> {
+internal class MapDBColumn<T : Any>(override val name: String, override val parent: Entity) : Column<T> {
     /** The [Path] to the [Entity]'s main folder. */
-    override val path: Path = entity.path.resolve("col_$name.db")
-
-    /** The fully qualified name of this [MapDBColumn] */
-    override val fqn: String = "${entity.parent!!.name}.${entity.name}.$name"
-
-    /** The parent [DBO], which is the [Entity] in case of an [MapDBColumn]. */
-    override val parent: Entity? = entity
+    override val path: Path = parent.path.resolve("col_$name.db")
 
     /** Internal reference to the [Store] underpinning this [MapDBColumn]. */
     private var store: StoreWAL = try {
-        StoreWAL.make(file = this.path.toString(), volumeFactory = MappedFileVol.FACTORY, fileLockWait = this.parent!!.parent!!.parent.config.lockTimeout)
+        StoreWAL.make(file = this.path.toString(), volumeFactory = MappedFileVol.FACTORY, fileLockWait = this.parent.parent.parent.config.lockTimeout)
     } catch (e: DBException) {
         throw DatabaseException("Failed to open column at '$path': ${e.message}'")
     }

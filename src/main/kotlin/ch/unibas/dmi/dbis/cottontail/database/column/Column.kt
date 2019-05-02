@@ -11,12 +11,19 @@ import java.util.*
  */
 internal interface Column<T: Any> : DBO {
     /**
+     * This [Column]'s [ColumnDef]. It contains all the relevant information that defines a [Column]
+     *
+     * @return [ColumnDef] for this [Column]
+     */
+    val columnDef: ColumnDef<T>
+
+    /**
      * This [Column]'s type.
      *
      * @return The [ColumnType] of this [Column].
      */
     val type: ColumnType<T>
-        get() = columnDef.type
+        get() = this.columnDef.type
 
     /**
      * Size of the content of this [Column]. The size is -1 (undefined) for most type of [Column]s.
@@ -25,7 +32,7 @@ internal interface Column<T: Any> : DBO {
      * @return size of this [Column].
      */
     val size: Int
-        get() = columnDef.size
+        get() = this.columnDef.size
 
     /**
      * Whether or not this [Column] is nullable. Columns that are not nullable, cannot hold any
@@ -34,14 +41,9 @@ internal interface Column<T: Any> : DBO {
      * @return Nullability property of this [Column].
      */
     val nullable: Boolean
-        get() = columnDef.nullable
+        get() = this.columnDef.nullable
 
-    /**
-     * This [Column]'s [ColumnDef]. It contains all the relevant information that defines a [Column]
-     *
-     * @return [ColumnDef] for this [Column]
-     */
-    val columnDef: ColumnDef<T>
+
 
     /**
      * Creates a new [ColumnTransaction] and returns it.

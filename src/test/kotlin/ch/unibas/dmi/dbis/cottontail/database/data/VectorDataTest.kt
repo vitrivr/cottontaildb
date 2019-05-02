@@ -36,7 +36,7 @@ class VectorDataTest {
     @BeforeEach
     fun initialize() {
         this.catalogue.createSchema(schemaName)
-        this.schema = this.catalogue.getSchema(schemaName)
+        this.schema = this.catalogue.schemaForName(schemaName)
     }
 
     @AfterEach
@@ -58,7 +58,7 @@ class VectorDataTest {
         val vectorField = ColumnDef.withAttributes("vector", "INT_VEC", size)
 
         schema?.createEntity("vector-test", intField, vectorField)
-        val entity = schema?.getEntity("vector-test")
+        val entity = schema?.entityForName("vector-test")
 
         /* Insert the int vectors. */
         val tx = entity?.Tx(false)
@@ -105,7 +105,7 @@ class VectorDataTest {
         val vectorField = ColumnDef.withAttributes("vector", "LONG_VEC", size)
 
         schema?.createEntity("vector-test", intField, vectorField)
-        val entity = schema?.getEntity("vector-test")
+        val entity = schema?.entityForName("vector-test")
 
         /* Insert the long vectors. */
         val tx = entity?.Tx(false)
@@ -152,7 +152,7 @@ class VectorDataTest {
         val vectorField = ColumnDef.withAttributes("vector", "FLOAT_VEC", size)
 
         schema?.createEntity("vector-test", intField, vectorField)
-        val entity = schema?.getEntity("vector-test")
+        val entity = schema?.entityForName("vector-test")
 
         /* Insert the float vectors. */
         val tx = entity?.Tx(false)
@@ -199,7 +199,7 @@ class VectorDataTest {
         val vectorField = ColumnDef.withAttributes("vector", "DOUBLE_VEC", size)
 
         schema?.createEntity("vector-test", intField, vectorField)
-        val entity = schema?.getEntity("vector-test")
+        val entity = schema?.entityForName("vector-test")
 
         /* Insert the double vectors. */
         val tx = entity?.Tx(false)

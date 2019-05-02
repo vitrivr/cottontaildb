@@ -28,8 +28,8 @@ internal class CottonDMLService (val catalogue: Catalogue): CottonDMLGrpc.Cotton
      * in a single transaction. I.e. either the insert succeeds or fails completely.
      */
     override fun insert(request: CottontailGrpc.InsertMessage, responseObserver: StreamObserver<CottontailGrpc.InsertStatus>) = try {
-        val schema = this.catalogue.getSchema(request.entity.schema.name)
-        val entity = schema.getEntity(request.entity.name)
+        val schema = this.catalogue.schemaForName(request.entity.schema.name)
+        val entity = schema.entityForName(request.entity.name)
         entity.Tx(false).begin { tx ->
             request.tupleList.map { it.dataMap }.forEach { entry ->
                 val columns = mutableListOf<ColumnDef<*>>()
@@ -88,8 +88,8 @@ internal class CottonDMLService (val catalogue: Catalogue): CottonDMLGrpc.Cotton
                 if (closed) return
 
                 /* Extract required schema and entity. */
-                val schema = this@CottonDMLService.catalogue.getSchema(request.entity.schema.name)
-                val entity = schema.getEntity(request.entity.name)
+                val schema = this@CottonDMLService.catalogue.schemaForName(request.entity.schema.name)
+                val entity = schema.entityForName(request.entity.name)
 
                 /* Re-use or create Transaction. */
                 var tx = this.transactions[request.entity.fqn()]

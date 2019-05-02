@@ -26,7 +26,7 @@ class SchemaTest {
     @BeforeEach
     fun initialize() {
         this.catalogue.createSchema(schemaName)
-        this.schema = this.catalogue.getSchema(schemaName)
+        this.schema = this.catalogue.schemaForName(schemaName)
     }
 
     @AfterEach

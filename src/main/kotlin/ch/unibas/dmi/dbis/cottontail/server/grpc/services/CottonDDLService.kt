@@ -64,7 +64,7 @@ internal class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.Cotton
      * gRPC endpoint for creating a new [Entity]
      */
     override fun createEntity(request: CottontailGrpc.CreateEntityMessage, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) = try {
-        val schema = this.catalogue.getSchema(request.entity.schema.name)
+        val schema = this.catalogue.schemaForName(request.entity.schema.name)
         val columns = request.columnsList.map {
             val type = ColumnType.forName(it.type.name)
             ColumnDef(it.name, type, it.length, it.nullable)
@@ -84,7 +84,7 @@ internal class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.Cotton
      * gRPC endpoint for dropping a particular [Schema]
      */
     override fun dropEntity(request: CottontailGrpc.Entity, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) = try {
-        this.catalogue.getSchema(request.schema.name).dropEntity(request.name)
+        this.catalogue.schemaForName(request.schema.name).dropEntity(request.name)
         responseObserver.onNext(CottontailGrpc.SuccessStatus.newBuilder().setTimestamp(System.currentTimeMillis()).build())
         responseObserver.onCompleted()
     } catch (e: DatabaseException.SchemaDoesNotExistException) {
@@ -103,7 +103,7 @@ internal class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.Cotton
             responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("You must provide a valid schema in order to list entities.").asException())
         } else {
             val builder = CottontailGrpc.Entity.newBuilder()
-            this.catalogue.getSchema(request.name).entities.forEach {
+            this.catalogue.schemaForName(request.name).entities.forEach {
                 responseObserver.onNext(builder.setName(it).setSchema(request).build())
             }
             responseObserver.onCompleted()
@@ -118,7 +118,7 @@ internal class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.Cotton
      * gRPC endpoint for creating a particular [Index]
      */
     override fun createIndex(request: CottontailGrpc.CreateIndexMessage, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) = try {
-        val entity = this.catalogue.getSchema(request.index.entity.schema.name).getEntity(request.index.entity.name)
+        val entity = this.catalogue.schemaForName(request.index.entity.schema.name).entityForName(request.index.entity.name)
         val columns = request.columnsList.map { entity.columnForName(it) ?: throw DatabaseException.ColumnNotExistException(it, entity.name) }.toTypedArray()
 
         /* Creates and updates the index. */
@@ -145,7 +145,7 @@ internal class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.Cotton
      * gRPC endpoint for dropping a particular [Index]
      */
     override fun dropIndex(request: CottontailGrpc.DropIndexMessage, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) = try {
-        this.catalogue.getSchema(request.index.entity.schema.name).getEntity(request.index.entity.name).dropIndex(request.index.name)
+        this.catalogue.schemaForName(request.index.entity.schema.name).entityForName(request.index.entity.name).dropIndex(request.index.name)
 
         /* Notify caller of success. */
         responseObserver.onNext(CottontailGrpc.SuccessStatus.newBuilder().setTimestamp(System.currentTimeMillis()).build())
@@ -166,7 +166,7 @@ internal class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.Cotton
      * gRPC endpoint for rebuilding a particular [Index]
      */
     override fun rebuildIndex(request: CottontailGrpc.RebuildIndexMessage, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) = try {
-        this.catalogue.getSchema(request.index.entity.schema.name).getEntity(request.index.entity.name).updateIndex(request.index.name)
+        this.catalogue.schemaForName(request.index.entity.schema.name).entityForName(request.index.entity.name).updateIndex(request.index.name)
 
         /* Notify caller of success. */
         responseObserver.onNext(CottontailGrpc.SuccessStatus.newBuilder().setTimestamp(System.currentTimeMillis()).build())

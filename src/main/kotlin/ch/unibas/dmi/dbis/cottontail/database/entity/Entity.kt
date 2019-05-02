@@ -52,11 +52,11 @@ internal class Entity(override val name: String, schema: Schema) : DBO {
     override val path: Path = schema.path.resolve("entity_$name")
 
     /** The parent [DBO], which is the [Schema] in case of an [Entity]. */
-    override val parent: Schema? = schema
+    override val parent: Schema = schema
 
     /** Internal reference to the [StoreWAL] underpinning this [Entity]. */
     private val store: StoreWAL = try {
-        StoreWAL.make(file = this.path.resolve(FILE_CATALOGUE).toString(), volumeFactory = MappedFileVol.FACTORY, fileLockWait = this.parent!!.parent.config.lockTimeout)
+        StoreWAL.make(file = this.path.resolve(FILE_CATALOGUE).toString(), volumeFactory = MappedFileVol.FACTORY, fileLockWait = this.parent.parent.config.lockTimeout)
     } catch (e: DBException) {
         throw DatabaseException("Failed to open entity '$fqn': ${e.message}'.")
     }

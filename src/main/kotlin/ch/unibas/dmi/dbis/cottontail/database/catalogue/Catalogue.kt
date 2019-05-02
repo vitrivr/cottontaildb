@@ -61,6 +61,10 @@ internal class Catalogue(val config: Config): DBO {
     private val header: CatalogueHeader
         get() = this.store.get(HEADER_RECORD_ID, CatalogueHeaderSerializer) ?: throw DatabaseException.DataCorruptionException("Failed to open Cottontail DB catalogue header!")
 
+    /** List of [Schema] names registered in this [Catalogue]. */
+    val schemas: Collection<String>
+        get() = this.lock.read { this.registry.keys.toList() }
+
     /** Size of this [Catalogue] in terms of [Schema]s it contains. */
     val size: Int
         get() = this.lock.read { this.header.schemas.size }
@@ -186,25 +190,11 @@ internal class Catalogue(val config: Config): DBO {
     }
 
     /**
-     * Returns a list of [Schema] names for this [Catalogue].
-     *
-     * @return The list of [Schema] names registered in this [Catalogue]
-     */
-    fun listSchemas(): List<String> = this.lock.read { this.registry.keys.toList() }
-
-    /**
      * Returns the [Schema] for the given name.
      *
      * @param name Name of the [Schema].
      */
-    fun getSchema(name: String): Schema = this.lock.read { registry[name] ?: throw DatabaseException.SchemaDoesNotExistException(name) }
-
-    /**
-     * Returns true, if this [Catalogue] contains a [Schema] with the provided name.
-     *
-     * @param name Name of the [Schema].
-     */
-    fun hasSchema(name: String) = this.lock.read { this.registry.containsKey(name) }
+    fun schemaForName(name: String): Schema = this.lock.read { registry[name] ?: throw DatabaseException.SchemaDoesNotExistException(name) }
 
     /**
      * Opens the data store underlying this Cottontail DB [Catalogue]

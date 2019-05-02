@@ -59,7 +59,7 @@ internal class GrpcQueryBinder(val catalogue: Catalogue, engine: ExecutionEngine
      */
     private fun parseAndBindSimpleQuery(query: CottontailGrpc.Query): ExecutionPlan {
         val entity = try {
-            this.catalogue.getSchema(query.from.entity.schema.name).getEntity(query.from.entity.name)
+            this.catalogue.schemaForName(query.from.entity.schema.name).entityForName(query.from.entity.name)
         } catch (e: DatabaseException.SchemaDoesNotExistException) {
             throw QueryException.QueryBindException("Failed to bind '${query.from.entity.fqn()}'. Schema does not exist!")
         } catch (e: DatabaseException.EntityDoesNotExistException) {
