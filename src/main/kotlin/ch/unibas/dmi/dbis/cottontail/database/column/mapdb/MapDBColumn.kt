@@ -62,7 +62,7 @@ internal class MapDBColumn<T : Any>(override val name: String, override val pare
      */
     @Suppress("UNCHECKED_CAST")
     override val columnDef: ColumnDef<T>
-        get() = this.header.let { ColumnDef(this.name, it.type as ColumnType<T>, it.size, it.nullable) }
+        get() = this.header.let { ColumnDef(this.fqn, it.type as ColumnType<T>, it.size, it.nullable) }
 
     /**
      * Status indicating whether this [MapDBColumn] is open or closed.
