@@ -1,5 +1,6 @@
 package ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.knn
 
+import ch.unibas.dmi.dbis.cottontail.database.column.ColumnType
 import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
 import ch.unibas.dmi.dbis.cottontail.database.general.begin
 import ch.unibas.dmi.dbis.cottontail.database.queries.BooleanPredicate
@@ -24,6 +25,9 @@ internal class LinearEntityScanLongKnnTask(val entity: Entity, val knn: KnnPredi
 
     /** The cost of this [LinearEntityScanLongKnnTask] is constant */
     override val cost = entity.statistics.columns * (knn.operations + (predicate?.operations ?: 0)).toFloat()
+
+    /** List of the [ColumnDef] this instance of [LinearEntityScanLongKnnTask] produces. */
+    private val produces: Array<ColumnDef<*>> = arrayOf(ColumnDef("${entity.fqn}.distance", ColumnType.forName("DOUBLE")))
 
     /**
      * Executes this [LinearEntityScanLongKnnTask]
@@ -56,9 +60,9 @@ internal class LinearEntityScanLongKnnTask(val entity: Entity, val knn: KnnPredi
         }
 
         /* Generate dataset and return it. */
-        val dataset = Recordset(arrayOf(KnnTask.DISTANCE_COL))
+        val dataset = Recordset(this.produces)
         for (i in 0 until knn.size) {
-            dataset.addRow(knn[i].first, arrayOf(DoubleValue(knn[i].second)))
+            dataset.addRowUnsafe(knn[i].first, arrayOf(DoubleValue(knn[i].second)))
         }
         return dataset
     }

@@ -13,9 +13,6 @@ import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
 
 internal object KnnTask {
-    /** Definition for the distance column. */
-    val DISTANCE_COL = ColumnDef.withAttributes("distance", "DOUBLE")
-
     /** Threshold under which parallelism starts to kick in. TODO: Find optimal value experimentally. */
     private const val KNN_OP_PARALLELISM_THRESHOLD = 819200000L
 
