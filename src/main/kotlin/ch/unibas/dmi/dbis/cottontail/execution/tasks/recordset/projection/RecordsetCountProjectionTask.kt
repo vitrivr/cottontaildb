@@ -15,7 +15,7 @@ import com.github.dexecutor.core.task.TaskExecutionException
  * @author Ralph Gasser
  * @version 1.0
  */
-internal class RecordsetCountProjectionTask (val alias: String? = null): ExecutionTask("RecordsetCountProjectionTask") {
+internal class RecordsetCountProjectionTask (): ExecutionTask("RecordsetCountProjectionTask") {
 
     /** The cost of this [RecordsetCountProjectionTask] is constant */
     override val cost = 0.1f
@@ -30,8 +30,8 @@ internal class RecordsetCountProjectionTask (val alias: String? = null): Executi
         val parent = this.first() ?: throw TaskExecutionException("Projection could not be executed because parent task has failed.")
 
         /* Create new Recordset with new columns. */
-        val recordset = Recordset(arrayOf(ColumnDef.withAttributes(alias ?: "count(*)", "INTEGER")))
-        recordset.addRow(arrayOf(IntValue(parent.rowCount)))
+        val recordset = Recordset(arrayOf(ColumnDef.withAttributes("count(*)", "INTEGER")))
+        recordset.addRowUnsafe(arrayOf(IntValue(parent.rowCount)))
         return recordset
     }
 }

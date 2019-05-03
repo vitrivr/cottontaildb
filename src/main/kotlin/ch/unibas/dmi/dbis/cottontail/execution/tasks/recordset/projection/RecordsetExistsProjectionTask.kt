@@ -13,11 +13,10 @@ import com.github.dexecutor.core.task.TaskExecutionException
  * @author Ralph Gasser
  * @version 1.0
  */
-internal class RecordsetExistsProjectionTask (val alias: String? = null): ExecutionTask("RecordsetExistsProjectionTask") {
+internal class RecordsetExistsProjectionTask (): ExecutionTask("RecordsetExistsProjectionTask") {
 
     /** The cost of this [RecordsetCountProjectionTask] is constant */
     override val cost = 0.1f
-
 
     /**
      * Executes this [RecordsetExistsProjectionTask]
@@ -29,9 +28,8 @@ internal class RecordsetExistsProjectionTask (val alias: String? = null): Execut
         val parent = this.first() ?: throw TaskExecutionException("Projection could not be executed because parent task has failed.")
 
         /* Create new Recordset with new columns. */
-        val recordset = Recordset(arrayOf(ColumnDef.withAttributes(alias
-                ?: "exists(*)", "BOOLEAN")))
-        recordset.addRow(arrayOf(BooleanValue(parent.rowCount > 0)))
+        val recordset = Recordset(arrayOf(ColumnDef.withAttributes("exists(*)", "BOOLEAN")))
+        recordset.addRowUnsafe(arrayOf(BooleanValue(parent.rowCount > 0)))
         return recordset
     }
 }

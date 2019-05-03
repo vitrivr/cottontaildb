@@ -15,7 +15,7 @@ import com.github.dexecutor.core.task.Task
  * @author Ralph Gasser
  * @version 1.0
  */
-internal class EntityExistsProjectionTask(val entity: Entity, val alias: String? = null): ExecutionTask("EntityExistsProjectionTask[${entity.name}]") {
+internal class EntityExistsProjectionTask(val entity: Entity): ExecutionTask("EntityExistsProjectionTask[${entity.name}]") {
 
     /** The cost of this [EntityExistsProjectionTask] is constant */
     override val cost = 0.25f
@@ -26,10 +26,10 @@ internal class EntityExistsProjectionTask(val entity: Entity, val alias: String?
     override fun execute(): Recordset {
         assertNullaryInput()
 
-        val column = arrayOf(ColumnDef.withAttributes(alias ?: "exists(*)", "BOOLEAN"))
+        val column = arrayOf(ColumnDef.withAttributes("${entity.fqn}.exists(*)", "BOOLEAN"))
         return this.entity.Tx(true).query {
             val recordset = Recordset(column)
-            recordset.addRow(arrayOf(BooleanValue(it.count() > 0)))
+            recordset.addRowUnsafe(arrayOf(BooleanValue(it.count() > 0)))
             recordset
         } ?: Recordset(column)
     }

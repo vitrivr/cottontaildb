@@ -14,7 +14,7 @@ import com.github.dexecutor.core.task.Task
  * @author Ralph Gasser
  * @version 1.0
  */
-internal class EntityCountProjectionTask (val entity: Entity, val alias: String? = null): ExecutionTask("EntityCountProjectionTask[${entity.fqn}") {
+internal class EntityCountProjectionTask (val entity: Entity): ExecutionTask("EntityCountProjectionTask[${entity.fqn}") {
 
     /** The cost of this [EntityCountProjectionTask] is constant */
     override val cost = 0.25f
@@ -25,10 +25,10 @@ internal class EntityCountProjectionTask (val entity: Entity, val alias: String?
     override fun execute(): Recordset {
         assertNullaryInput()
 
-        val column = arrayOf(ColumnDef.withAttributes(alias ?: "count(*)", "INTEGER"))
+        val column = arrayOf(ColumnDef.withAttributes("${entity.fqn}.count(*)", "INTEGER"))
         return this.entity.Tx(true).query {
             val recordset = Recordset(column)
-            recordset.addRow(arrayOf(LongValue(it.count())))
+            recordset.addRowUnsafe(arrayOf(LongValue(it.count())))
             recordset
         } ?: Recordset(column)
     }
