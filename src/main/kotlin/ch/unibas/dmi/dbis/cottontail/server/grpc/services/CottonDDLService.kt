@@ -52,7 +52,7 @@ internal class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.Cotton
      * gRPC endpoint listing the available [Schema]s.
      */
     override fun listSchemas(request: Empty?, responseObserver: StreamObserver<CottontailGrpc.Schema>) = try {
-        this.catalogue.listSchemas().forEach {
+        this.catalogue.schemas.forEach {
             responseObserver.onNext(CottontailGrpc.Schema.newBuilder().setName(it).build())
         }
         responseObserver.onCompleted()
