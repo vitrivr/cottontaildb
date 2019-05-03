@@ -19,6 +19,8 @@ import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
 import ch.unibas.dmi.dbis.cottontail.model.values.Value
+import ch.unibas.dmi.dbis.cottontail.utilities.name.isMatch
+import ch.unibas.dmi.dbis.cottontail.utilities.name.normalize
 
 /**
  * This helper class parses and binds queries issued through the GRPC endpoint. The process encompasses three steps:
@@ -72,7 +74,7 @@ internal class GrpcQueryBinder(val catalogue: Catalogue, engine: ExecutionEngine
         val projectionClause = if (query.hasProjection()) {
             parseAndBindProjection(entity, query.projection)
         } else {
-            bindStarProjection(entity)
+            parseAndBindProjection(entity, CottontailGrpc.Projection.newBuilder().setOp(CottontailGrpc.Projection.Operation.SELECT).putAttributes("*","").build())
         }
         val knnClause = if (query.hasKnn()) parseAndBindKnnPredicate(entity, query.knn) else null
         val whereClause = if (query.hasWhere()) parseAndBindBooleanPredicate(entity, query.where) else null
@@ -209,33 +211,26 @@ internal class GrpcQueryBinder(val catalogue: Catalogue, engine: ExecutionEngine
     /**
      * Parses and binds the projection part of a GRPC [CottontailGrpc.Query]
      *
-     * @param entity The [Entity] from which fetch columns.
+     * @param involvedEntities The list of [Entity] objects involved in the projection.
      * @param projection The [CottontailGrpc.Projection] object.
      *
      * @return The resulting [Projection].
      */
     private fun parseAndBindProjection(entity: Entity, projection: CottontailGrpc.Projection): Projection = try {
-        val columns = mutableSetOf<ColumnDef<*>>()
-        var star = false
-        projection.attributesList.forEach {
-            if (it == "*") {
-                star = true
-                columns.addAll(entity.allColumns())
-            } else {
-                columns.add(entity.columnForName(it) ?: throw QueryException.QueryBindException("Failed to bind column $it. Column does not exist on entity ${entity.fqn}"))
-            }
-        }
-        Projection(type = ProjectionType.valueOf(projection.op.name), columns = columns.toTypedArray(), star = star)
+        val availableColumns = entity.allColumns()
+        val requestedColumns = mutableListOf<ColumnDef<*>>()
+
+        val fields = projection.attributesMap.map { (expr, alias) ->
+            /* Fetch columns that match field and add them to list of requested columns */
+            val field = expr.normalize(entity)
+            availableColumns.find { it.name.isMatch(field) }?.let { requestedColumns.add(it) }
+
+            /* Return field to alias mapping. */
+            field to if (alias.isEmpty()) { null } else { alias }
+        }.toMap()
+
+        Projection(type = ProjectionType.valueOf(projection.op.name), columns = requestedColumns.distinct().toTypedArray(), fields = fields)
     } catch (e: java.lang.IllegalArgumentException) {
         throw QueryException.QuerySyntaxException("The query lacks a valid SELECT-clause (projection): ${projection.op} is not supported.")
     }
-
-    /**
-     * Generates a default star projection clause.
-     *
-     * @param entity The [Entity] from which fetch columns.
-     *
-     * @return The resulting [Projection].
-     */
-    private fun bindStarProjection(entity: Entity): Projection = Projection(type = ProjectionType.SELECT, columns = entity.allColumns().toTypedArray())
 }
