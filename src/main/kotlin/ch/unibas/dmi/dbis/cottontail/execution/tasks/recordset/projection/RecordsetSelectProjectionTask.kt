@@ -1,11 +1,12 @@
 package ch.unibas.dmi.dbis.cottontail.execution.tasks.recordset.projection
 
-import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
-import ch.unibas.dmi.dbis.cottontail.database.general.begin
+import ch.unibas.dmi.dbis.cottontail.database.queries.Projection
+
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.basics.ExecutionTask
+
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
-import ch.unibas.dmi.dbis.cottontail.model.values.Value
+import ch.unibas.dmi.dbis.cottontail.utilities.name.doesNameMatch
 
 import com.github.dexecutor.core.task.Task
 import com.github.dexecutor.core.task.TaskExecutionException
@@ -19,14 +20,10 @@ import com.github.dexecutor.core.task.TaskExecutionException
  * @author Ralph Gasser
  * @version 1.0
  */
-internal class RecordsetSelectProjectionTask (
-    private val entity: Entity,
-    private val columns: Array<ColumnDef<*>>,
-    private val keepUpstream: Boolean = false
-): ExecutionTask("RecordsetSelectProjectionTask[${entity.fqn}]${columns.joinToString(separator = "") { "[${it.name}]" }}") {
+internal class RecordsetSelectProjectionTask (val projection: Projection): ExecutionTask("RecordsetSelectProjectionTask") {
 
-    /** Cost estimate for a [RecordsetSelectProjectionTask] is (cols * rows * 0.1). */
-    override val cost = (columns.size * entity.statistics.rows * 0.1).toFloat()
+    /** Cost estimate for a [RecordsetSelectProjectionTask]. */
+    override val cost = 1.0f
 
     /**
      * Executes this [RecordsetSelectProjectionTask]
@@ -37,44 +34,52 @@ internal class RecordsetSelectProjectionTask (
         /* Get records from parent task. */
         val parent = this.first() ?: throw TaskExecutionException("Projection could not be executed because parent task has failed.")
 
-        /*
-         * Specifies the columns that are already contained in the parent incoming Recordset and those that require a lookup. Also decides whether upstream fields should be retained.
-         */
-        val all = if (this.keepUpstream) {
-            this.columns + parent.columns.filter { !this.columns.contains(it) }.toTypedArray()
-        } else {
-            this.columns
-        }
-        val common = all.filter { parent.columns.contains(it) }.toTypedArray()
-        val lookup = all.filter { !common.contains(it) }.toTypedArray()
+        /* Find longest, common prefix of all projection sub-clauses. */
+        val longestCommonPrefix = findLongestPrefix(this.projection.fields.keys)
 
-
-        /* Create new Recordset with specified columns . */
-        val recordset = Recordset(all)
-
-        /* Make lookup if necessary, otherwise just drop columns that are not required. */
-        if (lookup.isNotEmpty()) {
-            this.entity.Tx(readonly = true, columns = lookup).begin {tx ->
-                parent.forEach {rec ->
-                    val read = tx.read(rec.tupleId)
-                    val values: Array<Value<*>?> = all.map {
-                        when {
-                            read.has(it) -> read[it]
-                            else -> parent[rec.tupleId]?.get(it)
-                        }
-                    }.toTypedArray()
-                    recordset.addRow(rec.tupleId, values)
+        /* Determine columns to rename. */
+        val dropIndex = mutableListOf<Int>()
+        val renameIndex = mutableListOf<Pair<Int,String>>()
+        parent.columns.forEachIndexed { i, c ->
+            var match = false
+            this.projection.fields.forEach { (k, v) ->
+                if (c.name.doesNameMatch(k)) {
+                    match = true
+                    if (v != null) {
+                        renameIndex.add(Pair(i, v))
+                    } else if (longestCommonPrefix != "") {
+                        renameIndex.add(Pair(i, c.name.replace(longestCommonPrefix, "")))
+                    }
                 }
-                true
             }
-        } else {
-            parent.forEach {rec ->
-                val values: Array<Value<*>?> = common.map { rec[it] }.toTypedArray()
-                recordset.addRow(rec.tupleId, values)
-            }
+            if (!match) dropIndex.add(i)
         }
 
-        /* Return new Recordset. */
-        return recordset
+        /* Create new Recordset with specified columns and return it . */
+        return if (dropIndex.size > 0 && renameIndex.size > 0) {
+            parent.dropColumnsWithIndex(dropIndex).renameColumnsWithIndex(renameIndex)
+        } else if (renameIndex.size > 0) {
+            parent.renameColumnsWithIndex(renameIndex)
+        } else if (dropIndex.size > 0) {
+            parent.dropColumnsWithIndex(dropIndex)
+        } else {
+            return parent
+        }
+    }
+
+    /**
+     *
+     */
+    private fun findLongestPrefix(strings: Collection<String>) : String {
+        val prefix = Array<String?>(3, { null })
+        for (i in 0 until 3) {
+            val d = strings.map { it.split('.')[i] }.distinct()
+            if (d.size == 1) {
+                prefix[i] = d.first()
+            } else {
+                break
+            }
+        }
+        return prefix.filterNotNull().joinToString (separator = ".", postfix = ".")
     }
 }

@@ -19,8 +19,8 @@ import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
 import ch.unibas.dmi.dbis.cottontail.model.values.Value
-import ch.unibas.dmi.dbis.cottontail.utilities.name.isMatch
-import ch.unibas.dmi.dbis.cottontail.utilities.name.normalize
+import ch.unibas.dmi.dbis.cottontail.utilities.name.doesNameMatch
+import ch.unibas.dmi.dbis.cottontail.utilities.name.normalizeColumnName
 
 /**
  * This helper class parses and binds queries issued through the GRPC endpoint. The process encompasses three steps:
@@ -222,8 +222,8 @@ internal class GrpcQueryBinder(val catalogue: Catalogue, engine: ExecutionEngine
 
         val fields = projection.attributesMap.map { (expr, alias) ->
             /* Fetch columns that match field and add them to list of requested columns */
-            val field = expr.normalize(entity)
-            availableColumns.find { it.name.isMatch(field) }?.let { requestedColumns.add(it) }
+            val field = expr.normalizeColumnName(entity)
+            availableColumns.find { it.name.doesNameMatch(field) }?.let { requestedColumns.add(it) }
 
             /* Return field to alias mapping. */
             field to if (alias.isEmpty()) { null } else { alias }

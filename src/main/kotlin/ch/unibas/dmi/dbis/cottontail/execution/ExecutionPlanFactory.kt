@@ -10,6 +10,7 @@ import ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.knn.*
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.projection.EntityCountProjectionTask
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.projection.EntityExistsProjectionTask
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.boolean.EntityLinearScanFilterTask
+import ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.fetch.EntityFetchColumnsTask
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.recordset.projection.RecordsetCountProjectionTask
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.recordset.projection.RecordsetExistsProjectionTask
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.recordset.projection.RecordsetSelectProjectionTask
@@ -41,25 +42,29 @@ internal class ExecutionPlanFactory (val executionEngine: ExecutionEngine) {
         } else if (knnClause != null) {
             val stage1 = KnnTask.entityScanTaskForPredicate(entity, knnClause, whereClause)
             val stage2 = when (projectionClause.type) {
-                ProjectionType.SELECT -> RecordsetSelectProjectionTask(entity, projectionClause.columns)
+                ProjectionType.SELECT -> EntityFetchColumnsTask(entity, projectionClause.columns)
                 ProjectionType.COUNT -> RecordsetCountProjectionTask()
                 ProjectionType.EXISTS -> RecordsetExistsProjectionTask()
             }
+            val stage3 = RecordsetSelectProjectionTask(projectionClause)
 
             /* Add tasks to ExecutionPlan. */
             plan.addTask(stage1)
             plan.addTask(stage2, stage1.id)
+            plan.addTask(stage3, stage2.id)
         } else if (whereClause != null) {
             val stage1 = planAndLayoutWhere(entity, whereClause)
             val stage2 = when (projectionClause.type) {
-                ProjectionType.SELECT -> RecordsetSelectProjectionTask(entity, projectionClause.columns, projectionClause.star)
+                ProjectionType.SELECT -> EntityFetchColumnsTask(entity, projectionClause.columns)
                 ProjectionType.COUNT -> RecordsetCountProjectionTask()
                 ProjectionType.EXISTS -> RecordsetExistsProjectionTask()
             }
+            val stage3 = RecordsetSelectProjectionTask(projectionClause)
 
             /* Add tasks to ExecutionPlan. */
             plan.addStage(stage1)
             plan.addTask(stage2, stage1.output!!)
+            plan.addTask(stage3, stage2.id)
         }
 
         return plan
