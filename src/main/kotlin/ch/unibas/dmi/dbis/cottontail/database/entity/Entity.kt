@@ -272,9 +272,9 @@ internal class Entity(override val name: String, schema: Schema) : DBO {
     inner class Tx(override val readonly: Boolean, override val tid: UUID = UUID.randomUUID(), columns: Array<ColumnDef<*>>? = null, ommitIndex: Boolean = false) : EntityTransaction {
         /** List of [ColumnTransaction]s associated with this [Entity.Tx]. */
         private val columns: Map<ColumnDef<*>, ColumnTransaction<*>> = if (columns != null && this.readonly) {
-            this@Entity.columns.filter{columns.contains(it.columnDef)}.associateBy({ColumnDef(it.name, it.type, it.size)}, {it.newTransaction(readonly, tid)})
+            this@Entity.columns.filter{columns.contains(it.columnDef)}.associateBy({ColumnDef(it.fqn, it.type, it.size)}, {it.newTransaction(readonly, tid)})
         } else {
-            this@Entity.columns.associateBy({ColumnDef(it.name, it.type, it.size)}, {it.newTransaction(readonly, tid)})
+            this@Entity.columns.associateBy({ColumnDef(it.fqn, it.type, it.size)}, {it.newTransaction(readonly, tid)})
         }
 
         /** List of [IndexTransaction] associated with this [Entity.Tx]. */
@@ -371,7 +371,7 @@ internal class Entity(override val name: String, schema: Schema) : DBO {
             val dataset = Recordset(columns)
             tupleIds.forEach { tid ->
                 checkValidTupleId(tid)
-                dataset.addRow(tid, columns.map { this.columns.getValue(it).read(tid) }.toTypedArray())
+                dataset.addRowUnsafe(tid, columns.map { this.columns.getValue(it).read(tid) }.toTypedArray())
             }
             dataset
         }
@@ -393,7 +393,7 @@ internal class Entity(override val name: String, schema: Schema) : DBO {
                 for (i in 1 until columns.size) {
                     data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
                 }
-                dataset.addRow(it.tupleId, data)
+                dataset.addRowUnsafe(it.tupleId, data)
             }
             return dataset
         }
@@ -484,7 +484,7 @@ internal class Entity(override val name: String, schema: Schema) : DBO {
                     for (i in 0 until columns.size) {
                         data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
                     }
-                    dataset.addRow(it.tupleId, data)
+                    dataset.addRowUnsafe(it.tupleId, data)
                 }
                 /* Case 2 (general): Multi-column boolean predicate. */
                 is BooleanPredicate -> this.columns.getValue(columns[0]).forEach {
@@ -492,7 +492,7 @@ internal class Entity(override val name: String, schema: Schema) : DBO {
                     for (i in 1 until columns.size) {
                         data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
                     }
-                    dataset.addRowIf(it.tupleId , predicate, data)
+                    dataset.addRowIfUnsafe(it.tupleId , predicate, data)
                 }
                 else -> throw QueryException.UnsupportedPredicateException("The provided predicate of type '${predicate::class.java.simpleName}' is not supported for invocation of filter() on entity '${this@Entity.fqn}'.")
             }

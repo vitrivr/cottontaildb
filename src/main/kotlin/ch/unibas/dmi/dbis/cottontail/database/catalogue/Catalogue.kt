@@ -36,7 +36,7 @@ internal class Catalogue(val config: Config): DBO {
     override val path: Path = config.root
 
     /** Constant name of the [Catalogue] object. */
-    override val name: String = "cottontail@${InetAddress.getLocalHost().hostName}"
+    override val name: String = "warren"
 
     /** Constant parent [DBO], which is null in case of the [Catalogue]. */
     override val parent: DBO? = null

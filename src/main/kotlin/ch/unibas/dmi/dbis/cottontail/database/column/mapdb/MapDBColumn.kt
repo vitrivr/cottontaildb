@@ -286,7 +286,7 @@ internal class MapDBColumn<T : Any>(override val name: String, override val pare
                 }
                 recordIds.forEach {
                     val data = ColumnRecord(it, this@MapDBColumn.store.get(it, this.serializer))
-                    if (predicate.matches(data)) recordset.addRow(data.values)
+                    if (predicate.matches(data)) recordset.addRowUnsafe(data.values)
                 }
                 return recordset
             } else {
@@ -517,7 +517,7 @@ internal class MapDBColumn<T : Any>(override val name: String, override val pare
                             for (x in ((it * block) until Math.min((it * block) + block, list.size))) {
                                 val record = ColumnRecord(list[x], this@MapDBColumn.store.get(list[x], this@Tx.serializer))
                                 if (predicate.matches(record)) {
-                                    recordset.addRow(record.tupleId, record.values)
+                                    recordset.addRowUnsafe(record.tupleId, record.values)
                                 }
                             }
                         }
