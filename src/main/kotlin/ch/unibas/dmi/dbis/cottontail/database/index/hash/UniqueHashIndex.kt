@@ -39,7 +39,7 @@ internal class UniqueHashIndex(override val name: String, override val parent: E
      */
     companion object {
         const val MAP_FIELD_NAME = "map"
-        const val ATOMIC_COST = 0.01f /** Cost of a single lookup. TODO: Determine real value. */
+        const val ATOMIC_COST = 1e-6f /** Cost of a single lookup. TODO: Determine real value. */
     }
 
     /** Path to the [UniqueHashIndex] file. */
@@ -85,13 +85,13 @@ internal class UniqueHashIndex(override val name: String, override val parent: E
         if (predicate.not) {
             this.map.forEach { (value, tid) ->
                 if (results.containsKey(value)) {
-                    recordset.addRow(tupleId = tid, values = arrayOf(value))
+                    recordset.addRowUnsafe(tupleId = tid, values = arrayOf(value))
                 }
             }
         } else {
             results.forEach {
                 if (it.value != null) {
-                    recordset.addRow(tupleId = it.value!!, values = arrayOf(it.key))
+                    recordset.addRowUnsafe(tupleId = it.value!!, values = arrayOf(it.key))
                 }
             }
         }

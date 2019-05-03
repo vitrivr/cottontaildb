@@ -36,16 +36,12 @@ import kotlin.concurrent.write
  */
 internal class LuceneIndex(override val name: String, override val parent: Entity, override val columns: Array<ColumnDef<*>>) : Index() {
 
-
     companion object {
         /** Cost of a single lookup operation (i.e. comparison of a term in the index). */
         const val ATOMIC_COST = 1e-6f
 
         /** [ColumnDef] of the _tid column. */
-        val TID_COLUMN = ColumnDef("_tid", LongColumnType())
-
-        /** [ColumnDef] of the score column. */
-        val SCORE_COLUMN = ColumnDef("score", FloatColumnType())
+        const val TID_COLUMN = "_tid"
 
         /**
          * Maps a [Record] to a [Document] that can be processed by Lucene.
@@ -54,8 +50,8 @@ internal class LuceneIndex(override val name: String, override val parent: Entit
          * @return The resulting [Document]
          */
         private fun documentFromRecord(record: Record): Document = Document().apply {
-            add(NumericDocValuesField(TID_COLUMN.name, record.tupleId))
-            add(StoredField(TID_COLUMN.name, record.tupleId))
+            add(NumericDocValuesField(TID_COLUMN, record.tupleId))
+            add(StoredField(TID_COLUMN, record.tupleId))
             record.columns.forEach {
                 val value = record[it]?.value as? String
                 if (value != null) {
@@ -66,7 +62,7 @@ internal class LuceneIndex(override val name: String, override val parent: Entit
     }
 
     /** The [LuceneIndex] implementation produces an additional score column. */
-    override val produces: Array<ColumnDef<*>> = arrayOf(SCORE_COLUMN)
+    override val produces: Array<ColumnDef<*>> = arrayOf(ColumnDef("${parent.fqn}.score", ColumnType.forName("DOUBLE")))
 
     /** The path to the directory that contains the data for this [LuceneIndex]. */
     override val path: Path = this.parent.path.resolve("idx_lucene_$name")
@@ -154,7 +150,7 @@ internal class LuceneIndex(override val name: String, override val parent: Entit
         val results = indexSearcher.search(query, Integer.MAX_VALUE)
         results.scoreDocs.forEach {sdoc ->
             val doc = indexSearcher.doc(sdoc.doc)
-            resultset.addRow(doc[TID_COLUMN.name].toLong(), values = arrayOf(FloatValue(sdoc.score)))
+            resultset.addRowUnsafe(doc[TID_COLUMN].toLong(), values = arrayOf(FloatValue(sdoc.score)))
         }
         resultset
     } else {
@@ -189,7 +185,7 @@ internal class LuceneIndex(override val name: String, override val parent: Entit
         val results = indexSearcher.search(query, Integer.MAX_VALUE)
         results.scoreDocs.forEach {sdoc ->
             val doc = indexSearcher.doc(sdoc.doc)
-            action(StandaloneRecord(tupleId = doc[TID_COLUMN.name].toLong(), columns = arrayOf(*this.produces)).assign(arrayOf(FloatValue(sdoc.score))))
+            action(StandaloneRecord(tupleId = doc[TID_COLUMN].toLong(), columns = arrayOf(*this.produces)).assign(arrayOf(FloatValue(sdoc.score))))
         }
     } else {
         throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (lucene-index) does not support predicates of type '${predicate::class.simpleName}'.")
@@ -222,7 +218,7 @@ internal class LuceneIndex(override val name: String, override val parent: Entit
         /* Execute query and add results. */
         val results = indexSearcher.search(query, Integer.MAX_VALUE).scoreDocs.map {sdoc ->
             val doc = indexSearcher.doc(sdoc.doc)
-            action(StandaloneRecord(tupleId = doc[TID_COLUMN.name].toLong(), columns = arrayOf(*this.produces)).assign(arrayOf(FloatValue(sdoc.score))))
+            action(StandaloneRecord(tupleId = doc[TID_COLUMN].toLong(), columns = arrayOf(*this.produces)).assign(arrayOf(FloatValue(sdoc.score))))
         }
         results
     } else {
