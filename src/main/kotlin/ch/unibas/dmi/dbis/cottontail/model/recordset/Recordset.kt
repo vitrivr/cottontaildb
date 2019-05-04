@@ -322,7 +322,7 @@ internal class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterabl
         val renamed = this.columns.mapIndexed { i, col ->
             val rename = columns.find { i == it.first }
             if (rename != null) {
-                ColumnDef(rename.second, col.type)
+                ColumnDef(rename.second, col.type, col.size, col.nullable)
             } else {
                 col
             }

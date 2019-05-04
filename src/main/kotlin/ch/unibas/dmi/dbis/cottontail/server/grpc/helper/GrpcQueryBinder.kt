@@ -223,7 +223,7 @@ internal class GrpcQueryBinder(val catalogue: Catalogue, engine: ExecutionEngine
         val fields = projection.attributesMap.map { (expr, alias) ->
             /* Fetch columns that match field and add them to list of requested columns */
             val field = expr.normalizeColumnName(entity)
-            availableColumns.find { it.name.doesNameMatch(field) }?.let { requestedColumns.add(it) }
+            availableColumns.filter { it.name.doesNameMatch(field) }.let { requestedColumns.addAll(it) }
 
             /* Return field to alias mapping. */
             field to if (alias.isEmpty()) { null } else { alias }
