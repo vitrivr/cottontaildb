@@ -21,6 +21,7 @@ import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.TransactionException
 import ch.unibas.dmi.dbis.cottontail.model.values.Value
+import ch.unibas.dmi.dbis.cottontail.utilities.name.COTTONTAIL_NAME_COMPONENT_SEPARATOR
 
 import org.mapdb.*
 import org.mapdb.volume.MappedFileVol
@@ -129,7 +130,7 @@ internal class Entity(override val name: String, schema: Schema) : DBO {
      * @param name The name of the [Column].
      * @return [ColumnDef] of the [Column].
      */
-    fun columnForName(name: String): ColumnDef<*>? = this.columns.find { it.name == name }?.columnDef
+    fun columnForName(name: String): ColumnDef<*>? = this.columns.find { it.name == name.split(COTTONTAIL_NAME_COMPONENT_SEPARATOR).last() }?.columnDef
 
     /**
      * Checks, if this [Entity] has an index for the given [ColumnDef] and (optionally) of the given [IndexType]
