@@ -1,5 +1,6 @@
 package ch.unibas.dmi.dbis.cottontail.database.general
 
+import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
 import java.nio.file.Path
 
 /**
@@ -8,11 +9,11 @@ import java.nio.file.Path
  * Database objects are closeable. Furthermore, they have Cottontail DB specific attributes.
  */
 interface DBO : AutoCloseable {
-    /** The simple name  name of this [DBO]. */
-    val name: String
+    /** The simple [Name] of this [DBO]. */
+    val name: Name
 
-    /** The fully qualified name of this [DBO]. */
-    val fqn: String
+    /** The fully qualified [Name] of this [DBO]. */
+    val fqn: Name
         get() = if (this.parent != null) { "${parent!!.fqn}.$name" } else { name }
 
     /** The parent DBO (if such exists). */

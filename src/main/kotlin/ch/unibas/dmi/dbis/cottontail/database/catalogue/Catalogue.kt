@@ -7,17 +7,23 @@ import ch.unibas.dmi.dbis.cottontail.database.schema.Schema
 import ch.unibas.dmi.dbis.cottontail.database.schema.SchemaHeader
 import ch.unibas.dmi.dbis.cottontail.database.schema.SchemaHeaderSerializer
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
+import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
+import ch.unibas.dmi.dbis.cottontail.utilities.name.NameType
+import ch.unibas.dmi.dbis.cottontail.utilities.name.last
+import ch.unibas.dmi.dbis.cottontail.utilities.name.type
 import org.mapdb.*
 
 import org.mapdb.volume.MappedFileVol
 import java.io.IOException
-import java.net.InetAddress
-import java.nio.file.Files
+import java.lang.IllegalArgumentException
 
+import java.nio.file.Files
 import java.nio.file.Path
+
 import java.util.*
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import java.util.stream.Collectors
+
 import kotlin.concurrent.read
 import kotlin.concurrent.write
 
@@ -36,7 +42,7 @@ internal class Catalogue(val config: Config): DBO {
     override val path: Path = config.root
 
     /** Constant name of the [Catalogue] object. */
-    override val name: String = "warren"
+    override val name: Name = "warren"
 
     /** Constant parent [DBO], which is null in case of the [Catalogue]. */
     override val parent: DBO? = null
@@ -45,7 +51,7 @@ internal class Catalogue(val config: Config): DBO {
     private val lock = ReentrantReadWriteLock()
 
     /** A in-memory registry of all the [Schema]s contained in this [Catalogue]. When a [Catalogue] is opened, all the [Schema]s will be loaded. */
-    private val registry: HashMap<String, Schema> = HashMap()
+    private val registry: HashMap<Name, Schema> = HashMap()
 
     /** The [StoreWAL] that contains the Cottontail DB catalogue. */
     private val store: StoreWAL = path.let {
@@ -109,10 +115,15 @@ internal class Catalogue(val config: Config): DBO {
     /**
      * Creates a new, empty [Schema] with the given name and [Path]
      *
-     * @param name The name of the new [Schema].
+     * @param name The name of the new [Name].
      * @param data The path where this new [Schema] will be located. Defaults to a path relative to the current one.
      */
-    fun createSchema(name: String, data: Path = this.path.resolve("schema_$name")) = this.lock.write {
+    fun createSchema(name: Name, data: Path = this.path.resolve("schema_$name")) = this.lock.write {
+        /* Check the type of name. */
+        if (name.type() != NameType.SIMPLE) {
+            throw IllegalArgumentException("The provided name '$name' is of type '${name.type()} and cannot be used to access a schema.")
+        }
+
         /* Check if schema with that name exists. */
         if (this.registry.containsKey(name)) {
             throw DatabaseException.SchemaAlreadyExistsException(name)
@@ -161,7 +172,12 @@ internal class Catalogue(val config: Config): DBO {
      *
      * @param name The name of the [Schema] to be dropped.
      */
-    fun dropSchema(name: String) = this.lock.write {
+    fun dropSchema(name: Name) = this.lock.write {
+        /* Check the type of name. */
+        if (name.type() != NameType.SIMPLE) {
+            throw IllegalArgumentException("The provided name '$name' is of type '${name.type()} and cannot be used to access a schema.")
+        }
+
         /* Try to close the schema. Open registry cannot be dropped. */
         (this.registry[name] ?: throw DatabaseException.SchemaDoesNotExistException(name)).close()
 
@@ -190,11 +206,16 @@ internal class Catalogue(val config: Config): DBO {
     }
 
     /**
-     * Returns the [Schema] for the given name.
+     * Returns the [Schema] for the given [Name]. The provided [Name] must be of [NameType.SIMPLE]
      *
-     * @param name Name of the [Schema].
+     * @param name [Name] of the [Schema].
      */
-    fun schemaForName(name: String): Schema = this.lock.read { registry[name] ?: throw DatabaseException.SchemaDoesNotExistException(name) }
+    fun schemaForName(name: Name): Schema = this.lock.read {
+        if (name.type() != NameType.SIMPLE ) {
+            throw IllegalArgumentException("The provided name '$name' is of type '${name.type()} and cannot be used to access a schema.")
+        }
+        this.registry[name] ?: throw DatabaseException.SchemaDoesNotExistException(name)
+    }
 
     /**
      * Opens the data store underlying this Cottontail DB [Catalogue]

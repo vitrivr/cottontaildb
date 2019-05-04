@@ -17,6 +17,7 @@ import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.TransactionException
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
 import ch.unibas.dmi.dbis.cottontail.model.values.Value
+import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
 import kotlinx.coroutines.*
 import org.mapdb.*
 import org.mapdb.volume.MappedFileVol
@@ -39,7 +40,7 @@ import kotlin.concurrent.write
  * @author Ralph Gasser
  * @version 1.0
  */
-internal class MapDBColumn<T : Any>(override val name: String, override val parent: Entity) : Column<T> {
+internal class MapDBColumn<T : Any>(override val name: Name, override val parent: Entity) : Column<T> {
     /** The [Path] to the [Entity]'s main folder. */
     override val path: Path = parent.path.resolve("col_$name.db")
 

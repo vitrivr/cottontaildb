@@ -15,6 +15,7 @@ import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.ValidationException
 import ch.unibas.dmi.dbis.cottontail.model.values.Value
+import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
 import org.mapdb.DBMaker
 import org.mapdb.HTreeMap
 import java.nio.file.Path
@@ -33,7 +34,7 @@ import kotlin.concurrent.write
  * @author Ralph Gasser
  * @version 1.0f
  */
-internal class UniqueHashIndex(override val name: String, override val parent: Entity, override val columns: Array<ColumnDef<*>>) : Index() {
+internal class UniqueHashIndex(override val name: Name, override val parent: Entity, override val columns: Array<ColumnDef<*>>) : Index() {
     /**
      * Index-wide constants.
      */

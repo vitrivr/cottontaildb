@@ -208,7 +208,6 @@ enum class Distance : DistanceFunction {
         }
     },
 
-
     /**
      * Chi Squared distance between two vectors. Vectors must be of the same size!
      */

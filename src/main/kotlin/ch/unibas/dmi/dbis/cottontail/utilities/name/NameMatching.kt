@@ -3,32 +3,65 @@ package ch.unibas.dmi.dbis.cottontail.utilities.name
 import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
 
-/** The separator between name components. */
+/** The separator between Cottontail DB name components. */
 const val COTTONTAIL_NAME_COMPONENT_SEPARATOR = '.'
 
+/** Type alias for Cottontail DB names. */
+typealias Name = String
+
 /**
- * Checks if the provided [String is a prefix of this [String] in terms of Cottontail DB naming.
+ * Returns the first [Name] component of this [Name], which is a [Name] again. If this is of [NameType.SIMPLE],
+ * then the same [Name] is returned.
  *
- * @param other The [String] to check.
+ * @return Last [Name] component of this [Name]
  */
-internal fun String.isPrefix(other: String): Boolean {
-    val o = other.split(COTTONTAIL_NAME_COMPONENT_SEPARATOR)
+internal fun Name.first(): Name = this.split(COTTONTAIL_NAME_COMPONENT_SEPARATOR).first()
+
+/**
+ * Returns the last [Name] component of this [Name], which is a [Name] again. If this is of [NameType.SIMPLE],
+ * then the same [Name] is returned.
+ *
+ * @return Last [Name] component of this [Name]
+ */
+internal fun Name.last(): Name = this.split(COTTONTAIL_NAME_COMPONENT_SEPARATOR).last()
+
+/**
+ * Returns the [NameType] of this [Name].
+ *
+ * @return [NameType] of this [Name].
+ */
+internal fun Name.type(): NameType = when {
+    this.contains('.') && this.contains('*') -> NameType.FQN_WILDCARD
+    this.contains('.') -> NameType.FQN
+    this.contains('*') -> NameType.WILDCARD
+    else -> NameType.SIMPLE
+}
+
+/**
+ * Checks if this [Name] is a prefix of the provided [Name].
+ *
+ * @param other The [Name] to check.
+ */
+internal fun Name.isPrefixOf(that: Name): Boolean {
+    val o = that.split(COTTONTAIL_NAME_COMPONENT_SEPARATOR)
     val t = this.split(COTTONTAIL_NAME_COMPONENT_SEPARATOR)
     return if (o.size > t.size)
         false
     else
         o.mapIndexed {i,s -> s == t[i]}.all { it }
-
 }
 
+
+
 /**
- * Checks if the provided [String] matches this [String] in terms of Cottontail DB naming.
+ * Checks if the provided [Name] matches this [Name] in terms of Cottontail DB naming. That is, checks if
+ * it is either an exact match (i.e. this == that) or, if this contains a wildcard (*), that matches this.
  *
- * @param other The [String] to check.
+ * @param that The [String] to check.
  */
-internal fun String.doesNameMatch(other: String): Boolean {
-    val o = other.split(COTTONTAIL_NAME_COMPONENT_SEPARATOR)
-    val t = this.split(COTTONTAIL_NAME_COMPONENT_SEPARATOR)
+internal fun Name.doesNameMatch(that: Name): Boolean {
+    val t = that.split(COTTONTAIL_NAME_COMPONENT_SEPARATOR)
+    val o = this.split(COTTONTAIL_NAME_COMPONENT_SEPARATOR)
     return if (o.size != t.size)
         false
     else
@@ -43,7 +76,7 @@ internal fun String.doesNameMatch(other: String): Boolean {
  *
  * @param entity [Entity] relative to which the name should be normalized.
  */
-internal fun String.normalizeColumnName(entity: Entity): String {
+internal fun Name.normalizeColumnName(entity: Entity): String {
     val split = this.split(COTTONTAIL_NAME_COMPONENT_SEPARATOR)
     return when (split.size) {
         1 -> "${entity.fqn}.${split[0]}"

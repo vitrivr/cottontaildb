@@ -4,6 +4,7 @@ import ch.unibas.dmi.dbis.cottontail.database.column.*
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.ValidationException
 import ch.unibas.dmi.dbis.cottontail.model.values.*
+import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
 import java.lang.RuntimeException
 
 /**
@@ -12,7 +13,7 @@ import java.lang.RuntimeException
  * @author Ralph Gasser
  * @version 1.0
  */
-class ColumnDef<T: Any>(val name: String, val type: ColumnType<T>, val size: Int = -1, val nullable: Boolean = true) {
+class ColumnDef<T: Any>(val name: Name, val type: ColumnType<T>, val size: Int = -1, val nullable: Boolean = true) {
     companion object {
         /**
          * Returns a [ColumnDef] with the provided attributes. The only difference as compared to using the constructor,
@@ -23,7 +24,7 @@ class ColumnDef<T: Any>(val name: String, val type: ColumnType<T>, val size: Int
          * @param size Size of the new [Column] (e.g. for vectors), where eligible.
          * @param nullable Whether or not the [Column] should be nullable.
          */
-        fun withAttributes(column: String, type: String, size: Int = -1, nullable: Boolean = true): ColumnDef<*> = ColumnDef(column, ColumnType.forName(type), size, nullable)
+        fun withAttributes(column: Name, type: String, size: Int = -1, nullable: Boolean = true): ColumnDef<*> = ColumnDef(column, ColumnType.forName(type), size, nullable)
     }
 
     /**

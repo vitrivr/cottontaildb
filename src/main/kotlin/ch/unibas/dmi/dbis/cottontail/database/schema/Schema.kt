@@ -8,10 +8,14 @@ import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
 import ch.unibas.dmi.dbis.cottontail.database.entity.EntityHeader
 import ch.unibas.dmi.dbis.cottontail.database.entity.EntityHeaderSerializer
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
+import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
+import ch.unibas.dmi.dbis.cottontail.utilities.name.NameType
+import ch.unibas.dmi.dbis.cottontail.utilities.name.type
 
 import org.mapdb.*
 import org.mapdb.volume.MappedFileVol
 import java.io.IOException
+import java.lang.IllegalArgumentException
 
 import java.lang.ref.SoftReference
 import java.nio.file.Files
@@ -40,7 +44,7 @@ import kotlin.concurrent.write
  * @author Ralph Gasser
  * @version 1.0
  */
-internal class Schema(override val name: String, override val path: Path, override val parent: Catalogue) : DBO {
+internal class Schema(override val name: Name, override val path: Path, override val parent: Catalogue) : DBO {
 
     /** Internal reference to the [Store] underpinning this [MapDBColumn]. */
     private val store: StoreWAL = try {
@@ -77,7 +81,12 @@ internal class Schema(override val name: String, override val path: Path, overri
      *
      * @param name The name of the [Entity] that should be created.
      */
-    fun createEntity(name: String, vararg columns: ColumnDef<*>) = this.lock.write {
+    fun createEntity(name: Name, vararg columns: ColumnDef<*>) = this.lock.write {
+        /* Check the type of name. */
+        if (name.type() != NameType.SIMPLE) {
+            throw IllegalArgumentException("The provided name '$name' is of type '${name.type()} and cannot be used to access an entity through a schema.")
+        }
+
         if (entities.contains(name)) throw DatabaseException.EntityAlreadyExistsException(this.name, name)
         if (columns.map { it.name }.distinct().size != columns.size) throw DatabaseException.DuplicateColumnException("$fqn.$name", columns.map { it }.joinToString())
 
@@ -131,7 +140,12 @@ internal class Schema(override val name: String, override val path: Path, overri
      *
      * @param name The name of the [Entity] that should be dropped.
      */
-    fun dropEntity(name: String) = this.lock.write {
+    fun dropEntity(name: Name) = this.lock.write {
+        /* Check the type of name. */
+        if (name.type() != NameType.SIMPLE) {
+            throw IllegalArgumentException("The provided name '$name' is of type '${name.type()} and cannot be used to access an entity through a schema.")
+        }
+
         val entityRecId = this.header.entities.find { this.store.get(it, Serializer.STRING) == name } ?: throw DatabaseException.EntityDoesNotExistException("$fqn.$name")
 
         /* Unload the entity and remove it. */
@@ -167,7 +181,12 @@ internal class Schema(override val name: String, override val path: Path, overri
      *
      * @param name Name of the [Entity] to access.
      */
-    fun entityForName(name: String): Entity = this.lock.read {
+    fun entityForName(name: Name): Entity = this.lock.read {
+        /* Check the type of name. */
+        if (name.type() != NameType.SIMPLE) {
+            throw IllegalArgumentException("The provided name '$name' is of type '${name.type()}  and cannot be used to access an entity through a schema.")
+        }
+
         if (!this.entities.contains(name)) throw DatabaseException.EntityDoesNotExistException("$fqn.$name")
         return this.loaded[name]?.get() ?: Entity(name, this).also {
             this.loaded[name] = SoftReference(it)

@@ -43,7 +43,7 @@ internal class RecordsetSelectProjectionTask (val projection: Projection): Execu
         parent.columns.forEachIndexed { i, c ->
             var match = false
             this.projection.fields.forEach { (k, v) ->
-                if (c.name.doesNameMatch(k)) {
+                if (k.doesNameMatch(c.name)) {
                     match = true
                     if (v != null) {
                         renameIndex.add(Pair(i, v))

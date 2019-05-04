@@ -13,19 +13,17 @@ import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
 import ch.unibas.dmi.dbis.cottontail.model.recordset.StandaloneRecord
 import ch.unibas.dmi.dbis.cottontail.model.values.*
+import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
 
-import org.apache.lucene.analysis.Analyzer
 import org.apache.lucene.analysis.standard.StandardAnalyzer
 import org.apache.lucene.document.*
 import org.apache.lucene.index.*
 import org.apache.lucene.search.IndexSearcher
 import org.apache.lucene.store.Directory
 import org.apache.lucene.store.FSDirectory
-import org.apache.lucene.store.MMapDirectory
 import org.apache.lucene.store.NativeFSLockFactory
 
 import java.nio.file.Path
-import kotlin.concurrent.read
 import kotlin.concurrent.write
 
 /**
@@ -34,7 +32,7 @@ import kotlin.concurrent.write
  * @author Luca Rossetto & Ralph Gasser
  * @version 1.0
  */
-internal class LuceneIndex(override val name: String, override val parent: Entity, override val columns: Array<ColumnDef<*>>) : Index() {
+internal class LuceneIndex(override val name: Name, override val parent: Entity, override val columns: Array<ColumnDef<*>>) : Index() {
 
     companion object {
         /** Cost of a single lookup operation (i.e. comparison of a term in the index). */

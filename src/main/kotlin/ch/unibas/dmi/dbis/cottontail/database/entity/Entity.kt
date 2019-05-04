@@ -21,10 +21,12 @@ import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.TransactionException
 import ch.unibas.dmi.dbis.cottontail.model.values.Value
-import ch.unibas.dmi.dbis.cottontail.utilities.name.COTTONTAIL_NAME_COMPONENT_SEPARATOR
+import ch.unibas.dmi.dbis.cottontail.utilities.name.*
+import ch.unibas.dmi.dbis.cottontail.utilities.name.type
 
 import org.mapdb.*
 import org.mapdb.volume.MappedFileVol
+import java.lang.IllegalArgumentException
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.*
@@ -125,12 +127,12 @@ internal class Entity(override val name: String, schema: Schema) : DBO {
     fun allIndexes(): Collection<Index> = this.indexes
 
     /**
-     * Returns the [ColumnDef] for the specified name.
+     * Returns the [ColumnDef] for the specified [Name]. The name can be either a [NameType.SIMPLE] or [NameType.FQN]
      *
-     * @param name The name of the [Column].
+     * @param name The [Name] of the [Column].
      * @return [ColumnDef] of the [Column].
      */
-    fun columnForName(name: String): ColumnDef<*>? = this.columns.find { it.name == name.split(COTTONTAIL_NAME_COMPONENT_SEPARATOR).last() }?.columnDef
+    fun columnForName(name: Name): ColumnDef<*>? = this.columns.find { it.name == name.last() }?.columnDef
 
     /**
      * Checks, if this [Entity] has an index for the given [ColumnDef] and (optionally) of the given [IndexType]
@@ -144,11 +146,16 @@ internal class Entity(override val name: String, schema: Schema) : DBO {
     /**
      * Creates the [Index] with the given settings
      *
-     * @param name Name of the [Index] to create.
+     * @param name [Name] of the [Index] to create.
      * @param type Type of the [Index] to create.
      * @param columns The list of [columns] to [Index].
      */
-    fun createIndex(name: String, type: IndexType, columns: Array<ColumnDef<*>>, params: Map<String,String> = emptyMap()) = this.globalLock.write {
+    fun createIndex(name: Name, type: IndexType, columns: Array<ColumnDef<*>>, params: Map<String,String> = emptyMap()) = this.globalLock.write {
+        /* Check the type of name. */
+        if (name.type() != NameType.SIMPLE) {
+            throw IllegalArgumentException("The provided name '$name' is of type '${name.type()}  and cannot be used to access an index through an entity.")
+        }
+
         val indexEntry = this.header.indexes.map {
             Pair(it, this.store.get(it, IndexEntrySerializer) ?: throw DatabaseException.DataCorruptionException("Failed to create index '$fqn.$name': Could not read index definition at position $it!"))
         }.find { it.second.name == name }
@@ -185,9 +192,14 @@ internal class Entity(override val name: String, schema: Schema) : DBO {
     /**
      * Drops the [Index] with the given name.
      *
-     * @param name Name of the [Index] to drop.
+     * @param name [Name] of the [Index] to drop.
      */
-    fun dropIndex(name: String) = this.globalLock.write {
+    fun dropIndex(name: Name) = this.globalLock.write {
+        /* Check the type of name. */
+        if (name.type() != NameType.SIMPLE) {
+            throw IllegalArgumentException("The provided name '$name' is of type '${name.type()}  and cannot be used to access an index through an entity.")
+        }
+
         val indexEntry = this.header.indexes.map {
             Pair(it, this.store.get(it, IndexEntrySerializer) ?: throw DatabaseException.DataCorruptionException("Failed to drop index '$fqn.$name': Could not read index definition at position $it!"))
         }.find { it.second.name == name }?.let { ie ->
@@ -220,7 +232,7 @@ internal class Entity(override val name: String, schema: Schema) : DBO {
      *
      * @param name The name of the [Index]
      */
-    fun updateIndex(name: String) = this.globalLock.read {
+    fun updateIndex(name: Name) = this.globalLock.read {
         val index = this.indexes.find { it.name == name }
         index?.Tx(false)?.rebuild()
     }
