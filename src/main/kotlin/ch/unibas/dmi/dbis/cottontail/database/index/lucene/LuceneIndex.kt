@@ -62,7 +62,7 @@ internal class LuceneIndex(override val name: String, override val parent: Entit
     }
 
     /** The [LuceneIndex] implementation produces an additional score column. */
-    override val produces: Array<ColumnDef<*>> = arrayOf(ColumnDef("${parent.fqn}.score", ColumnType.forName("DOUBLE")))
+    override val produces: Array<ColumnDef<*>> = arrayOf(ColumnDef("${parent.fqn}.score", ColumnType.forName("FLOAT")))
 
     /** The path to the directory that contains the data for this [LuceneIndex]. */
     override val path: Path = this.parent.path.resolve("idx_lucene_$name")
