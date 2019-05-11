@@ -159,7 +159,7 @@ internal class Schema(override val name: Name, override val path: Path, override
             /* Update header. */
             val header = this.header
             header.modified = System.currentTimeMillis()
-            header.entities = header.entities.filter { it == entityRecId }.toLongArray()
+            header.entities = header.entities.filter { it != entityRecId }.toLongArray()
             this.store.update(HEADER_RECORD_ID, header, SchemaHeaderSerializer)
 
             /* Commit. */
@@ -170,8 +170,8 @@ internal class Schema(override val name: Name, override val path: Path, override
         }
 
         /* Delete all files associated with the entity. */
-        val pathsToDelete = Files.walk(path.resolve(name)).sorted(Comparator.reverseOrder()).collect(Collectors.toList())
-        pathsToDelete.forEach { Files.delete(it) }
+        val pathsToDelete = Files.walk(this.path.resolve("entity_$name")).sorted(Comparator.reverseOrder()).collect(Collectors.toList())
+        pathsToDelete.forEach { Files.deleteIfExists(it) }
     }
 
 
