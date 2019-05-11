@@ -125,7 +125,7 @@ internal class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.Cotton
     } catch (e: DatabaseException) {
         responseObserver.onError(Status.UNKNOWN.withDescription("Failed to list entities for schema ${request.name} because of database error: ${e.message}").asException())
     } catch (e: Throwable) {
-        responseObserver.onError(Status.UNKNOWN.withDescription("\"Failed to list entities for schema ${request.name} because of unknown error: ${e.message}").asException())
+        responseObserver.onError(Status.UNKNOWN.withDescription("Failed to list entities for schema ${request.name} because of unknown error: ${e.message}").asException())
     }
 
     /**
@@ -135,12 +135,17 @@ internal class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.Cotton
         val entity = this.catalogue.schemaForName(request.index.entity.schema.name).entityForName(request.index.entity.name)
         val columns = request.columnsList.map { entity.columnForName(it) ?: throw DatabaseException.ColumnDoesNotExistException(entity.fqn.append(it)) }.toTypedArray()
 
-        /* Creates and updates the index. */
-        entity.createIndex(request.index.name, IndexType.valueOf(request.index.type.toString()), columns, request.paramsMap)
+        /* Check non-empty name. */
+        if (request.index.name == "") {
+            responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Failed to create index: Invalid name '${request.index.name}'.").asException())
+        } else {
+            /* Creates and updates the index. */
+            entity.createIndex(request.index.name, IndexType.valueOf(request.index.type.toString()), columns, request.paramsMap)
 
-        /* Notify caller of success. */
-        responseObserver.onNext(CottontailGrpc.SuccessStatus.newBuilder().setTimestamp(System.currentTimeMillis()).build())
-        responseObserver.onCompleted()
+            /* Notify caller of success. */
+            responseObserver.onNext(CottontailGrpc.SuccessStatus.newBuilder().setTimestamp(System.currentTimeMillis()).build())
+            responseObserver.onCompleted()
+        }
     } catch (e: DatabaseException.SchemaDoesNotExistException) {
         responseObserver.onError(Status.NOT_FOUND.withDescription("Schema '${request.index.entity.schema.fqn()} does not exist!").asException())
     } catch (e: DatabaseException.EntityDoesNotExistException) {
@@ -152,7 +157,7 @@ internal class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.Cotton
     } catch (e: DatabaseException) {
         responseObserver.onError(Status.UNKNOWN.withDescription("Failed to create index '${request.index.fqn()}' because of database error: ${e.message}").asException())
     } catch (e: Throwable) {
-        responseObserver.onError(Status.UNKNOWN.withDescription("Failed to drop index '${request.index.fqn()}' because of an unknown error: ${e.message}").asException())
+        responseObserver.onError(Status.UNKNOWN.withDescription("Failed to create index '${request.index.fqn()}' because of an unknown error: ${e.message}").asException())
     }
 
     /**
