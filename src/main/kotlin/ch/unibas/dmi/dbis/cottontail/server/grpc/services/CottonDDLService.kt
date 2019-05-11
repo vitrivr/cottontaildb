@@ -8,6 +8,7 @@ import ch.unibas.dmi.dbis.cottontail.grpc.CottontailGrpc
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
 import ch.unibas.dmi.dbis.cottontail.server.grpc.helper.fqn
+import ch.unibas.dmi.dbis.cottontail.utilities.name.append
 
 import com.google.protobuf.Empty
 
@@ -33,6 +34,8 @@ internal class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.Cotton
         responseObserver.onError(Status.ALREADY_EXISTS.withDescription("Schema '${request.name} cannot be created because it already exists!").asException())
     } catch (e: DatabaseException) {
         responseObserver.onError(Status.UNKNOWN.withDescription("Failed to create schema '${request.name} because of database error: ${e.message}").asException())
+    } catch (e: Throwable) {
+        responseObserver.onError(Status.UNKNOWN.withDescription("Failed to create schema '${request.name} because unknown error: ${e.message}").asException())
     }
 
     /**
@@ -46,6 +49,8 @@ internal class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.Cotton
         responseObserver.onError(Status.NOT_FOUND.withDescription("Schema '${request.name} does not exist!").asException())
     } catch (e: DatabaseException) {
         responseObserver.onError(Status.UNKNOWN.withDescription("Failed to drop schema '${request.name} because of database error: ${e.message}").asException())
+    } catch (e: Throwable) {
+        responseObserver.onError(Status.UNKNOWN.withDescription("Failed to drop schema '${request.name} because unknown error: ${e.message}").asException())
     }
 
     /**
@@ -58,7 +63,10 @@ internal class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.Cotton
         responseObserver.onCompleted()
     } catch (e: DatabaseException) {
         responseObserver.onError(Status.UNKNOWN.withDescription("Failed to list schemas because of database error: ${e.message}").asException())
+    } catch (e: Throwable) {
+        responseObserver.onError(Status.UNKNOWN.withDescription("Failed to list schemas because of unknown error: ${e.message}").asException())
     }
+
     /**
      *
      * gRPC endpoint for creating a new [Entity]
@@ -78,6 +86,8 @@ internal class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.Cotton
         responseObserver.onError(Status.ALREADY_EXISTS.withDescription("Entity '${request.entity.fqn()} does already exist!").asException())
     } catch (e: DatabaseException) {
         responseObserver.onError(Status.UNKNOWN.withDescription("Failed to create entity '${request.entity.fqn()}' because of database error: ${e.message}").asException())
+    } catch (e: Throwable) {
+        responseObserver.onError(Status.UNKNOWN.withDescription("Failed to create entity '${request.entity.fqn()}' because of unknown error: ${e.message}").asException())
     }
 
     /**
@@ -93,6 +103,8 @@ internal class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.Cotton
         responseObserver.onError(Status.NOT_FOUND.withDescription("Entity '${request.fqn()}' does not exist!").asException())
     } catch (e: DatabaseException) {
         responseObserver.onError(Status.UNKNOWN.withDescription("Failed to drop entity '${request.fqn()}' because of database error: ${e.message}").asException())
+    } catch (e: Throwable) {
+        responseObserver.onError(Status.UNKNOWN.withDescription("Failed to drop entity '${request.fqn()}' because of unknown error: ${e.message}").asException())
     }
 
     /**
@@ -112,6 +124,8 @@ internal class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.Cotton
         responseObserver.onError(Status.NOT_FOUND.withDescription("Schema '${request.name} does not exist!").asException())
     } catch (e: DatabaseException) {
         responseObserver.onError(Status.UNKNOWN.withDescription("Failed to list entities for schema ${request.name} because of database error: ${e.message}").asException())
+    } catch (e: Throwable) {
+        responseObserver.onError(Status.UNKNOWN.withDescription("\"Failed to list entities for schema ${request.name} because of unknown error: ${e.message}").asException())
     }
 
     /**
@@ -119,7 +133,7 @@ internal class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.Cotton
      */
     override fun createIndex(request: CottontailGrpc.CreateIndexMessage, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) = try {
         val entity = this.catalogue.schemaForName(request.index.entity.schema.name).entityForName(request.index.entity.name)
-        val columns = request.columnsList.map { entity.columnForName(it) ?: throw DatabaseException.ColumnNotExistException(it, entity.name) }.toTypedArray()
+        val columns = request.columnsList.map { entity.columnForName(it) ?: throw DatabaseException.ColumnDoesNotExistException(entity.fqn.append(it)) }.toTypedArray()
 
         /* Creates and updates the index. */
         entity.createIndex(request.index.name, IndexType.valueOf(request.index.type.toString()), columns, request.paramsMap)
@@ -133,11 +147,11 @@ internal class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.Cotton
         responseObserver.onError(Status.NOT_FOUND.withDescription("Entity '${request.index.entity.fqn()} does not exist!").asException())
     } catch (e: DatabaseException.IndexAlreadyExistsException) {
         responseObserver.onError(Status.ALREADY_EXISTS.withDescription("Index '${request.index.fqn()}' does already exist!").asException())
-    } catch (e: DatabaseException.ColumnNotExistException) {
+    } catch (e: DatabaseException.ColumnDoesNotExistException) {
         responseObserver.onError(Status.NOT_FOUND.withDescription(e.message).asException())
     } catch (e: DatabaseException) {
         responseObserver.onError(Status.UNKNOWN.withDescription("Failed to create index '${request.index.fqn()}' because of database error: ${e.message}").asException())
-    } catch (e: Exception) {
+    } catch (e: Throwable) {
         responseObserver.onError(Status.UNKNOWN.withDescription("Failed to drop index '${request.index.fqn()}' because of an unknown error: ${e.message}").asException())
     }
 
@@ -158,7 +172,7 @@ internal class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.Cotton
         responseObserver.onError(Status.NOT_FOUND.withDescription("Index '${request.index.fqn()} does not exist!").asException())
     } catch (e: DatabaseException) {
         responseObserver.onError(Status.UNKNOWN.withDescription("Failed to drop index '${request.index.fqn()}' because of database error: ${e.message}").asException())
-    } catch (e: Exception) {
+    } catch (e: Throwable) {
         responseObserver.onError(Status.UNKNOWN.withDescription("Failed to drop index '${request.index.fqn()}' because of an unknown error: ${e.message}").asException())
     }
 
@@ -179,7 +193,7 @@ internal class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.Cotton
         responseObserver.onError(Status.NOT_FOUND.withDescription("Index '${request.index.fqn()} does not exist!").asException())
     } catch (e: DatabaseException) {
         responseObserver.onError(Status.UNKNOWN.withDescription("Failed to rebuild index '${request.index.fqn()}' because of database error: ${e.message}").asException())
-    } catch (e: Exception) {
+    } catch (e: Throwable) {
         responseObserver.onError(Status.UNKNOWN.withDescription("Failed to rebuild index '${request.index.fqn()}' because of an unknown error: ${e.message}").asException())
     }
 }
