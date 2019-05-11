@@ -13,6 +13,7 @@ import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.ValidationException
 import ch.unibas.dmi.dbis.cottontail.model.values.Value
 import ch.unibas.dmi.dbis.cottontail.server.grpc.helper.*
+import ch.unibas.dmi.dbis.cottontail.utilities.name.append
 import io.grpc.Status
 import io.grpc.stub.StreamObserver
 import org.slf4j.LoggerFactory
@@ -35,7 +36,7 @@ internal class CottonDMLService (val catalogue: Catalogue): CottonDMLGrpc.Cotton
                 val columns = mutableListOf<ColumnDef<*>>()
                 val values = mutableListOf<Value<*>?>()
                 entry.map {
-                    val col = entity.columnForName(it.key) ?: throw DatabaseException.ColumnNotExistException(it.key, entity.name)
+                    val col = entity.columnForName(it.key) ?: throw DatabaseException.ColumnDoesNotExistException(entity.fqn.append(it.key))
                     columns.add(col)
                     values.add(castToColumn(it.value, col))
                 }
@@ -52,6 +53,8 @@ internal class CottonDMLService (val catalogue: Catalogue): CottonDMLGrpc.Cotton
         responseObserver.onError(Status.NOT_FOUND.withDescription("Insert failed because schema '${request.entity.schema.name} does not exist!").asException())
     } catch (e: DatabaseException.EntityDoesNotExistException) {
         responseObserver.onError(Status.NOT_FOUND.withDescription("Insert failed because entity '${request.entity.name} does not exist!").asException())
+    } catch (e: DatabaseException.ColumnDoesNotExistException) {
+        responseObserver.onError(Status.NOT_FOUND.withDescription("Insert failed because column '${e.column}' does not exist!").asException())
     } catch (e: ValidationException) {
         responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Insert failed because data validation failed: ${e.message}").asException())
     }  catch (e: DatabaseException) {
@@ -103,7 +106,7 @@ internal class CottonDMLService (val catalogue: Catalogue): CottonDMLGrpc.Cotton
                     val columns = mutableListOf<ColumnDef<*>>()
                     val values = mutableListOf<Value<*>?>()
                     entry.map {
-                        val col = entity.columnForName(it.key) ?: throw DatabaseException.ColumnNotExistException(it.key, entity.name)
+                        val col = entity.columnForName(it.key) ?: throw DatabaseException.ColumnDoesNotExistException(entity.fqn.append(it.key))
                         columns.add(col)
                         values.add(castToColumn(it.value, col))
                     }
@@ -121,6 +124,10 @@ internal class CottonDMLService (val catalogue: Catalogue): CottonDMLGrpc.Cotton
                 this.cleanup()
             } catch (e: DatabaseException.EntityDoesNotExistException) {
                 responseObserver.onError(Status.NOT_FOUND.withDescription("Insert failed because entity '${request.entity.fqn()} does not exist!").asException())
+                closed = true
+                this.cleanup()
+            } catch (e: DatabaseException.ColumnDoesNotExistException) {
+                responseObserver.onError(Status.NOT_FOUND.withDescription("Insert failed because column '${e.column}' does not exist!").asException())
                 closed = true
                 this.cleanup()
             } catch (e: ValidationException) {
