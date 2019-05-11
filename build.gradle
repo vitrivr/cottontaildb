@@ -10,18 +10,20 @@ buildscript {
     }
     dependencies {
         classpath "com.google.protobuf:protobuf-gradle-plugin:0.8.8"
+        classpath "org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion"
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion"
         classpath "org.jetbrains.kotlin:kotlin-serialization:$kotlinVersion"
     }
 }
 
+apply plugin: 'application'
 apply plugin: 'java'
 apply plugin: 'kotlin'
 apply plugin: 'kotlinx-serialization'
 apply plugin: 'antlr'
 apply plugin: 'com.google.protobuf'
 
-
+mainClassName = 'ch.unibas.dmi.dbis.cottontail.CottontailKt'
 
 sourceCompatibility = 1.8
 
@@ -44,9 +46,7 @@ generateGrammarSource {
 sourceSets {
     main {
         proto {
-            srcDir {
-                "$projectDir/cottontaildb-proto/src/main/protobuf"
-            }
+            srcDirs += "$projectDir/cottontaildb-proto/src/main/protobuf"
         }
         kotlin {
             srcDirs += "$projectDir/build/generated/source/antlr/main/java"
@@ -105,6 +105,6 @@ dependencies {
     ///// Kotlin
     compile group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib', version: kotlinVersion
     compile group: 'org.jetbrains.kotlin', name: 'kotlin-reflect', version: kotlinVersion
-    compile group: 'org.jetbrains.kotlinx', name: 'kotlinx-coroutines-core', version: '1.2.0'
+    compile group: 'org.jetbrains.kotlinx', name: 'kotlinx-coroutines-core', version: '1.2.1'
     compile group: 'org.jetbrains.kotlinx', name: 'kotlinx-serialization-runtime', version: '0.11.0'
 }
