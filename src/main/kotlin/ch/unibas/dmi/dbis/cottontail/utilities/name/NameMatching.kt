@@ -10,6 +10,14 @@ const val COTTONTAIL_NAME_COMPONENT_SEPARATOR = '.'
 typealias Name = String
 
 /**
+ * Appends the other [Name] to this [Name].
+ *
+ * @param other The other [Name].
+ * @return The concatenated [Name].
+ */
+fun Name.append(other: Name): Name = "$this$COTTONTAIL_NAME_COMPONENT_SEPARATOR$other"
+
+/**
  * Returns the first [Name] component of this [Name], which is a [Name] again. If this is of [NameType.SIMPLE],
  * then the same [Name] is returned.
  *

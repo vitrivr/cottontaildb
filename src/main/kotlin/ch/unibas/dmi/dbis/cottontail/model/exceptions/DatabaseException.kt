@@ -1,63 +1,91 @@
 package ch.unibas.dmi.dbis.cottontail.model.exceptions
 
 import ch.unibas.dmi.dbis.cottontail.database.column.ColumnType
+import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
 import org.mapdb.DBException
 
 open class DatabaseException(message: String) : Throwable(message) {
-
-    /** */
-    class SchemaAlreadyExistsException(schema: String): DatabaseException("Schema '$schema' does already exist!")
-
-    /** */
-    class SchemaDoesNotExistException(schema: String): DatabaseException("Schema '$schema' does not exist!")
-
-    /** */
-    class EntityAlreadyExistsException(schema: String, entity: String): DatabaseException("Entity '$entity' does already exist in schema '$schema'!")
-
-    /** */
-    class EntityDoesNotExistException(fqn: String): DatabaseException("Entity '$fqn' does not exist!")
+    /**
+     * Thrown when trying to create a [Schema] that does already exist.
+     *
+     * @param entity [Name] of the [Schema].
+     */
+    class SchemaAlreadyExistsException(schema: Name): DatabaseException("Schema '$schema' does already exist!")
 
     /**
-     * Thrown whenever trying to create and [Index] that does already exist.
+     * Thrown when trying to access a [Schema] that does not exist.
      *
-     * @param fqn The FQN of the [Index]
+     * @param entity [Name] of the [Schema].
      */
-    class IndexAlreadyExistsException(fqn: String): DatabaseException("Index '$fqn' does already exist!")
+    class SchemaDoesNotExistException(schema: Name): DatabaseException("Schema '$schema' does not exist!")
 
     /**
-     * Thrown whenever trying to access and [Index] that does not exist.
+     * Thrown when trying to create an [Entity] that does already exist.
      *
-     * @param fqn The FQN of the [Index]
+     * @param entity [Name] of the [Entity].
      */
-    class IndexDoesNotExistException(fqn: String): DatabaseException("Index '$fqn' does not exist!")
+    class EntityAlreadyExistsException(entity: Name): DatabaseException("Entity '$entity' does already exist!")
+
+    /**
+     * Thrown when trying to access an [Entity] that does not exist.
+     *
+     * @param entity [Name] of the [Entity].
+     */
+    class EntityDoesNotExistException(entity: Name): DatabaseException("Entity '$entity' does not exist!")
+
+    /**
+     * Thrown whenever trying to create an [Index] that does already exist.
+     *
+     * @param index The [Name] of the [Index]
+     */
+    class IndexAlreadyExistsException(val index: String): DatabaseException("Index '$index' does already exist!")
+
+    /**
+     * Thrown whenever trying to access an [Index] that does not exist.
+     *
+     * @param index The [Name] of the [Index]
+     */
+    class IndexDoesNotExistException(val index: String): DatabaseException("Index '$index' does not exist!")
 
     /**
      * Thrown upon creation of an [Entity] if the definition contains duplicate column names.
      *
-     * @param fqn Name of the affected [Entity]
-     * @param columns Name of the [Column]s in the definition.
+     * @param fqn [Name] of the affected [Entity]
+     * @param columns [Name] of the [Column]s in the definition.
      */
-    class DuplicateColumnException(fqn: String, columns: String) : DatabaseException("Entity '$fqn' could not be created because it contains duplicate column names (c=[$columns])!")
+    class DuplicateColumnException(entity: Name, columns: Collection<Name>) : DatabaseException("Entity '$entity' could not be created because it contains duplicate column names (c=[${columns.joinToString(",")}])!")
 
     /**
-     * Throws by [Index]es if they are given a [Predicate] they cannot executed.
+     * Thrown whenever trying to access a [Column] that does not exist.
      *
-     * @param schema Name of the affected [Schema]
-     * @param entity Name of the affected [Entity]
-     * @param name Name of the affected [Index].
+     * @param column The [Name] of the [Column].
      */
-    class PredicateNotSupportedBxIndexException(schema: String, entity: String, index: String): DatabaseException("Index '$schema.$entity.$index' cannot be used to executed given predicate.")
+    class ColumnDoesNotExistException(val column: Name): DatabaseException("Column $column does not exist.")
 
-    /** */
-    class ColumnNotExistException(column: String, entity: String): DatabaseException("Column $column does not exist on entity '$entity'.")
+    /**
+     * Thrown by [Index]es if they are given a [Predicate] they cannot executed.
+     *
+     * @param index [Name] of the affected [Index]
+     */
+    class PredicateNotSupportedBxIndexException(index: Name): DatabaseException("Index '$index' cannot be used to execute the given predicate.")
 
-    /** */
-    class ColumnTypeUnexpectedException(column: String, entity: String, expected: ColumnType<*>, actual: ColumnType<*>): DatabaseException("Column '$column' on entity '$entity' has wrong type (expected: ${expected.name}, actual: ${actual.name}).")
+    /**
+     *
+     */
+    class ColumnTypeUnexpectedException(column: Name, expected: ColumnType<*>, actual: ColumnType<*>): DatabaseException("Column '$column' has wrong type (expected: ${expected.name}, actual: ${actual.name}).")
 
-    /** */
+    /**
+     * Thrown when the Cottontail DB engine expects a different type of file.
+     *
+     * @param type The name of the expected type.
+     */
     class InvalidFileException(type: String): DatabaseException("The provided file is not a valid $type file!")
 
-    /** */
+    /**
+     * Thrown when the Cottontail DB engine cannot read the data from a file OR the data read is unexpected. Usually, this can be attributed to data corruption
+     *
+     * @param message Description of the issue.
+     */
     class DataCorruptionException(message: String): DatabaseException(message)
 }
 

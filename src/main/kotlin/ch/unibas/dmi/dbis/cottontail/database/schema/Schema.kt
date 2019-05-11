@@ -10,6 +10,7 @@ import ch.unibas.dmi.dbis.cottontail.database.entity.EntityHeaderSerializer
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
 import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
 import ch.unibas.dmi.dbis.cottontail.utilities.name.NameType
+import ch.unibas.dmi.dbis.cottontail.utilities.name.append
 import ch.unibas.dmi.dbis.cottontail.utilities.name.type
 
 import org.mapdb.*
@@ -87,8 +88,8 @@ internal class Schema(override val name: Name, override val path: Path, override
             throw IllegalArgumentException("The provided name '$name' is of type '${name.type()} and cannot be used to access an entity through a schema.")
         }
 
-        if (entities.contains(name)) throw DatabaseException.EntityAlreadyExistsException(this.name, name)
-        if (columns.map { it.name }.distinct().size != columns.size) throw DatabaseException.DuplicateColumnException("$fqn.$name", columns.map { it }.joinToString())
+        if (entities.contains(name)) throw DatabaseException.EntityAlreadyExistsException(this.fqn.append(name))
+        if (columns.map { it.name }.distinct().size != columns.size) throw DatabaseException.DuplicateColumnException("$fqn.$name", columns.map { it.name })
 
         /* Create empty folder for entity. */
         val data = path.resolve("entity_$name")
