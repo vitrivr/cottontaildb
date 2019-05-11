@@ -45,6 +45,7 @@ internal fun <T:Transaction> T.begin(block: (tx: T) -> Boolean) = try {
     }
 } catch (e: Throwable) {
     rollback()
+    throw e
 } finally {
     close()
 }
@@ -67,7 +68,7 @@ internal fun <T:Transaction> T.query(block: (tx: T) -> Recordset): Recordset? = 
     result
 } catch (e: Throwable) {
     rollback()
-    null
+    throw e
 } finally {
     close()
 }
