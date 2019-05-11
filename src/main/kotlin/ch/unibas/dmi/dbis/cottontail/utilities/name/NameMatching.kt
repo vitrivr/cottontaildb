@@ -2,12 +2,25 @@ package ch.unibas.dmi.dbis.cottontail.utilities.name
 
 import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
+import javax.annotation.RegEx
 
 /** The separator between Cottontail DB name components. */
 const val COTTONTAIL_NAME_COMPONENT_SEPARATOR = '.'
 
 /** Type alias for Cottontail DB names. */
 typealias Name = String
+
+/**
+ * Returns true if this [Name] is valid given the type.
+ *
+ * @return true if this [Name] is valid, false otherwise.
+ */
+fun Name.isValid(type: NameType = NameType.FQN): Boolean = when(type) {
+    NameType.SIMPLE -> this.matches(Regex("^([a-zA-Z0-9\\-_]+)$"))
+    NameType.FQN -> this.matches(Regex("^([a-zA-Z0-9\\-_]+)(\\.[a-zA-Z0-9\\-_]+){0,3}$"))
+    NameType.FQN_WILDCARD ->  this.matches(Regex("^([a-zA-Z0-9\\-_]+){1}(\\.([a-zA-Z0-9\\-_]+|\\*)){0,3}\$"))
+    NameType.WILDCARD -> this.matches(Regex("^\\*\$"))
+}
 
 /**
  * Appends the other [Name] to this [Name].
