@@ -10,9 +10,9 @@ object PathSerializer : KSerializer<Path> {
     override val descriptor: SerialDescriptor
         get() = StringDescriptor.withName("Path")
 
-    override fun deserialize(input: Decoder): Path = Paths.get(input.decodeString())
+    override fun deserialize(decoder: Decoder): Path = Paths.get(decoder.decodeString())
 
-    override fun serialize(output: Encoder, obj: Path) {
-        output.encodeString(obj.toString())
+    override fun serialize(encoder: Encoder, obj: Path) {
+        encoder.encodeString(obj.toString())
     }
 }
