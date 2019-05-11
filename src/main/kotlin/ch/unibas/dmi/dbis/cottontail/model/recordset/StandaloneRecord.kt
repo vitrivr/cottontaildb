@@ -16,11 +16,21 @@ import ch.unibas.dmi.dbis.cottontail.model.values.Value
  */
 class StandaloneRecord(override val tupleId: Long = Long.MIN_VALUE, override val columns: Array<ColumnDef<*>>, init: Array<Value<*>?>? = null) : Record {
 
-    /** Array of column values (one entry per column). Initializes with either the init parameter (if validated) or the default value for the column. */
-    override val values: Array<Value<*>?> = if (init != null) {
-        init.forEachIndexed { index, any ->  columns[index].validateOrThrow(any) }
-        init
-    } else Array(columns.size) { columns[it].defaultValue() }
+    /** Array of column values (one entry per column). Initializes with null or the default value for the [ColumnType]. */
+    override val values: Array<Value<*>?> = Array(columns.size) {
+        if (this.columns[it].nullable) {
+            null
+        } else {
+            this.columns[it].defaultValue()
+        }
+    }
+
+    init {
+        init?.forEachIndexed { index, any ->
+            this.columns[index].validateOrThrow(any)
+            this.values[index] = any
+        }
+    }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
