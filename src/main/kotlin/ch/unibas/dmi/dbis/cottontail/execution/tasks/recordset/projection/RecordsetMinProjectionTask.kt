@@ -31,8 +31,8 @@ internal class RecordsetMinProjectionTask(val projection: Projection, estimatedS
 
         /* Calculate min(). */
         val column = projection.columns.first()
-        val resultsColumn = ColumnDef.withAttributes(this.projection.fields[column.name] ?: "max(${column.name})", "DOUBLE")
-        var min = 0.0
+        val resultsColumn = ColumnDef.withAttributes(this.projection.fields[column.name] ?: "min(${column.name})", "DOUBLE")
+        var min = Double.MAX_VALUE
         val results = Recordset(arrayOf(resultsColumn))
         parent.forEach {
             when (val value = it[column]?.value) {

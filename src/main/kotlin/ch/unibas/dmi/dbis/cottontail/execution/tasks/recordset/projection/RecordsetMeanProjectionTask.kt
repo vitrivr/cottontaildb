@@ -31,7 +31,7 @@ internal class RecordsetMeanProjectionTask(val projection: Projection, estimated
 
         /* Calculate mean(). */
         val column = projection.columns.first()
-        val resultsColumn = ColumnDef.withAttributes(this.projection.fields[column.name] ?: "max(${column.name})", "DOUBLE")
+        val resultsColumn = ColumnDef.withAttributes(this.projection.fields[column.name] ?: "mean(${column.name})", "DOUBLE")
         val results = Recordset(arrayOf(resultsColumn))
         if (parent.rowCount > 0) {
             var sum = 0.0

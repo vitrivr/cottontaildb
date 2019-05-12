@@ -33,7 +33,7 @@ internal class RecordsetMaxProjectionTask(val projection: Projection, estimatedS
         /* Calculate max(). */
         val column = projection.columns.first()
         val resultsColumn = ColumnDef.withAttributes(this.projection.fields[column.name] ?: "max(${column.name})", "DOUBLE")
-        var max = 0.0
+        var max = Double.MIN_VALUE
         val results = Recordset(arrayOf(resultsColumn))
         parent.forEach {
             when (val value = it[column]?.value) {

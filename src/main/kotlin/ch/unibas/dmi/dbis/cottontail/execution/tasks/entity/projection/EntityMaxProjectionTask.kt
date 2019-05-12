@@ -30,7 +30,7 @@ internal class EntityMaxProjectionTask(val entity: Entity, val column: ColumnDef
         val resultsColumn = ColumnDef.withAttributes(this.alias ?: "max(${this.column.name})", "DOUBLE")
 
         return this.entity.Tx(true, columns = arrayOf(this.column)).query {
-            var max = 0.0
+            var max = Double.MIN_VALUE
             val recordset = Recordset(arrayOf(resultsColumn))
             it.forEach {
                 when (val value = it[column]?.value) {
