@@ -77,7 +77,7 @@ sealed class ColumnType<T : Any> {
 @Suppress("UNCHECKED_CAST")
 class BooleanColumnType : ColumnType<Boolean>() {
     override val name = "BOOLEAN"
-    override val numeric = false
+    override val numeric = true
     override val type: KClass<BooleanValue> = BooleanValue::class
     override fun serializer(size: Int): Serializer<Value<Boolean>> = BooleanValueSerializer as Serializer<Value<Boolean>>
 }
