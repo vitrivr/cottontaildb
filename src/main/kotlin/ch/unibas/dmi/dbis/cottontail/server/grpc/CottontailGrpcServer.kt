@@ -13,10 +13,10 @@ import org.apache.log4j.Logger
 import java.util.concurrent.*
 
 /**
- * Main server class for the GRPC endpoint provided by Cottotail DB.
+ * Main server class for the gRPC endpoint provided by Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.0.1
  */
 internal class CottontailGrpcServer(config: ServerConfig, val catalogue: Catalogue, val engine: ExecutionEngine) {
 
@@ -28,8 +28,8 @@ internal class CottontailGrpcServer(config: ServerConfig, val catalogue: Catalog
             .executor(this.executor)
             .maxInboundMessageSize(config.messageSize)
             .addService(CottonDDLService(this.catalogue))
-            .addService(CottonDQLService(this.catalogue, this.engine, config.messageSize))
             .addService(CottonDMLService(this.catalogue))
+            .addService(CottonDQLService(this.catalogue, this.engine, config.messageSize))
             .let {
                 if (config.useTls) {
                     val certFile = config.certFile?.toFile() ?: throw Exception()

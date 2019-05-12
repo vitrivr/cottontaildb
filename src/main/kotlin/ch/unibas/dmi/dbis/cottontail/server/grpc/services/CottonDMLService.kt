@@ -25,7 +25,7 @@ internal class CottonDMLService (val catalogue: Catalogue): CottonDMLGrpc.Cotton
     }
 
     /**
-     * GRPC endpoint for inserting data in a batch mode. All the data provided with the [CottontailGrpc.InsertMessage] will be inserted
+     * gRPC endpoint for inserting data in a batch mode. All the data provided with the [CottontailGrpc.InsertMessage] will be inserted
      * in a single transaction. I.e. either the insert succeeds or fails completely.
      */
     override fun insert(request: CottontailGrpc.InsertMessage, responseObserver: StreamObserver<CottontailGrpc.InsertStatus>) = try {
@@ -64,7 +64,7 @@ internal class CottonDMLService (val catalogue: Catalogue): CottonDMLGrpc.Cotton
     }
 
     /**
-     * GRPC endpoint for inserting data in a streaming mode; transactions will stay open until the caller explicitly completes them
+     * gRPC endpoint for inserting data in a streaming mode; transactions will stay open until the caller explicitly completes them
      * or until an error occurs. As new entities are being inserted, new transactions will be created and thus new lock will be acquired.
      */
     override fun insertStream(responseObserver: StreamObserver<CottontailGrpc.InsertStatus>): StreamObserver<CottontailGrpc.InsertMessage> = object:StreamObserver<CottontailGrpc.InsertMessage>{

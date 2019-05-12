@@ -20,11 +20,11 @@ import java.util.*
 internal class CottonDQLService (val catalogue: Catalogue, val engine: ExecutionEngine, val maxMessageSize: Int): CottonDQLGrpc.CottonDQLImplBase() {
     /** Logger used for logging the output. */
     companion object {
-        private val LOGGER = LoggerFactory.getLogger(CottonDMLService::class.java)
+        private val LOGGER = LoggerFactory.getLogger(CottonDQLService::class.java)
     }
 
     /**
-     * GRPC endpoint for handling simple (non-batched) query requests.
+     *  gRPC endpoint for handling simple queries.
      */
     override fun query(request: CottontailGrpc.QueryMessage, responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) = try {
         /* Start the query by giving the start signal. */
@@ -88,7 +88,14 @@ internal class CottonDQLService (val catalogue: Catalogue, val engine: Execution
     }
 
     /**
-     * GRPC endpoint for handling PING requests.
+     *  gRPC endpoint for handling batched queries.
+     */
+    override fun batchedQuery(request: CottontailGrpc.BatchedQueryMessage, responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) {
+        super.batchedQuery(request, responseObserver)
+    }
+
+    /**
+     * gRPC endpoint for handling PING requests.
      */
     override fun ping(request: Empty, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) {
         responseObserver.onNext(CottontailGrpc.SuccessStatus.newBuilder().setTimestamp(System.currentTimeMillis()).build())
