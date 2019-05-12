@@ -27,11 +27,11 @@ internal class EntityMaxProjectionTask(val entity: Entity, val column: ColumnDef
     override fun execute(): Recordset {
         assertNullaryInput()
 
-        val column = ColumnDef.withAttributes(this.alias ?: "max(${column.name})", "DOUBLE")
+        val resultsColumn = ColumnDef.withAttributes(this.alias ?: "max(${this.column.name})", "DOUBLE")
 
-        return this.entity.Tx(true, columns = arrayOf(column)).query {
+        return this.entity.Tx(true, columns = arrayOf(this.column)).query {
             var max = 0.0
-            val recordset = Recordset(arrayOf(column))
+            val recordset = Recordset(arrayOf(resultsColumn))
             it.forEach {
                 when (val value = it[column]?.value) {
                     is Byte -> max = Math.max(max, value.toDouble())

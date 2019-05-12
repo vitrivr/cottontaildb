@@ -26,11 +26,11 @@ internal class EntitySumProjectionTask(val entity: Entity, val column: ColumnDef
     override fun execute(): Recordset {
         assertNullaryInput()
 
-        val column = ColumnDef.withAttributes(this.alias ?: "sum(${column.name})", "DOUBLE")
+        val resultsColumn = ColumnDef.withAttributes(this.alias ?: "sum(${this.column.name})", "DOUBLE")
 
-        return this.entity.Tx(true, columns = arrayOf(column)).query {
+        return this.entity.Tx(true, columns = arrayOf(this.column)).query {
             var sum = 0.0
-            val recordset = Recordset(arrayOf(column))
+            val recordset = Recordset(arrayOf(resultsColumn))
             it.forEach {
                 when (val value = it[column]?.value) {
                     is Byte -> sum += value

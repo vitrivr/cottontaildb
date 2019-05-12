@@ -13,7 +13,7 @@ import com.github.dexecutor.core.task.Task
  * A [Task] used during query execution. It takes a single [Entity] as input, counts the number of rows. It thereby creates a 1x1 [Recordset].
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.0.1
  */
 internal class EntityCountProjectionTask (val entity: Entity): ExecutionTask("EntityCountProjectionTask[${entity.fqn}") {
 
@@ -26,11 +26,11 @@ internal class EntityCountProjectionTask (val entity: Entity): ExecutionTask("En
     override fun execute(): Recordset {
         assertNullaryInput()
 
-        val column = arrayOf(ColumnDef.withAttributes("count(${entity.fqn})", "INTEGER"))
+        val column = arrayOf(ColumnDef.withAttributes("count(${entity.fqn})", "LONG"))
         return this.entity.Tx(true).query {
             val recordset = Recordset(column)
             recordset.addRowUnsafe(arrayOf(LongValue(it.count())))
             recordset
-        } ?: Recordset(column)
+        }!!
     }
 }

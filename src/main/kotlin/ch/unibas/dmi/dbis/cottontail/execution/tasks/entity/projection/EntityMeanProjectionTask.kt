@@ -26,25 +26,29 @@ internal class EntityMeanProjectionTask(val entity: Entity, val column: ColumnDe
     override fun execute(): Recordset {
         assertNullaryInput()
 
-        val column = ColumnDef.withAttributes(this.alias ?: "mean(${column.name})", "DOUBLE")
+        val resultsColumn = ColumnDef.withAttributes(this.alias ?: "mean(${this.column.name})", "DOUBLE")
 
-        return this.entity.Tx(true, columns = arrayOf(column)).query {
+        return this.entity.Tx(true, columns = arrayOf(this.column)).query {
             var sum = 0.0
-            var count = 0
-            val recordset = Recordset(arrayOf(column))
-            it.forEach {
-                when (val value = it[column]?.value) {
-                    is Byte -> sum += value
-                    is Short -> sum += value
-                    is Int -> sum += value
-                    is Long -> sum += value
-                    is Float -> sum += value
-                    is Double -> sum += value
-                    else -> {}
+            val count = it.count()
+            val recordset = Recordset(arrayOf(resultsColumn))
+            if (count > 0) {
+                it.forEach {
+                    when (val value = it[column]?.value) {
+                        is Byte -> sum += value
+                        is Short -> sum += value
+                        is Int -> sum += value
+                        is Long -> sum += value
+                        is Float -> sum += value
+                        is Double -> sum += value
+                        else -> {}
+                    }
                 }
-                count += 1
+                recordset.addRowUnsafe(arrayOf(DoubleValue(sum/it.count())))
+            } else {
+                recordset.addRowUnsafe(arrayOf(DoubleValue(0.0)))
+
             }
-            recordset.addRowUnsafe(arrayOf(DoubleValue(sum/count)))
             recordset
         }!!
     }
