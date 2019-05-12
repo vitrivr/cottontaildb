@@ -7,13 +7,20 @@ import ch.unibas.dmi.dbis.cottontail.execution.tasks.basics.ExecutionStage
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.basics.ExecutionTask
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.boolean.EntityIndexedFilterTask
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.knn.*
-import ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.projection.EntityCountProjectionTask
-import ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.projection.EntityExistsProjectionTask
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.boolean.EntityLinearScanFilterTask
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.fetch.EntityFetchColumnsTask
+import ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.projection.*
+import ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.projection.EntityCountProjectionTask
+import ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.projection.EntityExistsProjectionTask
+import ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.projection.EntityMaxProjectionTask
+import ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.projection.EntityMinProjectionTask
+import ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.projection.EntitySumProjectionTask
+import ch.unibas.dmi.dbis.cottontail.execution.tasks.recordset.projection.*
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.recordset.projection.RecordsetCountProjectionTask
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.recordset.projection.RecordsetExistsProjectionTask
+import ch.unibas.dmi.dbis.cottontail.execution.tasks.recordset.projection.RecordsetMaxProjectionTask
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.recordset.projection.RecordsetSelectProjectionTask
+import ch.unibas.dmi.dbis.cottontail.execution.tasks.recordset.projection.RecordsetSumProjectionTask
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
 
 
@@ -38,33 +45,63 @@ internal class ExecutionPlanFactory (val executionEngine: ExecutionEngine) {
                 ProjectionType.SELECT -> plan.addTask(ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.boolean.EntityLinearScanTask(entity, projectionClause.columns))
                 ProjectionType.COUNT -> plan.addTask(EntityCountProjectionTask(entity))
                 ProjectionType.EXISTS -> plan.addTask(EntityExistsProjectionTask(entity))
+                ProjectionType.SUM -> plan.addTask(EntitySumProjectionTask(entity, projectionClause.columns.first()))
+                ProjectionType.MAX -> plan.addTask(EntityMaxProjectionTask(entity, projectionClause.columns.first()))
+                ProjectionType.MIN -> plan.addTask(EntityMinProjectionTask(entity, projectionClause.columns.first()))
+                ProjectionType.MEAN -> plan.addTask(EntityMeanProjectionTask(entity, projectionClause.columns.first()))
             }
         } else if (knnClause != null) {
             val stage1 = KnnTask.entityScanTaskForPredicate(entity, knnClause, whereClause)
             val stage2 = when (projectionClause.type) {
                 ProjectionType.SELECT -> EntityFetchColumnsTask(entity, projectionClause.columns)
+                ProjectionType.SUM -> EntityFetchColumnsTask(entity, projectionClause.columns)
+                ProjectionType.MAX -> EntityFetchColumnsTask(entity, projectionClause.columns)
+                ProjectionType.MIN -> EntityFetchColumnsTask(entity, projectionClause.columns)
+                ProjectionType.MEAN -> EntityFetchColumnsTask(entity, projectionClause.columns)
                 ProjectionType.COUNT -> RecordsetCountProjectionTask()
                 ProjectionType.EXISTS -> RecordsetExistsProjectionTask()
             }
-            val stage3 = RecordsetSelectProjectionTask(projectionClause)
+            val stage3 = when (projectionClause.type) {
+                ProjectionType.SELECT -> RecordsetSelectProjectionTask(projectionClause)
+                ProjectionType.SUM -> RecordsetSumProjectionTask(projectionClause)
+                ProjectionType.MAX -> RecordsetMaxProjectionTask(projectionClause)
+                ProjectionType.MIN -> RecordsetMinProjectionTask(projectionClause)
+                ProjectionType.MEAN -> RecordsetMeanProjectionTask(projectionClause)
+                else -> null
+            }
 
             /* Add tasks to ExecutionPlan. */
             plan.addTask(stage1)
             plan.addTask(stage2, stage1.id)
-            plan.addTask(stage3, stage2.id)
+            if (stage3 != null) {
+                plan.addTask(stage3, stage2.id)
+            }
         } else if (whereClause != null) {
             val stage1 = planAndLayoutWhere(entity, whereClause)
             val stage2 = when (projectionClause.type) {
                 ProjectionType.SELECT -> EntityFetchColumnsTask(entity, projectionClause.columns)
+                ProjectionType.SUM -> EntityFetchColumnsTask(entity, projectionClause.columns)
+                ProjectionType.MAX -> EntityFetchColumnsTask(entity, projectionClause.columns)
+                ProjectionType.MIN -> EntityFetchColumnsTask(entity, projectionClause.columns)
+                ProjectionType.MEAN -> EntityFetchColumnsTask(entity, projectionClause.columns)
                 ProjectionType.COUNT -> RecordsetCountProjectionTask()
                 ProjectionType.EXISTS -> RecordsetExistsProjectionTask()
             }
-            val stage3 = RecordsetSelectProjectionTask(projectionClause)
+            val stage3 = when (projectionClause.type) {
+                ProjectionType.SELECT -> RecordsetSelectProjectionTask(projectionClause)
+                ProjectionType.SUM -> RecordsetSumProjectionTask(projectionClause)
+                ProjectionType.MAX -> RecordsetMaxProjectionTask(projectionClause)
+                ProjectionType.MIN -> RecordsetMinProjectionTask(projectionClause)
+                ProjectionType.MEAN -> RecordsetMeanProjectionTask(projectionClause)
+                else -> null
+            }
 
             /* Add tasks to ExecutionPlan. */
             plan.addStage(stage1)
             plan.addTask(stage2, stage1.output!!)
-            plan.addTask(stage3, stage2.id)
+            if (stage3 != null) {
+                plan.addTask(stage3, stage2.id)
+            }
         }
 
         return plan

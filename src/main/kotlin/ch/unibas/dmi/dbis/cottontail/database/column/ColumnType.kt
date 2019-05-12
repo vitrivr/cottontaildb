@@ -2,6 +2,7 @@ package ch.unibas.dmi.dbis.cottontail.database.column
 
 import ch.unibas.dmi.dbis.cottontail.database.serializers.*
 import ch.unibas.dmi.dbis.cottontail.model.values.*
+import com.sun.org.apache.xpath.internal.operations.Bool
 
 import org.mapdb.Serializer
 
@@ -20,6 +21,7 @@ import kotlin.reflect.full.safeCast
 sealed class ColumnType<T : Any> {
     abstract val name : String
     abstract val type: KClass<out Value<T>>
+    abstract val numeric: Boolean
 
 
     companion object {
@@ -76,6 +78,7 @@ sealed class ColumnType<T : Any> {
 @Suppress("UNCHECKED_CAST")
 class BooleanColumnType : ColumnType<Boolean>() {
     override val name = "BOOLEAN"
+    override val numeric = false
     override val type: KClass<BooleanValue> = BooleanValue::class
     override fun serializer(size: Int): Serializer<Value<Boolean>> = BooleanValueSerializer as Serializer<Value<Boolean>>
 }
@@ -83,6 +86,7 @@ class BooleanColumnType : ColumnType<Boolean>() {
 @Suppress("UNCHECKED_CAST")
 class ByteColumnType : ColumnType<Byte>() {
     override val name = "BYTE"
+    override val numeric = true
     override val type: KClass<ByteValue> = ByteValue::class
     override fun serializer(size: Int): Serializer<Value<Byte>> = ByteValueSerializer as Serializer<Value<Byte>>
 }
@@ -90,6 +94,7 @@ class ByteColumnType : ColumnType<Byte>() {
 @Suppress("UNCHECKED_CAST")
 class ShortColumnType : ColumnType<Short>() {
     override val name = "SHORT"
+    override val numeric = true
     override val type: KClass<ShortValue> = ShortValue::class
     override fun serializer(size: Int): Serializer<Value<Short>> = ShortValueSerializer  as Serializer<Value<Short>>
 }
@@ -97,6 +102,7 @@ class ShortColumnType : ColumnType<Short>() {
 @Suppress("UNCHECKED_CAST")
 class IntColumnType : ColumnType<Int>() {
     override val name = "INTEGER"
+    override val numeric = true
     override val type: KClass<IntValue> = IntValue::class
     override fun serializer(size: Int): Serializer<Value<Int>> = IntValueSerializer  as Serializer<Value<Int>>
 }
@@ -104,6 +110,7 @@ class IntColumnType : ColumnType<Int>() {
 @Suppress("UNCHECKED_CAST")
 class LongColumnType : ColumnType<Long>() {
     override val name = "LONG"
+    override val numeric = true
     override val type: KClass<LongValue> = LongValue::class
     override fun serializer(size: Int): Serializer<Value<Long>> = LongValueSerializer  as Serializer<Value<Long>>
 }
@@ -111,6 +118,7 @@ class LongColumnType : ColumnType<Long>() {
 @Suppress("UNCHECKED_CAST")
 class FloatColumnType : ColumnType<Float>() {
     override val name = "FLOAT"
+    override val numeric = true
     override val type: KClass<FloatValue> = FloatValue::class
     override fun serializer(size: Int): Serializer<Value<Float>> = FloatValueSerializer  as Serializer<Value<Float>>
 }
@@ -118,6 +126,7 @@ class FloatColumnType : ColumnType<Float>() {
 @Suppress("UNCHECKED_CAST")
 class DoubleColumnType : ColumnType<Double>() {
     override val name = "DOUBLE"
+    override val numeric = true
     override val type: KClass<DoubleValue> = DoubleValue::class
     override fun serializer(size: Int): Serializer<Value<Double>> = DoubleValueSerializer as Serializer<Value<Double>>
 }
@@ -125,6 +134,7 @@ class DoubleColumnType : ColumnType<Double>() {
 @Suppress("UNCHECKED_CAST")
 class StringColumnType : ColumnType<String>() {
     override val name = "STRING"
+    override val numeric = false
     override val type: KClass<StringValue> = StringValue::class
     override fun serializer(size: Int): Serializer<Value<String>> = StringValueSerializer as Serializer<Value<String>>
 }
@@ -132,6 +142,7 @@ class StringColumnType : ColumnType<String>() {
 @Suppress("UNCHECKED_CAST")
 class IntArrayColumnType : ColumnType<IntArray>() {
     override val name = "INT_VEC"
+    override val numeric = false
     override val type: KClass<IntArrayValue> = IntArrayValue::class
     override fun serializer(size: Int): Serializer<Value<IntArray>> {
         if (size <= 0) throw IllegalArgumentException("Size attribute for a $name type must be > 0 (is $size).")
@@ -142,6 +153,7 @@ class IntArrayColumnType : ColumnType<IntArray>() {
 @Suppress("UNCHECKED_CAST")
 class LongArrayColumnType : ColumnType<LongArray>() {
     override val name = "LONG_VEC"
+    override val numeric = false
     override val type: KClass<LongArrayValue> = LongArrayValue::class
     override fun serializer(size: Int): Serializer<Value<LongArray>> {
         if (size <= 0) throw IllegalArgumentException("Size attribute for a $name type must be > 0 (is $size).")
@@ -152,6 +164,7 @@ class LongArrayColumnType : ColumnType<LongArray>() {
 @Suppress("UNCHECKED_CAST")
 class FloatArrayColumnType : ColumnType<FloatArray>() {
     override val name = "FLOAT_VEC"
+    override val numeric = false
     override val type: KClass<FloatArrayValue> = FloatArrayValue::class
     override fun serializer(size: Int): Serializer<Value<FloatArray>> {
         if (size <= 0) throw IllegalArgumentException("Size attribute for a $name type must be > 0 (is $size).")
@@ -162,6 +175,7 @@ class FloatArrayColumnType : ColumnType<FloatArray>() {
 @Suppress("UNCHECKED_CAST")
 class DoubleArrayColumnType : ColumnType<DoubleArray>() {
     override val name = "DOUBLE_VEC"
+    override val numeric = false
     override val type: KClass<DoubleArrayValue> = DoubleArrayValue::class
     override fun serializer(size: Int): Serializer<Value<DoubleArray>> {
         if (size <= 0) throw IllegalArgumentException("Size attribute for a $name type must be > 0 (is $size).")
@@ -172,6 +186,7 @@ class DoubleArrayColumnType : ColumnType<DoubleArray>() {
 @Suppress("UNCHECKED_CAST")
 class BooleanArrayColumnType : ColumnType<BooleanArray>() {
     override val name = "BOOLEAN_VEC"
+    override val numeric = false
     override val type: KClass<BooleanArrayValue> = BooleanArrayValue::class
     override fun serializer(size: Int): Serializer<Value<BooleanArray>> {
         if (size <= 0) throw IllegalArgumentException("Size attribute for a $name type must be > 0 (is $size).")

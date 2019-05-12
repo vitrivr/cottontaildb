@@ -1,5 +1,6 @@
 package ch.unibas.dmi.dbis.cottontail.execution.tasks.recordset.projection
 
+import ch.unibas.dmi.dbis.cottontail.execution.cost.Costs
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.basics.ExecutionTask
 
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
@@ -13,12 +14,12 @@ import com.github.dexecutor.core.task.TaskExecutionException
  * A [Task] used during query execution. It takes a single [Recordset] as input, counts the number of of rows and returns it as [Recordset].
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.0.1
  */
 internal class RecordsetCountProjectionTask (): ExecutionTask("RecordsetCountProjectionTask") {
 
     /** The cost of this [RecordsetCountProjectionTask] is constant */
-    override val cost = 0.1f
+    override val cost = Costs.MEMORY_ACCESS_READ
 
     /**
      * Executes this [RecordsetCountProjectionTask]
