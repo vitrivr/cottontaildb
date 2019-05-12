@@ -23,13 +23,13 @@ import java.nio.file.Path
  */
 @Serializable
 data class ServerConfig(
-    @Optional val port: Int = 1865,
-    @Optional val messageSize: Int = 4194304,
-    @Optional val coreThreads: Int = Runtime.getRuntime().availableProcessors() / 2,
-    @Optional val maxThreads: Int = Runtime.getRuntime().availableProcessors() * 2,
-    @Optional val keepAliveTime: Long = 500,
-    @Optional @Serializable(with=PathSerializer::class) val certFile: Path? = null,
-    @Optional @Serializable(with=PathSerializer::class) val privateKey: Path? = null) {
+    val port: Int = 1865,
+    val messageSize: Int = 4194304,
+    val coreThreads: Int = Runtime.getRuntime().availableProcessors() / 2,
+    val maxThreads: Int = Runtime.getRuntime().availableProcessors() * 2,
+    val keepAliveTime: Long = 500,
+    @Serializable(with=PathSerializer::class) val certFile: Path? = null,
+    @Serializable(with=PathSerializer::class) val privateKey: Path? = null) {
 
     /**
      * True if TLS should be used for GRPC communication, false otherwise.

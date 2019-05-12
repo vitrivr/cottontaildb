@@ -12,8 +12,8 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 data class ExecutionConfig(
-    @Optional val coreThreads: Int = (Runtime.getRuntime().availableProcessors()/2),
-    @Optional val maxThreads: Int = Runtime.getRuntime().availableProcessors(),
-    @Optional val keepAliveMs: Long = 1000L,
-    @Optional val queueSize: Int = 100
+    val coreThreads: Int = (Runtime.getRuntime().availableProcessors()/2),
+    val maxThreads: Int = Runtime.getRuntime().availableProcessors(),
+    val keepAliveMs: Long = 1000L,
+    val queueSize: Int = 100
 )
