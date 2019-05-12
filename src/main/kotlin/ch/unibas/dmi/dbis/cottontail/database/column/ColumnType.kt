@@ -2,7 +2,6 @@ package ch.unibas.dmi.dbis.cottontail.database.column
 
 import ch.unibas.dmi.dbis.cottontail.database.serializers.*
 import ch.unibas.dmi.dbis.cottontail.model.values.*
-import com.sun.org.apache.xpath.internal.operations.Bool
 
 import org.mapdb.Serializer
 
