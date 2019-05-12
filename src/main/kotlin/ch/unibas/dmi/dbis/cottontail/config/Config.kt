@@ -7,7 +7,7 @@ import java.nio.file.Path
 @Serializable
 data class Config(
     @Serializable(with= PathSerializer::class) val root: Path,
-    @Optional val lockTimeout: Long = 1000L,
-    @Optional val serverConfig: ServerConfig = ServerConfig(),
-    @Optional val executionConfig: ExecutionConfig = ExecutionConfig()
+    val lockTimeout: Long = 1000L,
+    val serverConfig: ServerConfig = ServerConfig(),
+    val executionConfig: ExecutionConfig = ExecutionConfig()
 )
