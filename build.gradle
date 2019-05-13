@@ -24,6 +24,7 @@ apply plugin: 'antlr'
 apply plugin: 'com.google.protobuf'
 
 mainClassName = 'ch.unibas.dmi.dbis.cottontail.CottontailKt'
+applicationDefaultJvmArgs = ["-Xms2G", "-Xmx4G"]
 
 sourceCompatibility = 1.8
 
