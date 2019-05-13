@@ -15,12 +15,10 @@ import org.apache.lucene.search.*
 internal fun AtomicBooleanPredicate<*>.toLuceneQuery(): Query = if (this.values.first() is StringValue) {
     val column = this.columns.first()
     val value = (this.values.first() as StringValue).value
-    if (this.operator == ComparisonOperator.LIKE) {
-        QueryParserUtil.parse(arrayOf(value), arrayOf(column.name), StandardAnalyzer())
-    } else if (this.operator == ComparisonOperator.EQUAL) {
-        TermQuery(Term(column.name, value))
-    } else {
-        throw QueryException("Only EQUALS and LIKE queries can be mapped to Apache Lucene!")
+    when (this.operator){
+        ComparisonOperator.LIKE -> QueryParserUtil.parse(arrayOf(value), arrayOf("${column.name}_txt"), StandardAnalyzer())
+        ComparisonOperator.EQUAL -> TermQuery(Term("${column.name}_str", value))
+        else -> throw QueryException("Only EQUALS and LIKE queries can be mapped to Apache Lucene!")
     }
 } else {
     throw QueryException("Only String values can be handled by Apache Lucene!")

@@ -53,7 +53,8 @@ internal class LuceneIndex(override val name: Name, override val parent: Entity,
             record.columns.forEach {
                 val value = record[it]?.value as? String
                 if (value != null) {
-                    add(TextField(it.name, value, Field.Store.NO))
+                    add(TextField("${it.name}_txt", value, Field.Store.NO))
+                    add(StringField("${it.name}_str", value, Field.Store.NO))
                 }
             }
         }
