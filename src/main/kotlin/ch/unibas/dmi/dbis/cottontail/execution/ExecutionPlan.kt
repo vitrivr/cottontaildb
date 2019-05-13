@@ -54,8 +54,9 @@ internal class ExecutionPlan(executor: ExecutorService) {
      *
      * @param task The [ExecutionTask] to add to the plan.
      * @param dependsOn The ID's of the [ExecutionTask]s the new [ExecutionTask] depends on. If none are given, the [ExecutionTask] is independent.
+     * @return ID of the [ExecutionTask] that was just added.
      */
-    fun addTask(task: ExecutionTask, vararg dependsOn: String) {
+    fun addTask(task: ExecutionTask, vararg dependsOn: String): String {
         this.provider.addTask(task)
         if (dependsOn.isNotEmpty()) {
             for (id in dependsOn) {
@@ -64,6 +65,7 @@ internal class ExecutionPlan(executor: ExecutorService) {
         } else {
             this.config.dexecutorState.addIndependent(task.id)
         }
+        return task.id
     }
 
     /**
@@ -71,8 +73,9 @@ internal class ExecutionPlan(executor: ExecutorService) {
      *
      * @param stage The [ExecutionStage] to add to the plan.
      * @param dependsOn The ID's of the [ExecutionTask]s the new [ExecutionStage] depends on. If none are given, the [ExecutionStage] is independent.
+     * @return ID of last [ExecutionTask] in the [ExecutionStage] that was just added.
      */
-    fun addStage(stage: ExecutionStage, vararg dependsOn: String) {
+    fun addStage(stage: ExecutionStage, vararg dependsOn: String): String {
         for (task in stage.tasks) {
             this.provider.addTask(task.key)
             if (task.value.isEmpty()) {
@@ -89,6 +92,7 @@ internal class ExecutionPlan(executor: ExecutorService) {
                 }
             }
         }
+        return stage.output!!
     }
 
     /**
