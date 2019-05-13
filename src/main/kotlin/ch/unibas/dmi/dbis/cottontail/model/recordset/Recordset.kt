@@ -211,6 +211,14 @@ internal class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterabl
     override fun forEach(action: (Record) -> Unit) = this.map.values.forEach(action)
 
     /**
+     * Applies the provided action to each [Record] in this [Recordset].
+     *
+     * @param action The action that should be applied.
+     */
+    @Synchronized
+    fun forEachIndexed(action: (Int, Record) -> Unit) = this.map.values.forEachIndexed(action)
+
+    /**
      * Applies the provided mapping function to each [Record] in this [Recordset].
      *
      * @param action The mapping function that should be applied.
