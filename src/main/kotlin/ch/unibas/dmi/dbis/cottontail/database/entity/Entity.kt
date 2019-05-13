@@ -234,7 +234,11 @@ internal class Entity(override val name: String, schema: Schema) : DBO {
      */
     fun updateIndex(name: Name) = this.globalLock.read {
         val index = this.indexes.find { it.name == name }
-        index?.Tx(false)?.rebuild()
+        if (index != null) {
+            index.Tx(false).rebuild()
+        } else {
+            throw DatabaseException.IndexDoesNotExistException(this.fqn.append(name))
+        }
     }
 
     /**
