@@ -8,3 +8,8 @@ out
 *.jar
 *.war
 *.ear
+*.iml
+
+!gradle/wrapper/gradle-wrapper.jar
+
+*.db
