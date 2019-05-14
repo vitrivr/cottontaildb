@@ -19,20 +19,22 @@ import java.nio.file.Paths
 @UnstableDefault
 fun main(args: Array<String>) {
     /* Check, if args were set properly. */
-    if (args.isEmpty()) {
-        System.err.println("You must specify the path to the Cottontail DB configuration file (config.json) as a program argument. Shutting down...")
-        System.exit(1)
-    }
+    val path =
+            if (args.isEmpty()) {
+                System.err.println("No config path specified, taking default config at config.json")
+                "config.json"
+            } else {
+                args[0]
+            }
 
     /* Load config file and start Cottontail DB. */
-    val path = args[0]
     Files.newBufferedReader(Paths.get(path)).use { reader ->
         val config = parse(Config.serializer(), reader.readText())
         val catalogue = Catalogue(config)
         val engine = ExecutionEngine(config.executionConfig)
         val server = CottontailGrpcServer(config.serverConfig, catalogue, engine)
         server.start()
-        while(server.isRunning) {
+        while (server.isRunning) {
             Thread.sleep(1000)
         }
     }
