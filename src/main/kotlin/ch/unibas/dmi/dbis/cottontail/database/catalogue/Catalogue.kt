@@ -105,9 +105,9 @@ internal class Catalogue(val config: Config): DBO {
         val header = this.header
         for (sid in header.schemas) {
             val schema = this.store.get(sid, CatalogueEntrySerializer) ?: throw DatabaseException.DataCorruptionException("Failed to open Cottontail DB catalogue entry!")
-            val path = this.path.resolve("schema_$name")
+            val path = this.path.resolve("schema_${schema.name}")
             if (!Files.exists(path)) {
-                throw DatabaseException.DataCorruptionException("Broken catalogue entry ${schema.name} (path). Schema does not exist!")
+                throw DatabaseException.DataCorruptionException("Broken catalogue entry for schema '${schema.name}'. Path $path does not exist!")
             }
             this.registry[schema.name] = Schema(schema.name, path, this)
         }
