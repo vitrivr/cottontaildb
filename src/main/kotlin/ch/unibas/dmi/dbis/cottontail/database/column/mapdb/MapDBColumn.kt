@@ -24,6 +24,7 @@ import org.mapdb.volume.MappedFileVol
 
 import java.nio.file.Path
 import java.util.*
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.collections.ArrayList
 import kotlin.concurrent.read
@@ -691,7 +692,7 @@ internal class MapDBColumn<T : Any>(override val name: Name, override val parent
             if (this.status == TransactionStatus.CLOSED) throw TransactionException.TransactionClosedException(tid)
             if (this.status == TransactionStatus.ERROR) throw TransactionException.TransactionInErrorException(tid)
             if (this.status != TransactionStatus.DIRTY) {
-                if (this@MapDBColumn.txLock.writeLock().tryLock()) {
+                if (this@MapDBColumn.txLock.writeLock().tryLock(1, TimeUnit.SECONDS)) {
                     this.status = TransactionStatus.DIRTY
                 } else {
                     throw TransactionException.TransactionWriteLockException(this.tid)

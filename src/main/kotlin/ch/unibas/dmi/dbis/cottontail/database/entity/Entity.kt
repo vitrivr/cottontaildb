@@ -30,6 +30,7 @@ import java.lang.IllegalArgumentException
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.*
+import java.util.concurrent.TimeUnit
 
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import java.util.stream.Collectors
@@ -848,7 +849,7 @@ internal class Entity(override val name: String, schema: Schema) : DBO {
             if (this.status == TransactionStatus.CLOSED) throw TransactionException.TransactionClosedException(tid)
             if (this.status == TransactionStatus.ERROR) throw TransactionException.TransactionInErrorException(tid)
             if (this.status != TransactionStatus.DIRTY) {
-                if (this@Entity.txLock.writeLock().tryLock()) {
+                if (this@Entity.txLock.writeLock().tryLock(1, TimeUnit.SECONDS)) {
                     this.status = TransactionStatus.DIRTY
                 } else {
                     throw TransactionException.TransactionWriteLockException(this.tid)
