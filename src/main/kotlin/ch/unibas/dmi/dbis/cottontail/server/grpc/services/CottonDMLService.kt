@@ -77,7 +77,7 @@ internal class CottonDMLService (val catalogue: Catalogue): CottonDMLGrpc.Cotton
         private var closed = false
 
         init {
-            LOGGER.trace("Insert transaction was started by client.")
+            LOGGER.trace("Streaming insert transaction was started by client.")
         }
 
         /**
