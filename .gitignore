@@ -13,3 +13,4 @@ out
 !gradle/wrapper/gradle-wrapper.jar
 
 *.db
+data/

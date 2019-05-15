@@ -17,6 +17,7 @@ import ch.unibas.dmi.dbis.cottontail.utilities.name.append
 import io.grpc.Status
 import io.grpc.stub.StreamObserver
 import org.slf4j.LoggerFactory
+import java.lang.IllegalStateException
 
 internal class CottonDMLService (val catalogue: Catalogue): CottonDMLGrpc.CottonDMLImplBase() {
     /** Logger used for logging the output. */
@@ -77,7 +78,7 @@ internal class CottonDMLService (val catalogue: Catalogue): CottonDMLGrpc.Cotton
         private var closed = false
 
         init {
-            LOGGER.trace("Insert transaction was started by client.")
+            LOGGER.trace("Streaming insert transaction was started by client.")
         }
 
         /**
@@ -159,7 +160,11 @@ internal class CottonDMLService (val catalogue: Catalogue): CottonDMLGrpc.Cotton
          */
         override fun onCompleted() {
             LOGGER.trace("Insert transaction was committed by client.")
-            responseObserver.onCompleted()
+            try{
+                responseObserver.onCompleted()
+            }catch(e: IllegalStateException){
+                LOGGER.trace("Response Observer was already closed")
+            }
             this.closed = true
             this.cleanup(true)
         }

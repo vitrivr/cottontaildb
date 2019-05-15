@@ -18,7 +18,7 @@ import java.util.concurrent.*
  * @author Ralph Gasser
  * @version 1.0.1
  */
-internal class CottontailGrpcServer(config: ServerConfig, val catalogue: Catalogue, val engine: ExecutionEngine) {
+internal class CottontailGrpcServer(val config: ServerConfig, val catalogue: Catalogue, val engine: ExecutionEngine) {
 
     /** The [ThreadPoolExecutor] used for handling the individual GRPC calls. */
     private val executor: ExecutorService = ThreadPoolExecutor(config.coreThreads, config.maxThreads, config.keepAliveTime, TimeUnit.MILLISECONDS, SynchronousQueue())
@@ -57,7 +57,7 @@ internal class CottontailGrpcServer(config: ServerConfig, val catalogue: Catalog
      */
     fun start() {
         this.server.start()
-        LOGGER.info("Cottontail DB server is up and running! Hop along...")
+        LOGGER.info("Cottontail DB server is up and running at port ${config.port} ! Hop along...")
     }
 
     /**
