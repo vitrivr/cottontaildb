@@ -80,7 +80,7 @@ internal class GrpcQueryBinder(val catalogue: Catalogue, engine: ExecutionEngine
         val whereClause = if (query.hasWhere()) parseAndBindBooleanPredicate(entity, query.where) else null
 
         /* Transform to ExecutionPlan. */
-        return this.factory.simpleExecutionPlan(entity, projectionClause, knnClause = knnClause, whereClause = whereClause)
+        return this.factory.simpleExecutionPlan(entity, projectionClause, knnClause = knnClause, whereClause = whereClause, limit = query.limit, skip = query.skip)
     }
 
     /**
