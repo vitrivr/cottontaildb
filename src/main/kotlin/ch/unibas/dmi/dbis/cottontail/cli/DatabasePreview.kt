@@ -39,7 +39,7 @@ object DatabasePreview {
                             break@loop
                         }
                         if (input.size == 4) {
-                            previewEntity(input[1], input[2], input[3].toInt())
+                            previewEntity(input[1], input[2], input[3].toLong())
                         } else {
                             previewEntity(input[1], input[2])
                         }
@@ -74,18 +74,18 @@ object DatabasePreview {
         }
     }
 
-    fun previewEntity(schema: String, entity: String, count: Int = 10) {
-        println("showing first $count elements of entity $entity at schema $schema")
+    fun previewEntity(schema: String, entity: String, limit: Long = 10) {
+        println("showing first $limit elements of entity $entity at schema $schema")
         val qm = CottontailGrpc.QueryMessage.newBuilder().setQuery(
                 CottontailGrpc.Query.newBuilder()
                         .setFrom(From(Entity(entity, Schema(schema))))
                         .setProjection(MatchAll())
-                        .setCount(count)
+                        .setLimit(limit)
         ).build()
         val query = dqlService.query(qm)
-        println("Previewing $count elements of $entity")
+        println("Previewing $limit elements of $entity")
         query.forEach { page ->
-            println(page.resultsList.dropLast(Math.max(0, page.resultsCount - count)))
+            println(page.resultsList.dropLast(Math.max(0, page.resultsCount - limit).toInt()))
         }
     }
 }
