@@ -84,6 +84,7 @@ internal class CottonDQLService (val catalogue: Catalogue, val engine: Execution
     }  catch (e: DatabaseException) {
         responseObserver.onError(Status.INTERNAL.withDescription("Query execution failed because of a database error: ${e.message}").asException())
     } catch (e: Throwable) {
+        e.printStackTrace()
         responseObserver.onError(Status.UNKNOWN.withDescription("Query execution failed failed because of a unknown error: ${e.message}").asException())
     }
 
