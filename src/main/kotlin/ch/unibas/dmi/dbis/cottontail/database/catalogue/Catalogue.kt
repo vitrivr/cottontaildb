@@ -105,10 +105,11 @@ internal class Catalogue(val config: Config): DBO {
         val header = this.header
         for (sid in header.schemas) {
             val schema = this.store.get(sid, CatalogueEntrySerializer) ?: throw DatabaseException.DataCorruptionException("Failed to open Cottontail DB catalogue entry!")
-            if (!Files.exists(schema.path)) {
-                throw DatabaseException.DataCorruptionException("Broken catalogue entry ${schema.name} (${schema.path}). Schema does not exist!")
+            val path = this.path.resolve("schema_${schema.name}")
+            if (!Files.exists(path)) {
+                throw DatabaseException.DataCorruptionException("Broken catalogue entry for schema '${schema.name}'. Path $path does not exist!")
             }
-            this.registry[schema.name] = Schema(schema.name, schema.path, this)
+            this.registry[schema.name] = Schema(schema.name, path, this)
         }
     }
 
@@ -118,7 +119,8 @@ internal class Catalogue(val config: Config): DBO {
      * @param name The name of the new [Name].
      * @param data The path where this new [Schema] will be located. Defaults to a path relative to the current one.
      */
-    fun createSchema(name: Name, data: Path = this.path.resolve("schema_$name")) = this.lock.write {
+    fun createSchema(name: Name) = this.lock.write {
+
         /* Check the type of name. */
         if (name.type() != NameType.SIMPLE) {
             throw IllegalArgumentException("The provided name '$name' is of type '${name.type()} and cannot be used to access a schema.")
@@ -130,11 +132,12 @@ internal class Catalogue(val config: Config): DBO {
         }
 
         /* Create empty folder for entity. */
+        val path = this.path.resolve("schema_$name")
         try {
-            if (!Files.exists(data)) {
-                Files.createDirectories(data)
+            if (!Files.exists(path)) {
+                Files.createDirectories(path)
             } else {
-                throw DatabaseException("Failed to create schema '$name'. Data directory '$data' seems to be occupied.")
+                throw DatabaseException("Failed to create schema '$name'. Data directory '$path' seems to be occupied.")
             }
         } catch (e: IOException) {
             throw DatabaseException("Failed to create schema '$name' due to an IO exception: ${e.message}")
@@ -143,13 +146,13 @@ internal class Catalogue(val config: Config): DBO {
         /* Generate the store for the new schema and update catalogue. */
         try {
             /* Create new store. */
-            val store = StoreWAL.make(file = data.resolve(Schema.FILE_CATALOGUE).toString(), volumeFactory = MappedFileVol.FACTORY, fileLockWait = config.lockTimeout)
+            val store = StoreWAL.make(file = path.resolve(Schema.FILE_CATALOGUE).toString(), volumeFactory = MappedFileVol.FACTORY, fileLockWait = config.lockTimeout)
             store.put(SchemaHeader(), SchemaHeaderSerializer)
             store.commit()
             store.close()
 
             /* Update catalogue. */
-            val sid = this.store.put(CatalogueEntry(name, data), CatalogueEntrySerializer)
+            val sid = this.store.put(CatalogueEntry(name), CatalogueEntrySerializer)
 
             /* Update header. */
             val new = this.header.let { CatalogueHeader(it.size + 1, it.created, System.currentTimeMillis(), it.schemas.copyOf(it.schemas.size + 1)) }
@@ -158,13 +161,13 @@ internal class Catalogue(val config: Config): DBO {
             this.store.commit()
         } catch (e: DBException) {
             this.store.rollback()
-            val pathsToDelete = Files.walk(data).sorted(Comparator.reverseOrder()).collect(Collectors.toList())
+            val pathsToDelete = Files.walk(path).sorted(Comparator.reverseOrder()).collect(Collectors.toList())
             pathsToDelete.forEach { Files.delete(it) }
             throw DatabaseException("Failed to create schema '$name' due to a storage exception: ${e.message}")
         }
 
         /* Add schema to local map. */
-        this.registry[name] = Schema(name, data, this)
+        this.registry[name] = Schema(name, path, this)
     }
 
     /**
@@ -201,7 +204,8 @@ internal class Catalogue(val config: Config): DBO {
         this.registry.remove(name)
 
         /* Delete files that belong to the schema. */
-        val pathsToDelete = Files.walk(catalogueEntry.second.path).sorted(Comparator.reverseOrder()).collect(Collectors.toList())
+        val path = this.path.resolve("schema_$name")
+        val pathsToDelete = Files.walk(path).sorted(Comparator.reverseOrder()).collect(Collectors.toList())
         pathsToDelete.forEach { Files.delete(it) }
     }
 

@@ -103,7 +103,7 @@ internal object CatalogueHeaderSerializer : Serializer<CatalogueHeader> {
  * @author Ralph Gasser
  * @version 1.0
  */
-internal data class CatalogueEntry(val name: String, val path: Path)
+internal data class CatalogueEntry(val name: String)
 
 
 /**
@@ -115,11 +115,11 @@ internal data class CatalogueEntry(val name: String, val path: Path)
 internal object CatalogueEntrySerializer : Serializer<CatalogueEntry> {
     override fun serialize(out: DataOutput2, value: CatalogueEntry) {
         out.writeUTF(value.name)
-        out.writeUTF(value.path.toString())
+        out.writeUTF("") // TODO: Remove; only for backward compatibility
     }
 
     override fun deserialize(input: DataInput2, available: Int): CatalogueEntry {
-        return CatalogueEntry(input.readUTF(), Paths.get(input.readUTF()))
+        return CatalogueEntry(input.readUTF())
     }
 }
 

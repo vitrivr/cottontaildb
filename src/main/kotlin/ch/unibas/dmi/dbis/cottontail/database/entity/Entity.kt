@@ -166,6 +166,17 @@ internal class Entity(override val name: String, schema: Schema) : DBO {
         val index = type.create(name, this, columns, params)
         this.indexes.add(index)
 
+        /* Rebuilds the index. */
+        try {
+            val tx = index.Tx(readonly = false)
+            tx.rebuild()
+            tx.close()
+        } catch (e: Throwable) {
+            val pathsToDelete = Files.walk(index.path).sorted(Comparator.reverseOrder()).collect(Collectors.toList())
+            pathsToDelete.forEach { Files.delete(it) }
+            throw DatabaseException("Failed to create index '$.fqn.$name' due to a build failure: ${e.message}")
+        }
+
         /* Update catalogue + header. */
         try {
             /* Update catalogue. */
@@ -182,11 +193,6 @@ internal class Entity(override val name: String, schema: Schema) : DBO {
             pathsToDelete.forEach { Files.delete(it) }
             throw DatabaseException("Failed to create index '$.fqn.$name' due to a storage exception: ${e.message}")
         }
-
-        /* Rebuilds the index. */
-        val tx = index.Tx(readonly = false)
-        tx.rebuild()
-        tx.close()
     }
 
     /**
