@@ -4,7 +4,6 @@ import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
 import ch.unibas.dmi.dbis.cottontail.database.queries.*
 
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.basics.ExecutionStage
-import ch.unibas.dmi.dbis.cottontail.execution.tasks.basics.ExecutionTask
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.boolean.EntityIndexedFilterTask
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.knn.*
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.boolean.EntityLinearScanFilterTask
@@ -21,6 +20,7 @@ import ch.unibas.dmi.dbis.cottontail.execution.tasks.recordset.projection.Record
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.recordset.projection.RecordsetMaxProjectionTask
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.recordset.projection.RecordsetSelectProjectionTask
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.recordset.projection.RecordsetSumProjectionTask
+import ch.unibas.dmi.dbis.cottontail.execution.tasks.recordset.transform.RecordsetLimitTask
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
 
 
@@ -38,12 +38,14 @@ internal class ExecutionPlanFactory (val executionEngine: ExecutionEngine) {
      *
      * @return The resulting [ExecutionPlan]
      */
-    fun simpleExecutionPlan(entity: Entity, projectionClause: Projection, whereClause: BooleanPredicate? = null, knnClause: KnnPredicate<*>? = null): ExecutionPlan {
+    fun simpleExecutionPlan(entity: Entity, projectionClause: Projection, whereClause: BooleanPredicate? = null, knnClause: KnnPredicate<*>? = null, limit: Long = -1, skip: Long = -1): ExecutionPlan {
         val plan = this.executionEngine.newExecutionPlan()
-        if (whereClause == null && knnClause == null) {
+
+        /* Add kNN and/or WHERE clause. */
+        var last: String = if (whereClause == null && knnClause == null) {
             when (projectionClause.type) {
                 ProjectionType.SELECT -> plan.addTask(ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.boolean.EntityLinearScanTask(entity, projectionClause.columns))
-                ProjectionType.COUNT -> plan.addTask(EntityCountProjectionTask(entity))
+                ProjectionType.COUNT ->  plan.addTask(EntityCountProjectionTask(entity))
                 ProjectionType.EXISTS -> plan.addTask(EntityExistsProjectionTask(entity))
                 ProjectionType.SUM -> plan.addTask(EntitySumProjectionTask(entity, projectionClause.columns.first()))
                 ProjectionType.MAX -> plan.addTask(EntityMaxProjectionTask(entity, projectionClause.columns.first()))
@@ -51,57 +53,46 @@ internal class ExecutionPlanFactory (val executionEngine: ExecutionEngine) {
                 ProjectionType.MEAN -> plan.addTask(EntityMeanProjectionTask(entity, projectionClause.columns.first()))
             }
         } else if (knnClause != null) {
-            val stage1 = KnnTask.entityScanTaskForPredicate(entity, knnClause, whereClause)
-            val stage2 = when (projectionClause.type) {
-                ProjectionType.SELECT -> EntityFetchColumnsTask(entity, projectionClause.columns)
-                ProjectionType.SUM -> EntityFetchColumnsTask(entity, projectionClause.columns)
-                ProjectionType.MAX -> EntityFetchColumnsTask(entity, projectionClause.columns)
-                ProjectionType.MIN -> EntityFetchColumnsTask(entity, projectionClause.columns)
-                ProjectionType.MEAN -> EntityFetchColumnsTask(entity, projectionClause.columns)
-                ProjectionType.COUNT -> RecordsetCountProjectionTask()
-                ProjectionType.EXISTS -> RecordsetExistsProjectionTask()
-            }
-            val stage3 = when (projectionClause.type) {
-                ProjectionType.SELECT -> RecordsetSelectProjectionTask(projectionClause)
-                ProjectionType.SUM -> RecordsetSumProjectionTask(projectionClause)
-                ProjectionType.MAX -> RecordsetMaxProjectionTask(projectionClause)
-                ProjectionType.MIN -> RecordsetMinProjectionTask(projectionClause)
-                ProjectionType.MEAN -> RecordsetMeanProjectionTask(projectionClause)
-                else -> null
-            }
+            plan.addTask(KnnTask.entityScanTaskForPredicate(entity, knnClause, whereClause))
+        } else {
+            plan.addStage(planAndLayoutWhere(entity, whereClause!!))
+        }
 
-            /* Add tasks to ExecutionPlan. */
-            plan.addTask(stage1)
-            plan.addTask(stage2, stage1.id)
-            if (stage3 != null) {
-                plan.addTask(stage3, stage2.id)
+        /* Add SELECT clause (column fetching + projection) */
+        last = when (projectionClause.type) {
+            ProjectionType.SELECT -> {
+                val internal = plan.addTask(EntityFetchColumnsTask(entity, projectionClause.columns), last)
+                plan.addTask(RecordsetSelectProjectionTask(projectionClause), internal)
             }
-        } else if (whereClause != null) {
-            val stage1 = planAndLayoutWhere(entity, whereClause)
-            val stage2 = when (projectionClause.type) {
-                ProjectionType.SELECT -> EntityFetchColumnsTask(entity, projectionClause.columns)
-                ProjectionType.SUM -> EntityFetchColumnsTask(entity, projectionClause.columns)
-                ProjectionType.MAX -> EntityFetchColumnsTask(entity, projectionClause.columns)
-                ProjectionType.MIN -> EntityFetchColumnsTask(entity, projectionClause.columns)
-                ProjectionType.MEAN -> EntityFetchColumnsTask(entity, projectionClause.columns)
-                ProjectionType.COUNT -> RecordsetCountProjectionTask()
-                ProjectionType.EXISTS -> RecordsetExistsProjectionTask()
+            ProjectionType.SUM -> {
+                val internal = plan.addTask(EntityFetchColumnsTask(entity, projectionClause.columns), last)
+                plan.addTask(RecordsetSumProjectionTask(projectionClause), internal)
             }
-            val stage3 = when (projectionClause.type) {
-                ProjectionType.SELECT -> RecordsetSelectProjectionTask(projectionClause)
-                ProjectionType.SUM -> RecordsetSumProjectionTask(projectionClause)
-                ProjectionType.MAX -> RecordsetMaxProjectionTask(projectionClause)
-                ProjectionType.MIN -> RecordsetMinProjectionTask(projectionClause)
-                ProjectionType.MEAN -> RecordsetMeanProjectionTask(projectionClause)
-                else -> null
+            ProjectionType.MAX -> {
+                val internal = plan.addTask(EntityFetchColumnsTask(entity, projectionClause.columns), last)
+                plan.addTask(RecordsetMaxProjectionTask(projectionClause), internal)
             }
+            ProjectionType.MIN -> {
+                val internal = plan.addTask(EntityFetchColumnsTask(entity, projectionClause.columns), last)
+                plan.addTask(RecordsetMinProjectionTask(projectionClause), internal)
+            }
+            ProjectionType.MEAN -> {
+                val internal = plan.addTask(EntityFetchColumnsTask(entity, projectionClause.columns), last)
+                plan.addTask(RecordsetMeanProjectionTask(projectionClause), internal)
+            }
+            ProjectionType.COUNT -> {
+                plan.addTask(RecordsetCountProjectionTask(), last)
+            }
+            ProjectionType.EXISTS -> {
+                plan.addTask(RecordsetExistsProjectionTask(), last)
+            }
+        }
 
-            /* Add tasks to ExecutionPlan. */
-            plan.addStage(stage1)
-            plan.addTask(stage2, stage1.output!!)
-            if (stage3 != null) {
-                plan.addTask(stage3, stage2.id)
-            }
+        /* TODO: ORDER BY clause. */
+
+        /* Add LIMIT clause (if required). */
+        if (limit > -1 || skip > -1) {
+            plan.addTask(RecordsetLimitTask(limit, skip))
         }
 
         return plan
