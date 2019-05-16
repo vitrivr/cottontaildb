@@ -18,6 +18,7 @@ import io.grpc.Status
 import io.grpc.stub.StreamObserver
 import org.slf4j.LoggerFactory
 import java.lang.IllegalStateException
+import java.util.concurrent.ConcurrentHashMap
 
 internal class CottonDMLService (val catalogue: Catalogue): CottonDMLGrpc.CottonDMLImplBase() {
     /** Logger used for logging the output. */
@@ -71,7 +72,7 @@ internal class CottonDMLService (val catalogue: Catalogue): CottonDMLGrpc.Cotton
     override fun insertStream(responseObserver: StreamObserver<CottontailGrpc.InsertStatus>): StreamObserver<CottontailGrpc.InsertMessage> = object:StreamObserver<CottontailGrpc.InsertMessage>{
 
         /** List of all the [Tx] associated with this call. */
-        private val transactions = mutableMapOf<String, Entity.Tx>()
+        private val transactions = ConcurrentHashMap<String, Entity.Tx>()
 
         /** Flag indicating that call was closed. */
         @Volatile
@@ -114,34 +115,28 @@ internal class CottonDMLService (val catalogue: Catalogue): CottonDMLGrpc.Cotton
                     tx.insert(StandaloneRecord(columns = columns.toTypedArray(), init = values.toTypedArray()))
                 }
 
-                /* Respond with status. */
-                responseObserver.onNext(CottontailGrpc.InsertStatus.newBuilder().setSuccess(true).setTimestamp(System.currentTimeMillis()).build())
-
                 /* Log... */
                 LOGGER.trace("Successfully inserted ${request.tupleList.size} tuples into '${request.entity.fqn()}' (no commit).")
+
+                /* Respond with status. */
+                responseObserver.onNext(CottontailGrpc.InsertStatus.newBuilder().setSuccess(true).setTimestamp(System.currentTimeMillis()).build())
             } catch (e: DatabaseException.SchemaDoesNotExistException) {
                 responseObserver.onError(Status.NOT_FOUND.withDescription("Insert failed because schema '${request.entity.schema.name} does not exist!").asException())
-                closed = true
                 this.cleanup()
             } catch (e: DatabaseException.EntityDoesNotExistException) {
                 responseObserver.onError(Status.NOT_FOUND.withDescription("Insert failed because entity '${request.entity.fqn()} does not exist!").asException())
-                closed = true
                 this.cleanup()
             } catch (e: DatabaseException.ColumnDoesNotExistException) {
                 responseObserver.onError(Status.NOT_FOUND.withDescription("Insert failed because column '${e.column}' does not exist!").asException())
-                closed = true
                 this.cleanup()
             } catch (e: ValidationException) {
                 responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Insert failed because data validation failed: ${e.message}").asException())
-                closed = true
                 this.cleanup()
             }  catch (e: DatabaseException) {
                 responseObserver.onError(Status.INTERNAL.withDescription("Insert failed because of a database error: ${e.message}").asException())
-                closed = true
                 this.cleanup()
             } catch (e: Throwable) {
                 responseObserver.onError(Status.UNKNOWN.withDescription("Insert failed because of a unknown error: ${e.message}").asException())
-                closed = true
                 this.cleanup()
             }
         }
@@ -151,7 +146,6 @@ internal class CottonDMLService (val catalogue: Catalogue): CottonDMLGrpc.Cotton
          */
         override fun onError(t: Throwable?) {
             LOGGER.trace("Insert transaction was aborted by client. Reason: ${t?.message ?: "unknown"}")
-            this.closed = true
             this.cleanup()
         }
 
@@ -160,12 +154,6 @@ internal class CottonDMLService (val catalogue: Catalogue): CottonDMLGrpc.Cotton
          */
         override fun onCompleted() {
             LOGGER.trace("Insert transaction was committed by client.")
-            try{
-                responseObserver.onCompleted()
-            }catch(e: IllegalStateException){
-                LOGGER.trace("Response Observer was already closed")
-            }
-            this.closed = true
             this.cleanup(true)
         }
 
@@ -175,6 +163,7 @@ internal class CottonDMLService (val catalogue: Catalogue): CottonDMLGrpc.Cotton
          * @param commit If true [Transaction]s are commited before closing. Otherwise, they are rolled back.
          */
         private fun cleanup(commit: Boolean = false) {
+            this.closed = true
             this.transactions.forEach {
                 try {
                     if (commit) {
