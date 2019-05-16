@@ -23,12 +23,24 @@ internal class RecordsetLimitTask (val limit: Long, val skip: Long = 0): Executi
         /* Get records from parent task. */
         val parent = this.first() ?: throw TaskExecutionException("Projection could not be executed because parent task has failed.")
 
+        /* Calculate actual bounds. */
+        val actualSkip = if (this.skip > 0) {
+            this.skip
+        } else {
+            0
+        }
+        val actualLimit = if (this.limit > 0) {
+            Math.min(this.limit, parent.rowCount.toLong()-actualSkip)
+        } else {
+            parent.rowCount.toLong()-actualSkip
+        }
+
         /* Limit the recordset. */
         val recordset = Recordset(parent.columns)
         parent.forEachIndexed {i,r ->
-            if (i in skip..skip+limit) {
+            if (i in actualSkip..actualSkip+actualLimit) {
                 recordset.addRowUnsafe(r.tupleId, r.values)
-            } else if (i > limit) {
+            } else if (i > actualLimit) {
                 return@forEachIndexed
             }
         }

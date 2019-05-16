@@ -91,7 +91,7 @@ internal class ExecutionPlanFactory (val executionEngine: ExecutionEngine) {
         /* TODO: ORDER BY clause. */
 
         /* Add LIMIT clause (if required). */
-        if (limit > -1 || skip > -1) {
+        if (limit > 0 || skip > 0) {
             plan.addTask(RecordsetLimitTask(limit, skip), last)
         }
 
