@@ -79,7 +79,7 @@ internal class CottonDMLService (val catalogue: Catalogue): CottonDMLGrpc.Cotton
         private var closed = false
 
         init {
-            LOGGER.trace("Streaming insert transaction was started by client.")
+            LOGGER.trace("Streaming INSERT transaction was initiated by client.")
         }
 
         /**
@@ -144,8 +144,8 @@ internal class CottonDMLService (val catalogue: Catalogue): CottonDMLGrpc.Cotton
         /**
          * Called when the client-side indicates an error condition.
          */
-        override fun onError(t: Throwable?) {
-            LOGGER.trace("Insert transaction was aborted by client. Reason: ${t?.message ?: "unknown"}")
+        override fun onError(t: Throwable) {
+            LOGGER.trace("Streaming INSERT transaction was aborted by client. Reason: ${t.message}")
             this.cleanup()
         }
 
@@ -153,7 +153,7 @@ internal class CottonDMLService (val catalogue: Catalogue): CottonDMLGrpc.Cotton
          * Called when client-side completes invocation, effectively ending the [Transaction].
          */
         override fun onCompleted() {
-            LOGGER.trace("Insert transaction was committed by client.")
+            LOGGER.trace("Streaming INSERT transaction was committed by client.")
             this.cleanup(true)
         }
 
