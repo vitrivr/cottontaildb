@@ -92,7 +92,7 @@ internal class ExecutionPlanFactory (val executionEngine: ExecutionEngine) {
 
         /* Add LIMIT clause (if required). */
         if (limit > -1 || skip > -1) {
-            plan.addTask(RecordsetLimitTask(limit, skip))
+            plan.addTask(RecordsetLimitTask(limit, skip), last)
         }
 
         return plan
