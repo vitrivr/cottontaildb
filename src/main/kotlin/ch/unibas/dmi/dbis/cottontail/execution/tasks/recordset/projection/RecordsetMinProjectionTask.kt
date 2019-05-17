@@ -1,6 +1,7 @@
 package ch.unibas.dmi.dbis.cottontail.execution.tasks.recordset.projection
 
 import ch.unibas.dmi.dbis.cottontail.database.queries.Projection
+import ch.unibas.dmi.dbis.cottontail.database.queries.ProjectionType
 import ch.unibas.dmi.dbis.cottontail.execution.cost.Costs
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.basics.ExecutionTask
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
@@ -15,10 +16,14 @@ import com.github.dexecutor.core.task.TaskExecutionException
  * @author Ralph Gasser
  * @version 1.0
  */
-internal class RecordsetMinProjectionTask(val projection: Projection, estimatedSize: Int = 1000): ExecutionTask("RecordsetMinProjectionTask") {
+internal class RecordsetMinProjectionTask(val projection: Projection, estimatedRows: Int = 1000): ExecutionTask("RecordsetMinProjectionTask") {
 
-    /** The cost of this [RecordsetMaxProjectionTask] is constant */
-    override val cost = estimatedSize * Costs.MEMORY_ACCESS_READ
+    /** The cost of this [RecordsetMinProjectionTask] depends on the estimated size of the input. */
+    override val cost = estimatedRows * Costs.MEMORY_ACCESS_READ
+
+    init {
+        assert(projection.type == ProjectionType.MIN)
+    }
 
     /**
      * Executes this [RecordsetCountProjectionTask]
@@ -27,7 +32,7 @@ internal class RecordsetMinProjectionTask(val projection: Projection, estimatedS
         assertUnaryInput()
 
         /* Get records from parent task. */
-        val parent = this.first() ?: throw TaskExecutionException("Projection could not be executed because parent task has failed.")
+        val parent = this.first() ?: throw TaskExecutionException("MIN projection could not be executed because parent task has failed.")
 
         /* Calculate min(). */
         val column = projection.columns.first()

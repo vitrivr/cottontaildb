@@ -2,10 +2,13 @@ package ch.unibas.dmi.dbis.cottontail.execution.tasks.recordset.projection
 
 import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
 import ch.unibas.dmi.dbis.cottontail.database.queries.Projection
+import ch.unibas.dmi.dbis.cottontail.database.queries.ProjectionType
+import ch.unibas.dmi.dbis.cottontail.execution.cost.Costs
 
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.basics.ExecutionTask
 
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
+import ch.unibas.dmi.dbis.cottontail.utilities.name.NameUtilities
 import ch.unibas.dmi.dbis.cottontail.utilities.name.doesNameMatch
 
 import com.github.dexecutor.core.task.Task
@@ -20,10 +23,14 @@ import com.github.dexecutor.core.task.TaskExecutionException
  * @author Ralph Gasser
  * @version 1.0
  */
-internal class RecordsetSelectProjectionTask (val projection: Projection): ExecutionTask("RecordsetSelectProjectionTask") {
+internal class RecordsetSelectProjectionTask (val projection: Projection, estimatedRows: Int = 1000, estimatedColumns: Int = 5): ExecutionTask("RecordsetSelectProjectionTask") {
 
-    /** Cost estimate for a [RecordsetSelectProjectionTask]. */
-    override val cost = 1.0f
+    /** Cost estimate for this [RecordsetSelectProjectionTask] depends on the input size. */
+    override val cost = estimatedRows * estimatedColumns * Costs.MEMORY_ACCESS_READ
+
+    init {
+        assert(projection.type == ProjectionType.SELECT)
+    }
 
     /**
      * Executes this [RecordsetSelectProjectionTask]
@@ -32,10 +39,10 @@ internal class RecordsetSelectProjectionTask (val projection: Projection): Execu
         assertUnaryInput()
 
         /* Get records from parent task. */
-        val parent = this.first() ?: throw TaskExecutionException("Projection could not be executed because parent task has failed.")
+        val parent = this.first() ?: throw TaskExecutionException("SELECT projection could not be executed because parent task has failed.")
 
         /* Find longest, common prefix of all projection sub-clauses. */
-        val longestCommonPrefix = findLongestPrefix(this.projection.fields.keys)
+        val longestCommonPrefix = NameUtilities.findLongestPrefix(this.projection.fields.keys)
 
         /* Determine columns to rename. */
         val dropIndex = mutableListOf<Int>()
@@ -65,21 +72,5 @@ internal class RecordsetSelectProjectionTask (val projection: Projection): Execu
         } else {
             return parent
         }
-    }
-
-    /**
-     *
-     */
-    private fun findLongestPrefix(strings: Collection<String>) : String {
-        val prefix = Array<String?>(3, { null })
-        for (i in 0 until 3) {
-            val d = strings.map { it.split('.')[i] }.distinct()
-            if (d.size == 1) {
-                prefix[i] = d.first()
-            } else {
-                break
-            }
-        }
-        return prefix.filterNotNull().joinToString (separator = ".", postfix = ".")
     }
 }

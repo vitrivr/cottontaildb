@@ -18,7 +18,7 @@ import com.github.dexecutor.core.task.TaskExecutionException
  */
 internal class RecordsetCountProjectionTask (): ExecutionTask("RecordsetCountProjectionTask") {
 
-    /** The cost of this [RecordsetCountProjectionTask] is constant */
+    /** The cost of this [RecordsetCountProjectionTask] is constant. */
     override val cost = Costs.MEMORY_ACCESS_READ
 
     /**
@@ -28,7 +28,7 @@ internal class RecordsetCountProjectionTask (): ExecutionTask("RecordsetCountPro
         assertUnaryInput()
 
         /* Get records from parent task. */
-        val parent = this.first() ?: throw TaskExecutionException("Projection could not be executed because parent task has failed.")
+        val parent = this.first() ?: throw TaskExecutionException("COUNT projection could not be executed because parent task has failed.")
 
         /* Create new Recordset with new columns. */
         val recordset = Recordset(arrayOf(ColumnDef.withAttributes("count(*)", "INTEGER")))

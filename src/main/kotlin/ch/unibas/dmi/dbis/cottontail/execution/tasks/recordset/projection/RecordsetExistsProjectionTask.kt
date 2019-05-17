@@ -1,5 +1,6 @@
 package ch.unibas.dmi.dbis.cottontail.execution.tasks.recordset.projection
 
+import ch.unibas.dmi.dbis.cottontail.database.queries.ProjectionType
 import ch.unibas.dmi.dbis.cottontail.execution.cost.Costs
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.basics.ExecutionTask
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
@@ -16,9 +17,8 @@ import com.github.dexecutor.core.task.TaskExecutionException
  */
 internal class RecordsetExistsProjectionTask (): ExecutionTask("RecordsetExistsProjectionTask") {
 
-    /** The cost of this [RecordsetCountProjectionTask] is constant */
+    /** The cost of this [RecordsetExistsProjectionTask] is constant. */
     override val cost = Costs.MEMORY_ACCESS_READ
-
 
     /**
      * Executes this [RecordsetExistsProjectionTask]
@@ -27,7 +27,7 @@ internal class RecordsetExistsProjectionTask (): ExecutionTask("RecordsetExistsP
         assertUnaryInput()
 
         /* Get records from parent task. */
-        val parent = this.first() ?: throw TaskExecutionException("Projection could not be executed because parent task has failed.")
+        val parent = this.first() ?: throw TaskExecutionException("EXISTS projection could not be executed because parent task has failed.")
 
         /* Create new Recordset with new columns. */
         val recordset = Recordset(arrayOf(ColumnDef.withAttributes("exists(*)", "BOOLEAN")))
