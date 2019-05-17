@@ -15,7 +15,7 @@ import com.github.dexecutor.core.task.TaskExecutionException
  */
 internal class RecordsetLimitTask (val limit: Long, val skip: Long = 0): ExecutionTask("RecordsetLimitTask") {
     /** The estimated cost of this [RecordsetLimitTask] depends linearly on the number of records that will be returned. */
-    override val cost = (limit + skip) + Costs.MEMORY_ACCESS_READ
+    override val cost = (limit + skip) * Costs.MEMORY_ACCESS_READ
 
     override fun execute(): Recordset {
         assertUnaryInput()
@@ -23,17 +23,9 @@ internal class RecordsetLimitTask (val limit: Long, val skip: Long = 0): Executi
         /* Get records from parent task. */
         val parent = this.first() ?: throw TaskExecutionException("Projection could not be executed because parent task has failed.")
 
-        /* Calculate actual bounds. */
-        val actualSkip = if (this.skip > 0) {
-            this.skip
-        } else {
-            0
-        }
-        val actualLimit = if (this.limit > 0) {
-            Math.min(this.limit, parent.rowCount.toLong()-actualSkip)
-        } else {
-            parent.rowCount.toLong()-actualSkip
-        }
+        /* Calculate actual bounds for LIMIT and SKIP. */
+        val actualSkip = Math.max(this.skip,0L)
+        val actualLimit =  Math.min(Math.max(this.limit,0L), parent.rowCount.toLong()-actualSkip)
 
         /* Limit the recordset. */
         val recordset = Recordset(parent.columns)
