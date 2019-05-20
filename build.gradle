@@ -73,21 +73,6 @@ protobuf {
     }
 }
 
-jar {
-    manifest {
-        attributes(
-                'Main-Class': mainClassName,
-                'Multi-Release' : 'true'
-        )
-    }
-    from {
-        configurations.compileClasspath.collect { it.isDirectory() ? it : zipTree(it) }
-        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
-        configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
-    }
-}
-
-
 dependencies {
     ///// Antlr 4 dependency
     antlr group: 'org.antlr', name: 'antlr4', version: '4.7.2'
