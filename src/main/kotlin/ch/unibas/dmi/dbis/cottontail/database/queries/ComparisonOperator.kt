@@ -29,7 +29,7 @@ enum class ComparisonOperator {
      * @return True on match, false otherwise.
      */
     fun match(left: Value<*>?, right: Collection<Value<*>>) : Boolean = when {
-        this == EQUAL && left != null -> left == right
+        this == EQUAL && left != null -> left == right.first()
         this == GREATER && left != null -> left > right.first()
         this == LESS && left != null -> left < right.first()
         this == GEQUAL && left != null -> left >= right.first()
