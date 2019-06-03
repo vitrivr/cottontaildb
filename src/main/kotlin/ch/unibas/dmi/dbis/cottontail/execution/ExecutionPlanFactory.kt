@@ -52,6 +52,7 @@ internal class ExecutionPlanFactory (val executionEngine: ExecutionEngine) {
                 ProjectionType.MIN -> plan.addTask(EntityMinProjectionTask(entity, projectionClause.columns.first()))
                 ProjectionType.MEAN -> plan.addTask(EntityMeanProjectionTask(entity, projectionClause.columns.first()))
             }
+            return plan
         } else if (knnClause != null) {
             plan.addTask(KnnTask.entityScanTaskForPredicate(entity, knnClause, whereClause))
         } else {
