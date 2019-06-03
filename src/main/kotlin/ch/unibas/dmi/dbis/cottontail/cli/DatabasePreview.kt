@@ -11,7 +11,7 @@ import io.grpc.ManagedChannelBuilder
 object DatabasePreview {
 
 
-    val channel = ManagedChannelBuilder.forAddress("127.0.0.1", 1865).usePlaintext().build()
+    val channel = ManagedChannelBuilder.forAddress("dmi-p10.dmi.unibas.ch", 1865).usePlaintext().build()
 
     val dqlService = CottonDQLGrpc.newBlockingStub(channel)
     val ddlService = CottonDDLGrpc.newBlockingStub(channel)
@@ -44,6 +44,12 @@ object DatabasePreview {
                             previewEntity(input[1], input[2])
                         }
                     }
+                    "query" -> {
+                        if(input.size < 5){
+                            println("query syntax is query schema entity column val")
+                        }
+                        queryEntity(input[1], input[2], input[3], input[4])
+                    }
                     "list" -> {
                         listEntities()
                     }
@@ -54,6 +60,25 @@ object DatabasePreview {
             } catch (e: Exception) {
                 e.printStackTrace()
             }
+        }
+    }
+
+    private fun queryEntity(schema: String, entity: String, col: String, value: String) {
+        val qm = CottontailGrpc.QueryMessage.newBuilder().setQuery(
+                CottontailGrpc.Query.newBuilder()
+                        .setFrom(From(Entity(entity, Schema(schema))))
+                        .setProjection(MatchAll())
+                        .setWhere(Where(
+                                CottontailGrpc.AtomicLiteralBooleanPredicate.newBuilder()
+                                        .setAttribute(col)
+                                        .setOp(CottontailGrpc.AtomicLiteralBooleanPredicate.Operator.EQUAL)
+                                        .addData(CottontailGrpc.Data.newBuilder().setStringData(value).build())
+                                        .build()
+                        ))
+        ).build()
+        val query = dqlService.query(qm)
+        query.forEach { page ->
+            println(page.resultsList)
         }
     }
 
