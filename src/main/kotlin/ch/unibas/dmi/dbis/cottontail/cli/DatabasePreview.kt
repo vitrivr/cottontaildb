@@ -11,7 +11,7 @@ import io.grpc.ManagedChannelBuilder
 object DatabasePreview {
 
 
-    val channel = ManagedChannelBuilder.forAddress("dmi-p10.dmi.unibas.ch", 1865).usePlaintext().build()
+    val channel = ManagedChannelBuilder.forAddress("127.0.0.1", 1864).usePlaintext().build()
 
     val dqlService = CottonDQLGrpc.newBlockingStub(channel)
     val ddlService = CottonDDLGrpc.newBlockingStub(channel)
@@ -43,6 +43,13 @@ object DatabasePreview {
                         } else {
                             previewEntity(input[1], input[2])
                         }
+                    }
+                    "count" -> {  //preview schema entity [count]
+                        if (input.size < 3) {
+                            println("count syntax is preview schema entity [count]")
+                            break@loop
+                        }
+                        countEntity(input[1], input[2])
                     }
                     "query" -> {
                         if(input.size < 5){
@@ -95,6 +102,23 @@ object DatabasePreview {
                     println("Data integrity threat! entity $_entity ist returned when listing entities for schema $_schema")
                 }
                 println("${_schema.name} - ${_entity.name}")
+            }
+        }
+    }
+
+
+    fun countEntity(schema: String, entity: String) {
+        println("counting elements of entity $entity at schema $schema")
+        val qm = CottontailGrpc.QueryMessage.newBuilder().setQuery(
+                CottontailGrpc.Query.newBuilder()
+                        .setFrom(From(Entity(entity, Schema(schema))))
+                        .setProjection(CottontailGrpc.Projection.newBuilder().setOp(CottontailGrpc.Projection.Operation.COUNT).build())
+
+        ).build()
+        val query = dqlService.query(qm)
+        query.forEach { page ->
+            if (!page.resultsList.isEmpty()) {
+                println(page.resultsList.first())
             }
         }
     }
