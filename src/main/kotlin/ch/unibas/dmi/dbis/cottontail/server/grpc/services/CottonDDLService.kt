@@ -17,7 +17,6 @@ import com.google.protobuf.Empty
 
 import io.grpc.Status
 import io.grpc.stub.StreamObserver
-import java.lang.Exception
 
 /**
  * This is a GRPC service endpoint that handles DDL (=Data Definition Language) request for Cottontail DB.
@@ -227,5 +226,29 @@ internal class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.Cotton
         responseObserver.onError(Status.UNKNOWN.withDescription("Failed to rebuild index '${request.index.fqn()}' because of database error: ${e.message}").asException())
     } catch (e: Throwable) {
         responseObserver.onError(Status.UNKNOWN.withDescription("Failed to rebuild index '${request.index.fqn()}' because of an unknown error: ${e.message}").asException())
+    }
+
+    /**
+     * gRPC endpoint for optimizing a particular entity. Currently just rebuilds all the indexes.
+     */
+    override fun optimizeEntity(request: CottontailGrpc.Entity, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) = try {
+        if ((request.name as Name).isValid(NameType.SIMPLE)) {
+
+        } else {
+            /* Update all indexes. */
+            this.catalogue.schemaForName(request.schema.name).entityForName(request.name).updateAllIndexes()
+
+            /* Notify caller of success. */
+            responseObserver.onNext(CottontailGrpc.SuccessStatus.newBuilder().setTimestamp(System.currentTimeMillis()).build())
+            responseObserver.onCompleted()
+        }
+    } catch (e: DatabaseException.SchemaDoesNotExistException) {
+        responseObserver.onError(Status.NOT_FOUND.withDescription("Schema '${request.schema.fqn()} does not exist!").asException())
+    } catch (e: DatabaseException.EntityDoesNotExistException) {
+        responseObserver.onError(Status.NOT_FOUND.withDescription("Entity '${request.fqn()} does not exist!").asException())
+    } catch (e: DatabaseException) {
+        responseObserver.onError(Status.UNKNOWN.withDescription("Failed to optimize entity '${request.fqn()}' because of database error: ${e.message}").asException())
+    } catch (e: Throwable) {
+        responseObserver.onError(Status.UNKNOWN.withDescription("Failed to optimize entity '${request.fqn()}' because of an unknown error: ${e.message}").asException())
     }
 }

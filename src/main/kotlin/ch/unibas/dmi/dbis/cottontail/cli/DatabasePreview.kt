@@ -33,9 +33,16 @@ object DatabasePreview {
                 val command = readLine()!!
                 val input = command.split(" ")
                 when (input[0]) {
+                    "optimize" -> {
+                        if (input.size < 3) {
+                            println("optimize syntax is: optimize <schema> <entity> [<count>]")
+                            break@loop
+                        }
+                        optimizeEntity(input[1], input[2])
+                    }
                     "preview" -> {  //preview schema entity [count]
                         if (input.size < 3) {
-                            println("preview syntax is preview schema entity [count]")
+                            println("preview syntax is: preview <schema> <entity> [<count>]")
                             break@loop
                         }
                         if (input.size == 4) {
@@ -46,14 +53,14 @@ object DatabasePreview {
                     }
                     "count" -> {  //preview schema entity [count]
                         if (input.size < 3) {
-                            println("count syntax is preview schema entity [count]")
+                            println("count syntax is: count <schema> <entity> [<count>]")
                             break@loop
                         }
                         countEntity(input[1], input[2])
                     }
                     "query" -> {
                         if(input.size < 5){
-                            println("query syntax is query schema entity column val")
+                            println("query syntax is: query <schema> <entity> <column> <value>")
                         }
                         queryEntity(input[1], input[2], input[3], input[4])
                     }
@@ -93,7 +100,7 @@ object DatabasePreview {
         println("Available commands include help, preview, quit")
     }
 
-    fun listEntities() {
+    private fun listEntities() {
         println("Listing all Entities")
         ddlService.listSchemas(Empty()).forEach { _schema ->
             println("Entities for Schema ${_schema.name}:")
@@ -107,8 +114,8 @@ object DatabasePreview {
     }
 
 
-    fun countEntity(schema: String, entity: String) {
-        println("counting elements of entity $entity at schema $schema")
+    private fun countEntity(schema: String, entity: String) {
+        println("Counting elements of entity $schema.$entity")
         val qm = CottontailGrpc.QueryMessage.newBuilder().setQuery(
                 CottontailGrpc.Query.newBuilder()
                         .setFrom(From(Entity(entity, Schema(schema))))
@@ -123,8 +130,8 @@ object DatabasePreview {
         }
     }
 
-    fun previewEntity(schema: String, entity: String, limit: Long = 10) {
-        println("showing first $limit elements of entity $entity at schema $schema")
+    private fun previewEntity(schema: String, entity: String, limit: Long = 10) {
+        println("Showing first $limit elements of entity $schema.$entity")
         val qm = CottontailGrpc.QueryMessage.newBuilder().setQuery(
                 CottontailGrpc.Query.newBuilder()
                         .setFrom(From(Entity(entity, Schema(schema))))
@@ -136,5 +143,11 @@ object DatabasePreview {
         query.forEach { page ->
             println(page.resultsList.dropLast(Math.max(0, page.resultsCount - limit).toInt()))
         }
+    }
+
+    private fun optimizeEntity(schema: String, entity: String) {
+        println("Optimizing entity $schema.$entity")
+        ddlService.optimizeEntity(Entity(entity, Schema(schema)))
+        println("Done!")
     }
 }
