@@ -14,7 +14,7 @@ import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
 
 internal object KnnTask {
     /** Threshold under which parallelism starts to kick in. TODO: Find optimal value experimentally. */
-    private const val KNN_OP_PARALLELISM_THRESHOLD = 819200000L
+    private const val KNN_OP_PARALLELISM_THRESHOLD = 81920000L
 
     /**
      * Constructs a [ExecutionTask] for kNN lookup given the [KnnPredicate] and the optional [BooleanPredicate]. This method
