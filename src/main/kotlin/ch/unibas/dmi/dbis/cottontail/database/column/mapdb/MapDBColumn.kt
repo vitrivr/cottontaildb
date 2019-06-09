@@ -293,7 +293,7 @@ internal class MapDBColumn<T : Any>(override val name: Name, override val parent
                 }
 
                 /* Iterate over remaining recordIds. */
-                recordIds.forEach {
+                recordIds.forEachRemaining {
                     val record = ColumnRecord(it, this@MapDBColumn.store.get(it, this.serializer))
                     if (predicate.matches(record)) recordset.addRowUnsafe(record.values)
                 }
@@ -381,7 +381,7 @@ internal class MapDBColumn<T : Any>(override val name: Name, override val parent
                 checkValidOrThrow()
 
                 /* Channel used to transfer data between the different co-routines. */
-                val producer = produce(context = Dispatchers.Default, capacity = 10 * parallelism) {
+                val producer = produce(context = Dispatchers.IO, capacity = 10 * parallelism) {
                     val recordIds = this@MapDBColumn.store.getAllRecids()
                     if (recordIds.next() != HEADER_RECORD_ID) {
                         throw TransactionException.TransactionValidationException(this@Tx.tid, "The column '${this@MapDBColumn.fqn}' does not seem to contain a valid header record!")
@@ -420,7 +420,7 @@ internal class MapDBColumn<T : Any>(override val name: Name, override val parent
                 checkValidOrThrow()
 
                 /* Channel used to transfer data between the different co-routines. */
-                val producer = produce (context = Dispatchers.Default, capacity = 10 * parallelism) {
+                val producer = produce (context = Dispatchers.IO, capacity = 10 * parallelism) {
                     val recordIds = this@MapDBColumn.store.getAllRecids()
                     if (recordIds.next() != HEADER_RECORD_ID) {
                         throw TransactionException.TransactionValidationException(this@Tx.tid, "The column '${this@MapDBColumn.fqn}' does not seem to contain a valid header record!")
@@ -461,7 +461,7 @@ internal class MapDBColumn<T : Any>(override val name: Name, override val parent
                     checkValidOrThrow()
 
                     /* Channel used to transfer data between the different co-routines. */
-                    val producer = produce(context = Dispatchers.Default, capacity = 10 * parallelism) {
+                    val producer = produce(context = Dispatchers.IO, capacity = 10 * parallelism) {
                         val recordIds = this@MapDBColumn.store.getAllRecids()
                         if (recordIds.next() != HEADER_RECORD_ID) {
                             throw TransactionException.TransactionValidationException(this@Tx.tid, "The column '${this@MapDBColumn.fqn}' does not seem to contain a valid header record!")
@@ -506,7 +506,7 @@ internal class MapDBColumn<T : Any>(override val name: Name, override val parent
                     checkValidOrThrow()
 
                     /* Channel used to transfer data between the different co-routines. */
-                    val producer = produce (context = Dispatchers.Default, capacity = 10 * parallelism) {
+                    val producer = produce (context = Dispatchers.IO, capacity = 10 * parallelism) {
                         val recordIds = this@MapDBColumn.store.getAllRecids()
                         if (recordIds.next() != HEADER_RECORD_ID) {
                             throw TransactionException.TransactionValidationException(this@Tx.tid, "The column '${this@MapDBColumn.fqn}' does not seem to contain a valid header record!")
@@ -544,6 +544,7 @@ internal class MapDBColumn<T : Any>(override val name: Name, override val parent
          * @param predicate The tasks that should be applied.
          * @return A filtered collection [MapDBColumn] values that passed the test.
          */
+        @kotlinx.coroutines.ExperimentalCoroutinesApi
         override fun filter(parallelism: Short, predicate: Predicate): Recordset = this@MapDBColumn.txLock.read {
             if (predicate is BooleanPredicate) {
                 val recordset = Recordset(arrayOf(this@MapDBColumn.columnDef))
@@ -552,7 +553,7 @@ internal class MapDBColumn<T : Any>(override val name: Name, override val parent
                     checkValidOrThrow()
 
                     /* Channel used to transfer data between the different co-routines. */
-                    val producer = produce (context = Dispatchers.Default, capacity = 10 * parallelism) {
+                    val producer = produce (context = Dispatchers.IO, capacity = 10 * parallelism) {
                         val recordIds = this@MapDBColumn.store.getAllRecids()
                         if (recordIds.next() != HEADER_RECORD_ID) {
                             throw TransactionException.TransactionValidationException(this@Tx.tid, "The column '${this@MapDBColumn.fqn}' does not seem to contain a valid header record!")
