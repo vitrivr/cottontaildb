@@ -1,27 +1,22 @@
 package ch.unibas.dmi.dbis.cottontail.database.column.mapdb
 
 import ch.unibas.dmi.dbis.cottontail.database.column.*
-import ch.unibas.dmi.dbis.cottontail.database.general.DBO
 import ch.unibas.dmi.dbis.cottontail.database.general.Transaction
 import ch.unibas.dmi.dbis.cottontail.database.general.TransactionStatus
 import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
-import ch.unibas.dmi.dbis.cottontail.database.queries.AtomicBooleanPredicate
 import ch.unibas.dmi.dbis.cottontail.database.queries.BooleanPredicate
 import ch.unibas.dmi.dbis.cottontail.database.queries.Predicate
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
-import ch.unibas.dmi.dbis.cottontail.model.basics.Filterable
 import ch.unibas.dmi.dbis.cottontail.model.basics.Record
-import ch.unibas.dmi.dbis.cottontail.model.basics.Tuple
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.TransactionException
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
 import ch.unibas.dmi.dbis.cottontail.model.values.Value
 import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
+
 import kotlinx.coroutines.*
-import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.produce
-import kotlinx.coroutines.channels.take
 import org.mapdb.*
 import org.mapdb.volume.MappedFileVol
 
@@ -29,7 +24,6 @@ import java.nio.file.Path
 import java.util.*
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.ReentrantReadWriteLock
-import kotlin.collections.ArrayList
 import kotlin.concurrent.read
 import kotlin.concurrent.write
 
@@ -395,9 +389,13 @@ internal class MapDBColumn<T : Any>(override val name: Name, override val parent
                 /* Co-routine that reads the data TupleIDs. */
                 repeat(Math.max(parallelism.toInt(), 1)) {
                    launch (Dispatchers.Default) {
-                       while (!producer.isClosedForReceive) {
-                           val recordId = producer.receive()
-                           action(ColumnRecord(recordId, this@MapDBColumn.store.get(recordId, this@Tx.serializer)))
+                       while (true) {
+                           val recordId = producer.receiveOrNull()
+                           if (recordId != null) {
+                               action(ColumnRecord(recordId, this@MapDBColumn.store.get(recordId, this@Tx.serializer)))
+                           } else {
+                               break
+                           }
                         }
                     }
                 }
@@ -434,9 +432,13 @@ internal class MapDBColumn<T : Any>(override val name: Name, override val parent
                 /* Co-routine that reads the data TupleIDs. */
                 repeat(Math.max(parallelism.toInt(), 1)) {
                     launch (context = Dispatchers.Default) {
-                        while(!producer.isClosedForReceive) {
-                            val recordId = producer.receive()
-                            results.add(action(ColumnRecord(recordId, this@MapDBColumn.store.get(recordId, this@Tx.serializer))))
+                        while(true) {
+                            val recordId = producer.receiveOrNull()
+                            if (recordId != null) {
+                                results.add(action(ColumnRecord(recordId, this@MapDBColumn.store.get(recordId, this@Tx.serializer))))
+                            } else {
+                                break
+                            }
                         }
                     }
                 }
@@ -476,11 +478,15 @@ internal class MapDBColumn<T : Any>(override val name: Name, override val parent
                     /* Co-routine that reads the data TupleIDs. */
                     repeat(Math.max(parallelism.toInt(), 1)) {
                         launch (Dispatchers.Default) {
-                            while (!producer.isClosedForReceive) {
-                                val recordId = producer.receive()
-                                val record = ColumnRecord(recordId, this@MapDBColumn.store.get(recordId, this@Tx.serializer))
-                                if (predicate.matches(record)) {
-                                    action(record)
+                            while (true) {
+                                val recordId = producer.receiveOrNull()
+                                if (recordId != null) {
+                                    val record = ColumnRecord(recordId, this@MapDBColumn.store.get(recordId, this@Tx.serializer))
+                                    if (predicate.matches(record)) {
+                                        action(record)
+                                    }
+                                } else {
+                                    break
                                 }
                             }
                         }
@@ -520,17 +526,21 @@ internal class MapDBColumn<T : Any>(override val name: Name, override val parent
                     /* Co-routine that reads the data TupleIDs. */
                     repeat(Math.max(parallelism.toInt(), 1)) {
                         launch (context = Dispatchers.Default) {
-                            while(!producer.isClosedForReceive) {
-                                val recordId = producer.receive()
-                                val record = ColumnRecord(recordId, this@MapDBColumn.store.get(recordId, this@Tx.serializer))
-                                if (predicate.matches(record)) {
-                                    results.add(action(record))
+                            while(true) {
+                                val recordId = producer.receiveOrNull()
+                                if (recordId != null) {
+                                    val record = ColumnRecord(recordId, this@MapDBColumn.store.get(recordId, this@Tx.serializer))
+                                    if (predicate.matches(record)) {
+                                        results.add(action(record))
+                                    }
+                                } else {
+                                    break
                                 }
                             }
                         }
                     }
                 }
-                return results
+                return results.toList()
             } else {
                 throw QueryException.UnsupportedPredicateException("The provided predicate of type '${predicate::class.java.simpleName}' is not supported for invocation of map() on column '${this@MapDBColumn.fqn}'.")
             }
@@ -567,11 +577,15 @@ internal class MapDBColumn<T : Any>(override val name: Name, override val parent
                     /* Co-routine that reads the data TupleIDs. */
                     repeat(Math.max(parallelism.toInt(), 1)) {
                         launch (context = Dispatchers.Default) {
-                            while(!producer.isClosedForReceive) {
-                                val recordId = producer.receive()
-                                val record = ColumnRecord(recordId, this@MapDBColumn.store.get(recordId, this@Tx.serializer))
-                                if (predicate.matches(record)) {
-                                    recordset.addRowUnsafe(record.tupleId, record.values)
+                            while(true) {
+                                val recordId = producer.receiveOrNull()
+                                if (recordId != null) {
+                                    val record = ColumnRecord(recordId, this@MapDBColumn.store.get(recordId, this@Tx.serializer))
+                                    if (predicate.matches(record)) {
+                                        recordset.addRowUnsafe(record.tupleId, record.values)
+                                    }
+                                } else {
+                                    break
                                 }
                             }
                         }
