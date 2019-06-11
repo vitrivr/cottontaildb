@@ -120,12 +120,18 @@ internal data class CompoundBooleanPredicate(val connector: ConnectionOperator, 
  * @author Ralph Gasser
  * @version 1.0
  */
-internal data class KnnPredicate<T : Any>(val column: ColumnDef<T>, val k: Int, val query: Array<Number>, val distance: Distance, val weights: Array<Number>? = null) : Predicate() {
+internal data class KnnPredicate<T : Any>(val column: ColumnDef<T>, val k: Int, val query: List<Array<Number>>, val distance: Distance, val weights: List<Array<Number>>? = null) : Predicate() {
     init {
         /* Some basic sanity checks. */
         if (k <= 0) throw QueryException.QuerySyntaxException("The value of k for a kNN query cannot be smaller than one (is $k)s!")
-        if (column.size != query.size) throw QueryException.QueryBindException("The size of the provided column ${column.name} (s_c=${column.size}) does not match the size of the query vector (s_q=${query.size}).")
-        if (weights != null && column.size != weights.size) throw QueryException.QueryBindException("The size of the provided column ${column.name} (s_c=${column.size}) does not match the size of the weight vector (s_w=${query.size}).")
+        query.forEach {
+            if (column.size != it.size) throw QueryException.QueryBindException("The size of the provided column ${column.name} (s_c=${column.size}) does not match the size of the query vector (s_q=${query.size}).")
+        }
+        weights?.forEach {
+            if (column.size != it.size) {
+                throw QueryException.QueryBindException("The size of the provided column ${column.name} (s_c=${column.size}) does not match the size of the weight vector (s_w=${query.size}).")
+            }
+        }
     }
 
     /**
@@ -141,56 +147,6 @@ internal data class KnnPredicate<T : Any>(val column: ColumnDef<T>, val k: Int, 
      */
     override val operations: Int = distance.operations * query.size + (this.weights?.size ?: 0)
 
-    /**
-     * Returns the query vector as [FloatArray].
-     *
-     * @return [FloatArray]
-     */
-    fun queryAsFloatArray() = FloatArray(this.query.size) { this.query[it].toFloat() }
-
-    /**
-     * Returns the query vector as [DoubleArray].
-     *
-     * @return [DoubleArray]
-     */
-    fun queryAsDoubleArray() = DoubleArray(this.query.size) { this.query[it].toDouble() }
-
-    /**
-     * Returns the query vector as [IntArray].
-     *
-     * @return [IntArray]
-     */
-    fun queryAsIntArray() = IntArray(this.query.size) { this.query[it].toInt() }
-
-    /**
-     * Returns the query vector as [LongArray].
-     *
-     * @return [LongArray]
-     */
-    fun queryAsLongArray() = LongArray(this.query.size) { this.query[it].toLong() }
-
-    /**
-     * Returns the weights vector as [FloatArray].
-     *
-     * @return [FloatArray]
-     */
-    fun weightsAsFloatArray() = if (this.weights != null) {
-        FloatArray(this.weights.size) { this.weights[it].toFloat() }
-    } else {
-        null
-    }
-
-    /**
-     * Returns the weights vector as [DoubleArray].
-     *
-     * @return [DoubleArray]
-     */
-    fun weightsAsDoubleArray() = if (this.weights != null) {
-        DoubleArray(this.weights.size) { this.weights[it].toDouble() }
-    } else {
-        null
-    }
-
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
@@ -199,11 +155,11 @@ internal data class KnnPredicate<T : Any>(val column: ColumnDef<T>, val k: Int, 
 
         if (column != other.column) return false
         if (k != other.k) return false
-        if (!query.contentEquals(other.query)) return false
+        if (query != other.query) return false
         if (distance != other.distance) return false
         if (weights != null) {
             if (other.weights == null) return false
-            if (!weights.contentEquals(other.weights)) return false
+            if (weights != other.weights) return false
         } else if (other.weights != null) return false
 
         return true
@@ -212,9 +168,9 @@ internal data class KnnPredicate<T : Any>(val column: ColumnDef<T>, val k: Int, 
     override fun hashCode(): Int {
         var result = column.hashCode()
         result = 31 * result + k
-        result = 31 * result + query.contentHashCode()
+        result = 31 * result + query.hashCode()
         result = 31 * result + distance.hashCode()
-        result = 31 * result + (weights?.contentHashCode() ?: 0)
+        result = 31 * result + (weights?.hashCode() ?: 0)
         return result
     }
 }

@@ -40,9 +40,10 @@ internal class EntityFetchColumnsTask (val entity: Entity, val columns: Array<Co
                 parent.forEach {rec ->
                     val read = tx.read(rec.tupleId)
                     val values: Array<Value<*>?> = all.map {
-                        when {
-                            read.has(it) -> read[it]
-                            else -> parent[rec.tupleId]?.get(it)
+                        if (read.has(it)) {
+                            read[it]
+                        } else {
+                            rec[it]
                         }
                     }.toTypedArray()
                     recordset.addRowUnsafe(rec.tupleId, values)

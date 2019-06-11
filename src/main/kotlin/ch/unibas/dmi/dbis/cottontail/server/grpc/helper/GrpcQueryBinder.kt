@@ -67,7 +67,7 @@ internal class GrpcQueryBinder(val catalogue: Catalogue, engine: ExecutionEngine
         } catch (e: DatabaseException.EntityDoesNotExistException) {
             throw QueryException.QueryBindException("Failed to bind '${query.from.entity.fqn()}'. Entity does not exist!")
         } catch (e: DatabaseException) {
-            throw QueryException("Failed to bind ${query.from.entity.fqn()}. Database error!")
+            throw QueryException.QueryBindException("Failed to bind ${query.from.entity.fqn()}. Database error!")
         }
 
         /* Create projection clause. */
@@ -181,23 +181,31 @@ internal class GrpcQueryBinder(val catalogue: Catalogue, engine: ExecutionEngine
         val column = entity.columnForName(knn.attribute) ?: throw QueryException.QueryBindException("Failed to bind column '${knn.attribute}'. Column does not exist on entity '${entity.fqn}'!")
 
         /* Extracts the query vector. */
-        val query: Array<Number> = when (knn.query.vectorDataCase){
-            CottontailGrpc.Vector.VectorDataCase.FLOATVECTOR ->  knn.query.floatVector.vectorList.toTypedArray()
-            CottontailGrpc.Vector.VectorDataCase.DOUBLEVECTOR ->  knn.query.doubleVector.vectorList.toTypedArray()
-            CottontailGrpc.Vector.VectorDataCase.INTVECTOR ->  knn.query.intVector.vectorList.toTypedArray()
-            CottontailGrpc.Vector.VectorDataCase.LONGVECTOR -> knn.query.longVector.vectorList.toTypedArray()
-            CottontailGrpc.Vector.VectorDataCase.VECTORDATA_NOT_SET -> throw QueryException.QuerySyntaxException("A kNN predicate does not contain a valid query vector!")
-            null -> throw QueryException.QuerySyntaxException("A kNN predicate does not contain a valid query vector!")
+        val query: List<Array<Number>> = knn.queryList.map { q ->
+            when (q.vectorDataCase) {
+                CottontailGrpc.Vector.VectorDataCase.FLOATVECTOR -> q.floatVector.vectorList.toTypedArray() as Array<Number>
+                CottontailGrpc.Vector.VectorDataCase.DOUBLEVECTOR -> q.doubleVector.vectorList.toTypedArray() as Array<Number>
+                CottontailGrpc.Vector.VectorDataCase.INTVECTOR -> q.intVector.vectorList.toTypedArray() as Array<Number>
+                CottontailGrpc.Vector.VectorDataCase.LONGVECTOR -> q.longVector.vectorList.toTypedArray() as Array<Number>
+                CottontailGrpc.Vector.VectorDataCase.VECTORDATA_NOT_SET -> throw QueryException.QuerySyntaxException("A kNN predicate does not contain a valid query vector!")
+                null -> throw QueryException.QuerySyntaxException("A kNN predicate does not contain a valid query vector!")
+            }
         }
 
         /* Extracts the query vector. */
-        val weights: Array<Number>? = when (knn.weights.vectorDataCase) {
-            CottontailGrpc.Vector.VectorDataCase.FLOATVECTOR ->  knn.weights.floatVector.vectorList.toTypedArray()
-            CottontailGrpc.Vector.VectorDataCase.DOUBLEVECTOR -> knn.weights.doubleVector.vectorList.toTypedArray()
-            CottontailGrpc.Vector.VectorDataCase.INTVECTOR -> knn.weights.intVector.vectorList.toTypedArray()
-            CottontailGrpc.Vector.VectorDataCase.LONGVECTOR -> knn.weights.longVector.vectorList.toTypedArray()
-            CottontailGrpc.Vector.VectorDataCase.VECTORDATA_NOT_SET -> null
-            null -> null
+        val weights: List<Array<Number>>? = if (knn.weightsCount > 0) {
+            knn.weightsList.map { w ->
+                when (w.vectorDataCase) {
+                    CottontailGrpc.Vector.VectorDataCase.FLOATVECTOR -> w.floatVector.vectorList.toTypedArray() as Array<Number>
+                    CottontailGrpc.Vector.VectorDataCase.DOUBLEVECTOR -> w.doubleVector.vectorList.toTypedArray() as Array<Number>
+                    CottontailGrpc.Vector.VectorDataCase.INTVECTOR -> w.intVector.vectorList.toTypedArray() as Array<Number>
+                    CottontailGrpc.Vector.VectorDataCase.LONGVECTOR -> w.longVector.vectorList.toTypedArray() as Array<Number>
+                    CottontailGrpc.Vector.VectorDataCase.VECTORDATA_NOT_SET -> throw QueryException.QuerySyntaxException("A kNN predicate does not contain a valid weight vector!")
+                    null -> throw QueryException.QuerySyntaxException("A kNN predicate does not contain a valid weight vector!")
+                }
+            }
+        } else {
+            null
         }
 
         /* Generate the predicate. */

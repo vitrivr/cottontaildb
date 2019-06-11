@@ -1,6 +1,5 @@
 package ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.knn
 
-import ch.unibas.dmi.dbis.cottontail.config.Global
 import ch.unibas.dmi.dbis.cottontail.database.column.DoubleArrayColumnType
 import ch.unibas.dmi.dbis.cottontail.database.column.FloatArrayColumnType
 import ch.unibas.dmi.dbis.cottontail.database.column.IntArrayColumnType
@@ -29,8 +28,8 @@ internal object KnnTask {
      */
     @Suppress("UNCHECKED_CAST")
     fun entityScanTaskForPredicate(entity: Entity, knnClause: KnnPredicate<*>, whereClause: BooleanPredicate?) : ExecutionTask {
-        val operations = entity.statistics.rows * (knnClause.operations + (whereClause?.operations ?: 0))
-        val parallelism = Math.min(Math.floorDiv(operations, KNN_OP_PARALLELISM_THRESHOLD).toInt(), (Math.floorDiv(Global.LOGICAL_THREADS,4))).toShort()
+        val operations = knnClause.query.size * entity.statistics.rows * (knnClause.operations + (whereClause?.operations ?: 0))
+        val parallelism = Math.min(Math.floorDiv(operations, KNN_OP_PARALLELISM_THRESHOLD).toInt(), Runtime.getRuntime().availableProcessors()).toShort()
         return when {
             parallelism > 1 && knnClause.column.type is DoubleArrayColumnType -> ParallelEntityScanDoubleKnnTask(entity, knnClause as KnnPredicate<DoubleArray>, whereClause, parallelism)
             parallelism > 1 && knnClause.column.type is FloatArrayColumnType -> ParallelEntityScanFloatKnnTask(entity, knnClause as KnnPredicate<FloatArray>, whereClause, parallelism)

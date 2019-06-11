@@ -7,10 +7,12 @@ import ch.unibas.dmi.dbis.cottontail.database.queries.BooleanPredicate
 import ch.unibas.dmi.dbis.cottontail.database.queries.KnnPredicate
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.basics.ExecutionTask
 import ch.unibas.dmi.dbis.cottontail.math.knn.ComparablePair
+import ch.unibas.dmi.dbis.cottontail.math.knn.HeapSelect
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
 import ch.unibas.dmi.dbis.cottontail.model.values.DoubleValue
 import com.github.dexecutor.core.task.Task
+import java.util.*
 import java.util.concurrent.ConcurrentSkipListSet
 
 /**
@@ -23,7 +25,7 @@ import java.util.concurrent.ConcurrentSkipListSet
 internal class ParallelEntityScanDoubleKnnTask(val entity: Entity, val knn: KnnPredicate<DoubleArray>, val predicate: BooleanPredicate? = null, val parallelism: Short = 2) : ExecutionTask("ParallelEntityScanDoubleKnnTask[${entity.fqn}][${knn.column.name}][${knn.distance::class.simpleName}][${knn.k}][q=${knn.query.hashCode()}]") {
 
     /** Set containing the kNN values. */
-    private val knnSet = ConcurrentSkipListSet<ComparablePair<Long,Double>>()
+    private val knnSet = knn.query.map { HeapSelect<ComparablePair<Long,Double>>(this.knn.k) }
 
     /** List of the [ColumnDef] this instance of [ParallelEntityScanDoubleKnnTask] produces. */
     private val produces: Array<ColumnDef<*>> = arrayOf(ColumnDef("${entity.fqn}.distance", ColumnType.forName("DOUBLE")))
@@ -36,8 +38,8 @@ internal class ParallelEntityScanDoubleKnnTask(val entity: Entity, val knn: KnnP
      */
     override fun execute(): Recordset {
         /* Extract the necessary data. */
-        val query = this.knn.queryAsDoubleArray()
-        val weights = this.knn.weightsAsDoubleArray()
+        val queries = this.knn.query.map {array -> DoubleArray(array.size) { array[it].toDouble() } }
+        val weights = this.knn.weights?.map { array -> DoubleArray(array.size) { array[it].toDouble() } }
         val columns = arrayOf<ColumnDef<*>>(this.knn.column).plus(predicate?.columns?.toTypedArray() ?: emptyArray())
 
         /* Execute kNN lookup. */
@@ -46,10 +48,12 @@ internal class ParallelEntityScanDoubleKnnTask(val entity: Entity, val knn: KnnP
                 if (this.predicate == null || this.predicate.matches(it)) {
                     val value = it[this.knn.column]
                     if (value != null) {
-                        if (weights != null) {
-                            this.addCandidate(it.tupleId, this.knn.distance(query, value.value, weights))
-                        } else {
-                            this.addCandidate(it.tupleId, this.knn.distance(query, value.value))
+                        queries.forEachIndexed { i, query ->
+                            if (weights != null) {
+                                this.knnSet[i].add(ComparablePair(it.tupleId, this.knn.distance(query, value.value, weights[i])))
+                            } else {
+                                this.knnSet[i].add(ComparablePair(it.tupleId, this.knn.distance(query, value.value)))
+                            }
                         }
                     }
                 }
@@ -59,26 +63,11 @@ internal class ParallelEntityScanDoubleKnnTask(val entity: Entity, val knn: KnnP
 
         /* Generate dataset and return it. */
         val dataset = Recordset(this.produces)
-        for (e in knnSet) {
-            dataset.addRowUnsafe(e.first, arrayOf(DoubleValue(e.second)))
+        for (knn in this.knnSet) {
+            for (i in 0 until knn.size) {
+                dataset.addRowUnsafe(knn[i].first, arrayOf(DoubleValue(knn[i].second)))
+            }
         }
         return dataset
-    }
-
-    /**
-     * Adds a candidate to the list of kNN entries if its distance is smaller than
-     * the last entry in the list.
-     *
-     * @param tupleId The tupleID of the candidate.
-     * @param distance: The distance of the candidate.
-     */
-    @Synchronized
-    private fun addCandidate(tupleId: Long, distance: Double) {
-        if (this.knnSet.size < this.knn.k) {
-            this.knnSet.add(ComparablePair(tupleId, distance))
-        } else if (distance <= this.knnSet.last().second) {
-            this.knnSet.pollLast()
-            this.knnSet.add(ComparablePair(tupleId, distance))
-        }
     }
 }

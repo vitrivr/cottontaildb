@@ -12,6 +12,7 @@ import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
 import ch.unibas.dmi.dbis.cottontail.model.values.DoubleValue
 import com.github.dexecutor.core.task.Task
+import java.util.concurrent.ConcurrentSkipListSet
 
 /**
  * A [Task] that executes a sequential boolean kNN on a float [Column] of the specified [Entity].
@@ -21,36 +22,37 @@ import com.github.dexecutor.core.task.Task
  */
 internal class LinearEntityScanDoubleKnnTask(val entity: Entity, val knn: KnnPredicate<DoubleArray>, val predicate: BooleanPredicate? = null) : ExecutionTask("LinearEntityScanDoubleKnnTask[${entity.fqn}][${knn.column.name}][${knn.distance::class.simpleName}][${knn.k}][q=${knn.query.hashCode()}]") {
 
-    /** The cost of this [LinearEntityScanDoubleKnnTask] is constant */
-    override val cost = this.entity.statistics.columns * (this.knn.operations * 1e-5 + (this.predicate?.operations ?: 0) * 1e-5).toFloat()
+    /** Set containing the kNN values. */
+    private val knnSet = knn.query.map { HeapSelect<ComparablePair<Long,Double>>(this.knn.k) }
 
     /** List of the [ColumnDef] this instance of [LinearEntityScanDoubleKnnTask] produces. */
     private val produces: Array<ColumnDef<*>> = arrayOf(ColumnDef("${entity.fqn}.distance", ColumnType.forName("DOUBLE")))
+
+    /** The cost of this [LinearEntityScanDoubleKnnTask] is constant */
+    override val cost = this.entity.statistics.columns * (this.knn.operations * 1e-5 + (this.predicate?.operations ?: 0) * 1e-5).toFloat()
 
     /**
      * Executes this [LinearEntityScanDoubleKnnTask]
      */
     override fun execute(): Recordset {
         /* Extract the necessary data. */
-        val query = this.knn.queryAsDoubleArray()
-        val weights = this.knn.weightsAsDoubleArray()
+        val queries = this.knn.query.map {array -> DoubleArray(array.size) { array[it].toDouble() } }
+        val weights = this.knn.weights?.map { array -> DoubleArray(array.size) { array[it].toDouble() } }
         val columns = arrayOf<ColumnDef<*>>(this.knn.column).plus(predicate?.columns?.toTypedArray() ?: emptyArray())
 
         /* Execute kNN lookup. */
-        val knn = HeapSelect<ComparablePair<Long,Double>>(this.knn.k)
         this.entity.Tx(readonly = true, columns = columns).begin { tx ->
             tx.forEach {
                 if (this.predicate == null || this.predicate.matches(it)) {
                     val value = it[this.knn.column]
                     if (value != null) {
-                        if (weights != null) {
-                            val dist = this.knn.distance(query, value.value, weights)
-                            knn.add(ComparablePair(it.tupleId, dist))
-                        } else {
-                            val dist = this.knn.distance(query, value.value)
-                            knn.add(ComparablePair(it.tupleId, dist))
+                        queries.forEachIndexed { i, query ->
+                            if (weights != null) {
+                                this.knnSet[i].add(ComparablePair(it.tupleId, this.knn.distance(query, value.value, weights[i])))
+                            } else {
+                                this.knnSet[i].add(ComparablePair(it.tupleId, this.knn.distance(query, value.value)))
+                            }
                         }
-
                     }
                 }
             }
@@ -59,8 +61,10 @@ internal class LinearEntityScanDoubleKnnTask(val entity: Entity, val knn: KnnPre
 
         /* Generate dataset and return it. */
         val dataset = Recordset(this.produces)
-        for (i in 0 until knn.size) {
-            dataset.addRowUnsafe(knn[i].first, arrayOf(DoubleValue(knn[i].second)))
+        for (knn in this.knnSet) {
+            for (i in 0 until knn.size) {
+                dataset.addRowUnsafe(knn[i].first, arrayOf(DoubleValue(knn[i].second)))
+            }
         }
         return dataset
     }

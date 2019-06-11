@@ -24,36 +24,37 @@ import com.github.dexecutor.core.task.Task
  */
 internal class LinearEntityScanFloatKnnTask(val entity: Entity, val knn: KnnPredicate<FloatArray>, val predicate: BooleanPredicate? = null) : ExecutionTask("LinearEntityScanFloatKnnTask[${entity.fqn}][${knn.column.name}][${knn.distance::class.simpleName}][${knn.k}][q=${knn.query.hashCode()}]") {
 
-    /** The cost of this [LinearEntityScanFloatKnnTask] is constant */
-    override val cost = entity.statistics.columns * (knn.operations + (predicate?.operations ?: 0)).toFloat()
+    /** Set containing the kNN values. */
+    private val knnSet = this.knn.query.map { HeapSelect<ComparablePair<Long,Double>>(this.knn.k) }
 
-    /** List of the [ColumnDef] this instance of [LinearEntityScanFloatKnnTask] produces. */
+    /** List of the [ColumnDef] this instance of [LinearEntityScanDoubleKnnTask] produces. */
     private val produces: Array<ColumnDef<*>> = arrayOf(ColumnDef("${entity.fqn}.distance", ColumnType.forName("DOUBLE")))
 
+    /** The cost of this [LinearEntityScanDoubleKnnTask] is constant */
+    override val cost = this.entity.statistics.columns * (this.knn.operations * 1e-5 + (this.predicate?.operations ?: 0) * 1e-5).toFloat()
+
     /**
-     * Executes this [LinearEntityScanFloatKnnTask]
+     * Executes this [LinearEntityScanDoubleKnnTask]
      */
     override fun execute(): Recordset {
         /* Extract the necessary data. */
-        val query = this.knn.queryAsFloatArray()
-        val weights = this.knn.weightsAsFloatArray()
+        val queries = this.knn.query.map {array -> FloatArray(array.size) { array[it].toFloat() } }
+        val weights = this.knn.weights?.map { array -> FloatArray(array.size) { array[it].toFloat() } }
         val columns = arrayOf<ColumnDef<*>>(this.knn.column).plus(predicate?.columns?.toTypedArray() ?: emptyArray())
 
         /* Execute kNN lookup. */
-        val knn = HeapSelect<ComparablePair<Long,Double>>(this.knn.k)
         this.entity.Tx(readonly = true, columns = columns).begin { tx ->
             tx.forEach {
                 if (this.predicate == null || this.predicate.matches(it)) {
                     val value = it[this.knn.column]
                     if (value != null) {
-                        if (weights != null) {
-                            val dist = this.knn.distance(query, value.value, weights)
-                            knn.add(ComparablePair(it.tupleId, dist))
-                        } else {
-                            val dist = this.knn.distance(query, value.value)
-                            knn.add(ComparablePair(it.tupleId, dist))
+                        queries.forEachIndexed { i, query ->
+                            if (weights != null) {
+                                this.knnSet[i].add(ComparablePair(it.tupleId, this.knn.distance(query, value.value, weights[i])))
+                            } else {
+                                this.knnSet[i].add(ComparablePair(it.tupleId, this.knn.distance(query, value.value)))
+                            }
                         }
-
                     }
                 }
             }
@@ -62,8 +63,10 @@ internal class LinearEntityScanFloatKnnTask(val entity: Entity, val knn: KnnPred
 
         /* Generate dataset and return it. */
         val dataset = Recordset(this.produces)
-        for (i in 0 until knn.size) {
-            dataset.addRowUnsafe(knn[i].first, arrayOf(DoubleValue(knn[i].second)))
+        for (knn in this.knnSet) {
+            for (i in 0 until knn.size) {
+                dataset.addRowUnsafe(knn[i].first, arrayOf(DoubleValue(knn[i].second)))
+            }
         }
         return dataset
     }

@@ -51,8 +51,8 @@ internal class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterabl
      */
     @Synchronized
     fun addRowUnsafe(values: Array<Value<*>?>) {
-        val tupleId = this.maxTupleId.incrementAndGet()
-        this.map[tupleId] = RecordsetRecord(tupleId).assign(values)
+        val next = this.maxTupleId.incrementAndGet()
+        this.map[next] = RecordsetRecord(next).assign(values)
     }
 
     /**
@@ -64,8 +64,7 @@ internal class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterabl
      */
     @Synchronized
     fun addRowUnsafe(tupleId: Long, values: Array<Value<*>?>) {
-        this.maxTupleId.set(Math.max(this.maxTupleId.get(), tupleId))
-        this.map[tupleId] = RecordsetRecord(tupleId).assign(values)
+        this.map[this.maxTupleId.incrementAndGet()] = RecordsetRecord(tupleId).assign(values)
     }
 
     /**
@@ -81,8 +80,7 @@ internal class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterabl
     fun addRowIfUnsafe(tupleId: Long, predicate: BooleanPredicate, values: Array<Value<*>?>): Boolean {
         val record = RecordsetRecord(tupleId).assign(values)
         return if (predicate.matches(record)) {
-            this.maxTupleId.set(Math.max(this.maxTupleId.get(), tupleId))
-            this.map[tupleId] = record
+            this.map[this.maxTupleId.incrementAndGet()] = record
             true
         } else {
             false
@@ -113,8 +111,7 @@ internal class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterabl
     @Synchronized
     fun addRow(tupleId: Long, record: Record) {
         if (record.columns.contentDeepEquals(this.columns)) {
-            this.maxTupleId.set(Math.max(this.maxTupleId.get(), tupleId))
-            this.map[tupleId] = RecordsetRecord(tupleId).assign(record.values)
+            this.map[this.maxTupleId.incrementAndGet()] = RecordsetRecord(tupleId).assign(record.values)
         } else {
             throw IllegalArgumentException("The provided record (${this.columns.joinToString(".")}) is incompatible with this record set (${this.columns.joinToString(".")}.")
         }
@@ -133,8 +130,7 @@ internal class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterabl
     fun addRowIf(tupleId: Long, predicate: BooleanPredicate, record: Record): Boolean {
         if (record.columns.contentDeepEquals(this.columns)) {
             return if (predicate.matches(record)) {
-                this.maxTupleId.set(Math.max(this.maxTupleId.get(), tupleId))
-                this.map[tupleId] = record
+                this.map[this.maxTupleId.incrementAndGet()] = record
                 true
             } else {
                 false

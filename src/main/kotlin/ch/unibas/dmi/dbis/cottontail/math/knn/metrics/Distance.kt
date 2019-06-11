@@ -8,29 +8,25 @@ enum class Distance : DistanceFunction {
         override val operations: Int = 1
 
         override fun invoke(a: FloatArray, b: FloatArray, weights: FloatArray): Double {
+            var sum = 0.0
             for (i in 0 until b.size) {
-                b[i] = b[i] - a[i]
-                if (b[i] < 0.0) b[i] = 0.0f-b[i]
-                b[i] = b[i] * weights[i]
+                sum += StrictMath.abs(b[i] - a[i]) * weights[i]
             }
-            return b.sum().toDouble()
+            return sum
         }
 
         override fun invoke(a: DoubleArray, b: DoubleArray, weights: DoubleArray): Double {
+            var sum = 0.0
             for (i in 0 until b.size) {
-                b[i] = b[i] - a[i]
-                if (b[i] < 0.0) b[i] = 0.0-b[i]
-                b[i] = b[i] * weights[i]
+                sum += StrictMath.abs(b[i] - a[i]) * weights[i]
             }
-            return b.sum()
+            return sum
         }
 
         override fun invoke(a: LongArray, b: LongArray, weights: FloatArray): Double {
             var sum = 0.0
             for (i in 0 until b.size) {
-                b[i] = b[i] - a[i]
-                if (b[i] < 0L) b[i] = 0L-b[i]
-                sum += b[i] * weights[i]
+                sum += StrictMath.abs(b[i] - a[i]) * weights[i]
             }
             return sum
         }
@@ -38,43 +34,41 @@ enum class Distance : DistanceFunction {
         override fun invoke(a: IntArray, b: IntArray, weights: FloatArray): Double {
             var sum = 0.0
             for (i in 0 until b.size) {
-                b[i] = b[i] - a[i]
-                if (b[i] < 0) b[i] = 0-b[i]
-                sum += b[i] * weights[i]
+                sum += StrictMath.abs(b[i] - a[i]) * weights[i]
             }
             return sum
         }
 
         override fun invoke(a: FloatArray, b: FloatArray): Double {
+            var sum = 0.0
             for (i in 0 until b.size) {
-                b[i] = b[i] - a[i]
-                if (b[i] < 0.0) b[i] = 0.0f-b[i]
+                sum += StrictMath.abs(b[i] - a[i])
             }
-            return b.sum().toDouble()
+            return sum
         }
 
         override fun invoke(a: DoubleArray, b: DoubleArray): Double {
+            var sum = 0.0
             for (i in 0 until b.size) {
-                b[i] = b[i] - a[i]
-                if (b[i] < 0.0) b[i] = 0.0-b[i]
+                sum += StrictMath.abs(b[i] - a[i])
             }
-            return b.sum()
+            return sum
         }
 
         override fun invoke(a: LongArray, b: LongArray): Double {
+            var sum = 0.0
             for (i in 0 until b.size) {
-                b[i] = b[i] - a[i]
-                if (b[i] < 0L) b[i] = 0L-b[i]
+                sum += StrictMath.abs(b[i] - a[i])
             }
-            return b.sum().toDouble()
+            return sum
         }
 
         override fun invoke(a: IntArray, b: IntArray): Double {
+            var sum = 0.0
             for (i in 0 until b.size) {
-                b[i] = b[i] - a[i]
-                if (b[i] < 0) b[i] = 0-b[i]
+                sum += StrictMath.abs(b[i] - a[i])
             }
-            return b.sum().toDouble()
+            return sum
         }
     },
 
@@ -83,64 +77,14 @@ enum class Distance : DistanceFunction {
      */
     L2 {
         override val operations: Int = 2
-
-        override fun invoke(a: FloatArray, b: FloatArray, weights: FloatArray): Double {
-            for (i in 0 until b.size) {
-                b[i] = (b[i] - a[i]) * (b[i] - a[i]) * weights[i]
-            }
-            return StrictMath.sqrt(b.sum().toDouble())
-        }
-
-        override fun invoke(a: DoubleArray, b: DoubleArray, weights: DoubleArray): Double {
-            for (i in 0 until b.size) {
-                b[i] = (b[i] - a[i]) * (b[i] - a[i]) * weights[i]
-            }
-            return StrictMath.sqrt(b.sum())
-        }
-
-        override fun invoke(a: LongArray, b: LongArray, weights: FloatArray): Double {
-            var sum = 0.0
-            for (i in 0 until b.size) {
-                sum += (b[i] - a[i]) * (b[i] - a[i]) * weights[i]
-            }
-            return StrictMath.sqrt(sum)
-        }
-
-        override fun invoke(a: IntArray, b: IntArray, weights: FloatArray): Double {
-            var sum = 0.0
-            for (i in 0 until b.size) {
-                sum += (b[i] - a[i]) * (b[i] - a[i]) * weights[i]
-            }
-            return StrictMath.sqrt(sum)
-        }
-
-        override fun invoke(a: FloatArray, b: FloatArray): Double {
-            for (i in 0 until b.size) {
-                b[i] = (b[i] - a[i]) * (b[i] - a[i])
-            }
-            return StrictMath.sqrt(b.sum().toDouble())
-        }
-
-        override fun invoke(a: DoubleArray, b: DoubleArray): Double {
-            for (i in 0 until b.size) {
-                b[i] = (b[i] - a[i]) * (b[i] - a[i])
-            }
-            return StrictMath.sqrt(b.sum())
-        }
-
-        override fun invoke(a: LongArray, b: LongArray): Double {
-            for (i in 0 until b.size) {
-                b[i] = (b[i] - a[i]) * (b[i] - a[i])
-            }
-            return StrictMath.sqrt(b.sum().toDouble())
-        }
-
-        override fun invoke(a: IntArray, b: IntArray): Double {
-            for (i in 0 until b.size) {
-                b[i] = (b[i] - a[i]) * (b[i] - a[i])
-            }
-            return StrictMath.sqrt(b.sum().toDouble())
-        }
+        override fun invoke(a: FloatArray, b: FloatArray, weights: FloatArray): Double = StrictMath.sqrt(L2SQUARED(a, b, weights))
+        override fun invoke(a: DoubleArray, b: DoubleArray, weights: DoubleArray): Double = StrictMath.sqrt(L2SQUARED(a, b, weights))
+        override fun invoke(a: LongArray, b: LongArray, weights: FloatArray): Double = StrictMath.sqrt(L2SQUARED(a, b, weights))
+        override fun invoke(a: IntArray, b: IntArray, weights: FloatArray): Double = StrictMath.sqrt(L2SQUARED(a, b, weights))
+        override fun invoke(a: FloatArray, b: FloatArray): Double = StrictMath.sqrt(L2SQUARED(a, b))
+        override fun invoke(a: DoubleArray, b: DoubleArray): Double = StrictMath.sqrt(L2SQUARED(a, b))
+        override fun invoke(a: LongArray, b: LongArray): Double = StrictMath.sqrt(L2SQUARED(a, b))
+        override fun invoke(a: IntArray, b: IntArray): Double = StrictMath.sqrt(L2SQUARED(a, b))
     },
 
     /**
@@ -150,17 +94,19 @@ enum class Distance : DistanceFunction {
         override val operations: Int = 2
 
         override fun invoke(a: FloatArray, b: FloatArray, weights: FloatArray): Double {
+            var sum = 0.0
             for (i in 0 until b.size) {
-                b[i] = (b[i] - a[i]) * (b[i] - a[i]) * weights[i]
+                sum += (b[i] - a[i]) * (b[i] - a[i]) * weights[i]
             }
-            return b.sum().toDouble()
+            return sum
         }
 
         override fun invoke(a: DoubleArray, b: DoubleArray, weights: DoubleArray): Double {
+            var sum = 0.0
             for (i in 0 until b.size) {
-                b[i] = (b[i] - a[i]) * (b[i] - a[i]) * weights[i]
+                sum += (b[i] - a[i]) * (b[i] - a[i]) * weights[i]
             }
-            return b.sum()
+            return sum
         }
 
         override fun invoke(a: LongArray, b: LongArray, weights: FloatArray): Double {
@@ -180,31 +126,35 @@ enum class Distance : DistanceFunction {
         }
 
         override fun invoke(a: FloatArray, b: FloatArray): Double {
+            var sum = 0.0
             for (i in 0 until b.size) {
-                b[i] = (b[i] - a[i]) * (b[i] - a[i])
+                sum += (b[i] - a[i]) * (b[i] - a[i])
             }
-            return b.sum().toDouble()
+            return sum
         }
 
         override fun invoke(a: DoubleArray, b: DoubleArray): Double {
+            var sum = 0.0
             for (i in 0 until b.size) {
-                b[i] = (b[i] - a[i]) * (b[i] - a[i])
+                sum += (b[i] - a[i]) * (b[i] - a[i])
             }
-            return b.sum()
+            return sum
         }
 
         override fun invoke(a: LongArray, b: LongArray): Double {
+            var sum = 0.0
             for (i in 0 until b.size) {
-                b[i] = (b[i] - a[i]) * (b[i] - a[i])
+                sum += (b[i] - a[i]) * (b[i] - a[i])
             }
-            return b.sum().toDouble()
+            return sum
         }
 
         override fun invoke(a: IntArray, b: IntArray): Double {
+            var sum = 0.0
             for (i in 0 until b.size) {
-                b[i] = (b[i] - a[i]) * (b[i] - a[i])
+                sum += (b[i] - a[i]) * (b[i] - a[i])
             }
-            return b.sum().toDouble()
+            return sum
         }
     },
 
@@ -216,35 +166,31 @@ enum class Distance : DistanceFunction {
         override val operations: Int = 3
 
         override fun invoke(a: FloatArray, b: FloatArray, weights: FloatArray): Double {
+            var sum = 0.0
             for (i in 0 until b.size) {
-                if (Math.abs(a[i] + b[i]) < 1e-6) {
-                    b[i] = 0f
-                }else{
-                    b[i] = ((b[i] - a[i]) * (b[i] - a[i])) / (b[i] + a[i]) * weights[i]
+                if (Math.abs(a[i] + b[i]) > 1e-6) {
+                    sum += ((b[i] - a[i]) * (b[i] - a[i])) / (b[i] + a[i]) * weights[i]
                 }
-
             }
-            return b.sum().toDouble()
+            return sum
         }
 
         override fun invoke(a: DoubleArray, b: DoubleArray, weights: DoubleArray): Double {
+            var sum = 0.0
             for (i in 0 until b.size) {
-                if (Math.abs(a[i] + b[i]) < 1e-6) {
-                    b[i] = 0.0
-                } else {
-                    b[i] = ((b[i] - a[i]) * (b[i] - a[i])) / (b[i] + a[i]) * weights[i]
+                if (Math.abs(a[i] + b[i]) > 1e-6) {
+                    sum += ((b[i] - a[i]) * (b[i] - a[i])) / (b[i] + a[i]) * weights[i]
                 }
             }
-            return b.sum()
+            return sum
         }
 
         override fun invoke(a: LongArray, b: LongArray, weights: FloatArray): Double {
             var sum = 0.0
             for (i in 0 until b.size) {
-                if((a[i] + b[i]) == 0L){
-                    continue
+                if (Math.abs(a[i] + b[i]) > 0) {
+                    sum += ((b[i] - a[i]) * (b[i] - a[i])) / (b[i] + a[i]) * weights[i]
                 }
-                sum += ((b[i] - a[i]) * (b[i] - a[i])) / (b[i] + a[i]) * weights[i]
             }
             return sum
         }
@@ -252,43 +198,39 @@ enum class Distance : DistanceFunction {
         override fun invoke(a: IntArray, b: IntArray, weights: FloatArray): Double {
             var sum = 0.0
             for (i in 0 until b.size) {
-                if((a[i] + b[i]) == 0){
-                    continue
+                if (Math.abs(a[i] + b[i]) > 0) {
+                    sum += ((b[i] - a[i]) * (b[i] - a[i])) / (b[i] + a[i]) * weights[i]
                 }
-                sum += ((b[i] - a[i]) * (b[i] - a[i])) / (b[i] + a[i]) * weights[i]
             }
             return sum
         }
 
         override fun invoke(a: FloatArray, b: FloatArray): Double {
+            var sum = 0.0
             for (i in 0 until b.size) {
-                if (Math.abs(a[i] + b[i]) < 1e-6) {
-                    b[i] = 0f
-                } else {
-                    b[i] = ((b[i] - a[i]) * (b[i] - a[i])) / (b[i] + a[i])
+                if (Math.abs(a[i] + b[i]) > 1e-6) {
+                    sum += ((b[i] - a[i]) * (b[i] - a[i])) / (b[i] + a[i])
                 }
             }
-            return b.sum().toDouble()
+            return sum
         }
 
         override fun invoke(a: DoubleArray, b: DoubleArray): Double {
+            var sum = 0.0
             for (i in 0 until b.size) {
-                if (Math.abs(a[i] + b[i]) < 1e-6) {
-                    b[i] = 0.0
-                } else {
-                    b[i] = ((b[i] - a[i]) * (b[i] - a[i])) / (b[i] + a[i])
+                if (Math.abs(a[i] + b[i]) > 1e-6) {
+                    sum += ((b[i] - a[i]) * (b[i] - a[i])) / (b[i] + a[i])
                 }
             }
-            return b.sum()
+            return sum
         }
 
         override fun invoke(a: LongArray, b: LongArray): Double {
             var sum = 0.0
             for (i in 0 until b.size) {
-                if((a[i] + b[i]) == 0L){
-                    continue
+                if (Math.abs(a[i] + b[i]) > 0) {
+                    sum += ((b[i] - a[i]) * (b[i] - a[i])) / (b[i] + a[i])
                 }
-                sum += ((b[i] - a[i]) * (b[i] - a[i])) / (b[i] + a[i])
             }
             return sum
         }
@@ -296,10 +238,9 @@ enum class Distance : DistanceFunction {
         override fun invoke(a: IntArray, b: IntArray): Double {
             var sum = 0.0
             for (i in 0 until b.size) {
-                if((a[i] + b[i]) == 0){
-                    continue
+                if (Math.abs(a[i] + b[i]) > 0) {
+                    sum += ((b[i] - a[i]) * (b[i] - a[i])) / (b[i] + a[i])
                 }
-                sum += ((b[i] - a[i]) * (b[i] - a[i])) / (b[i] + a[i])
             }
             return sum
         }
