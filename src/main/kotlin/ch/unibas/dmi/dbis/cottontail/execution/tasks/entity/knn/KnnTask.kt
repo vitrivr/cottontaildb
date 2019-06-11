@@ -28,7 +28,7 @@ internal object KnnTask {
      */
     @Suppress("UNCHECKED_CAST")
     fun entityScanTaskForPredicate(entity: Entity, knnClause: KnnPredicate<*>, whereClause: BooleanPredicate?) : ExecutionTask {
-        val operations = knnClause.query.size * entity.statistics.rows * (knnClause.operations + (whereClause?.operations ?: 0))
+        val operations = knnClause.query.first().size * entity.statistics.rows * (knnClause.operations + (whereClause?.operations ?: 0))
         val parallelism = Math.min(Math.floorDiv(operations, KNN_OP_PARALLELISM_THRESHOLD).toInt(), Runtime.getRuntime().availableProcessors()).toShort()
         return when {
             parallelism > 1 && knnClause.column.type is DoubleArrayColumnType -> ParallelEntityScanDoubleKnnTask(entity, knnClause as KnnPredicate<DoubleArray>, whereClause, parallelism)
