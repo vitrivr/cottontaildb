@@ -393,7 +393,7 @@ internal class MapDBColumn<T : Any>(override val name: Name, override val parent
                 }
 
                 /* Co-routine that reads the data TupleIDs. */
-                repeat(Math.min(parallelism.toInt(), 1)) {
+                repeat(Math.max(parallelism.toInt(), 1)) {
                    launch (Dispatchers.Default) {
                        while (!producer.isClosedForReceive) {
                            val recordId = producer.receive()
@@ -432,7 +432,7 @@ internal class MapDBColumn<T : Any>(override val name: Name, override val parent
                 }
 
                 /* Co-routine that reads the data TupleIDs. */
-                repeat(Math.min(parallelism.toInt(), 1)) {
+                repeat(Math.max(parallelism.toInt(), 1)) {
                     launch (context = Dispatchers.Default) {
                         while(!producer.isClosedForReceive) {
                             val recordId = producer.receive()
@@ -474,7 +474,7 @@ internal class MapDBColumn<T : Any>(override val name: Name, override val parent
                     }
 
                     /* Co-routine that reads the data TupleIDs. */
-                    repeat(Math.min(parallelism.toInt(), 1)) {
+                    repeat(Math.max(parallelism.toInt(), 1)) {
                         launch (Dispatchers.Default) {
                             while (!producer.isClosedForReceive) {
                                 val recordId = producer.receive()
@@ -518,7 +518,7 @@ internal class MapDBColumn<T : Any>(override val name: Name, override val parent
                     }
 
                     /* Co-routine that reads the data TupleIDs. */
-                    repeat(Math.min(parallelism.toInt(), 1)) {
+                    repeat(Math.max(parallelism.toInt(), 1)) {
                         launch (context = Dispatchers.Default) {
                             while(!producer.isClosedForReceive) {
                                 val recordId = producer.receive()
@@ -565,7 +565,7 @@ internal class MapDBColumn<T : Any>(override val name: Name, override val parent
                     }
 
                     /* Co-routine that reads the data TupleIDs. */
-                    repeat(Math.min(parallelism.toInt(), 1)) {
+                    repeat(Math.max(parallelism.toInt(), 1)) {
                         launch (context = Dispatchers.Default) {
                             while(!producer.isClosedForReceive) {
                                 val recordId = producer.receive()
