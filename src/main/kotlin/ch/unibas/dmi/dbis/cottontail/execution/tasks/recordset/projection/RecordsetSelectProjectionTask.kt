@@ -64,7 +64,7 @@ internal class RecordsetSelectProjectionTask (val projection: Projection, estima
 
         /* Create new Recordset with specified columns and return it . */
         return if (dropIndex.size > 0 && renameIndex.size > 0) {
-            parent.dropColumnsWithIndex(dropIndex).renameColumnsWithIndex(renameIndex)
+            parent.renameColumnsWithIndex(renameIndex).dropColumnsWithIndex(dropIndex)
         } else if (renameIndex.size > 0) {
             parent.renameColumnsWithIndex(renameIndex)
         } else if (dropIndex.size > 0) {
