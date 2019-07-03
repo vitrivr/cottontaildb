@@ -5,7 +5,7 @@ import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
 import ch.unibas.dmi.dbis.cottontail.database.general.begin
 import ch.unibas.dmi.dbis.cottontail.database.index.Index
 import ch.unibas.dmi.dbis.cottontail.database.index.IndexType
-import ch.unibas.dmi.dbis.cottontail.database.index.lucene.LuceneIndex
+import ch.unibas.dmi.dbis.cottontail.utilities.write
 import ch.unibas.dmi.dbis.cottontail.database.queries.AtomicBooleanPredicate
 import ch.unibas.dmi.dbis.cottontail.database.queries.ComparisonOperator
 import ch.unibas.dmi.dbis.cottontail.database.queries.Predicate
@@ -20,8 +20,6 @@ import org.mapdb.DBMaker
 import org.mapdb.HTreeMap
 import java.nio.file.Path
 import org.mapdb.Serializer
-import kotlin.concurrent.write
-
 
 /**
  * Represents an index in the Cottontail DB data model. An [Index] belongs to an [Entity] and can be used to index one to many
