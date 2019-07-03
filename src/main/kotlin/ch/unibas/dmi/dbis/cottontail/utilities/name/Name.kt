@@ -2,7 +2,6 @@ package ch.unibas.dmi.dbis.cottontail.utilities.name
 
 import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
-import javax.annotation.RegEx
 
 /** The separator between Cottontail DB name components. */
 const val COTTONTAIL_NAME_COMPONENT_SEPARATOR = '.'
@@ -21,6 +20,11 @@ fun Name.isValid(type: NameType = NameType.FQN): Boolean = when(type) {
     NameType.FQN_WILDCARD ->  this.matches(Regex("^([a-zA-Z0-9\\-_]+){1}(\\.([a-zA-Z0-9\\-_]+|\\*)){0,3}\$"))
     NameType.WILDCARD -> this.matches(Regex("^\\*\$"))
 }
+
+/**
+ * Normalizes the provided name by making it lower case. In the future, normalization might involve further steps.
+ */
+fun Name.normalize() = this.toLowerCase()
 
 /**
  * Appends the other [Name] to this [Name].

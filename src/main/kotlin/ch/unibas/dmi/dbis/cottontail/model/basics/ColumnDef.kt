@@ -5,27 +5,34 @@ import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.ValidationException
 import ch.unibas.dmi.dbis.cottontail.model.values.*
 import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
+
 import java.lang.RuntimeException
 
 /**
  * A definition class for a Cottontail DB column be it in a DB or in-memory context.  Specifies all the properties of such a and facilitates validation.
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.1
  */
-class ColumnDef<T: Any>(val name: Name, val type: ColumnType<T>, val size: Int = -1, val nullable: Boolean = true) {
+class ColumnDef<T: Any> (name: Name, val type: ColumnType<T>, val size: Int = -1, val nullable: Boolean = true) {
+
+    /**
+     * Companion object with some convenience methods.
+     */
     companion object {
         /**
-         * Returns a [ColumnDef] with the provided attributes. The only difference as compared to using the constructor,
-         * is that the [ColumnType] can be provided by name.
+         * Returns a [ColumnDef] with the provided attributes. The only difference as compared to using the constructor, is that the [ColumnType] can be provided by name.
          *
-         * @param column Name of the new [Column]
+         * @param name Name of the new [Column]
          * @param type Name of the [ColumnType] of the new [Column]
          * @param size Size of the new [Column] (e.g. for vectors), where eligible.
          * @param nullable Whether or not the [Column] should be nullable.
          */
-        fun withAttributes(column: Name, type: String, size: Int = -1, nullable: Boolean = true): ColumnDef<*> = ColumnDef(column, ColumnType.forName(type), size, nullable)
+        fun withAttributes(name: Name, type: String, size: Int = -1, nullable: Boolean = true): ColumnDef<*> = ColumnDef(name.toLowerCase(), ColumnType.forName(type), size, nullable)
     }
+
+    /** The [Name] of this [ColumnDef]. Lower-case values are enforced since Cottontail DB is not case-sensitive! */
+    val name = name.toLowerCase()
 
     /**
      * Validates a value with regard to this [ColumnDef] and throws an Exception, if validation fails.
