@@ -6,7 +6,7 @@ package ch.unibas.dmi.dbis.cottontail.math.knn
  * @author Ralph Gasser
  * @version 1.0
  */
-class HeapSelect<T: Comparable<T>> (val k: Int) {
+class HeapSelect<T : Comparable<T>>(val k: Int) {
 
     /** Indicates whether this [HeapSelect] is currently sorted or not. */
     @Volatile
@@ -43,7 +43,7 @@ class HeapSelect<T: Comparable<T>> (val k: Int) {
             this.added += 1
             if (data < this.heap[0]) {
                 this.heap[0] = data
-                siftDown(0, this.k-1);
+                siftDown(0, this.k - 1);
             }
         }
     }
@@ -66,7 +66,7 @@ class HeapSelect<T: Comparable<T>> (val k: Int) {
     @Synchronized
     operator fun get(i: Int): T {
         if (i > Math.min(k, this.added) - 1) {
-            throw IllegalArgumentException("HeapSelect i is greater than the number of data received so far.")
+            throw IllegalArgumentException("HeapSelect i is either greater than the number of data received so far: ${this.added} or greater than k: $k.")
         }
 
         if (i == this.k - 1) {
@@ -77,7 +77,7 @@ class HeapSelect<T: Comparable<T>> (val k: Int) {
             this.sort()
         }
 
-        return this.heap[this.k - 1 - i]
+        return this.heap[Math.min(this.k, this.added) - 1 - i]
     }
 
 
@@ -138,6 +138,6 @@ class HeapSelect<T: Comparable<T>> (val k: Int) {
     private fun heapify() {
         val n = this.heap.size
         for (i in n / 2 - 1 downTo 0)
-            siftDown(i, n-1)
+            siftDown(i, n - 1)
     }
 }
