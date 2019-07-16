@@ -11,7 +11,7 @@ import io.grpc.ManagedChannelBuilder
 object DatabasePreview {
 
 
-    val channel = ManagedChannelBuilder.forAddress("127.0.0.1", 1864).usePlaintext().build()
+    val channel = ManagedChannelBuilder.forAddress("127.0.0.1", 1865).usePlaintext().build()
 
     val dqlService = CottonDQLGrpc.newBlockingStub(channel)
     val ddlService = CottonDDLGrpc.newBlockingStub(channel)
@@ -36,14 +36,14 @@ object DatabasePreview {
                     "optimize" -> {
                         if (input.size < 3) {
                             println("optimize syntax is: optimize <schema> <entity> [<count>]")
-                            break@loop
+                            continue@loop
                         }
                         optimizeEntity(input[1], input[2])
                     }
                     "preview" -> {  //preview schema entity [count]
                         if (input.size < 3) {
                             println("preview syntax is: preview <schema> <entity> [<count>]")
-                            break@loop
+                            continue@loop
                         }
                         if (input.size == 4) {
                             previewEntity(input[1], input[2], input[3].toLong())
@@ -54,7 +54,7 @@ object DatabasePreview {
                     "count" -> {  //preview schema entity [count]
                         if (input.size < 3) {
                             println("count syntax is: count <schema> <entity> [<count>]")
-                            break@loop
+                            continue@loop
                         }
                         countEntity(input[1], input[2])
                     }
