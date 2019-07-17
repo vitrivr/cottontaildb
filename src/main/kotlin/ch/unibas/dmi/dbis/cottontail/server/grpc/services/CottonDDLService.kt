@@ -183,7 +183,7 @@ internal class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.Cotton
      */
     override fun dropIndex(request: CottontailGrpc.DropIndexMessage, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) = try {
         if (!(request.index.name as Name).isValid(NameType.SIMPLE)) {
-            responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Failed to create index: Invalid name '${request.index.name}'.").asException())
+            responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Failed to drop index: Invalid name '${request.index.name}'.").asException())
         } else {
             this.catalogue.schemaForName(request.index.entity.schema.name).entityForName(request.index.entity.name).dropIndex(request.index.name)
 
