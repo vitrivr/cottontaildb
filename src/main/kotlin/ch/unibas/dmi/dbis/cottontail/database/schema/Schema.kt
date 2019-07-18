@@ -65,7 +65,7 @@ internal class Schema(n: Name, override val path: Path, override val parent: Cat
 
     /** Returns a list of [Entity] held by this [Schema]. */
     val entities: List<String>
-        get() = header.entities.map { this.store.get(it, Serializer.STRING)?.toLowerCase() ?: throw DatabaseException.DataCorruptionException("Failed to read schema $fqn ($path): Could not find entity name of ID $it.") }
+        get() = header.entities.map { this.store.get(it, Serializer.STRING) ?: throw DatabaseException.DataCorruptionException("Failed to read schema $fqn ($path): Could not find entity name of ID $it.") }
 
     /** Size of the [Schema] in terms of [Entity] objects it contains. */
     val size
@@ -149,6 +149,9 @@ internal class Schema(n: Name, override val path: Path, override val parent: Cat
         }
 
         val entityRecId = this.header.entities.find { this.store.get(it, Serializer.STRING) == normalizedName } ?: throw DatabaseException.EntityDoesNotExistException("$fqn.$normalizedName")
+
+        val entity = this.entityForName(normalizedName)
+        entity.allIndexes().forEach { entity.dropIndex(it.name) }
 
         /* Unload the entity and remove it. */
         this.unload(normalizedName)
