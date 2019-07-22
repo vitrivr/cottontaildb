@@ -93,7 +93,7 @@ internal class LuceneIndex(override val name: Name, override val parent: Entity,
     override fun rebuild() {
         val writer = IndexWriter(this.directory, IndexWriterConfig(StandardAnalyzer()).setOpenMode(IndexWriterConfig.OpenMode.APPEND).setCommitOnClose(true))
         writer.deleteAll()
-        this.parent.Tx(readonly = true, columns = this.columns).begin { tx ->
+        this.parent.Tx(readonly = true, columns = this.columns, ommitIndex = true).begin { tx ->
             tx.forEach (parallelism = 2) {
                 writer.addDocument(documentFromRecord(it))
             }
