@@ -153,22 +153,44 @@ internal class Entity(n: Name, schema: Schema) : DBO {
      * @param type Type of the [Index] to create.
      * @param columns The list of [columns] to [Index].
      */
-    fun createIndex(name: Name, type: IndexType, columns: Array<ColumnDef<*>>, params: Map<String,String> = emptyMap()) = this.globalLock.write {
+    fun createIndex(name: Name, type: IndexType, columns: Array<ColumnDef<*>>, params: Map<String,String> = emptyMap()) {
         /* Check the type of name. */
         val nameNormalized = name.normalize()
         if (nameNormalized.type() != NameType.SIMPLE) {
             throw IllegalArgumentException("The provided name '$nameNormalized' is of type '${name.type()}  and cannot be used to access an index through an entity.")
         }
 
-        val indexEntry = this.header.indexes.map {
-            Pair(it, this.store.get(it, IndexEntrySerializer) ?: throw DatabaseException.DataCorruptionException("Failed to create index '$fqn.$nameNormalized': Could not read index definition at position $it!"))
-        }.find { it.second.name == nameNormalized }
+        /* Creates new index. */
+        val index: Index = this.globalLock.write {
+            val indexEntry = this.header.indexes.map {
+                Pair(it, this.store.get(it, IndexEntrySerializer) ?: throw DatabaseException.DataCorruptionException("Failed to create index '$fqn.$nameNormalized': Could not read index definition at position $it!"))
+            }.find { it.second.name == nameNormalized }
 
-        if (indexEntry != null) throw DatabaseException.IndexAlreadyExistsException("$fqn.$nameNormalized")
+            if (indexEntry != null) throw DatabaseException.IndexAlreadyExistsException("$fqn.$nameNormalized")
 
-        /* Creates and opens the index. */
-        val index = type.create(nameNormalized, this, columns, params)
-        this.indexes.add(index)
+            /* Creates and opens the index. */
+            val newIndex = type.create(nameNormalized, this, columns, params)
+            this.indexes.add(newIndex)
+
+            /* Update catalogue + header. */
+            try {
+                /* Update catalogue. */
+                val sid = this.store.put(IndexEntry(nameNormalized, type, false, columns.map { it.name }.toTypedArray()), IndexEntrySerializer)
+
+                /* Update header. */
+                val new = this.header.let { EntityHeader(it.size, it.created, System.currentTimeMillis(), it.columns, it.indexes.copyOf(it.indexes.size + 1)) }
+                new.indexes[new.indexes.size-1] = sid
+                this.store.update(Entity.HEADER_RECORD_ID, new, EntityHeaderSerializer)
+                this.store.commit()
+            } catch (e: DBException) {
+                this.store.rollback()
+                val pathsToDelete = Files.walk(newIndex.path).sorted(Comparator.reverseOrder()).collect(Collectors.toList())
+                pathsToDelete.forEach { Files.delete(it) }
+                throw DatabaseException("Failed to create index '$.fqn.$nameNormalized' due to a storage exception: ${e.message}")
+            }
+
+            newIndex
+        }
 
         /* Rebuilds the index. */
         try {
@@ -180,24 +202,9 @@ internal class Entity(n: Name, schema: Schema) : DBO {
             pathsToDelete.forEach { Files.delete(it) }
             throw DatabaseException("Failed to create index '$.fqn.$nameNormalized' due to a build failure: ${e.message}")
         }
-
-        /* Update catalogue + header. */
-        try {
-            /* Update catalogue. */
-            val sid = this.store.put(IndexEntry(nameNormalized, type, false, columns.map { it.name }.toTypedArray()), IndexEntrySerializer)
-
-            /* Update header. */
-            val new = this.header.let { EntityHeader(it.size, it.created, System.currentTimeMillis(), it.columns, it.indexes.copyOf(it.indexes.size + 1)) }
-            new.indexes[new.indexes.size-1] = sid
-            this.store.update(Entity.HEADER_RECORD_ID, new, EntityHeaderSerializer)
-            this.store.commit()
-        } catch (e: DBException) {
-            this.store.rollback()
-            val pathsToDelete = Files.walk(index.path).sorted(Comparator.reverseOrder()).collect(Collectors.toList())
-            pathsToDelete.forEach { Files.delete(it) }
-            throw DatabaseException("Failed to create index '$.fqn.$nameNormalized' due to a storage exception: ${e.message}")
-        }
     }
+
+
 
     /**
      * Drops the [Index] with the given name.
