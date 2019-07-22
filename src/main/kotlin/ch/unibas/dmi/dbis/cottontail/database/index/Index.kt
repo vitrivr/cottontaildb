@@ -167,7 +167,6 @@ internal abstract class Index : DBO {
             this@Index.txLock.readLock()
         } else {
             this@Index.txLock.writeLock()
-
         }
 
         /** The [ColumnDef]s covered by the [Index] that underpins this [IndexTransaction]. */

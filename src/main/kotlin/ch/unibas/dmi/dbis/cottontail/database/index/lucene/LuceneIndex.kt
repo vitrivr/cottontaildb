@@ -102,11 +102,9 @@ internal class LuceneIndex(override val name: Name, override val parent: Entity,
         writer.close()
 
         /* Open new IndexReader and close new one. */
-        this.globalLock.write {
-            val oldReader = this.indexReader
-            this.indexReader = DirectoryReader.open(this.directory)
-            oldReader.close()
-        }
+        val oldReader = this.indexReader
+        this.indexReader = DirectoryReader.open(this.directory)
+        oldReader.close()
     }
 
     /**
