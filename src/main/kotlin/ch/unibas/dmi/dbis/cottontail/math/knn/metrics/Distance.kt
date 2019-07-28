@@ -244,5 +244,163 @@ enum class Distance : DistanceFunction {
             }
             return sum
         }
+    },
+
+    COSINE {
+        override val operations: Int = 3
+
+        override fun invoke(a: FloatArray, b: FloatArray, weights: FloatArray): Double {
+            var dot = 0.0
+            var c = 0.0
+            var d = 0.0
+
+            for (i in 0 until b.size) {
+                dot += a[i] * b[i] * weights[i]
+                c += a[i] * a[i] * weights[i]
+                d += b[i] * b[i] * weights[i]
+            }
+            val div = StrictMath.sqrt(c) * StrictMath.sqrt(d)
+
+            return if (div < 1e-6 || div.isNaN()) {
+                1.0
+            } else {
+                1.0 - dot / div
+            }
+
+        }
+
+        override fun invoke(a: DoubleArray, b: DoubleArray, weights: DoubleArray): Double {
+            var dot = 0.0
+            var c = 0.0
+            var d = 0.0
+
+            for (i in 0 until b.size) {
+                dot += a[i] * b[i] * weights[i]
+                c += a[i] * a[i] * weights[i]
+                d += b[i] * b[i] * weights[i]
+            }
+            val div = StrictMath.sqrt(c) * StrictMath.sqrt(d)
+
+            return if (div < 1e-6 || div.isNaN()) {
+                1.0
+            } else {
+                1.0 - dot / div
+            }
+        }
+
+        override fun invoke(a: LongArray, b: LongArray, weights: FloatArray): Double {
+            var dot = 0.0
+            var c = 0.0
+            var d = 0.0
+
+            for (i in 0 until b.size) {
+                dot += a[i] * b[i] * weights[i]
+                c += a[i] * a[i] * weights[i]
+                d += b[i] * b[i] * weights[i]
+            }
+            val div = StrictMath.sqrt(c) * StrictMath.sqrt(d)
+
+            return if (div < 1e-6 || div.isNaN()) {
+                1.0
+            } else {
+                1.0 - dot / div
+            }
+        }
+
+        override fun invoke(a: IntArray, b: IntArray, weights: FloatArray): Double {
+            var dot = 0.0
+            var c = 0.0
+            var d = 0.0
+
+            for (i in 0 until b.size) {
+                dot += a[i] * b[i] * weights[i]
+                c += a[i] * a[i] * weights[i]
+                d += b[i] * b[i] * weights[i]
+            }
+            val div = StrictMath.sqrt(c) * StrictMath.sqrt(d)
+
+            return if (div < 1e-6 || div.isNaN()) {
+                1.0
+            } else {
+                1.0 - dot / div
+            }
+        }
+
+        override fun invoke(a: FloatArray, b: FloatArray): Double {
+            var dot = 0.0
+            var c = 0.0
+            var d = 0.0
+
+            for (i in 0 until b.size) {
+                dot += a[i] * b[i]
+                c += a[i] * a[i]
+                d += b[i] * b[i]
+            }
+            val div = StrictMath.sqrt(c) * StrictMath.sqrt(d)
+
+            return if (div < 1e-6 || div.isNaN()) {
+                1.0
+            } else {
+                1.0 - dot / div
+            }
+        }
+
+        override fun invoke(a: DoubleArray, b: DoubleArray): Double {
+            var dot = 0.0
+            var c = 0.0
+            var d = 0.0
+
+            for (i in 0 until b.size) {
+                dot += a[i] * b[i]
+                c += a[i] * a[i]
+                d += b[i] * b[i]
+            }
+            val div = StrictMath.sqrt(c) * StrictMath.sqrt(d)
+
+            return if (div < 1e-6 || div.isNaN()) {
+                1.0
+            } else {
+                1.0 - dot / div
+            }
+        }
+
+        override fun invoke(a: LongArray, b: LongArray): Double {
+            var dot = 0L
+            var c = 0L
+            var d = 0L
+
+            for (i in 0 until b.size) {
+                dot += a[i] * b[i]
+                c += a[i] * a[i]
+                d += b[i] * b[i]
+            }
+            val div = StrictMath.sqrt(c.toDouble()) * StrictMath.sqrt(d.toDouble())
+
+            return if (div < 1e-6 || div.isNaN()) {
+                1.0
+            } else {
+                1.0 - dot / div
+            }
+        }
+
+        override fun invoke(a: IntArray, b: IntArray): Double {
+            var dot = 0L
+            var c = 0L
+            var d = 0L
+
+            for (i in 0 until b.size) {
+                dot += a[i] * b[i]
+                c += a[i] * a[i]
+                d += b[i] * b[i]
+            }
+            val div = StrictMath.sqrt(c.toDouble()) * StrictMath.sqrt(d.toDouble())
+
+            return if (div < 1e-6 || div.isNaN()) {
+                1.0
+            } else {
+                1.0 - dot / div
+            }
+        }
+
     }
 }
