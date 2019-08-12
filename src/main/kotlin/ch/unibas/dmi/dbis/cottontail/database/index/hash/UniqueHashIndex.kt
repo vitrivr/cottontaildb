@@ -51,7 +51,11 @@ internal class UniqueHashIndex(override val name: Name, override val parent: Ent
     override val produces: Array<ColumnDef<*>> = this.columns
 
     /** The internal [DB] reference. */
-    private val db = DBMaker.fileDB(this.path.toFile()).fileMmapEnableIfSupported().transactionEnable().make()
+    private val db = if (parent.parent.parent.config.forceUnmapMappedFiles) {
+        DBMaker.fileDB(this.path.toFile()).fileMmapEnable().cleanerHackEnable().transactionEnable().make()
+    } else {
+        DBMaker.fileDB(this.path.toFile()).fileMmapEnable().transactionEnable().make()
+    }
 
     /** Map structure used for [UniqueHashIndex]. */
     private val map: HTreeMap<out Value<out Any>, Long> = this.db.hashMap(MAP_FIELD_NAME, this.columns.first().type.serializer(this.columns.size), Serializer.LONG_PACKED).counterEnable().createOrOpen()

@@ -48,7 +48,7 @@ internal class Schema(n: Name, override val path: Path, override val parent: Cat
 
     /** Internal reference to the [Store] underpinning this [MapDBColumn]. */
     private val store: StoreWAL = try {
-        StoreWAL.make(file = this.path.resolve(FILE_CATALOGUE).toString(), volumeFactory = MappedFileVol.FACTORY, fileLockWait = this.parent.config.lockTimeout)
+        StoreWAL.make(file = this.path.resolve(FILE_CATALOGUE).toString(), volumeFactory = this.parent.config.volumeFactory, fileLockWait = this.parent.config.lockTimeout)
     } catch (e: DBException) {
         throw DatabaseException("Failed to open schema $name at '$path': ${e.message}'")
     }
@@ -105,12 +105,13 @@ internal class Schema(n: Name, override val path: Path, override val parent: Cat
             val recId = this.store.put(normalizedName, Serializer.STRING)
 
             /* Generate the entity. */
-            val store = StoreWAL.make(file = data.resolve(Entity.FILE_CATALOGUE).toString(), volumeFactory = MappedFileVol.FACTORY, fileLockWait = parent.config.lockTimeout)
+            val volumeFactory = this.parent.config.volumeFactory;
+            val store = StoreWAL.make(file = data.resolve(Entity.FILE_CATALOGUE).toString(), volumeFactory = volumeFactory, fileLockWait = this.parent.config.lockTimeout)
             store.preallocate() /* Pre-allocates the header. */
 
             /* Initialize the entities header. */
             val columnIds = columns.map {
-                MapDBColumn.initialize(it, data)
+                MapDBColumn.initialize(it, data, volumeFactory)
                 store.put(it.name, Serializer.STRING)
             }.toLongArray()
             store.update(Entity.HEADER_RECORD_ID, EntityHeader(columns = columnIds), EntityHeaderSerializer)

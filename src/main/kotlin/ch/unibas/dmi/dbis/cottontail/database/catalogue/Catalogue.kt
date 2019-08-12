@@ -144,7 +144,7 @@ internal class Catalogue(val config: Config): DBO {
         /* Generate the store for the new schema and update catalogue. */
         try {
             /* Create new store. */
-            val store = StoreWAL.make(file = path.resolve(Schema.FILE_CATALOGUE).toString(), volumeFactory = MappedFileVol.FACTORY, fileLockWait = config.lockTimeout)
+            val store = StoreWAL.make(file = path.resolve(Schema.FILE_CATALOGUE).toString(), volumeFactory = this.config.volumeFactory, fileLockWait = this.config.lockTimeout)
             store.put(SchemaHeader(), SchemaHeaderSerializer)
             store.commit()
             store.close()
@@ -228,7 +228,7 @@ internal class Catalogue(val config: Config): DBO {
      * @return [StoreWAL] object.
      */
     private fun openStore(path: Path): StoreWAL = try {
-        StoreWAL.make(file = path.toString(), volumeFactory = MappedFileVol.FACTORY, fileLockWait = config.lockTimeout)
+        StoreWAL.make(file = path.toString(), volumeFactory = this.config.volumeFactory, fileLockWait = this.config.lockTimeout)
     } catch (e: DBException) {
         throw DatabaseException("Failed to open Cottontail DB catalogue: ${e.message}'.")
     }
@@ -249,7 +249,7 @@ internal class Catalogue(val config: Config): DBO {
         }
 
         /* Create and initialize new store. */
-        val store = StoreWAL.make(file = config.root.resolve(Catalogue.FILE_CATALOGUE).toString(), volumeFactory = MappedFileVol.FACTORY, fileLockWait = config.lockTimeout)
+        val store = StoreWAL.make(file = config.root.resolve(Catalogue.FILE_CATALOGUE).toString(), volumeFactory = this.config.volumeFactory, fileLockWait = config.lockTimeout)
         store.put(CatalogueHeader(), CatalogueHeaderSerializer)
         store.commit()
         store

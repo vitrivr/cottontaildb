@@ -27,7 +27,7 @@ import ch.unibas.dmi.dbis.cottontail.utilities.read
 import ch.unibas.dmi.dbis.cottontail.utilities.write
 
 import org.mapdb.*
-import org.mapdb.volume.MappedFileVol
+
 import java.lang.IllegalArgumentException
 import java.nio.file.Files
 import java.nio.file.Path
@@ -62,7 +62,7 @@ internal class Entity(n: Name, schema: Schema) : DBO {
 
     /** Internal reference to the [StoreWAL] underpinning this [Entity]. */
     private val store: StoreWAL = try {
-        StoreWAL.make(file = this.path.resolve(FILE_CATALOGUE).toString(), volumeFactory = MappedFileVol.FACTORY, fileLockWait = this.parent.parent.config.lockTimeout)
+        StoreWAL.make(file = this.path.resolve(FILE_CATALOGUE).toString(), volumeFactory = this.parent.parent.config.volumeFactory, fileLockWait = this.parent.parent.config.lockTimeout)
     } catch (e: DBException) {
         throw DatabaseException("Failed to open entity '$fqn': ${e.message}'.")
     }
