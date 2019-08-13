@@ -1,3 +1,4 @@
 {
-  "root":"data"
+  "root":"data",
+  "forceUnmapMappedFiles": true
 }
