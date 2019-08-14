@@ -46,7 +46,7 @@ internal class MapDBColumn<T : Any>(override val name: Name, override val parent
 
     /** Internal reference to the [Store] underpinning this [MapDBColumn]. */
     private var store: StoreWAL = try {
-        StoreWAL.make(file = this.path.toString(), volumeFactory = MappedFileVol.FACTORY, fileLockWait = this.parent.parent.parent.config.lockTimeout)
+        StoreWAL.make(file = this.path.toString(), volumeFactory = this.parent.parent.parent.config.volumeFactory, fileLockWait = this.parent.parent.parent.config.lockTimeout)
     } catch (e: DBException) {
         throw DatabaseException("Failed to open column at '$path': ${e.message}'")
     }
@@ -107,11 +107,12 @@ internal class MapDBColumn<T : Any>(override val name: Name, override val parent
         /**
          * Initializes a new, empty [MapDBColumn]
          *
-         * @param parent The folder that contains the data file.
+         * @param parent The folder that contains the data file
          * @param definition The [ColumnDef] that specified the [MapDBColumn]
+         * @param volumeFactory The [MappedFileVol.MappedFileFactory] used to initialize the [MapDBColumn]
          */
-        fun initialize(definition: ColumnDef<*>, path: Path) {
-            val store = StoreWAL.make(file = path.resolve("col_${definition.name}.db").toString(), volumeFactory = MappedFileVol.FACTORY)
+        fun initialize(definition: ColumnDef<*>, path: Path, volumeFactory: MappedFileVol.MappedFileFactory) {
+            val store = StoreWAL.make(file = path.resolve("col_${definition.name}.db").toString(), volumeFactory = volumeFactory)
             store.put(ColumnHeader(type = definition.type, size = definition.size, nullable = definition.nullable), ColumnHeaderSerializer)
             store.commit()
             store.close()
