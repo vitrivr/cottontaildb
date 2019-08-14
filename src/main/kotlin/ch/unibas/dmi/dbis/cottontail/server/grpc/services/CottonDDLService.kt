@@ -233,14 +233,14 @@ internal class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.Cotton
      */
     override fun optimizeEntity(request: CottontailGrpc.Entity, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) = try {
         if ((request.name as Name).isValid(NameType.SIMPLE)) {
-
-        } else {
             /* Update all indexes. */
             this.catalogue.schemaForName(request.schema.name).entityForName(request.name).updateAllIndexes()
 
             /* Notify caller of success. */
             responseObserver.onNext(CottontailGrpc.SuccessStatus.newBuilder().setTimestamp(System.currentTimeMillis()).build())
             responseObserver.onCompleted()
+        } else {
+            responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Entity name '${request.name}' is invalid!").asException())
         }
     } catch (e: DatabaseException.SchemaDoesNotExistException) {
         responseObserver.onError(Status.NOT_FOUND.withDescription("Schema '${request.schema.fqn()} does not exist!").asException())
