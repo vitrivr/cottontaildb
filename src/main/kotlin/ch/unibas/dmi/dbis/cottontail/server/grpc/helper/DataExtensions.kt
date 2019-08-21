@@ -3,8 +3,10 @@ package ch.unibas.dmi.dbis.cottontail.server.grpc.helper
 import ch.unibas.dmi.dbis.cottontail.grpc.CottontailGrpc
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
 import ch.unibas.dmi.dbis.cottontail.model.values.*
+import ch.unibas.dmi.dbis.cottontail.utilities.extensions.init
 
 import java.lang.IllegalArgumentException
+import java.util.*
 
 /**
  * Helper class to convert Kotlin data types to gRPC [Data] objects
@@ -266,14 +268,14 @@ fun CottontailGrpc.Data.toIntVectorValue(): Value<IntArray>? = when (this.dataCa
  * @return [BooleanVectorValue] values
  * @throws QueryException.UnsupportedCastException If cast is not possible.
  */
-fun CottontailGrpc.Data.toBooleanVectorValue(): Value<BooleanArray>? = when (this.dataCase) {
-    CottontailGrpc.Data.DataCase.BOOLEANDATA ->  BooleanVectorValue(BooleanArray(1) { this.booleanData })
-    CottontailGrpc.Data.DataCase.INTDATA ->  BooleanVectorValue(BooleanArray(1) { this.intData > 0 })
-    CottontailGrpc.Data.DataCase.LONGDATA ->  BooleanVectorValue(BooleanArray(1) { this.longData > 0 })
-    CottontailGrpc.Data.DataCase.FLOATDATA ->  BooleanVectorValue(BooleanArray(1) { this.floatData > 0f })
-    CottontailGrpc.Data.DataCase.DOUBLEDATA ->  BooleanVectorValue(BooleanArray(1) { this.doubleData > 0.0 })
-    CottontailGrpc.Data.DataCase.STRINGDATA ->  BooleanVectorValue(BooleanArray(1) { this.stringData == "true" })
-    CottontailGrpc.Data.DataCase.VECTORDATA ->  BooleanVectorValue(this.vectorData.toIntVectorValue().map { it > 0 }.toBooleanArray()) //TODO this is not a proper solution
+fun CottontailGrpc.Data.toBooleanVectorValue(): Value<BitSet>? = when (this.dataCase) {
+    CottontailGrpc.Data.DataCase.BOOLEANDATA -> BooleanVectorValue(BitSet(1).init { this.booleanData })
+    CottontailGrpc.Data.DataCase.INTDATA -> BooleanVectorValue(BitSet(1).init  { this.intData > 0 })
+    CottontailGrpc.Data.DataCase.LONGDATA -> BooleanVectorValue(BitSet(1).init  { this.longData > 0 })
+    CottontailGrpc.Data.DataCase.FLOATDATA -> BooleanVectorValue(BitSet(1).init  { this.floatData > 0f })
+    CottontailGrpc.Data.DataCase.DOUBLEDATA -> BooleanVectorValue(BitSet(1).init  { this.doubleData > 0.0 })
+    CottontailGrpc.Data.DataCase.STRINGDATA -> BooleanVectorValue(BitSet(1).init  { this.stringData == "true" })
+    CottontailGrpc.Data.DataCase.VECTORDATA -> BooleanVectorValue(this.vectorData.toBitSetValue())
     CottontailGrpc.Data.DataCase.NULLDATA -> null
     CottontailGrpc.Data.DataCase.DATA_NOT_SET -> throw QueryException.UnsupportedCastException("A value of NULL cannot be cast to VECTOR[BOOL].")
     null -> throw QueryException.UnsupportedCastException("A value of NULL cannot be cast to VECTOR[BOOL].")
@@ -290,6 +292,7 @@ fun CottontailGrpc.Vector.toDoubleVectorValue(): DoubleArray = when (this.vector
     CottontailGrpc.Vector.VectorDataCase.FLOATVECTOR -> DoubleArray(this.floatVector.vectorCount) { this.floatVector.getVector(it).toDouble()}
     CottontailGrpc.Vector.VectorDataCase.LONGVECTOR -> DoubleArray(this.longVector.vectorCount) { this.longVector.getVector(it).toDouble() }
     CottontailGrpc.Vector.VectorDataCase.INTVECTOR -> DoubleArray(this.intVector.vectorCount) { this.intVector.getVector(it).toDouble() }
+    CottontailGrpc.Vector.VectorDataCase.BOOLVECTOR -> DoubleArray(this.boolVector.vectorCount) { if (this.boolVector.getVector(it)) 1.0 else 0.0 }
     CottontailGrpc.Vector.VectorDataCase.VECTORDATA_NOT_SET -> throw QueryException.UnsupportedCastException("A value of NULL cannot be cast to VECTOR[DOUBLE].")
     null -> throw QueryException.UnsupportedCastException("A value of NULL cannot be cast to VECTOR[DOUBLE].")
 }
@@ -305,6 +308,7 @@ fun CottontailGrpc.Vector.toFloatVectorValue(): FloatArray = when (this.vectorDa
     CottontailGrpc.Vector.VectorDataCase.FLOATVECTOR -> FloatArray(this.floatVector.vectorCount) { this.floatVector.getVector(it)}
     CottontailGrpc.Vector.VectorDataCase.LONGVECTOR -> FloatArray(this.longVector.vectorCount) { this.longVector.getVector(it).toFloat() }
     CottontailGrpc.Vector.VectorDataCase.INTVECTOR -> FloatArray(this.intVector.vectorCount) { this.intVector.getVector(it).toFloat() }
+    CottontailGrpc.Vector.VectorDataCase.BOOLVECTOR -> FloatArray(this.boolVector.vectorCount) { if (this.boolVector.getVector(it)) 1.0f else 0.0f }
     CottontailGrpc.Vector.VectorDataCase.VECTORDATA_NOT_SET -> throw QueryException.UnsupportedCastException("A value of NULL cannot be cast to VECTOR[FLOAT].")
     null -> throw QueryException.UnsupportedCastException("A value of NULL cannot be cast to VECTOR[FLOAT].")
 }
@@ -320,6 +324,7 @@ fun CottontailGrpc.Vector.toLongVectorValue(): LongArray = when (this.vectorData
     CottontailGrpc.Vector.VectorDataCase.FLOATVECTOR -> LongArray(this.floatVector.vectorCount) { this.floatVector.getVector(it).toLong()}
     CottontailGrpc.Vector.VectorDataCase.LONGVECTOR -> LongArray(this.longVector.vectorCount) { this.longVector.getVector(it) }
     CottontailGrpc.Vector.VectorDataCase.INTVECTOR -> LongArray(this.intVector.vectorCount) { this.intVector.getVector(it).toLong() }
+    CottontailGrpc.Vector.VectorDataCase.BOOLVECTOR -> LongArray(this.boolVector.vectorCount) { if (this.boolVector.getVector(it)) 1L else 0L }
     CottontailGrpc.Vector.VectorDataCase.VECTORDATA_NOT_SET -> throw QueryException.UnsupportedCastException("A value of NULL cannot be cast to VECTOR[LONG].")
     null -> throw QueryException.UnsupportedCastException("A value of NULL cannot be cast to VECTOR[LONG].")
 }
@@ -335,6 +340,23 @@ fun CottontailGrpc.Vector.toIntVectorValue(): IntArray = when (this.vectorDataCa
     CottontailGrpc.Vector.VectorDataCase.FLOATVECTOR -> IntArray(this.floatVector.vectorCount) { this.floatVector.getVector(it).toInt()}
     CottontailGrpc.Vector.VectorDataCase.LONGVECTOR -> IntArray(this.longVector.vectorCount) { this.longVector.getVector(it).toInt() }
     CottontailGrpc.Vector.VectorDataCase.INTVECTOR -> IntArray(this.intVector.vectorCount) { this.intVector.getVector(it) }
+    CottontailGrpc.Vector.VectorDataCase.BOOLVECTOR -> IntArray(this.boolVector.vectorCount) { if (this.boolVector.getVector(it)) 1 else 0 }
     CottontailGrpc.Vector.VectorDataCase.VECTORDATA_NOT_SET -> throw QueryException.UnsupportedCastException("A value of NULL cannot be cast to VECTOR[INT].")
     null -> throw QueryException.UnsupportedCastException("A value of NULL cannot be cast to VECTOR[INT].")
+}
+
+/**
+ * Returns the value of [CottontailGrpc.Vector] as [BitSet].
+ *
+ * @return [BitSet] values
+ * @throws QueryException.UnsupportedCastException If cast is not possible.
+ */
+fun CottontailGrpc.Vector.toBitSetValue(): BitSet = when (this.vectorDataCase) {
+    CottontailGrpc.Vector.VectorDataCase.DOUBLEVECTOR -> BitSet(this.doubleVector.vectorCount).init { this.doubleVector.getVector(it) > 0 }
+    CottontailGrpc.Vector.VectorDataCase.FLOATVECTOR -> BitSet(this.floatVector.vectorCount).init  { this.floatVector.getVector(it).toInt() > 0}
+    CottontailGrpc.Vector.VectorDataCase.LONGVECTOR -> BitSet(this.longVector.vectorCount).init  { this.longVector.getVector(it).toInt() > 0 }
+    CottontailGrpc.Vector.VectorDataCase.INTVECTOR -> BitSet(this.intVector.vectorCount).init  { this.intVector.getVector(it) > 0}
+    CottontailGrpc.Vector.VectorDataCase.BOOLVECTOR -> BitSet(this.boolVector.vectorCount).init  { this.boolVector.getVector(it) }
+    CottontailGrpc.Vector.VectorDataCase.VECTORDATA_NOT_SET -> throw QueryException.UnsupportedCastException("A value of NULL cannot be cast to VECTOR[BOOL].")
+    null -> throw QueryException.UnsupportedCastException("A value of NULL cannot be cast to VECTOR[BOOL].")
 }

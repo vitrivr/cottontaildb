@@ -4,6 +4,7 @@ import ch.unibas.dmi.dbis.cottontail.database.serializers.*
 import ch.unibas.dmi.dbis.cottontail.model.values.*
 
 import org.mapdb.Serializer
+import java.util.*
 
 import kotlin.reflect.KClass
 import kotlin.reflect.full.safeCast
@@ -183,13 +184,13 @@ class DoubleArrayColumnType : ColumnType<DoubleArray>() {
 }
 
 @Suppress("UNCHECKED_CAST")
-class BooleanArrayColumnType : ColumnType<BooleanArray>() {
+class BooleanArrayColumnType : ColumnType<BitSet>() {
     override val name = "BOOLEAN_VEC"
     override val numeric = false
     override val type: KClass<BooleanVectorValue> = BooleanVectorValue::class
-    override fun serializer(size: Int): Serializer<Value<BooleanArray>> {
+    override fun serializer(size: Int): Serializer<Value<BitSet>> {
         if (size <= 0) throw IllegalArgumentException("Size attribute for a $name type must be > 0 (is $size).")
-        return FixedBooleanVectorSerializer(size) as Serializer<Value<BooleanArray>>
+        return FixedBooleanVectorSerializer(size) as Serializer<Value<BitSet>>
     }
 }
 
