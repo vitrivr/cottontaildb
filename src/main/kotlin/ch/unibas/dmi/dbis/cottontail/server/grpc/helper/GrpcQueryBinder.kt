@@ -187,6 +187,7 @@ internal class GrpcQueryBinder(val catalogue: Catalogue, engine: ExecutionEngine
                 CottontailGrpc.Vector.VectorDataCase.DOUBLEVECTOR -> q.doubleVector.vectorList.toTypedArray() as Array<Number>
                 CottontailGrpc.Vector.VectorDataCase.INTVECTOR -> q.intVector.vectorList.toTypedArray() as Array<Number>
                 CottontailGrpc.Vector.VectorDataCase.LONGVECTOR -> q.longVector.vectorList.toTypedArray() as Array<Number>
+                CottontailGrpc.Vector.VectorDataCase.BOOLVECTOR -> q.boolVector.vectorList.let { v -> Array(v.size) { if (v[it]) 1 else 0 } } as Array<Number>
                 CottontailGrpc.Vector.VectorDataCase.VECTORDATA_NOT_SET -> throw QueryException.QuerySyntaxException("A kNN predicate does not contain a valid query vector!")
                 null -> throw QueryException.QuerySyntaxException("A kNN predicate does not contain a valid query vector!")
             }
@@ -200,6 +201,7 @@ internal class GrpcQueryBinder(val catalogue: Catalogue, engine: ExecutionEngine
                     CottontailGrpc.Vector.VectorDataCase.DOUBLEVECTOR -> w.doubleVector.vectorList.toTypedArray() as Array<Number>
                     CottontailGrpc.Vector.VectorDataCase.INTVECTOR -> w.intVector.vectorList.toTypedArray() as Array<Number>
                     CottontailGrpc.Vector.VectorDataCase.LONGVECTOR -> w.longVector.vectorList.toTypedArray() as Array<Number>
+                    CottontailGrpc.Vector.VectorDataCase.BOOLVECTOR -> w.boolVector.vectorList.let { v -> Array(v.size) { if (v[it]) 1 else 0 } } as Array<Number>
                     CottontailGrpc.Vector.VectorDataCase.VECTORDATA_NOT_SET -> throw QueryException.QuerySyntaxException("A kNN predicate does not contain a valid weight vector!")
                     null -> throw QueryException.QuerySyntaxException("A kNN predicate does not contain a valid weight vector!")
                 }

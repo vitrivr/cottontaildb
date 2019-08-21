@@ -1,23 +1,25 @@
 package ch.unibas.dmi.dbis.cottontail.database.serializers
 
-import ch.unibas.dmi.dbis.cottontail.model.values.BooleanArrayValue
+import ch.unibas.dmi.dbis.cottontail.model.values.BooleanVectorValue
 import org.mapdb.DataInput2
 import org.mapdb.DataOutput2
 import org.mapdb.Serializer
+import java.util.*
 
 
-class FixedBooleanVectorSerializer(val size: Int): Serializer<BooleanArrayValue> {
-    override fun serialize(out: DataOutput2, value: BooleanArrayValue) {
-        for (i in 0 until size) {
-            out.writeBoolean(value.value[i])
+class FixedBooleanVectorSerializer(val size: Int): Serializer<BooleanVectorValue> {
+    override fun serialize(out: DataOutput2, value: BooleanVectorValue) {
+        val words = value.value.toLongArray()
+        for (i in 0 until words.size) {
+            out.writeLong(words[i])
         }
     }
 
-    override fun deserialize(input: DataInput2, available: Int): BooleanArrayValue {
-        val vector = BooleanArray(size)
-        for (i in 0 until size) {
-            vector[i] = input.readBoolean()
+    override fun deserialize(input: DataInput2, available: Int): BooleanVectorValue {
+        val words = LongArray((size+63)/64)
+        for (i in 0 until words.size) {
+            words[i] = input.readLong()
         }
-        return BooleanArrayValue(vector)
+        return BooleanVectorValue(BitSet.valueOf(words))
     }
 }
