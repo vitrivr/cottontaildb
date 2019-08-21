@@ -142,10 +142,10 @@ class StringColumnType : ColumnType<String>() {
 class IntArrayColumnType : ColumnType<IntArray>() {
     override val name = "INT_VEC"
     override val numeric = false
-    override val type: KClass<IntArrayValue> = IntArrayValue::class
+    override val type: KClass<IntVectorValue> = IntVectorValue::class
     override fun serializer(size: Int): Serializer<Value<IntArray>> {
         if (size <= 0) throw IllegalArgumentException("Size attribute for a $name type must be > 0 (is $size).")
-        return FixedIntArraySerializer(size) as Serializer<Value<IntArray>>
+        return FixedIntVectorSerializer(size) as Serializer<Value<IntArray>>
     }
 }
 
@@ -153,10 +153,10 @@ class IntArrayColumnType : ColumnType<IntArray>() {
 class LongArrayColumnType : ColumnType<LongArray>() {
     override val name = "LONG_VEC"
     override val numeric = false
-    override val type: KClass<LongArrayValue> = LongArrayValue::class
+    override val type: KClass<LongVectorValue> = LongVectorValue::class
     override fun serializer(size: Int): Serializer<Value<LongArray>> {
         if (size <= 0) throw IllegalArgumentException("Size attribute for a $name type must be > 0 (is $size).")
-        return FixedLongArraySerializer(size) as Serializer<Value<LongArray>>
+        return FixedLongVectorSerializer(size) as Serializer<Value<LongArray>>
     }
 }
 
@@ -164,7 +164,7 @@ class LongArrayColumnType : ColumnType<LongArray>() {
 class FloatArrayColumnType : ColumnType<FloatArray>() {
     override val name = "FLOAT_VEC"
     override val numeric = false
-    override val type: KClass<FloatArrayValue> = FloatArrayValue::class
+    override val type: KClass<FloatVectorValue> = FloatVectorValue::class
     override fun serializer(size: Int): Serializer<Value<FloatArray>> {
         if (size <= 0) throw IllegalArgumentException("Size attribute for a $name type must be > 0 (is $size).")
         return FixedFloatVectorSerializer(size) as Serializer<Value<FloatArray>>
@@ -175,7 +175,7 @@ class FloatArrayColumnType : ColumnType<FloatArray>() {
 class DoubleArrayColumnType : ColumnType<DoubleArray>() {
     override val name = "DOUBLE_VEC"
     override val numeric = false
-    override val type: KClass<DoubleArrayValue> = DoubleArrayValue::class
+    override val type: KClass<DoubleVectorValue> = DoubleVectorValue::class
     override fun serializer(size: Int): Serializer<Value<DoubleArray>> {
         if (size <= 0) throw IllegalArgumentException("Size attribute for a $name type must be > 0 (is $size).")
         return FixedDoubleVectorSerializer(size) as Serializer<Value<DoubleArray>>
@@ -186,7 +186,7 @@ class DoubleArrayColumnType : ColumnType<DoubleArray>() {
 class BooleanArrayColumnType : ColumnType<BooleanArray>() {
     override val name = "BOOLEAN_VEC"
     override val numeric = false
-    override val type: KClass<BooleanArrayValue> = BooleanArrayValue::class
+    override val type: KClass<BooleanVectorValue> = BooleanVectorValue::class
     override fun serializer(size: Int): Serializer<Value<BooleanArray>> {
         if (size <= 0) throw IllegalArgumentException("Size attribute for a $name type must be > 0 (is $size).")
         return FixedBooleanVectorSerializer(size) as Serializer<Value<BooleanArray>>

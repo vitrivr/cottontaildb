@@ -1,5 +1,7 @@
 package ch.unibas.dmi.dbis.cottontail.model.values
 
+import java.util.*
+
 
 /**
  * This is an abstraction over the existing primitive types provided by Kotlin. It allows for the advanced  type system implemented by Cottontail DB.
@@ -19,7 +21,7 @@ interface Value<T> {
             is FloatArray -> (value as FloatArray).size
             is LongArray -> (value as LongArray).size
             is IntArray -> (value as IntArray).size
-            is BooleanArray -> (value as BooleanArray).size
+            is BitSet -> (value as BitSet).length()
             else -> -1
         }
 

@@ -1,6 +1,6 @@
 package ch.unibas.dmi.dbis.cottontail.model.values
 
-inline class LongArrayValue(override val value: LongArray) : Value<LongArray> {
+inline class LongVectorValue(override val value: LongArray) : Value<LongArray> {
     override val numeric: Boolean
         get() = false
 

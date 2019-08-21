@@ -70,7 +70,7 @@ class VectorDataTest {
             iterator.forEach {
                 val record = StandaloneRecord(columns = arrayOf(intField, vectorField))
                 record[intField] = IntValue(counter)
-                record[vectorField] = IntArrayValue(it)
+                record[vectorField] = IntVectorValue(it)
                 val tid = tx.insert(record)
                 assertNotNull(tid)
                 vectorMap[tid!!] = it
@@ -117,7 +117,7 @@ class VectorDataTest {
             iterator.forEach {
                 val record = StandaloneRecord(columns = arrayOf(intField, vectorField))
                 record[intField] = IntValue(counter)
-                record[vectorField] = LongArrayValue(it)
+                record[vectorField] = LongVectorValue(it)
                 val tid = tx.insert(record)
                 assertNotNull(tid)
                 vectorMap[tid!!] = it
@@ -164,7 +164,7 @@ class VectorDataTest {
             iterator.forEach {
                 val record = StandaloneRecord(columns = arrayOf(intField, vectorField))
                 record[intField] = IntValue(counter)
-                record[vectorField] = FloatArrayValue(it)
+                record[vectorField] = FloatVectorValue(it)
                 val tid = tx.insert(record)
                 assertNotNull(tid)
                 vectorMap[tid!!] = it
@@ -211,7 +211,7 @@ class VectorDataTest {
             iterator.forEach {
                 val record = StandaloneRecord(columns = arrayOf(intField, vectorField))
                 record[intField] = IntValue(counter)
-                record[vectorField] = DoubleArrayValue(it)
+                record[vectorField] = DoubleVectorValue(it)
                 val tid = tx.insert(record)
                 assertNotNull(tid)
                 vectorMap[tid!!] = it

@@ -1,6 +1,6 @@
 package ch.unibas.dmi.dbis.cottontail.model.values
 
-inline class IntArrayValue(override val value: IntArray) : Value<IntArray> {
+inline class IntVectorValue(override val value: IntArray) : Value<IntArray> {
     override val numeric: Boolean
         get() = false
 

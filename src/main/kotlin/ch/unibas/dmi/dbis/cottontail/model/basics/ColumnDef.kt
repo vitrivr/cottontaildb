@@ -47,10 +47,10 @@ class ColumnDef<T: Any> (name: Name, val type: ColumnType<T>, val size: Int = -1
             }
             val cast = this.type.cast(value)
             when {
-                cast is DoubleArrayValue && cast.size != this.size -> throw ValidationException("The size of column '$name' (sc=${this.size}) is not compatible with size of value (sv=${cast.size}).")
-                cast is FloatArrayValue && cast.size != this.size -> throw ValidationException("The size of column '$name' (sc=${this.size}) is not compatible with size of value (sv=${cast.size}).")
-                cast is LongArrayValue && cast.size != this.size -> throw ValidationException("The size of column '$name' (sc=${this.size}) is not compatible with size of value (sv=${cast.size}).")
-                cast is IntArrayValue && cast.size != this.size -> throw ValidationException("The size of column '$name' (sc=${this.size}) is not compatible with size of value (sv=${cast.size}).")
+                cast is DoubleVectorValue && cast.size != this.size -> throw ValidationException("The size of column '$name' (sc=${this.size}) is not compatible with size of value (sv=${cast.size}).")
+                cast is FloatVectorValue && cast.size != this.size -> throw ValidationException("The size of column '$name' (sc=${this.size}) is not compatible with size of value (sv=${cast.size}).")
+                cast is LongVectorValue && cast.size != this.size -> throw ValidationException("The size of column '$name' (sc=${this.size}) is not compatible with size of value (sv=${cast.size}).")
+                cast is IntVectorValue && cast.size != this.size -> throw ValidationException("The size of column '$name' (sc=${this.size}) is not compatible with size of value (sv=${cast.size}).")
             }
         } else if (!this.nullable) {
             throw ValidationException("The column '$name' cannot be null!")
@@ -70,10 +70,10 @@ class ColumnDef<T: Any> (name: Name, val type: ColumnType<T>, val size: Int = -1
             }
             val cast = this.type.cast(value)
             return when {
-                cast is DoubleArrayValue && cast.size != this.size -> false
-                cast is FloatArrayValue && cast.size != this.size -> false
-                cast is LongArrayValue && cast.size != this.size -> false
-                cast is IntArrayValue && cast.size != this.size -> false
+                cast is DoubleVectorValue && cast.size != this.size -> false
+                cast is FloatVectorValue && cast.size != this.size -> false
+                cast is LongVectorValue && cast.size != this.size -> false
+                cast is IntVectorValue && cast.size != this.size -> false
                 else -> true
             }
         } else return this.nullable
@@ -94,10 +94,10 @@ class ColumnDef<T: Any> (name: Name, val type: ColumnType<T>, val size: Int = -1
         this.type is ShortColumnType -> ShortValue(0.toShort())
         this.type is ByteColumnType -> ByteValue(0.toByte())
         this.type is BooleanColumnType -> BooleanValue(false)
-        this.type is DoubleArrayColumnType -> DoubleArrayValue(DoubleArray(this.size))
-        this.type is FloatArrayColumnType -> FloatArrayValue(FloatArray(this.size))
-        this.type is LongArrayColumnType -> LongArrayValue(LongArray(this.size))
-        this.type is IntArrayColumnType -> IntArrayValue(IntArray(this.size))
+        this.type is DoubleArrayColumnType -> DoubleVectorValue(DoubleArray(this.size))
+        this.type is FloatArrayColumnType -> FloatVectorValue(FloatArray(this.size))
+        this.type is LongArrayColumnType -> LongVectorValue(LongArray(this.size))
+        this.type is IntArrayColumnType -> IntVectorValue(IntArray(this.size))
         else -> throw RuntimeException("Default value for the specified type $type has not been specified yet!")
     }
 

@@ -1,6 +1,6 @@
 package ch.unibas.dmi.dbis.cottontail.model.values
 
-inline class FloatArrayValue(override val value: FloatArray) : Value<FloatArray> {
+inline class FloatVectorValue(override val value: FloatArray) : Value<FloatArray> {
     override val numeric: Boolean
         get() = false
 
