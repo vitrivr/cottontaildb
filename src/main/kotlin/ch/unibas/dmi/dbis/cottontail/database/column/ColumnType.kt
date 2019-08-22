@@ -43,7 +43,7 @@ sealed class ColumnType<T : Any> {
             "LONG_VEC" -> LongArrayColumnType()
             "FLOAT_VEC" -> FloatArrayColumnType()
             "DOUBLE_VEC" -> DoubleArrayColumnType()
-            "BOOLEAN_VEC" -> BooleanArrayColumnType()
+            "BOOL_VEC" -> BooleanArrayColumnType()
             else -> throw java.lang.IllegalArgumentException("The column type $name does not exists!")
         }
     }
