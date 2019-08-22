@@ -529,7 +529,7 @@ enum class Distance : DistanceFunction {
      * Haversine distance only applicable for two spherical (= earth) coordinates in degrees. Hence the arrays <b>have</b> to be of size two each
      */
     HAVERSINE {
-        
+
         override val operations: Int = 1 // Single calculation as this is fixed.
 
         /**
@@ -550,9 +550,12 @@ enum class Distance : DistanceFunction {
 
         /**
          * Calculates the haversine distance of two spherical coordinates in degrees.
-         * @param a Start coordinate, where `a[0]` is the LATITUDE, `a[1]` is the LONGITUDE, each in degrees
-         * @param b End coordinate, where `b[0]` is the LATITUDE, `b[1]` is the LONGITUDE, each in degrees
          *
+         * @param a_lat Start coordinate (latitude) in degrees.
+         * @param a_lon Start coordinate (longitude) in degrees.
+         * @param b_lat End coordinate (latitude) in degrees.
+         * @param b_lon End coordinate (longitude) in degrees.
+
          * @return The haversine distance between the two points
          */
         private fun haversine(a_lat: Double, a_lon: Double, b_lat: Double, b_lon: Double): Double {
