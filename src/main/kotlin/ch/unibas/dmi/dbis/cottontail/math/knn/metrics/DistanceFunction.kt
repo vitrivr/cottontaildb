@@ -1,5 +1,7 @@
 package ch.unibas.dmi.dbis.cottontail.math.knn.metrics
 
+import java.util.*
+
 
 /**
  * Interface implemented by [DistanceFunction]s that can be used to calculate the distance between two vectors.
@@ -41,7 +43,7 @@ interface DistanceFunction {
      *
      * @param a First [LongArray]
      * @param b Second [LongArray]
-     * @param weights The [LongArray] containing the weights.
+     * @param weights The [FloatArray] containing the weights.
      *
      * @return Distance between a and b.
      */
@@ -52,11 +54,23 @@ interface DistanceFunction {
      *
      * @param a First [IntArray]
      * @param b Second [IntArray]
-     * @param weights The [IntArray] containing the weights.
+     * @param weights The [FloatArray] containing the weights.
      *
      * @return Distance between a and b.
      */
     operator fun invoke(a: IntArray, b: IntArray, weights: FloatArray): Double
+
+    /**
+     * Calculates the weighted distance between two [BitSet]s, i.e. [BooleanArray]'s where
+     * each element can either be 1 or 0.
+     *
+     * @param a First [BitSet]
+     * @param b Second [BitSet]
+     * @param weights The [Float] containing the weights.
+     *
+     * @return Distance between a and b.
+     */
+    operator fun invoke(a: BitSet, b: BitSet, weights: FloatArray): Double
 
     /**
      * Calculates the distance between two [FloatArray]s
@@ -93,4 +107,15 @@ interface DistanceFunction {
      * @return Distance between a and b.
      */
     operator fun invoke(a: IntArray, b: IntArray): Double
+
+    /**
+     * Calculates the distance between two [BitSet]s, i.e. [BooleanArray]'s where
+     * each element can either be 1 or 0.
+     *
+     * @param a First [BitSet]
+     * @param b Second [BitSet]
+     *
+     * @return Distance between a and b.
+     */
+    operator fun invoke(a: BitSet, b: BitSet): Double
 }
