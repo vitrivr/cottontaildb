@@ -17,7 +17,6 @@ import ch.unibas.dmi.dbis.cottontail.utilities.name.append
 import io.grpc.Status
 import io.grpc.stub.StreamObserver
 import org.slf4j.LoggerFactory
-import java.lang.IllegalStateException
 import java.util.concurrent.ConcurrentHashMap
 
 internal class CottonDMLService (val catalogue: Catalogue): CottonDMLGrpc.CottonDMLImplBase() {
@@ -199,11 +198,11 @@ internal class CottonDMLService (val catalogue: Catalogue): CottonDMLGrpc.Cotton
             is FloatColumnType -> value.toFloatValue()
             is DoubleColumnType -> value.toDoubleValue()
             is StringColumnType -> value.toStringValue()
-            is IntArrayColumnType -> value.toIntVectorValue()
-            is LongArrayColumnType -> value.toLongVectorValue()
-            is FloatArrayColumnType -> value.toFloatVectorValue()
-            is DoubleArrayColumnType -> value.toDoubleVectorValue()
-            is BooleanArrayColumnType -> value.toBooleanVectorValue()
+            is IntVectorColumnType -> value.toIntVectorValue()
+            is LongVectorColumnType -> value.toLongVectorValue()
+            is FloatVectorColumnType -> value.toFloatVectorValue()
+            is DoubleVectorColumnType -> value.toDoubleVectorValue()
+            is BooleanVectorColumnType -> value.toBooleanVectorValue()
         }
     }
 }

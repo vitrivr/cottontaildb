@@ -39,11 +39,11 @@ sealed class ColumnType<T : Any> {
             "FLOAT" -> FloatColumnType()
             "DOUBLE" -> DoubleColumnType()
             "STRING" -> StringColumnType()
-            "INT_VEC" -> IntArrayColumnType()
-            "LONG_VEC" -> LongArrayColumnType()
-            "FLOAT_VEC" -> FloatArrayColumnType()
-            "DOUBLE_VEC" -> DoubleArrayColumnType()
-            "BOOL_VEC" -> BooleanArrayColumnType()
+            "INT_VEC" -> IntVectorColumnType()
+            "LONG_VEC" -> LongVectorColumnType()
+            "FLOAT_VEC" -> FloatVectorColumnType()
+            "DOUBLE_VEC" -> DoubleVectorColumnType()
+            "BOOL_VEC" -> BooleanVectorColumnType()
             else -> throw java.lang.IllegalArgumentException("The column type $name does not exists!")
         }
     }
@@ -140,7 +140,7 @@ class StringColumnType : ColumnType<String>() {
 }
 
 @Suppress("UNCHECKED_CAST")
-class IntArrayColumnType : ColumnType<IntArray>() {
+class IntVectorColumnType : ColumnType<IntArray>() {
     override val name = "INT_VEC"
     override val numeric = false
     override val type: KClass<IntVectorValue> = IntVectorValue::class
@@ -151,7 +151,7 @@ class IntArrayColumnType : ColumnType<IntArray>() {
 }
 
 @Suppress("UNCHECKED_CAST")
-class LongArrayColumnType : ColumnType<LongArray>() {
+class LongVectorColumnType : ColumnType<LongArray>() {
     override val name = "LONG_VEC"
     override val numeric = false
     override val type: KClass<LongVectorValue> = LongVectorValue::class
@@ -162,7 +162,7 @@ class LongArrayColumnType : ColumnType<LongArray>() {
 }
 
 @Suppress("UNCHECKED_CAST")
-class FloatArrayColumnType : ColumnType<FloatArray>() {
+class FloatVectorColumnType : ColumnType<FloatArray>() {
     override val name = "FLOAT_VEC"
     override val numeric = false
     override val type: KClass<FloatVectorValue> = FloatVectorValue::class
@@ -173,7 +173,7 @@ class FloatArrayColumnType : ColumnType<FloatArray>() {
 }
 
 @Suppress("UNCHECKED_CAST")
-class DoubleArrayColumnType : ColumnType<DoubleArray>() {
+class DoubleVectorColumnType : ColumnType<DoubleArray>() {
     override val name = "DOUBLE_VEC"
     override val numeric = false
     override val type: KClass<DoubleVectorValue> = DoubleVectorValue::class
@@ -184,8 +184,8 @@ class DoubleArrayColumnType : ColumnType<DoubleArray>() {
 }
 
 @Suppress("UNCHECKED_CAST")
-class BooleanArrayColumnType : ColumnType<BitSet>() {
-    override val name = "BOOLEAN_VEC"
+class BooleanVectorColumnType : ColumnType<BitSet>() {
+    override val name = "BOOL_VEC"
     override val numeric = false
     override val type: KClass<BooleanVectorValue> = BooleanVectorValue::class
     override fun serializer(size: Int): Serializer<Value<BitSet>> {

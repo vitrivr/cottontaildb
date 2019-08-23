@@ -7,6 +7,7 @@ import ch.unibas.dmi.dbis.cottontail.model.values.*
 import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
 
 import java.lang.RuntimeException
+import java.util.*
 
 /**
  * A definition class for a Cottontail DB column be it in a DB or in-memory context.  Specifies all the properties of such a and facilitates validation.
@@ -94,10 +95,11 @@ class ColumnDef<T: Any> (name: Name, val type: ColumnType<T>, val size: Int = -1
         this.type is ShortColumnType -> ShortValue(0.toShort())
         this.type is ByteColumnType -> ByteValue(0.toByte())
         this.type is BooleanColumnType -> BooleanValue(false)
-        this.type is DoubleArrayColumnType -> DoubleVectorValue(DoubleArray(this.size))
-        this.type is FloatArrayColumnType -> FloatVectorValue(FloatArray(this.size))
-        this.type is LongArrayColumnType -> LongVectorValue(LongArray(this.size))
-        this.type is IntArrayColumnType -> IntVectorValue(IntArray(this.size))
+        this.type is DoubleVectorColumnType -> DoubleVectorValue(DoubleArray(this.size))
+        this.type is FloatVectorColumnType -> FloatVectorValue(FloatArray(this.size))
+        this.type is LongVectorColumnType -> LongVectorValue(LongArray(this.size))
+        this.type is IntVectorColumnType -> IntVectorValue(IntArray(this.size))
+        this.type is BooleanVectorColumnType -> BooleanVectorValue(BitSet(this.size))
         else -> throw RuntimeException("Default value for the specified type $type has not been specified yet!")
     }
 
