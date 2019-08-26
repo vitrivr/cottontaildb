@@ -44,11 +44,12 @@ internal class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.Cotton
             responseObserver.onCompleted()
         }
     } catch (e: DatabaseException.SchemaAlreadyExistsException) {
-        responseObserver.onError(Status.ALREADY_EXISTS.withDescription("Schema '${request.name} cannot be created because it already exists!").asException())
+        responseObserver.onError(Status.ALREADY_EXISTS.withDescription("Schema '${request.name}' cannot be created because it already exists!").asException())
     } catch (e: DatabaseException) {
-        responseObserver.onError(Status.UNKNOWN.withDescription("Failed to create schema '${request.name} because of database error: ${e.message}").asException())
+        responseObserver.onError(Status.UNKNOWN.withDescription("Failed to create schema '${request.name}' because of database error: ${e.message}").asException())
     } catch (e: Throwable) {
-        responseObserver.onError(Status.UNKNOWN.withDescription("Failed to create schema '${request.name} because unknown error: ${e.message}").asException())
+        LOGGER.error("Error while creating schema", e)
+        responseObserver.onError(Status.UNKNOWN.withDescription("Failed to create schema '${request.name}' 'because unknown error: ${e.message}").asException())
     }
 
     /**
@@ -64,11 +65,12 @@ internal class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.Cotton
             responseObserver.onCompleted()
         }
     } catch (e: DatabaseException.SchemaDoesNotExistException) {
-        responseObserver.onError(Status.NOT_FOUND.withDescription("Schema '${request.name} does not exist!").asException())
+        responseObserver.onError(Status.NOT_FOUND.withDescription("Schema '${request.name}' does not exist!").asException())
     } catch (e: DatabaseException) {
-        responseObserver.onError(Status.UNKNOWN.withDescription("Failed to drop schema '${request.name} because of database error: ${e.message}").asException())
+        responseObserver.onError(Status.UNKNOWN.withDescription("Failed to drop schema '${request.name}' because of database error: ${e.message}").asException())
     } catch (e: Throwable) {
-        responseObserver.onError(Status.UNKNOWN.withDescription("Failed to drop schema '${request.name} because unknown error: ${e.message}").asException())
+        LOGGER.error("Error while dropping schema '${request.name}'", e)
+        responseObserver.onError(Status.UNKNOWN.withDescription("Failed to drop schema '${request.name}' because unknown error: ${e.message}").asException())
     }
 
     /**
@@ -82,6 +84,7 @@ internal class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.Cotton
     } catch (e: DatabaseException) {
         responseObserver.onError(Status.UNKNOWN.withDescription("Failed to list schemas because of database error: ${e.message}").asException())
     } catch (e: Throwable) {
+        LOGGER.error("Error while listing schemas", e)
         responseObserver.onError(Status.UNKNOWN.withDescription("Failed to list schemas because of unknown error: ${e.message}").asException())
     }
 
@@ -110,6 +113,7 @@ internal class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.Cotton
     } catch (e: DatabaseException) {
         responseObserver.onError(Status.UNKNOWN.withDescription("Failed to create entity '${request.entity.fqn()}' because of database error: ${e.message}").asException())
     } catch (e: Throwable) {
+        LOGGER.error("Error while creating entity '${request.entity.fqn()}'", e)
         responseObserver.onError(Status.UNKNOWN.withDescription("Failed to create entity '${request.entity.fqn()}' because of unknown error: ${e.message}").asException())
     }
 
@@ -131,6 +135,7 @@ internal class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.Cotton
     } catch (e: DatabaseException) {
         responseObserver.onError(Status.UNKNOWN.withDescription("Failed to drop entity '${request.fqn()}' because of database error: ${e.message}").asException())
     } catch (e: Throwable) {
+        LOGGER.error("Error while dropping entity '${request.fqn()}'", e)
         responseObserver.onError(Status.UNKNOWN.withDescription("Failed to drop entity '${request.fqn()}' because of unknown error: ${e.message}").asException())
     }
 
@@ -152,6 +157,7 @@ internal class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.Cotton
     } catch (e: DatabaseException) {
         responseObserver.onError(Status.UNKNOWN.withDescription("Failed to list entities for schema ${request.name} because of database error: ${e.message}").asException())
     } catch (e: Throwable) {
+        LOGGER.error("Error while listing entities", e)
         responseObserver.onError(Status.UNKNOWN.withDescription("Failed to list entities for schema ${request.name} because of unknown error: ${e.message}").asException())
     }
 
@@ -184,6 +190,7 @@ internal class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.Cotton
     } catch (e: DatabaseException) {
         responseObserver.onError(Status.UNKNOWN.withDescription("Failed to create index '${request.index.fqn()}' because of database error: ${e.message}").asException())
     } catch (e: Throwable) {
+        LOGGER.error("Error while creating index '${request.index.fqn()}'", e)
         responseObserver.onError(Status.UNKNOWN.withDescription("Failed to create index '${request.index.fqn()}' because of an unknown error: ${e.message}").asException())
     }
 
@@ -209,6 +216,7 @@ internal class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.Cotton
     } catch (e: DatabaseException) {
         responseObserver.onError(Status.UNKNOWN.withDescription("Failed to drop index '${request.index.fqn()}' because of database error: ${e.message}").asException())
     } catch (e: Throwable) {
+        LOGGER.error("Error while dropping index '${request.index.fqn()}'", e)
         responseObserver.onError(Status.UNKNOWN.withDescription("Failed to drop index '${request.index.fqn()}' because of an unknown error: ${e.message}").asException())
     }
 
@@ -234,6 +242,7 @@ internal class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.Cotton
     } catch (e: DatabaseException) {
         responseObserver.onError(Status.UNKNOWN.withDescription("Failed to rebuild index '${request.index.fqn()}' because of database error: ${e.message}").asException())
     } catch (e: Throwable) {
+        LOGGER.error("Error while rebuilding index '${request.index.fqn()}'", e)
         responseObserver.onError(Status.UNKNOWN.withDescription("Failed to rebuild index '${request.index.fqn()}' because of an unknown error: ${e.message}").asException())
     }
 
@@ -258,6 +267,7 @@ internal class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.Cotton
     } catch (e: DatabaseException) {
         responseObserver.onError(Status.UNKNOWN.withDescription("Failed to optimize entity '${request.fqn()}' because of database error: ${e.message}").asException())
     } catch (e: Throwable) {
+        LOGGER.error("Error while optimizing entity '${request.fqn()}'", e)
         responseObserver.onError(Status.UNKNOWN.withDescription("Failed to optimize entity '${request.fqn()}' because of an unknown error: ${e.message}").asException())
     }
 }
