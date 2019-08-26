@@ -10,7 +10,6 @@ import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
 import ch.unibas.dmi.dbis.cottontail.utilities.name.*
 import org.mapdb.*
 
-import org.mapdb.volume.MappedFileVol
 import java.io.IOException
 import java.lang.IllegalArgumentException
 
@@ -51,7 +50,7 @@ internal class Catalogue(val config: Config): DBO {
     private val registry: HashMap<Name, Schema> = HashMap()
 
     /** The [StoreWAL] that contains the Cottontail DB catalogue. */
-    private val store: StoreWAL = path.let {
+    private val store: CottontailStoreWAL = path.let {
         val file = this.path.resolve(FILE_CATALOGUE)
         if (Files.exists(file)) {
             openStore(file)
@@ -215,9 +214,7 @@ internal class Catalogue(val config: Config): DBO {
      */
     fun schemaForName(name: Name): Schema = this.lock.read {
         val nameNormalized = name.normalize()
-        if (nameNormalized.type() != NameType.SIMPLE) {
-            throw IllegalArgumentException("The provided name '$nameNormalized' is of type '${nameNormalized.type()} and cannot be used to access a schema.")
-        }
+        require(nameNormalized.type() == NameType.SIMPLE) { "The provided name '$nameNormalized' is of type '${nameNormalized.type()} and cannot be used to access a schema." }
         this.registry[nameNormalized] ?: throw DatabaseException.SchemaDoesNotExistException(nameNormalized)
     }
 
@@ -227,8 +224,8 @@ internal class Catalogue(val config: Config): DBO {
      * @param path The path to the data store file.
      * @return [StoreWAL] object.
      */
-    private fun openStore(path: Path): StoreWAL = try {
-        StoreWAL.make(file = path.toString(), volumeFactory = this.config.volumeFactory, fileLockWait = this.config.lockTimeout)
+    private fun openStore(path: Path): CottontailStoreWAL = try {
+        CottontailStoreWAL.make(file = path.toString(), volumeFactory = this.config.volumeFactory, fileLockWait = this.config.lockTimeout)
     } catch (e: DBException) {
         throw DatabaseException("Failed to open Cottontail DB catalogue: ${e.message}'.")
     }
@@ -249,7 +246,7 @@ internal class Catalogue(val config: Config): DBO {
         }
 
         /* Create and initialize new store. */
-        val store = StoreWAL.make(file = config.root.resolve(Catalogue.FILE_CATALOGUE).toString(), volumeFactory = this.config.volumeFactory, fileLockWait = config.lockTimeout)
+        val store = CottontailStoreWAL.make(file = config.root.resolve(Catalogue.FILE_CATALOGUE).toString(), volumeFactory = this.config.volumeFactory, fileLockWait = config.lockTimeout)
         store.put(CatalogueHeader(), CatalogueHeaderSerializer)
         store.commit()
         store

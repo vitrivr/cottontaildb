@@ -11,7 +11,7 @@ import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.basics.Record
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.TransactionException
-import ch.unibas.dmi.dbis.cottontail.utilities.read
+
 import java.util.*
 import java.util.concurrent.locks.StampedLock
 

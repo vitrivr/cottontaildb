@@ -18,6 +18,7 @@ import ch.unibas.dmi.dbis.cottontail.model.values.Value
 import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
 import ch.unibas.dmi.dbis.cottontail.utilities.write
 import kotlinx.coroutines.*
+
 import org.mapdb.*
 import org.mapdb.volume.MappedFileVol
 
@@ -43,8 +44,8 @@ internal class MapDBColumn<T : Any>(override val name: Name, override val parent
     override val path: Path = parent.path.resolve("col_$name.db")
 
     /** Internal reference to the [Store] underpinning this [MapDBColumn]. */
-    private var store: StoreWAL = try {
-        StoreWAL.make(file = this.path.toString(), volumeFactory = this.parent.parent.parent.config.volumeFactory, fileLockWait = this.parent.parent.parent.config.lockTimeout)
+    private var store: CottontailStoreWAL = try {
+        CottontailStoreWAL.make(file = this.path.toString(), volumeFactory = this.parent.parent.parent.config.volumeFactory, fileLockWait = this.parent.parent.parent.config.lockTimeout)
     } catch (e: DBException) {
         throw DatabaseException("Failed to open column at '$path': ${e.message}'")
     }
@@ -242,12 +243,15 @@ internal class MapDBColumn<T : Any>(override val name: Name, override val parent
          */
         override fun forEach(action: (Record) -> Unit) {
             checkValidOrThrow()
-            val recordIds = this@MapDBColumn.store.getAllRecids()
-            if (recordIds.next() != HEADER_RECORD_ID) {
-                throw TransactionException.TransactionValidationException(this.tid, "The column '${this@MapDBColumn.fqn}' does not seem to contain a valid header record!")
-            }
-            recordIds.forEachRemaining {
-                action(ColumnRecord(it, this@MapDBColumn.store.get(it, this.serializer)))
+            this@MapDBColumn.store.RecordIdIterator().use { recordIds ->
+                if (recordIds.next() != HEADER_RECORD_ID ) {
+                    throw TransactionException.TransactionValidationException(this.tid, "The column '${this@MapDBColumn.fqn}' does not seem to contain a valid header record!")
+                }
+                recordIds.forEachRemaining {
+                    if (it != CottontailStoreWAL.EOF_ENTRY) {
+                        action(ColumnRecord(it, this@MapDBColumn.store.get(it, this.serializer)))
+                    }
+                }
             }
         }
 
@@ -261,9 +265,14 @@ internal class MapDBColumn<T : Any>(override val name: Name, override val parent
         override fun <R> map(action: (Record) -> R): Collection<R> {
             checkValidOrThrow()
             val list = mutableListOf<R>()
-            this@MapDBColumn.store.getAllRecids().forEach {
-                if (it != HEADER_RECORD_ID) {
-                    list.add(action(ColumnRecord(it, this@MapDBColumn.store.get(it, this.serializer))))
+            this@MapDBColumn.store.RecordIdIterator().use { recordIds ->
+                if (recordIds.next() != HEADER_RECORD_ID ) {
+                    throw TransactionException.TransactionValidationException(this.tid, "The column '${this@MapDBColumn.fqn}' does not seem to contain a valid header record!")
+                }
+                recordIds.forEachRemaining() {
+                    if (it != CottontailStoreWAL.EOF_ENTRY) {
+                        list.add(action(ColumnRecord(it, this@MapDBColumn.store.get(it, this.serializer))))
+                    }
                 }
             }
             return list
@@ -288,13 +297,16 @@ internal class MapDBColumn<T : Any>(override val name: Name, override val parent
             if (predicate is BooleanPredicate) {
                 checkValidOrThrow()
                 val recordset = Recordset(arrayOf(this@MapDBColumn.columnDef))
-                val recordIds = this@MapDBColumn.store.getAllRecids()
-                if (recordIds.next() != HEADER_RECORD_ID) {
-                    throw TransactionException.TransactionValidationException(this.tid, "The column '${this@MapDBColumn.fqn}' does not seem to contain a valid header record!")
-                }
-                recordIds.forEach {
-                    val data = ColumnRecord(it, this@MapDBColumn.store.get(it, this.serializer))
-                    if (predicate.matches(data)) recordset.addRowUnsafe(data.values)
+                this@MapDBColumn.store.RecordIdIterator().use { recordIds ->
+                    if (recordIds.next() != HEADER_RECORD_ID) {
+                        throw TransactionException.TransactionValidationException(this.tid, "The column '${this@MapDBColumn.fqn}' does not seem to contain a valid header record!")
+                    }
+                    recordIds.forEach {
+                        if (it != CottontailStoreWAL.EOF_ENTRY) {
+                            val data = ColumnRecord(it, this@MapDBColumn.store.get(it, this.serializer))
+                            if (predicate.matches(data)) recordset.addRowUnsafe(data.values)
+                        }
+                    }
                 }
                 return recordset
             } else {
@@ -314,14 +326,17 @@ internal class MapDBColumn<T : Any>(override val name: Name, override val parent
         override fun forEach(predicate: Predicate, action: (Record) -> Unit) {
             if (predicate is BooleanPredicate) {
                 checkValidOrThrow()
-                val recordIds = this@MapDBColumn.store.getAllRecids()
-                if (recordIds.next() != HEADER_RECORD_ID) {
-                    throw TransactionException.TransactionValidationException(this.tid, "The column '${this@MapDBColumn.fqn}' does not seem to contain a valid header record!")
-                }
-                recordIds.forEachRemaining {
-                    val record = ColumnRecord(it, this@MapDBColumn.store.get(it, this.serializer))
-                    if (predicate.matches(record)) {
-                        action(record)
+                this@MapDBColumn.store.RecordIdIterator().use { recordIds ->
+                    if (recordIds.next() != HEADER_RECORD_ID) {
+                        throw TransactionException.TransactionValidationException(this.tid, "The column '${this@MapDBColumn.fqn}' does not seem to contain a valid header record!")
+                    }
+                    recordIds.forEach {
+                        if (it != CottontailStoreWAL.EOF_ENTRY) {
+                            val record = ColumnRecord(it, this@MapDBColumn.store.get(it, this.serializer))
+                            if (predicate.matches(record)) {
+                                action(record)
+                            }
+                        }
                     }
                 }
             } else {
@@ -343,11 +358,16 @@ internal class MapDBColumn<T : Any>(override val name: Name, override val parent
             if (predicate is BooleanPredicate) {
                 checkValidOrThrow()
                 val list = mutableListOf<R>()
-                this@MapDBColumn.store.getAllRecids().forEach {
-                    if (it != HEADER_RECORD_ID) {
-                        val record = ColumnRecord(it, this@MapDBColumn.store.get(it, this.serializer))
-                        if (predicate.matches(record)) {
-                            list.add(action(ColumnRecord(it, this@MapDBColumn.store.get(it, this.serializer))))
+                this@MapDBColumn.store.RecordIdIterator().use { recordIds ->
+                    if (recordIds.next() != HEADER_RECORD_ID) {
+                        throw TransactionException.TransactionValidationException(this.tid, "The column '${this@MapDBColumn.fqn}' does not seem to contain a valid header record!")
+                    }
+                    recordIds.forEach {
+                        if (it != CottontailStoreWAL.EOF_ENTRY) {
+                            val record = ColumnRecord(it, this@MapDBColumn.store.get(it, this.serializer))
+                            if (predicate.matches(record)) {
+                                list.add(action(ColumnRecord(it, this@MapDBColumn.store.get(it, this.serializer))))
+                            }
                         }
                     }
                 }
@@ -367,23 +387,22 @@ internal class MapDBColumn<T : Any>(override val name: Name, override val parent
         override fun forEach(parallelism: Short, action: (Record) -> Unit) {
             runBlocking {
                 checkValidOrThrow()
-                val list = ArrayList<Long>(this@Tx.count().toInt())
-                /** TODO: only works if column contains at most MAX_INT entries */
-                val recordIds = this@MapDBColumn.store.getAllRecids()
-                if (recordIds.next() != HEADER_RECORD_ID) {
-                    throw TransactionException.TransactionValidationException(this@Tx.tid, "The column '${this@MapDBColumn.fqn}' does not seem to contain a valid header record!")
-                }
-                recordIds.forEachRemaining { list.add(it) }
-                val block = list.size / parallelism
-                val jobs = Array(parallelism.toInt()) {
-                    GlobalScope.launch {
-                        for (x in ((it * block) until Math.min((it * block) + block, list.size))) {
-                            val tupleId = list[x]
-                            action(ColumnRecord(tupleId, this@MapDBColumn.store.get(tupleId, this@Tx.serializer)))
+                this@MapDBColumn.store.RecordIdIterator().use { recordIds ->
+                    if (recordIds.next() != HEADER_RECORD_ID) {
+                        throw TransactionException.TransactionValidationException(this@Tx.tid, "The column '${this@MapDBColumn.fqn}' does not seem to contain a valid header record!")
+                    }
+                    val jobs = Array(parallelism.toInt()) {
+                        GlobalScope.launch {
+                            while (recordIds.hasNext()) {
+                                val tupleId = recordIds.next()
+                                if (tupleId != CottontailStoreWAL.EOF_ENTRY) {
+                                    action(ColumnRecord(tupleId, this@MapDBColumn.store.get(tupleId, this@Tx.serializer)))
+                                }
+                            }
                         }
                     }
+                    jobs.forEach { it.join() }
                 }
-                jobs.forEach { it.join() }
             }
         }
 
@@ -399,25 +418,25 @@ internal class MapDBColumn<T : Any>(override val name: Name, override val parent
         override fun <R> map(parallelism: Short, action: (Record) -> R): Collection<R> {
             return runBlocking {
                 checkValidOrThrow()
-                val list = ArrayList<Long>(this@Tx.count().toInt())
-                /** TODO: only works if column contains at most MAX_INT entries */
-                val recordIds = this@MapDBColumn.store.getAllRecids()
-                if (recordIds.next() != HEADER_RECORD_ID) {
-                    throw TransactionException.TransactionValidationException(this@Tx.tid, "The column '${this@MapDBColumn.fqn}' does not seem to contain a valid header record!")
-                }
-                recordIds.forEachRemaining { list.add(it) }
-                val block = list.size / parallelism
-                val results = Collections.synchronizedList(mutableListOf<R>())
-                val jobs = Array(parallelism.toInt()) {
-                    GlobalScope.launch {
-                        for (x in ((it * block) until Math.min((it * block) + block, list.size))) {
-                            val record = ColumnRecord(list[x], this@MapDBColumn.store.get(list[x], this@Tx.serializer))
-                            results.add(action(record))
+                this@MapDBColumn.store.RecordIdIterator().use { recordIds ->
+                    if (recordIds.next() != HEADER_RECORD_ID) {
+                        throw TransactionException.TransactionValidationException(this@Tx.tid, "The column '${this@MapDBColumn.fqn}' does not seem to contain a valid header record!")
+                    }
+                    val results = Collections.synchronizedList(mutableListOf<R>())
+                    val jobs = Array(parallelism.toInt()) {
+                        GlobalScope.launch {
+                            while (recordIds.hasNext()) {
+                                val tupleId = recordIds.next()
+                                if (tupleId != CottontailStoreWAL.EOF_ENTRY) {
+                                    val record = ColumnRecord(tupleId, this@MapDBColumn.store.get(tupleId, this@Tx.serializer))
+                                    results.add(action(record))
+                                }
+                            }
                         }
                     }
+                    jobs.forEach { it.join() }
+                    results
                 }
-                jobs.forEach { it.join() }
-                results
             }
         }
 
@@ -435,25 +454,25 @@ internal class MapDBColumn<T : Any>(override val name: Name, override val parent
             if (predicate is BooleanPredicate) {
                 runBlocking {
                     checkValidOrThrow()
-                    val list = ArrayList<Long>(this@Tx.count().toInt())
-                    /** TODO: only works if column contains at most MAX_INT entries */
-                    val recordIds = this@MapDBColumn.store.getAllRecids()
-                    if (recordIds.next() != HEADER_RECORD_ID) {
-                        throw TransactionException.TransactionValidationException(this@Tx.tid, "The column '${this@MapDBColumn.fqn}' does not seem to contain a valid header record!")
-                    }
-                    recordIds.forEachRemaining { list.add(it) }
-                    val block = list.size / parallelism
-                    val jobs = Array(parallelism.toInt()) {
-                        GlobalScope.launch {
-                            for (x in ((it * block) until Math.min((it * block) + block, list.size))) {
-                                val record = ColumnRecord(list[x], this@MapDBColumn.store.get(list[x], this@Tx.serializer))
-                                if (predicate.matches(record)) {
-                                    action(record)
+                    this@MapDBColumn.store.RecordIdIterator().use { recordIds ->
+                        if (recordIds.next() != HEADER_RECORD_ID) {
+                            throw TransactionException.TransactionValidationException(this@Tx.tid, "The column '${this@MapDBColumn.fqn}' does not seem to contain a valid header record!")
+                        }
+                        val jobs = Array(parallelism.toInt()) {
+                            GlobalScope.launch {
+                                while (recordIds.hasNext()) {
+                                    val tupleId = recordIds.next()
+                                    if (tupleId != CottontailStoreWAL.EOF_ENTRY) {
+                                        val record = ColumnRecord(tupleId, this@MapDBColumn.store.get(tupleId, this@Tx.serializer))
+                                        if (predicate.matches(record)) {
+                                            action(record)
+                                        }
+                                    }
                                 }
                             }
                         }
+                        jobs.forEach { it.join() }
                     }
-                    jobs.forEach { it.join() }
                 }
             }
         }
@@ -471,27 +490,27 @@ internal class MapDBColumn<T : Any>(override val name: Name, override val parent
             if (predicate is BooleanPredicate) {
                 return runBlocking {
                     checkValidOrThrow()
-                    val list = ArrayList<Long>(this@Tx.count().toInt())
-                    /** TODO: only works if column contains at most MAX_INT entries */
-                    val recordIds = this@MapDBColumn.store.getAllRecids()
-                    if (recordIds.next() != HEADER_RECORD_ID) {
-                        throw TransactionException.TransactionValidationException(this@Tx.tid, "The column '${this@MapDBColumn.fqn}' does not seem to contain a valid header record!")
-                    }
-                    recordIds.forEachRemaining { list.add(it) }
-                    val block = list.size / parallelism
-                    val results = Collections.synchronizedList(mutableListOf<R>())
-                    val jobs = Array(parallelism.toInt()) {
-                        GlobalScope.launch {
-                            for (x in ((it * block) until Math.min((it * block) + block, list.size))) {
-                                val record = ColumnRecord(list[x], this@MapDBColumn.store.get(list[x], this@Tx.serializer))
-                                if (predicate.matches(record)) {
-                                    results.add(action(record))
+                    this@MapDBColumn.store.RecordIdIterator().use { recordIds ->
+                        if (recordIds.next() != HEADER_RECORD_ID) {
+                            throw TransactionException.TransactionValidationException(this@Tx.tid, "The column '${this@MapDBColumn.fqn}' does not seem to contain a valid header record!")
+                        }
+                        val results = Collections.synchronizedList(mutableListOf<R>())
+                        val jobs = Array(parallelism.toInt()) {
+                            GlobalScope.launch {
+                                while (recordIds.hasNext()) {
+                                    val tupleId = recordIds.next()
+                                    if (tupleId != CottontailStoreWAL.EOF_ENTRY) {
+                                        val record = ColumnRecord(tupleId, this@MapDBColumn.store.get(tupleId, this@Tx.serializer))
+                                        if (predicate.matches(record)) {
+                                            results.add(action(record))
+                                        }
+                                    }
                                 }
                             }
                         }
+                        jobs.forEach { it.join() }
+                        results
                     }
-                    jobs.forEach { it.join() }
-                    results
                 }
             } else {
                 throw QueryException.UnsupportedPredicateException("The provided predicate of type '${predicate::class.java.simpleName}' is not supported for invocation of map() on column '${this@MapDBColumn.fqn}'.")
@@ -510,28 +529,25 @@ internal class MapDBColumn<T : Any>(override val name: Name, override val parent
             if (predicate is BooleanPredicate) {
                 return runBlocking {
                     checkValidOrThrow()
-                    val list = ArrayList<Long>(this@Tx.count().toInt())
                     val recordset = Recordset(arrayOf(this@MapDBColumn.columnDef))
-
-                    /** TODO: only works if column contains at most MAX_INT entries */
-                    val recordIds = this@MapDBColumn.store.getAllRecids()
-                    if (recordIds.next() != HEADER_RECORD_ID) {
-                        throw TransactionException.TransactionValidationException(this@Tx.tid, "The column '${this@MapDBColumn.fqn}' does not seem to contain a valid header record!")
-                    }
-                    recordIds.forEachRemaining { list.add(it) }
-                    val block = list.size / parallelism
-                    val jobs = Array(parallelism.toInt()) {
-                        GlobalScope.launch {
-                            for (x in ((it * block) until Math.min((it * block) + block, list.size))) {
-                                val record = ColumnRecord(list[x], this@MapDBColumn.store.get(list[x], this@Tx.serializer))
-                                if (predicate.matches(record)) {
-                                    recordset.addRowUnsafe(record.tupleId, record.values)
+                    this@MapDBColumn.store.RecordIdIterator().use { recordIds ->
+                        if (recordIds.next() != HEADER_RECORD_ID) {
+                            throw TransactionException.TransactionValidationException(this@Tx.tid, "The column '${this@MapDBColumn.fqn}' does not seem to contain a valid header record!")
+                        }
+                        val jobs = Array(parallelism.toInt()) {
+                            GlobalScope.launch {
+                                while (recordIds.hasNext()) {
+                                    val tupleId = recordIds.next()
+                                    val record = ColumnRecord(tupleId, this@MapDBColumn.store.get(tupleId, this@Tx.serializer))
+                                    if (predicate.matches(record)) {
+                                        recordset.addRowUnsafe(record.tupleId, record.values)
+                                    }
                                 }
                             }
                         }
+                        jobs.forEach { it.join() }
+                        recordset
                     }
-                    jobs.forEach { it.join() }
-                    recordset
                 }
             } else {
                 throw QueryException.UnsupportedPredicateException("The provided predicate of type '${predicate::class.java.simpleName}' is not supported for invocation of filter() on column '${this@MapDBColumn.fqn}'.")

@@ -61,8 +61,8 @@ internal class Entity(n: Name, schema: Schema) : DBO {
     override val parent: Schema = schema
 
     /** Internal reference to the [StoreWAL] underpinning this [Entity]. */
-    private val store: StoreWAL = try {
-        StoreWAL.make(file = this.path.resolve(FILE_CATALOGUE).toString(), volumeFactory = this.parent.parent.config.volumeFactory, fileLockWait = this.parent.parent.config.lockTimeout)
+    private val store: CottontailStoreWAL = try {
+        CottontailStoreWAL.make(file = this.path.resolve(FILE_CATALOGUE).toString(), volumeFactory = this.parent.parent.config.volumeFactory, fileLockWait = this.parent.parent.config.lockTimeout)
     } catch (e: DBException) {
         throw DatabaseException("Failed to open entity '$fqn': ${e.message}'.")
     }
