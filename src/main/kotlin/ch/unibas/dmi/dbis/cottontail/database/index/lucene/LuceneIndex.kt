@@ -102,7 +102,7 @@ internal class LuceneIndex(override val name: Name, override val parent: Entity,
             tx.forEach(parallelism = 1) {
                 writer.addDocument(documentFromRecord(it))
                 count++
-                if (count % 100_000 == 0) {
+                if (count % 1_000_000 == 0) {
                     LOGGER.trace("flushing writer to storage, {} docs processed in total", count)
                     writer.flush()
                 }
