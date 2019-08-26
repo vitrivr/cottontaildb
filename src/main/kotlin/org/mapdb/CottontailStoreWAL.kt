@@ -934,7 +934,7 @@ class CottontailStoreWAL(
 
         /** Current record ID. */
         @Volatile
-        private var currentRecordId = 1L
+        private var currentRecordId = 0L
 
         /**
          * Creates a lock for this [LongIterator]
