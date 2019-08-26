@@ -1,6 +1,6 @@
 package ch.unibas.dmi.dbis.cottontail.database.index.lucene
 
-import ch.unibas.dmi.dbis.cottontail.database.column.*
+import ch.unibas.dmi.dbis.cottontail.database.column.ColumnType
 import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
 import ch.unibas.dmi.dbis.cottontail.database.general.begin
 import ch.unibas.dmi.dbis.cottontail.database.index.Index
@@ -12,20 +12,21 @@ import ch.unibas.dmi.dbis.cottontail.model.basics.Record
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
 import ch.unibas.dmi.dbis.cottontail.model.recordset.StandaloneRecord
-import ch.unibas.dmi.dbis.cottontail.model.values.*
+import ch.unibas.dmi.dbis.cottontail.model.values.FloatValue
 import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
 import ch.unibas.dmi.dbis.cottontail.utilities.write
-
 import org.apache.lucene.analysis.standard.StandardAnalyzer
 import org.apache.lucene.document.*
-import org.apache.lucene.index.*
+import org.apache.lucene.index.DirectoryReader
+import org.apache.lucene.index.IndexReader
+import org.apache.lucene.index.IndexWriter
+import org.apache.lucene.index.IndexWriterConfig
 import org.apache.lucene.search.IndexSearcher
 import org.apache.lucene.store.Directory
 import org.apache.lucene.store.FSDirectory
 import org.apache.lucene.store.NativeFSLockFactory
-
+import org.slf4j.LoggerFactory
 import java.nio.file.Path
-import kotlin.concurrent.write
 
 /**
  * Represents a Apache Lucene based index in the Cottontail DB data model. The [LuceneIndex] allows for string comparisons using the LIKE operator.
@@ -59,6 +60,8 @@ internal class LuceneIndex(override val name: Name, override val parent: Entity,
                 }
             }
         }
+
+        private val LOGGER = LoggerFactory.getLogger(LuceneIndex::class.java)
     }
 
     /** The [LuceneIndex] implementation produces an additional score column. */
@@ -91,11 +94,18 @@ internal class LuceneIndex(override val name: Name, override val parent: Entity,
      * (Re-)builds the [LuceneIndex].
      */
     override fun rebuild() {
+        LOGGER.trace("rebuilding lucene index {}", name)
         val writer = IndexWriter(this.directory, IndexWriterConfig(StandardAnalyzer()).setOpenMode(IndexWriterConfig.OpenMode.APPEND).setCommitOnClose(true))
         writer.deleteAll()
         this.parent.Tx(readonly = true, columns = this.columns, ommitIndex = true).begin { tx ->
-            tx.forEach (parallelism = 2) {
+            var count = 0
+            tx.forEach(parallelism = 1) {
                 writer.addDocument(documentFromRecord(it))
+                count++
+                if (count % 100_000 == 0) {
+                    LOGGER.trace("flushing writer to storage, {} docs processed in total", count)
+                    writer.flush()
+                }
             }
             true
         }
@@ -132,7 +142,7 @@ internal class LuceneIndex(override val name: Name, override val parent: Entity,
         if (!predicate.columns.all { this.columns.contains(it) })
             throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (lucene-index) is lacking certain fields the provided predicate requires.")
 
-        if (!predicate.atomics.all { it.operator == ComparisonOperator.LIKE || it.operator == ComparisonOperator.EQUAL})
+        if (!predicate.atomics.all { it.operator == ComparisonOperator.LIKE || it.operator == ComparisonOperator.EQUAL })
             throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (lucene-index) can only process LIKE comparisons.")
 
         /* Generate query. */
@@ -146,7 +156,7 @@ internal class LuceneIndex(override val name: Name, override val parent: Entity,
 
         /* Execute query and add results. */
         val results = indexSearcher.search(query, Integer.MAX_VALUE)
-        results.scoreDocs.forEach {sdoc ->
+        results.scoreDocs.forEach { sdoc ->
             val doc = indexSearcher.doc(sdoc.doc)
             resultset.addRowUnsafe(doc[TID_COLUMN].toLong(), values = arrayOf(FloatValue(sdoc.score)))
         }
@@ -170,7 +180,7 @@ internal class LuceneIndex(override val name: Name, override val parent: Entity,
         if (!predicate.columns.all { this.columns.contains(it) })
             throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (lucene-index) is lacking certain fields the provided predicate requires.")
 
-        if (!predicate.atomics.all { it.operator == ComparisonOperator.LIKE || it.operator == ComparisonOperator.EQUAL})
+        if (!predicate.atomics.all { it.operator == ComparisonOperator.LIKE || it.operator == ComparisonOperator.EQUAL })
             throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (lucene-index) can only process LIKE comparisons.")
 
         /* Generate query. */
@@ -181,7 +191,7 @@ internal class LuceneIndex(override val name: Name, override val parent: Entity,
 
         /* Execute query and add results. */
         val results = indexSearcher.search(query, Integer.MAX_VALUE)
-        results.scoreDocs.forEach {sdoc ->
+        results.scoreDocs.forEach { sdoc ->
             val doc = indexSearcher.doc(sdoc.doc)
             action(StandaloneRecord(tupleId = doc[TID_COLUMN].toLong(), columns = arrayOf(*this.produces)).assign(arrayOf(FloatValue(sdoc.score))))
         }
@@ -204,7 +214,7 @@ internal class LuceneIndex(override val name: Name, override val parent: Entity,
         if (!predicate.columns.all { this.columns.contains(it) })
             throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (lucene-index) is lacking certain fields the provided predicate requires.")
 
-        if (!predicate.atomics.all { it.operator == ComparisonOperator.LIKE || it.operator == ComparisonOperator.EQUAL})
+        if (!predicate.atomics.all { it.operator == ComparisonOperator.LIKE || it.operator == ComparisonOperator.EQUAL })
             throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (lucene-index) can only process LIKE comparisons.")
 
         /* Generate query. */
@@ -214,7 +224,7 @@ internal class LuceneIndex(override val name: Name, override val parent: Entity,
         }
 
         /* Execute query and add results. */
-        val results = indexSearcher.search(query, Integer.MAX_VALUE).scoreDocs.map {sdoc ->
+        val results = indexSearcher.search(query, Integer.MAX_VALUE).scoreDocs.map { sdoc ->
             val doc = indexSearcher.doc(sdoc.doc)
             action(StandaloneRecord(tupleId = doc[TID_COLUMN].toLong(), columns = arrayOf(*this.produces)).assign(arrayOf(FloatValue(sdoc.score))))
         }
@@ -232,7 +242,7 @@ internal class LuceneIndex(override val name: Name, override val parent: Entity,
     override fun canProcess(predicate: Predicate): Boolean {
         if (predicate is BooleanPredicate) {
             if (!predicate.columns.all { this.columns.contains(it) }) return false
-            if (!predicate.atomics.all { it.operator == ComparisonOperator.LIKE  || it.operator == ComparisonOperator.EQUAL}) return false
+            if (!predicate.atomics.all { it.operator == ComparisonOperator.LIKE || it.operator == ComparisonOperator.EQUAL }) return false
             return true
         } else {
             return false
@@ -248,7 +258,7 @@ internal class LuceneIndex(override val name: Name, override val parent: Entity,
     override fun cost(predicate: Predicate): Float = when {
         canProcess(predicate) -> {
             val searcher = IndexSearcher(this.indexReader)
-            predicate.columns.map {searcher.collectionStatistics(it.name).sumTotalTermFreq() * ATOMIC_COST}.sum()
+            predicate.columns.map { searcher.collectionStatistics(it.name).sumTotalTermFreq() * ATOMIC_COST }.sum()
         }
         else -> Float.MAX_VALUE
     }

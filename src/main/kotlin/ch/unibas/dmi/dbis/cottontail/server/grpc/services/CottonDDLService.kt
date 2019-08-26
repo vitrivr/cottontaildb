@@ -3,6 +3,7 @@ package ch.unibas.dmi.dbis.cottontail.server.grpc.services
 import ch.unibas.dmi.dbis.cottontail.database.catalogue.Catalogue
 import ch.unibas.dmi.dbis.cottontail.database.column.ColumnType
 import ch.unibas.dmi.dbis.cottontail.database.index.IndexType
+import ch.unibas.dmi.dbis.cottontail.database.index.lucene.LuceneIndex
 import ch.unibas.dmi.dbis.cottontail.grpc.CottonDDLGrpc
 import ch.unibas.dmi.dbis.cottontail.grpc.CottontailGrpc
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
@@ -17,6 +18,7 @@ import com.google.protobuf.Empty
 
 import io.grpc.Status
 import io.grpc.stub.StreamObserver
+import org.slf4j.LoggerFactory
 
 /**
  * This is a GRPC service endpoint that handles DDL (=Data Definition Language) request for Cottontail DB.
@@ -25,10 +27,15 @@ import io.grpc.stub.StreamObserver
  * @version 1.0
  */
 internal class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.CottonDDLImplBase() {
+    /** Logger used for logging the output. */
+    companion object {
+        private val LOGGER = LoggerFactory.getLogger(CottonDDLService::class.java)
+    }
     /**
      * gRPC endpoint for creating a new [Schema]
      */
     override fun createSchema(request: CottontailGrpc.Schema, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) = try {
+        LOGGER.trace("Creating schema {}", request.name)
         if (!(request.name as Name).isValid(NameType.SIMPLE)) {
             responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Failed to create schema: Invalid name '${request.name}'.").asException())
         } else {
@@ -48,6 +55,7 @@ internal class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.Cotton
      * gRPC endpoint for dropping a [Schema]
      */
     override fun dropSchema(request: CottontailGrpc.Schema, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) = try {
+        LOGGER.trace("Dropping schema {}", request.name)
         if (!(request.name as Name).isValid(NameType.SIMPLE)) {
             responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Failed to drop schema: Invalid name '${request.name}'.").asException())
         } else {
@@ -82,6 +90,7 @@ internal class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.Cotton
      * gRPC endpoint for creating a new [Entity]
      */
     override fun createEntity(request: CottontailGrpc.CreateEntityMessage, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) = try {
+        LOGGER.trace("Creating entity {}", request.entity.name)
         if (!(request.entity.name as Name).isValid(NameType.SIMPLE)) {
             responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Failed to create entity: Invalid name '${request.entity.name}'.").asException())
         } else {
