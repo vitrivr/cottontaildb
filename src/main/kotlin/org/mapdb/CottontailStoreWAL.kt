@@ -12,6 +12,7 @@ import org.mapdb.StoreDirectJava.*
 import java.io.Closeable
 import java.io.File
 import java.util.*
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * This is a re-implementation / copy of Map DB's [StoreWAL] class with minor modifications.
@@ -933,8 +934,7 @@ class CottontailStoreWAL(
         private val maximumRecordId = this@CottontailStoreWAL.maxRecid
 
         /** Current record ID. */
-        @Volatile
-        private var currentRecordId = 0L
+        private var currentRecordId = AtomicLong(0L)
 
         /**
          * Creates a lock for this [LongIterator]
@@ -949,19 +949,20 @@ class CottontailStoreWAL(
          *
          * @return The next record ID.
          */
-        @Synchronized
         override fun nextLong(): Long {
+            var localIndex = -1L
             while (true) {
-                val indexVal = getIndexVal(this.currentRecordId++)
+                localIndex = this.currentRecordId.incrementAndGet()
+                val indexVal = getIndexVal(localIndex)
                 if (indexValFlagUnused(indexVal).not()) {
                     break
                 }
-                if (this.currentRecordId >= this.maximumRecordId) {
+                if (localIndex >= this.maximumRecordId) {
                     break
                 }
             }
-            return if (this.currentRecordId < this.maximumRecordId) {
-                this.currentRecordId
+            return if (localIndex < this.maximumRecordId) {
+                localIndex
             } else {
                 EOF_ENTRY
             }
@@ -970,8 +971,7 @@ class CottontailStoreWAL(
         /**
          * Returns true as long as the current record ID is smaller than the maximum record ID.
          */
-        @Synchronized
-        override fun hasNext(): Boolean = this.currentRecordId < this.maximumRecordId
+        override fun hasNext(): Boolean = this.currentRecordId.get() < this.maximumRecordId
 
         /**
          * Relinquishes the lock held by this [LongIterator]
