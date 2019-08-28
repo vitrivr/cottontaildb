@@ -950,9 +950,8 @@ class CottontailStoreWAL(
          * @return The next record ID.
          */
         override fun nextLong(): Long {
-            var localIndex = -1L
-            while (true) {
-                localIndex = this.currentRecordId.incrementAndGet()
+            var localIndex = this.currentRecordId.incrementAndGet()
+            do {
                 val indexVal = getIndexVal(localIndex)
                 if (indexValFlagUnused(indexVal).not()) {
                     break
@@ -960,8 +959,10 @@ class CottontailStoreWAL(
                 if (localIndex >= this.maximumRecordId) {
                     break
                 }
-            }
-            return if (localIndex < this.maximumRecordId) {
+                localIndex = this.currentRecordId.incrementAndGet()
+            } while (true)
+
+            return if (localIndex <= this.maximumRecordId) {
                 localIndex
             } else {
                 EOF_ENTRY
