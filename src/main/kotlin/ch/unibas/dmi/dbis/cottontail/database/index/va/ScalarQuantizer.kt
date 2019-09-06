@@ -1,13 +1,24 @@
 package ch.unibas.dmi.dbis.cottontail.database.index.va
 
+import kotlin.math.log2
 
-class Quantizer(val vector: FloatArray, bits: UByte) {
+
+class ScalarQuantizer {
 
     private val bounds: FloatArray
-    private val bitLen: Int = 1 shl bits.toInt()
+    private val bitLen: Int
+    val bits: UByte
 
-    init {
+    constructor(vector: FloatArray, bits: UByte){
+        bitLen = 1 shl bits.toInt()
         bounds = quantizeVector(vector)
+        this.bits = bits
+    }
+
+    internal constructor(bounds: FloatArray){
+        this.bounds = bounds
+        this.bitLen = bounds.size + 1
+        this.bits = log2(bitLen.toDouble()).toUInt().toUByte()
     }
 
     private fun quantizeVector(vector: FloatArray): FloatArray {
@@ -16,9 +27,12 @@ class Quantizer(val vector: FloatArray, bits: UByte) {
         return indexes.map { values[it] }.toFloatArray()
     }
 
-    fun quantize(value: Float): Int {
+    fun quantize(value: Float): BooleanArray {
         val index = bounds.binarySearch(value)
-        return if (index >= 0) index else -index - 1
+        val value = if (index >= 0) index else -index - 1
+        return (bits.toInt() - 1 downTo 0).map {
+            (value and (1 shl it)) != 0
+        }.toBooleanArray()
     }
 
     fun getRange(index: Int): ClosedRange<Float>? {
@@ -30,6 +44,5 @@ class Quantizer(val vector: FloatArray, bits: UByte) {
         }
     }
 
-    fun quantize(vector: FloatArray): IntArray = vector.map { quantize(it) }.toIntArray()
 
 }
