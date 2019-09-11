@@ -25,12 +25,12 @@ data management (DML) and one for queries (DQL).
 
 To connect to Cottontail DB, use the gRPC library of your preference based on the programming environment you use. For example, in Kotlin, a connection could be created as follows:
 
-``
+```kotlin
     val channel = ManagedChannelBuilder.forAddress("127.0.0.1", 1865).usePlaintext().build()
     val dqlService =  CottonDQLGrpc.newBlockingStub(channel)
     val ddlService =  CottonDDLGrpc.newBlockingStub(channel)
     val dmlService =  CottonDMLGrpc.newBlockingStub(channel)
-``
+```
 
 ## Credit
 Cottontail DB is based on the ideas presented in the following papers:
