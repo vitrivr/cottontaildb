@@ -19,6 +19,19 @@ parameters:
 
 Remaining parameters will be documented in a future version of this file. Check `ch.unibas.dmi.dbis.cottontail.config` package for code documentation of the configuration parameters.
 
+### Connecting to Cottontail DB
+Communication with Cottontail DB is facilitated by gRPC. By default, the gRPC endpoint runs on __port 1865__. The server provides three different services: one for data definition (DDL), one for
+data management (DML) and one for queries (DQL).
+
+To connect to Cottontail DB, use the gRPC library of your preference based on the programming environment you use. For example, in Kotlin, a connection could be created as follows:
+
+``
+    val channel = ManagedChannelBuilder.forAddress("127.0.0.1", 1865).usePlaintext().build()
+    val dqlService =  CottonDQLGrpc.newBlockingStub(channel)
+    val ddlService =  CottonDDLGrpc.newBlockingStub(channel)
+    val dmlService =  CottonDMLGrpc.newBlockingStub(channel)
+``
+
 ## Credit
 Cottontail DB is based on the ideas presented in the following papers:
 
