@@ -11,45 +11,44 @@ import ch.unibas.dmi.dbis.cottontail.math.knn.HeapSelect
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
 import ch.unibas.dmi.dbis.cottontail.model.values.DoubleValue
+import ch.unibas.dmi.dbis.cottontail.model.values.VectorValue
 import com.github.dexecutor.core.task.Task
 
 /**
- * A [Task] that executes a sequential boolean kNN on a long [Column] of the specified [Entity].
+ * A [Task] that executes a parallel boolean kNN on a [Column] of the specified [Entity]. Parallelism is achieved through the use of co-routines.
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.1
  */
-internal class LinearEntityScanIntKnnTask(val entity: Entity, val knn: KnnPredicate<IntArray>, val predicate: BooleanPredicate? = null) : ExecutionTask("KnnFullscan[${entity.fqn}][${knn.column.name}][${knn.distance::class.simpleName}][${knn.k}][q=${knn.query.hashCode()}]") {
+internal class ParallelEntityScanKnnTask<T: Any>(val entity: Entity, val knn: KnnPredicate<T>, val predicate: BooleanPredicate? = null, val parallelism: Short = 2) : ExecutionTask("ParallelEntityScanDoubleKnnTask[${entity.fqn}][${knn.column.name}][${knn.distance::class.simpleName}][${knn.k}][q=${knn.query.hashCode()}]") {
 
     /** Set containing the kNN values. */
     private val knnSet = knn.query.map { HeapSelect<ComparablePair<Long,Double>>(this.knn.k) }
 
-    /** List of the [ColumnDef] this instance of [LinearEntityScanDoubleKnnTask] produces. */
+    /** List of the [ColumnDef] this instance of [ParallelEntityScanKnnTask] produces. */
     private val produces: Array<ColumnDef<*>> = arrayOf(ColumnDef("${entity.fqn}.distance", ColumnType.forName("DOUBLE")))
 
-    /** The cost of this [LinearEntityScanDoubleKnnTask] is constant */
-    override val cost = this.entity.statistics.columns * (this.knn.operations * 1e-5 + (this.predicate?.operations ?: 0) * 1e-5).toFloat()
+    /** The cost of this [ParallelEntityScanKnnTask] is constant */
+    override val cost = entity.statistics.columns * (knn.operations + (predicate?.operations ?: 0)).toFloat() / parallelism
 
     /**
-     * Executes this [LinearEntityScanDoubleKnnTask]
+     * Executes this [ParallelEntityScanKnnTask]
      */
     override fun execute(): Recordset {
         /* Extract the necessary data. */
-        val queries = this.knn.query.map {array -> IntArray(array.size) { array[it].toInt() } }
-        val weights = this.knn.weights?.map { array -> FloatArray(array.size) { array[it].toFloat() } }
         val columns = arrayOf<ColumnDef<*>>(this.knn.column).plus(predicate?.columns?.toTypedArray() ?: emptyArray())
 
         /* Execute kNN lookup. */
         this.entity.Tx(readonly = true, columns = columns).begin { tx ->
-            tx.forEach {
+            tx.forEach(this.parallelism) {
                 if (this.predicate == null || this.predicate.matches(it)) {
                     val value = it[this.knn.column]
-                    if (value != null) {
-                        queries.forEachIndexed { i, query ->
-                            if (weights != null) {
-                                this.knnSet[i].add(ComparablePair(it.tupleId, this.knn.distance(query, value.value, weights[i])))
+                    if (value is VectorValue<T>) {
+                        this.knn.query.forEachIndexed { i, query ->
+                            if (this.knn.weights != null) {
+                                this.knnSet[i].add(ComparablePair(it.tupleId, this.knn.distance(query, value, this.knn.weights[i])))
                             } else {
-                                this.knnSet[i].add(ComparablePair(it.tupleId, this.knn.distance(query, value.value)))
+                                this.knnSet[i].add(ComparablePair(it.tupleId, this.knn.distance(query, value)))
                             }
                         }
                     }

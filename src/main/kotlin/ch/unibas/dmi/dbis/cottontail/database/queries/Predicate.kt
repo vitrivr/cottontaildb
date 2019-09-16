@@ -1,11 +1,13 @@
 package ch.unibas.dmi.dbis.cottontail.database.queries
 
 import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
-import ch.unibas.dmi.dbis.cottontail.math.knn.metrics.Distance
+import ch.unibas.dmi.dbis.cottontail.math.knn.metrics.DistanceFunction
+import ch.unibas.dmi.dbis.cottontail.math.knn.metrics.DoubleVectorDistance
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.basics.Record
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
 import ch.unibas.dmi.dbis.cottontail.model.values.Value
+import ch.unibas.dmi.dbis.cottontail.model.values.VectorValue
 
 /**
  * A general purpose [Predicate] that describes a Cottontail DB query. It can either operate on [Recordset]s or data read from an [Entity].
@@ -120,7 +122,7 @@ internal data class CompoundBooleanPredicate(val connector: ConnectionOperator, 
  * @author Ralph Gasser
  * @version 1.0
  */
-internal data class KnnPredicate<T : Any>(val column: ColumnDef<T>, val k: Int, val query: List<Array<Number>>, val distance: Distance, val weights: List<Array<Number>>? = null) : Predicate() {
+internal data class KnnPredicate<T: Any>(val column: ColumnDef<T>, val k: Int, val query: List<VectorValue<T>>, val distance: DistanceFunction<T>, val weights: List<VectorValue<FloatArray>>? = null) : Predicate() {
     init {
         /* Some basic sanity checks. */
         if (k <= 0) throw QueryException.QuerySyntaxException("The value of k for a kNN query cannot be smaller than one (is $k)s!")
@@ -141,7 +143,7 @@ internal data class KnnPredicate<T : Any>(val column: ColumnDef<T>, val k: Int, 
 
     /**
      * Number of operations required for this [KnnPredicate]. Calculated by applying the base operations
-     * for the [Distance] to each vector components.
+     * for the [DoubleVectorDistance] to each vector components.
      *
      * If weights are used, this will be added to the cost.
      */

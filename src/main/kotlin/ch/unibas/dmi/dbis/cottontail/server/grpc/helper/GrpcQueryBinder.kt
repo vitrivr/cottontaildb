@@ -12,15 +12,15 @@ import ch.unibas.dmi.dbis.cottontail.execution.ExecutionPlanFactory
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.basics.ExecutionTask
 
 import ch.unibas.dmi.dbis.cottontail.grpc.CottontailGrpc
-
-import ch.unibas.dmi.dbis.cottontail.math.knn.metrics.Distance
+import ch.unibas.dmi.dbis.cottontail.math.knn.metrics.*
 
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
-import ch.unibas.dmi.dbis.cottontail.model.values.Value
+import ch.unibas.dmi.dbis.cottontail.model.values.*
 import ch.unibas.dmi.dbis.cottontail.utilities.name.doesNameMatch
 import ch.unibas.dmi.dbis.cottontail.utilities.name.normalizeColumnName
+import java.util.*
 
 /**
  * This helper class parses and binds queries issued through the GRPC endpoint. The process encompasses three steps:
@@ -179,42 +179,39 @@ internal class GrpcQueryBinder(val catalogue: Catalogue, engine: ExecutionEngine
     @Suppress("UNCHECKED_CAST")
     private fun parseAndBindKnnPredicate(entity: Entity, knn: CottontailGrpc.Knn): KnnPredicate<*> {
         val column = entity.columnForName(knn.attribute) ?: throw QueryException.QueryBindException("Failed to bind column '${knn.attribute}'. Column does not exist on entity '${entity.fqn}'!")
-
-        /* Extracts the query vector. */
-        val query: List<Array<Number>> = knn.queryList.map { q ->
-            when (q.vectorDataCase) {
-                CottontailGrpc.Vector.VectorDataCase.FLOATVECTOR -> q.floatVector.vectorList.toTypedArray() as Array<Number>
-                CottontailGrpc.Vector.VectorDataCase.DOUBLEVECTOR -> q.doubleVector.vectorList.toTypedArray() as Array<Number>
-                CottontailGrpc.Vector.VectorDataCase.INTVECTOR -> q.intVector.vectorList.toTypedArray() as Array<Number>
-                CottontailGrpc.Vector.VectorDataCase.LONGVECTOR -> q.longVector.vectorList.toTypedArray() as Array<Number>
-                CottontailGrpc.Vector.VectorDataCase.BOOLVECTOR -> q.boolVector.vectorList.let { v -> Array(v.size) { if (v[it]) 1 else 0 } } as Array<Number>
-                CottontailGrpc.Vector.VectorDataCase.VECTORDATA_NOT_SET -> throw QueryException.QuerySyntaxException("A kNN predicate does not contain a valid query vector!")
-                null -> throw QueryException.QuerySyntaxException("A kNN predicate does not contain a valid query vector!")
-            }
-        }
-
-        /* Extracts the query vector. */
-        val weights: List<Array<Number>>? = if (knn.weightsCount > 0) {
-            knn.weightsList.map { w ->
-                when (w.vectorDataCase) {
-                    CottontailGrpc.Vector.VectorDataCase.FLOATVECTOR -> w.floatVector.vectorList.toTypedArray() as Array<Number>
-                    CottontailGrpc.Vector.VectorDataCase.DOUBLEVECTOR -> w.doubleVector.vectorList.toTypedArray() as Array<Number>
-                    CottontailGrpc.Vector.VectorDataCase.INTVECTOR -> w.intVector.vectorList.toTypedArray() as Array<Number>
-                    CottontailGrpc.Vector.VectorDataCase.LONGVECTOR -> w.longVector.vectorList.toTypedArray() as Array<Number>
-                    CottontailGrpc.Vector.VectorDataCase.BOOLVECTOR -> w.boolVector.vectorList.let { v -> Array(v.size) { if (v[it]) 1 else 0 } } as Array<Number>
-                    CottontailGrpc.Vector.VectorDataCase.VECTORDATA_NOT_SET -> throw QueryException.QuerySyntaxException("A kNN predicate does not contain a valid weight vector!")
-                    null -> throw QueryException.QuerySyntaxException("A kNN predicate does not contain a valid weight vector!")
-                }
-            }
+        val weights = if (knn.weightsCount > 0) {
+            knn.weightsList.map { w -> w.toFloatVectorValue() }
         } else {
             null
         }
 
-        /* Generate the predicate. */
-        return try {
-            KnnPredicate(column = column, k = knn.k, query = query, weights = weights, distance = Distance.valueOf(knn.distance.name))
-        } catch (e: IllegalArgumentException) {
-            throw QueryException.QuerySyntaxException("The '${knn.distance}' is not a valid distance function for a kNN predicate.")
+        return when(column.type) {
+            is DoubleVectorColumnType -> {
+                val query = knn.queryList.map { q -> q.toDoubleVectorValue() }
+                val distance = DoubleVectorDistance.valueOf(knn.distance.name)
+                KnnPredicate(column = column as ColumnDef<DoubleArray>, k = knn.k, query = query, weights = weights, distance = distance)
+            }
+            is FloatVectorColumnType -> {
+                val query = knn.queryList.map { q -> q.toFloatVectorValue() }
+                val distance = FloatVectorDistance.valueOf(knn.distance.name)
+                KnnPredicate(column = column as ColumnDef<FloatArray>, k = knn.k, query = query, weights = weights, distance = distance)
+            }
+            is LongVectorColumnType -> {
+                val query = knn.queryList.map { q -> q.toLongVectorValue() }
+                val distance = LongVectorDistance.valueOf(knn.distance.name)
+                KnnPredicate(column = column as ColumnDef<LongArray>, k = knn.k, query = query, weights = weights, distance = distance)
+            }
+            is IntVectorColumnType -> {
+                val query = knn.queryList.map { q -> q.toIntVectorValue() }
+                val distance = IntVectorDistance.valueOf(knn.distance.name)
+                KnnPredicate(column = column as ColumnDef<IntArray>, k = knn.k, query = query, weights = weights, distance = distance)
+            }
+            is BooleanVectorColumnType -> {
+                val query = knn.queryList.map { q -> q.toBooleanVectorValue() }
+                val distance = BoolVectorDistance.valueOf(knn.distance.name)
+                KnnPredicate(column = column as ColumnDef<BitSet>, k = knn.k, query = query, weights = weights, distance = distance)
+            }
+            else -> throw QueryException.QuerySyntaxException("A kNN predicate does not contain a valid query vector!")
         }
     }
 

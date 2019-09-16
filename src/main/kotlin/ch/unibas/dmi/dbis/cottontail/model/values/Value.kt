@@ -1,29 +1,18 @@
 package ch.unibas.dmi.dbis.cottontail.model.values
 
-import java.util.*
-
-
 /**
- * This is an abstraction over the existing primitive types provided by Kotlin. It allows for the advanced  type system implemented by Cottontail DB.
+ * This is an abstraction over the existing primitive types provided by Kotlin. It allows for the advanced type system implemented by Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.1
  */
 interface Value<T> {
 
     /** Actual value of this [Value]. */
     val value: T
 
-    /** Size of this [Value]. -1 for all types except for vector types. */
-    val size
-        get() = when (this.value) {
-            is DoubleArray -> (value as DoubleArray).size
-            is FloatArray -> (value as FloatArray).size
-            is LongArray -> (value as LongArray).size
-            is IntArray -> (value as IntArray).size
-            is BitSet -> (value as BitSet).length()
-            else -> -1
-        }
+    /** Size of this [Value]. */
+    val size: Int
 
     /** True if this is a numeric [Value]. */
     val numeric: Boolean

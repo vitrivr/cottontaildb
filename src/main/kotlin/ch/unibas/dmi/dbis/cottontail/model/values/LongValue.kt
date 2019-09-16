@@ -1,6 +1,9 @@
 package ch.unibas.dmi.dbis.cottontail.model.values
 
 inline class LongValue(override val value: Long) : Value<Long> {
+    override val size: Int
+        get() = -1
+
     override val numeric: Boolean
         get() = true
 

@@ -1,6 +1,9 @@
 package ch.unibas.dmi.dbis.cottontail.model.values
 
 inline class StringValue(override val value: String) : Value<String> {
+    override val size: Int
+        get() = value.length
+
     override val numeric: Boolean
         get() = false
 

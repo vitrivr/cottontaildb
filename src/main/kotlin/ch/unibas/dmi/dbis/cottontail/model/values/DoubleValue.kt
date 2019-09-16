@@ -1,6 +1,9 @@
 package ch.unibas.dmi.dbis.cottontail.model.values
 
 inline class DoubleValue(override val value: Double) : Value<Double> {
+    override val size: Int
+        get() = -1
+
     override val numeric: Boolean
         get() = true
 
