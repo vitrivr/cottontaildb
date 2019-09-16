@@ -31,7 +31,7 @@ sealed class Predicate {
  * @author Ralph Gasser
  * @version 1.0
  */
-internal sealed class BooleanPredicate : Predicate() {
+sealed class BooleanPredicate : Predicate() {
     /** The [AtomicBooleanPredicate]s that make up this [BooleanPredicate]. */
     abstract val atomics: Set<AtomicBooleanPredicate<*>>
 
@@ -49,7 +49,7 @@ internal sealed class BooleanPredicate : Predicate() {
  * @author Ralph Gasser
  * @version 1.0
  */
-internal data class AtomicBooleanPredicate<T : Value<*>>(private val column: ColumnDef<T>, val operator: ComparisonOperator, val not: Boolean = false, var values: Collection<Value<*>>) : BooleanPredicate() {
+data class AtomicBooleanPredicate<T : Value<*>>(private val column: ColumnDef<T>, val operator: ComparisonOperator, val not: Boolean = false, var values: Collection<Value<*>>) : BooleanPredicate() {
     init {
         if (this.operator == ComparisonOperator.IN) {
             this.values = this.values.toSet()
@@ -91,7 +91,7 @@ internal data class AtomicBooleanPredicate<T : Value<*>>(private val column: Col
  * @author Ralph Gasser
  * @version 1.0
  */
-internal data class CompoundBooleanPredicate(val connector: ConnectionOperator, val p1: BooleanPredicate, val p2: BooleanPredicate) : BooleanPredicate() {
+data class CompoundBooleanPredicate(val connector: ConnectionOperator, val p1: BooleanPredicate, val p2: BooleanPredicate) : BooleanPredicate() {
     /** The [AtomicBooleanPredicate]s that make up this [CompoundBooleanPredicate]. */
     override val atomics = this.p1.atomics + this.p2.atomics
 
@@ -122,7 +122,7 @@ internal data class CompoundBooleanPredicate(val connector: ConnectionOperator, 
  * @author Ralph Gasser
  * @version 1.0
  */
-internal data class KnnPredicate<T: Any>(val column: ColumnDef<T>, val k: Int, val query: List<VectorValue<T>>, val distance: DistanceFunction<T>, val weights: List<VectorValue<FloatArray>>? = null) : Predicate() {
+data class KnnPredicate<T: Any>(val column: ColumnDef<T>, val k: Int, val query: List<VectorValue<T>>, val distance: DistanceFunction<T>, val weights: List<VectorValue<FloatArray>>? = null) : Predicate() {
     init {
         /* Some basic sanity checks. */
         if (k <= 0) throw QueryException.QuerySyntaxException("The value of k for a kNN query cannot be smaller than one (is $k)s!")

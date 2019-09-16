@@ -78,9 +78,9 @@ abstract class CottontailStoreDirectAbstract(
         }
 
     /** maximal allocated recid */
-    protected var maxRecid: Long
+    public var maxRecid: Long
         get() = DataIO.parity3Get(headVol.getLong(StoreDirectJava.INDEX_TAIL_OFFSET)).ushr(3)
-        set(v:Long){
+        protected set(v:Long){
             if(CC.ASSERT)
                 CottontailUtils.assertLocked(structuralLock)
             headVol.putLong(StoreDirectJava.INDEX_TAIL_OFFSET, DataIO.parity3Set(v.shl(3)))

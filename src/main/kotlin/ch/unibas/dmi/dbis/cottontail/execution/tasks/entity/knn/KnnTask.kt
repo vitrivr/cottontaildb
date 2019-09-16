@@ -11,7 +11,7 @@ import kotlin.math.min
 
 internal object KnnTask {
     /** Threshold under which parallelism starts to kick in. TODO: Find optimal value experimentally. */
-    private const val KNN_OP_PARALLELISM_THRESHOLD = 81920000L
+    private const val KNN_OP_PARALLELISM_THRESHOLD = 819200000L
 
     /**
      * Constructs a [ExecutionTask] for kNN lookup given the [KnnPredicate] and the optional [BooleanPredicate]. This method
@@ -27,7 +27,7 @@ internal object KnnTask {
     @Suppress("UNCHECKED_CAST")
     fun <T: Any> entityScanTaskForPredicate(entity: Entity, knnClause: KnnPredicate<T>, whereClause: BooleanPredicate?) : ExecutionTask {
         val operations = knnClause.query.first().size * entity.statistics.rows * (knnClause.operations + (whereClause?.operations ?: 0))
-        val parallelism = min(Math.floorDiv(operations, KNN_OP_PARALLELISM_THRESHOLD).toInt(), Runtime.getRuntime().availableProcessors()).toShort()
+        val parallelism = min(Math.floorDiv(operations, KNN_OP_PARALLELISM_THRESHOLD).toInt(), Runtime.getRuntime().availableProcessors() / 2).toShort()
         return if (parallelism > 1) {
             ParallelEntityScanKnnTask(entity, knnClause, whereClause, parallelism)
         } else {

@@ -12,7 +12,7 @@ import ch.unibas.dmi.dbis.cottontail.model.basics.*
  * @author Ralph Gasser
  * @version 1.0
  */
-internal interface EntityTransaction : Transaction, Filterable, Scanable, ParallelScanable, Countable, Deletable {
+internal interface EntityTransaction : Transaction, Filterable, Scanable, Countable, Deletable {
     /**
      * Returns a collection of all the [IndexTransaction] available to this [EntityTransaction], that match the given [ColumnDef] and [IndexType] constraint.
      *

@@ -1,10 +1,11 @@
 package ch.unibas.dmi.dbis.cottontail.database.index
 
 import ch.unibas.dmi.dbis.cottontail.database.general.Transaction
+import ch.unibas.dmi.dbis.cottontail.database.queries.BooleanPredicate
 import ch.unibas.dmi.dbis.cottontail.database.queries.Predicate
+
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.basics.Filterable
-import ch.unibas.dmi.dbis.cottontail.model.basics.Record
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
 
 /**
@@ -40,14 +41,5 @@ internal interface IndexTransaction : Transaction, Filterable {
      * @param predicate The [Predicate] to perform the lookup.
      * @return The resulting [Recordset].
      */
-    override fun filter(predicate: Predicate): Recordset
-
-    /**
-     * Performs a lookup through this [IndexTransaction] and returns a [Recordset].
-     *
-     * @param predicate The [Predicate] to perform the lookup.
-     * @param parallelism The amount of parallelism to allow for.
-     * @return The resulting [Recordset].
-     */
-    fun lookupParallel(predicate: Predicate, parallelism: Short = 2): Recordset
+    override fun filter(predicate: BooleanPredicate): Recordset
 }

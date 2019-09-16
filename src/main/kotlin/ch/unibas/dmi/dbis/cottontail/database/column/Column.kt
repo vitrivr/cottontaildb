@@ -43,7 +43,10 @@ internal interface Column<T: Any> : DBO {
     val nullable: Boolean
         get() = this.columnDef.nullable
 
-
+    /**
+     * The maximum tuple ID used by this [Column].
+     */
+    val maxTupleId: Long
 
     /**
      * Creates a new [ColumnTransaction] and returns it.

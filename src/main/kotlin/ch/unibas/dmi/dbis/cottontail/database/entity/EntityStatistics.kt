@@ -8,6 +8,6 @@ package ch.unibas.dmi.dbis.cottontail.database.entity
  * @author Ralph Gasser
  * @version 1.0
  */
-data class EntityStatistics(val columns: Int, val rows: Long) {
+data class EntityStatistics(val columns: Int, val rows: Long, val maxTupleId: Long) {
 
 }

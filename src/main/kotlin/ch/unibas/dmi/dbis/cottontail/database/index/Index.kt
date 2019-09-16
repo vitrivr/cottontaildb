@@ -5,6 +5,7 @@ import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
 import ch.unibas.dmi.dbis.cottontail.database.general.DBO
 import ch.unibas.dmi.dbis.cottontail.database.general.Transaction
 import ch.unibas.dmi.dbis.cottontail.database.general.TransactionStatus
+import ch.unibas.dmi.dbis.cottontail.database.queries.BooleanPredicate
 import ch.unibas.dmi.dbis.cottontail.database.queries.Predicate
 import ch.unibas.dmi.dbis.cottontail.database.schema.Schema
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
@@ -28,7 +29,7 @@ import java.util.concurrent.locks.StampedLock
  * @see Entity.Tx
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.1
  */
 internal abstract class Index : DBO {
 
@@ -50,28 +51,24 @@ internal abstract class Index : DBO {
      */
     abstract val produces: Array<ColumnDef<*>>
 
-    /** Flag indicating whether or not this [Index] supports parallel execution. */
-    val supportsParallelExecution
-        get() = false
-
     /** The type of [Index]. */
     abstract val type: IndexType
 
     /**
-     * Checks if this [Index] can process the provided [Predicate] and returns true if so and false otherwise.
+     * Checks if this [Index] can process the provided [BooleanPredicate] and returns true if so and false otherwise.
      *
-     * @param predicate [Predicate] to check.
-     * @return True if [Predicate] can be processed, false otherwise.
+     * @param predicate [BooleanPredicate] to check.
+     * @return True if [BooleanPredicate] can be processed, false otherwise.
      */
-    abstract fun canProcess(predicate: Predicate): Boolean
+    abstract fun canProcess(predicate: BooleanPredicate): Boolean
 
     /**
-     * Calculates the cost estimate if this [Index] processing the provided [Predicate].
+     * Calculates the cost estimate if this [Index] processing the provided [BooleanPredicate].
      *
-     * @param predicate [Predicate] to check.
-     * @return Cost estimate for the [Predicate]
+     * @param predicate [BooleanPredicate] to check.
+     * @return Cost estimate for the [BooleanPredicate]
      */
-    abstract fun cost(predicate: Predicate): Float
+    abstract fun cost(predicate: BooleanPredicate): Float
 
     /**
      * Handles finalization, in case the Garbage Collector reaps a cached [Index].
@@ -93,12 +90,14 @@ internal abstract class Index : DBO {
      * Performs a lookup through this [Index] and returns [Recordset]. This is an internal method! External
      * invocation is only possible through a [Index.Tx] object.
      *
-     * @param predicate The [Predicate] to perform the lookup.
+     * This is the minimal method any [Index] implementation must support.
+     *
+     * @param predicate The [BooleanPredicate] to perform the lookup.
      * @return The resulting [Recordset].
      *
      * @throws DatabaseException.PredicateNotSupportedBxIndexException If predicate is not supported by [Index].
      */
-    protected abstract fun filter(predicate: Predicate): Recordset
+    protected abstract fun filter(predicate: BooleanPredicate): Recordset
 
     /**
      * Applies the given action to all the [Index] entries that match the given [Predicate]. This is an internal method!
@@ -107,12 +106,28 @@ internal abstract class Index : DBO {
      * The default implementation simply performs a lookup and applies the action in memory. More efficient implementations
      * are possible in many cases.
      *
-     * @param predicate The [Predicate] to perform the lookup.
+     * @param predicate The [BooleanPredicate] to perform the lookup.
      * @param action The action that should be applied.
      *
      * @throws DatabaseException.PredicateNotSupportedBxIndexException If predicate is not supported by [Index].
      */
-    protected open fun forEach(predicate: Predicate, action: (Record) -> Unit) = this.filter(predicate).forEach(action)
+    protected open fun forEach(predicate: BooleanPredicate, action: (Record) -> Unit) = this.filter(predicate).forEach(action)
+
+    /**
+     * Applies the given action to all the [Index] entries that match the given [Predicate] and are located in the given range.
+     * This is an internal method! External invocation is only possible through a [Index.Tx] object.
+     *
+     * The default implementation simply performs a lookup using the predicate and applies the action in memory. More efficient
+     * implementations are possible in many cases.
+     *
+     * @param from The tuple ID to scan from.
+     * @param to The tuple ID to scan to.
+     * @param predicate The [BooleanPredicate] to perform the lookup.
+     * @param action The action that should be applied.
+     *
+     * @throws DatabaseException.PredicateNotSupportedBxIndexException If predicate is not supported by [Index].
+     */
+    protected open fun forEach(from: Long, to: Long, predicate: BooleanPredicate, action: (Record) -> Unit) = this.filter(predicate).forEach(from, to, action)
 
     /**
      * Applies the given mapping function to all the [Index] entries that match the given [Predicate]. This is an internal
@@ -121,27 +136,29 @@ internal abstract class Index : DBO {
      * The default implementation simply performs a lookup and applies the mapping function in memory.
      * More efficient implementations are possible in many cases.
      *
-     * @param predicate The [Predicate] to perform the lookup.
+     * @param predicate The [BooleanPredicate] to perform the lookup.
      * @param action The action that should be applied.
 
      *
      * @throws DatabaseException.PredicateNotSupportedBxIndexException If predicate is not supported by [Index].
      */
-    protected open fun <R> map(predicate: Predicate, action: (Record) -> R): Collection<R> = this.filter(predicate).map(action)
+    protected open fun <R> map(predicate: BooleanPredicate, action: (Record) -> R): Collection<R> = this.filter(predicate).map(action)
 
     /**
-     * Performs a lookup through this [Index] and returns a [Recordset]. This is an internal method! External
-     * invocation is only possible through a [Index.Tx] object.
+     * Applies the given mapping function to all the [Index] entries that match the given [Predicate] and are located in the given range.
+     * This is an internal method! External invocation is only possible through a [Index.Tx] object.
      *
-     * @param predicate The [Predicate] to perform the lookup.
-     * @param parallelism The amount of parallelism to allow for.
-     * @return The resulting [Recordset].
+     * The default implementation simply performs a lookup and applies the mapping function in memory.
+     * More efficient implementations are possible in many cases.
+     *
+     * @param from The tuple ID to scan from.
+     * @param to The tuple ID to scan to.
+     * @param predicate The [BooleanPredicate] to perform the lookup.
+     * @param action The action that should be applied.
      *
      * @throws DatabaseException.PredicateNotSupportedBxIndexException If predicate is not supported by [Index].
      */
-    protected fun lookupParallel(predicate: Predicate, parallelism: Short = 2): Recordset {
-        throw UnsupportedOperationException()
-    }
+    protected open fun <R> map(from: Long, to: Long, predicate: BooleanPredicate, action: (Record) -> R): Collection<R> = this.filter(predicate).map(from, to, action)
 
     /**
      * A [Transaction] that affects this [Index].
@@ -187,7 +204,7 @@ internal abstract class Index : DBO {
          * @param predicate [Predicate] to check.
          * @return True if [Predicate] can be processed, false otherwise.
          */
-        override fun canProcess(predicate: Predicate): Boolean = this@Index.canProcess(predicate)
+        override fun canProcess(predicate: BooleanPredicate): Boolean = this@Index.canProcess(predicate)
 
         /**
          * (Re-)builds the underlying [Index].
@@ -200,51 +217,56 @@ internal abstract class Index : DBO {
         /**
          * Performs a lookup through the underlying [Index] and returns a [Recordset].
          *
-         * @param predicate The [Predicate] to perform the lookup.
+         * @param predicate The [BooleanPredicate] to perform the lookup.
          * @return The resulting [Recordset].
          *
          * @throws DatabaseException.PredicateNotSupportedBxIndexException If predicate is not supported by [Index].
          */
-        override fun filter(predicate: Predicate): Recordset {
-            return this@Index.filter(predicate)
-        }
+        override fun filter(predicate: BooleanPredicate): Recordset = this@Index.filter(predicate)
 
         /**
          * Applies the given action to all the [Index] entries that match the given [Predicate].
          *
-         * @param predicate The [Predicate] to perform the lookup.
+         * @param predicate The [BooleanPredicate] to perform the lookup.
          * @param action The action that should be applied.
          *
          * @throws DatabaseException.PredicateNotSupportedBxIndexException If predicate is not supported by [Index].
          */
-        override fun forEach(predicate: Predicate, action: (Record) -> Unit) {
-            this@Index.forEach(predicate, action)
-        }
+        override fun forEach(predicate: BooleanPredicate, action: (Record) -> Unit) =this@Index.forEach(predicate, action)
+
+        /**
+         * Applies the given action to all the [Index] entries that match the given [Predicate] and are within the given range.
+         *
+         * @param from The tuple ID to scan from.
+         * @param to The tuple ID to scan to.
+         * @param predicate The [BooleanPredicate] to perform the lookup.
+         * @param action The action that should be applied.
+         *
+         * @throws DatabaseException.PredicateNotSupportedBxIndexException If predicate is not supported by [Index].
+         */
+        override fun forEach(from: Long, to: Long, predicate: BooleanPredicate, action: (Record) -> Unit) = this@Index.forEach(from, to, predicate, action)
 
         /**
          * Applies the given mapping function to all the [Index] entries that match the given [Predicate].
          *
-         * @param predicate The [Predicate] to perform the lookup.
+         * @param predicate The [BooleanPredicate] to perform the lookup.
          * @param action The action that should be applied.
          *
          * @throws DatabaseException.PredicateNotSupportedBxIndexException If predicate is not supported by [Index].
          */
-        override fun <R> map(predicate: Predicate, action: (Record) -> R): Collection<R> {
-            return this@Index.map(predicate, action)
-        }
+        override fun <R> map(predicate: BooleanPredicate, action: (Record) -> R): Collection<R> = this@Index.map(predicate, action)
 
         /**
-         * Performs a lookup through the underlying [Index] and returns a [Recordset].
+         * Applies the given mapping function to all the [Index] entries that match the given [Predicate] and are within the given range.
          *
-         * @param predicate The [Predicate] to perform the lookup.
-         * @param parallelism The amount of parallelism to allow for.
-         * @return The resulting [Recordset].
+         * @param from The tuple ID to scan from.
+         * @param to The tuple ID to scan to.
+         * @param predicate The [BooleanPredicate] to perform the lookup.
+         * @param action The action that should be applied.
          *
          * @throws DatabaseException.PredicateNotSupportedBxIndexException If predicate is not supported by [Index].
          */
-        override fun lookupParallel(predicate: Predicate, parallelism: Short): Recordset {
-            return this@Index.lookupParallel(predicate, parallelism)
-        }
+        override fun <R> map(from: Long, to: Long, predicate: BooleanPredicate, action: (Record) -> R): Collection<R> = this@Index.map(from, to, predicate, action)
 
         /** Has no effect since updating an [Index] takes immediate effect. */
         override fun commit() {}

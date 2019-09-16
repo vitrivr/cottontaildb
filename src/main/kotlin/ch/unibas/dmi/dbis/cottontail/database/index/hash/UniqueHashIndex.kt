@@ -7,6 +7,7 @@ import ch.unibas.dmi.dbis.cottontail.database.index.Index
 import ch.unibas.dmi.dbis.cottontail.database.index.IndexType
 import ch.unibas.dmi.dbis.cottontail.utilities.write
 import ch.unibas.dmi.dbis.cottontail.database.queries.AtomicBooleanPredicate
+import ch.unibas.dmi.dbis.cottontail.database.queries.BooleanPredicate
 import ch.unibas.dmi.dbis.cottontail.database.queries.ComparisonOperator
 import ch.unibas.dmi.dbis.cottontail.database.queries.Predicate
 import ch.unibas.dmi.dbis.cottontail.database.schema.Schema
@@ -73,7 +74,7 @@ internal class UniqueHashIndex(override val name: Name, override val parent: Ent
      * @param predicate The [Predicate] for the lookup
      * @return The resulting [Recordset]
      */
-    override fun filter(predicate: Predicate): Recordset = if (predicate is AtomicBooleanPredicate<*>) {
+    override fun filter(predicate: BooleanPredicate): Recordset = if (predicate is AtomicBooleanPredicate<*>) {
         /* Create empty recordset. */
         val recordset = Recordset(this.columns)
 
@@ -98,7 +99,6 @@ internal class UniqueHashIndex(override val name: Name, override val parent: Ent
                 }
             }
         }
-
         recordset
     } else {
         throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (unique hash-index) does not support predicates of type '${predicate::class.simpleName}'.")
@@ -111,7 +111,7 @@ internal class UniqueHashIndex(override val name: Name, override val parent: Ent
      * @param predicate The [Predicate] to check.
      * @return True if [Predicate] can be processed, false otherwise.
      */
-    override fun canProcess(predicate: Predicate): Boolean = if (predicate is AtomicBooleanPredicate<*>) {
+    override fun canProcess(predicate: BooleanPredicate): Boolean = if (predicate is AtomicBooleanPredicate<*>) {
         predicate.columns.first() == this.columns[0] && (predicate.operator == ComparisonOperator.IN || predicate.operator == ComparisonOperator.EQUAL)
     } else {
         false
@@ -123,7 +123,7 @@ internal class UniqueHashIndex(override val name: Name, override val parent: Ent
      * @param predicate [Predicate] to check.
      * @return Cost estimate for the [Predicate]
      */
-    override fun cost(predicate: Predicate): Float = when {
+    override fun cost(predicate: BooleanPredicate): Float = when {
         predicate !is AtomicBooleanPredicate<*> || predicate.columns.first() != this.columns[0] -> Float.MAX_VALUE
         predicate.operator == ComparisonOperator.IN -> ATOMIC_COST * predicate.values.size
         predicate.operator == ComparisonOperator.IN -> ATOMIC_COST
@@ -140,7 +140,7 @@ internal class UniqueHashIndex(override val name: Name, override val parent: Ent
         /* (Re-)create index entries. */
         val localMap = this.map as HTreeMap<Value<*>,Long>
         this.parent.Tx(readonly = true, columns = this.columns).begin { tx ->
-            tx.forEach(2) {
+            tx.forEach {
                 val value = it[this.columns[0]] ?: throw ValidationException.IndexUpdateException(this.fqn, "A values cannot be null for instances of unique hash-index but tid=${it.tupleId} is")
                 if (!localMap.containsKey(value)) {
                     localMap[value] = it.tupleId

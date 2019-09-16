@@ -99,7 +99,7 @@ internal class LuceneIndex(override val name: Name, override val parent: Entity,
         writer.deleteAll()
         this.parent.Tx(readonly = true, columns = this.columns, ommitIndex = true).begin { tx ->
             var count = 0
-            tx.forEach(parallelism = 1) {
+            tx.forEach {
                 writer.addDocument(documentFromRecord(it))
                 count++
                 if (count % 1_000_000 == 0) {
@@ -137,7 +137,7 @@ internal class LuceneIndex(override val name: Name, override val parent: Entity,
      *
      * @throws DatabaseException.PredicateNotSupportedBxIndexException If predicate is not supported by [Index].
      */
-    override fun filter(predicate: Predicate): Recordset = if (predicate is BooleanPredicate) {
+    override fun filter(predicate: BooleanPredicate): Recordset = if (predicate is BooleanPredicate) {
         val indexSearcher = IndexSearcher(this.indexReader)
         if (!predicate.columns.all { this.columns.contains(it) })
             throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (lucene-index) is lacking certain fields the provided predicate requires.")
@@ -174,7 +174,7 @@ internal class LuceneIndex(override val name: Name, override val parent: Entity,
      *
      * @throws DatabaseException.PredicateNotSupportedBxIndexException If predicate is not supported by [Index].
      */
-    override fun forEach(predicate: Predicate, action: (Record) -> Unit) = if (predicate is BooleanPredicate) {
+    override fun forEach(predicate: BooleanPredicate, action: (Record) -> Unit) = if (predicate is BooleanPredicate) {
         val indexSearcher = IndexSearcher(this.indexReader)
 
         if (!predicate.columns.all { this.columns.contains(it) })
@@ -208,7 +208,7 @@ internal class LuceneIndex(override val name: Name, override val parent: Entity,
      *
      * @throws DatabaseException.PredicateNotSupportedBxIndexException If predicate is not supported by [Index].
      */
-    override fun <R> map(predicate: Predicate, action: (Record) -> R): Collection<R> = if (predicate is BooleanPredicate) {
+    override fun <R> map(predicate: BooleanPredicate, action: (Record) -> R): Collection<R> = if (predicate is BooleanPredicate) {
         val indexSearcher = IndexSearcher(this.indexReader)
 
         if (!predicate.columns.all { this.columns.contains(it) })
@@ -239,14 +239,10 @@ internal class LuceneIndex(override val name: Name, override val parent: Entity,
      * @param predicate [Predicate] to test.
      * @return True if [Predicate] can be processed, false otherwise.
      */
-    override fun canProcess(predicate: Predicate): Boolean {
-        if (predicate is BooleanPredicate) {
-            if (!predicate.columns.all { this.columns.contains(it) }) return false
-            if (!predicate.atomics.all { it.operator == ComparisonOperator.LIKE || it.operator == ComparisonOperator.EQUAL }) return false
-            return true
-        } else {
-            return false
-        }
+    override fun canProcess(predicate: BooleanPredicate): Boolean {
+        if (!predicate.columns.all { this.columns.contains(it) }) return false
+        if (!predicate.atomics.all { it.operator == ComparisonOperator.LIKE || it.operator == ComparisonOperator.EQUAL }) return false
+        return true
     }
 
     /**
@@ -255,7 +251,7 @@ internal class LuceneIndex(override val name: Name, override val parent: Entity,
      * @param predicate [Predicate] to check.
      * @return Cost estimate for the [Predicate]
      */
-    override fun cost(predicate: Predicate): Float = when {
+    override fun cost(predicate: BooleanPredicate): Float = when {
         canProcess(predicate) -> {
             val searcher = IndexSearcher(this.indexReader)
             predicate.columns.map { searcher.collectionStatistics(it.name).sumTotalTermFreq() * ATOMIC_COST }.sum()

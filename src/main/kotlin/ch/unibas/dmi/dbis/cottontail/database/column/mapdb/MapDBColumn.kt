@@ -17,7 +17,6 @@ import ch.unibas.dmi.dbis.cottontail.model.values.Value
 
 import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
 import ch.unibas.dmi.dbis.cottontail.utilities.write
-import kotlinx.coroutines.*
 
 import org.mapdb.*
 import org.mapdb.volume.MappedFileVol
@@ -26,7 +25,8 @@ import java.nio.file.Path
 import java.util.*
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import java.util.concurrent.locks.StampedLock
-import kotlin.collections.ArrayList
+import kotlin.concurrent.read
+import kotlin.concurrent.write
 
 /**
  * Represents a single column in the Cottontail DB model. A [MapDBColumn] record is identified by a tuple ID (long)
@@ -37,7 +37,7 @@ import kotlin.collections.ArrayList
  * @param <T> Type of the value held by this [MapDBColumn].
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.1
  */
 internal class MapDBColumn<T : Any>(override val name: Name, override val parent: Entity) : Column<T> {
     /** The [Path] to the [Entity]'s main folder. */
@@ -63,6 +63,12 @@ internal class MapDBColumn<T : Any>(override val name: Name, override val parent
     @Suppress("UNCHECKED_CAST")
     override val columnDef: ColumnDef<T>
         get() = this.header.let { ColumnDef(this.fqn, it.type as ColumnType<T>, it.size, it.nullable) }
+
+    /**
+     * The maximum tuple ID used by this [Column].
+     */
+    override val maxTupleId: Long
+        get() = this.store.maxRecid
 
     /**
      * Status indicating whether this [MapDBColumn] is open or closed.
@@ -157,11 +163,14 @@ internal class MapDBColumn<T : Any>(override val name: Name, override val parent
             this@MapDBColumn.txLock.writeLock()
         }
 
+        /** A [ReentrantReadWriteLock] local to this [Entity.Tx]. It makes sure, that this [Entity] cannot be committed, closed or rolled back while it is being used. */
+        private val localLock = ReentrantReadWriteLock()
+
         /**
          * Commits all changes made through this [Tx] since the last commit or rollback.
          */
         @Synchronized
-        override fun commit() {
+        override fun commit() = this.localLock.write {
             if (this.status == TransactionStatus.DIRTY) {
                 this@MapDBColumn.store.commit()
                 this.status = TransactionStatus.CLEAN
@@ -173,7 +182,7 @@ internal class MapDBColumn<T : Any>(override val name: Name, override val parent
          * in status [TransactionStatus.DIRTY] or [TransactionStatus.ERROR].
          */
         @Synchronized
-        override fun rollback() {
+        override fun rollback() = this.localLock.write {
             if (this.status == TransactionStatus.DIRTY || this.status == TransactionStatus.ERROR) {
                 this@MapDBColumn.store.rollback()
                 this.status = TransactionStatus.CLEAN
@@ -184,7 +193,7 @@ internal class MapDBColumn<T : Any>(override val name: Name, override val parent
          * Closes this [Tx] and relinquishes the associated [ReentrantReadWriteLock].
          */
         @Synchronized
-        override fun close() {
+        override fun close() = this.localLock.write {
             if (this.status != TransactionStatus.CLOSED) {
                 if (this.status == TransactionStatus.DIRTY || this.status == TransactionStatus.ERROR) {
                     this.rollback()
@@ -203,8 +212,8 @@ internal class MapDBColumn<T : Any>(override val name: Name, override val parent
          *
          * @throws DatabaseException If the tuple with the desired ID doesn't exist OR is invalid.
          */
-        override fun read(tupleId: Long): Value<T>? {
-            checkValidOrThrow()
+        override fun read(tupleId: Long): Value<T>? = this.localLock.read {
+            checkValidForRead()
             checkValidTupleId(tupleId)
             return this@MapDBColumn.store.get(tupleId, this.serializer)
         }
@@ -217,8 +226,8 @@ internal class MapDBColumn<T : Any>(override val name: Name, override val parent
          *
          * @throws DatabaseException If the tuple with the desired ID doesn't exist OR is invalid.
          */
-        override fun readAll(tupleIds: Collection<Long>): Collection<Value<T>?> {
-            checkValidOrThrow()
+        override fun readAll(tupleIds: Collection<Long>): Collection<Value<T>?> = this.localLock.read {
+            checkValidForRead()
             return tupleIds.map {
                 checkValidTupleId(it)
                 this@MapDBColumn.store.get(it, this.serializer)
@@ -230,8 +239,8 @@ internal class MapDBColumn<T : Any>(override val name: Name, override val parent
          *
          * @return The number of entries in this [MapDBColumn].
          */
-        override fun count(): Long {
-            checkValidOrThrow()
+        override fun count(): Long = this.localLock.read {
+            checkValidForRead()
             return this@MapDBColumn.header.count
         }
 
@@ -241,106 +250,118 @@ internal class MapDBColumn<T : Any>(override val name: Name, override val parent
          *
          * @param action The function that should be applied.
          */
-        override fun forEach(action: (Record) -> Unit) {
-            checkValidOrThrow()
-            this@MapDBColumn.store.RecordIdIterator().use { recordIds ->
-                if (recordIds.next() != HEADER_RECORD_ID ) {
-                    throw TransactionException.TransactionValidationException(this.tid, "The column '${this@MapDBColumn.fqn}' does not seem to contain a valid header record!")
-                }
-                recordIds.forEachRemaining {
-                    if (it != CottontailStoreWAL.EOF_ENTRY) {
-                        action(ColumnRecord(it, this@MapDBColumn.store.get(it, this.serializer)))
-                    }
+        override fun forEach(action: (Record) -> Unit) = forEach(1L, this@MapDBColumn.store.maxRecid, action)
+
+        /**
+         * Applies the provided function on each element found in the given range in this [MapDBColumn]. The function
+         * cannot not change the data stored in the [MapDBColumn]!
+         *
+         * @param from The tuple ID of the first [Record] to iterate over.
+         * @param to The tuple ID of the last [Record] to iterate over.
+         * @param action The function that should be applied.
+         */
+        override fun forEach(from: Long, to: Long, action: (Record) -> Unit) = this.localLock.read {
+            checkValidForRead()
+            this@MapDBColumn.store.RecordIdIterator(from.coerceAtLeast(1L), to.coerceAtMost(this@MapDBColumn.store.maxRecid)).forEachRemaining {
+                if (it != CottontailStoreWAL.EOF_ENTRY) {
+                    action(ColumnRecord(it, this@MapDBColumn.store.get(it, this.serializer)))
                 }
             }
         }
+
+        /**
+         * Applies the provided mapping function on each value found in the given range in this [MapDBColumn],
+         * returning a collection of the desired output values.
+         *
+         * @param action The mapping function that should be applied.
+         * @return A collection of Pairs mapping the tupleId to the generated value.
+         */
+        override fun <R> map(action: (Record) -> R): Collection<R> = map(1L, this@MapDBColumn.store.maxRecid, action)
 
         /**
          * Applies the provided mapping function on each value found in this [MapDBColumn], returning a collection
          * of the desired output values.
          *
+         * @param from The tuple ID of the first [Record] to iterate over.
+         * @param to The tuple ID of the last [Record] to iterate over.
          * @param action The mapping function that should be applied.
          * @return A collection of Pairs mapping the tupleId to the generated value.
          */
-        override fun <R> map(action: (Record) -> R): Collection<R> {
-            checkValidOrThrow()
+        override fun <R> map(from: Long, to: Long, action: (Record) -> R): Collection<R> = this.localLock.read {
+            checkValidForRead()
             val list = mutableListOf<R>()
-            this@MapDBColumn.store.RecordIdIterator().use { recordIds ->
-                if (recordIds.next() != HEADER_RECORD_ID ) {
-                    throw TransactionException.TransactionValidationException(this.tid, "The column '${this@MapDBColumn.fqn}' does not seem to contain a valid header record!")
-                }
-                recordIds.forEachRemaining() {
-                    if (it != CottontailStoreWAL.EOF_ENTRY) {
-                        list.add(action(ColumnRecord(it, this@MapDBColumn.store.get(it, this.serializer))))
-                    }
+            this@MapDBColumn.store.RecordIdIterator(from.coerceAtLeast(1L), to.coerceAtMost(this@MapDBColumn.store.maxRecid)).forEachRemaining {
+                if (it != CottontailStoreWAL.EOF_ENTRY) {
+                    list.add(action(ColumnRecord(it, this@MapDBColumn.store.get(it, this.serializer))))
                 }
             }
             return list
         }
 
+
         /**
          * Checks whether or not this [MapDBColumn] can process the given predicate and returns true or false respectively.
          *
-         * @param predicate The [Predicate] to check.
+         * @param predicate The [BooleanPredicate] to check.
          * @return True if predicate can be processed, false otherwise.
          */
-        override fun canProcess(predicate: Predicate): Boolean = predicate is BooleanPredicate && predicate.columns.all {it == this@MapDBColumn.columnDef}
+        override fun canProcess(predicate: BooleanPredicate): Boolean = predicate is BooleanPredicate && predicate.columns.all {it == this@MapDBColumn.columnDef}
 
         /**
          * Applies the provided predicate to each [Record] found in this [MapDBColumn], returning a [Recordset] that contains all
          * output values that pass the predicate's test (i.e. return true)
          *
-         * @param predicate The tasks that should be applied.
+         * @param predicate The [BooleanPredicate] that should be applied.
          * @return A filtered [Recordset] of [Record]s that passed the test.
          */
-        override fun filter(predicate: Predicate): Recordset {
-            if (predicate is BooleanPredicate) {
-                checkValidOrThrow()
-                val recordset = Recordset(arrayOf(this@MapDBColumn.columnDef))
-                this@MapDBColumn.store.RecordIdIterator().use { recordIds ->
-                    if (recordIds.next() != HEADER_RECORD_ID) {
-                        throw TransactionException.TransactionValidationException(this.tid, "The column '${this@MapDBColumn.fqn}' does not seem to contain a valid header record!")
-                    }
-                    recordIds.forEach {
-                        if (it != CottontailStoreWAL.EOF_ENTRY) {
-                            val data = ColumnRecord(it, this@MapDBColumn.store.get(it, this.serializer))
-                            if (predicate.matches(data)) recordset.addRowUnsafe(data.values)
-                        }
+        override fun filter(predicate: BooleanPredicate): Recordset = this.localLock.read {
+            checkValidForRead()
+            val recordset = Recordset(arrayOf(this@MapDBColumn.columnDef))
+            this@MapDBColumn.store.RecordIdIterator().use { recordIds ->
+                if (recordIds.next() != HEADER_RECORD_ID) {
+                    throw TransactionException.TransactionValidationException(this.tid, "The column '${this@MapDBColumn.fqn}' does not seem to contain a valid header record!")
+                }
+                recordIds.forEach {
+                    if (it != CottontailStoreWAL.EOF_ENTRY) {
+                        val data = ColumnRecord(it, this@MapDBColumn.store.get(it, this.serializer))
+                        if (predicate.matches(data)) recordset.addRowUnsafe(data.values)
                     }
                 }
-                return recordset
-            } else {
-                throw QueryException.UnsupportedPredicateException("Only boolean predicates are supported for invocation of filter() on a MapDBColumn.")
             }
+            return recordset
         }
 
         /**
          * Applies the provided action to each [Record] that matches the given [Predicate]. The function cannot not change
          * the data stored in the [MapDBColumn]!
          *
-         * @param predicate [Predicate] to filter [Record]s.
+         * @param predicate The [BooleanPredicate] to filter [Record]s.
          * @param action The function that should be applied.
          *
          * @throws QueryException.UnsupportedPredicateException If predicate is not a [BooleanPredicate].
          */
-        override fun forEach(predicate: Predicate, action: (Record) -> Unit) {
-            if (predicate is BooleanPredicate) {
-                checkValidOrThrow()
-                this@MapDBColumn.store.RecordIdIterator().use { recordIds ->
-                    if (recordIds.next() != HEADER_RECORD_ID) {
-                        throw TransactionException.TransactionValidationException(this.tid, "The column '${this@MapDBColumn.fqn}' does not seem to contain a valid header record!")
-                    }
-                    recordIds.forEach {
-                        if (it != CottontailStoreWAL.EOF_ENTRY) {
-                            val record = ColumnRecord(it, this@MapDBColumn.store.get(it, this.serializer))
-                            if (predicate.matches(record)) {
-                                action(record)
-                            }
-                        }
+        override fun forEach(predicate: BooleanPredicate, action: (Record) -> Unit) = forEach(1L, this@MapDBColumn.store.maxRecid, predicate, action)
+
+        /**
+         * Applies the provided action to each [Record] in the given range that matches the given [Predicate]. The function cannot not change
+         * the data stored in the [MapDBColumn]!
+         *
+         * @param from The tuple ID of the first [Record] to iterate over.
+         * @param to The tuple ID of the last [Record] to iterate over.
+         * @param predicate The [BooleanPredicate] to filter [Record]s.
+         * @param action The function that should be applied.
+         *
+         * @throws QueryException.UnsupportedPredicateException If predicate is not a [BooleanPredicate].
+         */
+        override fun forEach(from: Long, to: Long, predicate: BooleanPredicate, action: (Record) -> Unit) = this.localLock.read {
+            checkValidForRead()
+            this@MapDBColumn.store.RecordIdIterator(from.coerceAtLeast(1L), to.coerceAtMost(this@MapDBColumn.store.maxRecid)).forEach {
+                if (it != CottontailStoreWAL.EOF_ENTRY) {
+                    val record = ColumnRecord(it, this@MapDBColumn.store.get(it, this.serializer))
+                    if (predicate.matches(record)) {
+                        action(record)
                     }
                 }
-            } else {
-                throw QueryException.UnsupportedPredicateException("Only boolean predicates are supported for invocation of forEach() on a MapDBColumn.")
             }
         }
 
@@ -348,210 +369,38 @@ internal class MapDBColumn<T : Any>(override val name: Name, override val parent
          * Applies the provided mapping function to each [Record] that matches the given [Predicate], returning a collection
          * of the desired output values.
          *
-         * @param predicate [Predicate] to filter [Record]s.
+         * @param predicate The [BooleanPredicate] to filter [Record]s.
          * @param action The mapping function that should be applied.
          * @return Collection of the results of the mapping function.
          *
          * @throws QueryException.UnsupportedPredicateException If predicate is not a [BooleanPredicate].
          */
-        override fun <R> map(predicate: Predicate, action: (Record) -> R): Collection<R> {
-            if (predicate is BooleanPredicate) {
-                checkValidOrThrow()
-                val list = mutableListOf<R>()
-                this@MapDBColumn.store.RecordIdIterator().use { recordIds ->
-                    if (recordIds.next() != HEADER_RECORD_ID) {
-                        throw TransactionException.TransactionValidationException(this.tid, "The column '${this@MapDBColumn.fqn}' does not seem to contain a valid header record!")
-                    }
-                    recordIds.forEach {
-                        if (it != CottontailStoreWAL.EOF_ENTRY) {
-                            val record = ColumnRecord(it, this@MapDBColumn.store.get(it, this.serializer))
-                            if (predicate.matches(record)) {
-                                list.add(action(ColumnRecord(it, this@MapDBColumn.store.get(it, this.serializer))))
-                            }
-                        }
-                    }
-                }
-                return list
-            } else {
-                throw QueryException.UnsupportedPredicateException("Only boolean predicates are supported for invocation of map() on a MapDBColumn.")
-            }
-        }
+        override fun <R> map(predicate: BooleanPredicate, action: (Record) -> R): Collection<R> = map(1L, this@MapDBColumn.store.maxRecid, predicate, action)
 
         /**
-         * Applies the provided function on each element found in this [MapDBColumn]. The provided function cannot not change
-         * the data stored in the [MapDBColumn]! The operation is parallelized through co-routines.
+         * Applies the provided mapping function to each [Record] in the given range that matches the given [Predicate], returning a collection
+         * of the desired output values.
          *
-         * @param parallelism The desired amount of parallelism (i.e. the number of co-routines to spawn).
-         * @param action The function that should be applied.*
-         */
-        override fun forEach(parallelism: Short, action: (Record) -> Unit) {
-            runBlocking {
-                checkValidOrThrow()
-                this@MapDBColumn.store.RecordIdIterator().use { recordIds ->
-                    if (recordIds.next() != HEADER_RECORD_ID) {
-                        throw TransactionException.TransactionValidationException(this@Tx.tid, "The column '${this@MapDBColumn.fqn}' does not seem to contain a valid header record!")
-                    }
-                    val jobs = Array(parallelism.toInt()) {
-                        GlobalScope.launch {
-                            while (recordIds.hasNext()) {
-                                val tupleId = recordIds.next()
-                                if (tupleId != CottontailStoreWAL.EOF_ENTRY) {
-                                    action(ColumnRecord(tupleId, this@MapDBColumn.store.get(tupleId, this@Tx.serializer)))
-                                }
-                            }
-                        }
-                    }
-                    jobs.forEach { it.join() }
-                }
-            }
-        }
-
-        /**
-         * Applies the provided mapping function on each element found in this [MapDBColumn] and returns the list of results.
-         * The operation is parallelized through co-routines.
-         *
-         * @param parallelism The desired amount of parallelism (i.e. the number of co-routines to spawn).
+         * @param from The tuple ID of the first [Record] to iterate over.
+         * @param to The tuple ID of the last [Record] to iterate over.
+         * @param predicate The [BooleanPredicate] to filter [Record]s.
          * @param action The mapping function that should be applied.
+         * @return Collection of the results of the mapping function.
          *
-         * @return List of results
+         * @throws QueryException.UnsupportedPredicateException If predicate is not a [BooleanPredicate].
          */
-        override fun <R> map(parallelism: Short, action: (Record) -> R): Collection<R> {
-            return runBlocking {
-                checkValidOrThrow()
-                this@MapDBColumn.store.RecordIdIterator().use { recordIds ->
-                    if (recordIds.next() != HEADER_RECORD_ID) {
-                        throw TransactionException.TransactionValidationException(this@Tx.tid, "The column '${this@MapDBColumn.fqn}' does not seem to contain a valid header record!")
-                    }
-                    val results = Collections.synchronizedList(mutableListOf<R>())
-                    val jobs = Array(parallelism.toInt()) {
-                        GlobalScope.launch {
-                            while (recordIds.hasNext()) {
-                                val tupleId = recordIds.next()
-                                if (tupleId != CottontailStoreWAL.EOF_ENTRY) {
-                                    val record = ColumnRecord(tupleId, this@MapDBColumn.store.get(tupleId, this@Tx.serializer))
-                                    results.add(action(record))
-                                }
-                            }
-                        }
-                    }
-                    jobs.forEach { it.join() }
-                    results
-                }
-            }
-        }
-
-        /**
-         * Applies the provided action to each [Record] that matches the given [Predicate]. The provided function cannot not change
-         * the data stored in the [MapDBColumn]! The operation is parallelized through co-routines.
-         *
-         * @param parallelism The desired amount of parallelism (i.e. the number of co-routines to spawn).
-         * @param predicate [Predicate] to filter [Record]s.
-         * @param action The action that should be applied.
-         *
-         * @throws QueryException.UnsupportedPredicateException If predicate is not supported by data structure.
-         */
-        override fun forEach(parallelism: Short, predicate: Predicate, action: (Record) -> Unit) {
-            if (predicate is BooleanPredicate) {
-                runBlocking {
-                    checkValidOrThrow()
-                    this@MapDBColumn.store.RecordIdIterator().use { recordIds ->
-                        if (recordIds.next() != HEADER_RECORD_ID) {
-                            throw TransactionException.TransactionValidationException(this@Tx.tid, "The column '${this@MapDBColumn.fqn}' does not seem to contain a valid header record!")
-                        }
-                        val jobs = Array(parallelism.toInt()) {
-                            GlobalScope.launch {
-                                while (recordIds.hasNext()) {
-                                    val tupleId = recordIds.next()
-                                    if (tupleId != CottontailStoreWAL.EOF_ENTRY) {
-                                        val record = ColumnRecord(tupleId, this@MapDBColumn.store.get(tupleId, this@Tx.serializer))
-                                        if (predicate.matches(record)) {
-                                            action(record)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        jobs.forEach { it.join() }
+        override fun <R> map(from: Long, to: Long, predicate: BooleanPredicate, action: (Record) -> R): Collection<R> = this.localLock.read {
+            checkValidForRead()
+            val list = mutableListOf<R>()
+            this@MapDBColumn.store.RecordIdIterator(from.coerceAtLeast(1L), to.coerceAtMost(this@MapDBColumn.store.maxRecid)).forEach {
+                if (it != CottontailStoreWAL.EOF_ENTRY) {
+                    val record = ColumnRecord(it, this@MapDBColumn.store.get(it, this.serializer))
+                    if (predicate.matches(record)) {
+                        list.add(action(ColumnRecord(it, this@MapDBColumn.store.get(it, this.serializer))))
                     }
                 }
             }
-        }
-
-        /**
-         * Applies the provided mapping function on each element that matches the provided [Predicate] and returns the list of results.
-         * The operation is parallelized through co-routines.
-         *
-         * @param parallelism The desired amount of parallelism (i.e. the number of co-routines to spawn).
-         * @param predicate The predicate to check values for eligiblity.
-         * @param action The function to apply to each [MapDBColumn] entry.
-         * @return Collection of results.
-         */
-        override fun <R> map(parallelism: Short, predicate: Predicate, action: (Record) -> R): Collection<R> {
-            if (predicate is BooleanPredicate) {
-                return runBlocking {
-                    checkValidOrThrow()
-                    this@MapDBColumn.store.RecordIdIterator().use { recordIds ->
-                        if (recordIds.next() != HEADER_RECORD_ID) {
-                            throw TransactionException.TransactionValidationException(this@Tx.tid, "The column '${this@MapDBColumn.fqn}' does not seem to contain a valid header record!")
-                        }
-                        val results = Collections.synchronizedList(mutableListOf<R>())
-                        val jobs = Array(parallelism.toInt()) {
-                            GlobalScope.launch {
-                                while (recordIds.hasNext()) {
-                                    val tupleId = recordIds.next()
-                                    if (tupleId != CottontailStoreWAL.EOF_ENTRY) {
-                                        val record = ColumnRecord(tupleId, this@MapDBColumn.store.get(tupleId, this@Tx.serializer))
-                                        if (predicate.matches(record)) {
-                                            results.add(action(record))
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        jobs.forEach { it.join() }
-                        results
-                    }
-                }
-            } else {
-                throw QueryException.UnsupportedPredicateException("The provided predicate of type '${predicate::class.java.simpleName}' is not supported for invocation of map() on column '${this@MapDBColumn.fqn}'.")
-            }
-        }
-
-        /**
-         * Applies the provided predicate function on each value found in this [MapDBColumn], returning a collection
-         * of output values that pass the predicate's test (i.e. return true). The operation is parallelized through co-routines.
-         *
-         * @param parallelism The desired amount of parallelism (i.e. the number of co-routines to spawn).
-         * @param predicate The tasks that should be applied.
-         * @return A filtered collection [MapDBColumn] values that passed the test.
-         */
-        override fun filter(parallelism: Short, predicate: Predicate): Recordset {
-            if (predicate is BooleanPredicate) {
-                return runBlocking {
-                    checkValidOrThrow()
-                    val recordset = Recordset(arrayOf(this@MapDBColumn.columnDef))
-                    this@MapDBColumn.store.RecordIdIterator().use { recordIds ->
-                        if (recordIds.next() != HEADER_RECORD_ID) {
-                            throw TransactionException.TransactionValidationException(this@Tx.tid, "The column '${this@MapDBColumn.fqn}' does not seem to contain a valid header record!")
-                        }
-                        val jobs = Array(parallelism.toInt()) {
-                            GlobalScope.launch {
-                                while (recordIds.hasNext()) {
-                                    val tupleId = recordIds.next()
-                                    val record = ColumnRecord(tupleId, this@MapDBColumn.store.get(tupleId, this@Tx.serializer))
-                                    if (predicate.matches(record)) {
-                                        recordset.addRowUnsafe(record.tupleId, record.values)
-                                    }
-                                }
-                            }
-                        }
-                        jobs.forEach { it.join() }
-                        recordset
-                    }
-                }
-            } else {
-                throw QueryException.UnsupportedPredicateException("The provided predicate of type '${predicate::class.java.simpleName}' is not supported for invocation of filter() on column '${this@MapDBColumn.fqn}'.")
-            }
+            return list
         }
 
         /**
@@ -561,23 +410,25 @@ internal class MapDBColumn<T : Any>(override val name: Name, override val parent
          * @param record The record that should be inserted. Can be null!
          * @return The tupleId of the inserted record OR the allocated space in case of a null value.
          */
-        override fun insert(record: Value<T>?): Long = try {
-            prepareWriteOperation()
-            val tupleId = if (record == null) {
-                this@MapDBColumn.store.preallocate()
-            } else {
-                this@MapDBColumn.store.put(this@MapDBColumn.type.cast(record), this.serializer)
-            }
+        override fun insert(record: Value<T>?): Long = this.localLock.read {
+            try {
+                checkValidForWrite()
+                val tupleId = if (record == null) {
+                    this@MapDBColumn.store.preallocate()
+                } else {
+                    this@MapDBColumn.store.put(this@MapDBColumn.type.cast(record), this.serializer)
+                }
 
-            /* Update header. */
-            val header = this@MapDBColumn.header
-            header.count += 1
-            header.modified = System.currentTimeMillis()
-            store.update(HEADER_RECORD_ID, header, ColumnHeaderSerializer)
-            tupleId
-        } catch (e: DBException) {
-            this.status = TransactionStatus.ERROR
-            throw TransactionException.TransactionStorageException(this.tid, e.message ?: "Unknown")
+                /* Update header. */
+                val header = this@MapDBColumn.header
+                header.count += 1
+                header.modified = System.currentTimeMillis()
+                store.update(HEADER_RECORD_ID, header, ColumnHeaderSerializer)
+                tupleId
+            } catch (e: DBException) {
+                this.status = TransactionStatus.ERROR
+                throw TransactionException.TransactionStorageException(this.tid, e.message ?: "Unknown")
+            }
         }
 
         /**
@@ -587,27 +438,28 @@ internal class MapDBColumn<T : Any>(override val name: Name, override val parent
          * @param records The records that should be inserted. Can contain null values!
          * @return The tupleId of the inserted record OR the allocated space in case of a null value.
          */
-        override fun insertAll(records: Collection<Value<T>?>): Collection<Long> = try {
-            prepareWriteOperation()
+        override fun insertAll(records: Collection<Value<T>?>): Collection<Long> = this.localLock.read {
+            try {
+                checkValidForWrite()
 
-
-            val tupleIds = records.map {
-                if (it == null) {
-                    this@MapDBColumn.store.preallocate()
-                } else {
-                    this@MapDBColumn.store.put(this@MapDBColumn.type.cast(it), serializer)
+                val tupleIds = records.map {
+                    if (it == null) {
+                        this@MapDBColumn.store.preallocate()
+                    } else {
+                        this@MapDBColumn.store.put(this@MapDBColumn.type.cast(it), serializer)
+                    }
                 }
-            }
 
-            /* Update header. */
-            val header = this@MapDBColumn.header
-            header.count += records.size
-            header.modified = System.currentTimeMillis()
-            store.update(HEADER_RECORD_ID, header, ColumnHeaderSerializer)
-            tupleIds
-        } catch (e: DBException) {
-            this.status = TransactionStatus.ERROR
-            throw TransactionException.TransactionStorageException(this.tid, e.message ?: "Unknown")
+                /* Update header. */
+                val header = this@MapDBColumn.header
+                header.count += records.size
+                header.modified = System.currentTimeMillis()
+                store.update(HEADER_RECORD_ID, header, ColumnHeaderSerializer)
+                tupleIds
+            } catch (e: DBException) {
+                this.status = TransactionStatus.ERROR
+                throw TransactionException.TransactionStorageException(this.tid, e.message ?: "Unknown")
+            }
         }
 
         /**
@@ -617,13 +469,15 @@ internal class MapDBColumn<T : Any>(override val name: Name, override val parent
          * @param tupleId The ID of the record that should be updated
          * @param value The new value.
          */
-        override fun update(tupleId: Long, value: Value<T>?) = try {
-            prepareWriteOperation()
-            checkValidTupleId(tupleId)
-            this@MapDBColumn.store.update(tupleId, value, this.serializer)
-        } catch (e: DBException) {
-            this.status = TransactionStatus.ERROR
-            throw TransactionException.TransactionStorageException(this.tid, e.message ?: "Unknown")
+        override fun update(tupleId: Long, value: Value<T>?) = this.localLock.read {
+            try {
+                checkValidForWrite()
+                checkValidTupleId(tupleId)
+                this@MapDBColumn.store.update(tupleId, value, this.serializer)
+            } catch (e: DBException) {
+                this.status = TransactionStatus.ERROR
+                throw TransactionException.TransactionStorageException(this.tid, e.message ?: "Unknown")
+            }
         }
 
         /**
@@ -634,13 +488,15 @@ internal class MapDBColumn<T : Any>(override val name: Name, override val parent
          * @param value The new value.
          * @param expected The value expected to be there.
          */
-        override fun compareAndUpdate(tupleId: Long, value: Value<T>?, expected: Value<T>?): Boolean = try {
-            prepareWriteOperation()
-            checkValidTupleId(tupleId)
-            this@MapDBColumn.store.compareAndSwap(tupleId, expected, value, this.serializer)
-        } catch (e: DBException) {
-            this.status = TransactionStatus.ERROR
-            throw TransactionException.TransactionStorageException(this.tid, e.message ?: "Unknown")
+        override fun compareAndUpdate(tupleId: Long, value: Value<T>?, expected: Value<T>?): Boolean = this.localLock.read {
+            try {
+                checkValidForWrite()
+                checkValidTupleId(tupleId)
+                this@MapDBColumn.store.compareAndSwap(tupleId, expected, value, this.serializer)
+            } catch (e: DBException) {
+                this.status = TransactionStatus.ERROR
+                throw TransactionException.TransactionStorageException(this.tid, e.message ?: "Unknown")
+            }
         }
 
         /**
@@ -649,19 +505,21 @@ internal class MapDBColumn<T : Any>(override val name: Name, override val parent
          *
          * @param tupleId The ID of the record that should be deleted
          */
-        override fun delete(tupleId: Long) = try {
-            prepareWriteOperation()
-            checkValidTupleId(tupleId)
-            this@MapDBColumn.store.delete(tupleId, this.serializer)
+        override fun delete(tupleId: Long) = this.localLock.read {
+            try {
+                checkValidForWrite()
+                checkValidTupleId(tupleId)
+                this@MapDBColumn.store.delete(tupleId, this.serializer)
 
-            /* Update header. */
-            val header = this@MapDBColumn.header
-            header.count -= 1
-            header.modified = System.currentTimeMillis()
-            this@MapDBColumn.store.update(HEADER_RECORD_ID, header, ColumnHeaderSerializer)
-        } catch (e: DBException) {
-            this.status = TransactionStatus.ERROR
-            throw TransactionException.TransactionStorageException(this.tid, e.message ?: "Unknown")
+                /* Update header. */
+                val header = this@MapDBColumn.header
+                header.count -= 1
+                header.modified = System.currentTimeMillis()
+                this@MapDBColumn.store.update(HEADER_RECORD_ID, header, ColumnHeaderSerializer)
+            } catch (e: DBException) {
+                this.status = TransactionStatus.ERROR
+                throw TransactionException.TransactionStorageException(this.tid, e.message ?: "Unknown")
+            }
         }
 
         /**
@@ -670,21 +528,23 @@ internal class MapDBColumn<T : Any>(override val name: Name, override val parent
          *
          * @param tupleIds The IDs of the records that should be deleted.
          */
-        override fun deleteAll(tupleIds: Collection<Long>) = try {
-            prepareWriteOperation()
-            tupleIds.forEach {
-                checkValidTupleId(it)
-                this@MapDBColumn.store.delete(it, this.serializer)
-            }
+        override fun deleteAll(tupleIds: Collection<Long>) = this.localLock.read {
+            try {
+                checkValidForWrite()
+                tupleIds.forEach {
+                    checkValidTupleId(it)
+                    this@MapDBColumn.store.delete(it, this.serializer)
+                }
 
-            /* Update header. */
-            val header = this@MapDBColumn.header
-            header.count -= tupleIds.size
-            header.modified = System.currentTimeMillis()
-            store.update(HEADER_RECORD_ID, header, ColumnHeaderSerializer)
-        } catch (e: DBException) {
-            this.status = TransactionStatus.ERROR
-            throw TransactionException.TransactionStorageException(this.tid, e.message ?: "Unknown")
+                /* Update header. */
+                val header = this@MapDBColumn.header
+                header.count -= tupleIds.size
+                header.modified = System.currentTimeMillis()
+                store.update(HEADER_RECORD_ID, header, ColumnHeaderSerializer)
+            } catch (e: DBException) {
+                this.status = TransactionStatus.ERROR
+                throw TransactionException.TransactionStorageException(this.tid, e.message ?: "Unknown")
+            }
         }
 
         /**
@@ -700,7 +560,7 @@ internal class MapDBColumn<T : Any>(override val name: Name, override val parent
          * Checks if this [MapDBColumn.Tx] is still open. Otherwise, an exception will be thrown.
          */
         @Synchronized
-        private fun checkValidOrThrow() {
+        private fun checkValidForRead() {
             if (this.status == TransactionStatus.CLOSED) throw TransactionException.TransactionClosedException(tid)
             if (this.status == TransactionStatus.ERROR) throw TransactionException.TransactionInErrorException(tid)
         }
@@ -709,7 +569,7 @@ internal class MapDBColumn<T : Any>(override val name: Name, override val parent
          * Tries to acquire a write-lock. If method fails, an exception will be thrown
          */
         @Synchronized
-        private fun prepareWriteOperation() {
+        private fun checkValidForWrite() {
             if (this.readonly) throw TransactionException.TransactionReadOnlyException(tid)
             if (this.status == TransactionStatus.CLOSED) throw TransactionException.TransactionClosedException(tid)
             if (this.status == TransactionStatus.ERROR) throw TransactionException.TransactionInErrorException(tid)

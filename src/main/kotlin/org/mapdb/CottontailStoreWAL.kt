@@ -929,12 +929,12 @@ class CottontailStoreWAL(
      * @author Ralph Gasser
      * @version 1.0
      */
-    inner class RecordIdIterator: LongIterator(), Closeable {
+    inner class RecordIdIterator(from: Long = 0L, to: Long = this@CottontailStoreWAL.maxRecid): LongIterator(), Closeable {
         /** Creates a local snapshot of the maximum record ID. */
-        private val maximumRecordId = this@CottontailStoreWAL.maxRecid
+        private val maximumRecordId = to.coerceIn(0L, this@CottontailStoreWAL.maxRecid)
 
         /** Current record ID. */
-        private var currentRecordId = AtomicLong(0L)
+        private var currentRecordId = AtomicLong(from.coerceIn(0L, this.maximumRecordId))
 
         /**
          * Creates a lock for this [LongIterator]

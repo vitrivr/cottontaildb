@@ -14,7 +14,7 @@ import ch.unibas.dmi.dbis.cottontail.model.values.Value
  * @author Ralph Gasser
  * @version 1.0
  */
-internal interface ColumnTransaction<T: Any> : Transaction, Countable, Scanable, ParallelScanable, Filterable, ParallelFilterable, Deletable {
+internal interface ColumnTransaction<T: Any> : Transaction, Countable, Scanable, Filterable, Deletable {
     /**
      * Gets and returns an entry from this [Column].
      *

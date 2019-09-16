@@ -25,7 +25,7 @@ import java.util.concurrent.atomic.AtomicLong
  * @see QueryExecutionTask
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.1
  */
 internal class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterable {
     /** Internal counter for maximum tupleId. */
@@ -209,6 +209,16 @@ internal class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterabl
     /**
      * Applies the provided action to each [Record] in this [Recordset].
      *
+     * @param from The tuple ID of the first [Record] to iterate over.
+     * @param to The tuple ID of the last [Record] to iterate over.
+     * @param action The action that should be applied.
+     */
+    @Synchronized
+    override fun forEach(from: Long, to: Long, action: (Record) -> Unit) = (from until to).filter { this.map.containsKey(it) }.map { this.map[it]!! }.forEach(action)
+
+    /**
+     * Applies the provided action to each [Record] in this [Recordset].
+     *
      * @param action The action that should be applied.
      */
     @Synchronized
@@ -222,14 +232,25 @@ internal class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterabl
     @Synchronized
     override fun <R> map(action: (Record) -> R): Collection<R> = this.map.values.map(action)
 
+
+    /**
+     * Applies the provided mapping function to each [Record] in this [Recordset].
+     *
+     * @param from The tuple ID of the first [Record] to iterate over.
+     * @param to The tuple ID of the last [Record] to iterate over.
+     * @param action The mapping function that should be applied.
+     */
+    @Synchronized
+    override fun <R> map(from: Long, to: Long, action: (Record) -> R): Collection<R> = (from until to).filter { this.map.containsKey(it) }.map { action(this.map[it]!!) }
+
     /**
      * Checks if this [Filterable] can process the provided [Predicate].
      *
      * @param predicate [Predicate] to check.
      * @return True if [Predicate] can be processed, false otherwise.
      */
-    override fun canProcess(predicate: Predicate): Boolean = when {
-        predicate is BooleanPredicate && predicate.atomics.all { it.operator != ComparisonOperator.LIKE } -> true
+    override fun canProcess(predicate: BooleanPredicate): Boolean = when {
+        predicate.atomics.all { it.operator != ComparisonOperator.LIKE } -> true
         else -> false
     }
 
@@ -240,45 +261,63 @@ internal class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterabl
      * @return New [Filterable]
      */
     @Synchronized
-    override fun filter(predicate: Predicate): Recordset {
-        if (predicate is BooleanPredicate) {
-            val recordset = Recordset(this.columns)
-            this.map.values.asSequence().filter { predicate.matches(it) }.forEach { recordset.addRow(it) }
-            return recordset
-        } else {
-            throw QueryException.UnsupportedPredicateException("Only boolean predicates are supported for invocation of filter() on a Recordset.")
-        }
+    override fun filter(predicate: BooleanPredicate): Recordset {
+        val recordset = Recordset(this.columns)
+        this.map.values.asSequence().filter { predicate.matches(it) }.forEach { recordset.addRow(it) }
+        return recordset
     }
 
     /**
      * Applies the provided action to each [Record] that matches the given [Predicate].
      *
+     * @param predicate The [Predicate] to filter [Record]s.
      * @param action The action that should be applied.
      */
     @Synchronized
-    override fun forEach(predicate: Predicate, action: (Record) -> Unit) {
-        if (predicate is BooleanPredicate) {
-            this.map.values.asSequence().filter { predicate.matches(it) }.forEach { action(it) }
-        } else {
-            throw QueryException.UnsupportedPredicateException("Only boolean predicates are supported for invocation of forEach() on a Recordset.")
-        }
+    override fun forEach(predicate: BooleanPredicate, action: (Record) -> Unit) = this.map.values.asSequence().filter { predicate.matches(it) }.forEach { action(it) }
+
+    /**
+     * Applies the provided action to each [Record] in the given range that matches the given [Predicate].
+     *
+     * @param from The tuple ID of the first [Record] to iterate over.
+     * @param to The tuple ID of the last [Record] to iterate over.
+     * @param predicate The [Predicate] to filter [Record]s.
+     * @param action The action that should be applied.
+     */
+    @Synchronized
+    override fun forEach(from: Long, to: Long, predicate: BooleanPredicate, action: (Record) -> Unit) {
+        val range = (from until to)
+        this.map.values.asSequence().filter{ range.contains(it.tupleId) }.filter { predicate.matches(it) }.forEach { action(it) }
     }
+
 
     /**
      * Applies the provided mapping function to each [Record] that matches the given [Predicate].
      *
-     * @param predicate [Predicate] to filter [Record]s.
+     * @param predicate The [Predicate] to filter [Record]s.
      * @param action The mapping function that should be applied.
      */
     @Synchronized
-    override fun <R> map(predicate: Predicate, action: (Record) -> R): Collection<R> {
-        if (predicate is BooleanPredicate) {
-            val list = mutableListOf<R>()
-            this.map.values.asSequence().filter { predicate.matches(it) }.map(action).forEach { list.add(it) }
-            return list
-        } else {
-            throw QueryException.UnsupportedPredicateException("Only boolean predicates are supported for invocation of map() on a Recordset.")
-        }
+    override fun <R> map(predicate: BooleanPredicate, action: (Record) -> R): Collection<R> {
+        val list = mutableListOf<R>()
+        this.map.values.asSequence().filter { predicate.matches(it) }.map(action).forEach { list.add(it) }
+        return list
+    }
+
+    /**
+     * Applies the provided mapping function to each [Record] in the given range that matches the given [Predicate].
+     *
+     * @param from The tuple ID of the first [Record] to iterate over.
+     * @param to The tuple ID of the last [Record] to iterate over.
+     * @param predicate The [Predicate] to filter [Record]s.
+     * @param action The mapping function that should be applied.
+     */
+    @Synchronized
+    override fun <R> map(from: Long, to: Long, predicate: BooleanPredicate, action: (Record) -> R): Collection<R> {
+        val list = mutableListOf<R>()
+        val range = (from until to)
+        this.map.values.asSequence().filter{ range.contains(it.tupleId) }.filter { predicate.matches(it) }.map(action).forEach { list.add(it) }
+        return list
     }
 
     /**
