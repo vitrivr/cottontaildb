@@ -137,7 +137,7 @@ internal class LuceneIndex(override val name: Name, override val parent: Entity,
      *
      * @throws DatabaseException.PredicateNotSupportedBxIndexException If predicate is not supported by [Index].
      */
-    override fun filter(predicate: BooleanPredicate): Recordset = if (predicate is BooleanPredicate) {
+    override fun filter(predicate: BooleanPredicate): Recordset  {
         val indexSearcher = IndexSearcher(this.indexReader)
         if (!predicate.columns.all { this.columns.contains(it) })
             throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (lucene-index) is lacking certain fields the provided predicate requires.")
@@ -160,9 +160,7 @@ internal class LuceneIndex(override val name: Name, override val parent: Entity,
             val doc = indexSearcher.doc(sdoc.doc)
             resultset.addRowUnsafe(doc[TID_COLUMN].toLong(), values = arrayOf(FloatValue(sdoc.score)))
         }
-        resultset
-    } else {
-        throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (lucene-index) does not support predicates of type '${predicate::class.simpleName}'.")
+        return resultset
     }
 
     /**
@@ -174,7 +172,7 @@ internal class LuceneIndex(override val name: Name, override val parent: Entity,
      *
      * @throws DatabaseException.PredicateNotSupportedBxIndexException If predicate is not supported by [Index].
      */
-    override fun forEach(predicate: BooleanPredicate, action: (Record) -> Unit) = if (predicate is BooleanPredicate) {
+    override fun forEach(predicate: BooleanPredicate, action: (Record) -> Unit) {
         val indexSearcher = IndexSearcher(this.indexReader)
 
         if (!predicate.columns.all { this.columns.contains(it) })
@@ -191,12 +189,10 @@ internal class LuceneIndex(override val name: Name, override val parent: Entity,
 
         /* Execute query and add results. */
         val results = indexSearcher.search(query, Integer.MAX_VALUE)
-        results.scoreDocs.forEach { sdoc ->
+        return results.scoreDocs.forEach { sdoc ->
             val doc = indexSearcher.doc(sdoc.doc)
             action(StandaloneRecord(tupleId = doc[TID_COLUMN].toLong(), columns = arrayOf(*this.produces)).assign(arrayOf(FloatValue(sdoc.score))))
         }
-    } else {
-        throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (lucene-index) does not support predicates of type '${predicate::class.simpleName}'.")
     }
 
     /**
@@ -208,7 +204,7 @@ internal class LuceneIndex(override val name: Name, override val parent: Entity,
      *
      * @throws DatabaseException.PredicateNotSupportedBxIndexException If predicate is not supported by [Index].
      */
-    override fun <R> map(predicate: BooleanPredicate, action: (Record) -> R): Collection<R> = if (predicate is BooleanPredicate) {
+    override fun <R> map(predicate: BooleanPredicate, action: (Record) -> R): Collection<R> {
         val indexSearcher = IndexSearcher(this.indexReader)
 
         if (!predicate.columns.all { this.columns.contains(it) })
@@ -224,13 +220,10 @@ internal class LuceneIndex(override val name: Name, override val parent: Entity,
         }
 
         /* Execute query and add results. */
-        val results = indexSearcher.search(query, Integer.MAX_VALUE).scoreDocs.map { sdoc ->
+        return indexSearcher.search(query, Integer.MAX_VALUE).scoreDocs.map { sdoc ->
             val doc = indexSearcher.doc(sdoc.doc)
-            action(StandaloneRecord(tupleId = doc[TID_COLUMN].toLong(), columns = arrayOf(*this.produces)).assign(arrayOf(FloatValue(sdoc.score))))
+            action(StandaloneRecord(tupleId = doc[TID_COLUMN].toLong(), columns = arrayOf(*produces)).assign(arrayOf(FloatValue(sdoc.score))))
         }
-        results
-    } else {
-        throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (lucene-index) does not support predicates of type '${predicate::class.simpleName}'.")
     }
 
     /**
