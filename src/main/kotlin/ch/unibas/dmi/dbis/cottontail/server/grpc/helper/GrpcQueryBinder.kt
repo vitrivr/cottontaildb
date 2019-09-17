@@ -44,7 +44,6 @@ internal class GrpcQueryBinder(val catalogue: Catalogue, engine: ExecutionEngine
      * @return [ExecutionPlan]
      *
      * @throws QueryException.QuerySyntaxException If [CottontailGrpc.Query] is structurally incorrect.
-     * @throws QueryException.QuerySyntaxException If [CottontailGrpc.Query] is structurally incorrect.
      */
     fun parseAndBind(query: CottontailGrpc.Query): ExecutionPlan{
         if (!query.hasFrom()) throw QueryException.QuerySyntaxException("The query lacks a valid FROM-clause.")
