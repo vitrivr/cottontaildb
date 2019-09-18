@@ -8,17 +8,18 @@ import ch.unibas.dmi.dbis.cottontail.grpc.CottontailGrpc
 import ch.unibas.dmi.dbis.cottontail.model.basics.Record
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
+import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
 import ch.unibas.dmi.dbis.cottontail.server.grpc.helper.DataHelper
 import ch.unibas.dmi.dbis.cottontail.server.grpc.helper.GrpcQueryBinder
 import ch.unibas.dmi.dbis.cottontail.utilities.math.BitUtil
+
 import com.google.protobuf.Empty
+
 import io.grpc.Status
 import io.grpc.stub.StreamObserver
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.channels.produce
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+
 import org.slf4j.LoggerFactory
+import java.lang.Integer.min
 import java.util.*
 
 internal class CottonDQLService (val catalogue: Catalogue, val engine: ExecutionEngine, val maxMessageSize: Int): CottonDQLGrpc.CottonDQLImplBase() {
@@ -44,37 +45,13 @@ internal class CottonDQLService (val catalogue: Catalogue, val engine: Execution
         val plan = binder.parseAndBind(request.query)
         LOGGER.trace("Parsing & binding query $queryId took ${System.currentTimeMillis()-startBinding}ms.")
 
-        /* Start the query by giving the start signal. */
-        responseObserver.onNext(CottontailGrpc.QueryResponseMessage.newBuilder().setStart(true).setQueryId(queryId).build())
-
         /* Execute query. */
         val startExecution = System.currentTimeMillis()
         val results = plan.execute()
         LOGGER.trace("Executing query $queryId took ${System.currentTimeMillis()-startExecution}ms.")
 
-        /* Calculate batch size based on an example message and the maxMessageSize. */
-        if (results.rowCount > 0) {
-            val startSending = System.currentTimeMillis()
-            val first = results.first()
-            if (first != null) {
-                val exampleSize = BitUtil.nextPowerOfTwo(recordToTuple(first).build().serializedSize)
-                val pageSize = (maxMessageSize/exampleSize)
-                val maxPages = Math.floorDiv(results.rowCount,pageSize)
-
-                /* Return results. */
-                val iterator = results.iterator()
-                for (i in 0..maxPages) {
-                    val responseBuilder = CottontailGrpc.QueryResponseMessage.newBuilder().setStart(false).setPageSize(pageSize).setPage(i).setMaxPage(maxPages).setTotalHits(results.rowCount)
-                    for (j in i * pageSize until Math.min(results.rowCount, i*pageSize + pageSize)) {
-                        responseBuilder.addResults(recordToTuple(iterator.next()))
-                    }
-                    responseObserver.onNext(responseBuilder.build())
-                }
-            }
-            LOGGER.trace("Sending back ${results.rowCount} rows for query $queryId took ${System.currentTimeMillis()-startSending}ms.")
-        } else {
-            LOGGER.trace("Query yielded no results.")
-        }
+        /* Send back results. */
+        this.spoolResults(queryId, results, responseObserver)
 
         /* Complete query. */
         LOGGER.info("Query $queryId took ${System.currentTimeMillis()-startBinding}ms.")
@@ -88,7 +65,6 @@ internal class CottonDQLService (val catalogue: Catalogue, val engine: Execution
     }  catch (e: DatabaseException) {
         responseObserver.onError(Status.INTERNAL.withDescription("Query execution failed because of a database error: ${e.message}").asException())
     } catch (e: Throwable) {
-        e.printStackTrace()
         responseObserver.onError(Status.UNKNOWN.withDescription("Query execution failed failed because of a unknown error: ${e.message}").asException())
     }
 
@@ -99,9 +75,6 @@ internal class CottonDQLService (val catalogue: Catalogue, val engine: Execution
         /* Start the query by giving the start signal. */
         val start = System.currentTimeMillis()
         val queryId = UUID.randomUUID().toString()
-
-        /* Start the query by giving the start signal. */
-        responseObserver.onNext(CottontailGrpc.QueryResponseMessage.newBuilder().setStart(true).setQueryId(queryId).build())
 
         request.queriesList.forEachIndexed { index, query ->
             /* Bind query and generate execution plan */
@@ -115,28 +88,8 @@ internal class CottonDQLService (val catalogue: Catalogue, val engine: Execution
             val results = plan.execute()
             LOGGER.trace("Executing query $index of batch $queryId took ${System.currentTimeMillis() - startExecution}ms.")
 
-            if (results.rowCount > 0) {
-                val startSending = System.currentTimeMillis()
-                val first = results.first()
-                if (first != null) {
-                    val exampleSize = BitUtil.nextPowerOfTwo(recordToTuple(first).build().serializedSize)
-                    val pageSize = (maxMessageSize/exampleSize)
-                    val maxPages = Math.floorDiv(results.rowCount,pageSize)
-
-                    /* Return results. */
-                    val iterator = results.iterator()
-                    for (i in 0..maxPages) {
-                        val responseBuilder = CottontailGrpc.QueryResponseMessage.newBuilder().setStart(false).setPageSize(pageSize).setPage(i).setMaxPage(maxPages).setTotalHits(results.rowCount)
-                        for (j in i * pageSize until Math.min(results.rowCount, i*pageSize + pageSize)) {
-                            responseBuilder.addResults(recordToTuple(iterator.next()))
-                        }
-                        responseObserver.onNext(responseBuilder.build())
-                    }
-                }
-                LOGGER.trace("Sending back ${results.rowCount} rows for query $index of batch $queryId took ${System.currentTimeMillis()-startSending}ms.")
-            } else {
-                LOGGER.trace("Query $index of batch $queryId yielded no results.")
-            }
+            /* Send back results. */
+            this.spoolResults(queryId, results, responseObserver, index)
         }
 
         /* Complete query. */
@@ -161,6 +114,41 @@ internal class CottonDQLService (val catalogue: Catalogue, val engine: Execution
         responseObserver.onNext(CottontailGrpc.SuccessStatus.newBuilder().setTimestamp(System.currentTimeMillis()).build())
         responseObserver.onCompleted()
     }
+
+    /**
+     * Batches and spools the results in the given [Recordset]
+     *
+     * @param queryId The ID of the query.
+     * @param results [Recordset] containing the results.
+     * @param responseObserver [StreamObserver] used to send back the results.
+     * @param index Optional index of the result (for batched queries).
+     */
+    private fun spoolResults(queryId: String, results: Recordset, responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>, index: Int = 0) {
+        if (results.rowCount > 0) {
+            val startSending = System.currentTimeMillis()
+            val first = results.first()
+            if (first != null) {
+                val exampleSize = BitUtil.nextPowerOfTwo(recordToTuple(first).build().serializedSize)
+                val pageSize = (this.maxMessageSize/exampleSize)
+                val maxPages = Math.floorDiv(results.rowCount, pageSize)
+
+                /* Return results. */
+                val iterator = results.iterator()
+                for (i in 0..maxPages) {
+                    val responseBuilder = CottontailGrpc.QueryResponseMessage.newBuilder().setStart(i == 0).setPageSize(pageSize).setPage(i).setMaxPage(maxPages).setTotalHits(results.rowCount)
+                    for (j in i * pageSize until min(results.rowCount, i*pageSize + pageSize)) {
+                        responseBuilder.addResults(recordToTuple(iterator.next()))
+                    }
+                    responseObserver.onNext(responseBuilder.build())
+                }
+            }
+            LOGGER.trace("Sending back ${results.rowCount} rows for position $index of query $queryId took ${System.currentTimeMillis()-startSending}ms.")
+        } else {
+            responseObserver.onNext(CottontailGrpc.QueryResponseMessage.newBuilder().setStart(false).setPageSize(0).setPage(0).setMaxPage(0).setTotalHits(0).build())
+            LOGGER.trace("Position $index of query $queryId yielded no results.")
+        }
+    }
+
 
     /**
      * Generates a new [CottontailGrpc.Tuple.Builder] from a given [Record].
