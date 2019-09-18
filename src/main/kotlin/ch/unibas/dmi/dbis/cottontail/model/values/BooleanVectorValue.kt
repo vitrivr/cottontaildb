@@ -3,6 +3,12 @@ package ch.unibas.dmi.dbis.cottontail.model.values
 import ch.unibas.dmi.dbis.cottontail.utilities.extensions.*
 import java.util.*
 
+/**
+ * This is an abstraction over a [BitSet] and it represents a vector of [Boolean]s.
+ *
+ * @author Ralph Gasser
+ * @version 1.0
+ */
 inline class BooleanVectorValue(override val value: BitSet) : VectorValue<BitSet> {
     constructor(input: List<Number>) : this(BitSet(input.size).init { input[it].toInt() == 1 })
     constructor(input: Array<Number>) : this(BitSet(input.size).init { input[it].toInt() == 1 })
@@ -19,7 +25,7 @@ inline class BooleanVectorValue(override val value: BitSet) : VectorValue<BitSet
     }
 
     /**
-     * Returns the i-th entry of  this [IntVectorValue].
+     * Returns the i-th entry of  this [BooleanVectorValue].
      *
      * @param i Index of the entry.
      * @return The value at index i.
@@ -27,7 +33,7 @@ inline class BooleanVectorValue(override val value: BitSet) : VectorValue<BitSet
     override fun get(i: Int): Number = this.value[i].toInt()
 
     /**
-     * Returns the i-th entry of  this [VectorValue] as [Double].
+     * Returns the i-th entry of  this [BooleanVectorValue] as [Double].
      *
      * @param i Index of the entry.
      * @return The value at index i.
@@ -35,7 +41,7 @@ inline class BooleanVectorValue(override val value: BitSet) : VectorValue<BitSet
     override fun getAsDouble(i: Int) = this.value[i].toDouble()
 
     /**
-     * Returns the i-th entry of  this [VectorValue] as [Float].
+     * Returns the i-th entry of  this [BooleanVectorValue] as [Float].
      *
      * @param i Index of the entry.
      * @return The value at index i.
@@ -43,7 +49,7 @@ inline class BooleanVectorValue(override val value: BitSet) : VectorValue<BitSet
     override fun getAsFloat(i: Int) = this.value[i].toFloat()
 
     /**
-     * Returns the i-th entry of  this [VectorValue] as [Long].
+     * Returns the i-th entry of  this [BooleanVectorValue] as [Long].
      *
      * @param i Index of the entry.
      * @return The value at index i.
@@ -51,7 +57,7 @@ inline class BooleanVectorValue(override val value: BitSet) : VectorValue<BitSet
     override fun getAsLong(i: Int) = this.value[i].toLong()
 
     /**
-     * Returns the i-th entry of  this [VectorValue] as [Int].
+     * Returns the i-th entry of  this [BooleanVectorValue] as [Int].
      *
      * @param i Index of the entry.
      * @return The value at index i.
@@ -59,7 +65,7 @@ inline class BooleanVectorValue(override val value: BitSet) : VectorValue<BitSet
     override fun getAsInt(i: Int) = this.value[i].toInt()
 
     /**
-     * Returns the i-th entry of  this [VectorValue] as [Boolean].
+     * Returns the i-th entry of  this [BooleanVectorValue] as [Boolean].
      *
      * @param i Index of the entry.
      * @return The value at index i.
@@ -67,9 +73,23 @@ inline class BooleanVectorValue(override val value: BitSet) : VectorValue<BitSet
     override fun getAsBool(i: Int) = this.value[i]
 
     /**
-     * Returns the indices of this [LongVectorValue].
+     * Returns true, if this [BooleanVectorValue] consists of all zeroes, i.e. [0, 0, ... 0]
      *
-     * @return The indices of this [LongVectorValue]
+     * @return True, if this [BooleanVectorValue] consists of all zeroes
+     */
+    override fun allZeros(): Boolean = this.indices.all { !this.value[it] }
+
+    /**
+     * Returns true, if this [BooleanVectorValue] consists of all ones, i.e. [1, 1, ... 1]
+     *
+     * @return True, if this [BooleanVectorValue] consists of all ones
+     */
+    override fun allOnes(): Boolean = this.indices.all { this.value[it] }
+
+    /**
+     * Returns the indices of this [BooleanVectorValue].
+     *
+     * @return The indices of this [BooleanVectorValue]
      */
     override val indices: IntRange
         get() = IntRange(0, this.value.length()-1)

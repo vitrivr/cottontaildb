@@ -1,8 +1,5 @@
 package ch.unibas.dmi.dbis.cottontail.model.values
 
-import ch.unibas.dmi.dbis.cottontail.math.knn.metrics.DoubleVectorDistance
-import ch.unibas.dmi.dbis.cottontail.math.knn.metrics.DistanceFunction
-
 /**
  * This is an abstraction over the existing primitive array types provided by Kotlin. It allows for the advanced type
  * system implemented by Cottontail DB.
@@ -58,6 +55,20 @@ interface VectorValue<T> : Value<T> {
      * @return The value at index i.
      */
     fun getAsBool(i: Int): Boolean
+
+    /**
+     * Returns true, if this [VectorValue] consists of all zeroes, i.e. [0, 0, ... 0]
+     *
+     * @return True, if this [VectorValue] consists of all zeroes
+     */
+    fun allZeros(): Boolean
+
+    /**
+     * Returns true, if this [VectorValue] consists of all ones, i.e. [1, 1, ... 1]
+     *
+     * @return True, if this [VectorValue] consists of all ones
+     */
+    fun allOnes(): Boolean
 
     /**
      * Returns the indices of this [VectorValue].

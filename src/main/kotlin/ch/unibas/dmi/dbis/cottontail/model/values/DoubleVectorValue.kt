@@ -1,5 +1,11 @@
 package ch.unibas.dmi.dbis.cottontail.model.values
 
+/**
+ * This is an abstraction over a [DoubleArray] and it represents a vector of [Double]s.
+ *
+ * @author Ralph Gasser
+ * @version 1.0
+ */
 inline class DoubleVectorValue(override val value: DoubleArray) : VectorValue<DoubleArray> {
 
     constructor(input: List<Number>) : this(DoubleArray(input.size) { input[it].toDouble() })
@@ -16,7 +22,7 @@ inline class DoubleVectorValue(override val value: DoubleArray) : VectorValue<Do
     }
 
     /**
-     * Returns the i-th entry of  this [IntVectorValue].
+     * Returns the i-th entry of  this [DoubleVectorValue].
      *
      * @param i Index of the entry.
      * @return The value at index i.
@@ -24,7 +30,7 @@ inline class DoubleVectorValue(override val value: DoubleArray) : VectorValue<Do
     override fun get(i: Int): Number = this.value[i]
 
     /**
-     * Returns the i-th entry of  this [VectorValue] as [Double].
+     * Returns the i-th entry of  this [DoubleVectorValue] as [Double].
      *
      * @param i Index of the entry.
      * @return The value at index i.
@@ -32,7 +38,7 @@ inline class DoubleVectorValue(override val value: DoubleArray) : VectorValue<Do
     override fun getAsDouble(i: Int): Double = this.value[i]
 
     /**
-     * Returns the i-th entry of  this [VectorValue] as [Boolean].
+     * Returns the i-th entry of  this [DoubleVectorValue] as [Boolean].
      *
      * @param i Index of the entry.
      * @return The value at index i.
@@ -40,9 +46,23 @@ inline class DoubleVectorValue(override val value: DoubleArray) : VectorValue<Do
     override fun getAsBool(i: Int) = this.value[i] == 0.0
 
     /**
-     * Returns the indices of this [LongVectorValue].
+     * Returns true, if this [DoubleVectorValue] consists of all zeroes, i.e. [0, 0, ... 0]
      *
-     * @return The indices of this [LongVectorValue]
+     * @return True, if this [DoubleVectorValue] consists of all zeroes
+     */
+    override fun allZeros(): Boolean = this.value.all { it == 0.0 }
+
+    /**
+     * Returns true, if this [DoubleVectorValue] consists of all ones, i.e. [1, 1, ... 1]
+     *
+     * @return True, if this [DoubleVectorValue] consists of all ones
+     */
+    override fun allOnes(): Boolean = this.value.all { it == 1.0 }
+
+    /**
+     * Returns the indices of this [DoubleVectorValue].
+     *
+     * @return The indices of this [DoubleVectorValue]
      */
     override val indices: IntRange
         get() = this.value.indices

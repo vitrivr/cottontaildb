@@ -1,5 +1,11 @@
 package ch.unibas.dmi.dbis.cottontail.model.values
 
+/**
+ * This is an abstraction over an [IntArray] and it represents a vector of [Int]s.
+ *
+ * @author Ralph Gasser
+ * @version 1.0
+ */
 inline class IntVectorValue(override val value: IntArray) : VectorValue<IntArray> {
 
     constructor(input: List<Number>) : this(IntArray(input.size) { input[it].toInt() })
@@ -23,7 +29,7 @@ inline class IntVectorValue(override val value: IntArray) : VectorValue<IntArray
     override fun get(i: Int): Number = this.value[i]
 
     /**
-     * Returns the i-th entry of  this [VectorValue] as [Int].
+     * Returns the i-th entry of  this [IntVectorValue] as [Int].
      *
      * @param i Index of the entry.
      * @return The value at index i.
@@ -31,7 +37,7 @@ inline class IntVectorValue(override val value: IntArray) : VectorValue<IntArray
     override fun getAsInt(i: Int) = this.value[i]
 
     /**
-     * Returns the i-th entry of  this [VectorValue] as [Boolean].
+     * Returns the i-th entry of  this [IntVectorValue] as [Boolean].
      *
      * @param i Index of the entry.
      * @return The value at index i.
@@ -39,9 +45,23 @@ inline class IntVectorValue(override val value: IntArray) : VectorValue<IntArray
     override fun getAsBool(i: Int) = this.value[i] == 0
 
     /**
-     * Returns the indices of this [LongVectorValue].
+     * Returns true, if this [IntVectorValue] consists of all zeroes, i.e. [0, 0, ... 0]
      *
-     * @return The indices of this [LongVectorValue]
+     * @return True, if this [IntVectorValue] consists of all zeroes
+     */
+    override fun allZeros(): Boolean = this.value.all { it == 0 }
+
+    /**
+     * Returns true, if this [IntVectorValue] consists of all ones, i.e. [1, 1, ... 1]
+     *
+     * @return True, if this [IntVectorValue] consists of all ones
+     */
+    override fun allOnes(): Boolean = this.value.all { it == 1 }
+
+    /**
+     * Returns the indices of this [IntVectorValue].
+     *
+     * @return The indices of this [IntVectorValue]
      */
     override val indices: IntRange
         get() = this.value.indices
