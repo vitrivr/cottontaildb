@@ -4,10 +4,9 @@ package ch.unibas.dmi.dbis.cottontail.model.values
  * This is an abstraction over a [FloatArray] and it represents a vector of [Float]s.
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.1
  */
 inline class LongVectorValue(override val value: LongArray) : VectorValue<LongArray> {
-
 
     constructor(input: List<Number>) : this(LongArray(input.size) { input[it].toLong() })
     constructor(input: Array<Number>) : this(LongArray(input.size) { input[it].toLong() })
@@ -21,6 +20,14 @@ inline class LongVectorValue(override val value: LongArray) : VectorValue<LongAr
     override fun compareTo(other: Value<*>): Int {
         throw IllegalArgumentException("LongVectorValues can can only be compared for equality.")
     }
+
+    /**
+     * Returns the indices of this [LongVectorValue].
+     *
+     * @return The indices of this [LongVectorValue]
+     */
+    override val indices: IntRange
+        get() = this.value.indices
 
     /**
      * Returns the i-th entry of  this [LongVectorValue].
@@ -61,10 +68,65 @@ inline class LongVectorValue(override val value: LongArray) : VectorValue<LongAr
     override fun allOnes(): Boolean = this.value.all { it == 1L }
 
     /**
-     * Returns the indices of this [LongVectorValue].
+     * Creates and returns a copy of this [LongVectorValue].
      *
-     * @return The indices of this [LongVectorValue]
+     * @return Exact copy of this [LongVectorValue].
      */
-    override val indices: IntRange
-        get() = this.value.indices
+    override fun copy(): LongVectorValue = LongVectorValue(this.value.copyOf(this.size))
+
+    override operator fun plus(other: VectorValue<LongArray>): VectorValue<LongArray> {
+        require(this.size == other.size) { "Only vector values of the same type and size can be added." }
+        val out = LongVectorValue(this.value.copyOf(this.size))
+        this.indices.forEach { out.value[it] += other.value[it] }
+        return out
+    }
+
+    override operator fun minus(other: VectorValue<LongArray>): VectorValue<LongArray> {
+        require(this.size == other.size) { "Only vector values of the same type and size can be added." }
+        val out = LongVectorValue(this.value.copyOf(this.size))
+        this.indices.forEach { out.value[it] -= other.value[it] }
+        return out
+    }
+
+    override operator fun times(other: VectorValue<LongArray>): VectorValue<LongArray> {
+        require(this.size == other.size) { "Only vector values of the same type and size can be added." }
+        val out = LongVectorValue(this.value.copyOf(this.size))
+        this.indices.forEach { out.value[it] *= other.value[it] }
+        return out
+    }
+
+    override operator fun div(other: VectorValue<LongArray>): VectorValue<LongArray> {
+        require(this.size == other.size) { "Only vector values of the same type and size can be added." }
+        val out = LongVectorValue(this.value.copyOf(this.size))
+        this.indices.forEach { out.value[it] /= other.value[it] }
+        return out
+    }
+
+    override operator fun plus(other: Number): VectorValue<LongArray> {
+        val value = other.toLong()
+        val out = LongVectorValue(this.value.copyOf(this.size))
+        this.indices.forEach { out.value[it] += value }
+        return out
+    }
+
+    override operator fun minus(other: Number): VectorValue<LongArray> {
+        val value = other.toLong()
+        val out = LongVectorValue(this.value.copyOf(this.size))
+        this.indices.forEach { out.value[it] -= value }
+        return out
+    }
+
+    override operator fun times(other: Number): VectorValue<LongArray> {
+        val value = other.toLong()
+        val out = LongVectorValue(this.value.copyOf(this.size))
+        this.indices.forEach { out.value[it] *= value }
+        return out
+    }
+
+    override operator fun div(other: Number): VectorValue<LongArray> {
+        val value = other.toLong()
+        val out = LongVectorValue(this.value.copyOf(this.size))
+        this.indices.forEach { out.value[it] /= value }
+        return out
+    }
 }

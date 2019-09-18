@@ -7,7 +7,7 @@ import java.util.*
  * This is an abstraction over a [BitSet] and it represents a vector of [Boolean]s.
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.1
  */
 inline class BooleanVectorValue(override val value: BitSet) : VectorValue<BitSet> {
     constructor(input: List<Number>) : this(BitSet(input.size).init { input[it].toInt() == 1 })
@@ -23,6 +23,13 @@ inline class BooleanVectorValue(override val value: BitSet) : VectorValue<BitSet
     override fun compareTo(other: Value<*>): Int {
         throw IllegalArgumentException("BooleanVectorValues can can only be compared for equality.")
     }
+    /**
+     * Returns the indices of this [BooleanVectorValue].
+     *
+     * @return The indices of this [BooleanVectorValue]
+     */
+    override val indices: IntRange
+        get() = IntRange(0, this.value.length()-1)
 
     /**
      * Returns the i-th entry of  this [BooleanVectorValue].
@@ -87,10 +94,41 @@ inline class BooleanVectorValue(override val value: BitSet) : VectorValue<BitSet
     override fun allOnes(): Boolean = this.indices.all { this.value[it] }
 
     /**
-     * Returns the indices of this [BooleanVectorValue].
+     * Creates and returns a copy of this [BooleanVectorValue].
      *
-     * @return The indices of this [BooleanVectorValue]
+     * @return Exact copy of this [BooleanVectorValue].
      */
-    override val indices: IntRange
-        get() = IntRange(0, this.value.length()-1)
+    override fun copy(): VectorValue<BitSet> = BooleanVectorValue(BitSet(this.size).init { this.value[it] })
+
+    override fun plus(other: VectorValue<BitSet>): VectorValue<BitSet> {
+        throw UnsupportedOperationException("A BooleanVector array cannot be used to perform arithmetic operations!")
+    }
+
+    override fun minus(other: VectorValue<BitSet>): VectorValue<BitSet> {
+        throw UnsupportedOperationException("A BooleanVector array cannot be used to perform arithmetic operations!")
+    }
+
+    override fun times(other: VectorValue<BitSet>): VectorValue<BitSet> {
+        throw UnsupportedOperationException("A BooleanVector array cannot be used to perform arithmetic operations!")
+    }
+
+    override fun div(other: VectorValue<BitSet>): VectorValue<BitSet> {
+        throw UnsupportedOperationException("A BooleanVector array cannot be used to perform arithmetic operations!")
+    }
+
+    override fun plus(other: Number): VectorValue<BitSet> {
+        throw UnsupportedOperationException("A BooleanVector array cannot be used to perform arithmetic operations!")
+    }
+
+    override fun minus(other: Number): VectorValue<BitSet> {
+        throw UnsupportedOperationException("A BooleanVector array cannot be used to perform arithmetic operations!")
+    }
+
+    override fun times(other: Number): VectorValue<BitSet> {
+        throw UnsupportedOperationException("A BooleanVector array cannot be used to perform arithmetic operations!")
+    }
+
+    override fun div(other: Number): VectorValue<BitSet> {
+        throw UnsupportedOperationException("A BooleanVector array cannot be used to perform arithmetic operations!")
+    }
 }

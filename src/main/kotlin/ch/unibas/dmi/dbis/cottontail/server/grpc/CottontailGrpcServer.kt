@@ -18,10 +18,10 @@ import java.util.concurrent.*
  * @author Ralph Gasser
  * @version 1.0.1
  */
-internal class CottontailGrpcServer(val config: ServerConfig, val catalogue: Catalogue, val engine: ExecutionEngine) {
+internal class CottontailGrpcServer(val config: ServerConfig, val catalogue: Catalogue, private val engine: ExecutionEngine) {
 
     /** The [ThreadPoolExecutor] used for handling the individual GRPC calls. */
-    private val executor: ExecutorService = ThreadPoolExecutor(config.coreThreads, config.maxThreads, config.keepAliveTime, TimeUnit.MILLISECONDS, SynchronousQueue())
+    private val executor: ExecutorService = ThreadPoolExecutor(this.config.coreThreads, this.config.maxThreads, this.config.keepAliveTime, TimeUnit.MILLISECONDS, SynchronousQueue())
 
     /** Reference to the GRPC server. */
     private val server = ServerBuilder.forPort(config.port)

@@ -76,4 +76,20 @@ interface VectorValue<T> : Value<T> {
      * @return The indices of this [VectorValue]
      */
     val indices: IntRange
+
+    /**
+     * Creates and returns a copy of this [VectorValue].
+     *
+     * @return Exact copy of this [VectorValue].
+     */
+    fun copy(): VectorValue<T>
+
+    operator fun plus(other: VectorValue<T>): VectorValue<T>
+    operator fun minus(other: VectorValue<T>): VectorValue<T>
+    operator fun times(other: VectorValue<T>): VectorValue<T>
+    operator fun div(other: VectorValue<T>): VectorValue<T>
+    operator fun plus(other: Number): VectorValue<T>
+    operator fun minus(other: Number): VectorValue<T>
+    operator fun times(other: Number): VectorValue<T>
+    operator fun div(other: Number): VectorValue<T>
 }

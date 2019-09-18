@@ -4,7 +4,7 @@ package ch.unibas.dmi.dbis.cottontail.model.values
  * This is an abstraction over an [IntArray] and it represents a vector of [Int]s.
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.1
  */
 inline class IntVectorValue(override val value: IntArray) : VectorValue<IntArray> {
 
@@ -20,6 +20,14 @@ inline class IntVectorValue(override val value: IntArray) : VectorValue<IntArray
     override fun compareTo(other: Value<*>): Int {
         throw IllegalArgumentException("IntVectorValues can can only be compared for equality.")
     }
+
+    /**
+     * Returns the indices of this [IntVectorValue].
+     *
+     * @return The indices of this [IntVectorValue]
+     */
+    override val indices: IntRange
+        get() = this.value.indices
 
     /**
      * Returns the i-th entry of  this [IntVectorValue].
@@ -59,10 +67,65 @@ inline class IntVectorValue(override val value: IntArray) : VectorValue<IntArray
     override fun allOnes(): Boolean = this.value.all { it == 1 }
 
     /**
-     * Returns the indices of this [IntVectorValue].
+     * Creates and returns a copy of this [IntVectorValue].
      *
-     * @return The indices of this [IntVectorValue]
+     * @return Exact copy of this [IntVectorValue].
      */
-    override val indices: IntRange
-        get() = this.value.indices
+    override fun copy(): IntVectorValue = IntVectorValue(this.value.copyOf(this.size))
+
+    override operator fun plus(other: VectorValue<IntArray>): VectorValue<IntArray> {
+        require(this.size == other.size) { "Only vector values of the same type and size can be added." }
+        val out = IntVectorValue(this.value.copyOf(this.size))
+        this.indices.forEach { out.value[it] += other.value[it] }
+        return out
+    }
+
+    override operator fun minus(other: VectorValue<IntArray>): VectorValue<IntArray> {
+        require(this.size == other.size) { "Only vector values of the same type and size can be added." }
+        val out = IntVectorValue(this.value.copyOf(this.size))
+        this.indices.forEach { out.value[it] -= other.value[it] }
+        return out
+    }
+
+    override operator fun times(other: VectorValue<IntArray>): VectorValue<IntArray> {
+        require(this.size == other.size) { "Only vector values of the same type and size can be added." }
+        val out = IntVectorValue(this.value.copyOf(this.size))
+        this.indices.forEach { out.value[it] *= other.value[it] }
+        return out
+    }
+
+    override operator fun div(other: VectorValue<IntArray>): VectorValue<IntArray> {
+        require(this.size == other.size) { "Only vector values of the same type and size can be added." }
+        val out = IntVectorValue(this.value.copyOf(this.size))
+        this.indices.forEach { out.value[it] /= other.value[it] }
+        return out
+    }
+
+    override operator fun plus(other: Number): VectorValue<IntArray> {
+        val value = other.toInt()
+        val out = IntVectorValue(this.value.copyOf(this.size))
+        this.indices.forEach { out.value[it] += value }
+        return out
+    }
+
+    override operator fun minus(other: Number): VectorValue<IntArray> {
+        val value = other.toInt()
+        val out = IntVectorValue(this.value.copyOf(this.size))
+        this.indices.forEach { out.value[it] -= value }
+        return out
+    }
+
+    override operator fun times(other: Number): VectorValue<IntArray> {
+        val value = other.toInt()
+        val out = IntVectorValue(this.value.copyOf(this.size))
+        this.indices.forEach { out.value[it] *= value }
+        return out
+    }
+
+    override operator fun div(other: Number): VectorValue<IntArray> {
+        val value = other.toInt()
+        val out = IntVectorValue(this.value.copyOf(this.size))
+        this.indices.forEach { out.value[it] /= value }
+        return out
+    }
 }
