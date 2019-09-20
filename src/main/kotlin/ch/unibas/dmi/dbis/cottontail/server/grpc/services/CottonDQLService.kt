@@ -13,8 +13,6 @@ import ch.unibas.dmi.dbis.cottontail.server.grpc.helper.DataHelper
 import ch.unibas.dmi.dbis.cottontail.server.grpc.helper.GrpcQueryBinder
 import ch.unibas.dmi.dbis.cottontail.utilities.math.BitUtil
 
-import com.google.protobuf.Empty
-
 import io.grpc.Status
 import io.grpc.stub.StreamObserver
 
@@ -110,7 +108,7 @@ internal class CottonDQLService (val catalogue: Catalogue, val engine: Execution
     /**
      * gRPC endpoint for handling PING requests.
      */
-    override fun ping(request: Empty, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) {
+    override fun ping(request: CottontailGrpc.Empty, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) {
         responseObserver.onNext(CottontailGrpc.SuccessStatus.newBuilder().setTimestamp(System.currentTimeMillis()).build())
         responseObserver.onCompleted()
     }

@@ -102,7 +102,7 @@ object DatabasePreview {
 
     private fun listEntities() {
         println("Listing all Entities")
-        ddlService.listSchemas(Empty()).forEach { _schema ->
+        ddlService.listSchemas(CottontailGrpc.Empty.getDefaultInstance()).forEach { _schema ->
             println("Entities for Schema ${_schema.name}:")
             ddlService.listEntities(_schema).forEach { _entity ->
                 if (_entity.schema.name != _schema.name) {

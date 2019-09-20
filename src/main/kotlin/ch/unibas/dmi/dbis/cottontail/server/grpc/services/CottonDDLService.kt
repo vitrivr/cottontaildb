@@ -3,7 +3,6 @@ package ch.unibas.dmi.dbis.cottontail.server.grpc.services
 import ch.unibas.dmi.dbis.cottontail.database.catalogue.Catalogue
 import ch.unibas.dmi.dbis.cottontail.database.column.ColumnType
 import ch.unibas.dmi.dbis.cottontail.database.index.IndexType
-import ch.unibas.dmi.dbis.cottontail.database.index.lucene.LuceneIndex
 import ch.unibas.dmi.dbis.cottontail.grpc.CottonDDLGrpc
 import ch.unibas.dmi.dbis.cottontail.grpc.CottontailGrpc
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
@@ -13,8 +12,6 @@ import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
 import ch.unibas.dmi.dbis.cottontail.utilities.name.NameType
 import ch.unibas.dmi.dbis.cottontail.utilities.name.append
 import ch.unibas.dmi.dbis.cottontail.utilities.name.isValid
-
-import com.google.protobuf.Empty
 
 import io.grpc.Status
 import io.grpc.stub.StreamObserver
@@ -76,7 +73,7 @@ internal class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.Cotton
     /**
      * gRPC endpoint listing the available [Schema]s.
      */
-    override fun listSchemas(request: Empty?, responseObserver: StreamObserver<CottontailGrpc.Schema>) = try {
+    override fun listSchemas(request: CottontailGrpc.Empty, responseObserver: StreamObserver<CottontailGrpc.Schema>) = try {
         this.catalogue.schemas.forEach {
             responseObserver.onNext(CottontailGrpc.Schema.newBuilder().setName(it).build())
         }
