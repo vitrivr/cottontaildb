@@ -27,11 +27,11 @@ interface VectorizedDistanceFunction<T> : DistanceFunction<T> {
      *
      * @param a First [VectorValue]
      * @param b Second [VectorValue]
-     * @param stride The stride to use for vectorization
+     * @param shape The [Shape], i.e., the type of vectorization to use.
      *
      * @return Distance between a and b.
      */
-    operator fun invoke(a: VectorValue<T>, b: VectorValue<T>, stride: Int): Double = invoke(a, b)
+    operator fun invoke(a: VectorValue<T>, b: VectorValue<T>, shape: Shape): Double = invoke(a, b)
 
     /**
      * Calculates the weighted distance between two [VectorValue]s
@@ -39,9 +39,22 @@ interface VectorizedDistanceFunction<T> : DistanceFunction<T> {
      * @param a First [VectorValue]
      * @param b Second [VectorValue]
      * @param weights The [VectorValue] containing the weights.
-     * @param stride The [Shape], i.e., the type of vectorization to use.
+     * @param shape The [Shape], i.e., the type of vectorization to use.
 
      * @return Distance between a and b.
      */
-    operator fun invoke(a: VectorValue<T>, b: VectorValue<T>, weights: VectorValue<*>, stride: Int): Double = invoke(a, b, weights)
+    operator fun invoke(a: VectorValue<T>, b: VectorValue<T>, weights: VectorValue<*>, shape: Shape): Double = invoke(a, b, weights)
+}
+
+/**
+ * The [Shape] of the vectorization registers to use. Current extensions (SSE, AVX) range from 128 to 512bit.
+ *
+ * @author Ralph Gasser
+ * @version 1.0
+ */
+enum class Shape(val size: Int) {
+    OFF(0),
+    S128(128),
+    S256(256),
+    S512(512)
 }

@@ -5,27 +5,64 @@ import ch.unibas.dmi.dbis.cottontail.model.values.VectorValue
 
 import kotlin.math.*
 
-enum class FloatVectorDistance : DistanceFunction<FloatArray> {
+enum class FloatVectorDistance : VectorizedDistanceFunction<FloatArray> {
     /**
      * L1 or Manhattan distance between two vectors. Vectors must be of the same size!
      */
     L1 {
         override val operations: Int = 1
 
-        override fun invoke(a: VectorValue<FloatArray>, b: VectorValue<FloatArray>, weights: VectorValue<*>): Double {
-            var sum = 0.0
-            for (i in b.indices) {
-                sum += abs(b.getAsFloat(i) - a.getAsFloat(i)) * weights.getAsFloat(i)
+        override fun invoke(a: VectorValue<FloatArray>, b: VectorValue<FloatArray>, shape: Shape): Double {
+            var sum1 = 0.0f
+            var sum2 = 0.0f
+            var sum3 = 0.0f
+            var sum4 = 0.0f
+            val max = Math.floorDiv(a.size, VECTORIZATION)
+            for (i in 0 until max) {
+                sum1 += abs(b.getAsFloat(i*4) - a.getAsFloat(i*4))
+                sum2 += abs(b.getAsFloat(i*4+1) - a.getAsFloat(i*4+1))
+                sum3 += abs(b.getAsFloat(i*4+2) - a.getAsFloat(i*4+2))
+                sum4 += abs(b.getAsFloat(i*4+3) - a.getAsFloat(i*4+3))
             }
-            return sum
+            for (i in max * VECTORIZATION until b.size) {
+                sum4 += abs(b.getAsFloat(i) - a.getAsFloat(i))
+            }
+            return (sum1 + sum2 + sum3 + sum4).toDouble()
+        }
+
+        override fun invoke(a: VectorValue<FloatArray>, b: VectorValue<FloatArray>, weights: VectorValue<*>, shape: Shape): Double {
+            var sum1 = 0.0f
+            var sum2 = 0.0f
+            var sum3 = 0.0f
+            var sum4 = 0.0f
+            val max = Math.floorDiv(a.size, VECTORIZATION)
+            for (i in 0 until max) {
+                sum1 = Math.fma(abs(b.getAsFloat(i*4) - a.getAsFloat(i*4)), weights.getAsFloat(i*4), sum1)
+                sum2 = Math.fma(abs(b.getAsFloat(i*4+1) - a.getAsFloat(i*4+1)), weights.getAsFloat(i*4+1), sum2)
+                sum3 = Math.fma(abs(b.getAsFloat(i*4+2) - a.getAsFloat(i*4+2)), weights.getAsFloat(i*4+2), sum3)
+                sum4 = Math.fma(abs(b.getAsFloat(i*4+3) - a.getAsFloat(i*4+3)), weights.getAsFloat(i*4+3), sum4)
+            }
+            for (i in max * VECTORIZATION until b.size) {
+                sum4 = Math.fma(abs(b.getAsFloat(i) - a.getAsFloat(i)), weights.getAsFloat(i), sum4)
+            }
+            return (sum1 + sum2 + sum3 + sum4).toDouble()
+        }
+
+
+        override fun invoke(a: VectorValue<FloatArray>, b: VectorValue<FloatArray>, weights: VectorValue<*>): Double {
+            var sum = 0.0f
+            for (i in b.indices) {
+                sum += Math.fma(abs(b.getAsFloat(i) - a.getAsFloat(i)), weights.getAsFloat(i), sum)
+            }
+            return sum.toDouble()
         }
 
         override fun invoke(a: VectorValue<FloatArray>, b: VectorValue<FloatArray>): Double {
-            var sum = 0.0
+            var sum = 0.0f
             for (i in b.indices) {
                 sum += abs(b.getAsFloat(i) - a.getAsFloat(i))
             }
-            return sum
+            return sum.toDouble()
         }
     },
 
@@ -34,6 +71,8 @@ enum class FloatVectorDistance : DistanceFunction<FloatArray> {
      */
     L2 {
         override val operations: Int = 2
+        override fun invoke(a: VectorValue<FloatArray>, b: VectorValue<FloatArray>, shape: Shape): Double = sqrt(L2SQUARED(a, b, shape))
+        override fun invoke(a: VectorValue<FloatArray>, b: VectorValue<FloatArray>, weights: VectorValue<*>, shape: Shape): Double = sqrt(L2SQUARED(a, b, weights, shape))
         override fun invoke(a: VectorValue<FloatArray>, b: VectorValue<FloatArray>, weights: VectorValue<*>): Double = sqrt(L2SQUARED(a, b, weights))
         override fun invoke(a: VectorValue<FloatArray>, b: VectorValue<FloatArray>): Double = sqrt(L2SQUARED(a, b))
     },
@@ -44,20 +83,56 @@ enum class FloatVectorDistance : DistanceFunction<FloatArray> {
     L2SQUARED {
         override val operations: Int = 2
 
+        override fun invoke(a: VectorValue<FloatArray>, b: VectorValue<FloatArray>, shape: Shape): Double {
+            var sum1 = 0.0
+            var sum2 = 0.0
+            var sum3 = 0.0
+            var sum4 = 0.0
+            val max = Math.floorDiv(a.size, VECTORIZATION)
+            for (i in 0 until max) {
+                sum1 += (b.getAsFloat(i * VECTORIZATION) - a.getAsFloat(i * VECTORIZATION)).toDouble().pow(2.0)
+                sum2 += (b.getAsFloat(i * VECTORIZATION + 1) - a.getAsFloat(i * VECTORIZATION + 1)).toDouble().pow(2.0)
+                sum3 += (b.getAsFloat(i * VECTORIZATION + 2) - a.getAsFloat(i * VECTORIZATION + 2)).toDouble().pow(2.0)
+                sum4 += (b.getAsFloat(i * VECTORIZATION + 3) - a.getAsFloat(i * VECTORIZATION + 3)).toDouble().pow(2.0)
+            }
+            for (i in max * VECTORIZATION until b.size) {
+                sum4 += (b.getAsFloat(i) - a.getAsFloat(i)).toDouble().pow(2.0)
+            }
+            return (sum1 + sum2 + sum3 + sum4)
+        }
+
+        override fun invoke(a: VectorValue<FloatArray>, b: VectorValue<FloatArray>, weights: VectorValue<*>, shape: Shape): Double {
+            var sum1 = 0.0f
+            var sum2 = 0.0f
+            var sum3 = 0.0f
+            var sum4 = 0.0f
+            val max = Math.floorDiv(a.size, VECTORIZATION)
+            for (i in 0 until max) {
+                sum1 = Math.fma(b.getAsFloat(i*VECTORIZATION) - a.getAsFloat(i*VECTORIZATION), (b.getAsFloat(i*VECTORIZATION) - a.getAsFloat(i*VECTORIZATION)) * weights.getAsFloat(i* VECTORIZATION), sum1)
+                sum2 = Math.fma(b.getAsFloat(i*VECTORIZATION+1) - a.getAsFloat(i*VECTORIZATION+1), (b.getAsFloat(i*VECTORIZATION+1) - a.getAsFloat(i*VECTORIZATION+1)) * weights.getAsFloat(i* VECTORIZATION+1), sum2)
+                sum3 = Math.fma(b.getAsFloat(i*VECTORIZATION+2) - a.getAsFloat(i*VECTORIZATION+2), (b.getAsFloat(i*VECTORIZATION+2) - a.getAsFloat(i*VECTORIZATION+2)) * weights.getAsFloat(i* VECTORIZATION+2), sum3)
+                sum4 = Math.fma(b.getAsFloat(i*VECTORIZATION+3) - a.getAsFloat(i*VECTORIZATION+3), (b.getAsFloat(i*VECTORIZATION+3) - a.getAsFloat(i*VECTORIZATION+3) * weights.getAsFloat(i* VECTORIZATION+3)), sum4)
+            }
+            for (i in max * VECTORIZATION until b.size) {
+                sum4 = Math.fma(b.getAsFloat(i) - a.getAsFloat(i), (b.getAsFloat(i) - a.getAsFloat(i)) * weights.getAsFloat(i), sum4)
+            }
+            return (sum1 + sum2 + sum3 + sum4).toDouble()
+        }
+
         override fun invoke(a: VectorValue<FloatArray>, b: VectorValue<FloatArray>, weights: VectorValue<*>): Double {
-            var sum = 0.0
+            var sum = 0.0f
             for (i in b.indices) {
                 sum += (b.getAsFloat(i) - a.getAsFloat(i)) * (b.getAsFloat(i) - a.getAsFloat(i)) * weights.getAsFloat(i)
             }
-            return sum
+            return sum.toDouble()
         }
 
         override fun invoke(a: VectorValue<FloatArray>, b: VectorValue<FloatArray>): Double {
-            var sum = 0.0
+            var sum = 0.0f
             for (i in b.indices) {
                 sum += (b.getAsFloat(i) - a.getAsFloat(i)) * (b.getAsFloat(i) - a.getAsFloat(i))
             }
-            return sum
+            return sum.toDouble()
         }
     },
 
@@ -69,39 +144,122 @@ enum class FloatVectorDistance : DistanceFunction<FloatArray> {
         override val operations: Int = 3
 
         override fun invoke(a: VectorValue<FloatArray>, b: VectorValue<FloatArray>, weights: VectorValue<*>): Double {
-            var sum = 0.0
+            var sum = 0.0f
             for (i in b.indices) {
                 if (abs(a.getAsFloat(i) + b.getAsFloat(i)) > 1e-6) {
                     sum += ((b.getAsFloat(i) - a.getAsFloat(i)) * (b.getAsFloat(i) - a.getAsFloat(i))) / (b.getAsFloat(i) + a.getAsFloat(i)) * weights.getAsFloat(i)
                 }
             }
-            return sum
+            return sum.toDouble()
         }
 
         override fun invoke(a: VectorValue<FloatArray>, b: VectorValue<FloatArray>): Double {
-            var sum = 0.0
+            var sum = 0.0f
             for (i in b.indices) {
                 if (abs(a.getAsFloat(i) + b.getAsFloat(i)) > 1e-6) {
                     sum += ((b.getAsFloat(i) - a.getAsFloat(i)) * (b.getAsFloat(i) - a.getAsFloat(i))) / (b.getAsFloat(i) + a.getAsFloat(i))
                 }
             }
-            return sum
+            return sum.toDouble()
         }
     },
 
     COSINE {
         override val operations: Int = 3
 
+
+        override fun invoke(a: VectorValue<FloatArray>, b: VectorValue<FloatArray>, weights: VectorValue<*>, shape: Shape): Double {
+            var dot1 = 0.0f
+            var dot2 = 0.0f
+            var dot3 = 0.0f
+            var dot4 = 0.0f
+
+            var c1 = 0.0f
+            var c2 = 0.0f
+            var c3 = 0.0f
+            var c4 = 0.0f
+
+            var d1 = 0.0f
+            var d2 = 0.0f
+            var d3 = 0.0f
+            var d4 = 0.0f
+
+            val max = Math.floorDiv(a.size, VECTORIZATION)
+            for (i in 0 until max) {
+                dot1 = Math.fma(a.getAsFloat(i*VECTORIZATION), b.getAsFloat(i*VECTORIZATION) * weights.getAsFloat(i*VECTORIZATION), dot1)
+                dot2 = Math.fma(a.getAsFloat(i*VECTORIZATION+1), b.getAsFloat(i*VECTORIZATION+1) * weights.getAsFloat(i*VECTORIZATION+1), dot2)
+                dot3 = Math.fma(a.getAsFloat(i*VECTORIZATION+2), b.getAsFloat(i*VECTORIZATION+2) * weights.getAsFloat(i*VECTORIZATION+2), dot3)
+                dot4 = Math.fma(a.getAsFloat(i*VECTORIZATION+3), b.getAsFloat(i*VECTORIZATION+3) * weights.getAsFloat(i*VECTORIZATION+3), dot4)
+
+                c1 = Math.fma(a.getAsFloat(i*VECTORIZATION), a.getAsFloat(i*VECTORIZATION) * weights.getAsFloat(i*VECTORIZATION), c1)
+                c2 = Math.fma(a.getAsFloat(i*VECTORIZATION+1), a.getAsFloat(i*VECTORIZATION+1) * weights.getAsFloat(i*VECTORIZATION+1), c2)
+                c3 = Math.fma(a.getAsFloat(i*VECTORIZATION+2), a.getAsFloat(i*VECTORIZATION+2) * weights.getAsFloat(i*VECTORIZATION+2), c3)
+                c4 = Math.fma(a.getAsFloat(i*VECTORIZATION+3), a.getAsFloat(i*VECTORIZATION+3) * weights.getAsFloat(i*VECTORIZATION+3), c4)
+
+                d1 = Math.fma(b.getAsFloat(i*VECTORIZATION), b.getAsFloat(i*VECTORIZATION) * weights.getAsFloat(i*VECTORIZATION), d1)
+                d2 = Math.fma(b.getAsFloat(i*VECTORIZATION+1), b.getAsFloat(i*VECTORIZATION+1) * weights.getAsFloat(i*VECTORIZATION+1), d2)
+                d3 = Math.fma(b.getAsFloat(i*VECTORIZATION+2), b.getAsFloat(i*VECTORIZATION+2) * weights.getAsFloat(i*VECTORIZATION+2), d3)
+                d4 = Math.fma(b.getAsFloat(i*VECTORIZATION+3), b.getAsFloat(i*VECTORIZATION+3) * weights.getAsFloat(i*VECTORIZATION+3), d4)
+            }
+            val div = sqrt((c1+c2+c3+c4).toDouble()) * sqrt((d1+d2+d3+d4).toDouble())
+            return if (div < 1e-6 || div.isNaN()) {
+                1.0
+            } else {
+                1.0 - (dot1 + dot2 + dot3 + dot4) / div
+            }
+        }
+
+        override fun invoke(a: VectorValue<FloatArray>, b: VectorValue<FloatArray>, shape: Shape): Double {
+            var dot1 = 0.0f
+            var dot2 = 0.0f
+            var dot3 = 0.0f
+            var dot4 = 0.0f
+
+            var c1 = 0.0f
+            var c2 = 0.0f
+            var c3 = 0.0f
+            var c4 = 0.0f
+
+            var d1 = 0.0f
+            var d2 = 0.0f
+            var d3 = 0.0f
+            var d4 = 0.0f
+
+            val max = Math.floorDiv(a.size, VECTORIZATION)
+            for (i in 0 until max) {
+                dot1 = Math.fma(a.getAsFloat(i*VECTORIZATION), b.getAsFloat(i*VECTORIZATION), dot1)
+                dot2 = Math.fma(a.getAsFloat(i*VECTORIZATION+1), b.getAsFloat(i*VECTORIZATION+1), dot2)
+                dot3 = Math.fma(a.getAsFloat(i*VECTORIZATION+2), b.getAsFloat(i*VECTORIZATION+2), dot3)
+                dot4 = Math.fma(a.getAsFloat(i*VECTORIZATION+3), b.getAsFloat(i*VECTORIZATION+3), dot4)
+
+                c1 = Math.fma(a.getAsFloat(i*VECTORIZATION), a.getAsFloat(i*VECTORIZATION), c1)
+                c2 = Math.fma(a.getAsFloat(i*VECTORIZATION+1), a.getAsFloat(i*VECTORIZATION+1), c2)
+                c3 = Math.fma(a.getAsFloat(i*VECTORIZATION+2), a.getAsFloat(i*VECTORIZATION+2), c3)
+                c4 = Math.fma(a.getAsFloat(i*VECTORIZATION+3), a.getAsFloat(i*VECTORIZATION+3), c4)
+
+                d1 = Math.fma(b.getAsFloat(i*VECTORIZATION), b.getAsFloat(i*VECTORIZATION), d1)
+                d2 = Math.fma(b.getAsFloat(i*VECTORIZATION+1), b.getAsFloat(i*VECTORIZATION+1), d2)
+                d3 = Math.fma(b.getAsFloat(i*VECTORIZATION+2), b.getAsFloat(i*VECTORIZATION+2), d3)
+                d4 = Math.fma(b.getAsFloat(i*VECTORIZATION+3), b.getAsFloat(i*VECTORIZATION+3), d4)
+            }
+            val div = sqrt((c1+c2+c3+c4).toDouble()) * sqrt((d1+d2+d3+d4).toDouble())
+            return if (div < 1e-6 || div.isNaN()) {
+                1.0
+            } else {
+                1.0 - (dot1 + dot2 + dot3 + dot4) / div
+            }
+        }
+
         override fun invoke(a: VectorValue<FloatArray>, b: VectorValue<FloatArray>, weights: VectorValue<*>): Double {
-            var dot = 0.0
-            var c = 0.0
-            var d = 0.0
+            var dot = 0.0f
+            var c = 0.0f
+            var d = 0.0f
             for (i in 0 until b.size) {
                 dot += a.getAsFloat(i) * b.getAsFloat(i) * weights.getAsFloat(i)
                 c += a.getAsFloat(i) * a.getAsFloat(i) * weights.getAsFloat(i)
                 d += b.getAsFloat(i) * b.getAsFloat(i) * weights.getAsFloat(i)
             }
-            val div = sqrt(c) * sqrt(d)
+            val div = sqrt(c.toDouble()) * sqrt(d.toDouble())
 
             return if (div < 1e-6 || div.isNaN()) {
                 1.0
@@ -174,5 +332,9 @@ enum class FloatVectorDistance : DistanceFunction<FloatArray> {
             val d = 2.0 * atan2(sqrt(c), sqrt(1 - c))
             return EARTH_RADIUS * d
         }
+    };
+
+    companion object  {
+        private const val VECTORIZATION = 4
     }
 }

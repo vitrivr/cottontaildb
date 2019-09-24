@@ -1,5 +1,7 @@
 package ch.unibas.dmi.dbis.cottontail.utilities
 
+import ch.unibas.dmi.dbis.cottontail.model.values.DoubleVectorValue
+import ch.unibas.dmi.dbis.cottontail.model.values.FloatVectorValue
 import java.util.*
 
 object VectorUtility {
@@ -38,25 +40,25 @@ object VectorUtility {
      *
      * @param size The size of the random vector.
      */
-    fun randomFloatVector(size: Int) : FloatArray {
+    fun randomFloatVector(size: Int) : FloatVectorValue {
         val vec = FloatArray(size)
-        for (i in 0 until vec.size) {
+        for (i in vec.indices) {
             vec[i] = random.nextFloat()
         }
-        return vec
+        return FloatVectorValue(vec)
     }
 
     /**
-     * Generates a random [DoubleArray] of the given size.
+     * Generates a random [DoubleVectorValue] of the given size.
      *
      * @param size The size of the random vector.
      */
-    fun randomDoubleVector(size: Int) : DoubleArray {
+    fun randomDoubleVector(size: Int) : DoubleVectorValue {
         val vec = DoubleArray(size)
-        for (i in 0 until vec.size) {
+        for (i in vec.indices) {
             vec[i] = random.nextDouble()
         }
-        return vec
+        return DoubleVectorValue(vec)
     }
 
     /**
@@ -90,30 +92,30 @@ object VectorUtility {
     }
 
     /**
-     * Generates a sequence of random [FloatArray] of the given size.
+     * Generates a sequence of random [FloatVectorValue] of the given size.
      *
      * @param size The size of the random vectors.
      * @param items The number of items to return from the [Iterator]
      */
-    fun randomFloatVectorSequence(size: Int, items: Int = Int.MAX_VALUE) : Iterator<FloatArray> = object: Iterator<FloatArray> {
+    fun randomFloatVectorSequence(size: Int, items: Int = Int.MAX_VALUE) : Iterator<FloatVectorValue> = object: Iterator<FloatVectorValue> {
         var left = items
         override fun hasNext(): Boolean = this.left > 0
-        override fun next(): FloatArray {
+        override fun next(): FloatVectorValue {
             this.left -= 1
             return randomFloatVector(size)
         }
     }
 
     /**
-     * Generates a sequence of random [DoubleArray] of the given size.
+     * Generates a sequence of random [DoubleVectorValue] of the given size.
      *
      * @param size The size of the random vectors.
      * @param items The number of items to return from the [Iterator]
      */
-    fun randomDoubleVectorSequence(size: Int, items: Int = Int.MAX_VALUE) : Iterator<DoubleArray> = object: Iterator<DoubleArray> {
+    fun randomDoubleVectorSequence(size: Int, items: Int = Int.MAX_VALUE) : Iterator<DoubleVectorValue> = object: Iterator<DoubleVectorValue> {
         var left = items
         override fun hasNext(): Boolean = this.left > 0
-        override fun next(): DoubleArray {
+        override fun next(): DoubleVectorValue {
             this.left -= 1
             return randomDoubleVector(size)
         }
