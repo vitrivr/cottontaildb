@@ -20,7 +20,7 @@ import com.github.dexecutor.core.task.Task
  * @author Ralph Gasser
  * @version 1.1
  */
-internal class LinearEntityScanKnnTask<T: Any>(val entity: Entity, val knn: KnnPredicate<T>, val predicate: BooleanPredicate? = null) : ExecutionTask("LinearEntityScanKnnTask[${entity.fqn}][${knn.column.name}][${knn.distance::class.simpleName}][${knn.k}][q=${knn.query.hashCode()}]") {
+class LinearEntityScanKnnTask<T: Any>(val entity: Entity, val knn: KnnPredicate<T>, val predicate: BooleanPredicate? = null) : ExecutionTask("LinearEntityScanKnnTask[${entity.fqn}][${knn.column.name}][${knn.distance::class.simpleName}][${knn.k}][q=${knn.query.hashCode()}]") {
 
     /** Set containing the kNN values. */
     private val knnSet = knn.query.map { HeapSelect<ComparablePair<Long,Double>>(this.knn.k) }

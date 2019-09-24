@@ -16,7 +16,7 @@ import com.github.dexecutor.core.task.TaskExecutionException
  * @author Ralph Gasser
  * @version 1.0
  */
-internal class RecordsetMeanProjectionTask(val projection: Projection, estimatedRows: Int = 1000): ExecutionTask("RecordsetMeanProjectionTask") {
+class RecordsetMeanProjectionTask(val projection: Projection, estimatedRows: Int = 1000): ExecutionTask("RecordsetMeanProjectionTask") {
 
     /** The cost of this [RecordsetMaxProjectionTask]  depends on the estimated size of the input. */
     override val cost = estimatedRows * Costs.MEMORY_ACCESS_READ

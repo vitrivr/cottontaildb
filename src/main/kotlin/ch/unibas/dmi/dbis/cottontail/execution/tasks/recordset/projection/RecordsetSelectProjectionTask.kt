@@ -23,7 +23,7 @@ import com.github.dexecutor.core.task.TaskExecutionException
  * @author Ralph Gasser
  * @version 1.0
  */
-internal class RecordsetSelectProjectionTask (val projection: Projection, estimatedRows: Int = 1000, estimatedColumns: Int = 5): ExecutionTask("RecordsetSelectProjectionTask") {
+class RecordsetSelectProjectionTask (val projection: Projection, estimatedRows: Int = 1000, estimatedColumns: Int = 5): ExecutionTask("RecordsetSelectProjectionTask") {
 
     /** Cost estimate for this [RecordsetSelectProjectionTask] depends on the input size. */
     override val cost = estimatedRows * estimatedColumns * Costs.MEMORY_ACCESS_READ

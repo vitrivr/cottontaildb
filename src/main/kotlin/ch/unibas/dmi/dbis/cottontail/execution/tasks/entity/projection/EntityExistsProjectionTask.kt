@@ -16,7 +16,7 @@ import com.github.dexecutor.core.task.Task
  * @author Ralph Gasser
  * @version 1.0
  */
-internal class EntityExistsProjectionTask(val entity: Entity): ExecutionTask("EntityExistsProjectionTask[${entity.name}]") {
+class EntityExistsProjectionTask(val entity: Entity): ExecutionTask("EntityExistsProjectionTask[${entity.name}]") {
 
     /** The cost of this [EntityExistsProjectionTask] is constant */
     override val cost = Costs.DISK_ACCESS_READ

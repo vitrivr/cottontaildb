@@ -9,7 +9,7 @@ import java.util.*
 /**
  *
  */
-internal interface Column<T: Any> : DBO {
+interface Column<T: Any> : DBO {
     /**
      * This [Column]'s [ColumnDef]. It contains all the relevant information that defines a [Column]
      *

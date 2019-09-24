@@ -40,7 +40,7 @@ fun Name.append(other: Name): Name = "$this$COTTONTAIL_NAME_COMPONENT_SEPARATOR$
  *
  * @return Last [Name] component of this [Name]
  */
-internal fun Name.first(): Name = this.split(COTTONTAIL_NAME_COMPONENT_SEPARATOR).first()
+fun Name.first(): Name = this.split(COTTONTAIL_NAME_COMPONENT_SEPARATOR).first()
 
 /**
  * Returns the last [Name] component of this [Name], which is a [Name] again. If this is of [NameType.SIMPLE],
@@ -48,14 +48,14 @@ internal fun Name.first(): Name = this.split(COTTONTAIL_NAME_COMPONENT_SEPARATOR
  *
  * @return Last [Name] component of this [Name]
  */
-internal fun Name.last(): Name = this.split(COTTONTAIL_NAME_COMPONENT_SEPARATOR).last()
+fun Name.last(): Name = this.split(COTTONTAIL_NAME_COMPONENT_SEPARATOR).last()
 
 /**
  * Returns the [NameType] of this [Name].
  *
  * @return [NameType] of this [Name].
  */
-internal fun Name.type(): NameType = when {
+fun Name.type(): NameType = when {
     this.contains('.') && this.contains('*') -> NameType.FQN_WILDCARD
     this.contains('.') -> NameType.FQN
     this.contains('*') -> NameType.WILDCARD
@@ -67,7 +67,7 @@ internal fun Name.type(): NameType = when {
  *
  * @param other The [Name] to check.
  */
-internal fun Name.isPrefixOf(that: Name): Boolean {
+fun Name.isPrefixOf(that: Name): Boolean {
     val o = that.split(COTTONTAIL_NAME_COMPONENT_SEPARATOR)
     val t = this.split(COTTONTAIL_NAME_COMPONENT_SEPARATOR)
     return if (o.size > t.size)
@@ -84,7 +84,7 @@ internal fun Name.isPrefixOf(that: Name): Boolean {
  *
  * @param that The [String] to check.
  */
-internal fun Name.doesNameMatch(that: Name): Boolean {
+fun Name.doesNameMatch(that: Name): Boolean {
     val t = that.split(COTTONTAIL_NAME_COMPONENT_SEPARATOR)
     val o = this.split(COTTONTAIL_NAME_COMPONENT_SEPARATOR)
     return if (o.size != t.size)
@@ -101,7 +101,7 @@ internal fun Name.doesNameMatch(that: Name): Boolean {
  *
  * @param entity [Entity] relative to which the name should be normalized.
  */
-internal fun Name.normalizeColumnName(entity: Entity): String {
+fun Name.normalizeColumnName(entity: Entity): String {
     val split = this.split(COTTONTAIL_NAME_COMPONENT_SEPARATOR)
     return when (split.size) {
         1 -> "${entity.fqn}.${split[0]}"

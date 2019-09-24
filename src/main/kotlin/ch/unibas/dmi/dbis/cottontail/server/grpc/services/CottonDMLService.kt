@@ -19,7 +19,7 @@ import io.grpc.stub.StreamObserver
 import org.slf4j.LoggerFactory
 import java.util.concurrent.ConcurrentHashMap
 
-internal class CottonDMLService (val catalogue: Catalogue): CottonDMLGrpc.CottonDMLImplBase() {
+class CottonDMLService (val catalogue: Catalogue): CottonDMLGrpc.CottonDMLImplBase() {
     /** Logger used for logging the output. */
     companion object {
         private val LOGGER = LoggerFactory.getLogger(CottonDMLService::class.java)

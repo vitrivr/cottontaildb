@@ -13,7 +13,7 @@ import java.lang.IllegalArgumentException
  * @author Ralph Gasser
  * @version 1.0
  */
-internal class RecordsetUnionTask (val unique: Boolean = false, sizeEstimate: Int = 1000): ExecutionTask("RecordsetUnionTask") {
+class RecordsetUnionTask (val unique: Boolean = false, sizeEstimate: Int = 1000): ExecutionTask("RecordsetUnionTask") {
     /** The estimated cost of this [RecordsetUnionTask] depends linearly on the size estimate. */
     override val cost = 0.001f * sizeEstimate
 

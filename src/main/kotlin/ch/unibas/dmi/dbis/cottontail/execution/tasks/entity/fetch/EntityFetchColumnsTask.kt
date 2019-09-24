@@ -16,7 +16,7 @@ import com.github.dexecutor.core.task.TaskExecutionException
  * @author Ralph Gasser
  * @version 1.0
  */
-internal class EntityFetchColumnsTask (val entity: Entity, val columns: Array<ColumnDef<*>>): ExecutionTask("EntityFetchColumnsTask[${entity.fqn}") {
+class EntityFetchColumnsTask (val entity: Entity, val columns: Array<ColumnDef<*>>): ExecutionTask("EntityFetchColumnsTask[${entity.fqn}") {
     /** The cost of this [RecordsetCountProjectionTask] is constant */
     override val cost = (this.entity.statistics.rows * columns.size) * 1e-6f
 

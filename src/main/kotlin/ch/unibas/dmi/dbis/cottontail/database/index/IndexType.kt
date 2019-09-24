@@ -5,7 +5,7 @@ import ch.unibas.dmi.dbis.cottontail.database.index.hash.UniqueHashIndex
 import ch.unibas.dmi.dbis.cottontail.database.index.lucene.LuceneIndex
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 
-internal enum class IndexType {
+enum class IndexType {
     HASH_UQ, /* A hash based index with unique values. */
     HASH, /* A hash based index. */
     BTREE, /* A BTree based index. */

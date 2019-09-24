@@ -39,7 +39,7 @@ import kotlin.concurrent.write
  * @author Ralph Gasser
  * @version 1.1
  */
-internal class MapDBColumn<T : Any>(override val name: Name, override val parent: Entity) : Column<T> {
+class MapDBColumn<T : Any>(override val name: Name, override val parent: Entity) : Column<T> {
     /** The [Path] to the [Entity]'s main folder. */
     override val path: Path = parent.path.resolve("col_$name.db")
 

@@ -32,7 +32,7 @@ import java.util.*
  * @author Ralph Gasser
  * @version 1.0
  */
-internal class GrpcQueryBinder(val catalogue: Catalogue, engine: ExecutionEngine) {
+class GrpcQueryBinder(val catalogue: Catalogue, engine: ExecutionEngine) {
 
     /** [ExecutionPlanFactor] used to generate [ExecutionPlan]s from query definitions. */
     private val factory = ExecutionPlanFactory(engine)

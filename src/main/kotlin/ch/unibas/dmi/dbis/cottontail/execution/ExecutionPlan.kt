@@ -30,7 +30,7 @@ import kotlin.collections.HashMap
  * @author Ralph Gasser
  * @version 1.0
  */
-internal class ExecutionPlan(executor: ExecutorService) {
+class ExecutionPlan(executor: ExecutorService) {
 
     /** The internal ID of this [ExecutionPlan]. */
     val id: UUID = UUID.randomUUID()

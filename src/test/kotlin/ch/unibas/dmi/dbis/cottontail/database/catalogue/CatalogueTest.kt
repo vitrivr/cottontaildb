@@ -1,7 +1,8 @@
-package ch.unibas.dmi.dbis.cottontail.database.schema
+package ch.unibas.dmi.dbis.cottontail.database.catalogue
 
 import ch.unibas.dmi.dbis.cottontail.TestConstants
 import ch.unibas.dmi.dbis.cottontail.database.catalogue.Catalogue
+import ch.unibas.dmi.dbis.cottontail.database.schema.Schema
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
 import org.junit.jupiter.api.*
 import java.nio.file.Files
@@ -64,7 +65,7 @@ class CatalogueTest {
         Assertions.assertFalse(Files.isReadable(TestConstants.config.root.resolve("schema_${schemaName}").resolve(Schema.FILE_CATALOGUE)))
 
         /* Check that correct exception is thrown. */
-        Assertions.assertThrows(DatabaseException.SchemaDoesNotExistException::class.java, {catalogue.schemaForName(schemaName) })
+        Assertions.assertThrows(DatabaseException.SchemaDoesNotExistException::class.java) {catalogue.schemaForName(schemaName) }
     }
 
 }

@@ -15,7 +15,7 @@ import com.github.dexecutor.core.task.Task
  * @author Ralph Gasser
  * @version 1.0
  */
-internal class EntityLinearScanFilterTask(private val entity: Entity, private val predicate: BooleanPredicate) : ExecutionTask("EntityLinearScanFilterTask[${entity.fqn}][$predicate]") {
+class EntityLinearScanFilterTask(private val entity: Entity, private val predicate: BooleanPredicate) : ExecutionTask("EntityLinearScanFilterTask[${entity.fqn}][$predicate]") {
 
     /** The cost of this [EntityLinearScanFilterTask] depends on whether or not an [Index] can be employed. */
     override val cost = (this.entity.statistics.columns * this.predicate.operations).toFloat()

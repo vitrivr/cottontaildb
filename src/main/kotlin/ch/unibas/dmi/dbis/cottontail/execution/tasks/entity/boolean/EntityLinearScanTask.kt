@@ -13,7 +13,7 @@ import com.github.dexecutor.core.task.Task
  * @author Ralph Gasser
  * @version 1.0
  */
-internal class EntityLinearScanTask(private val entity: Entity, private val columns: Array<ColumnDef<*>>) : ExecutionTask("EntityLinearScanTask[${entity.fqn}][${columns.map { it.name }.joinToString(",")}]") {
+class EntityLinearScanTask(private val entity: Entity, private val columns: Array<ColumnDef<*>>) : ExecutionTask("EntityLinearScanTask[${entity.fqn}][${columns.map { it.name }.joinToString(",")}]") {
 
     /** The cost of this [EntityLinearScanTask] is constant */
     override val cost = (entity.statistics.columns * columns.size).toFloat()

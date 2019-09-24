@@ -14,7 +14,7 @@ import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
  * @author Ralph Gasser
  * @version 1.0
  */
-internal interface IndexTransaction : Transaction, Filterable {
+interface IndexTransaction : Transaction, Filterable {
     /**
      * The [ColumnDef]s covered by the [Index] that underpins this [IndexTransaction].
      */

@@ -27,7 +27,7 @@ import java.util.concurrent.atomic.AtomicLong
  * @author Ralph Gasser
  * @version 1.1
  */
-internal class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterable {
+class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterable {
     /** Internal counter for maximum tupleId. */
     private val maxTupleId = AtomicLong(0)
 

@@ -41,7 +41,7 @@ import kotlin.concurrent.write
  * @author Ralph Gasser
  * @version 1.1
  */
-internal class Schema(n: Name, override val path: Path, override val parent: Catalogue) : DBO {
+class Schema(n: Name, override val path: Path, override val parent: Catalogue) : DBO {
 
     /** [Name] of this [Schema]. Lower-case values are enforced since Cottontail DB is not case-sensitive! */
     override val name: Name = n.normalize()
@@ -229,10 +229,10 @@ internal class Schema(n: Name, override val path: Path, override val parent: Cat
      */
     companion object {
         /** ID of the schema header! */
-        internal const val HEADER_RECORD_ID: Long = 1L
+        const val HEADER_RECORD_ID: Long = 1L
 
         /** Filename for the [Schema] catalogue.  */
-        internal const val FILE_CATALOGUE = "index.db"
+        const val FILE_CATALOGUE = "index.db"
     }
 }
 

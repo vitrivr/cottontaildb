@@ -9,7 +9,7 @@ import ch.unibas.dmi.dbis.cottontail.execution.ExecutionPlan
  * @version 1.0
  * @author Ralph Gasser
  */
-internal class ExecutionStage {
+class ExecutionStage {
     /** List of [ExecutionTask]s that make up this stage. */
     val tasks = mutableMapOf<ExecutionTask,Collection<String>>()
 

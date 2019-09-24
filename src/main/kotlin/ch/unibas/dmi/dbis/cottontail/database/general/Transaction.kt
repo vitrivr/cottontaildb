@@ -10,7 +10,7 @@ import java.util.*
  * @author Ralph Gasser
  * @version 1.0f
  */
-internal interface Transaction : AutoCloseable {
+interface Transaction : AutoCloseable {
     /** [TransactionStatus] of this [Transaction]. */
     val status: TransactionStatus
 
@@ -37,7 +37,7 @@ internal interface Transaction : AutoCloseable {
  *
  * @param block The block that should be executed in a [Transaction] context.
  */
-internal fun <T:Transaction> T.begin(block: (tx: T) -> Boolean) = try {
+fun <T:Transaction> T.begin(block: (tx: T) -> Boolean) = try {
     if (block(this)) {
         commit()
     } else {
@@ -62,7 +62,7 @@ internal fun <T:Transaction> T.begin(block: (tx: T) -> Boolean) = try {
  * @param block The block that should be executed in a [Transaction] context.
  * @return The [Recordset] that resulted from the [Transaction].
  */
-internal fun <T:Transaction> T.query(block: (tx: T) -> Recordset): Recordset? = try {
+fun <T:Transaction> T.query(block: (tx: T) -> Recordset): Recordset? = try {
     val result = block(this )
     commit()
     result

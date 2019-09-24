@@ -33,7 +33,7 @@ import org.mapdb.Serializer
  * @author Ralph Gasser
  * @version 1.0f
  */
-internal class UniqueHashIndex(override val name: Name, override val parent: Entity, override val columns: Array<ColumnDef<*>>) : Index() {
+class UniqueHashIndex(override val name: Name, override val parent: Entity, override val columns: Array<ColumnDef<*>>) : Index() {
     /**
      * Index-wide constants.
      */

@@ -23,7 +23,7 @@ import org.slf4j.LoggerFactory
  * @author Ralph Gasser
  * @version 1.0
  */
-internal class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.CottonDDLImplBase() {
+class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.CottonDDLImplBase() {
     /** Logger used for logging the output. */
     companion object {
         private val LOGGER = LoggerFactory.getLogger(CottonDDLService::class.java)

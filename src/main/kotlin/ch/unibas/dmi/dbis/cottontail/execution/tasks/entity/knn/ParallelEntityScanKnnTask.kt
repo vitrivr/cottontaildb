@@ -8,6 +8,8 @@ import ch.unibas.dmi.dbis.cottontail.database.queries.KnnPredicate
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.basics.ExecutionTask
 import ch.unibas.dmi.dbis.cottontail.math.knn.ComparablePair
 import ch.unibas.dmi.dbis.cottontail.math.knn.HeapSelect
+import ch.unibas.dmi.dbis.cottontail.math.knn.metrics.Shape
+import ch.unibas.dmi.dbis.cottontail.math.knn.metrics.VectorizedDistanceFunction
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.basics.Record
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
@@ -24,7 +26,7 @@ import kotlinx.coroutines.runBlocking
  * @author Ralph Gasser
  * @version 1.1
  */
-internal class ParallelEntityScanKnnTask<T: Any>(val entity: Entity, val knn: KnnPredicate<T>, val predicate: BooleanPredicate? = null, val parallelism: Short = 2) : ExecutionTask("ParallelEntityScanDoubleKnnTask[${entity.fqn}][${knn.column.name}][${knn.distance::class.simpleName}][${knn.k}][q=${knn.query.hashCode()}]") {
+class ParallelEntityScanKnnTask<T: Any>(val entity: Entity, val knn: KnnPredicate<T>, val predicate: BooleanPredicate? = null, val parallelism: Short = 2) : ExecutionTask("ParallelEntityScanDoubleKnnTask[${entity.fqn}][${knn.column.name}][${knn.distance::class.simpleName}][${knn.k}][q=${knn.query.hashCode()}]") {
 
     /** Set containing the kNN values. */
     private val knnSet = knn.query.map { HeapSelect<ComparablePair<Long,Double>>(this.knn.k) }
@@ -53,11 +55,22 @@ internal class ParallelEntityScanKnnTask<T: Any>(val entity: Entity, val knn: Kn
                         val action: (Record) -> Unit = {
                             val v = it[this@ParallelEntityScanKnnTask.knn.column]
                             if (v is VectorValue<T>) {
-                                this@ParallelEntityScanKnnTask.knn.query.forEachIndexed { i, q ->
-                                    if (this@ParallelEntityScanKnnTask.knn.weights != null) {
-                                        this@ParallelEntityScanKnnTask.knnSet[i].add(ComparablePair(it.tupleId, this@ParallelEntityScanKnnTask.knn.distance(q, v, this@ParallelEntityScanKnnTask.knn.weights[i])))
-                                    } else {
-                                        this@ParallelEntityScanKnnTask.knnSet[i].add(ComparablePair(it.tupleId, this@ParallelEntityScanKnnTask.knn.distance(q, v)))
+                                val distance = this@ParallelEntityScanKnnTask.knn.distance
+                                if (distance is VectorizedDistanceFunction) {
+                                    this@ParallelEntityScanKnnTask.knn.query.forEachIndexed { i, q ->
+                                        if (this@ParallelEntityScanKnnTask.knn.weights != null) {
+                                            this@ParallelEntityScanKnnTask.knnSet[i].add(ComparablePair(it.tupleId, distance(q, v, this@ParallelEntityScanKnnTask.knn.weights[i], Shape.S512)))
+                                        } else {
+                                            this@ParallelEntityScanKnnTask.knnSet[i].add(ComparablePair(it.tupleId, distance(q, v, Shape.S512)))
+                                        }
+                                    }
+                                } else {
+                                    this@ParallelEntityScanKnnTask.knn.query.forEachIndexed { i, q ->
+                                        if (this@ParallelEntityScanKnnTask.knn.weights != null) {
+                                            this@ParallelEntityScanKnnTask.knnSet[i].add(ComparablePair(it.tupleId, distance(q, v, this@ParallelEntityScanKnnTask.knn.weights[i])))
+                                        } else {
+                                            this@ParallelEntityScanKnnTask.knnSet[i].add(ComparablePair(it.tupleId, distance(q, v)))
+                                        }
                                     }
                                 }
                             }

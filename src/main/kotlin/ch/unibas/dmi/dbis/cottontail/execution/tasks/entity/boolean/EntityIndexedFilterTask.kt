@@ -13,7 +13,7 @@ import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
  * @author Ralph Gasser
  * @version 1.0
  */
-internal class EntityIndexedFilterTask(private val entity: Entity, private val predicate: BooleanPredicate, indexHint: Index) : ExecutionTask("EntityIndexedFilterTask[${entity.fqn}][$predicate]") {
+class EntityIndexedFilterTask(private val entity: Entity, private val predicate: BooleanPredicate, indexHint: Index) : ExecutionTask("EntityIndexedFilterTask[${entity.fqn}][$predicate]") {
     /** The cost of this [EntityLinearScanFilterTask] depends on whether or not an [Index] can be employed. */
     override val cost = indexHint.cost(this.predicate)
 

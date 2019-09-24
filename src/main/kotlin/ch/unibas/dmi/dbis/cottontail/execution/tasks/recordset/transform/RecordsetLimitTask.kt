@@ -13,7 +13,7 @@ import com.github.dexecutor.core.task.TaskExecutionException
  * @author Ralph Gasser
  * @version 1.0
  */
-internal class RecordsetLimitTask (val limit: Long, val skip: Long = 0): ExecutionTask("RecordsetLimitTask") {
+class RecordsetLimitTask (val limit: Long, val skip: Long = 0): ExecutionTask("RecordsetLimitTask") {
     /** The estimated cost of this [RecordsetLimitTask] depends linearly on the number of records that will be returned. */
     override val cost = (limit + skip) * Costs.MEMORY_ACCESS_READ
 

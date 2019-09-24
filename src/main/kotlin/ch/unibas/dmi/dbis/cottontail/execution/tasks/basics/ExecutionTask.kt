@@ -16,7 +16,7 @@ import java.util.*
  * @author Ralph Gasser
  * @version 1.0
  */
-internal abstract class ExecutionTask(name: String): Task<String, Recordset>() {
+abstract class ExecutionTask(name: String): Task<String, Recordset>() {
 
     /** Initializes this [ExecutionTask]'s ID. */
     init {

@@ -33,7 +33,7 @@ import kotlin.concurrent.write
  * @author Ralph Gasser
  * @version 1.1
  */
-internal class Catalogue(val config: Config): DBO {
+class Catalogue(val config: Config): DBO {
     /** Root to Cottontail DB root folder. */
     override val path: Path = config.root
 

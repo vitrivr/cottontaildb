@@ -16,7 +16,7 @@ import com.github.dexecutor.core.task.TaskExecutionException
  * @author Ralph Gasser
  * @version 1.0
  */
-internal class RecordsetMinProjectionTask(val projection: Projection, estimatedRows: Int = 1000): ExecutionTask("RecordsetMinProjectionTask") {
+class RecordsetMinProjectionTask(val projection: Projection, estimatedRows: Int = 1000): ExecutionTask("RecordsetMinProjectionTask") {
 
     /** The cost of this [RecordsetMinProjectionTask] depends on the estimated size of the input. */
     override val cost = estimatedRows * Costs.MEMORY_ACCESS_READ

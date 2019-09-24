@@ -15,7 +15,7 @@ import com.github.dexecutor.core.task.Task
  * @author Ralph Gasser
  * @version 1.0.1
  */
-internal class EntityCountProjectionTask (val entity: Entity): ExecutionTask("EntityCountProjectionTask[${entity.fqn}") {
+class EntityCountProjectionTask (val entity: Entity): ExecutionTask("EntityCountProjectionTask[${entity.fqn}") {
 
     /** The cost of this [EntityCountProjectionTask] is constant */
     override val cost = Costs.DISK_ACCESS_READ

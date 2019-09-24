@@ -13,7 +13,7 @@ import org.mapdb.Serializer
  * @author Ralph Gasser
  * @version 1.0f
  */
-internal class SchemaHeader(val created: Long = System.currentTimeMillis(), var modified: Long = System.currentTimeMillis(), var entities: LongArray = LongArray(0)) {
+class SchemaHeader(val created: Long = System.currentTimeMillis(), var modified: Long = System.currentTimeMillis(), var entities: LongArray = LongArray(0)) {
     companion object {
         /** The identifier that is used to identify a Cottontail DB [Schema] file. */
         internal const val IDENTIFIER: String = "COTTONT_SCM"

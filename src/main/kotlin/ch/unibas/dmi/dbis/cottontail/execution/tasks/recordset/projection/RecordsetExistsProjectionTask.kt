@@ -15,7 +15,7 @@ import com.github.dexecutor.core.task.TaskExecutionException
  * @author Ralph Gasser
  * @version 1.0.1
  */
-internal class RecordsetExistsProjectionTask (): ExecutionTask("RecordsetExistsProjectionTask") {
+class RecordsetExistsProjectionTask (): ExecutionTask("RecordsetExistsProjectionTask") {
 
     /** The cost of this [RecordsetExistsProjectionTask] is constant. */
     override val cost = Costs.MEMORY_ACCESS_READ

@@ -31,7 +31,7 @@ import java.util.concurrent.locks.StampedLock
  * @author Ralph Gasser
  * @version 1.1
  */
-internal abstract class Index : DBO {
+abstract class Index : DBO {
 
     /** An internal lock that is used to synchronize structural changes to an [Index] (e.g. closing or deleting) with running [Index.Tx]. */
     protected val globalLock = StampedLock()

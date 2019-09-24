@@ -18,10 +18,7 @@ class FixedFloatVectorSerializer(val size: Int): Serializer<FloatVectorValue> {
         }
     }
     override fun deserialize(input: DataInput2, available: Int): FloatVectorValue {
-        val vector = FloatArray(size)
-        for (i in 0 until size) {
-            vector[i] = input.readFloat()
-        }
+        val vector = FloatArray(size) {input.readFloat()}
         return FloatVectorValue(vector)
     }
 }

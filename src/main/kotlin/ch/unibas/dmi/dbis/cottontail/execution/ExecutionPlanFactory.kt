@@ -27,7 +27,7 @@ import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
 /**
  *
  */
-internal class ExecutionPlanFactory (val executionEngine: ExecutionEngine) {
+class ExecutionPlanFactory (val executionEngine: ExecutionEngine) {
     /**
      * Returns an [ExecutionPlan] for the specified, simple query that does not contain any JOINS.
      *

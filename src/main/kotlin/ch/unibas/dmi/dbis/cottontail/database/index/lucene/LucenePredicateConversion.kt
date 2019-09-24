@@ -12,7 +12,7 @@ import org.apache.lucene.search.*
 /**
  * Converts an [AtomicBooleanPredicate] to a [Query] supported by Apache Lucene.
  */
-internal fun AtomicBooleanPredicate<*>.toLuceneQuery(): Query = if (this.values.first() is StringValue) {
+fun AtomicBooleanPredicate<*>.toLuceneQuery(): Query = if (this.values.first() is StringValue) {
     val column = this.columns.first()
     val value = (this.values.first() as StringValue).value
     when (this.operator){
@@ -27,7 +27,7 @@ internal fun AtomicBooleanPredicate<*>.toLuceneQuery(): Query = if (this.values.
 /**
  * Converts a [CompoundBooleanPredicate] to a [Query] supported by Apache Lucene.
  */
-internal fun CompoundBooleanPredicate.toLuceneQuery(): Query {
+fun CompoundBooleanPredicate.toLuceneQuery(): Query {
     val clause = when (this.connector) {
         ConnectionOperator.AND -> BooleanClause.Occur.MUST
         ConnectionOperator.OR -> BooleanClause.Occur.SHOULD

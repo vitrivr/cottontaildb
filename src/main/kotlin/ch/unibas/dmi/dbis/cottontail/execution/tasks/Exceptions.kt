@@ -9,7 +9,7 @@ import ch.unibas.dmi.dbis.cottontail.execution.tasks.basics.ExecutionTask
  * @param task The [ExecutionPlan] that failed.
  * @param message An error message describing the circumstances.
  */
-internal class ExecutionPlanException(plan: ExecutionPlan, message: String) : Throwable("Execution failed for execution plan ${plan.id}: $message.")
+class ExecutionPlanException(plan: ExecutionPlan, message: String) : Throwable("Execution failed for execution plan ${plan.id}: $message.")
 
 /**
  * This exceptions is thrown whenever the setup of an [ExecutionPlan] fails. Errors of this kind are is usually caused
@@ -18,7 +18,7 @@ internal class ExecutionPlanException(plan: ExecutionPlan, message: String) : Th
  * @param task The [ExecutionPlan] that failed.
  * @param message An error message describing the circumstances.
  */
-internal class ExecutionPlanSetupException(plan: ExecutionPlan, message: String) : Throwable("Setup failed for execution plan ${plan.id}: $message.")
+class ExecutionPlanSetupException(plan: ExecutionPlan, message: String) : Throwable("Setup failed for execution plan ${plan.id}: $message.")
 
 /**
  * This exceptions is thrown whenever a single [ExecutionTask] fails.
@@ -26,7 +26,7 @@ internal class ExecutionPlanSetupException(plan: ExecutionPlan, message: String)
  * @param task The [ExecutionTask] that failed.
  * @param message An error message describing the circumstances.
  */
-internal class TaskExecutionException(task: ExecutionTask, message: String) : Throwable("Execution failed for task ${task.id}: $message.")
+class TaskExecutionException(task: ExecutionTask, message: String) : Throwable("Execution failed for task ${task.id}: $message.")
 
 /**
  * This exceptions is thrown whenever the setup of a single [ExecutionTask] fails. Errors of this kind are is usually caused
@@ -35,4 +35,4 @@ internal class TaskExecutionException(task: ExecutionTask, message: String) : Th
  * @param task The [ExecutionTask] that failed.
  * @param message An error message describing the circumstances.
  */
-internal class TaskSetupException(task: ExecutionTask, message: String) : Throwable("Setup failed for task ${task.id}: $message.")
+class TaskSetupException(task: ExecutionTask, message: String) : Throwable("Setup failed for task ${task.id}: $message.")

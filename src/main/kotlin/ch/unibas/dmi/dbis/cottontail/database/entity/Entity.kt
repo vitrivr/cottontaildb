@@ -53,7 +53,7 @@ import kotlin.concurrent.write
  * @author Ralph Gasser
  * @version 1.2
  */
-internal class Entity(n: Name, schema: Schema) : DBO {
+class Entity(n: Name, schema: Schema) : DBO {
     /** The [Name] of this [Entity]. Lower-case values are enforced since Cottontail DB is not case-sensitive! */
     override val name: Name = n.normalize()
 
@@ -296,10 +296,10 @@ internal class Entity(n: Name, schema: Schema) : DBO {
      */
     companion object {
         /** Filename for the [Entity] catalogue.  */
-        internal const val FILE_CATALOGUE = "index.db"
+        const val FILE_CATALOGUE = "index.db"
 
         /** Filename for the [Entity] catalogue.  */
-        internal const val HEADER_RECORD_ID = 1L
+        const val HEADER_RECORD_ID = 1L
     }
 
     /**

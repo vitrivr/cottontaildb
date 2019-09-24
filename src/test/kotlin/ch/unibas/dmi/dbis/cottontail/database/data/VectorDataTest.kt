@@ -157,14 +157,14 @@ class VectorDataTest {
         /* Insert the float vectors. */
         val tx = entity?.Tx(false)
         val iterator = VectorUtility.randomFloatVectorSequence(size, count)
-        val vectorMap = HashMap<Long,FloatArray>()
+        val vectorMap = HashMap<Long,FloatVectorValue>()
         val counterMap = HashMap<Long,Int>()
         var counter = 0
         tx?.begin {
             iterator.forEach {
                 val record = StandaloneRecord(columns = arrayOf(intField, vectorField))
                 record[intField] = IntValue(counter)
-                record[vectorField] = FloatVectorValue(it)
+                record[vectorField] = it
                 val tid = tx.insert(record)
                 assertNotNull(tid)
                 vectorMap[tid!!] = it
@@ -178,9 +178,9 @@ class VectorDataTest {
         val tx2 = entity?.Tx(readonly = true, columns = arrayOf(intField, vectorField))
         assertEquals(count.toLong(), tx2?.count())
         tx2?.begin {
-            vectorMap.forEach { t, u ->
+            vectorMap.forEach { (t, u) ->
                 val tuple = tx2.read(t)
-                assertArrayEquals(u, tuple[vectorField]!!.value as FloatArray)
+                val assertArrayEquals = assertArrayEquals(u.value, tuple[vectorField]!!.value as FloatArray)
                 assertEquals(counterMap[t], tuple[intField]!!.value as Int)
             }
             true
@@ -204,14 +204,14 @@ class VectorDataTest {
         /* Insert the double vectors. */
         val tx = entity?.Tx(false)
         val iterator = VectorUtility.randomDoubleVectorSequence(size, count)
-        val vectorMap = HashMap<Long,DoubleArray>()
+        val vectorMap = HashMap<Long,DoubleVectorValue>()
         val counterMap = HashMap<Long,Int>()
         var counter = 0
         tx?.begin {
             iterator.forEach {
                 val record = StandaloneRecord(columns = arrayOf(intField, vectorField))
                 record[intField] = IntValue(counter)
-                record[vectorField] = DoubleVectorValue(it)
+                record[vectorField] = it
                 val tid = tx.insert(record)
                 assertNotNull(tid)
                 vectorMap[tid!!] = it
@@ -225,9 +225,9 @@ class VectorDataTest {
         val tx2 = entity?.Tx(readonly = true, columns = arrayOf(intField, vectorField))
         assertEquals(count.toLong(), tx2?.count())
         tx2?.begin {
-            vectorMap.forEach { t, u ->
+            vectorMap.forEach { (t, u) ->
                 val tuple = tx2.read(t)
-                assertArrayEquals(u, tuple[vectorField]!!.value as DoubleArray)
+                assertArrayEquals(u.value, tuple[vectorField]!!.value as DoubleArray)
                 assertEquals(counterMap[t], tuple[intField]!!.value as Int)
             }
             true

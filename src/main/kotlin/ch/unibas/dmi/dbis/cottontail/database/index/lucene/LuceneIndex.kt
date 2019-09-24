@@ -34,7 +34,7 @@ import java.nio.file.Path
  * @author Luca Rossetto & Ralph Gasser
  * @version 1.0
  */
-internal class LuceneIndex(override val name: Name, override val parent: Entity, override val columns: Array<ColumnDef<*>>) : Index() {
+class LuceneIndex(override val name: Name, override val parent: Entity, override val columns: Array<ColumnDef<*>>) : Index() {
 
     companion object {
         /** Cost of a single lookup operation (i.e. comparison of a term in the index). */

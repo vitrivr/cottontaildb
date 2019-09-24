@@ -13,7 +13,7 @@ import org.mapdb.Serializer
  * @author Ralph Gasser
  * @version 1.0
  */
-internal class ColumnHeader(val type: ColumnType<*>, var size: Int = 0, var nullable: Boolean = true, var count: Long = 0, var created: Long = System.currentTimeMillis(), var modified: Long = System.currentTimeMillis()) {
+class ColumnHeader(val type: ColumnType<*>, var size: Int = 0, var nullable: Boolean = true, var count: Long = 0, var created: Long = System.currentTimeMillis(), var modified: Long = System.currentTimeMillis()) {
     companion object {
         /** The identifier that is used to identify a Cottontail DB [MapDBColumn] file. */
         internal const val IDENTIFIER: String = "COTTONT_COL"
