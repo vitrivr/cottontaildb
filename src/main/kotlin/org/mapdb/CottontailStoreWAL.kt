@@ -13,6 +13,7 @@ import java.io.Closeable
 import java.io.File
 import java.util.*
 import java.util.concurrent.atomic.AtomicLong
+import java.util.function.Consumer
 
 /**
  * This is a re-implementation / copy of Map DB's [StoreWAL] class with minor modifications.
@@ -979,6 +980,14 @@ class CottontailStoreWAL(
          */
         override fun close() {
             CottontailUtils.unlockReadAll(locks)
+        }
+
+        /**
+         * Same as default implementation but [RecordIdIterator] is being closed after using this method.
+         */
+        override fun forEachRemaining(action: Consumer<in Long>) {
+            super.forEachRemaining(action)
+            this.close()
         }
     }
 }
