@@ -11,7 +11,9 @@ import org.mapdb.DataIO.*
 import org.mapdb.StoreDirectJava.*
 import java.io.Closeable
 import java.io.File
+import java.lang.IllegalStateException
 import java.util.*
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import java.util.function.Consumer
 
@@ -935,7 +937,10 @@ class CottontailStoreWAL(
         private val maximumRecordId = to.coerceIn(0L, this@CottontailStoreWAL.maxRecid)
 
         /** Current record ID. */
-        private var currentRecordId = AtomicLong(from.coerceIn(0L, this.maximumRecordId))
+        private val currentRecordId = AtomicLong(from.coerceIn(0L, this.maximumRecordId))
+
+        /** Flag indicating that this [RecordIdIterator] has been closed. */
+        private val closed = AtomicBoolean(false)
 
         /**
          * Creates a lock for this [LongIterator]
@@ -951,43 +956,46 @@ class CottontailStoreWAL(
          * @return The next record ID.
          */
         override fun nextLong(): Long {
-            var localIndex = this.currentRecordId.incrementAndGet()
-            do {
-                val indexVal = getIndexVal(localIndex)
-                if (indexValFlagUnused(indexVal).not()) {
-                    break
-                }
-                if (localIndex >= this.maximumRecordId) {
-                    break
-                }
-                localIndex = this.currentRecordId.incrementAndGet()
-            } while (true)
+            if (!this.closed.get()) {
+                var localIndex = this.currentRecordId.incrementAndGet()
+                do {
+                    val indexVal = getIndexVal(localIndex)
+                    if (indexValFlagUnused(indexVal).not()) {
+                        break
+                    }
+                    if (localIndex >= this.maximumRecordId) {
+                        break
+                    }
+                    localIndex = this.currentRecordId.incrementAndGet()
+                } while (true)
 
-            return if (localIndex <= this.maximumRecordId) {
-                localIndex
+                return if (localIndex <= this.maximumRecordId) {
+                    localIndex
+                } else {
+                    EOF_ENTRY
+                }
             } else {
-                EOF_ENTRY
+                throw IllegalStateException("This RecordIdIterator ($this) has been closed.")
             }
         }
 
         /**
          * Returns true as long as the current record ID is smaller than the maximum record ID.
          */
-        override fun hasNext(): Boolean = this.currentRecordId.get() < this.maximumRecordId
+        override fun hasNext(): Boolean = this.currentRecordId.get() < this.maximumRecordId && !this.closed.get()
 
         /**
          * Relinquishes the lock held by this [LongIterator]
          */
         override fun close() {
-            CottontailUtils.unlockReadAll(locks)
+            if (this.closed.compareAndSet(false, true)) {
+                CottontailUtils.unlockReadAll(locks)
+            }
         }
 
         /**
-         * Same as default implementation but [RecordIdIterator] is being closed after using this method.
+         * Closes this [RecordIdIterator] upon finalization.
          */
-        override fun forEachRemaining(action: Consumer<in Long>) {
-            super.forEachRemaining(action)
-            this.close()
-        }
+        protected fun finalize() = this.close()
     }
 }
