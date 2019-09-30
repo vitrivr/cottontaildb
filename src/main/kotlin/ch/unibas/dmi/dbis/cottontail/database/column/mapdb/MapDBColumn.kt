@@ -20,6 +20,7 @@ import ch.unibas.dmi.dbis.cottontail.utilities.write
 
 import org.mapdb.*
 import org.mapdb.volume.MappedFileVol
+import org.mapdb.volume.VolumeFactory
 
 import java.nio.file.Path
 import java.util.*
@@ -116,7 +117,7 @@ class MapDBColumn<T : Any>(override val name: Name, override val parent: Entity)
          * @param definition The [ColumnDef] that specified the [MapDBColumn]
          * @param volumeFactory The [MappedFileVol.MappedFileFactory] used to initialize the [MapDBColumn]
          */
-        fun initialize(definition: ColumnDef<*>, path: Path, volumeFactory: MappedFileVol.MappedFileFactory) {
+        fun initialize(definition: ColumnDef<*>, path: Path, volumeFactory: VolumeFactory) {
             val store = StoreWAL.make(file = path.resolve("col_${definition.name}.db").toString(), volumeFactory = volumeFactory)
             store.put(ColumnHeader(type = definition.type, size = definition.size, nullable = definition.nullable), ColumnHeaderSerializer)
             store.commit()
@@ -262,6 +263,7 @@ class MapDBColumn<T : Any>(override val name: Name, override val parent: Entity)
          */
         override fun forEach(from: Long, to: Long, action: (Record) -> Unit) = this.localLock.read {
             checkValidForRead()
+            val iterator =
             this@MapDBColumn.store.RecordIdIterator(from.coerceAtLeast(1L), to.coerceAtMost(this@MapDBColumn.store.maxRecid)).forEachRemaining {
                 if (it != CottontailStoreWAL.EOF_ENTRY) {
                     action(ColumnRecord(it, this@MapDBColumn.store.get(it, this.serializer)))
