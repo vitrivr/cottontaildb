@@ -71,55 +71,33 @@ class MappedFileStore(val path: Path, val readOnly: Boolean, val forceUnmap: Boo
     private var slices = emptyArray<MappedByteBuffer>()
 
     override fun getDouble(offset: Long): Double = this.sliceForOffset(offset).getDouble((offset and this.sliceSizeModMask).toInt())
-    override fun putDouble(offset: Long, value: Double) {
-        require(offset < this.size) { "Cannot write beyond size of MappedFileStore. Please call grow() first." }
-        this.fileChannel.write(ByteBuffer.allocateDirect(8).putDouble(value).rewind(), offset)
-    }
+    override fun putDouble(offset: Long, value: Double) = this.putData(offset, ByteBuffer.allocateDirect(8).putDouble(value).rewind())
 
     override fun getFloat(offset: Long): Float = this.sliceForOffset(offset).getFloat((offset and this.sliceSizeModMask).toInt())
-    override fun putFloat(offset: Long, value: Float) {
-        require(offset < this.size) { "Cannot write beyond size of MappedFileStore. Please call grow() first." }
-        this.fileChannel.write(ByteBuffer.allocateDirect(4).putFloat(value).rewind(), offset)
-    }
+    override fun putFloat(offset: Long, value: Float) = this.putData(offset, ByteBuffer.allocateDirect(4).putFloat(value).rewind())
 
     override fun getLong(offset: Long): Long = this.sliceForOffset(offset).getLong((offset and this.sliceSizeModMask).toInt())
-    override fun putLong(offset: Long, value: Long) {
-        require(offset < this.size) { "Cannot write beyond size of MappedFileStore. Please call grow() first." }
-        this.fileChannel.write(ByteBuffer.allocateDirect(Long.SIZE_BYTES).putLong(value).rewind(), offset)
-    }
+    override fun putLong(offset: Long, value: Long) = this.putData(offset, ByteBuffer.allocateDirect(Long.SIZE_BYTES).putLong(value).rewind())
 
     override fun getInt(offset: Long): Int = this.sliceForOffset(offset).getInt((offset and this.sliceSizeModMask).toInt())
-    override fun putInt(offset: Long, value: Int) {
-        require(offset < this.size) { "Cannot write beyond size of MappedFileStore. Please call grow() first." }
-        this.fileChannel.write(ByteBuffer.allocateDirect(Int.SIZE_BYTES).putInt(value).rewind(), offset)
-    }
+    override fun putInt(offset: Long, value: Int) = this.putData(offset, ByteBuffer.allocateDirect(Int.SIZE_BYTES).putInt(value).rewind())
 
     override fun getShort(offset: Long): Short = this.sliceForOffset(offset).getShort((offset and this.sliceSizeModMask).toInt())
-    override fun putShort(offset: Long, value: Short) {
-        require(offset < this.size) { "Cannot write beyond size of MappedFileStore. Please call grow() first." }
-        this.fileChannel.write(ByteBuffer.allocateDirect(Short.SIZE_BYTES).putShort(value).rewind(), offset)
-    }
+    override fun putShort(offset: Long, value: Short) = this.putData(offset, ByteBuffer.allocateDirect(Short.SIZE_BYTES).putShort(value).rewind());
 
     override fun getChar(offset: Long): Char = this.sliceForOffset(offset).getChar((offset and this.sliceSizeModMask).toInt())
-    override fun putChar(offset: Long, value: Char) {
-        require(offset < this.size) { "Cannot write beyond size of MappedFileStore. Please call grow() first." }
-        this.fileChannel.write(ByteBuffer.allocateDirect(Char.SIZE_BYTES).putChar(value).rewind(), offset)
-    }
+    override fun putChar(offset: Long, value: Char) = this.putData(offset, ByteBuffer.allocateDirect(Char.SIZE_BYTES).putChar(value).rewind())
 
     override fun getByte(offset: Long): Byte = this.sliceForOffset(offset).get((offset and this.sliceSizeModMask).toInt())
-    override fun putByte(offset: Long, value: Byte) {
-        require(offset < this.size) { "Cannot write beyond size of MappedFileStore. Please call grow() first." }
-        this.fileChannel.write(ByteBuffer.allocateDirect(Byte.SIZE_BYTES).put(value).rewind(), offset)
-    }
+    override fun putByte(offset: Long, value: Byte) = this.putData(offset, ByteBuffer.allocateDirect(Byte.SIZE_BYTES).put(value).rewind())
 
     override fun getData(offset: Long, dst: ByteArray, dstOffset: Int, dstLength: Int): ByteArray {
         this.sliceForOffset(offset).duplicate().position((offset and this.sliceSizeModMask).toInt()).get(dst, dstOffset, dstLength)
         return dst
     }
-
-    override fun putData(offset: Long, src: ByteArray, srcOffset: Int, srcLength: Int) {
-        require(offset < this.size) { "Cannot write beyond size of MappedFileStore. Please call grow() first." }
-        this.fileChannel.write(ByteBuffer.wrap(src, srcOffset,srcLength), offset)
+    override fun putData(offset: Long, src: ByteBuffer) {
+        require(offset + (src.limit()-src.position()) <= this.size) { "Cannot write beyond size of MappedFileStore (requested: $offset + ${src.limit()-src.position()} bytes, available: $size bytes). Please call grow() first." }
+        this.fileChannel.write(src, offset)
     }
 
     /**

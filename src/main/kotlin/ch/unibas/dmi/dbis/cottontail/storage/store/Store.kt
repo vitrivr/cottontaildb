@@ -1,6 +1,7 @@
 package ch.unibas.dmi.dbis.cottontail.storage.store
 
 import java.io.Closeable
+import java.nio.ByteBuffer
 
 /**
  * An abstract representation over a facility that can hold data (a data [Store]) and allows for random access to that data.
@@ -176,7 +177,15 @@ interface Store : Closeable {
      * @param srcOffset The offset into the source array (inclusive, srcOffset < src.size).
      * @param srcLength The number of bytes to read from the source array (srcOffset + srcLength < src.size).
      */
-    fun putData(offset: Long, src: ByteArray, srcOffset: Int, srcLength: Int)
+    fun putData(offset: Long, src: ByteArray, srcOffset: Int, srcLength: Int) = putData(offset, ByteBuffer.wrap(src, srcOffset, srcLength))
+
+    /**
+     * Writes a [ByteBuffer] value to this [Store]
+     *
+     * @param offset The offset into the [Store] in bytes.
+     * @param src The [ByteBuffer] that contains the values to write.
+     */
+    fun putData(offset: Long, src: ByteBuffer)
 
     /**
      * Clears the provided range of this [Store] and sets its bytes to zero.

@@ -1,11 +1,10 @@
 package ch.unibas.dmi.dbis.cottontail.storage.store
 
-import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.RepeatedTest
+import org.junit.jupiter.api.*
 import java.nio.file.Paths
 import java.util.*
 import org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Assertions.assertDoesNotThrow
 import java.nio.file.Files
 
 class MappedFileStoreTest {
@@ -24,6 +23,50 @@ class MappedFileStoreTest {
     fun teardown() {
         this.store?.close()
         Files.delete(this.path)
+    }
+
+    @Test
+    fun sizeTestAllFail() {
+        assertThrows(IllegalArgumentException::class.java) { this.store!!.putByte(0L, this.random.nextInt(Byte.MAX_VALUE.toInt()).toByte()) }
+        assertThrows(IllegalArgumentException::class.java) { this.store!!.putShort(0L, this.random.nextInt(Short.MAX_VALUE.toInt()).toShort()) }
+        assertThrows(IllegalArgumentException::class.java) { this.store!!.putDouble(0L, this.random.nextDouble()) }
+        assertThrows(IllegalArgumentException::class.java) { this.store!!.putFloat(0L, this.random.nextFloat()) }
+        assertThrows(IllegalArgumentException::class.java) { this.store!!.putInt(0L, this.random.nextInt()) }
+        assertThrows(IllegalArgumentException::class.java) { this.store!!.putLong(0L, this.random.nextLong()) }
+    }
+
+    @Test
+    fun sizeTestWithTwoBytes() {
+        this.store!!.grow(2)
+        assertDoesNotThrow { this.store!!.putByte(0L, this.random.nextInt(Byte.MAX_VALUE.toInt()).toByte()) }
+        assertDoesNotThrow { this.store!!.putShort(0L, this.random.nextInt(Short.MAX_VALUE.toInt()).toShort()) }
+        assertThrows(IllegalArgumentException::class.java) { this.store!!.putDouble(0L, this.random.nextDouble()) }
+        assertThrows(IllegalArgumentException::class.java) { this.store!!.putFloat(0L, this.random.nextFloat()) }
+        assertThrows(IllegalArgumentException::class.java) { this.store!!.putInt(0L, this.random.nextInt()) }
+        assertThrows(IllegalArgumentException::class.java) { this.store!!.putLong(0L, this.random.nextLong()) }
+    }
+
+    @Test
+    fun sizeTestWithFourBytes() {
+        this.store!!.grow(4)
+        assertDoesNotThrow { this.store!!.putByte(0L, this.random.nextInt(Byte.MAX_VALUE.toInt()).toByte()) }
+        assertDoesNotThrow { this.store!!.putShort(0L, this.random.nextInt(Short.MAX_VALUE.toInt()).toShort()) }
+        assertDoesNotThrow { this.store!!.putInt(0L, this.random.nextInt()) }
+        assertDoesNotThrow { this.store!!.putFloat(0L, this.random.nextFloat()) }
+
+        assertThrows(IllegalArgumentException::class.java) { this.store!!.putDouble(0L, this.random.nextDouble()) }
+        assertThrows(IllegalArgumentException::class.java) { this.store!!.putLong(0L, this.random.nextLong()) }
+    }
+
+    @Test
+    fun sizeTestWithEightBytes() {
+        this.store!!.grow(8)
+        assertDoesNotThrow { this.store!!.putByte(0L, this.random.nextInt(Byte.MAX_VALUE.toInt()).toByte()) }
+        assertDoesNotThrow { this.store!!.putByte(0L, this.random.nextInt(Byte.MAX_VALUE.toInt()).toByte()) }
+        assertDoesNotThrow { this.store!!.putByte(0L, this.random.nextInt(Byte.MAX_VALUE.toInt()).toByte()) }
+        assertDoesNotThrow { this.store!!.putByte(0L, this.random.nextInt(Byte.MAX_VALUE.toInt()).toByte()) }
+        assertDoesNotThrow { this.store!!.putDouble(0L, this.random.nextDouble()) }
+        assertDoesNotThrow { this.store!!.putLong(0L, this.random.nextLong()) }
     }
 
     @RepeatedTest(3)
