@@ -92,7 +92,13 @@ class MappedFileStore(val path: Path, val readOnly: Boolean, val forceUnmap: Boo
     override fun putByte(offset: Long, value: Byte) = this.putData(offset, ByteBuffer.allocateDirect(Byte.SIZE_BYTES).put(value).rewind())
 
     override fun getData(offset: Long, dst: ByteArray, dstOffset: Int, dstLength: Int): ByteArray {
-        this.sliceForOffset(offset).duplicate().position((offset and this.sliceSizeModMask).toInt()).get(dst, dstOffset, dstLength)
+        val slices = this.slicesForRange(offset..(offset + dstLength))
+        var read = 0
+        for (slice in slices) {
+            val size = slice.limit()-slice.position()
+            slice.get(dst, dstOffset+read, slice.limit())
+            read += size
+        }
         return dst
     }
     override fun putData(offset: Long, src: ByteBuffer) {
@@ -122,7 +128,7 @@ class MappedFileStore(val path: Path, val readOnly: Boolean, val forceUnmap: Boo
      *
      * @return
      */
-    override fun load() =this.slices.forEach { it.load() }
+    override fun load() = this.slices.forEach { it.load() }
 
     /**
      * Clears the given range and writes it with all zeros.
@@ -280,6 +286,33 @@ class MappedFileStore(val path: Path, val readOnly: Boolean, val forceUnmap: Boo
         }
         return this.slices[pos]
     }
+
+    /**
+     * Returns the slice for the given offset.
+     *
+     * @param offset The offset (in bytes) into the [MappedFileStore].
+     */
+    private fun slicesForRange(offset: LongRange): Array<ByteBuffer> = this.sliceLock.withLock {
+        val start = offset.first.ushr(this.sliceShift).toInt()
+        val end = offset.last.ushr(this.sliceShift).toInt()
+        var left = (offset.last - offset.first).toInt()
+        if (start > this.slices.size) {
+            throw StoreException.StoreEOFException(this, offset.first)
+        }
+        if (end > this.sliceSize) {
+            throw StoreException.StoreEOFException(this, offset.last)
+        }
+        return (start..end).map {
+            val slice = if (it == start) {
+                this.slices[it].duplicate().position((offset.first and this.sliceSizeModMask).toInt()).limit(min(this.slices[it].capacity(), left))
+            } else {
+                this.slices[it].duplicate().position(0).limit(min(this.slices[it].capacity(), left))
+            }
+            left -= slice.limit()-slice.position()
+            slice
+        }.toTypedArray()
+    }
+
 
     /**
      * Refreshes the memory mapping of this [MappedFileStore]. This can become necessary, if the file grows significantly.

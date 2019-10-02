@@ -5,6 +5,7 @@ import java.nio.file.Paths
 import java.util.*
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Assertions.assertDoesNotThrow
+import java.nio.ByteBuffer
 import java.nio.file.Files
 
 class MappedFileStoreTest {
@@ -68,6 +69,19 @@ class MappedFileStoreTest {
         assertDoesNotThrow { this.store!!.putDouble(0L, this.random.nextDouble()) }
         assertDoesNotThrow { this.store!!.putLong(0L, this.random.nextLong()) }
     }
+
+    @Test
+    @RepeatedTest(3)
+    fun sizeTestWithRandomSize() {
+        val size = this.random.nextInt(1_000_000_000)
+        val data = ByteArray(size + 1)
+        this.random.nextBytes(data)
+
+        this.store!!.grow(size.toLong())
+        assertThrows(IllegalArgumentException::class.java) { this.store!!.putData(0L, data) }
+        assertDoesNotThrow { this.store!!.putData(0L, ByteBuffer.wrap(data, 1, data.size-1)) }
+    }
+
 
     @RepeatedTest(3)
     fun writeDoubleTest() {
@@ -187,7 +201,6 @@ class MappedFileStoreTest {
         assertTrue(store!!.size == 0L)
 
         this.store!!.grow(size)
-
         assertTrue(this.store!!.size == size)
         val indexes = LongArray(1000)
         val values = ByteArray(1000)
@@ -200,6 +213,24 @@ class MappedFileStoreTest {
         for (i in values.indices) {
             assertEquals(this.store!!.getByte(indexes[i]), values[i])
         }
+    }
+
+    @RepeatedTest(3)
+    fun writeDataTest() {
+        val size = this.random.nextInt(1_000_000_000).toLong()
+
+        assertTrue(store!!.size == 0L)
+
+        this.store!!.grow(size)
+
+        assertTrue(this.store!!.size == size)
+        val data = ByteArray(size.toInt())
+        this.random.nextBytes(data)
+
+        this.store!!.putData(0L, data)
+
+        val data1 = this.store!!.getData(0L, ByteArray(size.toInt()))
+        assertTrue(data.contentEquals(data1))
     }
 
 }
