@@ -16,7 +16,7 @@ import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
 import ch.unibas.dmi.dbis.cottontail.model.values.Value
 
 import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
-import ch.unibas.dmi.dbis.cottontail.utilities.write
+import ch.unibas.dmi.dbis.cottontail.utilities.extensions.write
 
 import org.mapdb.*
 import org.mapdb.volume.MappedFileVol

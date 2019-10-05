@@ -18,13 +18,12 @@ import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
 import ch.unibas.dmi.dbis.cottontail.model.recordset.StandaloneRecord
 
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
-import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.TransactionException
 import ch.unibas.dmi.dbis.cottontail.model.values.Value
 import ch.unibas.dmi.dbis.cottontail.utilities.name.*
 import ch.unibas.dmi.dbis.cottontail.utilities.name.type
-import ch.unibas.dmi.dbis.cottontail.utilities.read
-import ch.unibas.dmi.dbis.cottontail.utilities.write
+import ch.unibas.dmi.dbis.cottontail.utilities.extensions.read
+import ch.unibas.dmi.dbis.cottontail.utilities.extensions.write
 
 import org.mapdb.*
 
