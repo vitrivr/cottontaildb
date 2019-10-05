@@ -159,7 +159,20 @@ interface Store : Closeable {
      * @param dstOffset The offset into the destination [ByteArray] (dstOffset < dst.size)
      * @param dstLength The number of bytes to write to the destination array (dstOffset + dstLength < dst.size).
      */
-    fun getData(offset: Long, dst: ByteArray, dstOffset: Int, dstLength: Int): ByteArray
+    fun getData(offset: Long, dst: ByteArray, dstOffset: Int, dstLength: Int): ByteArray {
+        val buffer = ByteBuffer.wrap(dst).position(dstOffset).limit(dstLength)
+        this.getData(offset, buffer)
+        return buffer.array()
+    }
+
+    /**
+     * Reads a [ByteArray] value from this [Store]
+     *
+     * @param offset The offset into the [Store] in bytes.
+     * @param dst The destination [ByteArray] to read into.
+     */
+    fun getData(offset: Long, dst: ByteBuffer): ByteBuffer
+
 
     /**
      * Writes a [ByteArray] value to this [Store]
@@ -223,6 +236,13 @@ interface Store : Closeable {
         val data = this.getData(inputOffset, ByteArray(size = size))
         target.putData(targetOffset, data)
     }
+
+    /**
+     * Returns true, if this [Store] is open and false otherwise.
+     *
+     * @return True if this [Store] is open, false otherwise.
+     */
+    val isOpen: Boolean
 
     /** True if this [Store] implementation is backed by persistent storage. */
     val isPersistent: Boolean

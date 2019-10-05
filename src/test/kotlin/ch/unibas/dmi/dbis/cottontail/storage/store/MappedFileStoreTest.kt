@@ -12,11 +12,11 @@ class MappedFileStoreTest {
 
     private val path = Paths.get("./test.db")
     private val random = Random(System.currentTimeMillis())
-    private var store: MappedFileStore? = null
+    private var store: MappedFileChannelStore? = null
 
     @BeforeEach
     fun initialize() {
-        this.store = MappedFileStore(this.path, false)
+        this.store = MappedFileChannelStore(this.path, false)
 
     }
 
