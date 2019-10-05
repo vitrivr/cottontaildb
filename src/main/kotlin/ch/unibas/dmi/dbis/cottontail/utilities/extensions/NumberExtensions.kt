@@ -5,7 +5,7 @@ package ch.unibas.dmi.dbis.cottontail.utilities.extensions
  *
  * @param toMultipleOf Value to round to a multiple of.
  */
-fun Long.roundUp(roundUpToMultipleOf: Long): Long = (this + roundUpToMultipleOf - 1) / roundUpToMultipleOf * roundUpToMultipleOf
+fun Long.roundUp(toMultipleOf: Long): Long = (this + toMultipleOf - 1) / toMultipleOf * toMultipleOf
 
 /**
  * Rounds this [Long] down to a multiple of the given [Long].
