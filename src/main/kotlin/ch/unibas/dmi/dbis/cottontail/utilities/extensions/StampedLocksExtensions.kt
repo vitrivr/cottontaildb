@@ -1,4 +1,4 @@
-package ch.unibas.dmi.dbis.cottontail.utilities
+package ch.unibas.dmi.dbis.cottontail.utilities.extensions
 
 import java.util.concurrent.locks.StampedLock
 
@@ -30,10 +30,10 @@ inline fun <T> StampedLock.optimisticRead(action: () -> T): T {
         return this.read(action)
     }
     val ret = action()
-    if (this.validate(stamp)) {
-        return ret
+    return if (this.validate(stamp)) {
+        ret
     } else {
-        return this.read(action)
+        this.read(action)
     }
 }
 
