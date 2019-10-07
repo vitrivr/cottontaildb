@@ -27,7 +27,7 @@ import kotlin.math.min
  * @author Ralph Gasser
  * @version 1.0
  */
-class MappedFileChannelStore(val path: Path, val readOnly: Boolean, val forceUnmap: Boolean = true, val lockTimeout: Long = 5000) : PersistentStore() {
+class MappedFileChannelStore(val path: Path, val readOnly: Boolean, val forceUnmap: Boolean = true, val lockTimeout: Long = 5000) : PersistentStore(), MappableStore {
 
     companion object {
         /** Byte value written to the EOF of a grown [MappedFileChannelStore] file. */
@@ -93,7 +93,7 @@ class MappedFileChannelStore(val path: Path, val readOnly: Boolean, val forceUnm
     override fun putByte(offset: Long, value: Byte) = this.putData(offset, ByteBuffer.allocateDirect(Byte.SIZE_BYTES).put(value).rewind())
 
     override fun getData(offset: Long, dst: ByteBuffer): ByteBuffer = this.sliceLock.optimisticRead {
-        dst.mark()
+        val oldPos = dst.position()
         val slices = this.slicesForRange(offset..(offset + (dst.remaining())))
         for (slice in slices) {
             val pos = if (slice == slices.first()) {
@@ -103,15 +103,27 @@ class MappedFileChannelStore(val path: Path, val readOnly: Boolean, val forceUnm
             }
             dst.put(slice.duplicate().position(pos).limit(dst.remaining()))
         }
-        dst.reset()
+        dst.position(oldPos)
         return dst
     }
+
     override fun putData(offset: Long, src: ByteBuffer) {
-        src.mark()
         require(offset + (src.limit()-src.position()) <= this.size) { "Cannot write beyond size of MappedFileStore (requested: $offset + ${src.limit()-src.position()} bytes, available: $size bytes). Please call grow() first." }
+        val oldPos = src.position()
         this.fileChannel.write(src, offset)
-        src.reset()
+        src.position(oldPos)
     }
+
+    /**
+     * Tries to map the given region of this [Store] and returns a [MappedByteBuffer] for that region. Can be used to ,e.g., map a header of a file directly.
+     *
+     * @param start The start of the memory region map.
+     * @param size The size of the memory region to map.
+     * @param mode The [FileChannel.MapMode] to use.
+     *
+     * @return MappedByteBuffer
+     */
+    override fun map(start: Long, size: Int, mode: FileChannel.MapMode): MappedByteBuffer = this.fileChannel.map(mode, start, size.toLong())
 
     /**
      * Forces all the changes to this [MappedFileChannelStore] to be written to disk.

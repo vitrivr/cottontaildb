@@ -67,15 +67,15 @@ class FileChannelStore(val path: Path, val readOnly: Boolean, val lockTimeout: L
     override fun putByte(offset: Long, value: Byte) = this.putData(offset, ByteBuffer.allocateDirect(Byte.SIZE_BYTES).put(value).rewind())
 
     override fun getData(offset: Long, dst: ByteBuffer): ByteBuffer {
-        dst.mark()
+        val oldPos = dst.position()
         this.fileChannel.read(dst, offset)
-        return dst.reset()
+        return dst.position(oldPos)
     }
     override fun putData(offset: Long, src: ByteBuffer) {
-        src.mark()
         require(offset + (src.limit()-src.position()) <= this.size) { "Cannot write beyond size of MappedFileStore (requested: $offset + ${src.limit()-src.position()} bytes, available: $size bytes). Please call grow() first." }
+        val oldPos = src.position()
         this.fileChannel.write(src, offset)
-        src.reset()
+        src.position(oldPos)
     }
 
     /**
