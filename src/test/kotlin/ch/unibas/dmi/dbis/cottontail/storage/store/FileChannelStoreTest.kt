@@ -8,15 +8,15 @@ import org.junit.jupiter.api.Assertions.assertDoesNotThrow
 import java.nio.ByteBuffer
 import java.nio.file.Files
 
-class MappedFileStoreTest {
+class FileChannelStoreTest {
 
     private val path = Paths.get("./test.db")
     private val random = Random(System.currentTimeMillis())
-    private var store: MappedFileChannelStore? = null
+    private var store: FileChannelStore? = null
 
     @BeforeEach
     fun initialize() {
-        this.store = MappedFileChannelStore(this.path, false)
+        this.store = FileChannelStore(this.path, false)
 
     }
 
