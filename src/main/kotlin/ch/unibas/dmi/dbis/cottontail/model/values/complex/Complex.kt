@@ -3,19 +3,12 @@ package ch.unibas.dmi.dbis.cottontail.model.values.complex
 import kotlin.math.sqrt
 
 /**
- * Represents a complex number with single-precision 32-bit IEEE 754 floating point numbers.
- *
- * Inspired by:
- *
- *    - https://gist.github.com/simonvar/97ab9745e719c34772db4a10a8515d2c
- *    - https://github.com/abdulfatir/jcomplexnumber/blob/master/com/abdulfatir/jcomplexnumber/ComplexNumber.java
- *    - https://introcs.cs.princeton.edu/java/97data/Complex.java.html
- *    - https://rosettacode.org/wiki/Arithmetic/Complex#Kotlin
+ * Represents a complex number as a 2-dimensional array with single-precision 32-bit IEEE 754 floating point numbers.
  *
  * @author Manuel Huerbin
  * @version 1.0
  */
-class Complex(private val real: Float = 0.0f, private val imaginary: Float = 0.0f) {
+inline class Complex(private val complex: FloatArray = FloatArray(2)) {
 
     /**
      * Compares this value with the specified value for order.
@@ -27,23 +20,26 @@ class Complex(private val real: Float = 0.0f, private val imaginary: Float = 0.0
     }
 
     /** Adds the other value to this value. */
-    operator fun plus(other: Complex) = Complex(real + other.real, imaginary + other.imaginary)
+    operator fun plus(other: Complex) = Complex(floatArrayOf(this.complex[0] + other[0], this.complex[1] + other[1]))
 
     /** Subtracts the other value from this value. */
-    operator fun minus(other: Complex) = Complex(real - other.real, imaginary - other.imaginary)
+    operator fun minus(other: Complex) = Complex(floatArrayOf(this.complex[0] - other[0], this.complex[1] - other[1]))
 
     /** Multiplies this value by the other value. */
-    operator fun times(other: Complex) = Complex(real * other.real - imaginary * other.imaginary, real * other.imaginary + other.real * imaginary)
+    operator fun times(other: Complex) = Complex(floatArrayOf(this.complex[0] * other[0] - this.complex[1] * other[1], this.complex[0] * other[1] + other[0] * this.complex[1]))
 
     /** Divides this value by the other value. */
     operator fun div(other: Complex) = this * other.inverse()
 
-    private fun inverse(): Complex {
-        return Complex(real / (real * real + imaginary * imaginary), -imaginary / (real * real + imaginary * imaginary))
+    operator fun get(i: Int): Float {
+        return this.complex[i]
     }
 
-    /** Modulus of this value (float) */
+    private fun inverse(): Complex {
+        return Complex(floatArrayOf(this.complex[0] / (this.complex[0] * this.complex[0] + this.complex[1] * this.complex[1]), -this.complex[1] / (this.complex[0] * this.complex[0] + this.complex[1] * this.complex[1])))
+    }
+
     private fun modulo(): Float {
-        return sqrt((real * real + imaginary * imaginary).toDouble()).toFloat()
+        return sqrt((this.complex[0] * this.complex[0] + this.complex[1] * this.complex[1]).toDouble()).toFloat()
     }
 }

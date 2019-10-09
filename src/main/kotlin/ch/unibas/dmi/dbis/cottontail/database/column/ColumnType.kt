@@ -3,7 +3,6 @@ package ch.unibas.dmi.dbis.cottontail.database.column
 import ch.unibas.dmi.dbis.cottontail.database.serializers.*
 import ch.unibas.dmi.dbis.cottontail.model.values.*
 import ch.unibas.dmi.dbis.cottontail.model.values.complex.Complex
-import ch.unibas.dmi.dbis.cottontail.model.values.complex.ComplexArray
 
 import org.mapdb.Serializer
 import java.util.*
@@ -24,7 +23,6 @@ sealed class ColumnType<T : Any> {
     abstract val name: String
     abstract val type: KClass<out Value<T>>
     abstract val numeric: Boolean
-
 
     companion object {
         /**
@@ -207,12 +205,12 @@ class BooleanVectorColumnType : ColumnType<BitSet>() {
 }
 
 @Suppress("UNCHECKED_CAST")
-class ComplexVectorColumnType : ColumnType<ComplexArray>() {
+class ComplexVectorColumnType : ColumnType<Array<Complex>>() {
     override val name = "COMPLEX_VEC"
     override val numeric = false
     override val type: KClass<ComplexVectorValue> = ComplexVectorValue::class
-    override fun serializer(size: Int): Serializer<Value<ComplexArray>> {
+    override fun serializer(size: Int): Serializer<Value<Array<Complex>>> {
         if (size <= 0) throw IllegalArgumentException("Size attribute for a $name type must be > 0 (is $size).")
-        return FixedComplexVectorSerializer(size) as Serializer<Value<ComplexArray>>
+        return FixedComplexVectorSerializer(size) as Serializer<Value<Array<Complex>>>
     }
 }

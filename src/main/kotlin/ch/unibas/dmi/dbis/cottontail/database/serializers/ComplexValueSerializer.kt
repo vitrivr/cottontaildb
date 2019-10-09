@@ -7,17 +7,15 @@ import org.mapdb.DataOutput2
 import org.mapdb.Serializer
 
 object ComplexValueSerializer : Serializer<ComplexValue> {
-    override fun deserialize(input: DataInput2, available: Int): ComplexValue = ComplexValue(input.readComplex())
+    override fun deserialize(input: DataInput2, available: Int): ComplexValue = ComplexValue(readComplex(input))
     override fun serialize(out: DataOutput2, value: ComplexValue) {
-        out.writeComplex(value.value)
+        out.writeFloat(value.value[0]) // real
+        out.writeFloat(value.value[1]) // imaginary
     }
-}
 
-fun DataInput2.readComplex(): Complex {
-    // TODO readComplex
-    return Complex(0.0f, 0.0f)
-}
-
-fun DataOutput2.writeComplex(complex: Complex) {
-    // TODO writeComplex
+    private fun readComplex(input: DataInput2): Complex {
+        // TODO
+        // input.readFloat()
+        return Complex(floatArrayOf(0.0f, 0.0f))
+    }
 }

@@ -3,7 +3,7 @@ package ch.unibas.dmi.dbis.cottontail.server.grpc.helper
 import ch.unibas.dmi.dbis.cottontail.grpc.CottontailGrpc
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
 import ch.unibas.dmi.dbis.cottontail.model.values.*
-import ch.unibas.dmi.dbis.cottontail.model.values.complex.ComplexArray
+import ch.unibas.dmi.dbis.cottontail.model.values.complex.Complex
 import ch.unibas.dmi.dbis.cottontail.utilities.extensions.init
 
 import java.lang.IllegalArgumentException
@@ -25,12 +25,12 @@ object DataHelper {
         is DoubleValue -> CottontailGrpc.Data.newBuilder().setDoubleData(value.value).build()
         is FloatValue -> CottontailGrpc.Data.newBuilder().setFloatData(value.value).build()
         is BooleanValue -> CottontailGrpc.Data.newBuilder().setBooleanData(value.value).build()
-        //is ComplexValue -> CottontailGrpc.Data.newBuilder().setComplexData(value.value).build() // TODO
+        //is ComplexValue -> CottontailGrpc.Data.newBuilder().setComplexData(value.value).build() // TODO cast
         is DoubleVectorValue -> CottontailGrpc.Data.newBuilder().setVectorData(CottontailGrpc.Vector.newBuilder().setDoubleVector(CottontailGrpc.DoubleVector.newBuilder().addAllVector(value.value.asIterable()))).build()
         is FloatVectorValue -> CottontailGrpc.Data.newBuilder().setVectorData(CottontailGrpc.Vector.newBuilder().setFloatVector(CottontailGrpc.FloatVector.newBuilder().addAllVector(value.value.asIterable()))).build()
         is LongVectorValue -> CottontailGrpc.Data.newBuilder().setVectorData(CottontailGrpc.Vector.newBuilder().setLongVector(CottontailGrpc.LongVector.newBuilder().addAllVector(value.value.asIterable()))).build()
         is IntVectorValue -> CottontailGrpc.Data.newBuilder().setVectorData(CottontailGrpc.Vector.newBuilder().setIntVector(CottontailGrpc.IntVector.newBuilder().addAllVector(value.value.asIterable()))).build()
-        //is ComplexVectorValue -> CottontailGrpc.Data.newBuilder().setVectorData(CottontailGrpc.Vector.newBuilder().setComplexVector(CottontailGrpc.ComplexVector.newBuilder().addAllVector(value.value.asIterable()))).build() // TODO
+        //is ComplexVectorValue -> CottontailGrpc.Data.newBuilder().setVectorData(CottontailGrpc.Vector.newBuilder().setComplexVector(CottontailGrpc.ComplexVector.newBuilder().addAllVector(value.value.asIterable()))).build() // TODO cast
         null -> CottontailGrpc.Data.newBuilder().setNullData(CottontailGrpc.Null.getDefaultInstance()).build()
         else -> throw IllegalArgumentException("The specified value cannot be converted to a gRPC Data object.")
     }
@@ -239,7 +239,7 @@ fun CottontailGrpc.Data.toComplexValue(): ComplexValue? = when (this.dataCase) {
     CottontailGrpc.Data.DataCase.FLOATDATA -> throw QueryException.UnsupportedCastException("A value of FLOAT cannot be cast to COMPLEX.")
     CottontailGrpc.Data.DataCase.DOUBLEDATA -> throw QueryException.UnsupportedCastException("A value of DOUBLE cannot be cast to COMPLEX.")
     CottontailGrpc.Data.DataCase.STRINGDATA -> throw QueryException.UnsupportedCastException("A value of STRING cannot be cast to COMPLEX.")
-    CottontailGrpc.Data.DataCase.COMPLEXDATA -> throw QueryException.UnsupportedCastException("A value of STRING cannot be cast to COMPLEX.") // TODO ComplexValue(this.complexData)
+    CottontailGrpc.Data.DataCase.COMPLEXDATA -> throw QueryException.UnsupportedCastException("A value of COMPLEX cannot be cast to COMPLEX.") // TODO cast: ComplexValue(this.complexData)
     CottontailGrpc.Data.DataCase.NULLDATA -> null
     CottontailGrpc.Data.DataCase.VECTORDATA -> throw QueryException.UnsupportedCastException("A value of VECTOR cannot be cast to COMPLEX.")
     CottontailGrpc.Data.DataCase.DATA_NOT_SET -> throw QueryException.UnsupportedCastException("A value of NULL cannot be cast to COMPLEX.")
@@ -482,7 +482,7 @@ fun CottontailGrpc.Data.toComplexVectorValue(): ComplexVectorValue? = when (this
     CottontailGrpc.Data.DataCase.FLOATDATA -> throw QueryException.UnsupportedCastException("A value of FLOAT cannot be cast to VECTOR[COMPLEX].")
     CottontailGrpc.Data.DataCase.DOUBLEDATA -> throw QueryException.UnsupportedCastException("A value of DOUBLE cannot be cast to VECTOR[COMPLEX].")
     CottontailGrpc.Data.DataCase.STRINGDATA -> throw QueryException.UnsupportedCastException("A value of STRING cannot be cast to VECTOR[COMPLEX].")
-    CottontailGrpc.Data.DataCase.COMPLEXDATA -> ComplexVectorValue(ComplexArray(1)) // TODO ComplexVectorValue(ComplexArray(1) { this.complexData })
+    CottontailGrpc.Data.DataCase.COMPLEXDATA -> ComplexVectorValue(Array(1) { Complex(floatArrayOf(0.0f, 0.0f)) }) // TODO cast: { this.complexData })
     CottontailGrpc.Data.DataCase.VECTORDATA -> this.vectorData.toComplexVectorValue()
     CottontailGrpc.Data.DataCase.NULLDATA -> null
     CottontailGrpc.Data.DataCase.DATA_NOT_SET -> throw QueryException.UnsupportedCastException("A value of NULL cannot be cast to VECTOR[COMPLEX].")
@@ -501,7 +501,7 @@ fun CottontailGrpc.Vector.toComplexVectorValue(): ComplexVectorValue = when (thi
     CottontailGrpc.Vector.VectorDataCase.LONGVECTOR -> throw QueryException.UnsupportedCastException("A value of LONG cannot be cast to VECTOR[COMPLEX].")
     CottontailGrpc.Vector.VectorDataCase.INTVECTOR -> throw QueryException.UnsupportedCastException("A value of INT cannot be cast to VECTOR[COMPLEX].")
     CottontailGrpc.Vector.VectorDataCase.BOOLVECTOR -> throw QueryException.UnsupportedCastException("A value of BOOL cannot be cast to VECTOR[COMPLEX].")
-    CottontailGrpc.Vector.VectorDataCase.COMPLEXVECTOR -> throw QueryException.UnsupportedCastException("A value of COMPLEX cannot be cast to VECTOR[COMPLEX].") // TODO ComplexVectorValue(this.complexVector.vectorList)
+    CottontailGrpc.Vector.VectorDataCase.COMPLEXVECTOR -> throw QueryException.UnsupportedCastException("A value of COMPLEX cannot be cast to VECTOR[COMPLEX].") // TODO cast: ComplexVectorValue(this.complexVector.vectorList)
     CottontailGrpc.Vector.VectorDataCase.VECTORDATA_NOT_SET -> throw QueryException.UnsupportedCastException("A value of NULL cannot be cast to VECTOR[COMPLEX].")
     null -> throw QueryException.UnsupportedCastException("A value of NULL cannot be cast to VECTOR[COMPLEX].")
 }

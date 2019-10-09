@@ -1,7 +1,7 @@
 package ch.unibas.dmi.dbis.cottontail.database.serializers
 
 import ch.unibas.dmi.dbis.cottontail.model.values.ComplexVectorValue
-import ch.unibas.dmi.dbis.cottontail.model.values.complex.ComplexArray
+import ch.unibas.dmi.dbis.cottontail.model.values.complex.Complex
 import org.mapdb.DataInput2
 import org.mapdb.DataOutput2
 import org.mapdb.Serializer
@@ -15,15 +15,22 @@ import org.mapdb.Serializer
 class FixedComplexVectorSerializer(val size: Int) : Serializer<ComplexVectorValue> {
     override fun serialize(out: DataOutput2, value: ComplexVectorValue) {
         for (i in 0 until size) {
-            out.writeComplex(value.value[i])
+            out.writeFloat(value.value[i][0]) // real
+            out.writeFloat(value.value[i][1]) // imaginary
         }
     }
 
     override fun deserialize(input: DataInput2, available: Int): ComplexVectorValue {
-        val vector = ComplexArray(size)
+        val vector = Array(size) { Complex(floatArrayOf(0.0f, 0.0f)) }
         for (i in 0 until size) {
-            vector[i] = input.readComplex()
+            vector[i] = readComplex(input)
         }
         return ComplexVectorValue(vector)
+    }
+
+    private fun readComplex(input: DataInput2): Complex {
+        // TODO
+        // input.readFloat()
+        return Complex(floatArrayOf(0.0f, 0.0f))
     }
 }

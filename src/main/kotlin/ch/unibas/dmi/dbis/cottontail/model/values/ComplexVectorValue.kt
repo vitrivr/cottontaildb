@@ -1,18 +1,14 @@
 package ch.unibas.dmi.dbis.cottontail.model.values
 
 import ch.unibas.dmi.dbis.cottontail.model.values.complex.Complex
-import ch.unibas.dmi.dbis.cottontail.model.values.complex.ComplexArray
 
 /**
- * This is an abstraction over a [ComplexArray] and it represents a vector of [Complex]s.
+ * This is an abstraction over an [Array] and it represents a vector of [Complex]s.
  *
  * @author Manuel Huerbin
  * @version 1.0
  */
-inline class ComplexVectorValue(override val value: ComplexArray) : VectorValue<ComplexArray> {
-
-    //constructor(input: List<Number>) : this(ComplexArray(input.size) { input[it].toFloat() }) // TODO toComplex()
-    //constructor(input: Array<Number>) : this(ComplexArray(input.size) { input[it].toFloat() }) // TODO toComplex()
+inline class ComplexVectorValue(override val value: Array<Complex>) : VectorValue<Array<Complex>> {
 
     override val size: Int
         get() = this.value.size
@@ -30,7 +26,7 @@ inline class ComplexVectorValue(override val value: ComplexArray) : VectorValue<
      * @return The indices of this [ComplexVectorValue]
      */
     override val indices: IntRange
-        get() = TODO()
+        get() = this.value.indices // TODO
 
     /**
      * Returns the i-th entry of  this [ComplexVectorValue].
@@ -57,57 +53,54 @@ inline class ComplexVectorValue(override val value: ComplexArray) : VectorValue<
      *
      * @return True, if this [ComplexVectorValue] consists of all zeroes
      */
-    override fun allZeros(): Boolean {
-        TODO()
-    }
+    override fun allZeros(): Boolean = this.value.all { it == Complex(floatArrayOf(0.0f, 0.0f)) } // TODO
 
     /**
      * Returns true, if this [ComplexVectorValue] consists of all ones, i.e. [1, 1, ... 1]
      *
      * @return True, if this [ComplexVectorValue] consists of all ones
      */
-    override fun allOnes(): Boolean {
-        TODO()
-    }
+    override fun allOnes(): Boolean = this.value.all { it == Complex(floatArrayOf(1.0f, 1.0f)) } // TODO
 
     /**
      * Creates and returns a copy of this [ComplexVectorValue].
      *
      * @return Exact copy of this [ComplexVectorValue].
      */
-    override fun copy(): VectorValue<ComplexArray> {
+    override fun copy(): VectorValue<Array<Complex>> {
+        TODO()
+    }
+    //override fun copy(): ComplexVectorValue = ComplexVectorValue(this.value.copyOf(this.size))
+
+    override fun plus(other: VectorValue<Array<Complex>>): VectorValue<Array<Complex>> {
         TODO()
     }
 
-    override fun plus(other: VectorValue<ComplexArray>): VectorValue<ComplexArray> {
+    override fun minus(other: VectorValue<Array<Complex>>): VectorValue<Array<Complex>> {
         TODO()
     }
 
-    override fun minus(other: VectorValue<ComplexArray>): VectorValue<ComplexArray> {
+    override fun times(other: VectorValue<Array<Complex>>): VectorValue<Array<Complex>> {
         TODO()
     }
 
-    override fun times(other: VectorValue<ComplexArray>): VectorValue<ComplexArray> {
+    override fun div(other: VectorValue<Array<Complex>>): VectorValue<Array<Complex>> {
         TODO()
     }
 
-    override fun div(other: VectorValue<ComplexArray>): VectorValue<ComplexArray> {
+    override fun plus(other: Number): VectorValue<Array<Complex>> {
         TODO()
     }
 
-    override fun plus(other: Number): VectorValue<ComplexArray> {
+    override fun minus(other: Number): VectorValue<Array<Complex>> {
         TODO()
     }
 
-    override fun minus(other: Number): VectorValue<ComplexArray> {
+    override fun times(other: Number): VectorValue<Array<Complex>> {
         TODO()
     }
 
-    override fun times(other: Number): VectorValue<ComplexArray> {
-        TODO()
-    }
-
-    override fun div(other: Number): VectorValue<ComplexArray> {
+    override fun div(other: Number): VectorValue<Array<Complex>> {
         TODO()
     }
 }
