@@ -64,11 +64,6 @@ class CottonDMLService(val catalogue: Catalogue) : CottonDMLGrpc.CottonDMLImplBa
         LOGGER.error(msg, e)
         responseObserver.onError(Status.NOT_FOUND.withDescription(msg).asException())
     } catch (e: ValidationException) {
-<<<<<<< HEAD
-        responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Insert failed because data validation failed: ${e.message}").asException())
-    } catch (e: DatabaseException) {
-        responseObserver.onError(Status.INTERNAL.withDescription("Insert failed because of a database error: ${e.message}").asException())
-=======
         val msg = "Insert failed because data validation failed: ${e.message}"
         LOGGER.error(msg, e)
         responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(msg).asException())
@@ -76,7 +71,6 @@ class CottonDMLService(val catalogue: Catalogue) : CottonDMLGrpc.CottonDMLImplBa
         val msg = "Insert failed because of a database error: ${e.message}"
         LOGGER.error(msg, e)
         responseObserver.onError(Status.INTERNAL.withDescription(msg).asException())
->>>>>>> 3d6de45b1ae97a293f36e0fdc286084f08ae5e2c
     } catch (e: Throwable) {
         val msg = "Insert failed because of a unknown error: ${e.message}"
         LOGGER.error(msg, e)
