@@ -234,7 +234,7 @@ class CottontailDBVolume (val path: Path, val sliceShift: Int, val readonly: Boo
                 val oldSize = this.slices.size
 
                 /* Pre-clear of appended file. */
-                this.fileChannel.write(ByteBuffer.allocate(1), endOffset)
+                this.fileChannel.write(ByteBuffer.allocate(1), endOffset-1)
 
                 /* Grow slices. */
                 var slices2 = this.slices
@@ -481,8 +481,9 @@ class CottontailDBVolume (val path: Path, val sliceShift: Int, val readonly: Boo
      * @param offset The offset (in bytes) into the [CottontailDBVolume].
      */
     fun getSlice(offset: Long): ByteBuffer {
+        val slices = this.slices
         val pos = offset.ushr(this.sliceShift).toInt()
-        return this.slices[pos] ?: throw DBException.VolumeEOF("Get/Set beyond file size. Requested offset: " + offset + ", volume size: " + length())
+        return slices[pos] ?: throw DBException.VolumeEOF("Get/Set beyond file size. Requested offset: " + offset + ", volume size: " + length())
     }
 
     /**
