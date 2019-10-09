@@ -234,7 +234,7 @@ class CottontailDBVolume (val path: Path, val sliceShift: Int, val readonly: Boo
                 val oldSize = this.slices.size
 
                 /* Pre-clear of appended file. */
-                this.fileChannel.write(ByteBuffer.allocate(1), endOffset)
+                this.fileChannel.write(ByteBuffer.allocate(1), endOffset-1)
 
                 /* Grow slices. */
                 var slices2 = this.slices
@@ -419,6 +419,56 @@ class CottontailDBVolume (val path: Path, val sliceShift: Int, val readonly: Boo
         b1.put(buf)
     }
 
+    override fun putDataOverlap(offset: Long, data: ByteArray, pos: Int, len: Int) {
+        var offset = offset
+        var pos = pos
+        var len = len
+        val overlap = offset.ushr(sliceShift) != (offset + len).ushr(sliceShift)
+
+        if (overlap) {
+            while (len > 0) {
+                val b = getSlice(offset).duplicate()
+                b.position((offset and sliceSizeModMask).toInt())
+
+                val toPut = min(len, (sliceSize - b.position()).toInt())
+
+                b.limit(b.position() + toPut)
+                b.put(data, pos, toPut)
+
+                pos += toPut
+                len -= toPut
+                offset += toPut.toLong()
+            }
+        } else {
+            putData(offset, data, pos, len)
+        }
+    }
+
+    override fun getDataInputOverlap(offset: Long, size: Int): DataInput2 {
+        var offset = offset
+        var size = size
+        val overlap = offset.ushr(sliceShift) != (offset + size).ushr(sliceShift)
+        if (overlap) {
+            val bb = ByteArray(size)
+            val origLen = size
+            while (size > 0) {
+                val b = getSlice(offset).duplicate()
+                b.position((offset and sliceSizeModMask).toInt())
+
+                val toPut = min(size, (sliceSize - b.position()).toInt())
+
+                b.limit(b.position() + toPut)
+                b.get(bb, origLen - size, toPut)
+                size -= toPut
+                offset += toPut.toLong()
+            }
+            return DataInput2.ByteArray(bb)
+        } else {
+            //return mapped buffer
+            return getDataInput(offset, size)
+        }
+    }
+
     override fun copyTo(inputOffset: Long, target: Volume, targetOffset: Long, size: Long) {
         val b1 = getSlice(inputOffset).duplicate()
         val bufPos = (inputOffset and sliceSizeModMask).toInt()
@@ -481,8 +531,9 @@ class CottontailDBVolume (val path: Path, val sliceShift: Int, val readonly: Boo
      * @param offset The offset (in bytes) into the [CottontailDBVolume].
      */
     fun getSlice(offset: Long): ByteBuffer {
+        val slices = this.slices
         val pos = offset.ushr(this.sliceShift).toInt()
-        return this.slices[pos] ?: throw DBException.VolumeEOF("Get/Set beyond file size. Requested offset: " + offset + ", volume size: " + length())
+        return slices[pos] ?: throw DBException.VolumeEOF("Get/Set beyond file size. Requested offset: " + offset + ", volume size: " + length())
     }
 
     /**

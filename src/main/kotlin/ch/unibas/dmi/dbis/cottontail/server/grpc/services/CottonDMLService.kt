@@ -51,17 +51,29 @@ class CottonDMLService (val catalogue: Catalogue): CottonDMLGrpc.CottonDMLImplBa
         /* Log... */
         LOGGER.trace("Successfully persisted ${request.tupleList.size} tuples to '${request.entity.fqn()}' (with commit).")
     } catch (e: DatabaseException.SchemaDoesNotExistException) {
-        responseObserver.onError(Status.NOT_FOUND.withDescription("Insert failed because schema '${request.entity.schema.name} does not exist!").asException())
+        val msg = "Insert failed because schema '${request.entity.schema.name} does not exist!"
+        LOGGER.error(msg, e)
+        responseObserver.onError(Status.NOT_FOUND.withDescription(msg).asException())
     } catch (e: DatabaseException.EntityDoesNotExistException) {
-        responseObserver.onError(Status.NOT_FOUND.withDescription("Insert failed because entity '${request.entity.name} does not exist!").asException())
+        val msg = "Insert failed because entity '${request.entity.name} does not exist!"
+        LOGGER.error(msg, e)
+        responseObserver.onError(Status.NOT_FOUND.withDescription(msg).asException())
     } catch (e: DatabaseException.ColumnDoesNotExistException) {
-        responseObserver.onError(Status.NOT_FOUND.withDescription("Insert failed because column '${e.column}' does not exist!").asException())
+        val msg = "Insert failed because column '${e.column}' does not exist!"
+        LOGGER.error(msg, e)
+        responseObserver.onError(Status.NOT_FOUND.withDescription(msg).asException())
     } catch (e: ValidationException) {
-        responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Insert failed because data validation failed: ${e.message}").asException())
+        val msg = "Insert failed because data validation failed: ${e.message}"
+        LOGGER.error(msg, e)
+        responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(msg).asException())
     }  catch (e: DatabaseException) {
-        responseObserver.onError(Status.INTERNAL.withDescription("Insert failed because of a database error: ${e.message}").asException())
+        val msg = "Insert failed because of a database error: ${e.message}"
+        LOGGER.error(msg, e)
+        responseObserver.onError(Status.INTERNAL.withDescription(msg).asException())
     } catch (e: Throwable) {
-        responseObserver.onError(Status.UNKNOWN.withDescription("Insert failed because of a unknown error: ${e.message}").asException())
+        val msg = "Insert failed because of a unknown error: ${e.message}"
+        LOGGER.error(msg, e)
+        responseObserver.onError(Status.UNKNOWN.withDescription(msg).asException())
     }
 
     /**
