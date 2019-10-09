@@ -32,7 +32,6 @@ class CottontailDBVolume (val path: Path, val sliceShift: Int, val readonly: Boo
 
     companion object {
         const val WRITE_SIZE = 1024
-        private val EMPTY = ByteBuffer.allocate(1024)
         fun toByte(byt: Int): Byte = (byt and 0xff).toByte()
     }
 
@@ -63,7 +62,7 @@ class CottontailDBVolume (val path: Path, val sliceShift: Int, val readonly: Boo
     private val fileChannel = if (this.readonly) {
         FileChannel.open(this.path, StandardOpenOption.READ)
     } else {
-        FileChannel.open(this.path, StandardOpenOption.READ, StandardOpenOption.WRITE, StandardOpenOption.SYNC, StandardOpenOption.CREATE)
+        FileChannel.open(this.path, StandardOpenOption.READ, StandardOpenOption.WRITE, StandardOpenOption.SPARSE, StandardOpenOption.CREATE)
     }
 
     /** Acquires a [FileLock] for file underlying this [FileChannel]. */
@@ -92,7 +91,7 @@ class CottontailDBVolume (val path: Path, val sliceShift: Int, val readonly: Boo
             if (endSize > 0) {
                 val chunksSize = DataIO.roundUp(endSize, sliceSize).ushr(sliceShift).toInt()
                 if (endSize > fileSize && !this.readonly) {
-                    this.preclear(fileSize, endSize)
+                    this.fileChannel.write(ByteBuffer.allocate(1), endSize-1)
                 }
 
                 this.slices = arrayOfNulls(chunksSize)
@@ -235,8 +234,7 @@ class CottontailDBVolume (val path: Path, val sliceShift: Int, val readonly: Boo
                 val oldSize = this.slices.size
 
                 /* Pre-clear of appended file. */
-                val startOffset = 1L * oldSize.toLong() * sliceSize
-                this.preclear(startOffset, endOffset)
+                this.fileChannel.write(ByteBuffer.allocate(1), endOffset)
 
                 /* Grow slices. */
                 var slices2 = this.slices
@@ -478,19 +476,6 @@ class CottontailDBVolume (val path: Path, val sliceShift: Int, val readonly: Boo
     override fun sliceSize(): Int = this.sliceSize.toInt()
 
     /**
-     *
-     */
-    private fun preclear(startOffset: Long, endOffset: Long) {
-        assert(startOffset <= endOffset) { "Start offset into file must be smaller or equal than end offset (start = $startOffset, end = $endOffset)."}
-        var current = startOffset
-        this.fileChannel.position(startOffset)
-        while (current < endOffset) {
-            val remaining = min(WRITE_SIZE.toLong(), endOffset - startOffset).toInt()
-            current += this.fileChannel.write(EMPTY.duplicate().position(0).limit(remaining))
-        }
-    }
-
-    /**
      * Returns the slice for the given offset.
      *
      * @param offset The offset (in bytes) into the [CottontailDBVolume].
@@ -509,7 +494,7 @@ class CottontailDBVolume (val path: Path, val sliceShift: Int, val readonly: Boo
     private fun acquireFileLock(timeout: Long) : FileLock {
 
         val start = System.currentTimeMillis()
-        while (System.currentTimeMillis() - start < timeout) {
+        do  {
             try {
                 val lock = this.fileChannel.tryLock()
                 if (lock != null) {
@@ -520,7 +505,7 @@ class CottontailDBVolume (val path: Path, val sliceShift: Int, val readonly: Boo
             } catch (e: IOException) {
                 throw DBException.VolumeIOError(e)
             }
-        }
+        } while (System.currentTimeMillis() - start < timeout)
         throw DBException.FileLocked(this.path, null)
     }
 }
