@@ -5,7 +5,7 @@ import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
 import ch.unibas.dmi.dbis.cottontail.database.general.begin
 import ch.unibas.dmi.dbis.cottontail.database.index.Index
 import ch.unibas.dmi.dbis.cottontail.database.index.IndexType
-import ch.unibas.dmi.dbis.cottontail.utilities.write
+import ch.unibas.dmi.dbis.cottontail.utilities.extensions.write
 import ch.unibas.dmi.dbis.cottontail.database.queries.AtomicBooleanPredicate
 import ch.unibas.dmi.dbis.cottontail.database.queries.BooleanPredicate
 import ch.unibas.dmi.dbis.cottontail.database.queries.ComparisonOperator
