@@ -19,7 +19,7 @@ import io.grpc.stub.StreamObserver
 import org.slf4j.LoggerFactory
 import java.util.concurrent.ConcurrentHashMap
 
-class CottonDMLService(val catalogue: Catalogue) : CottonDMLGrpc.CottonDMLImplBase() {
+class CottonDMLService (val catalogue: Catalogue): CottonDMLGrpc.CottonDMLImplBase() {
     /** Logger used for logging the output. */
     companion object {
         private val LOGGER = LoggerFactory.getLogger(CottonDMLService::class.java)
@@ -37,8 +37,7 @@ class CottonDMLService(val catalogue: Catalogue) : CottonDMLGrpc.CottonDMLImplBa
                 val columns = mutableListOf<ColumnDef<*>>()
                 val values = mutableListOf<Value<*>?>()
                 entry.map {
-                    val col = entity.columnForName(it.key)
-                            ?: throw DatabaseException.ColumnDoesNotExistException(entity.fqn.append(it.key))
+                    val col = entity.columnForName(it.key) ?: throw DatabaseException.ColumnDoesNotExistException(entity.fqn.append(it.key))
                     columns.add(col)
                     values.add(castToColumn(it.value, col))
                 }
@@ -59,7 +58,7 @@ class CottonDMLService(val catalogue: Catalogue) : CottonDMLGrpc.CottonDMLImplBa
         responseObserver.onError(Status.NOT_FOUND.withDescription("Insert failed because column '${e.column}' does not exist!").asException())
     } catch (e: ValidationException) {
         responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Insert failed because data validation failed: ${e.message}").asException())
-    } catch (e: DatabaseException) {
+    }  catch (e: DatabaseException) {
         responseObserver.onError(Status.INTERNAL.withDescription("Insert failed because of a database error: ${e.message}").asException())
     } catch (e: Throwable) {
         responseObserver.onError(Status.UNKNOWN.withDescription("Insert failed because of a unknown error: ${e.message}").asException())
@@ -69,7 +68,7 @@ class CottonDMLService(val catalogue: Catalogue) : CottonDMLGrpc.CottonDMLImplBa
      * gRPC endpoint for inserting data in a streaming mode; transactions will stay open until the caller explicitly completes them
      * or until an error occurs. As new entities are being inserted, new transactions will be created and thus new lock will be acquired.
      */
-    override fun insertStream(responseObserver: StreamObserver<CottontailGrpc.InsertStatus>): StreamObserver<CottontailGrpc.InsertMessage> = object : StreamObserver<CottontailGrpc.InsertMessage> {
+    override fun insertStream(responseObserver: StreamObserver<CottontailGrpc.InsertStatus>): StreamObserver<CottontailGrpc.InsertMessage> = object:StreamObserver<CottontailGrpc.InsertMessage>{
 
         /** List of all the [Tx] associated with this call. */
         private val transactions = ConcurrentHashMap<String, Entity.Tx>()
@@ -108,8 +107,7 @@ class CottonDMLService(val catalogue: Catalogue) : CottonDMLGrpc.CottonDMLImplBa
                     val columns = mutableListOf<ColumnDef<*>>()
                     val values = mutableListOf<Value<*>?>()
                     entry.map {
-                        val col = entity.columnForName(it.key)
-                                ?: throw DatabaseException.ColumnDoesNotExistException(entity.fqn.append(it.key))
+                        val col = entity.columnForName(it.key) ?: throw DatabaseException.ColumnDoesNotExistException(entity.fqn.append(it.key))
                         columns.add(col)
                         values.add(castToColumn(it.value, col))
                     }
@@ -133,7 +131,7 @@ class CottonDMLService(val catalogue: Catalogue) : CottonDMLGrpc.CottonDMLImplBa
             } catch (e: ValidationException) {
                 responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Insert failed because data validation failed: ${e.message}").asException())
                 this.cleanup()
-            } catch (e: DatabaseException) {
+            }  catch (e: DatabaseException) {
                 responseObserver.onError(Status.INTERNAL.withDescription("Insert failed because of a database error: ${e.message}").asException())
                 this.cleanup()
             } catch (e: Throwable) {
@@ -186,7 +184,7 @@ class CottonDMLService(val catalogue: Catalogue) : CottonDMLGrpc.CottonDMLImplBa
      * @param col The [ColumnDef] of the column, the data should be stored in.
      * @return The converted value.
      */
-    private fun castToColumn(value: CottontailGrpc.Data, col: ColumnDef<*>): Value<*>? = if (
+    private fun castToColumn(value: CottontailGrpc.Data, col: ColumnDef<*>) : Value<*>? = if (
             value.dataCase == CottontailGrpc.Data.DataCase.DATA_NOT_SET || value.dataCase == null
     ) {
         null
@@ -200,13 +198,11 @@ class CottonDMLService(val catalogue: Catalogue) : CottonDMLGrpc.CottonDMLImplBa
             is FloatColumnType -> value.toFloatValue()
             is DoubleColumnType -> value.toDoubleValue()
             is StringColumnType -> value.toStringValue()
-            is ComplexColumnType -> value.toComplexValue()
             is IntVectorColumnType -> value.toIntVectorValue()
             is LongVectorColumnType -> value.toLongVectorValue()
             is FloatVectorColumnType -> value.toFloatVectorValue()
             is DoubleVectorColumnType -> value.toDoubleVectorValue()
             is BooleanVectorColumnType -> value.toBooleanVectorValue()
-            is ComplexVectorColumnType -> value.toComplexVectorValue()
         }
     }
 }
