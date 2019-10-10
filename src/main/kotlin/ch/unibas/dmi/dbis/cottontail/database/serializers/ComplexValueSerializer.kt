@@ -14,8 +14,8 @@ object ComplexValueSerializer : Serializer<ComplexValue> {
     }
 
     private fun readComplex(input: DataInput2): Complex {
-        // TODO
-        // input.readFloat()
-        return Complex(floatArrayOf(0.0f, 0.0f))
+        val real: Float = input.readFloat()
+        val imaginary: Float = input.readFloat()
+        return Complex(floatArrayOf(real, imaginary))
     }
 }

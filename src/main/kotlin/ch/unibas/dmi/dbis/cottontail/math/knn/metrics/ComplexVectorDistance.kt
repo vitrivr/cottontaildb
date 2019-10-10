@@ -14,7 +14,7 @@ enum class ComplexVectorDistance : VectorizedDistanceFunction<Array<Complex>> {
 
         override fun invoke(a: VectorValue<Array<Complex>>, b: VectorValue<Array<Complex>>, shape: Shape): Double {
             // TODO
-            var sum1 = 0.0
+            /*var sum1 = 0.0
             var sum2 = 0.0
             var sum3 = 0.0
             var sum4 = 0.0
@@ -28,12 +28,13 @@ enum class ComplexVectorDistance : VectorizedDistanceFunction<Array<Complex>> {
             for (i in max * VECTORIZATION until b.size) {
                 sum4 += abs(b.getAsDouble(i) - a.getAsDouble(i))
             }
-            return sum1 + sum2 + sum3 + sum4
+            return sum1 + sum2 + sum3 + sum4*/
+            return 0.0
         }
 
         override fun invoke(a: VectorValue<Array<Complex>>, b: VectorValue<Array<Complex>>, weights: VectorValue<*>, shape: Shape): Double {
             // TODO
-            var sum1 = 0.0
+            /*var sum1 = 0.0
             var sum2 = 0.0
             var sum3 = 0.0
             var sum4 = 0.0
@@ -47,25 +48,28 @@ enum class ComplexVectorDistance : VectorizedDistanceFunction<Array<Complex>> {
             for (i in max * VECTORIZATION until b.size) {
                 sum4 = Math.fma(abs(b.getAsDouble(i) - a.getAsDouble(i)), weights.getAsDouble(i), sum4)
             }
-            return sum1 + sum2 + sum3 + sum4
+            return sum1 + sum2 + sum3 + sum4*/
+            return 0.0
         }
 
         override fun invoke(a: VectorValue<Array<Complex>>, b: VectorValue<Array<Complex>>, weights: VectorValue<*>): Double {
             // TODO
-            var sum = 0.0
+            /*var sum = 0.0
             for (i in b.indices) {
                 sum += abs(b.getAsDouble(i) - a.getAsDouble(i)) * weights.getAsDouble(i)
             }
-            return sum
+            return sum*/
+            return 0.0
         }
 
         override fun invoke(a: VectorValue<Array<Complex>>, b: VectorValue<Array<Complex>>): Double {
             // TODO
-            var sum = 0.0
+            /*var sum = 0.0
             for (i in b.indices) {
                 sum += abs(b.getAsDouble(i) - a.getAsDouble(i))
             }
-            return sum
+            return sum*/
+            return 0.0
         }
     },
 
@@ -74,12 +78,10 @@ enum class ComplexVectorDistance : VectorizedDistanceFunction<Array<Complex>> {
      */
     L2 {
         override val operations: Int = 2
-        // TODO
-        override fun invoke(a: VectorValue<Array<Complex>>, b: VectorValue<Array<Complex>>, shape: Shape): Double = sqrt(ComplexVectorDistance.L2SQUARED(a, b, shape))
-
-        override fun invoke(a: VectorValue<Array<Complex>>, b: VectorValue<Array<Complex>>, weights: VectorValue<*>, shape: Shape): Double = sqrt(ComplexVectorDistance.L2SQUARED(a, b, weights, shape))
-        override fun invoke(a: VectorValue<Array<Complex>>, b: VectorValue<Array<Complex>>, weights: VectorValue<*>): Double = sqrt(ComplexVectorDistance.L2SQUARED(a, b, weights))
-        override fun invoke(a: VectorValue<Array<Complex>>, b: VectorValue<Array<Complex>>): Double = sqrt(ComplexVectorDistance.L2SQUARED(a, b))
+        override fun invoke(a: VectorValue<Array<Complex>>, b: VectorValue<Array<Complex>>, shape: Shape): Double = sqrt(L2SQUARED(a, b, shape))
+        override fun invoke(a: VectorValue<Array<Complex>>, b: VectorValue<Array<Complex>>, weights: VectorValue<*>, shape: Shape): Double = sqrt(L2SQUARED(a, b, weights, shape))
+        override fun invoke(a: VectorValue<Array<Complex>>, b: VectorValue<Array<Complex>>, weights: VectorValue<*>): Double = sqrt(L2SQUARED(a, b, weights))
+        override fun invoke(a: VectorValue<Array<Complex>>, b: VectorValue<Array<Complex>>): Double = sqrt(L2SQUARED(a, b))
     },
 
     /**
@@ -90,7 +92,7 @@ enum class ComplexVectorDistance : VectorizedDistanceFunction<Array<Complex>> {
 
         override fun invoke(a: VectorValue<Array<Complex>>, b: VectorValue<Array<Complex>>, shape: Shape): Double {
             // TODO
-            var sum1 = 0.0
+            /*var sum1 = 0.0
             var sum2 = 0.0
             var sum3 = 0.0
             var sum4 = 0.0
@@ -104,12 +106,13 @@ enum class ComplexVectorDistance : VectorizedDistanceFunction<Array<Complex>> {
             for (i in max * VECTORIZATION until b.size) {
                 sum4 += (b.getAsFloat(i) - a.getAsFloat(i)).toDouble().pow(2.0)
             }
-            return (sum1 + sum2 + sum3 + sum4)
+            return (sum1 + sum2 + sum3 + sum4)*/
+            return 0.0
         }
 
         override fun invoke(a: VectorValue<Array<Complex>>, b: VectorValue<Array<Complex>>, weights: VectorValue<*>, shape: Shape): Double {
             // TODO
-            var sum1 = 0.0f
+            /*var sum1 = 0.0f
             var sum2 = 0.0f
             var sum3 = 0.0f
             var sum4 = 0.0f
@@ -123,25 +126,28 @@ enum class ComplexVectorDistance : VectorizedDistanceFunction<Array<Complex>> {
             for (i in max * VECTORIZATION until b.size) {
                 sum4 = Math.fma(b.getAsFloat(i) - a.getAsFloat(i), (b.getAsFloat(i) - a.getAsFloat(i)) * weights.getAsFloat(i), sum4)
             }
-            return (sum1 + sum2 + sum3 + sum4).toDouble()
+            return (sum1 + sum2 + sum3 + sum4).toDouble()*/
+            return 0.0
         }
 
         override fun invoke(a: VectorValue<Array<Complex>>, b: VectorValue<Array<Complex>>, weights: VectorValue<*>): Double {
             // TODO
-            var sum = 0.0f
+            /*var sum = 0.0f
             for (i in b.indices) {
                 sum += (b.getAsFloat(i) - a.getAsFloat(i)) * (b.getAsFloat(i) - a.getAsFloat(i)) * weights.getAsFloat(i)
             }
-            return sum.toDouble()
+            return sum.toDouble()*/
+            return 0.0
         }
 
         override fun invoke(a: VectorValue<Array<Complex>>, b: VectorValue<Array<Complex>>): Double {
             // TODO
-            var sum = 0.0f
+            /*var sum = 0.0f
             for (i in b.indices) {
                 sum += (b.getAsFloat(i) - a.getAsFloat(i)) * (b.getAsFloat(i) - a.getAsFloat(i))
             }
-            return sum.toDouble()
+            return sum.toDouble()*/
+            return 0.0
         }
     },
 
@@ -153,24 +159,26 @@ enum class ComplexVectorDistance : VectorizedDistanceFunction<Array<Complex>> {
 
         override fun invoke(a: VectorValue<Array<Complex>>, b: VectorValue<Array<Complex>>, weights: VectorValue<*>): Double {
             // TODO
-            var sum = 0.0f
+            /*var sum = 0.0f
             for (i in b.indices) {
                 if (abs(a.getAsFloat(i) + b.getAsFloat(i)) > 1e-6) {
                     sum += ((b.getAsFloat(i) - a.getAsFloat(i)) * (b.getAsFloat(i) - a.getAsFloat(i))) / (b.getAsFloat(i) + a.getAsFloat(i)) * weights.getAsFloat(i)
                 }
             }
-            return sum.toDouble()
+            return sum.toDouble()*/
+            return 0.0
         }
 
         override fun invoke(a: VectorValue<Array<Complex>>, b: VectorValue<Array<Complex>>): Double {
             // TODO
-            var sum = 0.0f
+            /*var sum = 0.0f
             for (i in b.indices) {
                 if (abs(a.getAsFloat(i) + b.getAsFloat(i)) > 1e-6) {
                     sum += ((b.getAsFloat(i) - a.getAsFloat(i)) * (b.getAsFloat(i) - a.getAsFloat(i))) / (b.getAsFloat(i) + a.getAsFloat(i))
                 }
             }
-            return sum.toDouble()
+            return sum.toDouble()*/
+            return 0.0
         }
     },
 
@@ -182,7 +190,7 @@ enum class ComplexVectorDistance : VectorizedDistanceFunction<Array<Complex>> {
 
         override fun invoke(a: VectorValue<Array<Complex>>, b: VectorValue<Array<Complex>>, weights: VectorValue<*>, shape: Shape): Double {
             // TODO
-            var dot1 = 0.0f
+            /*var dot1 = 0.0f
             var dot2 = 0.0f
             var dot3 = 0.0f
             var dot4 = 0.0f
@@ -219,12 +227,13 @@ enum class ComplexVectorDistance : VectorizedDistanceFunction<Array<Complex>> {
                 1.0
             } else {
                 1.0 - (dot1 + dot2 + dot3 + dot4) / div
-            }
+            }*/
+            return 0.0
         }
 
         override fun invoke(a: VectorValue<Array<Complex>>, b: VectorValue<Array<Complex>>, shape: Shape): Double {
             // TODO
-            var dot1 = 0.0f
+            /*var dot1 = 0.0f
             var dot2 = 0.0f
             var dot3 = 0.0f
             var dot4 = 0.0f
@@ -261,12 +270,13 @@ enum class ComplexVectorDistance : VectorizedDistanceFunction<Array<Complex>> {
                 1.0
             } else {
                 1.0 - (dot1 + dot2 + dot3 + dot4) / div
-            }
+            }*/
+            return 0.0
         }
 
         override fun invoke(a: VectorValue<Array<Complex>>, b: VectorValue<Array<Complex>>, weights: VectorValue<*>): Double {
             // TODO
-            var dot = 0.0f
+            /*var dot = 0.0f
             var c = 0.0f
             var d = 0.0f
             for (i in 0 until b.size) {
@@ -279,12 +289,13 @@ enum class ComplexVectorDistance : VectorizedDistanceFunction<Array<Complex>> {
                 1.0
             } else {
                 1.0 - dot / div
-            }
+            }*/
+            return 0.0
         }
 
         override fun invoke(a: VectorValue<Array<Complex>>, b: VectorValue<Array<Complex>>): Double {
             // TODO
-            var dot = 0.0
+            /*var dot = 0.0
             var c = 0.0
             var d = 0.0
             for (i in 0 until b.size) {
@@ -297,7 +308,8 @@ enum class ComplexVectorDistance : VectorizedDistanceFunction<Array<Complex>> {
                 1.0
             } else {
                 1.0 - dot / div
-            }
+            }*/
+            return 0.0
         }
     },
 
@@ -310,6 +322,7 @@ enum class ComplexVectorDistance : VectorizedDistanceFunction<Array<Complex>> {
         // TODO
         override fun invoke(a: VectorValue<Array<Complex>>, b: VectorValue<Array<Complex>>, weights: VectorValue<*>): Double = b.indices.mapIndexed { i, _ -> if (b[i] == a[i]) 0.0f else weights.getAsFloat(i) }.sum().toDouble()
 
+        // TODO
         override fun invoke(a: VectorValue<Array<Complex>>, b: VectorValue<Array<Complex>>): Double = b.indices.mapIndexed { i, _ -> if (b[i] == a[i]) 0.0 else 1.0 }.sum()
     },
 
@@ -327,6 +340,7 @@ enum class ComplexVectorDistance : VectorizedDistanceFunction<Array<Complex>> {
         // TODO
         override fun invoke(a: VectorValue<Array<Complex>>, b: VectorValue<Array<Complex>>, weights: VectorValue<*>): Double = this.haversine(a.getAsDouble(0), a.getAsDouble(1), b.getAsDouble(0), b.getAsDouble(1))
 
+        // TODO
         override fun invoke(a: VectorValue<Array<Complex>>, b: VectorValue<Array<Complex>>): Double = this.haversine(a.getAsDouble(0), a.getAsDouble(1), b.getAsDouble(0), b.getAsDouble(1))
 
         /**
