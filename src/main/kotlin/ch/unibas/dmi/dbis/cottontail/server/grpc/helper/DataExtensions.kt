@@ -25,12 +25,12 @@ object DataHelper {
         is DoubleValue -> CottontailGrpc.Data.newBuilder().setDoubleData(value.value).build()
         is FloatValue -> CottontailGrpc.Data.newBuilder().setFloatData(value.value).build()
         is BooleanValue -> CottontailGrpc.Data.newBuilder().setBooleanData(value.value).build()
-        is ComplexValue -> CottontailGrpc.Data.newBuilder().setComplexData(CottontailGrpc.Complex.newBuilder().setReal(value.value[0]).setImaginary(value.value[1])).build() // TODO
+        is ComplexValue -> CottontailGrpc.Data.newBuilder().setComplexData(CottontailGrpc.Complex.newBuilder().setReal(value.value[0]).setImaginary(value.value[1])).build()
         is DoubleVectorValue -> CottontailGrpc.Data.newBuilder().setVectorData(CottontailGrpc.Vector.newBuilder().setDoubleVector(CottontailGrpc.DoubleVector.newBuilder().addAllVector(value.value.asIterable()))).build()
         is FloatVectorValue -> CottontailGrpc.Data.newBuilder().setVectorData(CottontailGrpc.Vector.newBuilder().setFloatVector(CottontailGrpc.FloatVector.newBuilder().addAllVector(value.value.asIterable()))).build()
         is LongVectorValue -> CottontailGrpc.Data.newBuilder().setVectorData(CottontailGrpc.Vector.newBuilder().setLongVector(CottontailGrpc.LongVector.newBuilder().addAllVector(value.value.asIterable()))).build()
         is IntVectorValue -> CottontailGrpc.Data.newBuilder().setVectorData(CottontailGrpc.Vector.newBuilder().setIntVector(CottontailGrpc.IntVector.newBuilder().addAllVector(value.value.asIterable()))).build()
-        //is ComplexVectorValue -> CottontailGrpc.Data.newBuilder().setVectorData(CottontailGrpc.Vector.newBuilder().setComplexVector(CottontailGrpc.ComplexVector.newBuilder().addAllVector(value.value.asIterable()))).build() // TODO
+        is ComplexVectorValue -> CottontailGrpc.Data.newBuilder().setVectorData(CottontailGrpc.Vector.newBuilder().setComplexVector(CottontailGrpc.ComplexVector.newBuilder().addAllVector((Array(value.value.size) { i -> CottontailGrpc.Complex.newBuilder().setReal(value.value[i][0]).setImaginary(value.value[i][0]).build() }).asIterable()))).build()
         null -> CottontailGrpc.Data.newBuilder().setNullData(CottontailGrpc.Null.getDefaultInstance()).build()
         else -> throw IllegalArgumentException("The specified value cannot be converted to a gRPC Data object.")
     }
@@ -49,7 +49,7 @@ fun CottontailGrpc.Data.toStringValue(): StringValue? = when (this.dataCase) {
     CottontailGrpc.Data.DataCase.FLOATDATA -> StringValue(this.floatData.toString())
     CottontailGrpc.Data.DataCase.DOUBLEDATA -> StringValue(this.doubleData.toString())
     CottontailGrpc.Data.DataCase.STRINGDATA -> StringValue(this.stringData)
-    CottontailGrpc.Data.DataCase.COMPLEXDATA -> throw QueryException.UnsupportedCastException("A value of type COMPLEX cannot be cast to STRING.")
+    CottontailGrpc.Data.DataCase.COMPLEXDATA -> StringValue(this.complexData.real.toString() + (if (this.complexData.imaginary < 0) " - " else " + ") + this.complexData.imaginary.toString() + "i")
     CottontailGrpc.Data.DataCase.NULLDATA -> null
     CottontailGrpc.Data.DataCase.VECTORDATA -> throw QueryException.UnsupportedCastException("A value of type VECTOR cannot be cast to STRING.")
     CottontailGrpc.Data.DataCase.DATA_NOT_SET -> throw QueryException.UnsupportedCastException("A value of NULL cannot be cast to STRING.")
@@ -234,12 +234,12 @@ fun CottontailGrpc.Data.toLongValue(): LongValue? = when (this.dataCase) {
  */
 fun CottontailGrpc.Data.toComplexValue(): ComplexValue? = when (this.dataCase) {
     CottontailGrpc.Data.DataCase.BOOLEANDATA -> throw QueryException.UnsupportedCastException("A value of BOOLEAN cannot be cast to COMPLEX.")
-    CottontailGrpc.Data.DataCase.INTDATA -> throw QueryException.UnsupportedCastException("A value of INT cannot be cast to COMPLEX.")
-    CottontailGrpc.Data.DataCase.LONGDATA -> throw QueryException.UnsupportedCastException("A value of LONG cannot be cast to COMPLEX.")
-    CottontailGrpc.Data.DataCase.FLOATDATA -> throw QueryException.UnsupportedCastException("A value of FLOAT cannot be cast to COMPLEX.")
-    CottontailGrpc.Data.DataCase.DOUBLEDATA -> throw QueryException.UnsupportedCastException("A value of DOUBLE cannot be cast to COMPLEX.")
+    CottontailGrpc.Data.DataCase.INTDATA -> ComplexValue(Complex(floatArrayOf(this.intData.toFloat(), 0.0f)))
+    CottontailGrpc.Data.DataCase.LONGDATA -> ComplexValue(Complex(floatArrayOf(this.longData.toFloat(), 0.0f)))
+    CottontailGrpc.Data.DataCase.FLOATDATA -> ComplexValue(Complex(floatArrayOf(this.floatData, 0.0f)))
+    CottontailGrpc.Data.DataCase.DOUBLEDATA -> ComplexValue(Complex(floatArrayOf(this.doubleData.toFloat(), 0.0f)))
     CottontailGrpc.Data.DataCase.STRINGDATA -> throw QueryException.UnsupportedCastException("A value of STRING cannot be cast to COMPLEX.")
-    CottontailGrpc.Data.DataCase.COMPLEXDATA -> ComplexValue(Complex(floatArrayOf(complexData.real, complexData.imaginary))) // TODO ComplexValue(this.complexData)
+    CottontailGrpc.Data.DataCase.COMPLEXDATA -> ComplexValue(Complex(floatArrayOf(this.complexData.real, this.complexData.imaginary)))
     CottontailGrpc.Data.DataCase.NULLDATA -> null
     CottontailGrpc.Data.DataCase.VECTORDATA -> throw QueryException.UnsupportedCastException("A value of VECTOR cannot be cast to COMPLEX.")
     CottontailGrpc.Data.DataCase.DATA_NOT_SET -> throw QueryException.UnsupportedCastException("A value of NULL cannot be cast to COMPLEX.")
@@ -385,6 +385,26 @@ fun CottontailGrpc.Data.toBooleanVectorValue(): BooleanVectorValue? = when (this
 }
 
 /**
+ * Returns the value of [CottontailGrpc.Data] as [ComplexVectorValue].
+ *
+ * @return [ComplexVectorValue] values
+ * @throws QueryException.UnsupportedCastException If cast is not possible.
+ */
+fun CottontailGrpc.Data.toComplexVectorValue(): ComplexVectorValue? = when (this.dataCase) {
+    CottontailGrpc.Data.DataCase.BOOLEANDATA -> throw QueryException.UnsupportedCastException("A value of BOOL cannot be cast to VECTOR[COMPLEX].")
+    CottontailGrpc.Data.DataCase.INTDATA -> ComplexVectorValue(Array(1) { Complex(floatArrayOf(this.intData.toFloat(), 0.0f)) })
+    CottontailGrpc.Data.DataCase.LONGDATA -> ComplexVectorValue(Array(1) { Complex(floatArrayOf(this.longData.toFloat(), 0.0f)) })
+    CottontailGrpc.Data.DataCase.FLOATDATA -> ComplexVectorValue(Array(1) { Complex(floatArrayOf(this.floatData, 0.0f)) })
+    CottontailGrpc.Data.DataCase.DOUBLEDATA -> ComplexVectorValue(Array(1) { Complex(floatArrayOf(this.doubleData.toFloat(), 0.0f)) })
+    CottontailGrpc.Data.DataCase.STRINGDATA -> throw QueryException.UnsupportedCastException("A value of STRING cannot be cast to VECTOR[COMPLEX].")
+    CottontailGrpc.Data.DataCase.COMPLEXDATA -> ComplexVectorValue(Array(1) { Complex(floatArrayOf(this.complexData.real, this.complexData.imaginary)) })
+    CottontailGrpc.Data.DataCase.VECTORDATA -> this.vectorData.toComplexVectorValue()
+    CottontailGrpc.Data.DataCase.NULLDATA -> null
+    CottontailGrpc.Data.DataCase.DATA_NOT_SET -> throw QueryException.UnsupportedCastException("A value of NULL cannot be cast to VECTOR[COMPLEX].")
+    null -> throw QueryException.UnsupportedCastException("A value of NULL cannot be cast to VECTOR[COMPLEX].")
+}
+
+/**
  * Returns the value of [CottontailGrpc.Vector] as [DoubleArray].
  *
  * @return [DoubleArray] values
@@ -470,38 +490,18 @@ fun CottontailGrpc.Vector.toBooleanVectorValue(): BooleanVectorValue = when (thi
 }
 
 /**
- * Returns the value of [CottontailGrpc.Data] as [ComplexVectorValue].
- *
- * @return [ComplexVectorValue] values
- * @throws QueryException.UnsupportedCastException If cast is not possible.
- */
-fun CottontailGrpc.Data.toComplexVectorValue(): ComplexVectorValue? = when (this.dataCase) {
-    CottontailGrpc.Data.DataCase.BOOLEANDATA -> throw QueryException.UnsupportedCastException("A value of BOOL cannot be cast to VECTOR[COMPLEX].")
-    CottontailGrpc.Data.DataCase.INTDATA -> throw QueryException.UnsupportedCastException("A value of INT cannot be cast to VECTOR[COMPLEX].")
-    CottontailGrpc.Data.DataCase.LONGDATA -> throw QueryException.UnsupportedCastException("A value of LONG cannot be cast to VECTOR[COMPLEX].")
-    CottontailGrpc.Data.DataCase.FLOATDATA -> throw QueryException.UnsupportedCastException("A value of FLOAT cannot be cast to VECTOR[COMPLEX].")
-    CottontailGrpc.Data.DataCase.DOUBLEDATA -> throw QueryException.UnsupportedCastException("A value of DOUBLE cannot be cast to VECTOR[COMPLEX].")
-    CottontailGrpc.Data.DataCase.STRINGDATA -> throw QueryException.UnsupportedCastException("A value of STRING cannot be cast to VECTOR[COMPLEX].")
-    CottontailGrpc.Data.DataCase.COMPLEXDATA -> ComplexVectorValue(Array(1) { Complex(floatArrayOf(this.complexData.real, this.complexData.imaginary)) }) // TODO { this.complexData })
-    CottontailGrpc.Data.DataCase.VECTORDATA -> this.vectorData.toComplexVectorValue()
-    CottontailGrpc.Data.DataCase.NULLDATA -> null
-    CottontailGrpc.Data.DataCase.DATA_NOT_SET -> throw QueryException.UnsupportedCastException("A value of NULL cannot be cast to VECTOR[COMPLEX].")
-    null -> throw QueryException.UnsupportedCastException("A value of NULL cannot be cast to VECTOR[COMPLEX].")
-}
-
-/**
  * Returns the value of [CottontailGrpc.Vector] as [ComplexVectorValue].
  *
  * @return [ComplexVectorValue] values
  * @throws QueryException.UnsupportedCastException If cast is not possible.
  */
 fun CottontailGrpc.Vector.toComplexVectorValue(): ComplexVectorValue = when (this.vectorDataCase) {
-    CottontailGrpc.Vector.VectorDataCase.DOUBLEVECTOR -> throw QueryException.UnsupportedCastException("A value of DOUBLE cannot be cast to VECTOR[COMPLEX].")
-    CottontailGrpc.Vector.VectorDataCase.FLOATVECTOR -> throw QueryException.UnsupportedCastException("A value of FLOAT cannot be cast to VECTOR[COMPLEX].")
-    CottontailGrpc.Vector.VectorDataCase.LONGVECTOR -> throw QueryException.UnsupportedCastException("A value of LONG cannot be cast to VECTOR[COMPLEX].")
-    CottontailGrpc.Vector.VectorDataCase.INTVECTOR -> throw QueryException.UnsupportedCastException("A value of INT cannot be cast to VECTOR[COMPLEX].")
+    CottontailGrpc.Vector.VectorDataCase.DOUBLEVECTOR -> ComplexVectorValue(Array(this.complexVector.vectorList.size) { i -> Complex(floatArrayOf(this.complexVector.vectorList[i].real, 0.0f)) })
+    CottontailGrpc.Vector.VectorDataCase.FLOATVECTOR -> ComplexVectorValue(Array(this.complexVector.vectorList.size) { i -> Complex(floatArrayOf(this.complexVector.vectorList[i].real, 0.0f)) })
+    CottontailGrpc.Vector.VectorDataCase.LONGVECTOR -> ComplexVectorValue(Array(this.complexVector.vectorList.size) { i -> Complex(floatArrayOf(this.complexVector.vectorList[i].real, 0.0f)) })
+    CottontailGrpc.Vector.VectorDataCase.INTVECTOR -> ComplexVectorValue(Array(this.complexVector.vectorList.size) { i -> Complex(floatArrayOf(this.complexVector.vectorList[i].real, 0.0f)) })
     CottontailGrpc.Vector.VectorDataCase.BOOLVECTOR -> throw QueryException.UnsupportedCastException("A value of BOOL cannot be cast to VECTOR[COMPLEX].")
-    CottontailGrpc.Vector.VectorDataCase.COMPLEXVECTOR -> ComplexVectorValue(Array(this.complexVector.vectorList.size) { Complex(floatArrayOf(this.complexVector.vectorList[0].real, this.complexVector.vectorList[0].imaginary)) }) // TODO ComplexVectorValue(this.complexVector.vectorList)
+    CottontailGrpc.Vector.VectorDataCase.COMPLEXVECTOR -> ComplexVectorValue(Array(this.complexVector.vectorList.size) { i -> Complex(floatArrayOf(this.complexVector.vectorList[i].real, this.complexVector.vectorList[i].imaginary)) })
     CottontailGrpc.Vector.VectorDataCase.VECTORDATA_NOT_SET -> throw QueryException.UnsupportedCastException("A value of NULL cannot be cast to VECTOR[COMPLEX].")
     null -> throw QueryException.UnsupportedCastException("A value of NULL cannot be cast to VECTOR[COMPLEX].")
 }
