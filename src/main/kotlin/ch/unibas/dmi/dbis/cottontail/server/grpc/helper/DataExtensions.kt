@@ -30,7 +30,7 @@ object DataHelper {
         is FloatVectorValue -> CottontailGrpc.Data.newBuilder().setVectorData(CottontailGrpc.Vector.newBuilder().setFloatVector(CottontailGrpc.FloatVector.newBuilder().addAllVector(value.value.asIterable()))).build()
         is LongVectorValue -> CottontailGrpc.Data.newBuilder().setVectorData(CottontailGrpc.Vector.newBuilder().setLongVector(CottontailGrpc.LongVector.newBuilder().addAllVector(value.value.asIterable()))).build()
         is IntVectorValue -> CottontailGrpc.Data.newBuilder().setVectorData(CottontailGrpc.Vector.newBuilder().setIntVector(CottontailGrpc.IntVector.newBuilder().addAllVector(value.value.asIterable()))).build()
-        is ComplexVectorValue -> CottontailGrpc.Data.newBuilder().setVectorData(CottontailGrpc.Vector.newBuilder().setComplexVector(CottontailGrpc.ComplexVector.newBuilder().addAllVector((Array(value.value.size) { i -> CottontailGrpc.Complex.newBuilder().setReal(value.value[i][0]).setImaginary(value.value[i][1]).build() }).asIterable()))).build()
+        is ComplexVectorValue -> CottontailGrpc.Data.newBuilder().setVectorData(CottontailGrpc.Vector.newBuilder().setComplexVector(CottontailGrpc.ComplexVector.newBuilder().addAllVector(value.value.map { it -> CottontailGrpc.Complex.newBuilder().setReal(it[0]).setImaginary(it[1]).build() }))).build()
         null -> CottontailGrpc.Data.newBuilder().setNullData(CottontailGrpc.Null.getDefaultInstance()).build()
         else -> throw IllegalArgumentException("The specified value cannot be converted to a gRPC Data object.")
     }
