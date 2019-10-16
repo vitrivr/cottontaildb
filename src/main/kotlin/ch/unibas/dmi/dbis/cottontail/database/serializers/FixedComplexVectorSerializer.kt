@@ -15,23 +15,13 @@ import org.mapdb.Serializer
 class FixedComplexVectorSerializer(val size: Int) : Serializer<ComplexVectorValue> {
     override fun serialize(out: DataOutput2, value: ComplexVectorValue) {
         for (i in 0 until size) {
-            out.writeFloat(value.value[i][0]) // real
-            out.writeFloat(value.value[i][1]) // imaginary
+            out.writeFloat(value.value[i][0])
+            out.writeFloat(value.value[i][1])
         }
     }
 
     override fun deserialize(input: DataInput2, available: Int): ComplexVectorValue {
-        val vector = Array(size) { Complex(floatArrayOf(0.0f, 0.0f)) }
-        for (i in 0 until size) {
-            vector[i] = readComplex(input)
-        }
+        val vector = Array(size) { Complex(floatArrayOf(input.readFloat(), input.readFloat())) }
         return ComplexVectorValue(vector)
-    }
-
-    private fun readComplex(input: DataInput2): Complex {
-        // TODO
-        val real: Float = input.readFloat()
-        val imaginary: Float = input.readFloat()
-        return Complex(floatArrayOf(real, imaginary))
     }
 }
