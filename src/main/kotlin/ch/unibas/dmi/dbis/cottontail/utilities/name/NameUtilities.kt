@@ -4,7 +4,7 @@ object NameUtilities {
     /**
      * Finds the longest, common prefix the [Name]s in the given collection share.
      *
-     * @param strings Collection of [Name]s
+     * @param names Collection of [Name]s
      * @return Longest, common prefix.
      */
     public fun findLongestPrefix(names: Collection<Name>) : Name {
