@@ -16,7 +16,7 @@ import ch.unibas.dmi.dbis.cottontail.model.values.Value
  */
 class StandaloneRecord(override val tupleId: Long = Long.MIN_VALUE, override val columns: Array<ColumnDef<*>>, init: Array<Value<*>?>? = null) : Record {
 
-    /** Array of column values (one entry per column). Initializes with null or the default value for the [ColumnType]. */
+    /** Array of column values (one entry per column). Initializes with null or the default value for the [ColumnType][ch.unibas.dmi.dbis.cottontail.database.column.ColumnType]. */
     override val values: Array<Value<*>?> = Array(columns.size) {
         if (this.columns[it].nullable) {
             null
