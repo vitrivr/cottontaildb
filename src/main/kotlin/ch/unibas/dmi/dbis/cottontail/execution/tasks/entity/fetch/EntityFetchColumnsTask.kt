@@ -11,7 +11,8 @@ import com.github.dexecutor.core.task.Task
 import com.github.dexecutor.core.task.TaskExecutionException
 
 /**
- * A [Task] used during query execution. It takes a [Recordset] as input, fetches the desired [Column]s from the specified [Entity] and appends them to the original [Recordset].
+ * A [Task] used during query execution. It takes a [Recordset] as input, fetches the desired [Column][ch.unibas.dmi.dbis.cottontail.database.column.Column]s
+ * from the specified [Entity] and appends them to the original [Recordset].
  *
  * @author Ralph Gasser
  * @version 1.0
