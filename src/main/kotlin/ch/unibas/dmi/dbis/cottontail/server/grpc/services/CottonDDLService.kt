@@ -29,7 +29,7 @@ class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.CottonDDLImplBa
         private val LOGGER = LoggerFactory.getLogger(CottonDDLService::class.java)
     }
     /**
-     * gRPC endpoint for creating a new [Schema]
+     * gRPC endpoint for creating a new [Schema][ch.unibas.dmi.dbis.cottontail.database.schema.Schema]
      */
     override fun createSchema(request: CottontailGrpc.Schema, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) = try {
         LOGGER.trace("Creating schema {}", request.name)
@@ -50,7 +50,7 @@ class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.CottonDDLImplBa
     }
 
     /**
-     * gRPC endpoint for dropping a [Schema]
+     * gRPC endpoint for dropping a [Schema][ch.unibas.dmi.dbis.cottontail.database.schema.Schema]
      */
     override fun dropSchema(request: CottontailGrpc.Schema, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) = try {
         LOGGER.trace("Dropping schema {}", request.name)
@@ -71,7 +71,7 @@ class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.CottonDDLImplBa
     }
 
     /**
-     * gRPC endpoint listing the available [Schema]s.
+     * gRPC endpoint listing the available [Schema][ch.unibas.dmi.dbis.cottontail.database.schema.Schema]s.
      */
     override fun listSchemas(request: CottontailGrpc.Empty, responseObserver: StreamObserver<CottontailGrpc.Schema>) = try {
         this.catalogue.schemas.forEach {
@@ -87,7 +87,7 @@ class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.CottonDDLImplBa
 
     /**
      *
-     * gRPC endpoint for creating a new [Entity]
+     * gRPC endpoint for creating a new [Entity][ch.unibas.dmi.dbis.cottontail.database.entity.Entity]
      */
     override fun createEntity(request: CottontailGrpc.CreateEntityMessage, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) = try {
         LOGGER.trace("Creating entity {}", request.entity.name)
@@ -115,7 +115,7 @@ class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.CottonDDLImplBa
     }
 
     /**
-     * gRPC endpoint for dropping a particular [Schema]
+     * gRPC endpoint for dropping a particular [Schema][ch.unibas.dmi.dbis.cottontail.database.schema.Schema]
      */
     override fun dropEntity(request: CottontailGrpc.Entity, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) = try {
         if (!(request.name as Name).isValid(NameType.SIMPLE)) {
@@ -137,7 +137,8 @@ class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.CottonDDLImplBa
     }
 
     /**
-     * gRPC endpoint listing the available [Entity]s for the provided [Schema].
+     * gRPC endpoint listing the available [Entity][ch.unibas.dmi.dbis.cottontail.database.entity.Entity]s
+     * for the provided [Schema][ch.unibas.dmi.dbis.cottontail.database.schema.Schema].
      */
     override fun listEntities(request: CottontailGrpc.Schema, responseObserver: StreamObserver<CottontailGrpc.Entity>) = try {
         if (!(request.name as Name).isValid(NameType.SIMPLE)) {
@@ -159,7 +160,7 @@ class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.CottonDDLImplBa
     }
 
     /**
-     * gRPC endpoint for creating a particular [Index]
+     * gRPC endpoint for creating a particular [Index][ch.unibas.dmi.dbis.cottontail.database.index.Index]
      */
     override fun createIndex(request: CottontailGrpc.CreateIndexMessage, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) = try {
         val entity = this.catalogue.schemaForName(request.index.entity.schema.name).entityForName(request.index.entity.name)
@@ -192,7 +193,7 @@ class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.CottonDDLImplBa
     }
 
     /**
-     * gRPC endpoint for dropping a particular [Index]
+     * gRPC endpoint for dropping a particular [Index][ch.unibas.dmi.dbis.cottontail.database.index.Index]
      */
     override fun dropIndex(request: CottontailGrpc.DropIndexMessage, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) = try {
         if (!(request.index.name as Name).isValid(NameType.SIMPLE)) {
@@ -218,7 +219,7 @@ class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.CottonDDLImplBa
     }
 
     /**
-     * gRPC endpoint for rebuilding a particular [Index]
+     * gRPC endpoint for rebuilding a particular [Index][ch.unibas.dmi.dbis.cottontail.database.index.Index]
      */
     override fun rebuildIndex(request: CottontailGrpc.RebuildIndexMessage, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) = try {
         if (!(request.index.name as Name).isValid(NameType.SIMPLE)) {
