@@ -18,10 +18,10 @@ import java.util.concurrent.atomic.AtomicLong
  * A record set as returned and processed by Cottontail DB. [Recordset]s are tables. Their columns are defined by the [ColumnDef]'s
  * it contains ([Recordset.columns] and it contains an arbitrary number of [Record] entries as rows.
  *
- * [Recordset]s are the unit of data retrieval and processing in Cottontail DB. Whenever information is accessed through an [Entity],
+ * [Recordset]s are the unit of data retrieval and processing in Cottontail DB. Whenever information is accessed through an [Entity][ch.unibas.dmi.dbis.cottontail.database.entity.Entity],
  * a [Recordset] is being generated. Furthermore, the entire query execution pipeline processes and produces [Recordset]s.
  *
- * @see Entity
+ * @see ch.unibas.dmi.dbis.cottontail.database.entity.Entity
  * @see QueryExecutionTask
  *
  * @author Ralph Gasser
@@ -46,7 +46,6 @@ class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterable {
     /**
      * Creates a new [Record] and appends it to this [Recordset]. This is a potentially unsafe operation.
      *
-     * @param tupleId The tupleId of the new [Record].
      * @param values The values to add to this [Recordset].
      */
     @Synchronized
@@ -90,7 +89,7 @@ class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterable {
     /**
      * Appends a [Record] (without a tupleId) to this [Recordset].
      *
-     * @param values The record to add to this [Recordset].
+     * @param record The record to add to this [Recordset].
      */
     @Synchronized
     fun addRow(record: Record) {
@@ -106,7 +105,7 @@ class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterable {
      * Creates a new [Record] given the provided tupleId and values and appends it to this [Recordset].
      *
      * @param tupleId The tupleId of the new [Record].
-     * @param values The values to add to this [Recordset].
+     * @param record The values to add to this [Recordset].
      */
     @Synchronized
     fun addRow(tupleId: Long, record: Record) {
@@ -123,7 +122,7 @@ class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterable {
      *
      * @param tupleId The tupleId of the new [Record].
      * @param predicate The [BooleanPredicate] to match the [Record] against
-     * @param values The values to add to this [Recordset].
+     * @param record The values to add to this [Recordset].
      * @return True if [Record] was added, false otherwise.
      */
     @Synchronized
@@ -401,7 +400,7 @@ class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterable {
      */
     inner class RecordsetRecord(override val tupleId: Long, init: Array<Value<*>?>? = null) : Record {
 
-        /** Array of [ColumnDef]s that describes the [Columns] of this [Record]. */
+        /** Array of [ColumnDef]s that describes the [Column][ch.unibas.dmi.dbis.cottontail.database.column.Column] of this [Record]. */
         override val columns: Array<out ColumnDef<*>>
             get() = this@Recordset.columns
 
