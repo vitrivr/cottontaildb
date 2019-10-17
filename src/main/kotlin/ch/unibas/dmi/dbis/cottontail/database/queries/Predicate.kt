@@ -10,7 +10,8 @@ import ch.unibas.dmi.dbis.cottontail.model.values.Value
 import ch.unibas.dmi.dbis.cottontail.model.values.VectorValue
 
 /**
- * A general purpose [Predicate] that describes a Cottontail DB query. It can either operate on [Recordset]s or data read from an [Entity].
+ * A general purpose [Predicate] that describes a Cottontail DB query. It can either operate on [Recordset][ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset]s
+ * or data read from an [Entity].
  *
  * @author Ralph Gasser
  * @version 1.0
