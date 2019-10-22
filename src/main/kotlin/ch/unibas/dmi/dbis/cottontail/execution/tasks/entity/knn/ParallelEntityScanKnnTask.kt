@@ -21,7 +21,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
 /**
- * A [Task] that executes a parallel boolean kNN on a [Column] of the specified [Entity]. Parallelism is achieved through the use of co-routines.
+ * A [Task] that executes a parallel boolean kNN on a [Column][ch.unibas.dmi.dbis.cottontail.database.column.Column]
+ * of the specified [Entity]. Parallelism is achieved through the use of co-routines.
  *
  * @author Ralph Gasser
  * @version 1.1

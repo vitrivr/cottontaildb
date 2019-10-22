@@ -23,7 +23,7 @@ import kotlin.collections.HashMap
 /**
  * A configurable execution plan for Cottontail DB queries. This class can be used to specify exactly,
  * how a query should be executed. The execution plan can be configured, by adding different,
- * interdependent [ExecutionTask]s to the [ExcutionPlan]
+ * interdependent [ExecutionTask]s to the [ExecutionPlan]
  *
  * @see ExecutionTask
  *

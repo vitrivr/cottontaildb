@@ -23,7 +23,7 @@ import kotlin.math.max
 
 
 /**
- * This is a re-implementation / copy of Map DB's [ByteBufferVol] class with minor modifications.
+ * This is a re-implementation / copy of Map DB's [ByteBufferVol][org.mapdb.volume.ByteBufferVol] class with minor modifications.
  *
  * @version 1.0
  * @author Ralph Gasser

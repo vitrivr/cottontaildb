@@ -15,7 +15,8 @@ import ch.unibas.dmi.dbis.cottontail.model.values.VectorValue
 import com.github.dexecutor.core.task.Task
 
 /**
- * A [Task] that executes a sequential boolean kNN on a float [Column] of the specified [Entity].
+ * A [Task] that executes a sequential boolean kNN on a float [Column][ch.unibas.dmi.dbis.cottontail.database.column.Column]
+ * of the specified [Entity].
  *
  * @author Ralph Gasser
  * @version 1.1

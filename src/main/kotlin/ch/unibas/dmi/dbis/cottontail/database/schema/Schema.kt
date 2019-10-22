@@ -203,7 +203,8 @@ class Schema(n: Name, override val path: Path, override val parent: Catalogue) :
     /**
      * Closes this [Schema] and all the [Entity] objects that are contained within.
      *
-     * Since locks to [DBO] or [Transaction] objects may be held by other threads, it can take a
+     * Since locks to [DBO] or [Transaction][ch.unibas.dmi.dbis.cottontail.database.general.Transaction]
+     * objects may be held by other threads, it can take a
      * while for this method to complete.
      */
     override fun close() = this.lock.write {

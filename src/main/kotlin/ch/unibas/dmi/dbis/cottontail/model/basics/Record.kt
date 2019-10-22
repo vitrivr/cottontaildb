@@ -6,13 +6,14 @@ import java.lang.IllegalArgumentException
 /**
  * A [Record] as returned and processed by Cottontail DB. A [Record] corresponds to a single row and
  * it can hold multiple values, each belonging to a different column (defined by [ColumnDef]s). A [ColumnDef]
- * must not necessarily correspond to a physical database [Column].
+ * must not necessarily correspond to a physical database [Column][ch.unibas.dmi.dbis.cottontail.database.column.Column].
  *
- * Column-wise access to records through the [Entity] class returns [Record]s. Furthermore, the interface is
- * used in conjunction with the [Recordset] class.
+ * Column-wise access to records through the [Entity][ch.unibas.dmi.dbis.cottontail.database.entity.Entity]
+ * class returns [Record]s. Furthermore, the interface is
+ * used in conjunction with the [Recordset][ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset] class.
  *
- * @see Recordset
- * @see Entity
+ * @see ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
+ * @see ch.unibas.dmi.dbis.cottontail.database.entity.Entity
  *
  * @author Ralph Gasser
  * @version 1.0
@@ -22,7 +23,7 @@ interface Record {
     /** The Tuple ID of the [Record]. Usually corresponds to a tupleId in the underlying database. */
     val tupleId: Long
 
-    /** Array of [ColumnDef]s that describes the [Columns] of this [Record]. */
+    /** Array of [ColumnDef]s that describes the [Columns][ch.unibas.dmi.dbis.cottontail.database.column.Column] of this [Record]. */
     val columns: Array<out ColumnDef<*>>
 
     /** Array of column values (one entry per column). */

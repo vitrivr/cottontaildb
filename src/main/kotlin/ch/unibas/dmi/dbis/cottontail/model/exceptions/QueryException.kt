@@ -29,8 +29,10 @@ open class QueryException(message: String) : DatabaseException(message) {
     class QuerySyntaxException(message: String): DatabaseException(message)
 
     /**
-     * This kind of exception is thrown whenever a query fails to bind to a specific [DBO]. This is usually
-     *  the case, if [Schema], [Entity] or [Column] names are not spelt correctly.
+     * This kind of exception is thrown whenever a query fails to bind to a specific [DBO][ch.unibas.dmi.dbis.cottontail.database.general.DBO].
+     * This is usually the case, if [Schema][ch.unibas.dmi.dbis.cottontail.database.schema.Schema],
+     * [Entity][ch.unibas.dmi.dbis.cottontail.database.entity.Entity] or [Column][ch.unibas.dmi.dbis.cottontail.database.column.Column]
+     * names are not spelt correctly.
      *
      * @param message Message describing the issue with the query.
      */
@@ -44,15 +46,17 @@ open class QueryException(message: String) : DatabaseException(message) {
     class UnsupportedCastException(message: String): DatabaseException(message)
 
     /**
-     * This kind of exception is thrown whenever a [Predicate] is applied that is not supported by the data structure it is supplied to.
+     * This kind of exception is thrown whenever a [Predicate][ch.unibas.dmi.dbis.cottontail.database.queries.Predicate]
+     * is applied that is not supported by the data structure it is supplied to.
      *
      * @param message Message describing the issue with the query.
      */
     class UnsupportedPredicateException(message: String): DatabaseException(message)
 
     /**
-     * This kind of exception is thrown whenever a [Predicate] is routed through an [Index] that does not
-     * support that kind of [Predicate].
+     * This kind of exception is thrown whenever a [Predicate][ch.unibas.dmi.dbis.cottontail.database.queries.Predicate]
+     * is routed through an [Index][ch.unibas.dmi.dbis.cottontail.database.index.Index]
+     * that does not support that kind of [Predicate][ch.unibas.dmi.dbis.cottontail.database.queries.Predicate].
      *
      * @param index FQN of the index.
      * @param message Error message

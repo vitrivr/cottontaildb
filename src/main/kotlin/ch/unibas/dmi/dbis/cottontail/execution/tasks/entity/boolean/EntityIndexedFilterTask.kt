@@ -8,7 +8,9 @@ import ch.unibas.dmi.dbis.cottontail.execution.tasks.basics.ExecutionTask
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
 
 /**
- * A [Task] that executes data access through an index on a defined [Entity] using a [BooleanPredicate]. Only returns [Record]s that match the provided [BooleanPredicate].
+ * A [Task][com.github.dexecutor.core.task.Task] that executes data access through an index on a defined
+ * [Entity] using a [BooleanPredicate]. Only returns [Record][ch.unibas.dmi.dbis.cottontail.model.basics.Record]s
+ * that match the provided [BooleanPredicate].
  *
  * @author Ralph Gasser
  * @version 1.0

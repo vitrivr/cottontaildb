@@ -65,7 +65,7 @@ fun Name.type(): NameType = when {
 /**
  * Checks if this [Name] is a prefix of the provided [Name].
  *
- * @param other The [Name] to check.
+ * @param that The [Name] to check.
  */
 fun Name.isPrefixOf(that: Name): Boolean {
     val o = that.split(COTTONTAIL_NAME_COMPONENT_SEPARATOR)

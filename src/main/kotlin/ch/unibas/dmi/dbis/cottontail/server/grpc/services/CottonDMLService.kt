@@ -82,7 +82,7 @@ class CottonDMLService (val catalogue: Catalogue): CottonDMLGrpc.CottonDMLImplBa
      */
     override fun insertStream(responseObserver: StreamObserver<CottontailGrpc.InsertStatus>): StreamObserver<CottontailGrpc.InsertMessage> = object:StreamObserver<CottontailGrpc.InsertMessage>{
 
-        /** List of all the [Tx] associated with this call. */
+        /** List of all the [Entity.Tx] associated with this call. */
         private val transactions = ConcurrentHashMap<String, Entity.Tx>()
 
         /** Flag indicating that call was closed. */
