@@ -1,6 +1,5 @@
 package ch.unibas.dmi.dbis.cottontail.math.knn.metrics
 
-import ch.unibas.dmi.dbis.cottontail.model.values.ComplexVectorValue
 import ch.unibas.dmi.dbis.cottontail.model.values.VectorValue
 import ch.unibas.dmi.dbis.cottontail.model.values.complex.Complex
 import kotlin.math.*
@@ -91,6 +90,7 @@ enum class ComplexVectorDistance : VectorizedDistanceFunction<Array<Complex>> {
 
     /**
      * Cosine distance between two vectors. Vectors must be of the same size!
+     * https://www.quora.com/What-is-dot-product-of-two-complex-numbers
      */
     COSINE {
         override val operations: Int = 3
@@ -102,7 +102,21 @@ enum class ComplexVectorDistance : VectorizedDistanceFunction<Array<Complex>> {
 
         override fun invoke(a: VectorValue<Array<Complex>>, b: VectorValue<Array<Complex>>, shape: Shape): Double {
             // TODO
-            return 0.0
+            var dot = 0.0
+            var c = 0.0
+            var d = 0.0
+            for (i in b.value.indices) {
+                dot += a.value[i][0] * b.value[i][0] + a.value[i][1] * b.value[i][1]
+                c += a.value[i][0] * a.value[i][0] + a.value[i][1] * a.value[i][1]
+                d += b.value[i][0] * b.value[i][0] + b.value[i][1] * b.value[i][1]
+            }
+            val div = sqrt(c) * sqrt(d)
+
+            return if (div < 1e-6 || div.isNaN()) {
+                1.0
+            } else {
+                1.0 - dot / div
+            }
         }
 
         override fun invoke(a: VectorValue<Array<Complex>>, b: VectorValue<Array<Complex>>, weights: VectorValue<*>): Double {
@@ -114,11 +128,10 @@ enum class ComplexVectorDistance : VectorizedDistanceFunction<Array<Complex>> {
             var dot = 0.0
             var c = 0.0
             var d = 0.0
-            // TODO (for now only the real part is compared)
             for (i in b.value.indices) {
-                dot += a.value[i][0] * b.value[i][0]
-                c += a.value[i][0] * a.value[i][0]
-                d += b.value[i][0] * b.value[i][0]
+                dot += a.value[i][0] * b.value[i][0] + a.value[i][1] * b.value[i][1]
+                c += a.value[i][0] * a.value[i][0] + a.value[i][1] * a.value[i][1]
+                d += b.value[i][0] * b.value[i][0] + b.value[i][1] * b.value[i][1]
             }
             val div = sqrt(c) * sqrt(d)
 
