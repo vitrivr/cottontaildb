@@ -40,7 +40,7 @@ class ColumnDef<T : Any>(name: Name, val type: ColumnType<T>, val size: Int = -1
      * Validates a value with regard to this [ColumnDef] and throws an Exception, if validation fails.
      *
      * @param value The value that should be validated.
-     * @throws [DatabaseException.ValidationException] If validation fails.
+     * @throws ValidationException If validation fails.
      */
     fun validateOrThrow(value: Value<*>?) {
         if (value != null) {

@@ -15,8 +15,8 @@ import com.github.dexecutor.core.task.Task
 import com.github.dexecutor.core.task.TaskExecutionException
 
 /**
- * A [Task] used during query execution. It takes a single [Recordset] as input and fetches the specified [Column] values from the
- * specified [Entity] in order to addRow these values to the resulting [Recordset].
+ * A [Task] used during query execution. It takes a single [Recordset] as input and fetches the specified [Column][ch.unibas.dmi.dbis.cottontail.database.column.Column]
+ * values from the specified [Entity] in order to addRow these values to the resulting [Recordset].
  *
  * A [Recordset] that undergoes this task will grow in terms of columns it contains. However, it should not affect the number of rows.
  *
