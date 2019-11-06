@@ -402,7 +402,7 @@ class Entity(n: Name, schema: Schema) : DBO {
 
             /* Return value of all the desired columns. */
             val columns = this.columns.keys.toTypedArray()
-            return StandaloneRecord(tupleId, columns).assign(columns.map { this.columns.getValue(it).read(tupleId) }.toTypedArray() )
+            return StandaloneRecord(tupleId, columns, columns.map { this.columns.getValue(it).read(tupleId) }.toTypedArray())
         }
 
         /**
@@ -434,12 +434,14 @@ class Entity(n: Name, schema: Schema) : DBO {
 
             val columns = this.columns.keys.toTypedArray()
             val dataset = Recordset(columns)
-            val data = Array<Value<*>?>(columns.size) { null }
 
             this.columns.getValue(columns[0]).forEach {
-                data[0] = it.values[0]
-                for (i in 1 until columns.size) {
-                    data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
+                val data = Array<Value<*>?>(columns.size) { idx ->
+                    if (idx == 0) {
+                        it.values[0]
+                    } else {
+                       this.columns.getValue(columns[idx]).read(it.tupleId)
+                    }
                 }
                 dataset.addRowUnsafe(it.tupleId, data)
             }
@@ -465,8 +467,10 @@ class Entity(n: Name, schema: Schema) : DBO {
         override fun forEach(action: (Record) -> Unit) = forEach(1L, this@Entity.statistics.maxTupleId, action)
 
         /**
-         * Applies the provided function to each entry found in the given range in this [Entity]. The provided function
-         * cannot not change the data stored in the [Entity]!
+         * Applies the provided function / action to each entry found in the given range in this [Entity].
+         *
+         * <strong>Important:</strong> The provided function cannot not change the data stored in the [Entity]
+         * AND the [Record] processed in the function must be copied, if a re-use outside of the function is necessary.
          *
          * @param from The tuple ID of the first [Record] to iterate over.
          * @param to The tuple ID of the last [Record] to iterate over.
@@ -475,14 +479,14 @@ class Entity(n: Name, schema: Schema) : DBO {
         override fun forEach(from: Long, to: Long, action: (Record) -> Unit) = this.localLock.read {
             checkValidForRead()
             val columns = this.columns.keys.toTypedArray()
-            val data = Array<Value<*>?>(columns.size) { null }
+            val data = Array<Value<*>?>(columns.size) { null } /* Important: the data array is being re-used. Hence, StandaloneRecords that are used outside of the action() scope must be copied. */
 
             this.columns.getValue(columns[0]).forEach(from, to) {
                 data[0] = it.values[0]
                 for (i in 1 until columns.size) {
                     data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
                 }
-                action(StandaloneRecord(it.tupleId, columns).assign(data))
+                action(StandaloneRecord(tupleId = it.tupleId, columns = columns, init = data))
             }
         }
 
@@ -499,6 +503,9 @@ class Entity(n: Name, schema: Schema) : DBO {
         /**
          * Applies the provided mapping function on each [Record] found in this [Entity], returning a collection of the desired output values.
          *
+         * <strong>Important:</strong> The provided function cannot not change the data stored in the [Entity] AND the [Record] processed
+         * in the function must be copied, if a re-use outside of the function is necessary.
+         *
          * @param from The tuple ID of the first [Record] to iterate over.
          * @param to The tuple ID of the last [Record] to iterate over.
          * @param action The mapping that should be applied to each [Tuple].
@@ -509,15 +516,15 @@ class Entity(n: Name, schema: Schema) : DBO {
             checkValidForRead()
 
             val columns = this.columns.keys.toTypedArray()
-            val data = Array<Value<*>?>(columns.size) { null }
             val list = mutableListOf<R>()
+            val data = Array<Value<*>?>(columns.size) { null } /* Important: the data array is being re-used. Hence, StandaloneRecords that are used outside of the action() scope must be copied. */
 
             this.columns.getValue(columns[0]).forEach(from, to) {
                 data[0] = it.values[0]
                 for (i in 1 until columns.size) {
                     data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
                 }
-                list.add(action(StandaloneRecord(it.tupleId, columns).assign(data)))
+                list.add(action(StandaloneRecord(tupleId = it.tupleId, columns = columns, init = data)))
             }
             return list
         }
@@ -547,23 +554,25 @@ class Entity(n: Name, schema: Schema) : DBO {
 
             val columns = this.columns.keys.toTypedArray()
             val dataset = Recordset(columns)
-            val data = Array<Value<*>?>(columns.size) { null }
 
             /* Handle filter() for different cases. */
             if (predicate is AtomicBooleanPredicate<*>) {
                 /* Case 1: Predicate affects single column (AtomicBooleanPredicate). */
                 this.columns.getValue(predicate.columns.first()).forEach(predicate) {
-                    for (i in columns.indices) {
-                        data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
+                    val data = Array<Value<*>?>(columns.size) { idx ->
+                        this.columns.getValue(columns[idx]).read(it.tupleId)
                     }
                     dataset.addRowUnsafe(it.tupleId, data)
                 }
                 /* Case 2 (general): Multi-column boolean predicate. */
             } else {
                 this.columns.getValue(columns[0]).forEach {
-                    data[0] = it.values[0]
-                    for (i in 1 until columns.size) {
-                        data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
+                    val data = Array<Value<*>?>(columns.size) { idx ->
+                        if (idx == 0) {
+                            it.values[0]
+                        } else {
+                            this.columns.getValue(columns[idx]).read(it.tupleId)
+                        }
                     }
                     dataset.addRowIfUnsafe(it.tupleId , predicate, data)
                 }
@@ -574,50 +583,19 @@ class Entity(n: Name, schema: Schema) : DBO {
         /**
          * Applies the provided action to each [Record] that matches the given [Predicate].
          *
+         * <strong>Important:</strong> The provided function cannot not change the data stored in the [Entity] AND the
+         * [Record] processed in the function must be copied, if a re-use outside of the function is necessary.
+         *
          * @param predicate The [BooleanPredicate] to filter [Record]s.
          * @param action The action that should be applied.
          */
-        override fun forEach(predicate: BooleanPredicate, action: (Record) -> Unit) = this.localLock.read {
-            checkValidForRead()
-            checkColumnsExist(*predicate.columns.toTypedArray())
-
-            /* Extract necessary data structures. */
-            val columns = this.columns.keys.toTypedArray()
-            val data = Array<Value<*>?>(columns.size) { null }
-            val filterable = this.indexes.find { it.canProcess(predicate) }
-
-            /* Handle forEach() for different cases. */
-            when {
-                /* Case 1: Predicate is satisfiable by index. */
-                filterable != null -> filterable.forEach(predicate) {
-                    for (i in columns.indices) {
-                        data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
-                    }
-                    action(StandaloneRecord(it.tupleId, columns).assign(data))
-                }
-                /* Case 2: Predicate affects single column (AtomicBooleanPredicate). */
-                predicate is AtomicBooleanPredicate<*> -> this.columns.getValue(predicate.columns.first()).forEach(predicate) {
-                    for (i in columns.indices) {
-                        data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
-                    }
-                    action(StandaloneRecord(it.tupleId, columns).assign(data))
-                }
-                /* Case 3 (general): Multi-column boolean predicate. */
-                else -> this.columns.getValue(columns[0]).forEach {
-                    data[0] = it.values[0]
-                    for (i in 1 until columns.size) {
-                        data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
-                    }
-                    val record = StandaloneRecord(it.tupleId, columns).assign(data)
-                    if (predicate.matches(record)) {
-                        action(record)
-                    }
-                }
-            }
-        }
+        override fun forEach(predicate: BooleanPredicate, action: (Record) -> Unit) = forEach(1L, this@Entity.statistics.maxTupleId, predicate, action)
 
         /**
          * Applies the provided action to each [Record] in the given range that matches the given [Predicate].
+         *
+         * <strong>Important:</strong> The provided function cannot not change the data stored in the [Entity] AND the
+         * [Record] processed in the function must be copied, if a re-use outside of the function is necessary.
          *
          * @param from The tuple ID of the first [Record] to iterate over.
          * @param to The tuple ID of the last [Record] to iterate over.
@@ -630,7 +608,7 @@ class Entity(n: Name, schema: Schema) : DBO {
 
             /* Extract necessary data structures. */
             val columns = this.columns.keys.toTypedArray()
-            val data = Array<Value<*>?>(columns.size) { null }
+            val data = Array<Value<*>?>(columns.size) { null } /* Important: the data array is being re-used. Hence, StandaloneRecords that are used outside of the action() scope must be copied. */
             val filterable = this.indexes.find { it.canProcess(predicate) }
 
             /* Handle forEach() for different cases. */
@@ -640,14 +618,14 @@ class Entity(n: Name, schema: Schema) : DBO {
                     for (i in columns.indices) {
                         data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
                     }
-                    action(StandaloneRecord(it.tupleId, columns).assign(data))
+                    action(StandaloneRecord(tupleId = it.tupleId, columns = columns, init = data))
                 }
                 /* Case 2: Predicate affects single column (AtomicBooleanPredicate). */
                 predicate is AtomicBooleanPredicate<*> -> this.columns.getValue(predicate.columns.first()).forEach(from, to, predicate) {
                     for (i in columns.indices) {
                         data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
                     }
-                    action(StandaloneRecord(it.tupleId, columns).assign(data))
+                    action(StandaloneRecord(tupleId = it.tupleId, columns = columns, init = data))
                 }
                 /* Case 3 (general): Multi-column boolean predicate. */
                 else -> this.columns.getValue(columns[0]).forEach(from, to){
@@ -655,7 +633,7 @@ class Entity(n: Name, schema: Schema) : DBO {
                     for (i in 1 until columns.size) {
                         data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
                     }
-                    val record = StandaloneRecord(it.tupleId, columns).assign(data)
+                    val record = StandaloneRecord(tupleId = it.tupleId, columns = columns, init = data)
                     if (predicate.matches(record)) {
                         action(record)
                     }
@@ -666,49 +644,14 @@ class Entity(n: Name, schema: Schema) : DBO {
         /**
          * Applies the provided mapping function to each [Record] that matches the given [Predicate].
          *
+         * <strong>Important:</strong> The provided function cannot not change the data stored in the [Entity] AND the
+         * [Record] processed in the function must be copied, if a re-use outside of the function is necessary.
+         *
          * @param predicate The [BooleanPredicate] to filter [Record]s.
          * @param action The mapping function that should be applied.
          * @return Collection of the results of the mapping function.
          */
-        override fun <R> map(predicate: BooleanPredicate, action: (Record) -> R): Collection<R> = this.localLock.read {
-            checkValidForRead()
-            checkColumnsExist(*predicate.columns.toTypedArray())
-
-            val columns = this.columns.keys.toTypedArray()
-            val data = Array<Value<*>?>(columns.size) { null }
-            val list = mutableListOf<R>()
-            val filterable = this.indexes.find { it.canProcess(predicate) }
-
-            /* Handle map() for different cases. */
-            when {
-                /* Case 1: Predicate satisfiable by index. */
-                filterable != null -> filterable.forEach(predicate) {
-                    for (i in columns.indices) {
-                        data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
-                    }
-                    list.add(action(StandaloneRecord(it.tupleId, columns).assign(data)))
-                }
-                /* Case 2: Predicate affects single column (AtomicBooleanPredicate). */
-                predicate is AtomicBooleanPredicate<*> -> this.columns.getValue(predicate.columns.first()).forEach(predicate) {
-                    for (i in columns.indices) {
-                        data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
-                    }
-                    list.add(action(StandaloneRecord(it.tupleId, columns).assign(data)))
-                }
-                /* Case 3 (general): Multi-column boolean predicate. */
-                else -> this.columns.getValue(columns[0]).forEach {
-                    data[0] = it.values[0]
-                    for (i in 1 until columns.size) {
-                        data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
-                    }
-                    val record = StandaloneRecord(it.tupleId, columns).assign(data)
-                    if (predicate.matches(record)) {
-                        list.add(action(record))
-                    }
-                }
-            }
-            return list
-        }
+        override fun <R> map(predicate: BooleanPredicate, action: (Record) -> R): Collection<R> = map(1L, this@Entity.statistics.maxTupleId, predicate, action)
 
         /**
          * Applies the provided mapping function to each [Record] in the given range that matches the given [Predicate].
@@ -724,7 +667,7 @@ class Entity(n: Name, schema: Schema) : DBO {
             checkColumnsExist(*predicate.columns.toTypedArray())
 
             val columns = this.columns.keys.toTypedArray()
-            val data = Array<Value<*>?>(columns.size) { null }
+            val data = Array<Value<*>?>(columns.size) { null }  /* Important: the data array is being re-used. Hence, StandaloneRecords that are used outside of the action() scope must be copied. */
             val list = mutableListOf<R>()
             val filterable = this.indexes.find { it.canProcess(predicate) }
 
@@ -735,14 +678,14 @@ class Entity(n: Name, schema: Schema) : DBO {
                     for (i in columns.indices) {
                         data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
                     }
-                    list.add(action(StandaloneRecord(it.tupleId, columns).assign(data)))
+                    list.add(action(StandaloneRecord(tupleId = it.tupleId, columns = columns, init = data)))
                 }
                 /* Case 2: Predicate affects single column (AtomicBooleanPredicate). */
                 predicate is AtomicBooleanPredicate<*> -> this.columns.getValue(predicate.columns.first()).forEach(from, to, predicate) {
                     for (i in columns.indices) {
                         data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
                     }
-                    list.add(action(StandaloneRecord(it.tupleId, columns).assign(data)))
+                    list.add(action(StandaloneRecord(tupleId = it.tupleId, columns = columns, init = data)))
                 }
                 /* Case 3 (general): Multi-column boolean predicate. */
                 else -> this.columns.getValue(columns[0]).forEach(from, to) {
@@ -750,7 +693,7 @@ class Entity(n: Name, schema: Schema) : DBO {
                     for (i in 1 until columns.size) {
                         data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
                     }
-                    val record = StandaloneRecord(it.tupleId, columns).assign(data)
+                    val record = StandaloneRecord(tupleId = it.tupleId, columns = columns, init = data)
                     if (predicate.matches(record)) {
                         list.add(action(record))
                     }

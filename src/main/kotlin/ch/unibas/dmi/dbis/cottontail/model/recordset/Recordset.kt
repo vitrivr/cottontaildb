@@ -51,7 +51,7 @@ class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterable {
     @Synchronized
     fun addRowUnsafe(values: Array<Value<*>?>) {
         val next = this.maxTupleId.incrementAndGet()
-        this.map[next] = RecordsetRecord(next).assign(values)
+        this.map[next] = RecordsetRecord(tupleId = next, init = values)
     }
 
     /**
@@ -63,7 +63,7 @@ class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterable {
      */
     @Synchronized
     fun addRowUnsafe(tupleId: Long, values: Array<Value<*>?>) {
-        this.map[this.maxTupleId.incrementAndGet()] = RecordsetRecord(tupleId).assign(values)
+        this.map[this.maxTupleId.incrementAndGet()] = RecordsetRecord(tupleId = tupleId, init = values)
     }
 
     /**
@@ -77,7 +77,7 @@ class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterable {
      */
     @Synchronized
     fun addRowIfUnsafe(tupleId: Long, predicate: BooleanPredicate, values: Array<Value<*>?>): Boolean {
-        val record = RecordsetRecord(tupleId).assign(values)
+        val record = RecordsetRecord(tupleId = tupleId, init = values)
         return if (predicate.matches(record)) {
             this.map[this.maxTupleId.incrementAndGet()] = record
             true
@@ -95,7 +95,7 @@ class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterable {
     fun addRow(record: Record) {
         if (record.columns.contentDeepEquals(this.columns)) {
             val tupleId = this.maxTupleId.incrementAndGet()
-            this.map[tupleId] = RecordsetRecord(tupleId).assign(record.values)
+            this.map[tupleId] = RecordsetRecord(tupleId = tupleId, init = record.values)
         } else {
             throw IllegalArgumentException("The provided record (${this.columns.joinToString(".")}) is incompatible with this record set (${this.columns.joinToString(".")}.")
         }
@@ -110,7 +110,7 @@ class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterable {
     @Synchronized
     fun addRow(tupleId: Long, record: Record) {
         if (record.columns.contentDeepEquals(this.columns)) {
-            this.map[this.maxTupleId.incrementAndGet()] = RecordsetRecord(tupleId).assign(record.values)
+            this.map[this.maxTupleId.incrementAndGet()] = RecordsetRecord(tupleId = tupleId, init = record.values)
         } else {
             throw IllegalArgumentException("The provided record (${this.columns.joinToString(".")}) is incompatible with this record set (${this.columns.joinToString(".")}.")
         }
@@ -406,6 +406,7 @@ class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterable {
 
         /** Array of column values (one entry per column). Initializes with null. */
         override val values: Array<Value<*>?> = if (init != null) {
+            assert(init.size == columns.size)
             init.forEachIndexed { index, any -> columns[index].validateOrThrow(any) }
             init
         } else Array(columns.size) { columns[it].defaultValue() }
