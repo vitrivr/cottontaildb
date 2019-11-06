@@ -438,7 +438,7 @@ class Entity(n: Name, schema: Schema) : DBO {
             this.columns.getValue(columns[0]).forEach {
                 val data = Array<Value<*>?>(columns.size) { idx ->
                     if (idx == 0) {
-                        it.values[0]
+                        it.first()
                     } else {
                        this.columns.getValue(columns[idx]).read(it.tupleId)
                     }
@@ -482,7 +482,7 @@ class Entity(n: Name, schema: Schema) : DBO {
             val data = Array<Value<*>?>(columns.size) { null } /* Important: the data array is being re-used. Hence, StandaloneRecords that are used outside of the action() scope must be copied. */
 
             this.columns.getValue(columns[0]).forEach(from, to) {
-                data[0] = it.values[0]
+                data[0] = it.first()
                 for (i in 1 until columns.size) {
                     data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
                 }
@@ -520,7 +520,7 @@ class Entity(n: Name, schema: Schema) : DBO {
             val data = Array<Value<*>?>(columns.size) { null } /* Important: the data array is being re-used. Hence, StandaloneRecords that are used outside of the action() scope must be copied. */
 
             this.columns.getValue(columns[0]).forEach(from, to) {
-                data[0] = it.values[0]
+                data[0] = it.first()
                 for (i in 1 until columns.size) {
                     data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
                 }
@@ -569,7 +569,7 @@ class Entity(n: Name, schema: Schema) : DBO {
                 this.columns.getValue(columns[0]).forEach {
                     val data = Array<Value<*>?>(columns.size) { idx ->
                         if (idx == 0) {
-                            it.values[0]
+                            it.first()
                         } else {
                             this.columns.getValue(columns[idx]).read(it.tupleId)
                         }
@@ -629,7 +629,7 @@ class Entity(n: Name, schema: Schema) : DBO {
                 }
                 /* Case 3 (general): Multi-column boolean predicate. */
                 else -> this.columns.getValue(columns[0]).forEach(from, to){
-                    data[0] = it.values[0]
+                    data[0] = it.first()
                     for (i in 1 until columns.size) {
                         data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
                     }
@@ -689,7 +689,7 @@ class Entity(n: Name, schema: Schema) : DBO {
                 }
                 /* Case 3 (general): Multi-column boolean predicate. */
                 else -> this.columns.getValue(columns[0]).forEach(from, to) {
-                    data[0] = it.values[0]
+                    data[0] = it.first()
                     for (i in 1 until columns.size) {
                         data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
                     }
