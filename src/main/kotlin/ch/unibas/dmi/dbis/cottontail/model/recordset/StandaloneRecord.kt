@@ -28,6 +28,13 @@ class StandaloneRecord(override val tupleId: Long = Long.MIN_VALUE, override val
         init
     } else Array(this.columns.size) { this.columns[it].defaultValue() }
 
+    /**
+     * Copies this [Record] and returns the copy.
+     *
+     * @return Copy of this [Record]
+     */
+    override fun copy(): Record = StandaloneRecord(tupleId, columns = columns, init = values.copyOf())
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false

@@ -34,6 +34,14 @@ interface Record {
         get() = columns.size
 
     /**
+     * Creates and returns a copy of this [Record]. The copy is supposed to hold its own copy of the values it holds. However,
+     * structural information, such as the columns, may be shared between instances, as they are supposed to be immutable.
+     *
+     * @return Copy of this [Record].
+     */
+    fun copy(): Record
+
+    /**
      * Assigns the provided values to this [Record], i.e. the first value is assigned to the first column,
      * the second to the second column etc.
      *

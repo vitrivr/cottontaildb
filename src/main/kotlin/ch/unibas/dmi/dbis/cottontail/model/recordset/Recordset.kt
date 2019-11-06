@@ -400,9 +400,11 @@ class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterable {
      */
     inner class RecordsetRecord(override val tupleId: Long, init: Array<Value<*>?>? = null) : Record {
 
+
         /** Array of [ColumnDef]s that describes the [Column][ch.unibas.dmi.dbis.cottontail.database.column.Column] of this [Record]. */
-        override val columns: Array<out ColumnDef<*>>
+        override val columns: Array<ColumnDef<*>>
             get() = this@Recordset.columns
+
 
         /** Array of column values (one entry per column). Initializes with null. */
         override val values: Array<Value<*>?> = if (init != null) {
@@ -410,6 +412,13 @@ class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterable {
             init.forEachIndexed { index, any -> columns[index].validateOrThrow(any) }
             init
         } else Array(columns.size) { columns[it].defaultValue() }
+
+        /**
+         * Copies this [Record] and returns the copy.
+         *
+         * @return Copy of this [Record]
+         */
+        override fun copy(): Record = StandaloneRecord(tupleId, columns = columns, init = values.copyOf())
 
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
