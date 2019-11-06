@@ -212,13 +212,13 @@ class CottonDMLService(val catalogue: Catalogue) : CottonDMLGrpc.CottonDMLImplBa
             is FloatColumnType -> value.toFloatValue()
             is DoubleColumnType -> value.toDoubleValue()
             is StringColumnType -> value.toStringValue()
-            is ComplexColumnType -> value.toComplexValue()
+            is ComplexColumnType -> value.toComplex32Value()
             is IntVectorColumnType -> value.toIntVectorValue()
             is LongVectorColumnType -> value.toLongVectorValue()
             is FloatVectorColumnType -> value.toFloatVectorValue()
             is DoubleVectorColumnType -> value.toDoubleVectorValue()
             is BooleanVectorColumnType -> value.toBooleanVectorValue()
-            is ComplexVectorColumnType -> value.toComplexVectorValue()
+            is ComplexVectorColumnType -> value.toComplex32VectorValue()
         }
     }
 }
