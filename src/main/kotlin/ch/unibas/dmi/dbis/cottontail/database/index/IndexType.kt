@@ -1,6 +1,7 @@
 package ch.unibas.dmi.dbis.cottontail.database.index
 
 import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
+import ch.unibas.dmi.dbis.cottontail.database.index.hash.NonUniqueHashIndex
 import ch.unibas.dmi.dbis.cottontail.database.index.hash.UniqueHashIndex
 import ch.unibas.dmi.dbis.cottontail.database.index.lucene.LuceneIndex
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
@@ -22,6 +23,7 @@ enum class IndexType {
      */
     fun open(name: String, entity: Entity, columns: Array<ColumnDef<*>>): Index = when(this) {
         HASH_UQ -> UniqueHashIndex(name, entity, columns)
+        HASH -> NonUniqueHashIndex(name, entity, columns)
         LUCENE -> LuceneIndex(name, entity, columns)
         else -> TODO()
     }
@@ -36,6 +38,7 @@ enum class IndexType {
      */
     fun create(name: String, entity: Entity, columns: Array<ColumnDef<*>>, params: Map<String,String> = emptyMap()) = when (this) {
         HASH_UQ -> UniqueHashIndex(name, entity, columns)
+        HASH -> NonUniqueHashIndex(name, entity, columns)
         LUCENE -> LuceneIndex(name, entity, columns)
         else -> TODO()
     }
