@@ -43,7 +43,7 @@ open class DatabaseException(message: String) : Throwable(message) {
      *
      * @param index The [Name] of the [Index][ch.unibas.dmi.dbis.cottontail.database.index.Index]
      */
-    class IndexAlreadyExistsException(val index: String): DatabaseException("Index '$index' does already exist!")
+    class IndexAlreadyExistsException(val index: Name): DatabaseException("Index '$index' does already exist!")
 
     /**
      * Thrown whenever trying to access an [Index][ch.unibas.dmi.dbis.cottontail.database.index.Index]
@@ -51,7 +51,7 @@ open class DatabaseException(message: String) : Throwable(message) {
      *
      * @param index The [Name] of the [Index][ch.unibas.dmi.dbis.cottontail.database.index.Index]
      */
-    class IndexDoesNotExistException(val index: String): DatabaseException("Index '$index' does not exist!")
+    class IndexDoesNotExistException(val index: Name): DatabaseException("Index '$index' does not exist!")
 
     /**
      * Thrown upon creation of an [Entity][ch.unibas.dmi.dbis.cottontail.database.entity.Entity]

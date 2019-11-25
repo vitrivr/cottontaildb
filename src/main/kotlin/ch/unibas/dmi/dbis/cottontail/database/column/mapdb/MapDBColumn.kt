@@ -144,8 +144,13 @@ class MapDBColumn<T : Any>(override val name: Name, override val parent: Entity)
         override var status: TransactionStatus = TransactionStatus.CLEAN
             private set
 
-        /** The [Serializer] used for de-/serialization of [MapDBColumn] entries. */
-        val serializer = this@MapDBColumn.type.serializer(this@MapDBColumn.columnDef.size)
+        /**
+         * The [ColumnDef] of the [Column] underlying this [ColumnTransaction].
+         *
+         * @return [ColumnTransaction]
+         */
+        override val columnDef: ColumnDef<T>
+            get() = this@MapDBColumn.columnDef
 
         /** Tries to acquire a global read-lock on the [MapDBColumn]. */
         init {
@@ -153,6 +158,9 @@ class MapDBColumn<T : Any>(override val name: Name, override val parent: Entity)
                 throw TransactionException.TransactionDBOClosedException(tid)
             }
         }
+
+        /** The [Serializer] used for de-/serialization of [MapDBColumn] entries. */
+        private val serializer = this@MapDBColumn.type.serializer(this@MapDBColumn.columnDef.size)
 
         /** Obtains a global (non-exclusive) read-lock on [MapDBColumn]. Prevents enclosing [MapDBColumn] from being closed while this [MapDBColumn.Tx] is still in use. */
         private val globalStamp = this@MapDBColumn.globalLock.readLock()
@@ -429,7 +437,7 @@ class MapDBColumn<T : Any>(override val name: Name, override val parent: Entity)
                 val header = this@MapDBColumn.header
                 header.count += 1
                 header.modified = System.currentTimeMillis()
-                store.update(HEADER_RECORD_ID, header, ColumnHeaderSerializer)
+                this@MapDBColumn.store.update(HEADER_RECORD_ID, header, ColumnHeaderSerializer)
                 tupleId
             } catch (e: DBException) {
                 this.status = TransactionStatus.ERROR
@@ -460,7 +468,7 @@ class MapDBColumn<T : Any>(override val name: Name, override val parent: Entity)
                 val header = this@MapDBColumn.header
                 header.count += records.size
                 header.modified = System.currentTimeMillis()
-                store.update(HEADER_RECORD_ID, header, ColumnHeaderSerializer)
+                this@MapDBColumn.store.update(HEADER_RECORD_ID, header, ColumnHeaderSerializer)
                 tupleIds
             } catch (e: DBException) {
                 this.status = TransactionStatus.ERROR
@@ -583,6 +591,8 @@ class MapDBColumn<T : Any>(override val name: Name, override val parent: Entity)
                 this.status = TransactionStatus.DIRTY
             }
         }
+
+
     }
 }
 

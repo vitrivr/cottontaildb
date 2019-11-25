@@ -33,7 +33,7 @@ class ParallelEntityScanKnnTask<T: Any>(val entity: Entity, val knn: KnnPredicat
     private val knnSet = knn.query.map { HeapSelect<ComparablePair<Long,Double>>(this.knn.k) }
 
     /** List of the [ColumnDef] this instance of [ParallelEntityScanKnnTask] produces. */
-    private val produces: Array<ColumnDef<*>> = arrayOf(ColumnDef("${entity.fqn}.distance", ColumnType.forName("DOUBLE")))
+    private val produces: Array<ColumnDef<*>> = arrayOf(ColumnDef(this.entity.fqn.append("distance"), ColumnType.forName("DOUBLE")))
 
     /** The cost of this [ParallelEntityScanKnnTask] is constant */
     override val cost = entity.statistics.columns * (knn.operations + (predicate?.operations ?: 0)).toFloat() / parallelism

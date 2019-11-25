@@ -65,7 +65,7 @@ class LuceneIndex(override val name: Name, override val parent: Entity, override
     }
 
     /** The [LuceneIndex] implementation produces an additional score column. */
-    override val produces: Array<ColumnDef<*>> = arrayOf(ColumnDef("${parent.fqn}.score", ColumnType.forName("FLOAT")))
+    override val produces: Array<ColumnDef<*>> = arrayOf(ColumnDef(parent.fqn.append("score"), ColumnType.forName("FLOAT")))
 
     /** The path to the directory that contains the data for this [LuceneIndex]. */
     override val path: Path = this.parent.path.resolve("idx_lucene_$name")
@@ -247,7 +247,7 @@ class LuceneIndex(override val name: Name, override val parent: Entity, override
     override fun cost(predicate: BooleanPredicate): Float = when {
         canProcess(predicate) -> {
             val searcher = IndexSearcher(this.indexReader)
-            predicate.columns.map { searcher.collectionStatistics(it.name).sumTotalTermFreq() * ATOMIC_COST }.sum()
+            predicate.columns.map { searcher.collectionStatistics(it.name.name).sumTotalTermFreq() * ATOMIC_COST }.sum()
         }
         else -> Float.MAX_VALUE
     }

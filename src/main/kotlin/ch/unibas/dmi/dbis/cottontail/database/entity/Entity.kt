@@ -5,6 +5,7 @@ import ch.unibas.dmi.dbis.cottontail.database.general.DBO
 import ch.unibas.dmi.dbis.cottontail.database.general.TransactionStatus
 import ch.unibas.dmi.dbis.cottontail.database.column.ColumnTransaction
 import ch.unibas.dmi.dbis.cottontail.database.column.mapdb.MapDBColumn
+import ch.unibas.dmi.dbis.cottontail.database.general.begin
 import ch.unibas.dmi.dbis.cottontail.database.index.Index
 import ch.unibas.dmi.dbis.cottontail.database.index.IndexTransaction
 import ch.unibas.dmi.dbis.cottontail.database.index.IndexType
@@ -18,10 +19,10 @@ import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
 import ch.unibas.dmi.dbis.cottontail.model.recordset.StandaloneRecord
 
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
+import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.TransactionException
 import ch.unibas.dmi.dbis.cottontail.model.values.Value
 import ch.unibas.dmi.dbis.cottontail.utilities.name.*
-import ch.unibas.dmi.dbis.cottontail.utilities.name.type
 import ch.unibas.dmi.dbis.cottontail.utilities.extensions.read
 import ch.unibas.dmi.dbis.cottontail.utilities.extensions.write
 
@@ -52,15 +53,9 @@ import kotlin.concurrent.write
  * @author Ralph Gasser
  * @version 1.2
  */
-class Entity(n: Name, schema: Schema) : DBO {
-    /** The [Name] of this [Entity]. Lower-case values are enforced since Cottontail DB is not case-sensitive! */
-    override val name: Name = n.normalize()
-
+class Entity(override val name: Name, override val parent: Schema) : DBO {
     /** The [Path] to the [Entity]'s main folder. */
-    override val path: Path = schema.path.resolve("entity_$name")
-
-    /** The parent [DBO], which is the [Schema] in case of an [Entity]. */
-    override val parent: Schema = schema
+    override val path: Path = this.parent.path.resolve("entity_$name")
 
     /** Internal reference to the [StoreWAL] underpinning this [Entity]. */
     private val store: CottontailStoreWAL = try {
@@ -81,14 +76,14 @@ class Entity(n: Name, schema: Schema) : DBO {
 
     /** List of all the [Column]s associated with this [Entity]. */
     private val columns: Collection<Column<*>> = this.header.columns.map {
-        MapDBColumn<Any>(this.store.get(it, Serializer.STRING)
-                ?: throw DatabaseException.DataCorruptionException("Failed to open entity '$fqn': Could not read column definition at position $it!"), this)
+        MapDBColumn<Any>(Name(this.store.get(it, Serializer.STRING)
+                ?: throw DatabaseException.DataCorruptionException("Failed to open entity '$fqn': Could not read column definition at position $it!")), this)
     }
 
     /** List of all the [Index]es associated with this [Entity]. */
     private val indexes: MutableCollection<Index> = this.header.indexes.map {idx ->
         val index = this.store.get(idx, IndexEntrySerializer) ?: throw DatabaseException.DataCorruptionException("Failed to open entity '$fqn': Could not read index definition at position $idx!")
-        index.type.open(index.name, this, index.columns.map { col -> this.columnForName(col) ?: throw DatabaseException.DataCorruptionException("Failed to open entity '$fqn': It hosts an index for column '$col' that does not exist on the entity!") }.toTypedArray())
+        index.type.open(Name(index.name), this, index.columns.map { col -> this.columnForName(Name(col)) ?: throw DatabaseException.DataCorruptionException("Failed to open entity '$fqn': It hosts an index for column '$col' that does not exist on the entity!") }.toTypedArray())
     }.toMutableSet()
 
     /**
@@ -103,7 +98,8 @@ class Entity(n: Name, schema: Schema) : DBO {
      *
      * @return [EntityStatistics] for this [Entity].
      */
-    val statistics: EntityStatistics = this.header.let { EntityStatistics(it.columns.size, it.size, columns.first().maxTupleId) }
+    val statistics: EntityStatistics
+        get() = this.header.let { EntityStatistics(it.columns.size, it.size, this.columns.first().maxTupleId) }
 
     /**
      * Checks if this [Entity] can process the provided [Predicate] natively (without index).
@@ -131,12 +127,19 @@ class Entity(n: Name, schema: Schema) : DBO {
     fun allIndexes(): Collection<Index> = this.indexes
 
     /**
-     * Returns the [ColumnDef] for the specified [Name]. The name can be either a [NameType.SIMPLE] or [NameType.FQN]
+     * Returns the [ColumnDef] for the specified [Name]. The name can be either a [NameType.SIMPLE] or [NameType.FQN]. In the
+     * first case, it will be used to construct a FQN based on the FQN of this [Entity].
      *
      * @param name The [Name] of the [Column].
      * @return [ColumnDef] of the [Column].
      */
-    fun columnForName(name: Name): ColumnDef<*>? = this.columns.find { it.name == name.normalize().last() }?.columnDef
+    fun columnForName(name: Name): ColumnDef<*>? = this.columns.find {
+        if (name.type == NameType.FQN) {
+            it.name == name.normalize(this.fqn)
+        } else {
+            it.name == name
+        }
+    }?.columnDef
 
     /**
      * Checks, if this [Entity] has an index for the given [ColumnDef] and (optionally) of the given [IndexType]
@@ -156,27 +159,26 @@ class Entity(n: Name, schema: Schema) : DBO {
      */
     fun createIndex(name: Name, type: IndexType, columns: Array<ColumnDef<*>>, params: Map<String,String> = emptyMap()) {
         /* Check the type of name. */
-        val nameNormalized = name.normalize()
-        if (nameNormalized.type() != NameType.SIMPLE) {
-            throw IllegalArgumentException("The provided name '$nameNormalized' is of type '${name.type()}  and cannot be used to access an index through an entity.")
+        if (name.type != NameType.SIMPLE) {
+            throw IllegalArgumentException("The provided name '$name' is of type '${name.type}  and cannot be used to access an index through an entity.")
         }
 
         /* Creates new index. */
         val index: Index = this.globalLock.write {
             val indexEntry = this.header.indexes.map {
-                Pair(it, this.store.get(it, IndexEntrySerializer) ?: throw DatabaseException.DataCorruptionException("Failed to create index '$fqn.$nameNormalized': Could not read index definition at position $it!"))
-            }.find { it.second.name == nameNormalized }
+                Pair(it, this.store.get(it, IndexEntrySerializer) ?: throw DatabaseException.DataCorruptionException("Failed to create index '${this.fqn.append(name)}': Could not read index definition at position $it!"))
+            }.find { Name(it.second.name) == name }
 
-            if (indexEntry != null) throw DatabaseException.IndexAlreadyExistsException("$fqn.$nameNormalized")
+            if (indexEntry != null) throw DatabaseException.IndexAlreadyExistsException(this.fqn.append(name))
 
             /* Creates and opens the index. */
-            val newIndex = type.create(nameNormalized, this, columns, params)
+            val newIndex = type.create(name, this, columns, params)
             this.indexes.add(newIndex)
 
             /* Update catalogue + header. */
             try {
                 /* Update catalogue. */
-                val sid = this.store.put(IndexEntry(nameNormalized, type, false, columns.map { it.name }.toTypedArray()), IndexEntrySerializer)
+                val sid = this.store.put(IndexEntry(name.name, type, false, columns.map { it.name.name }.toTypedArray()), IndexEntrySerializer)
 
                 /* Update header. */
                 val new = this.header.let { EntityHeader(it.size, it.created, System.currentTimeMillis(), it.columns, it.indexes.copyOf(it.indexes.size + 1)) }
@@ -187,7 +189,7 @@ class Entity(n: Name, schema: Schema) : DBO {
                 this.store.rollback()
                 val pathsToDelete = Files.walk(newIndex.path).sorted(Comparator.reverseOrder()).collect(Collectors.toList())
                 pathsToDelete.forEach { Files.delete(it) }
-                throw DatabaseException("Failed to create index '$.fqn.$nameNormalized' due to a storage exception: ${e.message}")
+                throw DatabaseException("Failed to create index '${this.fqn.append(name)}' due to a storage exception: ${e.message}")
             }
 
             newIndex
@@ -201,7 +203,7 @@ class Entity(n: Name, schema: Schema) : DBO {
         } catch (e: Throwable) {
             val pathsToDelete = Files.walk(index.path).sorted(Comparator.reverseOrder()).collect(Collectors.toList())
             pathsToDelete.forEach { Files.delete(it) }
-            throw DatabaseException("Failed to create index '$.fqn.$nameNormalized' due to a build failure: ${e.message}")
+            throw DatabaseException("Failed to create index '${this.fqn.append(name)}' due to a build failure: ${e.message}")
         }
     }
 
@@ -214,16 +216,15 @@ class Entity(n: Name, schema: Schema) : DBO {
      */
     fun dropIndex(name: Name) = this.globalLock.write {
         /* Check the type of name. */
-        val nameNormalized = name.normalize()
-        if (nameNormalized.type() != NameType.SIMPLE) {
-            throw IllegalArgumentException("The provided name '$nameNormalized' is of type '${nameNormalized.type()}  and cannot be used to access an index through an entity.")
+        if (name.type != NameType.SIMPLE) {
+            throw IllegalArgumentException("The provided name '$name' is of type '${name.type}  and cannot be used to access an index through an entity.")
         }
 
         val indexEntry = this.header.indexes.map {
-            Pair(it, this.store.get(it, IndexEntrySerializer) ?: throw DatabaseException.DataCorruptionException("Failed to drop index '$fqn.$nameNormalized': Could not read index definition at position $it!"))
-        }.find { it.second.name == nameNormalized }?.let { ie ->
-            Triple(ie.first, ie.second, this.indexes.find { it.name == ie.second.name })
-        } ?: throw DatabaseException.IndexDoesNotExistException("$fqn.$nameNormalized")
+            Pair(it, this.store.get(it, IndexEntrySerializer) ?: throw DatabaseException.DataCorruptionException("Failed to drop index '$fqn.$name': Could not read index definition at position $it!"))
+        }.find { Name(it.second.name) == name }?.let { ie ->
+            Triple(ie.first, ie.second, this.indexes.find { it.name == Name(ie.second.name) })
+        } ?: throw DatabaseException.IndexDoesNotExistException(this.fqn.append(name))
 
         /* Close index. */
         indexEntry.third!!.close()
@@ -236,7 +237,7 @@ class Entity(n: Name, schema: Schema) : DBO {
             this.store.commit()
         } catch (e: DBException) {
             this.store.rollback()
-            throw DatabaseException("Failed to drop index '$fqn.$nameNormalized' due to a storage exception: ${e.message}")
+            throw DatabaseException("Failed to drop index '$fqn.$name' due to a storage exception: ${e.message}")
         }
 
         /* Delete files that belong to the index. */
@@ -252,12 +253,11 @@ class Entity(n: Name, schema: Schema) : DBO {
      * @param name The name of the [Index]
      */
     fun updateIndex(name: Name) = this.globalLock.read {
-        val nameNormalized = name.normalize()
-        val index = this.indexes.find { it.name == nameNormalized }
+        val index = this.indexes.find { it.name.match(name) != Match.NO_MATCH }
         if (index != null) {
             index.Tx(false).rebuild()
         } else {
-            throw DatabaseException.IndexDoesNotExistException(this.fqn.append(nameNormalized))
+            throw DatabaseException.IndexDoesNotExistException(this.fqn.append(name))
         }
     }
 
@@ -265,8 +265,11 @@ class Entity(n: Name, schema: Schema) : DBO {
      * Updates all [Index]es for this [Entity]
      */
     fun updateAllIndexes() = this.globalLock.read {
-        this.indexes.forEach {
-            it.Tx(false).rebuild()
+        this.indexes.forEach {index ->
+            index.Tx(false).begin { tx ->
+                tx.rebuild()
+                true
+            }
         }
     }
 
@@ -309,18 +312,21 @@ class Entity(n: Name, schema: Schema) : DBO {
     inner class Tx(override val readonly: Boolean, override val tid: UUID = UUID.randomUUID(), columns: Array<ColumnDef<*>>? = null, ommitIndex: Boolean = false) : EntityTransaction {
 
         /** List of [ColumnTransaction]s associated with this [Entity.Tx]. */
-        private val columns: Map<ColumnDef<*>, ColumnTransaction<*>> = if (columns != null && this.readonly) {
-            this@Entity.columns.filter{columns.contains(it.columnDef)}.associateBy({ColumnDef(it.fqn, it.type, it.size)}, {it.newTransaction(readonly, tid)})
+        private val colTxs: List<ColumnTransaction<*>> = if (columns != null && this.readonly) {
+            columns.map { it1 ->  this@Entity.columns.firstOrNull { it2 -> it1.isEquivalent(it2.columnDef) }?.newTransaction(this.readonly, this.tid) ?: throw QueryException.ColumnDoesNotExistException(it1)}
         } else {
-            this@Entity.columns.associateBy({ColumnDef(it.fqn, it.type, it.size)}, {it.newTransaction(readonly, tid)})
+            this@Entity.columns.map { it.newTransaction(this.readonly, tid) }
         }
 
         /** List of [IndexTransaction] associated with this [Entity.Tx]. */
-        private val indexes: Collection<IndexTransaction> = if (!ommitIndex) {
+        private val indexTxs: Collection<IndexTransaction> = if (!ommitIndex) {
             this@Entity.indexes.map { it.Tx(true, tid) }
         } else {
             emptyList()
         }
+
+        /** List of all [ColumnDef]s affected by this [Entity.Tx]. */
+        private val columns = this.colTxs.map { it.columnDef }.toTypedArray()
 
         /** Flag indicating whether or not this [Entity.Tx] was closed */
         @Volatile
@@ -344,7 +350,7 @@ class Entity(n: Name, schema: Schema) : DBO {
             this@Entity.txLock.writeLock()
         }
 
-        /** A [ReentrantReadWriteLock] local to this [Entity.Tx]. It makes sure, that this [Entity] cannot be commited, closed or rolled back while it is being used. */
+        /** A [ReentrantReadWriteLock] local to this [Entity.Tx]. It makes sure, that this [Entity] cannot be committed, closed or rolled back while it is being used. */
         private val localLock = ReentrantReadWriteLock()
 
         /**
@@ -353,7 +359,7 @@ class Entity(n: Name, schema: Schema) : DBO {
         @Synchronized
         override fun commit() = this.localLock.write {
             if (this.status == TransactionStatus.DIRTY) {
-                this.columns.values.forEach { it.commit() }
+                this.colTxs.forEach { it.commit() }
                 this@Entity.store.commit()
                 this.status = TransactionStatus.CLEAN
             }
@@ -365,7 +371,7 @@ class Entity(n: Name, schema: Schema) : DBO {
         @Synchronized
         override fun rollback() = this.localLock.write {
             if (this.status == TransactionStatus.DIRTY) {
-                this.columns.values.forEach { it.rollback() }
+                this.colTxs.forEach { it.rollback() }
                 this@Entity.store.rollback()
                 this.status = TransactionStatus.CLEAN
             }
@@ -380,8 +386,8 @@ class Entity(n: Name, schema: Schema) : DBO {
                 if (this.status == TransactionStatus.DIRTY) {
                     this.rollback()
                 }
-                this.indexes.forEach { it.close() }
-                this.columns.values.forEach { it.close() }
+                this.indexTxs.forEach { it.close() }
+                this.colTxs.forEach { it.close() }
                 this.status = TransactionStatus.CLOSED
                 this@Entity.txLock.unlock(this.txStamp)
                 this@Entity.globalLock.unlockRead(this.globalStamp)
@@ -401,8 +407,7 @@ class Entity(n: Name, schema: Schema) : DBO {
             checkValidTupleId(tupleId)
 
             /* Return value of all the desired columns. */
-            val columns = this.columns.keys.toTypedArray()
-            return StandaloneRecord(tupleId, columns).assign(columns.map { this.columns.getValue(it).read(tupleId) }.toTypedArray() )
+            return StandaloneRecord(tupleId, this.columns).assign(this.colTxs.map { it.read(tupleId) }.toTypedArray() )
         }
 
         /**
@@ -415,11 +420,10 @@ class Entity(n: Name, schema: Schema) : DBO {
          */
         fun readMany(tupleIds: Collection<Long>): Recordset = this.localLock.read {
             checkValidForRead()
-            val columns = this.columns.keys.toTypedArray()
-            val dataset = Recordset(columns)
+            val dataset = Recordset(this.columns)
             tupleIds.forEach { tid ->
                 checkValidTupleId(tid)
-                dataset.addRowUnsafe(tid, columns.map { this.columns.getValue(it).read(tid) }.toTypedArray())
+                dataset.addRowUnsafe(tid, this.colTxs.map { it.read(tid) }.toTypedArray())
             }
             return dataset
         }
@@ -432,14 +436,13 @@ class Entity(n: Name, schema: Schema) : DBO {
         fun readAll(): Recordset = this.localLock.read {
             checkValidForRead()
 
-            val columns = this.columns.keys.toTypedArray()
-            val dataset = Recordset(columns)
-            val data = Array<Value<*>?>(columns.size) { null }
+            val dataset = Recordset(this.columns)
+            val data = Array<Value<*>?>(this.columns.size) { null }
 
-            this.columns.getValue(columns[0]).forEach {
+            this.colTxs[0].forEach {
                 data[0] = it.values[0]
                 for (i in 1 until columns.size) {
-                    data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
+                    data[i] = this.colTxs[i].read(it.tupleId)
                 }
                 dataset.addRowUnsafe(it.tupleId, data)
             }
@@ -474,13 +477,12 @@ class Entity(n: Name, schema: Schema) : DBO {
          */
         override fun forEach(from: Long, to: Long, action: (Record) -> Unit) = this.localLock.read {
             checkValidForRead()
-            val columns = this.columns.keys.toTypedArray()
-            val data = Array<Value<*>?>(columns.size) { null }
 
-            this.columns.getValue(columns[0]).forEach(from, to) {
+            val data = Array<Value<*>?>(columns.size) { null }
+            this.colTxs[0].forEach(from, to) {
                 data[0] = it.values[0]
                 for (i in 1 until columns.size) {
-                    data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
+                    data[i] = this.colTxs[i].read(it.tupleId)
                 }
                 action(StandaloneRecord(it.tupleId, columns).assign(data))
             }
@@ -508,14 +510,13 @@ class Entity(n: Name, schema: Schema) : DBO {
         override fun <R> map(from: Long, to: Long, action: (Record) -> R): Collection<R> = this.localLock.read {
             checkValidForRead()
 
-            val columns = this.columns.keys.toTypedArray()
             val data = Array<Value<*>?>(columns.size) { null }
             val list = mutableListOf<R>()
 
-            this.columns.getValue(columns[0]).forEach(from, to) {
+            this.colTxs[0].forEach(from, to) {
                 data[0] = it.values[0]
                 for (i in 1 until columns.size) {
-                    data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
+                    data[i] = this.colTxs[i].read(it.tupleId)
                 }
                 list.add(action(StandaloneRecord(it.tupleId, columns).assign(data)))
             }
@@ -545,25 +546,24 @@ class Entity(n: Name, schema: Schema) : DBO {
             checkValidForRead()
             checkColumnsExist(*predicate.columns.toTypedArray())
 
-            val columns = this.columns.keys.toTypedArray()
-            val dataset = Recordset(columns)
-            val data = Array<Value<*>?>(columns.size) { null }
+            val dataset = Recordset(this.columns)
+            val data = Array<Value<*>?>(this.columns.size) { null }
 
             /* Handle filter() for different cases. */
             if (predicate is AtomicBooleanPredicate<*>) {
                 /* Case 1: Predicate affects single column (AtomicBooleanPredicate). */
-                this.columns.getValue(predicate.columns.first()).forEach(predicate) {
+                this.colTxs.first { it.columnDef.isEquivalent(predicate.columns.first()) }.forEach(predicate) {
                     for (i in columns.indices) {
-                        data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
+                        data[i] = this.colTxs[i].read(it.tupleId)
                     }
                     dataset.addRowUnsafe(it.tupleId, data)
                 }
                 /* Case 2 (general): Multi-column boolean predicate. */
             } else {
-                this.columns.getValue(columns[0]).forEach {
+                this.colTxs[0].forEach {
                     data[0] = it.values[0]
                     for (i in 1 until columns.size) {
-                        data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
+                        data[i] = this.colTxs[i].read(it.tupleId)
                     }
                     dataset.addRowIfUnsafe(it.tupleId , predicate, data)
                 }
@@ -582,31 +582,30 @@ class Entity(n: Name, schema: Schema) : DBO {
             checkColumnsExist(*predicate.columns.toTypedArray())
 
             /* Extract necessary data structures. */
-            val columns = this.columns.keys.toTypedArray()
-            val data = Array<Value<*>?>(columns.size) { null }
-            val filterable = this.indexes.find { it.canProcess(predicate) }
+            val data = Array<Value<*>?>(this.columns.size) { null }
+            val filterable = this.indexTxs.find { it.canProcess(predicate) }
 
             /* Handle forEach() for different cases. */
             when {
                 /* Case 1: Predicate is satisfiable by index. */
                 filterable != null -> filterable.forEach(predicate) {
                     for (i in columns.indices) {
-                        data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
+                        data[i] = this.colTxs[i].read(it.tupleId)
                     }
                     action(StandaloneRecord(it.tupleId, columns).assign(data))
                 }
                 /* Case 2: Predicate affects single column (AtomicBooleanPredicate). */
-                predicate is AtomicBooleanPredicate<*> -> this.columns.getValue(predicate.columns.first()).forEach(predicate) {
+                predicate is AtomicBooleanPredicate<*> -> this.colTxs.first { it.columnDef.isEquivalent(predicate.columns.first()) }.forEach(predicate) {
                     for (i in columns.indices) {
-                        data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
+                        data[i] = this.colTxs[i].read(it.tupleId)
                     }
                     action(StandaloneRecord(it.tupleId, columns).assign(data))
                 }
                 /* Case 3 (general): Multi-column boolean predicate. */
-                else -> this.columns.getValue(columns[0]).forEach {
+                else -> this.colTxs[0].forEach {
                     data[0] = it.values[0]
                     for (i in 1 until columns.size) {
-                        data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
+                        data[i] = this.colTxs[i].read(it.tupleId)
                     }
                     val record = StandaloneRecord(it.tupleId, columns).assign(data)
                     if (predicate.matches(record)) {
@@ -629,31 +628,30 @@ class Entity(n: Name, schema: Schema) : DBO {
             checkColumnsExist(*predicate.columns.toTypedArray())
 
             /* Extract necessary data structures. */
-            val columns = this.columns.keys.toTypedArray()
-            val data = Array<Value<*>?>(columns.size) { null }
-            val filterable = this.indexes.find { it.canProcess(predicate) }
+            val data = Array<Value<*>?>(this.columns.size) { null }
+            val filterable = this.indexTxs.find { it.canProcess(predicate) }
 
             /* Handle forEach() for different cases. */
             when {
                 /* Case 1: Predicate is satisfiable by index. */
                 filterable != null -> filterable.forEach(from, to, predicate) {
                     for (i in columns.indices) {
-                        data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
+                        data[i] = this.colTxs[i].read(it.tupleId)
                     }
                     action(StandaloneRecord(it.tupleId, columns).assign(data))
                 }
                 /* Case 2: Predicate affects single column (AtomicBooleanPredicate). */
-                predicate is AtomicBooleanPredicate<*> -> this.columns.getValue(predicate.columns.first()).forEach(from, to, predicate) {
+                predicate is AtomicBooleanPredicate<*> -> this.colTxs.first { it.columnDef.isEquivalent(predicate.columns.first()) }.forEach(from, to, predicate) {
                     for (i in columns.indices) {
-                        data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
+                        data[i] = this.colTxs[i].read(it.tupleId)
                     }
                     action(StandaloneRecord(it.tupleId, columns).assign(data))
                 }
                 /* Case 3 (general): Multi-column boolean predicate. */
-                else -> this.columns.getValue(columns[0]).forEach(from, to){
+                else -> this.colTxs[0].forEach(from, to){
                     data[0] = it.values[0]
                     for (i in 1 until columns.size) {
-                        data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
+                        data[i] = this.colTxs[i].read(it.tupleId)
                     }
                     val record = StandaloneRecord(it.tupleId, columns).assign(data)
                     if (predicate.matches(record)) {
@@ -674,32 +672,31 @@ class Entity(n: Name, schema: Schema) : DBO {
             checkValidForRead()
             checkColumnsExist(*predicate.columns.toTypedArray())
 
-            val columns = this.columns.keys.toTypedArray()
-            val data = Array<Value<*>?>(columns.size) { null }
+            val data = Array<Value<*>?>(this.columns.size) { null }
             val list = mutableListOf<R>()
-            val filterable = this.indexes.find { it.canProcess(predicate) }
+            val filterable = this.indexTxs.find { it.canProcess(predicate) }
 
             /* Handle map() for different cases. */
             when {
                 /* Case 1: Predicate satisfiable by index. */
                 filterable != null -> filterable.forEach(predicate) {
                     for (i in columns.indices) {
-                        data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
+                        data[i] = this.colTxs[i].read(it.tupleId)
                     }
                     list.add(action(StandaloneRecord(it.tupleId, columns).assign(data)))
                 }
                 /* Case 2: Predicate affects single column (AtomicBooleanPredicate). */
-                predicate is AtomicBooleanPredicate<*> -> this.columns.getValue(predicate.columns.first()).forEach(predicate) {
+                predicate is AtomicBooleanPredicate<*> -> this.colTxs.first { it.columnDef.isEquivalent(predicate.columns.first()) }.forEach(predicate) {
                     for (i in columns.indices) {
-                        data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
+                        data[i] = this.colTxs[i].read(it.tupleId)
                     }
                     list.add(action(StandaloneRecord(it.tupleId, columns).assign(data)))
                 }
                 /* Case 3 (general): Multi-column boolean predicate. */
-                else -> this.columns.getValue(columns[0]).forEach {
+                else -> this.colTxs[0].forEach {
                     data[0] = it.values[0]
                     for (i in 1 until columns.size) {
-                        data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
+                        data[i] = this.colTxs[i].read(it.tupleId)
                     }
                     val record = StandaloneRecord(it.tupleId, columns).assign(data)
                     if (predicate.matches(record)) {
@@ -723,32 +720,31 @@ class Entity(n: Name, schema: Schema) : DBO {
             checkValidForRead()
             checkColumnsExist(*predicate.columns.toTypedArray())
 
-            val columns = this.columns.keys.toTypedArray()
             val data = Array<Value<*>?>(columns.size) { null }
             val list = mutableListOf<R>()
-            val filterable = this.indexes.find { it.canProcess(predicate) }
+            val filterable = this.indexTxs.find { it.canProcess(predicate) }
 
             /* Handle map() for different cases. */
             when {
                 /* Case 1: Predicate satisfiable by index. */
                 filterable != null -> filterable.forEach(from, to, predicate) {
                     for (i in columns.indices) {
-                        data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
+                        data[i] = this.colTxs[i].read(it.tupleId)
                     }
                     list.add(action(StandaloneRecord(it.tupleId, columns).assign(data)))
                 }
                 /* Case 2: Predicate affects single column (AtomicBooleanPredicate). */
-                predicate is AtomicBooleanPredicate<*> -> this.columns.getValue(predicate.columns.first()).forEach(from, to, predicate) {
+                predicate is AtomicBooleanPredicate<*> -> this.colTxs.first { it.columnDef.isEquivalent(predicate.columns.first()) }.forEach(from, to, predicate) {
                     for (i in columns.indices) {
-                        data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
+                        data[i] = this.colTxs[i].read(it.tupleId)
                     }
                     list.add(action(StandaloneRecord(it.tupleId, columns).assign(data)))
                 }
                 /* Case 3 (general): Multi-column boolean predicate. */
-                else -> this.columns.getValue(columns[0]).forEach(from, to) {
+                else -> this.colTxs[0].forEach(from, to) {
                     data[0] = it.values[0]
                     for (i in 1 until columns.size) {
-                        data[i] = this.columns.getValue(columns[i]).read(it.tupleId)
+                        data[i] = this.colTxs[i].read(it.tupleId)
                     }
                     val record = StandaloneRecord(it.tupleId, columns).assign(data)
                     if (predicate.matches(record)) {
@@ -768,7 +764,7 @@ class Entity(n: Name, schema: Schema) : DBO {
          * @return Collection of [IndexTransaction]s. May be empty.
          */
         override fun indexes(columns: Array<ColumnDef<*>>?, type: IndexType?): Collection<IndexTransaction> = this.localLock.read {
-            this.indexes.filter { tx ->
+            this.indexTxs.filter { tx ->
                 (columns?.all { tx.columns.contains(it) } ?: true) && (type == null || tx.type == type)
             }
         }
@@ -783,12 +779,13 @@ class Entity(n: Name, schema: Schema) : DBO {
          * @throws DatabaseException If a general database error occurs during the insert.
          */
         fun insert(record: Record): Long? = this.localLock.read {
-            checkColumnsExist(*record.columns) /* Perform sanity check on columns before locking. */
             checkValidForWrite()
+            checkColumnsExist(*record.columns) /* Perform sanity check on columns before locking. */
+
             try {
                 var lastRecId: Long? = null
-                for ((column, tx) in this.columns) {
-                    val recId = (tx as ColumnTransaction<Any>).insert(record[column] as Value<Any>?)
+                for (i in this.colTxs.indices) {
+                    val recId = (this.colTxs[i] as ColumnTransaction<Any>).insert(record[this.columns[i]] as Value<Any>?)
                     if (lastRecId != recId && lastRecId != null) {
                         throw DatabaseException.DataCorruptionException("Entity ${this@Entity.fqn} is corrupt. Insert did not yield same record ID for all columns involved!")
                     }
@@ -823,14 +820,15 @@ class Entity(n: Name, schema: Schema) : DBO {
          * @throws DatabaseException If a general database error occurs during the insert.
          */
         fun insertAll(tuples: Collection<Record>): Collection<Long?> = this.localLock.read {
-            tuples.forEach { checkColumnsExist(*it.columns) }  /* Perform sanity check on columns before locking. */
             checkValidForWrite()
+            tuples.forEach { checkColumnsExist(*it.columns) }
+
             try {
                 /* Perform delete on each column. */
-                val tuplesIds = tuples.map {
+                val tuplesIds = tuples.map { record ->
                     var lastRecId: Long? = null
-                    for ((column, tx) in this.columns) {
-                        val recId = (tx as ColumnTransaction<Any>).insert(it[column] as Value<Any>?)
+                    for (i in this.colTxs.indices) {
+                        val recId = (this.colTxs[i] as ColumnTransaction<Any>).insert(record[this.columns[i]] as Value<Any>?)
                         if (lastRecId != recId && lastRecId != null) {
                             throw DatabaseException.DataCorruptionException("Entity ${this@Entity.fqn} is corrupt. Insert did not yield same record ID for all columns involved!")
                         }
@@ -843,7 +841,7 @@ class Entity(n: Name, schema: Schema) : DBO {
                 val header = this@Entity.header
                 header.size += tuples.size
                 header.modified = System.currentTimeMillis()
-                store.update(HEADER_RECORD_ID, header, EntityHeaderSerializer)
+                this@Entity.store.update(HEADER_RECORD_ID, header, EntityHeaderSerializer)
 
                 return tuplesIds
             } catch (e: DatabaseException) {
@@ -869,13 +867,13 @@ class Entity(n: Name, schema: Schema) : DBO {
             checkValidForWrite()
             try {
                 /* Perform delete on each column. */
-                this.columns.values.forEach { it.delete(tupleId) }
+                this.colTxs.forEach { it.delete(tupleId) }
 
                 /* Update header. */
                 val header = this@Entity.header
                 header.size -= 1
                 header.modified = System.currentTimeMillis()
-                store.update(HEADER_RECORD_ID, header, EntityHeaderSerializer)
+                this@Entity.store.update(HEADER_RECORD_ID, header, EntityHeaderSerializer)
             } catch (e: DBException) {
                 this.status = TransactionStatus.ERROR
                 throw DatabaseException("Deleting record $tid failed due to an error in the underlying storage: ${e.message}.")
@@ -897,14 +895,14 @@ class Entity(n: Name, schema: Schema) : DBO {
             try {
                 /* Perform delete on each column. */
                 tupleIds.forEach { tupleId ->
-                    this.columns.values.forEach { it.delete(tupleId) }
+                    this.colTxs.forEach { it.delete(tupleId) }
                 }
 
                 /* Update header. */
                 val header = this@Entity.header
                 header.size -= tupleIds.size
                 header.modified = System.currentTimeMillis()
-                store.update(HEADER_RECORD_ID, header, EntityHeaderSerializer)
+                this@Entity.store.update(HEADER_RECORD_ID, header, EntityHeaderSerializer)
             } catch (e: DBException) {
                 this.status = TransactionStatus.ERROR
                 throw DatabaseException("Deleting records failed due to an error in the underlying storage: ${e.message}.")
@@ -916,9 +914,9 @@ class Entity(n: Name, schema: Schema) : DBO {
          *
          * @params The list of [Column]s that should be checked.
          */
-        private fun checkColumnsExist(vararg columns: ColumnDef<*>) = columns.forEach {
-            if (!this.columns.contains(it)) {
-                throw TransactionException.ColumnUnknownException(tid, it, this@Entity.name)
+        private fun checkColumnsExist(vararg columns: ColumnDef<*>) = columns.forEach { it1 ->
+            if (!this.columns.any { it2 -> it1.isEquivalent(it2) }) {
+                throw TransactionException.ColumnUnknownException(this.tid, it1)
             }
         }
 

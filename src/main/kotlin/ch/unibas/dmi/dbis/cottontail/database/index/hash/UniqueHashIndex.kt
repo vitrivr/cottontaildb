@@ -53,7 +53,7 @@ class UniqueHashIndex(override val name: Name, override val parent: Entity, over
 
     /** The internal [DB] reference. */
     private val db = if (parent.parent.parent.config.forceUnmapMappedFiles) {
-        DBMaker.fileDB(this.path.toFile()).fileMmapEnable().cleanerHackEnable().transactionEnable().make()
+        DBMaker.fileDB(this.path.toFile()).fileMmapEnable().transactionEnable().make()
     } else {
         DBMaker.fileDB(this.path.toFile()).fileMmapEnable().transactionEnable().make()
     }
@@ -139,7 +139,8 @@ class UniqueHashIndex(override val name: Name, override val parent: Entity, over
 
         /* (Re-)create index entries. */
         val localMap = this.map as HTreeMap<Value<*>,Long>
-        this.parent.Tx(readonly = true, columns = this.columns).begin { tx ->
+
+        this.parent.Tx(readonly = true, columns = this.columns, ommitIndex = true).begin { tx ->
             tx.forEach {
                 val value = it[this.columns[0]] ?: throw ValidationException.IndexUpdateException(this.fqn, "A values cannot be null for instances of unique hash-index but tid=${it.tupleId} is")
                 if (!localMap.containsKey(value)) {

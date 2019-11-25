@@ -7,6 +7,7 @@ import ch.unibas.dmi.dbis.cottontail.execution.tasks.basics.ExecutionTask
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
 import ch.unibas.dmi.dbis.cottontail.model.values.DoubleValue
+import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
 import com.github.dexecutor.core.task.Task
 import com.github.dexecutor.core.task.TaskExecutionException
 
@@ -36,7 +37,7 @@ class RecordsetMeanProjectionTask(val projection: Projection, estimatedRows: Int
 
         /* Calculate mean(). */
         val column = projection.columns.first()
-        val resultsColumn = ColumnDef.withAttributes(this.projection.fields[column.name] ?: "mean(${column.name})", "DOUBLE")
+        val resultsColumn = ColumnDef.withAttributes(this.projection.fields[column.name] ?: Name("mean(${column.name})"), "DOUBLE")
         val results = Recordset(arrayOf(resultsColumn))
         if (parent.rowCount > 0) {
             var sum = 0.0

@@ -7,6 +7,7 @@ import ch.unibas.dmi.dbis.cottontail.execution.tasks.basics.ExecutionTask
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
 import ch.unibas.dmi.dbis.cottontail.model.values.DoubleValue
+import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
 
 import com.github.dexecutor.core.task.Task
 import com.github.dexecutor.core.task.TaskExecutionException
@@ -37,7 +38,7 @@ class RecordsetMaxProjectionTask(val projection: Projection, estimatedRows: Int 
 
         /* Calculate max(). */
         val column = projection.columns.first()
-        val resultsColumn = ColumnDef.withAttributes(this.projection.fields[column.name] ?: "max(${column.name})", "DOUBLE")
+        val resultsColumn = ColumnDef.withAttributes(this.projection.fields[column.name] ?: Name("max(${column.name})"), "DOUBLE")
         var max = Double.MIN_VALUE
         val results = Recordset(arrayOf(resultsColumn))
         parent.forEach {

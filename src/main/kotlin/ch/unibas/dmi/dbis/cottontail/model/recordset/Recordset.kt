@@ -8,8 +8,10 @@ import ch.unibas.dmi.dbis.cottontail.model.basics.Record
 import ch.unibas.dmi.dbis.cottontail.model.basics.Scanable
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
 import ch.unibas.dmi.dbis.cottontail.model.values.Value
+import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
 
 import java.lang.IllegalArgumentException
+import java.lang.Long.max
 
 import java.util.*
 import java.util.concurrent.atomic.AtomicLong
@@ -63,7 +65,7 @@ class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterable {
      */
     @Synchronized
     fun addRowUnsafe(tupleId: Long, values: Array<Value<*>?>) {
-        this.map[this.maxTupleId.incrementAndGet()] = RecordsetRecord(tupleId).assign(values)
+        this.map[tupleId] = RecordsetRecord(tupleId).assign(values)
     }
 
     /**
@@ -79,7 +81,8 @@ class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterable {
     fun addRowIfUnsafe(tupleId: Long, predicate: BooleanPredicate, values: Array<Value<*>?>): Boolean {
         val record = RecordsetRecord(tupleId).assign(values)
         return if (predicate.matches(record)) {
-            this.map[this.maxTupleId.incrementAndGet()] = record
+            this.map[tupleId] = record
+            this.maxTupleId.set(max(tupleId, this.maxTupleId.get()))
             true
         } else {
             false
@@ -110,7 +113,8 @@ class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterable {
     @Synchronized
     fun addRow(tupleId: Long, record: Record) {
         if (record.columns.contentDeepEquals(this.columns)) {
-            this.map[this.maxTupleId.incrementAndGet()] = RecordsetRecord(tupleId).assign(record.values)
+            this.map[tupleId] = RecordsetRecord(tupleId).assign(record.values)
+            this.maxTupleId.set(max(tupleId, this.maxTupleId.get()))
         } else {
             throw IllegalArgumentException("The provided record (${this.columns.joinToString(".")}) is incompatible with this record set (${this.columns.joinToString(".")}.")
         }
@@ -129,7 +133,8 @@ class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterable {
     fun addRowIf(tupleId: Long, predicate: BooleanPredicate, record: Record): Boolean {
         if (record.columns.contentDeepEquals(this.columns)) {
             return if (predicate.matches(record)) {
-                this.map[this.maxTupleId.incrementAndGet()] = record
+                this.map[tupleId] = record
+                this.maxTupleId.set(max(tupleId, this.maxTupleId.get()))
                 true
             } else {
                 false
@@ -360,7 +365,7 @@ class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterable {
     /**
      *
      */
-    fun renameColumnsWithIndex(columns: Collection<Pair<Int,String>>): Recordset {
+    fun renameColumnsWithIndex(columns: Collection<Pair<Int, Name>>): Recordset {
         val renamed = this.columns.mapIndexed { i, col ->
             val rename = columns.find { i == it.first }
             if (rename != null) {

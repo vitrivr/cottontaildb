@@ -18,12 +18,13 @@ import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
 import ch.unibas.dmi.dbis.cottontail.model.values.*
-import ch.unibas.dmi.dbis.cottontail.utilities.name.doesNameMatch
-import ch.unibas.dmi.dbis.cottontail.utilities.name.normalizeColumnName
+import ch.unibas.dmi.dbis.cottontail.utilities.name.Match
+import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
+
 import java.util.*
 
 /**
- * This helper class parses and binds queries issued through the GRPC endpoint. The process encompasses three steps:
+ * This helper class parses and binds queries issued through the gRPC endpoint. The process encompasses three steps:
  *
  * 1) The [CottontailGrpc.Query] is decomposed into its components.
  * 2) The GRPC query components are bound to Cottontail DB [DBO] objects and internal query objects are constructed. This step includes some basic validation.
@@ -60,7 +61,7 @@ class GrpcQueryBinder(val catalogue: Catalogue, engine: ExecutionEngine) {
      */
     private fun parseAndBindSimpleQuery(query: CottontailGrpc.Query): ExecutionPlan {
         val entity = try {
-            this.catalogue.schemaForName(query.from.entity.schema.name).entityForName(query.from.entity.name)
+            this.catalogue.schemaForName(Name(query.from.entity.schema.name)).entityForName(Name(query.from.entity.name))
         } catch (e: DatabaseException.SchemaDoesNotExistException) {
             throw QueryException.QueryBindException("Failed to bind '${query.from.entity.fqn()}'. Schema does not exist!")
         } catch (e: DatabaseException.EntityDoesNotExistException) {
@@ -137,7 +138,7 @@ class GrpcQueryBinder(val catalogue: Catalogue, engine: ExecutionEngine) {
      */
     @Suppress("UNCHECKED_CAST")
     private fun parseAndBindAtomicBooleanPredicate(entity: Entity, atomic: CottontailGrpc.AtomicLiteralBooleanPredicate): AtomicBooleanPredicate<*> {
-        val column = entity.columnForName(atomic.attribute) ?: throw QueryException.QueryBindException("Failed to bind column '${atomic.attribute}'. Column does not exist on entity '${entity.fqn}'.")
+        val column = entity.columnForName(Name(atomic.attribute)) ?: throw QueryException.QueryBindException("Failed to bind column '${atomic.attribute}'. Column does not exist on entity '${entity.fqn}'.")
         val operator = try {
             ComparisonOperator.valueOf(atomic.op.name)
         } catch (e: IllegalArgumentException) {
@@ -177,7 +178,7 @@ class GrpcQueryBinder(val catalogue: Catalogue, engine: ExecutionEngine) {
      */
     @Suppress("UNCHECKED_CAST")
     private fun parseAndBindKnnPredicate(entity: Entity, knn: CottontailGrpc.Knn): KnnPredicate<*> {
-        val column = entity.columnForName(knn.attribute) ?: throw QueryException.QueryBindException("Failed to bind column '${knn.attribute}'. Column does not exist on entity '${entity.fqn}'!")
+        val column = entity.columnForName(Name(knn.attribute)) ?: throw QueryException.QueryBindException("Failed to bind column '${knn.attribute}'. Column does not exist on entity '${entity.fqn}'!")
         val weights = if (knn.weightsCount > 0) {
             knn.weightsList.map { w -> w.toFloatVectorValue() }
         } else {
@@ -228,11 +229,11 @@ class GrpcQueryBinder(val catalogue: Catalogue, engine: ExecutionEngine) {
 
         val fields = projection.attributesMap.map { (expr, alias) ->
             /* Fetch columns that match field and add them to list of requested columns */
-            val field = expr.normalizeColumnName(entity)
-            availableColumns.filter { field.doesNameMatch(it.name) }.let { requestedColumns.addAll(it) }
+            val field = entity.fqn.append(expr)
+            availableColumns.forEach { if(field.match(it.name) != Match.NO_MATCH) requestedColumns.add(it) }
 
             /* Return field to alias mapping. */
-            field to if (alias.isEmpty()) { null } else { alias }
+            field to if (alias.isEmpty()) { null } else { Name(alias) }
         }.toMap()
 
         Projection(type = ProjectionType.valueOf(projection.op.name), columns = requestedColumns.distinct().toTypedArray(), fields = fields)

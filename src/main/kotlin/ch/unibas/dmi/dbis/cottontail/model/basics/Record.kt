@@ -1,6 +1,7 @@
 package ch.unibas.dmi.dbis.cottontail.model.basics
 
 import ch.unibas.dmi.dbis.cottontail.model.values.Value
+import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
 import java.lang.IllegalArgumentException
 
 /**
@@ -57,14 +58,14 @@ interface Record {
      * @param column The [ColumnDef] specifying the column
      * @return True if record contains the [ColumnDef], false otherwise.
      */
-    fun has(column: ColumnDef<*>): Boolean = columns.indexOf(column) > -1
+    fun has(column: ColumnDef<*>): Boolean = this.columns.indexOfFirst { it.isEquivalent(column) } > -1
 
     /**
      * Generates a Map of the data contained in this [Record]
      *
      * @return Map of column name to value.
      */
-    fun toMap(): Map<String,Value<*>?> = mapOf(*this.columns.mapIndexed {index, column -> Pair(column.name, this.values[index]) }.toTypedArray())
+    fun toMap(): Map<Name,Value<*>?> = mapOf(*this.columns.mapIndexed {index, column -> Pair(column.name, this.values[index]) }.toTypedArray())
 
     /**
      * Retrieves the value for the specified [ColumnDef] from this [Record].
@@ -73,7 +74,7 @@ interface Record {
      * @return The value for the [ColumnDef]
      */
     operator fun <T: Any> get(column: ColumnDef<T>): Value<T>? {
-        val index = columns.indexOf(column)
+        val index = this.columns.indexOfFirst { it.isEquivalent(column) }
         return if (index > -1) {
             column.type.cast(values[index])
         } else {
@@ -88,7 +89,7 @@ interface Record {
      * @param value The new value for the [ColumnDef]
      */
     operator fun set(column: ColumnDef<*>, value: Value<*>?) {
-        val index = columns.indexOf(column)
+        val index = this.columns.indexOfFirst { it.isEquivalent(column) }
         if (index > -1) {
             column.validateOrThrow(value)
             values[index] = value
