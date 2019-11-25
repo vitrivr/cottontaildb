@@ -16,6 +16,18 @@ class Name(name: String) {
         /** The separator between Cottontail DB name components. */
         const val COTTONTAIL_NAME_COMPONENT_ROOT = "warren"
 
+        /** [Regex] to match [NameType.SIMPLE]*/
+        val SIMPLE_NAME_REGEX = Regex("^([a-zA-Z0-9\\-_]+)$")
+
+        /** [Regex] to match [NameType.FQN]*/
+        val FQN_NAME_REGEX = Regex("^([a-zA-Z0-9\\-_]+)(\\.[a-zA-Z0-9\\-_]+){0,3}$")
+
+        /** [Regex] to match [NameType.FQN_WILDCARD]*/
+        val FQN_WILDCARD_NAME_REGEX = Regex("^([a-zA-Z0-9\\-_]+){1}(\\.([a-zA-Z0-9\\-_]+|\\*)){0,3}\$")
+
+        /** [Regex] to match [NameType.FQN_WILDCARD]*/
+        val WILDCARD_NAME_REGEX = Regex("^\\*\$")
+
         /** The separator between Cottontail DB name components. */
         val COTTONTAIL_ROOT_NAME = Name("warren")
 
@@ -51,10 +63,10 @@ class Name(name: String) {
 
     /** The [NameType] of this [Name]. */
     val type: NameType = when {
-        this.name.matches(Regex("^([a-zA-Z0-9\\-_]+)$")) -> NameType.SIMPLE
-        this.name.matches(Regex("^([a-zA-Z0-9\\-_]+)(\\.[a-zA-Z0-9\\-_]+){0,3}$")) -> NameType.FQN
-        this.name.matches(Regex("^([a-zA-Z0-9\\-_]+){1}(\\.([a-zA-Z0-9\\-_]+|\\*)){0,3}\$")) -> NameType.FQN_WILDCARD
-        this.name.matches(Regex("^\\*\$")) -> NameType.WILDCARD
+        this.name.matches(SIMPLE_NAME_REGEX) -> NameType.SIMPLE
+        this.name.matches(FQN_NAME_REGEX) -> NameType.FQN
+        this.name.matches(FQN_WILDCARD_NAME_REGEX) -> NameType.FQN_WILDCARD
+        this.name.matches(WILDCARD_NAME_REGEX) -> NameType.WILDCARD
         else -> throw IllegalArgumentException("The provided name {$name} does not match any of the supported name types.")
     }
 
