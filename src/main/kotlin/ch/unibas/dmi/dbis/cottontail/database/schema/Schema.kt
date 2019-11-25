@@ -42,6 +42,8 @@ import kotlin.concurrent.write
  * @version 1.1
  */
 class Schema(override val name: Name, override val path: Path, override val parent: Catalogue) : DBO {
+    /** Constant FQN of the [Schema] object. */
+    override val fqn: Name = this.parent.fqn.append(this.name)
 
     /** Internal reference to the [Store] underpinning this [MapDBColumn]. */
     private val store: StoreWAL = try {
@@ -63,6 +65,8 @@ class Schema(override val name: Name, override val path: Path, override val pare
     /** Returns a list of [Entity] held by this [Schema]. */
     val entities: List<Name>
         get() = this.header.entities.map { Name(this.store.get(it, Serializer.STRING) ?: throw DatabaseException.DataCorruptionException("Failed to read schema $fqn ($path): Could not find entity name of ID $it.")) }
+
+
 
     /** Size of the [Schema] in terms of [Entity] objects it contains. */
     val size

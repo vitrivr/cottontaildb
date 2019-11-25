@@ -54,6 +54,9 @@ import kotlin.concurrent.write
  * @version 1.2
  */
 class Entity(override val name: Name, override val parent: Schema) : DBO {
+    /** Constant FQN of the [Entity] object. */
+    override val fqn: Name = this.parent.fqn.append(this.name)
+
     /** The [Path] to the [Entity]'s main folder. */
     override val path: Path = this.parent.path.resolve("entity_$name")
 

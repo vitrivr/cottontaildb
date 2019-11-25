@@ -40,6 +40,9 @@ class Catalogue(val config: Config): DBO {
     /** Constant name of the [Catalogue] object. */
     override val name: Name = Name("warren")
 
+    /** Constant name of the [Catalogue] object. */
+    override val fqn: Name = this.name
+
     /** Constant parent [DBO], which is null in case of the [Catalogue]. */
     override val parent: DBO? = null
 

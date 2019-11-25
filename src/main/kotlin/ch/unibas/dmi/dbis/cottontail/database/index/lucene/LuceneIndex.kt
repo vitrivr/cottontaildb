@@ -7,6 +7,7 @@ import ch.unibas.dmi.dbis.cottontail.database.index.Index
 import ch.unibas.dmi.dbis.cottontail.database.index.IndexType
 import ch.unibas.dmi.dbis.cottontail.database.index.hash.UniqueHashIndex
 import ch.unibas.dmi.dbis.cottontail.database.queries.*
+import ch.unibas.dmi.dbis.cottontail.database.schema.Schema
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.basics.Record
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
@@ -63,6 +64,9 @@ class LuceneIndex(override val name: Name, override val parent: Entity, override
 
         private val LOGGER = LoggerFactory.getLogger(LuceneIndex::class.java)
     }
+
+    /** Constant FQN of the [Schema] object. */
+    override val fqn: Name = this.parent.fqn.append(this.name)
 
     /** The [LuceneIndex] implementation produces an additional score column. */
     override val produces: Array<ColumnDef<*>> = arrayOf(ColumnDef(parent.fqn.append("score"), ColumnType.forName("FLOAT")))

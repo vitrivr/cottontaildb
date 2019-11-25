@@ -41,6 +41,9 @@ class NonUniqueHashIndex(override val name: Name, override val parent: Entity, o
         const val ATOMIC_COST = 1e-6f /** Cost of a single lookup. TODO: Determine real value. */
     }
 
+    /** Constant FQN of the [Schema] object. */
+    override val fqn: Name = this.parent.fqn.append(this.name)
+
     /** Path to the [NonUniqueHashIndex] file. */
     override val path: Path = this.parent.path.resolve("idx_nu_$name.db")
 

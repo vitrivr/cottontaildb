@@ -34,6 +34,7 @@ import org.mapdb.Serializer
  * @version 1.0f
  */
 class UniqueHashIndex(override val name: Name, override val parent: Entity, override val columns: Array<ColumnDef<*>>) : Index() {
+
     /**
      * Index-wide constants.
      */
@@ -41,6 +42,9 @@ class UniqueHashIndex(override val name: Name, override val parent: Entity, over
         const val MAP_FIELD_NAME = "map"
         const val ATOMIC_COST = 1e-6f /** Cost of a single lookup. TODO: Determine real value. */
     }
+
+    /** Constant FQN of the [Schema] object. */
+    override val fqn: Name = this.parent.fqn.append(this.name)
 
     /** Path to the [UniqueHashIndex] file. */
     override val path: Path = this.parent.path.resolve("idx_$name.db")

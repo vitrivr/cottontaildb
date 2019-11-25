@@ -6,6 +6,7 @@ import ch.unibas.dmi.dbis.cottontail.database.general.TransactionStatus
 import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
 import ch.unibas.dmi.dbis.cottontail.database.queries.BooleanPredicate
 import ch.unibas.dmi.dbis.cottontail.database.queries.Predicate
+import ch.unibas.dmi.dbis.cottontail.database.schema.Schema
 
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.basics.Record
@@ -21,6 +22,7 @@ import ch.unibas.dmi.dbis.cottontail.utilities.extensions.write
 import org.mapdb.*
 import org.mapdb.volume.MappedFileVol
 import org.mapdb.volume.VolumeFactory
+import java.lang.IllegalArgumentException
 
 import java.nio.file.Path
 import java.util.*
@@ -41,6 +43,9 @@ import kotlin.concurrent.write
  * @version 1.1
  */
 class MapDBColumn<T : Any>(override val name: Name, override val parent: Entity) : Column<T> {
+    /** Constant FQN of the [Schema] object. */
+    override val fqn: Name = this.parent.fqn.append(this.name)
+
     /** The [Path] to the [Entity]'s main folder. */
     override val path: Path = parent.path.resolve("col_$name.db")
 
@@ -53,17 +58,15 @@ class MapDBColumn<T : Any>(override val name: Name, override val parent: Entity)
 
     /** Internal reference to the [Header] of this [MapDBColumn]. */
     private val header
-        get() = store.get(HEADER_RECORD_ID, ColumnHeaderSerializer)
-                ?: throw DatabaseException.DataCorruptionException("Failed to open header of column '$fqn'!'")
+        get() = this.store.get(HEADER_RECORD_ID, ColumnHeaderSerializer) ?: throw DatabaseException.DataCorruptionException("Failed to open header of column '$fqn'!'")
 
     /**
-     * Getter for this [MapDBColumn]'s [ColumnDef].
+     * Getter for this [MapDBColumn]'s [ColumnDef]. Can be stored since [MapDBColumn]s [ColumnDef] is immutable.
      *
      * @return [ColumnDef] for this [MapDBColumn]
      */
     @Suppress("UNCHECKED_CAST")
-    override val columnDef: ColumnDef<T>
-        get() = this.header.let { ColumnDef(this.fqn, it.type as ColumnType<T>, it.size, it.nullable) }
+    override val columnDef: ColumnDef<T> = this.header.let { ColumnDef(this.fqn, it.type as ColumnType<T>, it.size, it.nullable) }
 
     /**
      * The maximum tuple ID used by this [Column].
@@ -131,6 +134,7 @@ class MapDBColumn<T : Any>(override val name: Name, override val parent: Entity)
     inner class ColumnRecord(override val tupleId: Long, value: Value<*>?) : Record {
         override val columns
             get() = arrayOf(this@MapDBColumn.columnDef)
+
         override val values = arrayOf(value)
     }
 
