@@ -1,12 +1,12 @@
 package ch.unibas.dmi.dbis.cottontail.database.index
 
+import ch.unibas.dmi.dbis.cottontail.database.events.DataChangeEvent
 import ch.unibas.dmi.dbis.cottontail.database.general.Transaction
 import ch.unibas.dmi.dbis.cottontail.database.queries.Predicate
 
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.basics.Filterable
 import ch.unibas.dmi.dbis.cottontail.model.basics.Record
-import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.ValidationException
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
 
@@ -48,16 +48,15 @@ interface IndexTransaction : Transaction, Filterable {
     fun rebuild()
 
     /**
-     * Updates the [Index] underlying this [IndexTransaction] with the provided [Record]. This method determines, whether
-     * the [Record] should be added or updated
+     * Updates the [Index] underlying this [IndexTransaction] based on the provided [DataChangeEvent].
      *
      * Not all [Index] implementations support incremental updates. Should be indicated by [IndexTransaction#supportsIncrementalUpdate()]
      *
-     * @param record Record to add.
+     * @param update Collection of [Record]s to updated wrapped by the corresponding [DataChangeEvent].
      * @throws [ValidationException.IndexUpdateException] If rebuild of [Index] fails for some reason.
      */
     @Throws(ValidationException.IndexUpdateException::class)
-    fun update(record: Record)
+    fun update(update: Collection<DataChangeEvent>)
 
     /**
      * Performs a lookup through this [IndexTransaction] and returns a [Recordset].

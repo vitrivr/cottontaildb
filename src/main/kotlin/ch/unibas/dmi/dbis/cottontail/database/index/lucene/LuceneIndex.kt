@@ -2,6 +2,7 @@ package ch.unibas.dmi.dbis.cottontail.database.index.lucene
 
 import ch.unibas.dmi.dbis.cottontail.database.column.ColumnType
 import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
+import ch.unibas.dmi.dbis.cottontail.database.events.DataChangeEvent
 import ch.unibas.dmi.dbis.cottontail.database.general.begin
 import ch.unibas.dmi.dbis.cottontail.database.index.Index
 import ch.unibas.dmi.dbis.cottontail.database.index.IndexTransaction
@@ -101,24 +102,20 @@ class LuceneIndex(override val name: Name, override val parent: Entity, override
      *
      * @return True if incremental [Index] updates are supported.
      */
-    override fun supportsIncrementalUpdate(): Boolean = false /* TODO: Add support. */
+    override fun supportsIncrementalUpdate(): Boolean = false /** TODO: Add support. */
 
     /**
      * (Re-)builds the [LuceneIndex].
      */
     override fun rebuild() {
-        LOGGER.trace("rebuilding lucene index {}", name)
-        val writer = IndexWriter(this.directory, IndexWriterConfig(StandardAnalyzer()).setOpenMode(IndexWriterConfig.OpenMode.APPEND).setCommitOnClose(true))
+        LOGGER.trace("Rebuilding lucene index {}", name)
+        val writer = IndexWriter(this.directory, IndexWriterConfig(StandardAnalyzer()).setOpenMode(IndexWriterConfig.OpenMode.APPEND).setMaxBufferedDocs(100_000).setCommitOnClose(true))
         writer.deleteAll()
         this.parent.Tx(readonly = true, columns = this.columns, ommitIndex = true).begin { tx ->
             var count = 0
             tx.forEach {
                 writer.addDocument(documentFromRecord(it))
                 count++
-                if (count % 1_000_000 == 0) {
-                    LOGGER.trace("flushing writer to storage, {} docs processed in total", count)
-                    writer.flush()
-                }
             }
             true
         }
@@ -133,11 +130,11 @@ class LuceneIndex(override val name: Name, override val parent: Entity, override
     /**
      * Updates the [LuceneIndex] with the provided [Record]. This method determines, whether the [Record] should be added or updated
      *
-     * @param record Record to update this [LuceneIndex] with.
+     * @param update [DataChangeEvent]s based on which to update the [LuceneIndex].
      * @throws [ValidationException.IndexUpdateException] If rebuild of [Index] fails for some reason.
      */
-    override fun update(record: Record) {
-        /* TODO: Add support */
+    override fun update(update: Collection<DataChangeEvent>) {
+        /* TODO: Add support. */
         throw ValidationException.IndexUpdateException(this.fqn, "LuceneIndex currently doesn't support incremental updates.")
     }
 

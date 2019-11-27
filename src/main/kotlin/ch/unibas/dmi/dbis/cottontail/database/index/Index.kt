@@ -2,6 +2,7 @@ package ch.unibas.dmi.dbis.cottontail.database.index
 
 import ch.unibas.dmi.dbis.cottontail.database.column.Column
 import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
+import ch.unibas.dmi.dbis.cottontail.database.events.DataChangeEvent
 import ch.unibas.dmi.dbis.cottontail.database.general.DBO
 import ch.unibas.dmi.dbis.cottontail.database.general.Transaction
 import ch.unibas.dmi.dbis.cottontail.database.general.TransactionStatus
@@ -95,16 +96,16 @@ abstract class Index : DBO {
     protected abstract fun rebuild()
 
     /**
-     * Updates the [Index] with the provided [Record]. This method determines, whethe the [Record] should be added or updated. The updates
-     * takes effect immediately, without the need to commit (i.e. commit actions must take place inside).
+     * Updates the [Index] with the provided [DataChangeEvent]s. The updates take effect immediately, without the need to
+     * commit (i.e. commit actions must take place inside).
      *
      * Not all [Index] implementations support incremental updates. Should be indicated by [IndexTransaction#supportsIncrementalUpdate()]
      *
-     * @param record Record to update this [Index] with.
+     * @param update [Record]s to update this [Index] with wrapped in the corresponding [DataChangeEvent].
      * @throws [ValidationException.IndexUpdateException] If update of [Index] fails for some reason.
      */
     @Throws(ValidationException.IndexUpdateException::class)
-    protected abstract fun update(record: Record)
+    protected abstract fun update(update: Collection<DataChangeEvent>)
 
     /**
      * Performs a lookup through this [Index] and returns [Recordset]. This is an internal method! External
@@ -244,17 +245,16 @@ abstract class Index : DBO {
         override fun supportsIncrementalUpdate(): Boolean = this@Index.supportsIncrementalUpdate()
 
         /**
-         * Updates the [Index] underlying this [IndexTransaction] with the provided [Record]. This method determines, whether
-         * the [Record] should be added or updated
+         * Updates the [Index] underlying this [IndexTransaction] with the provided [DataChangeEvent].
          *
          * Not all [Index] implementations support incremental updates. Should be indicated by [IndexTransaction#supportsIncrementalUpdate()]
          *
-         * @param record Record to add.
+         * @param update Collection of [Record]s to update wrapped in the corresponding [DataChangeEvent]s.
          * @throws [ValidationException.IndexUpdateException] If rebuild of [Index] fails for some reason.
          */
-        override fun update(record: Record) {
+        override fun update(update: Collection<DataChangeEvent>) {
             this.checkValidForWrite()
-            this@Index.update(record)
+            this@Index.update(update)
         }
 
         /**

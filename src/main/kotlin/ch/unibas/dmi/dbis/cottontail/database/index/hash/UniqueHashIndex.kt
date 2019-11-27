@@ -2,6 +2,8 @@ package ch.unibas.dmi.dbis.cottontail.database.index.hash
 
 import ch.unibas.dmi.dbis.cottontail.database.column.Column
 import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
+import ch.unibas.dmi.dbis.cottontail.database.events.DataChangeEvent
+import ch.unibas.dmi.dbis.cottontail.database.events.DataChangeEventType
 import ch.unibas.dmi.dbis.cottontail.database.general.begin
 import ch.unibas.dmi.dbis.cottontail.database.index.Index
 import ch.unibas.dmi.dbis.cottontail.database.index.IndexTransaction
@@ -14,7 +16,6 @@ import ch.unibas.dmi.dbis.cottontail.database.queries.ComparisonOperator
 import ch.unibas.dmi.dbis.cottontail.database.queries.Predicate
 import ch.unibas.dmi.dbis.cottontail.database.schema.Schema
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
-import ch.unibas.dmi.dbis.cottontail.model.basics.Record
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.ValidationException
@@ -171,19 +172,45 @@ class UniqueHashIndex(override val name: Name, override val parent: Entity, over
     }
 
     /**
-     * Updates the [UniqueHashIndex] with the provided [Record]. This method determines, whether the [Record] should be added or updated
+     * Updates the [UniqueHashIndex] with the provided [DataChangeEvent]s.
      *
-     * @param record Record to update the [UniqueHashIndex] with.
+     * @param update [DataChangeEvent]s based on which to update the [UniqueHashIndex].
      */
-    override fun update(record: Record) {
+    override fun update(update: Collection<DataChangeEvent>) = try {
         val localMap = this.map as HTreeMap<Value<*>,Long>
-        val value = record[this.columns[0]]
-        if (value != null) {
-            localMap[value] = record.tupleId
-            this.db.commit()
-        } else {
-            throw ValidationException.IndexUpdateException(this.fqn, "Values cannot be null for instances of UniqueHashIndex but tid=${record.tupleId} is")
+
+        /* Define action for inserting an entry based on a DataChangeEvent. */
+        val atomicInsert= { event: DataChangeEvent ->
+            val newValue = event.new?.get(this.columns[0]) ?: throw ValidationException.IndexUpdateException(this.fqn, "Values cannot be null for instances of UniqueHashIndex but tid=${event.new?.tupleId} is.")
+            localMap[newValue] = event.new.tupleId
         }
+
+        /* Define action for deleting an entry based on a DataChangeEvent. */
+        val atomicDelete = { event: DataChangeEvent ->
+            val oldValue = event.old?.get(this.columns[0]) ?: throw ValidationException.IndexUpdateException(this.fqn, "Values cannot be null for instances of UniqueHashIndex but tid=${event.new?.tupleId} is.")
+            localMap.remove(oldValue)
+        }
+
+        /* Process the DataChangeEvents. */
+        loop@ for (event in update) {
+            when (event.type) {
+                DataChangeEventType.INSERT -> atomicInsert(event)
+                DataChangeEventType.UPDATE -> {
+                    if (event.new?.get(this.columns[0]) != event.old?.get(this.columns[0])) {
+                        atomicDelete(event)
+                        atomicInsert(event)
+                    }
+                }
+                DataChangeEventType.DELETE -> atomicDelete(event)
+                else -> continue@loop
+            }
+        }
+
+        /* Commit the change. */
+        this.db.commit()
+    } catch (e: Throwable) {
+        this.db.rollback()
+        throw e
     }
 
     /**
