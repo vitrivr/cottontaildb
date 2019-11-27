@@ -172,6 +172,7 @@ class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.CottonDDLImplBa
      * gRPC endpoint for creating a particular [Index][ch.unibas.dmi.dbis.cottontail.database.index.Index]
      */
     override fun createIndex(request: CottontailGrpc.CreateIndexMessage, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) = try {
+        LOGGER.trace("Creating index {}", request)
         val indexName = Name(request.index.name)
         val entityName = Name(request.index.entity.name)
         val schemaName = Name(request.index.entity.schema.name)
