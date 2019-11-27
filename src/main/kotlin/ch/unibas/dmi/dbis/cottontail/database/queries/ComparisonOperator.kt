@@ -1,6 +1,8 @@
 package ch.unibas.dmi.dbis.cottontail.database.queries
 
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
+import ch.unibas.dmi.dbis.cottontail.model.values.RegexValue
+import ch.unibas.dmi.dbis.cottontail.model.values.StringValue
 import ch.unibas.dmi.dbis.cottontail.model.values.Value
 
 /**
@@ -34,15 +36,11 @@ enum class ComparisonOperator {
         this == LESS && left != null -> left < right.first()
         this == GEQUAL && left != null -> left >= right.first()
         this == LEQUAL && left != null -> left <= right.first()
-        this == IN && left != null -> matchIn(left,right)
-        this == BETWEEN && left is Number -> left >= right.first() && left <= right.last()
+        this == IN && left != null -> right.contains(left)
+        this == BETWEEN && left != null -> left >= right.first() && left <= right.last()
+        this == LIKE && left is RegexValue && right.first() is StringValue-> left.value.matches(right.first().toString())
         this == ISNULL -> left == null
         this == ISNOTNULL -> left != null
         else -> throw QueryException("Unknown operator '$this' or incompatible type!")
     }
-
-    /**
-     *
-     */
-    private fun <T: Any> matchIn(value: T, values: Collection<T>) : Boolean = (values.contains(value))
 }

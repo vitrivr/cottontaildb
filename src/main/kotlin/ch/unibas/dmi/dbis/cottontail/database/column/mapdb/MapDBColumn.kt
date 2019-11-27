@@ -321,7 +321,7 @@ class MapDBColumn<T : Any>(override val name: Name, override val parent: Entity)
          * @param predicate The [BooleanPredicate] to check.
          * @return True if predicate can be processed, false otherwise.
          */
-        override fun canProcess(predicate: Predicate): Boolean = predicate is BooleanPredicate && predicate.columns.all {it == this@MapDBColumn.columnDef}
+        override fun canProcess(predicate: Predicate): Boolean = predicate is BooleanPredicate
 
         /**
          * Applies the provided predicate to each [Record] found in this [MapDBColumn], returning a [Recordset] that contains all

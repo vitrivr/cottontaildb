@@ -532,7 +532,7 @@ class Entity(override val name: Name, override val parent: Schema) : DBO {
          * @param predicate [Predicate] to check.
          * @return True if [Predicate] can be processed, false otherwise.
          */
-        override fun canProcess(predicate: Predicate): Boolean = predicate is BooleanPredicate && predicate.atomics.all { it.operator != ComparisonOperator.LIKE }
+        override fun canProcess(predicate: Predicate): Boolean = predicate is BooleanPredicate
 
         /**
          * Reads all values of one or many [Column]s and returns those that match the provided predicate as a [Recordset]. Explicitly scans the entire [Entity] and
