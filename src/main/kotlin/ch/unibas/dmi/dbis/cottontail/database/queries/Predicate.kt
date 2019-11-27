@@ -6,7 +6,7 @@ import ch.unibas.dmi.dbis.cottontail.math.knn.metrics.DoubleVectorDistance
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.basics.Record
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
-import ch.unibas.dmi.dbis.cottontail.model.values.RegexValue
+import ch.unibas.dmi.dbis.cottontail.model.values.PatternValue
 import ch.unibas.dmi.dbis.cottontail.model.values.StringValue
 import ch.unibas.dmi.dbis.cottontail.model.values.Value
 import ch.unibas.dmi.dbis.cottontail.model.values.VectorValue
@@ -61,23 +61,7 @@ data class AtomicBooleanPredicate<T : Value<*>>(private val column: ColumnDef<T>
         if (this.operator == ComparisonOperator.LIKE) {
             this.values = this.values.mapNotNull {
                 if (it is StringValue) {
-                    val converted = it.value.replace("\\", "\\\\")
-                            .replace("[", "\\[") /* Escape. */
-                            .replace("]", "\\]") /* Escape. */
-                            .replace("(", "\\(") /* Escape. */
-                            .replace(")", "\\)") /* Escape. */
-                            .replace("{", "\\{") /* Escape. */
-                            .replace("}", "\\}") /* Escape. */
-                            .replace("^", "\\^") /* Escape. */
-                            .replace("$", "\\$") /* Escape. */
-                            .replace(".", "\\.") /* Escape. */
-                            .replace("?", "\\?") /* Escape. */
-                            .replace("+", "\\+") /* Escape. */
-                            .replace("-", "\\-") /* Escape. */
-                            .replace("|", "\\|") /* Escape. */
-                            .replace("*", ".*") /* Like *. */
-                            .replace("_", ".{1})") /* Like _. */
-                    RegexValue(Regex("^$converted\$"))
+                    PatternValue(it.value)
                 } else {
                     null
                 }

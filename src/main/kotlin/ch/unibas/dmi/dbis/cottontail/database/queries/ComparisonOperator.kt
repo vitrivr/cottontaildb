@@ -1,7 +1,7 @@
 package ch.unibas.dmi.dbis.cottontail.database.queries
 
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
-import ch.unibas.dmi.dbis.cottontail.model.values.RegexValue
+import ch.unibas.dmi.dbis.cottontail.model.values.PatternValue
 import ch.unibas.dmi.dbis.cottontail.model.values.StringValue
 import ch.unibas.dmi.dbis.cottontail.model.values.Value
 
@@ -38,7 +38,7 @@ enum class ComparisonOperator {
         this == LEQUAL && left != null -> left <= right.first()
         this == IN && left != null -> right.contains(left)
         this == BETWEEN && left != null -> left >= right.first() && left <= right.last()
-        this == LIKE && left is RegexValue && right.first() is StringValue-> left.value.matches(right.first().toString())
+        this == LIKE && left is PatternValue && right.first() is StringValue-> left.regex.matches(right.first().toString())
         this == ISNULL -> left == null
         this == ISNOTNULL -> left != null
         else -> throw QueryException("Unknown operator '$this' or incompatible type!")
