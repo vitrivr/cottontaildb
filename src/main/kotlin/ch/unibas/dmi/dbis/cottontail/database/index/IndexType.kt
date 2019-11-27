@@ -13,8 +13,9 @@ enum class IndexType {
     BTREE, /* A BTree based index. */
     LUCENE, /* A Lucene based index (fulltext search). */
     VAF, /* A VA file based index (for exact kNN lookup). */
-    PQ, /* A product quantization  based index (for approximate kNN lookup). */
-    SH; /* A spectral hashing  based index (for approximate kNN lookup). */
+    PQ, /* A product quantization based index (for approximate kNN lookup). */
+    SH, /* A spectral hashing  based index (for approximate kNN lookup). */
+    LSH; /* A locality sensitive hashing based index (for approximate kNN lookup). */
 
     /**
      * Opens an index of this [IndexType] using the given name and [Entity].
