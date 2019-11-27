@@ -143,7 +143,7 @@ class NonUniqueHashIndex(override val name: Name, override val parent: Entity, o
 
         /* (Re-)create index entries. */
         val localMap = mutableMapOf<Value<*>, MutableList<Long>>()
-        this.parent.Tx(readonly = true, columns = this.columns).begin { tx ->
+        this.parent.Tx(readonly = true, columns = this.columns, ommitIndex = true).begin { tx ->
             tx.forEach {
                 val value = it[this.columns[0]] ?: throw ValidationException.IndexUpdateException(this.fqn, "A value cannot be null for instances of non-unique hash-index but tid=${it.tupleId} is")
                 if (!localMap.containsKey(value)){

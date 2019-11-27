@@ -5,6 +5,7 @@ import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
 import ch.unibas.dmi.dbis.cottontail.database.general.begin
 import ch.unibas.dmi.dbis.cottontail.database.index.Index
 import ch.unibas.dmi.dbis.cottontail.database.index.IndexType
+import ch.unibas.dmi.dbis.cottontail.database.index.lucene.LuceneIndex
 import ch.unibas.dmi.dbis.cottontail.utilities.extensions.write
 import ch.unibas.dmi.dbis.cottontail.database.queries.AtomicBooleanPredicate
 import ch.unibas.dmi.dbis.cottontail.database.queries.BooleanPredicate
@@ -21,6 +22,7 @@ import org.mapdb.DBMaker
 import org.mapdb.HTreeMap
 import java.nio.file.Path
 import org.mapdb.Serializer
+import org.slf4j.LoggerFactory
 
 /**
  * Represents an index in the Cottontail DB data model. An [Index] belongs to an [Entity] and can be used to index one to many
@@ -41,6 +43,7 @@ class UniqueHashIndex(override val name: Name, override val parent: Entity, over
     companion object {
         const val MAP_FIELD_NAME = "map"
         const val ATOMIC_COST = 1e-6f /** Cost of a single lookup. TODO: Determine real value. */
+        private val LOGGER = LoggerFactory.getLogger(UniqueHashIndex::class.java)
     }
 
     /** Constant FQN of the [Schema] object. */
@@ -138,6 +141,7 @@ class UniqueHashIndex(override val name: Name, override val parent: Entity, over
      * (Re-)builds the [UniqueHashIndex].
      */
     override fun rebuild() {
+        LOGGER.trace("rebuilding index {}", name)
         /* Clear existing map. */
         this.map.clear()
 
