@@ -22,7 +22,6 @@ import ch.unibas.dmi.dbis.cottontail.utilities.extensions.write
 import org.mapdb.*
 import org.mapdb.volume.MappedFileVol
 import org.mapdb.volume.VolumeFactory
-import java.lang.IllegalArgumentException
 
 import java.nio.file.Path
 import java.util.*
@@ -322,7 +321,7 @@ class MapDBColumn<T : Any>(override val name: Name, override val parent: Entity)
          * @param predicate The [BooleanPredicate] to check.
          * @return True if predicate can be processed, false otherwise.
          */
-        override fun canProcess(predicate: BooleanPredicate): Boolean = predicate is BooleanPredicate && predicate.columns.all {it == this@MapDBColumn.columnDef}
+        override fun canProcess(predicate: Predicate): Boolean = predicate is BooleanPredicate && predicate.columns.all {it == this@MapDBColumn.columnDef}
 
         /**
          * Applies the provided predicate to each [Record] found in this [MapDBColumn], returning a [Recordset] that contains all
@@ -331,18 +330,22 @@ class MapDBColumn<T : Any>(override val name: Name, override val parent: Entity)
          * @param predicate The [BooleanPredicate] that should be applied.
          * @return A filtered [Recordset] of [Record]s that passed the test.
          */
-        override fun filter(predicate: BooleanPredicate): Recordset = this.localLock.read {
-            checkValidForRead()
-            val recordset = Recordset(arrayOf(this@MapDBColumn.columnDef))
-            this@MapDBColumn.store.RecordIdIterator().use { iterator ->
-                iterator.forEachRemaining {
-                    if (it != CottontailStoreWAL.EOF_ENTRY) {
-                        val data = ColumnRecord(it, this@MapDBColumn.store.get(it, this.serializer))
-                        if (predicate.matches(data)) recordset.addRowUnsafe(data.values)
+        override fun filter(predicate: Predicate): Recordset = this.localLock.read {
+            if (predicate is BooleanPredicate) {
+                checkValidForRead()
+                val recordset = Recordset(arrayOf(this@MapDBColumn.columnDef))
+                this@MapDBColumn.store.RecordIdIterator().use { iterator ->
+                    iterator.forEachRemaining {
+                        if (it != CottontailStoreWAL.EOF_ENTRY) {
+                            val data = ColumnRecord(it, this@MapDBColumn.store.get(it, this.serializer))
+                            if (predicate.matches(data)) recordset.addRowUnsafe(data.values)
+                        }
                     }
                 }
+                return recordset
+            } else {
+                throw QueryException.UnsupportedPredicateException("MapDBColumn#filter() does not support predicates of type '${predicate::class.simpleName}'.")
             }
-            return recordset
         }
 
         /**
@@ -354,7 +357,7 @@ class MapDBColumn<T : Any>(override val name: Name, override val parent: Entity)
          *
          * @throws QueryException.UnsupportedPredicateException If predicate is not a [BooleanPredicate].
          */
-        override fun forEach(predicate: BooleanPredicate, action: (Record) -> Unit) = forEach(1L, this@MapDBColumn.store.maxRecid, predicate, action)
+        override fun forEach(predicate: Predicate, action: (Record) -> Unit) = forEach(1L, this@MapDBColumn.store.maxRecid, predicate, action)
 
         /**
          * Applies the provided action to each [Record] in the given range that matches the given [Predicate]. The function cannot not change
@@ -367,17 +370,21 @@ class MapDBColumn<T : Any>(override val name: Name, override val parent: Entity)
          *
          * @throws QueryException.UnsupportedPredicateException If predicate is not a [BooleanPredicate].
          */
-        override fun forEach(from: Long, to: Long, predicate: BooleanPredicate, action: (Record) -> Unit) = this.localLock.read {
-            checkValidForRead()
-            this@MapDBColumn.store.RecordIdIterator(from.coerceAtLeast(1L), to.coerceAtMost(this@MapDBColumn.store.maxRecid)).use {iterator ->
-                iterator.forEachRemaining {
-                    if (it != CottontailStoreWAL.EOF_ENTRY) {
-                        val record = ColumnRecord(it, this@MapDBColumn.store.get(it, this.serializer))
-                        if (predicate.matches(record)) {
-                            action(record)
+        override fun forEach(from: Long, to: Long, predicate: Predicate, action: (Record) -> Unit) = this.localLock.read {
+            if (predicate is BooleanPredicate) {
+                checkValidForRead()
+                this@MapDBColumn.store.RecordIdIterator(from.coerceAtLeast(1L), to.coerceAtMost(this@MapDBColumn.store.maxRecid)).use {iterator ->
+                    iterator.forEachRemaining {
+                        if (it != CottontailStoreWAL.EOF_ENTRY) {
+                            val record = ColumnRecord(it, this@MapDBColumn.store.get(it, this.serializer))
+                            if (predicate.matches(record)) {
+                                action(record)
+                            }
                         }
                     }
                 }
+            } else {
+                throw QueryException.UnsupportedPredicateException("MapDBColumn#forEach() does not support predicates of type '${predicate::class.simpleName}'.")
             }
         }
 
@@ -385,13 +392,13 @@ class MapDBColumn<T : Any>(override val name: Name, override val parent: Entity)
          * Applies the provided mapping function to each [Record] that matches the given [Predicate], returning a collection
          * of the desired output values.
          *
-         * @param predicate The [BooleanPredicate] to filter [Record]s.
+         * @param predicate The [Predicate] to filter [Record]s.
          * @param action The mapping function that should be applied.
          * @return Collection of the results of the mapping function.
          *
          * @throws QueryException.UnsupportedPredicateException If predicate is not a [BooleanPredicate].
          */
-        override fun <R> map(predicate: BooleanPredicate, action: (Record) -> R): Collection<R> = map(1L, this@MapDBColumn.store.maxRecid, predicate, action)
+        override fun <R> map(predicate: Predicate, action: (Record) -> R): Collection<R> = map(1L, this@MapDBColumn.store.maxRecid, predicate, action)
 
         /**
          * Applies the provided mapping function to each [Record] in the given range that matches the given [Predicate], returning a collection
@@ -405,20 +412,24 @@ class MapDBColumn<T : Any>(override val name: Name, override val parent: Entity)
          *
          * @throws QueryException.UnsupportedPredicateException If predicate is not a [BooleanPredicate].
          */
-        override fun <R> map(from: Long, to: Long, predicate: BooleanPredicate, action: (Record) -> R): Collection<R> = this.localLock.read {
-            checkValidForRead()
-            val list = mutableListOf<R>()
-            this@MapDBColumn.store.RecordIdIterator(from.coerceAtLeast(1L), to.coerceAtMost(this@MapDBColumn.store.maxRecid)).use {iterator ->
-                iterator.forEachRemaining {
-                    if (it != CottontailStoreWAL.EOF_ENTRY) {
-                        val record = ColumnRecord(it, this@MapDBColumn.store.get(it, this.serializer))
-                        if (predicate.matches(record)) {
-                            list.add(action(ColumnRecord(it, this@MapDBColumn.store.get(it, this.serializer))))
+        override fun <R> map(from: Long, to: Long, predicate: Predicate, action: (Record) -> R): Collection<R> = this.localLock.read {
+            if (predicate is BooleanPredicate) {
+                checkValidForRead()
+                val list = mutableListOf<R>()
+                this@MapDBColumn.store.RecordIdIterator(from.coerceAtLeast(1L), to.coerceAtMost(this@MapDBColumn.store.maxRecid)).use { iterator ->
+                    iterator.forEachRemaining {
+                        if (it != CottontailStoreWAL.EOF_ENTRY) {
+                            val record = ColumnRecord(it, this@MapDBColumn.store.get(it, this.serializer))
+                            if (predicate.matches(record)) {
+                                list.add(action(ColumnRecord(it, this@MapDBColumn.store.get(it, this.serializer))))
+                            }
                         }
                     }
                 }
+                return list
+            } else {
+                throw QueryException.UnsupportedPredicateException("MapDBColumn#map() does not support predicates of type '${predicate::class.simpleName}'.")
             }
-            return list
         }
 
         /**

@@ -31,7 +31,7 @@ import org.mapdb.Serializer
  * @see Entity.Tx
  *
  * @author Ralph Gasser
- * @version 1.0f
+ * @version 1.0
  */
 class UniqueHashIndex(override val name: Name, override val parent: Entity, override val columns: Array<ColumnDef<*>>) : Index() {
 
@@ -78,7 +78,7 @@ class UniqueHashIndex(override val name: Name, override val parent: Entity, over
      * @param predicate The [Predicate] for the lookup
      * @return The resulting [Recordset]
      */
-    override fun filter(predicate: BooleanPredicate): Recordset = if (predicate is AtomicBooleanPredicate<*>) {
+    override fun filter(predicate: Predicate): Recordset = if (predicate is AtomicBooleanPredicate<*>) {
         /* Create empty recordset. */
         val recordset = Recordset(this.columns)
 
@@ -115,7 +115,7 @@ class UniqueHashIndex(override val name: Name, override val parent: Entity, over
      * @param predicate The [Predicate] to check.
      * @return True if [Predicate] can be processed, false otherwise.
      */
-    override fun canProcess(predicate: BooleanPredicate): Boolean = if (predicate is AtomicBooleanPredicate<*>) {
+    override fun canProcess(predicate: Predicate): Boolean = if (predicate is AtomicBooleanPredicate<*>) {
         predicate.columns.first() == this.columns[0] && (predicate.operator == ComparisonOperator.IN || predicate.operator == ComparisonOperator.EQUAL)
     } else {
         false
@@ -127,7 +127,7 @@ class UniqueHashIndex(override val name: Name, override val parent: Entity, over
      * @param predicate [Predicate] to check.
      * @return Cost estimate for the [Predicate]
      */
-    override fun cost(predicate: BooleanPredicate): Float = when {
+    override fun cost(predicate: Predicate): Float = when {
         predicate !is AtomicBooleanPredicate<*> || predicate.columns.first() != this.columns[0] -> Float.MAX_VALUE
         predicate.operator == ComparisonOperator.IN -> ATOMIC_COST * predicate.values.size
         predicate.operator == ComparisonOperator.IN -> ATOMIC_COST

@@ -1,7 +1,6 @@
 package ch.unibas.dmi.dbis.cottontail.database.index
 
 import ch.unibas.dmi.dbis.cottontail.database.general.Transaction
-import ch.unibas.dmi.dbis.cottontail.database.queries.BooleanPredicate
 import ch.unibas.dmi.dbis.cottontail.database.queries.Predicate
 
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
@@ -41,5 +40,5 @@ interface IndexTransaction : Transaction, Filterable {
      * @param predicate The [Predicate] to perform the lookup.
      * @return The resulting [Recordset].
      */
-    override fun filter(predicate: BooleanPredicate): Recordset
+    override fun filter(predicate: Predicate): Recordset
 }
