@@ -10,10 +10,8 @@ import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
  * @version 1.0
  */
 open class ValidationException(message: String) : DatabaseException(message) {
-
     /**
-     * Thrown by [Index][ch.unibas.dmi.dbis.cottontail.database.index.Index]
-     * structures whenever their rebuild fails because of data constraints.
+     * Thrown by [Index][ch.unibas.dmi.dbis.cottontail.database.index.Index] structures whenever their rebuild fails because of data constraints.
      *
      * @param index The FQN of the index that was affected.
      * @param message A message describing the problem.

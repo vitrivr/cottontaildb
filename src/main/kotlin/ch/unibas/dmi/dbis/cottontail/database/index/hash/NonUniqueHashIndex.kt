@@ -11,6 +11,7 @@ import ch.unibas.dmi.dbis.cottontail.database.queries.ComparisonOperator
 import ch.unibas.dmi.dbis.cottontail.database.queries.Predicate
 import ch.unibas.dmi.dbis.cottontail.database.schema.Schema
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
+import ch.unibas.dmi.dbis.cottontail.model.basics.Record
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.ValidationException
@@ -135,6 +136,13 @@ class NonUniqueHashIndex(override val name: Name, override val parent: Entity, o
     }
 
     /**
+     * Returns true since [NonUniqueHashIndex] supports incremental updates.
+     *
+     * @return True
+     */
+    override fun supportsIncrementalUpdate(): Boolean = true
+
+    /**
      * (Re-)builds the [NonUniqueHashIndex].
      */
     override fun rebuild() {
@@ -156,6 +164,33 @@ class NonUniqueHashIndex(override val name: Name, override val parent: Entity, o
             localMap.forEach { (value, l) -> castMap[value] = l.toLongArray() }
             this.db.commit()
             true
+        }
+    }
+
+    /**
+     * Updates the [NonUniqueHashIndex] with the provided [Record]. This method determines, whether the [Record] should be added or updated
+     *
+     * @param record Record to update the [NonUniqueHashIndex] with.
+     */
+    override fun update(record: Record) {
+        val localMap = this.map as HTreeMap<Value<*>,LongArray>
+        val value = record[this.columns[0]]
+        if (value != null) {
+            if (localMap.containsKey(value)) {
+                val tupleIds = localMap[value]!!
+                if (tupleIds.contains(record.tupleId)) {
+                    return
+                } else {
+                    val newTupleIds = tupleIds.copyOf(tupleIds.size + 1)
+                    newTupleIds[tupleIds.size] = record.tupleId
+                    localMap[value] = newTupleIds
+                }
+            } else {
+                localMap[value] = longArrayOf(record.tupleId)
+            }
+            this.db.commit()
+        } else {
+            throw ValidationException.IndexUpdateException(this.fqn, "Value cannot be null for instances of NonUniqueHashIndex but tid=${record.tupleId} is")
         }
     }
 

@@ -11,10 +11,10 @@ import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.basics.Record
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.TransactionException
+import ch.unibas.dmi.dbis.cottontail.model.exceptions.ValidationException
 
 import java.util.*
 import java.util.concurrent.locks.StampedLock
-
 
 /**
  * Represents an index in the Cottontail DB data model. An [Index] belongs to an [Entity] and can be used to index one to many
@@ -28,7 +28,7 @@ import java.util.concurrent.locks.StampedLock
  * @see Entity.Tx
  *
  * @author Ralph Gasser
- * @version 1.2
+ * @version 1.3
  */
 abstract class Index : DBO {
 
@@ -78,12 +78,33 @@ abstract class Index : DBO {
     }
 
     /**
+     * Returns true, if the [Index] supports incremental updates, and false otherwise.
+     *
+     * @return True if incremental [Index] updates are supported.
+     */
+    @Throws(ValidationException.IndexUpdateException::class)
+    protected abstract fun supportsIncrementalUpdate(): Boolean
+
+    /**
      * (Re-)builds the [Index]. Invoking this method should rebuild the [Index] immediately, without the
      * need to commit (i.e. commit actions must take place inside).
      *
      * This is an internal method! External invocation is only possible through a [Index.Tx] object.
      */
+    @Throws(ValidationException.IndexUpdateException::class)
     protected abstract fun rebuild()
+
+    /**
+     * Updates the [Index] with the provided [Record]. This method determines, whethe the [Record] should be added or updated. The updates
+     * takes effect immediately, without the need to commit (i.e. commit actions must take place inside).
+     *
+     * Not all [Index] implementations support incremental updates. Should be indicated by [IndexTransaction#supportsIncrementalUpdate()]
+     *
+     * @param record Record to update this [Index] with.
+     * @throws [ValidationException.IndexUpdateException] If update of [Index] fails for some reason.
+     */
+    @Throws(ValidationException.IndexUpdateException::class)
+    protected abstract fun update(record: Record)
 
     /**
      * Performs a lookup through this [Index] and returns [Recordset]. This is an internal method! External
@@ -197,6 +218,8 @@ abstract class Index : DBO {
         override val type: IndexType
             get() = this@Index.type
 
+
+
         /**
          * Checks if this [IndexTransaction] can process the provided [Predicate].
          *
@@ -209,8 +232,29 @@ abstract class Index : DBO {
          * (Re-)builds the underlying [Index].
          */
         override fun rebuild() {
-            this.acquireWriteLock()
+            this.checkValidForWrite()
             this@Index.rebuild()
+        }
+
+        /**
+         * Returns true, if the [Index] underpinning this [IndexTransaction] supports incremental updates, and false otherwise.
+         *
+         * @return True if incremental [Index] updates are supported.
+         */
+        override fun supportsIncrementalUpdate(): Boolean = this@Index.supportsIncrementalUpdate()
+
+        /**
+         * Updates the [Index] underlying this [IndexTransaction] with the provided [Record]. This method determines, whether
+         * the [Record] should be added or updated
+         *
+         * Not all [Index] implementations support incremental updates. Should be indicated by [IndexTransaction#supportsIncrementalUpdate()]
+         *
+         * @param record Record to add.
+         * @throws [ValidationException.IndexUpdateException] If rebuild of [Index] fails for some reason.
+         */
+        override fun update(record: Record) {
+            this.checkValidForWrite()
+            this@Index.update(record)
         }
 
         /**
@@ -286,10 +330,10 @@ abstract class Index : DBO {
         }
 
         /**
-         * Tries to acquire a write-lock. If method fails, an exception will be thrown
+         * Checks if this [Index.Tx] is in a valid state for write operations to happen.
          */
         @Synchronized
-        private fun acquireWriteLock() {
+        private fun checkValidForWrite() {
             if (this.readonly) throw TransactionException.TransactionReadOnlyException(tid)
             if (this.status == TransactionStatus.CLOSED) throw TransactionException.TransactionClosedException(tid)
             if (this.status == TransactionStatus.ERROR) throw TransactionException.TransactionInErrorException(tid)

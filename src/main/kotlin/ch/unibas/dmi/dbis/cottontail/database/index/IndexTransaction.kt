@@ -5,13 +5,16 @@ import ch.unibas.dmi.dbis.cottontail.database.queries.Predicate
 
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.basics.Filterable
+import ch.unibas.dmi.dbis.cottontail.model.basics.Record
+import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
+import ch.unibas.dmi.dbis.cottontail.model.exceptions.ValidationException
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
 
 /**
  * A [Transaction] that operates on a single [Index]. [Transaction]s are a unit of isolation for data operations (read/write).
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.1
  */
 interface IndexTransaction : Transaction, Filterable {
     /**
@@ -30,9 +33,31 @@ interface IndexTransaction : Transaction, Filterable {
     val type: IndexType
 
     /**
-     * (Re-)builds the underlying [Index].
+     * Returns true, if the [Index] underpinning this [IndexTransaction] supports incremental updates, and false otherwise.
+     *
+     * @return True if incremental [Index] updates are supported.
      */
+    fun supportsIncrementalUpdate(): Boolean
+
+    /**
+     * (Re-)builds the underlying [Index] completely.
+     *
+     * @throws [ValidationException.IndexUpdateException] If rebuild of [Index] fails for some reason.
+     */
+    @Throws(ValidationException.IndexUpdateException::class)
     fun rebuild()
+
+    /**
+     * Updates the [Index] underlying this [IndexTransaction] with the provided [Record]. This method determines, whether
+     * the [Record] should be added or updated
+     *
+     * Not all [Index] implementations support incremental updates. Should be indicated by [IndexTransaction#supportsIncrementalUpdate()]
+     *
+     * @param record Record to add.
+     * @throws [ValidationException.IndexUpdateException] If rebuild of [Index] fails for some reason.
+     */
+    @Throws(ValidationException.IndexUpdateException::class)
+    fun update(record: Record)
 
     /**
      * Performs a lookup through this [IndexTransaction] and returns a [Recordset].

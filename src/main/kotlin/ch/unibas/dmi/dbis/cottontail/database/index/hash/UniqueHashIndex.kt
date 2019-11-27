@@ -4,6 +4,7 @@ import ch.unibas.dmi.dbis.cottontail.database.column.Column
 import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
 import ch.unibas.dmi.dbis.cottontail.database.general.begin
 import ch.unibas.dmi.dbis.cottontail.database.index.Index
+import ch.unibas.dmi.dbis.cottontail.database.index.IndexTransaction
 import ch.unibas.dmi.dbis.cottontail.database.index.IndexType
 import ch.unibas.dmi.dbis.cottontail.utilities.extensions.write
 import ch.unibas.dmi.dbis.cottontail.database.queries.AtomicBooleanPredicate
@@ -12,6 +13,7 @@ import ch.unibas.dmi.dbis.cottontail.database.queries.ComparisonOperator
 import ch.unibas.dmi.dbis.cottontail.database.queries.Predicate
 import ch.unibas.dmi.dbis.cottontail.database.schema.Schema
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
+import ch.unibas.dmi.dbis.cottontail.model.basics.Record
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.ValidationException
@@ -135,6 +137,13 @@ class UniqueHashIndex(override val name: Name, override val parent: Entity, over
     }
 
     /**
+     * Returns true since [UniqueHashIndex] supports incremental updates.
+     *
+     * @return True
+     */
+    override fun supportsIncrementalUpdate(): Boolean = true
+
+    /**
      * (Re-)builds the [UniqueHashIndex].
      */
     override fun rebuild() {
@@ -143,7 +152,6 @@ class UniqueHashIndex(override val name: Name, override val parent: Entity, over
 
         /* (Re-)create index entries. */
         val localMap = this.map as HTreeMap<Value<*>,Long>
-
         this.parent.Tx(readonly = true, columns = this.columns, ommitIndex = true).begin { tx ->
             tx.forEach {
                 val value = it[this.columns[0]] ?: throw ValidationException.IndexUpdateException(this.fqn, "A values cannot be null for instances of unique hash-index but tid=${it.tupleId} is")
@@ -155,6 +163,22 @@ class UniqueHashIndex(override val name: Name, override val parent: Entity, over
             }
             this.db.commit()
             true
+        }
+    }
+
+    /**
+     * Updates the [UniqueHashIndex] with the provided [Record]. This method determines, whether the [Record] should be added or updated
+     *
+     * @param record Record to update the [UniqueHashIndex] with.
+     */
+    override fun update(record: Record) {
+        val localMap = this.map as HTreeMap<Value<*>,Long>
+        val value = record[this.columns[0]]
+        if (value != null) {
+            localMap[value] = record.tupleId
+            this.db.commit()
+        } else {
+            throw ValidationException.IndexUpdateException(this.fqn, "Values cannot be null for instances of UniqueHashIndex but tid=${record.tupleId} is")
         }
     }
 

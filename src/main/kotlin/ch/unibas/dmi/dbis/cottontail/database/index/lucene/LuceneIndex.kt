@@ -4,6 +4,7 @@ import ch.unibas.dmi.dbis.cottontail.database.column.ColumnType
 import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
 import ch.unibas.dmi.dbis.cottontail.database.general.begin
 import ch.unibas.dmi.dbis.cottontail.database.index.Index
+import ch.unibas.dmi.dbis.cottontail.database.index.IndexTransaction
 import ch.unibas.dmi.dbis.cottontail.database.index.IndexType
 import ch.unibas.dmi.dbis.cottontail.database.index.hash.UniqueHashIndex
 import ch.unibas.dmi.dbis.cottontail.database.queries.*
@@ -11,6 +12,7 @@ import ch.unibas.dmi.dbis.cottontail.database.schema.Schema
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.basics.Record
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
+import ch.unibas.dmi.dbis.cottontail.model.exceptions.ValidationException
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
 import ch.unibas.dmi.dbis.cottontail.model.recordset.StandaloneRecord
 import ch.unibas.dmi.dbis.cottontail.model.values.FloatValue
@@ -95,6 +97,13 @@ class LuceneIndex(override val name: Name, override val parent: Entity, override
     private var indexReader = DirectoryReader.open(this.directory)
 
     /**
+     * Returns true, if the [LuceneIndex] supports incremental updates, and false otherwise.
+     *
+     * @return True if incremental [Index] updates are supported.
+     */
+    override fun supportsIncrementalUpdate(): Boolean = false /* TODO: Add support. */
+
+    /**
      * (Re-)builds the [LuceneIndex].
      */
     override fun rebuild() {
@@ -119,6 +128,17 @@ class LuceneIndex(override val name: Name, override val parent: Entity, override
         val oldReader = this.indexReader
         this.indexReader = DirectoryReader.open(this.directory)
         oldReader.close()
+    }
+
+    /**
+     * Updates the [LuceneIndex] with the provided [Record]. This method determines, whether the [Record] should be added or updated
+     *
+     * @param record Record to update this [LuceneIndex] with.
+     * @throws [ValidationException.IndexUpdateException] If rebuild of [Index] fails for some reason.
+     */
+    override fun update(record: Record) {
+        /* TODO: Add support */
+        throw ValidationException.IndexUpdateException(this.fqn, "LuceneIndex currently doesn't support incremental updates.")
     }
 
     /**
