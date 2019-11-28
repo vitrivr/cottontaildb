@@ -27,7 +27,7 @@ class LinearEntityScanKnnTask<T: Any>(val entity: Entity, val knn: KnnPredicate<
     private val knnSet = knn.query.map { HeapSelect<ComparablePair<Long,Double>>(this.knn.k) }
 
     /** List of the [ColumnDef] this instance of [LinearEntityScanKnnTask] produces. */
-    private val produces: Array<ColumnDef<*>> = arrayOf(ColumnDef("${entity.fqn}.distance", ColumnType.forName("DOUBLE")))
+    private val produces: Array<ColumnDef<*>> = arrayOf(ColumnDef(this.entity.fqn.append("distance"), ColumnType.forName("DOUBLE")))
 
     /** The cost of this [LinearEntityScanKnnTask] is constant */
     override val cost = this.entity.statistics.columns * (this.knn.operations * 1e-5 + (this.predicate?.operations ?: 0) * 1e-5).toFloat()

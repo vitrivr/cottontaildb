@@ -7,6 +7,7 @@ import ch.unibas.dmi.dbis.cottontail.execution.tasks.basics.ExecutionTask
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
 import ch.unibas.dmi.dbis.cottontail.model.values.DoubleValue
+import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
 
 import com.github.dexecutor.core.task.Task
 
@@ -27,7 +28,7 @@ class EntityMaxProjectionTask(val entity: Entity, val column: ColumnDef<*>, val 
     override fun execute(): Recordset {
         assertNullaryInput()
 
-        val resultsColumn = ColumnDef.withAttributes(this.alias ?: "max(${this.column.name})", "DOUBLE")
+        val resultsColumn = ColumnDef.withAttributes(Name(this.alias ?: "max(${entity.fqn})"), "DOUBLE")
 
         return this.entity.Tx(true, columns = arrayOf(this.column)).query {
             var max = Double.MIN_VALUE

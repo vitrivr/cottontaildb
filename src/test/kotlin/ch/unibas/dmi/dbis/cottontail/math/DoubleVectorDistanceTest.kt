@@ -1,4 +1,4 @@
-package ch.unibas.dmi.dbis.cottontail.database.math
+package ch.unibas.dmi.dbis.cottontail.math
 
 import ch.unibas.dmi.dbis.cottontail.math.knn.metrics.DoubleVectorDistance
 import ch.unibas.dmi.dbis.cottontail.math.knn.metrics.Shape

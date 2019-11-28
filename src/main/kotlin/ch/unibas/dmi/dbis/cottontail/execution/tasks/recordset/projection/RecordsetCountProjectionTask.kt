@@ -6,6 +6,7 @@ import ch.unibas.dmi.dbis.cottontail.execution.tasks.basics.ExecutionTask
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
 import ch.unibas.dmi.dbis.cottontail.model.values.IntValue
+import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
 
 import com.github.dexecutor.core.task.Task
 import com.github.dexecutor.core.task.TaskExecutionException
@@ -31,7 +32,7 @@ class RecordsetCountProjectionTask (): ExecutionTask("RecordsetCountProjectionTa
         val parent = this.first() ?: throw TaskExecutionException("COUNT projection could not be executed because parent task has failed.")
 
         /* Create new Recordset with new columns. */
-        val recordset = Recordset(arrayOf(ColumnDef.withAttributes("count(*)", "INTEGER")))
+        val recordset = Recordset(arrayOf(ColumnDef.withAttributes(Name("count(*)"), "INTEGER")))
         recordset.addRowUnsafe(arrayOf(IntValue(parent.rowCount)))
         return recordset
     }

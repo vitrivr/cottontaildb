@@ -8,8 +8,10 @@ import ch.unibas.dmi.dbis.cottontail.model.basics.Record
 import ch.unibas.dmi.dbis.cottontail.model.basics.Scanable
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
 import ch.unibas.dmi.dbis.cottontail.model.values.Value
+import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
 
 import java.lang.IllegalArgumentException
+import java.lang.Long.max
 
 import java.util.*
 import java.util.concurrent.atomic.AtomicLong
@@ -25,7 +27,7 @@ import java.util.concurrent.atomic.AtomicLong
  * @see QueryExecutionTask
  *
  * @author Ralph Gasser
- * @version 1.1
+ * @version 1.2
  */
 class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterable {
     /** Internal counter for maximum tupleId. */
@@ -63,7 +65,7 @@ class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterable {
      */
     @Synchronized
     fun addRowUnsafe(tupleId: Long, values: Array<Value<*>?>) {
-        this.map[this.maxTupleId.incrementAndGet()] = RecordsetRecord(tupleId).assign(values)
+        this.map[tupleId] = RecordsetRecord(tupleId).assign(values)
     }
 
     /**
@@ -79,7 +81,8 @@ class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterable {
     fun addRowIfUnsafe(tupleId: Long, predicate: BooleanPredicate, values: Array<Value<*>?>): Boolean {
         val record = RecordsetRecord(tupleId).assign(values)
         return if (predicate.matches(record)) {
-            this.map[this.maxTupleId.incrementAndGet()] = record
+            this.map[tupleId] = record
+            this.maxTupleId.set(max(tupleId, this.maxTupleId.get()))
             true
         } else {
             false
@@ -110,7 +113,8 @@ class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterable {
     @Synchronized
     fun addRow(tupleId: Long, record: Record) {
         if (record.columns.contentDeepEquals(this.columns)) {
-            this.map[this.maxTupleId.incrementAndGet()] = RecordsetRecord(tupleId).assign(record.values)
+            this.map[tupleId] = RecordsetRecord(tupleId).assign(record.values)
+            this.maxTupleId.set(max(tupleId, this.maxTupleId.get()))
         } else {
             throw IllegalArgumentException("The provided record (${this.columns.joinToString(".")}) is incompatible with this record set (${this.columns.joinToString(".")}.")
         }
@@ -129,7 +133,8 @@ class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterable {
     fun addRowIf(tupleId: Long, predicate: BooleanPredicate, record: Record): Boolean {
         if (record.columns.contentDeepEquals(this.columns)) {
             return if (predicate.matches(record)) {
-                this.map[this.maxTupleId.incrementAndGet()] = record
+                this.map[tupleId] = record
+                this.maxTupleId.set(max(tupleId, this.maxTupleId.get()))
                 true
             } else {
                 false
@@ -248,10 +253,7 @@ class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterable {
      * @param predicate [Predicate] to check.
      * @return True if [Predicate] can be processed, false otherwise.
      */
-    override fun canProcess(predicate: BooleanPredicate): Boolean = when {
-        predicate.atomics.all { it.operator != ComparisonOperator.LIKE } -> true
-        else -> false
-    }
+    override fun canProcess(predicate: Predicate): Boolean = (predicate is BooleanPredicate) &&  predicate.atomics.all { it.operator != ComparisonOperator.LIKE }
 
     /**
      * Filters this [Filterable] thereby creating and returning a new [Filterable].
@@ -260,10 +262,12 @@ class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterable {
      * @return New [Filterable]
      */
     @Synchronized
-    override fun filter(predicate: BooleanPredicate): Recordset {
+    override fun filter(predicate: Predicate): Recordset = if (predicate is BooleanPredicate) {
         val recordset = Recordset(this.columns)
         this.map.values.asSequence().filter { predicate.matches(it) }.forEach { recordset.addRow(it) }
-        return recordset
+        recordset
+    } else {
+        throw QueryException.UnsupportedPredicateException("Recordset#filter() does not support predicates of type '${predicate::class.simpleName}'.")
     }
 
     /**
@@ -273,7 +277,11 @@ class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterable {
      * @param action The action that should be applied.
      */
     @Synchronized
-    override fun forEach(predicate: BooleanPredicate, action: (Record) -> Unit) = this.map.values.asSequence().filter { predicate.matches(it) }.forEach { action(it) }
+    override fun forEach(predicate: Predicate, action: (Record) -> Unit) = if (predicate is BooleanPredicate) {
+        this.map.values.asSequence().filter { predicate.matches(it) }.forEach { action(it) }
+    } else {
+        throw QueryException.UnsupportedPredicateException("Recordset#forEach() does not support predicates of type '${predicate::class.simpleName}'.")
+    }
 
     /**
      * Applies the provided action to each [Record] in the given range that matches the given [Predicate].
@@ -284,9 +292,11 @@ class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterable {
      * @param action The action that should be applied.
      */
     @Synchronized
-    override fun forEach(from: Long, to: Long, predicate: BooleanPredicate, action: (Record) -> Unit) {
+    override fun forEach(from: Long, to: Long, predicate: Predicate, action: (Record) -> Unit) = if (predicate is BooleanPredicate) {
         val range = (from until to)
         this.map.values.asSequence().filter{ range.contains(it.tupleId) }.filter { predicate.matches(it) }.forEach { action(it) }
+    } else {
+        throw QueryException.UnsupportedPredicateException("Recordset#forEach() does not support predicates of type '${predicate::class.simpleName}'.")
     }
 
 
@@ -297,10 +307,10 @@ class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterable {
      * @param action The mapping function that should be applied.
      */
     @Synchronized
-    override fun <R> map(predicate: BooleanPredicate, action: (Record) -> R): Collection<R> {
-        val list = mutableListOf<R>()
-        this.map.values.asSequence().filter { predicate.matches(it) }.map(action).forEach { list.add(it) }
-        return list
+    override fun <R> map(predicate: Predicate, action: (Record) -> R): Collection<R> = if (predicate is BooleanPredicate) {
+        this.map.values.asSequence().filter { predicate.matches(it) }.map(action).toList()
+    } else {
+        throw QueryException.UnsupportedPredicateException("Recordset#map() does not support predicates of type '${predicate::class.simpleName}'.")
     }
 
     /**
@@ -312,11 +322,11 @@ class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterable {
      * @param action The mapping function that should be applied.
      */
     @Synchronized
-    override fun <R> map(from: Long, to: Long, predicate: BooleanPredicate, action: (Record) -> R): Collection<R> {
-        val list = mutableListOf<R>()
+    override fun <R> map(from: Long, to: Long, predicate: Predicate, action: (Record) -> R): Collection<R> = if (predicate is BooleanPredicate) {
         val range = (from until to)
-        this.map.values.asSequence().filter{ range.contains(it.tupleId) }.filter { predicate.matches(it) }.map(action).forEach { list.add(it) }
-        return list
+        this.map.values.asSequence().filter{ range.contains(it.tupleId) }.filter { predicate.matches(it) }.map(action).toList()
+    } else {
+        throw QueryException.UnsupportedPredicateException("Recordset#map() does not support predicates of type '${predicate::class.simpleName}'.")
     }
 
     /**
@@ -360,7 +370,7 @@ class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterable {
     /**
      *
      */
-    fun renameColumnsWithIndex(columns: Collection<Pair<Int,String>>): Recordset {
+    fun renameColumnsWithIndex(columns: Collection<Pair<Int, Name>>): Recordset {
         val renamed = this.columns.mapIndexed { i, col ->
             val rename = columns.find { i == it.first }
             if (rename != null) {

@@ -6,6 +6,7 @@ import ch.unibas.dmi.dbis.cottontail.database.general.TransactionStatus
 import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
 import ch.unibas.dmi.dbis.cottontail.database.queries.BooleanPredicate
 import ch.unibas.dmi.dbis.cottontail.database.queries.Predicate
+import ch.unibas.dmi.dbis.cottontail.database.schema.Schema
 
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.basics.Record
@@ -41,6 +42,9 @@ import kotlin.concurrent.write
  * @version 1.1
  */
 class MapDBColumn<T : Any>(override val name: Name, override val parent: Entity) : Column<T> {
+    /** Constant FQN of the [Schema] object. */
+    override val fqn: Name = this.parent.fqn.append(this.name)
+
     /** The [Path] to the [Entity]'s main folder. */
     override val path: Path = parent.path.resolve("col_$name.db")
 
@@ -53,17 +57,15 @@ class MapDBColumn<T : Any>(override val name: Name, override val parent: Entity)
 
     /** Internal reference to the [Header] of this [MapDBColumn]. */
     private val header
-        get() = store.get(HEADER_RECORD_ID, ColumnHeaderSerializer)
-                ?: throw DatabaseException.DataCorruptionException("Failed to open header of column '$fqn'!'")
+        get() = this.store.get(HEADER_RECORD_ID, ColumnHeaderSerializer) ?: throw DatabaseException.DataCorruptionException("Failed to open header of column '$fqn'!'")
 
     /**
-     * Getter for this [MapDBColumn]'s [ColumnDef].
+     * Getter for this [MapDBColumn]'s [ColumnDef]. Can be stored since [MapDBColumn]s [ColumnDef] is immutable.
      *
      * @return [ColumnDef] for this [MapDBColumn]
      */
     @Suppress("UNCHECKED_CAST")
-    override val columnDef: ColumnDef<T>
-        get() = this.header.let { ColumnDef(this.fqn, it.type as ColumnType<T>, it.size, it.nullable) }
+    override val columnDef: ColumnDef<T> = this.header.let { ColumnDef(this.fqn, it.type as ColumnType<T>, it.size, it.nullable) }
 
     /**
      * The maximum tuple ID used by this [Column].
@@ -131,6 +133,7 @@ class MapDBColumn<T : Any>(override val name: Name, override val parent: Entity)
     inner class ColumnRecord(override val tupleId: Long, value: Value<*>?) : Record {
         override val columns
             get() = arrayOf(this@MapDBColumn.columnDef)
+
         override val values = arrayOf(value)
     }
 
@@ -144,8 +147,13 @@ class MapDBColumn<T : Any>(override val name: Name, override val parent: Entity)
         override var status: TransactionStatus = TransactionStatus.CLEAN
             private set
 
-        /** The [Serializer] used for de-/serialization of [MapDBColumn] entries. */
-        val serializer = this@MapDBColumn.type.serializer(this@MapDBColumn.columnDef.size)
+        /**
+         * The [ColumnDef] of the [Column] underlying this [ColumnTransaction].
+         *
+         * @return [ColumnTransaction]
+         */
+        override val columnDef: ColumnDef<T>
+            get() = this@MapDBColumn.columnDef
 
         /** Tries to acquire a global read-lock on the [MapDBColumn]. */
         init {
@@ -153,6 +161,9 @@ class MapDBColumn<T : Any>(override val name: Name, override val parent: Entity)
                 throw TransactionException.TransactionDBOClosedException(tid)
             }
         }
+
+        /** The [Serializer] used for de-/serialization of [MapDBColumn] entries. */
+        private val serializer = this@MapDBColumn.type.serializer(this@MapDBColumn.columnDef.size)
 
         /** Obtains a global (non-exclusive) read-lock on [MapDBColumn]. Prevents enclosing [MapDBColumn] from being closed while this [MapDBColumn.Tx] is still in use. */
         private val globalStamp = this@MapDBColumn.globalLock.readLock()
@@ -310,7 +321,7 @@ class MapDBColumn<T : Any>(override val name: Name, override val parent: Entity)
          * @param predicate The [BooleanPredicate] to check.
          * @return True if predicate can be processed, false otherwise.
          */
-        override fun canProcess(predicate: BooleanPredicate): Boolean = predicate is BooleanPredicate && predicate.columns.all {it == this@MapDBColumn.columnDef}
+        override fun canProcess(predicate: Predicate): Boolean = predicate is BooleanPredicate
 
         /**
          * Applies the provided predicate to each [Record] found in this [MapDBColumn], returning a [Recordset] that contains all
@@ -319,18 +330,22 @@ class MapDBColumn<T : Any>(override val name: Name, override val parent: Entity)
          * @param predicate The [BooleanPredicate] that should be applied.
          * @return A filtered [Recordset] of [Record]s that passed the test.
          */
-        override fun filter(predicate: BooleanPredicate): Recordset = this.localLock.read {
-            checkValidForRead()
-            val recordset = Recordset(arrayOf(this@MapDBColumn.columnDef))
-            this@MapDBColumn.store.RecordIdIterator().use { iterator ->
-                iterator.forEachRemaining {
-                    if (it != CottontailStoreWAL.EOF_ENTRY) {
-                        val data = ColumnRecord(it, this@MapDBColumn.store.get(it, this.serializer))
-                        if (predicate.matches(data)) recordset.addRowUnsafe(data.values)
+        override fun filter(predicate: Predicate): Recordset = this.localLock.read {
+            if (predicate is BooleanPredicate) {
+                checkValidForRead()
+                val recordset = Recordset(arrayOf(this@MapDBColumn.columnDef))
+                this@MapDBColumn.store.RecordIdIterator().use { iterator ->
+                    iterator.forEachRemaining {
+                        if (it != CottontailStoreWAL.EOF_ENTRY) {
+                            val data = ColumnRecord(it, this@MapDBColumn.store.get(it, this.serializer))
+                            if (predicate.matches(data)) recordset.addRowUnsafe(data.values)
+                        }
                     }
                 }
+                return recordset
+            } else {
+                throw QueryException.UnsupportedPredicateException("MapDBColumn#filter() does not support predicates of type '${predicate::class.simpleName}'.")
             }
-            return recordset
         }
 
         /**
@@ -342,7 +357,7 @@ class MapDBColumn<T : Any>(override val name: Name, override val parent: Entity)
          *
          * @throws QueryException.UnsupportedPredicateException If predicate is not a [BooleanPredicate].
          */
-        override fun forEach(predicate: BooleanPredicate, action: (Record) -> Unit) = forEach(1L, this@MapDBColumn.store.maxRecid, predicate, action)
+        override fun forEach(predicate: Predicate, action: (Record) -> Unit) = forEach(1L, this@MapDBColumn.store.maxRecid, predicate, action)
 
         /**
          * Applies the provided action to each [Record] in the given range that matches the given [Predicate]. The function cannot not change
@@ -355,17 +370,21 @@ class MapDBColumn<T : Any>(override val name: Name, override val parent: Entity)
          *
          * @throws QueryException.UnsupportedPredicateException If predicate is not a [BooleanPredicate].
          */
-        override fun forEach(from: Long, to: Long, predicate: BooleanPredicate, action: (Record) -> Unit) = this.localLock.read {
-            checkValidForRead()
-            this@MapDBColumn.store.RecordIdIterator(from.coerceAtLeast(1L), to.coerceAtMost(this@MapDBColumn.store.maxRecid)).use {iterator ->
-                iterator.forEachRemaining {
-                    if (it != CottontailStoreWAL.EOF_ENTRY) {
-                        val record = ColumnRecord(it, this@MapDBColumn.store.get(it, this.serializer))
-                        if (predicate.matches(record)) {
-                            action(record)
+        override fun forEach(from: Long, to: Long, predicate: Predicate, action: (Record) -> Unit) = this.localLock.read {
+            if (predicate is BooleanPredicate) {
+                checkValidForRead()
+                this@MapDBColumn.store.RecordIdIterator(from.coerceAtLeast(1L), to.coerceAtMost(this@MapDBColumn.store.maxRecid)).use {iterator ->
+                    iterator.forEachRemaining {
+                        if (it != CottontailStoreWAL.EOF_ENTRY) {
+                            val record = ColumnRecord(it, this@MapDBColumn.store.get(it, this.serializer))
+                            if (predicate.matches(record)) {
+                                action(record)
+                            }
                         }
                     }
                 }
+            } else {
+                throw QueryException.UnsupportedPredicateException("MapDBColumn#forEach() does not support predicates of type '${predicate::class.simpleName}'.")
             }
         }
 
@@ -373,13 +392,13 @@ class MapDBColumn<T : Any>(override val name: Name, override val parent: Entity)
          * Applies the provided mapping function to each [Record] that matches the given [Predicate], returning a collection
          * of the desired output values.
          *
-         * @param predicate The [BooleanPredicate] to filter [Record]s.
+         * @param predicate The [Predicate] to filter [Record]s.
          * @param action The mapping function that should be applied.
          * @return Collection of the results of the mapping function.
          *
          * @throws QueryException.UnsupportedPredicateException If predicate is not a [BooleanPredicate].
          */
-        override fun <R> map(predicate: BooleanPredicate, action: (Record) -> R): Collection<R> = map(1L, this@MapDBColumn.store.maxRecid, predicate, action)
+        override fun <R> map(predicate: Predicate, action: (Record) -> R): Collection<R> = map(1L, this@MapDBColumn.store.maxRecid, predicate, action)
 
         /**
          * Applies the provided mapping function to each [Record] in the given range that matches the given [Predicate], returning a collection
@@ -393,20 +412,24 @@ class MapDBColumn<T : Any>(override val name: Name, override val parent: Entity)
          *
          * @throws QueryException.UnsupportedPredicateException If predicate is not a [BooleanPredicate].
          */
-        override fun <R> map(from: Long, to: Long, predicate: BooleanPredicate, action: (Record) -> R): Collection<R> = this.localLock.read {
-            checkValidForRead()
-            val list = mutableListOf<R>()
-            this@MapDBColumn.store.RecordIdIterator(from.coerceAtLeast(1L), to.coerceAtMost(this@MapDBColumn.store.maxRecid)).use {iterator ->
-                iterator.forEachRemaining {
-                    if (it != CottontailStoreWAL.EOF_ENTRY) {
-                        val record = ColumnRecord(it, this@MapDBColumn.store.get(it, this.serializer))
-                        if (predicate.matches(record)) {
-                            list.add(action(ColumnRecord(it, this@MapDBColumn.store.get(it, this.serializer))))
+        override fun <R> map(from: Long, to: Long, predicate: Predicate, action: (Record) -> R): Collection<R> = this.localLock.read {
+            if (predicate is BooleanPredicate) {
+                checkValidForRead()
+                val list = mutableListOf<R>()
+                this@MapDBColumn.store.RecordIdIterator(from.coerceAtLeast(1L), to.coerceAtMost(this@MapDBColumn.store.maxRecid)).use { iterator ->
+                    iterator.forEachRemaining {
+                        if (it != CottontailStoreWAL.EOF_ENTRY) {
+                            val record = ColumnRecord(it, this@MapDBColumn.store.get(it, this.serializer))
+                            if (predicate.matches(record)) {
+                                list.add(action(ColumnRecord(it, this@MapDBColumn.store.get(it, this.serializer))))
+                            }
                         }
                     }
                 }
+                return list
+            } else {
+                throw QueryException.UnsupportedPredicateException("MapDBColumn#map() does not support predicates of type '${predicate::class.simpleName}'.")
             }
-            return list
         }
 
         /**
@@ -429,7 +452,7 @@ class MapDBColumn<T : Any>(override val name: Name, override val parent: Entity)
                 val header = this@MapDBColumn.header
                 header.count += 1
                 header.modified = System.currentTimeMillis()
-                store.update(HEADER_RECORD_ID, header, ColumnHeaderSerializer)
+                this@MapDBColumn.store.update(HEADER_RECORD_ID, header, ColumnHeaderSerializer)
                 tupleId
             } catch (e: DBException) {
                 this.status = TransactionStatus.ERROR
@@ -460,7 +483,7 @@ class MapDBColumn<T : Any>(override val name: Name, override val parent: Entity)
                 val header = this@MapDBColumn.header
                 header.count += records.size
                 header.modified = System.currentTimeMillis()
-                store.update(HEADER_RECORD_ID, header, ColumnHeaderSerializer)
+                this@MapDBColumn.store.update(HEADER_RECORD_ID, header, ColumnHeaderSerializer)
                 tupleIds
             } catch (e: DBException) {
                 this.status = TransactionStatus.ERROR
@@ -583,6 +606,8 @@ class MapDBColumn<T : Any>(override val name: Name, override val parent: Entity)
                 this.status = TransactionStatus.DIRTY
             }
         }
+
+
     }
 }
 

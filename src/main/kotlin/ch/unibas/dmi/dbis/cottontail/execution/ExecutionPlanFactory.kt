@@ -120,7 +120,7 @@ class ExecutionPlanFactory (val executionEngine: ExecutionEngine) {
 
         /* Add default case 2: Cheapest index for full query. */
         val indexes = entity.allIndexes()
-        val index = indexes.filter { it.canProcess(whereClause) }.sortedBy { it.cost(whereClause) }.firstOrNull()
+        val index = indexes.filter { it.canProcess(whereClause) }.minBy { it.cost(whereClause) }
         if (index != null) {
             val stage = ExecutionStage()
             stage.addTask(EntityIndexedFilterTask(entity, whereClause, index))

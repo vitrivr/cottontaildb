@@ -2,14 +2,18 @@ package ch.unibas.dmi.dbis.cottontail.database.index.lucene
 
 import ch.unibas.dmi.dbis.cottontail.database.column.ColumnType
 import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
+import ch.unibas.dmi.dbis.cottontail.database.events.DataChangeEvent
 import ch.unibas.dmi.dbis.cottontail.database.general.begin
 import ch.unibas.dmi.dbis.cottontail.database.index.Index
+import ch.unibas.dmi.dbis.cottontail.database.index.IndexTransaction
 import ch.unibas.dmi.dbis.cottontail.database.index.IndexType
 import ch.unibas.dmi.dbis.cottontail.database.index.hash.UniqueHashIndex
 import ch.unibas.dmi.dbis.cottontail.database.queries.*
+import ch.unibas.dmi.dbis.cottontail.database.schema.Schema
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.basics.Record
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
+import ch.unibas.dmi.dbis.cottontail.model.exceptions.ValidationException
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
 import ch.unibas.dmi.dbis.cottontail.model.recordset.StandaloneRecord
 import ch.unibas.dmi.dbis.cottontail.model.values.FloatValue
@@ -64,8 +68,11 @@ class LuceneIndex(override val name: Name, override val parent: Entity, override
         private val LOGGER = LoggerFactory.getLogger(LuceneIndex::class.java)
     }
 
+    /** Constant FQN of the [Schema] object. */
+    override val fqn: Name = this.parent.fqn.append(this.name)
+
     /** The [LuceneIndex] implementation produces an additional score column. */
-    override val produces: Array<ColumnDef<*>> = arrayOf(ColumnDef("${parent.fqn}.score", ColumnType.forName("FLOAT")))
+    override val produces: Array<ColumnDef<*>> = arrayOf(ColumnDef(parent.fqn.append("score"), ColumnType.forName("FLOAT")))
 
     /** The path to the directory that contains the data for this [LuceneIndex]. */
     override val path: Path = this.parent.path.resolve("idx_lucene_$name")
@@ -91,21 +98,24 @@ class LuceneIndex(override val name: Name, override val parent: Entity, override
     private var indexReader = DirectoryReader.open(this.directory)
 
     /**
+     * Returns true, if the [LuceneIndex] supports incremental updates, and false otherwise.
+     *
+     * @return True if incremental [Index] updates are supported.
+     */
+    override fun supportsIncrementalUpdate(): Boolean = false /** TODO: Add support. */
+
+    /**
      * (Re-)builds the [LuceneIndex].
      */
     override fun rebuild() {
-        LOGGER.trace("rebuilding lucene index {}", name)
-        val writer = IndexWriter(this.directory, IndexWriterConfig(StandardAnalyzer()).setOpenMode(IndexWriterConfig.OpenMode.APPEND).setCommitOnClose(true))
+        LOGGER.trace("Rebuilding lucene index {}", name)
+        val writer = IndexWriter(this.directory, IndexWriterConfig(StandardAnalyzer()).setOpenMode(IndexWriterConfig.OpenMode.APPEND).setMaxBufferedDocs(100_000).setCommitOnClose(true))
         writer.deleteAll()
         this.parent.Tx(readonly = true, columns = this.columns, ommitIndex = true).begin { tx ->
             var count = 0
             tx.forEach {
                 writer.addDocument(documentFromRecord(it))
                 count++
-                if (count % 1_000_000 == 0) {
-                    LOGGER.trace("flushing writer to storage, {} docs processed in total", count)
-                    writer.flush()
-                }
             }
             true
         }
@@ -115,6 +125,17 @@ class LuceneIndex(override val name: Name, override val parent: Entity, override
         val oldReader = this.indexReader
         this.indexReader = DirectoryReader.open(this.directory)
         oldReader.close()
+    }
+
+    /**
+     * Updates the [LuceneIndex] with the provided [Record]. This method determines, whether the [Record] should be added or updated
+     *
+     * @param update [DataChangeEvent]s based on which to update the [LuceneIndex].
+     * @throws [ValidationException.IndexUpdateException] If rebuild of [Index] fails for some reason.
+     */
+    override fun update(update: Collection<DataChangeEvent>) {
+        /* TODO: Add support. */
+        throw ValidationException.IndexUpdateException(this.fqn, "LuceneIndex currently doesn't support incremental updates.")
     }
 
     /**
@@ -137,7 +158,7 @@ class LuceneIndex(override val name: Name, override val parent: Entity, override
      *
      * @throws DatabaseException.PredicateNotSupportedBxIndexException If predicate is not supported by [Index].
      */
-    override fun filter(predicate: BooleanPredicate): Recordset  {
+    override fun filter(predicate: Predicate): Recordset = if (predicate is BooleanPredicate) {
         val indexSearcher = IndexSearcher(this.indexReader)
         if (!predicate.columns.all { this.columns.contains(it) })
             throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (lucene-index) is lacking certain fields the provided predicate requires.")
@@ -160,7 +181,9 @@ class LuceneIndex(override val name: Name, override val parent: Entity, override
             val doc = indexSearcher.doc(sdoc.doc)
             resultset.addRowUnsafe(doc[TID_COLUMN].toLong(), values = arrayOf(FloatValue(sdoc.score)))
         }
-        return resultset
+        resultset
+    } else {
+        throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (lucene index) does not support predicates of type '${predicate::class.simpleName}'.")
     }
 
     /**
@@ -172,7 +195,7 @@ class LuceneIndex(override val name: Name, override val parent: Entity, override
      *
      * @throws DatabaseException.PredicateNotSupportedBxIndexException If predicate is not supported by [Index].
      */
-    override fun forEach(predicate: BooleanPredicate, action: (Record) -> Unit) {
+    override fun forEach(predicate: Predicate, action: (Record) -> Unit) = if (predicate is BooleanPredicate) {
         val indexSearcher = IndexSearcher(this.indexReader)
 
         if (!predicate.columns.all { this.columns.contains(it) })
@@ -189,10 +212,12 @@ class LuceneIndex(override val name: Name, override val parent: Entity, override
 
         /* Execute query and add results. */
         val results = indexSearcher.search(query, Integer.MAX_VALUE)
-        return results.scoreDocs.forEach { sdoc ->
+        results.scoreDocs.forEach { sdoc ->
             val doc = indexSearcher.doc(sdoc.doc)
             action(StandaloneRecord(tupleId = doc[TID_COLUMN].toLong(), columns = arrayOf(*this.produces)).assign(arrayOf(FloatValue(sdoc.score))))
         }
+    } else {
+        throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (lucene index) does not support predicates of type '${predicate::class.simpleName}'.")
     }
 
     /**
@@ -204,7 +229,7 @@ class LuceneIndex(override val name: Name, override val parent: Entity, override
      *
      * @throws DatabaseException.PredicateNotSupportedBxIndexException If predicate is not supported by [Index].
      */
-    override fun <R> map(predicate: BooleanPredicate, action: (Record) -> R): Collection<R> {
+    override fun <R> map(predicate: Predicate, action: (Record) -> R): Collection<R> = if (predicate is BooleanPredicate) {
         val indexSearcher = IndexSearcher(this.indexReader)
 
         if (!predicate.columns.all { this.columns.contains(it) })
@@ -220,10 +245,12 @@ class LuceneIndex(override val name: Name, override val parent: Entity, override
         }
 
         /* Execute query and add results. */
-        return indexSearcher.search(query, Integer.MAX_VALUE).scoreDocs.map { sdoc ->
+        indexSearcher.search(query, Integer.MAX_VALUE).scoreDocs.map { sdoc ->
             val doc = indexSearcher.doc(sdoc.doc)
             action(StandaloneRecord(tupleId = doc[TID_COLUMN].toLong(), columns = arrayOf(*produces)).assign(arrayOf(FloatValue(sdoc.score))))
         }
+    } else {
+        throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (lucene index) does not support predicates of type '${predicate::class.simpleName}'.")
     }
 
     /**
@@ -232,10 +259,10 @@ class LuceneIndex(override val name: Name, override val parent: Entity, override
      * @param predicate [Predicate] to test.
      * @return True if [Predicate] can be processed, false otherwise.
      */
-    override fun canProcess(predicate: BooleanPredicate): Boolean {
-        if (!predicate.columns.all { this.columns.contains(it) }) return false
-        if (!predicate.atomics.all { it.operator == ComparisonOperator.LIKE || it.operator == ComparisonOperator.EQUAL }) return false
-        return true
+    override fun canProcess(predicate: Predicate): Boolean = if (predicate is BooleanPredicate) {
+        predicate.columns.all { this.columns.contains(it) } && predicate.atomics.all { it.operator == ComparisonOperator.LIKE || it.operator == ComparisonOperator.EQUAL }
+    } else {
+        false
     }
 
     /**
@@ -244,10 +271,10 @@ class LuceneIndex(override val name: Name, override val parent: Entity, override
      * @param predicate [Predicate] to check.
      * @return Cost estimate for the [Predicate]
      */
-    override fun cost(predicate: BooleanPredicate): Float = when {
+    override fun cost(predicate: Predicate): Float = when {
         canProcess(predicate) -> {
             val searcher = IndexSearcher(this.indexReader)
-            predicate.columns.map { searcher.collectionStatistics(it.name).sumTotalTermFreq() * ATOMIC_COST }.sum()
+            predicate.columns.map { searcher.collectionStatistics(it.name.name).sumTotalTermFreq() * ATOMIC_COST }.sum()
         }
         else -> Float.MAX_VALUE
     }
