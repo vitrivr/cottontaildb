@@ -1,10 +1,10 @@
 package ch.unibas.dmi.dbis.cottontail.math.knn.metrics
 
 import ch.unibas.dmi.dbis.cottontail.model.values.VectorValue
-import ch.unibas.dmi.dbis.cottontail.model.values.complex.Complex
+import ch.unibas.dmi.dbis.cottontail.model.values.complex.Complex32
 import kotlin.math.*
 
-enum class ComplexVectorDistance : VectorizedDistanceFunction<Array<Complex>> {
+enum class Complex32VectorDistance : VectorizedDistanceFunction<FloatArray> {
 
     /**
      * L1 or Manhattan distance between two vectors. Vectors must be of the same size!
@@ -12,22 +12,22 @@ enum class ComplexVectorDistance : VectorizedDistanceFunction<Array<Complex>> {
     L1 {
         override val operations: Int = 1
 
-        override fun invoke(a: VectorValue<Array<Complex>>, b: VectorValue<Array<Complex>>, shape: Shape): Double {
+        override fun invoke(a: VectorValue<FloatArray>, b: VectorValue<FloatArray>, shape: Shape): Double {
             // TODO
             return 0.0
         }
 
-        override fun invoke(a: VectorValue<Array<Complex>>, b: VectorValue<Array<Complex>>, weights: VectorValue<*>, shape: Shape): Double {
+        override fun invoke(a: VectorValue<FloatArray>, b: VectorValue<FloatArray>, weights: VectorValue<*>, shape: Shape): Double {
             // TODO
             return 0.0
         }
 
-        override fun invoke(a: VectorValue<Array<Complex>>, b: VectorValue<Array<Complex>>, weights: VectorValue<*>): Double {
+        override fun invoke(a: VectorValue<FloatArray>, b: VectorValue<FloatArray>, weights: VectorValue<*>): Double {
             // TODO
             return 0.0
         }
 
-        override fun invoke(a: VectorValue<Array<Complex>>, b: VectorValue<Array<Complex>>): Double {
+        override fun invoke(a: VectorValue<FloatArray>, b: VectorValue<FloatArray>): Double {
             // TODO
             return 0.0
         }
@@ -38,10 +38,10 @@ enum class ComplexVectorDistance : VectorizedDistanceFunction<Array<Complex>> {
      */
     L2 {
         override val operations: Int = 2
-        override fun invoke(a: VectorValue<Array<Complex>>, b: VectorValue<Array<Complex>>, shape: Shape): Double = sqrt(L2SQUARED(a, b, shape))
-        override fun invoke(a: VectorValue<Array<Complex>>, b: VectorValue<Array<Complex>>, weights: VectorValue<*>, shape: Shape): Double = sqrt(L2SQUARED(a, b, weights, shape))
-        override fun invoke(a: VectorValue<Array<Complex>>, b: VectorValue<Array<Complex>>, weights: VectorValue<*>): Double = sqrt(L2SQUARED(a, b, weights))
-        override fun invoke(a: VectorValue<Array<Complex>>, b: VectorValue<Array<Complex>>): Double = sqrt(L2SQUARED(a, b))
+        override fun invoke(a: VectorValue<FloatArray>, b: VectorValue<FloatArray>, shape: Shape): Double = sqrt(L2SQUARED(a, b, shape))
+        override fun invoke(a: VectorValue<FloatArray>, b: VectorValue<FloatArray>, weights: VectorValue<*>, shape: Shape): Double = sqrt(L2SQUARED(a, b, weights, shape))
+        override fun invoke(a: VectorValue<FloatArray>, b: VectorValue<FloatArray>, weights: VectorValue<*>): Double = sqrt(L2SQUARED(a, b, weights))
+        override fun invoke(a: VectorValue<FloatArray>, b: VectorValue<FloatArray>): Double = sqrt(L2SQUARED(a, b))
     },
 
     /**
@@ -50,22 +50,22 @@ enum class ComplexVectorDistance : VectorizedDistanceFunction<Array<Complex>> {
     L2SQUARED {
         override val operations: Int = 2
 
-        override fun invoke(a: VectorValue<Array<Complex>>, b: VectorValue<Array<Complex>>, shape: Shape): Double {
+        override fun invoke(a: VectorValue<FloatArray>, b: VectorValue<FloatArray>, shape: Shape): Double {
             // TODO
             return 0.0
         }
 
-        override fun invoke(a: VectorValue<Array<Complex>>, b: VectorValue<Array<Complex>>, weights: VectorValue<*>, shape: Shape): Double {
+        override fun invoke(a: VectorValue<FloatArray>, b: VectorValue<FloatArray>, weights: VectorValue<*>, shape: Shape): Double {
             // TODO
             return 0.0
         }
 
-        override fun invoke(a: VectorValue<Array<Complex>>, b: VectorValue<Array<Complex>>, weights: VectorValue<*>): Double {
+        override fun invoke(a: VectorValue<FloatArray>, b: VectorValue<FloatArray>, weights: VectorValue<*>): Double {
             // TODO
             return 0.0
         }
 
-        override fun invoke(a: VectorValue<Array<Complex>>, b: VectorValue<Array<Complex>>): Double {
+        override fun invoke(a: VectorValue<FloatArray>, b: VectorValue<FloatArray>): Double {
             // TODO
             return 0.0
         }
@@ -77,12 +77,12 @@ enum class ComplexVectorDistance : VectorizedDistanceFunction<Array<Complex>> {
     CHISQUARED {
         override val operations: Int = 3
 
-        override fun invoke(a: VectorValue<Array<Complex>>, b: VectorValue<Array<Complex>>, weights: VectorValue<*>): Double {
+        override fun invoke(a: VectorValue<FloatArray>, b: VectorValue<FloatArray>, weights: VectorValue<*>): Double {
             // TODO
             return 0.0
         }
 
-        override fun invoke(a: VectorValue<Array<Complex>>, b: VectorValue<Array<Complex>>): Double {
+        override fun invoke(a: VectorValue<FloatArray>, b: VectorValue<FloatArray>): Double {
             // TODO
             return 0.0
         }
@@ -95,20 +95,20 @@ enum class ComplexVectorDistance : VectorizedDistanceFunction<Array<Complex>> {
     COSINE {
         override val operations: Int = 3
 
-        override fun invoke(a: VectorValue<Array<Complex>>, b: VectorValue<Array<Complex>>, weights: VectorValue<*>, shape: Shape): Double {
+        override fun invoke(a: VectorValue<FloatArray>, b: VectorValue<FloatArray>, weights: VectorValue<*>, shape: Shape): Double {
             // TODO
             return 0.0
         }
 
-        override fun invoke(a: VectorValue<Array<Complex>>, b: VectorValue<Array<Complex>>, shape: Shape): Double {
+        override fun invoke(a: VectorValue<FloatArray>, b: VectorValue<FloatArray>, shape: Shape): Double {
             // TODO
             var dot = 0.0
             var c = 0.0
             var d = 0.0
-            for (i in b.value.indices) {
-                dot += a.value[i][0] * b.value[i][0] + a.value[i][1] * b.value[i][1]
-                c += a.value[i][0] * a.value[i][0] + a.value[i][1] * a.value[i][1]
-                d += b.value[i][0] * b.value[i][0] + b.value[i][1] * b.value[i][1]
+            for (i in 0 until b.size) {
+                dot += a.value[i * 2] * b.value[i * 2] + a.value[i * 2 + 1] * b.value[i * 2 + 1]
+                c += a.value[i * 2] * a.value[i * 2] + a.value[i * 2 + 1] * a.value[i * 2 + 1]
+                d += b.value[i * 2] * b.value[i * 2] + b.value[i * 2 + 1] * b.value[i * 2 + 1]
             }
             val div = sqrt(c) * sqrt(d)
 
@@ -119,19 +119,20 @@ enum class ComplexVectorDistance : VectorizedDistanceFunction<Array<Complex>> {
             }
         }
 
-        override fun invoke(a: VectorValue<Array<Complex>>, b: VectorValue<Array<Complex>>, weights: VectorValue<*>): Double {
+        override fun invoke(a: VectorValue<FloatArray>, b: VectorValue<FloatArray>, weights: VectorValue<*>): Double {
             // TODO
             return 0.0
         }
 
-        override fun invoke(a: VectorValue<Array<Complex>>, b: VectorValue<Array<Complex>>): Double {
+        override fun invoke(a: VectorValue<FloatArray>, b: VectorValue<FloatArray>): Double {
+            // TODO
             var dot = 0.0
             var c = 0.0
             var d = 0.0
-            for (i in b.value.indices) {
-                dot += a.value[i][0] * b.value[i][0] + a.value[i][1] * b.value[i][1]
-                c += a.value[i][0] * a.value[i][0] + a.value[i][1] * a.value[i][1]
-                d += b.value[i][0] * b.value[i][0] + b.value[i][1] * b.value[i][1]
+            for (i in 0 until b.size) {
+                dot += a.value[i * 2] * b.value[i * 2] + a.value[i * 2 + 1] * b.value[i * 2 + 1]
+                c += a.value[i * 2] * a.value[i * 2] + a.value[i * 2 + 1] * a.value[i * 2 + 1]
+                d += b.value[i * 2] * b.value[i * 2] + b.value[i * 2 + 1] * b.value[i * 2 + 1]
             }
             val div = sqrt(c) * sqrt(d)
 
@@ -150,10 +151,10 @@ enum class ComplexVectorDistance : VectorizedDistanceFunction<Array<Complex>> {
         override val operations: Int = 1
 
         // TODO
-        override fun invoke(a: VectorValue<Array<Complex>>, b: VectorValue<Array<Complex>>, weights: VectorValue<*>): Double = b.indices.mapIndexed { i, _ -> if (b[i] == a[i]) 0.0f else weights.getAsFloat(i) }.sum().toDouble()
+        override fun invoke(a: VectorValue<FloatArray>, b: VectorValue<FloatArray>, weights: VectorValue<*>): Double = b.indices.mapIndexed { i, _ -> if (b[i] == a[i]) 0.0f else weights.getAsFloat(i) }.sum().toDouble()
 
         // TODO
-        override fun invoke(a: VectorValue<Array<Complex>>, b: VectorValue<Array<Complex>>): Double = b.indices.mapIndexed { i, _ -> if (b[i] == a[i]) 0.0 else 1.0 }.sum()
+        override fun invoke(a: VectorValue<FloatArray>, b: VectorValue<FloatArray>): Double = b.indices.mapIndexed { i, _ -> if (b[i] == a[i]) 0.0 else 1.0 }.sum()
     },
 
     /**
@@ -168,10 +169,10 @@ enum class ComplexVectorDistance : VectorizedDistanceFunction<Array<Complex>> {
         private val EARTH_RADIUS = 6371E3 // In meters
 
         // TODO
-        override fun invoke(a: VectorValue<Array<Complex>>, b: VectorValue<Array<Complex>>, weights: VectorValue<*>): Double = this.haversine(a.getAsDouble(0), a.getAsDouble(1), b.getAsDouble(0), b.getAsDouble(1))
+        override fun invoke(a: VectorValue<FloatArray>, b: VectorValue<FloatArray>, weights: VectorValue<*>): Double = this.haversine(a.getAsDouble(0), a.getAsDouble(1), b.getAsDouble(0), b.getAsDouble(1))
 
         // TODO
-        override fun invoke(a: VectorValue<Array<Complex>>, b: VectorValue<Array<Complex>>): Double = this.haversine(a.getAsDouble(0), a.getAsDouble(1), b.getAsDouble(0), b.getAsDouble(1))
+        override fun invoke(a: VectorValue<FloatArray>, b: VectorValue<FloatArray>): Double = this.haversine(a.getAsDouble(0), a.getAsDouble(1), b.getAsDouble(0), b.getAsDouble(1))
 
         /**
          * Calculates the haversine distance of two spherical coordinates in degrees.

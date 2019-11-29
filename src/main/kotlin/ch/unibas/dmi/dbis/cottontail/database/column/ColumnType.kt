@@ -2,7 +2,8 @@ package ch.unibas.dmi.dbis.cottontail.database.column
 
 import ch.unibas.dmi.dbis.cottontail.database.serializers.*
 import ch.unibas.dmi.dbis.cottontail.model.values.*
-import ch.unibas.dmi.dbis.cottontail.model.values.complex.Complex
+import ch.unibas.dmi.dbis.cottontail.model.values.complex.Complex32
+import ch.unibas.dmi.dbis.cottontail.model.values.complex.Complex64
 
 import org.mapdb.Serializer
 import java.util.*
@@ -39,13 +40,15 @@ sealed class ColumnType<T : Any> {
             "FLOAT" -> FloatColumnType()
             "DOUBLE" -> DoubleColumnType()
             "STRING" -> StringColumnType()
-            "COMPLEX" -> ComplexColumnType()
+            "COMPLEX32" -> Complex32ColumnType()
+            "COMPLEX64" -> Complex64ColumnType()
             "INT_VEC" -> IntVectorColumnType()
             "LONG_VEC" -> LongVectorColumnType()
             "FLOAT_VEC" -> FloatVectorColumnType()
             "DOUBLE_VEC" -> DoubleVectorColumnType()
             "BOOL_VEC" -> BooleanVectorColumnType()
-            "COMPLEX_VEC" -> ComplexVectorColumnType()
+            "COMPLEX32_VEC" -> Complex32VectorColumnType()
+            "COMPLEX64_VEC" -> Complex64VectorColumnType()
             else -> throw java.lang.IllegalArgumentException("The column type $name does not exists!")
         }
     }
@@ -141,11 +144,19 @@ class StringColumnType : ColumnType<String>() {
 }
 
 @Suppress("UNCHECKED_CAST")
-class ComplexColumnType : ColumnType<Complex>() {
-    override val name = "COMPLEX"
+class Complex32ColumnType : ColumnType<FloatArray>() {
+    override val name = "COMPLEX32"
     override val numeric = true
-    override val type: KClass<ComplexValue> = ComplexValue::class
-    override fun serializer(size: Int): Serializer<Value<Complex>> = ComplexValueSerializer as Serializer<Value<Complex>>
+    override val type: KClass<Complex32Value> = Complex32Value::class
+    override fun serializer(size: Int): Serializer<Value<FloatArray>> = Complex32ValueSerializer as Serializer<Value<FloatArray>>
+}
+
+@Suppress("UNCHECKED_CAST")
+class Complex64ColumnType : ColumnType<DoubleArray>() {
+    override val name = "COMPLEX64"
+    override val numeric = true
+    override val type: KClass<Complex64Value> = Complex64Value::class
+    override fun serializer(size: Int): Serializer<Value<DoubleArray>> = Complex64ValueSerializer as Serializer<Value<DoubleArray>>
 }
 
 @Suppress("UNCHECKED_CAST")
@@ -204,12 +215,23 @@ class BooleanVectorColumnType : ColumnType<BitSet>() {
 }
 
 @Suppress("UNCHECKED_CAST")
-class ComplexVectorColumnType : ColumnType<Array<Complex>>() {
-    override val name = "COMPLEX_VEC"
+class Complex32VectorColumnType : ColumnType<FloatArray>() {
+    override val name = "COMPLEX32_VEC"
     override val numeric = false
-    override val type: KClass<ComplexVectorValue> = ComplexVectorValue::class
-    override fun serializer(size: Int): Serializer<Value<Array<Complex>>> {
+    override val type: KClass<Complex32VectorValue> = Complex32VectorValue::class
+    override fun serializer(size: Int): Serializer<Value<FloatArray>> {
         if (size <= 0) throw IllegalArgumentException("Size attribute for a $name type must be > 0 (is $size).")
-        return FixedComplexVectorSerializer(size) as Serializer<Value<Array<Complex>>>
+        return FixedComplex32VectorSerializer(size) as Serializer<Value<FloatArray>>
+    }
+}
+
+@Suppress("UNCHECKED_CAST")
+class Complex64VectorColumnType : ColumnType<DoubleArray>() {
+    override val name = "COMPLEX64_VEC"
+    override val numeric = false
+    override val type: KClass<Complex64VectorValue> = Complex64VectorValue::class
+    override fun serializer(size: Int): Serializer<Value<DoubleArray>> {
+        if (size <= 0) throw IllegalArgumentException("Size attribute for a $name type must be > 0 (is $size).")
+        return FixedComplex64VectorSerializer(size) as Serializer<Value<DoubleArray>>
     }
 }

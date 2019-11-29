@@ -57,7 +57,8 @@ class MapDBColumn<T : Any>(override val name: Name, override val parent: Entity)
 
     /** Internal reference to the [Header] of this [MapDBColumn]. */
     private val header
-        get() = this.store.get(HEADER_RECORD_ID, ColumnHeaderSerializer) ?: throw DatabaseException.DataCorruptionException("Failed to open header of column '$fqn'!'")
+        get() = this.store.get(HEADER_RECORD_ID, ColumnHeaderSerializer)
+                ?: throw DatabaseException.DataCorruptionException("Failed to open header of column '$fqn'!'")
 
     /**
      * Getter for this [MapDBColumn]'s [ColumnDef]. Can be stored since [MapDBColumn]s [ColumnDef] is immutable.
@@ -274,7 +275,7 @@ class MapDBColumn<T : Any>(override val name: Name, override val parent: Entity)
          */
         override fun forEach(from: Long, to: Long, action: (Record) -> Unit) = this.localLock.read {
             checkValidForRead()
-            this@MapDBColumn.store.RecordIdIterator(from.coerceAtLeast(1L), to.coerceAtMost(this@MapDBColumn.store.maxRecid)).use {iterator ->
+            this@MapDBColumn.store.RecordIdIterator(from.coerceAtLeast(1L), to.coerceAtMost(this@MapDBColumn.store.maxRecid)).use { iterator ->
                 iterator.forEachRemaining {
                     if (it != CottontailStoreWAL.EOF_ENTRY) {
                         action(ColumnRecord(it, this@MapDBColumn.store.get(it, this.serializer)))
@@ -304,7 +305,7 @@ class MapDBColumn<T : Any>(override val name: Name, override val parent: Entity)
         override fun <R> map(from: Long, to: Long, action: (Record) -> R): Collection<R> = this.localLock.read {
             checkValidForRead()
             val list = mutableListOf<R>()
-            this@MapDBColumn.store.RecordIdIterator(from.coerceAtLeast(1L), to.coerceAtMost(this@MapDBColumn.store.maxRecid)).use {iterator ->
+            this@MapDBColumn.store.RecordIdIterator(from.coerceAtLeast(1L), to.coerceAtMost(this@MapDBColumn.store.maxRecid)).use { iterator ->
                 iterator.forEachRemaining {
                     if (it != CottontailStoreWAL.EOF_ENTRY) {
                         list.add(action(ColumnRecord(it, this@MapDBColumn.store.get(it, this.serializer))))
@@ -373,7 +374,7 @@ class MapDBColumn<T : Any>(override val name: Name, override val parent: Entity)
         override fun forEach(from: Long, to: Long, predicate: Predicate, action: (Record) -> Unit) = this.localLock.read {
             if (predicate is BooleanPredicate) {
                 checkValidForRead()
-                this@MapDBColumn.store.RecordIdIterator(from.coerceAtLeast(1L), to.coerceAtMost(this@MapDBColumn.store.maxRecid)).use {iterator ->
+                this@MapDBColumn.store.RecordIdIterator(from.coerceAtLeast(1L), to.coerceAtMost(this@MapDBColumn.store.maxRecid)).use { iterator ->
                     iterator.forEachRemaining {
                         if (it != CottontailStoreWAL.EOF_ENTRY) {
                             val record = ColumnRecord(it, this@MapDBColumn.store.get(it, this.serializer))
@@ -606,8 +607,5 @@ class MapDBColumn<T : Any>(override val name: Name, override val parent: Entity)
                 this.status = TransactionStatus.DIRTY
             }
         }
-
-
     }
 }
-

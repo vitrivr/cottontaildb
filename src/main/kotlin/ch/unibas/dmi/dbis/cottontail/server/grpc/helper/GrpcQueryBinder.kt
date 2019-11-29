@@ -18,15 +18,10 @@ import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
 import ch.unibas.dmi.dbis.cottontail.model.values.*
-<<<<<<< HEAD
-import ch.unibas.dmi.dbis.cottontail.model.values.complex.Complex
-import ch.unibas.dmi.dbis.cottontail.utilities.name.doesNameMatch
-import ch.unibas.dmi.dbis.cottontail.utilities.name.normalizeColumnName
-=======
+import ch.unibas.dmi.dbis.cottontail.model.values.complex.Complex32
 import ch.unibas.dmi.dbis.cottontail.utilities.name.Match
 import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
 
->>>>>>> 6085eca49f5df90c693fe29f9a647bf18e623915
 import java.util.*
 
 /**
@@ -144,12 +139,8 @@ class GrpcQueryBinder(val catalogue: Catalogue, engine: ExecutionEngine) {
      */
     @Suppress("UNCHECKED_CAST")
     private fun parseAndBindAtomicBooleanPredicate(entity: Entity, atomic: CottontailGrpc.AtomicLiteralBooleanPredicate): AtomicBooleanPredicate<*> {
-<<<<<<< HEAD
-        val column = entity.columnForName(atomic.attribute)
+        val column = entity.columnForName(Name(atomic.attribute))
                 ?: throw QueryException.QueryBindException("Failed to bind column '${atomic.attribute}'. Column does not exist on entity '${entity.fqn}'.")
-=======
-        val column = entity.columnForName(Name(atomic.attribute)) ?: throw QueryException.QueryBindException("Failed to bind column '${atomic.attribute}'. Column does not exist on entity '${entity.fqn}'.")
->>>>>>> 6085eca49f5df90c693fe29f9a647bf18e623915
         val operator = try {
             ComparisonOperator.valueOf(atomic.op.name)
         } catch (e: IllegalArgumentException) {
@@ -195,8 +186,12 @@ class GrpcQueryBinder(val catalogue: Catalogue, engine: ExecutionEngine) {
                 it.toStringValue()
                         ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
             })
-            is ComplexColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Value<Complex>>, operator = operator, not = atomic.not, values = atomic.dataList.map {
-                it.toComplexValue()
+            is Complex32ColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Value<FloatArray>>, operator = operator, not = atomic.not, values = atomic.dataList.map {
+                it.toComplex32Value()
+                        ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
+            })
+            is Complex64ColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Value<DoubleArray>>, operator = operator, not = atomic.not, values = atomic.dataList.map {
+                it.toComplex64Value()
                         ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
             })
             is FloatVectorColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Value<FloatArray>>, operator = operator, not = atomic.not, values = atomic.dataList.map {
@@ -219,8 +214,12 @@ class GrpcQueryBinder(val catalogue: Catalogue, engine: ExecutionEngine) {
                 it.toBooleanVectorValue()
                         ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
             })
-            is ComplexVectorColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Value<Array<Complex>>>, operator = operator, not = atomic.not, values = atomic.dataList.map {
-                it.toComplexVectorValue()
+            is Complex32VectorColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Value<Array<FloatArray>>>, operator = operator, not = atomic.not, values = atomic.dataList.map {
+                it.toComplex32VectorValue()
+                        ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
+            })
+            is Complex64VectorColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Value<Array<DoubleArray>>>, operator = operator, not = atomic.not, values = atomic.dataList.map {
+                it.toComplex64VectorValue()
                         ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
             })
         }
@@ -236,12 +235,8 @@ class GrpcQueryBinder(val catalogue: Catalogue, engine: ExecutionEngine) {
      */
     @Suppress("UNCHECKED_CAST")
     private fun parseAndBindKnnPredicate(entity: Entity, knn: CottontailGrpc.Knn): KnnPredicate<*> {
-<<<<<<< HEAD
-        val column = entity.columnForName(knn.attribute)
+        val column = entity.columnForName(Name(knn.attribute))
                 ?: throw QueryException.QueryBindException("Failed to bind column '${knn.attribute}'. Column does not exist on entity '${entity.fqn}'!")
-=======
-        val column = entity.columnForName(Name(knn.attribute)) ?: throw QueryException.QueryBindException("Failed to bind column '${knn.attribute}'. Column does not exist on entity '${entity.fqn}'!")
->>>>>>> 6085eca49f5df90c693fe29f9a647bf18e623915
         val weights = if (knn.weightsCount > 0) {
             knn.weightsList.map { w -> w.toFloatVectorValue() }
         } else {
@@ -274,10 +269,15 @@ class GrpcQueryBinder(val catalogue: Catalogue, engine: ExecutionEngine) {
                 val distance = BoolVectorDistance.valueOf(knn.distance.name)
                 KnnPredicate(column = column as ColumnDef<BitSet>, k = knn.k, query = query, weights = weights, distance = distance)
             }
-            is ComplexVectorColumnType -> {
-                val query = knn.queryList.map { q -> q.toComplexVectorValue() }
-                val distance = ComplexVectorDistance.valueOf(knn.distance.name)
-                KnnPredicate(column = column as ColumnDef<Array<Complex>>, k = knn.k, query = query, weights = weights, distance = distance)
+            is Complex32VectorColumnType -> {
+                val query = knn.queryList.map { q -> q.toComplex32VectorValue() }
+                val distance = Complex32VectorDistance.valueOf(knn.distance.name)
+                KnnPredicate(column = column as ColumnDef<FloatArray>, k = knn.k, query = query, distance = distance, weights = weights)
+            }
+            is Complex64VectorColumnType -> {
+                val query = knn.queryList.map { q -> q.toComplex64VectorValue() }
+                val distance = Complex64VectorDistance.valueOf(knn.distance.name)
+                KnnPredicate(column = column as ColumnDef<DoubleArray>, k = knn.k, query = query, weights = weights, distance = distance)
             }
             else -> throw QueryException.QuerySyntaxException("A kNN predicate does not contain a valid query vector!")
         }
@@ -298,18 +298,14 @@ class GrpcQueryBinder(val catalogue: Catalogue, engine: ExecutionEngine) {
         val fields = projection.attributesMap.map { (expr, alias) ->
             /* Fetch columns that match field and add them to list of requested columns */
             val field = entity.fqn.append(expr)
-            availableColumns.forEach { if(field.match(it.name) != Match.NO_MATCH) requestedColumns.add(it) }
+            availableColumns.forEach { if (field.match(it.name) != Match.NO_MATCH) requestedColumns.add(it) }
 
             /* Return field to alias mapping. */
-<<<<<<< HEAD
             field to if (alias.isEmpty()) {
                 null
             } else {
-                alias
+                Name(alias)
             }
-=======
-            field to if (alias.isEmpty()) { null } else { Name(alias) }
->>>>>>> 6085eca49f5df90c693fe29f9a647bf18e623915
         }.toMap()
 
         Projection(type = ProjectionType.valueOf(projection.op.name), columns = requestedColumns.distinct().toTypedArray(), fields = fields)

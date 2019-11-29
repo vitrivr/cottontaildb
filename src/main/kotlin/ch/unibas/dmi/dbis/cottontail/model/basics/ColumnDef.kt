@@ -3,11 +3,7 @@ package ch.unibas.dmi.dbis.cottontail.model.basics
 import ch.unibas.dmi.dbis.cottontail.database.column.*
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.ValidationException
 import ch.unibas.dmi.dbis.cottontail.model.values.*
-<<<<<<< HEAD
-import ch.unibas.dmi.dbis.cottontail.model.values.complex.Complex
-=======
 import ch.unibas.dmi.dbis.cottontail.utilities.name.Match
->>>>>>> 6085eca49f5df90c693fe29f9a647bf18e623915
 import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
 
 import java.lang.RuntimeException
@@ -19,11 +15,7 @@ import java.util.*
  * @author Ralph Gasser
  * @version 1.1
  */
-<<<<<<< HEAD
-class ColumnDef<T : Any>(name: Name, val type: ColumnType<T>, val size: Int = -1, val nullable: Boolean = true) {
-=======
-class ColumnDef<T: Any> (val name: Name, val type: ColumnType<T>, val size: Int = -1, val nullable: Boolean = true) {
->>>>>>> 6085eca49f5df90c693fe29f9a647bf18e623915
+class ColumnDef<T : Any>(val name: Name, val type: ColumnType<T>, val size: Int = -1, val nullable: Boolean = true) {
 
     /**
      * Companion object with some convenience methods.
@@ -57,7 +49,8 @@ class ColumnDef<T: Any> (val name: Name, val type: ColumnType<T>, val size: Int 
                 cast is FloatVectorValue && cast.size != this.size -> throw ValidationException("The size of column '$name' (sc=${this.size}) is not compatible with size of value (sv=${cast.size}).")
                 cast is LongVectorValue && cast.size != this.size -> throw ValidationException("The size of column '$name' (sc=${this.size}) is not compatible with size of value (sv=${cast.size}).")
                 cast is IntVectorValue && cast.size != this.size -> throw ValidationException("The size of column '$name' (sc=${this.size}) is not compatible with size of value (sv=${cast.size}).")
-                cast is ComplexVectorValue && cast.size != this.size -> throw ValidationException("The size of column '$name' (sc=${this.size}) is not compatible with size of value (sv=${cast.size}).")
+                cast is Complex32VectorValue && cast.size != this.size -> throw ValidationException("The size of column '$name' (sc=${this.size}) is not compatible with size of value (sv=${cast.size}).")
+                cast is Complex64VectorValue && cast.size != this.size -> throw ValidationException("The size of column '$name' (sc=${this.size}) is not compatible with size of value (sv=${cast.size}).")
             }
         } else if (!this.nullable) {
             throw ValidationException("The column '$name' cannot be null!")
@@ -81,7 +74,8 @@ class ColumnDef<T: Any> (val name: Name, val type: ColumnType<T>, val size: Int 
                 cast is FloatVectorValue && cast.size != this.size -> false
                 cast is LongVectorValue && cast.size != this.size -> false
                 cast is IntVectorValue && cast.size != this.size -> false
-                cast is ComplexVectorValue && cast.size != this.size -> false
+                cast is Complex32VectorValue && cast.size != this.size -> false
+                cast is Complex64VectorValue && cast.size != this.size -> false
                 else -> true
             }
         } else return this.nullable
@@ -102,18 +96,18 @@ class ColumnDef<T: Any> (val name: Name, val type: ColumnType<T>, val size: Int 
         this.type is ShortColumnType -> ShortValue(0.toShort())
         this.type is ByteColumnType -> ByteValue(0.toByte())
         this.type is BooleanColumnType -> BooleanValue(false)
-        this.type is ComplexColumnType -> ComplexValue(Complex(floatArrayOf(0.0f, 0.0f)))
+        this.type is Complex32ColumnType -> Complex32Value(floatArrayOf(0.0f, 0.0f))
+        this.type is Complex64ColumnType -> Complex64Value(doubleArrayOf(0.0, 0.0))
         this.type is DoubleVectorColumnType -> DoubleVectorValue(DoubleArray(this.size))
         this.type is FloatVectorColumnType -> FloatVectorValue(FloatArray(this.size))
         this.type is LongVectorColumnType -> LongVectorValue(LongArray(this.size))
         this.type is IntVectorColumnType -> IntVectorValue(IntArray(this.size))
         this.type is BooleanVectorColumnType -> BooleanVectorValue(BitSet(this.size))
-        this.type is ComplexVectorColumnType -> ComplexVectorValue(Array(this.size) { Complex(floatArrayOf(0.0f, 0.0f)) })
+        this.type is Complex32VectorColumnType -> Complex32VectorValue(FloatArray(this.size * 2))
+        this.type is Complex64VectorColumnType -> Complex64VectorValue(DoubleArray(this.size * 2))
         else -> throw RuntimeException("Default value for the specified type $type has not been specified yet!")
     }
 
-<<<<<<< HEAD
-=======
     /**
      * Checks if the provided [ColumnDef] is equivalent to this [ColumnDef]. Equivalence is similar to equality,
      * with the exception, that the [Name] must not necessarily match 1:1.
@@ -129,7 +123,6 @@ class ColumnDef<T: Any> (val name: Name, val type: ColumnType<T>, val size: Int 
         return (match == Match.EQUAL || match == Match.EQUIVALENT)
     }
 
->>>>>>> 6085eca49f5df90c693fe29f9a647bf18e623915
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false

@@ -31,19 +31,6 @@ class CottonDMLService(val catalogue: Catalogue) : CottonDMLGrpc.CottonDMLImplBa
      * in a single transaction. I.e. either the insert succeeds or fails completely.
      */
     override fun insert(request: CottontailGrpc.InsertMessage, responseObserver: StreamObserver<CottontailGrpc.InsertStatus>) = try {
-<<<<<<< HEAD
-        val schema = this.catalogue.schemaForName(request.entity.schema.name)
-        val entity = schema.entityForName(request.entity.name)
-        entity.Tx(false).begin { tx ->
-            request.tupleList.map { it.dataMap }.forEach { entry ->
-                val columns = mutableListOf<ColumnDef<*>>()
-                val values = mutableListOf<Value<*>?>()
-                entry.map {
-                    val col = entity.columnForName(it.key)
-                            ?: throw DatabaseException.ColumnDoesNotExistException(entity.fqn.append(it.key))
-                    columns.add(col)
-                    values.add(castToColumn(it.value, col))
-=======
         val entityName = Name(request.entity.name)
         val schemaName = Name(request.entity.schema.name)
         if (entityName.type != NameType.SIMPLE) {
@@ -58,12 +45,12 @@ class CottonDMLService(val catalogue: Catalogue) : CottonDMLGrpc.CottonDMLImplBa
                     val columns = mutableListOf<ColumnDef<*>>()
                     val values = mutableListOf<Value<*>?>()
                     entry.map {
-                        val col = entity.columnForName(Name(it.key)) ?: throw DatabaseException.ColumnDoesNotExistException(entity.fqn.append(it.key))
+                        val col = entity.columnForName(Name(it.key))
+                                ?: throw DatabaseException.ColumnDoesNotExistException(entity.fqn.append(it.key))
                         columns.add(col)
                         values.add(castToColumn(it.value, col))
                     }
                     tx.insert(StandaloneRecord(columns = columns.toTypedArray(), init = values.toTypedArray()))
->>>>>>> 6085eca49f5df90c693fe29f9a647bf18e623915
                 }
                 true
             }
@@ -89,7 +76,7 @@ class CottonDMLService(val catalogue: Catalogue) : CottonDMLGrpc.CottonDMLImplBa
         val msg = "Insert failed because data validation failed: ${e.message}"
         LOGGER.error(msg, e)
         responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(msg).asException())
-    }  catch (e: DatabaseException) {
+    } catch (e: DatabaseException) {
         val msg = "Insert failed because of a database error: ${e.message}"
         LOGGER.error(msg, e)
         responseObserver.onError(Status.INTERNAL.withDescription(msg).asException())
@@ -143,39 +130,17 @@ class CottonDMLService(val catalogue: Catalogue) : CottonDMLGrpc.CottonDMLImplBa
                         this.transactions[request.entity.fqn()] = tx
                     }
 
-<<<<<<< HEAD
-                /* Extract required schema and entity. */
-                val schema = this@CottonDMLService.catalogue.schemaForName(request.entity.schema.name)
-                val entity = schema.entityForName(request.entity.name)
-
-                /* Re-use or create Transaction. */
-                var tx = this.transactions[request.entity.fqn()]
-                if (tx == null) {
-                    tx = entity.Tx(false)
-                    this.transactions[request.entity.fqn()] = tx
-                }
-
-                /* Do the insert. */
-                request.tupleList.map { it.dataMap }.forEach { entry ->
-                    val columns = mutableListOf<ColumnDef<*>>()
-                    val values = mutableListOf<Value<*>?>()
-                    entry.map {
-                        val col = entity.columnForName(it.key)
-                                ?: throw DatabaseException.ColumnDoesNotExistException(entity.fqn.append(it.key))
-                        columns.add(col)
-                        values.add(castToColumn(it.value, col))
-=======
                     /* Do the insert. */
                     request.tupleList.map { it.dataMap }.forEach { entry ->
                         val columns = mutableListOf<ColumnDef<*>>()
                         val values = mutableListOf<Value<*>?>()
                         entry.map {
-                            val col = entity.columnForName(Name(it.key)) ?: throw DatabaseException.ColumnDoesNotExistException(entity.fqn.append(it.key))
+                            val col = entity.columnForName(Name(it.key))
+                                    ?: throw DatabaseException.ColumnDoesNotExistException(entity.fqn.append(it.key))
                             columns.add(col)
                             values.add(castToColumn(it.value, col))
                         }
                         tx.insert(StandaloneRecord(columns = columns.toTypedArray(), init = values.toTypedArray()))
->>>>>>> 6085eca49f5df90c693fe29f9a647bf18e623915
                     }
 
                     /* Log... */
@@ -263,13 +228,15 @@ class CottonDMLService(val catalogue: Catalogue) : CottonDMLGrpc.CottonDMLImplBa
             is FloatColumnType -> value.toFloatValue()
             is DoubleColumnType -> value.toDoubleValue()
             is StringColumnType -> value.toStringValue()
-            is ComplexColumnType -> value.toComplexValue()
+            is Complex32ColumnType -> value.toComplex32Value()
+            is Complex64ColumnType -> value.toComplex64Value()
             is IntVectorColumnType -> value.toIntVectorValue()
             is LongVectorColumnType -> value.toLongVectorValue()
             is FloatVectorColumnType -> value.toFloatVectorValue()
             is DoubleVectorColumnType -> value.toDoubleVectorValue()
             is BooleanVectorColumnType -> value.toBooleanVectorValue()
-            is ComplexVectorColumnType -> value.toComplexVectorValue()
+            is Complex32VectorColumnType -> value.toComplex32VectorValue()
+            is Complex64VectorColumnType -> value.toComplex64VectorValue()
         }
     }
 }
