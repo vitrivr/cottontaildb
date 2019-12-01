@@ -19,7 +19,7 @@ import com.github.dexecutor.core.task.Task
  * of the specified [Entity].
  *
  * @author Ralph Gasser
- * @version 1.1
+ * @version 1.1.1
  */
 class LinearEntityScanKnnTask<T: Any>(val entity: Entity, val knn: KnnPredicate<T>, val predicate: BooleanPredicate? = null) : ExecutionTask("LinearEntityScanKnnTask[${entity.fqn}][${knn.column.name}][${knn.distance::class.simpleName}][${knn.k}][q=${knn.query.hashCode()}]") {
 
@@ -59,7 +59,7 @@ class LinearEntityScanKnnTask<T: Any>(val entity: Entity, val knn: KnnPredicate<
         }
 
         /* Generate dataset and return it. */
-        val dataset = Recordset(this.produces)
+        val dataset = Recordset(this.produces, capacity = (this.knnSet.size * this.knn.k).toLong())
         for (knn in this.knnSet) {
             for (i in 0 until knn.size) {
                 dataset.addRowUnsafe(knn[i].first, arrayOf(DoubleValue(knn[i].second)))

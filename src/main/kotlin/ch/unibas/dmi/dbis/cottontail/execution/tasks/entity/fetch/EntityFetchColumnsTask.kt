@@ -36,7 +36,7 @@ class EntityFetchColumnsTask (val entity: Entity, val columns: Array<ColumnDef<*
 
         /* Prepare new Recordset and fill it with data. */
         if (fetch.isNotEmpty()) {
-            val recordset = Recordset(all)
+            val recordset = Recordset(all, capacity = parent.rowCount)
             this.entity.Tx(readonly = true, columns = fetch).begin {tx ->
                 parent.forEach {rec ->
                     val read = tx.read(rec.tupleId)

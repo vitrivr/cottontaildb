@@ -14,7 +14,7 @@ import com.github.dexecutor.core.task.Task
  * A [Task] used during query execution. It takes a single [Entity] and determines the minimum value of a specific [ColumnDef]. It thereby creates a 1x1 [Recordset].
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.0.2
  */
 class EntityMinProjectionTask(val entity: Entity, val column: ColumnDef<*>, val alias: String? = null): ExecutionTask("EntityMinProjectionTask[${entity.name}]") {
 
@@ -31,7 +31,7 @@ class EntityMinProjectionTask(val entity: Entity, val column: ColumnDef<*>, val 
 
         return this.entity.Tx(true, columns = arrayOf(this.column)).query {
             var min = Double.MAX_VALUE
-            val recordset = Recordset(arrayOf(resultsColumn))
+            val recordset = Recordset(arrayOf(resultsColumn), capacity = 1)
             it.forEach {
                 when (val value = it[column]?.value) {
                     is Byte -> min = Math.min(min, value.toDouble())

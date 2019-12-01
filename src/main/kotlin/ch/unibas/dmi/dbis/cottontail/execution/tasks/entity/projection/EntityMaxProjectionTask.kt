@@ -15,7 +15,7 @@ import com.github.dexecutor.core.task.Task
  * A [Task] used during query execution. It takes a single [Entity] and determines the maximum value of a specific [ColumnDef]. It thereby creates a 1x1 [Recordset].
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.0.2
  */
 class EntityMaxProjectionTask(val entity: Entity, val column: ColumnDef<*>, val alias: String? = null): ExecutionTask("EntityMaxProjectionTask[${entity.name}]") {
 
@@ -32,7 +32,7 @@ class EntityMaxProjectionTask(val entity: Entity, val column: ColumnDef<*>, val 
 
         return this.entity.Tx(true, columns = arrayOf(this.column)).query {
             var max = Double.MIN_VALUE
-            val recordset = Recordset(arrayOf(resultsColumn))
+            val recordset = Recordset(arrayOf(resultsColumn), capacity = 1)
             it.forEach {
                 when (val value = it[column]?.value) {
                     is Byte -> max = Math.max(max, value.toDouble())
