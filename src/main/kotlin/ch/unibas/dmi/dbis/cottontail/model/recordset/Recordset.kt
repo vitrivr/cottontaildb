@@ -12,6 +12,7 @@ import it.unimi.dsi.fastutil.BigList
 import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap
 import it.unimi.dsi.fastutil.longs.Long2LongRBTreeMap
 import it.unimi.dsi.fastutil.longs.Long2ObjectLinkedOpenHashMap
+import it.unimi.dsi.fastutil.objects.ObjectBigArrayBigList
 import it.unimi.dsi.fastutil.objects.ObjectBigLists
 
 import java.lang.IllegalArgumentException
@@ -35,9 +36,9 @@ import kotlin.collections.ArrayList
  * @author Ralph Gasser
  * @version 1.3
  */
-class Recordset(val columns: Array<ColumnDef<*>>) : Scanable, Filterable {
+class Recordset(val columns: Array<ColumnDef<*>>, capacity: Long = 250L) : Scanable, Filterable {
     /** List of all the [Record]s contained in this [Recordset] (TupleId -> Record). */
-    private val list = ObjectBigLists.emptyList<Record>()
+    private val list = ObjectBigArrayBigList<Record>(capacity)
 
     /** [StampedLock] that mediates access to this [Recordset]. */
     private val lock = StampedLock()
