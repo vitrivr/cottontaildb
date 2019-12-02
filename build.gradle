@@ -72,6 +72,9 @@ dependencies {
     ///// MapDB dependency
     compile group: 'org.mapdb', name: 'mapdb', version: '3.0.7'
 
+    ///// FastUtil
+    compile group: 'it.unimi.dsi', name: 'fastutil', version: '8.3.0'
+
     /////// GRPC & ProtoBuf
     compile group: 'javax.annotation', name: 'javax.annotation-api', version: '1.2'
     compile group: 'com.google.protobuf', name: 'protobuf-java', version: '3.7.1'

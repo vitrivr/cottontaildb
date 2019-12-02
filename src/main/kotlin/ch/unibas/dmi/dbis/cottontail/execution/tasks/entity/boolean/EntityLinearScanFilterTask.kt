@@ -14,7 +14,7 @@ import com.github.dexecutor.core.task.Task
  * Only returns [Record][ch.unibas.dmi.dbis.cottontail.model.basics.Record]s that match the provided [BooleanPredicate].
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.0.1
  */
 class EntityLinearScanFilterTask(private val entity: Entity, private val predicate: BooleanPredicate) : ExecutionTask("EntityLinearScanFilterTask[${entity.fqn}][$predicate]") {
 

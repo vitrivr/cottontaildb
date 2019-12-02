@@ -15,7 +15,7 @@ import com.github.dexecutor.core.task.Task
  * A [Task] used during query execution. It takes a single [Entity] and checks if it contains any entries. It thereby creates a 1x1 [Recordset].
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.0.2
  */
 class EntityExistsProjectionTask(val entity: Entity): ExecutionTask("EntityExistsProjectionTask[${entity.name}]") {
 
@@ -30,7 +30,7 @@ class EntityExistsProjectionTask(val entity: Entity): ExecutionTask("EntityExist
 
         val column = arrayOf(ColumnDef.withAttributes(Name("exists(${entity.fqn})"), "BOOLEAN"))
         return this.entity.Tx(true).query {
-            val recordset = Recordset(column)
+            val recordset = Recordset(column, capacity = 1)
             recordset.addRowUnsafe(arrayOf(BooleanValue(it.count() > 0)))
             recordset
         } ?: Recordset(column)
