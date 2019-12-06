@@ -14,7 +14,7 @@ import com.github.dexecutor.core.task.Task
  * A [Task] used during query execution. It takes a single [Entity] and determines the mean value of a specific [ColumnDef]. It thereby creates a 1x1 [Recordset].
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.0.2
  */
 class EntityMeanProjectionTask(val entity: Entity, val column: ColumnDef<*>, val alias: String? = null): ExecutionTask("EntityMeanProjectionTask[${entity.name}]") {
 
@@ -32,7 +32,7 @@ class EntityMeanProjectionTask(val entity: Entity, val column: ColumnDef<*>, val
         return this.entity.Tx(true, columns = arrayOf(this.column)).query {
             var sum = 0.0
             val count = it.count()
-            val recordset = Recordset(arrayOf(resultsColumn))
+            val recordset = Recordset(arrayOf(resultsColumn), capacity = 1)
             if (count > 0) {
                 it.forEach {
                     when (val value = it[column]?.value) {

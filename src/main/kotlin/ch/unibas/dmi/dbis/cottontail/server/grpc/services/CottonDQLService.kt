@@ -17,7 +17,6 @@ import io.grpc.Status
 import io.grpc.stub.StreamObserver
 
 import org.slf4j.LoggerFactory
-import java.lang.Integer.min
 import java.util.*
 
 class CottonDQLService (val catalogue: Catalogue, val engine: ExecutionEngine, val maxMessageSize: Int): CottonDQLGrpc.CottonDQLImplBase() {
@@ -128,13 +127,13 @@ class CottonDQLService (val catalogue: Catalogue, val engine: ExecutionEngine, v
             if (first != null) {
                 val exampleSize = BitUtil.nextPowerOfTwo(recordToTuple(first).build().serializedSize)
                 val pageSize = (this.maxMessageSize/exampleSize)
-                val maxPages = Math.floorDiv(results.rowCount, pageSize)
+                val maxPages = Math.floorDiv(results.rowCount, pageSize).toInt()
 
                 /* Return results. */
                 val iterator = results.iterator()
                 for (i in 0..maxPages) {
-                    val responseBuilder = CottontailGrpc.QueryResponseMessage.newBuilder().setStart(i == 0).setPageSize(pageSize).setPage(i).setMaxPage(maxPages).setTotalHits(results.rowCount)
-                    for (j in i * pageSize until min(results.rowCount, i*pageSize + pageSize)) {
+                    val responseBuilder = CottontailGrpc.QueryResponseMessage.newBuilder().setStart(i == 0).setPageSize(pageSize).setPage(i).setMaxPage(maxPages).setTotalHits(results.rowCount.toInt()) /* TODO: Make necessary values in Proto Definition Longs. */
+                    for (j in i * pageSize until kotlin.math.min(results.rowCount, (i*pageSize + pageSize).toLong())) {
                         responseBuilder.addResults(recordToTuple(iterator.next()))
                     }
                     responseObserver.onNext(responseBuilder.build())

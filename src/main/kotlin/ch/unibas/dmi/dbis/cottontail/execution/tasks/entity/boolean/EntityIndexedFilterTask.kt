@@ -13,7 +13,7 @@ import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
  * that match the provided [BooleanPredicate].
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.0.1
  */
 class EntityIndexedFilterTask(private val entity: Entity, private val predicate: BooleanPredicate, indexHint: Index) : ExecutionTask("EntityIndexedFilterTask[${entity.fqn}][$predicate]") {
     /** The cost of this [EntityLinearScanFilterTask] depends on whether or not an [Index] can be employed. */
@@ -32,5 +32,5 @@ class EntityIndexedFilterTask(private val entity: Entity, private val predicate:
             dataset.addRowUnsafe(it.tupleId, it.values)
         }
         dataset
-    } ?: Recordset(this.predicate.columns.toTypedArray())
+    } ?: Recordset(this.predicate.columns.toTypedArray(), capacity = 0)
 }
