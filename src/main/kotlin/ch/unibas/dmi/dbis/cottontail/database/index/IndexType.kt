@@ -3,6 +3,7 @@ package ch.unibas.dmi.dbis.cottontail.database.index
 import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
 import ch.unibas.dmi.dbis.cottontail.database.index.hash.NonUniqueHashIndex
 import ch.unibas.dmi.dbis.cottontail.database.index.hash.UniqueHashIndex
+import ch.unibas.dmi.dbis.cottontail.database.index.lsh.LSHIndex
 import ch.unibas.dmi.dbis.cottontail.database.index.lucene.LuceneIndex
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
@@ -23,10 +24,11 @@ enum class IndexType {
      * @param name Name of the [Index]
      * @param entity The [Entity] the desired [Index] belongs to.
      */
-    fun open(name: Name, entity: Entity, columns: Array<ColumnDef<*>>): Index = when(this) {
+    fun open(name: Name, entity: Entity, columns: Array<ColumnDef<*>>): Index = when (this) {
         HASH_UQ -> UniqueHashIndex(name, entity, columns)
         HASH -> NonUniqueHashIndex(name, entity, columns)
         LUCENE -> LuceneIndex(name, entity, columns)
+        LSH -> LSHIndex(name, entity, columns)
         else -> TODO()
     }
 
@@ -38,10 +40,11 @@ enum class IndexType {
      * @param columns The [ColumnDef] for which to create the [Index]
      * @param params Additions configuration params.
      */
-    fun create(name: Name, entity: Entity, columns: Array<ColumnDef<*>>, params: Map<String,String> = emptyMap()) = when (this) {
+    fun create(name: Name, entity: Entity, columns: Array<ColumnDef<*>>, params: Map<String, String> = emptyMap()) = when (this) {
         HASH_UQ -> UniqueHashIndex(name, entity, columns)
         HASH -> NonUniqueHashIndex(name, entity, columns)
         LUCENE -> LuceneIndex(name, entity, columns)
+        LSH -> LSHIndex(name, entity, columns)
         else -> TODO()
     }
 }
