@@ -3,6 +3,7 @@ package ch.unibas.dmi.dbis.cottontail.database.index.lucene
 import ch.unibas.dmi.dbis.cottontail.database.column.ColumnType
 import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
 import ch.unibas.dmi.dbis.cottontail.database.events.DataChangeEvent
+import ch.unibas.dmi.dbis.cottontail.database.events.DataChangeEventType
 import ch.unibas.dmi.dbis.cottontail.database.general.begin
 import ch.unibas.dmi.dbis.cottontail.database.index.Index
 import ch.unibas.dmi.dbis.cottontail.database.index.IndexTransaction
@@ -21,11 +22,10 @@ import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
 import ch.unibas.dmi.dbis.cottontail.utilities.extensions.write
 import org.apache.lucene.analysis.standard.StandardAnalyzer
 import org.apache.lucene.document.*
-import org.apache.lucene.index.DirectoryReader
-import org.apache.lucene.index.IndexReader
-import org.apache.lucene.index.IndexWriter
-import org.apache.lucene.index.IndexWriterConfig
+import org.apache.lucene.index.*
 import org.apache.lucene.search.IndexSearcher
+import org.apache.lucene.search.TermQuery
+import org.apache.lucene.search.TermRangeQuery
 import org.apache.lucene.store.Directory
 import org.apache.lucene.store.FSDirectory
 import org.apache.lucene.store.NativeFSLockFactory
@@ -134,9 +134,40 @@ class LuceneIndex(override val name: Name, override val parent: Entity, override
      * @throws [ValidationException.IndexUpdateException] If rebuild of [Index] fails for some reason.
      */
     override fun update(update: Collection<DataChangeEvent>) {
-        /* TODO: Add support. */
-        throw ValidationException.IndexUpdateException(this.fqn, "LuceneIndex currently doesn't support incremental updates.")
+       val writer = IndexWriter(this.directory, IndexWriterConfig(StandardAnalyzer()).setOpenMode(IndexWriterConfig.OpenMode.APPEND).setMaxBufferedDocs(100_000).setCommitOnClose(true))
+
+        /* Define action for inserting an entry based on a DataChangeEvent. */
+        fun atomicInsert(event: DataChangeEvent) {
+            writer.addDocument(documentFromRecord(event.new!!))
+        }
+
+
+        /* Define action for deleting an entry based on a DataChangeEvent. */
+        fun atomicDelete(event: DataChangeEvent){
+            writer.deleteDocuments(NumericDocValuesField.newSlowExactQuery(TID_COLUMN, event.old!!.tupleId))
+        }
+
+        /* Process the DataChangeEvents. */
+        for (event in update) {
+            when (event.type) {
+                DataChangeEventType.INSERT -> atomicInsert(event)
+                DataChangeEventType.UPDATE -> {
+                    if (event.new?.get(this.columns[0]) != event.old?.get(this.columns[0])) {
+                        atomicDelete(event)
+                        atomicInsert(event)
+                    }
+                }
+                DataChangeEventType.DELETE -> atomicDelete(event)
+                else -> {}
+            }
+        }
+
+        val oldReader = this.indexReader
+        this.indexReader = DirectoryReader.open(this.directory)
+        oldReader.close()
+
     }
+
 
     /**
      * Closes this [LuceneIndex] and the associated data structures.
