@@ -58,25 +58,28 @@ class SuperBit(d: Int, N: Int, L: Int, seed: Int) : Serializable {
 
         Generate a random matrix H with each element sampled independently from the normal distribution
         N (0, 1), with each column normalized to unit length. Denote H = [v1, v2, ..., vK].
+
+        Output: H ̃ = [w ,w ,...,w ].
         */
 
         val K = N * L
 
-        val v = Array(K) { DoubleArray(d) }
+        val v = Array(K) { DoubleArray(d * 2) } // H
 
         for (i in 0 until K) {
-            val vector = DoubleArray(d)
-            for (j in 0 until d) {
+            val vector = DoubleArray(d * 2)
+            for (j in 0 until d * 2) {
                 vector[j] = random.nextGaussian()
             }
             normalize(vector)
             v[i] = vector
         }
 
-        val w = Array(K) { DoubleArray(d) }
+        val w = Array(K) { DoubleArray(d * 2) }
+
         for (i in 0 until L) {
             for (j in 1..N) {
-                System.arraycopy(v[i * N + j - 1], 0, w[i * N + j - 1], 0, d)
+                System.arraycopy(v[i * N + j - 1], 0, w[i * N + j - 1], 0, d * 2)
                 for (k in 1 until j) {
                     w[i * N + j - 1] =
                             difference(
@@ -90,7 +93,8 @@ class SuperBit(d: Int, N: Int, L: Int, seed: Int) : Serializable {
                 normalize(w[i * N + j - 1])
             }
         }
-        hyperplanes = w
+
+        hyperplanes = w // H ̃
     }
 
     /**
@@ -102,7 +106,7 @@ class SuperBit(d: Int, N: Int, L: Int, seed: Int) : Serializable {
     fun signature(vector: DoubleArray): BooleanArray {
         val signature = BooleanArray(hyperplanes.size)
         for (i in hyperplanes.indices) {
-            signature[i] = dotProduct(hyperplanes[i], vector) >= 0
+            signature[i] = complexDotProduct(hyperplanes[i], vector) >= 0
         }
         return signature
     }
@@ -174,6 +178,21 @@ class SuperBit(d: Int, N: Int, L: Int, seed: Int) : Serializable {
         var dotProduct = 0.0
         for (i in vector1.indices) {
             dotProduct += vector1[i] * vector2[i]
+        }
+        return dotProduct
+    }
+
+    /**
+     * Calculate the dot product of two complex vectors.
+     *
+     * @param vector1
+     * @param vector2
+     * @return The dot product.
+     */
+    private fun complexDotProduct(vector1: DoubleArray, vector2: DoubleArray): Double {
+        var dotProduct = 0.0
+        for (i in 0 until vector2.size / 2) {
+            dotProduct += vector1[i * 2] * vector2[i * 2] + vector1[i * 2 + 1] * vector2[i * 2 + 1]
         }
         return dotProduct
     }

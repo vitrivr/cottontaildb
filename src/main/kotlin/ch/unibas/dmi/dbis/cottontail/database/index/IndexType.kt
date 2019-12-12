@@ -44,7 +44,7 @@ enum class IndexType {
         HASH_UQ -> UniqueHashIndex(name, entity, columns)
         HASH -> NonUniqueHashIndex(name, entity, columns)
         LUCENE -> LuceneIndex(name, entity, columns)
-        LSH -> LSHIndex(name, entity, columns)
+        LSH -> LSHIndex(name, entity, columns, params)
         else -> TODO()
     }
 }
