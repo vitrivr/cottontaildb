@@ -44,7 +44,10 @@ class ExecutionPlanFactory (val executionEngine: ExecutionEngine) {
         /* Add kNN and/or WHERE clause. */
         var last: String = if (whereClause == null && knnClause == null) {
             when (projectionClause.type) {
-                ProjectionType.SELECT -> plan.addTask(ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.boolean.EntityLinearScanTask(entity, projectionClause.columns))
+                ProjectionType.SELECT -> {
+                    val internal = plan.addTask(ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.boolean.EntityLinearScanTask(entity, projectionClause.columns))
+                    plan.addTask(RecordsetSelectProjectionTask(projectionClause), internal)
+                }
                 ProjectionType.COUNT ->  plan.addTask(EntityCountProjectionTask(entity))
                 ProjectionType.EXISTS -> plan.addTask(EntityExistsProjectionTask(entity))
                 ProjectionType.SUM -> plan.addTask(EntitySumProjectionTask(entity, projectionClause.columns.first()))
