@@ -135,7 +135,7 @@ data class CompoundBooleanPredicate(val connector: ConnectionOperator, val p1: B
  * @author Ralph Gasser
  * @version 1.0
  */
-data class KnnPredicate<T: Any>(val column: ColumnDef<T>, val k: Int, val query: List<VectorValue<T>>, val distance: DistanceFunction<T>, val weights: List<VectorValue<FloatArray>>? = null) : Predicate() {
+data class KnnPredicate<T: Any>(val column: ColumnDef<T>, val k: Int, val inexact: Boolean, val query: List<VectorValue<T>>, val distance: DistanceFunction<T>, val weights: List<VectorValue<FloatArray>>? = null) : Predicate() {
     init {
         /* Some basic sanity checks. */
         if (k <= 0) throw QueryException.QuerySyntaxException("The value of k for a kNN query cannot be smaller than one (is $k)s!")

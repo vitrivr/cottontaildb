@@ -7,15 +7,15 @@ import ch.unibas.dmi.dbis.cottontail.database.index.lucene.LuceneIndex
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
 
-enum class IndexType {
-    HASH_UQ, /* A hash based index with unique values. */
-    HASH, /* A hash based index. */
-    BTREE, /* A BTree based index. */
-    LUCENE, /* A Lucene based index (fulltext search). */
-    VAF, /* A VA file based index (for exact kNN lookup). */
-    PQ, /* A product quantization based index (for approximate kNN lookup). */
-    SH, /* A spectral hashing  based index (for approximate kNN lookup). */
-    LSH; /* A locality sensitive hashing based index (for approximate kNN lookup). */
+enum class IndexType(val inexact: Boolean) {
+    HASH_UQ(false), /* A hash based index with unique values. */
+    HASH(false), /* A hash based index. */
+    BTREE(false), /* A BTree based index. */
+    LUCENE(false), /* A Lucene based index (fulltext search). */
+    VAF(false), /* A VA file based index (for exact kNN lookup). */
+    PQ(true), /* A product quantization based index (for approximate kNN lookup). */
+    SH(true), /* A spectral hashing  based index (for approximate kNN lookup). */
+    LSH(true); /* A locality sensitive hashing based index (for approximate kNN lookup). */
 
     /**
      * Opens an index of this [IndexType] using the given name and [Entity].
