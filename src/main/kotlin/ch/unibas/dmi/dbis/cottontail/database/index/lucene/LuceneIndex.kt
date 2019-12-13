@@ -106,20 +106,18 @@ class LuceneIndex(override val name: Name, override val parent: Entity, override
 
     /**
      * (Re-)builds the [LuceneIndex].
+     *
+     * @param tx Reference to the [Entity.Tx] the call to this method belongs to.
      */
-    override fun rebuild() {
+    override fun rebuild(tx: Entity.Tx) {
         LOGGER.trace("Rebuilding lucene index {}", name)
         val writer = IndexWriter(this.directory, IndexWriterConfig(StandardAnalyzer()).setOpenMode(IndexWriterConfig.OpenMode.APPEND).setMaxBufferedDocs(100_000).setCommitOnClose(true))
         writer.deleteAll()
-        this.parent.Tx(readonly = true, columns = this.columns, ommitIndex = true).begin { tx ->
-            var count = 0
-            tx.forEach {
-                writer.addDocument(documentFromRecord(it))
-                count++
-            }
-            true
+        var count = 0
+        tx.forEach {
+            writer.addDocument(documentFromRecord(it))
+            count++
         }
-        writer.close()
 
         /* Open new IndexReader and close new one. */
         val oldReader = this.indexReader
@@ -131,9 +129,10 @@ class LuceneIndex(override val name: Name, override val parent: Entity, override
      * Updates the [LuceneIndex] with the provided [Record]. This method determines, whether the [Record] should be added or updated
      *
      * @param update [DataChangeEvent]s based on which to update the [LuceneIndex].
+     * @param tx Reference to the [Entity.Tx] the call to this method belongs to.
      * @throws [ValidationException.IndexUpdateException] If rebuild of [Index] fails for some reason.
      */
-    override fun update(update: Collection<DataChangeEvent>) {
+    override fun update(update: Collection<DataChangeEvent>, tx: Entity.Tx) {
        val writer = IndexWriter(this.directory, IndexWriterConfig(StandardAnalyzer()).setOpenMode(IndexWriterConfig.OpenMode.APPEND).setMaxBufferedDocs(100_000).setCommitOnClose(true))
 
         /* Define action for inserting an entry based on a DataChangeEvent. */
@@ -165,7 +164,6 @@ class LuceneIndex(override val name: Name, override val parent: Entity, override
         val oldReader = this.indexReader
         this.indexReader = DirectoryReader.open(this.directory)
         oldReader.close()
-
     }
 
 
@@ -185,11 +183,12 @@ class LuceneIndex(override val name: Name, override val parent: Entity, override
      * External invocation is only possible through a [Index.Tx] object.
      *
      * @param predicate The [Predicate] to perform the lookup. Must be a LIKE query.
+     * @param tx Reference to the [Entity.Tx] the call to this method belongs to.
      * @return The resulting [Recordset].
      *
      * @throws DatabaseException.PredicateNotSupportedBxIndexException If predicate is not supported by [Index].
      */
-    override fun filter(predicate: Predicate): Recordset = if (predicate is BooleanPredicate) {
+    override fun filter(predicate: Predicate, tx: Entity.Tx): Recordset = if (predicate is BooleanPredicate) {
         val indexSearcher = IndexSearcher(this.indexReader)
         if (!predicate.columns.all { this.columns.contains(it) })
             throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (lucene-index) is lacking certain fields the provided predicate requires.")
@@ -222,11 +221,12 @@ class LuceneIndex(override val name: Name, override val parent: Entity, override
      * External invocation is only possible through a [Index.Tx] object.
      *
      * @param predicate The [Predicate] to perform the lookup.
+     * @param tx Reference to the [Entity.Tx] the call to this method belongs to.
      * @param action The action that should be applied.
      *
      * @throws DatabaseException.PredicateNotSupportedBxIndexException If predicate is not supported by [Index].
      */
-    override fun forEach(predicate: Predicate, action: (Record) -> Unit) = if (predicate is BooleanPredicate) {
+    override fun forEach(predicate: Predicate, tx: Entity.Tx, action: (Record) -> Unit) = if (predicate is BooleanPredicate) {
         val indexSearcher = IndexSearcher(this.indexReader)
 
         if (!predicate.columns.all { this.columns.contains(it) })
@@ -256,11 +256,12 @@ class LuceneIndex(override val name: Name, override val parent: Entity, override
      * External invocation is only possible through a [Index.Tx] object.
      *
      * @param predicate The [Predicate] to perform the lookup.
+     * @param tx Reference to the [Entity.Tx] the call to this method belongs to.
      * @param action The action that should be applied.
      *
      * @throws DatabaseException.PredicateNotSupportedBxIndexException If predicate is not supported by [Index].
      */
-    override fun <R> map(predicate: Predicate, action: (Record) -> R): Collection<R> = if (predicate is BooleanPredicate) {
+    override fun <R> map(predicate: Predicate, tx: Entity.Tx, action: (Record) -> R): Collection<R> = if (predicate is BooleanPredicate) {
         val indexSearcher = IndexSearcher(this.indexReader)
 
         if (!predicate.columns.all { this.columns.contains(it) })

@@ -51,7 +51,7 @@ import kotlin.concurrent.write
  * @see Entity.Tx
  *
  * @author Ralph Gasser
- * @version 1.3
+ * @version 1.4
  */
 class Entity(override val name: Name, override val parent: Schema) : DBO {
     /** Constant FQN of the [Entity] object. */
@@ -200,8 +200,8 @@ class Entity(override val name: Name, override val parent: Schema) : DBO {
 
         /* Rebuilds the index. */
         try {
-            val tx = index.Tx(readonly = false)
-            tx.rebuild()
+            val tx = Tx(readonly = false)
+            tx.index(name)?.rebuild()
             tx.close()
         } catch (e: Throwable) {
             val pathsToDelete = Files.walk(index.path).sorted(Comparator.reverseOrder()).collect(Collectors.toList())
@@ -255,25 +255,24 @@ class Entity(override val name: Name, override val parent: Schema) : DBO {
      *
      * @param name The name of the [Index]
      */
-    fun updateIndex(name: Name) = this.globalLock.read {
-        val index = this.indexes.find { it.name.match(name) != Match.NO_MATCH }
-        if (index != null) {
-            index.Tx(false).rebuild()
+    fun updateIndex(name: Name) = Tx(readonly = false).begin {tx ->
+        val itx = tx.index(name)
+        if (itx != null) {
+            itx.rebuild()
         } else {
             throw DatabaseException.IndexDoesNotExistException(this.fqn.append(name))
         }
+        true
     }
 
     /**
-     * Updates all [Index]es for this [Entity]
+     * Updates all [Index]es for this [Entity].
      */
-    fun updateAllIndexes() = this.globalLock.read {
-        this.indexes.forEach {index ->
-            index.Tx(false).begin { tx ->
-                tx.rebuild()
-                true
-            }
+    fun updateAllIndexes() = Tx(readonly = false).begin {tx ->
+        tx.indexes().forEach { itx ->
+            itx.rebuild()
         }
+        true
     }
 
     /**
@@ -323,7 +322,7 @@ class Entity(override val name: Name, override val parent: Schema) : DBO {
 
         /** List of [IndexTransaction] associated with this [Entity.Tx]. */
         private val indexTxs: Collection<IndexTransaction> = if (!ommitIndex) {
-            this@Entity.indexes.map { it.Tx(true, tid) }
+            this@Entity.indexes.map { it.Tx(true, this) }
         } else {
             emptyList()
         }
@@ -675,6 +674,15 @@ class Entity(override val name: Name, override val parent: Schema) : DBO {
         }
 
         /**
+         * Returns a collection of all the [IndexTransaction] available to this [EntityTransaction],.
+         *
+         * @return Collection of [IndexTransaction]s. May be empty.
+         */
+        override fun indexes(): Collection<IndexTransaction> = this.localLock.read {
+            this.indexTxs
+        }
+
+        /**
          * Returns a collection of all the [IndexTransaction] available to this [EntityTransaction], that match the given [ColumnDef] and [IndexType] constraint.
          *
          * @param columns The list of [ColumnDef] that should be handled by this [IndexTransaction].
@@ -686,6 +694,16 @@ class Entity(override val name: Name, override val parent: Schema) : DBO {
             this.indexTxs.filter { tx ->
                 (columns?.all { tx.columns.contains(it) } ?: true) && (type == null || tx.type == type)
             }
+        }
+
+        /**
+         * Returns the [IndexTransaction] for the given [Name] or null, if such a [IndexTransaction] doesn't exist.
+         *
+         * @param name The [Name] of the [Index] the [IndexTransaction] belongs to.
+         * @return Optional [IndexTransaction]
+         */
+        override fun index(name: Name): IndexTransaction? = this.localLock.read {
+            this.indexTxs.find { name.match(it.name) == Match.EQUAL || name.match(it.name) == Match.EQUIVALENT }
         }
 
         /**

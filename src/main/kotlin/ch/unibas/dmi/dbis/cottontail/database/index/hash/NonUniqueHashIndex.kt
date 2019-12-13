@@ -77,9 +77,11 @@ class NonUniqueHashIndex(override val name: Name, override val parent: Entity, o
      * Performs a lookup through this [NonUniqueHashIndex].
      *
      * @param predicate The [Predicate] for the lookup
+     * @param tx Reference to the [Entity.Tx] the call to this method belongs to.
+     *
      * @return The resulting [Recordset]
      */
-    override fun filter(predicate: Predicate): Recordset = if (predicate is AtomicBooleanPredicate<*>) {
+    override fun filter(predicate: Predicate, tx: Entity.Tx): Recordset = if (predicate is AtomicBooleanPredicate<*>) {
         /* Create empty recordset. */
         val recordset = Recordset(this.columns)
 
@@ -146,35 +148,35 @@ class NonUniqueHashIndex(override val name: Name, override val parent: Entity, o
 
     /**
      * (Re-)builds the [NonUniqueHashIndex].
+     *
+     * @param tx Reference to the [Entity.Tx] the call to this method belongs to.
      */
-    override fun rebuild() {
+    override fun rebuild(tx: Entity.Tx) {
         /* Clear existing map. */
         this.map.clear()
 
         /* (Re-)create index entries. */
         val localMap = mutableMapOf<Value<*>, MutableList<Long>>()
-        this.parent.Tx(readonly = true, columns = this.columns, ommitIndex = true).begin { tx ->
-            tx.forEach {
-                val value = it[this.columns[0]] ?: throw ValidationException.IndexUpdateException(this.fqn, "A value cannot be null for instances of non-unique hash-index but tid=${it.tupleId} is")
-                if (!localMap.containsKey(value)){
-                    localMap[value] = mutableListOf(it.tupleId)
-                } else {
-                    localMap[value]!!.add(it.tupleId)
-                }
+        tx.forEach {
+            val value = it[this.columns[0]] ?: throw ValidationException.IndexUpdateException(this.fqn, "A value cannot be null for instances of non-unique hash-index but tid=${it.tupleId} is")
+            if (!localMap.containsKey(value)){
+                localMap[value] = mutableListOf(it.tupleId)
+            } else {
+                localMap[value]!!.add(it.tupleId)
             }
-            val castMap = this.map as HTreeMap<Value<*>,LongArray>
-            localMap.forEach { (value, l) -> castMap[value] = l.toLongArray() }
-            this.db.commit()
-            true
         }
+        val castMap = this.map as HTreeMap<Value<*>,LongArray>
+        localMap.forEach { (value, l) -> castMap[value] = l.toLongArray() }
+        this.db.commit()
     }
 
     /**
      * Updates the [NonUniqueHashIndex] with the provided [Record]. This method determines, whether the [Record] should be added or updated
      *
      * @param record Record to update the [NonUniqueHashIndex] with.
+     * @param tx Reference to the [Entity.Tx] the call to this method belongs to.
      */
-    override fun update(update: Collection<DataChangeEvent>) = try {
+    override fun update(update: Collection<DataChangeEvent>, tx: Entity.Tx) = try {
         val localMap = this.map as HTreeMap<Value<*>,LongArray>
 
         /* Define action for inserting an entry based on a DataChangeEvent. */

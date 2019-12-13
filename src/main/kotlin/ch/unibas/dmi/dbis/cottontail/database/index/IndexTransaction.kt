@@ -9,27 +9,28 @@ import ch.unibas.dmi.dbis.cottontail.model.basics.Filterable
 import ch.unibas.dmi.dbis.cottontail.model.basics.Record
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.ValidationException
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
+import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
 
 /**
  * A [Transaction] that operates on a single [Index]. [Transaction]s are a unit of isolation for data operations (read/write).
  *
  * @author Ralph Gasser
- * @version 1.1
+ * @version 1.2
  */
 interface IndexTransaction : Transaction, Filterable {
-    /**
-     * The [ColumnDef]s covered by the [Index] that underpins this [IndexTransaction].
-     */
+    /** The simple [Name]s of the [Index] that underpins this [IndexTransaction] */
+    val name: Name
+
+    /** The fqn [Name]s of the [Index] that underpins this [IndexTransaction] */
+    val fqn: Name
+
+    /** The [ColumnDef]s covered by the [Index] that underpins this [IndexTransaction]. */
     val columns: Array<ColumnDef<*>>
 
-    /**
-     * The [ColumnDef]s produced by the [Index] that underpins this [IndexTransaction].
-     */
+    /** The [ColumnDef]s produced by the [Index] that underpins this [IndexTransaction]. */
     val produces: Array<ColumnDef<*>>
 
-    /**
-     * The [IndexType] of the [Index] that underpins this [IndexTransaction].
-     */
+    /** The [IndexType] of the [Index] that underpins this [IndexTransaction]. */
     val type: IndexType
 
     /**

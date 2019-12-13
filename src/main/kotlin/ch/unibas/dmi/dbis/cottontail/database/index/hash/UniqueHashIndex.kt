@@ -82,9 +82,10 @@ class UniqueHashIndex(override val name: Name, override val parent: Entity, over
      * Performs a lookup through this [UniqueHashIndex].
      *
      * @param predicate The [Predicate] for the lookup
+     * @param tx Reference to the [Entity.Tx] the call to this method belongs to.
      * @return The resulting [Recordset]
      */
-    override fun filter(predicate: Predicate): Recordset = if (predicate is AtomicBooleanPredicate<*>) {
+    override fun filter(predicate: Predicate, tx: Entity.Tx): Recordset = if (predicate is AtomicBooleanPredicate<*>) {
         /* Create empty recordset. */
         val recordset = Recordset(this.columns)
 
@@ -149,26 +150,25 @@ class UniqueHashIndex(override val name: Name, override val parent: Entity, over
 
     /**
      * (Re-)builds the [UniqueHashIndex].
+     *
+     * @param tx Reference to the [Entity.Tx] the call to this method belongs to.
      */
-    override fun rebuild() {
+    override fun rebuild(tx: Entity.Tx) {
         LOGGER.trace("rebuilding index {}", name)
         /* Clear existing map. */
         this.map.clear()
 
         /* (Re-)create index entries. */
         val localMap = this.map as HTreeMap<Value<*>,Long>
-        this.parent.Tx(readonly = true, columns = this.columns, ommitIndex = true).begin { tx ->
-            tx.forEach {
-                val value = it[this.columns[0]] ?: throw ValidationException.IndexUpdateException(this.fqn, "A values cannot be null for instances of unique hash-index but tid=${it.tupleId} is")
-                if (!localMap.containsKey(value)) {
-                    localMap[value] = it.tupleId
-                } else {
-                    throw ValidationException.IndexUpdateException(this.fqn, "LongValue must be unique for instances of unique hash-index but '$value' (tid=${it.tupleId}) is not !")
-                }
+        tx.forEach {
+            val value = it[this.columns[0]] ?: throw ValidationException.IndexUpdateException(this.fqn, "A values cannot be null for instances of unique hash-index but tid=${it.tupleId} is")
+            if (!localMap.containsKey(value)) {
+                localMap[value] = it.tupleId
+            } else {
+                throw ValidationException.IndexUpdateException(this.fqn, "LongValue must be unique for instances of unique hash-index but '$value' (tid=${it.tupleId}) is not !")
             }
-            this.db.commit()
-            true
         }
+        this.db.commit()
     }
 
     /**
@@ -176,7 +176,7 @@ class UniqueHashIndex(override val name: Name, override val parent: Entity, over
      *
      * @param update [DataChangeEvent]s based on which to update the [UniqueHashIndex].
      */
-    override fun update(update: Collection<DataChangeEvent>) = try {
+    override fun update(update: Collection<DataChangeEvent>, tx: Entity.Tx) = try {
         val localMap = this.map as HTreeMap<Value<*>,Long>
 
         /* Define action for inserting an entry based on a DataChangeEvent. */
