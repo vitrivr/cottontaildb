@@ -12,11 +12,11 @@ import kotlin.concurrent.read
  * A [Transaction] that operates on a single [Index]. [Transaction]s are a unit of isolation for data operations (read/write).
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.1
  */
 interface EntityTransaction : Transaction, Filterable, Scanable, Countable, Deletable {
     /**
-     * Returns a collection of all the [IndexTransaction] available to this [EntityTransaction],.
+     * Returns a collection of all the [IndexTransaction] available to this [EntityTransaction].
      *
      * @return Collection of [IndexTransaction]s. May be empty.
      */
