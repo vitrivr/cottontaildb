@@ -189,27 +189,27 @@ class GrpcQueryBinder(val catalogue: Catalogue, engine: ExecutionEngine) {
             is DoubleVectorColumnType -> {
                 val query = knn.queryList.map { q -> q.toDoubleVectorValue() }
                 val distance = DoubleVectorDistance.valueOf(knn.distance.name)
-                KnnPredicate(column = column as ColumnDef<DoubleArray>, k = knn.k, query = query, weights = weights, distance = distance)
+                KnnPredicate(column = column as ColumnDef<DoubleArray>, k = knn.k, inexact = knn.inexact, query = query, weights = weights, distance = distance)
             }
             is FloatVectorColumnType -> {
                 val query = knn.queryList.map { q -> q.toFloatVectorValue() }
                 val distance = FloatVectorDistance.valueOf(knn.distance.name)
-                KnnPredicate(column = column as ColumnDef<FloatArray>, k = knn.k, query = query, weights = weights, distance = distance)
+                KnnPredicate(column = column as ColumnDef<FloatArray>, k = knn.k, inexact = knn.inexact, query = query, weights = weights, distance = distance)
             }
             is LongVectorColumnType -> {
                 val query = knn.queryList.map { q -> q.toLongVectorValue() }
                 val distance = LongVectorDistance.valueOf(knn.distance.name)
-                KnnPredicate(column = column as ColumnDef<LongArray>, k = knn.k, query = query, weights = weights, distance = distance)
+                KnnPredicate(column = column as ColumnDef<LongArray>, k = knn.k, inexact = knn.inexact, query = query, weights = weights, distance = distance)
             }
             is IntVectorColumnType -> {
                 val query = knn.queryList.map { q -> q.toIntVectorValue() }
                 val distance = IntVectorDistance.valueOf(knn.distance.name)
-                KnnPredicate(column = column as ColumnDef<IntArray>, k = knn.k, query = query, weights = weights, distance = distance)
+                KnnPredicate(column = column as ColumnDef<IntArray>, k = knn.k, inexact = knn.inexact, query = query, weights = weights, distance = distance)
             }
             is BooleanVectorColumnType -> {
                 val query = knn.queryList.map { q -> q.toBooleanVectorValue() }
                 val distance = BoolVectorDistance.valueOf(knn.distance.name)
-                KnnPredicate(column = column as ColumnDef<BitSet>, k = knn.k, query = query, weights = weights, distance = distance)
+                KnnPredicate(column = column as ColumnDef<BitSet>, k = knn.k, inexact = knn.inexact, query = query, weights = weights, distance = distance)
             }
             else -> throw QueryException.QuerySyntaxException("A kNN predicate does not contain a valid query vector!")
         }
