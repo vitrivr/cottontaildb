@@ -322,7 +322,7 @@ class Entity(override val name: Name, override val parent: Schema) : DBO {
 
         /** List of [IndexTransaction] associated with this [Entity.Tx]. */
         private val indexTxs: Collection<IndexTransaction> = if (!ommitIndex) {
-            this@Entity.indexes.map { it.Tx(true, this) }
+            this@Entity.indexes.map { it.Tx(this.readonly, this) }
         } else {
             emptyList()
         }
