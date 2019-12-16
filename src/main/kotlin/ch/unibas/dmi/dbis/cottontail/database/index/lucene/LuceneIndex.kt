@@ -118,6 +118,7 @@ class LuceneIndex(override val name: Name, override val parent: Entity, override
             writer.addDocument(documentFromRecord(it))
             count++
         }
+        writer.close()
 
         /* Open new IndexReader and close new one. */
         val oldReader = this.indexReader
