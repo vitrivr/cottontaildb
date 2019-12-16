@@ -40,8 +40,10 @@ class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.CottonDDLImplBa
             responseObserver.onCompleted()
         }
     } catch (e: DatabaseException.SchemaAlreadyExistsException) {
+        LOGGER.error("Error while creating schema", e)
         responseObserver.onError(Status.ALREADY_EXISTS.withDescription("Schema '${request.name}' cannot be created because it already exists!").asException())
     } catch (e: DatabaseException) {
+        LOGGER.error("Error while creating schema", e)
         responseObserver.onError(Status.UNKNOWN.withDescription("Failed to create schema '${request.name}' because of database error: ${e.message}").asException())
     } catch (e: Throwable) {
         LOGGER.error("Error while creating schema", e)
@@ -62,8 +64,10 @@ class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.CottonDDLImplBa
             responseObserver.onCompleted()
         }
     } catch (e: DatabaseException.SchemaDoesNotExistException) {
+        LOGGER.error("Error while dropping schema '${request.name}'", e)
         responseObserver.onError(Status.NOT_FOUND.withDescription("Schema '${request.name}' does not exist!").asException())
     } catch (e: DatabaseException) {
+        LOGGER.error("Error while dropping schema '${request.name}'", e)
         responseObserver.onError(Status.UNKNOWN.withDescription("Failed to drop schema '${request.name}' because of database error: ${e.message}").asException())
     } catch (e: Throwable) {
         LOGGER.error("Error while dropping schema '${request.name}'", e)
@@ -79,6 +83,7 @@ class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.CottonDDLImplBa
         }
         responseObserver.onCompleted()
     } catch (e: DatabaseException) {
+        LOGGER.error("Error while listing schemas", e)
         responseObserver.onError(Status.UNKNOWN.withDescription("Failed to list schemas because of database error: ${e.message}").asException())
     } catch (e: Throwable) {
         LOGGER.error("Error while listing schemas", e)
@@ -108,10 +113,13 @@ class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.CottonDDLImplBa
             responseObserver.onCompleted()
         }
     } catch (e: DatabaseException.SchemaDoesNotExistException) {
+        LOGGER.error("Error while creating entity '${request.entity.fqn()}'", e)
         responseObserver.onError(Status.NOT_FOUND.withDescription("Schema '${request.entity.schema.name} does not exist!").asException())
     } catch (e: DatabaseException.EntityAlreadyExistsException) {
+        LOGGER.error("Error while creating entity '${request.entity.fqn()}'", e)
         responseObserver.onError(Status.ALREADY_EXISTS.withDescription("Entity '${request.entity.fqn()} does already exist!").asException())
     } catch (e: DatabaseException) {
+        LOGGER.error("Error while creating entity '${request.entity.fqn()}'", e)
         responseObserver.onError(Status.UNKNOWN.withDescription("Failed to create entity '${request.entity.fqn()}' because of database error: ${e.message}").asException())
     } catch (e: Throwable) {
         LOGGER.error("Error while creating entity '${request.entity.fqn()}'", e)
@@ -134,10 +142,13 @@ class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.CottonDDLImplBa
             responseObserver.onCompleted()
         }
     } catch (e: DatabaseException.SchemaDoesNotExistException) {
+        LOGGER.error("Error while dropping entity '${request.fqn()}'", e)
         responseObserver.onError(Status.NOT_FOUND.withDescription("Schema '${request.schema.fqn()}' does not exist!").asException())
     } catch (e: DatabaseException.EntityDoesNotExistException) {
+        LOGGER.error("Error while dropping entity '${request.fqn()}'", e)
         responseObserver.onError(Status.NOT_FOUND.withDescription("Entity '${request.fqn()}' does not exist!").asException())
     } catch (e: DatabaseException) {
+        LOGGER.error("Error while dropping entity '${request.fqn()}'", e)
         responseObserver.onError(Status.UNKNOWN.withDescription("Failed to drop entity '${request.fqn()}' because of database error: ${e.message}").asException())
     } catch (e: Throwable) {
         LOGGER.error("Error while dropping entity '${request.fqn()}'", e)
@@ -160,8 +171,10 @@ class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.CottonDDLImplBa
             responseObserver.onCompleted()
         }
     } catch (e: DatabaseException.SchemaDoesNotExistException) {
+        LOGGER.error("Error while listing entities", e)
         responseObserver.onError(Status.NOT_FOUND.withDescription("Schema '${request.name} does not exist!").asException())
     } catch (e: DatabaseException) {
+        LOGGER.error("Error while listing entities", e)
         responseObserver.onError(Status.UNKNOWN.withDescription("Failed to list entities for schema ${request.name} because of database error: ${e.message}").asException())
     } catch (e: Throwable) {
         LOGGER.error("Error while listing entities", e)
@@ -194,14 +207,19 @@ class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.CottonDDLImplBa
             responseObserver.onCompleted()
         }
     } catch (e: DatabaseException.SchemaDoesNotExistException) {
+        LOGGER.error("Error while creating index '${request.index.fqn()}'", e)
         responseObserver.onError(Status.NOT_FOUND.withDescription("Schema '${request.index.entity.schema.fqn()} does not exist!").asException())
     } catch (e: DatabaseException.EntityDoesNotExistException) {
+        LOGGER.error("Error while creating index '${request.index.fqn()}'", e)
         responseObserver.onError(Status.NOT_FOUND.withDescription("Entity '${request.index.entity.fqn()} does not exist!").asException())
     } catch (e: DatabaseException.IndexAlreadyExistsException) {
+        LOGGER.error("Error while creating index '${request.index.fqn()}'", e)
         responseObserver.onError(Status.ALREADY_EXISTS.withDescription("Index '${request.index.fqn()}' does already exist!").asException())
     } catch (e: DatabaseException.ColumnDoesNotExistException) {
+        LOGGER.error("Error while creating index '${request.index.fqn()}'", e)
         responseObserver.onError(Status.NOT_FOUND.withDescription(e.message).asException())
     } catch (e: DatabaseException) {
+        LOGGER.error("Error while creating index '${request.index.fqn()}'", e)
         responseObserver.onError(Status.UNKNOWN.withDescription("Failed to create index '${request.index.fqn()}' because of database error: ${e.message}").asException())
     } catch (e: Throwable) {
         LOGGER.error("Error while creating index '${request.index.fqn()}'", e)
@@ -229,12 +247,16 @@ class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.CottonDDLImplBa
             responseObserver.onCompleted()
         }
     } catch (e: DatabaseException.SchemaDoesNotExistException) {
+        LOGGER.error("Error while dropping index '${request.index.fqn()}'", e)
         responseObserver.onError(Status.NOT_FOUND.withDescription("Schema '${request.index.entity.schema.fqn()} does not exist!").asException())
     } catch (e: DatabaseException.EntityDoesNotExistException) {
+        LOGGER.error("Error while dropping index '${request.index.fqn()}'", e)
         responseObserver.onError(Status.NOT_FOUND.withDescription("Entity '${request.index.entity.fqn()} does not exist!").asException())
     } catch (e: DatabaseException.IndexDoesNotExistException) {
+        LOGGER.error("Error while dropping index '${request.index.fqn()}'", e)
         responseObserver.onError(Status.NOT_FOUND.withDescription("Index '${request.index.fqn()} does not exist!").asException())
     } catch (e: DatabaseException) {
+        LOGGER.error("Error while dropping index '${request.index.fqn()}'", e)
         responseObserver.onError(Status.UNKNOWN.withDescription("Failed to drop index '${request.index.fqn()}' because of database error: ${e.message}").asException())
     } catch (e: Throwable) {
         LOGGER.error("Error while dropping index '${request.index.fqn()}'", e)
@@ -262,12 +284,16 @@ class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.CottonDDLImplBa
             responseObserver.onCompleted()
         }
     } catch (e: DatabaseException.SchemaDoesNotExistException) {
+        LOGGER.error("Error while rebuilding index '${request.index.fqn()}'", e)
         responseObserver.onError(Status.NOT_FOUND.withDescription("Schema '${request.index.entity.schema.fqn()} does not exist!").asException())
     } catch (e: DatabaseException.EntityDoesNotExistException) {
+        LOGGER.error("Error while rebuilding index '${request.index.fqn()}'", e)
         responseObserver.onError(Status.NOT_FOUND.withDescription("Entity '${request.index.entity.fqn()} does not exist!").asException())
     } catch (e: DatabaseException.IndexDoesNotExistException) {
+        LOGGER.error("Error while rebuilding index '${request.index.fqn()}'", e)
         responseObserver.onError(Status.NOT_FOUND.withDescription("Index '${request.index.fqn()} does not exist!").asException())
     } catch (e: DatabaseException) {
+        LOGGER.error("Error while rebuilding index '${request.index.fqn()}'", e)
         responseObserver.onError(Status.UNKNOWN.withDescription("Failed to rebuild index '${request.index.fqn()}' because of database error: ${e.message}").asException())
     } catch (e: Throwable) {
         LOGGER.error("Error while rebuilding index '${request.index.fqn()}'", e)
@@ -292,10 +318,13 @@ class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.CottonDDLImplBa
             responseObserver.onCompleted()
         }
     } catch (e: DatabaseException.SchemaDoesNotExistException) {
+        LOGGER.error("Error while optimizing entity '${request.fqn()}'", e)
         responseObserver.onError(Status.NOT_FOUND.withDescription("Schema '${request.schema.fqn()} does not exist!").asException())
     } catch (e: DatabaseException.EntityDoesNotExistException) {
+        LOGGER.error("Error while optimizing entity '${request.fqn()}'", e)
         responseObserver.onError(Status.NOT_FOUND.withDescription("Entity '${request.fqn()} does not exist!").asException())
     } catch (e: DatabaseException) {
+        LOGGER.error("Error while optimizing entity '${request.fqn()}'", e)
         responseObserver.onError(Status.UNKNOWN.withDescription("Failed to optimize entity '${request.fqn()}' because of database error: ${e.message}").asException())
     } catch (e: Throwable) {
         LOGGER.error("Error while optimizing entity '${request.fqn()}'", e)
