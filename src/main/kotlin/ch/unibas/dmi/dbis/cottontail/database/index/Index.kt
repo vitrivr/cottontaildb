@@ -13,6 +13,7 @@ import ch.unibas.dmi.dbis.cottontail.model.basics.Record
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.TransactionException
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.ValidationException
+import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
 
 import java.util.*
 import java.util.concurrent.locks.StampedLock
@@ -29,7 +30,7 @@ import java.util.concurrent.locks.StampedLock
  * @see Entity.Tx
  *
  * @author Ralph Gasser
- * @version 1.3
+ * @version 1.4
  */
 abstract class Index : DBO {
 
@@ -91,9 +92,11 @@ abstract class Index : DBO {
      * need to commit (i.e. commit actions must take place inside).
      *
      * This is an internal method! External invocation is only possible through a [Index.Tx] object.
+     *
+     * @param tx Reference to the [Entity.Tx] the call to this method belongs to.
      */
     @Throws(ValidationException.IndexUpdateException::class)
-    protected abstract fun rebuild()
+    protected abstract fun rebuild(tx: Entity.Tx)
 
     /**
      * Updates the [Index] with the provided [DataChangeEvent]s. The updates take effect immediately, without the need to
@@ -102,10 +105,11 @@ abstract class Index : DBO {
      * Not all [Index] implementations support incremental updates. Should be indicated by [IndexTransaction#supportsIncrementalUpdate()]
      *
      * @param update [Record]s to update this [Index] with wrapped in the corresponding [DataChangeEvent].
+     * @param tx Reference to the [Entity.Tx] the call to this method belongs to.
      * @throws [ValidationException.IndexUpdateException] If update of [Index] fails for some reason.
      */
     @Throws(ValidationException.IndexUpdateException::class)
-    protected abstract fun update(update: Collection<DataChangeEvent>)
+    protected abstract fun update(update: Collection<DataChangeEvent>, tx: Entity.Tx)
 
     /**
      * Performs a lookup through this [Index] and returns [Recordset]. This is an internal method! External
@@ -114,11 +118,12 @@ abstract class Index : DBO {
      * This is the minimal method any [Index] implementation must support.
      *
      * @param predicate The [Predicate] to perform the lookup.
+     * @param tx Reference to the [Entity.Tx] the call to this method belongs to.
      * @return The resulting [Recordset].
      *
      * @throws QueryException.UnsupportedPredicateException If predicate is not supported by [Index].
      */
-    protected abstract fun filter(predicate: Predicate): Recordset
+    protected abstract fun filter(predicate: Predicate, tx: Entity.Tx): Recordset
 
     /**
      * Applies the given action to all the [Index] entries that match the given [Predicate]. This is an internal method!
@@ -128,11 +133,12 @@ abstract class Index : DBO {
      * are possible in many cases.
      *
      * @param predicate The [Predicate] to perform the lookup.
+     * @param tx Reference to the [Entity.Tx] the call to this method belongs to.
      * @param action The action that should be applied.
      *
      * @throws QueryException.UnsupportedPredicateException If predicate is not supported by [Index].
      */
-    protected open fun forEach(predicate: Predicate, action: (Record) -> Unit) = this.filter(predicate).forEach(action)
+    protected open fun forEach(predicate: Predicate, tx: Entity.Tx, action: (Record) -> Unit) = this.filter(predicate, tx).forEach(action)
 
     /**
      * Applies the given action to all the [Index] entries that match the given [Predicate] and are located in the given range.
@@ -144,11 +150,12 @@ abstract class Index : DBO {
      * @param from The tuple ID to scan from.
      * @param to The tuple ID to scan to.
      * @param predicate The [Predicate] to perform the lookup.
+     * @param tx Reference to the [Entity.Tx] the call to this method belongs to.
      * @param action The action that should be applied.
      *
      * @throws QueryException.UnsupportedPredicateException If predicate is not supported by [Index].
      */
-    protected open fun forEach(from: Long, to: Long, predicate: Predicate, action: (Record) -> Unit) = this.filter(predicate).forEach(from, to, action)
+    protected open fun forEach(from: Long, to: Long, predicate: Predicate, tx: Entity.Tx, action: (Record) -> Unit) = this.filter(predicate, tx).forEach(from, to, action)
 
     /**
      * Applies the given mapping function to all the [Index] entries that match the given [Predicate]. This is an internal
@@ -158,12 +165,12 @@ abstract class Index : DBO {
      * More efficient implementations are possible in many cases.
      *
      * @param predicate The [Predicate] to perform the lookup.
+     * @param tx Reference to the [Entity.Tx] the call to this method belongs to.
      * @param action The action that should be applied.
-
      *
      * @throws QueryException.UnsupportedPredicateException If predicate is not supported by [Index].
      */
-    protected open fun <R> map(predicate: Predicate, action: (Record) -> R): Collection<R> = this.filter(predicate).map(action)
+    protected open fun <R> map(predicate: Predicate, tx: Entity.Tx, action: (Record) -> R): Collection<R> = this.filter(predicate, tx).map(action)
 
     /**
      * Applies the given mapping function to all the [Index] entries that match the given [Predicate] and are located in the given range.
@@ -175,16 +182,17 @@ abstract class Index : DBO {
      * @param from The tuple ID to scan from.
      * @param to The tuple ID to scan to.
      * @param predicate The [Predicate] to perform the lookup.
+     * @param tx Reference to the [Entity.Tx] the call to this method belongs to.
      * @param action The action that should be applied.
      *
      * @throws QueryException.UnsupportedPredicateException If predicate is not supported by [Index].
      */
-    protected open fun <R> map(from: Long, to: Long, predicate: Predicate, action: (Record) -> R): Collection<R> = this.filter(predicate).map(from, to, action)
+    protected open fun <R> map(from: Long, to: Long, predicate: Predicate, tx: Entity.Tx, action: (Record) -> R): Collection<R> = this.filter(predicate, tx).map(from, to, action)
 
     /**
      * A [Transaction] that affects this [Index].
      */
-    inner class Tx constructor(override val readonly: Boolean, override val tid: UUID = UUID.randomUUID()): IndexTransaction {
+    inner class Tx constructor(override val readonly: Boolean, val parent: Entity.Tx): IndexTransaction {
 
         /** Flag indicating whether or not this [Entity.Tx] was closed */
         @Volatile override var status: TransactionStatus = TransactionStatus.CLEAN
@@ -197,6 +205,11 @@ abstract class Index : DBO {
             }
         }
 
+
+        /** The transaction ID of this [Index.Tx] is inherited by the parent [Entity.Tx]. */
+        override val tid: UUID
+            get() = this.parent.tid
+
         /** Obtains a global (non-exclusive) read-lock on [Index]. Prevents enclosing [Index] from being closed while this [Index.Tx] is still in use. */
         private val globalStamp = this@Index.globalLock.readLock()
 
@@ -206,6 +219,14 @@ abstract class Index : DBO {
         } else {
             this@Index.txLock.writeLock()
         }
+
+        /** The simple [Name]s of the [Index] that underpins this [IndexTransaction] */
+        override val name: Name
+            get() = this@Index.name
+
+        /** The fqn [Name]s of the [Index] that underpins this [IndexTransaction] */
+        override val fqn: Name
+            get() = this@Index.fqn
 
         /** The [ColumnDef]s covered by the [Index] that underpins this [IndexTransaction]. */
         override val columns: Array<ColumnDef<*>>
@@ -234,7 +255,7 @@ abstract class Index : DBO {
          */
         override fun rebuild() {
             this.checkValidForWrite()
-            this@Index.rebuild()
+            this@Index.rebuild(this.parent)
         }
 
         /**
@@ -254,7 +275,7 @@ abstract class Index : DBO {
          */
         override fun update(update: Collection<DataChangeEvent>) {
             this.checkValidForWrite()
-            this@Index.update(update)
+            this@Index.update(update, this.parent)
         }
 
         /**
@@ -265,7 +286,7 @@ abstract class Index : DBO {
          *
          * @throws QueryException.UnsupportedPredicateException If predicate is not supported by [Index].
          */
-        override fun filter(predicate: Predicate): Recordset = this@Index.filter(predicate)
+        override fun filter(predicate: Predicate): Recordset = this@Index.filter(predicate, this.parent)
 
         /**
          * Applies the given action to all the [Index] entries that match the given [Predicate].
@@ -275,7 +296,7 @@ abstract class Index : DBO {
          *
          * @throws QueryException.UnsupportedPredicateException If predicate is not supported by [Index].
          */
-        override fun forEach(predicate: Predicate, action: (Record) -> Unit) =this@Index.forEach(predicate, action)
+        override fun forEach(predicate: Predicate, action: (Record) -> Unit) =this@Index.forEach(predicate, this.parent, action)
 
         /**
          * Applies the given action to all the [Index] entries that match the given [Predicate] and are within the given range.
@@ -287,7 +308,7 @@ abstract class Index : DBO {
          *
          * @throws QueryException.UnsupportedPredicateException If predicate is not supported by [Index].
          */
-        override fun forEach(from: Long, to: Long, predicate: Predicate, action: (Record) -> Unit) = this@Index.forEach(from, to, predicate, action)
+        override fun forEach(from: Long, to: Long, predicate: Predicate, action: (Record) -> Unit) = this@Index.forEach(from, to, predicate, this.parent, action)
 
         /**
          * Applies the given mapping function to all the [Index] entries that match the given [Predicate].
@@ -297,7 +318,7 @@ abstract class Index : DBO {
          *
          * @throws QueryException.UnsupportedPredicateException If predicate is not supported by [Index].
          */
-        override fun <R> map(predicate: Predicate, action: (Record) -> R): Collection<R> = this@Index.map(predicate, action)
+        override fun <R> map(predicate: Predicate, action: (Record) -> R): Collection<R> = this@Index.map(predicate, this.parent, action)
 
         /**
          * Applies the given mapping function to all the [Index] entries that match the given [Predicate] and are within the given range.
@@ -309,7 +330,7 @@ abstract class Index : DBO {
          *
          * @throws QueryException.UnsupportedPredicateException If predicate is not supported by [Index].
          */
-        override fun <R> map(from: Long, to: Long, predicate: Predicate, action: (Record) -> R): Collection<R> = this@Index.map(from, to, predicate, action)
+        override fun <R> map(from: Long, to: Long, predicate: Predicate, action: (Record) -> R): Collection<R> = this@Index.map(from, to, predicate, this.parent, action)
 
         /** Has no effect since updating an [Index] takes immediate effect. */
         override fun commit() {}
