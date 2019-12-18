@@ -272,12 +272,12 @@ class GrpcQueryBinder(val catalogue: Catalogue, engine: ExecutionEngine) {
             is Complex32VectorColumnType -> {
                 val query = knn.queryList.map { q -> q.toComplex32VectorValue() }
                 val distance = Complex32VectorDistance.valueOf(knn.distance.name)
-                KnnPredicate(column = column as ColumnDef<FloatArray>, k = knn.k, query = query, weights = weights, distance = distance)
+                KnnPredicate(column = column as ColumnDef<FloatArray>, k = knn.k, inexact = knn.inexact, query = query, weights = weights, distance = distance)
             }
             is Complex64VectorColumnType -> {
                 val query = knn.queryList.map { q -> q.toComplex64VectorValue() }
                 val distance = Complex64VectorDistance.valueOf(knn.distance.name)
-                KnnPredicate(column = column as ColumnDef<DoubleArray>, k = knn.k, query = query, weights = weights, distance = distance)
+                KnnPredicate(column = column as ColumnDef<DoubleArray>, k = knn.k, inexact = knn.inexact, query = query, weights = weights, distance = distance)
             }
             else -> throw QueryException.QuerySyntaxException("A kNN predicate does not contain a valid query vector!")
         }

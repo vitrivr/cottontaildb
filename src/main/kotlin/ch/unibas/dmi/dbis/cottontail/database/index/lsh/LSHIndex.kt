@@ -88,7 +88,7 @@ class LSHIndex(override val name: Name, override val parent: Entity, override va
      * @param predicate The [Predicate] for the lookup
      * @return The resulting [Recordset]
      */
-    override fun filter(predicate: Predicate): Recordset = if (predicate is KnnPredicate<*>) {
+    override fun filter(predicate: Predicate, tx: Entity.Tx): Recordset = if (predicate is KnnPredicate<*>) {
         /* Create empty recordset. */
         val recordset = Recordset(this.columns)
 
@@ -99,8 +99,6 @@ class LSHIndex(override val name: Name, override val parent: Entity, override va
 
         // TODO Gibt Recordset mit tupleIds und (ggf.) Distanzen zurück
         println("filter called")
-
-        //
 
         recordset
     } else {
@@ -142,7 +140,7 @@ class LSHIndex(override val name: Name, override val parent: Entity, override va
     /**
      * (Re-)builds the [LSHIndex].
      */
-    override fun rebuild() {
+    override fun rebuild(tx: Entity.Tx) {
         LOGGER.trace("rebuilding index {}", name)
 
         /* Clear existing map. */
@@ -177,7 +175,7 @@ class LSHIndex(override val name: Name, override val parent: Entity, override va
      *
      * @param record Record to update the [LSHIndex] with.
      */
-    override fun update(update: Collection<DataChangeEvent>) = try {
+    override fun update(update: Collection<DataChangeEvent>, tx: Entity.Tx) = try {
         // TODO
     } catch (e: Throwable) {
         this.db.rollback()
