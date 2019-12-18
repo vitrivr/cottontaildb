@@ -14,6 +14,7 @@ import ch.unibas.dmi.dbis.cottontail.model.basics.Record
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.ValidationException
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
+import ch.unibas.dmi.dbis.cottontail.model.values.Value
 import ch.unibas.dmi.dbis.cottontail.utilities.extensions.write
 import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
 import org.mapdb.DBMaker
@@ -21,6 +22,7 @@ import org.mapdb.HTreeMap
 import org.mapdb.Serializer
 import org.slf4j.LoggerFactory
 import java.nio.file.Path
+import java.util.*
 
 /**
  * Represents a LSH based index in the Cottontail DB data model. An [Index] belongs to an [Entity] and can be used to
@@ -30,7 +32,7 @@ import java.nio.file.Path
  * @author Manuel Huerbin
  * @version 1.0
  */
-class LSHIndex(override val name: Name, override val parent: Entity, override val columns: Array<ColumnDef<*>>, val params: Map<String, String> = emptyMap()) : Index() {
+class LSHIndex(override val name: Name, override val parent: Entity, override val columns: Array<ColumnDef<*>>, params: Map<String, String>? = null) : Index() {
 
     /**
      * Index-wide constants.
@@ -51,7 +53,7 @@ class LSHIndex(override val name: Name, override val parent: Entity, override va
     override val type: IndexType = IndexType.LSH
 
     /** The [LSHIndex] implementation returns exactly the columns that is indexed. */
-    override val produces: Array<ColumnDef<*>> = this.columns
+    override val produces: Array<ColumnDef<*>> = this.columns // TODO emptyMap()
 
     /** The internal [DB] reference. */
     private val db = if (parent.parent.parent.config.forceUnmapMappedFiles) {
@@ -61,10 +63,17 @@ class LSHIndex(override val name: Name, override val parent: Entity, override va
     }
 
     /** Map structure used for [LSHIndex]. */
-    private val map: HTreeMap<Int, LongArray> = this.db.hashMap(MAP_FIELD_NAME, Serializer.INTEGER, Serializer.LONG_ARRAY).counterEnable().createOrOpen()
+    private val map: HTreeMap<out Int, LongArray> = this.db.hashMap(MAP_FIELD_NAME, Serializer.INTEGER, Serializer.LONG_ARRAY).counterEnable().createOrOpen()
 
     /** Map config used for parameters of [LSHIndex]. */
     private val config: HTreeMap<String, Int> = this.db.hashMap(MAP_FIELD_NAME_CONFIG, Serializer.STRING, Serializer.INTEGER).counterEnable().createOrOpen()
+
+    init {
+        params?.get("stages")?.let { this.config["stages"] = it.toInt() }
+        params?.get("buckets")?.let { this.config["buckets"] = it.toInt() }
+        params?.get("seed")?.let { this.config["seed"] = it.toInt() }
+        this.db.commit()
+    }
 
     /**
      * Flag indicating if this [LSHIndex] has been closed.
@@ -83,8 +92,15 @@ class LSHIndex(override val name: Name, override val parent: Entity, override va
         /* Create empty recordset. */
         val recordset = Recordset(this.columns)
 
+        val tupleId: Long = 1 // from map
+
+        val tx = this.parent.Tx(true, UUID.randomUUID(), this.columns, true)
+        val record = tx.read(tupleId)
+
         // TODO Gibt Recordset mit tupleIds und (ggf.) Distanzen zurück
         println("filter called")
+
+        //
 
         recordset
     } else {
@@ -133,9 +149,6 @@ class LSHIndex(override val name: Name, override val parent: Entity, override va
         this.map.clear()
 
         /* LSH. */
-        params["stages"]?.let { this.config["stages"] = it.toInt() }
-        params["buckets"]?.let { this.config["buckets"] = it.toInt() }
-        params["seed"]?.let { this.config["seed"] = it.toInt() }
         val lsh = LSH(this.config["stages"]!!, this.config["buckets"]!!, this.columns[0].size, this.config["seed"]!!)
 
         /* (Re-)create index entries. */
@@ -151,7 +164,7 @@ class LSHIndex(override val name: Name, override val parent: Entity, override va
                     localMap[bucket]!!.add(it.tupleId)
                 }
             }
-            val castMap = this.map
+            val castMap = this.map as HTreeMap<Int, LongArray>
             localMap.forEach { (bucket, l) -> castMap[bucket] = l.toLongArray() }
             this.db.commit()
             true
