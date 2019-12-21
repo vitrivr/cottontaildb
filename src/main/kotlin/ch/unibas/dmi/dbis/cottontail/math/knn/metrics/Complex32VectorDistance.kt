@@ -125,7 +125,6 @@ enum class Complex32VectorDistance : VectorizedDistanceFunction<FloatArray> {
         }
 
         override fun invoke(a: VectorValue<FloatArray>, b: VectorValue<FloatArray>): Double {
-            // TODO
             var dot = 0.0
             var c = 0.0
             var d = 0.0

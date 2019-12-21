@@ -104,12 +104,39 @@ enum class Complex64VectorDistance : VectorizedDistanceFunction<DoubleArray> {
 
         override fun invoke(a: VectorValue<DoubleArray>, b: VectorValue<DoubleArray>, shape: Shape): Double {
             // TODO
-            return 0.0
+            var dot = 0.0
+            var c = 0.0
+            var d = 0.0
+            for (i in 0 until b.size) {
+                dot += a.value[i * 2] * b.value[i * 2] + a.value[i * 2 + 1] * b.value[i * 2 + 1]
+                c += a.value[i * 2] * a.value[i * 2] + a.value[i * 2 + 1] * a.value[i * 2 + 1]
+                d += b.value[i * 2] * b.value[i * 2] + b.value[i * 2 + 1] * b.value[i * 2 + 1]
+            }
+            val div = sqrt(c) * sqrt(d)
+
+            return if (div < 1e-6 || div.isNaN()) {
+                1.0
+            } else {
+                1.0 - dot / div
+            }
         }
 
         override fun invoke(a: VectorValue<DoubleArray>, b: VectorValue<DoubleArray>, weights: VectorValue<*>): Double {
-            // TODO
-            return 0.0
+            var dot = 0.0
+            var c = 0.0
+            var d = 0.0
+            for (i in 0 until b.size) {
+                dot += a.value[i * 2] * b.value[i * 2] + a.value[i * 2 + 1] * b.value[i * 2 + 1]
+                c += a.value[i * 2] * a.value[i * 2] + a.value[i * 2 + 1] * a.value[i * 2 + 1]
+                d += b.value[i * 2] * b.value[i * 2] + b.value[i * 2 + 1] * b.value[i * 2 + 1]
+            }
+            val div = sqrt(c) * sqrt(d)
+
+            return if (div < 1e-6 || div.isNaN()) {
+                1.0
+            } else {
+                1.0 - dot / div
+            }
         }
 
         override fun invoke(a: VectorValue<DoubleArray>, b: VectorValue<DoubleArray>): Double {

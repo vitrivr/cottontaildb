@@ -3,18 +3,20 @@ package ch.unibas.dmi.dbis.cottontail.database.index.lsh
 import ch.unibas.dmi.dbis.cottontail.database.column.Column
 import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
 import ch.unibas.dmi.dbis.cottontail.database.events.DataChangeEvent
-import ch.unibas.dmi.dbis.cottontail.database.general.begin
 import ch.unibas.dmi.dbis.cottontail.database.index.Index
 import ch.unibas.dmi.dbis.cottontail.database.index.IndexType
 import ch.unibas.dmi.dbis.cottontail.database.queries.KnnPredicate
 import ch.unibas.dmi.dbis.cottontail.database.queries.Predicate
 import ch.unibas.dmi.dbis.cottontail.database.schema.Schema
+import ch.unibas.dmi.dbis.cottontail.math.knn.ComparablePair
+import ch.unibas.dmi.dbis.cottontail.math.knn.HeapSelect
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.basics.Record
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.ValidationException
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
-import ch.unibas.dmi.dbis.cottontail.model.values.Value
+import ch.unibas.dmi.dbis.cottontail.model.values.DoubleValue
+import ch.unibas.dmi.dbis.cottontail.model.values.VectorValue
 import ch.unibas.dmi.dbis.cottontail.utilities.extensions.write
 import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
 import org.mapdb.DBMaker
@@ -22,7 +24,6 @@ import org.mapdb.HTreeMap
 import org.mapdb.Serializer
 import org.slf4j.LoggerFactory
 import java.nio.file.Path
-import java.util.*
 
 /**
  * Represents a LSH based index in the Cottontail DB data model. An [Index] belongs to an [Entity] and can be used to
@@ -90,16 +91,33 @@ class LSHIndex(override val name: Name, override val parent: Entity, override va
      */
     override fun filter(predicate: Predicate, tx: Entity.Tx): Recordset = if (predicate is KnnPredicate<*>) {
         /* Create empty recordset. */
-        val recordset = Recordset(this.columns)
+        var recordset = Recordset(this.columns)
 
-        val tupleId: Long = 1 // from map
+        /* LSH. */
+        val lsh = LSH(this.config["stages"]!!, this.config["buckets"]!!, this.columns[0].size, this.config["seed"]!!)
 
-        val tx = this.parent.Tx(true, UUID.randomUUID(), this.columns, true)
-        val record = tx.read(tupleId)
-
-        // TODO Gibt Recordset mit tupleIds und (ggf.) Distanzen zurück
-        println("filter called")
-
+        /* Generate record set .*/
+        for (i in predicate.query.indices) {
+            val query = predicate.query[i]
+            val knn = HeapSelect<ComparablePair<Long, Double>>(predicate.k)
+            val bucket: Int = lsh.hash(query.value as FloatArray)!!.last()
+            val tupleIds = this.map[bucket]
+            if (tupleIds != null) {
+                tx.readMany(tupleIds = tupleIds.toList()).forEach {
+                    val value = it[predicate.column]
+                    if (value is VectorValue<*>) {
+                        if (predicate.weights != null) {
+                            knn.add(ComparablePair(it.tupleId, predicate.distance(query, value, predicate.weights[i])))
+                        } else {
+                            knn.add(ComparablePair(it.tupleId, predicate.distance(query, value)))
+                        }
+                    }
+                }
+                for (i in 0 until knn.size) {
+                    recordset.addRowUnsafe(knn[i].first, arrayOf(DoubleValue(knn[i].second)))
+                }
+            }
+        }
         recordset
     } else {
         throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (lsh-index) does not support predicates of type '${predicate::class.simpleName}'.")
@@ -125,9 +143,8 @@ class LSHIndex(override val name: Name, override val parent: Entity, override va
      * @return Cost estimate for the [Predicate]
      */
     override fun cost(predicate: Predicate): Float = when {
-        // TODO
         predicate !is KnnPredicate<*> || predicate.columns.first() != this.columns[0] -> Float.MAX_VALUE
-        else -> Float.MAX_VALUE
+        else -> 1f // TODO
     }
 
     /**
@@ -151,23 +168,20 @@ class LSHIndex(override val name: Name, override val parent: Entity, override va
 
         /* (Re-)create index entries. */
         val localMap = mutableMapOf<Int, MutableList<Long>>()
-        this.parent.Tx(readonly = true, columns = this.columns, ommitIndex = true).begin { tx ->
-            tx.forEach {
-                val value = it[this.columns[0]]
-                        ?: throw ValidationException.IndexUpdateException(this.fqn, "A value cannot be null for instances of lsh-index but tid=${it.tupleId} is")
-                val bucket: Int = lsh.hash(value.value as FloatArray)!!.last() // bucket after s stages
-                if (!localMap.containsKey(bucket)) {
-                    localMap[bucket] = mutableListOf(it.tupleId)
-                } else {
-                    localMap[bucket]!!.add(it.tupleId)
-                }
+
+        tx.forEach {
+            val value = it[this.columns[0]]
+                    ?: throw ValidationException.IndexUpdateException(this.fqn, "A value cannot be null for instances of lsh-index but tid=${it.tupleId} is")
+            val bucket: Int = lsh.hash(value.value as FloatArray)!!.last() // bucket after s stages
+            if (!localMap.containsKey(bucket)) {
+                localMap[bucket] = mutableListOf(it.tupleId)
+            } else {
+                localMap[bucket]!!.add(it.tupleId)
             }
-            val castMap = this.map as HTreeMap<Int, LongArray>
-            localMap.forEach { (bucket, l) -> castMap[bucket] = l.toLongArray() }
-            this.db.commit()
-            true
         }
-        // debug this.map.forEach { (key: Int, value: LongArray) -> println("$key: " + value.size) }
+        val castMap = this.map as HTreeMap<Int, LongArray>
+        localMap.forEach { (bucket, l) -> castMap[bucket] = l.toLongArray() }
+        this.db.commit()
     }
 
     /**
