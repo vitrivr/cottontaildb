@@ -1,6 +1,7 @@
 package ch.unibas.dmi.dbis.cottontail.database.index.lsh
 
 import ch.unibas.dmi.dbis.cottontail.database.column.Column
+import ch.unibas.dmi.dbis.cottontail.database.column.ColumnType
 import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
 import ch.unibas.dmi.dbis.cottontail.database.events.DataChangeEvent
 import ch.unibas.dmi.dbis.cottontail.database.index.Index
@@ -33,7 +34,7 @@ import java.nio.file.Path
  * @author Manuel Huerbin
  * @version 1.0
  */
-class LSHIndex(override val name: Name, override val parent: Entity, override val columns: Array<ColumnDef<*>>, params: Map<String, String>? = null) : Index() {
+class LSHIndex<T : Any>(override val name: Name, override val parent: Entity, override val columns: Array<ColumnDef<*>>, params: Map<String, String>? = null) : Index() {
 
     /**
      * Index-wide constants.
@@ -54,7 +55,7 @@ class LSHIndex(override val name: Name, override val parent: Entity, override va
     override val type: IndexType = IndexType.LSH
 
     /** The [LSHIndex] implementation returns exactly the columns that is indexed. */
-    override val produces: Array<ColumnDef<*>> = this.columns // TODO emptyMap()
+    override val produces: Array<ColumnDef<*>> = arrayOf(ColumnDef(parent.fqn.append("distance"), ColumnType.forName("DOUBLE")))
 
     /** The internal [DB] reference. */
     private val db = if (parent.parent.parent.config.forceUnmapMappedFiles) {
@@ -90,8 +91,12 @@ class LSHIndex(override val name: Name, override val parent: Entity, override va
      * @return The resulting [Recordset]
      */
     override fun filter(predicate: Predicate, tx: Entity.Tx): Recordset = if (predicate is KnnPredicate<*>) {
+        /* Guard: Only process predicates that are supported. */
+        require(this.canProcess(predicate)) { throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (lsh-index) does not support the provided predicate.") }
+
         /* Create empty recordset. */
-        var recordset = Recordset(this.columns)
+        val recordset = Recordset(this.produces)
+        val castPredicate = predicate as KnnPredicate<T>
 
         /* LSH. */
         val lsh = LSH(this.config["stages"]!!, this.config["buckets"]!!, this.columns[0].size, this.config["seed"]!!)
@@ -99,22 +104,22 @@ class LSHIndex(override val name: Name, override val parent: Entity, override va
         /* Generate record set .*/
         for (i in predicate.query.indices) {
             val query = predicate.query[i]
-            val knn = HeapSelect<ComparablePair<Long, Double>>(predicate.k)
+            val knn = HeapSelect<ComparablePair<Long, Double>>(castPredicate.k)
             val bucket: Int = lsh.hash(query.value as FloatArray)!!.last()
             val tupleIds = this.map[bucket]
             if (tupleIds != null) {
                 tx.readMany(tupleIds = tupleIds.toList()).forEach {
-                    val value = it[predicate.column]
-                    if (value is VectorValue<*>) {
-                        if (predicate.weights != null) {
-                            knn.add(ComparablePair(it.tupleId, predicate.distance(query, value, predicate.weights[i])))
+                    val value = it[castPredicate.column]
+                    if (value is VectorValue<T>) {
+                        if (castPredicate.weights != null) {
+                            knn.add(ComparablePair(it.tupleId, castPredicate.distance(query, value, castPredicate.weights[i])))
                         } else {
-                            knn.add(ComparablePair(it.tupleId, predicate.distance(query, value)))
+                            knn.add(ComparablePair(it.tupleId, castPredicate.distance(query, value)))
                         }
                     }
                 }
-                for (i in 0 until knn.size) {
-                    recordset.addRowUnsafe(knn[i].first, arrayOf(DoubleValue(knn[i].second)))
+                for (j in 0 until knn.size) {
+                    recordset.addRowUnsafe(knn[j].first, arrayOf(DoubleValue(knn[j].second)))
                 }
             }
         }
