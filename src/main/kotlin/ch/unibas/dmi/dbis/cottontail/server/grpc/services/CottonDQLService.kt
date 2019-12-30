@@ -54,14 +54,19 @@ class CottonDQLService (val catalogue: Catalogue, val engine: ExecutionEngine, v
         LOGGER.info("Query $queryId took ${System.currentTimeMillis()-startBinding}ms.")
         responseObserver.onCompleted()
     } catch (e: QueryException.QuerySyntaxException) {
+        LOGGER.error("Error while executing query $request", e);
         responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Query syntax is invalid: ${e.message}").asException())
     } catch (e: QueryException.QueryBindException) {
+        LOGGER.error("Error while executing query $request", e);
         responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Query binding failed: ${e.message}").asException())
     } catch (e: ExecutionPlanException) {
+        LOGGER.error("Error while executing query $request", e);
         responseObserver.onError(Status.INTERNAL.withDescription("Query execution failed because execution engine signaled an error: ${e.message}").asException())
     }  catch (e: DatabaseException) {
+        LOGGER.error("Error while executing query $request", e);
         responseObserver.onError(Status.INTERNAL.withDescription("Query execution failed because of a database error: ${e.message}").asException())
     } catch (e: Throwable) {
+        LOGGER.error("Error while executing query $request", e);
         responseObserver.onError(Status.UNKNOWN.withDescription("Query execution failed failed because of a unknown error: ${e.message}").asException())
     }
 
@@ -93,14 +98,19 @@ class CottonDQLService (val catalogue: Catalogue, val engine: ExecutionEngine, v
         LOGGER.info("Batched query $queryId took ${System.currentTimeMillis()-start}ms to complete.")
         responseObserver.onCompleted()
     } catch (e: QueryException.QuerySyntaxException) {
+        LOGGER.error("Error while executing batched query $request", e);
         responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Query syntax is invalid: ${e.message}").asException())
     } catch (e: QueryException.QueryBindException) {
+        LOGGER.error("Error while executing batched query $request", e);
         responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Query binding failed: ${e.message}").asException())
     } catch (e: ExecutionPlanException) {
+        LOGGER.error("Error while executing batched query $request", e);
         responseObserver.onError(Status.INTERNAL.withDescription("Query execution failed because execution engine signaled an error: ${e.message}").asException())
     }  catch (e: DatabaseException) {
+        LOGGER.error("Error while executing batched query $request", e);
         responseObserver.onError(Status.INTERNAL.withDescription("Query execution failed because of a database error: ${e.message}").asException())
     } catch (e: Throwable) {
+        LOGGER.error("Error while executing batched query $request", e);
         responseObserver.onError(Status.UNKNOWN.withDescription("Query execution failed failed because of a unknown error: ${e.message}").asException())
     }
 
