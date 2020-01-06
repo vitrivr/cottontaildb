@@ -151,7 +151,7 @@ class Schema(override val name: Name, override val path: Path, override val pare
         val entityRecId = this.header.entities.find { this.store.get(it, Serializer.STRING) == name.name } ?: throw DatabaseException.EntityDoesNotExistException(fqn.append(name))
 
         val entity = this.entityForName(name)
-        entity.allIndexes().forEach { entity.dropIndex(it.name) }
+        entity.allIndexes().map{ it.name }.forEach { entity.dropIndex(it) }
 
         /* Unload the entity and remove it. */
         this.unload(name)
