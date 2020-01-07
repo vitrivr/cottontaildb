@@ -129,9 +129,9 @@ class ExecutionPlanFactory (val executionEngine: ExecutionEngine) {
         val parallelism = min(Math.floorDiv(operations, KNN_OP_PARALLELISM_THRESHOLD).toInt(), Runtime.getRuntime().availableProcessors() / 2).toShort()
         val stage = ExecutionStage()
         val task = if (parallelism > 1) {
-            ParallelEntityScanKnnTask(entity, knnClause, null, parallelism)
+            ParallelEntityScanKnnTask(entity, knnClause, whereClause, parallelism)
         } else {
-            LinearEntityScanKnnTask(entity, knnClause, null)
+            LinearEntityScanKnnTask(entity, knnClause, whereClause)
         }
         stage.addTask(task)
         candidates.add(stage)
