@@ -29,7 +29,7 @@ import java.nio.file.Path
 /**
  * Represents a LSH based index in the Cottontail DB data model. An [Index] belongs to an [Entity] and can be used to
  * index one to many [Column]s. Usually, [Index]es allow for faster data access. They process [Predicate]s and return
- * [Recordset]s. The [LSHIndex] allows for ... TODO
+ * [Recordset]s.
  *
  * @author Manuel Huerbin
  * @version 1.0

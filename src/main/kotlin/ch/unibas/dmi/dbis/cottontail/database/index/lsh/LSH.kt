@@ -6,13 +6,13 @@ import java.io.Serializable
  * LSH implementation relying on Super-Bit, to bin vectors s times (stages)
  * in b buckets (per stage), in a space with d dimensions. Input vectors
  * with a high cosine similarity have a high probability of falling in the
- * same bucket ...
+ * same bucket.
  *
  * @param s    stages
  * @param b    buckets (per stage)
  * @param d    dimension of data space
- * @param seed random number generator seed. using the same value will
- *             guarantee identical hashes across object instantiations
+ * @param seed random number generator seed (sing the same value will guarantee identical hashes across object
+ *             instantiations)
  *
  * This class is inspired by Thibault Debatty (https://github.com/tdebatty/java-LSH).
  *
@@ -32,8 +32,6 @@ class LSH(private var s: Int, private var b: Int, d: Int, seed: Int) : Serializa
 
     /**
      * Compute the Super-Bit depth N.
-     *
-     * TODO describe what actually is going on in detail ...
      *
      * @param d The dimension of the vector.
      * @return Super-Bit depth N.
@@ -77,8 +75,6 @@ class LSH(private var s: Int, private var b: Int, d: Int, seed: Int) : Serializa
     /**
      * Hash a signature.
      * The signature is divided in s stages. Each stage is hashed to one of the b buckets.
-     *
-     * TODO describe what actually is going on in detail ...
      *
      * @param signature
      * @return A vector of s integers (between 0 and b - 1)

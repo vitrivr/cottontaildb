@@ -37,8 +37,6 @@ class SuperBit(d: Int, N: Int, L: Int, seed: Int) : Serializable {
      * Number of Super-Bits L must be [1 ..
      * The resulting code length is K = N * L (size of signature)
      *
-     * TODO describe what actually is going on in detail ...
-     *
      * @param d         dimension, R^n
      * @param N         Super-Bit depth (must be [1 .. d])
      * @param L         number of Super-Bits (must be [1 ..)
