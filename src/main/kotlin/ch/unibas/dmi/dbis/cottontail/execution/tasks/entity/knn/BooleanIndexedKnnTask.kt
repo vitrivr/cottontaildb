@@ -9,6 +9,7 @@ import ch.unibas.dmi.dbis.cottontail.database.queries.KnnPredicate
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.basics.ExecutionTask
 import ch.unibas.dmi.dbis.cottontail.math.knn.ComparablePair
 import ch.unibas.dmi.dbis.cottontail.math.knn.HeapSelect
+import ch.unibas.dmi.dbis.cottontail.math.knn.metrics.DistanceFunction
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
 import ch.unibas.dmi.dbis.cottontail.model.values.DoubleValue
@@ -27,20 +28,29 @@ class BooleanIndexedKnnTask<T: Any>(val entity: Entity, val knn: KnnPredicate<T>
     /** The type of the [Index] that should be used.*/
     private val type = indexHint.type
 
+    private inline fun weightedDist(a: VectorValue<T>, b: VectorValue<T>, distanceFunction: DistanceFunction<T>, weights: VectorValue<FloatArray>?) : Double {
+        return distanceFunction(a, b, weights!!)
+    }
+
+    private inline fun nonWeightedDist(a: VectorValue<T>, b: VectorValue<T>, distanceFunction: DistanceFunction<T>, weights: VectorValue<FloatArray>?) : Double {
+        return distanceFunction(a, b)
+    }
 
     override fun execute(): Recordset = this.entity.Tx(readonly = true, columns = emptyArray()).query {tx ->
         val index = tx.indexes(this.predicate.columns.toTypedArray(), this.type).first()
+
+        val distance = if (this.knn.weights != null) {
+            ::weightedDist
+        } else {
+            ::nonWeightedDist
+        }
 
         index.forEach(this.predicate) {
 
             val value = it[this.knn.column]
             if (value is VectorValue<T>) {
                 this.knn.query.forEachIndexed { i, query ->
-                    if (this.knn.weights != null) {
-                        this.knnSet[i].add(ComparablePair(it.tupleId, this.knn.distance(query, value, this.knn.weights[i])))
-                    } else {
-                        this.knnSet[i].add(ComparablePair(it.tupleId, this.knn.distance(query, value)))
-                    }
+                    this.knnSet[i].add(ComparablePair(it.tupleId, distance(query, value, this.knn.distance, this.knn.weights?.get(i))))
                 }
             }
 
