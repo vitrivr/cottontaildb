@@ -1,25 +1,20 @@
 package ch.unibas.dmi.dbis.cottontail.execution
 
 import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
-import ch.unibas.dmi.dbis.cottontail.database.queries.*
-
+import ch.unibas.dmi.dbis.cottontail.database.queries.BooleanPredicate
+import ch.unibas.dmi.dbis.cottontail.database.queries.KnnPredicate
+import ch.unibas.dmi.dbis.cottontail.database.queries.Projection
+import ch.unibas.dmi.dbis.cottontail.database.queries.ProjectionType
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.basics.ExecutionStage
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.boolean.EntityIndexedFilterTask
-import ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.knn.*
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.boolean.EntityLinearScanFilterTask
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.fetch.EntityFetchColumnsTask
+import ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.knn.BooleanIndexedKnnTask
+import ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.knn.EntityIndexedKnnTask
+import ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.knn.LinearEntityScanKnnTask
+import ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.knn.ParallelEntityScanKnnTask
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.projection.*
-import ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.projection.EntityCountProjectionTask
-import ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.projection.EntityExistsProjectionTask
-import ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.projection.EntityMaxProjectionTask
-import ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.projection.EntityMinProjectionTask
-import ch.unibas.dmi.dbis.cottontail.execution.tasks.entity.projection.EntitySumProjectionTask
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.recordset.projection.*
-import ch.unibas.dmi.dbis.cottontail.execution.tasks.recordset.projection.RecordsetCountProjectionTask
-import ch.unibas.dmi.dbis.cottontail.execution.tasks.recordset.projection.RecordsetExistsProjectionTask
-import ch.unibas.dmi.dbis.cottontail.execution.tasks.recordset.projection.RecordsetMaxProjectionTask
-import ch.unibas.dmi.dbis.cottontail.execution.tasks.recordset.projection.RecordsetSelectProjectionTask
-import ch.unibas.dmi.dbis.cottontail.execution.tasks.recordset.projection.RecordsetSumProjectionTask
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.recordset.transform.RecordsetLimitTask
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
 import kotlin.math.min
@@ -136,8 +131,17 @@ class ExecutionPlanFactory (val executionEngine: ExecutionEngine) {
         stage.addTask(task)
         candidates.add(stage)
 
-        /* TODO #1: Try other paths with indexed whereClause & kNN clause on Recordset */
-        /* TODO #2: Try other paths by re-arranging whereClause */
+
+        /* Add default case 2: Cheapest index for full query. */
+        val indexes = entity.allIndexes()
+        val index = indexes.filter { it.canProcess(whereClause) }.minBy { it.cost(whereClause) }
+        if (index != null) {
+            val stage = ExecutionStage()
+            stage.addTask(BooleanIndexedKnnTask(entity,knnClause, whereClause, index))
+            candidates.add(stage)
+        }
+
+        /* TODO: Try other paths by re-arranging whereClause */
 
         /* Take cheapest execution path and return it. */
         candidates.sortBy { it.cost }
