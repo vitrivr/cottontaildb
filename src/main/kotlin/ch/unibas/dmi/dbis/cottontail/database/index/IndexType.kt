@@ -5,6 +5,7 @@ import ch.unibas.dmi.dbis.cottontail.database.index.hash.NonUniqueHashIndex
 import ch.unibas.dmi.dbis.cottontail.database.index.hash.UniqueHashIndex
 import ch.unibas.dmi.dbis.cottontail.database.index.lsh.LSHIndex
 import ch.unibas.dmi.dbis.cottontail.database.index.lucene.LuceneIndex
+import ch.unibas.dmi.dbis.cottontail.database.index.vaf.VAFIndex
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
 
@@ -28,6 +29,7 @@ enum class IndexType(val inexact: Boolean) {
         HASH_UQ -> UniqueHashIndex(name, entity, columns)
         HASH -> NonUniqueHashIndex(name, entity, columns)
         LUCENE -> LuceneIndex(name, entity, columns)
+        VAF -> VAFIndex(name, entity, columns)
         LSH -> LSHIndex<Any>(name, entity, columns, null)
         else -> TODO()
     }
@@ -44,7 +46,9 @@ enum class IndexType(val inexact: Boolean) {
         HASH_UQ -> UniqueHashIndex(name, entity, columns)
         HASH -> NonUniqueHashIndex(name, entity, columns)
         LUCENE -> LuceneIndex(name, entity, columns)
+        VAF -> VAFIndex(name, entity, columns)
         LSH -> LSHIndex<Any>(name, entity, columns, params)
         else -> TODO()
     }
+
 }
