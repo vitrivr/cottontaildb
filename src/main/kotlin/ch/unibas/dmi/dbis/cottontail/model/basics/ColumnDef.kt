@@ -15,7 +15,7 @@ import java.util.*
  * @author Ralph Gasser
  * @version 1.1
  */
-class ColumnDef<T: Any> (val name: Name, val type: ColumnType<T>, val size: Int = -1, val nullable: Boolean = true) {
+class ColumnDef<T : Any>(val name: Name, val type: ColumnType<T>, val size: Int = -1, val nullable: Boolean = true) {
 
     /**
      * Companion object with some convenience methods.
@@ -50,6 +50,7 @@ class ColumnDef<T: Any> (val name: Name, val type: ColumnType<T>, val size: Int 
                 cast is LongVectorValue && cast.size != this.size -> throw ValidationException("The size of column '$name' (sc=${this.size}) is not compatible with size of value (sv=${cast.size}).")
                 cast is IntVectorValue && cast.size != this.size -> throw ValidationException("The size of column '$name' (sc=${this.size}) is not compatible with size of value (sv=${cast.size}).")
                 cast is Complex32VectorValue && cast.size != this.size -> throw ValidationException("The size of column '$name' (sc=${this.size}) is not compatible with size of value (sv=${cast.size}).")
+                cast is Complex64VectorValue && cast.size != this.size -> throw ValidationException("The size of column '$name' (sc=${this.size}) is not compatible with size of value (sv=${cast.size}).")
             }
         } else if (!this.nullable) {
             throw ValidationException("The column '$name' cannot be null!")
@@ -74,6 +75,7 @@ class ColumnDef<T: Any> (val name: Name, val type: ColumnType<T>, val size: Int 
                 cast is LongVectorValue && cast.size != this.size -> false
                 cast is IntVectorValue && cast.size != this.size -> false
                 cast is Complex32VectorValue && cast.size != this.size -> false
+                cast is Complex64VectorValue && cast.size != this.size -> false
                 else -> true
             }
         } else return this.nullable
@@ -94,13 +96,15 @@ class ColumnDef<T: Any> (val name: Name, val type: ColumnType<T>, val size: Int 
         this.type is ShortColumnType -> ShortValue(0.toShort())
         this.type is ByteColumnType -> ByteValue(0.toByte())
         this.type is BooleanColumnType -> BooleanValue(false)
-        this.type is ComplexColumnType -> Complex32Value(floatArrayOf(0.0f, 0.0f))
+        this.type is Complex32ColumnType -> Complex32Value(floatArrayOf(0.0f, 0.0f))
+        this.type is Complex64ColumnType -> Complex64Value(doubleArrayOf(0.0, 0.0))
         this.type is DoubleVectorColumnType -> DoubleVectorValue(DoubleArray(this.size))
         this.type is FloatVectorColumnType -> FloatVectorValue(FloatArray(this.size))
         this.type is LongVectorColumnType -> LongVectorValue(LongArray(this.size))
         this.type is IntVectorColumnType -> IntVectorValue(IntArray(this.size))
         this.type is BooleanVectorColumnType -> BooleanVectorValue(BitSet(this.size))
-        this.type is ComplexVectorColumnType -> Complex32VectorValue(FloatArray(this.size * 2))
+        this.type is Complex32VectorColumnType -> Complex32VectorValue(FloatArray(this.size * 2))
+        this.type is Complex64VectorColumnType -> Complex64VectorValue(DoubleArray(this.size * 2))
         else -> throw RuntimeException("Default value for the specified type $type has not been specified yet!")
     }
 

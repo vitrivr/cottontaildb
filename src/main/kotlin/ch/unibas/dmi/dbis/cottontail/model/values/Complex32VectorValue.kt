@@ -1,6 +1,7 @@
 package ch.unibas.dmi.dbis.cottontail.model.values
+
 /**
- * This is an abstraction over an [Array] and it represents a vector of [Complex]s.
+ * This is an abstraction over an [Array] and it represents a vector of [Complex32]s.
  *
  * @author Manuel Huerbin
  * @version 1.0
@@ -67,7 +68,7 @@ inline class Complex32VectorValue(override val value: FloatArray) : VectorValue<
      *
      * @return True, if this [Complex32VectorValue] consists of all ones
      */
-    override fun allOnes(): Boolean  = this.value.all { it == 1.0f }
+    override fun allOnes(): Boolean = this.value.all { it == 1.0f }
 
     /**
      * Creates and returns a copy of this [Complex32VectorValue].
@@ -77,7 +78,7 @@ inline class Complex32VectorValue(override val value: FloatArray) : VectorValue<
     override fun copy(): VectorValue<FloatArray> = Complex32VectorValue(value.copyOf())
 
 
-    override fun plus(other: VectorValue<FloatArray>): VectorValue<FloatArray>  {
+    override fun plus(other: VectorValue<FloatArray>): VectorValue<FloatArray> {
         assert(this.size == other.size)
         return Complex32VectorValue(FloatArray(this.size) {
             this.value[it] + other.value[it]

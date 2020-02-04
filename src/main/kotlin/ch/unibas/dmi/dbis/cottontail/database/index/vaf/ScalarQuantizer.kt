@@ -1,7 +1,6 @@
-package ch.unibas.dmi.dbis.cottontail.database.index.va
+package ch.unibas.dmi.dbis.cottontail.database.index.vaf
 
 import kotlin.math.log2
-
 
 class ScalarQuantizer {
 
@@ -9,13 +8,13 @@ class ScalarQuantizer {
     private val bitLen: Int
     val bits: UByte
 
-    constructor(vector: FloatArray, bits: UByte){
+    constructor(vector: FloatArray, bits: UByte) {
         bitLen = 1 shl bits.toInt()
         bounds = quantizeVector(vector)
         this.bits = bits
     }
 
-    internal constructor(bounds: FloatArray){
+    internal constructor(bounds: FloatArray) {
         this.bounds = bounds
         this.bitLen = bounds.size + 1
         this.bits = log2(bitLen.toDouble()).toUInt().toUByte()
@@ -43,6 +42,5 @@ class ScalarQuantizer {
             else -> null
         }
     }
-
 
 }

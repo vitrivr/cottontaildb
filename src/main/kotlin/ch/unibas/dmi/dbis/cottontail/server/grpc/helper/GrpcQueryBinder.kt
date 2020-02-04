@@ -18,6 +18,7 @@ import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
 import ch.unibas.dmi.dbis.cottontail.model.values.*
+import ch.unibas.dmi.dbis.cottontail.model.values.complex.Complex32
 import ch.unibas.dmi.dbis.cottontail.utilities.name.Match
 import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
 
@@ -138,7 +139,8 @@ class GrpcQueryBinder(val catalogue: Catalogue, engine: ExecutionEngine) {
      */
     @Suppress("UNCHECKED_CAST")
     private fun parseAndBindAtomicBooleanPredicate(entity: Entity, atomic: CottontailGrpc.AtomicLiteralBooleanPredicate): AtomicBooleanPredicate<*> {
-        val column = entity.columnForName(Name(atomic.attribute)) ?: throw QueryException.QueryBindException("Failed to bind column '${atomic.attribute}'. Column does not exist on entity '${entity.fqn}'.")
+        val column = entity.columnForName(Name(atomic.attribute))
+                ?: throw QueryException.QueryBindException("Failed to bind column '${atomic.attribute}'. Column does not exist on entity '${entity.fqn}'.")
         val operator = try {
             ComparisonOperator.valueOf(atomic.op.name)
         } catch (e: IllegalArgumentException) {
@@ -152,21 +154,74 @@ class GrpcQueryBinder(val catalogue: Catalogue, engine: ExecutionEngine) {
 
         /* Return the resulting AtomicBooleanPredicate. */
         return when (column.type) {
-            is DoubleColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Value<Double>>, operator = operator, not = atomic.not, values = atomic.dataList.map { it.toDoubleValue() ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")})
-            is FloatColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Value<Float>>, operator = operator, not = atomic.not, values = atomic.dataList.map { it.toFloatValue() ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.") })
-            is LongColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Value<Long>>, operator = operator, not = atomic.not, values = atomic.dataList.map { it.toLongValue() ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.") })
-            is IntColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Value<Int>>, operator = operator, not = atomic.not, values = atomic.dataList.map { it.toIntValue() ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.") })
-            is ShortColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Value<Short>>, operator = operator, not = atomic.not, values = atomic.dataList.map { it.toShortValue() ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.") })
-            is ByteColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Value<Byte>>, operator = operator, not = atomic.not, values = atomic.dataList.map { it.toByteValue() ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.") })
-            is BooleanColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Value<Boolean>>, operator = operator, not = atomic.not, values = atomic.dataList.map { it.toBooleanValue() ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.") })
-            is StringColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Value<String>>, operator = operator, not = atomic.not, values = atomic.dataList.map { it.toStringValue() ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.") })
-            is ComplexColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Value<FloatArray>>, operator = operator, not = atomic.not, values = atomic.dataList.map { it.toComplex32Value() ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")  })
-            is FloatVectorColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Value<FloatArray>>, operator = operator, not = atomic.not, values = atomic.dataList.map { it.toFloatVectorValue() ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.") })
-            is DoubleVectorColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Value<DoubleArray>>, operator = operator, not = atomic.not, values = atomic.dataList.map { it.toDoubleVectorValue() ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.") })
-            is LongVectorColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Value<LongArray>>, operator = operator, not = atomic.not, values = atomic.dataList.map { it.toLongVectorValue() ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.") })
-            is IntVectorColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Value<IntArray>>, operator = operator, not = atomic.not, values = atomic.dataList.map { it.toIntVectorValue() ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.") })
-            is BooleanVectorColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Value<BooleanArray>>, operator = operator, not = atomic.not, values = atomic.dataList.map { it.toBooleanVectorValue() ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.") })
-            is ComplexVectorColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Value<Array<FloatArray>>>, operator = operator, not = atomic.not, values = atomic.dataList.map { it.toComplex32VectorValue() ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.") })
+            is DoubleColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Value<Double>>, operator = operator, not = atomic.not, values = atomic.dataList.map {
+                it.toDoubleValue()
+                        ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
+            })
+            is FloatColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Value<Float>>, operator = operator, not = atomic.not, values = atomic.dataList.map {
+                it.toFloatValue()
+                        ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
+            })
+            is LongColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Value<Long>>, operator = operator, not = atomic.not, values = atomic.dataList.map {
+                it.toLongValue()
+                        ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
+            })
+            is IntColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Value<Int>>, operator = operator, not = atomic.not, values = atomic.dataList.map {
+                it.toIntValue()
+                        ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
+            })
+            is ShortColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Value<Short>>, operator = operator, not = atomic.not, values = atomic.dataList.map {
+                it.toShortValue()
+                        ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
+            })
+            is ByteColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Value<Byte>>, operator = operator, not = atomic.not, values = atomic.dataList.map {
+                it.toByteValue()
+                        ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
+            })
+            is BooleanColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Value<Boolean>>, operator = operator, not = atomic.not, values = atomic.dataList.map {
+                it.toBooleanValue()
+                        ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
+            })
+            is StringColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Value<String>>, operator = operator, not = atomic.not, values = atomic.dataList.map {
+                it.toStringValue()
+                        ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
+            })
+            is Complex32ColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Value<FloatArray>>, operator = operator, not = atomic.not, values = atomic.dataList.map {
+                it.toComplex32Value()
+                        ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
+            })
+            is Complex64ColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Value<DoubleArray>>, operator = operator, not = atomic.not, values = atomic.dataList.map {
+                it.toComplex64Value()
+                        ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
+            })
+            is FloatVectorColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Value<FloatArray>>, operator = operator, not = atomic.not, values = atomic.dataList.map {
+                it.toFloatVectorValue()
+                        ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
+            })
+            is DoubleVectorColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Value<DoubleArray>>, operator = operator, not = atomic.not, values = atomic.dataList.map {
+                it.toDoubleVectorValue()
+                        ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
+            })
+            is LongVectorColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Value<LongArray>>, operator = operator, not = atomic.not, values = atomic.dataList.map {
+                it.toLongVectorValue()
+                        ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
+            })
+            is IntVectorColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Value<IntArray>>, operator = operator, not = atomic.not, values = atomic.dataList.map {
+                it.toIntVectorValue()
+                        ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
+            })
+            is BooleanVectorColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Value<BooleanArray>>, operator = operator, not = atomic.not, values = atomic.dataList.map {
+                it.toBooleanVectorValue()
+                        ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
+            })
+            is Complex32VectorColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Value<Array<FloatArray>>>, operator = operator, not = atomic.not, values = atomic.dataList.map {
+                it.toComplex32VectorValue()
+                        ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
+            })
+            is Complex64VectorColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Value<Array<DoubleArray>>>, operator = operator, not = atomic.not, values = atomic.dataList.map {
+                it.toComplex64VectorValue()
+                        ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
+            })
         }
     }
 
@@ -180,14 +235,15 @@ class GrpcQueryBinder(val catalogue: Catalogue, engine: ExecutionEngine) {
      */
     @Suppress("UNCHECKED_CAST")
     private fun parseAndBindKnnPredicate(entity: Entity, knn: CottontailGrpc.Knn): KnnPredicate<*> {
-        val column = entity.columnForName(Name(knn.attribute)) ?: throw QueryException.QueryBindException("Failed to bind column '${knn.attribute}'. Column does not exist on entity '${entity.fqn}'!")
+        val column = entity.columnForName(Name(knn.attribute))
+                ?: throw QueryException.QueryBindException("Failed to bind column '${knn.attribute}'. Column does not exist on entity '${entity.fqn}'!")
         val weights = if (knn.weightsCount > 0) {
             knn.weightsList.map { w -> w.toFloatVectorValue() }
         } else {
             null
         }
 
-        return when(column.type) {
+        return when (column.type) {
             is DoubleVectorColumnType -> {
                 val query = knn.queryList.map { q -> q.toDoubleVectorValue() }
                 val distance = DoubleVectorDistance.valueOf(knn.distance.name)
@@ -213,10 +269,15 @@ class GrpcQueryBinder(val catalogue: Catalogue, engine: ExecutionEngine) {
                 val distance = BoolVectorDistance.valueOf(knn.distance.name)
                 KnnPredicate(column = column as ColumnDef<BitSet>, k = knn.k, inexact = knn.inexact, query = query, weights = weights, distance = distance)
             }
-            is ComplexVectorColumnType -> {
+            is Complex32VectorColumnType -> {
                 val query = knn.queryList.map { q -> q.toComplex32VectorValue() }
-                val distance = ComplexVectorDistance.valueOf(knn.distance.name)
-                KnnPredicate(column = column as ColumnDef<FloatArray>, k = knn.k, query = query, weights = weights, distance = distance)
+                val distance = Complex32VectorDistance.valueOf(knn.distance.name)
+                KnnPredicate(column = column as ColumnDef<FloatArray>, k = knn.k, inexact = knn.inexact, query = query, weights = weights, distance = distance)
+            }
+            is Complex64VectorColumnType -> {
+                val query = knn.queryList.map { q -> q.toComplex64VectorValue() }
+                val distance = Complex64VectorDistance.valueOf(knn.distance.name)
+                KnnPredicate(column = column as ColumnDef<DoubleArray>, k = knn.k, inexact = knn.inexact, query = query, weights = weights, distance = distance)
             }
             else -> throw QueryException.QuerySyntaxException("A kNN predicate does not contain a valid query vector!")
         }
@@ -237,10 +298,14 @@ class GrpcQueryBinder(val catalogue: Catalogue, engine: ExecutionEngine) {
         val fields = projection.attributesMap.map { (expr, alias) ->
             /* Fetch columns that match field and add them to list of requested columns */
             val field = entity.fqn.append(expr)
-            availableColumns.forEach { if(field.match(it.name) != Match.NO_MATCH) requestedColumns.add(it) }
+            availableColumns.forEach { if (field.match(it.name) != Match.NO_MATCH) requestedColumns.add(it) }
 
             /* Return field to alias mapping. */
-            field to if (alias.isEmpty()) { null } else { Name(alias) }
+            field to if (alias.isEmpty()) {
+                null
+            } else {
+                Name(alias)
+            }
         }.toMap()
 
         Projection(type = ProjectionType.valueOf(projection.op.name), columns = requestedColumns.distinct().toTypedArray(), fields = fields)
