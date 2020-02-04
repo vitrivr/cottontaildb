@@ -2,8 +2,6 @@ package ch.unibas.dmi.dbis.cottontail.database.column
 
 import ch.unibas.dmi.dbis.cottontail.database.serializers.*
 import ch.unibas.dmi.dbis.cottontail.model.values.*
-import ch.unibas.dmi.dbis.cottontail.model.values.complex.Complex32
-import ch.unibas.dmi.dbis.cottontail.model.values.complex.Complex64
 
 import org.mapdb.Serializer
 import java.util.*
@@ -157,6 +155,7 @@ class Complex64ColumnType : ColumnType<DoubleArray>() {
     override val numeric = true
     override val type: KClass<Complex64Value> = Complex64Value::class
     override fun serializer(size: Int): Serializer<Value<DoubleArray>> = Complex64ValueSerializer as Serializer<Value<DoubleArray>>
+}
 
 @Suppress("UNCHECKED_CAST")
 class IntVectorColumnType : ColumnType<IntArray>() {
