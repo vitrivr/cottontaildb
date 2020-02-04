@@ -3,6 +3,7 @@ package ch.unibas.dmi.dbis.cottontail.model.basics
 import ch.unibas.dmi.dbis.cottontail.database.column.*
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.ValidationException
 import ch.unibas.dmi.dbis.cottontail.model.values.*
+import ch.unibas.dmi.dbis.cottontail.utilities.name.Match
 import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
 
 import java.lang.RuntimeException
@@ -14,7 +15,7 @@ import java.util.*
  * @author Ralph Gasser
  * @version 1.1
  */
-class ColumnDef<T : Any>(name: Name, val type: ColumnType<T>, val size: Int = -1, val nullable: Boolean = true) {
+class ColumnDef<T: Any> (val name: Name, val type: ColumnType<T>, val size: Int = -1, val nullable: Boolean = true) {
 
     /**
      * Companion object with some convenience methods.
@@ -28,11 +29,8 @@ class ColumnDef<T : Any>(name: Name, val type: ColumnType<T>, val size: Int = -1
          * @param size Size of the new [Column] (e.g. for vectors), where eligible.
          * @param nullable Whether or not the [Column] should be nullable.
          */
-        fun withAttributes(name: Name, type: String, size: Int = -1, nullable: Boolean = true): ColumnDef<*> = ColumnDef(name.toLowerCase(), ColumnType.forName(type), size, nullable)
+        fun withAttributes(name: Name, type: String, size: Int = -1, nullable: Boolean = true): ColumnDef<*> = ColumnDef(name, ColumnType.forName(type), size, nullable)
     }
-
-    /** The [Name] of this [ColumnDef]. Lower-case values are enforced since Cottontail DB is not case-sensitive! */
-    val name = name.toLowerCase()
 
     /**
      * Validates a value with regard to this [ColumnDef] and throws an Exception, if validation fails.
@@ -104,6 +102,21 @@ class ColumnDef<T : Any>(name: Name, val type: ColumnType<T>, val size: Int = -1
         this.type is BooleanVectorColumnType -> BooleanVectorValue(BitSet(this.size))
         this.type is ComplexVectorColumnType -> Complex32VectorValue(FloatArray(this.size * 2))
         else -> throw RuntimeException("Default value for the specified type $type has not been specified yet!")
+    }
+
+    /**
+     * Checks if the provided [ColumnDef] is equivalent to this [ColumnDef]. Equivalence is similar to equality,
+     * with the exception, that the [Name] must not necessarily match 1:1.
+     *
+     * @param other [ColumnDef] to check.
+     * @return True if [ColumnDef]s are equivalent, false otherwise.
+     */
+    fun isEquivalent(other: ColumnDef<*>): Boolean {
+        if (other.type != this.type) return false
+        if (other.size != this.size) return false
+        if (other.nullable != this.nullable) return false
+        val match = other.name.match(this.name)
+        return (match == Match.EQUAL || match == Match.EQUIVALENT)
     }
 
     override fun equals(other: Any?): Boolean {

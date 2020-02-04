@@ -25,7 +25,7 @@ import kotlinx.coroutines.runBlocking
  * of the specified [Entity]. Parallelism is achieved through the use of co-routines.
  *
  * @author Ralph Gasser
- * @version 1.1
+ * @version 1.1.1
  */
 class ParallelEntityScanKnnTask<T: Any>(val entity: Entity, val knn: KnnPredicate<T>, val predicate: BooleanPredicate? = null, val parallelism: Short = 2) : ExecutionTask("ParallelEntityScanDoubleKnnTask[${entity.fqn}][${knn.column.name}][${knn.distance::class.simpleName}][${knn.k}][q=${knn.query.hashCode()}]") {
 
@@ -33,7 +33,7 @@ class ParallelEntityScanKnnTask<T: Any>(val entity: Entity, val knn: KnnPredicat
     private val knnSet = knn.query.map { HeapSelect<ComparablePair<Long,Double>>(this.knn.k) }
 
     /** List of the [ColumnDef] this instance of [ParallelEntityScanKnnTask] produces. */
-    private val produces: Array<ColumnDef<*>> = arrayOf(ColumnDef("${entity.fqn}.distance", ColumnType.forName("DOUBLE")))
+    private val produces: Array<ColumnDef<*>> = arrayOf(ColumnDef(this.entity.fqn.append("distance"), ColumnType.forName("DOUBLE")))
 
     /** The cost of this [ParallelEntityScanKnnTask] is constant */
     override val cost = entity.statistics.columns * (knn.operations + (predicate?.operations ?: 0)).toFloat() / parallelism
@@ -90,7 +90,7 @@ class ParallelEntityScanKnnTask<T: Any>(val entity: Entity, val knn: KnnPredicat
         }
 
         /* Generate dataset and return it. */
-        val dataset = Recordset(this.produces)
+        val dataset = Recordset(this.produces, capacity = (this.knnSet.size * this.knn.k).toLong())
         for (knn in this.knnSet) {
             for (i in 0 until knn.size) {
                 dataset.addRowUnsafe(knn[i].first, arrayOf(DoubleValue(knn[i].second)))

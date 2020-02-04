@@ -8,8 +8,8 @@ import ch.unibas.dmi.dbis.cottontail.execution.cost.Costs
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.basics.ExecutionTask
 
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
-import ch.unibas.dmi.dbis.cottontail.utilities.name.NameUtilities
-import ch.unibas.dmi.dbis.cottontail.utilities.name.doesNameMatch
+import ch.unibas.dmi.dbis.cottontail.utilities.name.Match
+import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
 
 import com.github.dexecutor.core.task.Task
 import com.github.dexecutor.core.task.TaskExecutionException
@@ -42,20 +42,21 @@ class RecordsetSelectProjectionTask (val projection: Projection, estimatedRows: 
         val parent = this.first() ?: throw TaskExecutionException("SELECT projection could not be executed because parent task has failed.")
 
         /* Find longest, common prefix of all projection sub-clauses. */
-        val longestCommonPrefix = NameUtilities.findLongestPrefix(this.projection.fields.keys)
+        val longestCommonPrefix = Name.findLongestCommonPrefix(this.projection.fields.keys)
 
         /* Determine columns to rename. */
         val dropIndex = mutableListOf<Int>()
-        val renameIndex = mutableListOf<Pair<Int,String>>()
+        val renameIndex = mutableListOf<Pair<Int,Name>>()
         parent.columns.forEachIndexed { i, c ->
             var match = false
             this.projection.fields.forEach { (k, v) ->
-                if (k.doesNameMatch(c.name)) {
+                val m = k.match(c.name)
+                if (m != Match.NO_MATCH) {
                     match = true
                     if (v != null) {
                         renameIndex.add(Pair(i, v))
-                    } else if (longestCommonPrefix != "") {
-                        renameIndex.add(Pair(i, c.name.replace(longestCommonPrefix, "")))
+                    } else if (longestCommonPrefix != Name.COTTONTAIL_ROOT_NAME) {
+                        renameIndex.add(Pair(i, c.name.normalize(longestCommonPrefix)))
                     }
                 }
             }

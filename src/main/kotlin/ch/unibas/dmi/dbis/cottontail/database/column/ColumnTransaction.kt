@@ -16,6 +16,13 @@ import ch.unibas.dmi.dbis.cottontail.model.values.Value
  */
 interface ColumnTransaction<T: Any> : Transaction, Countable, Scanable, Filterable, Deletable {
     /**
+     * The [ColumnDef] of the [Column] underlying this [ColumnTransaction].
+     *
+     * @return [ColumnTransaction]
+     */
+    val columnDef: ColumnDef<T>
+
+    /**
      * Gets and returns an entry from this [Column].
      *
      * @param tupleId The ID of the desired entry

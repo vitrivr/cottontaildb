@@ -1,6 +1,7 @@
 package ch.unibas.dmi.dbis.cottontail.model.exceptions
 
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
+import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
 
 /**
  * These exceptions are thrown whenever a query cannot be executed properly.
@@ -61,5 +62,5 @@ open class QueryException(message: String) : DatabaseException(message) {
      * @param index FQN of the index.
      * @param message Error message
      */
-    class IndexLookupFailedException(index: String, message: String): QueryException("Lookup through index '$index' failed: $message")
+    class IndexLookupFailedException(index: Name, message: String): QueryException("Lookup through index '$index' failed: $message")
 }

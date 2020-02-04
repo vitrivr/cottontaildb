@@ -13,13 +13,14 @@ import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.ValidationException
 import ch.unibas.dmi.dbis.cottontail.model.values.Value
 import ch.unibas.dmi.dbis.cottontail.server.grpc.helper.*
-import ch.unibas.dmi.dbis.cottontail.utilities.name.append
+import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
+import ch.unibas.dmi.dbis.cottontail.utilities.name.NameType
 import io.grpc.Status
 import io.grpc.stub.StreamObserver
 import org.slf4j.LoggerFactory
 import java.util.concurrent.ConcurrentHashMap
 
-class CottonDMLService(val catalogue: Catalogue) : CottonDMLGrpc.CottonDMLImplBase() {
+class CottonDMLService (val catalogue: Catalogue): CottonDMLGrpc.CottonDMLImplBase() {
     /** Logger used for logging the output. */
     companion object {
         private val LOGGER = LoggerFactory.getLogger(CottonDMLService::class.java)
@@ -30,27 +31,34 @@ class CottonDMLService(val catalogue: Catalogue) : CottonDMLGrpc.CottonDMLImplBa
      * in a single transaction. I.e. either the insert succeeds or fails completely.
      */
     override fun insert(request: CottontailGrpc.InsertMessage, responseObserver: StreamObserver<CottontailGrpc.InsertStatus>) = try {
-        val schema = this.catalogue.schemaForName(request.entity.schema.name)
-        val entity = schema.entityForName(request.entity.name)
-        entity.Tx(false).begin { tx ->
-            request.tupleList.map { it.dataMap }.forEach { entry ->
-                val columns = mutableListOf<ColumnDef<*>>()
-                val values = mutableListOf<Value<*>?>()
-                entry.map {
-                    val col = entity.columnForName(it.key)
-                            ?: throw DatabaseException.ColumnDoesNotExistException(entity.fqn.append(it.key))
-                    columns.add(col)
-                    values.add(castToColumn(it.value, col))
+        val entityName = Name(request.entity.name)
+        val schemaName = Name(request.entity.schema.name)
+        if (entityName.type != NameType.SIMPLE) {
+            responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Failed to insert into entity: Invalid entity name '${request.entity.name}'.").asException())
+        } else if (schemaName.type != NameType.SIMPLE) {
+            responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Failed to insert into entity: Invalid schema name '${request.entity.schema.name}'.").asException())
+        } else {
+            val schema = this.catalogue.schemaForName(schemaName)
+            val entity = schema.entityForName(entityName)
+            entity.Tx(false).begin { tx ->
+                request.tupleList.map { it.dataMap }.forEach { entry ->
+                    val columns = mutableListOf<ColumnDef<*>>()
+                    val values = mutableListOf<Value<*>?>()
+                    entry.map {
+                        val col = entity.columnForName(Name(it.key)) ?: throw DatabaseException.ColumnDoesNotExistException(entity.fqn.append(it.key))
+                        columns.add(col)
+                        values.add(castToColumn(it.value, col))
+                    }
+                    tx.insert(StandaloneRecord(columns = columns.toTypedArray(), init = values.toTypedArray()))
                 }
-                tx.insert(StandaloneRecord(columns = columns.toTypedArray(), init = values.toTypedArray()))
+                true
             }
-            true
-        }
-        responseObserver.onNext(CottontailGrpc.InsertStatus.newBuilder().setSuccess(true).setTimestamp(System.currentTimeMillis()).build())
-        responseObserver.onCompleted()
+            responseObserver.onNext(CottontailGrpc.InsertStatus.newBuilder().setSuccess(true).setTimestamp(System.currentTimeMillis()).build())
+            responseObserver.onCompleted()
 
-        /* Log... */
-        LOGGER.trace("Successfully persisted ${request.tupleList.size} tuples to '${request.entity.fqn()}' (with commit).")
+            /* Log... */
+            LOGGER.trace("Successfully persisted ${request.tupleList.size} tuples to '${request.entity.fqn()}' (with commit).")
+        }
     } catch (e: DatabaseException.SchemaDoesNotExistException) {
         val msg = "Insert failed because schema '${request.entity.schema.name} does not exist!"
         LOGGER.error(msg, e)
@@ -81,7 +89,7 @@ class CottonDMLService(val catalogue: Catalogue) : CottonDMLGrpc.CottonDMLImplBa
      * gRPC endpoint for inserting data in a streaming mode; transactions will stay open until the caller explicitly completes them
      * or until an error occurs. As new entities are being inserted, new transactions will be created and thus new lock will be acquired.
      */
-    override fun insertStream(responseObserver: StreamObserver<CottontailGrpc.InsertStatus>): StreamObserver<CottontailGrpc.InsertMessage> = object : StreamObserver<CottontailGrpc.InsertMessage> {
+    override fun insertStream(responseObserver: StreamObserver<CottontailGrpc.InsertStatus>): StreamObserver<CottontailGrpc.InsertMessage> = object:StreamObserver<CottontailGrpc.InsertMessage>{
 
         /** List of all the [Entity.Tx] associated with this call. */
         private val transactions = ConcurrentHashMap<String, Entity.Tx>()
@@ -103,36 +111,42 @@ class CottonDMLService(val catalogue: Catalogue) : CottonDMLGrpc.CottonDMLImplBa
             try {
                 /* Check if call was closed and return. */
                 if (closed) return
+                val entityName = Name(request.entity.name)
+                val schemaName = Name(request.entity.schema.name)
+                if (entityName.type != NameType.SIMPLE) {
+                    responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Failed to insert into entity: Invalid entity name '${request.entity.name}'.").asException())
+                } else if (schemaName.type != NameType.SIMPLE) {
+                    responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Failed to insert into entity: Invalid schema name '${request.entity.schema.name}'.").asException())
+                } else {
+                    /* Extract required schema and entity. */
+                    val schema = this@CottonDMLService.catalogue.schemaForName(schemaName)
+                    val entity = schema.entityForName(entityName)
 
-                /* Extract required schema and entity. */
-                val schema = this@CottonDMLService.catalogue.schemaForName(request.entity.schema.name)
-                val entity = schema.entityForName(request.entity.name)
-
-                /* Re-use or create Transaction. */
-                var tx = this.transactions[request.entity.fqn()]
-                if (tx == null) {
-                    tx = entity.Tx(false)
-                    this.transactions[request.entity.fqn()] = tx
-                }
-
-                /* Do the insert. */
-                request.tupleList.map { it.dataMap }.forEach { entry ->
-                    val columns = mutableListOf<ColumnDef<*>>()
-                    val values = mutableListOf<Value<*>?>()
-                    entry.map {
-                        val col = entity.columnForName(it.key)
-                                ?: throw DatabaseException.ColumnDoesNotExistException(entity.fqn.append(it.key))
-                        columns.add(col)
-                        values.add(castToColumn(it.value, col))
+                    /* Re-use or create Transaction. */
+                    var tx = this.transactions[request.entity.fqn()]
+                    if (tx == null) {
+                        tx = entity.Tx(false)
+                        this.transactions[request.entity.fqn()] = tx
                     }
-                    tx.insert(StandaloneRecord(columns = columns.toTypedArray(), init = values.toTypedArray()))
+
+                    /* Do the insert. */
+                    request.tupleList.map { it.dataMap }.forEach { entry ->
+                        val columns = mutableListOf<ColumnDef<*>>()
+                        val values = mutableListOf<Value<*>?>()
+                        entry.map {
+                            val col = entity.columnForName(Name(it.key)) ?: throw DatabaseException.ColumnDoesNotExistException(entity.fqn.append(it.key))
+                            columns.add(col)
+                            values.add(castToColumn(it.value, col))
+                        }
+                        tx.insert(StandaloneRecord(columns = columns.toTypedArray(), init = values.toTypedArray()))
+                    }
+
+                    /* Log... */
+                    LOGGER.trace("Successfully inserted ${request.tupleList.size} tuples into '${request.entity.fqn()}' (no commit).")
+
+                    /* Respond with status. */
+                    responseObserver.onNext(CottontailGrpc.InsertStatus.newBuilder().setSuccess(true).setTimestamp(System.currentTimeMillis()).build())
                 }
-
-                /* Log... */
-                LOGGER.trace("Successfully inserted ${request.tupleList.size} tuples into '${request.entity.fqn()}' (no commit).")
-
-                /* Respond with status. */
-                responseObserver.onNext(CottontailGrpc.InsertStatus.newBuilder().setSuccess(true).setTimestamp(System.currentTimeMillis()).build())
             } catch (e: DatabaseException.SchemaDoesNotExistException) {
                 responseObserver.onError(Status.NOT_FOUND.withDescription("Insert failed because schema '${request.entity.schema.name} does not exist!").asException())
                 this.cleanup()
@@ -145,7 +159,7 @@ class CottonDMLService(val catalogue: Catalogue) : CottonDMLGrpc.CottonDMLImplBa
             } catch (e: ValidationException) {
                 responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Insert failed because data validation failed: ${e.message}").asException())
                 this.cleanup()
-            } catch (e: DatabaseException) {
+            }  catch (e: DatabaseException) {
                 responseObserver.onError(Status.INTERNAL.withDescription("Insert failed because of a database error: ${e.message}").asException())
                 this.cleanup()
             } catch (e: Throwable) {

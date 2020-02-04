@@ -6,6 +6,8 @@ import ch.unibas.dmi.dbis.cottontail.math.knn.metrics.DoubleVectorDistance
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.basics.Record
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
+import ch.unibas.dmi.dbis.cottontail.model.values.PatternValue
+import ch.unibas.dmi.dbis.cottontail.model.values.StringValue
 import ch.unibas.dmi.dbis.cottontail.model.values.Value
 import ch.unibas.dmi.dbis.cottontail.model.values.VectorValue
 
@@ -54,6 +56,16 @@ data class AtomicBooleanPredicate<T : Value<*>>(private val column: ColumnDef<T>
     init {
         if (this.operator == ComparisonOperator.IN) {
             this.values = this.values.toSet()
+        }
+
+        if (this.operator == ComparisonOperator.LIKE) {
+            this.values = this.values.mapNotNull {
+                if (it is StringValue) {
+                    PatternValue(it.value)
+                } else {
+                    null
+                }
+            }
         }
     }
 
@@ -123,7 +135,7 @@ data class CompoundBooleanPredicate(val connector: ConnectionOperator, val p1: B
  * @author Ralph Gasser
  * @version 1.0
  */
-data class KnnPredicate<T: Any>(val column: ColumnDef<T>, val k: Int, val query: List<VectorValue<T>>, val distance: DistanceFunction<T>, val weights: List<VectorValue<FloatArray>>? = null) : Predicate() {
+data class KnnPredicate<T: Any>(val column: ColumnDef<T>, val k: Int, val inexact: Boolean, val query: List<VectorValue<T>>, val distance: DistanceFunction<T>, val weights: List<VectorValue<FloatArray>>? = null) : Predicate() {
     init {
         /* Some basic sanity checks. */
         if (k <= 0) throw QueryException.QuerySyntaxException("The value of k for a kNN query cannot be smaller than one (is $k)s!")

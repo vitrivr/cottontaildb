@@ -60,7 +60,6 @@ sealed class ColumnType<T : Any> {
      */
     abstract fun serializer(size: Int = -1): Serializer<Value<T>>
 
-
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false

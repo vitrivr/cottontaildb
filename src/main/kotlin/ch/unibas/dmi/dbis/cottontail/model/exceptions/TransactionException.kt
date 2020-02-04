@@ -1,6 +1,7 @@
 package ch.unibas.dmi.dbis.cottontail.model.exceptions
 
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
+import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
 import org.mapdb.DBException
 import java.util.*
 
@@ -82,7 +83,6 @@ open class TransactionException(message: String) : DatabaseException(message) {
      *
      * @param tid The ID of the [Transaction][ch.unibas.dmi.dbis.cottontail.database.general.Transaction] in which this error occurred.
      * @param column The definition of the [Column][ch.unibas.dmi.dbis.cottontail.database.column.Column] that is missing.
-     * @param entity The name of the [Entity][ch.unibas.dmi.dbis.cottontail.database.entity.Entity] in which the column is missing.
      */
-    class ColumnUnknownException(tid: UUID, column: ColumnDef<*>, entity: String): TransactionException("Transaction $tid could not be executed, because column '$entity.${column.name}' (type=${column.type.name}, size=${column.size}) does not either not exist or has a different type.")
+    class ColumnUnknownException(tid: UUID, column: ColumnDef<*>): TransactionException("Transaction $tid could not be executed, because column '${column.name}' (type=${column.type.name}, size=${column.size}) does not either not exist or has a different type.")
 }

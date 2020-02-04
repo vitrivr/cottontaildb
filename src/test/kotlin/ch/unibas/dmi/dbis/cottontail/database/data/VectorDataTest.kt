@@ -9,6 +9,7 @@ import ch.unibas.dmi.dbis.cottontail.model.recordset.StandaloneRecord
 import ch.unibas.dmi.dbis.cottontail.model.values.*
 
 import ch.unibas.dmi.dbis.cottontail.utilities.VectorUtility
+import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.RepeatedTest
@@ -24,7 +25,8 @@ import java.util.stream.Collectors
 
 
 class VectorDataTest {
-    private val schemaName = "data-test"
+    private val schemaName = Name("data-test")
+    private val entityName = Name("vector-test")
 
     private val random = Random()
 
@@ -35,8 +37,8 @@ class VectorDataTest {
 
     @BeforeEach
     fun initialize() {
-        this.catalogue.createSchema(schemaName)
-        this.schema = this.catalogue.schemaForName(schemaName)
+        this.catalogue.createSchema(this.schemaName)
+        this.schema = this.catalogue.schemaForName(this.schemaName)
     }
 
     @AfterEach
@@ -54,11 +56,11 @@ class VectorDataTest {
         val size = random.nextInt(1024).absoluteValue
         val count = 10000
         System.out.println("Running float Int test with d=$size.")
-        val intField = ColumnDef.withAttributes("counter", "INTEGER", size)
-        val vectorField = ColumnDef.withAttributes("vector", "INT_VEC", size)
+        val intField = ColumnDef.withAttributes(Name("counter"), "INTEGER", -1)
+        val vectorField = ColumnDef.withAttributes(Name("vector"), "INT_VEC", size)
 
-        schema?.createEntity("vector-test", intField, vectorField)
-        val entity = schema?.entityForName("vector-test")
+        schema?.createEntity(entityName, intField, vectorField)
+        val entity = schema?.entityForName(entityName)!!
 
         /* Insert the int vectors. */
         val tx = entity?.Tx(false)
@@ -66,11 +68,12 @@ class VectorDataTest {
         val vectorMap = HashMap<Long,IntArray>()
         val counterMap = HashMap<Long,Int>()
         var counter = 0
+        val columns =arrayOf(intField, vectorField)
         tx?.begin {
             iterator.forEach {
-                val record = StandaloneRecord(columns = arrayOf(intField, vectorField))
-                record[intField] = IntValue(counter)
-                record[vectorField] = IntVectorValue(it)
+                val record = StandaloneRecord(columns = columns)
+                record[columns[0]] = IntValue(counter)
+                record[columns[1]] = IntVectorValue(it)
                 val tid = tx.insert(record)
                 assertNotNull(tid)
                 vectorMap[tid!!] = it
@@ -81,10 +84,10 @@ class VectorDataTest {
         }
 
         /* Fetch and compare the int vectors. */
-        val tx2 = entity?.Tx(readonly = true, columns = arrayOf(intField, vectorField))
+        val tx2 = entity?.Tx(readonly = true, columns = columns)
         assertEquals(count.toLong(), tx2?.count())
         tx2?.begin {
-            vectorMap.forEach { t, u ->
+            vectorMap.forEach { (t, u) ->
                 val tuple = tx2.read(t)
                 assertArrayEquals(u, tuple[vectorField]!!.value as IntArray)
                 assertEquals(counterMap[t], tuple[intField]!!.value as Int)
@@ -101,11 +104,11 @@ class VectorDataTest {
         val size = random.nextInt(1024).absoluteValue
         val count = 10000
         System.out.println("Running float vector test with d=$size.")
-        val intField = ColumnDef.withAttributes("counter", "INTEGER", size)
-        val vectorField = ColumnDef.withAttributes("vector", "LONG_VEC", size)
+        val intField = ColumnDef.withAttributes(Name("counter"), "INTEGER", -1)
+        val vectorField = ColumnDef.withAttributes(Name("vector"), "LONG_VEC", size)
 
-        schema?.createEntity("vector-test", intField, vectorField)
-        val entity = schema?.entityForName("vector-test")
+        schema?.createEntity(entityName, intField, vectorField)
+        val entity = schema?.entityForName(entityName)!!
 
         /* Insert the long vectors. */
         val tx = entity?.Tx(false)
@@ -113,11 +116,12 @@ class VectorDataTest {
         val vectorMap = HashMap<Long,LongArray>()
         val counterMap = HashMap<Long,Int>()
         var counter = 0
+        val columns = arrayOf(intField, vectorField)
         tx?.begin {
             iterator.forEach {
-                val record = StandaloneRecord(columns = arrayOf(intField, vectorField))
-                record[intField] = IntValue(counter)
-                record[vectorField] = LongVectorValue(it)
+                val record = StandaloneRecord(columns = columns)
+                record[columns[0]] = IntValue(counter)
+                record[columns[1]] = LongVectorValue(it)
                 val tid = tx.insert(record)
                 assertNotNull(tid)
                 vectorMap[tid!!] = it
@@ -128,7 +132,7 @@ class VectorDataTest {
         }
 
         /* Fetch and compare the long vectors. */
-        val tx2 = entity?.Tx(readonly = true, columns = arrayOf(intField, vectorField))
+        val tx2 = entity?.Tx(readonly = true, columns = columns)
         assertEquals(count.toLong(), tx2?.count())
         tx2?.begin {
             vectorMap.forEach { t, u ->
@@ -148,23 +152,24 @@ class VectorDataTest {
         val size = random.nextInt(1024).absoluteValue
         val count = 10000
         System.out.println("Running float vector test with d=$size.")
-        val intField = ColumnDef.withAttributes("counter", "INTEGER", size)
-        val vectorField = ColumnDef.withAttributes("vector", "FLOAT_VEC", size)
+        val intField = ColumnDef.withAttributes(Name("counter"), "INTEGER", -1)
+        val vectorField = ColumnDef.withAttributes(Name("vector"), "FLOAT_VEC", size)
 
-        schema?.createEntity("vector-test", intField, vectorField)
-        val entity = schema?.entityForName("vector-test")
+        schema?.createEntity(entityName, intField, vectorField)
+        val entity = schema?.entityForName(entityName)!!
 
         /* Insert the float vectors. */
-        val tx = entity?.Tx(false)
+        val tx = entity.Tx(false)
         val iterator = VectorUtility.randomFloatVectorSequence(size, count)
         val vectorMap = HashMap<Long,FloatVectorValue>()
         val counterMap = HashMap<Long,Int>()
         var counter = 0
+        val columns = arrayOf(intField, vectorField)
         tx?.begin {
             iterator.forEach {
-                val record = StandaloneRecord(columns = arrayOf(intField, vectorField))
-                record[intField] = IntValue(counter)
-                record[vectorField] = it
+                val record = StandaloneRecord(columns = columns)
+                record[columns[0]] = IntValue(counter)
+                record[columns[1]] = it
                 val tid = tx.insert(record)
                 assertNotNull(tid)
                 vectorMap[tid!!] = it
@@ -175,12 +180,12 @@ class VectorDataTest {
         }
 
         /* Fetch and compare the float vectors. */
-        val tx2 = entity?.Tx(readonly = true, columns = arrayOf(intField, vectorField))
+        val tx2 = entity?.Tx(readonly = true, columns = columns)
         assertEquals(count.toLong(), tx2?.count())
         tx2?.begin {
             vectorMap.forEach { (t, u) ->
                 val tuple = tx2.read(t)
-                val assertArrayEquals = assertArrayEquals(u.value, tuple[vectorField]!!.value as FloatArray)
+                assertArrayEquals(u.value, tuple[vectorField]!!.value as FloatArray)
                 assertEquals(counterMap[t], tuple[intField]!!.value as Int)
             }
             true
@@ -195,11 +200,11 @@ class VectorDataTest {
         val size = random.nextInt(1024).absoluteValue
         val count = 10000
         System.out.println("Running double vector test with d=$size.")
-        val intField = ColumnDef.withAttributes("counter", "INTEGER", size)
-        val vectorField = ColumnDef.withAttributes("vector", "DOUBLE_VEC", size)
+        val intField = ColumnDef.withAttributes(Name("counter"), "INTEGER", -1)
+        val vectorField = ColumnDef.withAttributes(Name("vector"), "DOUBLE_VEC", size)
 
-        schema?.createEntity("vector-test", intField, vectorField)
-        val entity = schema?.entityForName("vector-test")
+        schema?.createEntity(entityName, intField, vectorField)
+        val entity = schema?.entityForName(entityName)!!
 
         /* Insert the double vectors. */
         val tx = entity?.Tx(false)
@@ -207,11 +212,12 @@ class VectorDataTest {
         val vectorMap = HashMap<Long,DoubleVectorValue>()
         val counterMap = HashMap<Long,Int>()
         var counter = 0
+        val columns = arrayOf(intField, vectorField)
         tx?.begin {
             iterator.forEach {
-                val record = StandaloneRecord(columns = arrayOf(intField, vectorField))
-                record[intField] = IntValue(counter)
-                record[vectorField] = it
+                val record = StandaloneRecord(columns = columns)
+                record[columns[0]] = IntValue(counter)
+                record[columns[1]] = it
                 val tid = tx.insert(record)
                 assertNotNull(tid)
                 vectorMap[tid!!] = it
@@ -222,7 +228,7 @@ class VectorDataTest {
         }
 
         /* Fetch and compare the double vectors. */
-        val tx2 = entity?.Tx(readonly = true, columns = arrayOf(intField, vectorField))
+        val tx2 = entity?.Tx(readonly = true, columns = columns)
         assertEquals(count.toLong(), tx2?.count())
         tx2?.begin {
             vectorMap.forEach { (t, u) ->
