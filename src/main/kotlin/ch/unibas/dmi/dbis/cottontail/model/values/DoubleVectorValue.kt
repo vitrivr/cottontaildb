@@ -49,7 +49,7 @@ inline class DoubleVectorValue(override val value: DoubleArray) : VectorValue<Do
      * @param i Index of the entry.
      * @return The value at index i.
      */
-    override fun getAsBool(i: Int) = this.value[i] == 0.0
+    override fun getAsBool(i: Int) = this.value[i] != 0.0
 
     /**
      * Returns true, if this [DoubleVectorValue] consists of all zeroes, i.e. [0, 0, ... 0]

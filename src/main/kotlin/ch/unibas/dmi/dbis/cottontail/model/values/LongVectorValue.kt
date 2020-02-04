@@ -51,7 +51,7 @@ inline class LongVectorValue(override val value: LongArray) : VectorValue<LongAr
      * @param i Index of the entry.
      * @return The value at index i.
      */
-    override fun getAsBool(i: Int) = this.value[i] == 0L
+    override fun getAsBool(i: Int) = this.value[i] != 0L
 
     /**
      * Returns true, if this [LongVectorValue] consists of all zeroes, i.e. [0, 0, ... 0]

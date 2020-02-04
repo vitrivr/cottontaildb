@@ -8,20 +8,11 @@ import ch.unibas.dmi.dbis.cottontail.model.values.Value
 import ch.unibas.dmi.dbis.cottontail.utilities.extensions.read
 import ch.unibas.dmi.dbis.cottontail.utilities.extensions.write
 import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
-import it.unimi.dsi.fastutil.BigList
 import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap
-import it.unimi.dsi.fastutil.longs.Long2LongRBTreeMap
-import it.unimi.dsi.fastutil.longs.Long2ObjectLinkedOpenHashMap
 import it.unimi.dsi.fastutil.objects.ObjectBigArrayBigList
-import it.unimi.dsi.fastutil.objects.ObjectBigLists
 
 import java.lang.IllegalArgumentException
-import java.lang.Long.max
-
-import java.util.*
-import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.locks.StampedLock
-import kotlin.collections.ArrayList
 
 /**
  * A [Recordset] as returned and processed by Cottontail DB. [Recordset]s are tables. A [Recordset]'s columns are defined by the [ColumnDef]'s
@@ -490,14 +481,23 @@ class Recordset(val columns: Array<ColumnDef<*>>, capacity: Long = 250L) : Scana
     inner class RecordsetRecord(override val tupleId: Long, init: Array<Value<*>?>? = null) : Record {
 
         /** Array of [ColumnDef]s that describes the [Column][ch.unibas.dmi.dbis.cottontail.database.column.Column] of this [Record]. */
-        override val columns: Array<out ColumnDef<*>>
+        override val columns: Array<ColumnDef<*>>
             get() = this@Recordset.columns
+
 
         /** Array of column values (one entry per column). Initializes with null. */
         override val values: Array<Value<*>?> = if (init != null) {
+            assert(init.size == columns.size)
             init.forEachIndexed { index, any -> columns[index].validateOrThrow(any) }
             init
         } else Array(columns.size) { columns[it].defaultValue() }
+
+        /**
+         * Copies this [Record] and returns the copy.
+         *
+         * @return Copy of this [Record]
+         */
+        override fun copy(): Record = StandaloneRecord(tupleId, columns = columns, init = values.copyOf())
 
         override fun equals(other: Any?): Boolean {
             if (this === other) return true

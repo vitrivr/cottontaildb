@@ -35,6 +35,28 @@ interface Record {
         get() = columns.size
 
     /**
+     * Returns the first value in this [Record] or null, if that value is not set.
+     *
+     * @return First [Value] in this [Record]
+     */
+    fun first(): Value<*>? = this.values.first()
+
+    /**
+     * Returns the last value in this [Record] or null, if that value is not set.
+     *
+     * @return Last [Value] in this [Record]
+     */
+    fun last(): Value<*>? = this.values.last()
+
+    /**
+     * Creates and returns a copy of this [Record]. The copy is supposed to hold its own copy of the values it holds. However,
+     * structural information, such as the columns, may be shared between instances, as they are supposed to be immutable.
+     *
+     * @return Copy of this [Record].
+     */
+    fun copy(): Record
+
+    /**
      * Assigns the provided values to this [Record], i.e. the first value is assigned to the first column,
      * the second to the second column etc.
      *
