@@ -157,6 +157,7 @@ class Complex64ColumnType : ColumnType<DoubleArray>() {
     override val numeric = true
     override val type: KClass<Complex64Value> = Complex64Value::class
     override fun serializer(size: Int): Serializer<Value<DoubleArray>> = Complex64ValueSerializer as Serializer<Value<DoubleArray>>
+}
 
 @Suppress("UNCHECKED_CAST")
 class IntVectorColumnType : ColumnType<IntArray>() {
