@@ -10,8 +10,8 @@ inline class Complex32Value(override val value: FloatArray) : Value<FloatArray> 
      * @param real The real part of the [Complex32Value].
      * @param imaginary The imaginary part of the [Complex32Value].
      */
-    constructor(real: Float, imaginary: Float) : this(floatArrayOf(real, imaginary))
-
+    constructor(real: Float, imaginary: Float): this(floatArrayOf(real, imaginary))
+  
     override val size: Int
         get() = -1
 

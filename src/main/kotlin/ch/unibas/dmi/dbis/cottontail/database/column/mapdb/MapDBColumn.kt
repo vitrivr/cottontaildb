@@ -131,11 +131,15 @@ class MapDBColumn<T : Any>(override val name: Name, override val parent: Entity)
     /**
      * Thinly veiled implementation of the [Record] interface for internal use.
      */
-    inner class ColumnRecord(override val tupleId: Long, value: Value<*>?) : Record {
+    inner class ColumnRecord(override val tupleId: Long, val value: Value<*>?) : Record {
         override val columns
             get() = arrayOf(this@MapDBColumn.columnDef)
+        override val values
+            get() = arrayOf(this.value)
 
-        override val values = arrayOf(value)
+        override fun first(): Value<*>? = this.value
+        override fun last(): Value<*>? = this.value
+        override fun copy(): Record = ColumnRecord(this.tupleId, this.value)
     }
 
     /**

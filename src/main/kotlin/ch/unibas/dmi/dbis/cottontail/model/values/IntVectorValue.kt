@@ -50,7 +50,7 @@ inline class IntVectorValue(override val value: IntArray) : VectorValue<IntArray
      * @param i Index of the entry.
      * @return The value at index i.
      */
-    override fun getAsBool(i: Int) = this.value[i] == 0
+    override fun getAsBool(i: Int) = this.value[i] != 0
 
     /**
      * Returns true, if this [IntVectorValue] consists of all zeroes, i.e. [0, 0, ... 0]

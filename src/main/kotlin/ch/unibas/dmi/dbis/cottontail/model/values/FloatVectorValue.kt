@@ -51,7 +51,7 @@ inline class FloatVectorValue(override val value: FloatArray) : VectorValue<Floa
      * @param i Index of the entry.
      * @return The value at index i.
      */
-    override fun getAsBool(i: Int) = this.value[i] == 0.0f
+    override fun getAsBool(i: Int) = this.value[i] != 0.0f
 
     /**
      * Returns true, if this [FloatVectorValue] consists of all zeroes, i.e. [0, 0, ... 0]

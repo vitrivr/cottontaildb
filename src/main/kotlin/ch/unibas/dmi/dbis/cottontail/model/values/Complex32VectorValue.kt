@@ -12,7 +12,7 @@ inline class Complex32VectorValue(override val value: FloatArray) : VectorValue<
      * Size of the [Complex32VectorValue] im terms of elements is actually half the size of the underlying [FloatArray].
      */
     override val size: Int
-        get() = this.value.size / 2
+        get() = this.value.size/2
 
     override val numeric: Boolean
         get() = false
@@ -96,9 +96,9 @@ inline class Complex32VectorValue(override val value: FloatArray) : VectorValue<
         assert(this.size == other.size)
         return Complex32VectorValue(FloatArray(this.size) {
             if (it % 2 == 0) {
-                this.value[it] * other.value[it] - this.value[it + 1] * other.value[it + 1]
+                this.value[it] * other.value[it] - this.value[it+1] * other.value[it+1]
             } else {
-                this.value[it - 1] * other.value[it] + this.value[it] * other.value[it - 1]
+                this.value[it-1] * other.value[it] + this.value[it] * other.value[it-1]
             }
         })
     }
@@ -107,9 +107,9 @@ inline class Complex32VectorValue(override val value: FloatArray) : VectorValue<
         assert(this.size == other.size)
         return Complex32VectorValue(FloatArray(this.size) {
             if (it % 2 == 0) {
-                (this.value[it] * other.value[it] + this.value[it + 1] * other.value[it + 1]) / (other.value[it] * other.value[it] + other.value[it + 1] * other.value[it + 1])
+                (this.value[it] * other.value[it] + this.value[it+1] * other.value[it+1]) / (other.value[it] * other.value[it] + other.value[it+1] * other.value[it+1])
             } else {
-                (this.value[it] * other.value[it - 1] - this.value[it - 1] * other.value[it]) / (other.value[it - 1] * other.value[it - 1] + other.value[it] * other.value[it])
+                (this.value[it] * other.value[it-1] - this.value[it-1] * other.value[it]) / (other.value[it-1] * other.value[it-1] + other.value[it] * other.value[it])
             }
         })
     }

@@ -486,7 +486,7 @@ class Entity(override val name: Name, override val parent: Schema) : DBO {
                 for (i in 1 until columns.size) {
                     data[i] = this.colTxs[i].read(it.tupleId)
                 }
-                action(StandaloneRecord(it.tupleId, columns).assign(data))
+                action(StandaloneRecord(tupleId = it.tupleId, columns = columns, init = data))
             }
         }
 
