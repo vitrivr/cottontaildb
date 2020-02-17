@@ -1,4 +1,4 @@
-package ch.unibas.dmi.dbis.cottontail.database.index.vaf
+package ch.unibas.dmi.dbis.cottontail.database.index.va
 
 import kotlin.math.log2
 

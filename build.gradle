@@ -62,9 +62,11 @@ protobuf {
         artifact = 'com.google.protobuf:protoc:3.6.1'
     }
     generateProtoTasks {
-        all()*.plugins { grpc {
-            outputSubDir = 'java'
-        }}
+        all()*.plugins {
+            grpc {
+                outputSubDir = 'java'
+            }
+        }
     }
 }
 
@@ -86,7 +88,7 @@ dependencies {
     compile group: 'org.slf4j', name: 'slf4j-log4j12', version: '1.7.25'
 
     ////// Dexecutor
-    compile  group: 'com.github.dexecutor', name: 'dexecutor-core', version: '2.1.0'
+    compile group: 'com.github.dexecutor', name: 'dexecutor-core', version: '2.1.0'
 
     ////// Lucene
     compile group: 'org.apache.lucene', name: 'lucene-core', version: luceneVersion
@@ -103,6 +105,13 @@ dependencies {
     compile group: 'org.jetbrains.kotlin', name: 'kotlin-reflect', version: kotlinVersion
     compile group: 'org.jetbrains.kotlinx', name: 'kotlinx-coroutines-core', version: '1.3.2'
     compile group: 'org.jetbrains.kotlinx', name: 'kotlinx-serialization-runtime', version: '0.13.0'
+
+    ///// Efficient Java Matrix Library (EJML)
+    compile group: 'org.ejml', name: 'ejml-all', version: '0.38'
+
+    ///// Apache Commons Math » 3.6
+    ///// https://mvnrepository.com/artifact/org.apache.commons/commons-math3
+    compile group: 'org.apache.commons', name: 'commons-math3', version: '3.6.1'
 }
 
 idea {

@@ -8,26 +8,26 @@ import java.io.Serializable
  * with a high cosine similarity have a high probability of falling in the
  * same bucket.
  *
- * @param s    stages
- * @param b    buckets (per stage)
- * @param d    dimension of data space
- * @param seed random number generator seed (sing the same value will guarantee identical hashes across object
- *             instantiations)
+ * @param stages    stages
+ * @param buckets   buckets (per stage)
+ * @param dimension dimension of data space
+ * @param seed      random number generator seed (sing the same value will guarantee identical hashes across object
+ *                  instantiations)
  *
  * This class is inspired by Thibault Debatty (https://github.com/tdebatty/java-LSH).
  *
  * @author Manuel Huerbin
  * @version 1.0
  */
-class LSH(private var s: Int, private var b: Int, d: Int, seed: Int) : Serializable {
+class LSH(private var stages: Int, private var buckets: Int, dimension: Int, seed: Int) : Serializable {
 
     private var LARGE_PRIME: Long = 433494437
     private var superBit: SuperBit? = null
 
     init {
-        val k = s * b / 2 // code length
-        val N: Int = computeSuperBitDepth(d, k)
-        superBit = SuperBit(d, N, k / N, seed)
+        val k = stages * buckets / 2 // code length
+        val N: Int = computeSuperBitDepth(dimension, k)
+        superBit = SuperBit(dimension, N, k / N, seed)
     }
 
     /**
@@ -81,22 +81,22 @@ class LSH(private var s: Int, private var b: Int, d: Int, seed: Int) : Serializa
      */
     private fun hashSignature(signature: BooleanArray): IntArray {
         // create an accumulator for each stage
-        val acc = LongArray(s)
-        for (i in 0 until s) {
+        val acc = LongArray(stages)
+        for (i in 0 until stages) {
             acc[i] = 0
         }
         // number of rows per stage
-        val rows = signature.size / s
+        val rows = signature.size / stages
         for (i in signature.indices) {
             var j: Long = 0
             if (signature[i]) j = (i + 1) * LARGE_PRIME
             // current stage
-            val k = (i / rows).coerceAtMost(s - 1)
+            val k = (i / rows).coerceAtMost(stages - 1)
             acc[k] = (acc[k] + j) % Int.MAX_VALUE
         }
-        val vector = IntArray(s)
-        for (i in 0 until s) {
-            vector[i] = acc[i].toInt() % b
+        val vector = IntArray(stages)
+        for (i in 0 until stages) {
+            vector[i] = acc[i].toInt() % buckets
         }
         return vector
     }

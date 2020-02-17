@@ -2,6 +2,8 @@ package ch.unibas.dmi.dbis.cottontail.database.index.lsh
 
 import ch.unibas.dmi.dbis.cottontail.database.column.Column
 import ch.unibas.dmi.dbis.cottontail.database.column.ColumnType
+import ch.unibas.dmi.dbis.cottontail.database.column.Complex32ColumnType
+import ch.unibas.dmi.dbis.cottontail.database.column.Complex64ColumnType
 import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
 import ch.unibas.dmi.dbis.cottontail.database.events.DataChangeEvent
 import ch.unibas.dmi.dbis.cottontail.database.index.Index
@@ -169,8 +171,11 @@ class LSHIndex<T : Any>(override val name: Name, override val parent: Entity, ov
         this.map.clear()
 
         /* LSH. */
-        val lsh = LSH(this.config["stages"]!!, this.config["buckets"]!!, this.columns[0].size, this.config["seed"]!!)
-
+        val lsh = when (this.columns[0].type) {
+            is Complex32ColumnType -> LSH(this.config["stages"]!!, this.config["buckets"]!!, this.columns[0].size * 2, this.config["seed"]!!)
+            is Complex64ColumnType -> LSH(this.config["stages"]!!, this.config["buckets"]!!, this.columns[0].size * 2, this.config["seed"]!!)
+            else -> LSH(this.config["stages"]!!, this.config["buckets"]!!, this.columns[0].size, this.config["seed"]!!)
+        }
         /* (Re-)create index entries. */
         val localMap = mutableMapOf<Int, MutableList<Long>>()
 

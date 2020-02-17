@@ -5,7 +5,7 @@ import ch.unibas.dmi.dbis.cottontail.database.index.hash.NonUniqueHashIndex
 import ch.unibas.dmi.dbis.cottontail.database.index.hash.UniqueHashIndex
 import ch.unibas.dmi.dbis.cottontail.database.index.lsh.LSHIndex
 import ch.unibas.dmi.dbis.cottontail.database.index.lucene.LuceneIndex
-import ch.unibas.dmi.dbis.cottontail.database.index.vaf.VAFIndex
+import ch.unibas.dmi.dbis.cottontail.database.index.va.vaplus.VAPlusIndex
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
 
@@ -14,7 +14,7 @@ enum class IndexType(val inexact: Boolean) {
     HASH(false), /* A hash based index. */
     BTREE(false), /* A BTree based index. */
     LUCENE(false), /* A Lucene based index (fulltext search). */
-    VAF(false), /* A VA file based index (for exact kNN lookup). */
+    VAF(false), /* A VA+ file based index (for exact kNN lookup). */
     PQ(true), /* A product quantization based index (for approximate kNN lookup). */
     SH(true), /* A spectral hashing based index (for approximate kNN lookup). */
     LSH(true); /* A locality sensitive hashing based index (for approximate kNN lookup). */
@@ -29,7 +29,7 @@ enum class IndexType(val inexact: Boolean) {
         HASH_UQ -> UniqueHashIndex(name, entity, columns)
         HASH -> NonUniqueHashIndex(name, entity, columns)
         LUCENE -> LuceneIndex(name, entity, columns)
-        VAF -> VAFIndex(name, entity, columns)
+        VAF -> VAPlusIndex(name, entity, columns)
         LSH -> LSHIndex<Any>(name, entity, columns, null)
         else -> TODO()
     }
@@ -46,7 +46,7 @@ enum class IndexType(val inexact: Boolean) {
         HASH_UQ -> UniqueHashIndex(name, entity, columns)
         HASH -> NonUniqueHashIndex(name, entity, columns)
         LUCENE -> LuceneIndex(name, entity, columns)
-        VAF -> VAFIndex(name, entity, columns)
+        VAF -> VAPlusIndex(name, entity, columns)
         LSH -> LSHIndex<Any>(name, entity, columns, params)
         else -> TODO()
     }
