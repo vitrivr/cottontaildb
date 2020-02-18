@@ -150,15 +150,7 @@ class VAPlusIndex(override val name: Name, override val parent: Entity, override
         val localMap = mutableMapOf<Int, MutableList<Long>>()
 
         var data = tx.readAll()
-        var dat2 = tx.map {
-            val value = it[this.columns[0]]
-                    ?: throw ValidationException.IndexUpdateException(this.fqn, "A value cannot be null for instances of vaf-index but tid=${it.tupleId} is")
-            val doubleArray = DoubleArray(value.size * 2)
-            if (value is VectorValue<*>) {
-                doubleArray.forEachIndexed { index, _ -> doubleArray[index] = value.getAsDouble(index) }
-            }
-            doubleArray
-        }.toTypedArray()
+
         // VA-file get sample data
         var _dataSample = vaPlus.getDataSample(data, this.columns[0], maxOf(trainingSize, minimumNumberOfTuples))
         // VA-file in KLT domain
