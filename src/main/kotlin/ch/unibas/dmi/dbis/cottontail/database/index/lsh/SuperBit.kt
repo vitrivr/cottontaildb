@@ -65,12 +65,10 @@ class SuperBit(d: Int, N: Int, L: Int, seed: Int) : Serializable {
         val v = Array(K) { DoubleArray(d * 2) } // H
 
         for (i in 0 until K) {
-            val vector = DoubleArray(d * 2)
             for (j in 0 until d * 2) {
-                vector[j] = random.nextGaussian()
+                v[i][j] = random.nextGaussian()
             }
-            normalize(vector)
-            v[i] = vector
+            normalize(v[i])
         }
 
         val w = Array(K) { DoubleArray(d * 2) }

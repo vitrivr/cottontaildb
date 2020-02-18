@@ -242,42 +242,35 @@ class GrpcQueryBinder(val catalogue: Catalogue, engine: ExecutionEngine) {
         } else {
             null
         }
-
+        val distance = Distances.valueOf(knn.distance.name).kernel
         return when (column.type) {
             is DoubleVectorColumnType -> {
                 val query = knn.queryList.map { q -> q.toDoubleVectorValue() }
-                val distance = DoubleVectorDistance.valueOf(knn.distance.name)
-                KnnPredicate(column = column as ColumnDef<DoubleArray>, k = knn.k, inexact = knn.inexact, query = query, weights = weights, distance = distance)
+                KnnPredicate(column = column as ColumnDef<DoubleVectorValue>, k = knn.k, inexact = knn.inexact, query = query, weights = weights, distance = distance)
             }
             is FloatVectorColumnType -> {
                 val query = knn.queryList.map { q -> q.toFloatVectorValue() }
-                val distance = FloatVectorDistance.valueOf(knn.distance.name)
-                KnnPredicate(column = column as ColumnDef<FloatArray>, k = knn.k, inexact = knn.inexact, query = query, weights = weights, distance = distance)
+                KnnPredicate(column = column as ColumnDef<FloatVectorValue>, k = knn.k, inexact = knn.inexact, query = query, weights = weights, distance = distance)
             }
             is LongVectorColumnType -> {
                 val query = knn.queryList.map { q -> q.toLongVectorValue() }
-                val distance = LongVectorDistance.valueOf(knn.distance.name)
-                KnnPredicate(column = column as ColumnDef<LongArray>, k = knn.k, inexact = knn.inexact, query = query, weights = weights, distance = distance)
+                KnnPredicate(column = column as ColumnDef<LongVectorValue>, k = knn.k, inexact = knn.inexact, query = query, weights = weights, distance = distance)
             }
             is IntVectorColumnType -> {
                 val query = knn.queryList.map { q -> q.toIntVectorValue() }
-                val distance = IntVectorDistance.valueOf(knn.distance.name)
-                KnnPredicate(column = column as ColumnDef<IntArray>, k = knn.k, inexact = knn.inexact, query = query, weights = weights, distance = distance)
+                KnnPredicate(column = column as ColumnDef<IntVectorValue>, k = knn.k, inexact = knn.inexact, query = query, weights = weights, distance = distance)
             }
             is BooleanVectorColumnType -> {
                 val query = knn.queryList.map { q -> q.toBooleanVectorValue() }
-                val distance = BoolVectorDistance.valueOf(knn.distance.name)
-                KnnPredicate(column = column as ColumnDef<BitSet>, k = knn.k, inexact = knn.inexact, query = query, weights = weights, distance = distance)
+                KnnPredicate(column = column as ColumnDef<BooleanVectorValue>, k = knn.k, inexact = knn.inexact, query = query, weights = weights, distance = distance)
             }
             is Complex32VectorColumnType -> {
                 val query = knn.queryList.map { q -> q.toComplex32VectorValue() }
-                val distance = Complex32VectorDistance.valueOf(knn.distance.name)
-                KnnPredicate(column = column as ColumnDef<FloatArray>, k = knn.k, inexact = knn.inexact, query = query, weights = weights, distance = distance)
+                KnnPredicate(column = column as ColumnDef<Complex32VectorValue>, k = knn.k, inexact = knn.inexact, query = query, weights = weights, distance = distance)
             }
             is Complex64VectorColumnType -> {
                 val query = knn.queryList.map { q -> q.toComplex64VectorValue() }
-                val distance = Complex64VectorDistance.valueOf(knn.distance.name)
-                KnnPredicate(column = column as ColumnDef<DoubleArray>, k = knn.k, inexact = knn.inexact, query = query, weights = weights, distance = distance)
+                KnnPredicate(column = column as ColumnDef<Complex64VectorValue>, k = knn.k, inexact = knn.inexact, query = query, weights = weights, distance = distance)
             }
             else -> throw QueryException.QuerySyntaxException("A kNN predicate does not contain a valid query vector!")
         }

@@ -1,5 +1,8 @@
 package ch.unibas.dmi.dbis.cottontail.model.values
 
+import java.util.*
+import kotlin.math.pow
+
 /**
  * This is an abstraction over a [FloatArray] and it represents a vector of [Float]s.
  *
@@ -74,59 +77,52 @@ inline class LongVectorValue(override val value: LongArray) : VectorValue<LongAr
      */
     override fun copy(): LongVectorValue = LongVectorValue(this.value.copyOf(this.size))
 
-    override operator fun plus(other: VectorValue<LongArray>): VectorValue<LongArray> {
-        require(this.size == other.size) { "Only vector values of the same type and size can be added." }
-        val out = LongVectorValue(this.value.copyOf(this.size))
-        this.indices.forEach { out.value[it] += other.value[it] }
-        return out
+    override operator fun plus(other: VectorValue<*>): VectorValue<LongArray> = LongVectorValue(LongArray(this.size) { this.value[it] + other.getAsLong(it) })
+    override operator fun minus(other: VectorValue<*>): VectorValue<LongArray> = LongVectorValue(LongArray(this.size) { this.value[it] - other.getAsLong(it) })
+    override operator fun times(other: VectorValue<*>): VectorValue<LongArray> = LongVectorValue(LongArray(this.size) { this.value[it] * other.getAsLong(it) })
+    override operator fun div(other: VectorValue<*>): VectorValue<LongArray> = LongVectorValue(LongArray(this.size) { this.value[it] / other.getAsLong(it) })
+
+    override fun plusInPlace(other: VectorValue<*>): VectorValue<LongArray> {
+        Arrays.setAll(this.value) { this.value[it] + other.getAsLong(it) }
+        return this
+    }
+    override fun minusInPlace(other: VectorValue<*>): VectorValue<LongArray> {
+        Arrays.setAll(this.value) { this.value[it] - other.getAsLong(it) }
+        return this
+    }
+    override fun timesInPlace(other: VectorValue<*>): VectorValue<LongArray> {
+        Arrays.setAll(this.value) { this.value[it] * other.getAsLong(it) }
+        return this
+    }
+    override fun divInPlace(other: VectorValue<*>): VectorValue<LongArray> {
+        Arrays.setAll(this.value) { this.value[it] / other.getAsLong(it) }
+        return this
     }
 
-    override operator fun minus(other: VectorValue<LongArray>): VectorValue<LongArray> {
-        require(this.size == other.size) { "Only vector values of the same type and size can be added." }
-        val out = LongVectorValue(this.value.copyOf(this.size))
-        this.indices.forEach { out.value[it] -= other.value[it] }
-        return out
+    override operator fun plus(other: Number): VectorValue<LongArray> = LongVectorValue(LongArray(this.size) { this.value[it] + other.toLong() })
+    override operator fun minus(other: Number): VectorValue<LongArray> = LongVectorValue(LongArray(this.size) { this.value[it] - other.toLong() })
+    override operator fun times(other: Number): VectorValue<LongArray> = LongVectorValue(LongArray(this.size) { this.value[it] * other.toLong() })
+    override operator fun div(other: Number): VectorValue<LongArray> = LongVectorValue(LongArray(this.size) { this.value[it] / other.toLong() })
+
+    override fun pow(x: Int): VectorValue<LongArray> = LongVectorValue(LongArray(this.size) { this.value[it].toDouble().pow(x).toLong() })
+    override fun powInPlace(x: Int): LongVectorValue {
+        Arrays.setAll(this.value) { this.value[it].toDouble().pow(x).toLong() }
+        return this
     }
 
-    override operator fun times(other: VectorValue<LongArray>): VectorValue<LongArray> {
-        require(this.size == other.size) { "Only vector values of the same type and size can be added." }
-        val out = LongVectorValue(this.value.copyOf(this.size))
-        this.indices.forEach { out.value[it] *= other.value[it] }
-        return out
+    override fun sqrt(): VectorValue<LongArray> = LongVectorValue(LongArray(this.size) { kotlin.math.sqrt(this.value[it].toDouble()).toLong() })
+    override fun sqrtInPlace(): VectorValue<LongArray> {
+        Arrays.setAll(this.value) { kotlin.math.sqrt(this.value[it].toDouble()).toLong() }
+        return this
     }
 
-    override operator fun div(other: VectorValue<LongArray>): VectorValue<LongArray> {
-        require(this.size == other.size) { "Only vector values of the same type and size can be added." }
-        val out = LongVectorValue(this.value.copyOf(this.size))
-        this.indices.forEach { out.value[it] /= other.value[it] }
-        return out
+    override fun abs(): VectorValue<LongArray> = LongVectorValue(LongArray(this.size) { kotlin.math.abs(this.value[it]) })
+    override fun absInPlace(): VectorValue<LongArray> {
+        Arrays.setAll(this.value) { kotlin.math.abs(this.value[it]) }
+        return this
     }
 
-    override operator fun plus(other: Number): VectorValue<LongArray> {
-        val value = other.toLong()
-        val out = LongVectorValue(this.value.copyOf(this.size))
-        this.indices.forEach { out.value[it] += value }
-        return out
-    }
+    override fun componentsEqual(other: VectorValue<*>): VectorValue<LongArray> = LongVectorValue(LongArray(this.value.size) { if (this.value[it] == other.getAsLong(it)) { 1L } else { 0L } })
 
-    override operator fun minus(other: Number): VectorValue<LongArray> {
-        val value = other.toLong()
-        val out = LongVectorValue(this.value.copyOf(this.size))
-        this.indices.forEach { out.value[it] -= value }
-        return out
-    }
-
-    override operator fun times(other: Number): VectorValue<LongArray> {
-        val value = other.toLong()
-        val out = LongVectorValue(this.value.copyOf(this.size))
-        this.indices.forEach { out.value[it] *= value }
-        return out
-    }
-
-    override operator fun div(other: Number): VectorValue<LongArray> {
-        val value = other.toLong()
-        val out = LongVectorValue(this.value.copyOf(this.size))
-        this.indices.forEach { out.value[it] /= value }
-        return out
-    }
+    override fun sum(): Double = this.value.sum().toDouble()
 }

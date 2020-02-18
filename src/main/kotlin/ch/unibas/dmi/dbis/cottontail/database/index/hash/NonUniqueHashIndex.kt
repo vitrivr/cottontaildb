@@ -64,7 +64,7 @@ class NonUniqueHashIndex(override val name: Name, override val parent: Entity, o
     }
 
     /** Map structure used for [NonUniqueHashIndex]. */
-    private val map: HTreeMap<out Value<out Any>, LongArray> = this.db.hashMap(MAP_FIELD_NAME, this.columns.first().type.serializer(this.columns.size), Serializer.LONG_ARRAY).counterEnable().createOrOpen()
+    private val map: HTreeMap<out Value<*>, LongArray> = this.db.hashMap(MAP_FIELD_NAME, this.columns.first().type.serializer(this.columns.size), Serializer.LONG_ARRAY).counterEnable().createOrOpen()
 
     /**
      * Flag indicating if this [NonUniqueHashIndex] has been closed.

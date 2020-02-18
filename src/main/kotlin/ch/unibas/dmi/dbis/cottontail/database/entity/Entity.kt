@@ -79,7 +79,7 @@ class Entity(override val name: Name, override val parent: Schema) : DBO {
 
     /** List of all the [Column]s associated with this [Entity]. */
     private val columns: Collection<Column<*>> = this.header.columns.map {
-        MapDBColumn<Any>(Name(this.store.get(it, Serializer.STRING)
+        MapDBColumn<Value<*>>(Name(this.store.get(it, Serializer.STRING)
                 ?: throw DatabaseException.DataCorruptionException("Failed to open entity '$fqn': Could not read column definition at position $it!")), this)
     }
 
@@ -479,7 +479,6 @@ class Entity(override val name: Name, override val parent: Schema) : DBO {
          */
         override fun forEach(from: Long, to: Long, action: (Record) -> Unit) = this.localLock.read {
             checkValidForRead()
-
             val data = Array<Value<*>?>(columns.size) { null }
             this.colTxs[0].forEach(from, to) {
                 data[0] = it.values[0]
@@ -722,7 +721,7 @@ class Entity(override val name: Name, override val parent: Schema) : DBO {
             try {
                 var lastRecId: Long? = null
                 for (i in this.colTxs.indices) {
-                    val recId = (this.colTxs[i] as ColumnTransaction<Any>).insert(record[this.columns[i]] as Value<Any>?)
+                    val recId = (this.colTxs[i] as ColumnTransaction<Value<Any>>).insert(record[this.columns[i]] as Value<Any>?)
                     if (lastRecId != recId && lastRecId != null) {
                         throw DatabaseException.DataCorruptionException("Entity ${this@Entity.fqn} is corrupt. Insert did not yield same record ID for all columns involved!")
                     }
@@ -765,7 +764,7 @@ class Entity(override val name: Name, override val parent: Schema) : DBO {
                 val tuplesIds = tuples.map { record ->
                     var lastRecId: Long? = null
                     for (i in this.colTxs.indices) {
-                        val recId = (this.colTxs[i] as ColumnTransaction<Any>).insert(record[this.columns[i]] as Value<Any>?)
+                        val recId = (this.colTxs[i] as ColumnTransaction<Value<Any>>).insert(record[this.columns[i]] as Value<Any>?)
                         if (lastRecId != recId && lastRecId != null) {
                             throw DatabaseException.DataCorruptionException("Entity ${this@Entity.fqn} is corrupt. Insert did not yield same record ID for all columns involved!")
                         }

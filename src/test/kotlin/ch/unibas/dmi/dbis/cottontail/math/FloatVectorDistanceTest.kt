@@ -1,6 +1,5 @@
 package ch.unibas.dmi.dbis.cottontail.math
 
-import ch.unibas.dmi.dbis.cottontail.math.knn.metrics.FloatVectorDistance
 import ch.unibas.dmi.dbis.cottontail.math.knn.metrics.Shape
 import ch.unibas.dmi.dbis.cottontail.utilities.VectorUtility
 import org.junit.jupiter.api.Assertions.*

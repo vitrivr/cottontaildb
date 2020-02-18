@@ -7,7 +7,6 @@ package ch.unibas.dmi.dbis.cottontail.model.values
  * @version 1.1
  */
 interface Value<T> {
-
     /** Actual value of this [Value]. */
     val value: T
 

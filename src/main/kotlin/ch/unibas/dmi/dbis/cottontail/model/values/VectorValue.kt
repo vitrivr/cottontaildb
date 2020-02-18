@@ -84,12 +84,33 @@ interface VectorValue<T> : Value<T> {
      */
     fun copy(): VectorValue<T>
 
-    operator fun plus(other: VectorValue<T>): VectorValue<T>
-    operator fun minus(other: VectorValue<T>): VectorValue<T>
-    operator fun times(other: VectorValue<T>): VectorValue<T>
-    operator fun div(other: VectorValue<T>): VectorValue<T>
+    operator fun plus(other: VectorValue<*>): VectorValue<T>
+    operator fun minus(other: VectorValue<*>): VectorValue<T>
+    operator fun times(other: VectorValue<*>): VectorValue<T>
+    operator fun div(other: VectorValue<*>): VectorValue<T>
+
+    fun plusInPlace(other: VectorValue<*>): VectorValue<T>
+    fun minusInPlace(other: VectorValue<*>): VectorValue<T>
+    fun timesInPlace(other: VectorValue<*>): VectorValue<T>
+    fun divInPlace(other: VectorValue<*>): VectorValue<T>
+
     operator fun plus(other: Number): VectorValue<T>
     operator fun minus(other: Number): VectorValue<T>
     operator fun times(other: Number): VectorValue<T>
     operator fun div(other: Number): VectorValue<T>
+
+    fun pow (x: Int): VectorValue<T>
+    fun powInPlace(x: Int): VectorValue<T>
+
+    fun sqrt(): VectorValue<T>
+    fun sqrtInPlace():VectorValue<T>
+
+    fun abs(): VectorValue<T>
+    fun absInPlace(): VectorValue<T>
+
+    fun componentsEqual(other: VectorValue<*>): VectorValue<T>
+
+    fun sum(): Double
+
+
 }

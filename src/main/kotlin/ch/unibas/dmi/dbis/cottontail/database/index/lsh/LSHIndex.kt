@@ -34,7 +34,7 @@ import java.nio.file.Path
  * @author Manuel Huerbin
  * @version 1.0
  */
-class LSHIndex<T : Any>(override val name: Name, override val parent: Entity, override val columns: Array<ColumnDef<*>>, params: Map<String, String>? = null) : Index() {
+class LSHIndex<T : VectorValue<*>>(override val name: Name, override val parent: Entity, override val columns: Array<ColumnDef<*>>, params: Map<String, String>? = null) : Index() {
 
     /**
      * Index-wide constants.
@@ -110,7 +110,7 @@ class LSHIndex<T : Any>(override val name: Name, override val parent: Entity, ov
             if (tupleIds != null) {
                 tx.readMany(tupleIds = tupleIds.toList()).forEach {
                     val value = it[castPredicate.column]
-                    if (value is VectorValue<T>) {
+                    if (value is T) {
                         if (castPredicate.weights != null) {
                             knn.add(ComparablePair(it.tupleId, castPredicate.distance(query, value, castPredicate.weights[i])))
                         } else {

@@ -4,14 +4,10 @@ import ch.unibas.dmi.dbis.cottontail.database.column.Column
 import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
 import ch.unibas.dmi.dbis.cottontail.database.events.DataChangeEvent
 import ch.unibas.dmi.dbis.cottontail.database.events.DataChangeEventType
-import ch.unibas.dmi.dbis.cottontail.database.general.begin
 import ch.unibas.dmi.dbis.cottontail.database.index.Index
-import ch.unibas.dmi.dbis.cottontail.database.index.IndexTransaction
 import ch.unibas.dmi.dbis.cottontail.database.index.IndexType
-import ch.unibas.dmi.dbis.cottontail.database.index.lucene.LuceneIndex
 import ch.unibas.dmi.dbis.cottontail.utilities.extensions.write
 import ch.unibas.dmi.dbis.cottontail.database.queries.AtomicBooleanPredicate
-import ch.unibas.dmi.dbis.cottontail.database.queries.BooleanPredicate
 import ch.unibas.dmi.dbis.cottontail.database.queries.ComparisonOperator
 import ch.unibas.dmi.dbis.cottontail.database.queries.Predicate
 import ch.unibas.dmi.dbis.cottontail.database.schema.Schema
@@ -36,7 +32,7 @@ import org.slf4j.LoggerFactory
  * @see Entity.Tx
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.1
  */
 class UniqueHashIndex(override val name: Name, override val parent: Entity, override val columns: Array<ColumnDef<*>>) : Index() {
 
@@ -69,7 +65,7 @@ class UniqueHashIndex(override val name: Name, override val parent: Entity, over
     }
 
     /** Map structure used for [UniqueHashIndex]. */
-    private val map: HTreeMap<out Value<out Any>, Long> = this.db.hashMap(MAP_FIELD_NAME, this.columns.first().type.serializer(this.columns.size), Serializer.LONG_PACKED).counterEnable().createOrOpen()
+    private val map: HTreeMap<out Value<*>, Long> = this.db.hashMap(MAP_FIELD_NAME, this.columns.first().type.serializer(this.columns.size), Serializer.LONG_PACKED).counterEnable().createOrOpen()
 
     /**
      * Flag indicating if this [UniqueHashIndex] has been closed.

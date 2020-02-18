@@ -120,8 +120,8 @@ class ExecutionPlanFactory (val executionEngine: ExecutionEngine) {
         val candidates = mutableListOf<ExecutionStage>()
 
         /* Add default case 1: Full table scan based Knn. */
-        val operations = whereClause.operations * entity.statistics.rows + knnClause.query.first().size * entity.statistics.rows * knnClause.operations
-        val parallelism = min(Math.floorDiv(operations, KNN_OP_PARALLELISM_THRESHOLD).toInt(), Runtime.getRuntime().availableProcessors() / 2).toShort()
+        val operations = whereClause.cost * entity.statistics.rows + knnClause.query.first().size * entity.statistics.rows * knnClause.cost
+        val parallelism = min((operations / KNN_OP_PARALLELISM_THRESHOLD).toInt(), Runtime.getRuntime().availableProcessors() / 2).toShort()
         val stage = ExecutionStage()
         val task = if (parallelism > 1) {
             ParallelEntityScanKnnTask(entity, knnClause, whereClause, parallelism)
@@ -160,8 +160,8 @@ class ExecutionPlanFactory (val executionEngine: ExecutionEngine) {
         val candidates = mutableListOf<ExecutionStage>()
 
         /* Add default case 1: Full table scan based Knn. */
-        val operations = knnClause.query.first().size * entity.statistics.rows * knnClause.operations
-        val parallelism = min(Math.floorDiv(operations, KNN_OP_PARALLELISM_THRESHOLD).toInt(), Runtime.getRuntime().availableProcessors() / 2).toShort()
+        val operations = knnClause.query.first().size * entity.statistics.rows * knnClause.cost
+        val parallelism = min((operations/KNN_OP_PARALLELISM_THRESHOLD).toInt(), Runtime.getRuntime().availableProcessors() / 2).toShort()
         var stage = ExecutionStage()
         val task = if (parallelism > 1) {
             ParallelEntityScanKnnTask(entity, knnClause, null, parallelism)

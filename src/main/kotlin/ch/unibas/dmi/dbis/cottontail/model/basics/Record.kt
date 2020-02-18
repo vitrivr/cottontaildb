@@ -17,7 +17,7 @@ import java.lang.IllegalArgumentException
  * @see ch.unibas.dmi.dbis.cottontail.database.entity.Entity
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.1
  */
 interface Record {
 
@@ -95,7 +95,7 @@ interface Record {
      * @param column The [ColumnDef] for which to retrieve the value.
      * @return The value for the [ColumnDef]
      */
-    operator fun <T: Any> get(column: ColumnDef<T>): Value<T>? {
+    operator fun <T: Value<*>> get(column: ColumnDef<T>): T? {
         val index = this.columns.indexOfFirst { it.isEquivalent(column) }
         return if (index > -1) {
             column.type.cast(values[index])
