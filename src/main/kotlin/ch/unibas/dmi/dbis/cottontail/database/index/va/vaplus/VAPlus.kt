@@ -1,6 +1,6 @@
 package ch.unibas.dmi.dbis.cottontail.database.index.va.vaplus
 
-import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
+import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
 import ch.unibas.dmi.dbis.cottontail.model.values.VectorValue
 import org.apache.commons.math3.linear.EigenDecomposition
@@ -10,23 +10,31 @@ import org.apache.commons.math3.stat.correlation.Covariance
 import java.io.Serializable
 import kotlin.math.*
 
-
 /**
  * see H. Ferhatosmanoglu, E. Tuncel, D. Agrawal, A. El Abbadi (2006): High dimensional nearest neighbor searching. Information Systems.
  */
 class VAPlus : Serializable {
     private val totalNumberOfBits = 32 // 32, 64, 128, 256, 1024 // TODO
-    private val numberOfDimensions = intArrayOf(1)
-    private val distance = 1
 
     /* Indexing */
     /**
      * This method generates a data sample out of data.
      */
-    fun getDataSample(data: Array<DoubleArray>, size: Int): Array<DoubleArray> {
+    fun getDataSample(data: Recordset, column: ColumnDef<*>, size: Int): Array<DoubleArray> {
+        // commons math bynomial distribution mit wahrscheinlichkeit size / data.size
+
         // TODO create data sample of size
         // ADAMpro > IndexGenerator > 48
-        return data
+        return data.map {
+            // if
+            val value = it[column]!!
+            val doubleArray = DoubleArray(value.size * 2)
+            if (value is VectorValue<*>) {
+                doubleArray.forEachIndexed { index, _ -> doubleArray[index] = value.getAsDouble(index) }
+            }
+            doubleArray
+            // end if
+        }.toTypedArray()
     }
 
     /**
@@ -47,7 +55,7 @@ class VAPlus : Serializable {
      *
      * @return Diagonalization of the autocovariance matrix cBar
      */
-    fun transformToKLTDomain(data: Array<DoubleArray>): Array<DoubleArray> {
+    fun transformToKLTDomain(data: Array<DoubleArray>): Pair<Array<DoubleArray>, RealMatrix> {
         val cBar = Covariance(MatrixUtils.createRealMatrix(data)).covarianceMatrix
         val eigenDecomposition = EigenDecomposition(cBar)
         val kltMatrix = MatrixUtils.createRealMatrix(40, 40)
@@ -62,7 +70,7 @@ class VAPlus : Serializable {
             val tmp = kltMatrix.transpose().multiply(dataMatrix.transpose()).getColumnVector(0).toArray()
             data[index] = tmp
         }
-        return data
+        return Pair(data, kltMatrix)
     }
 
     /**
@@ -100,13 +108,13 @@ class VAPlus : Serializable {
     /**
      * Non-uniform quantization
      */
-    fun nonUniformQuantization(data: Array<DoubleArray>, b: IntArray) {
+    fun nonUniformQuantization(data: Array<DoubleArray>, b: IntArray): Array<MutableList<Double>> {
         val maxMarks = b.map {
             minOf(maxOf(1, 2 shl (it - 1)), Short.MAX_VALUE.toInt())
         }
         val signatureGenerator = SignatureGenerator(b)
         val marks = MarksGenerator.getMarks(data, maxMarks)
-        // TODO
+        return marks
     }
 
     /**
@@ -126,8 +134,8 @@ class VAPlus : Serializable {
     }
 
     /* Querying */
-    fun scan(entity: Entity, query: VectorValue<FloatArray>, recordset: Recordset): Recordset {
-        //val bounds = computeBounds(query, VAPlusMarksGenerator().getMarks(entity, listOf(2)))
+    fun scan() {
+        //val bounds = computeBounds(query, MarksGenerator.getMarks(entity, listOf(2)))
         //val (lbIndex, lbBounds) = compressBounds(bounds.first)
         //val (ubIndex, ubBounds) = compressBounds(bounds.second)
 
@@ -184,8 +192,6 @@ class VAPlus : Serializable {
         }
         res
          */
-
-        return recordset
     }
 
     private fun computeBounds(query: VectorValue<FloatArray>, marks: List<List<Double>>): Pair<Array<DoubleArray>, Array<DoubleArray>>? {

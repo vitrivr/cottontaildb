@@ -91,9 +91,9 @@ class VAPlusIndex(override val name: Name, override val parent: Entity, override
 
         /* Generate record set .*/
         for (i in predicate.query.indices) {
-            val query = predicate.query[i]
-            val knn = HeapSelect<ComparablePair<Long, Double>>(castPredicate.k)
-            //vaPlus.scan(entity, query, recordset)
+            //val query = predicate.query[i]
+            //val knn = HeapSelect<ComparablePair<Long, Double>>(castPredicate.k)
+            vaPlus.scan()
         }
         recordset
     } else {
@@ -149,7 +149,8 @@ class VAPlusIndex(override val name: Name, override val parent: Entity, override
         /* (Re-)create index entries. */
         val localMap = mutableMapOf<Int, MutableList<Long>>()
 
-        var data = tx.map {
+        var data = tx.readAll()
+        var dat2 = tx.map {
             val value = it[this.columns[0]]
                     ?: throw ValidationException.IndexUpdateException(this.fqn, "A value cannot be null for instances of vaf-index but tid=${it.tupleId} is")
             val doubleArray = DoubleArray(value.size * 2)
@@ -159,13 +160,22 @@ class VAPlusIndex(override val name: Name, override val parent: Entity, override
             doubleArray
         }.toTypedArray()
         // VA-file get sample data
-        data = vaPlus.getDataSample(data, maxOf(trainingSize, minimumNumberOfTuples))
+        var _dataSample = vaPlus.getDataSample(data, this.columns[0], maxOf(trainingSize, minimumNumberOfTuples))
         // VA-file in KLT domain
-        data = vaPlus.transformToKLTDomain(data)
+        var (dataSample, kltMatrix) = vaPlus.transformToKLTDomain(_dataSample)
         // Non-uniform bit allocation
-        val b = vaPlus.nonUniformBitAllocation(dimension * 2, data)
+        val b = vaPlus.nonUniformBitAllocation(dimension * 2, dataSample)
         // Non-uniform quantization
-        vaPlus.nonUniformQuantization(data, b)
+        val marks = vaPlus.nonUniformQuantization(dataSample, b)
+
+        //
+        // TODO
+        // data.forEach(
+        // kltMatrix.multiply(data[it])
+        // getMarks -->
+        // signature INT
+        //
+
 
         val castMap = this.map as HTreeMap<Int, LongArray>
         localMap.forEach { (bucket, l) -> castMap[bucket] = l.toLongArray() }
