@@ -1,4 +1,4 @@
-package ch.unibas.dmi.dbis.cottontail.database.index.va.vaplus
+package ch.unibas.dmi.dbis.cottontail.database.index.vaplus
 
 import org.apache.commons.math3.linear.MatrixUtils
 import org.apache.commons.math3.linear.RealMatrix
@@ -6,7 +6,7 @@ import org.mapdb.DataInput2
 import org.mapdb.DataOutput2
 import org.mapdb.Serializer
 
-data class VAPlusMeta(val marks: Array<List<Double>>, val kltMatrix: RealMatrix) {}
+data class VAPlusMeta(val marks: Array<DoubleArray>, val signatureGenerator: SignatureGenerator, val kltMatrix: RealMatrix) {}
 
 object VAPlusMetaSerializer : Serializer<VAPlusMeta> {
 
@@ -17,6 +17,10 @@ object VAPlusMetaSerializer : Serializer<VAPlusMeta> {
             for (m in mark) {
                 out.writeDouble(m)
             }
+        }
+        out.packInt(value.signatureGenerator.numberOfBitsPerDimension.size)
+        for (bits in value.signatureGenerator.numberOfBitsPerDimension) {
+            out.packInt(bits)
         }
         out.packInt(value.kltMatrix.data.size)
         for (kltM in value.kltMatrix.data) {
@@ -29,16 +33,19 @@ object VAPlusMetaSerializer : Serializer<VAPlusMeta> {
 
     override fun deserialize(input: DataInput2, available: Int): VAPlusMeta {
         val marks = Array(input.readInt()) {
-            Array(input.readInt()) {
+            DoubleArray(input.readInt()) {
                 input.readDouble()
-            }.toList()
+            }
+        }
+        val signatureGenerator = IntArray(input.readInt()) {
+            input.readInt()
         }
         val kltMatrix = Array(input.readInt()) {
             DoubleArray(input.readInt()) {
                 input.readDouble()
             }
         }
-        return VAPlusMeta(marks, MatrixUtils.createRealMatrix(kltMatrix))
+        return VAPlusMeta(marks, SignatureGenerator(signatureGenerator), MatrixUtils.createRealMatrix(kltMatrix))
     }
 
 }

@@ -1,13 +1,20 @@
-package ch.unibas.dmi.dbis.cottontail.database.index.va.vaplus
+package ch.unibas.dmi.dbis.cottontail.database.index.vaplus
 
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
 import ch.unibas.dmi.dbis.cottontail.model.values.VectorValue
+
+/**
+ * see H. Ferhatosmanoglu, E. Tuncel, D. Agrawal, A. El Abbadi (2006): High dimensional nearest neighbor searching. Information Systems.
+ */
 import org.apache.commons.math3.linear.EigenDecomposition
 import org.apache.commons.math3.linear.MatrixUtils
 import org.apache.commons.math3.linear.RealMatrix
 import org.apache.commons.math3.stat.correlation.Covariance
 import java.io.Serializable
+import java.util.*
+
+import kotlin.collections.ArrayList
 import kotlin.math.*
 
 /**
@@ -19,7 +26,7 @@ import kotlin.math.*
  */
 class VAPlus : Serializable {
 
-    private val totalNumberOfBits = 32 // 64, 128, 256, 1024 // TODO
+    private val totalNumberOfBits = 32 // 64, 128, 256, 1024
 
     /* Indexing */
     /**
@@ -32,8 +39,9 @@ class VAPlus : Serializable {
     fun getDataSample(data: Recordset, column: ColumnDef<*>, size: Int): Array<DoubleArray> {
         val p = size / data.rowCount.toDouble()
         val dataSample = ArrayList<DoubleArray>(size + 100)
+        val random = SplittableRandom(System.currentTimeMillis())
         data.map {
-            if (Math.random() >= 1.0 - p) {
+            if (random.nextDouble() >= 1.0 - p) {
                 dataSample.add(convertToDoubleArray(it[column] as VectorValue<*>))
             }
         }
@@ -62,7 +70,6 @@ class VAPlus : Serializable {
      * @return Pair of dataSample in KLT domain, and kBar.
      */
     fun transformToKLTDomain(dataSample: Array<DoubleArray>): Pair<Array<DoubleArray>, RealMatrix> {
-        // TODO Remember to mean-center data before PCA
         val cBar = Covariance(MatrixUtils.createRealMatrix(dataSample)).covarianceMatrix
         val eigenDecomposition = EigenDecomposition(cBar)
         val k = MatrixUtils.createRealMatrix(40, 40)
@@ -128,13 +135,11 @@ class VAPlus : Serializable {
      * @param dataSample The data sample.
      * @param b The number of bits per dimension.
      */
-    fun nonUniformQuantization(dataSample: Array<DoubleArray>, b: IntArray): Pair<Array<MutableList<Double>>, SignatureGenerator> {
-        val numberOfMarks = b.map {
-            minOf(maxOf(1, 2 shl (it - 1)), Short.MAX_VALUE.toInt())
+    fun nonUniformQuantization(dataSample: Array<DoubleArray>, b: IntArray): Array<DoubleArray> {
+        val numberOfMarks = IntArray(b.size) {
+            minOf(maxOf(1, 2 shl (b[it] - 1)), Short.MAX_VALUE.toInt())
         }
-        val marks = MarksGenerator.getMarks(dataSample, numberOfMarks)
-        val signatureGenerator = SignatureGenerator(b)
-        return Pair(marks, signatureGenerator)
+        return MarksGenerator.getNonUniformMarks(dataSample, numberOfMarks)
     }
 
     /**
@@ -146,7 +151,7 @@ class VAPlus : Serializable {
      * @param marks The marks.
      * @return An [IntArray] containing the signature of the vector.
      */
-    fun getSignature(vector: DoubleArray, marks: Array<MutableList<Double>>): IntArray = IntArray(vector.size) {
+    fun getCells(vector: DoubleArray, marks: Array<DoubleArray>): IntArray = IntArray(vector.size) {
         val index = marks[it].indexOfFirst { i -> i >= vector[it] }
         if (index == -1) {
             marks[it].size - 2
@@ -173,7 +178,7 @@ class VAPlus : Serializable {
         var maxValue = Double.MIN_VALUE
         var maxIndex = -1
         for (index in array.indices) {
-            var element = array[index]
+            val element = array[index]
             if (element > maxValue) {
                 maxValue = element
                 maxIndex = index
@@ -184,10 +189,75 @@ class VAPlus : Serializable {
 
     /* Querying */
     /**
-     * This method performs a scan.
+     * This method compuates bounds.
      */
+    fun computeBounds(vector: DoubleArray, marks: Array<DoubleArray>): Pair<Array<DoubleArray>, Array<DoubleArray>> {
+        val lbounds = Array(marks.size) { DoubleArray(maxOf(0, marks[it].size - 1)) }
+        val ubounds = Array(marks.size) { DoubleArray(maxOf(0, marks[it].size - 1)) }
+        var i = 0
+        while (i < marks.size) {
+            val dimMarks = marks[i]
+            val fvi = vector[i]
+            var j = 0
+            val it = dimMarks.iterator() // TODO sliding(2).withPartial(false)
+            while (it.hasNext()) {
+                val dimMark = it.next()
+                //val d0fv1 = w * abs(dimMark[0] - fvi).pow(n) // TODO distance.element(dimMark(0), fvi)
+                //val d1fv1 = w * abs(dimMark[1] - fvi).pow(n) // TODO distance.element(dimMark(1), fvi)
+                //if (fvi < dimMark[0]) {
+                //    lbounds[i][j] = d0fv1
+                //} else if (fvi > dimMark[1]) {
+                //    lbounds[i][j] = d1fv1
+                //}
+                //if (fvi <= (dimMark[0] + dimMark[1]) / 2.toFloat()) {
+                //    ubounds[i][j] = d1fv1
+                //} else {
+                //    ubounds[i][j] = d0fv1
+                //}
+                j += 1
+            }
+            i += 1
+        }
+        return Pair(lbounds, ubounds)
+    }
+
+    /**
+     * This method compresses bounds.
+     */
+    fun compressBounds(bounds: Array<DoubleArray>): Pair<IntArray, FloatArray>? {
+        val lengths = bounds.map { it.size }
+        val totalLength = lengths.sum()
+        val cumLengths = {
+            // compute cumulative sum of lengths
+            val cumLengthsTmp = IntArray(lengths.size)
+            var i = 0
+            var cumSum = 0
+            while (i < lengths.size - 1) {
+                cumSum += lengths[i]
+                cumLengthsTmp[i + 1] = cumSum
+                i += 1
+            }
+            cumLengthsTmp
+        }
+        val newBounds = {
+            val newBoundsTmp = FloatArray(totalLength)
+            var i = 0
+            var j: Int
+            while (i < lengths.size) {
+                j = 0
+                while (j < lengths[i]) {
+                    //newBoundsTmp[cumLengths[i] + j] = bounds[i][j].toFloat() // TODO
+                    j += 1
+                }
+                i += 1
+            }
+            newBoundsTmp
+        }
+        return null // TODO Pair(cumLengths, newBounds)
+    }
+
     fun scan(query: FloatArray, marks: Array<List<Double>>) {
-        val bounds = computeBounds(query, marks)
+        //val bounds = computeBounds(query, marks)
         //val (lbIndex, lbBounds) = compressBounds(bounds.first)
         //val (ubIndex, ubBounds) = compressBounds(bounds.second)
         /**
@@ -203,7 +273,6 @@ class VAPlus : Serializable {
         bound += boundsBoundsBc.value(boundsIndexBc.value(idx) + cellsIdx)
         idx += 1
         }
-
         bound
         })
         import ac.spark.implicits._
@@ -216,12 +285,10 @@ class VAPlus : Serializable {
         .mapPartitions(pIt => {
         //in here  we compute for each partition the k nearest neighbours and collect the results
         val localRh = new VAResultHandler(k)
-
         while (pIt.hasNext) {
         val current = pIt.next()
         localRh.offer(current, pk)
         }
-
         localRh.results.iterator
         })
         /*import ac.spark.implicits._
@@ -243,72 +310,6 @@ class VAPlus : Serializable {
         }
         res
          */
-    }
-
-    private fun computeBounds(query: FloatArray, marks: Array<List<Double>>): Pair<Array<DoubleArray>, Array<DoubleArray>>? {
-        //  val lbounds, ubounds = Array.tabulate(marks.length)(i => Array.ofDim[Distance](math.max(0, marks(i).length - 1)))
-        val (lbounds, ubounds) = arrayOf(DoubleArray(marks.size))
-        for (index in marks.indices) {
-            lbounds[index] = maxOf(0, marks[index].size - 1).toDouble()
-            ubounds[index] = maxOf(0, marks[index].size - 1).toDouble()
-        }
-        var i = 0
-        while (i < marks.size) {
-            val dimMarks = marks[i]
-            val fvi = query[i]
-            var j = 0
-            val it = dimMarks.iterator() // TODO windowed(2)? --> sliding(2)
-            while (it.hasNext()) {
-                val dimMark = it.next()
-                //val d0fv1 = distance.element(dimMark(0), fvi)
-                //val d1fv1 = distance.element(dimMark(1), fvi)
-                //if (fvi < dimMark(0)) {
-                //    lbounds[i][j] = d0fv1
-                //} else if (fvi > dimMark(1)) {
-                //    lbounds[i][j] = d1fv1
-                //}
-                //if (fvi <= (dimMark(0) + dimMark(1)) / 2.toFloat()) {
-                //    ubounds[i][j] = d1fv1
-                //} else {
-                //    ubounds[i][j] = d0fv1
-                //}
-                j += 1
-            }
-            i += 1
-        }
-        return null//Pair(lbounds, ubounds)
-    }
-
-    private fun compressBounds(bounds: Array<DoubleArray>): Pair<IntArray, FloatArray>? {
-        val lengths = bounds.map { it.size }
-        val totalLength = lengths.sum()
-        val cumLengths = {
-            // compute cumulative sum of lengths
-            val cumLengths = IntArray(lengths.size)
-            var i = 0
-            var cumSum = 0
-            while (i < lengths.size - 1) {
-                cumSum += lengths[i]
-                cumLengths[i + 1] = cumSum
-                i += 1
-            }
-            cumLengths
-        }
-        val newBounds = {
-            val newBounds = FloatArray(totalLength)
-            var i = 0
-            var j: Int
-            while (i < lengths.size) {
-                j = 0
-                while (j < lengths[i]) {
-                    //newBounds[cumLengths[i] + j] = bounds[i][j].toFloat()
-                    j += 1
-                }
-                i += 1
-            }
-            newBounds
-        }
-        return null //Pair(cumLengths, newBounds)
     }
 
 }

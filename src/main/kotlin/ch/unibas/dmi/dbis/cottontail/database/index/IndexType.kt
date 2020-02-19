@@ -5,7 +5,7 @@ import ch.unibas.dmi.dbis.cottontail.database.index.hash.NonUniqueHashIndex
 import ch.unibas.dmi.dbis.cottontail.database.index.hash.UniqueHashIndex
 import ch.unibas.dmi.dbis.cottontail.database.index.lsh.LSHIndex
 import ch.unibas.dmi.dbis.cottontail.database.index.lucene.LuceneIndex
-import ch.unibas.dmi.dbis.cottontail.database.index.va.vaplus.VAPlusIndex
+import ch.unibas.dmi.dbis.cottontail.database.index.vaplus.VAPlusIndex
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
 

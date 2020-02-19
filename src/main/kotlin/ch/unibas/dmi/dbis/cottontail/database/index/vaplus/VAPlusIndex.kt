@@ -1,4 +1,4 @@
-package ch.unibas.dmi.dbis.cottontail.database.index.va.vaplus
+package ch.unibas.dmi.dbis.cottontail.database.index.vaplus
 
 import ch.unibas.dmi.dbis.cottontail.database.column.Column
 import ch.unibas.dmi.dbis.cottontail.database.column.ColumnType
@@ -23,6 +23,7 @@ import org.mapdb.Atomic
 import org.mapdb.DBMaker
 import org.slf4j.LoggerFactory
 import java.nio.file.Path
+import kotlin.math.sign
 
 /**
  * Represents a VAF based index in the Cottontail DB data model. An [Index] belongs to an [Entity] and can be used to
@@ -89,17 +90,20 @@ class VAPlusIndex(override val name: Name, override val parent: Entity, override
 
         /* VAPlus. */
         val vaPlus = VAPlus()
-        // TODO
 
         /* Generate record set .*/
         val meta = this.meta.get()
 
         for (i in predicate.query.indices) {
-            val query = predicate.query[i].value as FloatArray
+            val query = predicate.query[i]
             val knn = HeapSelect<ComparablePair<Long, Double>>(castPredicate.k)
-            // TODO
-            vaPlus.scan(query, meta.marks)
+            val dataMatrix = MatrixUtils.createRealMatrix(arrayOf(vaPlus.convertToDoubleArray(query)))
+            val vector = meta.kltMatrix.multiply(dataMatrix.transpose()).getColumnVector(0).toArray()
 
+            val bounds = vaPlus.computeBounds(vector, meta.marks)
+            //val (lbIndex, lbBounds) = vaPlus.compressBounds(bounds.first)
+            //val (ubIndex, ubBounds) = vaPlus.compressBounds(bounds.second)
+            // TODO
         }
 
         recordset
@@ -154,23 +158,26 @@ class VAPlusIndex(override val name: Name, override val parent: Entity, override
         val dimension = this.columns[0].size
 
         /* (Re-)create index entries. */
-        var data = tx.readAll()
+        val data = tx.readAll()
         // VA-file get data sample
-        var dataSampleTmp = vaPlus.getDataSample(data, this.columns[0], maxOf(trainingSize, minimumNumberOfTuples))
+        val dataSampleTmp = vaPlus.getDataSample(data, this.columns[0], maxOf(trainingSize, minimumNumberOfTuples))
         // VA-file in KLT domain
-        var (dataSample, kltMatrix) = vaPlus.transformToKLTDomain(dataSampleTmp)
+        val (dataSample, kltMatrix) = vaPlus.transformToKLTDomain(dataSampleTmp)
         // Non-uniform bit allocation
         val b = vaPlus.nonUniformBitAllocation(dataSample, dimension * 2)
+        val signatureGenerator = SignatureGenerator(b)
         // Non-uniform quantization
-        val (marks, signature) = vaPlus.nonUniformQuantization(dataSample, b)
+        val marks = vaPlus.nonUniformQuantization(dataSample, b)
+        // Indexing
         val kltMatrixBar = kltMatrix.transpose()
         data.forEach {
-            val doubleArray = vaPlus.convertToDoubleArray(it[this.columns[0]] as VectorValue<*>) // TODO clean
+            val doubleArray = vaPlus.convertToDoubleArray(it[this.columns[0]] as VectorValue<*>)
             val dataMatrix = MatrixUtils.createRealMatrix(arrayOf(doubleArray))
             val vector = kltMatrixBar.multiply(dataMatrix.transpose()).getColumnVector(0).toArray()
-            this.signatures.add(VAPlusSignature(it.tupleId, vaPlus.getSignature(vector, marks)))
+            val signature = signatureGenerator.toSignature(vaPlus.getCells(vector, marks))
+            this.signatures.add(VAPlusSignature(it.tupleId, signature))
         }
-        val meta = VAPlusMeta(marks as Array<List<Double>>, kltMatrix)
+        val meta = VAPlusMeta(marks, signatureGenerator, kltMatrix)
         this.meta.set(meta)
         this.db.commit()
     }
@@ -196,5 +203,4 @@ class VAPlusIndex(override val name: Name, override val parent: Entity, override
             this.closed = true
         }
     }
-
 }
