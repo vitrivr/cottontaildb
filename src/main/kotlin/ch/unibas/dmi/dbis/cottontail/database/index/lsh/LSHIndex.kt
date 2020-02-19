@@ -172,8 +172,8 @@ class LSHIndex<T : Any>(override val name: Name, override val parent: Entity, ov
 
         /* LSH. */
         val lsh = when (this.columns[0].type) {
-            is Complex32ColumnType -> LSH(this.config["stages"]!!, this.config["buckets"]!!, this.columns[0].size * 2, this.config["seed"]!!)
-            is Complex64ColumnType -> LSH(this.config["stages"]!!, this.config["buckets"]!!, this.columns[0].size * 2, this.config["seed"]!!)
+            is Complex32ColumnType -> LSH(this.config["stages"]!!, this.config["buckets"]!!, this.columns[0].size, this.config["seed"]!!) // this.columns[0].size * 2
+            is Complex64ColumnType -> LSH(this.config["stages"]!!, this.config["buckets"]!!, this.columns[0].size, this.config["seed"]!!) // this.columns[0].size * 2
             else -> LSH(this.config["stages"]!!, this.config["buckets"]!!, this.columns[0].size, this.config["seed"]!!)
         }
         /* (Re-)create index entries. */

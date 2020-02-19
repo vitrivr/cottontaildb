@@ -28,10 +28,6 @@ class LSH(private var stages: Int, private var buckets: Int, dimension: Int, see
         val k = stages * buckets / 2 // code length
         val N: Int = computeSuperBitDepth(dimension, k)
         var L = k / N
-        // allow buckets = 1
-        if (L == 0) {
-            L = 1
-        }
         superBit = SuperBit(dimension, N, L, seed)
     }
 

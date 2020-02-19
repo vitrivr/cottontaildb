@@ -2,15 +2,24 @@ package ch.unibas.dmi.dbis.cottontail.database.index.va.vaplus
 
 import kotlin.math.pow
 
+/**
+ * This class is a marks generator.
+ *
+ * @author Manuel Huerbin
+ * @version 1.0
+ */
 object MarksGenerator {
 
     /**
      * Get marks.
+     * @param dataSample The data sample.
+     * @param numberOfMarks The number of marks of every dimension.
+     * @return An [Array] containing the marks of every dimension.
+     * TODO
      */
-    fun getMarks(data: Array<DoubleArray>, numberOfMarks: List<Int>): Array<MutableList<Double>> {
-        val EPSILON = 10E-9
-        val init = createEquiDistanceMarks(data, numberOfMarks).map {
-            it.add(it.last() + EPSILON)
+    fun getMarks(dataSample: Array<DoubleArray>, numberOfMarks: List<Int>): Array<MutableList<Double>> {
+        val init = createEquiDistanceMarks(dataSample, numberOfMarks).map {
+            it.add(it.last() + 10E-9) // epsilon
             it
         }.toTypedArray()
         /**
@@ -36,7 +45,7 @@ object MarksGenerator {
                 val rjs = (0 until marks.size - 1).map { c ->
                     var rj = 0.0
                     var count = 0
-                    data.forEach {
+                    dataSample.forEach {
                         if (it[d] >= marks[c] && it[d] < marks[c + 1]) {
                             rj += it[d]
                             count += 1
@@ -65,7 +74,7 @@ object MarksGenerator {
                  */
                 deltaBar = (0 until marks.size - 1).map { c ->
                     var tmp = 0.0
-                    data.forEach {
+                    dataSample.forEach {
                         if (it[d] >= marks[c] && it[d] < marks[c + 1]) {
                             tmp += (it[d] - rjs[c]).pow(2)
                         }
@@ -79,28 +88,38 @@ object MarksGenerator {
 
     /**
      * Create marks per dimension (equally spaced).
+     *
+     * @param dataSample The data sample.
+     * @param numberOfMarks The number of marks per dimension.
+     * @return An [Array] containing the marks of every dimension.
      */
-    private fun createEquiDistanceMarks(data: Array<DoubleArray>, maxMarks: List<Int>): Array<MutableList<Double>> {
-        val min = getMin(data)
-        val max = getMax(data)
+    private fun createEquiDistanceMarks(dataSample: Array<DoubleArray>, numberOfMarks: List<Int>): Array<MutableList<Double>> {
+        val min = getMin(dataSample)
+        val max = getMax(dataSample)
         return Array(min.size) { it ->
-            MutableList(maxMarks[it] * 2) {
-                it * (max[it] - min[it]) / (maxMarks[it] - 1)
+            MutableList(numberOfMarks[it] * 2) {
+                it * (max[it] - min[it]) / (numberOfMarks[it] - 1)
             }
         }
     }
 
     /**
      * Get vector ([DoubleArray]) which values are minimal.
+     *
+     * @param dataSample The data sample.
+     * @return A [DoubleArray] which is the minimum from dataSample.
      */
-    private fun getMin(data: Array<DoubleArray>): DoubleArray = data.fold(DoubleArray(data.first().size) { Double.MAX_VALUE }) { a, b ->
+    private fun getMin(dataSample: Array<DoubleArray>): DoubleArray = dataSample.fold(DoubleArray(dataSample.first().size) { Double.MAX_VALUE }) { a, b ->
         DoubleArray(a.size) { minOf(a[it], b[it]) }
     }
 
     /**
      * Get vector ([DoubleArray]) which values are maximal.
+     *
+     * @param dataSample The data sample.
+     * @return A [DoubleArray] which is the maximum from dataSample.
      */
-    private fun getMax(data: Array<DoubleArray>): DoubleArray = data.fold(DoubleArray(data.first().size) { Double.MIN_VALUE }) { a, b ->
+    private fun getMax(dataSample: Array<DoubleArray>): DoubleArray = dataSample.fold(DoubleArray(dataSample.first().size) { Double.MIN_VALUE }) { a, b ->
         DoubleArray(a.size) { maxOf(a[it], b[it]) }
     }
 

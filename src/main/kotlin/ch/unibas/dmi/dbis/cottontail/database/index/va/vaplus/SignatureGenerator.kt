@@ -2,10 +2,19 @@ package ch.unibas.dmi.dbis.cottontail.database.index.va.vaplus
 
 import java.util.BitSet
 
+/**
+ * This class is a signature generator.
+ *
+ * @author Manuel Huerbin
+ * @version 1.0
+ */
 class SignatureGenerator(private val numberOfBitsPerDimension: IntArray) {
 
     /**
      * Create signature.
+     *
+     * @param cells cells to create the signature from.
+     * @return A [BitSet] of the created signature.
      */
     private fun toSignature(cells: List<Int>): BitSet {
         val lengths = numberOfBitsPerDimension
@@ -35,6 +44,9 @@ class SignatureGenerator(private val numberOfBitsPerDimension: IntArray) {
 
     /**
      * Create cells.
+     *
+     * @param signature The signature
+     * @return An [IntArray] containing the cells.
      */
     private fun toCells(signature: String): IntArray {
         val lengths = numberOfBitsPerDimension

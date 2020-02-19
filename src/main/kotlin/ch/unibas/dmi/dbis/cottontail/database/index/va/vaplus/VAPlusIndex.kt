@@ -14,14 +14,13 @@ import ch.unibas.dmi.dbis.cottontail.math.knn.HeapSelect
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.basics.Record
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
-import ch.unibas.dmi.dbis.cottontail.model.exceptions.ValidationException
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
 import ch.unibas.dmi.dbis.cottontail.model.values.VectorValue
 import ch.unibas.dmi.dbis.cottontail.utilities.extensions.write
 import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
+import org.apache.commons.math3.linear.MatrixUtils
+import org.mapdb.Atomic
 import org.mapdb.DBMaker
-import org.mapdb.HTreeMap
-import org.mapdb.Serializer
 import org.slf4j.LoggerFactory
 import java.nio.file.Path
 
@@ -39,7 +38,8 @@ class VAPlusIndex(override val name: Name, override val parent: Entity, override
      * Index-wide constants.
      */
     companion object {
-        const val MAP_FIELD_NAME = "vaf_map"
+        const val META_FIELD_NAME = "vaf_meta"
+        const val SIGNATURE_FIELD_NAME = "vaf_signatures"
         private val LOGGER = LoggerFactory.getLogger(VAPlusIndex::class.java)
     }
 
@@ -63,7 +63,8 @@ class VAPlusIndex(override val name: Name, override val parent: Entity, override
     }
 
     /** Map structure used for [VAPlusIndex]. */
-    private val map: HTreeMap<out Int, LongArray> = this.db.hashMap(MAP_FIELD_NAME, Serializer.INTEGER, Serializer.LONG_ARRAY).counterEnable().createOrOpen()
+    private val meta: Atomic.Var<VAPlusMeta> = this.db.atomicVar(META_FIELD_NAME, VAPlusMetaSerializer).createOrOpen()
+    private val signatures = this.db.indexTreeList(SIGNATURE_FIELD_NAME, VAPlusSignatureSerializer).createOrOpen()
 
     /**
      * Flag indicating if this [VAPlusIndex] has been closed.
@@ -88,13 +89,19 @@ class VAPlusIndex(override val name: Name, override val parent: Entity, override
 
         /* VAPlus. */
         val vaPlus = VAPlus()
+        // TODO
 
         /* Generate record set .*/
+        val meta = this.meta.get()
+
         for (i in predicate.query.indices) {
-            //val query = predicate.query[i]
-            //val knn = HeapSelect<ComparablePair<Long, Double>>(castPredicate.k)
-            vaPlus.scan()
+            val query = predicate.query[i].value as FloatArray
+            val knn = HeapSelect<ComparablePair<Long, Double>>(castPredicate.k)
+            // TODO
+            vaPlus.scan(query, meta.marks)
+
         }
+
         recordset
     } else {
         throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (vaf-index) does not support predicates of type '${predicate::class.simpleName}'.")
@@ -138,7 +145,7 @@ class VAPlusIndex(override val name: Name, override val parent: Entity, override
         LOGGER.trace("rebuilding index {}", name)
 
         /* Clear existing map. */
-        this.map.clear()
+        this.signatures.clear()
 
         /* VAPlus. */
         val vaPlus = VAPlus()
@@ -147,30 +154,24 @@ class VAPlusIndex(override val name: Name, override val parent: Entity, override
         val dimension = this.columns[0].size
 
         /* (Re-)create index entries. */
-        val localMap = mutableMapOf<Int, MutableList<Long>>()
-
         var data = tx.readAll()
-
-        // VA-file get sample data
-        var _dataSample = vaPlus.getDataSample(data, this.columns[0], maxOf(trainingSize, minimumNumberOfTuples))
+        // VA-file get data sample
+        var dataSampleTmp = vaPlus.getDataSample(data, this.columns[0], maxOf(trainingSize, minimumNumberOfTuples))
         // VA-file in KLT domain
-        var (dataSample, kltMatrix) = vaPlus.transformToKLTDomain(_dataSample)
+        var (dataSample, kltMatrix) = vaPlus.transformToKLTDomain(dataSampleTmp)
         // Non-uniform bit allocation
-        val b = vaPlus.nonUniformBitAllocation(dimension * 2, dataSample)
+        val b = vaPlus.nonUniformBitAllocation(dataSample, dimension * 2)
         // Non-uniform quantization
-        val marks = vaPlus.nonUniformQuantization(dataSample, b)
-
-        //
-        // TODO
-        // data.forEach(
-        // kltMatrix.multiply(data[it])
-        // getMarks -->
-        // signature INT
-        //
-
-
-        val castMap = this.map as HTreeMap<Int, LongArray>
-        localMap.forEach { (bucket, l) -> castMap[bucket] = l.toLongArray() }
+        val (marks, signature) = vaPlus.nonUniformQuantization(dataSample, b)
+        val kltMatrixBar = kltMatrix.transpose()
+        data.forEach {
+            val doubleArray = vaPlus.convertToDoubleArray(it[this.columns[0]] as VectorValue<*>) // TODO clean
+            val dataMatrix = MatrixUtils.createRealMatrix(arrayOf(doubleArray))
+            val vector = kltMatrixBar.multiply(dataMatrix.transpose()).getColumnVector(0).toArray()
+            this.signatures.add(VAPlusSignature(it.tupleId, vaPlus.getSignature(vector, marks)))
+        }
+        val meta = VAPlusMeta(marks as Array<List<Double>>, kltMatrix)
+        this.meta.set(meta)
         this.db.commit()
     }
 
