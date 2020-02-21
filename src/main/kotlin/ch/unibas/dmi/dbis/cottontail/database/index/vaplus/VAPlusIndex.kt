@@ -24,6 +24,7 @@ import org.mapdb.DBMaker
 import org.slf4j.LoggerFactory
 import java.nio.file.Path
 import kotlin.math.sign
+import kotlin.math.sqrt
 
 /**
  * Represents a VAF based index in the Cottontail DB data model. An [Index] belongs to an [Entity] and can be used to
@@ -94,16 +95,25 @@ class VAPlusIndex(override val name: Name, override val parent: Entity, override
         /* Generate record set .*/
         val meta = this.meta.get()
 
+        // TODO
         for (i in predicate.query.indices) {
             val query = predicate.query[i]
-            val knn = HeapSelect<ComparablePair<Long, Double>>(castPredicate.k)
             val dataMatrix = MatrixUtils.createRealMatrix(arrayOf(vaPlus.convertToDoubleArray(query)))
             val vector = meta.kltMatrix.multiply(dataMatrix.transpose()).getColumnVector(0).toArray()
 
+            // init Candidates
+            val candidates = IntArray(castPredicate.k) { Int.MAX_VALUE }
+            var d = Int.MAX_VALUE
+
             val bounds = vaPlus.computeBounds(vector, meta.marks)
-            //val (lbIndex, lbBounds) = vaPlus.compressBounds(bounds.first)
-            //val (ubIndex, ubBounds) = vaPlus.compressBounds(bounds.second)
-            // TODO
+            val (lbIndex, lbBounds) = vaPlus.compressBounds(bounds.first)
+            val (ubIndex, ubBounds) = vaPlus.compressBounds(bounds.second)
+            val li = sqrt(lbBounds.sum())
+            val ui = sqrt(ubBounds.sum())
+
+            signatures.forEach {
+
+            }
         }
 
         recordset

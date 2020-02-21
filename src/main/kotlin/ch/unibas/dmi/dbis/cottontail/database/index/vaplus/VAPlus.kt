@@ -189,34 +189,29 @@ class VAPlus : Serializable {
 
     /* Querying */
     /**
-     * This method compuates bounds.
+     * This method computes bounds.
      */
     fun computeBounds(vector: DoubleArray, marks: Array<DoubleArray>): Pair<Array<DoubleArray>, Array<DoubleArray>> {
         val lbounds = Array(marks.size) { DoubleArray(maxOf(0, marks[it].size - 1)) }
         val ubounds = Array(marks.size) { DoubleArray(maxOf(0, marks[it].size - 1)) }
-        var i = 0
-        while (i < marks.size) {
+        for (i in marks.indices) {
             val dimMarks = marks[i]
             val fvi = vector[i]
-            var j = 0
-            val it = dimMarks.iterator() // TODO sliding(2).withPartial(false)
-            while (it.hasNext()) {
-                val dimMark = it.next()
-                //val d0fv1 = w * abs(dimMark[0] - fvi).pow(n) // TODO distance.element(dimMark(0), fvi)
-                //val d1fv1 = w * abs(dimMark[1] - fvi).pow(n) // TODO distance.element(dimMark(1), fvi)
-                //if (fvi < dimMark[0]) {
-                //    lbounds[i][j] = d0fv1
-                //} else if (fvi > dimMark[1]) {
-                //    lbounds[i][j] = d1fv1
-                //}
-                //if (fvi <= (dimMark[0] + dimMark[1]) / 2.toFloat()) {
-                //    ubounds[i][j] = d1fv1
-                //} else {
-                //    ubounds[i][j] = d0fv1
-                //}
-                j += 1
+            dimMarks.asSequence().windowed(size = 2, partialWindows = false).forEachIndexed { j, it ->
+                val weights = 1
+                val d0fv1 = weights * abs(it[0] - fvi).pow(2) // TODO parametrize weights and n
+                val d1fv1 = weights * abs(it[1] - fvi).pow(2)
+                if (fvi < it[0]) {
+                    lbounds[i][j] = d0fv1
+                } else if (fvi > it[1]) {
+                    lbounds[i][j] = d1fv1
+                }
+                if (fvi <= (it[0] + it[1]) / 2.toFloat()) {
+                    ubounds[i][j] = d1fv1
+                } else {
+                    ubounds[i][j] = d0fv1
+                }
             }
-            i += 1
         }
         return Pair(lbounds, ubounds)
     }
@@ -224,7 +219,7 @@ class VAPlus : Serializable {
     /**
      * This method compresses bounds.
      */
-    fun compressBounds(bounds: Array<DoubleArray>): Pair<IntArray, FloatArray>? {
+    fun compressBounds(bounds: Array<DoubleArray>): Pair<IntArray, FloatArray> {
         val lengths = bounds.map { it.size }
         val totalLength = lengths.sum()
         val cumLengths = {
@@ -246,20 +241,17 @@ class VAPlus : Serializable {
             while (i < lengths.size) {
                 j = 0
                 while (j < lengths[i]) {
-                    //newBoundsTmp[cumLengths[i] + j] = bounds[i][j].toFloat() // TODO
+                    newBoundsTmp[cumLengths()[i] + j] = bounds[i][j].toFloat()
                     j += 1
                 }
                 i += 1
             }
             newBoundsTmp
         }
-        return null // TODO Pair(cumLengths, newBounds)
+        return Pair(cumLengths(), newBounds())
     }
 
     fun scan(query: FloatArray, marks: Array<List<Double>>) {
-        //val bounds = computeBounds(query, marks)
-        //val (lbIndex, lbBounds) = compressBounds(bounds.first)
-        //val (ubIndex, ubBounds) = compressBounds(bounds.second)
         /**
         val cellsDistUDF = (boundsIndexBc: Broadcast[CompressedBoundIndex], boundsBoundsBc: Broadcast[CompressedBoundBounds]) => udf((cells: Seq[Short]) => {
         var bound: Distance = 0
@@ -308,8 +300,7 @@ class VAPlus : Serializable {
         } else {
         localRes.toDF()
         }
-        res
-         */
+        res*/
     }
 
 }
