@@ -1,5 +1,6 @@
 package ch.unibas.dmi.dbis.cottontail.database.index.vaplus
 
+import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
 import ch.unibas.dmi.dbis.cottontail.model.values.VectorValue
@@ -32,15 +33,15 @@ class VAPlus : Serializable {
     /**
      * This method generates a sample subset from the data.
      *
-     * @param data  A [Recordset] containing all data.
+     * @param tx  An [Entity] containing all data.
      * @param size  The size of the data sample.
      * @return  An subset from data.
      */
-    fun getDataSample(data: Recordset, column: ColumnDef<*>, size: Int): Array<DoubleArray> {
-        val p = size / data.rowCount.toDouble()
+    fun getDataSample(tx: Entity.Tx, column: ColumnDef<*>, size: Int): Array<DoubleArray> {
+        val p = size / tx.count().toDouble()
         val dataSample = ArrayList<DoubleArray>(size + 100)
         val random = SplittableRandom(System.currentTimeMillis())
-        data.map {
+        tx.forEach {
             if (random.nextDouble() >= 1.0 - p) {
                 dataSample.add(convertToDoubleArray(it[column] as VectorValue<*>))
             }

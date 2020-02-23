@@ -20,7 +20,7 @@ object VAPlusMetaSerializer : Serializer<VAPlusMeta> {
         }
         out.packInt(value.signatureGenerator.numberOfBitsPerDimension.size)
         for (bits in value.signatureGenerator.numberOfBitsPerDimension) {
-            out.packInt(bits)
+            out.writeInt(bits)
         }
         out.packInt(value.kltMatrix.data.size)
         for (kltM in value.kltMatrix.data) {
@@ -32,16 +32,16 @@ object VAPlusMetaSerializer : Serializer<VAPlusMeta> {
     }
 
     override fun deserialize(input: DataInput2, available: Int): VAPlusMeta {
-        val marks = Array(input.readInt()) {
-            DoubleArray(input.readInt()) {
+        val marks = Array(input.unpackInt()) {
+            DoubleArray(input.unpackInt()) {
                 input.readDouble()
             }
         }
-        val signatureGenerator = IntArray(input.readInt()) {
+        val signatureGenerator = IntArray(input.unpackInt()) {
             input.readInt()
         }
-        val kltMatrix = Array(input.readInt()) {
-            DoubleArray(input.readInt()) {
+        val kltMatrix = Array(input.unpackInt()) {
+            DoubleArray(input.unpackInt()) {
                 input.readDouble()
             }
         }

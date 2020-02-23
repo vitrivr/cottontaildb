@@ -15,6 +15,7 @@ import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.basics.Record
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
+import ch.unibas.dmi.dbis.cottontail.model.values.DoubleValue
 import ch.unibas.dmi.dbis.cottontail.model.values.VectorValue
 import ch.unibas.dmi.dbis.cottontail.utilities.extensions.write
 import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
@@ -23,8 +24,6 @@ import org.mapdb.Atomic
 import org.mapdb.DBMaker
 import org.slf4j.LoggerFactory
 import java.nio.file.Path
-import kotlin.math.sign
-import kotlin.math.sqrt
 
 /**
  * Represents a VAF based index in the Cottontail DB data model. An [Index] belongs to an [Entity] and can be used to
@@ -87,35 +86,78 @@ class VAPlusIndex(override val name: Name, override val parent: Entity, override
 
         /* Create empty recordset. */
         val recordset = Recordset(this.produces)
-        val castPredicate = predicate as KnnPredicate<*>
 
         /* VAPlus. */
         val vaPlus = VAPlus()
 
-        /* Generate record set .*/
+        /* Extract meta record with all the helper classes. .*/
         val meta = this.meta.get()
 
-        // TODO
-        for (i in predicate.query.indices) {
-            val query = predicate.query[i]
-            val dataMatrix = MatrixUtils.createRealMatrix(arrayOf(vaPlus.convertToDoubleArray(query)))
-            val vector = meta.kltMatrix.multiply(dataMatrix.transpose()).getColumnVector(0).toArray()
+        /* Prepare HeapSelect data structures for Phase 1KNN query.*/
+        val heapsP1 = Array<HeapSelect<ComparablePair<Pair<Long, Double>, Double>>>(predicate.query.size) {
+            HeapSelect(5 * predicate.k)
+        }
 
-            // init Candidates
-            val candidates = IntArray(castPredicate.k) { Int.MAX_VALUE }
-            var d = Int.MAX_VALUE
+        /* Prepare HeapSelect data structures for Phase 2 of KNN query.*/
+        val heapsP2 = Array<HeapSelect<ComparablePair<Long, Double>>>(predicate.query.size) {
+            HeapSelect(predicate.k)
+        }
+
+        /* Prepare empty IntArray for bounds estimation. */
+        val d = IntArray(predicate.query.size) {
+            Int.MAX_VALUE
+        }
+
+        /* Calculate the relevant bounds per query. */
+        val queryBounds = predicate.query.map {
+            /* Transform into KLT domain. */
+            val dataMatrix = MatrixUtils.createRealMatrix(arrayOf(vaPlus.convertToDoubleArray(it)))
+            val vector = meta.kltMatrix.multiply(dataMatrix.transpose()).getColumnVector(0).toArray()
 
             val bounds = vaPlus.computeBounds(vector, meta.marks)
             val (lbIndex, lbBounds) = vaPlus.compressBounds(bounds.first)
             val (ubIndex, ubBounds) = vaPlus.compressBounds(bounds.second)
-            val li = sqrt(lbBounds.sum())
-            val ui = sqrt(ubBounds.sum())
 
-            signatures.forEach {
+            Pair(Pair(lbIndex, lbBounds), Pair(ubIndex, ubBounds))
+        }
 
+        /* Phase 1: Iterate over signatures, re-construct cells and calculate lower and upper bound. */
+        this.signatures.forEach {
+            queryBounds.forEachIndexed { i, query ->
+                //val cells = meta.signatureGenerator.toCells(it!!.signature.toString())
+                val cells = it!!.signature
+                val lb = this.calculateBounds(cells, query.first.second, query.first.first)
+                val ub = this.calculateBounds(cells, query.second.second, query.second.first)
+                if (heapsP1[i].size < heapsP1[i].k) {
+                    heapsP1[i].add(ComparablePair(Pair(it.tupleId, ub.toDouble()), lb.toDouble()))
+                } else if (lb < heapsP1[i][heapsP1[i].k - 1].first.second) {
+                    heapsP1[i].add(ComparablePair(Pair(it.tupleId, ub.toDouble()), lb.toDouble()))
+                }
             }
         }
 
+        /* Phase 2: Iterate over filtered list to calculate final results. */
+        heapsP1.forEachIndexed { i, it ->
+            (0 until it.size).forEach { j ->
+                if (heapsP2[i].size < heapsP2[i].k) {
+                    val vector = tx.read(it[j].first.first)[predicate.column]
+                    heapsP2[i].add(ComparablePair(it[j].first.first, (predicate as KnnPredicate<Any>).distance(predicate.query[i], vector as VectorValue<Any>)))
+                } else {
+                    if (it[j].second < heapsP2[i][heapsP2[i].k - 1].second) { // TODO
+                        return@forEach
+                    }
+                    val vector = tx.read(it[j].first.first)[predicate.column]
+                    heapsP2[i].add(ComparablePair(it[j].first.first, (predicate as KnnPredicate<Any>).distance(predicate.query[i], vector as VectorValue<Any>)))
+                }
+            }
+        }
+
+        /* Add results to recordset. */
+        for (heap in heapsP2) {
+            for (j in 0 until heap.size) {
+                recordset.addRowUnsafe(heap[j].first, arrayOf(DoubleValue(heap[j].second)))
+            }
+        }
         recordset
     } else {
         throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (vaf-index) does not support predicates of type '${predicate::class.simpleName}'.")
@@ -142,7 +184,7 @@ class VAPlusIndex(override val name: Name, override val parent: Entity, override
      */
     override fun cost(predicate: Predicate): Float = when {
         predicate !is KnnPredicate<*> || predicate.columns.first() != this.columns[0] -> Float.MAX_VALUE
-        else -> 1f // TODO
+        else -> Float.MIN_VALUE // 1f
     }
 
     /**
@@ -167,30 +209,50 @@ class VAPlusIndex(override val name: Name, override val parent: Entity, override
         val minimumNumberOfTuples = 1000
         val dimension = this.columns[0].size
 
-        /* (Re-)create index entries. */
-        val data = tx.readAll()
         // VA-file get data sample
-        val dataSampleTmp = vaPlus.getDataSample(data, this.columns[0], maxOf(trainingSize, minimumNumberOfTuples))
+        val dataSampleTmp = vaPlus.getDataSample(tx, this.columns[0], maxOf(trainingSize, minimumNumberOfTuples))
+
         // VA-file in KLT domain
         val (dataSample, kltMatrix) = vaPlus.transformToKLTDomain(dataSampleTmp)
+
         // Non-uniform bit allocation
         val b = vaPlus.nonUniformBitAllocation(dataSample, dimension * 2)
         val signatureGenerator = SignatureGenerator(b)
+
         // Non-uniform quantization
         val marks = vaPlus.nonUniformQuantization(dataSample, b)
+
         // Indexing
         val kltMatrixBar = kltMatrix.transpose()
-        data.forEach {
+        tx.forEach {
             val doubleArray = vaPlus.convertToDoubleArray(it[this.columns[0]] as VectorValue<*>)
             val dataMatrix = MatrixUtils.createRealMatrix(arrayOf(doubleArray))
             val vector = kltMatrixBar.multiply(dataMatrix.transpose()).getColumnVector(0).toArray()
-            val signature = signatureGenerator.toSignature(vaPlus.getCells(vector, marks))
+            //val signature = signatureGenerator.toSignature(vaPlus.getCells(vector, marks))
+            val signature = vaPlus.getCells(vector, marks)
             this.signatures.add(VAPlusSignature(it.tupleId, signature))
         }
         val meta = VAPlusMeta(marks, signatureGenerator, kltMatrix)
         this.meta.set(meta)
         this.db.commit()
     }
+
+
+    /**
+     * Calculates bound for given signature.
+     *
+     * @param cells Signature for the vector from the collection.
+     * @param bounds Vector containing bounds for query vector.
+     * @param boundsIndex Vector containing indexes for bounds of query vector.
+     */
+    private fun calculateBounds(cells: IntArray, bounds: FloatArray, boundsIndex: IntArray) = cells.mapIndexed { i, it ->
+        val cellsIdx = if (it < 0) {
+            ((Short.MAX_VALUE + 1) * 2 + it).toShort().toInt()
+        } else {
+            it
+        }
+        bounds[boundsIndex[i] + cellsIdx]
+    }.sum()
 
     /**
      * Updates the [VAPlusIndex] with the provided [Record]. This method determines, whether the [Record] should be added or updated
