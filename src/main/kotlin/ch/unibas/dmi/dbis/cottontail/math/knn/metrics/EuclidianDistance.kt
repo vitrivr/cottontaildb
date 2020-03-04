@@ -9,7 +9,8 @@ import kotlin.math.sqrt
  * @version 1.0
  * @author Ralph Gasser
  */
-object EuclidianDistance : DistanceKernel {
+object EuclidianDistance : MinkowskiDistance {
+    override val p: Int = 2
     override val cost: Double
         get() = 1.0
 

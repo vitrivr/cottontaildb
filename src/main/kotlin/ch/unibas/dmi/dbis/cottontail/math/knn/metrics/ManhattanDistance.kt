@@ -12,7 +12,8 @@ import kotlin.math.sqrt
  * @version 1.0
  * @author Ralph Gasser
  */
-object ManhattanDistance : DistanceKernel {
+object ManhattanDistance : MinkowskiDistance {
+    override val p: Int = 1
     override val cost: Double
         get() = 1.0
 
