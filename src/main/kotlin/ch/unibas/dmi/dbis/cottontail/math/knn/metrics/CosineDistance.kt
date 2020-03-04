@@ -24,7 +24,7 @@ object CosineDistance : DistanceKernel {
     override operator fun invoke(a: VectorValue<*>, b: VectorValue<*>): Double {
         val dot = (a * b).sum()
         val c = a.pow(2).sum()
-        val d = a.pow(2).sum()
+        val d = b.pow(2).sum()
         val div = sqrt(c) * sqrt(d)
         return if (div < 1e-6 || div.isNaN()) {
             1.0
@@ -45,7 +45,7 @@ object CosineDistance : DistanceKernel {
     override operator fun invoke(a: VectorValue<*>, b: VectorValue<*>, weights: VectorValue<*>): Double {
         val dot = (a * b).timesInPlace(weights).sum()
         val c = a.pow(2).timesInPlace(weights).sum()
-        val d = a.pow(2).timesInPlace(weights).sum()
+        val d = b.pow(2).timesInPlace(weights).sum()
         val div = sqrt(c) * sqrt(d)
         return if (div < 1e-6 || div.isNaN()) {
             1.0
