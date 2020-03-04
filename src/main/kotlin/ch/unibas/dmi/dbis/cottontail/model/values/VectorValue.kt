@@ -1,5 +1,7 @@
 package ch.unibas.dmi.dbis.cottontail.model.values
 
+import java.util.*
+
 /**
  * This is an abstraction over the existing primitive array types provided by Kotlin. It allows for the advanced type
  * system implemented by Cottontail DB.
@@ -78,39 +80,51 @@ interface VectorValue<T> : Value<T> {
     val indices: IntRange
 
     /**
-     * Creates and returns a copy of this [VectorValue].
+     * Creates and returns an exact copy of this [VectorValue].
      *
      * @return Exact copy of this [VectorValue].
      */
     fun copy(): VectorValue<T>
 
-    operator fun plus(other: VectorValue<*>): VectorValue<T>
-    operator fun minus(other: VectorValue<*>): VectorValue<T>
-    operator fun times(other: VectorValue<*>): VectorValue<T>
-    operator fun div(other: VectorValue<*>): VectorValue<T>
+    /**
+     * Populates this [VectorValue] with random numbers
+     *
+     * @return This [VectorValue].
+     */
+    fun random(random: SplittableRandom = SplittableRandom(System.currentTimeMillis())): VectorValue<T> = copy().randomInPlace(random)
+    fun randomInPlace(random: SplittableRandom = SplittableRandom(System.currentTimeMillis())): VectorValue<T>
+
+    operator fun plus(other: VectorValue<*>): VectorValue<T> = this.copy().plusInPlace(other)
+    operator fun minus(other: VectorValue<*>): VectorValue<T> = this.copy().minusInPlace(other)
+    operator fun times(other: VectorValue<*>): VectorValue<T> = this.copy().timesInPlace(other)
+    operator fun div(other: VectorValue<*>): VectorValue<T> = this.copy().divInPlace(other)
 
     fun plusInPlace(other: VectorValue<*>): VectorValue<T>
     fun minusInPlace(other: VectorValue<*>): VectorValue<T>
     fun timesInPlace(other: VectorValue<*>): VectorValue<T>
     fun divInPlace(other: VectorValue<*>): VectorValue<T>
 
-    operator fun plus(other: Number): VectorValue<T>
-    operator fun minus(other: Number): VectorValue<T>
-    operator fun times(other: Number): VectorValue<T>
-    operator fun div(other: Number): VectorValue<T>
+    operator fun plus(other: Number): VectorValue<T> = this.copy().plusInPlace(other)
+    operator fun minus(other: Number): VectorValue<T> = this.copy().minusInPlace(other)
+    operator fun times(other: Number): VectorValue<T> = this.copy().timesInPlace(other)
+    operator fun div(other: Number): VectorValue<T> = this.copy().divInPlace(other)
 
-    fun pow (x: Int): VectorValue<T>
+    fun plusInPlace(other: Number): VectorValue<T>
+    fun minusInPlace(other: Number): VectorValue<T>
+    fun timesInPlace(other: Number): VectorValue<T>
+    fun divInPlace(other: Number): VectorValue<T>
+
+    fun pow (x: Int): VectorValue<T> = this.copy().powInPlace(x)
     fun powInPlace(x: Int): VectorValue<T>
 
-    fun sqrt(): VectorValue<T>
+    fun sqrt(): VectorValue<T> = this.copy().sqrtInPlace()
     fun sqrtInPlace():VectorValue<T>
 
-    fun abs(): VectorValue<T>
+    fun abs(): VectorValue<T> = this.copy().absInPlace()
     fun absInPlace(): VectorValue<T>
 
     fun componentsEqual(other: VectorValue<*>): VectorValue<T>
 
     fun sum(): Double
-
 
 }

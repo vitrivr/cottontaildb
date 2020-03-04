@@ -75,47 +75,59 @@ inline class DoubleVectorValue(override val value: DoubleArray) : VectorValue<Do
      */
     override fun copy(): DoubleVectorValue = DoubleVectorValue(this.value.copyOf(this.size))
 
-    override operator fun plus(other: VectorValue<*>): VectorValue<DoubleArray> = DoubleVectorValue(DoubleArray(this.size) { this.value[it] + other.getAsDouble(it) })
-    override operator fun minus(other: VectorValue<*>): VectorValue<DoubleArray> = DoubleVectorValue(DoubleArray(this.size) { this.value[it] - other.getAsDouble(it) })
-    override operator fun times(other: VectorValue<*>): VectorValue<DoubleArray> = DoubleVectorValue(DoubleArray(this.size) { this.value[it] * other.getAsDouble(it) })
-    override operator fun div(other: VectorValue<*>): VectorValue<DoubleArray> = DoubleVectorValue(DoubleArray(this.size) { this.value[it] / other.getAsDouble(it) })
+    override fun randomInPlace(random: SplittableRandom): DoubleVectorValue {
+        Arrays.setAll(this.value) { Double.fromBits(random.nextLong()) }
+        return this
+    }
 
-    override fun plusInPlace(other: VectorValue<*>): VectorValue<DoubleArray> {
+    override fun plusInPlace(other: VectorValue<*>): DoubleVectorValue {
         Arrays.setAll(this.value) { this.value[it] + other.getAsDouble(it) }
         return this
     }
-    override fun minusInPlace(other: VectorValue<*>): VectorValue<DoubleArray> {
+    override fun minusInPlace(other: VectorValue<*>): DoubleVectorValue {
         Arrays.setAll(this.value) { this.value[it] - other.getAsDouble(it) }
         return this
     }
-    override fun timesInPlace(other: VectorValue<*>): VectorValue<DoubleArray> {
+    override fun timesInPlace(other: VectorValue<*>): DoubleVectorValue {
         Arrays.setAll(this.value) { this.value[it] * other.getAsDouble(it) }
         return this
     }
-    override fun divInPlace(other: VectorValue<*>): VectorValue<DoubleArray> {
+    override fun divInPlace(other: VectorValue<*>): DoubleVectorValue {
         Arrays.setAll(this.value) { this.value[it] / other.getAsDouble(it) }
         return this
     }
 
-    override operator fun plus(other: Number): VectorValue<DoubleArray> = DoubleVectorValue(DoubleArray(this.size) { this.value[it] + other.toDouble() })
-    override operator fun minus(other: Number): VectorValue<DoubleArray> = DoubleVectorValue(DoubleArray(this.size) { this.value[it] - other.toDouble() })
-    override operator fun times(other: Number): VectorValue<DoubleArray> = DoubleVectorValue(DoubleArray(this.size) { this.value[it] * other.toDouble() })
-    override operator fun div(other: Number): VectorValue<DoubleArray> = DoubleVectorValue(DoubleArray(this.size) { this.value[it] / other.toDouble() })
+    override fun plusInPlace(other: Number): DoubleVectorValue {
+        Arrays.setAll(this.value) { this.value[it] + other.toDouble() }
+        return this
+    }
 
-    override fun pow(x: Int): VectorValue<DoubleArray> = DoubleVectorValue(DoubleArray(this.size) { this.value[it].pow(x) })
+    override fun minusInPlace(other: Number): DoubleVectorValue {
+        Arrays.setAll(this.value) { this.value[it] - other.toDouble() }
+        return this
+    }
+
+    override fun timesInPlace(other: Number): DoubleVectorValue {
+        Arrays.setAll(this.value) { this.value[it] * other.toDouble() }
+        return this
+    }
+
+    override fun divInPlace(other: Number): DoubleVectorValue {
+        Arrays.setAll(this.value) { this.value[it] / other.toDouble() }
+        return this
+    }
+
     override fun powInPlace(x: Int): DoubleVectorValue {
         Arrays.setAll(this.value) { this.value[it].pow(x) }
         return this
     }
 
-    override fun sqrt(): VectorValue<DoubleArray> = DoubleVectorValue(DoubleArray(this.size) { kotlin.math.sqrt(this.value[it]) })
-    override fun sqrtInPlace(): VectorValue<DoubleArray> {
+    override fun sqrtInPlace(): DoubleVectorValue {
         Arrays.setAll(this.value) { kotlin.math.sqrt(this.value[it]) }
         return this
     }
 
-    override fun abs(): VectorValue<DoubleArray> = DoubleVectorValue(DoubleArray(this.size) { kotlin.math.abs(this.value[it]) })
-    override fun absInPlace(): VectorValue<DoubleArray> {
+    override fun absInPlace(): DoubleVectorValue {
         Arrays.setAll(this.value) { kotlin.math.abs(this.value[it]) }
         return this
     }
@@ -123,4 +135,5 @@ inline class DoubleVectorValue(override val value: DoubleArray) : VectorValue<Do
     override fun componentsEqual(other: VectorValue<*>): VectorValue<DoubleArray> = DoubleVectorValue(DoubleArray(this.value.size) { if (this.value[it] == other.getAsDouble(it)) { 1.0 } else { 0.0 } })
 
     override fun sum(): Double = this.value.sum()
+
 }

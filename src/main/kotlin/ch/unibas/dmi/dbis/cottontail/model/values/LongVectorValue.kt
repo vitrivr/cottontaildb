@@ -76,53 +76,64 @@ inline class LongVectorValue(override val value: LongArray) : VectorValue<LongAr
      * @return Exact copy of this [LongVectorValue].
      */
     override fun copy(): LongVectorValue = LongVectorValue(this.value.copyOf(this.size))
+    override fun randomInPlace(random: SplittableRandom): LongVectorValue {
+        Arrays.setAll(this.value) { random.nextLong() }
+        return this
+    }
 
-    override operator fun plus(other: VectorValue<*>): VectorValue<LongArray> = LongVectorValue(LongArray(this.size) { this.value[it] + other.getAsLong(it) })
-    override operator fun minus(other: VectorValue<*>): VectorValue<LongArray> = LongVectorValue(LongArray(this.size) { this.value[it] - other.getAsLong(it) })
-    override operator fun times(other: VectorValue<*>): VectorValue<LongArray> = LongVectorValue(LongArray(this.size) { this.value[it] * other.getAsLong(it) })
-    override operator fun div(other: VectorValue<*>): VectorValue<LongArray> = LongVectorValue(LongArray(this.size) { this.value[it] / other.getAsLong(it) })
-
-    override fun plusInPlace(other: VectorValue<*>): VectorValue<LongArray> {
+    override fun plusInPlace(other: VectorValue<*>): LongVectorValue {
         Arrays.setAll(this.value) { this.value[it] + other.getAsLong(it) }
         return this
     }
-    override fun minusInPlace(other: VectorValue<*>): VectorValue<LongArray> {
+    override fun minusInPlace(other: VectorValue<*>): LongVectorValue {
         Arrays.setAll(this.value) { this.value[it] - other.getAsLong(it) }
         return this
     }
-    override fun timesInPlace(other: VectorValue<*>): VectorValue<LongArray> {
+    override fun timesInPlace(other: VectorValue<*>): LongVectorValue {
         Arrays.setAll(this.value) { this.value[it] * other.getAsLong(it) }
         return this
     }
-    override fun divInPlace(other: VectorValue<*>): VectorValue<LongArray> {
+    override fun divInPlace(other: VectorValue<*>): LongVectorValue {
         Arrays.setAll(this.value) { this.value[it] / other.getAsLong(it) }
         return this
     }
 
-    override operator fun plus(other: Number): VectorValue<LongArray> = LongVectorValue(LongArray(this.size) { this.value[it] + other.toLong() })
-    override operator fun minus(other: Number): VectorValue<LongArray> = LongVectorValue(LongArray(this.size) { this.value[it] - other.toLong() })
-    override operator fun times(other: Number): VectorValue<LongArray> = LongVectorValue(LongArray(this.size) { this.value[it] * other.toLong() })
-    override operator fun div(other: Number): VectorValue<LongArray> = LongVectorValue(LongArray(this.size) { this.value[it] / other.toLong() })
+    override fun plusInPlace(other: Number): LongVectorValue {
+        Arrays.setAll(this.value) { this.value[it] + other.toLong() }
+        return this
+    }
 
-    override fun pow(x: Int): VectorValue<LongArray> = LongVectorValue(LongArray(this.size) { this.value[it].toDouble().pow(x).toLong() })
+    override fun minusInPlace(other: Number): LongVectorValue {
+        Arrays.setAll(this.value) { this.value[it] - other.toLong() }
+        return this
+    }
+
+    override fun timesInPlace(other: Number): LongVectorValue {
+        Arrays.setAll(this.value) { this.value[it] * other.toLong() }
+        return this
+    }
+
+    override fun divInPlace(other: Number): LongVectorValue {
+        Arrays.setAll(this.value) { this.value[it] / other.toLong() }
+        return this
+    }
+
     override fun powInPlace(x: Int): LongVectorValue {
         Arrays.setAll(this.value) { this.value[it].toDouble().pow(x).toLong() }
         return this
     }
 
-    override fun sqrt(): VectorValue<LongArray> = LongVectorValue(LongArray(this.size) { kotlin.math.sqrt(this.value[it].toDouble()).toLong() })
     override fun sqrtInPlace(): VectorValue<LongArray> {
         Arrays.setAll(this.value) { kotlin.math.sqrt(this.value[it].toDouble()).toLong() }
         return this
     }
 
-    override fun abs(): VectorValue<LongArray> = LongVectorValue(LongArray(this.size) { kotlin.math.abs(this.value[it]) })
     override fun absInPlace(): VectorValue<LongArray> {
         Arrays.setAll(this.value) { kotlin.math.abs(this.value[it]) }
         return this
     }
 
-    override fun componentsEqual(other: VectorValue<*>): VectorValue<LongArray> = LongVectorValue(LongArray(this.value.size) { if (this.value[it] == other.getAsLong(it)) { 1L } else { 0L } })
+    override fun componentsEqual(other: VectorValue<*>): LongVectorValue = LongVectorValue(LongArray(this.value.size) { if (this.value[it] == other.getAsLong(it)) { 1L } else { 0L } })
 
     override fun sum(): Double = this.value.sum().toDouble()
 }

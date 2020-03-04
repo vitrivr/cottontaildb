@@ -77,52 +77,67 @@ inline class FloatVectorValue(override val value: FloatArray) : VectorValue<Floa
      */
     override fun copy(): FloatVectorValue = FloatVectorValue(this.value.copyOf(this.size))
 
-    override operator fun plus(other: VectorValue<*>): VectorValue<FloatArray> = FloatVectorValue(FloatArray(this.size) { this.value[it] + other.getAsFloat(it) })
-    override operator fun minus(other: VectorValue<*>): VectorValue<FloatArray> = FloatVectorValue(FloatArray(this.size) { this.value[it] - other.getAsFloat(it) })
-    override operator fun times(other: VectorValue<*>): VectorValue<FloatArray> = FloatVectorValue(FloatArray(this.size) { this.value[it] * other.getAsFloat(it) })
-    override operator fun div(other: VectorValue<*>): VectorValue<FloatArray> = FloatVectorValue(FloatArray(this.size) { this.value[it] / other.getAsFloat(it) })
+    override fun randomInPlace(random: SplittableRandom): FloatVectorValue {
+        this.value.indices.forEach { this.value[it] = Float.fromBits(random.nextInt()) }
+        return this
+    }
 
-    override fun plusInPlace(other: VectorValue<*>): VectorValue<FloatArray> {
+    override fun plusInPlace(other: VectorValue<*>): FloatVectorValue {
         this.value.indices.forEach {this.value[it] += other.getAsFloat(it) }
         return this
     }
-    override fun minusInPlace(other: VectorValue<*>): VectorValue<FloatArray> {
+
+    override fun minusInPlace(other: VectorValue<*>): FloatVectorValue {
         this.value.indices.forEach {this.value[it] -= other.getAsFloat(it) }
         return this
     }
-    override fun timesInPlace(other: VectorValue<*>): VectorValue<FloatArray> {
+
+    override fun timesInPlace(other: VectorValue<*>): FloatVectorValue {
         this.value.indices.forEach {this.value[it] *= other.getAsFloat(it) }
         return this
     }
-    override fun divInPlace(other: VectorValue<*>): VectorValue<FloatArray> {
+
+    override fun divInPlace(other: VectorValue<*>): FloatVectorValue {
         this.value.indices.forEach {this.value[it] /= other.getAsFloat(it) }
         return this
     }
 
-    override operator fun plus(other: Number): VectorValue<FloatArray> = FloatVectorValue(FloatArray(this.size) { this.value[it] + other.toFloat() })
-    override operator fun minus(other: Number): VectorValue<FloatArray> = FloatVectorValue(FloatArray(this.size) { this.value[it] - other.toFloat() })
-    override operator fun times(other: Number): VectorValue<FloatArray> = FloatVectorValue(FloatArray(this.size) { this.value[it] * other.toFloat() })
-    override operator fun div(other: Number): VectorValue<FloatArray> = FloatVectorValue(FloatArray(this.size) { this.value[it] / other.toFloat() })
+    override fun plusInPlace(other: Number): FloatVectorValue {
+        this.value.indices.forEach {this.value[it] += other.toFloat() }
+        return this
+    }
 
-    override fun pow(x: Int): VectorValue<FloatArray> = FloatVectorValue(FloatArray(this.size) { this.value[it].pow(x) })
+    override fun minusInPlace(other: Number): FloatVectorValue {
+        this.value.indices.forEach {this.value[it] -= other.toFloat() }
+        return this
+    }
+
+    override fun timesInPlace(other: Number): FloatVectorValue {
+        this.value.indices.forEach {this.value[it] *= other.toFloat() }
+        return this
+    }
+
+    override fun divInPlace(other: Number): FloatVectorValue {
+        this.value.indices.forEach {this.value[it] /= other.toFloat() }
+        return this
+    }
+
     override fun powInPlace(x: Int): FloatVectorValue {
         this.value.indices.forEach {this.value[it] = this.value[it].pow(x) }
         return this
     }
 
-    override fun sqrt(): VectorValue<FloatArray> = FloatVectorValue(FloatArray(this.size) { kotlin.math.sqrt(this.value[it]) })
     override fun sqrtInPlace(): VectorValue<FloatArray> {
         this.value.indices.forEach {this.value[it] =  kotlin.math.sqrt(this.value[it]) }
         return this
     }
 
-    override fun abs(): VectorValue<FloatArray> = FloatVectorValue(FloatArray(this.size) { kotlin.math.abs(this.value[it]) })
     override fun absInPlace(): VectorValue<FloatArray> {
         this.value.indices.forEach {this.value[it] = kotlin.math.abs(this.value[it]) }
         return this
     }
 
-    override fun componentsEqual(other: VectorValue<*>): VectorValue<FloatArray> = FloatVectorValue(FloatArray(this.value.size) { if (this.value[it] == other.getAsFloat(it)) { 1.0f } else { 0.0f } })
+    override fun componentsEqual(other: VectorValue<*>): FloatVectorValue = FloatVectorValue(FloatArray(this.value.size) { if (this.value[it] == other.getAsFloat(it)) { 1.0f } else { 0.0f } })
 
     override fun sum(): Double = this.value.sum().toDouble()
 }

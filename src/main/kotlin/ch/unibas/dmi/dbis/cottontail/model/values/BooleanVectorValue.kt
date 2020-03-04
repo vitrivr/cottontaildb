@@ -99,21 +99,9 @@ inline class BooleanVectorValue(override val value: BitSet) : VectorValue<BitSet
      * @return Exact copy of this [BooleanVectorValue].
      */
     override fun copy(): VectorValue<BitSet> = BooleanVectorValue(BitSet(this.size).init { this.value[it] })
-
-    override fun plus(other: VectorValue<*>): VectorValue<BitSet> {
-        throw UnsupportedOperationException("A BooleanVector array cannot be used to perform arithmetic operations!")
-    }
-
-    override fun minus(other: VectorValue<*>): VectorValue<BitSet> {
-        throw UnsupportedOperationException("A BooleanVector array cannot be used to perform arithmetic operations!")
-    }
-
-    override fun times(other: VectorValue<*>): VectorValue<BitSet> {
-        throw UnsupportedOperationException("A BooleanVector array cannot be used to perform arithmetic operations!")
-    }
-
-    override fun div(other: VectorValue<*>): VectorValue<BitSet> {
-        throw UnsupportedOperationException("A BooleanVector array cannot be used to perform arithmetic operations!")
+    override fun randomInPlace(random: SplittableRandom): VectorValue<BitSet> {
+        (0 until this.value.size()).forEach { this.value.set(it, random.nextBoolean()) }
+        return this
     }
 
     override fun plusInPlace(other: VectorValue<*>): VectorValue<BitSet> {
@@ -132,23 +120,19 @@ inline class BooleanVectorValue(override val value: BitSet) : VectorValue<BitSet
         throw UnsupportedOperationException("A BooleanVector array cannot be used to perform arithmetic operations!")
     }
 
-    override fun plus(other: Number): VectorValue<BitSet> {
+    override fun plusInPlace(other: Number): VectorValue<BitSet> {
         throw UnsupportedOperationException("A BooleanVector array cannot be used to perform arithmetic operations!")
     }
 
-    override fun minus(other: Number): VectorValue<BitSet> {
+    override fun minusInPlace(other: Number): VectorValue<BitSet> {
         throw UnsupportedOperationException("A BooleanVector array cannot be used to perform arithmetic operations!")
     }
 
-    override fun times(other: Number): VectorValue<BitSet> {
+    override fun timesInPlace(other: Number): VectorValue<BitSet> {
         throw UnsupportedOperationException("A BooleanVector array cannot be used to perform arithmetic operations!")
     }
 
-    override fun div(other: Number): VectorValue<BitSet> {
-        throw UnsupportedOperationException("A BooleanVector array cannot be used to perform arithmetic operations!")
-    }
-
-    override fun pow(x: Int): VectorValue<BitSet> {
+    override fun divInPlace(other: Number): VectorValue<BitSet> {
         throw UnsupportedOperationException("A BooleanVector array cannot be used to perform arithmetic operations!")
     }
 
@@ -156,15 +140,7 @@ inline class BooleanVectorValue(override val value: BitSet) : VectorValue<BitSet
         throw UnsupportedOperationException("A BooleanVector array cannot be used to perform arithmetic operations!")
     }
 
-    override fun sqrt(): VectorValue<BitSet> {
-        throw UnsupportedOperationException("A BooleanVector array cannot be used to perform arithmetic operations!")
-    }
-
     override fun sqrtInPlace(): VectorValue<BitSet> {
-        throw UnsupportedOperationException("A BooleanVector array cannot be used to perform arithmetic operations!")
-    }
-
-    override fun abs(): VectorValue<BitSet> {
         throw UnsupportedOperationException("A BooleanVector array cannot be used to perform arithmetic operations!")
     }
 
