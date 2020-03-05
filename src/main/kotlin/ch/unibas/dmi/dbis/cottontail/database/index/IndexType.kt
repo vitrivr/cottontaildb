@@ -9,7 +9,7 @@ import ch.unibas.dmi.dbis.cottontail.database.index.vaf.VAFIndex
 import ch.unibas.dmi.dbis.cottontail.math.knn.metrics.CosineDistance
 import ch.unibas.dmi.dbis.cottontail.math.knn.metrics.Distances
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
-import ch.unibas.dmi.dbis.cottontail.model.values.VectorValue
+import ch.unibas.dmi.dbis.cottontail.model.values.types.VectorValue
 import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
 
 enum class IndexType(val inexact: Boolean) {

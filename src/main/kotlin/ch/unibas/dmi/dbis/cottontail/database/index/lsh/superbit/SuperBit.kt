@@ -1,9 +1,10 @@
 package ch.unibas.dmi.dbis.cottontail.database.index.lsh.superbit
 
-import ch.unibas.dmi.dbis.cottontail.model.values.VectorValue
+import ch.unibas.dmi.dbis.cottontail.model.values.*
+import ch.unibas.dmi.dbis.cottontail.model.values.types.NumericValue
+import ch.unibas.dmi.dbis.cottontail.model.values.types.VectorValue
 import java.io.Serializable
 import java.util.*
-import kotlin.math.sqrt
 
 /**
  * Implementation of Super-Bit Locality-Sensitive Hashing.
@@ -63,8 +64,14 @@ class SuperBit(d: Int, N: Int, L: Int, seed: Long, species: VectorValue<*>) : Se
         val random = SplittableRandom(seed)
         val K = N * L
         val v = Array(K) {
-            val rnd = species.random(random = random)
-            rnd.divInPlace(norm(rnd))
+            val rnd = when(species) {
+                is DoubleVectorValue -> DoubleVectorValue.random(species.logicalSize, random)
+                is FloatVectorValue -> FloatVectorValue.random(species.logicalSize, random)
+                is Complex32VectorValue -> Complex32VectorValue.random(species.logicalSize, random)
+                is Complex64VectorValue -> Complex64VectorValue.random(species.logicalSize, random)
+                else -> throw IllegalArgumentException("")
+            } as VectorValue<*>
+            rnd / norm(rnd)
         } // H
 
         val w = Array(K) { species.copy()  }
@@ -75,7 +82,7 @@ class SuperBit(d: Int, N: Int, L: Int, seed: Long, species: VectorValue<*>) : Se
                 for (k in 1 until j) {
                     w[i * N + j - 1] = w[i * N + j - 1] - (w[i * N + k - 1] * dotProduct(w[i * N + k - 1], v[i * N + j - 1]))
                 }
-                w[i * N + j - 1].divInPlace(norm(w[i * N + j - 1]))
+                w[i * N + j - 1] = w[i * N + j - 1] / norm(w[i * N + j - 1])
             }
         }
 
@@ -102,7 +109,7 @@ class SuperBit(d: Int, N: Int, L: Int, seed: Long, species: VectorValue<*>) : Se
      * @param vector
      * @return The norm L2.
      */
-    private fun norm(vector: VectorValue<*>): Double = sqrt(vector.pow(2).sum())
+    private fun norm(vector: VectorValue<*>): NumericValue<*> = (vector.pow(2).sum()).sqrt()
 
     /**
      * Calculate the dot product of two vectors.
@@ -111,5 +118,5 @@ class SuperBit(d: Int, N: Int, L: Int, seed: Long, species: VectorValue<*>) : Se
      * @param vector2
      * @return The dot product.
      */
-    private fun dotProduct(vector1: VectorValue<*>, vector2: VectorValue<*>): Double = vector1.times(vector2).sum()
+    private fun dotProduct(vector1: VectorValue<*>, vector2: VectorValue<*>): NumericValue<*> = (vector1 * vector2).sum()
 }

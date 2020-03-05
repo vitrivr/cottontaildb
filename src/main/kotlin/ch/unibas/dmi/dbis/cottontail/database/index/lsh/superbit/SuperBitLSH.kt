@@ -1,6 +1,6 @@
 package ch.unibas.dmi.dbis.cottontail.database.index.lsh.superbit
 
-import ch.unibas.dmi.dbis.cottontail.model.values.VectorValue
+import ch.unibas.dmi.dbis.cottontail.model.values.types.VectorValue
 import java.io.Serializable
 
 /**

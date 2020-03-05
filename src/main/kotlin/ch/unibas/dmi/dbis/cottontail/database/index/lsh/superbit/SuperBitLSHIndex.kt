@@ -15,7 +15,7 @@ import ch.unibas.dmi.dbis.cottontail.model.basics.Record
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
 import ch.unibas.dmi.dbis.cottontail.model.values.DoubleValue
-import ch.unibas.dmi.dbis.cottontail.model.values.VectorValue
+import ch.unibas.dmi.dbis.cottontail.model.values.types.VectorValue
 import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
 
 /**

@@ -6,7 +6,7 @@ import ch.unibas.dmi.dbis.cottontail.database.index.Index
 import ch.unibas.dmi.dbis.cottontail.database.index.IndexType
 import ch.unibas.dmi.dbis.cottontail.database.schema.Schema
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
-import ch.unibas.dmi.dbis.cottontail.model.values.VectorValue
+import ch.unibas.dmi.dbis.cottontail.model.values.types.VectorValue
 import ch.unibas.dmi.dbis.cottontail.utilities.extensions.write
 import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
 
