@@ -5,5 +5,6 @@ enum class Distances (val kernel: DistanceKernel) {
     L2(EuclidianDistance),
     L2SQUARED(SquaredEuclidianDistance),
     HAMMING(HammingDistance),
-    COSINE(CosineDistance)
+    COSINE(CosineDistance),
+    CHISQUARED(ChisquaredDistance)
 }
