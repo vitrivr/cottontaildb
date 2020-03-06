@@ -3,6 +3,8 @@ package ch.unibas.dmi.dbis.cottontail.model.values
 import ch.unibas.dmi.dbis.cottontail.model.values.types.*
 
 import java.util.*
+import kotlin.math.absoluteValue
+import kotlin.math.pow
 
 /**
  * This is an abstraction over an [Array] and it represents a vector of [Complex64]s.
@@ -153,24 +155,52 @@ inline class Complex64VectorValue(val data:  Array<Complex64Value>) : ComplexVec
     })
 
     override fun sum(): Complex64Value {
-        var real = DoubleValue(0.0)
-        var imaginary = DoubleValue(0.0)
+        var real = 0.0
+        var imaginary = 0.0
         this.indices.forEach {
-            real += this.real(it)
-            imaginary += this.imaginary(it)
+            real += this.real(it).value
+            imaginary += this.imaginary(it).value
         }
         return Complex64Value(real, imaginary)
     }
 
-    override fun distanceL1(other: VectorValue<*>): NumericValue<*> {
-        TODO("Not yet implemented")
+    override fun norm2(): Complex64Value {
+        var sum = Complex64Value(0.0, 0.0)
+        for (i in this.indices) {
+            sum += this[i].pow(2)
+        }
+        return sum.sqrt()
     }
 
-    override fun distanceL2(other: VectorValue<*>): NumericValue<*> {
-        TODO("Not yet implemented")
+    override fun dot(other: VectorValue<*>): Complex64Value {
+        var sum = Complex64Value(0.0, 0.0)
+        for (i in this.indices) {
+            sum += other[i].asComplex64() * this[i]
+        }
+        return sum
     }
 
-    override fun distanceLP(other: VectorValue<*>, p: Int): NumericValue<*> {
-        TODO("Not yet implemented")
+    override fun l1(other: VectorValue<*>): Complex64Value {
+        var sum = Complex64Value(0.0, 0.0)
+        for (i in this.indices) {
+            sum += (other[i].asComplex64() - this[i]).abs()
+        }
+        return sum
+    }
+
+    override fun l2(other: VectorValue<*>): Complex64Value {
+        var sum = Complex64Value(0.0, 0.0)
+        for (i in this.indices) {
+            sum += (other[i].asComplex64() - this[i]).pow(2)
+        }
+        return sum.sqrt()
+    }
+
+    override fun lp(other: VectorValue<*>, p: Int): Complex64Value {
+        var sum = Complex64Value(0.0, 0.0)
+        for (i in this.indices) {
+            sum += (other[i].asComplex64() - this[i]).pow(p)
+        }
+        return sum.pow(1.0/p)
     }
 }

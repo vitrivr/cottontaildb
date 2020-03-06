@@ -21,7 +21,7 @@ object ManhattanDistance : MinkowskiDistance {
      *
      * @return Distance between a and b.
      */
-    override operator fun invoke(a: VectorValue<*>, b: VectorValue<*>): Double = a.distanceL1(b).asDouble().value
+    override operator fun invoke(a: VectorValue<*>, b: VectorValue<*>): Double = (a l1 b).asDouble().value
 
     /**
      * Calculates the weighted L1 distance between two [VectorValue]s.

@@ -21,7 +21,7 @@ object EuclidianDistance : MinkowskiDistance {
      *
      * @return Distance between a and b.
      */
-    override operator fun invoke(a: VectorValue<*>, b: VectorValue<*>): Double = a.distanceL2(b).asDouble().value
+    override operator fun invoke(a: VectorValue<*>, b: VectorValue<*>): Double = (a l2 b).asDouble().value
 
     /**
      * Calculates the weighted L2 distance between two [VectorValue]s.

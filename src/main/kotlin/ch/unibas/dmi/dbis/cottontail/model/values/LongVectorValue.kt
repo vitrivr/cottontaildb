@@ -114,27 +114,43 @@ inline class LongVectorValue(val data: LongArray) : RealVectorValue<Long> {
 
     override fun sum(): LongValue = LongValue(this.data.sum())
 
-    override fun distanceL1(other: VectorValue<*>): NumericValue<*> {
-        var sum = 0L
-        for (i in this.indices) {
-            sum += (this.data[i] - other[i].asLong().value).absoluteValue
-        }
-        return DoubleValue(sum)
-    }
-
-    override fun distanceL2(other: VectorValue<*>): NumericValue<*> {
+    override fun norm2(): DoubleValue {
         var sum = 0.0
         for (i in this.indices) {
-            sum += (this.data[i] - other[i].asInt().value).toDouble().pow(2)
+            sum += this[i].value * this[i].value
         }
         return DoubleValue(kotlin.math.sqrt(sum))
     }
 
-    override fun distanceLP(other: VectorValue<*>, p: Int): NumericValue<*> {
+    override fun dot(other: VectorValue<*>): LongValue {
+        var sum = 0L
+        for (i in this.indices) {
+            sum += other[i].value.toLong() * this[i].value
+        }
+        return LongValue(sum)
+    }
+
+    override fun l1(other: VectorValue<*>): LongValue {
+        var sum = 0L
+        for (i in this.indices) {
+            sum += (other[i].value.toLong() - this[i].value).absoluteValue
+        }
+        return LongValue(sum)
+    }
+
+    override fun l2(other: VectorValue<*>): FloatValue {
         var sum = 0.0
         for (i in this.indices) {
-            sum += (this.data[i] - other[i].asInt().value).toDouble().pow(p)
+            sum += (other[i].value.toDouble() - this[i].value).pow(2)
         }
-        return DoubleValue(sum.pow(1.0/p))
+        return FloatValue(kotlin.math.sqrt(sum))
+    }
+
+    override fun lp(other: VectorValue<*>, p: Int): FloatValue {
+        var sum = 0.0
+        for (i in this.indices) {
+            sum += (other[i].value.toDouble() - this[i].value).pow(p)
+        }
+        return FloatValue(sum.pow(1.0/p))
     }
 }

@@ -20,7 +20,7 @@ object SquaredEuclidianDistance : DistanceKernel {
      *
      * @return Distance between a and b.
      */
-    override operator fun invoke(a: VectorValue<*>, b: VectorValue<*>): Double = a.distanceL2(b).pow(2).asDouble().value
+    override operator fun invoke(a: VectorValue<*>, b: VectorValue<*>): Double = (a l2 b).pow(2).asDouble().value
 
     /**
      * Calculates the weighted, squared L2 distance between two [VectorValue]s.
@@ -31,5 +31,5 @@ object SquaredEuclidianDistance : DistanceKernel {
      *
      * @return Distance between a and b.
      */
-    override operator fun invoke(a: VectorValue<*>, b: VectorValue<*>, weights: VectorValue<*>): Double = ((b-a).pow(2)* weights).sum().value
+    override operator fun invoke(a: VectorValue<*>, b: VectorValue<*>, weights: VectorValue<*>): Double = ((b-a).pow(2)* weights).sum().value.toDouble()
 }

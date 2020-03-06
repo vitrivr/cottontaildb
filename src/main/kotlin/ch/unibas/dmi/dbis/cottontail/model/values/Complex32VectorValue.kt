@@ -153,24 +153,52 @@ inline class Complex32VectorValue(val data: Array<Complex32Value>) : ComplexVect
     })
 
     override fun sum(): Complex32Value {
-        var real = FloatValue(0.0f)
-        var imaginary = FloatValue(0.0f)
+        var real = 0.0f
+        var imaginary = 0.0f
         this.indices.forEach {
-            real += this.real(it)
-            imaginary += this.imaginary(it)
+            real += this.real(it).value
+            imaginary += this.imaginary(it).value
         }
         return Complex32Value(real, imaginary)
     }
 
-    override fun distanceL1(other: VectorValue<*>): NumericValue<*> {
-        TODO("Not yet implemented")
+    override fun norm2(): Complex32Value {
+        var sum = Complex32Value(0.0f, 0.0f)
+        for (i in this.indices) {
+            sum += this[i].pow(2)
+        }
+        return sum.sqrt().asComplex32()
     }
 
-    override fun distanceL2(other: VectorValue<*>): NumericValue<*> {
-        TODO("Not yet implemented")
+    override fun dot(other: VectorValue<*>): Complex32Value {
+        var sum = Complex32Value(0.0f, 0.0f)
+        for (i in this.indices) {
+            sum += other[i].asComplex32() * this[i]
+        }
+        return sum
     }
 
-    override fun distanceLP(other: VectorValue<*>, p: Int): NumericValue<*> {
-        TODO("Not yet implemented")
+    override fun l1(other: VectorValue<*>): Complex32Value {
+        var sum = Complex32Value(0.0f, 0.0f)
+        for (i in this.indices) {
+            sum += (other[i].asComplex32() - this[i]).abs()
+        }
+        return sum
+    }
+
+    override fun l2(other: VectorValue<*>): Complex32Value {
+        var sum = Complex32Value(0.0f, 0.0f)
+        for (i in this.indices) {
+            sum += (other[i].asComplex32() - this[i]).pow(2)
+        }
+        return sum.sqrt().asComplex32()
+    }
+
+    override fun lp(other: VectorValue<*>, p: Int): Complex32Value {
+        var sum = Complex32Value(0.0f, 0.0f)
+        for (i in this.indices) {
+            sum += (other[i].asComplex32() - this[i]).pow(p)
+        }
+        return sum.pow(1.0/p).asComplex32()
     }
 }

@@ -118,15 +118,11 @@ inline class BooleanVectorValue(val value: BitSet) : VectorValue<Byte> {
         throw UnsupportedOperationException("A BooleanVector array cannot be used to perform arithmetic operations!")
     }
 
-    override fun distanceL1(other: VectorValue<*>): NumericValue<*> {
-        TODO("Not yet implemented")
+    override fun norm2(): NumericValue<*> {
+        throw UnsupportedOperationException("A BooleanVector array cannot be used to perform arithmetic operations!")
     }
 
-    override fun distanceL2(other: VectorValue<*>): NumericValue<*> {
-        TODO("Not yet implemented")
-    }
-
-    override fun distanceLP(other: VectorValue<*>, p: Int): NumericValue<*> {
-        TODO("Not yet implemented")
+    override fun dot(other: VectorValue<*>): NumericValue<*> {
+        throw UnsupportedOperationException("A BooleanVector array cannot be used to perform arithmetic operations!")
     }
 }

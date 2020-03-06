@@ -136,9 +136,25 @@ inline class DoubleVectorValue(val data: DoubleArray) : RealVectorValue<Double> 
         kotlin.math.abs(this[it].value)
     })
 
-    override fun sum(): DoubleValue = DoubleValue(this.data.sum())
+    override fun sum() = DoubleValue(this.data.sum())
 
-    override fun distanceL1(other: VectorValue<*>): NumericValue<*> {
+    override fun norm2(): NumericValue<*> {
+        var sum = 0.0
+        for (i in this.indices) {
+            sum +=  this[i].value.pow(2)
+        }
+        return DoubleValue(kotlin.math.sqrt(sum))
+    }
+
+    override fun dot(other: VectorValue<*>): DoubleValue {
+        var sum = 0.0
+        for (i in this.indices) {
+            sum += other[i].value.toDouble() * this[i].value
+        }
+        return DoubleValue(sum)
+    }
+
+    override fun l1(other: VectorValue<*>): DoubleValue {
         var sum = 0.0
         for (i in this.indices) {
             sum += (other[i].value.toDouble() - this[i].value).absoluteValue
@@ -146,7 +162,7 @@ inline class DoubleVectorValue(val data: DoubleArray) : RealVectorValue<Double> 
         return DoubleValue(sum)
     }
 
-    override fun distanceL2(other: VectorValue<*>): NumericValue<*> {
+    override fun l2(other: VectorValue<*>): DoubleValue {
         var sum = 0.0
         for (i in this.indices) {
             sum += (other[i].value.toDouble() - this[i].value).pow(2)
@@ -154,7 +170,7 @@ inline class DoubleVectorValue(val data: DoubleArray) : RealVectorValue<Double> 
         return DoubleValue(kotlin.math.sqrt(sum))
     }
 
-    override fun distanceLP(other: VectorValue<*>, p: Int): NumericValue<*> {
+    override fun lp(other: VectorValue<*>, p: Int): DoubleValue {
         var sum = 0.0
         for (i in this.indices) {
             sum += (other[i].value.toDouble() - this[i].value).pow(p)

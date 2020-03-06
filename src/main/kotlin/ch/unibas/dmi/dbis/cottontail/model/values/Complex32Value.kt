@@ -132,5 +132,5 @@ inline class Complex32Value(val data: FloatArray): ComplexValue<Float> {
         return Complex64Value(r * kotlin.math.cos(x*theta), r * kotlin.math.sin(x*theta))
     }
 
-    override fun sqrt(): Complex64Value = pow(0.5)
+    override fun sqrt(): Complex64Value = pow(1.0/2.0)
 }

@@ -139,27 +139,43 @@ inline class FloatVectorValue(val data: FloatArray) : RealVectorValue<Float> {
 
     override fun sum(): FloatValue = FloatValue(this.data.sum())
 
-    override fun distanceL1(other: VectorValue<*>): NumericValue<*> {
+    override fun norm2(): FloatValue {
         var sum = 0.0f
         for (i in this.indices) {
-            sum += (this[i].value - other[i].value.toFloat()).absoluteValue
-        }
-        return FloatValue(sum)
-    }
-
-    override fun distanceL2(other: VectorValue<*>): NumericValue<*> {
-        var sum = 0.0f
-        for (i in this.indices) {
-            sum += (this[i].value - other[i].value.toFloat()).pow(2)
+            sum +=  this[i].value.pow(2)
         }
         return FloatValue(kotlin.math.sqrt(sum))
     }
 
-    override fun distanceLP(other: VectorValue<*>, p: Int): NumericValue<*> {
-        var sum = 0.0
+    override fun dot(other: VectorValue<*>): FloatValue {
+        var sum = 0.0f
         for (i in this.indices) {
-            sum += (this[i].value - other[i].value.toDouble()).pow(p)
+            sum += other[i].value.toFloat() * this[i].value
         }
-        return FloatValue(sum.pow(1.0/p))
+        return FloatValue(sum)
+    }
+
+    override fun l1(other: VectorValue<*>): FloatValue {
+        var sum = 0.0f
+        for (i in this.indices) {
+            sum += (other[i].value.toFloat() - this[i].value).absoluteValue
+        }
+        return FloatValue(sum)
+    }
+
+    override fun l2(other: VectorValue<*>): FloatValue {
+        var sum = 0.0f
+        for (i in this.indices) {
+            sum += (other[i].value.toFloat() - this[i].value).pow(2)
+        }
+        return FloatValue(kotlin.math.sqrt(sum))
+    }
+
+    override fun lp(other: VectorValue<*>, p: Int): FloatValue {
+        var sum = 0.0f
+        for (i in this.indices) {
+            sum += (other[i].value.toFloat() - this[i].value).pow(p)
+        }
+        return FloatValue(sum.pow(1.0f/p))
     }
 }

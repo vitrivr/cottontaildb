@@ -21,17 +21,7 @@ object CosineDistance : DistanceKernel {
      *
      * @return Distance between a and b.
      */
-    override operator fun invoke(a: VectorValue<*>, b: VectorValue<*>): Double {
-        val dot = (a * b).sum().value.toDouble()
-        val c = a.pow(2).sum().value.toDouble()
-        val d = b.pow(2).sum().value.toDouble()
-        val div = sqrt(c) * sqrt(d)
-        return if (div < 1e-6 || div.isNaN()) {
-            1.0
-        } else {
-            1.0 - dot / div
-        }
-    }
+    override operator fun invoke(a: VectorValue<*>, b: VectorValue<*>): Double = ((a dot b) / (a.norm2() * b.norm2())).value.toDouble()
 
     /**
      * Calculates the weighted L1 distance between two [VectorValue]s.
@@ -43,14 +33,8 @@ object CosineDistance : DistanceKernel {
      * @return Distance between a and b.
      */
     override operator fun invoke(a: VectorValue<*>, b: VectorValue<*>, weights: VectorValue<*>): Double {
-        val dot = (a * b * weights).sum().value.toDouble()
-        val c = (a.pow(2)* weights).sum().value.toDouble()
-        val d = (b.pow(2)* weights).sum().value.toDouble()
-        val div = sqrt(c) * sqrt(d)
-        return if (div < 1e-6 || div.isNaN()) {
-            1.0
-        } else {
-            1.0 - dot / div
-        }
+        val wa = (a * weights)
+        val wb = (b * weights)
+        return ((wa dot wb) / (wa.norm2() * wb.norm2())).value.toDouble()
     }
 }
