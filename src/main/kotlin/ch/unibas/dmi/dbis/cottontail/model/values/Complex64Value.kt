@@ -91,18 +91,25 @@ inline class Complex64Value(val data: DoubleArray): ComplexValue<Double> {
     override fun asComplex64(): Complex64Value = this
 
     /**
-     * Calculates and returns the inverse of this [Complex32Value].
+     * Calculates and returns the inverse of this [Complex64Value].
      *
-     * @return The inverse [Complex32Value].
+     * @return The inverse [Complex64Value].
      */
     override fun inverse() = Complex64Value((this.real / (this.real  * this.real + this.imaginary * this.imaginary)), -(this.imaginary / (this.real* this.real + this.imaginary * this.imaginary)))
+
+    /**
+     * Returns the complex conjugate of this [Complex64Value]
+     *
+     * @return The conjugate [Complex64Value].
+     */
+    override fun conjugate(): Complex64Value = Complex64Value(this.real, -this.imaginary)
 
     /**
      * Calculates and returns the modulo of this [Complex32Value].
      *
      * @return The module of this [Complex32Value].
      */
-    override fun modulo() = DoubleValue(sqrt((this.real * this.real + this.imaginary * this.imaginary).value))
+    override fun modulo() = (this.real * this.real + this.imaginary * this.imaginary).sqrt()
 
     override fun unaryMinus(): Complex64Value = Complex64Value(-this.real, -this.imaginary)
     override fun plus(other: NumericValue<*>) = Complex64Value(this.real + other.real, this.imaginary - other.imaginary)

@@ -172,12 +172,12 @@ inline class Complex64VectorValue(val data:  Array<Complex64Value>) : ComplexVec
         return sum.sqrt()
     }
 
-    override fun dot(other: VectorValue<*>): Complex64Value {
-        var sum = Complex64Value(0.0, 0.0)
+    override fun dot(other: VectorValue<*>): DoubleValue {
+        var sum = 0.0
         for (i in this.indices) {
-            sum += other[i].asComplex64() * this[i]
+            sum += (other[i].asComplex64() * this[i].conjugate()).real.value
         }
-        return sum
+        return DoubleValue(sum)
     }
 
     override fun l1(other: VectorValue<*>): Complex64Value {
