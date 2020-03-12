@@ -143,7 +143,7 @@ class VAPlusIndex(override val name: Name, override val parent: Entity, override
                     val vector = tx.read(it[j].first.first)[predicate.column]
                     heapsP2[i].add(ComparablePair(it[j].first.first, (predicate as KnnPredicate<Any>).distance(predicate.query[i], vector as VectorValue<Any>)))
                 } else {
-                    if (it[j].second < heapsP2[i][heapsP2[i].k - 1].second) { // TODO
+                    if (it[j].second < heapsP2[i][heapsP2[i].k - 1].second) {
                         return@forEach
                     }
                     val vector = tx.read(it[j].first.first)[predicate.column]
