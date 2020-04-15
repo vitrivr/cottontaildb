@@ -214,7 +214,7 @@ class Catalogue(val config: Config): DBO {
      * @param name [Name] of the [Schema].
      */
     fun schemaForName(name: Name): Schema = this.lock.read {
-        require(name.type == NameType.SIMPLE) { "The provided name '$name' is of type '${name.type} and cannot be used to access a schema." }
+        require(name.type == NameType.SIMPLE) { "The provided name '$name' is of type ${name.type} and cannot be used to access a schema." }
         this.registry[name] ?: throw DatabaseException.SchemaDoesNotExistException(name)
     }
 

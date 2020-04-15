@@ -60,11 +60,11 @@ class CottonDMLService (val catalogue: Catalogue): CottonDMLGrpc.CottonDMLImplBa
             LOGGER.trace("Successfully persisted ${request.tupleList.size} tuples to '${request.entity.fqn()}' (with commit).")
         }
     } catch (e: DatabaseException.SchemaDoesNotExistException) {
-        val msg = "Insert failed because schema '${request.entity.schema.name} does not exist!"
+        val msg = "Insert failed because schema ${request.entity.schema.name} does not exist!"
         LOGGER.error(msg, e)
         responseObserver.onError(Status.NOT_FOUND.withDescription(msg).asException())
     } catch (e: DatabaseException.EntityDoesNotExistException) {
-        val msg = "Insert failed because entity '${request.entity.name} does not exist!"
+        val msg = "Insert failed because entity ${request.entity.name} does not exist!"
         LOGGER.error(msg, e)
         responseObserver.onError(Status.NOT_FOUND.withDescription(msg).asException())
     } catch (e: DatabaseException.ColumnDoesNotExistException) {
