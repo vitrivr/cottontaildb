@@ -1,6 +1,5 @@
-package ch.unibas.dmi.dbis.cottontail.database.index.vaf
+package ch.unibas.dmi.dbis.cottontail.database.index.va
 
-import java.lang.IndexOutOfBoundsException
 import java.util.*
 
 class VectorQuantizer {

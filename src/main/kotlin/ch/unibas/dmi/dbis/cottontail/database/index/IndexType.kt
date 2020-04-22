@@ -5,7 +5,6 @@ import ch.unibas.dmi.dbis.cottontail.database.index.hash.NonUniqueHashIndex
 import ch.unibas.dmi.dbis.cottontail.database.index.hash.UniqueHashIndex
 import ch.unibas.dmi.dbis.cottontail.database.index.lsh.superbit.SuperBitLSHIndex
 import ch.unibas.dmi.dbis.cottontail.database.index.lucene.LuceneIndex
-import ch.unibas.dmi.dbis.cottontail.database.index.vaf.VAFIndex
 import ch.unibas.dmi.dbis.cottontail.math.knn.metrics.CosineDistance
 import ch.unibas.dmi.dbis.cottontail.math.knn.metrics.Distances
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
@@ -32,7 +31,6 @@ enum class IndexType(val inexact: Boolean) {
         HASH_UQ -> UniqueHashIndex(name, entity, columns)
         HASH -> NonUniqueHashIndex(name, entity, columns)
         LUCENE -> LuceneIndex(name, entity, columns)
-        VAF -> VAFIndex(name, entity, columns)
         LSH -> SuperBitLSHIndex<VectorValue<*>>(name, entity, columns, null)
         else -> TODO()
     }
@@ -49,7 +47,6 @@ enum class IndexType(val inexact: Boolean) {
         HASH_UQ -> UniqueHashIndex(name, entity, columns)
         HASH -> NonUniqueHashIndex(name, entity, columns)
         LUCENE -> LuceneIndex(name, entity, columns)
-        VAF -> VAFIndex(name, entity, columns)
         LSH -> when(Distances.valueOf(params["distance"] ?: throw IllegalArgumentException("You must provide the type of distance kernel that you would like to create the LSH index for.")).kernel) {
             is CosineDistance -> SuperBitLSHIndex<VectorValue<*>>(name, entity, columns, params)
             else -> TODO()
