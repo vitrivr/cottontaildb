@@ -1,6 +1,9 @@
 package ch.unibas.dmi.dbis.cottontail.model.values
 
-import ch.unibas.dmi.dbis.cottontail.model.values.types.*
+import ch.unibas.dmi.dbis.cottontail.model.values.types.NumericValue
+import ch.unibas.dmi.dbis.cottontail.model.values.types.RealVectorValue
+import ch.unibas.dmi.dbis.cottontail.model.values.types.Value
+import ch.unibas.dmi.dbis.cottontail.model.values.types.VectorValue
 import java.util.*
 import kotlin.math.absoluteValue
 import kotlin.math.pow
@@ -93,44 +96,81 @@ inline class FloatVectorValue(val data: FloatArray) : RealVectorValue<Float> {
      */
     override fun copy(): FloatVectorValue = FloatVectorValue(this.data.copyOf(this.data.size))
 
-    override fun plus(other: VectorValue<*>) = FloatVectorValue(FloatArray(this.data.size) {
-        (this[it] + other[it].asFloat()).value
-    })
+    override fun plus(other: VectorValue<*>) = if (other is FloatVectorValue) {
+        FloatVectorValue(FloatArray(this.data.size) {
+            (this.data[it] + other.data[it])
+        })
+    } else {
+        FloatVectorValue(FloatArray(this.data.size) {
+            (this.data[it] + other[it].asFloat().value)
+        })
+    }
 
-    override fun minus(other: VectorValue<*>) = FloatVectorValue(FloatArray(this.data.size) {
-        (this[it] - other[it].asFloat()).value
-    })
 
-    override fun times(other: VectorValue<*>) = FloatVectorValue(FloatArray(this.data.size) {
-        (this[it] * other[it].asFloat()).value
-    })
+    override fun minus(other: VectorValue<*>) = if (other is FloatVectorValue) {
+        FloatVectorValue(FloatArray(this.data.size) {
+            (this.data[it] - other.data[it])
+        })
+    } else {
+        FloatVectorValue(FloatArray(this.data.size) {
+            (this.data[it] - other[it].asFloat().value)
+        })
+    }
 
-    override fun div(other: VectorValue<*>) = FloatVectorValue(FloatArray(this.data.size) {
-        (this[it] / other[it].asFloat()).value
-    })
+    override fun times(other: VectorValue<*>) = if (other is FloatVectorValue) {
+        FloatVectorValue(FloatArray(this.data.size) {
+            (this.data[it] * other.data[it])
+        })
+    } else {
+        FloatVectorValue(FloatArray(this.data.size) {
+            (this.data[it] * other[it].asFloat().value)
+        })
+    }
 
-    override fun plus(other: NumericValue<*>) = FloatVectorValue(FloatArray(this.logicalSize) {
-        (this[it] + other.asFloat()).value
-    })
+    override fun div(other: VectorValue<*>) = if (other is FloatVectorValue) {
+        FloatVectorValue(FloatArray(this.data.size) {
+            (this.data[it] / other.data[it])
+        })
+    } else {
+        FloatVectorValue(FloatArray(this.data.size) {
+            (this.data[it] / other[it].asFloat().value)
+        })
+    }
 
-    override fun minus(other: NumericValue<*>) = FloatVectorValue(FloatArray(this.logicalSize) {
-        (this[it] - other.asFloat()).value
-    })
+    override fun plus(other: NumericValue<*>): FloatVectorValue {
+        val otherAsFloat = other.asFloat().value
+        return FloatVectorValue(FloatArray(this.logicalSize) {
+            (this.data[it] + otherAsFloat)
+        })
+    }
 
-    override fun times(other: NumericValue<*>) = FloatVectorValue(FloatArray(this.logicalSize) {
-        (this[it] * other.asFloat()).value
-    })
+    override fun minus(other: NumericValue<*>): FloatVectorValue {
+        val otherAsFloat = other.asFloat().value
+        return FloatVectorValue(FloatArray(this.logicalSize) {
+            (this.data[it] - otherAsFloat)
+        })
+    }
 
-    override fun div(other: NumericValue<*>) = FloatVectorValue(FloatArray(this.logicalSize) {
-        (this[it] / other.asFloat()).value
-    })
+    override fun times(other: NumericValue<*>): FloatVectorValue {
+        val otherAsFloat = other.asFloat().value
+        return FloatVectorValue(FloatArray(this.logicalSize) {
+            (this.data[it] * otherAsFloat)
+        })
+    }
+
+    override fun div(other: NumericValue<*>): FloatVectorValue {
+        val otherAsFloat = other.asFloat().value
+        return FloatVectorValue(FloatArray(this.logicalSize) {
+            (this.data[it] / otherAsFloat)
+        })
+    }
 
     override fun pow(x: Int) = DoubleVectorValue(DoubleArray(this.data.size) {
-        this[it].value.pow(x).toDouble()
+        this.data[it].pow(x).toDouble()
     })
 
     override fun sqrt() = DoubleVectorValue(DoubleArray(this.data.size) {
-        kotlin.math.sqrt(this[it].value).toDouble()
+        kotlin.math.sqrt(this.data[it]).toDouble()
     })
 
     override fun abs() = FloatVectorValue(FloatArray(this.data.size) {
@@ -142,39 +182,63 @@ inline class FloatVectorValue(val data: FloatArray) : RealVectorValue<Float> {
     override fun norm2(): FloatValue {
         var sum = 0.0f
         for (i in this.indices) {
-            sum +=  this[i].value.pow(2)
+            sum += this.data[i].pow(2)
         }
         return FloatValue(kotlin.math.sqrt(sum))
     }
 
     override fun dot(other: VectorValue<*>): FloatValue {
         var sum = 0.0f
-        for (i in this.indices) {
-            sum += other[i].value.toFloat() * this[i].value
+        if (other is FloatVectorValue) {
+            for (i in this.indices) {
+                sum += other.data[i] * this.data[i]
+            }
+        } else {
+            for (i in this.indices) {
+                sum += other[i].value.toFloat() * this.data[i]
+            }
         }
         return FloatValue(sum)
     }
 
     override fun l1(other: VectorValue<*>): FloatValue {
         var sum = 0.0f
-        for (i in this.indices) {
-            sum += (other[i].value.toFloat() - this[i].value).absoluteValue
+        if (other is FloatVectorValue) {
+            for (i in this.indices) {
+                sum += (other.data[i] - this.data[i]).absoluteValue
+            }
+        } else {
+            for (i in this.indices) {
+                sum += (other[i].asFloat().value - this.data[i]).absoluteValue
+            }
         }
         return FloatValue(sum)
     }
 
     override fun l2(other: VectorValue<*>): FloatValue {
         var sum = 0.0f
-        for (i in this.indices) {
-            sum += (other[i].value.toFloat() - this[i].value).pow(2)
+        if (other is FloatVectorValue) {
+            for (i in this.indices) {
+                sum += (other.data[i] - this.data[i]).pow(2)
+            }
+        } else {
+            for (i in this.indices) {
+                sum += (other[i].asFloat().value - this.data[i]).absoluteValue
+            }
         }
         return FloatValue(kotlin.math.sqrt(sum))
     }
 
     override fun lp(other: VectorValue<*>, p: Int): FloatValue {
         var sum = 0.0f
-        for (i in this.indices) {
-            sum += (other[i].value.toFloat() - this[i].value).pow(p)
+        if (other is FloatVectorValue) {
+            for (i in this.indices) {
+                sum += (other.data[i] - this.data[i]).pow(p)
+            }
+        } else {
+            for (i in this.indices) {
+                sum += (other[i].value.toFloat() - this.data[i]).pow(p)
+            }
         }
         return FloatValue(sum.pow(1.0f/p))
     }
