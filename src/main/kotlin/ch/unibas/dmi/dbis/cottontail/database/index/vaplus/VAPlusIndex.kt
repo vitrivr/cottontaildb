@@ -16,7 +16,7 @@ import ch.unibas.dmi.dbis.cottontail.model.basics.Record
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
 import ch.unibas.dmi.dbis.cottontail.model.values.DoubleValue
-import ch.unibas.dmi.dbis.cottontail.model.values.VectorValue
+import ch.unibas.dmi.dbis.cottontail.model.values.types.VectorValue
 import ch.unibas.dmi.dbis.cottontail.utilities.extensions.write
 import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
 import org.apache.commons.math3.linear.MatrixUtils
@@ -29,6 +29,8 @@ import java.nio.file.Path
  * Represents a VAF based index in the Cottontail DB data model. An [Index] belongs to an [Entity] and can be used to
  * index one to many [Column]s. Usually, [Index]es allow for faster data access. They process [Predicate]s and return
  * [Recordset]s.
+ *
+ * TODO: Fix and finalize implementation.
  *
  * @author Manuel Huerbin
  * @version 1.0
@@ -141,13 +143,13 @@ class VAPlusIndex(override val name: Name, override val parent: Entity, override
             (0 until it.size).forEach { j ->
                 if (heapsP2[i].size < heapsP2[i].k) {
                     val vector = tx.read(it[j].first.first)[predicate.column]
-                    heapsP2[i].add(ComparablePair(it[j].first.first, (predicate as KnnPredicate<Any>).distance(predicate.query[i], vector as VectorValue<Any>)))
+                    heapsP2[i].add(ComparablePair(it[j].first.first, (predicate as KnnPredicate<VectorValue<*>>).distance(predicate.query[i], vector as VectorValue<*>)))
                 } else {
                     if (it[j].second < heapsP2[i][heapsP2[i].k - 1].second) {
                         return@forEach
                     }
                     val vector = tx.read(it[j].first.first)[predicate.column]
-                    heapsP2[i].add(ComparablePair(it[j].first.first, (predicate as KnnPredicate<Any>).distance(predicate.query[i], vector as VectorValue<Any>)))
+                    heapsP2[i].add(ComparablePair(it[j].first.first, (predicate as KnnPredicate<VectorValue<*>>).distance(predicate.query[i], vector as VectorValue<*>)))
                 }
             }
         }

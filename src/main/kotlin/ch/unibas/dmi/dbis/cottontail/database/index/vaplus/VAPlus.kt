@@ -6,7 +6,7 @@ package ch.unibas.dmi.dbis.cottontail.database.index.vaplus
 
 import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
-import ch.unibas.dmi.dbis.cottontail.model.values.VectorValue
+import ch.unibas.dmi.dbis.cottontail.model.values.types.VectorValue
 import org.apache.commons.math3.linear.EigenDecomposition
 import org.apache.commons.math3.linear.MatrixUtils
 import org.apache.commons.math3.linear.RealMatrix
@@ -20,6 +20,8 @@ import kotlin.math.pow
 /**
  * This class implements the necessary methods for a VA+ index structure (see H. Ferhatosmanoglu, E. Tuncel, D. Agrawal,
  * A. El Abbadi (2006): High dimensional nearest neighbor searching. Information Systems).
+ *
+ * TODO: Fix and finalize implementation.
  *
  * @author Manuel Huerbin
  * @version 1.0
@@ -165,7 +167,13 @@ class VAPlus : Serializable {
      * @param vector A [VectorValue].
      * @return A [DoubleArray] with the values from value.
      */
-    fun convertToDoubleArray(vector: VectorValue<*>): DoubleArray = DoubleArray(vector.size * 2) { vector.getAsDouble(it) }
+    fun convertToDoubleArray(vector: VectorValue<*>): DoubleArray {
+        TODO()
+        //return DoubleArray(vector.logicalSize * 2) {
+        //    vector.getAsDouble(it)
+        //}
+    }
+
 
     /**
      * This helper method returns the index of the maximal value in an array.
