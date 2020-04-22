@@ -1,8 +1,8 @@
 package ch.unibas.dmi.dbis.cottontail.model.exceptions
 
 import ch.unibas.dmi.dbis.cottontail.storage.store.Store
+import java.io.IOException
 
-import kotlinx.io.IOException
 
 open class StoreException(message: String) : Throwable(message) {
 
