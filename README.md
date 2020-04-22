@@ -1,3 +1,5 @@
+![Cottontail CI](https://github.com/ppanopticon/cottontaildb/workflows/Cottontail%20CI/badge.svg?branch=master)
+
 # Cottontail DB
 Cottontail DB is a column store aimed at multimedia retrieval. It allows for classical boolean as well as vector-space retrieval (k-nearest-neighbours lookup) used in similarity search.
 
