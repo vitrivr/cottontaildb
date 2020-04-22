@@ -170,12 +170,12 @@ inline class Complex32VectorValue(val data: Array<Complex32Value>) : ComplexVect
         return sum.sqrt().asComplex32()
     }
 
-    override fun dot(other: VectorValue<*>): Complex32Value {
-        var sum = Complex32Value(0.0f, 0.0f)
+    override fun dot(other: VectorValue<*>): FloatValue {
+        var sum = 0.0f
         for (i in this.indices) {
-            sum += other[i].asComplex32() * this[i]
+            sum += (other[i].asComplex32() * this[i].conjugate()).real.value
         }
-        return sum
+        return FloatValue(sum)
     }
 
     override fun l1(other: VectorValue<*>): Complex32Value {

@@ -101,11 +101,18 @@ inline class Complex32Value(val data: FloatArray): ComplexValue<Float> {
     override fun inverse(): Complex32Value = Complex32Value(floatArrayOf((this.real / (this.real  * this.real + this.imaginary * this.imaginary)).value, -(this.imaginary / (this.real* this.real + this.imaginary * this.imaginary)).value))
 
     /**
+     * Returns the complex conjugate of this [Complex32Value]
+     *
+     * @return The conjugate [Complex32Value].
+     */
+    override fun conjugate(): Complex32Value = Complex32Value(this.real, -this.imaginary)
+
+    /**
      * Calculates and returns the modulo of this [Complex32Value].
      *
      * @return The module of this [Complex32Value].
      */
-    override fun modulo() = FloatValue(sqrt((this.real * this.real + this.imaginary * this.imaginary).value))
+    override fun modulo() = (this.real * this.real + this.imaginary * this.imaginary).sqrt().asFloat()
 
     override fun unaryMinus() = Complex32Value(-this.real, -this.imaginary)
     override fun plus(other: NumericValue<*>) = Complex32Value(this.real + other.real, this.imaginary + other.imaginary)

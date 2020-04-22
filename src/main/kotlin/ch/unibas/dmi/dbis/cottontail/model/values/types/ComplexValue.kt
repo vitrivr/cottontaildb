@@ -12,8 +12,11 @@ import ch.unibas.dmi.dbis.cottontail.model.values.*
  * @author Ralph Gasser
  */
 interface ComplexValue<T: Number>: NumericValue<T> {
-    /** Returns the inverse of this [ComplexValue] */
+    /** Returns the inverse of this [ComplexValue]. */
     fun inverse(): ComplexValue<T>
+
+    /** Returns the complex conjugate of this [ComplexValue]. */
+    fun conjugate(): ComplexValue<T>
 
     /** Returns the modulo of this [ComplexValue] */
     fun modulo(): RealValue<T>
