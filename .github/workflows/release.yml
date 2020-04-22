@@ -24,14 +24,17 @@ jobs:
         restore-keys: ${{ runner.os }}-gradle
     - name: Build distribution
       run: ./gradlew distTar
+    - name: Get the version
+      id: get_version
+      run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
     - name: Create Release
       id: create_release
       uses: actions/create-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: ${{ github.ref }}
-        release_name: Release ${{ github.ref }}
+        tag_name: ${{ VERSION }}
+        release_name: Release ${{ VERSION }}
         draft: false
         prerelease: false
     - name: Upload Release Asset
@@ -42,5 +45,20 @@ jobs:
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
         asset_path: ./build/distributions/cottontaildb-bin.tar
-        asset_name: cottontail-db-${{ github.ref }}.tar
+        asset_name: cottontail-db-${{ VERSION }}.tar
         asset_content_type: application/tar
+    - name: Build Docker Image
+      run: docker build . --file Dockerfile --tag cottontaildb
+     - name: Log into Docker Registry
+      run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login ${{ secrets.DOCKER_REGISTRY_URL }} -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+    - name: Push Docker image
+        run: |
+          IMAGE_ID=${{ secrets.DOCKER_REGISTRY_URL }}/${{ secrets.DOCKER_REPOSITORY_NAME }}/$IMAGE_NAME
+
+          # Use Docker `latest` tag convention
+          [ "$VERSION" == "master" ] && VERSION=latest
+          echo IMAGE_ID=$IMAGE_ID
+          echo VERSION=$VERSION
+
+          docker tag image $IMAGE_ID:$VERSION
+          docker push $IMAGE_ID:$VERSION
