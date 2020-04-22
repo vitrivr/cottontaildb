@@ -1,7 +1,11 @@
 package ch.unibas.dmi.dbis.cottontail.model.values
 
-import ch.unibas.dmi.dbis.cottontail.model.values.types.*
-import ch.unibas.dmi.dbis.cottontail.utilities.extensions.*
+import ch.unibas.dmi.dbis.cottontail.model.values.types.NumericValue
+import ch.unibas.dmi.dbis.cottontail.model.values.types.RealValue
+import ch.unibas.dmi.dbis.cottontail.model.values.types.Value
+import ch.unibas.dmi.dbis.cottontail.model.values.types.VectorValue
+import ch.unibas.dmi.dbis.cottontail.utilities.extensions.init
+import ch.unibas.dmi.dbis.cottontail.utilities.extensions.toByte
 import java.util.*
 
 /**
@@ -122,7 +126,7 @@ inline class BooleanVectorValue(val value: BitSet) : VectorValue<Byte> {
         throw UnsupportedOperationException("A BooleanVector array cannot be used to perform arithmetic operations!")
     }
 
-    override fun dot(other: VectorValue<*>): NumericValue<*> {
+    override fun dot(other: VectorValue<*>): RealValue<*> {
         throw UnsupportedOperationException("A BooleanVector array cannot be used to perform arithmetic operations!")
     }
 }
