@@ -4,21 +4,25 @@ import ch.unibas.dmi.dbis.cottontail.database.catalogue.Catalogue
 import ch.unibas.dmi.dbis.cottontail.database.column.*
 import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
 import ch.unibas.dmi.dbis.cottontail.database.general.Transaction
-import ch.unibas.dmi.dbis.cottontail.database.general.begin
 import ch.unibas.dmi.dbis.cottontail.grpc.CottonDMLGrpc
 import ch.unibas.dmi.dbis.cottontail.grpc.CottontailGrpc
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
-import ch.unibas.dmi.dbis.cottontail.model.recordset.StandaloneRecord
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.ValidationException
+import ch.unibas.dmi.dbis.cottontail.model.recordset.StandaloneRecord
 import ch.unibas.dmi.dbis.cottontail.model.values.Value
 import ch.unibas.dmi.dbis.cottontail.server.grpc.helper.*
+import ch.unibas.dmi.dbis.cottontail.utilities.extensions.read
+import ch.unibas.dmi.dbis.cottontail.utilities.extensions.write
 import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
 import ch.unibas.dmi.dbis.cottontail.utilities.name.NameType
 import io.grpc.Status
 import io.grpc.stub.StreamObserver
 import org.slf4j.LoggerFactory
+import java.util.*
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.locks.StampedLock
 
 class CottonDMLService (val catalogue: Catalogue): CottonDMLGrpc.CottonDMLImplBase() {
     /** Logger used for logging the output. */
@@ -27,79 +31,30 @@ class CottonDMLService (val catalogue: Catalogue): CottonDMLGrpc.CottonDMLImplBa
     }
 
     /**
-     * gRPC endpoint for inserting data in a batch mode. All the data provided with the [CottontailGrpc.InsertMessage] will be inserted
-     * in a single transaction. I.e. either the insert succeeds or fails completely.
+     * gRPC endpoint for inserting data in a streaming mode; transactions will stay open until the caller explicitly completes or until an error occurs.
+     * As new entities are being inserted, new transactions will be created and thus new locks will be acquired.
      */
-    override fun insert(request: CottontailGrpc.InsertMessage, responseObserver: StreamObserver<CottontailGrpc.InsertStatus>) = try {
-        val entityName = Name(request.entity.name)
-        val schemaName = Name(request.entity.schema.name)
-        if (entityName.type != NameType.SIMPLE) {
-            responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Failed to insert into entity: Invalid entity name '${request.entity.name}'.").asException())
-        } else if (schemaName.type != NameType.SIMPLE) {
-            responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Failed to insert into entity: Invalid schema name '${request.entity.schema.name}'.").asException())
-        } else {
-            val schema = this.catalogue.schemaForName(schemaName)
-            val entity = schema.entityForName(entityName)
-            entity.Tx(false).begin { tx ->
-                request.tupleList.map { it.dataMap }.forEach { entry ->
-                    val columns = mutableListOf<ColumnDef<*>>()
-                    val values = mutableListOf<Value<*>?>()
-                    entry.map {
-                        val col = entity.columnForName(Name(it.key)) ?: throw DatabaseException.ColumnDoesNotExistException(entity.fqn.append(it.key))
-                        columns.add(col)
-                        values.add(castToColumn(it.value, col))
-                    }
-                    tx.insert(StandaloneRecord(columns = columns.toTypedArray(), init = values.toTypedArray()))
-                }
-                true
-            }
-            responseObserver.onNext(CottontailGrpc.InsertStatus.newBuilder().setSuccess(true).setTimestamp(System.currentTimeMillis()).build())
-            responseObserver.onCompleted()
-
-            /* Log... */
-            LOGGER.trace("Successfully persisted ${request.tupleList.size} tuples to '${request.entity.fqn()}' (with commit).")
-        }
-    } catch (e: DatabaseException.SchemaDoesNotExistException) {
-        val msg = "Insert failed because schema ${request.entity.schema.name} does not exist!"
-        LOGGER.error(msg, e)
-        responseObserver.onError(Status.NOT_FOUND.withDescription(msg).asException())
-    } catch (e: DatabaseException.EntityDoesNotExistException) {
-        val msg = "Insert failed because entity ${request.entity.name} does not exist!"
-        LOGGER.error(msg, e)
-        responseObserver.onError(Status.NOT_FOUND.withDescription(msg).asException())
-    } catch (e: DatabaseException.ColumnDoesNotExistException) {
-        val msg = "Insert failed because column '${e.column}' does not exist!"
-        LOGGER.error(msg, e)
-        responseObserver.onError(Status.NOT_FOUND.withDescription(msg).asException())
-    } catch (e: ValidationException) {
-        val msg = "Insert failed because data validation failed: ${e.message}"
-        LOGGER.error(msg, e)
-        responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(msg).asException())
-    }  catch (e: DatabaseException) {
-        val msg = "Insert failed because of a database error: ${e.message}"
-        LOGGER.error(msg, e)
-        responseObserver.onError(Status.INTERNAL.withDescription(msg).asException())
-    } catch (e: Throwable) {
-        val msg = "Insert failed because of a unknown error: ${e.message}"
-        LOGGER.error(msg, e)
-        responseObserver.onError(Status.UNKNOWN.withDescription(msg).asException())
-    }
-
-    /**
-     * gRPC endpoint for inserting data in a streaming mode; transactions will stay open until the caller explicitly completes them
-     * or until an error occurs. As new entities are being inserted, new transactions will be created and thus new lock will be acquired.
-     */
-    override fun insertStream(responseObserver: StreamObserver<CottontailGrpc.InsertStatus>): StreamObserver<CottontailGrpc.InsertMessage> = object:StreamObserver<CottontailGrpc.InsertMessage>{
+    override fun insert(responseObserver: StreamObserver<CottontailGrpc.InsertStatus>): StreamObserver<CottontailGrpc.InsertMessage> = object : StreamObserver<CottontailGrpc.InsertMessage> {
 
         /** List of all the [Entity.Tx] associated with this call. */
         private val transactions = ConcurrentHashMap<String, Entity.Tx>()
+
+        /** Generates a new transaction id. */
+        private val txId = UUID.randomUUID()
+
+        /** Internal counter used to keep track of how many items were inserted. */
+        private val counter = AtomicLong(0)
+
+        /** */
+        private val closeLock = StampedLock()
+
 
         /** Flag indicating that call was closed. */
         @Volatile
         private var closed = false
 
         init {
-            LOGGER.trace("Streaming INSERT transaction was initiated by client.")
+            LOGGER.trace("INSERT transaction {} was initiated by client.", txId.toString())
         }
 
         /**
@@ -110,42 +65,40 @@ class CottonDMLService (val catalogue: Catalogue): CottonDMLGrpc.CottonDMLImplBa
         override fun onNext(request: CottontailGrpc.InsertMessage) {
             try {
                 /* Check if call was closed and return. */
-                if (closed) return
-                val entityName = Name(request.entity.name)
-                val schemaName = Name(request.entity.schema.name)
-                if (entityName.type != NameType.SIMPLE) {
-                    responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Failed to insert into entity: Invalid entity name '${request.entity.name}'.").asException())
-                } else if (schemaName.type != NameType.SIMPLE) {
-                    responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Failed to insert into entity: Invalid schema name '${request.entity.schema.name}'.").asException())
-                } else {
-                    /* Extract required schema and entity. */
-                    val schema = this@CottonDMLService.catalogue.schemaForName(schemaName)
-                    val entity = schema.entityForName(entityName)
+                this.closeLock.read {
+                    if (this.closed) return
+                    val entityName = Name(request.entity.name)
+                    val schemaName = Name(request.entity.schema.name)
+                    when {
+                        entityName.type != NameType.SIMPLE -> responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Failed to insert into entity: Invalid entity name '${request.entity.name}'.").asException())
+                        schemaName.type != NameType.SIMPLE -> responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Failed to insert into entity: Invalid schema name '${request.entity.schema.name}'.").asException())
+                        else -> {
+                            /* Extract required schema and entity. */
+                            val schema = this@CottonDMLService.catalogue.schemaForName(schemaName)
+                            val entity = schema.entityForName(entityName)
 
-                    /* Re-use or create Transaction. */
-                    var tx = this.transactions[request.entity.fqn()]
-                    if (tx == null) {
-                        tx = entity.Tx(false)
-                        this.transactions[request.entity.fqn()] = tx
-                    }
+                            /* Re-use or create Transaction. */
+                            var tx = this.transactions[request.entity.fqn()]
+                            if (tx == null) {
+                                tx = entity.Tx(false, txId)
+                                this.transactions[request.entity.fqn()] = tx
+                            }
 
-                    /* Do the insert. */
-                    request.tupleList.map { it.dataMap }.forEach { entry ->
-                        val columns = mutableListOf<ColumnDef<*>>()
-                        val values = mutableListOf<Value<*>?>()
-                        entry.map {
-                            val col = entity.columnForName(Name(it.key)) ?: throw DatabaseException.ColumnDoesNotExistException(entity.fqn.append(it.key))
-                            columns.add(col)
-                            values.add(castToColumn(it.value, col))
+                            val columns = mutableListOf<ColumnDef<*>>()
+                            val values = mutableListOf<Value<*>?>()
+                            request.tuple.dataMap.map {
+                                val col = entity.columnForName(Name(it.key))
+                                        ?: throw DatabaseException.ColumnDoesNotExistException(entity.fqn.append(it.key))
+                                columns.add(col)
+                                values.add(castToColumn(it.value, col))
+                            }
+                            tx.insert(StandaloneRecord(columns = columns.toTypedArray(), init = values.toTypedArray()))
+                            this.counter.incrementAndGet()
+
+                            /* Respond with status. */
+                            responseObserver.onNext(CottontailGrpc.InsertStatus.newBuilder().setSuccess(true).setTimestamp(System.currentTimeMillis()).build())
                         }
-                        tx.insert(StandaloneRecord(columns = columns.toTypedArray(), init = values.toTypedArray()))
                     }
-
-                    /* Log... */
-                    LOGGER.trace("Successfully inserted ${request.tupleList.size} tuples into '${request.entity.fqn()}' (no commit).")
-
-                    /* Respond with status. */
-                    responseObserver.onNext(CottontailGrpc.InsertStatus.newBuilder().setSuccess(true).setTimestamp(System.currentTimeMillis()).build())
                 }
             } catch (e: DatabaseException.SchemaDoesNotExistException) {
                 responseObserver.onError(Status.NOT_FOUND.withDescription("Insert failed because schema '${request.entity.schema.name} does not exist!").asException())
@@ -172,7 +125,6 @@ class CottonDMLService (val catalogue: Catalogue): CottonDMLGrpc.CottonDMLImplBa
          * Called when the client-side indicates an error condition.
          */
         override fun onError(t: Throwable) {
-            LOGGER.trace("Streaming INSERT transaction was aborted by client. Reason: ${t.message}")
             this.cleanup()
         }
 
@@ -180,7 +132,6 @@ class CottonDMLService (val catalogue: Catalogue): CottonDMLGrpc.CottonDMLImplBa
          * Called when client-side completes invocation, effectively ending the [Transaction].
          */
         override fun onCompleted() {
-            LOGGER.trace("Streaming INSERT transaction was committed by client.")
             this.cleanup(true)
         }
 
@@ -189,13 +140,15 @@ class CottonDMLService (val catalogue: Catalogue): CottonDMLGrpc.CottonDMLImplBa
          *
          * @param commit If true [Transaction]s are commited before closing. Otherwise, they are rolled back.
          */
-        private fun cleanup(commit: Boolean = false) {
+        private fun cleanup(commit: Boolean = false) = this.closeLock.write {
             this.closed = true
             this.transactions.forEach {
                 try {
                     if (commit) {
                         it.value.commit()
+                        LOGGER.trace("INSERT transaction ${this.txId} was committed by client (${this.counter.get()} tuples inserted).")
                     } else {
+                        LOGGER.trace("INSERT transaction ${this.txId} was rolled back by client.")
                         it.value.rollback()
                     }
                 } finally {
