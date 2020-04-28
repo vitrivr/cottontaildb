@@ -12,6 +12,8 @@ inline fun <T> StampedLock.read(action: () -> T): T {
     val stamp = this.readLock()
     try {
         return action()
+    } catch (e: Throwable) {
+        throw e
     } finally {
         this.unlock(stamp)
     }
@@ -47,6 +49,8 @@ inline fun <T> StampedLock.write(action: () -> T): T {
     val stamp = this.writeLock()
     try {
         return action()
+    } catch (e: Throwable) {
+        throw e
     } finally {
         this.unlock(stamp)
     }
