@@ -125,6 +125,7 @@ class CottonDMLService (val catalogue: Catalogue): CottonDMLGrpc.CottonDMLImplBa
          * Called when the client-side indicates an error condition.
          */
         override fun onError(t: Throwable) {
+            responseObserver.onError(Status.ABORTED.withDescription("Transaction was aborted by client.").asException())
             this.cleanup()
         }
 
@@ -133,6 +134,7 @@ class CottonDMLService (val catalogue: Catalogue): CottonDMLGrpc.CottonDMLImplBa
          */
         override fun onCompleted() {
             this.cleanup(true)
+            responseObserver.onCompleted()
         }
 
         /**
