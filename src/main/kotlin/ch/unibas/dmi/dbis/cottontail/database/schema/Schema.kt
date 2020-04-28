@@ -9,7 +9,6 @@ import ch.unibas.dmi.dbis.cottontail.database.general.DBO
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
 import ch.unibas.dmi.dbis.cottontail.utilities.extensions.read
-import ch.unibas.dmi.dbis.cottontail.utilities.extensions.write
 import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
 import ch.unibas.dmi.dbis.cottontail.utilities.name.NameType
 import org.mapdb.DBException
@@ -23,9 +22,12 @@ import java.nio.file.Path
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.locks.ReentrantLock
+import java.util.concurrent.locks.ReentrantReadWriteLock
 import java.util.concurrent.locks.StampedLock
 import java.util.stream.Collectors
+import kotlin.concurrent.read
 import kotlin.concurrent.withLock
+import kotlin.concurrent.write
 
 /**
  * Represents an schema in the Cottontail DB data model. A [Schema] is a collection of [Entity] objects that belong together
@@ -73,7 +75,7 @@ class Schema(override val name: Name, override val path: Path, override val pare
     private val closeLock = StampedLock()
 
     /** A lock used to mediate access to changes to the entities contained in this [Schema]. */
-    private val entityLock = StampedLock()
+    private val entityLock = ReentrantReadWriteLock()
 
     /** A lock used to mediate access to [loaded] cache. */
     private val cacheLock = ReentrantLock()
