@@ -95,7 +95,7 @@ class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.CottonDDLImplBa
      * gRPC endpoint for creating a new [Entity][ch.unibas.dmi.dbis.cottontail.database.entity.Entity]
      */
     override fun createEntity(request: CottontailGrpc.CreateEntityMessage, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) = try {
-        LOGGER.trace("Creating entity {}", request.entity.name)
+        LOGGER.trace("Creating entity ${request.entity.schema.name}.${request.entity.name}...")
         val entityName = Name(request.entity.name)
         val schemaName = Name(request.entity.schema.name)
         if (entityName.type != NameType.SIMPLE) {
@@ -130,6 +130,7 @@ class CottonDDLService (val catalogue: Catalogue): CottonDDLGrpc.CottonDDLImplBa
      * gRPC endpoint for dropping a particular [Schema][ch.unibas.dmi.dbis.cottontail.database.schema.Schema]
      */
     override fun dropEntity(request: CottontailGrpc.Entity, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) = try {
+        LOGGER.trace("Dropping entity ${request.schema.name}.${request.name}...")
         val entityName = Name(request.name)
         val schemaName = Name(request.schema.name)
         if (entityName.type != NameType.SIMPLE) {
