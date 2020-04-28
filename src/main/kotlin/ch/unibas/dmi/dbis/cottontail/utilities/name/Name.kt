@@ -17,13 +17,13 @@ class Name(name: String) {
         const val COTTONTAIL_NAME_COMPONENT_ROOT = "warren"
 
         /** [Regex] to match [NameType.SIMPLE]*/
-        val SIMPLE_NAME_REGEX = Regex("^([a-zA-Z0-9\\-_]+)$")
+        val SIMPLE_NAME_REGEX = Regex("^([a-zA-Z0-9\\-_()]+)$")
 
         /** [Regex] to match [NameType.FQN]*/
-        val FQN_NAME_REGEX = Regex("^([a-zA-Z0-9\\-_]+)(\\.[a-zA-Z0-9\\-_]+){0,3}$")
+        val FQN_NAME_REGEX = Regex("^([a-zA-Z0-9\\-_]+)(\\.[a-zA-Z0-9\\-_()]+){0,3}$")
 
         /** [Regex] to match [NameType.FQN_WILDCARD]*/
-        val FQN_WILDCARD_NAME_REGEX = Regex("^([a-zA-Z0-9\\-_]+){1}(\\.([a-zA-Z0-9\\-_]+|\\*)){0,3}\$")
+        val FQN_WILDCARD_NAME_REGEX = Regex("^([a-zA-Z0-9\\-_]+){1}(\\.([a-zA-Z0-9\\-_()]+|\\*)){0,3}\$")
 
         /** [Regex] to match [NameType.FQN_WILDCARD]*/
         val WILDCARD_NAME_REGEX = Regex("^\\*\$")

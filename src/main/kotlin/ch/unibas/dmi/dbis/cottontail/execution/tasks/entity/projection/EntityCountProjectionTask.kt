@@ -27,7 +27,7 @@ class EntityCountProjectionTask (val entity: Entity): ExecutionTask("EntityCount
     override fun execute(): Recordset {
         assertNullaryInput()
 
-        val column = arrayOf(ColumnDef.withAttributes(Name("count(${entity.fqn})"), "LONG"))
+        val column = arrayOf(ColumnDef.withAttributes(Name("${entity.fqn}.count()"), "LONG"))
         return this.entity.Tx(true).query {
             val recordset = Recordset(column, capacity = 1)
             recordset.addRowUnsafe(arrayOf(LongValue(it.count())))

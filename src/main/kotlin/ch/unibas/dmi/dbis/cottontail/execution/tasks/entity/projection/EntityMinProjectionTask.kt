@@ -27,7 +27,8 @@ class EntityMinProjectionTask(val entity: Entity, val column: ColumnDef<*>, val 
     override fun execute(): Recordset {
         assertNullaryInput()
 
-        val resultsColumn = ColumnDef.withAttributes(Name(this.alias ?: "min(${this.column.name})"), "DOUBLE")
+        val resultsColumn = ColumnDef.withAttributes(Name(this.alias
+                ?: "${entity.fqn}.min(${this.column.name})"), "DOUBLE")
 
         return this.entity.Tx(true, columns = arrayOf(this.column)).query {
             var min = Double.MAX_VALUE

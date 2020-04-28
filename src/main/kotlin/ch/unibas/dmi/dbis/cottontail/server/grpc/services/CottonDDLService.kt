@@ -16,7 +16,7 @@ import io.grpc.stub.StreamObserver
 import org.slf4j.LoggerFactory
 
 /**
- * This is a GRPC service endpoint that handles DDL (=Data Definition Language) request for Cottontail DB.
+ * This is a gRPC service endpoint that handles DDL (=Data Definition Language) request for Cottontail DB.
  *
  * @author Ralph Gasser
  * @version 1.0

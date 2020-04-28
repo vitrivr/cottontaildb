@@ -27,7 +27,8 @@ class EntityMeanProjectionTask(val entity: Entity, val column: ColumnDef<*>, val
     override fun execute(): Recordset {
         assertNullaryInput()
 
-        val resultsColumn = ColumnDef.withAttributes(Name(this.alias ?: "mean(${this.column.name})"), "DOUBLE")
+        val resultsColumn = ColumnDef.withAttributes(Name(this.alias
+                ?: "${entity.fqn}.mean(${this.column.name})"), "DOUBLE")
 
         return this.entity.Tx(true, columns = arrayOf(this.column)).query {
             var sum = 0.0

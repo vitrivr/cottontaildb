@@ -28,7 +28,7 @@ class EntityExistsProjectionTask(val entity: Entity): ExecutionTask("EntityExist
     override fun execute(): Recordset {
         assertNullaryInput()
 
-        val column = arrayOf(ColumnDef.withAttributes(Name("exists(${entity.fqn})"), "BOOLEAN"))
+        val column = arrayOf(ColumnDef.withAttributes(Name("${entity.fqn}.exists()"), "BOOLEAN"))
         return this.entity.Tx(true).query {
             val recordset = Recordset(column, capacity = 1)
             recordset.addRowUnsafe(arrayOf(BooleanValue(it.count() > 0)))
