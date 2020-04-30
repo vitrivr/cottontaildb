@@ -7,19 +7,17 @@ import ch.unibas.dmi.dbis.cottontail.database.schema.Schema
 import ch.unibas.dmi.dbis.cottontail.database.schema.SchemaHeader
 import ch.unibas.dmi.dbis.cottontail.database.schema.SchemaHeaderSerializer
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
-import ch.unibas.dmi.dbis.cottontail.utilities.name.*
-import org.mapdb.*
-
+import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
+import ch.unibas.dmi.dbis.cottontail.utilities.name.NameType
+import org.mapdb.CottontailStoreWAL
+import org.mapdb.DBException
+import org.mapdb.StoreWAL
 import java.io.IOException
-import java.lang.IllegalArgumentException
-
 import java.nio.file.Files
 import java.nio.file.Path
-
 import java.util.*
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import java.util.stream.Collectors
-
 import kotlin.concurrent.read
 import kotlin.concurrent.write
 
@@ -145,7 +143,12 @@ class Catalogue(val config: Config): DBO {
         /* Generate the store for the new schema and update catalogue. */
         try {
             /* Create new store. */
-            val store = StoreWAL.make(file = path.resolve(Schema.FILE_CATALOGUE).toString(), volumeFactory = this.config.volumeFactory, fileLockWait = this.config.lockTimeout)
+            val store = StoreWAL.make(
+                    file = path.resolve(Schema.FILE_CATALOGUE).toString(),
+                    volumeFactory = this.config.memoryConfig.volumeFactory,
+                    allocateIncrement = 1L shl this.config.memoryConfig.cataloguePageShift,
+                    fileLockWait = this.config.lockTimeout
+            )
             store.put(SchemaHeader(), SchemaHeaderSerializer)
             store.commit()
             store.close()
@@ -155,7 +158,7 @@ class Catalogue(val config: Config): DBO {
 
             /* Update header. */
             val new = this.header.let { CatalogueHeader(it.size + 1, it.created, System.currentTimeMillis(), it.schemas.copyOf(it.schemas.size + 1)) }
-            new.schemas[new.schemas.size-1] = sid
+            new.schemas[new.schemas.size - 1] = sid
             this.store.update(HEADER_RECORD_ID, new, CatalogueHeaderSerializer)
             this.store.commit()
         } catch (e: DBException) {
@@ -225,7 +228,12 @@ class Catalogue(val config: Config): DBO {
      * @return [StoreWAL] object.
      */
     private fun openStore(path: Path): CottontailStoreWAL = try {
-        CottontailStoreWAL.make(file = path.toString(), volumeFactory = this.config.volumeFactory, fileLockWait = this.config.lockTimeout)
+        CottontailStoreWAL.make(
+                file = path.toString(),
+                volumeFactory = this.config.memoryConfig.volumeFactory,
+                allocateIncrement = 1L shl this.config.memoryConfig.cataloguePageShift,
+                fileLockWait = this.config.lockTimeout
+        )
     } catch (e: DBException) {
         throw DatabaseException("Failed to open Cottontail DB catalogue: ${e.message}'.")
     }
@@ -246,7 +254,12 @@ class Catalogue(val config: Config): DBO {
         }
 
         /* Create and initialize new store. */
-        val store = CottontailStoreWAL.make(file = config.root.resolve(Catalogue.FILE_CATALOGUE).toString(), volumeFactory = this.config.volumeFactory, fileLockWait = config.lockTimeout)
+        val store = CottontailStoreWAL.make(
+                file = config.root.resolve(Catalogue.FILE_CATALOGUE).toString(),
+                volumeFactory = this.config.memoryConfig.volumeFactory,
+                allocateIncrement = 1L shl this.config.memoryConfig.cataloguePageShift,
+                fileLockWait = config.lockTimeout
+        )
         store.put(CatalogueHeader(), CatalogueHeaderSerializer)
         store.commit()
         store

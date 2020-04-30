@@ -1,10 +1,10 @@
 package ch.unibas.dmi.dbis.cottontail.database.entity
 
 import ch.unibas.dmi.dbis.cottontail.database.column.Column
-import ch.unibas.dmi.dbis.cottontail.database.general.DBO
-import ch.unibas.dmi.dbis.cottontail.database.general.TransactionStatus
 import ch.unibas.dmi.dbis.cottontail.database.column.ColumnTransaction
 import ch.unibas.dmi.dbis.cottontail.database.column.mapdb.MapDBColumn
+import ch.unibas.dmi.dbis.cottontail.database.general.DBO
+import ch.unibas.dmi.dbis.cottontail.database.general.TransactionStatus
 import ch.unibas.dmi.dbis.cottontail.database.general.begin
 import ch.unibas.dmi.dbis.cottontail.database.index.Index
 import ch.unibas.dmi.dbis.cottontail.database.index.IndexTransaction
@@ -14,26 +14,27 @@ import ch.unibas.dmi.dbis.cottontail.database.queries.BooleanPredicate
 import ch.unibas.dmi.dbis.cottontail.database.queries.ComparisonOperator
 import ch.unibas.dmi.dbis.cottontail.database.queries.Predicate
 import ch.unibas.dmi.dbis.cottontail.database.schema.Schema
-import ch.unibas.dmi.dbis.cottontail.model.basics.*
-import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
-import ch.unibas.dmi.dbis.cottontail.model.recordset.StandaloneRecord
-
+import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
+import ch.unibas.dmi.dbis.cottontail.model.basics.Record
+import ch.unibas.dmi.dbis.cottontail.model.basics.Tuple
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.TransactionException
+import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
+import ch.unibas.dmi.dbis.cottontail.model.recordset.StandaloneRecord
 import ch.unibas.dmi.dbis.cottontail.model.values.Value
-import ch.unibas.dmi.dbis.cottontail.utilities.name.*
-import ch.unibas.dmi.dbis.cottontail.utilities.extensions.read
 import ch.unibas.dmi.dbis.cottontail.utilities.extensions.write
-
-import org.mapdb.*
-
-import java.lang.IllegalArgumentException
+import ch.unibas.dmi.dbis.cottontail.utilities.name.Match
+import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
+import ch.unibas.dmi.dbis.cottontail.utilities.name.NameType
+import org.mapdb.CottontailStoreWAL
+import org.mapdb.DBException
+import org.mapdb.Serializer
+import org.mapdb.StoreWAL
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.*
 import java.util.concurrent.locks.ReentrantReadWriteLock
-
 import java.util.concurrent.locks.StampedLock
 import java.util.stream.Collectors
 import kotlin.concurrent.read
@@ -62,7 +63,12 @@ class Entity(override val name: Name, override val parent: Schema) : DBO {
 
     /** Internal reference to the [StoreWAL] underpinning this [Entity]. */
     private val store: CottontailStoreWAL = try {
-        CottontailStoreWAL.make(file = this.path.resolve(FILE_CATALOGUE).toString(), volumeFactory = this.parent.parent.config.volumeFactory, fileLockWait = this.parent.parent.config.lockTimeout)
+        CottontailStoreWAL.make(
+                file = this.path.resolve(FILE_CATALOGUE).toString(),
+                volumeFactory = this.parent.parent.config.memoryConfig.volumeFactory,
+                allocateIncrement = 1L shl this.parent.parent.config.memoryConfig.dataPageShift,
+                fileLockWait = this.parent.parent.config.lockTimeout
+        )
     } catch (e: DBException) {
         throw DatabaseException("Failed to open entity '$fqn': ${e.message}'.")
     }

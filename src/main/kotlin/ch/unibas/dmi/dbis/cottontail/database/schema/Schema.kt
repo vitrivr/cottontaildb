@@ -61,7 +61,12 @@ class Schema(override val name: Name, override val path: Path, override val pare
 
     /** Internal reference to the [Store] underpinning this [MapDBColumn]. */
     private val store: StoreWAL = try {
-        StoreWAL.make(file = this.path.resolve(FILE_CATALOGUE).toString(), volumeFactory = this.parent.config.volumeFactory, fileLockWait = this.parent.config.lockTimeout)
+        StoreWAL.make(
+                file = this.path.resolve(FILE_CATALOGUE).toString(),
+                volumeFactory = this.parent.config.memoryConfig.volumeFactory,
+                allocateIncrement = 1L shl this.parent.config.memoryConfig.cataloguePageShift,
+                fileLockWait = this.parent.config.lockTimeout
+        )
     } catch (e: DBException) {
         throw DatabaseException("Failed to open schema $name at '$path': ${e.message}'")
     }
@@ -133,13 +138,17 @@ class Schema(override val name: Name, override val path: Path, override val pare
                 val recId = this.store.put(name.name, Serializer.STRING)
 
                 /* Generate the entity. */
-                val volumeFactory = this.parent.config.volumeFactory
-                val store = StoreWAL.make(file = data.resolve(Entity.FILE_CATALOGUE).toString(), volumeFactory = volumeFactory, fileLockWait = this.parent.config.lockTimeout)
+                val store = StoreWAL.make(
+                        file = data.resolve(Entity.FILE_CATALOGUE).toString(),
+                        volumeFactory = this.parent.config.memoryConfig.volumeFactory,
+                        allocateIncrement = 1L shl this.parent.config.memoryConfig.cataloguePageShift,
+                        fileLockWait = this.parent.config.lockTimeout
+                )
                 store.preallocate() /* Pre-allocates the header. */
 
                 /* Initialize the entities header. */
                 val columnIds = columns.map {
-                    MapDBColumn.initialize(it, data, volumeFactory)
+                    MapDBColumn.initialize(it, data, this.parent.config.memoryConfig)
                     store.put(it.name.name, Serializer.STRING)
                 }.toLongArray()
                 store.update(Entity.HEADER_RECORD_ID, EntityHeader(columns = columnIds), EntityHeaderSerializer)

@@ -1,13 +1,15 @@
 package ch.unibas.dmi.dbis.cottontail.database.column.mapdb
 
-import ch.unibas.dmi.dbis.cottontail.database.column.*
+import ch.unibas.dmi.dbis.cottontail.config.MemoryConfig
+import ch.unibas.dmi.dbis.cottontail.database.column.Column
+import ch.unibas.dmi.dbis.cottontail.database.column.ColumnTransaction
+import ch.unibas.dmi.dbis.cottontail.database.column.ColumnType
+import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
 import ch.unibas.dmi.dbis.cottontail.database.general.Transaction
 import ch.unibas.dmi.dbis.cottontail.database.general.TransactionStatus
-import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
 import ch.unibas.dmi.dbis.cottontail.database.queries.BooleanPredicate
 import ch.unibas.dmi.dbis.cottontail.database.queries.Predicate
 import ch.unibas.dmi.dbis.cottontail.database.schema.Schema
-
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.basics.Record
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
@@ -15,14 +17,9 @@ import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.TransactionException
 import ch.unibas.dmi.dbis.cottontail.model.recordset.Recordset
 import ch.unibas.dmi.dbis.cottontail.model.values.Value
-
-import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
 import ch.unibas.dmi.dbis.cottontail.utilities.extensions.write
-
+import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
 import org.mapdb.*
-import org.mapdb.volume.MappedFileVol
-import org.mapdb.volume.VolumeFactory
-
 import java.nio.file.Path
 import java.util.*
 import java.util.concurrent.locks.ReentrantReadWriteLock
@@ -50,7 +47,12 @@ class MapDBColumn<T : Any>(override val name: Name, override val parent: Entity)
 
     /** Internal reference to the [Store] underpinning this [MapDBColumn]. */
     private var store: CottontailStoreWAL = try {
-        CottontailStoreWAL.make(file = this.path.toString(), volumeFactory = this.parent.parent.parent.config.volumeFactory, fileLockWait = this.parent.parent.parent.config.lockTimeout)
+        CottontailStoreWAL.make(
+                file = this.path.toString(),
+                volumeFactory = this.parent.parent.parent.config.memoryConfig.volumeFactory,
+                allocateIncrement = (1L shl this.parent.parent.parent.config.memoryConfig.dataPageShift),
+                fileLockWait = this.parent.parent.parent.config.lockTimeout
+        )
     } catch (e: DBException) {
         throw DatabaseException("Failed to open column at '$path': ${e.message}'")
     }
@@ -117,10 +119,14 @@ class MapDBColumn<T : Any>(override val name: Name, override val parent: Entity)
          *
          * @param parent The folder that contains the data file
          * @param definition The [ColumnDef] that specified the [MapDBColumn]
-         * @param volumeFactory The [MappedFileVol.MappedFileFactory] used to initialize the [MapDBColumn]
+         * @param config The [MemoryConfig] used to initialize the [MapDBColumn]
          */
-        fun initialize(definition: ColumnDef<*>, path: Path, volumeFactory: VolumeFactory) {
-            val store = StoreWAL.make(file = path.resolve("col_${definition.name}.db").toString(), volumeFactory = volumeFactory)
+        fun initialize(definition: ColumnDef<*>, path: Path, config: MemoryConfig) {
+            val store = StoreWAL.make(
+                    file = path.resolve("col_${definition.name}.db").toString(),
+                    volumeFactory = config.volumeFactory,
+                    allocateIncrement = 1L shl config.dataPageShift
+            )
             store.put(ColumnHeader(type = definition.type, size = definition.size, nullable = definition.nullable), ColumnHeaderSerializer)
             store.commit()
             store.close()
