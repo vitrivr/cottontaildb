@@ -5,7 +5,5 @@ import java.nio.file.Paths
 
 
 object TestConstants {
-
-
-    val config = Config(Paths.get("./cotton-test"), true)
+    val config = Config(root = Paths.get("./cotton-test"))
 }
