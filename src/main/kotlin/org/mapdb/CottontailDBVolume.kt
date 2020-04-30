@@ -1,8 +1,8 @@
 package org.mapdb
 
-import ch.unibas.dmi.dbis.cottontail.storage.store.CleanerUtility
 import org.mapdb.volume.Volume
 import org.mapdb.volume.VolumeFactory
+import org.vitrivr.cottontail.storage.store.CleanerUtility
 import java.io.File
 import java.io.IOException
 import java.nio.ByteBuffer

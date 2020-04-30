@@ -23,7 +23,7 @@ apply plugin: 'kotlinx-serialization'
 apply plugin: 'com.google.protobuf'
 apply plugin: 'idea'
 
-mainClassName = 'ch.unibas.dmi.dbis.cottontail.CottontailKt'
+mainClassName = 'org.vitrivr.cottontail.CottontailKt'
 applicationDefaultJvmArgs = ["-Xms2G", "-Xmx4G"]
 
 sourceCompatibility = 1.8
