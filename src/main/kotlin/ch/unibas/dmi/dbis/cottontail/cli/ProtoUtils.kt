@@ -1,6 +1,6 @@
 package ch.unibas.dmi.dbis.cottontail.cli
 
-import ch.unibas.dmi.dbis.cottontail.grpc.CottontailGrpc
+import org.vitrivr.cottontail.grpc.CottontailGrpc
 import com.google.protobuf.Empty
 
 fun Entity(name: String, schema: CottontailGrpc.Schema): CottontailGrpc.Entity = CottontailGrpc.Entity.newBuilder().setName(name).setSchema(schema).build()

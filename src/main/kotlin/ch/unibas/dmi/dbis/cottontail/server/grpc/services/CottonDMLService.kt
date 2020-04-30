@@ -4,8 +4,8 @@ import ch.unibas.dmi.dbis.cottontail.database.catalogue.Catalogue
 import ch.unibas.dmi.dbis.cottontail.database.column.*
 import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
 import ch.unibas.dmi.dbis.cottontail.database.general.Transaction
-import ch.unibas.dmi.dbis.cottontail.grpc.CottonDMLGrpc
-import ch.unibas.dmi.dbis.cottontail.grpc.CottontailGrpc
+import org.vitrivr.cottontail.grpc.CottonDMLGrpc
+import org.vitrivr.cottontail.grpc.CottontailGrpc
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.ValidationException

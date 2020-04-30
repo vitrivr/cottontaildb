@@ -1,6 +1,6 @@
 package ch.unibas.dmi.dbis.cottontail.server.grpc.helper
 
-import ch.unibas.dmi.dbis.cottontail.grpc.CottontailGrpc
+import org.vitrivr.cottontail.grpc.CottontailGrpc
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
 import ch.unibas.dmi.dbis.cottontail.model.values.*
 import ch.unibas.dmi.dbis.cottontail.utilities.extensions.init

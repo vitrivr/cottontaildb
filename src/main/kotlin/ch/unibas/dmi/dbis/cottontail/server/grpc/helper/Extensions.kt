@@ -1,7 +1,6 @@
 package ch.unibas.dmi.dbis.cottontail.server.grpc.helper
 
-import ch.unibas.dmi.dbis.cottontail.grpc.CottontailGrpc
-import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
+import org.vitrivr.cottontail.grpc.CottontailGrpc
 
 /**
  * Extension function that generates the FQN for the given [CottontailGrpc.Entity].

@@ -1,9 +1,9 @@
 package ch.unibas.dmi.dbis.cottontail.cli
 
-import ch.unibas.dmi.dbis.cottontail.grpc.CottonDDLGrpc
-import ch.unibas.dmi.dbis.cottontail.grpc.CottonDMLGrpc
-import ch.unibas.dmi.dbis.cottontail.grpc.CottonDQLGrpc
-import ch.unibas.dmi.dbis.cottontail.grpc.CottontailGrpc
+import org.vitrivr.cottontail.grpc.CottonDDLGrpc
+import org.vitrivr.cottontail.grpc.CottonDMLGrpc
+import org.vitrivr.cottontail.grpc.CottonDQLGrpc
+import org.vitrivr.cottontail.grpc.CottontailGrpc
 
 import io.grpc.ManagedChannelBuilder
 

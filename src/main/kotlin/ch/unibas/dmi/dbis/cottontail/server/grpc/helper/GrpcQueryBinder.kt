@@ -11,7 +11,7 @@ import ch.unibas.dmi.dbis.cottontail.execution.ExecutionPlan
 import ch.unibas.dmi.dbis.cottontail.execution.ExecutionPlanFactory
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.basics.ExecutionTask
 
-import ch.unibas.dmi.dbis.cottontail.grpc.CottontailGrpc
+import org.vitrivr.cottontail.grpc.CottontailGrpc
 import ch.unibas.dmi.dbis.cottontail.math.knn.metrics.*
 
 import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
@@ -27,7 +27,7 @@ import java.util.*
  * This helper class parses and binds queries issued through the gRPC endpoint. The process encompasses three steps:
  *
  * 1) The [CottontailGrpc.Query] is decomposed into its components.
- * 2) The GRPC query components are bound to Cottontail DB [DBO] objects and internal query objects are constructed. This step includes some basic validation.
+ * 2) The gRPC query components are bound to Cottontail DB [DBO] objects and internal query objects are constructed. This step includes some basic validation.
  * 3) A [ExecutionPlan] is constructed from the internal query objects.
  *
  * @author Ralph Gasser

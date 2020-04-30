@@ -3,8 +3,8 @@ package ch.unibas.dmi.dbis.cottontail.server.grpc.services
 import ch.unibas.dmi.dbis.cottontail.database.catalogue.Catalogue
 import ch.unibas.dmi.dbis.cottontail.execution.ExecutionEngine
 import ch.unibas.dmi.dbis.cottontail.execution.tasks.ExecutionPlanException
-import ch.unibas.dmi.dbis.cottontail.grpc.CottonDQLGrpc
-import ch.unibas.dmi.dbis.cottontail.grpc.CottontailGrpc
+import org.vitrivr.cottontail.grpc.CottonDQLGrpc
+import org.vitrivr.cottontail.grpc.CottontailGrpc
 import ch.unibas.dmi.dbis.cottontail.model.basics.Record
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
 import ch.unibas.dmi.dbis.cottontail.model.exceptions.QueryException
