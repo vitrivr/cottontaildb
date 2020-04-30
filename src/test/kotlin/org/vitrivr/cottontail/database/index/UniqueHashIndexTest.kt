@@ -1,24 +1,21 @@
 package org.vitrivr.cottontail.database.index
 
-import ch.unibas.dmi.dbis.cottontail.TestConstants
-import ch.unibas.dmi.dbis.cottontail.database.catalogue.Catalogue
-import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
-import ch.unibas.dmi.dbis.cottontail.database.general.begin
-import ch.unibas.dmi.dbis.cottontail.database.queries.AtomicBooleanPredicate
-import ch.unibas.dmi.dbis.cottontail.database.queries.ComparisonOperator
-import ch.unibas.dmi.dbis.cottontail.database.schema.Schema
-import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
-import ch.unibas.dmi.dbis.cottontail.model.recordset.StandaloneRecord
-import ch.unibas.dmi.dbis.cottontail.model.values.FloatVectorValue
-import ch.unibas.dmi.dbis.cottontail.model.values.StringValue
-import ch.unibas.dmi.dbis.cottontail.model.values.Value
-import ch.unibas.dmi.dbis.cottontail.utilities.VectorUtility
-import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
-
 import org.junit.jupiter.api.*
-
 import org.junit.jupiter.api.Assertions.*
-
+import org.vitrivr.cottontail.TestConstants
+import org.vitrivr.cottontail.database.catalogue.Catalogue
+import org.vitrivr.cottontail.database.entity.Entity
+import org.vitrivr.cottontail.database.general.begin
+import org.vitrivr.cottontail.database.queries.AtomicBooleanPredicate
+import org.vitrivr.cottontail.database.queries.ComparisonOperator
+import org.vitrivr.cottontail.database.schema.Schema
+import org.vitrivr.cottontail.model.basics.ColumnDef
+import org.vitrivr.cottontail.model.recordset.StandaloneRecord
+import org.vitrivr.cottontail.model.values.FloatVectorValue
+import org.vitrivr.cottontail.model.values.StringValue
+import org.vitrivr.cottontail.model.values.Value
+import org.vitrivr.cottontail.utilities.VectorUtility
+import org.vitrivr.cottontail.utilities.name.Name
 import java.nio.file.Files
 import java.util.*
 import java.util.stream.Collectors

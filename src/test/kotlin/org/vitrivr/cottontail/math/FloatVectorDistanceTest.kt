@@ -1,10 +1,10 @@
 package org.vitrivr.cottontail.math
 
-import ch.unibas.dmi.dbis.cottontail.math.knn.metrics.FloatVectorDistance
-import ch.unibas.dmi.dbis.cottontail.math.knn.metrics.Shape
-import ch.unibas.dmi.dbis.cottontail.utilities.VectorUtility
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.RepeatedTest
+import org.vitrivr.cottontail.math.knn.metrics.FloatVectorDistance
+import org.vitrivr.cottontail.math.knn.metrics.Shape
+import org.vitrivr.cottontail.utilities.VectorUtility
 import java.util.*
 import kotlin.time.Duration
 import kotlin.time.ExperimentalTime

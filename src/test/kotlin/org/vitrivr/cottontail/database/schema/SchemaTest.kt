@@ -1,15 +1,15 @@
 package org.vitrivr.cottontail.database.schema
 
-import ch.unibas.dmi.dbis.cottontail.TestConstants
-import ch.unibas.dmi.dbis.cottontail.database.catalogue.Catalogue
-import ch.unibas.dmi.dbis.cottontail.database.entity.Entity
-import ch.unibas.dmi.dbis.cottontail.model.basics.ColumnDef
-import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.vitrivr.cottontail.TestConstants
+import org.vitrivr.cottontail.database.catalogue.Catalogue
+import org.vitrivr.cottontail.database.entity.Entity
+import org.vitrivr.cottontail.model.basics.ColumnDef
+import org.vitrivr.cottontail.utilities.name.Name
 import java.nio.file.Files
 import java.util.*
 import java.util.stream.Collectors

@@ -1,13 +1,12 @@
 package org.vitrivr.cottontail.database.catalogue
 
-import ch.unibas.dmi.dbis.cottontail.TestConstants
-import ch.unibas.dmi.dbis.cottontail.database.catalogue.Catalogue
-import ch.unibas.dmi.dbis.cottontail.database.schema.Schema
-import ch.unibas.dmi.dbis.cottontail.model.exceptions.DatabaseException
-import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
+import org.vitrivr.cottontail.TestConstants
+import org.vitrivr.cottontail.database.schema.Schema
+import org.vitrivr.cottontail.model.exceptions.DatabaseException
+import org.vitrivr.cottontail.utilities.name.Name
 import java.nio.file.Files
 import java.util.*
 import java.util.stream.Collectors

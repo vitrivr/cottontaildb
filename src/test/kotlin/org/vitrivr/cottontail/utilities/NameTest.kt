@@ -1,10 +1,10 @@
 package org.vitrivr.cottontail.utilities
 
-import ch.unibas.dmi.dbis.cottontail.utilities.name.Match
-import ch.unibas.dmi.dbis.cottontail.utilities.name.Name
-import ch.unibas.dmi.dbis.cottontail.utilities.name.NameType
 import org.junit.Test
 import org.junit.jupiter.api.Assertions.*
+import org.vitrivr.cottontail.utilities.name.Match
+import org.vitrivr.cottontail.utilities.name.Name
+import org.vitrivr.cottontail.utilities.name.NameType
 import java.util.*
 
 
