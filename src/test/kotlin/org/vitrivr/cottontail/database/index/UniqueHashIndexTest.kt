@@ -61,12 +61,12 @@ class UniqueHashIndexTest {
         this.schema = this.catalogue.schemaForName(schemaName)
 
         /* Create entity. */
-        this.schema.createEntity(this.entityName, *this.columns)
-        this.entity = this.schema.entityForName(this.entityName)
+        this.schema?.createEntity(this.entityName, *this.columns)
+        this.entity = this.schema?.entityForName(this.entityName)
 
         /* Create index. */
-        this.entity.createIndex(indexName, IndexType.HASH_UQ, arrayOf(this.columns[0]))
-        this.index = entity.allIndexes().find { it.name == indexName }
+        this.entity?.createIndex(indexName, IndexType.HASH_UQ, arrayOf(this.columns[0]))
+        this.index = entity?.allIndexes()?.find { it.name == indexName }
 
         /* Populates the database with test values. */
         this.populateDatabase()
@@ -97,7 +97,7 @@ class UniqueHashIndexTest {
     @Test
     @RepeatedTest(100)
     fun testFilterEqualPositive() {
-        this.entity.Tx(readonly = true, columns = this.columns).begin { tx ->
+        this.entity?.Tx(readonly = true, columns = this.columns)?.begin { tx ->
             val entry = this.list.entries.random()
             val predicate = AtomicBooleanPredicate(this.columns[0] as ColumnDef<StringValue>, ComparisonOperator.EQUAL, false, listOf(entry.key))
             val index = tx.indexes().first()
@@ -116,7 +116,7 @@ class UniqueHashIndexTest {
     @Test
     @RepeatedTest(100)
     fun testFilterEqualNegative() {
-        this.entity.Tx(readonly = true, columns = this.columns).begin { tx ->
+        this.entity?.Tx(readonly = true, columns = this.columns)?.begin { tx ->
             val index = tx.indexes().first()
             val rec = index.filter(AtomicBooleanPredicate(this.columns[0] as ColumnDef<StringValue>, ComparisonOperator.EQUAL, false, listOf(StringValue(UUID.randomUUID().toString()))))
             assertEquals(0, rec.rowCount)
@@ -129,7 +129,7 @@ class UniqueHashIndexTest {
      * Populates the test database with data.
      */
     private fun populateDatabase() {
-        this.entity.Tx(readonly = false, columns = this.columns).begin { tx ->
+        this.entity?.Tx(readonly = false, columns = this.columns)?.begin { tx ->
             for (i in 0..this.collectionSize) {
                 val uuid = StringValue(UUID.randomUUID().toString())
                 val vector = VectorUtility.randomFloatVector(128)
@@ -139,6 +139,6 @@ class UniqueHashIndexTest {
             }
             true
         }
-        this.entity.updateAllIndexes()
+        this.entity?.updateAllIndexes()
     }
 }
