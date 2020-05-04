@@ -4,6 +4,7 @@ import org.vitrivr.cottontail.model.values.types.NumericValue
 import org.vitrivr.cottontail.model.values.types.RealVectorValue
 import org.vitrivr.cottontail.model.values.types.Value
 import org.vitrivr.cottontail.model.values.types.VectorValue
+import java.util.*
 import kotlin.math.absoluteValue
 import kotlin.math.pow
 
@@ -14,6 +15,30 @@ import kotlin.math.pow
  * @version 1.1
  */
 inline class IntVectorValue(val data: IntArray) : RealVectorValue<Int> {
+
+    companion object {
+        /**
+         * Generates a [IntVectorValue] of the given size initialized with random numbers.
+         *
+         * @param size Size of the new [IntVectorValue]
+         * @param rnd A [SplittableRandom] to generate the random numbers.
+         */
+        fun random(size: Int, rnd: SplittableRandom = SplittableRandom(System.currentTimeMillis())) = IntVectorValue(IntArray(size) { rnd.nextInt() })
+
+        /**
+         * Generates a [IntVectorValue] of the given size initialized with ones.
+         *
+         * @param size Size of the new [IntVectorValue]
+         */
+        fun one(size: Int) = IntVectorValue(IntArray(size) { 1 })
+
+        /**
+         * Generates a [IntVectorValue] of the given size initialized with zeros.
+         *
+         * @param size Size of the new [IntVectorValue]
+         */
+        fun zero(size: Int) = IntVectorValue(IntArray(size))
+    }
 
     constructor(input: List<Number>) : this(IntArray(input.size) { input[it].toInt() })
     constructor(input: Array<Number>) : this(IntArray(input.size) { input[it].toInt() })

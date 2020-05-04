@@ -18,25 +18,24 @@ inline class DoubleVectorValue(val data: DoubleArray) : RealVectorValue<Double> 
 
     companion object {
         /**
-         * Generates a [Complex32VectorValue] of the given size initialized with random numbers.
+         * Generates a [DoubleVectorValue] of the given size initialized with random numbers.
          *
-         * @param size Size of the new [Complex32VectorValue]
+         * @param size Size of the new [DoubleVectorValue]
          * @param rnd A [SplittableRandom] to generate the random numbers.
          */
-        fun random(size: Int, rnd: SplittableRandom = SplittableRandom(System.currentTimeMillis())) = DoubleVectorValue(DoubleArray(size) { Double.fromBits(rnd.nextLong()) })
+        fun random(size: Int, rnd: SplittableRandom = SplittableRandom(System.currentTimeMillis())) = DoubleVectorValue(DoubleArray(size) { rnd.nextDouble() })
 
         /**
          * Generates a [Complex32VectorValue] of the given size initialized with ones.
          *
-         * @param size Size of the new [Complex32VectorValue]
+         * @param size Size of the new [DoubleVectorValue]
          */
         fun one(size: Int) = DoubleVectorValue(DoubleArray(size) { 1.0 })
 
         /**
-         * Generates a [Complex32VectorValue] of the given size initialized with zeros.
+         * Generates a [DoubleVectorValue] of the given size initialized with zeros.
          *
-         * @param size Size of the new [Complex32VectorValue]
-         * @param rnd A [SplittableRandom] to generate the random numbers.
+         * @param size Size of the new [DoubleVectorValue]
          */
         fun zero(size: Int) = DoubleVectorValue(DoubleArray(size))
     }

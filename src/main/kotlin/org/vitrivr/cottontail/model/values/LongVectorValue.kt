@@ -4,6 +4,7 @@ import org.vitrivr.cottontail.model.values.types.NumericValue
 import org.vitrivr.cottontail.model.values.types.RealVectorValue
 import org.vitrivr.cottontail.model.values.types.Value
 import org.vitrivr.cottontail.model.values.types.VectorValue
+import java.util.*
 import kotlin.math.absoluteValue
 import kotlin.math.pow
 
@@ -14,6 +15,30 @@ import kotlin.math.pow
  * @version 1.1
  */
 inline class LongVectorValue(val data: LongArray) : RealVectorValue<Long> {
+
+    companion object {
+        /**
+         * Generates a [LongVectorValue] of the given size initialized with random numbers.
+         *
+         * @param size Size of the new [LongVectorValue]
+         * @param rnd A [SplittableRandom] to generate the random numbers.
+         */
+        fun random(size: Int, rnd: SplittableRandom = SplittableRandom(System.currentTimeMillis())) = LongVectorValue(LongArray(size) { rnd.nextLong() })
+
+        /**
+         * Generates a [LongVectorValue] of the given size initialized with ones.
+         *
+         * @param size Size of the new [LongVectorValue]
+         */
+        fun one(size: Int) = LongVectorValue(LongArray(size) { 1L })
+
+        /**
+         * Generates a [IntVectorValue] of the given size initialized with zeros.
+         *
+         * @param size Size of the new [LongVectorValue]
+         */
+        fun zero(size: Int) = LongVectorValue(LongArray(size))
+    }
 
     constructor(input: List<Number>) : this(LongArray(input.size) { input[it].toLong() })
     constructor(input: Array<Number>) : this(LongArray(input.size) { input[it].toLong() })

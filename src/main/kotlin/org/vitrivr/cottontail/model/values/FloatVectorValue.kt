@@ -18,25 +18,24 @@ inline class FloatVectorValue(val data: FloatArray) : RealVectorValue<Float> {
 
     companion object {
         /**
-         * Generates a [Complex32VectorValue] of the given size initialized with random numbers.
+         * Generates a [FloatVectorValue] of the given size initialized with random numbers.
          *
-         * @param size Size of the new [Complex32VectorValue]
+         * @param size Size of the new [FloatVectorValue]
          * @param rnd A [SplittableRandom] to generate the random numbers.
          */
-        fun random(size: Int, rnd: SplittableRandom = SplittableRandom(System.currentTimeMillis())) = FloatVectorValue(FloatArray(size) { Float.fromBits(rnd.nextInt()) })
+        fun random(size: Int, rnd: SplittableRandom = SplittableRandom(System.currentTimeMillis())) = FloatVectorValue(FloatArray(size) { rnd.nextDouble().toFloat() })
 
         /**
-         * Generates a [Complex32VectorValue] of the given size initialized with ones.
+         * Generates a [FloatVectorValue] of the given size initialized with ones.
          *
-         * @param size Size of the new [Complex32VectorValue]
+         * @param size Size of the new [FloatVectorValue]
          */
         fun one(size: Int) = FloatVectorValue(FloatArray(size) { 1.0f })
 
         /**
-         * Generates a [Complex32VectorValue] of the given size initialized with zeros.
+         * Generates a [FloatVectorValue] of the given size initialized with zeros.
          *
-         * @param size Size of the new [Complex32VectorValue]
-         * @param rnd A [SplittableRandom] to generate the random numbers.
+         * @param size Size of the new [FloatVectorValue]
          */
         fun zero(size: Int) =FloatVectorValue(FloatArray(size))
     }
