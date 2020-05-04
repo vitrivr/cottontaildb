@@ -14,7 +14,6 @@ import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.FloatVectorValue
 import org.vitrivr.cottontail.model.values.StringValue
 import org.vitrivr.cottontail.model.values.types.Value
-import org.vitrivr.cottontail.utilities.VectorUtility
 import org.vitrivr.cottontail.utilities.name.Name
 import java.nio.file.Files
 import java.util.*
@@ -132,7 +131,7 @@ class UniqueHashIndexTest {
         this.entity?.Tx(readonly = false, columns = this.columns)?.begin { tx ->
             for (i in 0..this.collectionSize) {
                 val uuid = StringValue(UUID.randomUUID().toString())
-                val vector = VectorUtility.randomFloatVector(128)
+                val vector = FloatVectorValue.random(128)
                 val values: Array<Value?> = arrayOf(uuid, vector)
                 this.list[uuid] = vector
                 tx.insert(StandaloneRecord(columns = this.columns, init = values))

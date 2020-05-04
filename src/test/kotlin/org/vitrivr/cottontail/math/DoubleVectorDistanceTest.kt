@@ -7,6 +7,7 @@ import org.junit.jupiter.api.RepeatedTest
 import org.vitrivr.cottontail.math.knn.metrics.EuclidianDistance
 import org.vitrivr.cottontail.math.knn.metrics.ManhattanDistance
 import org.vitrivr.cottontail.math.knn.metrics.SquaredEuclidianDistance
+import org.vitrivr.cottontail.model.values.DoubleVectorValue
 import org.vitrivr.cottontail.utilities.VectorUtility
 import java.util.*
 import kotlin.math.pow
@@ -27,8 +28,8 @@ class DoubleVectorDistanceTest {
     @RepeatedTest(3)
     fun testL1Distance() {
         val dimensions = RANDOM.nextInt(2048)
-        val query = VectorUtility.randomDoubleVector(dimensions)
-        val collection = VectorUtility.randomDoubleVectorSequence(dimensions, COLLECTION_SIZE)
+        val query = DoubleVectorValue.random(dimensions, RANDOM)
+        val collection = VectorUtility.randomDoubleVectorSequence(dimensions, COLLECTION_SIZE, RANDOM)
 
         var sum1 = 0.0
         var sum2 = 0.0
@@ -60,8 +61,8 @@ class DoubleVectorDistanceTest {
     @RepeatedTest(3)
     fun testL2SquaredDistance() {
         val dimensions = RANDOM.nextInt(2048)
-        val query = VectorUtility.randomDoubleVector(dimensions)
-        val collection = VectorUtility.randomDoubleVectorSequence(dimensions, COLLECTION_SIZE)
+        val query = DoubleVectorValue.random(dimensions, RANDOM)
+        val collection = VectorUtility.randomDoubleVectorSequence(dimensions, COLLECTION_SIZE, RANDOM)
 
         var sum1 = 0.0
         var sum2 = 0.0
@@ -95,8 +96,8 @@ class DoubleVectorDistanceTest {
     @RepeatedTest(3)
     fun testL2Distance() {
         val dimensions = RANDOM.nextInt(2048)
-        val query = VectorUtility.randomDoubleVector(dimensions)
-        val collection = VectorUtility.randomDoubleVectorSequence(dimensions, COLLECTION_SIZE)
+        val query = DoubleVectorValue.random(dimensions, RANDOM)
+        val collection = VectorUtility.randomDoubleVectorSequence(dimensions, COLLECTION_SIZE, RANDOM)
 
         var sum1 = 0.0
         var sum2 = 0.0

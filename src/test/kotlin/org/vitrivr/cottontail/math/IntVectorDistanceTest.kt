@@ -1,13 +1,15 @@
-package ch.unibas.dmi.dbis.cottontail.math
+package org.vitrivr.cottontail.math
 
-import ch.unibas.dmi.dbis.cottontail.math.knn.metrics.EuclidianDistance
-import ch.unibas.dmi.dbis.cottontail.math.knn.metrics.ManhattanDistance
-import ch.unibas.dmi.dbis.cottontail.math.knn.metrics.SquaredEuclidianDistance
-import ch.unibas.dmi.dbis.cottontail.utilities.VectorUtility
 import org.apache.commons.math3.util.MathArrays
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.RepeatedTest
+import org.vitrivr.cottontail.math.knn.metrics.EuclidianDistance
+import org.vitrivr.cottontail.math.knn.metrics.ManhattanDistance
+import org.vitrivr.cottontail.math.knn.metrics.SquaredEuclidianDistance
+import org.vitrivr.cottontail.model.values.IntVectorValue
+import org.vitrivr.cottontail.utilities.VectorUtility
 import java.util.*
+import kotlin.math.pow
 import kotlin.time.Duration
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTime
@@ -24,8 +26,8 @@ class IntVectorDistanceTest {
     @RepeatedTest(3)
     fun testL1Distance() {
         val dimensions = RANDOM.nextInt(2048)
-        val query = VectorUtility.randomIntVector(dimensions)
-        val collection = VectorUtility.randomIntVectorSequence(dimensions, COLLECTION_SIZE)
+        val query = IntVectorValue.random(dimensions, RANDOM)
+        val collection = VectorUtility.randomIntVectorSequence(dimensions, COLLECTION_SIZE, RANDOM)
 
         var sum1 = 0.0
         var sum2 = 0.0
@@ -57,8 +59,8 @@ class IntVectorDistanceTest {
     @RepeatedTest(3)
     fun testL2SquaredDistance() {
         val dimensions = RANDOM.nextInt(2048)
-        val query = VectorUtility.randomIntVector(dimensions)
-        val collection = VectorUtility.randomIntVectorSequence(dimensions, COLLECTION_SIZE)
+        val query = IntVectorValue.random(dimensions, RANDOM)
+        val collection = VectorUtility.randomIntVectorSequence(dimensions, COLLECTION_SIZE, RANDOM)
 
         var sum1 = 0.0
         var sum2 = 0.0
@@ -77,7 +79,7 @@ class IntVectorDistanceTest {
             sum3 += MathArrays.distance(it.data, query.data).pow(2)
         }
 
-        println("Calculating L2^2 distance for collection (s=${DoubleVectorDistanceTest.COLLECTION_SIZE}, d=$dimensions) took ${time1/ COLLECTION_SIZE} (optimized) resp. ${time2/ COLLECTION_SIZE} per vector on average.")
+        println("Calculating L2^2 distance for collection (s=${COLLECTION_SIZE}, d=$dimensions) took ${time1 / COLLECTION_SIZE} (optimized) resp. ${time2 / COLLECTION_SIZE} per vector on average.")
 
         Assertions.assertTrue(time1 < time2, "Optimized version of L2^2 is slower than default version!")
         Assertions.assertTrue(sum1 / sum3 < 1.0 + DELTA, "Deviation for optimized version detected. Expected: $sum3, Received: $sum1")
@@ -90,8 +92,8 @@ class IntVectorDistanceTest {
     @RepeatedTest(3)
     fun testL2Distance() {
         val dimensions = RANDOM.nextInt(2048)
-        val query = VectorUtility.randomIntVector(dimensions)
-        val collection = VectorUtility.randomIntVectorSequence(dimensions, COLLECTION_SIZE)
+        val query = IntVectorValue.random(dimensions, RANDOM)
+        val collection = VectorUtility.randomIntVectorSequence(dimensions, COLLECTION_SIZE, RANDOM)
 
         var sum1 = 0.0
         var sum2 = 0.0
