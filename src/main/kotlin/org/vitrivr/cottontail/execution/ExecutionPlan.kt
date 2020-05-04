@@ -99,23 +99,17 @@ class ExecutionPlan(executor: ExecutorService) {
      */
     fun execute(): Recordset {
         /* Prepare a final stage (it will hold the results of the execution plan). */
-        val finalStage = this.FinalStageExecutionTask()
-        if (!this.provider.hasTask(finalStage)) {
-            this.provider.addTask(finalStage)
-        }
-        this.config.dexecutorState.addAsDependentOnAllLeafNodes(finalStage.id)
-
         /* Execute plan and check for errors. */
-        val errors = DefaultDexecutor(this.config).execute(ExecutionConfig.TERMINATING)
-        if (errors.hasAnyResult()) {
-            throw ExecutionPlanException(this, errors.first.message)
+        val results = DefaultDexecutor(this.config).execute(ExecutionConfig.TERMINATING)
+        if (results.errored.size > 0) {
+            throw ExecutionPlanException(this, results.errored.first().message)
         }
 
         /* If no error occurred, then check + return results of final stage. */
-        if (!finalStage.parentResults.hasAnyResult() || !finalStage.parentResults.first.isSuccess) {
-            throw ExecutionPlanException(this, "Final stage does not contain any results.")
+        if (results.success.size == 0) {
+            throw ExecutionPlanException(this, "Graph did not produce any results.")
         }
-        return finalStage.parentResults.first.result
+        return results.success.last().result
     }
 
     /**
