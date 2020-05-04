@@ -94,7 +94,7 @@ class CottonDDLService(val catalogue: Catalogue) : CottonDDLGrpc.CottonDDLImplBa
      *
      * gRPC endpoint for creating a new [Entity][org.vitrivr.cottontail.database.entity.Entity]
      */
-    override fun createEntity(request: CottontailGrpc.CreateEntityMessage, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) = try {
+    override fun createEntity(request: CottontailGrpc.EntityDefinition, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) = try {
         LOGGER.trace("Creating entity ${request.entity.schema.name}.${request.entity.name}...")
         val entityName = Name(request.entity.name)
         val schemaName = Name(request.entity.schema.name)
@@ -124,6 +124,36 @@ class CottonDDLService(val catalogue: Catalogue) : CottonDDLGrpc.CottonDDLImplBa
     } catch (e: Throwable) {
         LOGGER.error("Error while creating entity '${request.entity.fqn()}'", e)
         responseObserver.onError(Status.UNKNOWN.withDescription("Failed to create entity '${request.entity.fqn()}' because of unknown error: ${e.message}").asException())
+    }
+
+    override fun entityDetails(request: CottontailGrpc.Entity, responseObserver: StreamObserver<CottontailGrpc.EntityDefinition>) = try {
+        val entityName = Name(request.name)
+        val schemaName = Name(request.schema.name)
+        if (entityName.type != NameType.SIMPLE) {
+            responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Failed to drop entity: Invalid entity name '${request.name}'.").asException())
+        } else if (schemaName.type != NameType.SIMPLE) {
+            responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Failed to drop entity: Invalid schema name '${request.schema.name}'.").asException())
+        } else {
+            val entity = this.catalogue.schemaForName(schemaName).entityForName(entityName)
+            val def = CottontailGrpc.EntityDefinition.newBuilder().setEntity(request)
+            for (c in entity.allColumns()) {
+                def.addColumns(CottontailGrpc.ColumnDefinition.newBuilder().setName(c.name.name).setNullable(c.nullable).setLength(c.size).setType(CottontailGrpc.Type.valueOf(c.type.name)))
+            }
+            responseObserver.onNext(def.build())
+            responseObserver.onCompleted()
+        }
+    } catch (e: DatabaseException.SchemaDoesNotExistException) {
+        LOGGER.error("Error while fetchin information for entity '${request.fqn()}'", e)
+        responseObserver.onError(Status.NOT_FOUND.withDescription("Schema '${request.schema.fqn()}' does not exist!").asException())
+    } catch (e: DatabaseException.EntityDoesNotExistException) {
+        LOGGER.error("Error while fetchin information for entity '${request.fqn()}'", e)
+        responseObserver.onError(Status.NOT_FOUND.withDescription("Entity '${request.fqn()}' does not exist!").asException())
+    } catch (e: DatabaseException) {
+        LOGGER.error("Error while fetchin information for entity '${request.fqn()}'", e)
+        responseObserver.onError(Status.UNKNOWN.withDescription("Failed to drop entity '${request.fqn()}' because of database error: ${e.message}").asException())
+    } catch (e: Throwable) {
+        LOGGER.error("Error while fetchin information for entity '${request.fqn()}'", e)
+        responseObserver.onError(Status.UNKNOWN.withDescription("Failed to drop entity '${request.fqn()}' because of unknown error: ${e.message}").asException())
     }
 
     /**
