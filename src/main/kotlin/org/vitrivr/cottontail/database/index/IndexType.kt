@@ -3,8 +3,10 @@ package org.vitrivr.cottontail.database.index
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.index.hash.NonUniqueHashIndex
 import org.vitrivr.cottontail.database.index.hash.UniqueHashIndex
+import org.vitrivr.cottontail.database.index.lsh.superbit.SuperBitLSHIndex
 import org.vitrivr.cottontail.database.index.lucene.LuceneIndex
 import org.vitrivr.cottontail.model.basics.ColumnDef
+import org.vitrivr.cottontail.model.values.types.VectorValue
 import org.vitrivr.cottontail.utilities.name.Name
 
 enum class IndexType(val inexact: Boolean) {
@@ -14,7 +16,7 @@ enum class IndexType(val inexact: Boolean) {
     LUCENE(false), /* A Lucene based index (fulltext search). */
     VAF(false), /* A VA file based index (for exact kNN lookup). */
     PQ(true), /* A product quantization based index (for approximate kNN lookup). */
-    SH(true), /* A spectral hashing  based index (for approximate kNN lookup). */
+    SH(true), /* A spectral hashing based index (for approximate kNN lookup). */
     LSH(true); /* A locality sensitive hashing based index (for approximate kNN lookup). */
 
     /**
@@ -27,6 +29,7 @@ enum class IndexType(val inexact: Boolean) {
         HASH_UQ -> UniqueHashIndex(name, entity, columns)
         HASH -> NonUniqueHashIndex(name, entity, columns)
         LUCENE -> LuceneIndex(name, entity, columns)
+        LSH -> SuperBitLSHIndex<VectorValue<*>>(name, entity, columns, null)
         else -> TODO()
     }
 

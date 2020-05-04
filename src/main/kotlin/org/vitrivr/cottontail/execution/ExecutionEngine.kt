@@ -1,7 +1,6 @@
 package org.vitrivr.cottontail.execution
 
 import org.vitrivr.cottontail.config.ExecutionConfig
-
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit

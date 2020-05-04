@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.model.basics
 
-import org.vitrivr.cottontail.model.values.Value
+import org.vitrivr.cottontail.model.values.types.Value
 import org.vitrivr.cottontail.utilities.name.Name
 
 /**
@@ -16,7 +16,7 @@ import org.vitrivr.cottontail.utilities.name.Name
  * @see org.vitrivr.cottontail.database.entity.Entity
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.1
  */
 interface Record {
 
@@ -27,11 +27,33 @@ interface Record {
     val columns: Array<out ColumnDef<*>>
 
     /** Array of column values (one entry per column). */
-    val values: Array<Value<*>?>
+    val values: Array<Value?>
 
     /** Size of this [Record] in terms of [ColumnDef] it encompasses. */
     val size: Int
         get() = columns.size
+
+    /**
+     * Returns the first value in this [Record] or null, if that value is not set.
+     *
+     * @return First [Value] in this [Record]
+     */
+    fun first(): Value? = this.values.first()
+
+    /**
+     * Returns the last value in this [Record] or null, if that value is not set.
+     *
+     * @return Last [Value] in this [Record]
+     */
+    fun last(): Value? = this.values.last()
+
+    /**
+     * Creates and returns a copy of this [Record]. The copy is supposed to hold its own copy of the values it holds. However,
+     * structural information, such as the columns, may be shared between instances, as they are supposed to be immutable.
+     *
+     * @return Copy of this [Record].
+     */
+    fun copy(): Record
 
     /**
      * Assigns the provided values to this [Record], i.e. the first value is assigned to the first column,
@@ -39,7 +61,7 @@ interface Record {
      *
      * @param values The values to assign. Cannot contain more than [Record.size] values.
      */
-    fun assign(values: Array<Value<*>?>): Record {
+    fun assign(values: Array<Value?>): Record {
         if (values.size <= this.size) {
             values.forEachIndexed { i, v ->
                 this.columns[i].validateOrThrow(v)
@@ -64,7 +86,7 @@ interface Record {
      *
      * @return Map of column name to value.
      */
-    fun toMap(): Map<Name, Value<*>?> = mapOf(*this.columns.mapIndexed { index, column -> Pair(column.name, this.values[index]) }.toTypedArray())
+    fun toMap(): Map<Name, Value?> = mapOf(*this.columns.mapIndexed { index, column -> Pair(column.name, this.values[index]) }.toTypedArray())
 
     /**
      * Retrieves the value for the specified [ColumnDef] from this [Record].
@@ -72,7 +94,7 @@ interface Record {
      * @param column The [ColumnDef] for which to retrieve the value.
      * @return The value for the [ColumnDef]
      */
-    operator fun <T : Any> get(column: ColumnDef<T>): Value<T>? {
+    operator fun <T: Value> get(column: ColumnDef<T>): T? {
         val index = this.columns.indexOfFirst { it.isEquivalent(column) }
         return if (index > -1) {
             column.type.cast(values[index])
@@ -87,7 +109,7 @@ interface Record {
      * @param column The [ColumnDef] for which to set the value.
      * @param value The new value for the [ColumnDef]
      */
-    operator fun set(column: ColumnDef<*>, value: Value<*>?) {
+    operator fun set(column: ColumnDef<*>, value: Value?) {
         val index = this.columns.indexOfFirst { it.isEquivalent(column) }
         if (index > -1) {
             column.validateOrThrow(value)

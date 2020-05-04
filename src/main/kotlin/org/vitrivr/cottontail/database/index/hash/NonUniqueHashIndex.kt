@@ -18,7 +18,7 @@ import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.exceptions.ValidationException
 import org.vitrivr.cottontail.model.recordset.Recordset
-import org.vitrivr.cottontail.model.values.Value
+import org.vitrivr.cottontail.model.values.types.Value
 import org.vitrivr.cottontail.utilities.extensions.write
 import org.vitrivr.cottontail.utilities.name.Name
 import java.nio.file.Path
@@ -64,7 +64,7 @@ class NonUniqueHashIndex(override val name: Name, override val parent: Entity, o
     }
 
     /** Map structure used for [NonUniqueHashIndex]. */
-    private val map: HTreeMap<out Value<out Any>, LongArray> = this.db.hashMap(MAP_FIELD_NAME, this.columns.first().type.serializer(this.columns.size), Serializer.LONG_ARRAY).counterEnable().createOrOpen()
+    private val map: HTreeMap<out Value, LongArray> = this.db.hashMap(MAP_FIELD_NAME, this.columns.first().type.serializer(this.columns.size), Serializer.LONG_ARRAY).counterEnable().createOrOpen()
 
     /**
      * Flag indicating if this [NonUniqueHashIndex] has been closed.
@@ -156,7 +156,7 @@ class NonUniqueHashIndex(override val name: Name, override val parent: Entity, o
         this.map.clear()
 
         /* (Re-)create index entries. */
-        val localMap = mutableMapOf<Value<*>, MutableList<Long>>()
+        val localMap = mutableMapOf<Value, MutableList<Long>>()
         tx.forEach {
             val value = it[this.columns[0]]
                     ?: throw ValidationException.IndexUpdateException(this.fqn, "A value cannot be null for instances of non-unique hash-index but tid=${it.tupleId} is")
@@ -166,7 +166,7 @@ class NonUniqueHashIndex(override val name: Name, override val parent: Entity, o
                 localMap[value]!!.add(it.tupleId)
             }
         }
-        val castMap = this.map as HTreeMap<Value<*>, LongArray>
+        val castMap = this.map as HTreeMap<Value,LongArray>
         localMap.forEach { (value, l) -> castMap[value] = l.toLongArray() }
         this.db.commit()
     }
@@ -178,7 +178,7 @@ class NonUniqueHashIndex(override val name: Name, override val parent: Entity, o
      * @param tx Reference to the [Entity.Tx] the call to this method belongs to.
      */
     override fun update(update: Collection<DataChangeEvent>, tx: Entity.Tx) = try {
-        val localMap = this.map as HTreeMap<Value<*>, LongArray>
+        val localMap = this.map as HTreeMap<Value,LongArray>
 
         /* Define action for inserting an entry based on a DataChangeEvent. */
         val atomicInsert = { event: DataChangeEvent ->

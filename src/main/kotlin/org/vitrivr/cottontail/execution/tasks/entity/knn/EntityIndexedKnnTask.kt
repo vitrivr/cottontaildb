@@ -8,6 +8,7 @@ import org.vitrivr.cottontail.database.queries.KnnPredicate
 import org.vitrivr.cottontail.execution.tasks.basics.ExecutionTask
 import org.vitrivr.cottontail.execution.tasks.entity.boolean.EntityLinearScanFilterTask
 import org.vitrivr.cottontail.model.recordset.Recordset
+import org.vitrivr.cottontail.model.values.types.VectorValue
 
 /**
  * A [Task] that executes a index based kNN on the specified [Entity].
@@ -15,7 +16,7 @@ import org.vitrivr.cottontail.model.recordset.Recordset
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class EntityIndexedKnnTask<T : Any>(val entity: Entity, val knnPredicate: KnnPredicate<T>, indexHint: Index) : ExecutionTask("EntityIndexedKnnTask[${entity.fqn}][${knnPredicate.column.name}][${knnPredicate.distance::class.simpleName}][${knnPredicate.k}][q=${knnPredicate.query.hashCode()}]") {
+class EntityIndexedKnnTask<T : VectorValue<*>>(val entity: Entity, val knnPredicate: KnnPredicate<T>, indexHint: Index) : ExecutionTask("EntityIndexedKnnTask[${entity.fqn}][${knnPredicate.column.name}][${knnPredicate.distance::class.simpleName}][${knnPredicate.k}][q=${knnPredicate.query.hashCode()}]") {
     /** The cost of this [EntityLinearScanFilterTask] depends on whether or not an [Index] can be employed. */
     override val cost = indexHint.cost(this.knnPredicate)
 

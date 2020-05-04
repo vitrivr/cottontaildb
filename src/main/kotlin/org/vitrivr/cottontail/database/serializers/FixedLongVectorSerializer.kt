@@ -14,7 +14,7 @@ import org.vitrivr.cottontail.model.values.LongVectorValue
 class FixedLongVectorSerializer(val size: Int) : Serializer<LongVectorValue> {
     override fun serialize(out: DataOutput2, value: LongVectorValue) {
         for (i in 0 until size) {
-            out.writeLong(value.value[i])
+            out.writeLong(value[i].value)
         }
     }
 

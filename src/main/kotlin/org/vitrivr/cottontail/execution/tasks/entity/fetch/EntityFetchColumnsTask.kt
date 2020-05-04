@@ -8,7 +8,7 @@ import org.vitrivr.cottontail.execution.tasks.basics.ExecutionTask
 import org.vitrivr.cottontail.execution.tasks.recordset.projection.RecordsetCountProjectionTask
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.recordset.Recordset
-import org.vitrivr.cottontail.model.values.Value
+import org.vitrivr.cottontail.model.values.types.Value
 
 /**
  * A [Task] used during query execution. It takes a [Recordset] as input, fetches the desired [Column][org.vitrivr.cottontail.database.column.Column]s
@@ -41,7 +41,7 @@ class EntityFetchColumnsTask(val entity: Entity, val columns: Array<ColumnDef<*>
             this.entity.Tx(readonly = true, columns = fetch).begin { tx ->
                 parent.forEach { rec ->
                     val read = tx.read(rec.tupleId)
-                    val values: Array<Value<*>?> = all.map {
+                    val values: Array<Value?> = all.map {
                         if (read.has(it)) {
                             read[it]
                         } else {

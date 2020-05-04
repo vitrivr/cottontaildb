@@ -6,7 +6,7 @@ import org.vitrivr.cottontail.database.queries.BooleanPredicate
 import org.vitrivr.cottontail.database.queries.Predicate
 import org.vitrivr.cottontail.model.basics.*
 import org.vitrivr.cottontail.model.exceptions.QueryException
-import org.vitrivr.cottontail.model.values.Value
+import org.vitrivr.cottontail.model.values.types.Value
 import org.vitrivr.cottontail.utilities.extensions.read
 import org.vitrivr.cottontail.utilities.extensions.write
 import org.vitrivr.cottontail.utilities.name.Name
@@ -59,7 +59,7 @@ class Recordset(val columns: Array<ColumnDef<*>>, capacity: Long = 250L) : Scana
      *
      * @param values The values to add to this [Recordset].
      */
-    fun addRowUnsafe(values: Array<Value<*>?>) = this.lock.write {
+    fun addRowUnsafe(values: Array<Value?>) = this.lock.write {
         this.list.add(RecordsetRecord(this.list.size64()).assign(values))
     }
 
@@ -70,7 +70,7 @@ class Recordset(val columns: Array<ColumnDef<*>>, capacity: Long = 250L) : Scana
      * @param tupleId The tupleId of the new [Record].
      * @param values The values to add to this [Recordset].
      */
-    fun addRowUnsafe(tupleId: Long, values: Array<Value<*>?>) = this.lock.write {
+    fun addRowUnsafe(tupleId: Long, values: Array<Value?>) = this.lock.write {
         this.list.add(RecordsetRecord(tupleId).assign(values))
     }
 
@@ -83,7 +83,7 @@ class Recordset(val columns: Array<ColumnDef<*>>, capacity: Long = 250L) : Scana
      * @param values The values to add to this [Recordset].
      * @return True if [Record] was added, false otherwise.
      */
-    fun addRowIfUnsafe(tupleId: Long, predicate: BooleanPredicate, values: Array<Value<*>?>): Boolean = this.lock.write {
+    fun addRowIfUnsafe(tupleId: Long, predicate: BooleanPredicate, values: Array<Value?>): Boolean = this.lock.write {
         val record = RecordsetRecord(tupleId).assign(values)
         return if (predicate.matches(record)) {
             this.list.add(record)
@@ -369,7 +369,7 @@ class Recordset(val columns: Array<ColumnDef<*>>, capacity: Long = 250L) : Scana
     fun dropColumnsWithIndex(columns: Collection<Int>): Recordset = this.lock.write {
         val recordset = Recordset(this.columns.filterIndexed { i, _ -> !columns.contains(i) }.toTypedArray())
         this.list.forEach {
-            recordset.addRowUnsafe(it.tupleId, it.values.filterIndexed { i, _ -> !columns.contains(i) }.toTypedArray())
+            recordset.addRowUnsafe(it.tupleId, it.values.filterIndexed {i, _ -> !columns.contains(i) }.toTypedArray())
         }
         return recordset
     }
@@ -417,7 +417,7 @@ class Recordset(val columns: Array<ColumnDef<*>>, capacity: Long = 250L) : Scana
      *
      * @return [Iterator] of this [Recordset].
      */
-    fun iterator(): CloseableIterator<Record> = object : CloseableIterator<Record> {
+    fun iterator(): CloseableIterator<Record> = object: CloseableIterator<Record> {
 
         /** Obtains a stamped read lock from the surrounding [Recordset]. */
         private val stamp = this@Recordset.lock.readLock()
@@ -476,17 +476,25 @@ class Recordset(val columns: Array<ColumnDef<*>>, capacity: Long = 250L) : Scana
      * @author Ralph Gasser
      * @version 1.0
      */
-    inner class RecordsetRecord(override val tupleId: Long, init: Array<Value<*>?>? = null) : Record {
+    inner class RecordsetRecord(override val tupleId: Long, init: Array<Value?>? = null) : Record {
 
         /** Array of [ColumnDef]s that describes the [Column][org.vitrivr.cottontail.database.column.Column] of this [Record]. */
-        override val columns: Array<out ColumnDef<*>>
+        override val columns: Array<ColumnDef<*>>
             get() = this@Recordset.columns
 
         /** Array of column values (one entry per column). Initializes with null. */
-        override val values: Array<Value<*>?> = if (init != null) {
+        override val values: Array<Value?> = if (init != null) {
+            assert(init.size == columns.size)
             init.forEachIndexed { index, any -> columns[index].validateOrThrow(any) }
             init
         } else Array(columns.size) { columns[it].defaultValue() }
+
+        /**
+         * Copies this [Record] and returns the copy.
+         *
+         * @return Copy of this [Record]
+         */
+        override fun copy(): Record = StandaloneRecord(tupleId, columns = columns, init = values.copyOf())
 
         override fun equals(other: Any?): Boolean {
             if (this === other) return true

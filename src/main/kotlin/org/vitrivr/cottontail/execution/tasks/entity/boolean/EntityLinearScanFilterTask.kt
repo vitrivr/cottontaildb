@@ -18,7 +18,7 @@ import org.vitrivr.cottontail.model.recordset.Recordset
 class EntityLinearScanFilterTask(private val entity: Entity, private val predicate: BooleanPredicate) : ExecutionTask("EntityLinearScanFilterTask[${entity.fqn}][$predicate]") {
 
     /** The cost of this [EntityLinearScanFilterTask] depends on whether or not an [Index] can be employed. */
-    override val cost = (this.entity.statistics.columns * this.predicate.operations).toFloat()
+    override val cost = (this.entity.statistics.columns * this.predicate.cost).toFloat()
 
     /**
      * Executes this [EntityLinearScanFilterTask]

@@ -17,13 +17,15 @@ import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.exceptions.TransactionException
 import org.vitrivr.cottontail.model.recordset.Recordset
-import org.vitrivr.cottontail.model.values.Value
+import org.vitrivr.cottontail.model.values.types.Value
 import org.vitrivr.cottontail.utilities.extensions.write
 import org.vitrivr.cottontail.utilities.name.Name
+
 import java.nio.file.Path
 import java.util.*
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import java.util.concurrent.locks.StampedLock
+
 import kotlin.concurrent.read
 import kotlin.concurrent.write
 
@@ -36,9 +38,9 @@ import kotlin.concurrent.write
  * @param <T> Type of the value held by this [MapDBColumn].
  *
  * @author Ralph Gasser
- * @version 1.1
+ * @version 1.2
  */
-class MapDBColumn<T : Any>(override val name: Name, override val parent: Entity) : Column<T> {
+class MapDBColumn<T : Value>(override val name: Name, override val parent: Entity) : Column<T> {
     /** Constant FQN of the [Schema] object. */
     override val fqn: Name = this.parent.fqn.append(this.name)
 
@@ -137,11 +139,15 @@ class MapDBColumn<T : Any>(override val name: Name, override val parent: Entity)
     /**
      * Thinly veiled implementation of the [Record] interface for internal use.
      */
-    inner class ColumnRecord(override val tupleId: Long, value: Value<*>?) : Record {
+    inner class ColumnRecord(override val tupleId: Long, val value: Value?) : Record {
         override val columns
             get() = arrayOf(this@MapDBColumn.columnDef)
+        override val values
+            get() = arrayOf(this.value)
 
-        override val values = arrayOf(value)
+        override fun first(): Value? = this.value
+        override fun last(): Value? = this.value
+        override fun copy(): Record = ColumnRecord(this.tupleId, this.value)
     }
 
     /**
@@ -231,7 +237,7 @@ class MapDBColumn<T : Any>(override val name: Name, override val parent: Entity)
          *
          * @throws DatabaseException If the tuple with the desired ID doesn't exist OR is invalid.
          */
-        override fun read(tupleId: Long): Value<T>? = this.localLock.read {
+        override fun read(tupleId: Long): T? = this.localLock.read {
             checkValidForRead()
             checkValidTupleId(tupleId)
             return this@MapDBColumn.store.get(tupleId, this.serializer)
@@ -245,7 +251,7 @@ class MapDBColumn<T : Any>(override val name: Name, override val parent: Entity)
          *
          * @throws DatabaseException If the tuple with the desired ID doesn't exist OR is invalid.
          */
-        override fun readAll(tupleIds: Collection<Long>): Collection<Value<T>?> = this.localLock.read {
+        override fun readAll(tupleIds: Collection<Long>): Collection<T?> = this.localLock.read {
             checkValidForRead()
             return tupleIds.map {
                 checkValidTupleId(it)
@@ -446,7 +452,7 @@ class MapDBColumn<T : Any>(override val name: Name, override val parent: Entity)
          * @param record The record that should be inserted. Can be null!
          * @return The tupleId of the inserted record OR the allocated space in case of a null value.
          */
-        override fun insert(record: Value<T>?): Long = this.localLock.read {
+        override fun insert(record: T?): Long = this.localLock.read {
             try {
                 checkValidForWrite()
                 val tupleId = if (record == null) {
@@ -475,7 +481,7 @@ class MapDBColumn<T : Any>(override val name: Name, override val parent: Entity)
          * @param records The records that should be inserted. Can contain null values!
          * @return The tupleId of the inserted record OR the allocated space in case of a null value.
          */
-        override fun insertAll(records: Collection<Value<T>?>): Collection<Long> = this.localLock.read {
+        override fun insertAll(records: Collection<T?>): Collection<Long> = this.localLock.read {
             try {
                 checkValidForWrite()
 
@@ -507,7 +513,7 @@ class MapDBColumn<T : Any>(override val name: Name, override val parent: Entity)
          * @param tupleId The ID of the record that should be updated
          * @param value The new value.
          */
-        override fun update(tupleId: Long, value: Value<T>?) = this.localLock.read {
+        override fun update(tupleId: Long, value: T?) = this.localLock.read {
             try {
                 checkValidForWrite()
                 checkValidTupleId(tupleId)
@@ -527,7 +533,7 @@ class MapDBColumn<T : Any>(override val name: Name, override val parent: Entity)
          * @param value The new value.
          * @param expected The value expected to be there.
          */
-        override fun compareAndUpdate(tupleId: Long, value: Value<T>?, expected: Value<T>?): Boolean = this.localLock.read {
+        override fun compareAndUpdate(tupleId: Long, value: T?, expected: T?): Boolean = this.localLock.read {
             try {
                 checkValidForWrite()
                 checkValidTupleId(tupleId)
@@ -619,8 +625,5 @@ class MapDBColumn<T : Any>(override val name: Name, override val parent: Entity)
                 this.status = TransactionStatus.DIRTY
             }
         }
-
-
     }
 }
-

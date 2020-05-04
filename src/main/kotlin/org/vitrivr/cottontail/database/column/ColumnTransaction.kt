@@ -3,7 +3,7 @@ package org.vitrivr.cottontail.database.column
 import org.vitrivr.cottontail.database.general.Transaction
 import org.vitrivr.cottontail.model.basics.*
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
-import org.vitrivr.cottontail.model.values.Value
+import org.vitrivr.cottontail.model.values.types.Value
 
 /**
  * A [Transaction] that operates on a single [Column]. [Transaction]s are a unit of isolation for data
@@ -14,7 +14,7 @@ import org.vitrivr.cottontail.model.values.Value
  * @author Ralph Gasser
  * @version 1.0
  */
-interface ColumnTransaction<T : Any> : Transaction, Countable, Scanable, Filterable, Deletable {
+interface ColumnTransaction<T: Value> : Transaction, Countable, Scanable, Filterable, Deletable {
     /**
      * The [ColumnDef] of the [Column] underlying this [ColumnTransaction].
      *
@@ -30,7 +30,7 @@ interface ColumnTransaction<T : Any> : Transaction, Countable, Scanable, Filtera
      *
      * @throws DatabaseException If the tuple with the desired ID doesn't exist OR is invalid.
      */
-    fun read(tupleId: Long): Value<T>?
+    fun read(tupleId: Long): T?
 
     /**
      * Gets and returns several entries from this [Column].
@@ -40,7 +40,7 @@ interface ColumnTransaction<T : Any> : Transaction, Countable, Scanable, Filtera
      *
      * @throws DatabaseException If the tuple with the desired ID doesn't exist OR is invalid.
      */
-    fun readAll(tupleIds: Collection<Long>): Collection<Value<T>?>
+    fun readAll(tupleIds: Collection<Long>): Collection<T?>
 
     /**
      * Inserts a new record in this [Column].
@@ -48,7 +48,7 @@ interface ColumnTransaction<T : Any> : Transaction, Countable, Scanable, Filtera
      * @param record The record that should be inserted. Can be null!
      * @return The tupleId of the inserted record OR the allocated space in case of a null value.
      */
-    fun insert(record: Value<T>?): Long
+    fun insert(record: T?): Long
 
     /**
      * Inserts a list of new records in this [Column].
@@ -56,7 +56,7 @@ interface ColumnTransaction<T : Any> : Transaction, Countable, Scanable, Filtera
      * @param records The records that should be inserted. Can contain null values!
      * @return The tupleId of the inserted record OR the allocated space in case of a null value.
      */
-    fun insertAll(records: Collection<Value<T>?>): Collection<Long>
+    fun insertAll(records: Collection<T?>): Collection<Long>
 
     /**
      * Updates the entry with the specified tuple ID and sets it to the new value.
@@ -64,7 +64,7 @@ interface ColumnTransaction<T : Any> : Transaction, Countable, Scanable, Filtera
      * @param tupleId The ID of the record that should be updated
      * @param value The new value.
      */
-    fun update(tupleId: Long, value: Value<T>?)
+    fun update(tupleId: Long, value: T?)
 
     /**
      * Updates the entry with the specified tuple ID and sets it to the new value.
@@ -73,5 +73,5 @@ interface ColumnTransaction<T : Any> : Transaction, Countable, Scanable, Filtera
      * @param value The new value.
      * @param expected The value expected to be there.
      */
-    fun compareAndUpdate(tupleId: Long, value: Value<T>?, expected: Value<T>?): Boolean
+    fun compareAndUpdate(tupleId: Long, value: T?, expected: T?): Boolean
 }

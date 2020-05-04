@@ -8,8 +8,9 @@ import org.vitrivr.cottontail.execution.cost.Costs
 import org.vitrivr.cottontail.execution.tasks.basics.ExecutionTask
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.recordset.Recordset
-import org.vitrivr.cottontail.model.values.DoubleValue
+import org.vitrivr.cottontail.model.values.*
 import org.vitrivr.cottontail.utilities.name.Name
+import kotlin.math.max
 
 /**
  * A [Task] used during query execution. It takes a single [Recordset] and determines the maximum value of a specific [ColumnDef]. It thereby creates a 1x1 [Recordset].
@@ -43,15 +44,14 @@ class RecordsetMaxProjectionTask(val projection: Projection, estimatedRows: Int 
         var max = Double.MIN_VALUE
         val results = Recordset(arrayOf(resultsColumn))
         parent.forEach {
-            when (val value = it[column]?.value) {
-                is Byte -> max = Math.max(max, value.toDouble())
-                is Short -> max = Math.max(max, value.toDouble())
-                is Int -> max = Math.max(max, value.toDouble())
-                is Long -> max = Math.max(max, value.toDouble())
-                is Float -> max = Math.max(max, value.toDouble())
-                is Double -> max = Math.max(max, value)
-                else -> {
-                }
+            when (val value = it[column]) {
+                is ByteValue -> max = max(max, value.value.toDouble())
+                is ShortValue -> max = max(max, value.value.toDouble())
+                is IntValue -> max = max(max, value.value.toDouble())
+                is LongValue -> max = max(max, value.value.toDouble())
+                is FloatValue -> max = max(max, value.value.toDouble())
+                is DoubleValue -> max = max(max, value.value)
+                else -> {}
             }
         }
         results.addRowUnsafe(arrayOf(DoubleValue(max)))

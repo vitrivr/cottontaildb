@@ -14,7 +14,7 @@ import org.vitrivr.cottontail.model.values.IntVectorValue
 class FixedIntVectorSerializer(val size: Int) : Serializer<IntVectorValue> {
     override fun serialize(out: DataOutput2, value: IntVectorValue) {
         for (i in 0 until size) {
-            out.writeInt(value.value[i])
+            out.writeInt(value[i].value)
         }
     }
 

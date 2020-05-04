@@ -3,13 +3,14 @@ package org.vitrivr.cottontail.database.column
 import org.vitrivr.cottontail.database.column.mapdb.MapDBColumn
 import org.vitrivr.cottontail.database.general.DBO
 import org.vitrivr.cottontail.model.basics.ColumnDef
+import org.vitrivr.cottontail.model.values.types.Value
 
 import java.util.*
 
 /**
  *
  */
-interface Column<T : Any> : DBO {
+interface Column<T: Value> : DBO {
     /**
      * This [Column]'s [ColumnDef]. It contains all the relevant information that defines a [Column]
      *

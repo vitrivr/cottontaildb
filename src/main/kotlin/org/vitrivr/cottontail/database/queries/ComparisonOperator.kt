@@ -3,7 +3,7 @@ package org.vitrivr.cottontail.database.queries
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.values.PatternValue
 import org.vitrivr.cottontail.model.values.StringValue
-import org.vitrivr.cottontail.model.values.Value
+import org.vitrivr.cottontail.model.values.types.Value
 
 /**
  * List of query [ComparisonOperator]s.
@@ -30,7 +30,7 @@ enum class ComparisonOperator {
      * @param right Right-hand side of the operator.
      * @return True on match, false otherwise.
      */
-    fun match(left: Value<*>?, right: Collection<Value<*>>): Boolean = when {
+    fun match(left: Value?, right: Collection<Value>) : Boolean = when {
         this == EQUAL && left != null -> left == right.first()
         this == GREATER && left != null -> left > right.first()
         this == LESS && left != null -> left < right.first()

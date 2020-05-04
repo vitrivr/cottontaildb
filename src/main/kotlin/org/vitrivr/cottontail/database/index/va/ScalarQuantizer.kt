@@ -2,7 +2,6 @@ package org.vitrivr.cottontail.database.index.va
 
 import kotlin.math.log2
 
-
 class ScalarQuantizer {
 
     private val bounds: FloatArray
@@ -43,6 +42,5 @@ class ScalarQuantizer {
             else -> null
         }
     }
-
 
 }

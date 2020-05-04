@@ -27,8 +27,9 @@ class VectorQuantizer {
     }
 
     fun quantize(vector: FloatArray): BitSet {
-        if (vector.size != scalarQuantizers.size)
+        if (vector.size != scalarQuantizers.size) {
             throw IndexOutOfBoundsException("vector length ${vector.size} does not match index size ${scalarQuantizers.size}")
+        }
 
         val bitset = BitSet(this.bits)
 
@@ -46,4 +47,5 @@ class VectorQuantizer {
         }
         return bitset
     }
+
 }

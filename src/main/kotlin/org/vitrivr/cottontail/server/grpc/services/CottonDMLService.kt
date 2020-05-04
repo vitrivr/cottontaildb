@@ -13,7 +13,7 @@ import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import org.vitrivr.cottontail.model.exceptions.ValidationException
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
-import org.vitrivr.cottontail.model.values.Value
+import org.vitrivr.cottontail.model.values.types.Value
 import org.vitrivr.cottontail.server.grpc.helper.*
 import org.vitrivr.cottontail.utilities.extensions.read
 import org.vitrivr.cottontail.utilities.extensions.write
@@ -85,7 +85,7 @@ class CottonDMLService(val catalogue: Catalogue) : CottonDMLGrpc.CottonDMLImplBa
                             }
 
                             val columns = mutableListOf<ColumnDef<*>>()
-                            val values = mutableListOf<Value<*>?>()
+                            val values = mutableListOf<Value?>()
                             request.tuple.dataMap.map {
                                 val col = entity.columnForName(Name(it.key))
                                         ?: throw DatabaseException.ColumnDoesNotExistException(entity.fqn.append(it.key))
@@ -167,7 +167,7 @@ class CottonDMLService(val catalogue: Catalogue) : CottonDMLGrpc.CottonDMLImplBa
      * @param col The [ColumnDef] of the column, the data should be stored in.
      * @return The converted value.
      */
-    private fun castToColumn(value: CottontailGrpc.Data, col: ColumnDef<*>): Value<*>? = if (
+    private fun castToColumn(value: CottontailGrpc.Data, col: ColumnDef<*>): Value? = if (
             value.dataCase == CottontailGrpc.Data.DataCase.DATA_NOT_SET || value.dataCase == null
     ) {
         null
@@ -186,6 +186,10 @@ class CottonDMLService(val catalogue: Catalogue) : CottonDMLGrpc.CottonDMLImplBa
             is FloatVectorColumnType -> value.toFloatVectorValue()
             is DoubleVectorColumnType -> value.toDoubleVectorValue()
             is BooleanVectorColumnType -> value.toBooleanVectorValue()
+            is Complex32ColumnType -> value.toComplex32Value()
+            is Complex64ColumnType -> value.toComplex64Value()
+            is Complex32VectorColumnType -> value.toComplex32VectorValue()
+            is Complex64VectorColumnType -> value.toComplex64VectorValue()
         }
     }
 }

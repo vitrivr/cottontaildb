@@ -1,22 +1,26 @@
 package org.vitrivr.cottontail.math
 
+import org.apache.commons.math3.util.MathArrays
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.RepeatedTest
-import org.vitrivr.cottontail.math.knn.metrics.DoubleVectorDistance
-import org.vitrivr.cottontail.math.knn.metrics.Shape
+import org.vitrivr.cottontail.math.knn.metrics.EuclidianDistance
+import org.vitrivr.cottontail.math.knn.metrics.ManhattanDistance
+import org.vitrivr.cottontail.math.knn.metrics.SquaredEuclidianDistance
 import org.vitrivr.cottontail.utilities.VectorUtility
 import java.util.*
+import kotlin.math.pow
 import kotlin.time.Duration
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTime
+
 
 class DoubleVectorDistanceTest {
 
     companion object {
         const val COLLECTION_SIZE = 1_000_000
-        const val DELTA_LOW = 0.99999
-        const val DELTA_HIGH = 1.00009
-        val RANDOM = Random(System.currentTimeMillis())
+        const val DELTA = 1e-12
+        val RANDOM = SplittableRandom()
     }
 
     @ExperimentalTime
@@ -28,23 +32,28 @@ class DoubleVectorDistanceTest {
 
         var sum1 = 0.0
         var sum2 = 0.0
+        var sum3 = 0.0
 
         var time1 = Duration.ZERO
         var time2 = Duration.ZERO
 
         collection.forEach {
             time1 += measureTime {
-                sum1 += DoubleVectorDistance.L1(it, query)
+                sum1 += ManhattanDistance(it, query)
             }
             time2 += measureTime {
-                sum2 += DoubleVectorDistance.L1(it, query, Shape.S256)
+                sum2 += (query-it).abs().sum().value
             }
+            sum3 += MathArrays.distance1(it.data, query.data)
         }
 
-        println("Calculating L1 distance for collection (s=$COLLECTION_SIZE, d=$dimensions) took ${time1 / COLLECTION_SIZE} / ${time2 / COLLECTION_SIZE} (vectorized) per vector on average.")
+        println("Calculating L1 distance for collection (s=$COLLECTION_SIZE, d=$dimensions) took ${time1/COLLECTION_SIZE} (optimized) resp. ${time2/COLLECTION_SIZE}  per vector on average.")
 
-        assertTrue(sum1 / sum2 < 1.1)
-        assertTrue(sum1 / sum2 > DELTA_LOW)
+        assertTrue(time1 < time2, "Optimized version of L1 is slower than default version!")
+        assertTrue(sum1 / sum3 < 1.0 + DELTA, "Deviation for optimized version detected. Expected: $sum3, Received: $sum1")
+        assertTrue(sum1 / sum3 > 1.0 - DELTA, "Deviation for optimized version detected. Expected: $sum3, Received: $sum1")
+        assertTrue(sum2 / sum3 < 1.0 + DELTA, "Deviation for manual version detected. Expected: $sum3, Received: $sum2")
+        assertTrue(sum2 / sum3 > 1.0 - DELTA, "Deviation for manual version detected. Expected: $sum3, Received: $sum2")
     }
 
     @ExperimentalTime
@@ -56,23 +65,30 @@ class DoubleVectorDistanceTest {
 
         var sum1 = 0.0
         var sum2 = 0.0
+        var sum3 = 0.0
 
         var time1 = Duration.ZERO
         var time2 = Duration.ZERO
 
         collection.forEach {
             time1 += measureTime {
-                sum1 += DoubleVectorDistance.L2SQUARED(it, query)
+                sum1 += SquaredEuclidianDistance(it, query)
             }
             time2 += measureTime {
-                sum2 += DoubleVectorDistance.L2SQUARED(it, query, Shape.S256)
+                sum2 += (query-it).pow(2).sum().value
             }
+            sum3 += MathArrays.distance(it.data, query.data).pow(2)
         }
 
-        println("Calculating L2^2 distance for collection (s=$COLLECTION_SIZE, d=$dimensions) took ${time1 / COLLECTION_SIZE} / ${time2 / COLLECTION_SIZE} (vectorized) per vector on average.")
+        println("Calculating L2^2 distance for collection (s=$COLLECTION_SIZE, d=$dimensions) took ${time1/COLLECTION_SIZE} (optimized) resp. ${time2/COLLECTION_SIZE}  per vector on average.")
 
-        assertTrue(sum1 / sum2 < DELTA_HIGH)
-        assertTrue(sum1 / sum2 > DELTA_LOW)
+        assertTrue(time1 < time2, "Optimized version of L2^2 is slower than default version!")
+        assertEquals(sum3 , sum1, "L2^2 for optimized version does no equal expected value.")
+        assertEquals(sum3 , sum2, "L2^2 for default version does no equal expected value.")
+        assertTrue(sum1 / sum3 < 1.0 + DELTA, "Deviation for optimized version detected. Expected: $sum3, Received: $sum1")
+        assertTrue(sum1 / sum3 > 1.0 - DELTA, "Deviation for optimized version detected. Expected: $sum3, Received: $sum1")
+        assertTrue(sum2 / sum3 < 1.0 + DELTA, "Deviation for manual version detected. Expected: $sum3, Received: $sum2")
+        assertTrue(sum2 / sum3 > 1.0 - DELTA, "Deviation for manual version detected. Expected: $sum3, Received: $sum2")
     }
 
     @ExperimentalTime
@@ -84,50 +100,29 @@ class DoubleVectorDistanceTest {
 
         var sum1 = 0.0
         var sum2 = 0.0
+        var sum3 = 0.0
 
         var time1 = Duration.ZERO
         var time2 = Duration.ZERO
 
         collection.forEach {
             time1 += measureTime {
-                sum1 += DoubleVectorDistance.L2(it, query)
+                sum1 += EuclidianDistance(it, query)
             }
             time2 += measureTime {
-                sum2 += DoubleVectorDistance.L2(it, query, Shape.S256)
+                sum2 += (query-it).pow(2).sum().sqrt().value
             }
+            sum3 += MathArrays.distance(it.data, query.data)
         }
 
-        println("Calculating L2 distance for collection (s=$COLLECTION_SIZE, d=$dimensions) took ${time1 / COLLECTION_SIZE} / ${time2 / COLLECTION_SIZE} (vectorized) per vector on average.")
+        println("Calculating L2 distance for collection (s=$COLLECTION_SIZE, d=$dimensions) took ${time1/COLLECTION_SIZE} (optimized) resp. ${time2/COLLECTION_SIZE} per vector on average.")
 
-        assertTrue(sum1 / sum2 < DELTA_HIGH)
-        assertTrue(sum1 / sum2 > DELTA_LOW)
-    }
-
-    @ExperimentalTime
-    @RepeatedTest(3)
-    fun testCosineDistance() {
-        val dimensions = RANDOM.nextInt(2048)
-        val query = VectorUtility.randomDoubleVector(dimensions)
-        val collection = VectorUtility.randomDoubleVectorSequence(dimensions, COLLECTION_SIZE)
-
-        var sum1 = 0.0
-        var sum2 = 0.0
-
-        var time1 = Duration.ZERO
-        var time2 = Duration.ZERO
-
-        collection.forEach {
-            time1 += measureTime {
-                sum1 += DoubleVectorDistance.COSINE(it, query)
-            }
-            time2 += measureTime {
-                sum2 += DoubleVectorDistance.COSINE(it, query, Shape.S256)
-            }
-        }
-
-        println("Calculating Cosine distance for collection (s=$COLLECTION_SIZE, d=$dimensions) took ${time1 / COLLECTION_SIZE} / ${time2 / COLLECTION_SIZE} (vectorized) per vector on average.")
-
-        assertTrue(sum1 / sum2 < DELTA_HIGH)
-        assertTrue(sum1 / sum2 > DELTA_LOW)
+        assertTrue(time1 < time2, "Optimized version of L2 is slower than default version!")
+        assertEquals(sum3 , sum1, "L2 for optimized version does not equal expected value.")
+        assertEquals(sum3 , sum2,"L2 for default version does not equal expected value.")
+        assertTrue(sum1 / sum3 < 1.0 + DELTA, "Deviation for optimized version detected. Expected: $sum3, Received: $sum1")
+        assertTrue(sum1 / sum3 > 1.0 - DELTA, "Deviation for optimized version detected. Expected: $sum3, Received: $sum1")
+        assertTrue(sum2 / sum3 < 1.0 + DELTA, "Deviation for manual version detected. Expected: $sum3, Received: $sum2")
+        assertTrue(sum2 / sum3 > 1.0 - DELTA, "Deviation for manual version detected. Expected: $sum3, Received: $sum2")
     }
 }

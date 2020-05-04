@@ -1,15 +1,14 @@
 package org.vitrivr.cottontail.database.queries
 
 import org.vitrivr.cottontail.database.entity.Entity
-import org.vitrivr.cottontail.math.knn.metrics.DistanceFunction
-import org.vitrivr.cottontail.math.knn.metrics.DoubleVectorDistance
+import org.vitrivr.cottontail.math.knn.metrics.DistanceKernel
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.values.PatternValue
 import org.vitrivr.cottontail.model.values.StringValue
-import org.vitrivr.cottontail.model.values.Value
-import org.vitrivr.cottontail.model.values.VectorValue
+import org.vitrivr.cottontail.model.values.types.Value
+import org.vitrivr.cottontail.model.values.types.VectorValue
 
 /**
  * A general purpose [Predicate] that describes a Cottontail DB query. It can either operate on [Recordset][org.vitrivr.cottontail.model.recordset.Recordset]s
@@ -19,8 +18,8 @@ import org.vitrivr.cottontail.model.values.VectorValue
  * @version 1.0
  */
 sealed class Predicate {
-    /** An estimation of the operations required to apply this [Predicate] to a [Record]. */
-    abstract val operations: Int
+    /** An estimation of the cots required to apply this [Predicate] to a [Record]. */
+    abstract val cost: Double
 
     /** Set of [ColumnDef] that are affected by this [Predicate]. */
     abstract val columns: Set<ColumnDef<*>>
@@ -52,7 +51,7 @@ sealed class BooleanPredicate : Predicate() {
  * @author Ralph Gasser
  * @version 1.0
  */
-data class AtomicBooleanPredicate<T : Value<*>>(private val column: ColumnDef<T>, val operator: ComparisonOperator, val not: Boolean = false, var values: Collection<Value<*>>) : BooleanPredicate() {
+data class AtomicBooleanPredicate<T : Value>(private val column: ColumnDef<T>, val operator: ComparisonOperator, val not: Boolean = false, var values: Collection<Value>) : BooleanPredicate() {
     init {
         if (this.operator == ComparisonOperator.IN) {
             this.values = this.values.toSet()
@@ -70,7 +69,7 @@ data class AtomicBooleanPredicate<T : Value<*>>(private val column: ColumnDef<T>
     }
 
     /** The number of operations required by this [AtomicBooleanPredicate]. */
-    override val operations: Int = 1
+    override val cost: Double = 1.0
 
     /** Set of [ColumnDef] that are affected by this [AtomicBooleanPredicate]. */
     override val columns: Set<ColumnDef<T>> = setOf(this.column)
@@ -112,7 +111,7 @@ data class CompoundBooleanPredicate(val connector: ConnectionOperator, val p1: B
     override val columns: Set<ColumnDef<*>> = p1.columns + p2.columns
 
     /** The total number of operations required by this [CompoundBooleanPredicate]. */
-    override val operations = p1.operations + p2.operations
+    override val cost = this.p1.cost + this.p2.cost
 
     /**
      * Checks if the provided [Record] matches this [CompoundBooleanPredicate] and returns true or false respectively.
@@ -135,15 +134,15 @@ data class CompoundBooleanPredicate(val connector: ConnectionOperator, val p1: B
  * @author Ralph Gasser
  * @version 1.0
  */
-data class KnnPredicate<T : Any>(val column: ColumnDef<T>, val k: Int, val inexact: Boolean, val query: List<VectorValue<T>>, val distance: DistanceFunction<T>, val weights: List<VectorValue<FloatArray>>? = null) : Predicate() {
+data class KnnPredicate<T: VectorValue<*>>(val column: ColumnDef<T>, val k: Int, val inexact: Boolean, val query: List<T>, val distance: DistanceKernel, val weights: List<VectorValue<*>>? = null) : Predicate() {
     init {
         /* Some basic sanity checks. */
         if (k <= 0) throw QueryException.QuerySyntaxException("The value of k for a kNN query cannot be smaller than one (is $k)s!")
         query.forEach {
-            if (column.size != it.size) throw QueryException.QueryBindException("The size of the provided column ${column.name} (s_c=${column.size}) does not match the size of the query vector (s_q=${query.size}).")
+            if (column.size != it.logicalSize) throw QueryException.QueryBindException("The size of the provided column ${column.name} (s_c=${column.size}) does not match the size of the query vector (s_q=${query.size}).")
         }
         weights?.forEach {
-            if (column.size != it.size) {
+            if (column.size != it.logicalSize) {
                 throw QueryException.QueryBindException("The size of the provided column ${column.name} (s_c=${column.size}) does not match the size of the weight vector (s_w=${query.size}).")
             }
         }
@@ -154,13 +153,8 @@ data class KnnPredicate<T : Any>(val column: ColumnDef<T>, val k: Int, val inexa
      */
     override val columns: Set<ColumnDef<*>> = setOf(column)
 
-    /**
-     * Number of operations required for this [KnnPredicate]. Calculated by applying the base operations
-     * for the [DoubleVectorDistance] to each vector components.
-     *
-     * If weights are used, this will be added to the cost.
-     */
-    override val operations: Int = distance.operations * query.size + (this.weights?.size ?: 0)
+    /** Cost required for applying this [KnnPredicate]. */
+    override val cost: Double = this.distance.cost * this.query.size + (this.weights?.size ?: 0)
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

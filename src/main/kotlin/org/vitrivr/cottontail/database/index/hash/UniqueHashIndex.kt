@@ -18,7 +18,7 @@ import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.exceptions.ValidationException
 import org.vitrivr.cottontail.model.recordset.Recordset
-import org.vitrivr.cottontail.model.values.Value
+import org.vitrivr.cottontail.model.values.types.Value
 import org.vitrivr.cottontail.utilities.extensions.write
 import org.vitrivr.cottontail.utilities.name.Name
 import java.nio.file.Path
@@ -32,7 +32,7 @@ import java.nio.file.Path
  * @see Entity.Tx
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.1
  */
 class UniqueHashIndex(override val name: Name, override val parent: Entity, override val columns: Array<ColumnDef<*>>) : Index() {
 
@@ -41,9 +41,7 @@ class UniqueHashIndex(override val name: Name, override val parent: Entity, over
      */
     companion object {
         const val MAP_FIELD_NAME = "map"
-        const val ATOMIC_COST = 1e-6f
-
-        /** Cost of a single lookup. TODO: Determine real value. */
+        const val ATOMIC_COST = 1e-6f /** Cost of a single lookup. TODO: Determine real value. */
         private val LOGGER = LoggerFactory.getLogger(UniqueHashIndex::class.java)
     }
 
@@ -67,7 +65,7 @@ class UniqueHashIndex(override val name: Name, override val parent: Entity, over
     }
 
     /** Map structure used for [UniqueHashIndex]. */
-    private val map: HTreeMap<out Value<out Any>, Long> = this.db.hashMap(MAP_FIELD_NAME, this.columns.first().type.serializer(this.columns.size), Serializer.LONG_PACKED).counterEnable().createOrOpen()
+    private val map: HTreeMap<out Value, Long> = this.db.hashMap(MAP_FIELD_NAME, this.columns.first().type.serializer(this.columns.size), Serializer.LONG_PACKED).counterEnable().createOrOpen()
 
     /**
      * Flag indicating if this [UniqueHashIndex] has been closed.
@@ -157,21 +155,16 @@ class UniqueHashIndex(override val name: Name, override val parent: Entity, over
         this.map.clear()
 
         /* (Re-)create index entries. */
-        val localMap = this.map as HTreeMap<Value<*>, Long>
-        try {
-            tx.forEach {
-                val value = it[this.columns[0]]
-                        ?: throw ValidationException.IndexUpdateException(this.fqn, "A values cannot be null for instances of unique hash-index but tid=${it.tupleId} is")
-                if (!localMap.containsKey(value)) {
-                    localMap[value] = it.tupleId
-                } else {
-                    LOGGER.warn("Value '$value' (tid=${it.tupleId}) is not unique an was ignored.")
-                }
+        val localMap = this.map as HTreeMap<Value,Long>
+        tx.forEach {
+            val value = it[this.columns[0]] ?: throw ValidationException.IndexUpdateException(this.fqn, "A values cannot be null for instances of unique hash-index but tid=${it.tupleId} is")
+            if (!localMap.containsKey(value)) {
+                localMap[value] = it.tupleId
+            } else {
+                throw ValidationException.IndexUpdateException(this.fqn, "LongValue must be unique for instances of unique hash-index but '$value' (tid=${it.tupleId}) is not !")
             }
-            this.db.commit()
-        } catch (e: Throwable) {
-            this.db.rollback()
         }
+        this.db.commit()
     }
 
     /**
@@ -180,7 +173,7 @@ class UniqueHashIndex(override val name: Name, override val parent: Entity, over
      * @param update [DataChangeEvent]s based on which to update the [UniqueHashIndex].
      */
     override fun update(update: Collection<DataChangeEvent>, tx: Entity.Tx) = try {
-        val localMap = this.map as HTreeMap<Value<*>, Long>
+        val localMap = this.map as HTreeMap<Value,Long>
 
         /* Define action for inserting an entry based on a DataChangeEvent. */
         val atomicInsert = { event: DataChangeEvent ->
