@@ -4,7 +4,6 @@ import org.vitrivr.cottontail.model.values.Complex32VectorValue
 import org.vitrivr.cottontail.model.values.Complex64VectorValue
 import org.vitrivr.cottontail.model.values.DoubleVectorValue
 import org.vitrivr.cottontail.model.values.FloatVectorValue
-import org.vitrivr.cottontail.model.values.types.NumericValue
 import org.vitrivr.cottontail.model.values.types.VectorValue
 import java.io.Serializable
 import java.util.*
@@ -74,18 +73,17 @@ class SuperBit(d: Int, N: Int, L: Int, seed: Long, species: VectorValue<*>) : Se
                 is Complex64VectorValue -> Complex64VectorValue.random(species.logicalSize, random)
                 else -> throw IllegalArgumentException("")
             } as VectorValue<*>
-            rnd / norm(rnd)
+            rnd / rnd.norm2()
         } // H
 
-        val w = Array(K) { species.copy()  }
+        val w = Array(K) { v[it] }
 
         for (i in 0 until L) {
             for (j in 1..N) {
-                System.arraycopy(v[i * N + j - 1], 0, w[i * N + j - 1], 0, d * 2)
                 for (k in 1 until j) {
-                    w[i * N + j - 1] = w[i * N + j - 1] - (w[i * N + k - 1] * dotProduct(w[i * N + k - 1], v[i * N + j - 1]))
+                    w[i * N + j - 1] = w[i * N + j - 1] - (w[i * N + k - 1] * w[i * N + k - 1].dot(v[i * N + j - 1]))
                 }
-                w[i * N + j - 1] = w[i * N + j - 1] / norm(w[i * N + j - 1])
+                w[i * N + j - 1] = w[i * N + j - 1] / w[i * N + j - 1].norm2()
             }
         }
 
@@ -101,25 +99,8 @@ class SuperBit(d: Int, N: Int, L: Int, seed: Long, species: VectorValue<*>) : Se
     fun signature(vector: VectorValue<*>): BooleanArray {
         val signature = BooleanArray(this.hyperplanes.size)
         for (i in hyperplanes.indices) {
-            signature[i] = dotProduct(this.hyperplanes[i], vector) >= 0
+            signature[i] = this.hyperplanes[i].dot(vector) >= 0
         }
         return signature
     }
-
-    /**
-     * Calculate the norm L2 (sqrt(sum_i(v_i^2))).
-     *
-     * @param vector
-     * @return The norm L2.
-     */
-    private fun norm(vector: VectorValue<*>): NumericValue<*> = (vector.pow(2).sum()).sqrt()
-
-    /**
-     * Calculate the dot product of two vectors.
-     *
-     * @param vector1
-     * @param vector2
-     * @return The dot product.
-     */
-    private fun dotProduct(vector1: VectorValue<*>, vector2: VectorValue<*>): NumericValue<*> = (vector1 * vector2).sum()
 }
