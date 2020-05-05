@@ -48,16 +48,14 @@ class SuperBitLSHIndex<T : VectorValue<*>>(name: Name, parent: Entity, columns: 
         if (!columns.all { it.type.vector }) {
             throw DatabaseException.IndexNotSupportedException(name, "Because only vector columns are supported for SuperBitLSHIndex.")
         }
-        if (params != null) {
-            try {
-                val stages = params[CONFIG_NAME_STAGES]?.toInt() ?: CONFIG_DEFAULT_STAGES
-                val buckets = params[CONFIG_NAME_BUCKETS]?.toInt() ?: CONFIG_DEFAULT_BUCKETS
-                val seed = params[CONFIG_NAME_SEED]?.toLong() ?: System.currentTimeMillis()
-                this.config.set(SuperBitLSHIndexConfig(stages, buckets, seed))
-            } catch (e: NumberFormatException) {
-                LOGGER.warn("One of the parameters could not be converted to a number. Fallback to default values instead!")
-                this.config.set(SuperBitLSHIndexConfig(CONFIG_DEFAULT_STAGES, CONFIG_DEFAULT_BUCKETS, System.currentTimeMillis()))
-            }
+        try {
+            val buckets = params?.get(CONFIG_NAME_BUCKETS)?.toInt() ?: CONFIG_DEFAULT_BUCKETS
+            val stages = params?.get(CONFIG_NAME_STAGES)?.toInt() ?: CONFIG_DEFAULT_STAGES
+            val seed = params?.get(CONFIG_NAME_SEED)?.toLong() ?: System.currentTimeMillis()
+            this.config.set(SuperBitLSHIndexConfig(buckets, stages, seed))
+        } catch (e: NumberFormatException) {
+            LOGGER.warn("One of the parameters could not be converted to a number. Fallback to default values instead!")
+            this.config.set(SuperBitLSHIndexConfig(CONFIG_DEFAULT_BUCKETS, CONFIG_DEFAULT_STAGES, System.currentTimeMillis()))
         }
     }
 
@@ -178,7 +176,7 @@ class SuperBitLSHIndex<T : VectorValue<*>>(name: Name, parent: Entity, columns: 
      * @return A specimen of the [VectorValue] that should be indexed.
      */
     private fun acquireSpecimen(tx: Entity.Tx): VectorValue<*>? {
-        for (index in 1L until tx.count()) {
+        for (index in 2L until tx.count()) {
             val read = tx.read(index)[this.columns[0]]
             if (read is VectorValue<*>) {
                 return read
