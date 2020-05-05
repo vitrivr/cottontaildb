@@ -5,7 +5,7 @@
 Cottontail DB is a column store aimed at multimedia retrieval. It allows for classical boolean as well as vector-space retrieval (k-nearest-neighbours lookup) used in similarity search.
 
 ## Setup
-Cottontail DB requires Java 9 or newer (Open JDK or Oracle JDK should bot work).
+Cottontail DB requires Java 9 or newer (Open JDK or Oracle JDK should both work).
 
 Please clone this repository including submodules or initialize them after cloning using `git submodule update --init --recursive`
 
