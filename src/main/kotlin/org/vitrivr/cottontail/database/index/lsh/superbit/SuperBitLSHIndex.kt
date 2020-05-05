@@ -1,9 +1,11 @@
 package org.vitrivr.cottontail.database.index.lsh.superbit
 
+import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.database.column.Column
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.events.DataChangeEvent
 import org.vitrivr.cottontail.database.index.Index
+import org.vitrivr.cottontail.database.index.hash.UniqueHashIndex
 import org.vitrivr.cottontail.database.index.lsh.LSHIndex
 import org.vitrivr.cottontail.database.queries.KnnPredicate
 import org.vitrivr.cottontail.database.queries.Predicate
@@ -34,6 +36,9 @@ class SuperBitLSHIndex<T : VectorValue<*>>(name: Name, parent: Entity, columns: 
         const val CONFIG_NAME_STAGES = "stages"
         const val CONFIG_NAME_BUCKETS = "buckets"
         const val CONFIG_NAME_SEED = "seed"
+        private const val CONFIG_DEFAULT_STAGES = 3
+        private const val CONFIG_DEFAULT_BUCKETS = 10
+        private val LOGGER = LoggerFactory.getLogger(UniqueHashIndex::class.java)
     }
 
     /** Internal configuration object for [SuperBitLSHIndex]. */
@@ -44,7 +49,15 @@ class SuperBitLSHIndex<T : VectorValue<*>>(name: Name, parent: Entity, columns: 
             throw DatabaseException.IndexNotSupportedException(name, "Because only vector columns are supported for SuperBitLSHIndex.")
         }
         if (params != null) {
-            this.config.set(SuperBitLSHIndexConfig(params.getValue(CONFIG_NAME_STAGES).toInt(), params.getValue(CONFIG_NAME_BUCKETS).toInt(), params.getValue(CONFIG_NAME_SEED).toLong()))
+            try {
+                val stages = params[CONFIG_NAME_STAGES]?.toInt() ?: CONFIG_DEFAULT_STAGES
+                val buckets = params[CONFIG_NAME_BUCKETS]?.toInt() ?: CONFIG_DEFAULT_BUCKETS
+                val seed = params[CONFIG_NAME_SEED]?.toLong() ?: System.currentTimeMillis()
+                this.config.set(SuperBitLSHIndexConfig(stages, buckets, seed))
+            } catch (e: NumberFormatException) {
+                LOGGER.warn("One of the parameters could not be converted to a number. Fallback to default values instead!")
+                this.config.set(SuperBitLSHIndexConfig(CONFIG_DEFAULT_STAGES, CONFIG_DEFAULT_BUCKETS, System.currentTimeMillis()))
+            }
         }
     }
 
