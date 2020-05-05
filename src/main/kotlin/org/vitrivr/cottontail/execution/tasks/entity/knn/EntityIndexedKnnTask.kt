@@ -23,7 +23,7 @@ class EntityIndexedKnnTask<T : VectorValue<*>>(val entity: Entity, val knnPredic
     /** The type of the [Index] that should be used.*/
     private val type = indexHint.type
 
-    override fun execute(): Recordset = this.entity.Tx(readonly = true, columns = emptyArray()).query { tx ->
+    override fun execute(): Recordset = this.entity.Tx(readonly = true, columns = arrayOf(knnPredicate.column)).query { tx ->
         val index = tx.indexes(this.knnPredicate.columns.toTypedArray(), this.type).first()
         index.filter(this.knnPredicate)
     } ?: Recordset(this.knnPredicate.columns.toTypedArray(), capacity = 0)
