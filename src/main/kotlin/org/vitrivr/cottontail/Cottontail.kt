@@ -27,7 +27,7 @@ fun main(args: Array<String>) {
 
     /* Load config file and start Cottontail DB. */
     Files.newBufferedReader(Paths.get(path)).use { reader ->
-        val config = Json.parse(Config.serializer(), reader.readText())
+        val config = Json.nonstrict.parse(Config.serializer(), reader.readText())
         val catalogue = Catalogue(config)
         val engine = ExecutionEngine(config.executionConfig)
         val server = CottontailGrpcServer(config.serverConfig, catalogue, engine)
