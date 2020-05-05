@@ -17,7 +17,8 @@ enum class IndexType(val inexact: Boolean) {
     VAF(false), /* A VA file based index (for exact kNN lookup). */
     PQ(true), /* A product quantization based index (for approximate kNN lookup). */
     SH(true), /* A spectral hashing based index (for approximate kNN lookup). */
-    LSH(true); /* A locality sensitive hashing based index (for approximate kNN lookup). */
+    LSH(true), /* A locality sensitive hashing based index for approximate kNN lookup with Lp distance. */
+    SUPERBIT_LSH(true); /* A locality sensitive hashing based index for approximate kNN lookup with cosine distance. */
 
     /**
      * Opens an index of this [IndexType] using the given name and [Entity].
@@ -29,7 +30,7 @@ enum class IndexType(val inexact: Boolean) {
         HASH_UQ -> UniqueHashIndex(name, entity, columns)
         HASH -> NonUniqueHashIndex(name, entity, columns)
         LUCENE -> LuceneIndex(name, entity, columns)
-        LSH -> SuperBitLSHIndex<VectorValue<*>>(name, entity, columns, null)
+        SUPERBIT_LSH -> SuperBitLSHIndex<VectorValue<*>>(name, entity, columns, null)
         else -> TODO()
     }
 
@@ -45,6 +46,7 @@ enum class IndexType(val inexact: Boolean) {
         HASH_UQ -> UniqueHashIndex(name, entity, columns)
         HASH -> NonUniqueHashIndex(name, entity, columns)
         LUCENE -> LuceneIndex(name, entity, columns)
+        SUPERBIT_LSH -> SuperBitLSHIndex<VectorValue<*>>(name, entity, columns, params)
         else -> TODO()
     }
 }
