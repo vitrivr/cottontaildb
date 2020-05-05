@@ -137,7 +137,7 @@ class CottonDDLService(val catalogue: Catalogue) : CottonDDLGrpc.CottonDDLImplBa
             val entity = this.catalogue.schemaForName(schemaName).entityForName(entityName)
             val def = CottontailGrpc.EntityDefinition.newBuilder().setEntity(request)
             for (c in entity.allColumns()) {
-                def.addColumns(CottontailGrpc.ColumnDefinition.newBuilder().setName(c.name.name).setNullable(c.nullable).setLength(c.size).setType(CottontailGrpc.Type.valueOf(c.type.name)))
+                def.addColumns(CottontailGrpc.ColumnDefinition.newBuilder().setName(c.name.last().name).setNullable(c.nullable).setLength(c.size).setType(CottontailGrpc.Type.valueOf(c.type.name)))
             }
             responseObserver.onNext(def.build())
             responseObserver.onCompleted()
