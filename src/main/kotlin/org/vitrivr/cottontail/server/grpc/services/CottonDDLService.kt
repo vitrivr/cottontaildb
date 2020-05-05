@@ -239,6 +239,7 @@ class CottonDDLService(val catalogue: Catalogue) : CottonDDLGrpc.CottonDDLImplBa
             /* Notify caller of success. */
             responseObserver.onNext(CottontailGrpc.SuccessStatus.newBuilder().setTimestamp(System.currentTimeMillis()).build())
             responseObserver.onCompleted()
+            LOGGER.trace("Index {} created successfully!", request)
         }
     } catch (e: DatabaseException.SchemaDoesNotExistException) {
         LOGGER.error("Error while creating index '${request.index.fqn()}'", e)
@@ -264,6 +265,7 @@ class CottonDDLService(val catalogue: Catalogue) : CottonDDLGrpc.CottonDDLImplBa
      * gRPC endpoint for dropping a particular [Index][org.vitrivr.cottontail.database.index.Index]
      */
     override fun dropIndex(request: CottontailGrpc.DropIndexMessage, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) = try {
+        LOGGER.trace("Dropping index {}", request)
         val indexName = Name(request.index.name)
         val entityName = Name(request.index.entity.name)
         val schemaName = Name(request.index.entity.schema.name)
@@ -279,6 +281,7 @@ class CottonDDLService(val catalogue: Catalogue) : CottonDDLGrpc.CottonDDLImplBa
             /* Notify caller of success. */
             responseObserver.onNext(CottontailGrpc.SuccessStatus.newBuilder().setTimestamp(System.currentTimeMillis()).build())
             responseObserver.onCompleted()
+            LOGGER.trace("Index {} dropped successfully!", request)
         }
     } catch (e: DatabaseException.SchemaDoesNotExistException) {
         LOGGER.error("Error while dropping index '${request.index.fqn()}'", e)
@@ -301,6 +304,7 @@ class CottonDDLService(val catalogue: Catalogue) : CottonDDLGrpc.CottonDDLImplBa
      * gRPC endpoint for rebuilding a particular [Index][org.vitrivr.cottontail.database.index.Index]
      */
     override fun rebuildIndex(request: CottontailGrpc.RebuildIndexMessage, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) = try {
+        LOGGER.trace("Rebuilding index {}", request)
         val indexName = Name(request.index.name)
         val entityName = Name(request.index.entity.name)
         val schemaName = Name(request.index.entity.schema.name)
@@ -316,6 +320,7 @@ class CottonDDLService(val catalogue: Catalogue) : CottonDDLGrpc.CottonDDLImplBa
             /* Notify caller of success. */
             responseObserver.onNext(CottontailGrpc.SuccessStatus.newBuilder().setTimestamp(System.currentTimeMillis()).build())
             responseObserver.onCompleted()
+            LOGGER.trace("Index {} rebuilt successfully!", request)
         }
     } catch (e: DatabaseException.SchemaDoesNotExistException) {
         LOGGER.error("Error while rebuilding index '${request.index.fqn()}'", e)
