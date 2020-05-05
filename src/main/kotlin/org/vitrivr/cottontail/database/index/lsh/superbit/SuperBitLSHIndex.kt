@@ -12,6 +12,7 @@ import org.vitrivr.cottontail.math.knn.HeapSelect
 import org.vitrivr.cottontail.math.knn.metrics.CosineDistance
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Record
+import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.recordset.Recordset
 import org.vitrivr.cottontail.model.values.DoubleValue
@@ -39,6 +40,9 @@ class SuperBitLSHIndex<T : VectorValue<*>>(name: Name, parent: Entity, columns: 
     val config = this.db.atomicVar(CONFIG_NAME, SuperBitLSHIndexConfig.Serializer).createOrOpen()
 
     init {
+        if (!columns.all { it.type.vector }) {
+            throw DatabaseException.IndexNotSupportedException(name, "Because only vector columns are supported for SuperBitLSHIndex.")
+        }
         if (params != null) {
             this.config.set(SuperBitLSHIndexConfig(params.getValue(CONFIG_NAME_STAGES).toInt(), params.getValue(CONFIG_NAME_BUCKETS).toInt(), params.getValue(CONFIG_NAME_SEED).toLong()))
         }

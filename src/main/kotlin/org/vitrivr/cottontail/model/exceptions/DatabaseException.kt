@@ -53,6 +53,13 @@ open class DatabaseException(message: String) : Throwable(message) {
     class IndexDoesNotExistException(val index: Name) : DatabaseException("Index '$index' does not exist!")
 
     /**
+     * Thrown whenever trying to create an [Index][[org.vitrivr.cottontail.database.index.Index] that is not supported (yet). *
+     *
+     * @param index The [Name] of the [Index][org.vitrivr.cottontail.database.index.Index]
+     */
+    class IndexNotSupportedException(val index: Name, val reason: String) : DatabaseException("Index '$index' could not be created: $reason")
+
+    /**
      * Thrown upon creation of an [Entity][org.vitrivr.cottontail.database.entity.Entity]
      * if the definition contains duplicate column names.
      *
