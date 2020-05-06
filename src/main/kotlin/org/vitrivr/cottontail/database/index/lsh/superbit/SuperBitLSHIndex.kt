@@ -81,13 +81,14 @@ class SuperBitLSHIndex<T : VectorValue<*>>(name: Name, parent: Entity, columns: 
                 val bucket: Int = lsh.hash(query).last()
                 val tupleIds = this.map[bucket]
                 if (tupleIds != null) {
-                    tx.readMany(tupleIds = tupleIds.toList()).forEach {
-                        val value = it[predicate.column]
+                    tupleIds.forEach {
+                        val record = tx.read(it)
+                        val value = record[predicate.column]
                         if (value is VectorValue<*>) {
                             if (predicate.weights != null) {
-                                knn.add(ComparablePair(it.tupleId, predicate.distance(query, value, predicate.weights[i])))
+                                knn.add(ComparablePair(it, predicate.distance(query, value, predicate.weights[i])))
                             } else {
-                                knn.add(ComparablePair(it.tupleId, predicate.distance(query, value)))
+                                knn.add(ComparablePair(it, predicate.distance(query, value)))
                             }
                         }
                     }
