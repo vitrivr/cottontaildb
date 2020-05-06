@@ -139,12 +139,10 @@ data class KnnPredicate<T: VectorValue<*>>(val column: ColumnDef<T>, val k: Int,
         /* Some basic sanity checks. */
         if (k <= 0) throw QueryException.QuerySyntaxException("The value of k for a kNN query cannot be smaller than one (is $k)s!")
         query.forEach {
-            if (column.size != it.logicalSize) throw QueryException.QueryBindException("The size of the provided column ${column.name} (s_c=${column.size}) does not match the size of the query vector (s_q=${query.size}).")
+            if (column.size != it.logicalSize) throw QueryException.QueryBindException("The size of the provided column ${column.name} (s_c=${column.size}) does not match the size of the query vector (s_q=${it.logicalSize}).")
         }
         weights?.forEach {
-            if (column.size != it.logicalSize) {
-                throw QueryException.QueryBindException("The size of the provided column ${column.name} (s_c=${column.size}) does not match the size of the weight vector (s_w=${query.size}).")
-            }
+            if (column.size != it.logicalSize) throw QueryException.QueryBindException("The size of the provided column ${column.name} (s_c=${column.size}) does not match the size of the weight vector (s_w=${it.logicalSize}).")
         }
     }
 
