@@ -28,23 +28,23 @@ sealed class ColumnType<T : Value> {
          * @param name For which to lookup the [ColumnType].
          */
         fun forName(name: String): ColumnType<*> = when (name.toUpperCase()) {
-            "BOOLEAN" -> BooleanColumnType()
-            "BYTE" -> ByteColumnType()
-            "SHORT" -> ShortColumnType()
-            "INTEGER" -> IntColumnType()
-            "LONG" -> LongColumnType()
-            "FLOAT" -> FloatColumnType()
-            "DOUBLE" -> DoubleColumnType()
-            "STRING" -> StringColumnType()
-            "COMPLEX32" -> Complex32ColumnType()
-            "COMPLEX64" -> Complex64ColumnType()
-            "INT_VEC" -> IntVectorColumnType()
-            "LONG_VEC" -> LongVectorColumnType()
-            "FLOAT_VEC" -> FloatVectorColumnType()
-            "DOUBLE_VEC" -> DoubleVectorColumnType()
-            "BOOL_VEC" -> BooleanVectorColumnType()
-            "COMPLEX32_VEC" -> Complex32VectorColumnType()
-            "COMPLEX64_VEC" -> Complex64VectorColumnType()
+            "BOOLEAN" -> BooleanColumnType
+            "BYTE" -> ByteColumnType
+            "SHORT" -> ShortColumnType
+            "INTEGER" -> IntColumnType
+            "LONG" -> LongColumnType
+            "FLOAT" -> FloatColumnType
+            "DOUBLE" -> DoubleColumnType
+            "STRING" -> StringColumnType
+            "COMPLEX32" -> Complex32ColumnType
+            "COMPLEX64" -> Complex64ColumnType
+            "INT_VEC" -> IntVectorColumnType
+            "LONG_VEC" -> LongVectorColumnType
+            "FLOAT_VEC" -> FloatVectorColumnType
+            "DOUBLE_VEC" -> DoubleVectorColumnType
+            "BOOL_VEC" -> BooleanVectorColumnType
+            "COMPLEX32_VEC" -> Complex32VectorColumnType
+            "COMPLEX64_VEC" -> Complex64VectorColumnType
             else -> throw java.lang.IllegalArgumentException("The column type $name does not exists!")
         }
     }
@@ -76,7 +76,7 @@ sealed class ColumnType<T : Value> {
 }
 
 @Suppress("UNCHECKED_CAST")
-class BooleanColumnType : ColumnType<BooleanValue>() {
+object BooleanColumnType : ColumnType<BooleanValue>() {
     override val name = "BOOLEAN"
     override val numeric = true
     override val vector = false
@@ -85,7 +85,7 @@ class BooleanColumnType : ColumnType<BooleanValue>() {
 }
 
 @Suppress("UNCHECKED_CAST")
-class ByteColumnType : ColumnType<ByteValue>() {
+object ByteColumnType : ColumnType<ByteValue>() {
     override val name = "BYTE"
     override val numeric = true
     override val vector = false
@@ -94,7 +94,7 @@ class ByteColumnType : ColumnType<ByteValue>() {
 }
 
 @Suppress("UNCHECKED_CAST")
-class ShortColumnType : ColumnType<ShortValue>() {
+object ShortColumnType : ColumnType<ShortValue>() {
     override val name = "SHORT"
     override val numeric = true
     override val vector = false
@@ -103,7 +103,7 @@ class ShortColumnType : ColumnType<ShortValue>() {
 }
 
 @Suppress("UNCHECKED_CAST")
-class IntColumnType : ColumnType<IntValue>() {
+object IntColumnType : ColumnType<IntValue>() {
     override val name = "INTEGER"
     override val numeric = true
     override val vector = false
@@ -112,7 +112,7 @@ class IntColumnType : ColumnType<IntValue>() {
 }
 
 @Suppress("UNCHECKED_CAST")
-class LongColumnType : ColumnType<LongValue>() {
+object LongColumnType : ColumnType<LongValue>() {
     override val name = "LONG"
     override val numeric = true
     override val vector = false
@@ -121,7 +121,7 @@ class LongColumnType : ColumnType<LongValue>() {
 }
 
 @Suppress("UNCHECKED_CAST")
-class FloatColumnType : ColumnType<FloatValue>() {
+object FloatColumnType : ColumnType<FloatValue>() {
     override val name = "FLOAT"
     override val numeric = true
     override val vector = false
@@ -130,7 +130,7 @@ class FloatColumnType : ColumnType<FloatValue>() {
 }
 
 @Suppress("UNCHECKED_CAST")
-class DoubleColumnType : ColumnType<DoubleValue>() {
+object DoubleColumnType : ColumnType<DoubleValue>() {
     override val name = "DOUBLE"
     override val numeric = true
     override val vector = false
@@ -139,7 +139,7 @@ class DoubleColumnType : ColumnType<DoubleValue>() {
 }
 
 @Suppress("UNCHECKED_CAST")
-class StringColumnType : ColumnType<StringValue>() {
+object StringColumnType : ColumnType<StringValue>() {
     override val name = "STRING"
     override val numeric = false
     override val vector = false
@@ -148,7 +148,7 @@ class StringColumnType : ColumnType<StringValue>() {
 }
 
 @Suppress("UNCHECKED_CAST")
-class Complex32ColumnType : ColumnType<Complex32Value>() {
+object Complex32ColumnType : ColumnType<Complex32Value>() {
     override val name = "COMPLEX32"
     override val numeric = true
     override val vector = false
@@ -157,7 +157,7 @@ class Complex32ColumnType : ColumnType<Complex32Value>() {
 }
 
 @Suppress("UNCHECKED_CAST")
-class Complex64ColumnType : ColumnType<Complex64Value>() {
+object Complex64ColumnType : ColumnType<Complex64Value>() {
     override val name = "COMPLEX64"
     override val numeric = true
     override val vector = false
@@ -166,7 +166,7 @@ class Complex64ColumnType : ColumnType<Complex64Value>() {
 }
 
 @Suppress("UNCHECKED_CAST")
-class IntVectorColumnType : ColumnType<IntVectorValue>() {
+object IntVectorColumnType : ColumnType<IntVectorValue>() {
     override val name = "INT_VEC"
     override val numeric = false
     override val vector = true
@@ -178,7 +178,7 @@ class IntVectorColumnType : ColumnType<IntVectorValue>() {
 }
 
 @Suppress("UNCHECKED_CAST")
-class LongVectorColumnType : ColumnType<LongVectorValue>() {
+object LongVectorColumnType : ColumnType<LongVectorValue>() {
     override val name = "LONG_VEC"
     override val numeric = false
     override val vector = true
@@ -190,7 +190,7 @@ class LongVectorColumnType : ColumnType<LongVectorValue>() {
 }
 
 @Suppress("UNCHECKED_CAST")
-class FloatVectorColumnType : ColumnType<FloatVectorValue>() {
+object FloatVectorColumnType : ColumnType<FloatVectorValue>() {
     override val name = "FLOAT_VEC"
     override val numeric = false
     override val vector = true
@@ -202,7 +202,7 @@ class FloatVectorColumnType : ColumnType<FloatVectorValue>() {
 }
 
 @Suppress("UNCHECKED_CAST")
-class DoubleVectorColumnType : ColumnType<DoubleVectorValue>() {
+object DoubleVectorColumnType : ColumnType<DoubleVectorValue>() {
     override val name = "DOUBLE_VEC"
     override val numeric = false
     override val vector = true
@@ -214,7 +214,7 @@ class DoubleVectorColumnType : ColumnType<DoubleVectorValue>() {
 }
 
 @Suppress("UNCHECKED_CAST")
-class BooleanVectorColumnType : ColumnType<BooleanVectorValue>() {
+object BooleanVectorColumnType : ColumnType<BooleanVectorValue>() {
     override val name = "BOOL_VEC"
     override val numeric = false
     override val vector = true
@@ -226,7 +226,7 @@ class BooleanVectorColumnType : ColumnType<BooleanVectorValue>() {
 }
 
 @Suppress("UNCHECKED_CAST")
-class Complex32VectorColumnType : ColumnType<Complex32VectorValue>() {
+object Complex32VectorColumnType : ColumnType<Complex32VectorValue>() {
     override val name = "COMPLEX32_VEC"
     override val numeric = false
     override val vector = true
@@ -238,7 +238,7 @@ class Complex32VectorColumnType : ColumnType<Complex32VectorValue>() {
 }
 
 @Suppress("UNCHECKED_CAST")
-class Complex64VectorColumnType : ColumnType<Complex64VectorValue>() {
+object Complex64VectorColumnType : ColumnType<Complex64VectorValue>() {
     override val name = "COMPLEX64_VEC"
     override val numeric = false
     override val vector = true
