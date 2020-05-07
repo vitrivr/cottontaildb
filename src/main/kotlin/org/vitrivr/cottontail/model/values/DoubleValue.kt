@@ -79,4 +79,5 @@ inline class DoubleValue(override val value: Double): RealValue<Double> {
     override fun sin() = DoubleValue(kotlin.math.sin(this.value))
     override fun tan() = DoubleValue(kotlin.math.tan(this.value))
     override fun atan() = DoubleValue(kotlin.math.atan(this.value))
+    override fun compareTo(other: NumericValue<Double>): Int = this.value.compareTo(other.value)
 }

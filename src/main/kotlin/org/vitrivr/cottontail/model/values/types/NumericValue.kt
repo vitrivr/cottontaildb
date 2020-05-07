@@ -10,7 +10,7 @@ import org.vitrivr.cottontail.model.values.*
  * @version 1.0
  * @author Ralph Gasser
  */
-interface NumericValue<T: Number> : ScalarValue<T> {
+interface NumericValue<T : Number> : ScalarValue<T>, Comparable<NumericValue<T>> {
 
     /** Real part of this [ComplexValue] */
     val real: RealValue<T>

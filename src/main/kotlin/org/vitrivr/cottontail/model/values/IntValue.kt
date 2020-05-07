@@ -78,4 +78,5 @@ inline class IntValue(override val value: Int): RealValue<Int> {
     override fun sin() = IntValue(kotlin.math.sin(this.value.toDouble()).toInt())
     override fun tan() = IntValue(kotlin.math.tan(this.value.toDouble()).toInt())
     override fun atan() = IntValue(kotlin.math.atan(this.value.toDouble()).toInt())
+    override fun compareTo(other: NumericValue<Int>): Int = this.value.compareTo(other.value)
 }

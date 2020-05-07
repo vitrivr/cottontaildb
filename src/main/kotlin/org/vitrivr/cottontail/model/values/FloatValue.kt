@@ -78,5 +78,6 @@ inline class FloatValue(override val value: Float): RealValue<Float> {
     override fun cos() = FloatValue(kotlin.math.cos(this.value))
     override fun sin() = FloatValue(kotlin.math.sin(this.value))
     override fun tan() = FloatValue(kotlin.math.tan(this.value))
-    override fun atan()= FloatValue(kotlin.math.atan(this.value))
+    override fun atan() = FloatValue(kotlin.math.atan(this.value))
+    override fun compareTo(other: NumericValue<Float>): Int = this.value.compareTo(other.value)
 }

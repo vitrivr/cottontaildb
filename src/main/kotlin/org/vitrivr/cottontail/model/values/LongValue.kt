@@ -78,5 +78,5 @@ inline class LongValue(override val value: Long): RealValue<Long> {
     override fun sin() = LongValue(kotlin.math.sin(this.value.toDouble()).toLong())
     override fun tan() = LongValue(kotlin.math.tan(this.value.toDouble()).toLong())
     override fun atan() = LongValue(kotlin.math.atan(this.value.toDouble()).toLong())
-
+    override fun compareTo(other: NumericValue<Long>): Int = this.value.compareTo(other.value)
 }

@@ -77,4 +77,5 @@ inline class ShortValue(override val value: Short): RealValue<Short> {
     override fun sin() = ShortValue(kotlin.math.sin(this.value.toDouble()).toShort())
     override fun tan() = ShortValue(kotlin.math.tan(this.value.toDouble()).toShort())
     override fun atan() = ShortValue(kotlin.math.atan(this.value.toDouble()).toShort())
+    override fun compareTo(other: NumericValue<Short>): Int = this.value.compareTo(other.value)
 }

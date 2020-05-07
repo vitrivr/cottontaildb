@@ -137,4 +137,5 @@ inline class Complex64Value(val data: DoubleArray): ComplexValue<Double> {
     }
 
     override fun sqrt(): Complex64Value = pow(0.5)
+    override fun compareTo(other: NumericValue<Double>): Int = this.real.compareTo(other.real)
 }

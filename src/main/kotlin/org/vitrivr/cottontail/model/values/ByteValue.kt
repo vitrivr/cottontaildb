@@ -64,4 +64,5 @@ inline class ByteValue(override val value: Byte): RealValue<Byte> {
     override fun sin() = ByteValue(kotlin.math.sin(this.value.toDouble()).toByte())
     override fun tan() = ByteValue(kotlin.math.tan(this.value.toDouble()).toByte())
     override fun atan() = ByteValue(kotlin.math.atan(this.value.toDouble()).toByte())
+    override fun compareTo(other: NumericValue<Byte>): Int = this.value.compareTo(other.value)
 }
