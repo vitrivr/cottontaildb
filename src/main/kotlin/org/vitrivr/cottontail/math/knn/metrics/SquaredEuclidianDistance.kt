@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.math.knn.metrics
 
+import org.vitrivr.cottontail.model.values.DoubleValue
 import org.vitrivr.cottontail.model.values.types.VectorValue
 
 /**
@@ -20,7 +21,7 @@ object SquaredEuclidianDistance : DistanceKernel {
      *
      * @return Distance between a and b.
      */
-    override operator fun invoke(a: VectorValue<*>, b: VectorValue<*>): Double = (a l2 b).pow(2).asDouble().value
+    override operator fun invoke(a: VectorValue<*>, b: VectorValue<*>): DoubleValue = (a l2 b).pow(2).asDouble()
 
     /**
      * Calculates the weighted, squared L2 distance between two [VectorValue]s.
@@ -31,5 +32,5 @@ object SquaredEuclidianDistance : DistanceKernel {
      *
      * @return Distance between a and b.
      */
-    override operator fun invoke(a: VectorValue<*>, b: VectorValue<*>, weights: VectorValue<*>): Double = ((b-a).pow(2)* weights).sum().value.toDouble()
+    override operator fun invoke(a: VectorValue<*>, b: VectorValue<*>, weights: VectorValue<*>): DoubleValue = ((b - a).pow(2) * weights).sum().asDouble()
 }

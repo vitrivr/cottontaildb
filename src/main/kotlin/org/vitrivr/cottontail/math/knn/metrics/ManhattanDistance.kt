@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.math.knn.metrics
 
+import org.vitrivr.cottontail.model.values.DoubleValue
 import org.vitrivr.cottontail.model.values.types.VectorValue
 
 /**
@@ -21,7 +22,7 @@ object ManhattanDistance : MinkowskiDistance {
      *
      * @return Distance between a and b.
      */
-    override operator fun invoke(a: VectorValue<*>, b: VectorValue<*>): Double = (a l1 b).asDouble().value
+    override operator fun invoke(a: VectorValue<*>, b: VectorValue<*>): DoubleValue = (a l1 b).asDouble()
 
     /**
      * Calculates the weighted L1 distance between two [VectorValue]s.
@@ -32,5 +33,5 @@ object ManhattanDistance : MinkowskiDistance {
      *
      * @return Distance between a and b.
      */
-    override operator fun invoke(a: VectorValue<*>, b: VectorValue<*>, weights: VectorValue<*>): Double = ((b-a).abs() * weights).sum().value.toDouble()
+    override operator fun invoke(a: VectorValue<*>, b: VectorValue<*>, weights: VectorValue<*>): DoubleValue = ((b - a).abs() * weights).sum().asDouble()
 }

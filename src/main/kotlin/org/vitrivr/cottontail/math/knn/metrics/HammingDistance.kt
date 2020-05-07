@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.math.knn.metrics
 
+import org.vitrivr.cottontail.model.values.DoubleValue
 import org.vitrivr.cottontail.model.values.types.VectorValue
 
 /**
@@ -21,7 +22,7 @@ object HammingDistance : DistanceKernel {
      *
      * @return Distance between a and b.
      */
-    override operator fun invoke(a: VectorValue<*>, b: VectorValue<*>): Double {
+    override operator fun invoke(a: VectorValue<*>, b: VectorValue<*>): DoubleValue {
         TODO()
     }
 
@@ -34,7 +35,7 @@ object HammingDistance : DistanceKernel {
      *
      * @return Distance between a and b.
      */
-    override operator fun invoke(a: VectorValue<*>, b: VectorValue<*>, weights: VectorValue<*>): Double {
+    override operator fun invoke(a: VectorValue<*>, b: VectorValue<*>, weights: VectorValue<*>): DoubleValue {
         TODO()
     }
 }
