@@ -17,6 +17,14 @@ class ExecutionEngine(config: ExecutionConfig) {
     /** The [ThreadPoolExecutor] used for executing queries. */
     private val executor = ThreadPoolExecutor(config.coreThreads, config.maxThreads, config.keepAliveMs, TimeUnit.MILLISECONDS, ArrayBlockingQueue(config.queueSize))
 
+    /** The maximum amount of parallelism allowed by this [ExecutionEngine] instance. */
+    val maxThreads
+        get() = this.executor.maximumPoolSize
+
+    /** The number of [Thread]s currently available. This is an estimate and may change very quickly. */
+    val availableThreads
+        get() = this.executor.maximumPoolSize - this.executor.activeCount
+
     /**
      * Creates and returns a new [ExecutionPlan].
      *

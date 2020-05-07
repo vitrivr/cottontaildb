@@ -5,7 +5,6 @@ import com.github.dexecutor.core.DexecutorConfig
 import com.github.dexecutor.core.ExecutionConfig
 import com.github.dexecutor.core.task.Task
 import com.github.dexecutor.core.task.TaskProvider
-import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.execution.tasks.ExecutionPlanException
 import org.vitrivr.cottontail.execution.tasks.ExecutionPlanSetupException
 import org.vitrivr.cottontail.execution.tasks.basics.ExecutionStage
@@ -24,7 +23,7 @@ import kotlin.collections.HashMap
  * @see ExecutionTask
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.1
  */
 class ExecutionPlan(executor: ExecutorService) {
 
@@ -38,57 +37,52 @@ class ExecutionPlan(executor: ExecutorService) {
     private val provider: ExecutionPlanTaskProvider = this.ExecutionPlanTaskProvider()
 
     /** The [DexecutorConfig] used to setup the DAG execution. */
-    private val config = DexecutorConfig<String, Recordset>(executor, this.provider)
-
-    /** Logger used for logging the output of the final stage. */
-    companion object {
-        private val LOGGER = LoggerFactory.getLogger(FinalStageExecutionTask::class.java)
-    }
+    private val config = DexecutorConfig(executor, this.provider)
 
     /**
-     * Adds a new [ExecutionTask] to this [ExecutionPlan].
+     * Traverses the given [ExecutionStage] to its root and adds all relevant [ExecutionStage]s to this [ExecutionPlan]
      *
-     * @param task The [ExecutionTask] to add to the plan.
-     * @param dependsOn The ID's of the [ExecutionTask]s the new [ExecutionTask] depends on. If none are given, the [ExecutionTask] is independent.
-     * @return ID of the [ExecutionTask] that was just added.
+     * @param stage The [ExecutionStage] to compile into an [ExecutionPlan].
      */
-    fun addTask(task: ExecutionTask, vararg dependsOn: String): String {
-        this.provider.addTask(task)
-        if (dependsOn.isNotEmpty()) {
-            for (id in dependsOn) {
-                this.config.dexecutorState.addDependency(id, task.id)
-            }
-        } else {
-            this.config.dexecutorState.addIndependent(task.id)
-        }
-        return task.id
+    fun compileStage(stage: ExecutionStage) {
+        val root = stage.root
+        var current: ExecutionStage? = root
+        do {
+            this.addStage(current!!)
+            current = current.child
+        } while (current != null)
     }
 
     /**
      * Adds a new [ExecutionStage] to this [ExecutionPlan].
      *
-     * @param stage The [ExecutionStage] to add to the plan.
-     * @param dependsOn The ID's of the [ExecutionTask]s the new [ExecutionStage] depends on. If none are given, the [ExecutionStage] is independent.
-     * @return ID of last [ExecutionTask] in the [ExecutionStage] that was just added.
+     * @param stage The [ExecutionStage] to add to this [ExecutionPlan].
      */
-    fun addStage(stage: ExecutionStage, vararg dependsOn: String): String {
-        for (task in stage.tasks) {
-            this.provider.addTask(task.key)
-            if (task.value.isEmpty()) {
-                if (dependsOn.isEmpty()) {
-                    this.config.dexecutorState.addIndependent(task.key.id)
-                } else {
-                    for (dependency in dependsOn) {
-                        this.config.dexecutorState.addDependency(dependency, task.key.id)
+    private fun addStage(stage: ExecutionStage) {
+        when {
+            stage.parent == null -> {
+                /** Case 1: Independent stage. */
+                stage.tasks.forEach {
+                    this.provider.addTask(it)
+                    this.config.dexecutorState.addIndependent(it.id)
+                }
+            }
+            stage.mergeType == ExecutionStage.MergeType.ALL -> {
+                stage.tasks.forEach { inner ->
+                    this.provider.addTask(inner)
+                    stage.parent!!.tasks.forEach { outer ->
+                        this.config.dexecutorState.addDependency(outer.id, inner.id)
                     }
                 }
-            } else {
-                for (dependency in task.value) {
-                    this.config.dexecutorState.addDependency(task.key.id, dependency)
+            }
+            stage.mergeType == ExecutionStage.MergeType.ONE -> {
+                if (stage.tasks.size != stage.parent?.tasks?.size) throw ExecutionPlanException(this@ExecutionPlan, "The number of tasks must correspond for both ExecutionStages for merge type ${ExecutionStage.MergeType.ONE} but don't (t_i = ${stage.tasks.size}, t_o = ${stage.parent?.tasks?.size}).")
+                stage.tasks.forEachIndexed { index, inner ->
+                    this.provider.addTask(inner)
+                    this.config.dexecutorState.addDependency(stage.parent!!.tasks[index].id, inner.id)
                 }
             }
         }
-        return stage.output!!
     }
 
     /**
@@ -110,32 +104,6 @@ class ExecutionPlan(executor: ExecutorService) {
             throw ExecutionPlanException(this, "Graph did not produce any results.")
         }
         return results.success.last().result
-    }
-
-    /**
-     * An additional, internal stage used by [ExecutionPlan] to access the results of the query execution.
-     *
-     * @author Ralph Gasser
-     * @version 1.0
-     */
-    private inner class FinalStageExecutionTask : ExecutionTask("FinalStage[${this@ExecutionPlan.id}]") {
-        override val cost = 0.0f
-        override fun execute(): Recordset {
-            if (!this.parentResults.hasAnyResult()) {
-                throw ExecutionPlanException(this@ExecutionPlan, "Final stage in execution plan did not produce any results.")
-            }
-
-            if (this.parentResults.all.size > 1) {
-                throw ExecutionPlanException(this@ExecutionPlan, "Invalid execution plan! Final stage in execution plan did produce more than one result set.")
-            }
-
-            /* Log successful execution. */
-            val output = this.first()
-                    ?: throw ExecutionPlanException(this@ExecutionPlan, "Final stage in execution plan failed!")
-            LOGGER.debug("Execution plan ${this@ExecutionPlan.id} has been run successfully! It produced a ${output.rowCount} x ${output.columnCount} record set.")
-            LOGGER.debug("The column names are: ${output.columns.joinToString { it.name.toString() }}")
-            return output
-        }
     }
 
     /**
@@ -172,13 +140,6 @@ class ExecutionPlan(executor: ExecutorService) {
                 throw ExecutionPlanSetupException(this@ExecutionPlan, "A task with ID ${task.id} already exists for execution plan.")
             }
         }
-
-        /**
-         * Checks if the provided [ExecutionTask] is already contained in this [ExecutionPlan].
-         *
-         * @param task The task to check.
-         */
-        fun hasTask(task: ExecutionTask): Boolean = this.tasks.containsKey(task.id)
     }
 }
 

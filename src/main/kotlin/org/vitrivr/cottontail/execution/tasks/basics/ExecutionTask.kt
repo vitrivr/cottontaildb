@@ -7,11 +7,9 @@ import java.util.*
 
 
 /**
- * A single task usually executed as part of a query. Such as task generated a [Recordset] by  fetching or
+ * A single task usually executed as part of a query. Such as task generates a [Recordset] by fetching or
  * transforming data. [ExecutionTask]s are usually part of an [ExecutionPlan][org.vitrivr.cottontail.execution.ExecutionPlan].
  *
- * @see org.vitrivr.cottontail.execution.ExecutionPlan
- * @see Recordset
  *
  * @author Ralph Gasser
  * @version 1.0
