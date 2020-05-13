@@ -150,18 +150,21 @@ class UniqueHashIndex(override val name: Name, override val parent: Entity, over
      * @param tx Reference to the [Entity.Tx] the call to this method belongs to.
      */
     override fun rebuild(tx: Entity.Tx) {
-        LOGGER.trace("rebuilding index {}", name)
+        LOGGER.trace("Rebuilding index {}", name)
+
         /* Clear existing map. */
         this.map.clear()
 
         /* (Re-)create index entries. */
-        val localMap = this.map as HTreeMap<Value,Long>
+        val localMap = this.map as HTreeMap<Value, Long>
         tx.forEach {
-            val value = it[this.columns[0]] ?: throw ValidationException.IndexUpdateException(this.fqn, "A values cannot be null for instances of unique hash-index but tid=${it.tupleId} is")
+            //TODO: Check how cases should be handled: 1) null values 2) non-unique values.
+            val value = it[this.columns[0]]
+                    ?: throw ValidationException.IndexUpdateException(this.fqn, "A value cannot be null for instances of unique hash-index but tid=${it.tupleId} is.")
             if (!localMap.containsKey(value)) {
                 localMap[value] = it.tupleId
             } else {
-                throw ValidationException.IndexUpdateException(this.fqn, "LongValue must be unique for instances of unique hash-index but '$value' (tid=${it.tupleId}) is not !")
+                LOGGER.warn("Value must be unique for instances of unique hash-index but '$value' (tid=${it.tupleId}) is not! Skipping entry...")
             }
         }
         this.db.commit()
