@@ -16,7 +16,7 @@ import org.vitrivr.cottontail.model.values.types.VectorValue
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class EntityIndexedKnnTask<T : VectorValue<*>>(val entity: Entity, val knnPredicate: KnnPredicate<T>, indexHint: Index) : ExecutionTask("EntityIndexedKnnTask[${entity.fqn}][${knnPredicate.column.name}][${knnPredicate.distance::class.simpleName}][${knnPredicate.k}][q=${knnPredicate.query.hashCode()}]") {
+class IndexScanKnnTask<T : VectorValue<*>>(val entity: Entity, val knnPredicate: KnnPredicate<T>, indexHint: Index) : ExecutionTask("EntityIndexedKnnTask[${entity.fqn}][${knnPredicate.column.name}][${knnPredicate.distance::class.simpleName}][${knnPredicate.k}][q=${knnPredicate.query.hashCode()}]") {
     /** The cost of this [EntityLinearScanFilterTask] depends on whether or not an [Index] can be employed. */
     override val cost = indexHint.cost(this.knnPredicate)
 

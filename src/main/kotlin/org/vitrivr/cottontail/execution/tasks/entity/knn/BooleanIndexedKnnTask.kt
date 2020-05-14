@@ -18,7 +18,7 @@ import org.vitrivr.cottontail.model.values.types.VectorValue
 class BooleanIndexedKnnTask<T: VectorValue<*>>(val entity: Entity, val knn: KnnPredicate<T>, val predicate: BooleanPredicate, indexHint: Index) : ExecutionTask("BooleanIndexedKnnTask[${entity.fqn}][${knn.column.name}][${knn.distance::class.simpleName}][${knn.k}][$predicate][q=${knn.query.hashCode()}]") {
 
     /** Set containing the kNN values. */
-    private val knnSet = knn.query.map { HeapSelect<ComparablePair<Long, Double>>(this.knn.k) }
+    private val knnSet = knn.query.map { HeapSelect<ComparablePair<Long, DoubleValue>>(this.knn.k) }
 
     /** List of the [ColumnDef] this instance of [BooleanIndexedKnnTask] produces. */
     private val produces: Array<ColumnDef<*>> = arrayOf(ColumnDef(this.entity.fqn.append("distance"), ColumnType.forName("DOUBLE")))
@@ -53,13 +53,7 @@ class BooleanIndexedKnnTask<T: VectorValue<*>>(val entity: Entity, val knn: KnnP
         index.forEach(this.predicate, action)
 
         /* Generate dataset and return it. */
-        val dataset = Recordset(this.produces, capacity = (this.knnSet.size * this.knn.k).toLong())
-        for (knn in this.knnSet) {
-            for (i in 0 until knn.size) {
-                dataset.addRowUnsafe(knn[i].first, arrayOf(DoubleValue(knn[i].second)))
-            }
-        }
-        return@query dataset
+        return@query KnnUtilities.heapSelectToRecordset(this.produces.first(), this.knnSet)
     } ?: Recordset(this.produces, capacity = 0)
 
 }
