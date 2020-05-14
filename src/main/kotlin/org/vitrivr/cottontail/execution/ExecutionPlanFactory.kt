@@ -9,6 +9,7 @@ import org.vitrivr.cottontail.execution.tasks.basics.ExecutionStage
 import org.vitrivr.cottontail.execution.tasks.entity.boolean.EntityIndexedFilterTask
 import org.vitrivr.cottontail.execution.tasks.entity.boolean.EntityLinearScanFilterTask
 import org.vitrivr.cottontail.execution.tasks.entity.boolean.EntityLinearScanTask
+import org.vitrivr.cottontail.execution.tasks.entity.fetch.EntityFetchColumnsTask
 import org.vitrivr.cottontail.execution.tasks.entity.knn.EntityScanKnnTask
 import org.vitrivr.cottontail.execution.tasks.entity.knn.KnnUtilities
 import org.vitrivr.cottontail.execution.tasks.entity.projection.*
@@ -64,11 +65,26 @@ class ExecutionPlanFactory(val executionEngine: ExecutionEngine) {
 
         /* Add SELECT clause (column fetching + projection) */
         last = when (projectionClause.type) {
-            ProjectionType.SELECT -> ExecutionStage(ExecutionStage.MergeType.ONE, last).addTask(RecordsetSelectProjectionTask(projectionClause))
-            ProjectionType.SUM -> ExecutionStage(ExecutionStage.MergeType.ONE, last).addTask(RecordsetSumProjectionTask(projectionClause))
-            ProjectionType.MAX -> ExecutionStage(ExecutionStage.MergeType.ONE, last).addTask(RecordsetMaxProjectionTask(projectionClause))
-            ProjectionType.MIN -> ExecutionStage(ExecutionStage.MergeType.ONE, last).addTask(RecordsetMinProjectionTask(projectionClause))
-            ProjectionType.MEAN -> ExecutionStage(ExecutionStage.MergeType.ONE, last).addTask(RecordsetMeanProjectionTask(projectionClause))
+            ProjectionType.SELECT -> {
+                val internal = ExecutionStage(ExecutionStage.MergeType.ONE, last).addTask(EntityFetchColumnsTask(entity, projectionClause.columns))
+                ExecutionStage(ExecutionStage.MergeType.ONE, internal).addTask(RecordsetSelectProjectionTask(projectionClause))
+            }
+            ProjectionType.SUM -> {
+                val internal = ExecutionStage(ExecutionStage.MergeType.ONE, last).addTask(EntityFetchColumnsTask(entity, projectionClause.columns))
+                ExecutionStage(ExecutionStage.MergeType.ONE, internal).addTask(RecordsetSumProjectionTask(projectionClause))
+            }
+            ProjectionType.MAX -> {
+                val internal = ExecutionStage(ExecutionStage.MergeType.ONE, last).addTask(EntityFetchColumnsTask(entity, projectionClause.columns))
+                ExecutionStage(ExecutionStage.MergeType.ONE, internal).addTask(RecordsetMaxProjectionTask(projectionClause))
+            }
+            ProjectionType.MIN -> {
+                val internal = ExecutionStage(ExecutionStage.MergeType.ONE, last).addTask(EntityFetchColumnsTask(entity, projectionClause.columns))
+                ExecutionStage(ExecutionStage.MergeType.ONE, internal).addTask(RecordsetMinProjectionTask(projectionClause))
+            }
+            ProjectionType.MEAN -> {
+                val internal = ExecutionStage(ExecutionStage.MergeType.ONE, last).addTask(EntityFetchColumnsTask(entity, projectionClause.columns))
+                ExecutionStage(ExecutionStage.MergeType.ONE, internal).addTask(RecordsetMeanProjectionTask(projectionClause))
+            }
             ProjectionType.COUNT -> ExecutionStage(ExecutionStage.MergeType.ONE, last).addTask(RecordsetCountProjectionTask())
             ProjectionType.EXISTS -> ExecutionStage(ExecutionStage.MergeType.ONE, last).addTask(RecordsetExistsProjectionTask())
         }
