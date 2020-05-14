@@ -38,7 +38,7 @@ class IntVectorDistanceTest {
 
         collection.forEach {
             time1 += measureTime {
-                sum1 += ManhattanDistance(it, query)
+                sum1 += ManhattanDistance(it, query).value
             }
             time2 += measureTime {
                 sum2 += (it - query).abs().sum().value.toDouble()
@@ -71,10 +71,10 @@ class IntVectorDistanceTest {
 
         collection.forEach {
             time1 += measureTime {
-                sum1 += SquaredEuclidianDistance(it, query)
+                sum1 += SquaredEuclidianDistance(it, query).value
             }
             time2 += measureTime {
-                sum2 += (it-query).pow(2).sum().value.toDouble()
+                sum2 += (it - query).pow(2).sum().value
             }
             sum3 += MathArrays.distance(it.data, query.data).pow(2)
         }
@@ -104,7 +104,7 @@ class IntVectorDistanceTest {
 
         collection.forEach {
             time1 += measureTime {
-                sum1 += EuclidianDistance(it, query)
+                sum1 += EuclidianDistance(it, query).value
             }
             time2 += measureTime {
                 sum2 += (query-it).pow(2).sum().sqrt().value

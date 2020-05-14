@@ -40,7 +40,7 @@ class DoubleVectorDistanceTest {
 
         collection.forEach {
             time1 += measureTime {
-                sum1 += ManhattanDistance(it, query)
+                sum1 += ManhattanDistance(it, query).value
             }
             time2 += measureTime {
                 sum2 += (query-it).abs().sum().value
@@ -73,7 +73,7 @@ class DoubleVectorDistanceTest {
 
         collection.forEach {
             time1 += measureTime {
-                sum1 += SquaredEuclidianDistance(it, query)
+                sum1 += SquaredEuclidianDistance(it, query).value
             }
             time2 += measureTime {
                 sum2 += (query-it).pow(2).sum().value
@@ -108,7 +108,7 @@ class DoubleVectorDistanceTest {
 
         collection.forEach {
             time1 += measureTime {
-                sum1 += EuclidianDistance(it, query)
+                sum1 += EuclidianDistance(it, query).value
             }
             time2 += measureTime {
                 sum2 += (query-it).pow(2).sum().sqrt().value
