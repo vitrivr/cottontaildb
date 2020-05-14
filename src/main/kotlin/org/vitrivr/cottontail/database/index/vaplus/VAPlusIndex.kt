@@ -96,12 +96,12 @@ class VAPlusIndex(override val name: Name, override val parent: Entity, override
         val meta = this.meta.get()
 
         /* Prepare HeapSelect data structures for Phase 1KNN query.*/
-        val heapsP1 = Array<HeapSelect<ComparablePair<Pair<Long, Double>, Double>>>(predicate.query.size) {
+        val heapsP1 = Array<HeapSelect<ComparablePair<Pair<Long, DoubleValue>, DoubleValue>>>(predicate.query.size) {
             HeapSelect(5 * predicate.k)
         }
 
         /* Prepare HeapSelect data structures for Phase 2 of KNN query.*/
-        val heapsP2 = Array<HeapSelect<ComparablePair<Long, Double>>>(predicate.query.size) {
+        val heapsP2 = Array<HeapSelect<ComparablePair<Long, DoubleValue>>>(predicate.query.size) {
             HeapSelect(predicate.k)
         }
 
@@ -128,12 +128,12 @@ class VAPlusIndex(override val name: Name, override val parent: Entity, override
             queryBounds.forEachIndexed { i, query ->
                 //val cells = meta.signatureGenerator.toCells(it!!.signature.toString())
                 val cells = it!!.signature
-                val lb = this.calculateBounds(cells, query.first.second, query.first.first)
-                val ub = this.calculateBounds(cells, query.second.second, query.second.first)
+                val lb = DoubleValue(this.calculateBounds(cells, query.first.second, query.first.first))
+                val ub = DoubleValue(this.calculateBounds(cells, query.second.second, query.second.first))
                 if (heapsP1[i].size < heapsP1[i].k) {
-                    heapsP1[i].add(ComparablePair(Pair(it.tupleId, ub.toDouble()), lb.toDouble()))
+                    heapsP1[i].add(ComparablePair(Pair(it.tupleId, ub), lb))
                 } else if (lb < heapsP1[i][heapsP1[i].k - 1].first.second) {
-                    heapsP1[i].add(ComparablePair(Pair(it.tupleId, ub.toDouble()), lb.toDouble()))
+                    heapsP1[i].add(ComparablePair(Pair(it.tupleId, ub), lb))
                 }
             }
         }

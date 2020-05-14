@@ -77,7 +77,7 @@ class SuperBitLSHIndex<T : VectorValue<*>>(name: Name, parent: Entity, columns: 
             /* Generate record set .*/
             for (i in predicate.query.indices) {
                 val query = predicate.query[i]
-                val knn = HeapSelect<ComparablePair<Long, Double>>(predicate.k)
+                val knn = HeapSelect<ComparablePair<Long, DoubleValue>>(predicate.k)
                 val bucket: Int = lsh.hash(query).last()
                 val tupleIds = this.map[bucket]
                 if (tupleIds != null) {
@@ -93,7 +93,7 @@ class SuperBitLSHIndex<T : VectorValue<*>>(name: Name, parent: Entity, columns: 
                         }
                     }
                     for (j in 0 until knn.size) {
-                        recordset.addRowUnsafe(knn[j].first, arrayOf(DoubleValue(knn[j].second)))
+                        recordset.addRowUnsafe(knn[j].first, arrayOf(knn[j].second))
                     }
                 }
             }
