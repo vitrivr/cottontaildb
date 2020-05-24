@@ -106,6 +106,7 @@ class GrpcQueryBinder(val catalogue: Catalogue, private val engine: ExecutionEng
     private fun parseAndBindSimpleFrom(from: CottontailGrpc.From): EntityScanNodeExpression = try {
         when (from.fromCase) {
             CottontailGrpc.From.FromCase.ENTITY -> EntityScanNodeExpression.FullEntityScanNodeExpression(entity = this.catalogue.schemaForName(Name(from.entity.schema.name)).entityForName(Name(from.entity.name)))
+            CottontailGrpc.From.FromCase.SAMPLE -> EntityScanNodeExpression.SampledEntityScanNodeExpression(entity = this.catalogue.schemaForName(Name(from.sample.entity.schema.name)).entityForName(Name(from.sample.entity.name)), size = from.sample.size, seed = from.sample.seed)
             else -> throw QueryException.QuerySyntaxException("Invalid FROM-clause in query.")
         }
     } catch (e: DatabaseException.SchemaDoesNotExistException) {

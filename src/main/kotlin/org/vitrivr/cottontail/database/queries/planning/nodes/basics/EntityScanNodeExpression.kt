@@ -8,6 +8,7 @@ import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.cost.Costs
 import org.vitrivr.cottontail.execution.tasks.basics.ExecutionStage
 import org.vitrivr.cottontail.execution.tasks.entity.source.EntityLinearScanTask
+import org.vitrivr.cottontail.execution.tasks.entity.source.EntitySampleTask
 import org.vitrivr.cottontail.model.basics.ColumnDef
 
 /**
@@ -34,7 +35,7 @@ sealed class EntityScanNodeExpression : AbstractNodeExpression() {
         override val cost = Cost(this.entity.statistics.rows * this.columns.size * Costs.DISK_ACCESS_READ, 0.0f, (this.output * this.columns.map { it.physicalSize }.sum()).toFloat())
         override fun copy(): NodeExpression = FullEntityScanNodeExpression(this.entity, this.columns)
         override fun toStage(context: QueryPlannerContext): ExecutionStage {
-            val stage = ExecutionStage(ExecutionStage.MergeType.ALL)
+            val stage = ExecutionStage(ExecutionStage.MergeType.ONE)
             stage.addTask(EntityLinearScanTask(this.entity, this.columns))
             return stage
         }
@@ -53,8 +54,26 @@ sealed class EntityScanNodeExpression : AbstractNodeExpression() {
         override val cost = Cost(this.output * this.columns.size * Costs.DISK_ACCESS_READ, 0.0f, (this.output * this.columns.map { it.physicalSize }.sum()).toFloat())
         override fun copy(): NodeExpression = RangedEntityScanNodeExpression(this.entity, this.columns, this.start, this.end)
         override fun toStage(context: QueryPlannerContext): ExecutionStage {
-            val stage = ExecutionStage(ExecutionStage.MergeType.ALL)
+            val stage = ExecutionStage(ExecutionStage.MergeType.ONE)
             stage.addTask(EntityLinearScanTask(this.entity, this.columns, this.start, this.end))
+            return stage
+        }
+    }
+
+    /**
+     * Sampled table scan i.e. as scan that returns a random subset of the [Entity].
+     */
+    data class SampledEntityScanNodeExpression(override val entity: Entity, override val columns: Array<ColumnDef<*>> = entity.allColumns().toTypedArray(), val size: Long, val seed: Long = System.currentTimeMillis()) : EntityScanNodeExpression() {
+        init {
+            require(size > 0) { "Sample size must be greater than zero for a sampled scan." }
+        }
+
+        override val output = this.size
+        override val cost = Cost(this.size * this.columns.size * Costs.DISK_ACCESS_READ, 5 * this.size * Costs.MEMORY_ACCESS_READ, (this.output * this.columns.map { it.physicalSize }.sum()).toFloat())
+        override fun copy(): NodeExpression = SampledEntityScanNodeExpression(this.entity, this.columns, this.size, this.seed)
+        override fun toStage(context: QueryPlannerContext): ExecutionStage {
+            val stage = ExecutionStage(ExecutionStage.MergeType.ONE)
+            stage.addTask(EntitySampleTask(this.entity, this.columns, this.size, this.seed))
             return stage
         }
     }
