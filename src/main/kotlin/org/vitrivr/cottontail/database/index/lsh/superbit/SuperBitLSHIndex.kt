@@ -7,8 +7,9 @@ import org.vitrivr.cottontail.database.events.DataChangeEvent
 import org.vitrivr.cottontail.database.index.Index
 import org.vitrivr.cottontail.database.index.hash.UniqueHashIndex
 import org.vitrivr.cottontail.database.index.lsh.LSHIndex
-import org.vitrivr.cottontail.database.queries.KnnPredicate
-import org.vitrivr.cottontail.database.queries.Predicate
+import org.vitrivr.cottontail.database.queries.planning.cost.Cost
+import org.vitrivr.cottontail.database.queries.predicates.KnnPredicate
+import org.vitrivr.cottontail.database.queries.predicates.Predicate
 import org.vitrivr.cottontail.math.knn.ComparablePair
 import org.vitrivr.cottontail.math.knn.HeapSelect
 import org.vitrivr.cottontail.math.knn.metrics.CosineDistance
@@ -72,7 +73,7 @@ class SuperBitLSHIndex<T : VectorValue<*>>(name: Name, parent: Entity, columns: 
 
             /* Prepare empty Recordset and LSH object. */
             val recordset = Recordset(this.produces, (predicate.k * predicate.query.size).toLong())
-            val lsh = SuperBitLSH(this.config.get().stages, this.config.get().buckets, this.columns.first().size, this.config.get().seed, predicate.query.first())
+            val lsh = SuperBitLSH(this.config.get().stages, this.config.get().buckets, this.columns.first().logicalSize, this.config.get().seed, predicate.query.first())
 
             /* Generate record set .*/
             for (i in predicate.query.indices) {
@@ -107,7 +108,7 @@ class SuperBitLSHIndex<T : VectorValue<*>>(name: Name, parent: Entity, columns: 
     override fun rebuild(tx: Entity.Tx) {
         /* LSH. */
         val specimen = this.acquireSpecimen(tx) ?: return
-        val lsh = SuperBitLSH(this.config.get().stages, this.config.get().buckets, this.columns[0].size, this.config.get().seed, specimen)
+        val lsh = SuperBitLSH(this.config.get().stages, this.config.get().buckets, this.columns[0].logicalSize, this.config.get().seed, specimen)
 
         /* (Re-)create index entries locally. */
         val local = Array(this.config.get().buckets) { mutableListOf<Long>() }
@@ -157,10 +158,10 @@ class SuperBitLSHIndex<T : VectorValue<*>>(name: Name, parent: Entity, columns: 
      * @param predicate [Predicate] to check.
      * @return Cost estimate for the [Predicate]
      */
-    override fun cost(predicate: Predicate): Float = if (canProcess(predicate)) {
-        1.0f
+    override fun cost(predicate: Predicate): Cost = if (canProcess(predicate)) {
+        Cost.ZERO /* TODO: Determine. */
     } else {
-        Float.MAX_VALUE
+        Cost.INVALID
     }
 
     /**

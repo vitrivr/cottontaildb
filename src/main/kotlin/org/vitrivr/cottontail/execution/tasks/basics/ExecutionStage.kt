@@ -2,12 +2,11 @@ package org.vitrivr.cottontail.execution.tasks.basics
 
 import org.vitrivr.cottontail.execution.ExecutionPlan
 
-
 /**
  * An class for organizing [ExecutionTask]s into a single [ExecutionStage]. Tasks in a single
  * [ExecutionStage] are independent and can be executed in parallel.
  *
- * @version 1.1
+ * @version 1.1.1
  * @author Ralph Gasser
  */
 class ExecutionStage(val mergeType: MergeType, parent: ExecutionStage? = null) {
@@ -26,10 +25,6 @@ class ExecutionStage(val mergeType: MergeType, parent: ExecutionStage? = null) {
 
     /** List of [ExecutionTask]s that make up this stage. */
     val tasks = mutableListOf<ExecutionTask>()
-
-    /** Total cost incurred by executing this [ExecutionStage]. */
-    val cost: Float
-        get() = this.tasks.map { it.cost }.sum()
 
     /** The ID of the output task. */
     val output: List<String>

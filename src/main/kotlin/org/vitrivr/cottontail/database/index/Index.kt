@@ -6,7 +6,8 @@ import org.vitrivr.cottontail.database.events.DataChangeEvent
 import org.vitrivr.cottontail.database.general.DBO
 import org.vitrivr.cottontail.database.general.Transaction
 import org.vitrivr.cottontail.database.general.TransactionStatus
-import org.vitrivr.cottontail.database.queries.Predicate
+import org.vitrivr.cottontail.database.queries.planning.cost.Cost
+import org.vitrivr.cottontail.database.queries.predicates.Predicate
 import org.vitrivr.cottontail.database.schema.Schema
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Record
@@ -68,7 +69,7 @@ abstract class Index : DBO {
      * @param predicate [Predicate] to check.
      * @return Cost estimate for the [Predicate]
      */
-    abstract fun cost(predicate: Predicate): Float
+    abstract fun cost(predicate: Predicate): Cost
 
     /**
      * Handles finalization, in case the Garbage Collector reaps a cached [Index].

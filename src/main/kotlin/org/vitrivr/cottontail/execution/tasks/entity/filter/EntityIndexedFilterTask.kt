@@ -1,9 +1,9 @@
-package org.vitrivr.cottontail.execution.tasks.entity.boolean
+package org.vitrivr.cottontail.execution.tasks.entity.filter
 
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.general.query
 import org.vitrivr.cottontail.database.index.Index
-import org.vitrivr.cottontail.database.queries.BooleanPredicate
+import org.vitrivr.cottontail.database.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.execution.tasks.basics.ExecutionTask
 import org.vitrivr.cottontail.model.recordset.Recordset
 
@@ -13,12 +13,9 @@ import org.vitrivr.cottontail.model.recordset.Recordset
  * that match the provided [BooleanPredicate].
  *
  * @author Ralph Gasser
- * @version 1.0.1
+ * @version 1.1
  */
 class EntityIndexedFilterTask(private val entity: Entity, private val predicate: BooleanPredicate, indexHint: Index) : ExecutionTask("EntityIndexedFilterTask[${entity.fqn}][$predicate]") {
-    /** The cost of this [EntityLinearScanFilterTask] depends on whether or not an [Index] can be employed. */
-    override val cost = indexHint.cost(this.predicate)
-
     /** The type of the [Index] that should be used.*/
     private val type = indexHint.type
 

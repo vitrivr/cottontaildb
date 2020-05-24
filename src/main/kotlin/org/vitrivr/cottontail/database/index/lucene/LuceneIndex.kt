@@ -18,7 +18,13 @@ import org.vitrivr.cottontail.database.events.DataChangeEventType
 import org.vitrivr.cottontail.database.index.Index
 import org.vitrivr.cottontail.database.index.IndexType
 import org.vitrivr.cottontail.database.index.hash.UniqueHashIndex
-import org.vitrivr.cottontail.database.queries.*
+import org.vitrivr.cottontail.database.queries.ComparisonOperator
+import org.vitrivr.cottontail.database.queries.planning.cost.Cost
+import org.vitrivr.cottontail.database.queries.planning.cost.Costs
+import org.vitrivr.cottontail.database.queries.predicates.AtomicBooleanPredicate
+import org.vitrivr.cottontail.database.queries.predicates.BooleanPredicate
+import org.vitrivr.cottontail.database.queries.predicates.CompoundBooleanPredicate
+import org.vitrivr.cottontail.database.queries.predicates.Predicate
 import org.vitrivr.cottontail.database.schema.Schema
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Record
@@ -41,9 +47,6 @@ import java.nio.file.Path
 class LuceneIndex(override val name: Name, override val parent: Entity, override val columns: Array<ColumnDef<*>>) : Index() {
 
     companion object {
-        /** Cost of a single lookup operation (i.e. comparison of a term in the index). */
-        const val ATOMIC_COST = 1e-6f
-
         /** [ColumnDef] of the _tid column. */
         const val TID_COLUMN = "_tid"
 
@@ -306,11 +309,15 @@ class LuceneIndex(override val name: Name, override val parent: Entity, override
      * @param predicate [Predicate] to check.
      * @return Cost estimate for the [Predicate]
      */
-    override fun cost(predicate: Predicate): Float = when {
+    override fun cost(predicate: Predicate): Cost = when {
         canProcess(predicate) -> {
             val searcher = IndexSearcher(this.indexReader)
-            predicate.columns.map { searcher.collectionStatistics(it.name.name).sumTotalTermFreq() * ATOMIC_COST }.sum()
+            var cost = Cost.ZERO
+            predicate.columns.forEach {
+                cost += Cost(Costs.DISK_ACCESS_READ, Costs.DISK_ACCESS_READ, it.physicalSize.toFloat()) * searcher.collectionStatistics(it.name.name).sumTotalTermFreq()
+            }
+            cost
         }
-        else -> Float.MAX_VALUE
+        else -> Cost.INVALID
     }
 }

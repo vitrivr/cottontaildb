@@ -4,8 +4,8 @@ import org.vitrivr.cottontail.database.column.ColumnType
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.general.query
 import org.vitrivr.cottontail.database.index.Index
-import org.vitrivr.cottontail.database.queries.BooleanPredicate
-import org.vitrivr.cottontail.database.queries.KnnPredicate
+import org.vitrivr.cottontail.database.queries.predicates.BooleanPredicate
+import org.vitrivr.cottontail.database.queries.predicates.KnnPredicate
 import org.vitrivr.cottontail.execution.tasks.basics.ExecutionTask
 import org.vitrivr.cottontail.math.knn.ComparablePair
 import org.vitrivr.cottontail.math.knn.HeapSelect
@@ -22,8 +22,6 @@ class BooleanIndexedKnnTask<T: VectorValue<*>>(val entity: Entity, val knn: KnnP
 
     /** List of the [ColumnDef] this instance of [BooleanIndexedKnnTask] produces. */
     private val produces: Array<ColumnDef<*>> = arrayOf(ColumnDef(this.entity.fqn.append("distance"), ColumnType.forName("DOUBLE")))
-
-    override val cost = (indexHint.cost(this.predicate) * (this.knn.cost + this.predicate.cost) * 1e-5).toFloat()
 
     /** The type of the [Index] that should be used.*/
     private val type = indexHint.type

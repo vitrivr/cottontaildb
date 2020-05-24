@@ -3,8 +3,8 @@ package org.vitrivr.cottontail.execution.tasks.entity.knn
 import com.github.dexecutor.core.task.Task
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.general.query
-import org.vitrivr.cottontail.database.queries.BooleanPredicate
-import org.vitrivr.cottontail.database.queries.KnnPredicate
+import org.vitrivr.cottontail.database.queries.predicates.BooleanPredicate
+import org.vitrivr.cottontail.database.queries.predicates.KnnPredicate
 import org.vitrivr.cottontail.execution.tasks.TaskSetupException
 import org.vitrivr.cottontail.execution.tasks.basics.ExecutionTask
 import org.vitrivr.cottontail.execution.tasks.recordset.merge.RecordsetMergeKnn
@@ -30,17 +30,13 @@ class EntityScanKnnTask<T : VectorValue<*>>(val entity: Entity, val knn: KnnPred
     private val from = start ?: 1L
 
     /** End of range that should be scanned by this [EntityScanKnnTask]. */
-    private val to = end ?: entity.statistics.maxTupleId
+    private val to = end ?: this.entity.statistics.maxTupleId
 
     /** The output [ColumnDef] produced by this [RecordsetMergeKnn]. */
     private val column = ColumnDef(this.entity.fqn.append(KnnUtilities.DISTANCE_COLUMN_NAME), KnnUtilities.DISTANCE_COLUMN_TYPE)
 
     /** List of the [ColumnDef] this instance of [EntityScanKnnTask] produces. */
     private val produces: Array<ColumnDef<*>> = arrayOf(column)
-
-    /** The cost of this [EntityScanKnnTask] is constant */
-    override val cost = (this.entity.statistics.columns * this.knn.cost.toFloat() + (predicate?.cost
-            ?: 0.0)).toFloat()
 
     init {
         if (this.from < 1L) throw TaskSetupException(this, "EntityScanKnnTask scan range is invalid (from=${this.from}, to=${this.to}).")

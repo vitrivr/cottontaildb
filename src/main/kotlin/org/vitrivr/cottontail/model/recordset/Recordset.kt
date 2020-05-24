@@ -2,8 +2,8 @@ package org.vitrivr.cottontail.model.recordset
 
 import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap
 import it.unimi.dsi.fastutil.objects.ObjectBigArrayBigList
-import org.vitrivr.cottontail.database.queries.BooleanPredicate
-import org.vitrivr.cottontail.database.queries.Predicate
+import org.vitrivr.cottontail.database.queries.predicates.BooleanPredicate
+import org.vitrivr.cottontail.database.queries.predicates.Predicate
 import org.vitrivr.cottontail.model.basics.*
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.values.types.Value
@@ -392,7 +392,7 @@ class Recordset(val columns: Array<ColumnDef<*>>, capacity: Long = 250L) : Scana
         val renamed = this.columns.mapIndexed { i, col ->
             val rename = columns.find { i == it.first }
             if (rename != null) {
-                ColumnDef(rename.second, col.type, col.size, col.nullable)
+                ColumnDef(rename.second, col.type, col.logicalSize, col.nullable)
             } else {
                 col
             }

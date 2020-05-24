@@ -18,9 +18,6 @@ import org.vitrivr.cottontail.model.values.types.Value
  * @version 1.0
  */
 class EntityFetchColumnsTask(val entity: Entity, val columns: Array<ColumnDef<*>>) : ExecutionTask("EntityFetchColumnsTask[${entity.fqn}") {
-    /** The cost of this [RecordsetCountProjectionTask] is constant */
-    override val cost = (this.entity.statistics.rows * columns.size) * 1e-6f
-
     /**
      * Executes this [RecordsetCountProjectionTask]
      */

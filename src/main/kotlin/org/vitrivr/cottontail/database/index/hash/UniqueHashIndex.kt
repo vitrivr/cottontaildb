@@ -10,9 +10,11 @@ import org.vitrivr.cottontail.database.events.DataChangeEvent
 import org.vitrivr.cottontail.database.events.DataChangeEventType
 import org.vitrivr.cottontail.database.index.Index
 import org.vitrivr.cottontail.database.index.IndexType
-import org.vitrivr.cottontail.database.queries.AtomicBooleanPredicate
 import org.vitrivr.cottontail.database.queries.ComparisonOperator
-import org.vitrivr.cottontail.database.queries.Predicate
+import org.vitrivr.cottontail.database.queries.planning.cost.Cost
+import org.vitrivr.cottontail.database.queries.planning.cost.Costs
+import org.vitrivr.cottontail.database.queries.predicates.AtomicBooleanPredicate
+import org.vitrivr.cottontail.database.queries.predicates.Predicate
 import org.vitrivr.cottontail.database.schema.Schema
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.exceptions.QueryException
@@ -41,7 +43,6 @@ class UniqueHashIndex(override val name: Name, override val parent: Entity, over
      */
     companion object {
         const val MAP_FIELD_NAME = "map"
-        const val ATOMIC_COST = 1e-6f /** Cost of a single lookup. TODO: Determine real value. */
         private val LOGGER = LoggerFactory.getLogger(UniqueHashIndex::class.java)
     }
 
@@ -130,11 +131,11 @@ class UniqueHashIndex(override val name: Name, override val parent: Entity, over
      * @param predicate [Predicate] to check.
      * @return Cost estimate for the [Predicate]
      */
-    override fun cost(predicate: Predicate): Float = when {
-        predicate !is AtomicBooleanPredicate<*> || predicate.columns.first() != this.columns[0] -> Float.MAX_VALUE
-        predicate.operator == ComparisonOperator.IN -> ATOMIC_COST * predicate.values.size
-        predicate.operator == ComparisonOperator.IN -> ATOMIC_COST
-        else -> Float.MAX_VALUE
+    override fun cost(predicate: Predicate): Cost = when {
+        predicate !is AtomicBooleanPredicate<*> || predicate.columns.first() != this.columns[0] -> Cost.INVALID
+        predicate.operator == ComparisonOperator.EQUAL -> Cost(Costs.DISK_ACCESS_READ, Costs.MEMORY_ACCESS_READ, predicate.columns.map { it.physicalSize }.sum().toFloat())
+        predicate.operator == ComparisonOperator.IN -> Cost(Costs.DISK_ACCESS_READ, Costs.MEMORY_ACCESS_READ, predicate.columns.map { it.physicalSize }.sum().toFloat()) * predicate.values.size
+        else -> Cost.INVALID
     }
 
     /**

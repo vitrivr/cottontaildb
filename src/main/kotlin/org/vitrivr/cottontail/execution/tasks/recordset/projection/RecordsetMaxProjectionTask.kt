@@ -2,9 +2,6 @@ package org.vitrivr.cottontail.execution.tasks.recordset.projection
 
 import com.github.dexecutor.core.task.Task
 import com.github.dexecutor.core.task.TaskExecutionException
-import org.vitrivr.cottontail.database.queries.Projection
-import org.vitrivr.cottontail.database.queries.ProjectionType
-import org.vitrivr.cottontail.execution.cost.Costs
 import org.vitrivr.cottontail.execution.tasks.basics.ExecutionTask
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.recordset.Recordset
@@ -16,16 +13,9 @@ import kotlin.math.max
  * A [Task] used during query execution. It takes a single [Recordset] and determines the maximum value of a specific [ColumnDef]. It thereby creates a 1x1 [Recordset].
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.1
  */
-class RecordsetMaxProjectionTask(val projection: Projection, estimatedRows: Int = 1000) : ExecutionTask("RecordsetMaxProjectionTask") {
-
-    /** The cost of this [RecordsetMaxProjectionTask]  depends on the estimated size of the input. */
-    override val cost = estimatedRows * Costs.MEMORY_ACCESS_READ
-
-    init {
-        assert(projection.type == ProjectionType.MAX)
-    }
+class RecordsetMaxProjectionTask(val columns: Array<ColumnDef<*>>, val fields: Map<Name, Name?>) : ExecutionTask("RecordsetMaxProjectionTask") {
 
     /**
      * Executes this [RecordsetCountProjectionTask]
@@ -38,8 +28,8 @@ class RecordsetMaxProjectionTask(val projection: Projection, estimatedRows: Int 
                 ?: throw TaskExecutionException("MAX projection could not be executed because parent task has failed.")
 
         /* Calculate max(). */
-        val column = projection.columns.first()
-        val resultsColumn = ColumnDef.withAttributes(this.projection.fields[column.name]
+        val column = this.columns.first()
+        val resultsColumn = ColumnDef.withAttributes(this.fields[column.name]
                 ?: Name("max(${column.name})"), "DOUBLE")
         var max = Double.MIN_VALUE
         val results = Recordset(arrayOf(resultsColumn))

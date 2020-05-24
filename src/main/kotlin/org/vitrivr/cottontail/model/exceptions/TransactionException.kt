@@ -83,5 +83,5 @@ open class TransactionException(message: String) : DatabaseException(message) {
      * @param tid The ID of the [Transaction][org.vitrivr.cottontail.database.general.Transaction] in which this error occurred.
      * @param column The definition of the [Column][org.vitrivr.cottontail.database.column.Column] that is missing.
      */
-    class ColumnUnknownException(tid: UUID, column: ColumnDef<*>) : TransactionException("Transaction $tid could not be executed, because column '${column.name}' (type=${column.type.name}, size=${column.size}) does not either not exist or has a different type.")
+    class ColumnUnknownException(tid: UUID, column: ColumnDef<*>) : TransactionException("Transaction $tid could not be executed, because column '${column.name}' (type=${column.type.name}, size=${column.logicalSize}) does not either not exist or has a different type.")
 }

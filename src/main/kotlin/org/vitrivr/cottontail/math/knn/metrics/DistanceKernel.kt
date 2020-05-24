@@ -12,7 +12,7 @@ import org.vitrivr.cottontail.model.values.types.VectorValue
  */
 interface DistanceKernel {
     /** Estimate of the cost required per vector component. */
-    val cost: Double
+    val cost: Float
 
     /**
      * Calculates the distance between two [VectorValue]s.

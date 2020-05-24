@@ -3,9 +3,6 @@ package org.vitrivr.cottontail.execution.tasks.recordset.projection
 import com.github.dexecutor.core.task.Task
 import com.github.dexecutor.core.task.TaskExecutionException
 import org.vitrivr.cottontail.database.entity.Entity
-import org.vitrivr.cottontail.database.queries.Projection
-import org.vitrivr.cottontail.database.queries.ProjectionType
-import org.vitrivr.cottontail.execution.cost.Costs
 import org.vitrivr.cottontail.execution.tasks.basics.ExecutionTask
 import org.vitrivr.cottontail.model.recordset.Recordset
 import org.vitrivr.cottontail.utilities.name.Match
@@ -18,17 +15,9 @@ import org.vitrivr.cottontail.utilities.name.Name
  * A [Recordset] that undergoes this task will grow in terms of columns it contains. However, it should not affect the number of rows.
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.1
  */
-class RecordsetSelectProjectionTask(val projection: Projection, estimatedRows: Int = 1000, estimatedColumns: Int = 5) : ExecutionTask("RecordsetSelectProjectionTask") {
-
-    /** Cost estimate for this [RecordsetSelectProjectionTask] depends on the input size. */
-    override val cost = estimatedRows * estimatedColumns * Costs.MEMORY_ACCESS_READ
-
-    init {
-        assert(projection.type == ProjectionType.SELECT)
-    }
-
+class RecordsetSelectProjectionTask(val fields: Map<Name, Name?>) : ExecutionTask("RecordsetSelectProjectionTask") {
     /**
      * Executes this [RecordsetSelectProjectionTask]
      */
@@ -40,14 +29,14 @@ class RecordsetSelectProjectionTask(val projection: Projection, estimatedRows: I
                 ?: throw TaskExecutionException("SELECT projection could not be executed because parent task has failed.")
 
         /* Find longest, common prefix of all projection sub-clauses. */
-        val longestCommonPrefix = Name.findLongestCommonPrefix(this.projection.fields.keys)
+        val longestCommonPrefix = Name.findLongestCommonPrefix(this.fields.keys)
 
         /* Determine columns to rename. */
         val dropIndex = mutableListOf<Int>()
         val renameIndex = mutableListOf<Pair<Int, Name>>()
         parent.columns.forEachIndexed { i, c ->
             var match = false
-            this.projection.fields.forEach { (k, v) ->
+            this.fields.forEach { (k, v) ->
                 val m = k.match(c.name)
                 if (m != Match.NO_MATCH) {
                     match = true

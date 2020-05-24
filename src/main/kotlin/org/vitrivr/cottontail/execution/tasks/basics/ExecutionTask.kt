@@ -5,7 +5,6 @@ import org.vitrivr.cottontail.execution.tasks.TaskExecutionException
 import org.vitrivr.cottontail.model.recordset.Recordset
 import java.util.*
 
-
 /**
  * A single task usually executed as part of a query. Such as task generates a [Recordset] by fetching or
  * transforming data. [ExecutionTask]s are usually part of an [ExecutionPlan][org.vitrivr.cottontail.execution.ExecutionPlan].
@@ -20,9 +19,6 @@ abstract class ExecutionTask(name: String) : Task<String, Recordset>() {
     init {
         this.id = "$name[${UUID.randomUUID()}]"
     }
-
-    /** The estimated cost of executing this [ExecutionTask]. */
-    abstract val cost: Float
 
     /**
      * Convenience method: Returns the first result, if it was successful

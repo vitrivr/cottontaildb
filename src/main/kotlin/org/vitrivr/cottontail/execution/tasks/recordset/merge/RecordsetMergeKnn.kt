@@ -3,7 +3,7 @@ package org.vitrivr.cottontail.execution.tasks.recordset.merge
 import com.github.dexecutor.core.task.Task
 import com.github.dexecutor.core.task.TaskExecutionException
 import org.vitrivr.cottontail.database.entity.Entity
-import org.vitrivr.cottontail.database.queries.KnnPredicate
+import org.vitrivr.cottontail.database.queries.predicates.KnnPredicate
 import org.vitrivr.cottontail.execution.tasks.basics.ExecutionTask
 import org.vitrivr.cottontail.execution.tasks.entity.knn.EntityScanKnnTask
 import org.vitrivr.cottontail.execution.tasks.entity.knn.KnnUtilities
@@ -28,9 +28,6 @@ class RecordsetMergeKnn(val entity: Entity, val knn: KnnPredicate<*>) : Executio
 
     /** List of the [ColumnDef] this instance of [EntityScanKnnTask] produces. */
     private val produces: Array<ColumnDef<*>> = arrayOf(column)
-
-    override val cost: Float
-        get() = (this.knn.k * this.knn.query.size) * 0.1f
 
     override fun execute(): Recordset {
         val input = this.allSuccessful()

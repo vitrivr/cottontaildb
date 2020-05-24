@@ -2,7 +2,6 @@ package org.vitrivr.cottontail.execution.tasks.recordset.transform
 
 import com.github.dexecutor.core.task.Task
 import com.github.dexecutor.core.task.TaskExecutionException
-import org.vitrivr.cottontail.execution.cost.Costs
 import org.vitrivr.cottontail.execution.tasks.basics.ExecutionTask
 import org.vitrivr.cottontail.model.recordset.Recordset
 
@@ -14,9 +13,6 @@ import org.vitrivr.cottontail.model.recordset.Recordset
  * @version 1.0
  */
 class RecordsetLimitTask(val limit: Long, val skip: Long = 0) : ExecutionTask("RecordsetLimitTask") {
-    /** The estimated cost of this [RecordsetLimitTask] depends linearly on the number of records that will be returned. */
-    override val cost = (limit + skip) * Costs.MEMORY_ACCESS_READ
-
     override fun execute(): Recordset {
         assertUnaryInput()
 

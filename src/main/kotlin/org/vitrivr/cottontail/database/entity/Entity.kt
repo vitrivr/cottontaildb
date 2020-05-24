@@ -13,10 +13,10 @@ import org.vitrivr.cottontail.database.general.begin
 import org.vitrivr.cottontail.database.index.Index
 import org.vitrivr.cottontail.database.index.IndexTransaction
 import org.vitrivr.cottontail.database.index.IndexType
-import org.vitrivr.cottontail.database.queries.AtomicBooleanPredicate
-import org.vitrivr.cottontail.database.queries.BooleanPredicate
 import org.vitrivr.cottontail.database.queries.ComparisonOperator
-import org.vitrivr.cottontail.database.queries.Predicate
+import org.vitrivr.cottontail.database.queries.predicates.AtomicBooleanPredicate
+import org.vitrivr.cottontail.database.queries.predicates.BooleanPredicate
+import org.vitrivr.cottontail.database.queries.predicates.Predicate
 import org.vitrivr.cottontail.database.schema.Schema
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Record
@@ -35,7 +35,6 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.util.*
 import java.util.concurrent.locks.ReentrantReadWriteLock
-
 import java.util.concurrent.locks.StampedLock
 import java.util.stream.Collectors
 import kotlin.concurrent.read

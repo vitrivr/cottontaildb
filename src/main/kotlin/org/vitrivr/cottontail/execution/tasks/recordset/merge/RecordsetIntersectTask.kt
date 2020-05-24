@@ -13,9 +13,6 @@ import org.vitrivr.cottontail.model.recordset.Recordset
  * @version 1.0
  */
 class RecordsetIntersectTask(sizeEstimate: Int = 1000) : ExecutionTask("RecordsetUnionTask") {
-    /** The estimated cost of this [RecordsetIntersectTask] depends linearly on the size estimate. */
-    override val cost = 0.0025f * sizeEstimate
-
     override fun execute(): Recordset {
         assertBinaryInput()
 

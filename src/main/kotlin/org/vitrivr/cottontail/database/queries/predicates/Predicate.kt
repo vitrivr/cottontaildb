@@ -1,6 +1,10 @@
-package org.vitrivr.cottontail.database.queries
+package org.vitrivr.cottontail.database.queries.predicates
 
 import org.vitrivr.cottontail.database.entity.Entity
+import org.vitrivr.cottontail.database.queries.ComparisonOperator
+import org.vitrivr.cottontail.database.queries.ConnectionOperator
+import org.vitrivr.cottontail.database.queries.planning.cost.Cost
+import org.vitrivr.cottontail.database.queries.planning.cost.Costs
 import org.vitrivr.cottontail.math.knn.metrics.DistanceKernel
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Record
@@ -11,15 +15,15 @@ import org.vitrivr.cottontail.model.values.types.Value
 import org.vitrivr.cottontail.model.values.types.VectorValue
 
 /**
- * A general purpose [Predicate] that describes a Cottontail DB query. It can either operate on [Recordset][org.vitrivr.cottontail.model.recordset.Recordset]s
- * or data read from an [Entity].
+ * A general purpose [Predicate] that describes a Cottontail DB query. It can either operate on
+ * [Recordset][org.vitrivr.cottontail.model.recordset.Recordset]s or data read from an [Entity].
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.1
  */
 sealed class Predicate {
-    /** An estimation of the cots required to apply this [Predicate] to a [Record]. */
-    abstract val cost: Double
+    /** An estimation of the [Cost] required to apply this [Predicate] to a [Record]. */
+    abstract val cost: Float
 
     /** Set of [ColumnDef] that are affected by this [Predicate]. */
     abstract val columns: Set<ColumnDef<*>>
@@ -69,7 +73,7 @@ data class AtomicBooleanPredicate<T : Value>(private val column: ColumnDef<T>, v
     }
 
     /** The number of operations required by this [AtomicBooleanPredicate]. */
-    override val cost: Double = 1.0
+    override val cost: Float = 3 * Costs.MEMORY_ACCESS_READ
 
     /** Set of [ColumnDef] that are affected by this [AtomicBooleanPredicate]. */
     override val columns: Set<ColumnDef<T>> = setOf(this.column)
@@ -139,10 +143,10 @@ data class KnnPredicate<T: VectorValue<*>>(val column: ColumnDef<T>, val k: Int,
         /* Some basic sanity checks. */
         if (k <= 0) throw QueryException.QuerySyntaxException("The value of k for a kNN query cannot be smaller than one (is $k)s!")
         query.forEach {
-            if (column.size != it.logicalSize) throw QueryException.QueryBindException("The size of the provided column ${column.name} (s_c=${column.size}) does not match the size of the query vector (s_q=${it.logicalSize}).")
+            if (column.logicalSize != it.logicalSize) throw QueryException.QueryBindException("The size of the provided column ${column.name} (s_c=${column.logicalSize}) does not match the size of the query vector (s_q=${it.logicalSize}).")
         }
         weights?.forEach {
-            if (column.size != it.logicalSize) throw QueryException.QueryBindException("The size of the provided column ${column.name} (s_c=${column.size}) does not match the size of the weight vector (s_w=${it.logicalSize}).")
+            if (column.logicalSize != it.logicalSize) throw QueryException.QueryBindException("The size of the provided column ${column.name} (s_c=${column.logicalSize}) does not match the size of the weight vector (s_w=${it.logicalSize}).")
         }
     }
 
@@ -151,8 +155,9 @@ data class KnnPredicate<T: VectorValue<*>>(val column: ColumnDef<T>, val k: Int,
      */
     override val columns: Set<ColumnDef<*>> = setOf(column)
 
-    /** Cost required for applying this [KnnPredicate]. */
-    override val cost: Double = this.distance.cost * this.query.size + (this.weights?.size ?: 0)
+    /** Cost required for applying this [KnnPredicate] to a single record. */
+    override val cost: Float = Costs.MEMORY_ACCESS_READ * this.distance.cost * (this.query.size + (this.weights?.size
+            ?: 0))
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

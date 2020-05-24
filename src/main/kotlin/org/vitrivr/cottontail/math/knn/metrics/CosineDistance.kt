@@ -10,8 +10,8 @@ import org.vitrivr.cottontail.model.values.types.VectorValue
  * @author Ralph Gasser
  */
 object CosineDistance : DistanceKernel {
-    override val cost: Double
-        get() = 1.0
+
+    override val cost = 5.00f
 
     /**
      * Calculates the L2 distance between two [VectorValue]s.

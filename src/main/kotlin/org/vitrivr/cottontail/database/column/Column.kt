@@ -33,7 +33,7 @@ interface Column<T: Value> : DBO {
      * @return size of this [Column].
      */
     val size: Int
-        get() = this.columnDef.size
+        get() = this.columnDef.logicalSize
 
     /**
      * Whether or not this [Column] is nullable. Columns that are not nullable, cannot hold any

@@ -20,6 +20,7 @@ sealed class ColumnType<T : Value> {
     abstract val type: KClass<T>
     abstract val numeric: Boolean
     abstract val vector: Boolean
+    abstract val size: Int
 
     companion object {
         /**
@@ -80,6 +81,7 @@ object BooleanColumnType : ColumnType<BooleanValue>() {
     override val name = "BOOLEAN"
     override val numeric = true
     override val vector = false
+    override val size: Int = Byte.SIZE_BYTES
     override val type: KClass<BooleanValue> = BooleanValue::class
     override fun serializer(size: Int): Serializer<BooleanValue> = BooleanValueSerializer
 }
@@ -89,6 +91,7 @@ object ByteColumnType : ColumnType<ByteValue>() {
     override val name = "BYTE"
     override val numeric = true
     override val vector = false
+    override val size: Int = Byte.SIZE_BYTES
     override val type: KClass<ByteValue> = ByteValue::class
     override fun serializer(size: Int): Serializer<ByteValue> = ByteValueSerializer
 }
@@ -98,6 +101,7 @@ object ShortColumnType : ColumnType<ShortValue>() {
     override val name = "SHORT"
     override val numeric = true
     override val vector = false
+    override val size: Int = Short.SIZE_BYTES
     override val type: KClass<ShortValue> = ShortValue::class
     override fun serializer(size: Int): Serializer<ShortValue> = ShortValueSerializer
 }
@@ -107,6 +111,7 @@ object IntColumnType : ColumnType<IntValue>() {
     override val name = "INTEGER"
     override val numeric = true
     override val vector = false
+    override val size: Int = Int.SIZE_BYTES
     override val type: KClass<IntValue> = IntValue::class
     override fun serializer(size: Int): Serializer<IntValue> = IntValueSerializer
 }
@@ -116,6 +121,7 @@ object LongColumnType : ColumnType<LongValue>() {
     override val name = "LONG"
     override val numeric = true
     override val vector = false
+    override val size: Int = Long.SIZE_BYTES
     override val type: KClass<LongValue> = LongValue::class
     override fun serializer(size: Int): Serializer<LongValue> = LongValueSerializer
 }
@@ -125,6 +131,7 @@ object FloatColumnType : ColumnType<FloatValue>() {
     override val name = "FLOAT"
     override val numeric = true
     override val vector = false
+    override val size: Int = Int.SIZE_BYTES
     override val type: KClass<FloatValue> = FloatValue::class
     override fun serializer(size: Int): Serializer<FloatValue> = FloatValueSerializer
 }
@@ -134,6 +141,7 @@ object DoubleColumnType : ColumnType<DoubleValue>() {
     override val name = "DOUBLE"
     override val numeric = true
     override val vector = false
+    override val size: Int = Long.SIZE_BYTES
     override val type: KClass<DoubleValue> = DoubleValue::class
     override fun serializer(size: Int): Serializer<DoubleValue> = DoubleValueSerializer
 }
@@ -143,6 +151,7 @@ object StringColumnType : ColumnType<StringValue>() {
     override val name = "STRING"
     override val numeric = false
     override val vector = false
+    override val size: Int = Char.SIZE_BYTES
     override val type: KClass<StringValue> = StringValue::class
     override fun serializer(size: Int): Serializer<StringValue> = StringValueSerializer
 }
@@ -152,6 +161,7 @@ object Complex32ColumnType : ColumnType<Complex32Value>() {
     override val name = "COMPLEX32"
     override val numeric = true
     override val vector = false
+    override val size: Int = 2 * Int.SIZE_BYTES
     override val type: KClass<Complex32Value> = Complex32Value::class
     override fun serializer(size: Int): Serializer<Complex32Value> = Complex32ValueSerializer
 }
@@ -161,6 +171,7 @@ object Complex64ColumnType : ColumnType<Complex64Value>() {
     override val name = "COMPLEX64"
     override val numeric = true
     override val vector = false
+    override val size: Int = 2 * Long.SIZE_BYTES
     override val type: KClass<Complex64Value> = Complex64Value::class
     override fun serializer(size: Int): Serializer<Complex64Value> = Complex64ValueSerializer
 }
@@ -170,6 +181,7 @@ object IntVectorColumnType : ColumnType<IntVectorValue>() {
     override val name = "INT_VEC"
     override val numeric = false
     override val vector = true
+    override val size: Int = Int.SIZE_BYTES
     override val type: KClass<IntVectorValue> = IntVectorValue::class
     override fun serializer(size: Int): Serializer<IntVectorValue> {
         if (size <= 0) throw IllegalArgumentException("Size attribute for a $name type must be > 0 (is $size).")
@@ -182,6 +194,7 @@ object LongVectorColumnType : ColumnType<LongVectorValue>() {
     override val name = "LONG_VEC"
     override val numeric = false
     override val vector = true
+    override val size: Int = Long.SIZE_BYTES
     override val type: KClass<LongVectorValue> = LongVectorValue::class
     override fun serializer(size: Int): Serializer<LongVectorValue> {
         if (size <= 0) throw IllegalArgumentException("Size attribute for a $name type must be > 0 (is $size).")
@@ -194,6 +207,7 @@ object FloatVectorColumnType : ColumnType<FloatVectorValue>() {
     override val name = "FLOAT_VEC"
     override val numeric = false
     override val vector = true
+    override val size: Int = Int.SIZE_BYTES
     override val type: KClass<FloatVectorValue> = FloatVectorValue::class
     override fun serializer(size: Int): Serializer<FloatVectorValue> {
         if (size <= 0) throw IllegalArgumentException("Size attribute for a $name type must be > 0 (is $size).")
@@ -206,6 +220,7 @@ object DoubleVectorColumnType : ColumnType<DoubleVectorValue>() {
     override val name = "DOUBLE_VEC"
     override val numeric = false
     override val vector = true
+    override val size: Int = Long.SIZE_BYTES
     override val type: KClass<DoubleVectorValue> = DoubleVectorValue::class
     override fun serializer(size: Int): Serializer<DoubleVectorValue> {
         if (size <= 0) throw IllegalArgumentException("Size attribute for a $name type must be > 0 (is $size).")
@@ -218,6 +233,7 @@ object BooleanVectorColumnType : ColumnType<BooleanVectorValue>() {
     override val name = "BOOL_VEC"
     override val numeric = false
     override val vector = true
+    override val size: Int = Byte.SIZE_BYTES
     override val type: KClass<BooleanVectorValue> = BooleanVectorValue::class
     override fun serializer(size: Int): Serializer<BooleanVectorValue> {
         if (size <= 0) throw IllegalArgumentException("Size attribute for a $name type must be > 0 (is $size).")
@@ -230,6 +246,7 @@ object Complex32VectorColumnType : ColumnType<Complex32VectorValue>() {
     override val name = "COMPLEX32_VEC"
     override val numeric = false
     override val vector = true
+    override val size: Int = 2 * Int.SIZE_BYTES
     override val type: KClass<Complex32VectorValue> = Complex32VectorValue::class
     override fun serializer(size: Int): Serializer<Complex32VectorValue> {
         if (size <= 0) throw IllegalArgumentException("Size attribute for a $name type must be > 0 (is $size).")
@@ -242,6 +259,7 @@ object Complex64VectorColumnType : ColumnType<Complex64VectorValue>() {
     override val name = "COMPLEX64_VEC"
     override val numeric = false
     override val vector = true
+    override val size: Int = 2 * Long.SIZE_BYTES
     override val type: KClass<Complex64VectorValue> = Complex64VectorValue::class
     override fun serializer(size: Int): Serializer<Complex64VectorValue> {
         if (size <= 0) throw IllegalArgumentException("Size attribute for a $name type must be > 0 (is $size).")

@@ -8,8 +8,8 @@ import org.vitrivr.cottontail.database.column.ColumnType
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.general.Transaction
 import org.vitrivr.cottontail.database.general.TransactionStatus
-import org.vitrivr.cottontail.database.queries.BooleanPredicate
-import org.vitrivr.cottontail.database.queries.Predicate
+import org.vitrivr.cottontail.database.queries.predicates.BooleanPredicate
+import org.vitrivr.cottontail.database.queries.predicates.Predicate
 import org.vitrivr.cottontail.database.schema.Schema
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Record
@@ -130,7 +130,7 @@ class MapDBColumn<T : Value>(override val name: Name, override val parent: Entit
                     volumeFactory = config.volumeFactory,
                     allocateIncrement = 1L shl config.dataPageShift
             )
-            store.put(ColumnHeader(type = definition.type, size = definition.size, nullable = definition.nullable), ColumnHeaderSerializer)
+            store.put(ColumnHeader(type = definition.type, size = definition.logicalSize, nullable = definition.nullable), ColumnHeaderSerializer)
             store.commit()
             store.close()
         }
@@ -176,7 +176,7 @@ class MapDBColumn<T : Value>(override val name: Name, override val parent: Entit
         }
 
         /** The [Serializer] used for de-/serialization of [MapDBColumn] entries. */
-        private val serializer = this@MapDBColumn.type.serializer(this@MapDBColumn.columnDef.size)
+        private val serializer = this@MapDBColumn.type.serializer(this@MapDBColumn.columnDef.logicalSize)
 
         /** Obtains a global (non-exclusive) read-lock on [MapDBColumn]. Prevents enclosing [MapDBColumn] from being closed while this [MapDBColumn.Tx] is still in use. */
         private val globalStamp = this@MapDBColumn.globalLock.readLock()

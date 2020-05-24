@@ -3,7 +3,6 @@ package org.vitrivr.cottontail.execution.tasks.entity.projection
 import com.github.dexecutor.core.task.Task
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.general.query
-import org.vitrivr.cottontail.execution.cost.Costs
 import org.vitrivr.cottontail.execution.tasks.basics.ExecutionTask
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.recordset.Recordset
@@ -17,9 +16,6 @@ import org.vitrivr.cottontail.utilities.name.Name
  * @version 1.0.2
  */
 class EntityCountProjectionTask(val entity: Entity) : ExecutionTask("EntityCountProjectionTask[${entity.fqn}") {
-
-    /** The cost of this [EntityCountProjectionTask] is constant */
-    override val cost = Costs.DISK_ACCESS_READ
 
     /**
      * Executes this [EntityCountProjectionTask]

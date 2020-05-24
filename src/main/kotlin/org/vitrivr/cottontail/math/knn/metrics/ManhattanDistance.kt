@@ -11,8 +11,7 @@ import org.vitrivr.cottontail.model.values.types.VectorValue
  */
 object ManhattanDistance : MinkowskiDistance {
     override val p: Int = 1
-    override val cost: Double
-        get() = 1.0
+    override val cost = 2.15f
 
     /**
      * Calculates the L1 distance between two [VectorValue]s.

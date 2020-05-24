@@ -10,8 +10,9 @@ import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.events.DataChangeEvent
 import org.vitrivr.cottontail.database.index.Index
 import org.vitrivr.cottontail.database.index.IndexType
-import org.vitrivr.cottontail.database.queries.KnnPredicate
-import org.vitrivr.cottontail.database.queries.Predicate
+import org.vitrivr.cottontail.database.queries.planning.cost.Cost
+import org.vitrivr.cottontail.database.queries.predicates.KnnPredicate
+import org.vitrivr.cottontail.database.queries.predicates.Predicate
 import org.vitrivr.cottontail.database.schema.Schema
 import org.vitrivr.cottontail.math.knn.ComparablePair
 import org.vitrivr.cottontail.math.knn.HeapSelect
@@ -184,9 +185,9 @@ class VAPlusIndex(override val name: Name, override val parent: Entity, override
      * @param predicate [Predicate] to check.
      * @return Cost estimate for the [Predicate]
      */
-    override fun cost(predicate: Predicate): Float = when {
-        predicate !is KnnPredicate<*> || predicate.columns.first() != this.columns[0] -> Float.MAX_VALUE
-        else -> Float.MIN_VALUE // 1f
+    override fun cost(predicate: Predicate): Cost = when {
+        predicate !is KnnPredicate<*> || predicate.columns.first() != this.columns[0] -> Cost.INVALID
+        else -> Cost.ZERO /* TODO: Determine. */
     }
 
     /**
@@ -209,7 +210,7 @@ class VAPlusIndex(override val name: Name, override val parent: Entity, override
         val vaPlus = VAPlus()
         val trainingSize = 1000
         val minimumNumberOfTuples = 1000
-        val dimension = this.columns[0].size
+        val dimension = this.columns[0].logicalSize
 
         // VA-file get data sample
         val dataSampleTmp = vaPlus.getDataSample(tx, this.columns[0], maxOf(trainingSize, minimumNumberOfTuples))

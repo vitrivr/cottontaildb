@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.model.basics
 
-import org.vitrivr.cottontail.database.queries.Predicate
+import org.vitrivr.cottontail.database.queries.predicates.Predicate
 import org.vitrivr.cottontail.model.exceptions.QueryException
 
 /**

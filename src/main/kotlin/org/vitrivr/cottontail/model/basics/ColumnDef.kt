@@ -14,7 +14,7 @@ import java.util.*
  * @author Ralph Gasser
  * @version 1.2
  */
-class ColumnDef<T : Value>(val name: Name, val type: ColumnType<T>, val size: Int = -1, val nullable: Boolean = true) {
+class ColumnDef<T : Value>(val name: Name, val type: ColumnType<T>, val logicalSize: Int = 1, val nullable: Boolean = true) {
 
     /**
      * Companion object with some convenience methods.
@@ -25,11 +25,15 @@ class ColumnDef<T : Value>(val name: Name, val type: ColumnType<T>, val size: In
          *
          * @param name Name of the new [Column]
          * @param type Name of the [ColumnType] of the new [Column]
-         * @param size Size of the new [Column] (e.g. for vectors), where eligible.
+         * @param size Logical size of the new [Column] (e.g. for vectors), where eligible.
          * @param nullable Whether or not the [Column] should be nullable.
          */
         fun withAttributes(name: Name, type: String, size: Int = -1, nullable: Boolean = true): ColumnDef<*> = ColumnDef(name, ColumnType.forName(type), size, nullable)
     }
+
+    /** The physical size of this [ColumnDef] in bytes. */
+    val physicalSize: Int
+        get() = this.logicalSize * this.type.size
 
     /**
      * Validates a value with regard to this [ColumnDef] and throws an Exception, if validation fails.
@@ -44,12 +48,12 @@ class ColumnDef<T : Value>(val name: Name, val type: ColumnType<T>, val size: In
             }
             val cast = this.type.cast(value)
             when {
-                cast is DoubleVectorValue && cast.logicalSize != this.size -> throw ValidationException("The size of column '$name' (sc=${this.size}) is not compatible with size of value (sv=${cast.logicalSize}).")
-                cast is FloatVectorValue && cast.logicalSize != this.size -> throw ValidationException("The size of column '$name' (sc=${this.size}) is not compatible with size of value (sv=${cast.logicalSize}).")
-                cast is LongVectorValue && cast.logicalSize != this.size -> throw ValidationException("The size of column '$name' (sc=${this.size}) is not compatible with size of value (sv=${cast.logicalSize}).")
-                cast is IntVectorValue && cast.logicalSize != this.size -> throw ValidationException("The size of column '$name' (sc=${this.size}) is not compatible with size of value (sv=${cast.logicalSize}).")
-                cast is Complex32VectorValue && cast.logicalSize != this.size -> throw ValidationException("The size of column '$name' (sc=${this.size}) is not compatible with size of value (sv=${cast.logicalSize}).")
-                cast is Complex64VectorValue && cast.logicalSize != this.size -> throw ValidationException("The size of column '$name' (sc=${this.size}) is not compatible with size of value (sv=${cast.logicalSize}).")
+                cast is DoubleVectorValue && cast.logicalSize != this.logicalSize -> throw ValidationException("The size of column '$name' (sc=${this.logicalSize}) is not compatible with size of value (sv=${cast.logicalSize}).")
+                cast is FloatVectorValue && cast.logicalSize != this.logicalSize -> throw ValidationException("The size of column '$name' (sc=${this.logicalSize}) is not compatible with size of value (sv=${cast.logicalSize}).")
+                cast is LongVectorValue && cast.logicalSize != this.logicalSize -> throw ValidationException("The size of column '$name' (sc=${this.logicalSize}) is not compatible with size of value (sv=${cast.logicalSize}).")
+                cast is IntVectorValue && cast.logicalSize != this.logicalSize -> throw ValidationException("The size of column '$name' (sc=${this.logicalSize}) is not compatible with size of value (sv=${cast.logicalSize}).")
+                cast is Complex32VectorValue && cast.logicalSize != this.logicalSize -> throw ValidationException("The size of column '$name' (sc=${this.logicalSize}) is not compatible with size of value (sv=${cast.logicalSize}).")
+                cast is Complex64VectorValue && cast.logicalSize != this.logicalSize -> throw ValidationException("The size of column '$name' (sc=${this.logicalSize}) is not compatible with size of value (sv=${cast.logicalSize}).")
             }
         } else if (!this.nullable) {
             throw ValidationException("The column '$name' cannot be null!")
@@ -69,12 +73,12 @@ class ColumnDef<T : Value>(val name: Name, val type: ColumnType<T>, val size: In
             }
             val cast = this.type.cast(value)
             return when {
-                cast is DoubleVectorValue && cast.logicalSize != this.size -> false
-                cast is FloatVectorValue && cast.logicalSize != this.size -> false
-                cast is LongVectorValue && cast.logicalSize != this.size -> false
-                cast is IntVectorValue && cast.logicalSize != this.size -> false
-                cast is Complex32VectorValue && cast.logicalSize != this.size -> false
-                cast is Complex64VectorValue && cast.logicalSize != this.size -> false
+                cast is DoubleVectorValue && cast.logicalSize != this.logicalSize -> false
+                cast is FloatVectorValue && cast.logicalSize != this.logicalSize -> false
+                cast is LongVectorValue && cast.logicalSize != this.logicalSize -> false
+                cast is IntVectorValue && cast.logicalSize != this.logicalSize -> false
+                cast is Complex32VectorValue && cast.logicalSize != this.logicalSize -> false
+                cast is Complex64VectorValue && cast.logicalSize != this.logicalSize -> false
                 else -> true
             }
         } else return this.nullable
@@ -97,13 +101,13 @@ class ColumnDef<T : Value>(val name: Name, val type: ColumnType<T>, val size: In
         this.type is BooleanColumnType -> BooleanValue(false)
         this.type is Complex32ColumnType -> Complex32Value.ZERO
         this.type is Complex64ColumnType -> Complex64Value.ZERO
-        this.type is DoubleVectorColumnType -> DoubleVectorValue(DoubleArray(this.size))
-        this.type is FloatVectorColumnType -> FloatVectorValue(FloatArray(this.size))
-        this.type is LongVectorColumnType -> LongVectorValue(LongArray(this.size))
-        this.type is IntVectorColumnType -> IntVectorValue(IntArray(this.size))
-        this.type is BooleanVectorColumnType -> BooleanVectorValue(BitSet(this.size))
-        this.type is Complex32VectorColumnType -> Complex32VectorValue(Array(this.size) { Complex32Value.ZERO })
-        this.type is Complex64VectorColumnType -> Complex64VectorValue(Array(this.size) { Complex64Value.ZERO })
+        this.type is DoubleVectorColumnType -> DoubleVectorValue(DoubleArray(this.logicalSize))
+        this.type is FloatVectorColumnType -> FloatVectorValue(FloatArray(this.logicalSize))
+        this.type is LongVectorColumnType -> LongVectorValue(LongArray(this.logicalSize))
+        this.type is IntVectorColumnType -> IntVectorValue(IntArray(this.logicalSize))
+        this.type is BooleanVectorColumnType -> BooleanVectorValue(BitSet(this.logicalSize))
+        this.type is Complex32VectorColumnType -> Complex32VectorValue(Array(this.logicalSize) { Complex32Value.ZERO })
+        this.type is Complex64VectorColumnType -> Complex64VectorValue(Array(this.logicalSize) { Complex64Value.ZERO })
         else -> throw RuntimeException("Default value for the specified type $type has not been specified yet!")
     }
 
@@ -116,7 +120,7 @@ class ColumnDef<T : Value>(val name: Name, val type: ColumnType<T>, val size: In
      */
     fun isEquivalent(other: ColumnDef<*>): Boolean {
         if (other.type != this.type) return false
-        if (other.size != this.size) return false
+        if (other.logicalSize != this.logicalSize) return false
         if (other.nullable != this.nullable) return false
         val match = other.name.match(this.name)
         return (match == Match.EQUAL || match == Match.EQUIVALENT)
@@ -130,7 +134,7 @@ class ColumnDef<T : Value>(val name: Name, val type: ColumnType<T>, val size: In
 
         if (name != other.name) return false
         if (type != other.type) return false
-        if (size != other.size) return false
+        if (logicalSize != other.logicalSize) return false
 
         return true
     }
@@ -138,9 +142,9 @@ class ColumnDef<T : Value>(val name: Name, val type: ColumnType<T>, val size: In
     override fun hashCode(): Int {
         var result = name.hashCode()
         result = 31 * result + type.hashCode()
-        result = 31 * result + size.hashCode()
+        result = 31 * result + logicalSize.hashCode()
         return result
     }
 
-    override fun toString(): String = "$name(type=$type, size=$size, nullable=$nullable)"
+    override fun toString(): String = "$name(type=$type, size=$logicalSize, nullable=$nullable)"
 }

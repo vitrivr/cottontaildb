@@ -10,8 +10,7 @@ import org.vitrivr.cottontail.model.values.types.VectorValue
  * @author Ralph Gasser
  */
 object HammingDistance : DistanceKernel {
-    override val cost: Double
-        get() = 1.0
+    override val cost = 1.0f
 
 
     /**
