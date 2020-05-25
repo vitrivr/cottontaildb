@@ -15,9 +15,6 @@ import org.vitrivr.cottontail.model.values.DoubleValue
  */
 object KnnUtilities {
 
-    /** Desired number of operations for a kNN lookup per [ExecutionTask]. */
-    const val OPERATIONS_PER_TASK = 250000.0
-
     /** Name of the distance column produced by a kNN [ExecutionTask]. */
     const val DISTANCE_COLUMN_NAME = "distance"
 
