@@ -7,6 +7,7 @@ import org.vitrivr.cottontail.execution.tasks.TaskSetupException
 import org.vitrivr.cottontail.execution.tasks.basics.ExecutionTask
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.recordset.Recordset
+import java.lang.Long.min
 import java.util.*
 
 /**
@@ -33,13 +34,10 @@ class EntitySampleTask(private val entity: Entity, private val columns: Array<Co
         if (maximum > 2L) {
             val used = LongOpenHashSet()
             val recordset = Recordset(this.columns, this.size)
-            for (i in 0 until size) {
-                while (used.size < count) {
-                    val tupleId = this.random.nextLong(2L, maximum)
-                    if (used.add(tupleId)) {
-                        recordset.addRow(tx.read(tupleId))
-                        break
-                    }
+            while (used.size < min(count, this.size)) {
+                val tupleId = this.random.nextLong(2L, maximum)
+                if (used.add(tupleId)) {
+                    recordset.addRow(tx.read(tupleId))
                 }
             }
             recordset
