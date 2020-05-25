@@ -5,7 +5,6 @@ import com.github.dexecutor.core.task.TaskExecutionException
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.queries.predicates.KnnPredicate
 import org.vitrivr.cottontail.execution.tasks.basics.ExecutionTask
-import org.vitrivr.cottontail.execution.tasks.entity.knn.EntityScanKnnTask
 import org.vitrivr.cottontail.execution.tasks.entity.knn.KnnUtilities
 import org.vitrivr.cottontail.math.knn.ComparablePair
 import org.vitrivr.cottontail.math.knn.HeapSelect
@@ -26,15 +25,12 @@ class RecordsetMergeKnn(val entity: Entity, val knn: KnnPredicate<*>) : Executio
     /** The output [ColumnDef] produced by this [RecordsetMergeKnn]. */
     private val column = ColumnDef(this.entity.fqn.append(KnnUtilities.DISTANCE_COLUMN_NAME), KnnUtilities.DISTANCE_COLUMN_TYPE)
 
-    /** List of the [ColumnDef] this instance of [EntityScanKnnTask] produces. */
-    private val produces: Array<ColumnDef<*>> = arrayOf(column)
-
     override fun execute(): Recordset {
         val input = this.allSuccessful()
 
         /* Merge kNN values for the given recordsets. */
         for (i in input) {
-            if (i.rowCount != knn.k.toLong()) throw TaskExecutionException("Recordset kNN MERGE could not be executed because left recordset does not have the expected number of items (r = ${i.rowCount}, k = ${knn.k}).")
+            if (i.rowCount != (this.knn.k.toLong() * this.knn.query.size)) throw TaskExecutionException("Recordset kNN MERGE could not be executed because left recordset does not have the expected number of items (r = ${i.rowCount}, k = ${knn.k}).")
             i.forEachIndexed { j, r ->
                 val value = r[this.column]
                         ?: throw TaskExecutionException("Recordset kNN MERGE could not be executed because recordset does not seem to contain a valid `${column.name}` column.")
