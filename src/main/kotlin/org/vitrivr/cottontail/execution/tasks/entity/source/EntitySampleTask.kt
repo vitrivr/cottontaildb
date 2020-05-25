@@ -38,6 +38,7 @@ class EntitySampleTask(private val entity: Entity, private val columns: Array<Co
                     val tupleId = this.random.nextLong(2L, maximum)
                     if (used.add(tupleId)) {
                         recordset.addRow(tx.read(tupleId))
+                        break
                     }
                 }
             }
