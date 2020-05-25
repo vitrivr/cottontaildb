@@ -18,11 +18,11 @@ import org.vitrivr.cottontail.model.values.DoubleValue
  * @author Ralph Gasser
  * @version 1.1.1
  */
-class RecordsetMergeKnn(val entity: Entity, val knn: KnnPredicate<*>) : ExecutionTask("MergeKnnTask[${knn.k}]") {
+class RecordsetMergeKnnTask(val entity: Entity, val knn: KnnPredicate<*>) : ExecutionTask("RecordsetMergeKnnTask[${knn.k}]") {
     /** Set containing the kNN values. */
     private val knnSet = knn.query.map { HeapSelect<ComparablePair<Long, DoubleValue>>(this.knn.k) }
 
-    /** The output [ColumnDef] produced by this [RecordsetMergeKnn]. */
+    /** The output [ColumnDef] produced by this [RecordsetMergeKnnTask]. */
     private val column = ColumnDef(this.entity.fqn.append(KnnUtilities.DISTANCE_COLUMN_NAME), KnnUtilities.DISTANCE_COLUMN_TYPE)
 
     override fun execute(): Recordset {

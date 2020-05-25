@@ -10,7 +10,7 @@ import org.vitrivr.cottontail.database.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.database.queries.predicates.KnnPredicate
 import org.vitrivr.cottontail.execution.tasks.basics.ExecutionStage
 import org.vitrivr.cottontail.execution.tasks.entity.knn.EntityScanKnnTask
-import org.vitrivr.cottontail.execution.tasks.recordset.merge.RecordsetMergeKnn
+import org.vitrivr.cottontail.execution.tasks.recordset.merge.RecordsetMergeKnnTask
 
 /**
  * A [NodeExpression] that represents a linear scan kNN on a physical entity (optionally combined
@@ -50,7 +50,7 @@ class KnnPushdownNodeExpression(val entity: Entity, val knn: KnnPredicate<*>, va
 
         /** Add a merge stage, if parallelism is > 1. */
         return if (parallelism > 1) {
-            ExecutionStage(ExecutionStage.MergeType.ALL, knnStage).addTask(RecordsetMergeKnn(this.entity, this.knn)) /* Create and return a merge stage. */
+            ExecutionStage(ExecutionStage.MergeType.ALL, knnStage).addTask(RecordsetMergeKnnTask(this.entity, this.knn)) /* Create and return a merge stage. */
         } else {
             knnStage
         }
