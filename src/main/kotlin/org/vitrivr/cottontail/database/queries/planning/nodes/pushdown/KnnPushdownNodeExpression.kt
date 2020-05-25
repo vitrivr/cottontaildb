@@ -45,7 +45,7 @@ class KnnPushdownNodeExpression(val entity: Entity, val knn: KnnPredicate<*>, va
         /** Prepare kNN stage. */
         val knnStage = ExecutionStage(mergeType = ExecutionStage.MergeType.ONE)
         for (i in 0 until parallelism) {
-            knnStage.addTask(EntityScanKnnTask(entity, this.knn, null, blocksize * i + 1L, (i + 1) * blocksize))
+            knnStage.addTask(EntityScanKnnTask(this.entity, this.knn, this.predicate, blocksize * i + 1L, (i + 1) * blocksize))
         }
 
         /** Add a merge stage, if parallelism is > 1. */
