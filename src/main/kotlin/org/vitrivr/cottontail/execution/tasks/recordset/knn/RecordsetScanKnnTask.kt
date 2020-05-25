@@ -26,11 +26,8 @@ class RecordsetScanKnnTask<T : VectorValue<*>>(val knn: KnnPredicate<T>, val pre
     /** Set containing the kNN values. */
     private val knnSet = knn.query.map { HeapSelect<ComparablePair<Long, DoubleValue>>(this.knn.k) }
 
-    /** The output [ColumnDef] produced by this [RecordsetMergeKnn]. */
+    /** The output [ColumnDef] produced by this [RecordsetScanKnnTask]. */
     private val column = ColumnDef(Name(KnnUtilities.DISTANCE_COLUMN_NAME), KnnUtilities.DISTANCE_COLUMN_TYPE)
-
-    /** List of the [ColumnDef] this instance of [EntityScanKnnTask] produces. */
-    private val produces: Array<ColumnDef<*>> = arrayOf(column)
 
     /**
      * Executes this [EntityScanKnnTask]
