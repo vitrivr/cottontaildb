@@ -6,7 +6,6 @@ import org.vitrivr.cottontail.database.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.database.queries.predicates.KnnPredicate
 import org.vitrivr.cottontail.execution.tasks.basics.ExecutionTask
 import org.vitrivr.cottontail.execution.tasks.entity.knn.KnnUtilities
-import org.vitrivr.cottontail.execution.tasks.recordset.merge.RecordsetMergeKnn
 import org.vitrivr.cottontail.math.knn.ComparablePair
 import org.vitrivr.cottontail.math.knn.HeapSelect
 import org.vitrivr.cottontail.model.basics.ColumnDef
