@@ -7,7 +7,6 @@ import org.vitrivr.cottontail.database.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.database.queries.predicates.KnnPredicate
 import org.vitrivr.cottontail.execution.tasks.TaskSetupException
 import org.vitrivr.cottontail.execution.tasks.basics.ExecutionTask
-import org.vitrivr.cottontail.execution.tasks.recordset.merge.RecordsetMergeKnn
 import org.vitrivr.cottontail.math.knn.ComparablePair
 import org.vitrivr.cottontail.math.knn.HeapSelect
 import org.vitrivr.cottontail.model.basics.ColumnDef
@@ -32,7 +31,7 @@ class EntityScanKnnTask<T : VectorValue<*>>(val entity: Entity, val knn: KnnPred
     /** End of range that should be scanned by this [EntityScanKnnTask]. */
     private val to = end ?: this.entity.statistics.maxTupleId
 
-    /** The output [ColumnDef] produced by this [RecordsetMergeKnn]. */
+    /** The output [ColumnDef] produced by this [EntityScanKnnTask]. */
     private val column = ColumnDef(this.entity.fqn.append(KnnUtilities.DISTANCE_COLUMN_NAME), KnnUtilities.DISTANCE_COLUMN_TYPE)
 
     /** List of the [ColumnDef] this instance of [EntityScanKnnTask] produces. */
