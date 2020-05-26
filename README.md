@@ -9,10 +9,11 @@ Cottontail DB requires Java 9 or newer (Open JDK or Oracle JDK should both work)
 
 Please clone this repository including submodules or initialize them after cloning using `git submodule update --init --recursive`
 
-Before executing or building Cottontail DB, you need to generate Proto sources using the Gradle task `generateProto`. An executable distribution of Cottontail DB can then be built using the 
-Gradle tasks `distTar` or `distZip`. Distributions will be stored relative to the project root in `build/distributions`.
+Before executing or building Cottontail DB, you need to generate Proto sources using the Gradle task `generateProto`.
 
 ### Start Cottontail DB Server
+You can simply start a cottontail instance using `gradlew run`. Alternatively, an executable distribution of Cottontail DB can then be built using the 
+Gradle tasks `distTar` or `distZip`. Distributions will be stored relative to the project root in `build/distributions`.
 Cottontail DB Server can be started using the distribution generated as described before `bin/cottontaildb` or `bin/cottontaildb.bat`. It requires a path to a valid configuration file as a program argument.
 
 ### Configuration
