@@ -80,8 +80,8 @@ data class ProjectionNodeExpression(val type: ProjectionType = ProjectionType.SE
         }
         ProjectionType.SELECT_DISTINCT -> {
             val fetch = ExecutionStage(ExecutionStage.MergeType.ONE, this.parents.first().toStage(context)).addTask(EntityFetchColumnsTask(this.entity, this.columns))
-            val distinct = ExecutionStage(ExecutionStage.MergeType.ONE, fetch).addTask(RecordsetDistinctTask())
-            ExecutionStage(ExecutionStage.MergeType.ONE, distinct).addTask(RecordsetSelectProjectionTask(this.fields))
+            val project = ExecutionStage(ExecutionStage.MergeType.ONE, fetch).addTask(RecordsetSelectProjectionTask(this.fields))
+            ExecutionStage(ExecutionStage.MergeType.ONE, project).addTask(RecordsetDistinctTask())
         }
         ProjectionType.COUNT -> {
             ExecutionStage(ExecutionStage.MergeType.ONE, this.parents.first().toStage(context)).addTask(RecordsetCountProjectionTask())
