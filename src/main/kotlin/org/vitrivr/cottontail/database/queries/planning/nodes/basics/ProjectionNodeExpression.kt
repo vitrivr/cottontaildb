@@ -25,13 +25,16 @@ data class ProjectionNodeExpression(val type: ProjectionType = ProjectionType.SE
      * The type of [ProjectionNodeExpression]
      */
     enum class ProjectionType {
-        SELECT, COUNT, EXISTS, SUM, MAX, MIN, MEAN
+        SELECT, SELECT_DISTINCT, COUNT, COUNT_DISTINCT, EXISTS, SUM, MAX, MIN, MEAN
     }
 
     init {
         /* Sanity check. */
         when (type) {
             ProjectionType.SELECT -> if (columns.isEmpty()) {
+                throw QueryException.QuerySyntaxException("Projection of type $type must specify at least one column.")
+            }
+            ProjectionType.SELECT_DISTINCT -> if (columns.isEmpty()) {
                 throw QueryException.QuerySyntaxException("Projection of type $type must specify at least one column.")
             }
             ProjectionType.MAX -> if (columns.isEmpty()) {
@@ -54,8 +57,7 @@ data class ProjectionNodeExpression(val type: ProjectionType = ProjectionType.SE
             } else if (!columns.first().type.numeric) {
                 throw QueryException.QueryBindException("Projection of type $type can only be applied to a numeric column, which ${columns.first().name} is not.")
             }
-            else -> {
-            }
+            else -> {}
         }
     }
 
@@ -64,38 +66,49 @@ data class ProjectionNodeExpression(val type: ProjectionType = ProjectionType.SE
 
     override val cost: Cost
         get() = Cost(
-                this.output * this.columns.size * Costs.DISK_ACCESS_READ,
-                this.output * this.fields.size * Costs.MEMORY_ACCESS_READ,
-                (this.output * this.columns.map { it.physicalSize }.sum()).toFloat()
+            this.output * this.columns.size * Costs.DISK_ACCESS_READ,
+            this.output * this.fields.size * Costs.MEMORY_ACCESS_READ,
+            (this.output * this.columns.map { it.physicalSize }.sum()).toFloat()
         )
 
     override fun copy(): NodeExpression = ProjectionNodeExpression(this.type, this.entity, this.columns, this.fields)
 
     override fun toStage(context: QueryPlannerContext): ExecutionStage = when (this.type) {
         ProjectionType.SELECT -> {
-            val internal = ExecutionStage(ExecutionStage.MergeType.ONE, this.parents.first().toStage(context)).addTask(EntityFetchColumnsTask(this.entity, this.columns))
-            ExecutionStage(ExecutionStage.MergeType.ONE, internal).addTask(RecordsetSelectProjectionTask(this.fields))
+            val fetch = ExecutionStage(ExecutionStage.MergeType.ONE, this.parents.first().toStage(context)).addTask(EntityFetchColumnsTask(this.entity, this.columns))
+            ExecutionStage(ExecutionStage.MergeType.ONE, fetch).addTask(RecordsetSelectProjectionTask(this.fields))
+        }
+        ProjectionType.SELECT_DISTINCT -> {
+            val fetch = ExecutionStage(ExecutionStage.MergeType.ONE, this.parents.first().toStage(context)).addTask(EntityFetchColumnsTask(this.entity, this.columns))
+            val distinct = ExecutionStage(ExecutionStage.MergeType.ONE, fetch).addTask(RecordsetDistinctTask())
+            ExecutionStage(ExecutionStage.MergeType.ONE, distinct).addTask(RecordsetSelectProjectionTask(this.fields))
+        }
+        ProjectionType.COUNT -> {
+            ExecutionStage(ExecutionStage.MergeType.ONE, this.parents.first().toStage(context)).addTask(RecordsetCountProjectionTask())
+        }
+        ProjectionType.COUNT_DISTINCT -> {
+            val fetch = ExecutionStage(ExecutionStage.MergeType.ONE, this.parents.first().toStage(context)).addTask(EntityFetchColumnsTask(this.entity, this.columns))
+            val distinct = ExecutionStage(ExecutionStage.MergeType.ONE, fetch).addTask(RecordsetDistinctTask())
+            ExecutionStage(ExecutionStage.MergeType.ONE, distinct).addTask(RecordsetCountProjectionTask())
         }
         ProjectionType.SUM -> {
-            val internal = ExecutionStage(ExecutionStage.MergeType.ONE, this.parents.first().toStage(context)).addTask(EntityFetchColumnsTask(this.entity, this.columns))
-            ExecutionStage(ExecutionStage.MergeType.ONE, internal).addTask(RecordsetSumProjectionTask(this.columns, this.fields))
+            val fetch = ExecutionStage(ExecutionStage.MergeType.ONE, this.parents.first().toStage(context)).addTask(EntityFetchColumnsTask(this.entity, this.columns))
+            ExecutionStage(ExecutionStage.MergeType.ONE, fetch).addTask(RecordsetSumProjectionTask(this.columns, this.fields))
         }
         ProjectionType.MAX -> {
-            val internal = ExecutionStage(ExecutionStage.MergeType.ONE, this.parents.first().toStage(context)).addTask(EntityFetchColumnsTask(this.entity, this.columns))
-            ExecutionStage(ExecutionStage.MergeType.ONE, internal).addTask(RecordsetMaxProjectionTask(this.columns, this.fields))
+            val fetch = ExecutionStage(ExecutionStage.MergeType.ONE, this.parents.first().toStage(context)).addTask(EntityFetchColumnsTask(this.entity, this.columns))
+            ExecutionStage(ExecutionStage.MergeType.ONE, fetch).addTask(RecordsetMaxProjectionTask(this.columns, this.fields))
         }
         ProjectionType.MIN -> {
-            val internal = ExecutionStage(ExecutionStage.MergeType.ONE, this.parents.first().toStage(context)).addTask(EntityFetchColumnsTask(this.entity, this.columns))
-            ExecutionStage(ExecutionStage.MergeType.ONE, internal).addTask(RecordsetMinProjectionTask(this.columns, this.fields))
+            val fetch = ExecutionStage(ExecutionStage.MergeType.ONE, this.parents.first().toStage(context)).addTask(EntityFetchColumnsTask(this.entity, this.columns))
+            ExecutionStage(ExecutionStage.MergeType.ONE, fetch).addTask(RecordsetMinProjectionTask(this.columns, this.fields))
         }
         ProjectionType.MEAN -> {
-            val internal = ExecutionStage(ExecutionStage.MergeType.ONE, this.parents.first().toStage(context)).addTask(EntityFetchColumnsTask(entity, this.columns))
-            ExecutionStage(ExecutionStage.MergeType.ONE, internal).addTask(RecordsetMeanProjectionTask(this.columns, this.fields))
+            val fetch = ExecutionStage(ExecutionStage.MergeType.ONE, this.parents.first().toStage(context)).addTask(EntityFetchColumnsTask(entity, this.columns))
+            ExecutionStage(ExecutionStage.MergeType.ONE, fetch).addTask(RecordsetMeanProjectionTask(this.columns, this.fields))
         }
-        ProjectionType.COUNT -> ExecutionStage(ExecutionStage.MergeType.ONE, this.parents.first().toStage(context)).addTask(RecordsetCountProjectionTask())
         ProjectionType.EXISTS -> ExecutionStage(ExecutionStage.MergeType.ONE, this.parents.first().toStage(context)).addTask(RecordsetExistsProjectionTask())
     }
-
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
