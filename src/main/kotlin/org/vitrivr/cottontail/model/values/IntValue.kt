@@ -64,19 +64,23 @@ inline class IntValue(override val value: Int): RealValue<Int> {
 
     override fun unaryMinus(): IntValue = IntValue(-this.value)
 
-    override fun plus(other: NumericValue<*>) =IntValue(this.value + other.value.toInt())
+    override fun plus(other: NumericValue<*>) = IntValue(this.value + other.value.toInt())
     override fun minus(other: NumericValue<*>) = IntValue(this.value - other.value.toInt())
     override fun times(other: NumericValue<*>) = IntValue(this.value * other.value.toInt())
     override fun div(other: NumericValue<*>) = IntValue(this.value / other.value.toInt())
 
-    override fun pow(x: Double) = this.asDouble().pow(x)
-    override fun pow(x: Int) = this.asDouble().pow(x)
-    override fun sqrt() = this.asDouble().sqrt()
-    override fun abs() = this.asDouble().abs()
+    override fun abs() = IntValue(kotlin.math.abs(this.value))
 
-    override fun cos() = IntValue(kotlin.math.cos(this.value.toDouble()).toInt())
-    override fun sin() = IntValue(kotlin.math.sin(this.value.toDouble()).toInt())
-    override fun tan() = IntValue(kotlin.math.tan(this.value.toDouble()).toInt())
-    override fun atan() = IntValue(kotlin.math.atan(this.value.toDouble()).toInt())
+    override fun pow(x: Int) = this.asDouble().pow(x)
+    override fun pow(x: Double) = this.asDouble().pow(x)
+    override fun sqrt() = this.asDouble().sqrt()
+    override fun exp() = this.asDouble().exp()
+    override fun ln() = this.asDouble().ln()
+
+    override fun cos() = this.asDouble().cos()
+    override fun sin() = this.asDouble().sin()
+    override fun tan() = this.asDouble().tan()
+    override fun atan() = this.asDouble().atan()
+
     override fun compareTo(other: NumericValue<Int>): Int = this.value.compareTo(other.value)
 }

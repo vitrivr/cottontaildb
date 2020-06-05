@@ -68,14 +68,18 @@ inline class ShortValue(override val value: Short): RealValue<Short> {
     override fun times(other: NumericValue<*>) = ShortValue((this.value * other.value.toShort()).toShort())
     override fun div(other: NumericValue<*>) = ShortValue((this.value / other.value.toShort()).toShort())
 
-    override fun pow(x: Double) = this.asDouble().pow(x)
-    override fun pow(x: Int) = this.asDouble().pow(x)
-    override fun sqrt() = this.asDouble().sqrt()
-    override fun abs() = this.asDouble().abs()
+    override fun abs() = ShortValue(kotlin.math.abs(this.value.toInt()))
 
-    override fun cos() = ShortValue(kotlin.math.cos(this.value.toDouble()).toShort())
-    override fun sin() = ShortValue(kotlin.math.sin(this.value.toDouble()).toShort())
-    override fun tan() = ShortValue(kotlin.math.tan(this.value.toDouble()).toShort())
-    override fun atan() = ShortValue(kotlin.math.atan(this.value.toDouble()).toShort())
+    override fun pow(x: Int) = this.asDouble().pow(x)
+    override fun pow(x: Double) = this.asDouble().pow(x)
+    override fun sqrt() = this.asDouble().sqrt()
+    override fun exp() = this.asDouble().exp()
+    override fun ln() = this.asDouble().ln()
+
+    override fun cos() = this.asDouble().cos()
+    override fun sin() = this.asDouble().sin()
+    override fun tan() = this.asDouble().tan()
+    override fun atan() = this.asDouble().atan()
+
     override fun compareTo(other: NumericValue<Short>): Int = this.value.compareTo(other.value)
 }

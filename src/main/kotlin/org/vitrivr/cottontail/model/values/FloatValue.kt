@@ -3,12 +3,23 @@ package org.vitrivr.cottontail.model.values
 import org.vitrivr.cottontail.model.values.types.NumericValue
 import org.vitrivr.cottontail.model.values.types.RealValue
 import org.vitrivr.cottontail.model.values.types.Value
+import java.util.*
 import kotlin.math.pow
 
 inline class FloatValue(override val value: Float): RealValue<Float> {
 
     companion object {
         val ZERO = FloatValue(0.0f)
+        val ONE = FloatValue(1.0f)
+        val NaN = Complex32Value(Float.NaN)
+        val INF = Complex32Value(Float.POSITIVE_INFINITY)
+
+        /**
+         * Generates a [FloatValue] initialized with random numbers.
+         *
+         * @param rnd A [SplittableRandom] to generate the random numbers.
+         */
+        fun random(rnd: SplittableRandom = SplittableRandom(System.currentTimeMillis())) = FloatValue(rnd.nextDouble().toFloat())
     }
 
     /**
@@ -70,14 +81,18 @@ inline class FloatValue(override val value: Float): RealValue<Float> {
     override fun times(other: NumericValue<*>) = FloatValue(this.value * other.value.toFloat())
     override fun div(other: NumericValue<*>) = FloatValue(this.value / other.value.toFloat())
 
+    override fun abs() = FloatValue(kotlin.math.abs(this.value))
+
     override fun pow(x: Double) = DoubleValue(this.value.pow(x.toFloat()))
     override fun pow(x: Int) = DoubleValue(this.value.pow(x))
     override fun sqrt() = DoubleValue(kotlin.math.sqrt(this.value))
-    override fun abs() = DoubleValue(kotlin.math.abs(this.value))
+    override fun exp() = DoubleValue(kotlin.math.exp(this.value))
+    override fun ln() = DoubleValue(kotlin.math.ln(this.value))
 
-    override fun cos() = FloatValue(kotlin.math.cos(this.value))
-    override fun sin() = FloatValue(kotlin.math.sin(this.value))
-    override fun tan() = FloatValue(kotlin.math.tan(this.value))
-    override fun atan() = FloatValue(kotlin.math.atan(this.value))
+    override fun cos() = DoubleValue(kotlin.math.cos(this.value))
+    override fun sin() = DoubleValue(kotlin.math.sin(this.value))
+    override fun tan() = DoubleValue(kotlin.math.tan(this.value))
+    override fun atan() = DoubleValue(kotlin.math.atan(this.value))
+
     override fun compareTo(other: NumericValue<Float>): Int = this.value.compareTo(other.value)
 }

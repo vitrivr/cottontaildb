@@ -7,15 +7,15 @@ import org.vitrivr.cottontail.model.values.*
  * an abstraction over the existing primitive types provided  by Kotlin. It allows for the advanced
  * type system implemented by Cottontail DB.
  *
- * @version 1.0
+ * @version 1.1
  * @author Ralph Gasser
  */
 interface NumericValue<T : Number> : ScalarValue<T>, Comparable<NumericValue<T>> {
 
-    /** Real part of this [ComplexValue] */
+    /** Real part of this [NumericValue]  */
     val real: RealValue<T>
 
-    /** Imaginary part of this [ComplexValue] */
+    /** Imaginary part of this [NumericValue]. */
     val imaginary: RealValue<T>
 
     fun asDouble(): DoubleValue
@@ -33,10 +33,86 @@ interface NumericValue<T : Number> : ScalarValue<T>, Comparable<NumericValue<T>>
     operator fun times(other: NumericValue<*>): NumericValue<T>
     operator fun div(other: NumericValue<*>): NumericValue<T>
 
-    fun pow (x: Double): NumericValue<Double>
-    fun pow (x: Int): NumericValue<Double>
+    /**
+     * Calculates and returns the absolute value of this [NumericValue].
+     *
+     * @return Absolute value of this [NumericValue].
+     */
+    fun abs(): NumericValue<T>
+
+    /**
+     * Calculates and returns this [NumericValue] raised to the power of the given [Int].
+     * Causes an implicit cast to [NumericValue] of  [Double].
+     *
+     * @param x Exponent for the operation.
+     * @return This [NumericValue] raised to the power of x.
+     */
+    fun pow(x: Int): NumericValue<Double>
+
+    /**
+     * Calculates and returns this [NumericValue] raised to the power of the given [Double].
+     * Causes an implicit cast to [NumericValue] of a [Double]
+     *
+     * @param x Exponent for the operation.
+     * @return This [NumericValue] raised to the power of x.
+     */
+    fun pow(x: Double): NumericValue<Double>
+
+    /**
+     * Calculates and returns the square root of this [NumericValue]. Causes an implicit cast to
+     * [NumericValue] of a [Double]
+     *
+     * @return The square root of this [NumericValue].
+     */
     fun sqrt(): NumericValue<Double>
-    fun abs(): NumericValue<Double>
+
+    /**
+     * Calculates and returns exponential function of this [NumericValue], i.e., e^(this). Causes an
+     * implicit cast to [NumericValue] of a [Double]
+     *
+     * @return The exponential function of this [NumericValue].
+     */
+    fun exp(): NumericValue<Double>
+
+    /**
+     * Calculates and returns natural logarithm of this [NumericValue], i.e., ln(this). Causes an
+     * implicit cast to [NumericValue] of a [Double]
+     *
+     * @return The natural logarithm of this [NumericValue].
+     */
+    fun ln(): NumericValue<Double>
+
+    /**
+     * Calculates and returns cosine-function of this [NumericValue], i.e., cos(this). Causes an
+     * implicit cast to [NumericValue] of a [Double]
+     *
+     * @return The cosine of this [NumericValue].
+     */
+    fun cos(): NumericValue<Double>
+
+    /**
+     * Calculates and returns sine-function of this [NumericValue], i.e., sin(this). Causes an
+     * implicit cast to [NumericValue] of a [Double]
+     *
+     * @return The sine of this [NumericValue].
+     */
+    fun sin(): NumericValue<Double>
+
+    /**
+     * Calculates and returns tangens-function of this [NumericValue], i.e., tan(this). Causes an
+     * implicit cast to [NumericValue] of a [Double]
+     *
+     * @return The tangens of this [NumericValue].
+     */
+    fun tan(): NumericValue<Double>
+
+    /**
+     * Calculates and returns arctangens-function of this [NumericValue], i.e., atan(this). Causes an
+     * implicit cast to [NumericValue] of a [Double]
+     *
+     * @return The arctangens n of this [NumericValue].
+     */
+    fun atan(): NumericValue<Double>
 
     /**
      * Comparison operator between a [NumericValue] and a [Number]. Returns -1, 0 or 1 of other value

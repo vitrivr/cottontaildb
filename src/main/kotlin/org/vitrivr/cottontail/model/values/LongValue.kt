@@ -69,14 +69,18 @@ inline class LongValue(override val value: Long): RealValue<Long> {
     override fun times(other: NumericValue<*>) = LongValue(this.value * other.value.toLong())
     override fun div(other: NumericValue<*>) = LongValue(this.value / other.value.toLong())
 
-    override fun pow(x: Double) = this.asDouble().pow(x)
-    override fun pow(x: Int) = this.asDouble().pow(x)
-    override fun sqrt() = this.asDouble().sqrt()
-    override fun abs() = this.asDouble().abs()
+    override fun abs() = LongValue(kotlin.math.abs(this.value))
 
-    override fun cos() = LongValue(kotlin.math.cos(this.value.toDouble()).toLong())
-    override fun sin() = LongValue(kotlin.math.sin(this.value.toDouble()).toLong())
-    override fun tan() = LongValue(kotlin.math.tan(this.value.toDouble()).toLong())
-    override fun atan() = LongValue(kotlin.math.atan(this.value.toDouble()).toLong())
+    override fun pow(x: Int) = this.asDouble().pow(x)
+    override fun pow(x: Double) = this.asDouble().pow(x)
+    override fun sqrt() = this.asDouble().sqrt()
+    override fun exp() = this.asDouble().exp()
+    override fun ln() = this.asDouble().ln()
+
+    override fun cos() = this.asDouble().cos()
+    override fun sin() = this.asDouble().sin()
+    override fun tan() = this.asDouble().tan()
+    override fun atan() = this.asDouble().atan()
+
     override fun compareTo(other: NumericValue<Long>): Int = this.value.compareTo(other.value)
 }

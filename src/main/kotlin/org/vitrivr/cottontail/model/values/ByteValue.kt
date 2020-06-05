@@ -51,18 +51,23 @@ inline class ByteValue(override val value: Byte): RealValue<Byte> {
     override fun unaryMinus(): ByteValue = ByteValue((-this.value).toByte())
 
     override fun plus(other: NumericValue<*>) = ByteValue((this.value + other.value.toByte()).toByte())
-    override fun minus(other: NumericValue<*>)= ByteValue((this.value - other.value.toByte()).toByte())
+    override fun minus(other: NumericValue<*>) = ByteValue((this.value - other.value.toByte()).toByte())
     override fun times(other: NumericValue<*>) = ByteValue((this.value * other.value.toByte()).toByte())
     override fun div(other: NumericValue<*>) = ByteValue((this.value / other.value.toByte()).toByte())
 
-    override fun pow(x: Double) = this.asDouble().pow(x)
-    override fun pow(x: Int) = this.asDouble().pow(x)
-    override fun sqrt() = this.asDouble().sqrt()
-    override fun abs() = this.asDouble().abs()
+    override fun abs() = ByteValue(kotlin.math.abs(this.value.toInt()).toByte())
 
-    override fun cos() = ByteValue(kotlin.math.cos(this.value.toDouble()).toByte())
-    override fun sin() = ByteValue(kotlin.math.sin(this.value.toDouble()).toByte())
-    override fun tan() = ByteValue(kotlin.math.tan(this.value.toDouble()).toByte())
-    override fun atan() = ByteValue(kotlin.math.atan(this.value.toDouble()).toByte())
+    override fun pow(x: Int) = this.asDouble().pow(x)
+    override fun pow(x: Double) = this.asDouble().pow(x)
+    override fun sqrt() = this.asDouble().sqrt()
+    override fun exp() = this.asDouble().exp()
+    override fun ln() = this.asDouble().ln()
+
+    override fun cos() = this.asDouble().cos()
+    override fun sin() = this.asDouble().sin()
+    override fun tan() = this.asDouble().tan()
+    override fun atan() = this.asDouble().atan()
+
     override fun compareTo(other: NumericValue<Byte>): Int = this.value.compareTo(other.value)
+
 }

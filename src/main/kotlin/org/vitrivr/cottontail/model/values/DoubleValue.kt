@@ -70,14 +70,18 @@ inline class DoubleValue(override val value: Double): RealValue<Double> {
     override fun times(other: NumericValue<*>) = DoubleValue(this.value * other.value.toDouble())
     override fun div(other: NumericValue<*>) = DoubleValue(this.value / other.value.toDouble())
 
+    override fun abs() = DoubleValue(kotlin.math.abs(this.value))
+
     override fun pow(x: Double) = DoubleValue(this.value.pow(x))
     override fun pow(x: Int) = DoubleValue(this.value.pow(x))
     override fun sqrt() = DoubleValue(kotlin.math.sqrt(this.value))
-    override fun abs() = DoubleValue(kotlin.math.abs(this.value))
+    override fun exp() = DoubleValue(kotlin.math.exp(this.value))
+    override fun ln() = DoubleValue(kotlin.math.ln(this.value))
 
     override fun cos() = DoubleValue(kotlin.math.cos(this.value))
     override fun sin() = DoubleValue(kotlin.math.sin(this.value))
     override fun tan() = DoubleValue(kotlin.math.tan(this.value))
     override fun atan() = DoubleValue(kotlin.math.atan(this.value))
+
     override fun compareTo(other: NumericValue<Double>): Int = this.value.compareTo(other.value)
 }

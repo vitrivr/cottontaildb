@@ -5,12 +5,7 @@ package org.vitrivr.cottontail.model.values.types
  * [Long], [Float] or [Double]. This is an abstraction over the existing primitive types provided
  * by Kotlin. It allows for the advanced type system implemented by Cottontail DB.
  *
- * @version 1.0
+ * @version 1.1
  * @author Ralph Gasser
  */
-interface RealValue<T: Number>: NumericValue<T> {
-    fun cos(): RealValue<T>
-    fun sin(): RealValue<T>
-    fun tan(): RealValue<T>
-    fun atan(): RealValue<T>
-}
+interface RealValue<T : Number> : NumericValue<T>
