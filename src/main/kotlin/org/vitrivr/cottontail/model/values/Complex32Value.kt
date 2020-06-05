@@ -4,16 +4,40 @@ import org.vitrivr.cottontail.model.values.types.ComplexValue
 import org.vitrivr.cottontail.model.values.types.NumericValue
 import org.vitrivr.cottontail.model.values.types.RealValue
 import org.vitrivr.cottontail.model.values.types.Value
-import kotlin.math.pow
+import java.util.*
 import kotlin.math.sign
 
+/**
+ * Represents a complex number backed by single-precision (32bit) [Float]s
+ *
+ * @version 1.1
+ * @author Ralph Gasser
+ */
 inline class Complex32Value(val data: FloatArray): ComplexValue<Float> {
 
-
     companion object {
-        val ZERO = Complex32Value(FloatValue(0.0f), FloatValue(0.0f))
-        val ONE = Complex32Value(FloatValue(1.0f), FloatValue(1.0f))
+        val I = Complex32Value(floatArrayOf(0.0f, 1.0f))
+        val ZERO = Complex32Value(floatArrayOf(0.0f, 0.0f))
+        val ONE = Complex32Value(floatArrayOf(1.0f, 0.0f))
+        val NaN = Complex32Value(floatArrayOf(Float.NaN, Float.NaN))
+        val INF = Complex32Value(floatArrayOf(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY))
+
+        /**
+         * Generates a [Complex32VectorValue] initialized with random numbers.
+         *
+         * @param rnd A [SplittableRandom] to generate the random numbers.
+         */
+        fun random(rnd: SplittableRandom = SplittableRandom(System.currentTimeMillis())) = Complex32Value(FloatArray(2) {
+            rnd.nextDouble().toFloat()
+        })
     }
+
+    /**
+     * Constructor for one [Float]
+     *
+     * @param number The real part of the [Complex32Value].
+     */
+    constructor(real: Float) : this(floatArrayOf(real, 0.0f))
 
     /**
      * Constructor for an arbitrary [Number].
@@ -38,7 +62,15 @@ inline class Complex32Value(val data: FloatArray): ComplexValue<Float> {
      * @param real The real part of the [Complex32Value].
      * @param imaginary The imaginary part of the [Complex32Value].
      */
-    constructor(real: RealValue<*>, imaginary: RealValue<*>): this(real.value, imaginary.value)
+    constructor(real: RealValue<*>, imaginary: RealValue<*>) : this(real.value, imaginary.value)
+
+    /**
+     * Constructor for two [Float]s
+     *
+     * @param real The real part of the [Complex32Value].
+     * @param imaginary The imaginary part of the [Complex32Value].
+     */
+    constructor(real: Float, imaginary: Float) : this(floatArrayOf(real, imaginary))
 
     /**
      * Constructor for two [Number]s
@@ -46,7 +78,7 @@ inline class Complex32Value(val data: FloatArray): ComplexValue<Float> {
      * @param real The real part of the [Complex32Value].
      * @param imaginary The imaginary part of the [Complex32Value].
      */
-    constructor(real: Number, imaginary: Number): this(floatArrayOf(real.toFloat(), imaginary.toFloat()))
+    constructor(real: Number, imaginary: Number) : this(floatArrayOf(real.toFloat(), imaginary.toFloat()))
 
     override val value: Float
         get() = this.modulo().value
@@ -89,54 +121,125 @@ inline class Complex32Value(val data: FloatArray): ComplexValue<Float> {
     }
 
     override fun asComplex32(): Complex32Value = this
-    override fun asComplex64(): Complex64Value = Complex64Value(this.real.asDouble(), this.imaginary.asDouble())
+    override fun asComplex64(): Complex64Value = Complex64Value(this.data[0], data[1])
 
     /**
      * Calculates and returns the inverse of this [Complex32Value].
      *
      * @return The inverse [Complex32Value].
      */
-    override fun inverse(): Complex32Value = Complex32Value(floatArrayOf((this.real / (this.real  * this.real + this.imaginary * this.imaginary)).value, -(this.imaginary / (this.real* this.real + this.imaginary * this.imaginary)).value))
+    override fun inverse(): Complex32Value = Complex32Value((this.data[0] / (this.data[0] * this.data[0] + this.data[1] * this.data[1])), -(this.data[1] / (this.data[0] * this.data[0] + this.data[1] * this.data[1])))
 
     /**
      * Returns the complex conjugate of this [Complex32Value]
      *
      * @return The conjugate [Complex32Value].
      */
-    override fun conjugate(): Complex32Value = Complex32Value(this.real, -this.imaginary)
+    override fun conjugate(): Complex32Value = Complex32Value(this.data[0], -this.data[1])
 
     /**
      * Calculates and returns the modulo of this [Complex32Value].
      *
      * @return The module of this [Complex32Value].
      */
-    override fun modulo() = (this.real * this.real + this.imaginary * this.imaginary).sqrt().asFloat()
+    override fun modulo() = FloatValue(kotlin.math.sqrt(this.data[0] * this.data[0] + this.data[1] * this.data[1]))
 
-    override fun unaryMinus() = Complex32Value(-this.real, -this.imaginary)
-    override fun plus(other: NumericValue<*>) = Complex32Value(this.real + other.real, this.imaginary + other.imaginary)
-    override fun minus(other: NumericValue<*>) = Complex32Value(this.real - other.real, this.imaginary - other.imaginary)
-    override fun times(other: NumericValue<*>) = Complex32Value(this.real * other.real - this.imaginary * other.imaginary, this.real * other.imaginary + this.imaginary * other.real)
-    override fun div(other: NumericValue<*>): Complex32Value {
-        val div = FloatValue(other.real.value.toFloat().pow(2) + other.imaginary.value.toFloat().compareTo(2))
-        return Complex32Value(
-            (this.real * other.real + this.imaginary * other.imaginary) / div,
-            (this.real * other.imaginary - this.imaginary * other.real) / div
-        )
+    override fun unaryMinus() = Complex32Value(-this.data[0], -this.data[1])
+
+    override fun plus(other: NumericValue<*>) = when (other) {
+        is Complex32Value -> Complex32Value(this.data[0] + other.data[0], this.data[1] + other.data[1])
+        is Complex64Value -> Complex32Value(this.data[0] + other.data[0], this.data[1] + other.data[1])
+        else -> Complex32Value(this.data[0] + other.real.asDouble().value, this.data[1])
     }
-    override fun abs() = Complex64Value(this.real.abs(), this.imaginary.abs())
+
+    override fun minus(other: NumericValue<*>) = when (other) {
+        is Complex32Value -> Complex32Value(this.data[0] - other.data[0], this.data[1] - other.data[1])
+        is Complex64Value -> Complex32Value(this.data[0] - other.data[0], this.data[1] - other.data[1])
+        else -> Complex32Value(this.data[0] - other.real.asDouble().value, this.data[1])
+    }
+
+    override fun times(other: NumericValue<*>) = when (other) {
+        is Complex32Value -> Complex32Value(this.data[0] * other.data[0] - this.data[1] * other.data[1], this.data[0] * other.data[1] + this.data[1] * other.data[0])
+        is Complex64Value -> Complex32Value(this.data[0] * other.data[0] - this.data[1] * other.data[1], this.data[0] * other.data[1] + this.data[1] * other.data[0])
+        else -> Complex32Value(this.data[0] * other.real.asDouble().value, this.data[1] * other.real.asDouble().value)
+    }
+
+    override fun div(other: NumericValue<*>): Complex32Value = when (other) {
+        is Complex32Value -> {
+            val c = other.data[0]
+            val d = other.data[1]
+            if (kotlin.math.abs(c) < kotlin.math.abs(d)) {
+                val q = c / d
+                val denominator = c * q + d
+                Complex32Value((this.data[0] * q + this.data[1]) / denominator, (this.data[1] * q - this.data[0]) / denominator)
+            } else {
+                val q = d / c
+                val denominator = d * q + c
+                Complex32Value((this.data[1] * q + this.data[0]) / denominator, (this.data[1] - this.data[0] * q) / denominator)
+            }
+        }
+        is Complex64Value -> {
+            if (kotlin.math.abs(other.data[0]) < kotlin.math.abs(other.data[1])) {
+                val q = other.data[0] / other.data[1]
+                val denominator = other.data[0] * q + other.data[1]
+                Complex32Value((this.data[0] * q + this.data[1]) / denominator, (this.data[1] * q - this.data[0]) / denominator)
+            } else {
+                val q = other.data[1] / other.data[0]
+                val denominator = other.data[1] * q + other.data[0]
+                Complex32Value((this.data[1] * q + this.data[0]) / denominator, (this.data[1] - this.data[0] * q) / denominator)
+            }
+        }
+        else -> {
+            val c = other.asFloat().value
+            Complex32Value(this.data[0] / c, this.data[1] / c)
+        }
+    }
+
+    override fun abs() = Complex32Value(kotlin.math.abs(this.data[0]), kotlin.math.abs(this.data[1]))
 
     override fun pow(x: Double): Complex64Value {
-        val r = this.real.value.pow(x.toFloat()) + this.imaginary.value.pow(x.toFloat())
-        val theta =  this.imaginary.value / this.real.value
-        return Complex64Value(r * kotlin.math.cos(x*theta), r * kotlin.math.sin(x*theta))
+        val real = x * kotlin.math.ln(this.modulo().value)
+        val imaginary = x * kotlin.math.atan2(this.data[1], this.data[0])
+        val exp = kotlin.math.exp(real)
+        return Complex64Value(exp * kotlin.math.cos(imaginary), exp * kotlin.math.sin(imaginary))
     }
 
     override fun pow(x: Int): Complex64Value {
-        val r = this.real.value.pow(x) + this.imaginary.value.pow(x)
-        val theta =  this.imaginary.value / this.real.value
-        return Complex64Value(r * kotlin.math.cos(x*theta), r * kotlin.math.sin(x*theta))
+        val real = x * kotlin.math.ln(this.modulo().value)
+        val imaginary = x * kotlin.math.atan2(this.data[1], this.data[0])
+        val exp = kotlin.math.exp(real)
+        return Complex64Value(exp * kotlin.math.cos(imaginary), exp * kotlin.math.sin(imaginary))
     }
 
+    override fun exp(): Complex64Value {
+        val expReal = kotlin.math.exp(this.data[0])
+        return Complex64Value(expReal * kotlin.math.cos(this.data[1]), expReal * kotlin.math.sin(this.data[1]))
+    }
+
+    override fun ln() = Complex64Value(kotlin.math.ln(this.modulo().value), kotlin.math.atan2(this.data[1], this.data[0]))
+
     override fun sqrt(): Complex64Value = pow(1.0 / 2.0)
+
+    override fun cos(): Complex64Value = Complex64Value(kotlin.math.cos(this.data[0]) * kotlin.math.cosh(this.data[1]), -kotlin.math.sin(this.data[0]) * kotlin.math.sinh(this.data[1]))
+    override fun sin(): Complex64Value = Complex64Value(kotlin.math.sin(this.data[0]) * kotlin.math.cosh(this.data[1]), kotlin.math.cos(this.data[0]) * kotlin.math.sinh(this.data[1]))
+
+    override fun tan(): Complex64Value {
+        if (this.data[1] > 20.0) {
+            return Complex64Value(0.0, 1.0)
+        }
+        if (this.data[1] < -20.0) {
+            return Complex64Value(0.0, -1.0)
+        }
+
+        val r: Double = 2.0 * this.data[0]
+        val i: Double = 2.0 * this.data[1]
+        val d = kotlin.math.cos(r) + kotlin.math.cosh(i)
+
+        return Complex64Value(kotlin.math.sin(r) / d, kotlin.math.sinh(i) / d)
+    }
+
+    override fun atan(): Complex64Value = ((this + I) / (I - this)).ln() * (I / Complex32Value(floatArrayOf(2.0f, 0.0f)))
+
     override fun compareTo(other: NumericValue<Float>): Int = this.real.compareTo(other.real)
+
 }
