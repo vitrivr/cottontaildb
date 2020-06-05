@@ -9,10 +9,7 @@ import org.vitrivr.cottontail.database.queries.ConnectionOperator
 import org.vitrivr.cottontail.database.queries.planning.CottontailQueryPlanner
 import org.vitrivr.cottontail.database.queries.planning.QueryPlannerContext
 import org.vitrivr.cottontail.database.queries.planning.basics.NodeExpression
-import org.vitrivr.cottontail.database.queries.planning.nodes.basics.EntityScanNodeExpression
-import org.vitrivr.cottontail.database.queries.planning.nodes.basics.FilterNodeExpression
-import org.vitrivr.cottontail.database.queries.planning.nodes.basics.KnnNodeExpression
-import org.vitrivr.cottontail.database.queries.planning.nodes.basics.ProjectionNodeExpression
+import org.vitrivr.cottontail.database.queries.planning.nodes.basics.*
 import org.vitrivr.cottontail.database.queries.planning.rules.KnnPushdownRule
 import org.vitrivr.cottontail.database.queries.planning.rules.PredicatePushdownRule
 import org.vitrivr.cottontail.database.queries.planning.rules.PredicatePushdownWithIndexRule
@@ -73,14 +70,14 @@ class GrpcQueryBinder(val catalogue: Catalogue, private val engine: ExecutionEng
         val scanClause = parseAndBindSimpleFrom(query.from)
         var root: NodeExpression = scanClause
 
-        /* Create knn clause. */
-        if (query.hasKnn()) {
-            root = root.setChild(KnnNodeExpression(parseAndBindKnnPredicate(scanClause.entity, query.knn)))
-        }
-
-        /* Create where clause. */
-        if (query.hasWhere()) {
+        /* Create kNN and where clause. */
+        if (query.hasWhere() && query.hasKnn()) {
+            root = root.setChild(PredicatedKnnNodeExpression(parseAndBindKnnPredicate(scanClause.entity, query.knn), parseAndBindBooleanPredicate(scanClause.entity, query.where)))
+        } else if (query.hasWhere()) {
             root = root.setChild(FilterNodeExpression(parseAndBindBooleanPredicate(scanClause.entity, query.where)))
+        } else if (query.hasKnn()) {
+            root = root.setChild(KnnNodeExpression(parseAndBindKnnPredicate(scanClause.entity, query.knn)))
+
         }
 
         /* Create projection clause. */

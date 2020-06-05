@@ -30,7 +30,6 @@ class RecordsetMergeKnnTask(val entity: Entity, val knn: KnnPredicate<*>) : Exec
 
         /* Merge kNN values for the given recordsets. */
         for (i in input) {
-            if (i.rowCount != (this.knn.k.toLong() * this.knn.query.size)) throw TaskExecutionException("Recordset kNN MERGE could not be executed because left recordset does not have the expected number of items (r = ${i.rowCount}, k = ${knn.k}).")
             i.forEachIndexed { j, r ->
                 val value = r[this.column]
                         ?: throw TaskExecutionException("Recordset kNN MERGE could not be executed because recordset does not seem to contain a valid `${column.name}` column.")

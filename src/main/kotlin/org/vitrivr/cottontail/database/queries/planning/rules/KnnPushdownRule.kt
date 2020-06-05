@@ -4,6 +4,7 @@ import org.vitrivr.cottontail.database.queries.planning.basics.NodeExpression
 import org.vitrivr.cottontail.database.queries.planning.basics.NodeRewriteRule
 import org.vitrivr.cottontail.database.queries.planning.nodes.basics.EntityScanNodeExpression
 import org.vitrivr.cottontail.database.queries.planning.nodes.basics.KnnNodeExpression
+import org.vitrivr.cottontail.database.queries.planning.nodes.basics.PredicatedKnnNodeExpression
 import org.vitrivr.cottontail.database.queries.planning.nodes.pushdown.KnnPushdownNodeExpression
 
 /**
@@ -13,12 +14,16 @@ import org.vitrivr.cottontail.database.queries.planning.nodes.pushdown.KnnPushdo
  * @version 1.0
  */
 object KnnPushdownRule : NodeRewriteRule {
-    override fun canBeApplied(node: NodeExpression): Boolean = node is KnnNodeExpression && node.parents.firstOrNull() is EntityScanNodeExpression.FullEntityScanNodeExpression
+    override fun canBeApplied(node: NodeExpression): Boolean = (node is KnnNodeExpression || node is PredicatedKnnNodeExpression) && node.parents.firstOrNull() is EntityScanNodeExpression.FullEntityScanNodeExpression
     override fun apply(node: NodeExpression): NodeExpression? {
-        if (node is KnnNodeExpression) {
+        if (node is KnnNodeExpression || node is PredicatedKnnNodeExpression) {
             val p1 = node.parents.first()
             if (p1 is EntityScanNodeExpression.FullEntityScanNodeExpression) {
-                val res = KnnPushdownNodeExpression(p1.entity, node.knn)
+                val res = if (node is KnnNodeExpression) {
+                    KnnPushdownNodeExpression(p1.entity, node.knn)
+                } else {
+                    KnnPushdownNodeExpression(p1.entity, (node as PredicatedKnnNodeExpression).knn, node.predicate)
+                }
                 val childNode = node.copyChildren()
                 if (childNode != null) {
                     res.setChild(childNode)
