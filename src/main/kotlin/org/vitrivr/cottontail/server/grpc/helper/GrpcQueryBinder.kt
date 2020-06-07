@@ -11,6 +11,7 @@ import org.vitrivr.cottontail.database.queries.planning.QueryPlannerContext
 import org.vitrivr.cottontail.database.queries.planning.basics.NodeExpression
 import org.vitrivr.cottontail.database.queries.planning.nodes.basics.*
 import org.vitrivr.cottontail.database.queries.planning.rules.KnnPushdownRule
+import org.vitrivr.cottontail.database.queries.planning.rules.LimitPushdownRule
 import org.vitrivr.cottontail.database.queries.planning.rules.PredicatePushdownRule
 import org.vitrivr.cottontail.database.queries.planning.rules.PredicatePushdownWithIndexRule
 import org.vitrivr.cottontail.database.queries.predicates.AtomicBooleanPredicate
@@ -42,7 +43,12 @@ import org.vitrivr.cottontail.utilities.name.Name
 class GrpcQueryBinder(val catalogue: Catalogue, private val engine: ExecutionEngine) {
 
     /** [ExecutionPlanFactor] used to generate [ExecutionPlan]s from query definitions. */
-    private val planner = CottontailQueryPlanner(KnnPushdownRule, PredicatePushdownRule, PredicatePushdownWithIndexRule)
+    private val planner = CottontailQueryPlanner(
+            KnnPushdownRule,
+            LimitPushdownRule,
+            PredicatePushdownRule,
+            PredicatePushdownWithIndexRule
+    )
 
     /**
      * Binds the given [CottontailGrpc.Query] to the database objects and thereby creates an [ExecutionPlan].
@@ -78,6 +84,11 @@ class GrpcQueryBinder(val catalogue: Catalogue, private val engine: ExecutionEng
         } else if (query.hasKnn()) {
             root = root.setChild(KnnNodeExpression(parseAndBindKnnPredicate(scanClause.entity, query.knn)))
 
+        }
+
+        /* Add LIMIT and SKIP. */
+        if (query.limit > 0L || query.skip > 0L) {
+            root = root.setChild(LimitNodeExpression(query.limit, query.skip))
         }
 
         /* Create projection clause. */

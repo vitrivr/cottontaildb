@@ -18,11 +18,11 @@ class RecordsetLimitTask(val limit: Long, val skip: Long = 0) : ExecutionTask("R
 
         /* Get records from parent task. */
         val parent = this.first()
-                ?: throw TaskExecutionException("Projection could not be executed because parent task has failed.")
+                ?: throw TaskExecutionException("LIMIT could not be executed because parent task has failed.")
 
         /* Calculate actual bounds for LIMIT and SKIP. */
-        val actualSkip = Math.max(this.skip, 0L)
-        val actualLimit = Math.min(Math.max(this.limit, 0L), parent.rowCount.toLong() - actualSkip)
+        val actualSkip = this.skip.coerceAtLeast(0L)
+        val actualLimit = this.limit.coerceAtLeast(0L).coerceAtMost(parent.rowCount - actualSkip)
 
         /* Limit the recordset. */
         val recordset = Recordset(parent.columns)
