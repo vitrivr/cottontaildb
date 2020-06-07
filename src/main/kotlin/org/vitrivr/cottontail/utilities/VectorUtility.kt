@@ -1,9 +1,6 @@
 package org.vitrivr.cottontail.utilities
 
-import org.vitrivr.cottontail.model.values.DoubleVectorValue
-import org.vitrivr.cottontail.model.values.FloatVectorValue
-import org.vitrivr.cottontail.model.values.IntVectorValue
-import org.vitrivr.cottontail.model.values.LongVectorValue
+import org.vitrivr.cottontail.model.values.*
 import org.vitrivr.cottontail.model.values.types.VectorValue
 import java.util.*
 
@@ -11,7 +8,7 @@ import java.util.*
  * Utility class used to generate a stream of [VectorValue]s.
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.1
  */
 object VectorUtility {
 
@@ -72,6 +69,36 @@ object VectorUtility {
         override fun next(): DoubleVectorValue {
             this.left -= 1
             return DoubleVectorValue.random(size, random)
+        }
+    }
+
+    /**
+     * Generates a sequence of random [Complex32VectorValue] of the given size.
+     *
+     * @param size The size of the random vectors.
+     * @param items The number of items to return from the [Iterator]
+     */
+    fun randomComplex32VectorSequence(size: Int, items: Int = Int.MAX_VALUE, random: SplittableRandom = SplittableRandom()): Iterator<Complex32VectorValue> = object : Iterator<Complex32VectorValue> {
+        var left = items
+        override fun hasNext(): Boolean = this.left > 0
+        override fun next(): Complex32VectorValue {
+            this.left -= 1
+            return Complex32VectorValue.random(size, random)
+        }
+    }
+
+    /**
+     * Generates a sequence of random [Complex64VectorValue] of the given size.
+     *
+     * @param size The size of the random vectors.
+     * @param items The number of items to return from the [Iterator]
+     */
+    fun randomComplex64VectorSequence(size: Int, items: Int = Int.MAX_VALUE, random: SplittableRandom = SplittableRandom()): Iterator<Complex64VectorValue> = object : Iterator<Complex64VectorValue> {
+        var left = items
+        override fun hasNext(): Boolean = this.left > 0
+        override fun next(): Complex64VectorValue {
+            this.left -= 1
+            return Complex64VectorValue.random(size, random)
         }
     }
 }
