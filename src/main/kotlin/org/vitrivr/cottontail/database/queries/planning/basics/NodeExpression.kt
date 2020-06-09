@@ -77,13 +77,14 @@ interface NodeExpression {
      * @return Exact copy of this [NodeExpression]'s child and its children.
      */
     fun copyChildren(): NodeExpression? {
-        val c = this.child?.copy()
+        val c = this.child
         return if (c != null) {
-            val cc = c.copyChildren()
-            if (cc != null) {
-                c.setChild(cc)
+            val cc = c.copy()
+            val ccc = c.copyChildren()
+            if (ccc != null) {
+                cc.setChild(ccc)
             }
-            c
+            cc
         } else {
             null
         }
