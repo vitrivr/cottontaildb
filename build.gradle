@@ -62,7 +62,7 @@ protobuf {
         }
     }
     protoc {
-        artifact = 'com.google.protobuf:protoc:3.11.4'
+        artifact = 'com.google.protobuf:protoc:3.12.3'
     }
     generateProtoTasks {
         all()*.plugins { grpc {
@@ -78,9 +78,9 @@ dependencies {
     ///// FastUtil
     compile group: 'it.unimi.dsi', name: 'fastutil', version: '8.3.1'
 
-    /////// GRPC & ProtoBuf
+    /////// gRPC & Protobuf
     compile group: 'javax.annotation', name: 'javax.annotation-api', version: '1.2'
-    compile group: 'com.google.protobuf', name: 'protobuf-java', version: '3.11.4'
+    compile group: 'com.google.protobuf', name: 'protobuf-java', version: '3.12.2'
     compile group: 'io.grpc', name: 'grpc-all', version: '1.29.0'
 
     ////// Log4J
