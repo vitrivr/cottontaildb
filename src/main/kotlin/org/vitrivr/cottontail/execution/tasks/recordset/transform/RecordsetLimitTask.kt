@@ -27,7 +27,7 @@ class RecordsetLimitTask(val limit: Long, val skip: Long = 0) : ExecutionTask("R
         /* Limit the recordset. */
         val recordset = Recordset(parent.columns)
         parent.forEachIndexed { i, r ->
-            if (i in actualSkip..actualSkip + actualLimit) {
+            if (i in actualSkip until actualSkip + actualLimit) {
                 recordset.addRowUnsafe(r.tupleId, r.values)
             } else if (i > actualLimit) {
                 return@forEachIndexed
