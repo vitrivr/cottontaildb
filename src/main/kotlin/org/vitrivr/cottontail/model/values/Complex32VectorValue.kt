@@ -23,7 +23,7 @@ inline class Complex32VectorValue(val data: Array<Complex32Value>) : ComplexVect
          * @param rnd A [SplittableRandom] to generate the random numbers.
          */
         fun random(size: Int, rnd: SplittableRandom = SplittableRandom(System.currentTimeMillis())) = Complex32VectorValue(Array(size) {
-            Complex32Value(FloatValue(Float.fromBits(rnd.nextInt())), FloatValue(Float.fromBits(rnd.nextInt())))
+            Complex32Value(rnd.nextDouble().toFloat(), rnd.nextDouble().toFloat())
         })
 
         /**
@@ -104,68 +104,61 @@ inline class Complex32VectorValue(val data: Array<Complex32Value>) : ComplexVect
     override fun copy(): Complex32VectorValue = Complex32VectorValue(data.copyOf())
 
     override fun plus(other: VectorValue<*>) = Complex32VectorValue(Array(this.data.size) {
-        this[it] + other[it].asComplex32()
+        this.data[it] + other[it].asComplex32()
     })
 
     override fun minus(other: VectorValue<*>) = Complex32VectorValue(Array(this.data.size) {
-        this[it] - other[it].asComplex32()
+        this.data[it] - other[it].asComplex32()
     })
 
     override fun times(other: VectorValue<*>) = Complex32VectorValue(Array(this.data.size) {
-        this[it] * other[it].asComplex32()
+        this.data[it] * other[it].asComplex32()
     })
 
     override fun div(other: VectorValue<*>) = Complex32VectorValue(Array(this.data.size) {
-        this[it] / other[it].asComplex32()
+        this.data[it] / other[it].asComplex32()
     })
 
     override fun plus(other: NumericValue<*>) = Complex32VectorValue(Array(this.data.size) {
-        this[it] + other.asComplex32()
+        this.data[it] + other.asComplex32()
     })
 
     override fun minus(other: NumericValue<*>) = Complex32VectorValue(Array(this.data.size) {
-        this[it] - other.asComplex32()
+        this.data[it] - other.asComplex32()
     })
 
     override fun times(other: NumericValue<*>) = Complex32VectorValue(Array(this.data.size) {
-        this[it] * other.asComplex32()
+        this.data[it] * other.asComplex32()
     })
 
     override fun div(other: NumericValue<*>) = Complex32VectorValue(Array(this.data.size) {
-        this[it] / other.asComplex32()
+        this.data[it] / other.asComplex32()
     })
 
     override fun pow(x: Int) = Complex64VectorValue(Array(this.data.size) {
-        val a2 = this.real(it).pow(2)
-        val b2 = this.imaginary(it).pow(2)
-        val r = (a2 + b2).sqrt()
-        val theta = (b2 / a2).atan()
-        Complex64Value(r.pow(x) * ((theta * IntValue(x)).cos()), r.pow(x) * (theta * IntValue(x)).sin())
+        this.data[it].pow(x)
     })
 
     override fun sqrt() = Complex64VectorValue(Array(this.data.size) {
-        Complex64Value(
-            (this.real(it) + (this.real(it).pow(2) + this.imaginary(it).pow(2)).sqrt()/FloatValue(2.0f)).sqrt(),
-            (this.imaginary(it) / this.imaginary(it).abs()) * (- this.real(it) + (this.real(it).pow(2) + this.imaginary(it).pow(2)).sqrt()/FloatValue(2.0f)).sqrt()
-        )
+        this.data[it].sqrt()
     })
 
     override fun abs() = Complex32VectorValue(Array(this.data.size) {
-        Complex32Value(this[it].real.abs(), this[it].imaginary.abs())
+        this.data[it].abs()
     })
 
     override fun sum(): Complex32Value {
         var real = 0.0f
         var imaginary = 0.0f
         this.indices.forEach {
-            real += this.real(it).value
-            imaginary += this.imaginary(it).value
+            real += this.data[it].data[0]
+            imaginary += this.data[it].data[1]
         }
         return Complex32Value(real, imaginary)
     }
 
     override fun norm2(): Complex32Value {
-        var sum = Complex32Value(0.0f, 0.0f)
+        var sum = Complex64Value(0.0, 0.0)
         for (i in this.indices) {
             sum += this[i].pow(2)
         }
@@ -181,17 +174,50 @@ inline class Complex32VectorValue(val data: Array<Complex32Value>) : ComplexVect
     }
 
     override fun l1(other: VectorValue<*>): Complex32Value {
-        var sum = Complex32Value(0.0f, 0.0f)
-        for (i in this.indices) {
-            sum += (other[i].asComplex32() - this[i]).abs()
+        var sReal = 0.0
+        var sImaginary = 0.0
+        when (other) {
+            is Complex32VectorValue -> {
+                for (i in this.indices) {
+                    sReal += kotlin.math.abs(this.data[i].data[0] - other.data[i].data[0])
+                    sImaginary += kotlin.math.abs(this.data[i].data[1] - other.data[i].data[1])
+                }
+            }
+            is Complex64VectorValue -> {
+                for (i in this.indices) {
+                    sReal += kotlin.math.abs(this.data[i].data[0] - other.data[i].data[0])
+                    sImaginary += kotlin.math.abs(this.data[i].data[1] - other.data[i].data[1])
+                }
+            }
+            else -> {
+                for (i in this.indices) {
+                    val d = (this[i] - other[i]).abs()
+                    sReal += d.data[0]
+                    sImaginary += d.data[1]
+                }
+            }
         }
-        return sum
+        return Complex32Value(sReal, sImaginary).asComplex32()
     }
 
     override fun l2(other: VectorValue<*>): Complex32Value {
-        var sum = Complex32Value(0.0f, 0.0f)
-        for (i in this.indices) {
-            sum += (other[i].asComplex32() - this[i]).pow(2)
+        var sum = Complex64Value(0.0, 0.0)
+        when (other) {
+            is Complex32VectorValue -> {
+                for (i in this.indices) {
+                    sum += Complex64Value(this.data[i].data[0] - other.data[i].data[0], this.data[i].data[1] - other.data[i].data[1]).pow(2)
+                }
+            }
+            is Complex64VectorValue -> {
+                for (i in this.indices) {
+                    sum += Complex64Value(this.data[i].data[0] - other.data[i].data[0], this.data[i].data[1] - other.data[i].data[1]).pow(2)
+                }
+            }
+            else -> {
+                for (i in this.indices) {
+                    sum += (this[i] - other[i]).pow(2)
+                }
+            }
         }
         return sum.sqrt().asComplex32()
     }

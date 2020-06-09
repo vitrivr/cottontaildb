@@ -136,22 +136,15 @@ inline class Complex64VectorValue(val data:  Array<Complex64Value>) : ComplexVec
     })
 
     override fun pow(x: Int) = Complex64VectorValue(Array(this.data.size) {
-        val a2 = this.real(it).pow(2)
-        val b2 = this.imaginary(it).pow(2)
-        val r = (a2 + b2).sqrt()
-        val theta = (b2 / a2).atan()
-        Complex64Value(r.pow(x) * ((theta * IntValue(x)).cos()), r.pow(x) * (theta * IntValue(x)).sin())
+        this.data[it].pow(x)
     })
 
     override fun sqrt() = Complex64VectorValue(Array(this.data.size) {
-        Complex64Value(
-                (this.real(it) + (this.real(it).pow(2) + this.imaginary(it).pow(2)).sqrt()/FloatValue(2.0f)).sqrt(),
-                (this.imaginary(it) / this.imaginary(it).abs()) * (- this.real(it) + (this.real(it).pow(2) + this.imaginary(it).pow(2)).sqrt()/FloatValue(2.0f)).sqrt()
-        )
+        this.data[it].sqrt()
     })
 
     override fun abs() = Complex64VectorValue(Array(this.data.size) {
-        Complex64Value(this[it].real.abs(), this[it].imaginary.abs())
+        this.data[it].abs()
     })
 
     override fun sum(): Complex64Value {
@@ -189,11 +182,32 @@ inline class Complex64VectorValue(val data:  Array<Complex64Value>) : ComplexVec
     }
 
     override fun l2(other: VectorValue<*>): Complex64Value {
-        var sum = Complex64Value(0.0, 0.0)
-        for (i in this.indices) {
-            sum += (other[i].asComplex64() - this[i]).pow(2)
+        var sReal = 0.0
+        var sImaginary = 0.0
+        when (other) {
+            is Complex32VectorValue -> {
+                for (i in this.indices) {
+                    val d = (other.data[i] - this.data[i]).pow(2)
+                    sReal += d.data[0]
+                    sImaginary += d.data[1]
+                }
+            }
+            is Complex64VectorValue -> {
+                for (i in this.indices) {
+                    val d = (other.data[i] - this.data[i]).pow(2)
+                    sReal += d.data[0]
+                    sImaginary += d.data[1]
+                }
+            }
+            else -> {
+                for (i in this.indices) {
+                    val d = (other[i] - this[i]).pow(2)
+                    sReal += d.real.value
+                    sImaginary += d.imaginary.value
+                }
+            }
         }
-        return sum.sqrt()
+        return Complex64Value(sReal, sImaginary).sqrt()
     }
 
     override fun lp(other: VectorValue<*>, p: Int): Complex64Value {
@@ -201,6 +215,6 @@ inline class Complex64VectorValue(val data:  Array<Complex64Value>) : ComplexVec
         for (i in this.indices) {
             sum += (other[i].asComplex64() - this[i]).pow(p)
         }
-        return sum.pow(1.0/p)
+        return sum.pow(1.0 / p)
     }
 }
