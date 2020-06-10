@@ -17,13 +17,23 @@ or initialize submodules after cloning using the following command from within t
 
 Before executing or building Cottontail DB, you must generate Proto sources by executing the Gradle task `generateProto`, i.e. by running `./gradlew generateProto` from within the project directory.
 
-### Starting Cottontail DB server
+### Building and starting Cottontail DB
 You can simply start a Cottontail DB instance using `./gradlew run`. Alternatively, an executable distribution of Cottontail DB can then be built from sources using the 
 Gradle tasks `distTar` or `distZip`. Distributions will be stored relative to the project root in `build/distributions` as either TAR or ZIP file.
 
 Cottontail DB release artifacts (either built or downloaded from the releases page) can be started by executing `bin/cottontaildb` or `bin/cottontaildb.bat` (Windows). It requires a path to a valid configuration file as a program argument, i.e.
 
 ``bin/cottontaildb /path/to/your/config.json``
+
+### Using Cottontail DB Docker Container
+
+There is a pre-built Docker container for Cottontail DB for every release version. You can run it using the following command
+
+``docker run --name cottontaildb -p 1865:1865 -v /path/to/volume:/cottontail-data docker.pkg.github.com/vitrivr/cottontaildb/cottontaildb:<version>``
+
+It is important to expose the Cottontail DB port using `-p 1865:1865` (adjust uf using a different port) and to map the data directory from the host into the container using `-v`. The data directory is expected to contain a valid `config.json` file!
+
+Please mind, that you need to login into GitHub in order to be able to download the Docker image. See official [manual](https://help.github.com/en/packages/using-github-packages-with-your-projects-ecosystem/configuring-docker-for-use-with-github-packages) for further information
 
 ### Configuration
 All the configuration of Cottontail DB is done by means of a single configuration file. See `config.json` in project directory for structure of such a file. Most importantly, the file should contain at least the following
