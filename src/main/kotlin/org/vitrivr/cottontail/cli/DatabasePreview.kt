@@ -10,7 +10,7 @@ import org.vitrivr.cottontail.grpc.CottontailGrpc
 object DatabasePreview {
 
 
-    val channel = ManagedChannelBuilder.forAddress("127.0.0.1", 1865).usePlaintext().build()
+    val channel = ManagedChannelBuilder.forAddress("localhost", 1865).usePlaintext().build()
 
     val dqlService = CottonDQLGrpc.newBlockingStub(channel)
     val ddlService = CottonDDLGrpc.newBlockingStub(channel)
@@ -60,11 +60,26 @@ object DatabasePreview {
                     "query" -> {
                         if (input.size < 5) {
                             println("query syntax is: query <schema> <entity> <column> <value>")
+                            continue@loop
                         }
                         queryEntity(input[1], input[2], input[3], input[4])
                     }
                     "list" -> {
                         listEntities()
+                    }
+                    "drop" -> {
+                        if(input.size < 3){
+                            println("drop syntax is: drop <schema> <entity>")
+                            continue@loop
+                        }
+                        dropEntity(input[1], input[2] )
+                    }
+                    "show" -> {
+                        if(input.size < 3){
+                            println("show syntax is: drop <schema> <entity>")
+                            continue@loop
+                        }
+                        showEntity(input[1], input[2])
                     }
                     "quit" -> System.exit(1)
                     else -> printHelp()
@@ -148,5 +163,19 @@ object DatabasePreview {
         println("Optimizing entity $schema.$entity")
         ddlService.optimizeEntity(Entity(entity, Schema(schema)))
         println("Done!")
+    }
+
+    private fun dropEntity(schema: String, entity: String){
+        println("Dropping entity $schema.$entity")
+        ddlService.dropEntity(Entity(entity, Schema(schema)))
+        println("Done!")
+    }
+
+    private fun showEntity(schema:String, entity:String){
+        val details = ddlService.entityDetails(Entity(entity, Schema(schema)))
+        println("Entity ${details.entity.schema.name}.${details.entity.name} with ${details.columnsCount} columns: ")
+        print("  ")
+        details.columnsList.forEach { print("${it.name} (${it.type}), ") }
+        println("")
     }
 }
