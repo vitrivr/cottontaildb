@@ -231,4 +231,15 @@ class Complex64ValueTest {
 
         isCorrect(atanp, atan)
     }
+
+    @RepeatedTest(100)
+    fun testAddConjugate() {
+        val c1 = Complex64Value.random(random)
+        val c2 = c1.conjugate()
+
+        val add = c1 + c2
+
+        Assertions.assertEquals(c1.real + c2.real, add.real)
+        Assertions.assertEquals(0.0, add.imaginary.value)
+    }
 }
