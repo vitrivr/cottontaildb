@@ -106,8 +106,8 @@ class ColumnDef<T : Value>(val name: Name, val type: ColumnType<T>, val logicalS
         this.type is LongVectorColumnType -> LongVectorValue(LongArray(this.logicalSize))
         this.type is IntVectorColumnType -> IntVectorValue(IntArray(this.logicalSize))
         this.type is BooleanVectorColumnType -> BooleanVectorValue(BitSet(this.logicalSize))
-        this.type is Complex32VectorColumnType -> Complex32VectorValue(Array(this.logicalSize) { Complex32Value.ZERO })
-        this.type is Complex64VectorColumnType -> Complex64VectorValue(Array(this.logicalSize) { Complex64Value.ZERO })
+        this.type is Complex32VectorColumnType -> Complex32VectorValue(FloatArray(2 * this.logicalSize) { 0.0f })
+        this.type is Complex64VectorColumnType -> Complex64VectorValue(DoubleArray(2 * this.logicalSize) { 0.0 })
         else -> throw RuntimeException("Default value for the specified type $type has not been specified yet!")
     }
 

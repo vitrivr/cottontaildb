@@ -10,9 +10,34 @@ import java.util.*
  * This is an abstraction over an [Array] and it represents a vector of [Complex64]s.
  *
  * @author Manuel Huerbin & Ralph Gasser
- * @version 1.1
+ * @version 1.2
  */
-inline class Complex64VectorValue(val data:  Array<Complex64Value>) : ComplexVectorValue<Double> {
+inline class Complex64VectorValue(val data: DoubleArray) : ComplexVectorValue<Double> {
+    /**
+     * Constructor given an Array of [Complex32Value]s
+     *
+     * @param value Array of [Complex32Value]s
+     */
+    constructor(value: Array<Complex32Value>) : this(DoubleArray(2 * value.size) {
+        if (it % 2 == 0) {
+            value[it / 2].real.value.toDouble()
+        } else {
+            value[it / 2].imaginary.value.toDouble()
+        }
+    })
+
+    /**
+     * Constructor given an Array of [Complex64Value]s
+     *
+     * @param value Array of [Complex64Value]s
+     */
+    constructor(value: Array<Complex64Value>) : this(DoubleArray(2 * value.size) {
+        if (it % 2 == 0) {
+            value[it / 2].real.value
+        } else {
+            value[it / 2].imaginary.value
+        }
+    })
 
     companion object {
         /**
@@ -21,8 +46,8 @@ inline class Complex64VectorValue(val data:  Array<Complex64Value>) : ComplexVec
          * @param size Size of the new [Complex32VectorValue]
          * @param rnd A [SplittableRandom] to generate the random numbers.
          */
-        fun random(size: Int, rnd: SplittableRandom = SplittableRandom(System.currentTimeMillis())) = Complex64VectorValue(Array(size) {
-            Complex64Value(DoubleValue(Double.fromBits(rnd.nextLong())), DoubleValue(Double.fromBits(rnd.nextLong())))
+        fun random(size: Int, rnd: SplittableRandom = SplittableRandom(System.currentTimeMillis())) = Complex64VectorValue(DoubleArray(2 * size) {
+            rnd.nextDouble()
         })
 
         /**
@@ -30,8 +55,8 @@ inline class Complex64VectorValue(val data:  Array<Complex64Value>) : ComplexVec
          *
          * @param size Size of the new [Complex32VectorValue]
          */
-        fun one(size: Int) = Complex64VectorValue(Array(size) {
-            Complex64Value.ONE
+        fun one(size: Int) = Complex64VectorValue(DoubleArray(2 * size) {
+            1.0
         })
 
         /**
@@ -40,12 +65,12 @@ inline class Complex64VectorValue(val data:  Array<Complex64Value>) : ComplexVec
          * @param size Size of the new [Complex32VectorValue]
          * @param rnd A [SplittableRandom] to generate the random numbers.
          */
-        fun zero(size: Int) = Complex64VectorValue(Array(size) {
-            Complex64Value.ZERO
+        fun zero(size: Int) = Complex64VectorValue(DoubleArray(2 * size) {
+            0.0
         })
     }
 
-
+    /** Logical size of the [Complex64VectorValue]. */
     override val logicalSize: Int
         get() = this.data.size / 2
 
@@ -56,9 +81,9 @@ inline class Complex64VectorValue(val data:  Array<Complex64Value>) : ComplexVec
      * @param i Index of the entry.
      * @return The value at index i.
      */
-    override fun get(i: Int) = this.data[i]
-    override fun real(i: Int) = this.data[i].real
-    override fun imaginary(i: Int) = this.data[i].imaginary
+    override fun get(i: Int) = Complex64Value(this.data[i shl 1], this.data[(i shl 1) + 1])
+    override fun real(i: Int) = DoubleValue(this.data[i shl 1])
+    override fun imaginary(i: Int) = DoubleValue(this.data[(i shl 1) + 1])
 
     override fun compareTo(other: Value): Int {
         throw IllegalArgumentException("ComplexVectorValues can can only be compared for equality.")
@@ -70,8 +95,7 @@ inline class Complex64VectorValue(val data:  Array<Complex64Value>) : ComplexVec
      * @return The indices of this [Complex64VectorValue]
      */
     override val indices: IntRange
-        get() = this.data.indices
-
+        get() = (0 until this.logicalSize)
 
     /**
      * Returns the i-th entry of  this [Complex64VectorValue] as [Boolean]. All entries with index % 2 == 0 correspond
@@ -80,21 +104,21 @@ inline class Complex64VectorValue(val data:  Array<Complex64Value>) : ComplexVec
      * @param i Index of the entry.
      * @return The value at index i.
      */
-    override fun getAsBool(i: Int): Boolean = this.data[i] != Complex64Value.ZERO
+    override fun getAsBool(i: Int): Boolean = this[i] != Complex64Value.ZERO
 
     /**
      * Returns true, if this [Complex64VectorValue] consists of all zeroes, i.e. [0, 0, ... 0]
      *
      * @return True, if this [Complex64VectorValue] consists of all zeroes
      */
-    override fun allZeros(): Boolean = this.data.all { it == Complex64Value.ZERO }
+    override fun allZeros(): Boolean = this.data.all { it == 0.0 }
 
     /**
      * Returns true, if this [Complex64VectorValue] consists of all ones, i.e. [1, 1, ... 1]
      *
      * @return True, if this [Complex64VectorValue] consists of all ones
      */
-    override fun allOnes(): Boolean = this.data.all { it == Complex64Value.ONE }
+    override fun allOnes(): Boolean = this.data.all { it == 1.0 }
 
     /**
      * Creates and returns a copy of this [Complex64VectorValue].
@@ -103,118 +127,259 @@ inline class Complex64VectorValue(val data:  Array<Complex64Value>) : ComplexVec
      */
     override fun copy(): Complex64VectorValue = Complex64VectorValue(this.data.copyOf())
 
-    override fun plus(other: VectorValue<*>) = Complex64VectorValue(Array(this.data.size) {
-        this[it] + other[it].asComplex64()
+    override fun plus(other: VectorValue<*>) = Complex64VectorValue(when (other) {
+        is Complex32VectorValue -> DoubleArray(this.data.size) { this.data[it] + other.data[it] }
+        is Complex64VectorValue -> DoubleArray(this.data.size) { this.data[it] + other.data[it] }
+        else -> DoubleArray(this.data.size) {
+            if (it % 2 == 0) {
+                this.data[it] + other[it].value.toDouble()
+            } else {
+                this.data[it]
+            }
+        }
     })
 
-    override fun minus(other: VectorValue<*>) = Complex64VectorValue(Array(this.data.size) {
-        this[it] - other[it].asComplex64()
+    override fun minus(other: VectorValue<*>) = Complex64VectorValue(when (other) {
+        is Complex32VectorValue -> DoubleArray(this.data.size) { this.data[it] - other.data[it] }
+        is Complex64VectorValue -> DoubleArray(this.data.size) { this.data[it] - other.data[it] }
+        else -> DoubleArray(this.data.size) {
+            if (it % 2 == 0) {
+                this.data[it] - other[it].value.toDouble()
+            } else {
+                this.data[it]
+            }
+        }
     })
 
-    override fun times(other: VectorValue<*>) = Complex64VectorValue(Array(this.data.size) {
-        this[it] * other[it].asComplex64()
+    override fun times(other: VectorValue<*>) = Complex64VectorValue(when (other) {
+        is Complex32VectorValue -> DoubleArray(this.data.size) {
+            if (it % 2 == 0) {
+                this.data[it] * other.data[it] - this.data[it + 1] * other.data[it + 1]
+            } else {
+                this.data[it - 1] * other.data[it] + this.data[it] * other.data[it - 1]
+            }
+        }
+        is Complex64VectorValue -> DoubleArray(this.data.size) {
+            if (it % 2 == 0) {
+                this.data[it] * other.data[it] - this.data[it + 1] * other.data[it + 1]
+            } else {
+                this.data[it - 1] * other.data[it] + this.data[it] * other.data[it - 1]
+            }
+        }
+        else -> DoubleArray(this.data.size) { this.data[it] * other[it].value.toDouble() }
     })
 
-    override fun div(other: VectorValue<*>) = Complex64VectorValue(Array(this.data.size) {
-        this[it] / other[it].asComplex64()
+    override fun div(other: VectorValue<*>) = when (other) {
+        is Complex64VectorValue -> internalComplex64VectorValueDiv(other)
+        is Complex32VectorValue -> internalComplex32VectorValueDiv(other)
+        else -> Complex64VectorValue(DoubleArray(this.data.size) { this.data[it] / other[it].value.toDouble() })
+    }
+
+    /**
+     * Internal division implementations for [Complex64VectorValue]s.
+     */
+    private fun internalComplex64VectorValueDiv(other: Complex64VectorValue): Complex64VectorValue {
+        val doubles = DoubleArray(this.data.size)
+        for (i in 0 until this.data.size / 2) {
+            val c = other.data[i shl 1]
+            val d = other.data[(i shl 1) + 1]
+            if (kotlin.math.abs(c) < kotlin.math.abs(d)) {
+                val q = c / d
+                val denominator = c * q + d
+                doubles[i shl 1] = (this.data[i shl 1] * q + this.data[(i shl 1) + 1]) / denominator
+                doubles[(i shl 1) + 1] = (this.data[(i shl 1) + 1] * q - this.data[i shl 1]) / denominator
+            } else {
+                val q = d / c
+                val denominator = d * q + c
+                doubles[i shl 1] = (this.data[(i shl 1) + 1] * q + this.data[(i shl 1)]) / denominator
+                doubles[(i shl 1) + 1] = (this.data[(i shl 1) + 1] - this.data[i shl 1] * q) / denominator
+            }
+        }
+        return Complex64VectorValue(doubles)
+    }
+
+    /**
+     * Internal division implementations for [Complex32VectorValue]s.
+     */
+    private fun internalComplex32VectorValueDiv(other: Complex32VectorValue): Complex64VectorValue {
+        val doubles = DoubleArray(this.data.size)
+        for (i in 0 until this.data.size / 2) {
+            val c = other.data[i shl 1]
+            val d = other.data[i shl 1 + 1]
+            if (kotlin.math.abs(c) < kotlin.math.abs(d)) {
+                val q = c / d
+                val denominator = c * q + d
+                doubles[i shl 1] = (this.data[i shl 1] * q + this.data[(i shl 1) + 1]) / denominator
+                doubles[(i shl 1) + 1] = (this.data[(i shl 1) + 1] * q - this.data[i shl 1]) / denominator
+            } else {
+                val q = d / c
+                val denominator = d * q + c
+                doubles[i shl 1] = (this.data[(i shl 1) + 1] * q + this.data[(i shl 1)]) / denominator
+                doubles[(i shl 1) + 1] = (this.data[(i shl 1) + 1] * q - this.data[i shl 1]) / denominator
+            }
+        }
+        return Complex64VectorValue(doubles)
+    }
+
+    override fun plus(other: NumericValue<*>) = Complex64VectorValue(when (other) {
+        is Complex32Value -> DoubleArray(this.data.size) {
+            if (it % 2 == 0) {
+                this.data[it] + other.data[0]
+            } else {
+                this.data[it] + other.data[1]
+            }
+        }
+        is Complex64Value -> DoubleArray(this.data.size) {
+            if (it % 2 == 0) {
+                this.data[it] + other.data[0]
+            } else {
+                this.data[it] + other.data[1]
+            }
+        }
+        else -> DoubleArray(this.data.size) {
+            if (it % 2 == 0) {
+                this.data[it] + other.value.toDouble()
+            } else {
+                this.data[it]
+            }
+        }
     })
 
-    override fun plus(other: NumericValue<*>) = Complex64VectorValue(Array(this.data.size) {
-        this[it] + other.asComplex64()
+    override fun minus(other: NumericValue<*>) = Complex64VectorValue(when (other) {
+        is Complex32Value -> DoubleArray(this.data.size) {
+            if (it % 2 == 0) {
+                this.data[it] - other.data[0]
+            } else {
+                this.data[it] - other.data[1]
+            }
+        }
+        is Complex64Value -> DoubleArray(this.data.size) {
+            if (it % 2 == 0) {
+                this.data[it] - other.data[0]
+            } else {
+                this.data[it] - other.data[1]
+            }
+        }
+        else -> DoubleArray(this.data.size) {
+            if (it % 2 == 0) {
+                this.data[it] - other.value.toDouble()
+            } else {
+                this.data[it]
+            }
+        }
     })
 
-    override fun minus(other: NumericValue<*>) = Complex64VectorValue(Array(this.data.size) {
-        this[it] - other.asComplex64()
+
+    override fun times(other: NumericValue<*>) = Complex64VectorValue(when (other) {
+        is Complex32Value -> DoubleArray(this.data.size) {
+            if (it % 2 == 0) {
+                this.data[it] * other.data[0] - this.data[it + 1] * other.data[1]
+            } else {
+                this.data[it - 1] * other.data[1] + this.data[it] * other.data[0]
+            }
+        }
+        is Complex64Value -> DoubleArray(this.data.size) {
+            if (it % 2 == 0) {
+                this.data[it] * other.data[0] - this.data[it + 1] * other.data[1]
+            } else {
+                this.data[it - 1] * other.data[1] + this.data[it] * other.data[0]
+            }
+        }
+        else -> DoubleArray(this.data.size) { this.data[it] * other.value.toDouble() }
     })
 
-    override fun times(other: NumericValue<*>) = Complex64VectorValue(Array(this.data.size) {
-        this[it] * other.asComplex64()
+    override fun div(other: NumericValue<*>) = when (other) {
+        is Complex64Value -> this.internalComplex64ValueDiv(other)
+        is Complex32Value -> this.internalComplex32ValueDiv(other)
+        else -> Complex64VectorValue(DoubleArray(this.data.size) { this.data[it] / other.value.toDouble() })
+    }
+
+    /**
+     * Internal division implementations for [Complex64Value]s.
+     */
+    private fun internalComplex64ValueDiv(other: Complex64Value): Complex64VectorValue {
+        val doubles = DoubleArray(this.data.size)
+        for (i in 0 until this.data.size / 2) {
+            val c = other.data[0]
+            val d = other.data[1]
+            if (kotlin.math.abs(c) < kotlin.math.abs(d)) {
+                val q = c / d
+                val denominator = c * q + d
+                doubles[i shl 1] = (this.data[i shl 1] * q + this.data[(i shl 1) + 1]) / denominator
+                doubles[(i shl 1) + 1] = (this.data[(i shl 1) + 1] * q - this.data[i shl 1]) / denominator
+            } else {
+                val q = d / c
+                val denominator = d * q + c
+                doubles[i shl 1] = (this.data[(i shl 1) + 1] * q + this.data[(i shl 1)]) / denominator
+                doubles[(i shl 1) + 1] = (this.data[(i shl 1) + 1] - this.data[i shl 1] * q) / denominator
+            }
+        }
+        return Complex64VectorValue(doubles)
+    }
+
+    /**
+     * Internal division implementations for [Complex32Value]s.
+     */
+    private fun internalComplex32ValueDiv(other: Complex32Value): Complex64VectorValue {
+        val doubles = DoubleArray(this.data.size)
+        for (i in 0 until this.data.size / 2) {
+            val c = other.data[0]
+            val d = other.data[1]
+            if (kotlin.math.abs(c) < kotlin.math.abs(d)) {
+                val q = c / d
+                val denominator = c * q + d
+                doubles[i shl 1] = (this.data[i shl 1] * q + this.data[(i shl 1) + 1]) / denominator
+                doubles[(i shl 1) + 1] = (this.data[(i shl 1) + 1] * q - this.data[i shl 1]) / denominator
+            } else {
+                val q = d / c
+                val denominator = d * q + c
+                doubles[i shl 1] = (this.data[(i shl 1) + 1] * q + this.data[(i shl 1)]) / denominator
+                doubles[(i shl 1) + 1] = (this.data[(i shl 1) + 1] - this.data[i shl 1] * q) / denominator
+            }
+        }
+        return Complex64VectorValue(doubles)
+    }
+
+    override fun pow(x: Int) = Complex64VectorValue(DoubleArray(this.data.size) {
+        TODO()
     })
 
-    override fun div(other: NumericValue<*>) = Complex64VectorValue(Array(this.data.size) {
-        this[it] / other.asComplex64()
+    override fun sqrt() = Complex64VectorValue(DoubleArray(this.data.size) {
+        TODO()
     })
 
-    override fun pow(x: Int) = Complex64VectorValue(Array(this.data.size) {
-        this.data[it].pow(x)
-    })
-
-    override fun sqrt() = Complex64VectorValue(Array(this.data.size) {
-        this.data[it].sqrt()
-    })
-
-    override fun abs() = Complex64VectorValue(Array(this.data.size) {
-        this.data[it].abs()
-    })
+    override fun abs() = Complex64VectorValue(DoubleArray(this.data.size) { kotlin.math.abs(this.data[it]) })
 
     override fun sum(): Complex64Value {
         var real = 0.0
         var imaginary = 0.0
-        this.indices.forEach {
-            real += this.real(it).value
-            imaginary += this.imaginary(it).value
+        this.data.forEachIndexed { i, d ->
+            if (i % 2 == 0) {
+                real += d
+            } else {
+                imaginary += d
+            }
         }
         return Complex64Value(real, imaginary)
     }
 
     override fun norm2(): Complex64Value {
-        var sum = Complex64Value(0.0, 0.0)
-        for (i in this.indices) {
-            sum += this[i].pow(2)
-        }
-        return sum.sqrt()
+        TODO()
     }
 
-    override fun dot(other: VectorValue<*>): DoubleValue {
-        var sum = 0.0
-        for (i in this.indices) {
-            sum += (other[i].asComplex64() * this[i].conjugate()).real.value
-        }
-        return DoubleValue(sum)
+    override fun dot(other: VectorValue<*>): Complex64Value {
+        TODO()
     }
 
     override fun l1(other: VectorValue<*>): Complex64Value {
-        var sum = Complex64Value(0.0, 0.0)
-        for (i in this.indices) {
-            sum += (other[i].asComplex64() - this[i]).abs()
-        }
-        return sum
+        TODO()
     }
 
     override fun l2(other: VectorValue<*>): Complex64Value {
-        var sReal = 0.0
-        var sImaginary = 0.0
-        when (other) {
-            is Complex32VectorValue -> {
-                for (i in this.indices) {
-                    val d = (other.data[i] - this.data[i]).pow(2)
-                    sReal += d.data[0]
-                    sImaginary += d.data[1]
-                }
-            }
-            is Complex64VectorValue -> {
-                for (i in this.indices) {
-                    val d = (other.data[i] - this.data[i]).pow(2)
-                    sReal += d.data[0]
-                    sImaginary += d.data[1]
-                }
-            }
-            else -> {
-                for (i in this.indices) {
-                    val d = (other[i] - this[i]).pow(2)
-                    sReal += d.real.value
-                    sImaginary += d.imaginary.value
-                }
-            }
-        }
-        return Complex64Value(sReal, sImaginary).sqrt()
+        TODO()
     }
 
     override fun lp(other: VectorValue<*>, p: Int): Complex64Value {
-        var sum = Complex64Value(0.0, 0.0)
-        for (i in this.indices) {
-            sum += (other[i].asComplex64() - this[i]).pow(p)
-        }
-        return sum.pow(1.0 / p)
+        TODO()
     }
 }

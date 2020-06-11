@@ -135,7 +135,7 @@ interface VectorValue<T: Number> : Value {
      *
      * @return Sum of the elements of this [VectorValue].
      */
-    infix fun dot(other: VectorValue<*>): RealValue<*>
+    infix fun dot(other: VectorValue<*>): NumericValue<*>
 
     /**
      * Special implementation of the L1 / Manhattan distance. Can be overridden to create optimized versions of it.
