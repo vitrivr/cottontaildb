@@ -6,12 +6,11 @@ import org.vitrivr.cottontail.model.values.types.RealValue
 import org.vitrivr.cottontail.model.values.types.Value
 import java.util.*
 import kotlin.math.atan2
-import kotlin.math.sign
 
 /**
  * Represents a complex number backed by double-precision (64bit) [Double]s
  *
- * @version 1.1
+ * @version 1.1.1
  * @author Ralph Gasser
  */
 inline class Complex64Value(val data: DoubleArray): ComplexValue<Double> {
@@ -81,7 +80,7 @@ inline class Complex64Value(val data: DoubleArray): ComplexValue<Double> {
     constructor(real: Number, imaginary: Number) : this(doubleArrayOf(real.toDouble(), imaginary.toDouble()))
 
     override val value: Double
-        get() = this.modulo().value
+        get() = this.abs().value
 
     override val real: DoubleValue
         get() = DoubleValue(this.data[0])
@@ -93,11 +92,9 @@ inline class Complex64Value(val data: DoubleArray): ComplexValue<Double> {
         get() = -1
 
     /**
-     * Comparison to other [Value]s. When compared to a [RealValue], then only the real part of the [Complex32Value] is considered.
+     * Comparison to other [Value]s.
      */
     override fun compareTo(other: Value): Int = when (other) {
-        is Complex32Value -> (modulo() - other.modulo()).value.toInt().sign
-        is Complex64Value -> (modulo() - other.modulo()).value.toInt().sign
         is ByteValue -> this.real.compareTo(other)
         is ShortValue -> this.real.compareTo(other)
         is IntValue -> this.real.compareTo(other)
@@ -107,6 +104,9 @@ inline class Complex64Value(val data: DoubleArray): ComplexValue<Double> {
         else -> throw IllegalArgumentException("Complex64Value can only be compared to other numeric values.")
     }
 
+    /**
+     * Comparison to other [Value]s.
+     */
     override fun compareTo(other: NumericValue<Double>): Int = this.real.compareTo(other.real)
 
     /**
@@ -138,13 +138,6 @@ inline class Complex64Value(val data: DoubleArray): ComplexValue<Double> {
      * @return The conjugate [Complex64Value].
      */
     override fun conjugate(): Complex64Value = Complex64Value(this.data[0], -this.data[1])
-
-    /**
-     * Calculates and returns the modulo of this [Complex32Value].
-     *
-     * @return The module of this [Complex32Value].
-     */
-    override fun modulo() = DoubleValue(kotlin.math.sqrt(this.data[0] * this.data[0] + this.data[1] * this.data[1]))
 
     override fun unaryMinus(): Complex64Value = Complex64Value(-this.data[0], -this.data[1])
 
@@ -197,17 +190,17 @@ inline class Complex64Value(val data: DoubleArray): ComplexValue<Double> {
         }
     }
 
-    override fun abs(): Complex64Value = Complex64Value(this.real.abs(), this.imaginary.abs())
+    override fun abs(): DoubleValue = DoubleValue(kotlin.math.sqrt(this.data[0] * this.data[0] + this.data[1] * this.data[1]))
 
     override fun pow(x: Double): Complex64Value {
-        val real = x * kotlin.math.ln(this.modulo().value)
+        val real = x * kotlin.math.ln(this.abs().value)
         val imaginary = x * atan2(this.data[1], this.data[0])
         val exp = kotlin.math.exp(real)
         return Complex64Value(exp * kotlin.math.cos(imaginary), exp * kotlin.math.sin(imaginary))
     }
 
     override fun pow(x: Int): Complex64Value {
-        val real = x * kotlin.math.ln(this.modulo().value)
+        val real = x * kotlin.math.ln(this.abs().value)
         val imaginary = x * atan2(this.data[1], this.data[0])
         val exp = kotlin.math.exp(real)
         return Complex64Value(exp * kotlin.math.cos(imaginary), exp * kotlin.math.sin(imaginary))
@@ -218,7 +211,7 @@ inline class Complex64Value(val data: DoubleArray): ComplexValue<Double> {
         return Complex64Value(expReal * kotlin.math.cos(this.data[1]), expReal * kotlin.math.sin(this.data[1]))
     }
 
-    override fun ln() = Complex64Value(kotlin.math.ln(this.modulo().value), atan2(this.data[1], this.data[0]))
+    override fun ln() = Complex64Value(kotlin.math.ln(this.abs().value), atan2(this.data[1], this.data[0]))
 
     override fun sqrt(): Complex64Value = pow(1.0 / 2.0)
 

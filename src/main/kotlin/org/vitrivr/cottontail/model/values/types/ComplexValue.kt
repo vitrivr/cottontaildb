@@ -8,7 +8,7 @@ import org.vitrivr.cottontail.model.values.*
  * or [Double]. This is  an abstraction over the existing primitive types provided  by Kotlin. It
  * allows for the advanced type system implemented by Cottontail DB.
  *
- * @version 1.0
+ * @version 1.1
  * @author Ralph Gasser
  */
 interface ComplexValue<T: Number>: NumericValue<T> {
@@ -18,13 +18,10 @@ interface ComplexValue<T: Number>: NumericValue<T> {
     /** Returns the complex conjugate of this [ComplexValue]. */
     fun conjugate(): ComplexValue<T>
 
-    /** Returns the modulo of this [ComplexValue] */
-    fun modulo(): RealValue<T>
-
-    override fun asDouble(): DoubleValue = this.modulo().asDouble()
-    override fun asFloat(): FloatValue = this.modulo().asFloat()
-    override fun asLong(): LongValue = this.modulo().asLong()
-    override fun asInt(): IntValue = this.modulo().asInt()
-    override fun asShort(): ShortValue = this.modulo().asShort()
-    override fun asByte(): ByteValue = this.modulo().asByte()
+    override fun asDouble(): DoubleValue = this.abs().asDouble()
+    override fun asFloat(): FloatValue = this.abs().asFloat()
+    override fun asLong(): LongValue = this.abs().asLong()
+    override fun asInt(): IntValue = this.abs().asInt()
+    override fun asShort(): ShortValue = this.abs().asShort()
+    override fun asByte(): ByteValue = this.abs().asByte()
 }
