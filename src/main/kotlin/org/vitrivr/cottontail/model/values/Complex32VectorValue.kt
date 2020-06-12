@@ -1,10 +1,12 @@
 package org.vitrivr.cottontail.model.values
 
+import org.apache.commons.math3.util.FastMath
 import org.vitrivr.cottontail.model.values.types.ComplexVectorValue
 import org.vitrivr.cottontail.model.values.types.NumericValue
 import org.vitrivr.cottontail.model.values.types.Value
 import org.vitrivr.cottontail.model.values.types.VectorValue
 import java.util.*
+import kotlin.math.atan2
 
 /**
  * This is an abstraction over an [Array] and it represents a vector of [Complex32]s.
@@ -337,28 +339,105 @@ inline class Complex32VectorValue(val data: FloatArray) : ComplexVectorValue<Flo
         return Complex32VectorValue(floats)
     }
 
-    override fun pow(x: Int) = TODO()
+    override fun pow(x: Int): Complex32VectorValue {
+        val floats = FloatArray(this.data.size)
+        for (i in 0 until this.data.size / 2) {
+            val real = x * kotlin.math.ln(kotlin.math.sqrt(this.data[i shl 1] * this.data[i shl 1] + this.data[(i shl 1) + 1] * this.data[(i shl 1) + 1]))
+            val imaginary = x * atan2(this.data[(i shl 1) + 1], this.data[i shl 1])
+            val exp = kotlin.math.exp(real)
+            floats[i shl 1] = exp * kotlin.math.cos(imaginary)
+            floats[(i shl 1) + 1] = exp * kotlin.math.sin(imaginary)
+        }
+        return Complex32VectorValue(floats)
+    }
 
-    override fun sqrt() = TODO()
+    /**
+     * Calculates the vector of the square root values of this [Complex32VectorValue].
+     *
+     * @return [Complex32VectorValue] containing the square root values of this [Complex32VectorValue].
+     */
+    override fun sqrt(): Complex32VectorValue {
+        val floats = FloatArray(this.data.size)
+        for (i in 0 until this.data.size / 2) {
+            if (this.data[i shl 1] == 0.0f && this.data[(i shl 1) + 1] == 0.0f) {
+                continue
+            }
+            val modulus = kotlin.math.sqrt(this.data[i shl 1] * this.data[i shl 1] + this.data[(i shl 1) + 1] * this.data[(i shl 1) + 1])
+            val t = kotlin.math.sqrt((kotlin.math.abs(this.data[i shl 1]) + modulus) / 2.0f)
+            if (this.data[i shl 1] >= 0.0) {
+                floats[i shl 1] = t
+                floats[(i shl 1) + 1] = this.data[(i shl 1) + 1] / (2.0f * t)
+            } else {
+                floats[i shl 1] = kotlin.math.abs(this.data[(i shl 1) + 1]) / (2.0f * t)
+                floats[(i shl 1) + 1] = FastMath.copySign(1.0f, this.data[(i shl 1) + 1]) * t
+            }
+        }
+        return Complex32VectorValue(floats)
+    }
 
-    override fun abs() = TODO()
+    /**
+     * Calculates the vector of the absolute values of this [Complex64VectorValue]. Note that the
+     * absolute value or modulus of a complex number is a real number. Hence the resulting
+     * [VectorValue] is a [DoubleVectorValue].
+     *
+     * @return [DoubleVectorValue] containing the absolute values of this [Complex64VectorValue].
+     */
+    override fun abs() = FloatVectorValue(FloatArray(this.data.size / 2) { kotlin.math.sqrt(this.data[it shl 1] * this.data[it shl 1] + this.data[(it shl 1) + 1] * this.data[(it shl 1) + 1]) })
 
+    /**
+     * Calculates the sum of the elements of this [Complex32VectorValue].
+     *
+     * @return Sum of this [Complex32VectorValue]'s elements.
+     */
     override fun sum(): Complex32Value {
         var real = 0.0f
         var imaginary = 0.0f
-        this.data.forEachIndexed { i, d ->
-            if (i % 2 == 0) {
-                real += d
-            } else {
-                imaginary += d
-            }
+        for (i in 0 until this.data.size / 2) {
+            real += this.data[i shl 1]
+            imaginary += this.data[(i shl 1) + 1]
         }
         return Complex32Value(real, imaginary)
     }
 
+    /**
+     * Calculates the complex dot product between this [Complex32VectorValue] and another [VectorValue].
+     *
+     * @param other The other [VectorValue].
+     * @return [Complex32Value] dot product of this and the other vector.
+     */
+    override fun dot(other: VectorValue<*>): Complex32Value = when (other) {
+        is Complex32VectorValue -> {
+            var real = 0.0f
+            var imaginary = 0.0f
+            for (i in 0 until this.data.size / 2) {
+                real += this.data[i shl 1] * other.data[i shl 1] - this.data[(i shl 1) + 1] * (-other.data[(i shl 1) + 1])
+                imaginary += this.data[i shl 1] * (-other.data[(i shl 1) + 1]) + this.data[(i shl 1) + 1] * other.data[(i shl 1)]
+            }
+            Complex32Value(real, imaginary)
+        }
+        is Complex64VectorValue -> {
+            var real = 0.0f
+            var imaginary = 0.0f
+            for (i in 0 until this.data.size / 2) {
+                real += (this.data[i shl 1] * other.data[i shl 1] - this.data[(i shl 1) + 1] * (-other.data[(i shl 1) + 1])).toFloat()
+                imaginary += (this.data[i shl 1] * (-other.data[(i shl 1) + 1]) + this.data[(i shl 1) + 1] * other.data[(i shl 1)]).toFloat()
+            }
+            Complex32Value(real, imaginary)
+        }
+        else -> {
+            var real = 0.0f
+            var imaginary = 0.0f
+            for (i in 0 until this.data.size / 2) {
+                real += this.data[i shl 1] * other[i].value.toFloat()
+                imaginary += this.data[(i shl 1) + 1] * other[i].value.toFloat()
+            }
+            Complex32Value(real, imaginary)
+        }
+    }
+
+
     override fun norm2(): Complex32Value = TODO()
 
-    override fun dot(other: VectorValue<*>): FloatValue = TODO()
 
     override fun l1(other: VectorValue<*>): Complex32Value = TODO()
 

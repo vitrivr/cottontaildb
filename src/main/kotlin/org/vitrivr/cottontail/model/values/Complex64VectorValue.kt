@@ -1,10 +1,12 @@
 package org.vitrivr.cottontail.model.values
 
+import org.apache.commons.math3.util.FastMath
 import org.vitrivr.cottontail.model.values.types.ComplexVectorValue
 import org.vitrivr.cottontail.model.values.types.NumericValue
 import org.vitrivr.cottontail.model.values.types.Value
 import org.vitrivr.cottontail.model.values.types.VectorValue
 import java.util.*
+import kotlin.math.atan2
 
 /**
  * This is an abstraction over an [Array] and it represents a vector of [Complex64]s.
@@ -340,34 +342,103 @@ inline class Complex64VectorValue(val data: DoubleArray) : ComplexVectorValue<Do
         return Complex64VectorValue(doubles)
     }
 
-    override fun pow(x: Int) = Complex64VectorValue(DoubleArray(this.data.size) {
-        TODO()
-    })
+    override fun pow(x: Int): Complex64VectorValue {
+        val doubles = DoubleArray(this.data.size)
+        for (i in 0 until this.data.size / 2) {
+            val real = x * kotlin.math.ln(kotlin.math.sqrt(this.data[i shl 1] * this.data[i shl 1] + this.data[(i shl 1) + 1] * this.data[(i shl 1) + 1]))
+            val imaginary = x * atan2(this.data[(i shl 1) + 1], this.data[i shl 1])
+            val exp = kotlin.math.exp(real)
+            doubles[i shl 1] = exp * kotlin.math.cos(imaginary)
+            doubles[(i shl 1) + 1] = exp * kotlin.math.sin(imaginary)
+        }
+        return Complex64VectorValue(doubles)
+    }
 
+    /**
+     * Calculates the vector of the square root values of this [Complex64VectorValue].
+     *
+     * @return [Complex64VectorValue] containing the square root values of this [Complex64VectorValue].
+     */
     override fun sqrt() = Complex64VectorValue(DoubleArray(this.data.size) {
-        TODO()
+        val doubles = DoubleArray(this.data.size)
+        for (i in 0 until this.data.size / 2) {
+            if (this.data[i shl 1] == 0.0 && this.data[(i shl 1) + 1] == 0.0) {
+                continue
+            }
+            val modulus = kotlin.math.sqrt(this.data[i shl 1] * this.data[i shl 1] + this.data[(i shl 1) + 1] * this.data[(i shl 1) + 1])
+            val t = kotlin.math.sqrt((kotlin.math.abs(this.data[i shl 1]) + modulus) / 2.0)
+            if (this.data[i shl 1] >= 0.0) {
+                doubles[i shl 1] = t
+                doubles[(i shl 1) + 1] = this.data[(i shl 1) + 1] / (2.0 * t)
+            } else {
+                doubles[i shl 1] = kotlin.math.abs(this.data[(i shl 1) + 1]) / (2.0 * t)
+                doubles[(i shl 1) + 1] = FastMath.copySign(1.0, this.data[(i shl 1) + 1]) * t
+            }
+        }
+        return Complex64VectorValue(doubles)
     })
 
-    override fun abs() = Complex64VectorValue(DoubleArray(this.data.size) { kotlin.math.abs(this.data[it]) })
+    /**
+     * Calculates the vector of the absolute values of this [Complex64VectorValue]. Note that the
+     * absolute value or modulus of a complex number is a real number. Hence the resulting
+     * [VectorValue] is a [DoubleVectorValue].
+     *
+     * @return [DoubleVectorValue] containing the absolute values of this [Complex64VectorValue].
+     */
+    override fun abs() = DoubleVectorValue(DoubleArray(this.data.size / 2) { kotlin.math.sqrt(this.data[it shl 1] * this.data[it shl 1] + this.data[(it shl 1) + 1] * this.data[(it shl 1) + 1]) })
 
+    /**
+     * Calculates the sum of the elements of this [Complex64VectorValue].
+     *
+     * @return Sum of this [Complex64VectorValue]'s elements.
+     */
     override fun sum(): Complex64Value {
         var real = 0.0
         var imaginary = 0.0
-        this.data.forEachIndexed { i, d ->
-            if (i % 2 == 0) {
-                real += d
-            } else {
-                imaginary += d
-            }
+        for (i in 0 until this.data.size / 2) {
+            real += this.data[i shl 1]
+            imaginary += this.data[(i shl 1) + 1]
         }
         return Complex64Value(real, imaginary)
     }
 
-    override fun norm2(): Complex64Value {
-        TODO()
+    /**
+     * Calculates the complex dot product between this [Complex64VectorValue] and another [VectorValue].
+     *
+     * @param other The other [VectorValue].
+     * @return [Complex64Value] dot product of this and the other vector.
+     */
+    override fun dot(other: VectorValue<*>): Complex64Value = when (other) {
+        is Complex32VectorValue -> {
+            var real = 0.0
+            var imaginary = 0.0
+            for (i in 0 until this.data.size / 2) {
+                real += this.data[i shl 1] * other.data[i shl 1] - this.data[(i shl 1) + 1] * (-other.data[(i shl 1) + 1])
+                imaginary += this.data[i shl 1] * (-other.data[(i shl 1) + 1]) + this.data[(i shl 1) + 1] * other.data[(i shl 1)]
+            }
+            Complex64Value(real, imaginary)
+        }
+        is Complex64VectorValue -> {
+            var real = 0.0
+            var imaginary = 0.0
+            for (i in 0 until this.data.size / 2) {
+                real += this.data[i shl 1] * other.data[i shl 1] - this.data[(i shl 1) + 1] * (-other.data[(i shl 1) + 1])
+                imaginary += this.data[i shl 1] * (-other.data[(i shl 1) + 1]) + this.data[(i shl 1) + 1] * other.data[(i shl 1)]
+            }
+            Complex64Value(real, imaginary)
+        }
+        else -> {
+            var real = 0.0
+            var imaginary = 0.0
+            for (i in 0 until this.data.size / 2) {
+                real += this.data[i shl 1] * other[i].value.toDouble()
+                imaginary += this.data[(i shl 1) + 1] * other[i].value.toDouble()
+            }
+            Complex64Value(real, imaginary)
+        }
     }
 
-    override fun dot(other: VectorValue<*>): Complex64Value {
+    override fun norm2(): Complex64Value {
         TODO()
     }
 
