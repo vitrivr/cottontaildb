@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.RepeatedTest
 import org.vitrivr.cottontail.model.values.Complex64Value
 import org.vitrivr.cottontail.model.values.Complex64VectorValue
+import org.vitrivr.cottontail.model.values.DoubleVectorValue
 import java.util.*
 
 /**
@@ -17,8 +18,12 @@ class Complex64VectorValueTest {
     private val random = SplittableRandom()
 
     companion object {
-        private const val DELTA = 1e-6
+        private const val DELTA = 1e-14
         fun isApproximatelyTheSame(expected: Double, actual: Double) {
+            if (actual == 0.0) {
+                Assertions.assertEquals(expected, actual)
+                return
+            }
             val ratio = expected / actual
             Assertions.assertTrue(ratio > 1.0 - DELTA)
             Assertions.assertTrue(ratio < 1.0 + DELTA)
@@ -105,6 +110,18 @@ class Complex64VectorValueTest {
     }
 
     @RepeatedTest(100)
+    fun testAbs() {
+        val size = random.nextInt(2048)
+        val c1 = Complex64VectorValue.random(size, this.random)
+        val abs: DoubleVectorValue = c1.abs()
+
+        for (i in 0 until size) {
+            val absp = c1[i].abs()
+            isApproximatelyTheSame(absp.value, abs[i].value)
+        }
+    }
+
+    @RepeatedTest(100)
     fun testSqrt() {
         val size = random.nextInt(2048)
         val c1 = Complex64VectorValue.random(size, this.random)
@@ -134,5 +151,20 @@ class Complex64VectorValueTest {
 
         isApproximatelyTheSame(dotp.real.value, dot.real.value)
         isApproximatelyTheSame(dotp.imaginary.value, dot.imaginary.value)
+    }
+
+    @RepeatedTest(100)
+    fun testSum() {
+        val size = random.nextInt(2048)
+        val c1 = Complex64VectorValue.random(size, this.random)
+        val sum: Complex64Value = c1.sum()
+
+        var sump = Complex64Value(0.0, 0.0)
+        for (i in 0 until size) {
+            sump += c1[i]
+        }
+
+        isApproximatelyTheSame(sump.real.value, sum.real.value)
+        isApproximatelyTheSame(sump.imaginary.value, sum.imaginary.value)
     }
 }

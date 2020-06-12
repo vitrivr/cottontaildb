@@ -22,8 +22,6 @@ class Complex32ValueTest {
             val r_ratio = expected.real.toFloat() / actual.real.value
             val i_ratio = expected.imaginary.toFloat() / actual.imaginary.value
 
-            println("r-ratio: $r_ratio, i-ratio: $i_ratio")
-
             Assertions.assertTrue(r_ratio > 1.0f - DELTA)
             Assertions.assertTrue(r_ratio < 1.0f + DELTA)
             Assertions.assertTrue(i_ratio > 1.0f - DELTA)

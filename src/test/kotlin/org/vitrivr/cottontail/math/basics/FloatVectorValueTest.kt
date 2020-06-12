@@ -21,7 +21,6 @@ class FloatVectorValueTest {
         private const val DELTA = 1e-4f
         fun isApproximatelyTheSame(expected: Float, actual: Float) {
             val ratio = expected / actual
-            println("ratio: $ratio")
             Assertions.assertTrue(ratio > 1.0f - DELTA)
             Assertions.assertTrue(ratio < 1.0f + DELTA)
         }
