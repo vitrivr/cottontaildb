@@ -84,8 +84,8 @@ inline class FloatValue(override val value: Float): RealValue<Float> {
     override fun abs() = FloatValue(kotlin.math.abs(this.value))
 
     override fun pow(x: Double) = DoubleValue(this.value.pow(x.toFloat()))
-    override fun pow(x: Int) = DoubleValue(this.value.pow(x))
-    override fun sqrt() = DoubleValue(kotlin.math.sqrt(this.value))
+    override fun pow(x: Int) = FloatValue(this.value.pow(x))
+    override fun sqrt() = FloatValue(kotlin.math.sqrt(this.value))
     override fun exp() = DoubleValue(kotlin.math.exp(this.value))
     override fun ln() = DoubleValue(kotlin.math.ln(this.value))
 

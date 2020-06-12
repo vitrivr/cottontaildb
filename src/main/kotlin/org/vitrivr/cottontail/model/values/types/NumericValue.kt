@@ -42,12 +42,19 @@ interface NumericValue<T : Number> : ScalarValue<T>, Comparable<NumericValue<T>>
 
     /**
      * Calculates and returns this [NumericValue] raised to the power of the given [Int].
-     * Causes an implicit cast to [NumericValue] of  [Double].
+     * Can cause an implicit cast to [NumericValue].
      *
      * @param x Exponent for the operation.
      * @return This [NumericValue] raised to the power of x.
      */
-    fun pow(x: Int): NumericValue<Double>
+    fun pow(x: Int): NumericValue<*>
+
+    /**
+     * Calculates and returns the square root of this [NumericValue]. Can cause an implicit cast.
+     *
+     * @return The square root of this [NumericValue].
+     */
+    fun sqrt(): NumericValue<*>
 
     /**
      * Calculates and returns this [NumericValue] raised to the power of the given [Double].
@@ -57,14 +64,6 @@ interface NumericValue<T : Number> : ScalarValue<T>, Comparable<NumericValue<T>>
      * @return This [NumericValue] raised to the power of x.
      */
     fun pow(x: Double): NumericValue<Double>
-
-    /**
-     * Calculates and returns the square root of this [NumericValue]. Causes an implicit cast to
-     * [NumericValue] of a [Double]
-     *
-     * @return The square root of this [NumericValue].
-     */
-    fun sqrt(): NumericValue<Double>
 
     /**
      * Calculates and returns exponential function of this [NumericValue], i.e., e^(this). Causes an
