@@ -164,12 +164,12 @@ inline class FloatVectorValue(val data: FloatArray) : RealVectorValue<Float> {
         })
     }
 
-    override fun pow(x: Int) = DoubleVectorValue(DoubleArray(this.data.size) {
-        this.data[it].pow(x).toDouble()
+    override fun pow(x: Int) = FloatVectorValue(FloatArray(this.data.size) {
+        this.data[it].pow(x)
     })
 
-    override fun sqrt() = DoubleVectorValue(DoubleArray(this.data.size) {
-        kotlin.math.sqrt(this.data[it]).toDouble()
+    override fun sqrt() = FloatVectorValue(FloatArray(this.data.size) {
+        kotlin.math.sqrt(this.data[it])
     })
 
     override fun abs() = FloatVectorValue(FloatArray(this.data.size) {

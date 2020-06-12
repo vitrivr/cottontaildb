@@ -103,14 +103,14 @@ interface VectorValue<T: Number> : Value {
      * @param x The exponent for the operation.
      * @return [VectorValue] with the element-wise values raised to the power of x.
      */
-    fun pow(x: Int): VectorValue<Double>
+    fun pow(x: Int): VectorValue<*>
 
     /**
      * Creates a new [VectorValue] that contains the square root values this [VectorValue]'s elements.
      *
      * @return [VectorValue] with the element-wise square root values.
      */
-    fun sqrt(): VectorValue<Double>
+    fun sqrt(): VectorValue<*>
 
     /**
      * Builds the sum of the elements of this [VectorValue].
