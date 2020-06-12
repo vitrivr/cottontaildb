@@ -142,7 +142,7 @@ class FloatVectorValueTest {
         val l1 = c1.l1(c2)
         val l1p = c1p.getL1Distance(c2p)
 
-        isApproximatelyTheSame(l1p.toFloat(), l1.value)
+        isApproximatelyTheSame(l1p.toFloat(), l1.value.toFloat())
     }
 
     @RepeatedTest(100)
@@ -158,7 +158,7 @@ class FloatVectorValueTest {
         val l2 = c1.l2(c2)
         val l2p = c1p.getDistance(c2p)
 
-        isApproximatelyTheSame(l2p.toFloat(), l2.value)
+        isApproximatelyTheSame(l2p.toFloat(), l2.value.toFloat())
     }
 
     @RepeatedTest(100)
@@ -174,7 +174,7 @@ class FloatVectorValueTest {
         val dot = c1.dot(c2)
         val dotp = c1p.dotProduct(c2p)
 
-        isApproximatelyTheSame(dotp.toFloat(), dot.value)
+        isApproximatelyTheSame(dotp.toFloat(), dot.value.toFloat())
     }
 
     @RepeatedTest(100)

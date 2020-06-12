@@ -145,7 +145,7 @@ interface VectorValue<T: Number> : Value {
      *
      * @param other The [VectorValue] to calculate the distance to.
      */
-    infix fun l1(other: VectorValue<*>): NumericValue<*> = ((other-this).abs()).sum()
+    infix fun l1(other: VectorValue<*>): NumericValue<*> = ((this - other).abs()).sum()
 
     /**
      * Special implementation of the L2 / Euclidean distance. Can be overridden to create optimized versions of it.
@@ -155,7 +155,7 @@ interface VectorValue<T: Number> : Value {
      *
      * @param other The [VectorValue] to calculate the distance to.
      */
-    infix fun l2(other: VectorValue<*>): NumericValue<*> = ((other-this).pow(2)).sum().sqrt()
+    infix fun l2(other: VectorValue<*>): NumericValue<*> = ((this - other).pow(2)).sum().sqrt()
 
     /**
      * Special implementation of the LP / Minkowski distance. Can be overridden to create optimized versions of it.
@@ -165,5 +165,5 @@ interface VectorValue<T: Number> : Value {
      *
      * @param other The [VectorValue] to calculate the distance to.
      */
-    fun lp(other: VectorValue<*>, p: Int): NumericValue<*> = ((other-this).pow(p)).sum().pow(1.0/p)
+    fun lp(other: VectorValue<*>, p: Int): NumericValue<*> = ((this - other).pow(p)).sum().pow(1.0 / p)
 }
