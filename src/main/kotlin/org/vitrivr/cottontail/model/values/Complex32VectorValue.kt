@@ -81,9 +81,9 @@ inline class Complex32VectorValue(val data: FloatArray) : ComplexVectorValue<Flo
      * @param i Index of the entry.
      * @return The value at index i.
      */
-    override fun get(i: Int) = Complex32Value(this.data[i shl 1], this.data[i shl 1 + 1])
+    override fun get(i: Int) = Complex32Value(this.data[i shl 1], this.data[(i shl 1) + 1])
     override fun real(i: Int) = FloatValue(this.data[i shl 1])
-    override fun imaginary(i: Int) = FloatValue(this.data[i shl 1 + 1])
+    override fun imaginary(i: Int) = FloatValue(this.data[(i shl 1) + 1])
 
 
     override fun compareTo(other: Value): Int {
@@ -206,7 +206,7 @@ inline class Complex32VectorValue(val data: FloatArray) : ComplexVectorValue<Flo
         val floats = FloatArray(this.data.size)
         for (i in 0 until this.data.size / 2) {
             val c = other.data[i shl 1]
-            val d = other.data[i shl 1 + 1]
+            val d = other.data[(i shl 1) + 1]
             if (kotlin.math.abs(c) < kotlin.math.abs(d)) {
                 val q = c / d
                 val denominator = c * q + d
