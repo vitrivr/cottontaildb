@@ -208,7 +208,7 @@ inline class Complex64VectorValue(val data: DoubleArray) : ComplexVectorValue<Do
         val doubles = DoubleArray(this.data.size)
         for (i in 0 until this.data.size / 2) {
             val c = other.data[i shl 1]
-            val d = other.data[i shl 1 + 1]
+            val d = other.data[(i shl 1) + 1]
             if (kotlin.math.abs(c) < kotlin.math.abs(d)) {
                 val q = c / d
                 val denominator = c * q + d
