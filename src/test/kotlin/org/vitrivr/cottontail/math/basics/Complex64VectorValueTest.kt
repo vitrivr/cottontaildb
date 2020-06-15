@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.RepeatedTest
 import org.vitrivr.cottontail.model.values.Complex64Value
 import org.vitrivr.cottontail.model.values.Complex64VectorValue
+import org.vitrivr.cottontail.model.values.DoubleValue
 import org.vitrivr.cottontail.model.values.DoubleVectorValue
 import java.util.*
 
@@ -167,4 +168,62 @@ class Complex64VectorValueTest {
         isApproximatelyTheSame(sump.real.value, sum.real.value)
         isApproximatelyTheSame(sump.imaginary.value, sum.imaginary.value)
     }
+
+    @RepeatedTest(100)
+    fun testL1() {
+        val size = random.nextInt(2048)
+        val c1 = Complex64VectorValue.random(size, this.random)
+        val c2 = Complex64VectorValue.random(size, this.random)
+
+        val lp: DoubleValue = c1.l1(c2)
+        val lpp = (c1 - c2).abs().sum()
+
+        isApproximatelyTheSame(lpp.real.value, lp.real.value)
+        isApproximatelyTheSame(lpp.imaginary.value, lp.imaginary.value)
+    }
+
+    @RepeatedTest(100)
+    fun testLp() {
+        val size = random.nextInt(2048)
+        val p = random.nextInt(2, 10)
+        val c1 = Complex64VectorValue.random(size, this.random)
+        val c2 = Complex64VectorValue.random(size, this.random)
+
+        val lp: Complex64Value = c1.lp(c2, p)
+        val lpp = (c1 - c2).pow(p).sum().pow(1.0 / p)
+
+        isApproximatelyTheSame(lpp.real.value, lp.real.value)
+        isApproximatelyTheSame(lpp.imaginary.value, lp.imaginary.value)
+    }
+
+    @RepeatedTest(100)
+    fun testRealLp() {
+        val size = random.nextInt(2048)
+        val p = random.nextInt(2, 10)
+        val c1p = DoubleVectorValue.random(size, this.random)
+        val c2p = DoubleVectorValue.random(size, this.random)
+
+        val c1 = Complex64VectorValue(DoubleArray(2 * size) {
+            if (it % 2 == 0) {
+                c1p.data[it / 2]
+            } else {
+                0.0
+            }
+        })
+        val c2 = Complex64VectorValue(DoubleArray(2 * size) {
+            if (it % 2 == 0) {
+                c2p.data[it / 2]
+            } else {
+                0.0
+            }
+        })
+
+        val lp: Complex64Value = c1.lp(c2, p)
+        val lpp = c1p.lp(c2p, p)
+
+        isApproximatelyTheSame(lpp.real.value, lp.real.value)
+        isApproximatelyTheSame(0.0, lp.imaginary.value)
+
+    }
+
 }
