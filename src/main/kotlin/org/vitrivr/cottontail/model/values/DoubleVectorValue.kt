@@ -1,9 +1,6 @@
 package org.vitrivr.cottontail.model.values
 
-import org.vitrivr.cottontail.model.values.types.NumericValue
-import org.vitrivr.cottontail.model.values.types.RealVectorValue
-import org.vitrivr.cottontail.model.values.types.Value
-import org.vitrivr.cottontail.model.values.types.VectorValue
+import org.vitrivr.cottontail.model.values.types.*
 import java.util.*
 import kotlin.math.absoluteValue
 import kotlin.math.pow
@@ -141,7 +138,7 @@ inline class DoubleVectorValue(val data: DoubleArray) : RealVectorValue<Double> 
 
     override fun sum() = DoubleValue(this.data.sum())
 
-    override fun norm2(): NumericValue<*> {
+    override fun norm2(): RealValue<*> {
         var sum = 0.0
         for (i in this.data.indices) {
             sum += this.data[i].pow(2)

@@ -1,9 +1,6 @@
 package org.vitrivr.cottontail.model.values
 
-import org.vitrivr.cottontail.model.values.types.NumericValue
-import org.vitrivr.cottontail.model.values.types.RealValue
-import org.vitrivr.cottontail.model.values.types.Value
-import org.vitrivr.cottontail.model.values.types.VectorValue
+import org.vitrivr.cottontail.model.values.types.*
 import org.vitrivr.cottontail.utilities.extensions.init
 import org.vitrivr.cottontail.utilities.extensions.toByte
 import java.util.*
@@ -114,7 +111,7 @@ inline class BooleanVectorValue(val value: BitSet) : VectorValue<Byte> {
         throw UnsupportedOperationException("A BooleanVector array cannot be used to perform arithmetic operations!")
     }
 
-    override fun abs(): BooleanVectorValue {
+    override fun abs(): RealVectorValue<Byte> {
         throw UnsupportedOperationException("A BooleanVector array cannot be used to perform arithmetic operations!")
     }
 
@@ -122,7 +119,7 @@ inline class BooleanVectorValue(val value: BitSet) : VectorValue<Byte> {
         throw UnsupportedOperationException("A BooleanVector array cannot be used to perform arithmetic operations!")
     }
 
-    override fun norm2(): NumericValue<*> {
+    override fun norm2(): RealValue<*> {
         throw UnsupportedOperationException("A BooleanVector array cannot be used to perform arithmetic operations!")
     }
 

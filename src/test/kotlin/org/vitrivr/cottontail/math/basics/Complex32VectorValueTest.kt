@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.math.basics
 
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.RepeatedTest
+import org.junit.jupiter.api.Test
 import org.vitrivr.cottontail.model.values.*
 import java.util.*
 
@@ -186,10 +187,18 @@ class Complex32VectorValueTest {
         val c1 = Complex32VectorValue.random(size, this.random)
         val c2 = Complex32VectorValue.random(size, this.random)
 
-        val lp: Complex64Value = c1.lp(c2, p)
-        val lpp = (c1 - c2).pow(p).sum().pow(1.0 / p)
+        val lp: DoubleValue = c1.lp(c2, p) as DoubleValue
+        val lpp = (c1 - c2).abs().pow(p).sum().pow(1.0 / p)
 
         isApproximatelyTheSame(lpp.real.value.toFloat(), lp.real.value.toFloat())
         isApproximatelyTheSame(lpp.imaginary.value.toFloat(), lp.imaginary.value.toFloat())
+    }
+
+    @Test
+    fun testNorm2() {
+        val v = Complex32VectorValue(floatArrayOf(.0f, -3.0f, 4.2f, 3.4f, -2.1f, 0.0f))
+        isApproximatelyTheSame(6.527633568147036f, v.norm2().asFloat().value)
+        val o = Complex32VectorValue(floatArrayOf(.0f, .0f, .0f, .0f, .0f, .0f))
+        isApproximatelyTheSame(0.0f, o.norm2().asFloat().value)
     }
 }

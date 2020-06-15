@@ -2,10 +2,8 @@ package org.vitrivr.cottontail.math.basics
 
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.RepeatedTest
-import org.vitrivr.cottontail.model.values.Complex64Value
-import org.vitrivr.cottontail.model.values.Complex64VectorValue
-import org.vitrivr.cottontail.model.values.DoubleValue
-import org.vitrivr.cottontail.model.values.DoubleVectorValue
+import org.junit.jupiter.api.Test
+import org.vitrivr.cottontail.model.values.*
 import java.util.*
 
 /**
@@ -189,8 +187,8 @@ class Complex64VectorValueTest {
         val c1 = Complex64VectorValue.random(size, this.random)
         val c2 = Complex64VectorValue.random(size, this.random)
 
-        val lp: Complex64Value = c1.lp(c2, p)
-        val lpp = (c1 - c2).pow(p).sum().pow(1.0 / p)
+        val lp: DoubleValue = c1.lp(c2, p) as DoubleValue
+        val lpp = (c1 - c2).abs().pow(p).sum().pow(1.0 / p)
 
         isApproximatelyTheSame(lpp.real.value, lp.real.value)
         isApproximatelyTheSame(lpp.imaginary.value, lp.imaginary.value)
@@ -218,7 +216,7 @@ class Complex64VectorValueTest {
             }
         })
 
-        val lp: Complex64Value = c1.lp(c2, p)
+        val lp: DoubleValue = c1.lp(c2, p) as DoubleValue
         val lpp = c1p.lp(c2p, p)
 
         isApproximatelyTheSame(lpp.real.value, lp.real.value)
@@ -226,4 +224,11 @@ class Complex64VectorValueTest {
 
     }
 
+    @Test
+    fun testNorm2() {
+        val v = Complex64VectorValue(doubleArrayOf(.0, -3.0, 4.2, 3.4, -2.1, 0.0))
+        isApproximatelyTheSame(6.527633568147036, v.norm2().value)
+        val o = Complex64VectorValue(doubleArrayOf(.0, .0, .0, .0, .0, .0))
+        isApproximatelyTheSame(0.0, o.norm2().value)
+    }
 }
