@@ -5,6 +5,7 @@ import org.vitrivr.cottontail.model.values.types.RealVectorValue
 import org.vitrivr.cottontail.model.values.types.Value
 import org.vitrivr.cottontail.model.values.types.VectorValue
 import java.util.*
+import kotlin.math.absoluteValue
 import kotlin.math.pow
 
 /**
@@ -224,21 +225,21 @@ inline class DoubleVectorValue(val data: DoubleArray) : RealVectorValue<Double> 
         is DoubleVectorValue -> {
             var sum = 0.0
             for (i in this.data.indices) {
-                sum += (this.data[i] - other.data[i]).pow(p)
+                sum += (this.data[i] - other.data[i]).absoluteValue.pow(p)
             }
             DoubleValue(sum.pow(1.0 / p))
         }
         is FloatVectorValue -> {
             var sum = 0.0
             for (i in this.data.indices) {
-                sum += (this.data[i] - other.data[i]).pow(p)
+                sum += (this.data[i] - other.data[i]).absoluteValue.pow(p)
             }
             DoubleValue(sum.pow(1.0 / p))
         }
         else -> {
             var sum = 0.0
             for (i in this.data.indices) {
-                sum += (this.data[i] - other[i].value.toDouble()).pow(p)
+                sum += (this.data[i] - other[i].value.toDouble()).absoluteValue.pow(p)
             }
             DoubleValue(sum.pow(1.0 / p))
         }
