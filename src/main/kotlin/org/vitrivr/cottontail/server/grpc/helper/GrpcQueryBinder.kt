@@ -10,10 +10,7 @@ import org.vitrivr.cottontail.database.queries.planning.CottontailQueryPlanner
 import org.vitrivr.cottontail.database.queries.planning.QueryPlannerContext
 import org.vitrivr.cottontail.database.queries.planning.basics.NodeExpression
 import org.vitrivr.cottontail.database.queries.planning.nodes.basics.*
-import org.vitrivr.cottontail.database.queries.planning.rules.KnnPushdownRule
-import org.vitrivr.cottontail.database.queries.planning.rules.LimitPushdownRule
-import org.vitrivr.cottontail.database.queries.planning.rules.PredicatePushdownRule
-import org.vitrivr.cottontail.database.queries.planning.rules.PredicatePushdownWithIndexRule
+import org.vitrivr.cottontail.database.queries.planning.rules.*
 import org.vitrivr.cottontail.database.queries.predicates.AtomicBooleanPredicate
 import org.vitrivr.cottontail.database.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.database.queries.predicates.CompoundBooleanPredicate
@@ -44,10 +41,11 @@ class GrpcQueryBinder(val catalogue: Catalogue, private val engine: ExecutionEng
 
     /** [ExecutionPlanFactor] used to generate [ExecutionPlan]s from query definitions. */
     private val planner = CottontailQueryPlanner(
-            KnnPushdownRule,
-            LimitPushdownRule,
-            PredicatePushdownRule,
-            PredicatePushdownWithIndexRule
+        KnnPushdownRule,
+        KnnIndexRule,
+        LimitPushdownRule,
+        PredicatePushdownRule,
+        PredicatePushdownWithIndexRule
     )
 
     /**
