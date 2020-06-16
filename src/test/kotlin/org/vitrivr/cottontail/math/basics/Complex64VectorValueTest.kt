@@ -17,16 +17,6 @@ class Complex64VectorValueTest {
     private val random = SplittableRandom()
 
     companion object {
-        private const val DELTA = 1e-14
-        fun isApproximatelyTheSame(expected: Double, actual: Double) {
-            if (actual == 0.0) {
-                Assertions.assertEquals(expected, actual)
-                return
-            }
-            val ratio = expected / actual
-            Assertions.assertTrue(ratio > 1.0 - DELTA)
-            Assertions.assertTrue(ratio < 1.0 + DELTA)
-        }
     }
 
     @RepeatedTest(100)
