@@ -216,7 +216,7 @@ inline class Complex32VectorValue(val data: FloatArray) : ComplexVectorValue<Flo
                 val q = d / c
                 val denominator = d * q + c
                 floats[i shl 1] = (this.data[(i shl 1) + 1] * q + this.data[(i shl 1)]) / denominator
-                floats[(i shl 1) + 1] = (this.data[(i shl 1) + 1] * q - this.data[i shl 1]) / denominator
+                floats[(i shl 1) + 1] = (this.data[(i shl 1) + 1] - this.data[i shl 1] * q) / denominator
             }
         }
         return Complex32VectorValue(floats)
@@ -441,17 +441,12 @@ inline class Complex32VectorValue(val data: FloatArray) : ComplexVectorValue<Flo
      *
      * @return Complex L2 norm of this [Complex64VectorValue]
      */
-    override fun norm2(): Complex64Value {
-        var sumReal = 0.0
-        var sumImaginary = 0.0
+    override fun norm2(): DoubleValue {
+        var sum = 0.0
         for (i in 0 until this.data.size / 2) {
-            val real = 2 * kotlin.math.ln(kotlin.math.sqrt(this.data[i shl 1] * this.data[i shl 1] + this.data[(i shl 1) + 1] * this.data[(i shl 1) + 1]))
-            val imaginary = 2 * atan2(this.data[(i shl 1) + 1], this.data[i shl 1])
-            val exp = kotlin.math.exp(real)
-            sumReal += exp * kotlin.math.cos(imaginary)
-            sumImaginary += exp * kotlin.math.sin(imaginary)
+           sum += this.data[i shl 1] * this.data[i shl 1] + this.data[(i shl 1) + 1] * this.data[(i shl 1) + 1]
         }
-        return Complex64Value(sumReal, sumImaginary).sqrt()
+        return DoubleValue(kotlin.math.sqrt(sum))
     }
 
 
@@ -488,65 +483,6 @@ inline class Complex32VectorValue(val data: FloatArray) : ComplexVectorValue<Flo
                 sum += kotlin.math.sqrt(diffReal.pow(2) + diffImaginary.pow(2))
             }
             DoubleValue(sum)
-        }
-    }
-
-    /**
-     * Calculates the L2 distance between this [Complex32VectorValue] and the other [VectorValue].
-     *
-     * @param other The [VectorValue] to calculate the distance from.
-     * @return L2 distance between this [Complex32VectorValue] and the other [VectorValue].
-     */
-    override fun l2(other: VectorValue<*>): Complex64Value = lp(other, 2)
-
-    /**
-     * Calculates the Lp distance between this [Complex32VectorValue] and the other [VectorValue].
-     *
-     * @param other The [VectorValue] to calculate the distance from.
-     * @return LP distance between this [Complex32VectorValue] and the other [VectorValue].
-     */
-    override fun lp(other: VectorValue<*>, p: Int): Complex64Value = when (other) {
-        is Complex32VectorValue -> {
-            var sumReal = 0.0f
-            var sumImaginary = 0.0f
-            for (i in 0 until this.data.size / 2) {
-                val diffReal = this.data[i shl 1] - other.data[i shl 1]
-                val diffImaginary = this.data[(i shl 1) + 1] - other.data[(i shl 1) + 1]
-                val re = p * kotlin.math.ln(kotlin.math.sqrt(diffReal.pow(2) + diffImaginary.pow(2)))
-                val im = p * atan2(diffImaginary, diffReal)
-                val exp = kotlin.math.exp(re)
-                sumReal += exp * kotlin.math.cos(im)
-                sumImaginary += exp * kotlin.math.sin(im)
-            }
-            Complex64Value(sumReal, sumImaginary).pow(1.0 / p)
-        }
-        is Complex64VectorValue -> {
-            var sumReal = 0.0
-            var sumImaginary = 0.0
-            for (i in 0 until this.data.size / 2) {
-                val diffReal = this.data[i shl 1] - other.data[i shl 1]
-                val diffImaginary = this.data[(i shl 1) + 1] - other.data[(i shl 1) + 1]
-                val re = p * kotlin.math.ln(kotlin.math.sqrt(diffReal.pow(2) + diffImaginary.pow(2)))
-                val im = p * atan2(diffImaginary, diffReal)
-                val exp = kotlin.math.exp(re)
-                sumReal += exp * kotlin.math.cos(im)
-                sumImaginary += exp * kotlin.math.sin(im)
-            }
-            Complex64Value(sumReal, sumImaginary).pow(1.0 / p)
-        }
-        else -> {
-            var sumReal = 0.0
-            var sumImaginary = 0.0
-            for (i in 0 until this.data.size / 2) {
-                val diffReal = this.data[i shl 1] - other[i].value.toDouble()
-                val diffImaginary = this.data[(i shl 1) + 1].toDouble()
-                val re = p * kotlin.math.ln(kotlin.math.sqrt(diffReal.pow(2) + diffImaginary.pow(2)))
-                val im = p * atan2(diffImaginary, diffReal)
-                val exp = kotlin.math.exp(re)
-                sumReal += exp * kotlin.math.cos(im)
-                sumImaginary += exp * kotlin.math.sin(im)
-            }
-            Complex64Value(sumReal, sumImaginary).pow(1.0 / p)
         }
     }
 }
