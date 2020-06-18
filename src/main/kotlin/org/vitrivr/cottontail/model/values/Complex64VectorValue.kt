@@ -7,7 +7,7 @@ import kotlin.math.atan2
 import kotlin.math.pow
 
 /**
- * This is an abstraction over an [Array] and it represents a vector of [Complex64]s.
+ * This is an abstraction over an [Array] and it represents a vector of [Complex64Value]s.
  *
  * @author Manuel Huerbin & Ralph Gasser
  * @version 1.2
@@ -63,7 +63,6 @@ inline class Complex64VectorValue(val data: DoubleArray) : ComplexVectorValue<Do
          * Generates a [Complex32VectorValue] of the given size initialized with zeros.
          *
          * @param size Size of the new [Complex32VectorValue]
-         * @param rnd A [SplittableRandom] to generate the random numbers.
          */
         fun zero(size: Int) = Complex64VectorValue(DoubleArray(2 * size) {
             0.0
@@ -132,7 +131,7 @@ inline class Complex64VectorValue(val data: DoubleArray) : ComplexVectorValue<Do
         is Complex64VectorValue -> DoubleArray(this.data.size) { this.data[it] + other.data[it] }
         else -> DoubleArray(this.data.size) {
             if (it % 2 == 0) {
-                this.data[it] + other[it].value.toDouble()
+                this.data[it] + other[it / 2].value.toDouble()
             } else {
                 this.data[it]
             }
@@ -144,7 +143,7 @@ inline class Complex64VectorValue(val data: DoubleArray) : ComplexVectorValue<Do
         is Complex64VectorValue -> DoubleArray(this.data.size) { this.data[it] - other.data[it] }
         else -> DoubleArray(this.data.size) {
             if (it % 2 == 0) {
-                this.data[it] - other[it].value.toDouble()
+                this.data[it] - other[it / 2].value.toDouble()
             } else {
                 this.data[it]
             }
@@ -166,13 +165,17 @@ inline class Complex64VectorValue(val data: DoubleArray) : ComplexVectorValue<Do
                 this.data[it - 1] * other.data[it] + this.data[it] * other.data[it - 1]
             }
         }
-        else -> DoubleArray(this.data.size) { this.data[it] * other[it].value.toDouble() }
+        else -> DoubleArray(this.data.size) {
+            this.data[it] * other[it / 2].value.toDouble()
+        }
     })
 
     override fun div(other: VectorValue<*>) = when (other) {
         is Complex64VectorValue -> internalComplex64VectorValueDiv(other)
         is Complex32VectorValue -> internalComplex32VectorValueDiv(other)
-        else -> Complex64VectorValue(DoubleArray(this.data.size) { this.data[it] / other[it].value.toDouble() })
+        else -> Complex64VectorValue(DoubleArray(this.data.size) {
+            this.data[it] / other[it / 2].value.toDouble()
+        })
     }
 
     /**
@@ -285,7 +288,9 @@ inline class Complex64VectorValue(val data: DoubleArray) : ComplexVectorValue<Do
                 this.data[it - 1] * other.data[1] + this.data[it] * other.data[0]
             }
         }
-        else -> DoubleArray(this.data.size) { this.data[it] * other.value.toDouble() }
+        else -> DoubleArray(this.data.size) {
+            this.data[it] * other.value.toDouble()
+        }
     })
 
     override fun div(other: NumericValue<*>) = when (other) {

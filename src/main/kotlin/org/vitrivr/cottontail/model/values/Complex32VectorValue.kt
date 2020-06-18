@@ -10,7 +10,7 @@ import kotlin.math.atan2
 import kotlin.math.pow
 
 /**
- * This is an abstraction over an [Array] and it represents a vector of [Complex32]s.
+ * This is an abstraction over an [Array] and it represents a vector of [Complex32Value]s.
  *
  * @author Manuel Huerbin & Ralph Gasser
  * @version 1.2
@@ -65,7 +65,6 @@ inline class Complex32VectorValue(val data: FloatArray) : ComplexVectorValue<Flo
          * Generates a [Complex32VectorValue] of the given size initialized with zeros.
          *
          * @param size Size of the new [Complex32VectorValue]
-         * @param rnd A [SplittableRandom] to generate the random numbers.
          */
         fun zero(size: Int) = Complex32VectorValue(FloatArray(2 * size) { 0.0f })
     }
@@ -133,7 +132,7 @@ inline class Complex32VectorValue(val data: FloatArray) : ComplexVectorValue<Flo
         is Complex64VectorValue -> FloatArray(this.data.size) { (this.data[it] + other.data[it]).toFloat() }
         else -> FloatArray(this.data.size) {
             if (it % 2 == 0) {
-                this.data[it] + other[it].value.toFloat()
+                this.data[it] + other[it / 2].value.toFloat()
             } else {
                 this.data[it]
             }
@@ -145,7 +144,7 @@ inline class Complex32VectorValue(val data: FloatArray) : ComplexVectorValue<Flo
         is Complex64VectorValue -> FloatArray(this.data.size) { (this.data[it] - other.data[it]).toFloat() }
         else -> FloatArray(this.data.size) {
             if (it % 2 == 0) {
-                this.data[it] - other[it].value.toFloat()
+                this.data[it] - other[it / 2].value.toFloat()
             } else {
                 this.data[it]
             }
@@ -167,13 +166,17 @@ inline class Complex32VectorValue(val data: FloatArray) : ComplexVectorValue<Flo
                 (this.data[it - 1] * other.data[it] + this.data[it] * other.data[it - 1]).toFloat()
             }
         }
-        else -> FloatArray(this.data.size) { this.data[it] * other[it].value.toFloat() }
+        else -> FloatArray(this.data.size) {
+            this.data[it] * other[it / 2].value.toFloat()
+        }
     })
 
     override fun div(other: VectorValue<*>) = when (other) {
         is Complex64VectorValue -> internalComplex64VectorValueDiv(other)
         is Complex32VectorValue -> internalComplex32VectorValueDiv(other)
-        else -> Complex32VectorValue(FloatArray(this.data.size) { this.data[it] / other[it].value.toFloat() })
+        else -> Complex32VectorValue(FloatArray(this.data.size) {
+            this.data[it] / other[it / 2].value.toFloat()
+        })
     }
 
     /**
