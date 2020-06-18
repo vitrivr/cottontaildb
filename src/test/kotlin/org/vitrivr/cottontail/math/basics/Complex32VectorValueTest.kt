@@ -1,13 +1,15 @@
 package org.vitrivr.cottontail.math.basics
 
 import org.apache.commons.math3.complex.Complex
+import org.apache.commons.math3.exception.DimensionMismatchException
 import org.junit.jupiter.api.RepeatedTest
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.vitrivr.cottontail.model.values.*
 import java.util.*
 
 /**
- * Some basic test cases that test for correctness fo [_root_ide_package_.org.vitrivr.cottontail.model.values.Complex32VectorValue] arithmetic operations.
+ * Some basic test cases that test for correctness of [Complex32VectorValue] arithmetic operations.
  *
  * @author Ralph Gasser
  * @version 1.0
@@ -26,31 +28,40 @@ class Complex32VectorValueTest {
         val c1 = Complex32VectorValue.random(size, this.random)
         val c2 = Complex32VectorValue.random(size, this.random)
         val c264 = Complex64VectorValue(c2.data.map { it.toDouble() }.toDoubleArray())
+        val c3 = DoubleVectorValue.random(size, this.random)
 
         val c1p = arrayFieldVectorFromVectorValue(c1)
         val c2p = arrayFieldVectorFromVectorValue(c2)
+        val c3p = arrayFieldVectorFromVectorValue(c3)
 
         val add: Complex32VectorValue = c1 + c2
         val add64: Complex32VectorValue = c1 + c264
+        val addReal: Complex32VectorValue = c1 + c3
         val addp = c1p.add(c2p)
+        val addRealp = c1p.add(c3p)
 
         equalVectors(complex32VectorFromFieldVector(addp), add)
         equalVectors(complex32VectorFromFieldVector(addp), add64)
+        equalVectors(complex32VectorFromFieldVector(addRealp), addReal)
     }
 
     @RepeatedTest(100)
     fun testAddScalar() {
         val size = random.nextInt(2048)
-        val inc = random.nextDouble()
+        val inc = Complex32Value.random(random)
+        val real = inc.real
 
         val c1 = Complex32VectorValue.random(size, this.random)
 
         val c1p = arrayFieldVectorFromVectorValue(c1)
 
-        val add: Complex32VectorValue = c1 + DoubleValue(inc)
-        val addp = c1p.mapAdd(Complex(inc))
+        val add: Complex32VectorValue = c1 + inc
+        val addReal: Complex32VectorValue = c1 + real
+        val addp = c1p.mapAdd(Complex(inc.real.asDouble().value, inc.imaginary.asDouble().value))
+        val addRealp = c1p.mapAdd(Complex(real.real.asDouble().value, real.imaginary.asDouble().value))
 
         equalVectors(complex32VectorFromFieldVector(addp), add)
+        equalVectors(complex32VectorFromFieldVector(addRealp), addReal)
     }
 
     @RepeatedTest(100)
@@ -60,31 +71,40 @@ class Complex32VectorValueTest {
         val c1 = Complex32VectorValue.random(size, this.random)
         val c2 = Complex32VectorValue.random(size, this.random)
         val c264 = Complex64VectorValue(c2.data.map { it.toDouble() }.toDoubleArray())
+        val c3 = DoubleVectorValue.random(size, this.random)
 
         val c1p = arrayFieldVectorFromVectorValue(c1)
         val c2p = arrayFieldVectorFromVectorValue(c2)
+        val c3p = arrayFieldVectorFromVectorValue(c3)
 
         val sub: Complex32VectorValue = c1 - c2
         val sub64: Complex32VectorValue = c1 - c264
+        val subReal: Complex32VectorValue = c1 - c3
         val subp = c1p.subtract(c2p)
+        val subRealp = c1p.subtract(c3p)
 
         equalVectors(complex32VectorFromFieldVector(subp), sub)
         equalVectors(complex32VectorFromFieldVector(subp), sub64)
+        equalVectors(complex32VectorFromFieldVector(subRealp), subReal)
     }
 
     @RepeatedTest(100)
     fun testSubScalar() {
         val size = random.nextInt(2048)
-        val number = random.nextDouble()
+        val number = Complex32Value.random(random)
+        val real = number.real
 
         val c1 = Complex32VectorValue.random(size, this.random)
 
         val c1p = arrayFieldVectorFromVectorValue(c1)
 
-        val sub: Complex32VectorValue = c1 - DoubleValue(number)
-        val subp = c1p.mapSubtract(Complex(number))
+        val sub: Complex32VectorValue = c1 - number
+        val subReal: Complex32VectorValue = c1 - real
+        val subp = c1p.mapSubtract(Complex(number.real.asDouble().value, number.imaginary.asDouble().value))
+        val subRealp = c1p.mapSubtract(Complex(real.real.asDouble().value, real.imaginary.asDouble().value))
 
         equalVectors(complex32VectorFromFieldVector(subp), sub)
+        equalVectors(complex32VectorFromFieldVector(subRealp), subReal)
     }
 
     @RepeatedTest(100)
@@ -94,31 +114,40 @@ class Complex32VectorValueTest {
         val c1 = Complex32VectorValue.random(size, this.random)
         val c2 = Complex32VectorValue.random(size, this.random)
         val c264 = Complex64VectorValue(c2.data.map { it.toDouble() }.toDoubleArray())
+        val c3 = DoubleVectorValue.random(size, this.random)
 
         val c1p = arrayFieldVectorFromVectorValue(c1)
         val c2p = arrayFieldVectorFromVectorValue(c2)
+        val c3p = arrayFieldVectorFromVectorValue(c3)
 
         val mul: Complex32VectorValue = c1 * c2
         val mul64: Complex32VectorValue = c1 * c264
+        val mulReal: Complex32VectorValue = c1 * c3
         val mulp = c1p.ebeMultiply(c2p)
+        val mulRealp = c1p.ebeMultiply(c3p)
 
         equalVectors(complex32VectorFromFieldVector(mulp), mul)
         equalVectors(complex32VectorFromFieldVector(mulp), mul64)
+        equalVectors(complex32VectorFromFieldVector(mulRealp), mulReal)
     }
 
     @RepeatedTest(100)
     fun testMultScalar() {
         val size = random.nextInt(2048)
-        val fac = random.nextDouble()
+        val fac = Complex32Value.random(random)
+        val real = fac.real
 
         val c1 = Complex32VectorValue.random(size, this.random)
 
         val c1p = arrayFieldVectorFromVectorValue(c1)
 
-        val mult: Complex32VectorValue = c1 * DoubleValue(fac)
-        val multp = c1p.mapMultiply(Complex(fac))
+        val mult: Complex32VectorValue = c1 * fac
+        val multReal: Complex32VectorValue = c1 * real
+        val multp = c1p.mapMultiply(Complex(fac.real.asDouble().value, fac.imaginary.asDouble().value))
+        val multRealp = c1p.mapMultiply(Complex(real.real.asDouble().value, real.imaginary.asDouble().value))
 
         equalVectors(complex32VectorFromFieldVector(multp), mult)
+        equalVectors(complex32VectorFromFieldVector(multRealp), multReal)
     }
 
     @RepeatedTest(100)
@@ -128,31 +157,40 @@ class Complex32VectorValueTest {
         val c1 = Complex32VectorValue.random(size, this.random)
         val c2 = Complex32VectorValue.random(size, this.random)
         val c264 = Complex64VectorValue(c2.data.map { it.toDouble() }.toDoubleArray())
+        val c3 = DoubleVectorValue.random(size, this.random)
 
         val c1p = arrayFieldVectorFromVectorValue(c1)
         val c2p = arrayFieldVectorFromVectorValue(c2)
+        val c3p = arrayFieldVectorFromVectorValue(c3)
 
         val div: Complex32VectorValue = c1 / c2
         val div64: Complex32VectorValue = c1 / c264
+        val divReal: Complex32VectorValue = c1 / c3
         val divp = c1p.ebeDivide(c2p)
+        val divRealp = c1p.ebeDivide(c3p)
 
         equalVectors(complex32VectorFromFieldVector(divp), div)
         equalVectors(complex32VectorFromFieldVector(divp), div64)
+        equalVectors(complex32VectorFromFieldVector(divRealp), divReal)
     }
 
     @RepeatedTest(100)
     fun testDivScalar() {
         val size = random.nextInt(2048)
-        val number = random.nextDouble()
+        val number = Complex32Value.random(random)
+        val real = number.real
 
         val c1 = Complex32VectorValue.random(size, this.random)
 
         val c1p = arrayFieldVectorFromVectorValue(c1)
 
-        val div: Complex32VectorValue = c1 / DoubleValue(number)
-        val divp = c1p.mapDivide(Complex(number))
+        val div: Complex32VectorValue = c1 / number
+        val divReal: Complex32VectorValue = c1 / real
+        val divp = c1p.mapDivide(Complex(number.real.asDouble().value, number.imaginary.asDouble().value))
+        val divRealp = c1p.mapDivide(Complex(real.real.asDouble().value, real.imaginary.asDouble().value))
 
         equalVectors(complex32VectorFromFieldVector(divp), div)
+        equalVectors(complex32VectorFromFieldVector(divRealp), divReal)
     }
 
     @RepeatedTest(100)
@@ -203,19 +241,37 @@ class Complex32VectorValueTest {
         val c1 = Complex32VectorValue.random(size, this.random)
         val c2 = Complex32VectorValue.random(size, this.random)
         val c264 = Complex64VectorValue(c2.data.map { it.toDouble() }.toDoubleArray())
+        val r1 = DoubleVectorValue.random(size, this.random)
+
+        val c1p = arrayFieldVectorFromVectorValue(c1)
+        val c2p = arrayFieldVectorFromVectorValue(c2)
+        val r1p = arrayFieldVectorFromVectorValue(r1)
 
         val dot: Complex32Value = c1.dot(c2)
         val dot64: Complex32Value = c1.dot(c264)
+        val dotReal: Complex32Value = c1.dot(r1)
+        val dotReversed: Complex32Value = c2.dot(c1)
 
-        var dotp = Complex64Value(0.0, 0.0)
+        isApproximatelyTheSame(dot.real.value, dotReversed.conjugate().real.value)
+        isApproximatelyTheSame(dot.imaginary.value, dotReversed.conjugate().imaginary.value)
+
+        var dotp = Complex32Value(0.0, 0.0)
         for (i in 0 until size) {
             dotp += c1[i] * c2[i].conjugate()
         }
 
-        isApproximatelyTheSame(dotp.real.value.toFloat(), dot.real.value)
-        isApproximatelyTheSame(dotp.imaginary.value.toFloat(), dot.imaginary.value)
-        isApproximatelyTheSame(dotp.real.value.toFloat(), dot64.real.value)
-        isApproximatelyTheSame(dotp.imaginary.value.toFloat(), dot64.imaginary.value)
+        isApproximatelyTheSame(dotp.real.value, dot.real.value)
+        isApproximatelyTheSame(dotp.imaginary.value, dot.imaginary.value)
+
+        val dotp2 = c1p.dotProduct(conjFromFromComplexFieldVector(c2p))
+        val dotRealp2 = c1p.dotProduct(conjFromFromComplexFieldVector(r1p))
+
+        isApproximatelyTheSame(dotp2.real.toFloat(), dot.real.value)
+        isApproximatelyTheSame(dotp2.imaginary.toFloat(), dot.imaginary.value)
+        isApproximatelyTheSame(dotp2.real.toFloat(), dot64.real.value)
+        isApproximatelyTheSame(dotp2.imaginary.toFloat(), dot64.imaginary.value)
+        isApproximatelyTheSame(dotRealp2.real.toFloat(), dotReal.real.value)
+        isApproximatelyTheSame(dotRealp2.imaginary.toFloat(), dotReal.imaginary.value)
     }
 
     @RepeatedTest(100)
@@ -289,5 +345,32 @@ class Complex32VectorValueTest {
         isApproximatelyTheSame(6.527633568147036f, v.norm2().asFloat().value)
         val o = Complex32VectorValue(floatArrayOf(.0f, .0f, .0f, .0f, .0f, .0f))
         isApproximatelyTheSame(0.0f, o.norm2().asFloat().value)
+    }
+
+    @Test
+    fun testSizeMismatchFails() {
+        val size = random.nextInt(2048)
+        val c1 = Complex32VectorValue.random(size, random)
+        val c2 = Complex32VectorValue.random(size + 1, random)
+
+        val c1p = arrayFieldVectorFromVectorValue(c1)
+        val c2p = arrayFieldVectorFromVectorValue(c2)
+
+        assertThrows<DimensionMismatchException> { c1p.add(c2p) }
+        assertThrows<DimensionMismatchException> { c1 + c2 }
+        assertThrows<DimensionMismatchException> { c2 + c1 }
+        assertThrows<DimensionMismatchException> { c1p.subtract(c2p) }
+        assertThrows<DimensionMismatchException> { c1 - c2 }
+        assertThrows<DimensionMismatchException> { c2 - c1 }
+        assertThrows<DimensionMismatchException> { c1p.ebeMultiply(c2p) }
+        assertThrows<DimensionMismatchException> { c1 * c2 }
+        assertThrows<DimensionMismatchException> { c2 * c1 }
+        assertThrows<DimensionMismatchException> { c1p.ebeDivide(c2p) }
+        assertThrows<DimensionMismatchException> { c1 / c2 }
+        assertThrows<DimensionMismatchException> { c2 / c1 }
+        assertThrows<DimensionMismatchException> { c1p.dotProduct(c2p) }
+        assertThrows<DimensionMismatchException> { c1 dot c2 }
+        assertThrows<DimensionMismatchException> { c2 dot c1 }
+
     }
 }

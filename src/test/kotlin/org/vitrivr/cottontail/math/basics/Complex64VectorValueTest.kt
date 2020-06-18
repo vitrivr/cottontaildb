@@ -286,8 +286,8 @@ class Complex64VectorValueTest {
         val l1p = (c1 - c2).abs().sum()
         val l1p2 = absFromFromComplexFieldVector(c1p.subtract(c2p)).l1Norm
 
-        isApproximatelyTheSame(l1p.real.value, l1.real.value.toFloat())
-        isApproximatelyTheSame(l1p.imaginary.value, l1.imaginary.value.toFloat())
+        isApproximatelyTheSame(l1p.real.value, l1.real.value)
+        isApproximatelyTheSame(l1p.imaginary.value, l1.imaginary.value)
         isApproximatelyTheSame(l1p2, l1.value)
     }
 
