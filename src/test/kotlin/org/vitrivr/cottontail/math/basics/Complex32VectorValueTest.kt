@@ -336,7 +336,7 @@ class Complex32VectorValueTest {
         val lpp = (c1 - c2).abs().pow(p).sum().pow(1.0 / p)
 
         isApproximatelyTheSame(lpp.real.value.toFloat(), lp.real.value.toFloat())
-        isApproximatelyTheSame(lpp.imaginary.value.toFloat(), lp.imaginary.value.toFloat())
+        isApproximatelyTheSame(0.0f, lp.imaginary.value.toFloat())
     }
 
     @Test
