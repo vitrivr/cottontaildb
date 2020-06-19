@@ -7,8 +7,10 @@ import org.junit.jupiter.params.provider.ValueSource
 import org.vitrivr.cottontail.math.basics.absFromFromComplexFieldVector
 import org.vitrivr.cottontail.math.basics.arrayFieldVectorFromVectorValue
 import org.vitrivr.cottontail.math.basics.conjFromFromComplexFieldVector
+import org.vitrivr.cottontail.math.knn.metrics.AbsoluteInnerProductSimilarity
 import org.vitrivr.cottontail.math.knn.metrics.EuclidianDistance
 import org.vitrivr.cottontail.math.knn.metrics.ManhattanDistance
+import org.vitrivr.cottontail.math.knn.metrics.RealInnerProductSimilarity
 import org.vitrivr.cottontail.model.values.Complex64VectorValue
 import org.vitrivr.cottontail.utilities.VectorUtility
 import java.util.*
@@ -157,7 +159,7 @@ class Complex64VectorDistanceTest {
         collection.forEach {
             val dataitem = arrayFieldVectorFromVectorValue(it)
             time1 += measureTime {
-                sum1 += (query.dot(it)).abs().value
+                sum1 += AbsoluteInnerProductSimilarity(query, it).value
             }
             time2 += measureTime {
                 sum2 += queryp.dotProduct(conjFromFromComplexFieldVector(dataitem)).abs()
@@ -187,6 +189,7 @@ class Complex64VectorDistanceTest {
 
         var sum1 = 0.0
         var sum2 = 0.0
+        var sum3 = 0.0
 
         var time1 = Duration.ZERO
         var time2 = Duration.ZERO
@@ -194,22 +197,19 @@ class Complex64VectorDistanceTest {
         collection.forEach {
             val conjDataitem = conjFromFromComplexFieldVector(arrayFieldVectorFromVectorValue(it))
             time1 += measureTime {
-                val v = query.dotRealPart(it).value
-                sum1 += v
+                sum1 += query.dotRealPart(it).value
             }
             time2 += measureTime {
-                val v = queryp.dotProduct(conjDataitem).real
-                sum2 += v
+                sum2 += RealInnerProductSimilarity(query, it).value
             }
-//            sum3 += queryp.dotProduct(conjDataitem).real
+            sum3 += queryp.dotProduct(conjDataitem).real
         }
-        val sum3 = sum2
 
         println("Calculating abs of DOT for collection (s=$COLLECTION_SIZE, d=$dimension) took ${time1 / COLLECTION_SIZE} (optimized) resp. ${time2 / COLLECTION_SIZE} per vector on average.")
 
-        assertTrue(time1 < time2, "Optimized version of dot is slower than default version!")
-        assertEquals(sum3 , sum1, "dot for optimized version does not equal expected value.")
-        assertEquals(sum3 , sum2,"dot for default version does not equal expected value.")
+        assertTrue(time1 < time2, "Optimized version of dotreal is slower than default version!")
+        assertEquals(sum3 , sum1, "dotreal for optimized version does not equal expected value.")
+        assertEquals(sum3 , sum2,"dotreal for default version does not equal expected value.")
         assertTrue(sum1 / sum3 < 1.0 + DELTA, "Deviation for optimized version detected. Expected: $sum3, Received: $sum1")
         assertTrue(sum1 / sum3 > 1.0 - DELTA, "Deviation for optimized version detected. Expected: $sum3, Received: $sum1")
         assertTrue(sum2 / sum3 < 1.0 + DELTA, "Deviation for manual version detected. Expected: $sum3, Received: $sum2")
