@@ -6,6 +6,7 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
 import org.vitrivr.cottontail.math.basics.absFromFromComplexFieldVector
 import org.vitrivr.cottontail.math.basics.arrayFieldVectorFromVectorValue
+import org.vitrivr.cottontail.math.basics.conjFromFromComplexFieldVector
 import org.vitrivr.cottontail.math.knn.metrics.EuclidianDistance
 import org.vitrivr.cottontail.math.knn.metrics.ManhattanDistance
 import org.vitrivr.cottontail.model.values.Complex64VectorValue
@@ -133,6 +134,82 @@ class Complex64VectorDistanceTest {
         assertTrue(time1 < time2, "Optimized version of L2 is slower than default version!")
         assertEquals(sum3 , sum1, "L2 for optimized version does not equal expected value.")
         assertEquals(sum3 , sum2,"L2 for default version does not equal expected value.")
+        assertTrue(sum1 / sum3 < 1.0 + DELTA, "Deviation for optimized version detected. Expected: $sum3, Received: $sum1")
+        assertTrue(sum1 / sum3 > 1.0 - DELTA, "Deviation for optimized version detected. Expected: $sum3, Received: $sum1")
+        assertTrue(sum2 / sum3 < 1.0 + DELTA, "Deviation for manual version detected. Expected: $sum3, Received: $sum2")
+        assertTrue(sum2 / sum3 > 1.0 - DELTA, "Deviation for manual version detected. Expected: $sum3, Received: $sum2")
+    }
+
+    @ExperimentalTime
+    @ParameterizedTest
+    @ValueSource(ints = [32, 64, 128, 256, 512, 1024])
+    fun testIPSimilarity(dimension: Int) {
+        val query = Complex64VectorValue.random(dimension, RANDOM)
+        val queryp = arrayFieldVectorFromVectorValue(query)
+        val collection = VectorUtility.randomComplex64VectorSequence(dimension, COLLECTION_SIZE, RANDOM)
+
+        var sum1 = 0.0
+        var sum2 = 0.0
+
+        var time1 = Duration.ZERO
+        var time2 = Duration.ZERO
+
+        collection.forEach {
+            val dataitem = arrayFieldVectorFromVectorValue(it)
+            time1 += measureTime {
+                sum1 += (query.dot(it)).abs().value
+            }
+            time2 += measureTime {
+                sum2 += queryp.dotProduct(conjFromFromComplexFieldVector(dataitem)).abs()
+            }
+//            sum3 += queryp.dotProduct(dataitem).abs()
+        }
+        val sum3 = sum2
+
+        println("Calculating abs of DOT for collection (s=$COLLECTION_SIZE, d=$dimension) took ${time1 / COLLECTION_SIZE} (optimized) resp. ${time2 / COLLECTION_SIZE} per vector on average.")
+
+        assertTrue(time1 < time2, "Optimized version of dot is slower than default version!")
+        assertEquals(sum3 , sum1, "dot for optimized version does not equal expected value.")
+        assertEquals(sum3 , sum2,"dot for default version does not equal expected value.")
+        assertTrue(sum1 / sum3 < 1.0 + DELTA, "Deviation for optimized version detected. Expected: $sum3, Received: $sum1")
+        assertTrue(sum1 / sum3 > 1.0 - DELTA, "Deviation for optimized version detected. Expected: $sum3, Received: $sum1")
+        assertTrue(sum2 / sum3 < 1.0 + DELTA, "Deviation for manual version detected. Expected: $sum3, Received: $sum2")
+        assertTrue(sum2 / sum3 > 1.0 - DELTA, "Deviation for manual version detected. Expected: $sum3, Received: $sum2")
+    }
+
+    @ExperimentalTime
+    @ParameterizedTest
+    @ValueSource(ints = [32, 64, 128, 256, 512, 1024])
+    fun testIPRealSimilarity(dimension: Int) {
+        val query = Complex64VectorValue.random(dimension, RANDOM)
+        val queryp = arrayFieldVectorFromVectorValue(query)
+        val collection = VectorUtility.randomComplex64VectorSequence(dimension, COLLECTION_SIZE, RANDOM)
+
+        var sum1 = 0.0
+        var sum2 = 0.0
+
+        var time1 = Duration.ZERO
+        var time2 = Duration.ZERO
+
+        collection.forEach {
+            val conjDataitem = conjFromFromComplexFieldVector(arrayFieldVectorFromVectorValue(it))
+            time1 += measureTime {
+                val v = query.dotRealPart(it).value
+                sum1 += v
+            }
+            time2 += measureTime {
+                val v = queryp.dotProduct(conjDataitem).real
+                sum2 += v
+            }
+//            sum3 += queryp.dotProduct(conjDataitem).real
+        }
+        val sum3 = sum2
+
+        println("Calculating abs of DOT for collection (s=$COLLECTION_SIZE, d=$dimension) took ${time1 / COLLECTION_SIZE} (optimized) resp. ${time2 / COLLECTION_SIZE} per vector on average.")
+
+        assertTrue(time1 < time2, "Optimized version of dot is slower than default version!")
+        assertEquals(sum3 , sum1, "dot for optimized version does not equal expected value.")
+        assertEquals(sum3 , sum2,"dot for default version does not equal expected value.")
         assertTrue(sum1 / sum3 < 1.0 + DELTA, "Deviation for optimized version detected. Expected: $sum3, Received: $sum1")
         assertTrue(sum1 / sum3 > 1.0 - DELTA, "Deviation for optimized version detected. Expected: $sum3, Received: $sum1")
         assertTrue(sum2 / sum3 < 1.0 + DELTA, "Deviation for manual version detected. Expected: $sum3, Received: $sum2")
