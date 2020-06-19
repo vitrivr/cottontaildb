@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.model.values
 
+import org.apache.commons.math3.exception.DimensionMismatchException
 import org.apache.commons.math3.util.FastMath
 import org.vitrivr.cottontail.model.values.types.*
 import java.util.*
@@ -126,7 +127,8 @@ inline class Complex64VectorValue(val data: DoubleArray) : ComplexVectorValue<Do
      */
     override fun copy(): Complex64VectorValue = Complex64VectorValue(this.data.copyOf())
 
-    override fun plus(other: VectorValue<*>) = Complex64VectorValue(when (other) {
+    override fun plus(other: VectorValue<*>) = if (other.logicalSize == this.logicalSize)
+        Complex64VectorValue(when (other) {
         is Complex32VectorValue -> DoubleArray(this.data.size) { this.data[it] + other.data[it] }
         is Complex64VectorValue -> DoubleArray(this.data.size) { this.data[it] + other.data[it] }
         else -> DoubleArray(this.data.size) {
@@ -136,9 +138,10 @@ inline class Complex64VectorValue(val data: DoubleArray) : ComplexVectorValue<Do
                 this.data[it]
             }
         }
-    })
+    }) else throw DimensionMismatchException(this.logicalSize, other.logicalSize)
 
-    override fun minus(other: VectorValue<*>) = Complex64VectorValue(when (other) {
+    override fun minus(other: VectorValue<*>) = if (other.logicalSize == this.logicalSize)
+        Complex64VectorValue(when (other) {
         is Complex32VectorValue -> DoubleArray(this.data.size) { this.data[it] - other.data[it] }
         is Complex64VectorValue -> DoubleArray(this.data.size) { this.data[it] - other.data[it] }
         else -> DoubleArray(this.data.size) {
@@ -148,9 +151,10 @@ inline class Complex64VectorValue(val data: DoubleArray) : ComplexVectorValue<Do
                 this.data[it]
             }
         }
-    })
+    }) else throw DimensionMismatchException(this.logicalSize, other.logicalSize)
 
-    override fun times(other: VectorValue<*>) = Complex64VectorValue(when (other) {
+    override fun times(other: VectorValue<*>) = if (other.logicalSize == this.logicalSize)
+        Complex64VectorValue(when (other) {
         is Complex32VectorValue -> DoubleArray(this.data.size) {
             if (it % 2 == 0) {
                 this.data[it] * other.data[it] - this.data[it + 1] * other.data[it + 1]
@@ -168,15 +172,16 @@ inline class Complex64VectorValue(val data: DoubleArray) : ComplexVectorValue<Do
         else -> DoubleArray(this.data.size) {
             this.data[it] * other[it / 2].value.toDouble()
         }
-    })
+    }) else throw DimensionMismatchException(this.logicalSize, other.logicalSize)
 
-    override fun div(other: VectorValue<*>) = when (other) {
+    override fun div(other: VectorValue<*>) = if (other.logicalSize == this.logicalSize)
+        when (other) {
         is Complex64VectorValue -> internalComplex64VectorValueDiv(other)
         is Complex32VectorValue -> internalComplex32VectorValueDiv(other)
         else -> Complex64VectorValue(DoubleArray(this.data.size) {
             this.data[it] / other[it / 2].value.toDouble()
         })
-    }
+    } else throw DimensionMismatchException(this.logicalSize, other.logicalSize)
 
     /**
      * Internal division implementations for [Complex64VectorValue]s.
@@ -218,7 +223,7 @@ inline class Complex64VectorValue(val data: DoubleArray) : ComplexVectorValue<Do
                 val q = d / c
                 val denominator = d * q + c
                 doubles[i shl 1] = (this.data[(i shl 1) + 1] * q + this.data[(i shl 1)]) / denominator
-                doubles[(i shl 1) + 1] = (this.data[(i shl 1) + 1] * q - this.data[i shl 1]) / denominator
+                doubles[(i shl 1) + 1] = (this.data[(i shl 1) + 1] - this.data[i shl 1] * q) / denominator
             }
         }
         return Complex64VectorValue(doubles)
@@ -272,7 +277,6 @@ inline class Complex64VectorValue(val data: DoubleArray) : ComplexVectorValue<Do
         }
     })
 
-
     override fun times(other: NumericValue<*>) = Complex64VectorValue(when (other) {
         is Complex32Value -> DoubleArray(this.data.size) {
             if (it % 2 == 0) {
@@ -288,9 +292,7 @@ inline class Complex64VectorValue(val data: DoubleArray) : ComplexVectorValue<Do
                 this.data[it - 1] * other.data[1] + this.data[it] * other.data[0]
             }
         }
-        else -> DoubleArray(this.data.size) {
-            this.data[it] * other.value.toDouble()
-        }
+        else -> DoubleArray(this.data.size) { this.data[it] * other.value.toDouble() }
     })
 
     override fun div(other: NumericValue<*>) = when (other) {
@@ -411,7 +413,8 @@ inline class Complex64VectorValue(val data: DoubleArray) : ComplexVectorValue<Do
      * @param other The other [VectorValue].
      * @return [Complex64Value] dot product of this and the other vector.
      */
-    override fun dot(other: VectorValue<*>): Complex64Value = when (other) {
+    override fun dot(other: VectorValue<*>): Complex64Value = if (other.logicalSize == this.logicalSize)
+        when (other) {
         is Complex32VectorValue -> {
             var real = 0.0
             var imaginary = 0.0
@@ -439,7 +442,7 @@ inline class Complex64VectorValue(val data: DoubleArray) : ComplexVectorValue<Do
             }
             Complex64Value(real, imaginary)
         }
-    }
+    } else throw DimensionMismatchException(this.logicalSize, other.logicalSize)
 
     /**
      * Calculates the complex L2 norm of this [Complex64VectorValue].
@@ -460,7 +463,8 @@ inline class Complex64VectorValue(val data: DoubleArray) : ComplexVectorValue<Do
      * @param other The [VectorValue] to calculate the distance from.
      * @return L1 distance between this [Complex64VectorValue] and the other [VectorValue].
      */
-    override fun l1(other: VectorValue<*>): DoubleValue = when (other) {
+    override fun l1(other: VectorValue<*>): DoubleValue = if (other.logicalSize == this.logicalSize)
+        when (other) {
         is Complex32VectorValue -> {
             var sum = 0.0
             for (i in 0 until this.data.size / 2) {
@@ -488,5 +492,5 @@ inline class Complex64VectorValue(val data: DoubleArray) : ComplexVectorValue<Do
             }
             DoubleValue(sum)
         }
-    }
+    } else throw DimensionMismatchException(this.logicalSize, other.logicalSize)
 }

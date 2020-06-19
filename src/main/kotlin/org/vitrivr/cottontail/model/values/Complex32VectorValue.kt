@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.model.values
 
+import org.apache.commons.math3.exception.DimensionMismatchException
 import org.apache.commons.math3.util.FastMath
 import org.vitrivr.cottontail.model.values.types.ComplexVectorValue
 import org.vitrivr.cottontail.model.values.types.NumericValue
@@ -84,7 +85,6 @@ inline class Complex32VectorValue(val data: FloatArray) : ComplexVectorValue<Flo
     override fun real(i: Int) = FloatValue(this.data[i shl 1])
     override fun imaginary(i: Int) = FloatValue(this.data[(i shl 1) + 1])
 
-
     override fun compareTo(other: Value): Int {
         throw IllegalArgumentException("ComplexVectorValues can can only be compared for equality.")
     }
@@ -127,7 +127,8 @@ inline class Complex32VectorValue(val data: FloatArray) : ComplexVectorValue<Flo
      */
     override fun copy(): Complex32VectorValue = Complex32VectorValue(data.copyOf())
 
-    override fun plus(other: VectorValue<*>) = Complex32VectorValue(when (other) {
+    override fun plus(other: VectorValue<*>) = if (other.logicalSize == this.logicalSize)
+        Complex32VectorValue(when (other) {
         is Complex32VectorValue -> FloatArray(this.data.size) { this.data[it] + other.data[it] }
         is Complex64VectorValue -> FloatArray(this.data.size) { (this.data[it] + other.data[it]).toFloat() }
         else -> FloatArray(this.data.size) {
@@ -137,9 +138,10 @@ inline class Complex32VectorValue(val data: FloatArray) : ComplexVectorValue<Flo
                 this.data[it]
             }
         }
-    })
+    }) else throw DimensionMismatchException(this.logicalSize, other.logicalSize)
 
-    override fun minus(other: VectorValue<*>) = Complex32VectorValue(when (other) {
+    override fun minus(other: VectorValue<*>) = if (this.logicalSize == other.logicalSize)
+        Complex32VectorValue(when (other) {
         is Complex32VectorValue -> FloatArray(this.data.size) { this.data[it] - other.data[it] }
         is Complex64VectorValue -> FloatArray(this.data.size) { (this.data[it] - other.data[it]).toFloat() }
         else -> FloatArray(this.data.size) {
@@ -149,9 +151,10 @@ inline class Complex32VectorValue(val data: FloatArray) : ComplexVectorValue<Flo
                 this.data[it]
             }
         }
-    })
+    }) else throw DimensionMismatchException(this.logicalSize, other.logicalSize)
 
-    override fun times(other: VectorValue<*>) = Complex32VectorValue(when (other) {
+    override fun times(other: VectorValue<*>) = if (other.logicalSize == this.logicalSize)
+        Complex32VectorValue(when (other) {
         is Complex32VectorValue -> FloatArray(this.data.size) {
             if (it % 2 == 0) {
                 this.data[it] * other.data[it] - this.data[it + 1] * other.data[it + 1]
@@ -169,15 +172,16 @@ inline class Complex32VectorValue(val data: FloatArray) : ComplexVectorValue<Flo
         else -> FloatArray(this.data.size) {
             this.data[it] * other[it / 2].value.toFloat()
         }
-    })
+    }) else throw DimensionMismatchException(this.logicalSize, other.logicalSize)
 
-    override fun div(other: VectorValue<*>) = when (other) {
+    override fun div(other: VectorValue<*>) = if (other.logicalSize == this.logicalSize)
+        when (other) {
         is Complex64VectorValue -> internalComplex64VectorValueDiv(other)
         is Complex32VectorValue -> internalComplex32VectorValueDiv(other)
         else -> Complex32VectorValue(FloatArray(this.data.size) {
             this.data[it] / other[it / 2].value.toFloat()
         })
-    }
+    } else throw DimensionMismatchException(this.logicalSize, other.logicalSize)
 
     /**
      * Internal division implementations for [Complex64VectorValue]s.
@@ -409,7 +413,8 @@ inline class Complex32VectorValue(val data: FloatArray) : ComplexVectorValue<Flo
      * @param other The other [VectorValue].
      * @return [Complex32Value] dot product of this and the other vector.
      */
-    override fun dot(other: VectorValue<*>): Complex32Value = when (other) {
+    override fun dot(other: VectorValue<*>): Complex32Value = if (other.logicalSize == this.logicalSize)
+        when (other) {
         is Complex32VectorValue -> {
             var real = 0.0f
             var imaginary = 0.0f
@@ -437,7 +442,7 @@ inline class Complex32VectorValue(val data: FloatArray) : ComplexVectorValue<Flo
             }
             Complex32Value(real, imaginary)
         }
-    }
+    } else throw DimensionMismatchException(this.logicalSize, other.logicalSize)
 
     /**
      * Calculates the complex L2 norm of this [Complex64VectorValue].
@@ -452,14 +457,14 @@ inline class Complex32VectorValue(val data: FloatArray) : ComplexVectorValue<Flo
         return DoubleValue(kotlin.math.sqrt(sum))
     }
 
-
     /**
      * Calculates the L1 distance between this [Complex32VectorValue] and the other [VectorValue].
      *
      * @param other The [VectorValue] to calculate the distance from.
      * @return L1 distance between this [Complex32VectorValue] and the other [VectorValue].
      */
-    override fun l1(other: VectorValue<*>): DoubleValue = when (other) {
+    override fun l1(other: VectorValue<*>): DoubleValue = if (other.logicalSize == this.logicalSize)
+        when (other) {
         is Complex32VectorValue -> {
             var sum = 0.0
             for (i in 0 until this.data.size / 2) {
@@ -487,5 +492,5 @@ inline class Complex32VectorValue(val data: FloatArray) : ComplexVectorValue<Flo
             }
             DoubleValue(sum)
         }
-    }
+    } else throw DimensionMismatchException(this.logicalSize, other.logicalSize)
 }
