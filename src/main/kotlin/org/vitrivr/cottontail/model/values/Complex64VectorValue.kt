@@ -493,4 +493,46 @@ inline class Complex64VectorValue(val data: DoubleArray) : ComplexVectorValue<Do
             DoubleValue(sum)
         }
     } else throw DimensionMismatchException(this.logicalSize, other.logicalSize)
+
+    /**
+     * Calculates the squared L2 distance between this [Complex64VectorValue] and the other [VectorValue].
+     *
+     * @param other The [VectorValue] to calculate the distance from.
+     * @return squared L2 distance between this [Complex64VectorValue] and the other [VectorValue].
+     */
+    fun l2sq(other: VectorValue<*>): DoubleValue = if (other.logicalSize == this.logicalSize)
+        when (other) {
+            is Complex32VectorValue -> {
+                var sum = 0.0
+                for (i in this.data.indices) {
+                    sum += (this.data[i] - other.data[i]).pow(2)
+                }
+                DoubleValue(sum)
+            }
+            is Complex64VectorValue -> {
+                var sum = 0.0
+                for (i in this.data.indices) {
+                    sum += (this.data[i] - other.data[i]).pow(2)
+                }
+                DoubleValue(sum)
+            }
+            else -> {
+                var sum = 0.0
+                for (i in 0 until this.data.size / 2) {
+                    val diffReal = this.data[i shl 1] - other[i].asDouble().value
+                    val diffImaginary = this.data[(i shl 1) + 1]
+                    sum += (diffReal.pow(2) + diffImaginary.pow(2))
+                }
+                DoubleValue(sum)
+            }
+        } else throw DimensionMismatchException(this.logicalSize, other.logicalSize)
+
+    /**
+     * Calculates the L2 distance between this [Complex64VectorValue] and the other [VectorValue].
+     *
+     * @param other The [VectorValue] to calculate the distance from.
+     * @return L2 distance between this [Complex64VectorValue] and the other [VectorValue].
+     */
+    override fun l2(other: VectorValue<*>): DoubleValue = l2sq(other).sqrt()
+
 }
