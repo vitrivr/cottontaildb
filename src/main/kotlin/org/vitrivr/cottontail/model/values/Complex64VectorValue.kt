@@ -419,8 +419,8 @@ inline class Complex64VectorValue(val data: DoubleArray) : ComplexVectorValue<Do
             var real = 0.0
             var imaginary = 0.0
             for (i in 0 until this.data.size / 2) {
-                real += this.data[i shl 1] * other.data[i shl 1] - this.data[(i shl 1) + 1] * (-other.data[(i shl 1) + 1])
-                imaginary += this.data[i shl 1] * (-other.data[(i shl 1) + 1]) + this.data[(i shl 1) + 1] * other.data[(i shl 1)]
+                real += this.data[i shl 1] * other.data[i shl 1] + this.data[(i shl 1) + 1] * other.data[(i shl 1) + 1]
+                imaginary += this.data[(i shl 1) + 1] * other.data[(i shl 1)] - this.data[i shl 1] * other.data[(i shl 1) + 1]
             }
             Complex64Value(real, imaginary)
         }
@@ -428,8 +428,8 @@ inline class Complex64VectorValue(val data: DoubleArray) : ComplexVectorValue<Do
             var real = 0.0
             var imaginary = 0.0
             for (i in 0 until this.data.size / 2) {
-                real += this.data[i shl 1] * other.data[i shl 1] - this.data[(i shl 1) + 1] * (-other.data[(i shl 1) + 1])
-                imaginary += this.data[i shl 1] * (-other.data[(i shl 1) + 1]) + this.data[(i shl 1) + 1] * other.data[(i shl 1)]
+                real += this.data[i shl 1] * other.data[i shl 1] + this.data[(i shl 1) + 1] * other.data[(i shl 1) + 1]
+                imaginary += this.data[(i shl 1) + 1] * other.data[(i shl 1)] - this.data[i shl 1] * other.data[(i shl 1) + 1]
             }
             Complex64Value(real, imaginary)
         }
@@ -443,6 +443,37 @@ inline class Complex64VectorValue(val data: DoubleArray) : ComplexVectorValue<Do
             Complex64Value(real, imaginary)
         }
     } else throw DimensionMismatchException(this.logicalSize, other.logicalSize)
+
+    /**
+     * Calculates the real part of the dot product between this [Complex64VectorValue] and another [VectorValue].
+     *
+     * @param other The other [VectorValue].
+     * @return [DoubleValue] real part of dot product of this and the other vector.
+     */
+     fun dotRealPart(other: VectorValue<*>): DoubleValue = if (other.logicalSize == this.logicalSize)
+        when (other) {
+            is Complex32VectorValue -> {
+                var real = 0.0
+                for (i in 0 until this.data.size / 2) {
+                    real += this.data[i shl 1] * other.data[i shl 1] + this.data[(i shl 1) + 1] * other.data[(i shl 1) + 1]
+                }
+                DoubleValue(real)
+            }
+            is Complex64VectorValue -> {
+                var real = 0.0
+                for (i in 0 until this.data.size / 2) {
+                    real += this.data[i shl 1] * other.data[i shl 1] + this.data[(i shl 1) + 1] * other.data[(i shl 1) + 1]
+                }
+                DoubleValue(real)
+            }
+            else -> {
+                var real = 0.0
+                for (i in 0 until this.data.size / 2) {
+                    real += this.data[i shl 1] * other[i].value.toDouble()
+                }
+                DoubleValue(real)
+            }
+        } else throw DimensionMismatchException(this.logicalSize, other.logicalSize)
 
     /**
      * Calculates the complex L2 norm of this [Complex64VectorValue].

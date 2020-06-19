@@ -248,6 +248,7 @@ class Complex64VectorValueTest {
         val r1p = arrayFieldVectorFromVectorValue(r1)
 
         val dot: Complex64Value = c1.dot(c2)
+        val dotRealPart: DoubleValue = c1.dotRealPart(c2)
         val dot32 : Complex64Value = c1.dot(c232)
         val dotReal: Complex64Value = c1.dot(r1)
         val dotReversed: Complex64Value = c2.dot(c1)
@@ -268,6 +269,7 @@ class Complex64VectorValueTest {
 
         isApproximatelyTheSame(dotp2.real, dot.real.value)
         isApproximatelyTheSame(dotp2.imaginary, dot.imaginary.value)
+        isApproximatelyTheSame(dotp.real.value, dotRealPart.value)
         isApproximatelyTheSame(dotp2.real.toFloat(), dot32.real.value)
         isApproximatelyTheSame(dotp2.imaginary.toFloat(), dot32.imaginary.value)
         isApproximatelyTheSame(dotRealp2.real, dotReal.real.value)
