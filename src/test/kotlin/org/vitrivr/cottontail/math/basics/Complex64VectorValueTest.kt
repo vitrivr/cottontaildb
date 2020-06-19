@@ -27,6 +27,7 @@ class Complex64VectorValueTest {
 
         val c1 = Complex64VectorValue.random(size, this.random)
         val c2 = Complex64VectorValue.random(size, this.random)
+        val c232 = Complex32VectorValue(c2.data.map { it.toFloat() }.toFloatArray())
         val c3 = DoubleVectorValue.random(size, this.random)
 
         val c1p = arrayFieldVectorFromVectorValue(c1)
@@ -34,11 +35,13 @@ class Complex64VectorValueTest {
         val c3p = arrayFieldVectorFromVectorValue(c3)
 
         val add: Complex64VectorValue = c1 + c2
+        val add32 : Complex64VectorValue = c1 + c232
         val addReal: Complex64VectorValue = c1 + c3
         val addp = c1p.add(c2p)
         val addRealp = c1p.add(c3p)
 
         equalVectors(complex64VectorFromFieldVector(addp), add)
+        equalVectors(complex32VectorFromFieldVector(addp), add32)
         equalVectors(complex64VectorFromFieldVector(addRealp), addReal)
     }
 
@@ -67,6 +70,7 @@ class Complex64VectorValueTest {
 
         val c1 = Complex64VectorValue.random(size, this.random)
         val c2 = Complex64VectorValue.random(size, this.random)
+        val c232 = Complex32VectorValue(c2.data.map { it.toFloat() }.toFloatArray())
         val c3 = DoubleVectorValue.random(size, this.random)
 
         val c1p = arrayFieldVectorFromVectorValue(c1)
@@ -74,11 +78,13 @@ class Complex64VectorValueTest {
         val c3p = arrayFieldVectorFromVectorValue(c3)
 
         val sub: Complex64VectorValue = c1 - c2
+        val sub32 : Complex64VectorValue = c1 - c232
         val subReal: Complex64VectorValue = c1 - c3
         val subp = c1p.subtract(c2p)
         val subRealp = c1p.subtract(c3p)
 
         equalVectors(complex64VectorFromFieldVector(subp), sub)
+        equalVectors(complex32VectorFromFieldVector(subp), sub32)
         equalVectors(complex64VectorFromFieldVector(subRealp), subReal)
     }
 
@@ -107,6 +113,7 @@ class Complex64VectorValueTest {
 
         val c1 = Complex64VectorValue.random(size, this.random)
         val c2 = Complex64VectorValue.random(size, this.random)
+        val c232 = Complex32VectorValue(c2.data.map { it.toFloat() }.toFloatArray())
         val c3 = DoubleVectorValue.random(size, this.random)
 
         val c1p = arrayFieldVectorFromVectorValue(c1)
@@ -114,11 +121,13 @@ class Complex64VectorValueTest {
         val c3p = arrayFieldVectorFromVectorValue(c3)
 
         val mul: Complex64VectorValue = c1 * c2
+        val mul32 : Complex64VectorValue = c1 * c232
         val mulReal: Complex64VectorValue = c1 * c3
         val mulp = c1p.ebeMultiply(c2p)
         val mulRealp = c1p.ebeMultiply(c3p)
 
         equalVectors(complex64VectorFromFieldVector(mulp), mul)
+        equalVectors(complex32VectorFromFieldVector(mulp), mul32)
         equalVectors(complex64VectorFromFieldVector(mulRealp), mulReal)
     }
 
@@ -147,6 +156,7 @@ class Complex64VectorValueTest {
 
         val c1 = Complex64VectorValue.random(size, this.random)
         val c2 = Complex64VectorValue.random(size, this.random)
+        val c232 = Complex32VectorValue(c2.data.map { it.toFloat() }.toFloatArray())
         val c3 = DoubleVectorValue.random(size, this.random)
 
         val c1p = arrayFieldVectorFromVectorValue(c1)
@@ -154,11 +164,13 @@ class Complex64VectorValueTest {
         val c3p = arrayFieldVectorFromVectorValue(c3)
 
         val div: Complex64VectorValue = c1 / c2
+        val div32 : Complex64VectorValue = c1 / c232
         val divReal: Complex64VectorValue = c1 / c3
         val divp = c1p.ebeDivide(c2p)
         val divRealp = c1p.ebeDivide(c3p)
 
         equalVectors(complex64VectorFromFieldVector(divp), div)
+        equalVectors(complex32VectorFromFieldVector(divp), div32)
         equalVectors(complex64VectorFromFieldVector(divRealp), divReal)
     }
 
@@ -228,6 +240,7 @@ class Complex64VectorValueTest {
 
         val c1 = Complex64VectorValue.random(size, this.random)
         val c2 = Complex64VectorValue.random(size, this.random)
+        val c232 = Complex32VectorValue(c2.data.map { it.toFloat() }.toFloatArray())
         val r1 = DoubleVectorValue.random(size, this.random)
 
         val c1p = arrayFieldVectorFromVectorValue(c1)
@@ -235,6 +248,7 @@ class Complex64VectorValueTest {
         val r1p = arrayFieldVectorFromVectorValue(r1)
 
         val dot: Complex64Value = c1.dot(c2)
+        val dot32 : Complex64Value = c1.dot(c232)
         val dotReal: Complex64Value = c1.dot(r1)
         val dotReversed: Complex64Value = c2.dot(c1)
 
@@ -254,6 +268,8 @@ class Complex64VectorValueTest {
 
         isApproximatelyTheSame(dotp2.real, dot.real.value)
         isApproximatelyTheSame(dotp2.imaginary, dot.imaginary.value)
+        isApproximatelyTheSame(dotp2.real.toFloat(), dot32.real.value)
+        isApproximatelyTheSame(dotp2.imaginary.toFloat(), dot32.imaginary.value)
         isApproximatelyTheSame(dotRealp2.real, dotReal.real.value)
         isApproximatelyTheSame(dotRealp2.imaginary, dotReal.imaginary.value)
     }
@@ -278,17 +294,20 @@ class Complex64VectorValueTest {
         val size = random.nextInt(2048)
         val c1 = Complex64VectorValue.random(size, this.random)
         val c2 = Complex64VectorValue.random(size, this.random)
+        val c232 = Complex32VectorValue(c2.data.map { it.toFloat() }.toFloatArray())
 
         val c1p = arrayFieldVectorFromVectorValue(c1)
         val c2p = arrayFieldVectorFromVectorValue(c2)
 
         val l1: DoubleValue = c1.l1(c2)
+        val l132 : DoubleValue = c1.l1(c232)
         val l1p = (c1 - c2).abs().sum()
         val l1p2 = absFromFromComplexFieldVector(c1p.subtract(c2p)).l1Norm
 
         isApproximatelyTheSame(l1p.real.value, l1.real.value)
         isApproximatelyTheSame(l1p.imaginary.value, l1.imaginary.value)
         isApproximatelyTheSame(l1p2, l1.value)
+        isApproximatelyTheSame(l1p2.toFloat(), l132.value)
     }
 
     @RepeatedTest(100)
@@ -296,17 +315,20 @@ class Complex64VectorValueTest {
         val size = random.nextInt(2048)
         val c1 = Complex64VectorValue.random(size, this.random)
         val c2 = Complex64VectorValue.random(size, this.random)
+        val c232 = Complex32VectorValue(c2.data.map { it.toFloat() }.toFloatArray())
 
         val c1p = arrayFieldVectorFromVectorValue(c1)
         val c2p = arrayFieldVectorFromVectorValue(c2)
 
         val l2: DoubleValue = c1.l2(c2).asDouble()
+        val l232 : DoubleValue = c1.l2(c232).asDouble()
         val l2p = (c1 - c2).abs().pow(2).sum().pow(0.5).asComplex64()
         val l2p2 = absFromFromComplexFieldVector(c1p.subtract(c2p)).norm
 
         isApproximatelyTheSame(l2p.real.value, l2.real.value)
         isApproximatelyTheSame(l2p.imaginary.value, l2.imaginary.value)
         isApproximatelyTheSame(l2p2, l2.value)
+        isApproximatelyTheSame(l2p2.toFloat(), l232.value)
     }
 
     @RepeatedTest(100)
@@ -315,12 +337,16 @@ class Complex64VectorValueTest {
         val p = random.nextInt(2, 10)
         val c1 = Complex64VectorValue.random(size, this.random)
         val c2 = Complex64VectorValue.random(size, this.random)
+        val c232 = Complex32VectorValue(c2.data.map { it.toFloat() }.toFloatArray())
 
-        val lp: DoubleValue = c1.lp(c2, p) as DoubleValue
+        val lp: DoubleValue = c1.lp(c2, p).asDouble()
+        val lp32 : DoubleValue = c1.lp(c232, p).asDouble()
         val lpp = (c1 - c2).abs().pow(p).sum().pow(1.0 / p)
 
         isApproximatelyTheSame(lpp.real.value, lp.real.value)
-        isApproximatelyTheSame(lpp.imaginary.value, lp.imaginary.value)
+        isApproximatelyTheSame(0.0, lp.imaginary.value)
+        isApproximatelyTheSame(lpp.real.value.toFloat(), lp32.real.value)
+        isApproximatelyTheSame(0.0, lp32.imaginary.value)
     }
 
     @RepeatedTest(100)
