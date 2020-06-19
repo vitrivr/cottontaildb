@@ -10,9 +10,10 @@ import org.vitrivr.cottontail.database.index.lsh.LSHIndex
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.predicates.KnnPredicate
 import org.vitrivr.cottontail.database.queries.predicates.Predicate
-import org.vitrivr.cottontail.math.knn.ComparablePair
-import org.vitrivr.cottontail.math.knn.HeapSelect
 import org.vitrivr.cottontail.math.knn.metrics.CosineDistance
+import org.vitrivr.cottontail.math.knn.selection.ComparablePair
+import org.vitrivr.cottontail.math.knn.selection.MinHeapSelection
+import org.vitrivr.cottontail.math.knn.selection.MinSingleSelection
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
@@ -78,7 +79,12 @@ class SuperBitLSHIndex<T : VectorValue<*>>(name: Name, parent: Entity, columns: 
             /* Generate record set .*/
             for (i in predicate.query.indices) {
                 val query = predicate.query[i]
-                val knn = HeapSelect<ComparablePair<Long, DoubleValue>>(predicate.k)
+                val knn = if (predicate.k == 1) {
+                    MinSingleSelection<ComparablePair<Long, DoubleValue>>()
+                } else {
+                    MinHeapSelection<ComparablePair<Long, DoubleValue>>(predicate.k)
+                }
+
                 val bucket: Int = lsh.hash(query).last()
                 val tupleIds = this.map[bucket]
                 if (tupleIds != null) {
@@ -87,9 +93,9 @@ class SuperBitLSHIndex<T : VectorValue<*>>(name: Name, parent: Entity, columns: 
                         val value = record[predicate.column]
                         if (value is VectorValue<*>) {
                             if (predicate.weights != null) {
-                                knn.add(ComparablePair(it, predicate.distance(query, value, predicate.weights[i])))
+                                knn.offer(ComparablePair(it, predicate.distance(query, value, predicate.weights[i])))
                             } else {
-                                knn.add(ComparablePair(it, predicate.distance(query, value)))
+                                knn.offer(ComparablePair(it, predicate.distance(query, value)))
                             }
                         }
                     }

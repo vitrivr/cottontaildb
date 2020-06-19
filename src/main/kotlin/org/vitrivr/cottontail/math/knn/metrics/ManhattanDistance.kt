@@ -32,5 +32,5 @@ object ManhattanDistance : MinkowskiDistance {
      *
      * @return Distance between a and b.
      */
-    override operator fun invoke(a: VectorValue<*>, b: VectorValue<*>, weights: VectorValue<*>): DoubleValue = ((b - a).abs() * weights).sum().asDouble()
+    override operator fun invoke(a: VectorValue<*>, b: VectorValue<*>, weights: VectorValue<*>): DoubleValue = ((a - b).abs() * weights).sum().asDouble()
 }

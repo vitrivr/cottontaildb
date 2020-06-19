@@ -32,5 +32,5 @@ object EuclidianDistance : MinkowskiDistance {
      *
      * @return Distance between a and b.
      */
-    override operator fun invoke(a: VectorValue<*>, b: VectorValue<*>, weights: VectorValue<*>): DoubleValue = ((b - a).pow(2) * (weights)).sum().sqrt().asDouble()
+    override operator fun invoke(a: VectorValue<*>, b: VectorValue<*>, weights: VectorValue<*>): DoubleValue = ((a - b).pow(2) * (weights)).sum().sqrt().asDouble()
 }

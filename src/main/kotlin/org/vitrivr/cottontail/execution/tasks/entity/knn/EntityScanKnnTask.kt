@@ -1,14 +1,15 @@
 package org.vitrivr.cottontail.execution.tasks.entity.knn
 
-import com.github.dexecutor.core.task.Task
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.general.query
 import org.vitrivr.cottontail.database.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.database.queries.predicates.KnnPredicate
 import org.vitrivr.cottontail.execution.tasks.TaskSetupException
 import org.vitrivr.cottontail.execution.tasks.basics.ExecutionTask
-import org.vitrivr.cottontail.math.knn.ComparablePair
-import org.vitrivr.cottontail.math.knn.HeapSelect
+import org.vitrivr.cottontail.math.knn.selection.ComparablePair
+import org.vitrivr.cottontail.math.knn.selection.MinHeapSelection
+import org.vitrivr.cottontail.math.knn.selection.MinSingleSelection
+import org.vitrivr.cottontail.math.knn.selection.Selection
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.recordset.Recordset
@@ -16,14 +17,18 @@ import org.vitrivr.cottontail.model.values.DoubleValue
 import org.vitrivr.cottontail.model.values.types.VectorValue
 
 /**
- * A [Task] that executes a sequential kNN on a [Column][org.vitrivr.cottontail.database.column.Column] of the specified [Entity].
+ * A [ExecutionTask] that executes a sequential kNN on a [Column][org.vitrivr.cottontail.database.column.Column] of the specified [Entity].
  *
  * @author Ralph Gasser
- * @version 1.2
+ * @version 1.3
  */
 class EntityScanKnnTask<T : VectorValue<*>>(val entity: Entity, val knn: KnnPredicate<T>, val predicate: BooleanPredicate? = null, start: Long? = null, end: Long? = null) : ExecutionTask("LinearEntityScanKnnTask[${entity.fqn}][${knn.column.name}][${knn.distance::class.simpleName}][${knn.k}][q=${knn.query.hashCode()}]") {
-    /** Set containing the kNN values. */
-    private val knnSet = knn.query.map { HeapSelect<ComparablePair<Long, DoubleValue>>(this.knn.k) }
+    /** Set containing the kNN [Selection] algorithms. */
+    private val knnSet: List<Selection<ComparablePair<Long, DoubleValue>>> = if (this.knn.k == 1) {
+        knn.query.map { MinSingleSelection<ComparablePair<Long, DoubleValue>>() }
+    } else {
+        knn.query.map { MinHeapSelection<ComparablePair<Long, DoubleValue>>(this.knn.k) }
+    }
 
     /** Begin of range that should be scanned by this [EntityScanKnnTask]. */
     private val from = start ?: 1L
@@ -53,7 +58,7 @@ class EntityScanKnnTask<T : VectorValue<*>>(val entity: Entity, val knn: KnnPred
                 val value = it[this.knn.column]
                 if (value != null) {
                     this.knn.query.forEachIndexed { i, query ->
-                        this.knnSet[i].add(ComparablePair(it.tupleId, this.knn.distance(query, value, this.knn.weights[i])))
+                        this.knnSet[i].offer(ComparablePair(it.tupleId, this.knn.distance(query, value, this.knn.weights[i])))
                     }
                 }
             }
@@ -62,7 +67,7 @@ class EntityScanKnnTask<T : VectorValue<*>>(val entity: Entity, val knn: KnnPred
                 val value = it[this.knn.column]
                 if (value != null) {
                     this.knn.query.forEachIndexed { i, query ->
-                        this.knnSet[i].add(ComparablePair(it.tupleId, this.knn.distance(query, value)))
+                        this.knnSet[i].offer(ComparablePair(it.tupleId, this.knn.distance(query, value)))
                     }
                 }
             }
@@ -76,7 +81,7 @@ class EntityScanKnnTask<T : VectorValue<*>>(val entity: Entity, val knn: KnnPred
         }
 
         /** Generate recordset from HeapSelect data structures. */
-        KnnUtilities.heapSelectToRecordset(this.column, this.knnSet)
+        KnnUtilities.selectToRecordset(this.column, this.knnSet)
 
     } ?: Recordset(this.produces, capacity = 0)
 }
