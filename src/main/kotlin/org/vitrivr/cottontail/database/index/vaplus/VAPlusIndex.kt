@@ -14,8 +14,8 @@ import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.predicates.KnnPredicate
 import org.vitrivr.cottontail.database.queries.predicates.Predicate
 import org.vitrivr.cottontail.database.schema.Schema
-import org.vitrivr.cottontail.math.knn.ComparablePair
-import org.vitrivr.cottontail.math.knn.HeapSelect
+import org.vitrivr.cottontail.math.knn.selection.ComparablePair
+import org.vitrivr.cottontail.math.knn.selection.MinHeapSelection
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.exceptions.QueryException
@@ -97,13 +97,13 @@ class VAPlusIndex(override val name: Name, override val parent: Entity, override
         val meta = this.meta.get()
 
         /* Prepare HeapSelect data structures for Phase 1KNN query.*/
-        val heapsP1 = Array<HeapSelect<ComparablePair<Pair<Long, DoubleValue>, DoubleValue>>>(predicate.query.size) {
-            HeapSelect(5 * predicate.k)
+        val heapsP1 = Array<MinHeapSelection<ComparablePair<Pair<Long, DoubleValue>, DoubleValue>>>(predicate.query.size) {
+            MinHeapSelection(5 * predicate.k)
         }
 
         /* Prepare HeapSelect data structures for Phase 2 of KNN query.*/
-        val heapsP2 = Array<HeapSelect<ComparablePair<Long, DoubleValue>>>(predicate.query.size) {
-            HeapSelect(predicate.k)
+        val heapsP2 = Array<MinHeapSelection<ComparablePair<Long, DoubleValue>>>(predicate.query.size) {
+            MinHeapSelection(predicate.k)
         }
 
         /* Prepare empty IntArray for bounds estimation. */
@@ -132,9 +132,9 @@ class VAPlusIndex(override val name: Name, override val parent: Entity, override
                 val lb = DoubleValue(this.calculateBounds(cells, query.first.second, query.first.first))
                 val ub = DoubleValue(this.calculateBounds(cells, query.second.second, query.second.first))
                 if (heapsP1[i].size < heapsP1[i].k) {
-                    heapsP1[i].add(ComparablePair(Pair(it.tupleId, ub), lb))
+                    heapsP1[i].offer(ComparablePair(Pair(it.tupleId, ub), lb))
                 } else if (lb < heapsP1[i][heapsP1[i].k - 1].first.second) {
-                    heapsP1[i].add(ComparablePair(Pair(it.tupleId, ub), lb))
+                    heapsP1[i].offer(ComparablePair(Pair(it.tupleId, ub), lb))
                 }
             }
         }
@@ -144,13 +144,13 @@ class VAPlusIndex(override val name: Name, override val parent: Entity, override
             (0 until it.size).forEach { j ->
                 if (heapsP2[i].size < heapsP2[i].k) {
                     val vector = tx.read(it[j].first.first)[predicate.column]
-                    heapsP2[i].add(ComparablePair(it[j].first.first, (predicate as KnnPredicate<VectorValue<*>>).distance(predicate.query[i], vector as VectorValue<*>)))
+                    heapsP2[i].offer(ComparablePair(it[j].first.first, (predicate as KnnPredicate<VectorValue<*>>).distance(predicate.query[i], vector as VectorValue<*>)))
                 } else {
                     if (it[j].second < heapsP2[i][heapsP2[i].k - 1].second) {
                         return@forEach
                     }
                     val vector = tx.read(it[j].first.first)[predicate.column]
-                    heapsP2[i].add(ComparablePair(it[j].first.first, (predicate as KnnPredicate<VectorValue<*>>).distance(predicate.query[i], vector as VectorValue<*>)))
+                    heapsP2[i].offer(ComparablePair(it[j].first.first, (predicate as KnnPredicate<VectorValue<*>>).distance(predicate.query[i], vector as VectorValue<*>)))
                 }
             }
         }

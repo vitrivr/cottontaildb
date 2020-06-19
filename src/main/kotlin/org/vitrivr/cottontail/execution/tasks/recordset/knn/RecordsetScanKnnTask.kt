@@ -6,8 +6,10 @@ import org.vitrivr.cottontail.database.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.database.queries.predicates.KnnPredicate
 import org.vitrivr.cottontail.execution.tasks.basics.ExecutionTask
 import org.vitrivr.cottontail.execution.tasks.entity.knn.KnnUtilities
-import org.vitrivr.cottontail.math.knn.ComparablePair
-import org.vitrivr.cottontail.math.knn.HeapSelect
+import org.vitrivr.cottontail.math.knn.selection.ComparablePair
+import org.vitrivr.cottontail.math.knn.selection.MinHeapSelection
+import org.vitrivr.cottontail.math.knn.selection.MinSingleSelection
+import org.vitrivr.cottontail.math.knn.selection.Selection
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.recordset.Recordset
@@ -24,7 +26,11 @@ import org.vitrivr.cottontail.utilities.name.Name
  */
 class RecordsetScanKnnTask<T : VectorValue<*>>(val knn: KnnPredicate<T>, val predicate: BooleanPredicate? = null) : ExecutionTask("RecordsetScanKnnTask[${knn.column.name}][${knn.distance::class.simpleName}][${knn.k}][q=${knn.query.hashCode()}]") {
     /** Set containing the kNN values. */
-    private val knnSet = knn.query.map { HeapSelect<ComparablePair<Long, DoubleValue>>(this.knn.k) }
+    private val knnSet: List<Selection<ComparablePair<Long, DoubleValue>>> = if (this.knn.k == 1) {
+        this.knn.query.map { MinSingleSelection<ComparablePair<Long, DoubleValue>>() }
+    } else {
+        this.knn.query.map { MinHeapSelection<ComparablePair<Long, DoubleValue>>(this.knn.k) }
+    }
 
     /** The output [ColumnDef] produced by this [RecordsetScanKnnTask]. */
     private val column = ColumnDef(Name(KnnUtilities.DISTANCE_COLUMN_NAME), KnnUtilities.DISTANCE_COLUMN_TYPE)
@@ -43,7 +49,7 @@ class RecordsetScanKnnTask<T : VectorValue<*>>(val knn: KnnPredicate<T>, val pre
                 val value = it[this.knn.column]
                 if (value != null) {
                     this.knn.query.forEachIndexed { i, query ->
-                        this.knnSet[i].add(ComparablePair(it.tupleId, this.knn.distance(query, value, this.knn.weights[i])))
+                        this.knnSet[i].offer(ComparablePair(it.tupleId, this.knn.distance(query, value, this.knn.weights[i])))
                     }
                 }
             }
@@ -52,7 +58,7 @@ class RecordsetScanKnnTask<T : VectorValue<*>>(val knn: KnnPredicate<T>, val pre
                 val value = it[this.knn.column]
                 if (value != null) {
                     this.knn.query.forEachIndexed { i, query ->
-                        this.knnSet[i].add(ComparablePair(it.tupleId, this.knn.distance(query, value)))
+                        this.knnSet[i].offer(ComparablePair(it.tupleId, this.knn.distance(query, value)))
                     }
                 }
             }
@@ -66,6 +72,6 @@ class RecordsetScanKnnTask<T : VectorValue<*>>(val knn: KnnPredicate<T>, val pre
         }
 
         /** Generate recordset from HeapSelect data structures. */
-        return KnnUtilities.heapSelectToRecordset(this.column, this.knnSet)
+        return KnnUtilities.selectToRecordset(this.column, this.knnSet)
     }
 }

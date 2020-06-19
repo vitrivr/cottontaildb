@@ -1,8 +1,9 @@
 package org.vitrivr.cottontail.execution.tasks.entity.knn
 
 import org.vitrivr.cottontail.database.column.DoubleColumnType
-import org.vitrivr.cottontail.math.knn.ComparablePair
-import org.vitrivr.cottontail.math.knn.HeapSelect
+import org.vitrivr.cottontail.math.knn.selection.ComparablePair
+import org.vitrivr.cottontail.math.knn.selection.MinHeapSelection
+import org.vitrivr.cottontail.math.knn.selection.Selection
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.recordset.Recordset
 import org.vitrivr.cottontail.model.values.DoubleValue
@@ -22,13 +23,13 @@ object KnnUtilities {
     val DISTANCE_COLUMN_TYPE = DoubleColumnType
 
     /**
-     * Combines a [Collection] of [HeapSelect] data structures into a [Recordset].
+     * Combines a [Collection] of [MinHeapSelection] data structures into a [Recordset].
      *
      * @param column The [ColumnDef] of the new [Recordset]
-     * @param list List of [HeapSelect]s to combine.
+     * @param list List of [MinHeapSelection]s to combine.
      * @return [Recordset]
      */
-    fun heapSelectToRecordset(column: ColumnDef<*>, list: List<HeapSelect<ComparablePair<Long, DoubleValue>>>): Recordset {
+    fun selectToRecordset(column: ColumnDef<*>, list: List<Selection<ComparablePair<Long, DoubleValue>>>): Recordset {
         val dataset = Recordset(arrayOf(column), capacity = (list.size * list.first().size).toLong())
         for (knn in list) {
             for (i in 0 until knn.size) {
