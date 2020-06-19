@@ -80,7 +80,7 @@ inline class Complex64Value(val data: DoubleArray): ComplexValue<Double> {
     constructor(real: Number, imaginary: Number) : this(doubleArrayOf(real.toDouble(), imaginary.toDouble()))
 
     override val value: Double
-        get() = this.abs().value
+        get() = this.data[0]
 
     override val real: DoubleValue
         get() = DoubleValue(this.data[0])
@@ -95,6 +95,8 @@ inline class Complex64Value(val data: DoubleArray): ComplexValue<Double> {
      * Comparison to other [Value]s.
      */
     override fun compareTo(other: Value): Int = when (other) {
+        is Complex32Value -> this.real.compareTo(other.real)
+        is Complex64Value -> this.real.compareTo(other.real)
         is ByteValue -> this.real.compareTo(other)
         is ShortValue -> this.real.compareTo(other)
         is IntValue -> this.real.compareTo(other)
@@ -105,7 +107,7 @@ inline class Complex64Value(val data: DoubleArray): ComplexValue<Double> {
     }
 
     /**
-     * Comparison to other [Value]s.
+     * Comparison to other [NumericValue]s.
      */
     override fun compareTo(other: NumericValue<Double>): Int = this.real.compareTo(other.real)
 

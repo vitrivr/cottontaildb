@@ -5,7 +5,6 @@ import org.vitrivr.cottontail.model.values.types.NumericValue
 import org.vitrivr.cottontail.model.values.types.RealValue
 import org.vitrivr.cottontail.model.values.types.Value
 import java.util.*
-import kotlin.math.sign
 
 /**
  * Represents a complex number backed by single-precision (32bit) [Float]s
@@ -81,7 +80,7 @@ inline class Complex32Value(val data: FloatArray): ComplexValue<Float> {
     constructor(real: Number, imaginary: Number) : this(floatArrayOf(real.toFloat(), imaginary.toFloat()))
 
     override val value: Float
-        get() = this.abs().value
+        get() = this.data[0]
 
     override val real: FloatValue
         get() = FloatValue(this.data[0])
@@ -92,12 +91,13 @@ inline class Complex32Value(val data: FloatArray): ComplexValue<Float> {
     override val logicalSize: Int
         get() = -1
 
+
     /**
-     * Comparison to other [Value]s. When compared to a [RealValue], then only the real part of the [Complex32Value] is considered.
+     * Comparison to other [Value]s.
      */
     override fun compareTo(other: Value): Int = when (other) {
-        is Complex32Value -> (abs() - other.abs()).value.toInt().sign
-        is Complex64Value -> (abs() - other.abs()).value.toInt().sign
+        is Complex32Value -> this.real.compareTo(other.real)
+        is Complex64Value -> this.real.compareTo(other.real)
         is ByteValue -> this.real.compareTo(other)
         is ShortValue -> this.real.compareTo(other)
         is IntValue -> this.real.compareTo(other)
@@ -108,9 +108,14 @@ inline class Complex32Value(val data: FloatArray): ComplexValue<Float> {
     }
 
     /**
+     * Comparison to other [NumericValue]s.
+     */
+    override fun compareTo(other: NumericValue<Float>): Int = this.real.compareTo(other.real)
+
+    /**
      * Comparison to [Number]s. When compared to a [Number], then only the real part of the [Complex32Value] is considered.
      */
-    override fun compareTo(other: Number): Int =  when (other) {
+    override fun compareTo(other: Number): Int = when (other) {
         is Byte -> this.real.compareTo(other)
         is Short -> this.real.compareTo(other)
         is Int -> this.real.compareTo(other)
@@ -232,7 +237,4 @@ inline class Complex32Value(val data: FloatArray): ComplexValue<Float> {
     }
 
     override fun atan(): Complex64Value = ((this + I) / (I - this)).ln() * (I / Complex32Value(floatArrayOf(2.0f, 0.0f)))
-
-    override fun compareTo(other: NumericValue<Float>): Int = this.real.compareTo(other.real)
-
 }
