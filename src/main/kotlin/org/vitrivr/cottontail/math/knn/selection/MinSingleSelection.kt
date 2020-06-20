@@ -36,12 +36,8 @@ class MinSingleSelection<T : Comparable<T>> : Selection<T> {
 
     override fun offer(element: T) = this.lock.write {
         val current = this.element
-        if (current == null) {
+        if (current == null || current > element) {
             this.element = element
-        } else {
-            if (current > element) {
-                this.element = element
-            }
         }
     }
 
