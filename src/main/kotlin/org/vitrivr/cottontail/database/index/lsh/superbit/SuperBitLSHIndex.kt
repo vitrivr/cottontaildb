@@ -50,14 +50,11 @@ class SuperBitLSHIndex<T : VectorValue<*>>(name: Name, parent: Entity, columns: 
         if (!columns.all { it.type.vector }) {
             throw DatabaseException.IndexNotSupportedException(name, "Because only vector columns are supported for SuperBitLSHIndex.")
         }
-        try {
-            val buckets = params?.get(CONFIG_NAME_BUCKETS)?.toInt() ?: CONFIG_DEFAULT_BUCKETS
-            val stages = params?.get(CONFIG_NAME_STAGES)?.toInt() ?: CONFIG_DEFAULT_STAGES
-            val seed = params?.get(CONFIG_NAME_SEED)?.toLong() ?: System.currentTimeMillis()
+        if (params != null) {
+            val buckets = params[CONFIG_NAME_BUCKETS]?.toIntOrNull() ?: CONFIG_DEFAULT_BUCKETS
+            val stages = params[CONFIG_NAME_STAGES]?.toIntOrNull() ?: CONFIG_DEFAULT_STAGES
+            val seed = params[CONFIG_NAME_SEED]?.toLongOrNull() ?: System.currentTimeMillis()
             this.config.set(SuperBitLSHIndexConfig(buckets, stages, seed))
-        } catch (e: NumberFormatException) {
-            LOGGER.warn("One of the parameters could not be converted to a number. Fallback to default values instead!")
-            this.config.set(SuperBitLSHIndexConfig(CONFIG_DEFAULT_BUCKETS, CONFIG_DEFAULT_STAGES, System.currentTimeMillis()))
         }
     }
 
