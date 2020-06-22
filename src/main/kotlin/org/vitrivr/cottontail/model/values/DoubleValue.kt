@@ -9,6 +9,9 @@ inline class DoubleValue(override val value: Double): RealValue<Double> {
 
     companion object {
         val ZERO = DoubleValue(0.0)
+        val ONE = DoubleValue(1.0)
+        val NaN = DoubleValue(Double.NaN)
+        val INF = DoubleValue(Double.POSITIVE_INFINITY)
     }
 
     /**
