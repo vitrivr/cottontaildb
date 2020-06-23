@@ -3,7 +3,7 @@ package org.vitrivr.cottontail.math.knn.metrics
 import org.vitrivr.cottontail.model.values.DoubleValue
 import org.vitrivr.cottontail.model.values.types.VectorValue
 
-object AbsoluteInnerProductSimilarity : DistanceKernel {
+object AbsoluteInnerProductDistance : DistanceKernel {
     /** Estimate of the cost required per vector component. */
     override val cost = 3.0f
     // todo: assess actual cost
@@ -15,7 +15,7 @@ object AbsoluteInnerProductSimilarity : DistanceKernel {
      * @param b Second [VectorValue]
      * @return Absolute value of inner product between a and b.
      */
-    override fun invoke(a: VectorValue<*>, b: VectorValue<*>): DoubleValue = (a dot b).abs().asDouble()
+    override fun invoke(a: VectorValue<*>, b: VectorValue<*>): DoubleValue = DoubleValue.ONE - (a dot b).abs().asDouble()
 
     /**
      * Calculates the absolute value of the weighted inner product between two [VectorValue]s.

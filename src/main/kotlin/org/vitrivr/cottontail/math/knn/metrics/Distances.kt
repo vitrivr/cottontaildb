@@ -7,6 +7,6 @@ enum class Distances (val kernel: DistanceKernel) {
     HAMMING(HammingDistance),
     COSINE(CosineDistance),
     CHISQUARED(ChisquaredDistance),
-    REALINNERPRODUCT(RealInnerProductSimilarity),
-    ABSOLUTEINNERPRODUCT(AbsoluteInnerProductSimilarity)
+    REALINNERPRODUCT(RealInnerProductDistance),
+    ABSOLUTEINNERPRODUCT(AbsoluteInnerProductDistance)
 }

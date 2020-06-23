@@ -7,10 +7,10 @@ import org.junit.jupiter.params.provider.ValueSource
 import org.vitrivr.cottontail.math.basics.absFromFromComplexFieldVector
 import org.vitrivr.cottontail.math.basics.arrayFieldVectorFromVectorValue
 import org.vitrivr.cottontail.math.basics.conjFromFromComplexFieldVector
-import org.vitrivr.cottontail.math.knn.metrics.AbsoluteInnerProductSimilarity
+import org.vitrivr.cottontail.math.knn.metrics.AbsoluteInnerProductDistance
 import org.vitrivr.cottontail.math.knn.metrics.EuclidianDistance
 import org.vitrivr.cottontail.math.knn.metrics.ManhattanDistance
-import org.vitrivr.cottontail.math.knn.metrics.RealInnerProductSimilarity
+import org.vitrivr.cottontail.math.knn.metrics.RealInnerProductDistance
 import org.vitrivr.cottontail.model.values.Complex64VectorValue
 import org.vitrivr.cottontail.utilities.VectorUtility
 import java.util.*
@@ -145,7 +145,7 @@ class Complex64VectorDistanceTest {
     @ExperimentalTime
     @ParameterizedTest
     @ValueSource(ints = [32, 64, 128, 256, 512, 1024])
-    fun testIPSimilarity(dimension: Int) {
+    fun testIPDistance(dimension: Int) {
         val query = Complex64VectorValue.random(dimension, RANDOM)
         val queryp = arrayFieldVectorFromVectorValue(query)
         val collection = VectorUtility.randomComplex64VectorSequence(dimension, COLLECTION_SIZE, RANDOM)
@@ -159,10 +159,10 @@ class Complex64VectorDistanceTest {
         collection.forEach {
             val dataitem = arrayFieldVectorFromVectorValue(it)
             time1 += measureTime {
-                sum1 += AbsoluteInnerProductSimilarity(query, it).value
+                sum1 += AbsoluteInnerProductDistance(query, it).value
             }
             time2 += measureTime {
-                sum2 += queryp.dotProduct(conjFromFromComplexFieldVector(dataitem)).abs()
+                sum2 += 1.0 - queryp.dotProduct(conjFromFromComplexFieldVector(dataitem)).abs()
             }
 //            sum3 += queryp.dotProduct(dataitem).abs()
         }
@@ -182,7 +182,7 @@ class Complex64VectorDistanceTest {
     @ExperimentalTime
     @ParameterizedTest
     @ValueSource(ints = [32, 64, 128, 256, 512, 1024])
-    fun testIPRealSimilarity(dimension: Int) {
+    fun testIPRealDistance(dimension: Int) {
         val query = Complex64VectorValue.random(dimension, RANDOM)
         val queryp = arrayFieldVectorFromVectorValue(query)
         val collection = VectorUtility.randomComplex64VectorSequence(dimension, COLLECTION_SIZE, RANDOM)
@@ -197,12 +197,12 @@ class Complex64VectorDistanceTest {
         collection.forEach {
             val conjDataitem = conjFromFromComplexFieldVector(arrayFieldVectorFromVectorValue(it))
             time1 += measureTime {
-                sum1 += query.dotRealPart(it).value
+                sum1 += 1.0 - query.dotRealPart(it).value
             }
             time2 += measureTime {
-                sum2 += RealInnerProductSimilarity(query, it).value
+                sum2 += RealInnerProductDistance(query, it).value
             }
-            sum3 += queryp.dotProduct(conjDataitem).real
+            sum3 += 1.0 - queryp.dotProduct(conjDataitem).real
         }
 
         println("Calculating abs of DOT for collection (s=$COLLECTION_SIZE, d=$dimension) took ${time1 / COLLECTION_SIZE} (optimized) resp. ${time2 / COLLECTION_SIZE} per vector on average.")
