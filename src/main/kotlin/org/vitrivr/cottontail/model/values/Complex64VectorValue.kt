@@ -1,6 +1,5 @@
 package org.vitrivr.cottontail.model.values
 
-import org.apache.commons.math3.exception.DimensionMismatchException
 import org.apache.commons.math3.util.FastMath
 import org.vitrivr.cottontail.model.values.types.*
 import java.util.*
@@ -138,7 +137,7 @@ inline class Complex64VectorValue(val data: DoubleArray) : ComplexVectorValue<Do
                 this.data[it]
             }
         }
-    }) else throw DimensionMismatchException(this.logicalSize, other.logicalSize)
+    }) else throw IllegalArgumentException("Dimensions ${this.logicalSize} and ${other.logicalSize} don't agree!")
 
     override fun minus(other: VectorValue<*>) = if (other.logicalSize == this.logicalSize)
         Complex64VectorValue(when (other) {
@@ -151,7 +150,7 @@ inline class Complex64VectorValue(val data: DoubleArray) : ComplexVectorValue<Do
                 this.data[it]
             }
         }
-    }) else throw DimensionMismatchException(this.logicalSize, other.logicalSize)
+    }) else throw IllegalArgumentException("Dimensions ${this.logicalSize} and ${other.logicalSize} don't agree!")
 
     override fun times(other: VectorValue<*>) = if (other.logicalSize == this.logicalSize)
         Complex64VectorValue(when (other) {
@@ -172,7 +171,7 @@ inline class Complex64VectorValue(val data: DoubleArray) : ComplexVectorValue<Do
         else -> DoubleArray(this.data.size) {
             this.data[it] * other[it / 2].value.toDouble()
         }
-    }) else throw DimensionMismatchException(this.logicalSize, other.logicalSize)
+    }) else throw IllegalArgumentException("Dimensions ${this.logicalSize} and ${other.logicalSize} don't agree!")
 
     override fun div(other: VectorValue<*>) = if (other.logicalSize == this.logicalSize)
         when (other) {
@@ -181,7 +180,7 @@ inline class Complex64VectorValue(val data: DoubleArray) : ComplexVectorValue<Do
         else -> Complex64VectorValue(DoubleArray(this.data.size) {
             this.data[it] / other[it / 2].value.toDouble()
         })
-    } else throw DimensionMismatchException(this.logicalSize, other.logicalSize)
+    } else throw IllegalArgumentException("Dimensions ${this.logicalSize} and ${other.logicalSize} don't agree!")
 
     /**
      * Internal division implementations for [Complex64VectorValue]s.
@@ -442,7 +441,7 @@ inline class Complex64VectorValue(val data: DoubleArray) : ComplexVectorValue<Do
             }
             Complex64Value(real, imaginary)
         }
-    } else throw DimensionMismatchException(this.logicalSize, other.logicalSize)
+    } else throw IllegalArgumentException("Dimensions ${this.logicalSize} and ${other.logicalSize} don't agree!")
 
     /**
      * Calculates the real part of the dot product between this [Complex64VectorValue] and another [VectorValue].
@@ -473,7 +472,7 @@ inline class Complex64VectorValue(val data: DoubleArray) : ComplexVectorValue<Do
                 }
                 DoubleValue(real)
             }
-        } else throw DimensionMismatchException(this.logicalSize, other.logicalSize)
+        } else throw IllegalArgumentException("Dimensions ${this.logicalSize} and ${other.logicalSize} don't agree!")
 
     /**
      * Calculates the complex L2 norm of this [Complex64VectorValue].
@@ -523,7 +522,7 @@ inline class Complex64VectorValue(val data: DoubleArray) : ComplexVectorValue<Do
             }
             DoubleValue(sum)
         }
-    } else throw DimensionMismatchException(this.logicalSize, other.logicalSize)
+    } else throw IllegalArgumentException("Dimensions ${this.logicalSize} and ${other.logicalSize} don't agree!")
 
     /**
      * Calculates the squared L2 distance between this [Complex64VectorValue] and the other [VectorValue].
@@ -556,7 +555,7 @@ inline class Complex64VectorValue(val data: DoubleArray) : ComplexVectorValue<Do
                 }
                 DoubleValue(sum)
             }
-        } else throw DimensionMismatchException(this.logicalSize, other.logicalSize)
+        } else throw IllegalArgumentException("Dimensions ${this.logicalSize} and ${other.logicalSize} don't agree!")
 
     /**
      * Calculates the L2 distance between this [Complex64VectorValue] and the other [VectorValue].

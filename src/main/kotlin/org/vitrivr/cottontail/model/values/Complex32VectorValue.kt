@@ -1,6 +1,5 @@
 package org.vitrivr.cottontail.model.values
 
-import org.apache.commons.math3.exception.DimensionMismatchException
 import org.apache.commons.math3.util.FastMath
 import org.vitrivr.cottontail.model.values.types.ComplexVectorValue
 import org.vitrivr.cottontail.model.values.types.NumericValue
@@ -138,7 +137,7 @@ inline class Complex32VectorValue(val data: FloatArray) : ComplexVectorValue<Flo
                 this.data[it]
             }
         }
-    }) else throw DimensionMismatchException(this.logicalSize, other.logicalSize)
+    }) else throw IllegalArgumentException("Dimensions ${this.logicalSize} and ${other.logicalSize} don't agree!")
 
     override fun minus(other: VectorValue<*>) = if (this.logicalSize == other.logicalSize)
         Complex32VectorValue(when (other) {
@@ -151,7 +150,7 @@ inline class Complex32VectorValue(val data: FloatArray) : ComplexVectorValue<Flo
                 this.data[it]
             }
         }
-    }) else throw DimensionMismatchException(this.logicalSize, other.logicalSize)
+    }) else throw IllegalArgumentException("Dimensions ${this.logicalSize} and ${other.logicalSize} don't agree!")
 
     override fun times(other: VectorValue<*>) = if (other.logicalSize == this.logicalSize)
         Complex32VectorValue(when (other) {
@@ -172,7 +171,7 @@ inline class Complex32VectorValue(val data: FloatArray) : ComplexVectorValue<Flo
         else -> FloatArray(this.data.size) {
             this.data[it] * other[it / 2].value.toFloat()
         }
-    }) else throw DimensionMismatchException(this.logicalSize, other.logicalSize)
+    }) else throw IllegalArgumentException("Dimensions ${this.logicalSize} and ${other.logicalSize} don't agree!")
 
     override fun div(other: VectorValue<*>) = if (other.logicalSize == this.logicalSize)
         when (other) {
@@ -181,7 +180,7 @@ inline class Complex32VectorValue(val data: FloatArray) : ComplexVectorValue<Flo
         else -> Complex32VectorValue(FloatArray(this.data.size) {
             this.data[it] / other[it / 2].value.toFloat()
         })
-    } else throw DimensionMismatchException(this.logicalSize, other.logicalSize)
+    } else throw IllegalArgumentException("Dimensions ${this.logicalSize} and ${other.logicalSize} don't agree!")
 
     /**
      * Internal division implementations for [Complex64VectorValue]s.
@@ -442,7 +441,7 @@ inline class Complex32VectorValue(val data: FloatArray) : ComplexVectorValue<Flo
             }
             Complex32Value(real, imaginary)
         }
-    } else throw DimensionMismatchException(this.logicalSize, other.logicalSize)
+    } else throw IllegalArgumentException("Dimensions ${this.logicalSize} and ${other.logicalSize} don't agree!")
 
     /**
      * Calculates the complex L2 norm of this [Complex64VectorValue].
@@ -492,5 +491,5 @@ inline class Complex32VectorValue(val data: FloatArray) : ComplexVectorValue<Flo
             }
             DoubleValue(sum)
         }
-    } else throw DimensionMismatchException(this.logicalSize, other.logicalSize)
+    } else throw IllegalArgumentException("Dimensions ${this.logicalSize} and ${other.logicalSize} don't agree!")
 }

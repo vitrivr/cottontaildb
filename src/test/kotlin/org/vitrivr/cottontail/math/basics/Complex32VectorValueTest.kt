@@ -357,20 +357,20 @@ class Complex32VectorValueTest {
         val c2p = arrayFieldVectorFromVectorValue(c2)
 
         assertThrows<DimensionMismatchException> { c1p.add(c2p) }
-        assertThrows<DimensionMismatchException> { c1 + c2 }
-        assertThrows<DimensionMismatchException> { c2 + c1 }
+        assertThrows<IllegalArgumentException> { c1 + c2 }
+        assertThrows<IllegalArgumentException> { c2 + c1 }
         assertThrows<DimensionMismatchException> { c1p.subtract(c2p) }
-        assertThrows<DimensionMismatchException> { c1 - c2 }
-        assertThrows<DimensionMismatchException> { c2 - c1 }
+        assertThrows<IllegalArgumentException> { c1 - c2 }
+        assertThrows<IllegalArgumentException> { c2 - c1 }
         assertThrows<DimensionMismatchException> { c1p.ebeMultiply(c2p) }
-        assertThrows<DimensionMismatchException> { c1 * c2 }
-        assertThrows<DimensionMismatchException> { c2 * c1 }
+        assertThrows<IllegalArgumentException> { c1 * c2 }
+        assertThrows<IllegalArgumentException> { c2 * c1 }
         assertThrows<DimensionMismatchException> { c1p.ebeDivide(c2p) }
-        assertThrows<DimensionMismatchException> { c1 / c2 }
-        assertThrows<DimensionMismatchException> { c2 / c1 }
+        assertThrows<IllegalArgumentException> { c1 / c2 }
+        assertThrows<IllegalArgumentException> { c2 / c1 }
         assertThrows<DimensionMismatchException> { c1p.dotProduct(c2p) }
-        assertThrows<DimensionMismatchException> { c1 dot c2 }
-        assertThrows<DimensionMismatchException> { c2 dot c1 }
+        assertThrows<IllegalArgumentException> { c1 dot c2 }
+        assertThrows<IllegalArgumentException> { c2 dot c1 }
 
     }
 }
