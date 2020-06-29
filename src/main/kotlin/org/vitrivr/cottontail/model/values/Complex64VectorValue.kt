@@ -7,7 +7,7 @@ import kotlin.math.atan2
 import kotlin.math.pow
 
 /**
- * This is an abstraction over an [Array] and it represents a vector of [Complex64]s.
+ * This is an abstraction over an [Array] and it represents a vector of [Complex64Value]s.
  *
  * @author Manuel Huerbin & Ralph Gasser
  * @version 1.2
@@ -63,7 +63,6 @@ inline class Complex64VectorValue(val data: DoubleArray) : ComplexVectorValue<Do
          * Generates a [Complex32VectorValue] of the given size initialized with zeros.
          *
          * @param size Size of the new [Complex32VectorValue]
-         * @param rnd A [SplittableRandom] to generate the random numbers.
          */
         fun zero(size: Int) = Complex64VectorValue(DoubleArray(2 * size) {
             0.0
@@ -127,31 +126,34 @@ inline class Complex64VectorValue(val data: DoubleArray) : ComplexVectorValue<Do
      */
     override fun copy(): Complex64VectorValue = Complex64VectorValue(this.data.copyOf())
 
-    override fun plus(other: VectorValue<*>) = Complex64VectorValue(when (other) {
+    override fun plus(other: VectorValue<*>) = if (other.logicalSize == this.logicalSize)
+        Complex64VectorValue(when (other) {
         is Complex32VectorValue -> DoubleArray(this.data.size) { this.data[it] + other.data[it] }
         is Complex64VectorValue -> DoubleArray(this.data.size) { this.data[it] + other.data[it] }
         else -> DoubleArray(this.data.size) {
             if (it % 2 == 0) {
-                this.data[it] + other[it].value.toDouble()
+                this.data[it] + other[it / 2].value.toDouble()
             } else {
                 this.data[it]
             }
         }
-    })
+    }) else throw IllegalArgumentException("Dimensions ${this.logicalSize} and ${other.logicalSize} don't agree!")
 
-    override fun minus(other: VectorValue<*>) = Complex64VectorValue(when (other) {
+    override fun minus(other: VectorValue<*>) = if (other.logicalSize == this.logicalSize)
+        Complex64VectorValue(when (other) {
         is Complex32VectorValue -> DoubleArray(this.data.size) { this.data[it] - other.data[it] }
         is Complex64VectorValue -> DoubleArray(this.data.size) { this.data[it] - other.data[it] }
         else -> DoubleArray(this.data.size) {
             if (it % 2 == 0) {
-                this.data[it] - other[it].value.toDouble()
+                this.data[it] - other[it / 2].value.toDouble()
             } else {
                 this.data[it]
             }
         }
-    })
+    }) else throw IllegalArgumentException("Dimensions ${this.logicalSize} and ${other.logicalSize} don't agree!")
 
-    override fun times(other: VectorValue<*>) = Complex64VectorValue(when (other) {
+    override fun times(other: VectorValue<*>) = if (other.logicalSize == this.logicalSize)
+        Complex64VectorValue(when (other) {
         is Complex32VectorValue -> DoubleArray(this.data.size) {
             if (it % 2 == 0) {
                 this.data[it] * other.data[it] - this.data[it + 1] * other.data[it + 1]
@@ -166,14 +168,19 @@ inline class Complex64VectorValue(val data: DoubleArray) : ComplexVectorValue<Do
                 this.data[it - 1] * other.data[it] + this.data[it] * other.data[it - 1]
             }
         }
-        else -> DoubleArray(this.data.size) { this.data[it] * other[it].value.toDouble() }
-    })
+        else -> DoubleArray(this.data.size) {
+            this.data[it] * other[it / 2].value.toDouble()
+        }
+    }) else throw IllegalArgumentException("Dimensions ${this.logicalSize} and ${other.logicalSize} don't agree!")
 
-    override fun div(other: VectorValue<*>) = when (other) {
+    override fun div(other: VectorValue<*>) = if (other.logicalSize == this.logicalSize)
+        when (other) {
         is Complex64VectorValue -> internalComplex64VectorValueDiv(other)
         is Complex32VectorValue -> internalComplex32VectorValueDiv(other)
-        else -> Complex64VectorValue(DoubleArray(this.data.size) { this.data[it] / other[it].value.toDouble() })
-    }
+        else -> Complex64VectorValue(DoubleArray(this.data.size) {
+            this.data[it] / other[it / 2].value.toDouble()
+        })
+    } else throw IllegalArgumentException("Dimensions ${this.logicalSize} and ${other.logicalSize} don't agree!")
 
     /**
      * Internal division implementations for [Complex64VectorValue]s.
@@ -215,7 +222,7 @@ inline class Complex64VectorValue(val data: DoubleArray) : ComplexVectorValue<Do
                 val q = d / c
                 val denominator = d * q + c
                 doubles[i shl 1] = (this.data[(i shl 1) + 1] * q + this.data[(i shl 1)]) / denominator
-                doubles[(i shl 1) + 1] = (this.data[(i shl 1) + 1] * q - this.data[i shl 1]) / denominator
+                doubles[(i shl 1) + 1] = (this.data[(i shl 1) + 1] - this.data[i shl 1] * q) / denominator
             }
         }
         return Complex64VectorValue(doubles)
@@ -268,7 +275,6 @@ inline class Complex64VectorValue(val data: DoubleArray) : ComplexVectorValue<Do
             }
         }
     })
-
 
     override fun times(other: NumericValue<*>) = Complex64VectorValue(when (other) {
         is Complex32Value -> DoubleArray(this.data.size) {
@@ -406,13 +412,14 @@ inline class Complex64VectorValue(val data: DoubleArray) : ComplexVectorValue<Do
      * @param other The other [VectorValue].
      * @return [Complex64Value] dot product of this and the other vector.
      */
-    override fun dot(other: VectorValue<*>): Complex64Value = when (other) {
+    override fun dot(other: VectorValue<*>): Complex64Value = if (other.logicalSize == this.logicalSize)
+        when (other) {
         is Complex32VectorValue -> {
             var real = 0.0
             var imaginary = 0.0
             for (i in 0 until this.data.size / 2) {
-                real += this.data[i shl 1] * other.data[i shl 1] - this.data[(i shl 1) + 1] * (-other.data[(i shl 1) + 1])
-                imaginary += this.data[i shl 1] * (-other.data[(i shl 1) + 1]) + this.data[(i shl 1) + 1] * other.data[(i shl 1)]
+                real += this.data[i shl 1] * other.data[i shl 1] + this.data[(i shl 1) + 1] * other.data[(i shl 1) + 1]
+                imaginary += this.data[(i shl 1) + 1] * other.data[(i shl 1)] - this.data[i shl 1] * other.data[(i shl 1) + 1]
             }
             Complex64Value(real, imaginary)
         }
@@ -420,8 +427,8 @@ inline class Complex64VectorValue(val data: DoubleArray) : ComplexVectorValue<Do
             var real = 0.0
             var imaginary = 0.0
             for (i in 0 until this.data.size / 2) {
-                real += this.data[i shl 1] * other.data[i shl 1] - this.data[(i shl 1) + 1] * (-other.data[(i shl 1) + 1])
-                imaginary += this.data[i shl 1] * (-other.data[(i shl 1) + 1]) + this.data[(i shl 1) + 1] * other.data[(i shl 1)]
+                real += this.data[i shl 1] * other.data[i shl 1] + this.data[(i shl 1) + 1] * other.data[(i shl 1) + 1]
+                imaginary += this.data[(i shl 1) + 1] * other.data[(i shl 1)] - this.data[i shl 1] * other.data[(i shl 1) + 1]
             }
             Complex64Value(real, imaginary)
         }
@@ -434,7 +441,38 @@ inline class Complex64VectorValue(val data: DoubleArray) : ComplexVectorValue<Do
             }
             Complex64Value(real, imaginary)
         }
-    }
+    } else throw IllegalArgumentException("Dimensions ${this.logicalSize} and ${other.logicalSize} don't agree!")
+
+    /**
+     * Calculates the real part of the dot product between this [Complex64VectorValue] and another [VectorValue].
+     *
+     * @param other The other [VectorValue].
+     * @return [DoubleValue] real part of dot product of this and the other vector.
+     */
+     fun dotRealPart(other: VectorValue<*>): DoubleValue = if (other.logicalSize == this.logicalSize)
+        when (other) {
+            is Complex32VectorValue -> {
+                var real = 0.0
+                for (i in 0 until this.data.size / 2) {
+                    real += this.data[i shl 1] * other.data[i shl 1] + this.data[(i shl 1) + 1] * other.data[(i shl 1) + 1]
+                }
+                DoubleValue(real)
+            }
+            is Complex64VectorValue -> {
+                var real = 0.0
+                for (i in 0 until this.data.size / 2) {
+                    real += this.data[i shl 1] * other.data[i shl 1] + this.data[(i shl 1) + 1] * other.data[(i shl 1) + 1]
+                }
+                DoubleValue(real)
+            }
+            else -> {
+                var real = 0.0
+                for (i in 0 until this.data.size / 2) {
+                    real += this.data[i shl 1] * other[i].value.toDouble()
+                }
+                DoubleValue(real)
+            }
+        } else throw IllegalArgumentException("Dimensions ${this.logicalSize} and ${other.logicalSize} don't agree!")
 
     /**
      * Calculates the complex L2 norm of this [Complex64VectorValue].
@@ -455,7 +493,8 @@ inline class Complex64VectorValue(val data: DoubleArray) : ComplexVectorValue<Do
      * @param other The [VectorValue] to calculate the distance from.
      * @return L1 distance between this [Complex64VectorValue] and the other [VectorValue].
      */
-    override fun l1(other: VectorValue<*>): DoubleValue = when (other) {
+    override fun l1(other: VectorValue<*>): DoubleValue = if (other.logicalSize == this.logicalSize)
+        when (other) {
         is Complex32VectorValue -> {
             var sum = 0.0
             for (i in 0 until this.data.size / 2) {
@@ -483,5 +522,47 @@ inline class Complex64VectorValue(val data: DoubleArray) : ComplexVectorValue<Do
             }
             DoubleValue(sum)
         }
-    }
+    } else throw IllegalArgumentException("Dimensions ${this.logicalSize} and ${other.logicalSize} don't agree!")
+
+    /**
+     * Calculates the squared L2 distance between this [Complex64VectorValue] and the other [VectorValue].
+     *
+     * @param other The [VectorValue] to calculate the distance from.
+     * @return squared L2 distance between this [Complex64VectorValue] and the other [VectorValue].
+     */
+    fun l2sq(other: VectorValue<*>): DoubleValue = if (other.logicalSize == this.logicalSize)
+        when (other) {
+            is Complex32VectorValue -> {
+                var sum = 0.0
+                for (i in this.data.indices) {
+                    sum += (this.data[i] - other.data[i]).pow(2)
+                }
+                DoubleValue(sum)
+            }
+            is Complex64VectorValue -> {
+                var sum = 0.0
+                for (i in this.data.indices) {
+                    sum += (this.data[i] - other.data[i]).pow(2)
+                }
+                DoubleValue(sum)
+            }
+            else -> {
+                var sum = 0.0
+                for (i in 0 until this.data.size / 2) {
+                    val diffReal = this.data[i shl 1] - other[i].asDouble().value
+                    val diffImaginary = this.data[(i shl 1) + 1]
+                    sum += (diffReal.pow(2) + diffImaginary.pow(2))
+                }
+                DoubleValue(sum)
+            }
+        } else throw IllegalArgumentException("Dimensions ${this.logicalSize} and ${other.logicalSize} don't agree!")
+
+    /**
+     * Calculates the L2 distance between this [Complex64VectorValue] and the other [VectorValue].
+     *
+     * @param other The [VectorValue] to calculate the distance from.
+     * @return L2 distance between this [Complex64VectorValue] and the other [VectorValue].
+     */
+    override fun l2(other: VectorValue<*>): DoubleValue = l2sq(other).sqrt()
+
 }

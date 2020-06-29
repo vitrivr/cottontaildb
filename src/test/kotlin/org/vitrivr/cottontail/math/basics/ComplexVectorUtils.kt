@@ -13,38 +13,39 @@ import org.vitrivr.cottontail.model.values.Complex64Value
 import org.vitrivr.cottontail.model.values.Complex64VectorValue
 import org.vitrivr.cottontail.model.values.types.VectorValue
 
+const val DELTA_COARSE = 5e-5
+const val DELTA_FINE = 1e-14
+
 fun isApproximatelyTheSame(expected: Float, actual: Float) {
-    val DELTA = 5e-5f
     if (actual == 0.0f) {
         Assertions.assertEquals(expected, actual)
         return
     }
     val ratio = expected / actual
-    Assertions.assertTrue( ratio > 1.0f - DELTA && ratio < 1.0f + DELTA,
+    Assertions.assertTrue( ratio > 1.0f - DELTA_COARSE && ratio < 1.0f + DELTA_COARSE,
             "Value $actual not approximately the same as expected $expected!")
 }
 
 fun isApproximatelyTheSame(expected: Double, actual: Double) {
-    val DELTA = 1e-14
     if (actual == 0.0) {
         Assertions.assertEquals(expected, actual)
         return
     }
     val ratio = expected / actual
-    Assertions.assertTrue(ratio > 1.0 - DELTA)
-    Assertions.assertTrue(ratio < 1.0 + DELTA)
+    Assertions.assertTrue( ratio > 1.0f - DELTA_FINE && ratio < 1.0f + DELTA_FINE,
+            "Value $actual not approximately the same as expected $expected!")
 }
 
 fun isApproximatelyTheSame(expected: Number, actual: Number) {
     val coarse = expected is Float
-    val delta = if (coarse) 5e-5 else 1e-14
+    val delta = if (coarse) DELTA_COARSE else DELTA_FINE
     if (actual == 0.0) {
         Assertions.assertEquals(expected, actual)
         return
     }
     val ratio = expected.toDouble() / actual.toDouble()
-    Assertions.assertTrue(ratio > 1.0 - delta)
-    Assertions.assertTrue(ratio < 1.0 + delta)
+    Assertions.assertTrue( ratio > 1.0f - delta && ratio < 1.0f + delta,
+            "Value $actual not approximately the same as expected $expected!")
 }
 
 fun equalVectors(expected: VectorValue<*>, actual: VectorValue<*>) {
