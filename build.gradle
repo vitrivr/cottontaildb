@@ -1,4 +1,4 @@
-group 'ch.unibas.dmi.dbis'
+group 'org.vitrivr'
 version '1.0-SNAPSHOT'
 
 buildscript {
