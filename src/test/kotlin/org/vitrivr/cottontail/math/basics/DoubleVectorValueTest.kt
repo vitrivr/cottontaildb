@@ -1,14 +1,13 @@
 package org.vitrivr.cottontail.math.basics
 
 import org.apache.commons.math3.linear.ArrayRealVector
-import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.RepeatedTest
 import org.vitrivr.cottontail.model.values.DoubleVectorValue
 import java.util.*
 import kotlin.math.pow
 
 /**
- * Some basic test cases that test for correctness fo [DoubleVectorValue] arithmetic operations.
+ * Some basic test cases that test for correctness of [DoubleVectorValue] arithmetic operations.
  *
  * @author Ralph Gasser
  * @version 1.0
