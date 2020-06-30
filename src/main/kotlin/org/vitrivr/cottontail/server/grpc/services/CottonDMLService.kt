@@ -21,33 +21,77 @@ import org.vitrivr.cottontail.utilities.name.Name
 import org.vitrivr.cottontail.utilities.name.NameType
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.locks.StampedLock
 
+/**
+ * Implementation of [CottonDMLGrpc.CottonDMLImplBase], the gRPC endpoint for inserting data into Cottontail DB [Entity]s.
+ *
+ * @author Ralph Gasser
+ * @version 1.0
+ */
 class CottonDMLService(val catalogue: Catalogue) : CottonDMLGrpc.CottonDMLImplBase() {
     /** Logger used for logging the output. */
     companion object {
         private val LOGGER = LoggerFactory.getLogger(CottonDMLService::class.java)
+
+        /**
+         * Casts the provided [CottontailGrpc.Data] to a data type supported by the provided [ColumnDef]
+         *
+         * @param value The [CottontailGrpc.Data] to cast.
+         * @param col The [ColumnDef] of the column, the data should be stored in.
+         * @return The converted value.
+         */
+        private fun castToColumn(value: CottontailGrpc.Data, col: ColumnDef<*>): Value? = if (value.dataCase == CottontailGrpc.Data.DataCase.DATA_NOT_SET || value.dataCase == null) {
+            null
+        } else {
+            when (col.type) {
+                is BooleanColumnType -> value.toBooleanValue()
+                is ByteColumnType -> value.toByteValue()
+                is ShortColumnType -> value.toShortValue()
+                is IntColumnType -> value.toIntValue()
+                is LongColumnType -> value.toLongValue()
+                is FloatColumnType -> value.toFloatValue()
+                is DoubleColumnType -> value.toDoubleValue()
+                is StringColumnType -> value.toStringValue()
+                is IntVectorColumnType -> value.toIntVectorValue()
+                is LongVectorColumnType -> value.toLongVectorValue()
+                is FloatVectorColumnType -> value.toFloatVectorValue()
+                is DoubleVectorColumnType -> value.toDoubleVectorValue()
+                is BooleanVectorColumnType -> value.toBooleanVectorValue()
+                is Complex32ColumnType -> value.toComplex32Value()
+                is Complex64ColumnType -> value.toComplex64Value()
+                is Complex32VectorColumnType -> value.toComplex32VectorValue()
+                is Complex64VectorColumnType -> value.toComplex64VectorValue()
+            }
+        }
     }
 
     /**
      * gRPC endpoint for inserting data in a streaming mode; transactions will stay open until the caller explicitly completes or until an error occurs.
      * As new entities are being inserted, new transactions will be created and thus new locks will be acquired.
      */
-    override fun insert(responseObserver: StreamObserver<CottontailGrpc.InsertStatus>): StreamObserver<CottontailGrpc.InsertMessage> = object : StreamObserver<CottontailGrpc.InsertMessage> {
+    override fun insert(responseObserver: StreamObserver<CottontailGrpc.InsertStatus>): StreamObserver<CottontailGrpc.InsertMessage> = InsertSink(responseObserver)
+
+    /**
+     * Class that acts as [StreamObserver] for [CottontailGrpc.InsertMessage]s.
+     *
+     * @author Ralph Gasser
+     * @version 1.0
+     */
+    inner class InsertSink(private val responseObserver: StreamObserver<CottontailGrpc.InsertStatus>): StreamObserver<CottontailGrpc.InsertMessage> {
 
         /** List of all the [Entity.Tx] associated with this call. */
-        private val transactions = ConcurrentHashMap<String, Entity.Tx>()
+        private val transactions = ConcurrentHashMap<Name, Entity.Tx>()
 
         /** Generates a new transaction id. */
         private val txId = UUID.randomUUID()
 
-        /** Internal counter used to keep track of how many items were inserted. */
-        private val counter = AtomicLong(0)
-
-        /** */
+        /** Lock for closing this */
         private val closeLock = StampedLock()
 
+        /** Internal counter used to keep track of how many items were inserted. */
+        @Volatile
+        private var counter: Long = 0
 
         /** Flag indicating that call was closed. */
         @Volatile
@@ -67,57 +111,52 @@ class CottonDMLService(val catalogue: Catalogue) : CottonDMLGrpc.CottonDMLImplBa
                 /* Check if call was closed and return. */
                 this.closeLock.read {
                     if (this.closed) return
-                    val entityName = Name(request.entity.name)
-                    val schemaName = Name(request.entity.schema.name)
-                    when {
-                        entityName.type != NameType.SIMPLE -> responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Failed to insert into entity: Invalid entity name '${request.entity.name}'.").asException())
-                        schemaName.type != NameType.SIMPLE -> responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Failed to insert into entity: Invalid schema name '${request.entity.schema.name}'.").asException())
-                        else -> {
-                            /* Extract required schema and entity. */
-                            val schema = this@CottonDMLService.catalogue.schemaForName(schemaName)
-                            val entity = schema.entityForName(entityName)
+                    val fqn = Name(request.entity.fqn())
 
-                            /* Re-use or create Transaction. */
-                            var tx = this.transactions[request.entity.fqn()]
-                            if (tx == null) {
-                                tx = entity.Tx(false, txId)
-                                this.transactions[request.entity.fqn()] = tx
-                            }
-
-                            val columns = mutableListOf<ColumnDef<*>>()
-                            val values = mutableListOf<Value?>()
-                            request.tuple.dataMap.map {
-                                val col = entity.columnForName(Name(it.key))
-                                        ?: throw DatabaseException.ColumnDoesNotExistException(entity.fqn.append(it.key))
-                                columns.add(col)
-                                values.add(castToColumn(it.value, col))
-                            }
-                            tx.insert(StandaloneRecord(columns = columns.toTypedArray(), init = values.toTypedArray()))
-                            this.counter.incrementAndGet()
-
-                            /* Respond with status. */
-                            responseObserver.onNext(CottontailGrpc.InsertStatus.newBuilder().setSuccess(true).setTimestamp(System.currentTimeMillis()).build())
-                        }
+                    /* Check if name is correctly formatted. */
+                    if (fqn.type != NameType.FQN) {
+                        responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Failed to insert into entity: Invalid entity name '$fqn'.").asException())
+                        return
                     }
+
+                    /* Re-use or create Transaction. */
+                    var tx = this.transactions[fqn]
+                    if (tx == null) {
+                        /* Extract required schema and entity. */
+                        val schema = this@CottonDMLService.catalogue.schemaForName(fqn.first())
+                        val entity = schema.entityForName(fqn.last())
+                        tx = entity.Tx(false, this.txId)
+                        this.transactions[fqn] = tx
+                    }
+
+                    /* Execute insert action. */
+                    val insert = request.tuple.dataMap.map {
+                        val col = tx.columns.find { c -> c.name == Name(it.key) } ?: throw ValidationException("Insert failed because column ${it.key} does not exist in entity '$fqn'.")
+                        col to castToColumn(it.value, col)
+                    }.toMap()
+                    tx.insert(StandaloneRecord(columns = insert.keys.toTypedArray(), init = insert.values.toTypedArray()))
+
+                    /* Respond with status. */
+                    this.responseObserver.onNext(CottontailGrpc.InsertStatus.newBuilder().setSuccess(true).setTimestamp(System.currentTimeMillis()).build())
                 }
             } catch (e: DatabaseException.SchemaDoesNotExistException) {
-                responseObserver.onError(Status.NOT_FOUND.withDescription("Insert failed because schema '${request.entity.schema.name} does not exist!").asException())
-                this.cleanup()
+                this.cleanup(false)
+                this.responseObserver.onError(Status.NOT_FOUND.withDescription("Insert failed because schema '${request.entity.schema.name} does not exist!").asException())
             } catch (e: DatabaseException.EntityDoesNotExistException) {
-                responseObserver.onError(Status.NOT_FOUND.withDescription("Insert failed because entity '${request.entity.fqn()} does not exist!").asException())
-                this.cleanup()
+                this.cleanup(false)
+                this.responseObserver.onError(Status.NOT_FOUND.withDescription("Insert failed because entity '${request.entity.fqn()} does not exist!").asException())
             } catch (e: DatabaseException.ColumnDoesNotExistException) {
-                responseObserver.onError(Status.NOT_FOUND.withDescription("Insert failed because column '${e.column}' does not exist!").asException())
-                this.cleanup()
+                this.cleanup(false)
+                this.responseObserver.onError(Status.NOT_FOUND.withDescription("Insert failed because column '${e.column}' does not exist!").asException())
             } catch (e: ValidationException) {
-                responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Insert failed because data validation failed: ${e.message}").asException())
-                this.cleanup()
+                this.cleanup(false)
+                this.responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Insert failed because data validation failed: ${e.message}").asException())
             } catch (e: DatabaseException) {
-                responseObserver.onError(Status.INTERNAL.withDescription("Insert failed because of a database error: ${e.message}").asException())
-                this.cleanup()
+                this.cleanup(false)
+                this.responseObserver.onError(Status.INTERNAL.withDescription("Insert failed because of a database error: ${e.message}").asException())
             } catch (e: Throwable) {
-                responseObserver.onError(Status.UNKNOWN.withDescription("Insert failed because of a unknown error: ${e.message}").asException())
-                this.cleanup()
+                this.cleanup(false)
+                this.responseObserver.onError(Status.UNKNOWN.withDescription("Insert failed because of a unknown error: ${e.message}").asException())
             }
         }
 
@@ -125,8 +164,8 @@ class CottonDMLService(val catalogue: Catalogue) : CottonDMLGrpc.CottonDMLImplBa
          * Called when the client-side indicates an error condition.
          */
         override fun onError(t: Throwable) {
-            responseObserver.onError(Status.ABORTED.withDescription("Transaction was aborted by client.").asException())
-            this.cleanup()
+            this.cleanup(false)
+            this.responseObserver.onError(Status.ABORTED.withDescription("Transaction was aborted by client.").asException())
         }
 
         /**
@@ -134,7 +173,7 @@ class CottonDMLService(val catalogue: Catalogue) : CottonDMLGrpc.CottonDMLImplBa
          */
         override fun onCompleted() {
             this.cleanup(true)
-            responseObserver.onCompleted()
+            this.responseObserver.onCompleted()
         }
 
         /**
@@ -148,48 +187,15 @@ class CottonDMLService(val catalogue: Catalogue) : CottonDMLGrpc.CottonDMLImplBa
                 try {
                     if (commit) {
                         it.value.commit()
-                        LOGGER.trace("INSERT transaction ${this.txId} was committed by client (${this.counter.get()} tuples inserted).")
+                        LOGGER.trace("Insert transaction ${this.txId} was committed by client (${this.counter} tuples inserted).")
                     } else {
-                        LOGGER.trace("INSERT transaction ${this.txId} was rolled back by client.")
+                        LOGGER.trace("Insert transaction ${this.txId} was rolled back by client.")
                         it.value.rollback()
                     }
                 } finally {
                     it.value.close()
                 }
             }
-        }
-    }
-
-    /**
-     * Casts the provided [CottontailGrpc.Data] to a data type supported by the provided [ColumnDef]
-     *
-     * @param value The [CottontailGrpc.Data] to cast.
-     * @param col The [ColumnDef] of the column, the data should be stored in.
-     * @return The converted value.
-     */
-    private fun castToColumn(value: CottontailGrpc.Data, col: ColumnDef<*>): Value? = if (
-            value.dataCase == CottontailGrpc.Data.DataCase.DATA_NOT_SET || value.dataCase == null
-    ) {
-        null
-    } else {
-        when (col.type) {
-            is BooleanColumnType -> value.toBooleanValue()
-            is ByteColumnType -> value.toByteValue()
-            is ShortColumnType -> value.toShortValue()
-            is IntColumnType -> value.toIntValue()
-            is LongColumnType -> value.toLongValue()
-            is FloatColumnType -> value.toFloatValue()
-            is DoubleColumnType -> value.toDoubleValue()
-            is StringColumnType -> value.toStringValue()
-            is IntVectorColumnType -> value.toIntVectorValue()
-            is LongVectorColumnType -> value.toLongVectorValue()
-            is FloatVectorColumnType -> value.toFloatVectorValue()
-            is DoubleVectorColumnType -> value.toDoubleVectorValue()
-            is BooleanVectorColumnType -> value.toBooleanVectorValue()
-            is Complex32ColumnType -> value.toComplex32Value()
-            is Complex64ColumnType -> value.toComplex64Value()
-            is Complex32VectorColumnType -> value.toComplex32VectorValue()
-            is Complex64VectorColumnType -> value.toComplex64VectorValue()
         }
     }
 }

@@ -343,7 +343,7 @@ class Entity(override val name: Name, override val parent: Schema) : DBO {
         }
 
         /** List of all [ColumnDef]s affected by this [Entity.Tx]. */
-        private val columns = this.colTxs.map { it.columnDef }.toTypedArray()
+        val columns = this.colTxs.map { it.columnDef as ColumnDef<*> }.toTypedArray()
 
         /** Flag indicating whether or not this [Entity.Tx] was closed */
         @Volatile
