@@ -17,15 +17,6 @@ class FloatVectorValueTest {
 
     private val random = SplittableRandom()
 
-    companion object {
-        private const val DELTA = 1e-4f
-        fun isApproximatelyTheSame(expected: Float, actual: Float) {
-            val ratio = expected / actual
-            Assertions.assertTrue(ratio > 1.0f - DELTA)
-            Assertions.assertTrue(ratio < 1.0f + DELTA)
-        }
-    }
-
     @RepeatedTest(100)
     fun testAdd() {
         val size = random.nextInt(2048)

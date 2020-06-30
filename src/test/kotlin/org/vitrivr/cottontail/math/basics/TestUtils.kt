@@ -39,10 +39,6 @@ fun isApproximatelyTheSame(expected: Double, actual: Double) {
 fun isApproximatelyTheSame(expected: Number, actual: Number) {
     val coarse = expected is Float
     val delta = if (coarse) DELTA_COARSE else DELTA_FINE
-    if (actual == 0.0) {
-        Assertions.assertEquals(expected, actual)
-        return
-    }
     val ratio = expected.toDouble() / actual.toDouble()
     Assertions.assertTrue( ratio > 1.0f - delta && ratio < 1.0f + delta,
             "Value $actual not approximately the same as expected $expected!")
