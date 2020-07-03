@@ -98,7 +98,7 @@ class CottonDMLService(val catalogue: Catalogue) : CottonDMLGrpc.CottonDMLImplBa
         private var closed = false
 
         init {
-            LOGGER.trace("INSERT transaction {} was initiated by client.", txId.toString())
+            LOGGER.trace("Insert transaction {} was initiated by client.", txId.toString())
         }
 
         /**
@@ -131,10 +131,16 @@ class CottonDMLService(val catalogue: Catalogue) : CottonDMLGrpc.CottonDMLImplBa
 
                     /* Execute insert action. */
                     val insert = request.tuple.dataMap.map {
-                        val col = tx.columns.find { c -> c.name == Name(it.key) } ?: throw ValidationException("Insert failed because column ${it.key} does not exist in entity '$fqn'.")
+                        val col = tx.columns.find { c -> c.name.last() == Name(it.key) }
+                                ?: throw ValidationException("Insert failed because column ${it.key} does not exist in entity '$fqn'.")
                         col to castToColumn(it.value, col)
                     }.toMap()
+
+                    /* Conduct insert. */
                     tx.insert(StandaloneRecord(columns = insert.keys.toTypedArray(), init = insert.values.toTypedArray()))
+
+                    /* Increment counter. */
+                    this.counter += 1
 
                     /* Respond with status. */
                     this.responseObserver.onNext(CottontailGrpc.InsertStatus.newBuilder().setSuccess(true).setTimestamp(System.currentTimeMillis()).build())
