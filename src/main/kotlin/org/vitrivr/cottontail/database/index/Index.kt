@@ -10,11 +10,11 @@ import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.predicates.Predicate
 import org.vitrivr.cottontail.database.schema.Schema
 import org.vitrivr.cottontail.model.basics.ColumnDef
+import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.exceptions.TransactionException
 import org.vitrivr.cottontail.model.exceptions.ValidationException
 import org.vitrivr.cottontail.model.recordset.Recordset
-import org.vitrivr.cottontail.utilities.name.Name
 import java.util.*
 import java.util.concurrent.locks.StampedLock
 
@@ -40,7 +40,10 @@ abstract class Index : DBO {
     /** An internal lock that is used to synchronize concurrent read & write access to this [Index] by different [Index.Tx]. */
     protected val txLock = StampedLock()
 
-    /** Reference to the [Entity], this index belongs to. */
+    /** The [Name.IndexName] of this [Index]. */
+    abstract override val name: Name.IndexName
+
+    /** Reference to the [Entity], this [Index] belongs to. */
     abstract override val parent: Entity
 
     /** The [ColumnDef] that are covered (i.e. indexed) by this [Index]. */
@@ -224,10 +227,6 @@ abstract class Index : DBO {
         /** The simple [Name]s of the [Index] that underpins this [IndexTransaction] */
         override val name: Name
             get() = this@Index.name
-
-        /** The fqn [Name]s of the [Index] that underpins this [IndexTransaction] */
-        override val fqn: Name
-            get() = this@Index.fqn
 
         /** The [ColumnDef]s covered by the [Index] that underpins this [IndexTransaction]. */
         override val columns: Array<ColumnDef<*>>

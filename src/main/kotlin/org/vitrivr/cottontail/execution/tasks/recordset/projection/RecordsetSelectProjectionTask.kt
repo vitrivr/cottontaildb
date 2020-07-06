@@ -4,9 +4,8 @@ import com.github.dexecutor.core.task.Task
 import com.github.dexecutor.core.task.TaskExecutionException
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.execution.tasks.basics.ExecutionTask
+import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.recordset.Recordset
-import org.vitrivr.cottontail.utilities.name.Match
-import org.vitrivr.cottontail.utilities.name.Name
 
 /**
  * A [Task] used during query execution. It takes a single [Recordset] as input and fetches the specified [Column][org.vitrivr.cottontail.database.column.Column]
@@ -15,9 +14,9 @@ import org.vitrivr.cottontail.utilities.name.Name
  * A [Recordset] that undergoes this task will grow in terms of columns it contains. However, it should not affect the number of rows.
  *
  * @author Ralph Gasser
- * @version 1.1
+ * @version 1.2
  */
-class RecordsetSelectProjectionTask(val fields: Map<Name, Name?>) : ExecutionTask("RecordsetSelectProjectionTask") {
+class RecordsetSelectProjectionTask(val fields: Map<Name.ColumnName, Name.ColumnName?>) : ExecutionTask("RecordsetSelectProjectionTask") {
     /**
      * Executes this [RecordsetSelectProjectionTask]
      */
@@ -25,25 +24,26 @@ class RecordsetSelectProjectionTask(val fields: Map<Name, Name?>) : ExecutionTas
         assertUnaryInput()
 
         /* Get records from parent task. */
-        val parent = this.first()
-                ?: throw TaskExecutionException("SELECT projection could not be executed because parent task has failed.")
+        val parent = this.first() ?: throw TaskExecutionException("SELECT projection could not be executed because parent task has failed.")
 
         /* Find longest, common prefix of all projection sub-clauses. */
-        val longestCommonPrefix = Name.findLongestCommonPrefix(this.fields.keys)
+        val normalize = this.fields.keys.all {
+            it.components.getOrNull(0)  == this.fields.keys.first().components.getOrNull(0) &&
+                it.components.getOrNull(1)  == this.fields.keys.first().components.getOrNull(1)
+        }
 
         /* Determine columns to rename. */
         val dropIndex = mutableListOf<Int>()
-        val renameIndex = mutableListOf<Pair<Int, Name>>()
+        val renameIndex = mutableListOf<Pair<Int, Name.ColumnName>>()
         parent.columns.forEachIndexed { i, c ->
             var match = false
             this.fields.forEach { (k, v) ->
-                val m = k.match(c.name)
-                if (m != Match.NO_MATCH) {
+                if (k == c.name) {
                     match = true
                     if (v != null) {
                         renameIndex.add(Pair(i, v))
-                    } else if (longestCommonPrefix != Name.COTTONTAIL_ROOT_NAME) {
-                        renameIndex.add(Pair(i, c.name.normalize(longestCommonPrefix)))
+                    } else if (normalize) {
+                        renameIndex.add(Pair(i, Name.ColumnName(c.name.components[2])))
                     }
                 }
             }

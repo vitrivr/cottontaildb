@@ -4,9 +4,9 @@ import com.github.dexecutor.core.task.Task
 import com.github.dexecutor.core.task.TaskExecutionException
 import org.vitrivr.cottontail.execution.tasks.basics.ExecutionTask
 import org.vitrivr.cottontail.model.basics.ColumnDef
+import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.recordset.Recordset
 import org.vitrivr.cottontail.model.values.*
-import org.vitrivr.cottontail.utilities.name.Name
 
 /**
  * A [Task] used during query execution. It takes a single [Recordset] and determines the sum of a specific [ColumnDef]. It thereby creates a 1x1 [Recordset].
@@ -14,7 +14,7 @@ import org.vitrivr.cottontail.utilities.name.Name
  * @author Ralph Gasser
  * @version 1.1
  */
-class RecordsetSumProjectionTask(val columns: Array<ColumnDef<*>>, val fields: Map<Name, Name?>) : ExecutionTask("RecordsetSumProjectionTask") {
+class RecordsetSumProjectionTask(val columns: Array<ColumnDef<*>>, val fields: Map<Name.ColumnName, Name.ColumnName?>) : ExecutionTask("RecordsetSumProjectionTask") {
 
     /**
      * Executes this [RecordsetCountProjectionTask]
@@ -29,7 +29,7 @@ class RecordsetSumProjectionTask(val columns: Array<ColumnDef<*>>, val fields: M
         /* Calculate sum(). */
         val column = this.columns.first()
         val resultsColumn = ColumnDef.withAttributes(this.fields[column.name]
-                ?: Name("max(${column.name})"), "DOUBLE")
+                ?: (column.name.entity()?.column("max(${column.name})") ?: Name.ColumnName("max(${column.name})")), "DOUBLE")
         var sum = 0.0
         val results = Recordset(arrayOf(resultsColumn))
         parent.forEach {

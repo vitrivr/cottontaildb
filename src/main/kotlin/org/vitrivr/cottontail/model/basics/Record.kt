@@ -1,7 +1,6 @@
 package org.vitrivr.cottontail.model.basics
 
 import org.vitrivr.cottontail.model.values.types.Value
-import org.vitrivr.cottontail.utilities.name.Name
 
 /**
  * A [Record] as returned and processed by Cottontail DB. A [Record] corresponds to a single row and
@@ -79,7 +78,7 @@ interface Record {
      * @param column The [ColumnDef] specifying the column
      * @return True if record contains the [ColumnDef], false otherwise.
      */
-    fun has(column: ColumnDef<*>): Boolean = this.columns.indexOfFirst { it.isEquivalent(column) } > -1
+    fun has(column: ColumnDef<*>): Boolean = this.columns.indexOfFirst { it == column } > -1
 
     /**
      * Generates a Map of the data contained in this [Record]
@@ -95,7 +94,7 @@ interface Record {
      * @return The value for the [ColumnDef]
      */
     operator fun <T: Value> get(column: ColumnDef<T>): T? {
-        val index = this.columns.indexOfFirst { it.isEquivalent(column) }
+        val index = this.columns.indexOfFirst { it == column }
         return if (index > -1) {
             column.type.cast(values[index])
         } else {
@@ -110,7 +109,7 @@ interface Record {
      * @param value The new value for the [ColumnDef]
      */
     operator fun set(column: ColumnDef<*>, value: Value?) {
-        val index = this.columns.indexOfFirst { it.isEquivalent(column) }
+        val index = this.columns.indexOfFirst { it == column }
         if (index > -1) {
             column.validateOrThrow(value)
             values[index] = value

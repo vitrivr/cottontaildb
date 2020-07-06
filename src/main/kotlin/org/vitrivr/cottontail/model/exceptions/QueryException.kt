@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.model.exceptions
 
 import org.vitrivr.cottontail.model.basics.ColumnDef
-import org.vitrivr.cottontail.utilities.name.Name
+import org.vitrivr.cottontail.model.basics.Name
 
 /**
  * These exceptions are thrown whenever a query cannot be executed properly.

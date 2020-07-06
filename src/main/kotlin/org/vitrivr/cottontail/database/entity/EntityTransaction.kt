@@ -5,13 +5,12 @@ import org.vitrivr.cottontail.database.index.Index
 import org.vitrivr.cottontail.database.index.IndexTransaction
 import org.vitrivr.cottontail.database.index.IndexType
 import org.vitrivr.cottontail.model.basics.*
-import org.vitrivr.cottontail.utilities.name.Name
 
 /**
  * A [Transaction] that operates on a single [Index]. [Transaction]s are a unit of isolation for data operations (read/write).
  *
  * @author Ralph Gasser
- * @version 1.1
+ * @version 1.2
  */
 interface EntityTransaction : Transaction, Filterable, Scanable, Countable, Deletable {
     /**
@@ -32,10 +31,10 @@ interface EntityTransaction : Transaction, Filterable, Scanable, Countable, Dele
     fun indexes(columns: Array<ColumnDef<*>>? = null, type: IndexType? = null): Collection<IndexTransaction>
 
     /**
-     * Returns the [IndexTransaction] for the given [Name] or null, if such a [IndexTransaction] doesn't exist.
+     * Returns the [IndexTransaction] for the given [Name.IndexName] or null, if such a [IndexTransaction] doesn't exist.
      *
-     * @param name The [Name] of the [Index] the [IndexTransaction] belongs to.
+     * @param name The [Name.IndexName] of the [Index] the [IndexTransaction] belongs to.
      * @return Optional [IndexTransaction]
      */
-    fun index(name: Name): IndexTransaction?
+    fun index(name: Name.IndexName): IndexTransaction?
 }

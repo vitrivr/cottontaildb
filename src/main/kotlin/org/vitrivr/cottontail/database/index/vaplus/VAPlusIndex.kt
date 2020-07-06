@@ -13,17 +13,16 @@ import org.vitrivr.cottontail.database.index.IndexType
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.predicates.KnnPredicate
 import org.vitrivr.cottontail.database.queries.predicates.Predicate
-import org.vitrivr.cottontail.database.schema.Schema
 import org.vitrivr.cottontail.math.knn.selection.ComparablePair
 import org.vitrivr.cottontail.math.knn.selection.MinHeapSelection
 import org.vitrivr.cottontail.model.basics.ColumnDef
+import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.recordset.Recordset
 import org.vitrivr.cottontail.model.values.DoubleValue
 import org.vitrivr.cottontail.model.values.types.VectorValue
 import org.vitrivr.cottontail.utilities.extensions.write
-import org.vitrivr.cottontail.utilities.name.Name
 import java.nio.file.Path
 
 /**
@@ -36,7 +35,7 @@ import java.nio.file.Path
  * @author Manuel Huerbin
  * @version 1.0
  */
-class VAPlusIndex(override val name: Name, override val parent: Entity, override val columns: Array<ColumnDef<*>>) : Index() {
+class VAPlusIndex(override val name: Name.IndexName, override val parent: Entity, override val columns: Array<ColumnDef<*>>) : Index() {
 
     /**
      * Index-wide constants.
@@ -47,9 +46,6 @@ class VAPlusIndex(override val name: Name, override val parent: Entity, override
         private val LOGGER = LoggerFactory.getLogger(VAPlusIndex::class.java)
     }
 
-    /** Constant FQN of the [Schema] object. */
-    override val fqn: Name = this.parent.fqn.append(this.name)
-
     /** Path to the [VAPlusIndex] file. */
     override val path: Path = this.parent.path.resolve("idx_vaf_$name.db")
 
@@ -57,7 +53,7 @@ class VAPlusIndex(override val name: Name, override val parent: Entity, override
     override val type: IndexType = IndexType.VAF
 
     /** The [VAPlusIndex] implementation returns exactly the columns that is indexed. */
-    override val produces: Array<ColumnDef<*>> = arrayOf(ColumnDef(parent.fqn.append("distance"), ColumnType.forName("DOUBLE")))
+    override val produces: Array<ColumnDef<*>> = arrayOf(ColumnDef(this.parent.name.column("distance"), ColumnType.forName("DOUBLE")))
 
     /** The internal [DB] reference. */
     private val db = if (parent.parent.parent.config.memoryConfig.forceUnmapMappedFiles) {
@@ -85,7 +81,7 @@ class VAPlusIndex(override val name: Name, override val parent: Entity, override
      */
     override fun filter(predicate: Predicate, tx: Entity.Tx): Recordset = if (predicate is KnnPredicate<*>) {
         /* Guard: Only process predicates that are supported. */
-        require(this.canProcess(predicate)) { throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (vaf-index) does not support the provided predicate.") }
+        require(this.canProcess(predicate)) { throw QueryException.UnsupportedPredicateException("Index '${this.name}' (vaf-index) does not support the provided predicate.") }
 
         /* Create empty recordset. */
         val recordset = Recordset(this.produces)
@@ -163,7 +159,7 @@ class VAPlusIndex(override val name: Name, override val parent: Entity, override
         }
         recordset
     } else {
-        throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (vaf-index) does not support predicates of type '${predicate::class.simpleName}'.")
+        throw QueryException.UnsupportedPredicateException("Index '${this.name}' (vaf-index) does not support predicates of type '${predicate::class.simpleName}'.")
     }
 
     /**

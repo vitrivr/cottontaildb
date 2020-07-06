@@ -10,8 +10,8 @@ import org.vitrivr.cottontail.execution.tasks.basics.ExecutionStage
 import org.vitrivr.cottontail.execution.tasks.entity.fetch.EntityFetchColumnsTask
 import org.vitrivr.cottontail.execution.tasks.recordset.projection.*
 import org.vitrivr.cottontail.model.basics.ColumnDef
+import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.exceptions.QueryException
-import org.vitrivr.cottontail.utilities.name.Name
 
 /**
  * Formalizes a [ProjectionNodeExpression] operation in the Cottontail DB query execution engine.
@@ -19,7 +19,7 @@ import org.vitrivr.cottontail.utilities.name.Name
  * @author Ralph Gasser
  * @version 1.1
  */
-data class ProjectionNodeExpression(val type: ProjectionType = ProjectionType.SELECT, val entity: Entity, val columns: Array<ColumnDef<*>>, val fields: Map<Name, Name?>) : AbstractNodeExpression() {
+data class ProjectionNodeExpression(val type: ProjectionType = ProjectionType.SELECT, val entity: Entity, val columns: Array<ColumnDef<*>>, val fields: Map<Name.ColumnName, Name.ColumnName?>) : AbstractNodeExpression() {
 
     /**
      * The type of [ProjectionNodeExpression]

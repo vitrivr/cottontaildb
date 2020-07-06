@@ -22,7 +22,7 @@ import org.vitrivr.cottontail.model.values.types.VectorValue
  * @author Ralph Gasser
  * @version 1.3
  */
-class EntityScanKnnTask<T : VectorValue<*>>(val entity: Entity, val knn: KnnPredicate<T>, val predicate: BooleanPredicate? = null, start: Long? = null, end: Long? = null) : ExecutionTask("LinearEntityScanKnnTask[${entity.fqn}][${knn.column.name}][${knn.distance::class.simpleName}][${knn.k}][q=${knn.query.hashCode()}]") {
+class EntityScanKnnTask<T : VectorValue<*>>(val entity: Entity, val knn: KnnPredicate<T>, val predicate: BooleanPredicate? = null, start: Long? = null, end: Long? = null) : ExecutionTask("LinearEntityScanKnnTask[${knn.column.name}][${knn.distance::class.simpleName}][${knn.k}][q=${knn.query.hashCode()}]") {
     /** Set containing the kNN [Selection] algorithms. */
     private val knnSet: List<Selection<ComparablePair<Long, DoubleValue>>> = if (this.knn.k == 1) {
         knn.query.map { MinSingleSelection<ComparablePair<Long, DoubleValue>>() }
@@ -37,7 +37,7 @@ class EntityScanKnnTask<T : VectorValue<*>>(val entity: Entity, val knn: KnnPred
     private val to = end ?: this.entity.statistics.maxTupleId
 
     /** The output [ColumnDef] produced by this [EntityScanKnnTask]. */
-    private val column = ColumnDef(this.entity.fqn.append(KnnUtilities.DISTANCE_COLUMN_NAME), KnnUtilities.DISTANCE_COLUMN_TYPE)
+    private val column = ColumnDef(this.entity.name.column(KnnUtilities.DISTANCE_COLUMN_NAME), KnnUtilities.DISTANCE_COLUMN_TYPE)
 
     /** List of the [ColumnDef] this instance of [EntityScanKnnTask] produces. */
     private val produces: Array<ColumnDef<*>> = arrayOf(column)

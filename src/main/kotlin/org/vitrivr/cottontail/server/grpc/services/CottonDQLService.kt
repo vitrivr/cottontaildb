@@ -160,5 +160,5 @@ class CottonDQLService(val catalogue: Catalogue, val engine: ExecutionEngine, va
      * @param record [Record] to create a [CottontailGrpc.Tuple.Builder] from.
      * @return Resulting [CottontailGrpc.Tuple.Builder]
      */
-    private fun recordToTuple(record: Record): CottontailGrpc.Tuple.Builder = CottontailGrpc.Tuple.newBuilder().putAllData(record.toMap().map { it.key.name to DataHelper.toData(it.value) }.toMap())
+    private fun recordToTuple(record: Record): CottontailGrpc.Tuple.Builder = CottontailGrpc.Tuple.newBuilder().putAllData(record.toMap().map { it.key.toString() to DataHelper.toData(it.value) }.toMap())
 }

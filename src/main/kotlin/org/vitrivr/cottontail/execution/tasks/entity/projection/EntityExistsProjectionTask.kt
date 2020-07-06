@@ -7,13 +7,12 @@ import org.vitrivr.cottontail.execution.tasks.basics.ExecutionTask
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.recordset.Recordset
 import org.vitrivr.cottontail.model.values.BooleanValue
-import org.vitrivr.cottontail.utilities.name.Name
 
 /**
  * A [Task] used during query execution. It takes a single [Entity] and checks if it contains any entries. It thereby creates a 1x1 [Recordset].
  *
  * @author Ralph Gasser
- * @version 1.0.2
+ * @version 1.0.3
  */
 class EntityExistsProjectionTask(val entity: Entity) : ExecutionTask("EntityExistsProjectionTask[${entity.name}]") {
 
@@ -23,7 +22,7 @@ class EntityExistsProjectionTask(val entity: Entity) : ExecutionTask("EntityExis
     override fun execute(): Recordset {
         assertNullaryInput()
 
-        val column = arrayOf(ColumnDef.withAttributes(Name("${entity.fqn}.exists()"), "BOOLEAN"))
+        val column = arrayOf(ColumnDef.withAttributes(this.entity.name.column("exists()"), "BOOLEAN"))
         return this.entity.Tx(true).query {
             val recordset = Recordset(column, capacity = 1)
             recordset.addRowUnsafe(arrayOf(BooleanValue(it.count() > 0)))

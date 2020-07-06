@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.database.general
 
-import org.vitrivr.cottontail.utilities.name.Name
+import org.vitrivr.cottontail.model.basics.Name
 import java.nio.file.Path
 
 /**
@@ -9,11 +9,8 @@ import java.nio.file.Path
  * Database objects are closeable. Furthermore, they have Cottontail DB specific attributes.
  */
 interface DBO : AutoCloseable {
-    /** The simple [Name] of this [DBO]. */
+    /** The [Name] of this [DBO]. */
     val name: Name
-
-    /** The fully qualified [Name] of this [DBO]. */
-    val fqn: Name
 
     /** The parent DBO (if such exists). */
     val parent: DBO?

@@ -4,9 +4,9 @@ import com.github.dexecutor.core.task.Task
 import com.github.dexecutor.core.task.TaskExecutionException
 import org.vitrivr.cottontail.execution.tasks.basics.ExecutionTask
 import org.vitrivr.cottontail.model.basics.ColumnDef
+import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.recordset.Recordset
 import org.vitrivr.cottontail.model.values.*
-import org.vitrivr.cottontail.utilities.name.Name
 import kotlin.math.max
 
 /**
@@ -15,7 +15,7 @@ import kotlin.math.max
  * @author Ralph Gasser
  * @version 1.1
  */
-class RecordsetMaxProjectionTask(val columns: Array<ColumnDef<*>>, val fields: Map<Name, Name?>) : ExecutionTask("RecordsetMaxProjectionTask") {
+class RecordsetMaxProjectionTask(val columns: Array<ColumnDef<*>>, val fields: Map<Name.ColumnName, Name.ColumnName?>) : ExecutionTask("RecordsetMaxProjectionTask") {
 
     /**
      * Executes this [RecordsetCountProjectionTask]
@@ -30,7 +30,7 @@ class RecordsetMaxProjectionTask(val columns: Array<ColumnDef<*>>, val fields: M
         /* Calculate max(). */
         val column = this.columns.first()
         val resultsColumn = ColumnDef.withAttributes(this.fields[column.name]
-                ?: Name("max(${column.name})"), "DOUBLE")
+                ?: (column.name.entity()?.column("max(${column.name})") ?: Name.ColumnName("max(${column.name})")), "DOUBLE")
         var max = Double.MIN_VALUE
         val results = Recordset(arrayOf(resultsColumn))
         parent.forEach {

@@ -10,8 +10,8 @@ import org.vitrivr.cottontail.database.general.Transaction
 import org.vitrivr.cottontail.database.general.TransactionStatus
 import org.vitrivr.cottontail.database.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.database.queries.predicates.Predicate
-import org.vitrivr.cottontail.database.schema.Schema
 import org.vitrivr.cottontail.model.basics.ColumnDef
+import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import org.vitrivr.cottontail.model.exceptions.QueryException
@@ -19,13 +19,10 @@ import org.vitrivr.cottontail.model.exceptions.TransactionException
 import org.vitrivr.cottontail.model.recordset.Recordset
 import org.vitrivr.cottontail.model.values.types.Value
 import org.vitrivr.cottontail.utilities.extensions.write
-import org.vitrivr.cottontail.utilities.name.Name
-
 import java.nio.file.Path
 import java.util.*
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import java.util.concurrent.locks.StampedLock
-
 import kotlin.concurrent.read
 import kotlin.concurrent.write
 
@@ -38,14 +35,12 @@ import kotlin.concurrent.write
  * @param <T> Type of the value held by this [MapDBColumn].
  *
  * @author Ralph Gasser
- * @version 1.2
+ * @version 1.3
  */
-class MapDBColumn<T : Value>(override val name: Name, override val parent: Entity) : Column<T> {
-    /** Constant FQN of the [Schema] object. */
-    override val fqn: Name = this.parent.fqn.append(this.name)
+class MapDBColumn<T : Value>(override val name: Name.ColumnName, override val parent: Entity) : Column<T> {
 
     /** The [Path] to the [Entity]'s main folder. */
-    override val path: Path = parent.path.resolve("col_$name.db")
+    override val path: Path = parent.path.resolve("col_${name.simple}.db")
 
     /** Internal reference to the [Store] underpinning this [MapDBColumn]. */
     private var store: CottontailStoreWAL = try {
@@ -62,7 +57,7 @@ class MapDBColumn<T : Value>(override val name: Name, override val parent: Entit
     /** Internal reference to the [Header] of this [MapDBColumn]. */
     private val header
         get() = this.store.get(HEADER_RECORD_ID, ColumnHeaderSerializer)
-                ?: throw DatabaseException.DataCorruptionException("Failed to open header of column '$fqn'!'")
+                ?: throw DatabaseException.DataCorruptionException("Failed to open header of column '$name'!'")
 
     /**
      * Getter for this [MapDBColumn]'s [ColumnDef]. Can be stored since [MapDBColumn]s [ColumnDef] is immutable.
@@ -70,7 +65,7 @@ class MapDBColumn<T : Value>(override val name: Name, override val parent: Entit
      * @return [ColumnDef] for this [MapDBColumn]
      */
     @Suppress("UNCHECKED_CAST")
-    override val columnDef: ColumnDef<T> = this.header.let { ColumnDef(this.fqn, it.type as ColumnType<T>, it.size, it.nullable) }
+    override val columnDef: ColumnDef<T> = this.header.let { ColumnDef(this.name, it.type as ColumnType<T>, it.size, it.nullable) }
 
     /**
      * The maximum tuple ID used by this [Column].

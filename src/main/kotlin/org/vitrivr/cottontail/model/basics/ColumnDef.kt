@@ -4,17 +4,20 @@ import org.vitrivr.cottontail.database.column.*
 import org.vitrivr.cottontail.model.exceptions.ValidationException
 import org.vitrivr.cottontail.model.values.*
 import org.vitrivr.cottontail.model.values.types.Value
-import org.vitrivr.cottontail.utilities.name.Match
-import org.vitrivr.cottontail.utilities.name.Name
 import java.util.*
 
+
 /**
- * A definition class for a Cottontail DB column be it in a DB or in-memory context.  Specifies all the properties of such a and facilitates validation.
+ * A definition class for a Cottontail DB column be it in a DB or in-memory context  Specifies all the properties of such a and facilitates validation.
  *
  * @author Ralph Gasser
- * @version 1.2
+ * @version 1.3
  */
-class ColumnDef<T : Value>(val name: Name, val type: ColumnType<T>, val logicalSize: Int = 1, val nullable: Boolean = true) {
+class ColumnDef<T: Value>(val name: Name.ColumnName, val type: ColumnType<T>, val logicalSize: Int = 1, val nullable: Boolean = true) {
+
+    /** The physical size of this [ColumnDef] in bytes. */
+    val physicalSize: Int
+        get() = this.logicalSize * this.type.size
 
     /**
      * Companion object with some convenience methods.
@@ -28,12 +31,8 @@ class ColumnDef<T : Value>(val name: Name, val type: ColumnType<T>, val logicalS
          * @param size Logical size of the new [Column] (e.g. for vectors), where eligible.
          * @param nullable Whether or not the [Column] should be nullable.
          */
-        fun withAttributes(name: Name, type: String, size: Int = -1, nullable: Boolean = true): ColumnDef<*> = ColumnDef(name, ColumnType.forName(type), size, nullable)
+        fun withAttributes(name: Name.ColumnName, type: String, size: Int = -1, nullable: Boolean = true): ColumnDef<*> = ColumnDef(name, ColumnType.forName(type), size, nullable)
     }
-
-    /** The physical size of this [ColumnDef] in bytes. */
-    val physicalSize: Int
-        get() = this.logicalSize * this.type.size
 
     /**
      * Validates a value with regard to this [ColumnDef] and throws an Exception, if validation fails.
@@ -109,21 +108,6 @@ class ColumnDef<T : Value>(val name: Name, val type: ColumnType<T>, val logicalS
         this.type is Complex32VectorColumnType -> Complex32VectorValue(FloatArray(2 * this.logicalSize) { 0.0f })
         this.type is Complex64VectorColumnType -> Complex64VectorValue(DoubleArray(2 * this.logicalSize) { 0.0 })
         else -> throw RuntimeException("Default value for the specified type $type has not been specified yet!")
-    }
-
-    /**
-     * Checks if the provided [ColumnDef] is equivalent to this [ColumnDef]. Equivalence is similar to equality,
-     * with the exception, that the [Name] must not necessarily match 1:1.
-     *
-     * @param other [ColumnDef] to check.
-     * @return True if [ColumnDef]s are equivalent, false otherwise.
-     */
-    fun isEquivalent(other: ColumnDef<*>): Boolean {
-        if (other.type != this.type) return false
-        if (other.logicalSize != this.logicalSize) return false
-        if (other.nullable != this.nullable) return false
-        val match = other.name.match(this.name)
-        return (match == Match.EQUAL || match == Match.EQUIVALENT)
     }
 
     override fun equals(other: Any?): Boolean {

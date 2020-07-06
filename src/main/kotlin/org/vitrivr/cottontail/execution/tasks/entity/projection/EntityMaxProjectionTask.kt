@@ -7,14 +7,13 @@ import org.vitrivr.cottontail.execution.tasks.basics.ExecutionTask
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.recordset.Recordset
 import org.vitrivr.cottontail.model.values.*
-import org.vitrivr.cottontail.utilities.name.Name
 import kotlin.math.max
 
 /**
  * A [Task] used during query execution. It takes a single [Entity] and determines the maximum value of a specific [ColumnDef]. It thereby creates a 1x1 [Recordset].
  *
  * @author Ralph Gasser
- * @version 1.0.2
+ * @version 1.0.3
  */
 class EntityMaxProjectionTask(val entity: Entity, val column: ColumnDef<*>, val alias: String? = null) : ExecutionTask("EntityMaxProjectionTask[${entity.name}]") {
 
@@ -24,8 +23,7 @@ class EntityMaxProjectionTask(val entity: Entity, val column: ColumnDef<*>, val 
     override fun execute(): Recordset {
         assertNullaryInput()
 
-        val resultsColumn = ColumnDef.withAttributes(Name(this.alias
-                ?: "${entity.fqn}.max(${column.name})"), "DOUBLE")
+        val resultsColumn = ColumnDef.withAttributes(this.entity.name.column("max(${column.name})"), "DOUBLE")
 
         return this.entity.Tx(true, columns = arrayOf(this.column)).query {
             var max = Double.MIN_VALUE

@@ -16,13 +16,13 @@ import org.vitrivr.cottontail.database.queries.predicates.AtomicBooleanPredicate
 import org.vitrivr.cottontail.database.queries.predicates.Predicate
 import org.vitrivr.cottontail.database.schema.Schema
 import org.vitrivr.cottontail.model.basics.ColumnDef
+import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.exceptions.ValidationException
 import org.vitrivr.cottontail.model.recordset.Recordset
 import org.vitrivr.cottontail.model.values.types.Value
 import org.vitrivr.cottontail.utilities.extensions.write
-import org.vitrivr.cottontail.utilities.name.Name
 import java.nio.file.Path
 
 /**
@@ -34,18 +34,15 @@ import java.nio.file.Path
  * @see Entity.Tx
  *
  * @author Luca Rossetto
- * @version 1.0
+ * @version 1.1
  */
-class NonUniqueHashIndex(override val name: Name, override val parent: Entity, override val columns: Array<ColumnDef<*>>) : Index() {
+class NonUniqueHashIndex(override val name: Name.IndexName, override val parent: Entity, override val columns: Array<ColumnDef<*>>) : Index() {
     /**
      * Index-wide constants.
      */
     companion object {
         const val MAP_FIELD_NAME = "nu_map"
     }
-
-    /** Constant FQN of the [Schema] object. */
-    override val fqn: Name = this.parent.fqn.append(this.name)
 
     /** Path to the [NonUniqueHashIndex] file. */
     override val path: Path = this.parent.path.resolve("idx_nu_$name.db")
@@ -89,7 +86,7 @@ class NonUniqueHashIndex(override val name: Name, override val parent: Entity, o
         val results = when (predicate.operator) {
             ComparisonOperator.IN -> predicate.values.map { it to this.map[it] }.toMap()
             ComparisonOperator.EQUAL -> mapOf(Pair(predicate.values.first(), this.map[predicate.values.first()]))
-            else -> throw QueryException.IndexLookupFailedException(this.fqn, "Instance of unique hash-index does not support ${predicate.operator} comparison operators.")
+            else -> throw QueryException.IndexLookupFailedException(this.name, "Instance of unique hash-index does not support ${predicate.operator} comparison operators.")
         }
 
         /* Generate record set .*/
@@ -110,7 +107,7 @@ class NonUniqueHashIndex(override val name: Name, override val parent: Entity, o
         }
         recordset
     } else {
-        throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (non-unique hash-index) does not support predicates of type '${predicate::class.simpleName}'.")
+        throw QueryException.UnsupportedPredicateException("Index '${this.name}' (non-unique hash-index) does not support predicates of type '${predicate::class.simpleName}'.")
     }
 
     /**
@@ -159,7 +156,7 @@ class NonUniqueHashIndex(override val name: Name, override val parent: Entity, o
         val localMap = mutableMapOf<Value, MutableList<Long>>()
         tx.forEach {
             val value = it[this.columns[0]]
-                    ?: throw ValidationException.IndexUpdateException(this.fqn, "A value cannot be null for instances of non-unique hash-index but tid=${it.tupleId} is")
+                    ?: throw ValidationException.IndexUpdateException(this.name, "A value cannot be null for instances of non-unique hash-index but tid=${it.tupleId} is")
             if (!localMap.containsKey(value)) {
                 localMap[value] = mutableListOf(it.tupleId)
             } else {
@@ -183,7 +180,7 @@ class NonUniqueHashIndex(override val name: Name, override val parent: Entity, o
         /* Define action for inserting an entry based on a DataChangeEvent. */
         val atomicInsert = { event: DataChangeEvent ->
             val newValue = event.new?.get(this.columns[0])
-                    ?: throw ValidationException.IndexUpdateException(this.fqn, "Values cannot be null for instances of UniqueHashIndex but tid=${event.new?.tupleId} is.")
+                    ?: throw ValidationException.IndexUpdateException(this.name, "Values cannot be null for instances of UniqueHashIndex but tid=${event.new?.tupleId} is.")
             if (localMap.containsKey(newValue)) {
                 val oldArray = localMap[newValue]!!
                 if (!oldArray.contains(event.new.tupleId)) {
@@ -199,7 +196,7 @@ class NonUniqueHashIndex(override val name: Name, override val parent: Entity, o
         /* Define action for deleting an entry based on a DataChangeEvent. */
         val atomicDelete = { event: DataChangeEvent ->
             val oldValue = event.old?.get(this.columns[0])
-                    ?: throw ValidationException.IndexUpdateException(this.fqn, "Values cannot be null for instances of UniqueHashIndex but tid=${event.new?.tupleId} is.")
+                    ?: throw ValidationException.IndexUpdateException(this.name, "Values cannot be null for instances of UniqueHashIndex but tid=${event.new?.tupleId} is.")
             if (localMap.containsKey(oldValue)) {
                 val oldArray = localMap[oldValue]!!
                 if (oldArray.contains(event.old.tupleId)) {

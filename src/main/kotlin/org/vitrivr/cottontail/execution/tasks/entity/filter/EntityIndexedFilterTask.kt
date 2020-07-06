@@ -15,7 +15,7 @@ import org.vitrivr.cottontail.model.recordset.Recordset
  * @author Ralph Gasser
  * @version 1.1
  */
-class EntityIndexedFilterTask(private val entity: Entity, private val predicate: BooleanPredicate, indexHint: Index) : ExecutionTask("EntityIndexedFilterTask[${entity.fqn}][$predicate]") {
+class EntityIndexedFilterTask(private val entity: Entity, private val predicate: BooleanPredicate, indexHint: Index) : ExecutionTask("EntityIndexedFilterTask[${entity.name}][$predicate]") {
     /** The type of the [Index] that should be used.*/
     private val type = indexHint.type
 

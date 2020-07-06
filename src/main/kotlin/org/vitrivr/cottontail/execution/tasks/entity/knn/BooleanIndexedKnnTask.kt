@@ -24,7 +24,7 @@ import org.vitrivr.cottontail.model.values.types.VectorValue
  * @author Ralph Gasser
  * @version 1.3
  */
-class BooleanIndexedKnnTask<T: VectorValue<*>>(val entity: Entity, val knn: KnnPredicate<T>, val predicate: BooleanPredicate, indexHint: Index) : ExecutionTask("BooleanIndexedKnnTask[${entity.fqn}][${knn.column.name}][${knn.distance::class.simpleName}][${knn.k}][$predicate][q=${knn.query.hashCode()}]") {
+class BooleanIndexedKnnTask<T: VectorValue<*>>(val entity: Entity, val knn: KnnPredicate<T>, val predicate: BooleanPredicate, indexHint: Index) : ExecutionTask("BooleanIndexedKnnTask[${knn.column.name}][${knn.distance::class.simpleName}][${knn.k}][$predicate][q=${knn.query.hashCode()}]") {
 
     /** Set containing the kNN values. */
     private val knnSet: List<Selection<ComparablePair<Long, DoubleValue>>> = if (this.knn.k == 1) {
@@ -34,7 +34,7 @@ class BooleanIndexedKnnTask<T: VectorValue<*>>(val entity: Entity, val knn: KnnP
     }
 
     /** List of the [ColumnDef] this instance of [BooleanIndexedKnnTask] produces. */
-    private val produces: Array<ColumnDef<*>> = arrayOf(ColumnDef(this.entity.fqn.append("distance"), ColumnType.forName("DOUBLE")))
+    private val produces: Array<ColumnDef<*>> = arrayOf(ColumnDef(this.entity.name.column("distance"), ColumnType.forName("DOUBLE")))
 
     /** The type of the [Index] that should be used.*/
     private val type = indexHint.type

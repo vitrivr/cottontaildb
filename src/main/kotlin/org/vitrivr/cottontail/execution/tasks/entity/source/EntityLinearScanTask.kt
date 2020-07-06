@@ -15,7 +15,7 @@ import org.vitrivr.cottontail.model.recordset.Recordset
  * @author Ralph Gasser
  * @version 1.1
  */
-class EntityLinearScanTask(private val entity: Entity, private val columns: Array<ColumnDef<*>>, start: Long? = null, end: Long? = null) : ExecutionTask("EntityLinearScanTask[${entity.fqn}][${columns.map { it.name }.joinToString(",")}]") {
+class EntityLinearScanTask(private val entity: Entity, private val columns: Array<ColumnDef<*>>, start: Long? = null, end: Long? = null) : ExecutionTask("EntityLinearScanTask[${columns.map { it.name }.joinToString(",")}]") {
 
     /** Begin of range that should be scanned by this [EntityLinearScanTask]. */
     private val from = start ?: 1L

@@ -7,27 +7,23 @@ import org.vitrivr.cottontail.database.column.ColumnType
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.index.Index
 import org.vitrivr.cottontail.database.index.IndexType
-import org.vitrivr.cottontail.database.schema.Schema
 import org.vitrivr.cottontail.model.basics.ColumnDef
+import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.values.types.VectorValue
 import org.vitrivr.cottontail.utilities.extensions.write
-import org.vitrivr.cottontail.utilities.name.Name
 import java.nio.file.Path
 
-abstract class LSHIndex<T : VectorValue<*>>(final override val name: Name, final override val parent: Entity, final override val columns: Array<ColumnDef<*>>, params: Map<String, String>? = null) : Index() {
+abstract class LSHIndex<T : VectorValue<*>>(final override val name: Name.IndexName, final override val parent: Entity, final override val columns: Array<ColumnDef<*>>, params: Map<String, String>? = null) : Index() {
     /** Index-wide constants. */
     companion object {
         const val MAP_FIELD_NAME = "lsh_map"
     }
 
-    /** Constant FQN of the [Schema] object. */
-    final override val fqn: Name = this.parent.fqn.append(this.name)
-
     /** Path to the [SuperBitLSHIndex] file. */
     final override val path: Path = this.parent.path.resolve("idx_lsh_$name.db")
 
     /** The [SuperBitLSHIndex] implementation returns exactly the columns that is indexed. */
-    final override val produces: Array<ColumnDef<*>> = arrayOf(ColumnDef(parent.fqn.append("distance"), ColumnType.forName("DOUBLE")))
+    final override val produces: Array<ColumnDef<*>> = arrayOf(ColumnDef(this.parent.name.column("distance"), ColumnType.forName("DOUBLE")))
 
     /** The type of [Index] */
     final override val type: IndexType = IndexType.LSH

@@ -7,7 +7,6 @@ import org.vitrivr.cottontail.execution.tasks.basics.ExecutionTask
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.recordset.Recordset
 import org.vitrivr.cottontail.model.values.*
-import org.vitrivr.cottontail.utilities.name.Name
 
 /**
  * A [Task] used during query execution. It takes a single [Entity] and determines the mean value of a specific [ColumnDef]. It thereby creates a 1x1 [Recordset].
@@ -23,8 +22,7 @@ class EntitySumProjectionTask(val entity: Entity, val column: ColumnDef<*>, val 
     override fun execute(): Recordset {
         assertNullaryInput()
 
-        val resultsColumn = ColumnDef.withAttributes(Name(this.alias
-                ?: "${entity.fqn}.sum(${this.column.name})"), "DOUBLE")
+        val resultsColumn = ColumnDef.withAttributes(this.entity.name.column("sum(${this.column.name})"), "DOUBLE")
 
         return this.entity.Tx(true, columns = arrayOf(this.column)).query { tx ->
             var sum = 0.0

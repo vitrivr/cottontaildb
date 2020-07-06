@@ -14,9 +14,9 @@ import java.util.*
  * A [ExecutionTask] that samples the entries of a given [Entity].
  *
  * @author Ralph Gasser
- * @version 1.0.1
+ * @version 1.0.2
  */
-class EntitySampleTask(private val entity: Entity, private val columns: Array<ColumnDef<*>>, val size: Long, seed: Long) : ExecutionTask("EntitySampleTask[${entity.fqn}][${columns.map { it.name }.joinToString(",")}]") {
+class EntitySampleTask(private val entity: Entity, private val columns: Array<ColumnDef<*>>, val size: Long, seed: Long) : ExecutionTask("EntitySampleTask[${columns.map { it.name }.joinToString(",")}]") {
 
     /** The [SplittableRandom] used to generate the sample. */
     private val random = SplittableRandom(seed)

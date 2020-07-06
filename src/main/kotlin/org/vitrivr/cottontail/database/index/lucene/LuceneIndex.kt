@@ -25,8 +25,8 @@ import org.vitrivr.cottontail.database.queries.predicates.AtomicBooleanPredicate
 import org.vitrivr.cottontail.database.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.database.queries.predicates.CompoundBooleanPredicate
 import org.vitrivr.cottontail.database.queries.predicates.Predicate
-import org.vitrivr.cottontail.database.schema.Schema
 import org.vitrivr.cottontail.model.basics.ColumnDef
+import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.exceptions.ValidationException
@@ -35,7 +35,6 @@ import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.FloatValue
 import org.vitrivr.cottontail.model.values.StringValue
 import org.vitrivr.cottontail.utilities.extensions.write
-import org.vitrivr.cottontail.utilities.name.Name
 import java.nio.file.Path
 
 /**
@@ -44,7 +43,7 @@ import java.nio.file.Path
  * @author Luca Rossetto & Ralph Gasser
  * @version 1.0
  */
-class LuceneIndex(override val name: Name, override val parent: Entity, override val columns: Array<ColumnDef<*>>) : Index() {
+class LuceneIndex(override val name: Name.IndexName, override val parent: Entity, override val columns: Array<ColumnDef<*>>) : Index() {
 
     companion object {
         /** [ColumnDef] of the _tid column. */
@@ -71,11 +70,8 @@ class LuceneIndex(override val name: Name, override val parent: Entity, override
         private val LOGGER = LoggerFactory.getLogger(LuceneIndex::class.java)
     }
 
-    /** Constant FQN of the [Schema] object. */
-    override val fqn: Name = this.parent.fqn.append(this.name)
-
     /** The [LuceneIndex] implementation produces an additional score column. */
-    override val produces: Array<ColumnDef<*>> = arrayOf(ColumnDef(parent.fqn.append("score"), ColumnType.forName("FLOAT")))
+    override val produces: Array<ColumnDef<*>> = arrayOf(ColumnDef(this.parent.name.column("score"), ColumnType.forName("FLOAT")))
 
     /** The path to the directory that contains the data for this [LuceneIndex]. */
     override val path: Path = this.parent.path.resolve("idx_lucene_$name")
@@ -197,10 +193,10 @@ class LuceneIndex(override val name: Name, override val parent: Entity, override
     override fun filter(predicate: Predicate, tx: Entity.Tx): Recordset = if (predicate is BooleanPredicate) {
         val indexSearcher = IndexSearcher(this.indexReader)
         if (!predicate.columns.all { this.columns.contains(it) })
-            throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (lucene-index) is lacking certain fields the provided predicate requires.")
+            throw QueryException.UnsupportedPredicateException("Index '${this.name}' (lucene-index) is lacking certain fields the provided predicate requires.")
 
         if (!predicate.atomics.all { it.operator == ComparisonOperator.LIKE || it.operator == ComparisonOperator.EQUAL })
-            throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (lucene-index) can only process LIKE comparisons.")
+            throw QueryException.UnsupportedPredicateException("Index '${this.name}' (lucene-index) can only process LIKE comparisons.")
 
         /* Generate query. */
         val query = when (predicate) {
@@ -219,7 +215,7 @@ class LuceneIndex(override val name: Name, override val parent: Entity, override
         }
         resultset
     } else {
-        throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (lucene index) does not support predicates of type '${predicate::class.simpleName}'.")
+        throw QueryException.UnsupportedPredicateException("Index '${this.name}' (lucene index) does not support predicates of type '${predicate::class.simpleName}'.")
     }
 
     /**
@@ -236,10 +232,10 @@ class LuceneIndex(override val name: Name, override val parent: Entity, override
         val indexSearcher = IndexSearcher(this.indexReader)
 
         if (!predicate.columns.all { this.columns.contains(it) })
-            throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (lucene-index) is lacking certain fields the provided predicate requires.")
+            throw QueryException.UnsupportedPredicateException("Index '${this.name}' (lucene-index) is lacking certain fields the provided predicate requires.")
 
         if (!predicate.atomics.all { it.operator == ComparisonOperator.LIKE || it.operator == ComparisonOperator.EQUAL })
-            throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (lucene-index) can only process LIKE comparisons.")
+            throw QueryException.UnsupportedPredicateException("Index '${this.name}' (lucene-index) can only process LIKE comparisons.")
 
         /* Generate query. */
         val query = when (predicate) {
@@ -254,7 +250,7 @@ class LuceneIndex(override val name: Name, override val parent: Entity, override
             action(StandaloneRecord(tupleId = doc[TID_COLUMN].toLong(), columns = arrayOf(*this.produces)).assign(arrayOf(FloatValue(sdoc.score))))
         }
     } else {
-        throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (lucene index) does not support predicates of type '${predicate::class.simpleName}'.")
+        throw QueryException.UnsupportedPredicateException("Index '${this.name}' (lucene index) does not support predicates of type '${predicate::class.simpleName}'.")
     }
 
     /**
@@ -271,10 +267,10 @@ class LuceneIndex(override val name: Name, override val parent: Entity, override
         val indexSearcher = IndexSearcher(this.indexReader)
 
         if (!predicate.columns.all { this.columns.contains(it) })
-            throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (lucene-index) is lacking certain fields the provided predicate requires.")
+            throw QueryException.UnsupportedPredicateException("Index '${this.name}' (lucene-index) is lacking certain fields the provided predicate requires.")
 
         if (!predicate.atomics.all { it.operator == ComparisonOperator.LIKE || it.operator == ComparisonOperator.EQUAL })
-            throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (lucene-index) can only process LIKE comparisons.")
+            throw QueryException.UnsupportedPredicateException("Index '${this.name}' (lucene-index) can only process LIKE comparisons.")
 
         /* Generate query. */
         val query = when (predicate) {
@@ -288,7 +284,7 @@ class LuceneIndex(override val name: Name, override val parent: Entity, override
             action(StandaloneRecord(tupleId = doc[TID_COLUMN].toLong(), columns = arrayOf(*produces)).assign(arrayOf(FloatValue(sdoc.score))))
         }
     } else {
-        throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (lucene index) does not support predicates of type '${predicate::class.simpleName}'.")
+        throw QueryException.UnsupportedPredicateException("Index '${this.name}' (lucene index) does not support predicates of type '${predicate::class.simpleName}'.")
     }
 
     /**
@@ -314,7 +310,7 @@ class LuceneIndex(override val name: Name, override val parent: Entity, override
             val searcher = IndexSearcher(this.indexReader)
             var cost = Cost.ZERO
             predicate.columns.forEach {
-                cost += Cost(Costs.DISK_ACCESS_READ, Costs.DISK_ACCESS_READ, it.physicalSize.toFloat()) * searcher.collectionStatistics(it.name.name).sumTotalTermFreq()
+                cost += Cost(Costs.DISK_ACCESS_READ, Costs.DISK_ACCESS_READ, it.physicalSize.toFloat()) * searcher.collectionStatistics(it.name.simple).sumTotalTermFreq()
             }
             cost
         }

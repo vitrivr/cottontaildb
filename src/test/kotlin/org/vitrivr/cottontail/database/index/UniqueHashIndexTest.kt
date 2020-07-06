@@ -10,11 +10,11 @@ import org.vitrivr.cottontail.database.queries.ComparisonOperator
 import org.vitrivr.cottontail.database.queries.predicates.AtomicBooleanPredicate
 import org.vitrivr.cottontail.database.schema.Schema
 import org.vitrivr.cottontail.model.basics.ColumnDef
+import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.FloatVectorValue
 import org.vitrivr.cottontail.model.values.StringValue
 import org.vitrivr.cottontail.model.values.types.Value
-import org.vitrivr.cottontail.utilities.name.Name
 import java.nio.file.Files
 import java.util.*
 import java.util.stream.Collectors

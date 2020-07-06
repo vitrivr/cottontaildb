@@ -9,7 +9,6 @@ import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.values.types.Value
 import org.vitrivr.cottontail.utilities.extensions.read
 import org.vitrivr.cottontail.utilities.extensions.write
-import org.vitrivr.cottontail.utilities.name.Name
 import java.util.concurrent.locks.StampedLock
 
 /**
@@ -23,7 +22,7 @@ import java.util.concurrent.locks.StampedLock
  * @see QueryExecutionTask
  *
  * @author Ralph Gasser
- * @version 1.3
+ * @version 1.4
  */
 class Recordset(val columns: Array<ColumnDef<*>>, capacity: Long = 250L) : Scanable, Filterable {
     /** List of all the [Record]s contained in this [Recordset] (TupleId -> Record). */
@@ -388,7 +387,7 @@ class Recordset(val columns: Array<ColumnDef<*>>, capacity: Long = 250L) : Scana
      * @param columns A list of columns to drop.
      * @return A new [Recordset] without the specified [ColumnDef]s
      */
-    fun renameColumnsWithIndex(columns: Collection<Pair<Int, Name>>): Recordset {
+    fun renameColumnsWithIndex(columns: Collection<Pair<Int, Name.ColumnName>>): Recordset {
         val renamed = this.columns.mapIndexed { i, col ->
             val rename = columns.find { i == it.first }
             if (rename != null) {

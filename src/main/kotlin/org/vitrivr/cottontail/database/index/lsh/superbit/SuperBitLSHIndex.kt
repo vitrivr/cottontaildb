@@ -1,11 +1,9 @@
 package org.vitrivr.cottontail.database.index.lsh.superbit
 
-import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.database.column.Column
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.events.DataChangeEvent
 import org.vitrivr.cottontail.database.index.Index
-import org.vitrivr.cottontail.database.index.hash.UniqueHashIndex
 import org.vitrivr.cottontail.database.index.lsh.LSHIndex
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.predicates.KnnPredicate
@@ -15,13 +13,13 @@ import org.vitrivr.cottontail.math.knn.selection.ComparablePair
 import org.vitrivr.cottontail.math.knn.selection.MinHeapSelection
 import org.vitrivr.cottontail.math.knn.selection.MinSingleSelection
 import org.vitrivr.cottontail.model.basics.ColumnDef
+import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.recordset.Recordset
 import org.vitrivr.cottontail.model.values.DoubleValue
 import org.vitrivr.cottontail.model.values.types.VectorValue
-import org.vitrivr.cottontail.utilities.name.Name
 
 /**
  * Represents a LSH based index in the Cottontail DB data model. An [Index] belongs to an [Entity] and can be used to
@@ -31,7 +29,7 @@ import org.vitrivr.cottontail.utilities.name.Name
  * @author Manuel Huerbin & Ralph Gasser
  * @version 1.1
  */
-class SuperBitLSHIndex<T : VectorValue<*>>(name: Name, parent: Entity, columns: Array<ColumnDef<*>>, params: Map<String, String>? = null) : LSHIndex<T>(name, parent, columns) {
+class SuperBitLSHIndex<T : VectorValue<*>>(name: Name.IndexName, parent: Entity, columns: Array<ColumnDef<*>>, params: Map<String, String>? = null) : LSHIndex<T>(name, parent, columns) {
 
     companion object {
         const val CONFIG_NAME = "lsh_config"
@@ -40,7 +38,6 @@ class SuperBitLSHIndex<T : VectorValue<*>>(name: Name, parent: Entity, columns: 
         const val CONFIG_NAME_SEED = "seed"
         private const val CONFIG_DEFAULT_STAGES = 3
         private const val CONFIG_DEFAULT_BUCKETS = 10
-        private val LOGGER = LoggerFactory.getLogger(UniqueHashIndex::class.java)
     }
 
     /** Internal configuration object for [SuperBitLSHIndex]. */
@@ -67,7 +64,7 @@ class SuperBitLSHIndex<T : VectorValue<*>>(name: Name, parent: Entity, columns: 
     override fun filter(predicate: Predicate, tx: Entity.Tx): Recordset {
         if (predicate is KnnPredicate<*>) {
             /* Guard: Only process predicates that are supported. */
-            require(this.canProcess(predicate)) { throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (lsh-index) does not support the provided predicate.") }
+            require(this.canProcess(predicate)) { throw QueryException.UnsupportedPredicateException("Index '${this.name}' (lsh-index) does not support the provided predicate.") }
 
             /* Prepare empty Recordset and LSH object. */
             val recordset = Recordset(this.produces, (predicate.k * predicate.query.size).toLong())
@@ -103,7 +100,7 @@ class SuperBitLSHIndex<T : VectorValue<*>>(name: Name, parent: Entity, columns: 
             }
             return recordset
         } else {
-            throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (LSH Index) does not support predicates of type '${predicate::class.simpleName}'.")
+            throw QueryException.UnsupportedPredicateException("Index '${this.name}' (LSH Index) does not support predicates of type '${predicate::class.simpleName}'.")
         }
     }
 
@@ -134,7 +131,8 @@ class SuperBitLSHIndex<T : VectorValue<*>>(name: Name, parent: Entity, columns: 
     /**
      * Updates the [SuperBitLSHIndex] with the provided [Record]. This method determines, whether the [Record] should be added or updated
      *
-     * @param record Record to update the [SuperBitLSHIndex] with.
+     * @param update List of [DataChangeEvent]s that should be considered for the update.
+     * @param tx: [Entity.Tx] used to make the change.
      */
     override fun update(update: Collection<DataChangeEvent>, tx: Entity.Tx) = try {
         // TODO

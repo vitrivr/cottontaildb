@@ -13,9 +13,9 @@ import org.vitrivr.cottontail.model.values.types.VectorValue
  * A [Task] that executes a index based kNN on the specified [Entity].
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.0.1
  */
-class IndexScanKnnTask<T : VectorValue<*>>(val entity: Entity, val knnPredicate: KnnPredicate<T>, indexHint: Index) : ExecutionTask("EntityIndexedKnnTask[${entity.fqn}][${knnPredicate.column.name}][${knnPredicate.distance::class.simpleName}][${knnPredicate.k}][q=${knnPredicate.query.hashCode()}]") {
+class IndexScanKnnTask<T : VectorValue<*>>(val entity: Entity, val knnPredicate: KnnPredicate<T>, indexHint: Index) : ExecutionTask("EntityIndexedKnnTask[${knnPredicate.column.name}][${knnPredicate.distance::class.simpleName}][${knnPredicate.k}][q=${knnPredicate.query.hashCode()}]") {
 
     /** The type of the [Index] that should be used.*/
     private val type = indexHint.type

@@ -29,7 +29,7 @@ class RecordsetMergeKnnTask(val entity: Entity, val knn: KnnPredicate<*>) : Exec
     }
 
     /** The output [ColumnDef] produced by this [RecordsetMergeKnnTask]. */
-    private val column = ColumnDef(this.entity.fqn.append(KnnUtilities.DISTANCE_COLUMN_NAME), KnnUtilities.DISTANCE_COLUMN_TYPE)
+    private val column = ColumnDef(this.entity.name.column(KnnUtilities.DISTANCE_COLUMN_NAME), KnnUtilities.DISTANCE_COLUMN_TYPE)
 
     override fun execute(): Recordset {
         val input = this.allSuccessful()

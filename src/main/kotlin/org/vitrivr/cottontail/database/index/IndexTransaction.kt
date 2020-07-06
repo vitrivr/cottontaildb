@@ -3,26 +3,22 @@ package org.vitrivr.cottontail.database.index
 import org.vitrivr.cottontail.database.events.DataChangeEvent
 import org.vitrivr.cottontail.database.general.Transaction
 import org.vitrivr.cottontail.database.queries.predicates.Predicate
-
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Filterable
+import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.exceptions.ValidationException
 import org.vitrivr.cottontail.model.recordset.Recordset
-import org.vitrivr.cottontail.utilities.name.Name
 
 /**
  * A [Transaction] that operates on a single [Index]. [Transaction]s are a unit of isolation for data operations (read/write).
  *
  * @author Ralph Gasser
- * @version 1.2
+ * @version 1.3
  */
 interface IndexTransaction : Transaction, Filterable {
     /** The simple [Name]s of the [Index] that underpins this [IndexTransaction] */
     val name: Name
-
-    /** The fqn [Name]s of the [Index] that underpins this [IndexTransaction] */
-    val fqn: Name
 
     /** The [ColumnDef]s covered by the [Index] that underpins this [IndexTransaction]. */
     val columns: Array<ColumnDef<*>>

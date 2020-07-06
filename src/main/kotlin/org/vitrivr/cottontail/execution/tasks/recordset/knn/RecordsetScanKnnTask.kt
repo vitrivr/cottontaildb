@@ -11,11 +11,11 @@ import org.vitrivr.cottontail.math.knn.selection.MinHeapSelection
 import org.vitrivr.cottontail.math.knn.selection.MinSingleSelection
 import org.vitrivr.cottontail.math.knn.selection.Selection
 import org.vitrivr.cottontail.model.basics.ColumnDef
+import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.recordset.Recordset
 import org.vitrivr.cottontail.model.values.DoubleValue
 import org.vitrivr.cottontail.model.values.types.VectorValue
-import org.vitrivr.cottontail.utilities.name.Name
 
 /**
  * A [Task] that executes a sequential kNN on a [Column][org.vitrivr.cottontail.database.column.Column]
@@ -33,7 +33,10 @@ class RecordsetScanKnnTask<T : VectorValue<*>>(val knn: KnnPredicate<T>, val pre
     }
 
     /** The output [ColumnDef] produced by this [RecordsetScanKnnTask]. */
-    private val column = ColumnDef(Name(KnnUtilities.DISTANCE_COLUMN_NAME), KnnUtilities.DISTANCE_COLUMN_TYPE)
+    private val column = ColumnDef(
+        this.knn.column.name.entity()?.column(KnnUtilities.DISTANCE_COLUMN_NAME) ?: Name.ColumnName(KnnUtilities.DISTANCE_COLUMN_NAME),
+        KnnUtilities.DISTANCE_COLUMN_TYPE
+    )
 
     /**
      * Executes this [EntityScanKnnTask]
@@ -41,7 +44,7 @@ class RecordsetScanKnnTask<T : VectorValue<*>>(val knn: KnnPredicate<T>, val pre
     override fun execute(): Recordset {
         /* Get records from parent task. */
         val parent = this.first()
-                ?: throw TaskExecutionException("Recordset  projection could not be executed because parent task has failed.")
+                ?: throw TaskExecutionException("Recordset projection could not be executed because parent task has failed.")
 
         /* Prepare scan action. */
         val action: (Record) -> Unit = if (this.knn.weights != null) {

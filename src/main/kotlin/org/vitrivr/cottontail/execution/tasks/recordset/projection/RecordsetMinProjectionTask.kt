@@ -4,9 +4,9 @@ import com.github.dexecutor.core.task.Task
 import com.github.dexecutor.core.task.TaskExecutionException
 import org.vitrivr.cottontail.execution.tasks.basics.ExecutionTask
 import org.vitrivr.cottontail.model.basics.ColumnDef
+import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.recordset.Recordset
 import org.vitrivr.cottontail.model.values.*
-import org.vitrivr.cottontail.utilities.name.Name
 import java.lang.Double.min
 
 /**
@@ -15,7 +15,7 @@ import java.lang.Double.min
  * @author Ralph Gasser
  * @version 1.1
  */
-class RecordsetMinProjectionTask(val columns: Array<ColumnDef<*>>, val fields: Map<Name, Name?>) : ExecutionTask("RecordsetMinProjectionTask") {
+class RecordsetMinProjectionTask(val columns: Array<ColumnDef<*>>, val fields: Map<Name.ColumnName, Name.ColumnName?>) : ExecutionTask("RecordsetMinProjectionTask") {
 
     /**
      * Executes this [RecordsetCountProjectionTask]
@@ -30,7 +30,7 @@ class RecordsetMinProjectionTask(val columns: Array<ColumnDef<*>>, val fields: M
         /* Calculate min(). */
         val column = this.columns.first()
         val resultsColumn = ColumnDef.withAttributes(this.fields[column.name]
-                ?: Name("min(${column.name})"), "DOUBLE")
+                ?: (column.name.entity()?.column("min(${column.name})") ?: Name.ColumnName("min(${column.name})")), "DOUBLE")
         var min = Double.MAX_VALUE
         val results = Recordset(arrayOf(resultsColumn))
         parent.forEach {

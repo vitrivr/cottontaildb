@@ -7,7 +7,6 @@ import org.vitrivr.cottontail.execution.tasks.basics.ExecutionTask
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.recordset.Recordset
 import org.vitrivr.cottontail.model.values.*
-import org.vitrivr.cottontail.utilities.name.Name
 import java.lang.Double.min
 
 /**
@@ -24,8 +23,7 @@ class EntityMinProjectionTask(val entity: Entity, val column: ColumnDef<*>, val 
     override fun execute(): Recordset {
         assertNullaryInput()
 
-        val resultsColumn = ColumnDef.withAttributes(Name(this.alias
-                ?: "${entity.fqn}.min(${this.column.name})"), "DOUBLE")
+        val resultsColumn = ColumnDef.withAttributes(this.entity.name.column("min(${this.column.name})"), "DOUBLE")
 
         return this.entity.Tx(true, columns = arrayOf(this.column)).query { tx ->
             var min = Double.MAX_VALUE

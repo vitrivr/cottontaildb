@@ -10,6 +10,7 @@ import org.vitrivr.cottontail.database.general.Transaction
 import org.vitrivr.cottontail.grpc.CottonDMLGrpc
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.model.basics.ColumnDef
+import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import org.vitrivr.cottontail.model.exceptions.ValidationException
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
@@ -17,8 +18,6 @@ import org.vitrivr.cottontail.model.values.types.Value
 import org.vitrivr.cottontail.server.grpc.helper.*
 import org.vitrivr.cottontail.utilities.extensions.read
 import org.vitrivr.cottontail.utilities.extensions.write
-import org.vitrivr.cottontail.utilities.name.Name
-import org.vitrivr.cottontail.utilities.name.NameType
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.locks.StampedLock
@@ -111,11 +110,10 @@ class CottonDMLService(val catalogue: Catalogue) : CottonDMLGrpc.CottonDMLImplBa
                 /* Check if call was closed and return. */
                 this.closeLock.read {
                     if (this.closed) return
-                    val fqn = Name(request.entity.fqn())
-
-                    /* Check if name is correctly formatted. */
-                    if (fqn.type != NameType.FQN) {
-                        responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Failed to insert into entity: Invalid entity name '$fqn'.").asException())
+                    val fqn = try {
+                        request.entity.fqn()
+                    } catch (e: IllegalArgumentException) {
+                        responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Failed to insert into entity: ${e.message}").asException())
                         return
                     }
 
@@ -123,16 +121,15 @@ class CottonDMLService(val catalogue: Catalogue) : CottonDMLGrpc.CottonDMLImplBa
                     var tx = this.transactions[fqn]
                     if (tx == null) {
                         /* Extract required schema and entity. */
-                        val schema = this@CottonDMLService.catalogue.schemaForName(fqn.first())
-                        val entity = schema.entityForName(fqn.last())
+                        val schema = this@CottonDMLService.catalogue.schemaForName(fqn.schema())
+                        val entity = schema.entityForName(fqn)
                         tx = entity.Tx(false, this.txId)
                         this.transactions[fqn] = tx
                     }
 
                     /* Execute insert action. */
                     val insert = request.tuple.dataMap.map {
-                        val col = tx.columns.find { c -> c.name.last() == Name(it.key) }
-                                ?: throw ValidationException("Insert failed because column ${it.key} does not exist in entity '$fqn'.")
+                        val col = tx.columns.find { c -> c.name == fqn.column(it.key) } ?: throw ValidationException("Insert failed because column ${it.key} does not exist in entity '$fqn'.")
                         col to castToColumn(it.value, col)
                     }.toMap()
 

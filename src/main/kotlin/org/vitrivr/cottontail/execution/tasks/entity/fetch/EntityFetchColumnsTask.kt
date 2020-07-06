@@ -17,7 +17,7 @@ import org.vitrivr.cottontail.model.values.types.Value
  * @author Ralph Gasser
  * @version 1.0
  */
-class EntityFetchColumnsTask(val entity: Entity, val columns: Array<ColumnDef<*>>) : ExecutionTask("EntityFetchColumnsTask[${entity.fqn}") {
+class EntityFetchColumnsTask(val entity: Entity, val columns: Array<ColumnDef<*>>) : ExecutionTask("EntityFetchColumnsTask[${entity.name}") {
     /**
      * Executes this [RecordsetCountProjectionTask]
      */
