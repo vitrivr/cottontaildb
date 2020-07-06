@@ -81,7 +81,7 @@ dependencies {
     /////// gRPC & Protobuf
     compile group: 'javax.annotation', name: 'javax.annotation-api', version: '1.2'
     compile group: 'com.google.protobuf', name: 'protobuf-java', version: '3.12.2'
-    compile group: 'io.grpc', name: 'grpc-all', version: '1.29.0'
+    compile group: 'io.grpc', name: 'grpc-all', version: '1.30.2'
 
     ////// Log4J
     compile group: 'org.apache.logging.log4j', name: 'log4j-api', version: '2.13.2'
@@ -101,6 +101,7 @@ dependencies {
     testCompile group: 'org.junit.jupiter', name: 'junit-jupiter-api', version: '5.6.2'
     testCompile group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: '5.6.2'
     testCompile group: 'org.junit.jupiter', name: 'junit-jupiter-params', version: '5.6.2'
+
     ///// Kotlin
     compile group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib', version: kotlinVersion
     compile group: 'org.jetbrains.kotlin', name: 'kotlin-reflect', version: kotlinVersion
