@@ -121,7 +121,7 @@ class MapDBColumn<T : Value>(override val name: Name.ColumnName, override val pa
          */
         fun initialize(definition: ColumnDef<*>, path: Path, config: MemoryConfig) {
             val store = StoreWAL.make(
-                    file = path.resolve("col_${definition.name}.db").toString(),
+                    file = path.resolve("col_${definition.name.simple}.db").toString(),
                     volumeFactory = config.volumeFactory,
                     allocateIncrement = 1L shl config.dataPageShift
             )
