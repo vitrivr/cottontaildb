@@ -199,7 +199,7 @@ class Catalogue(val config: Config) : DBO {
         this.registry.remove(name)
 
         /* Delete files that belong to the schema. */
-        val path = this.path.resolve("schema_$name")
+        val path = this.path.resolve("schema_${name.simple}")
         val pathsToDelete = Files.walk(path).sorted(Comparator.reverseOrder()).collect(Collectors.toList())
         pathsToDelete.forEach { Files.delete(it) }
     }
