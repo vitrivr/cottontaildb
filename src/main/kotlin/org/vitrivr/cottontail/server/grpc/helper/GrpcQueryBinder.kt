@@ -17,7 +17,6 @@ import org.vitrivr.cottontail.database.queries.predicates.CompoundBooleanPredica
 import org.vitrivr.cottontail.database.queries.predicates.KnnPredicate
 import org.vitrivr.cottontail.execution.ExecutionEngine
 import org.vitrivr.cottontail.execution.ExecutionPlan
-import org.vitrivr.cottontail.execution.tasks.basics.ExecutionTask
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.math.knn.metrics.Distances
 import org.vitrivr.cottontail.model.basics.ColumnDef
@@ -274,28 +273,31 @@ class GrpcQueryBinder(val catalogue: Catalogue, private val engine: ExecutionEng
      * Parses and binds the kNN-lookup part of a GRPC [CottontailGrpc.Query]
      *
      * @param entity The [Entity] from which fetch columns.
-     * @param projection The [CottontailGrpc.Knn] object.
+     * @param knn The [CottontailGrpc.Knn] object.
      *
-     * @return The resulting [ExecutionTask].
+     * @return The resulting [KnnPredicate].
      */
     @Suppress("UNCHECKED_CAST")
     private fun parseAndBindKnnPredicate(entity: Entity, knn: CottontailGrpc.Knn): KnnPredicate<*> {
         val columnName = entity.name.column(knn.attribute)
-        val column = entity.columnForName(columnName) ?: throw QueryException.QueryBindException("Failed to bind column '$columnName'. Column does not exist on entity!")
+        val column = entity.columnForName(columnName)
+                ?: throw QueryException.QueryBindException("Failed to bind column '$columnName'. Column does not exist on entity!")
         val distance = Distances.valueOf(knn.distance.name).kernel
+        val hint = knn.hint.toHint(entity)
+
 
         return when (column.type) {
             is DoubleVectorColumnType -> {
                 val query = knn.queryList.map { q -> q.toDoubleVectorValue() }
                 if (knn.weightsCount > 0) {
-                     val weights = knn.weightsList.map { w -> w.toDoubleVectorValue() }
-                        if (weights.all { it.allOnes() }) {
-                            KnnPredicate(column = column as ColumnDef<DoubleVectorValue>, k = knn.k, inexact = knn.inexact, query = query, distance = distance)
-                        } else {
-                            KnnPredicate(column = column as ColumnDef<DoubleVectorValue>, k = knn.k, inexact = knn.inexact, query = query, weights = weights, distance = distance)
-                        }
+                    val weights = knn.weightsList.map { w -> w.toDoubleVectorValue() }
+                    if (weights.all { it.allOnes() }) {
+                        KnnPredicate(column = column as ColumnDef<DoubleVectorValue>, k = knn.k, query = query, distance = distance, hint = hint)
+                    } else {
+                        KnnPredicate(column = column as ColumnDef<DoubleVectorValue>, k = knn.k, query = query, weights = weights, distance = distance, hint = hint)
+                    }
                 } else {
-                    KnnPredicate(column = column as ColumnDef<DoubleVectorValue>, k = knn.k, inexact = knn.inexact, query = query, distance = distance)
+                    KnnPredicate(column = column as ColumnDef<DoubleVectorValue>, k = knn.k, query = query, distance = distance, hint = hint)
                 }
             }
             is FloatVectorColumnType -> {
@@ -303,12 +305,12 @@ class GrpcQueryBinder(val catalogue: Catalogue, private val engine: ExecutionEng
                 if (knn.weightsCount > 0) {
                     val weights = knn.weightsList.map { it.toFloatVectorValue() }
                     if (weights.all { it.allOnes() }) {
-                        KnnPredicate(column = column as ColumnDef<FloatVectorValue>, k = knn.k, inexact = knn.inexact, query = query, distance = distance)
+                        KnnPredicate(column = column as ColumnDef<FloatVectorValue>, k = knn.k, query = query, distance = distance, hint = hint)
                     } else {
-                        KnnPredicate(column = column as ColumnDef<FloatVectorValue>, k = knn.k, inexact = knn.inexact, query = query, weights = weights, distance = distance)
+                        KnnPredicate(column = column as ColumnDef<FloatVectorValue>, k = knn.k, query = query, weights = weights, distance = distance, hint = hint)
                     }
                 } else {
-                    KnnPredicate(column = column as ColumnDef<FloatVectorValue>, k = knn.k, inexact = knn.inexact, query = query, distance = distance)
+                    KnnPredicate(column = column as ColumnDef<FloatVectorValue>, k = knn.k, query = query, distance = distance, hint = hint)
                 }
             }
             is LongVectorColumnType -> {
@@ -316,12 +318,12 @@ class GrpcQueryBinder(val catalogue: Catalogue, private val engine: ExecutionEng
                 if (knn.weightsCount > 0) {
                     val weights = knn.weightsList.map { it.toLongVectorValue() }
                     if (weights.all { it.allOnes() }) {
-                        KnnPredicate(column = column as ColumnDef<LongVectorValue>, k = knn.k, inexact = knn.inexact, query = query, distance = distance)
+                        KnnPredicate(column = column as ColumnDef<LongVectorValue>, k = knn.k, query = query, distance = distance, hint = hint)
                     } else {
-                        KnnPredicate(column = column as ColumnDef<LongVectorValue>, k = knn.k, inexact = knn.inexact, query = query, weights = weights, distance = distance)
+                        KnnPredicate(column = column as ColumnDef<LongVectorValue>, k = knn.k, query = query, weights = weights, distance = distance, hint = hint)
                     }
                 } else {
-                    KnnPredicate(column = column as ColumnDef<LongVectorValue>, k = knn.k, inexact = knn.inexact, query = query, distance = distance)
+                    KnnPredicate(column = column as ColumnDef<LongVectorValue>, k = knn.k, query = query, distance = distance, hint = hint)
                 }
             }
             is IntVectorColumnType -> {
@@ -329,12 +331,12 @@ class GrpcQueryBinder(val catalogue: Catalogue, private val engine: ExecutionEng
                 if (knn.weightsCount > 0) {
                     val weights = knn.weightsList.map { it.toIntVectorValue() }
                     if (weights.all { it.allOnes() }) {
-                        KnnPredicate(column = column as ColumnDef<IntVectorValue>, k = knn.k, inexact = knn.inexact, query = query, distance = distance)
+                        KnnPredicate(column = column as ColumnDef<IntVectorValue>, k = knn.k, query = query, distance = distance, hint = hint)
                     } else {
-                        KnnPredicate(column = column as ColumnDef<IntVectorValue>, k = knn.k, inexact = knn.inexact, query = query, weights = weights, distance = distance)
+                        KnnPredicate(column = column as ColumnDef<IntVectorValue>, k = knn.k, query = query, weights = weights, distance = distance, hint = hint)
                     }
                 } else {
-                    KnnPredicate(column = column as ColumnDef<IntVectorValue>, k = knn.k, inexact = knn.inexact, query = query, distance = distance)
+                    KnnPredicate(column = column as ColumnDef<IntVectorValue>, k = knn.k, query = query, distance = distance, hint = hint)
                 }
             }
             is BooleanVectorColumnType -> {
@@ -342,12 +344,12 @@ class GrpcQueryBinder(val catalogue: Catalogue, private val engine: ExecutionEng
                 if (knn.weightsCount > 0) {
                     val weights = knn.weightsList.map { it.toBooleanVectorValue() }
                     if (weights.all { it.allOnes() }) {
-                        KnnPredicate(column = column as ColumnDef<BooleanVectorValue>, k = knn.k, inexact = knn.inexact, query = query, distance = distance)
+                        KnnPredicate(column = column as ColumnDef<BooleanVectorValue>, k = knn.k, query = query, distance = distance, hint = hint)
                     } else {
-                        KnnPredicate(column = column as ColumnDef<BooleanVectorValue>, k = knn.k, inexact = knn.inexact, query = query, weights = weights, distance = distance)
+                        KnnPredicate(column = column as ColumnDef<BooleanVectorValue>, k = knn.k, query = query, weights = weights, distance = distance, hint = hint)
                     }
                 } else {
-                    KnnPredicate(column = column as ColumnDef<BooleanVectorValue>, k = knn.k, inexact = knn.inexact, query = query, distance = distance)
+                    KnnPredicate(column = column as ColumnDef<BooleanVectorValue>, k = knn.k, query = query, distance = distance, hint = hint)
                 }
             }
             is Complex32VectorColumnType -> {
@@ -355,12 +357,12 @@ class GrpcQueryBinder(val catalogue: Catalogue, private val engine: ExecutionEng
                 if (knn.weightsCount > 0) {
                     val weights = knn.weightsList.map { it.toComplex32VectorValue() }
                     if (weights.all { it.allOnes() }) {
-                        KnnPredicate(column = column as ColumnDef<Complex32VectorValue>, k = knn.k, inexact = knn.inexact, query = query, distance = distance)
+                        KnnPredicate(column = column as ColumnDef<Complex32VectorValue>, k = knn.k, query = query, distance = distance, hint = hint)
                     } else {
-                        KnnPredicate(column = column as ColumnDef<Complex32VectorValue>, k = knn.k, inexact = knn.inexact, query = query, weights = weights, distance = distance)
+                        KnnPredicate(column = column as ColumnDef<Complex32VectorValue>, k = knn.k, query = query, weights = weights, distance = distance, hint = hint)
                     }
                 } else {
-                    KnnPredicate(column = column as ColumnDef<Complex32VectorValue>, k = knn.k, inexact = knn.inexact, query = query, distance = distance)
+                    KnnPredicate(column = column as ColumnDef<Complex32VectorValue>, k = knn.k, query = query, distance = distance, hint = hint)
                 }
             }
             is Complex64VectorColumnType -> {
@@ -368,12 +370,12 @@ class GrpcQueryBinder(val catalogue: Catalogue, private val engine: ExecutionEng
                 if (knn.weightsCount > 0) {
                     val weights = knn.weightsList.map { it.toComplex64VectorValue() }
                     if (weights.all { it.allOnes() }) {
-                        KnnPredicate(column = column as ColumnDef<Complex64VectorValue>, k = knn.k, inexact = knn.inexact, query = query, distance = distance)
+                        KnnPredicate(column = column as ColumnDef<Complex64VectorValue>, k = knn.k, query = query, distance = distance, hint = hint)
                     } else {
-                        KnnPredicate(column = column as ColumnDef<Complex64VectorValue>, k = knn.k, inexact = knn.inexact, query = query, weights = weights, distance = distance)
+                        KnnPredicate(column = column as ColumnDef<Complex64VectorValue>, k = knn.k, query = query, weights = weights, distance = distance, hint = hint)
                     }
                 } else{
-                    KnnPredicate(column = column as ColumnDef<Complex64VectorValue>, k = knn.k, inexact = knn.inexact, query = query, distance = distance)
+                    KnnPredicate(column = column as ColumnDef<Complex64VectorValue>, k = knn.k, query = query, distance = distance, hint = hint)
                 }
             }
             else -> throw QueryException.QuerySyntaxException("A kNN predicate does not contain a valid query vector!")
