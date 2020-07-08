@@ -181,13 +181,14 @@ class CottonDDLService(val catalogue: Catalogue) : CottonDDLGrpc.CottonDDLImplBa
     /**
      * gRPC endpoint for creating a particular [Index][org.vitrivr.cottontail.database.index.Index]
      */
-    override fun createIndex(request: CottontailGrpc.CreateIndexMessage, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) = try {
+    override fun createIndex(request: CottontailGrpc.IndexDefinition, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) = try {
         LOGGER.trace("Creating index {}", request)
         val indexName = request.index.fqn()
         val entity = this.catalogue.schemaForName(indexName.schema()).entityForName(indexName.entity())
         val columns = request.columnsList.map {
             val columnName = indexName.entity().column(it)
-            entity.columnForName(columnName) ?: throw DatabaseException.ColumnDoesNotExistException(columnName)
+            entity.columnForName(columnName)
+                    ?: throw DatabaseException.ColumnDoesNotExistException(columnName)
         }.toTypedArray()
 
         /* Creates and updates the index. */
@@ -220,8 +221,8 @@ class CottonDDLService(val catalogue: Catalogue) : CottonDDLGrpc.CottonDDLImplBa
     /**
      * gRPC endpoint for dropping a particular [Index][org.vitrivr.cottontail.database.index.Index]
      */
-    override fun dropIndex(request: CottontailGrpc.DropIndexMessage, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) = try {
-        val indexName = request.index.fqn()
+    override fun dropIndex(request: CottontailGrpc.Index, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) = try {
+        val indexName = request.fqn()
         LOGGER.trace("Dropping index {}", indexName)
         this.catalogue.schemaForName(indexName.schema()).entityForName(indexName.entity()).dropIndex(indexName)
 
@@ -230,27 +231,27 @@ class CottonDDLService(val catalogue: Catalogue) : CottonDDLGrpc.CottonDDLImplBa
         responseObserver.onCompleted()
         LOGGER.trace("Index {} dropped successfully!", request)
     } catch (e: DatabaseException.SchemaDoesNotExistException) {
-        LOGGER.error("Error while dropping index '${request.index.fqn()}'", e)
-        responseObserver.onError(Status.NOT_FOUND.withDescription("Schema '${request.index.entity.schema.fqn()} does not exist!").asException())
+        LOGGER.error("Error while dropping index '${request.fqn()}'", e)
+        responseObserver.onError(Status.NOT_FOUND.withDescription("Schema '${request.entity.schema.fqn()} does not exist!").asException())
     } catch (e: DatabaseException.EntityDoesNotExistException) {
-        LOGGER.error("Error while dropping index '${request.index.fqn()}'", e)
-        responseObserver.onError(Status.NOT_FOUND.withDescription("Entity '${request.index.entity.fqn()} does not exist!").asException())
+        LOGGER.error("Error while dropping index '${request.fqn()}'", e)
+        responseObserver.onError(Status.NOT_FOUND.withDescription("Entity '${request.entity.fqn()} does not exist!").asException())
     } catch (e: DatabaseException.IndexDoesNotExistException) {
-        LOGGER.error("Error while dropping index '${request.index.fqn()}'", e)
-        responseObserver.onError(Status.NOT_FOUND.withDescription("Index '${request.index.fqn()} does not exist!").asException())
+        LOGGER.error("Error while dropping index '${request.fqn()}'", e)
+        responseObserver.onError(Status.NOT_FOUND.withDescription("Index '${request.fqn()} does not exist!").asException())
     } catch (e: DatabaseException) {
-        LOGGER.error("Error while dropping index '${request.index.fqn()}'", e)
-        responseObserver.onError(Status.UNKNOWN.withDescription("Failed to drop index '${request.index.fqn()}' because of database error: ${e.message}").asException())
+        LOGGER.error("Error while dropping index '${request.fqn()}'", e)
+        responseObserver.onError(Status.UNKNOWN.withDescription("Failed to drop index '${request.fqn()}' because of database error: ${e.message}").asException())
     } catch (e: Throwable) {
-        LOGGER.error("Error while dropping index '${request.index.fqn()}'", e)
-        responseObserver.onError(Status.UNKNOWN.withDescription("Failed to drop index '${request.index.fqn()}' because of an unknown error: ${e.message}").asException())
+        LOGGER.error("Error while dropping index '${request.fqn()}'", e)
+        responseObserver.onError(Status.UNKNOWN.withDescription("Failed to drop index '${request.fqn()}' because of an unknown error: ${e.message}").asException())
     }
 
     /**
      * gRPC endpoint for rebuilding a particular [Index][org.vitrivr.cottontail.database.index.Index]
      */
-    override fun rebuildIndex(request: CottontailGrpc.RebuildIndexMessage, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) = try {
-        val indexName = request.index.fqn()
+    override fun rebuildIndex(request: CottontailGrpc.Index, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) = try {
+        val indexName = request.fqn()
         LOGGER.trace("Rebuilding index {}", indexName)
 
         /* Update index. */
@@ -261,20 +262,53 @@ class CottonDDLService(val catalogue: Catalogue) : CottonDDLGrpc.CottonDDLImplBa
         responseObserver.onCompleted()
         LOGGER.trace("Index {} rebuilt successfully!", request)
     } catch (e: DatabaseException.SchemaDoesNotExistException) {
-        LOGGER.error("Error while rebuilding index '${request.index.fqn()}'", e)
-        responseObserver.onError(Status.NOT_FOUND.withDescription("Schema '${request.index.entity.schema.fqn()} does not exist!").asException())
+        LOGGER.error("Error while rebuilding index '${request.fqn()}'", e)
+        responseObserver.onError(Status.NOT_FOUND.withDescription("Schema '${request.entity.schema.fqn()} does not exist!").asException())
     } catch (e: DatabaseException.EntityDoesNotExistException) {
-        LOGGER.error("Error while rebuilding index '${request.index.fqn()}'", e)
-        responseObserver.onError(Status.NOT_FOUND.withDescription("Entity '${request.index.entity.fqn()} does not exist!").asException())
+        LOGGER.error("Error while rebuilding index '${request.fqn()}'", e)
+        responseObserver.onError(Status.NOT_FOUND.withDescription("Entity '${request.entity.fqn()} does not exist!").asException())
     } catch (e: DatabaseException.IndexDoesNotExistException) {
-        LOGGER.error("Error while rebuilding index '${request.index.fqn()}'", e)
-        responseObserver.onError(Status.NOT_FOUND.withDescription("Index '${request.index.fqn()} does not exist!").asException())
+        LOGGER.error("Error while rebuilding index '${request.fqn()}'", e)
+        responseObserver.onError(Status.NOT_FOUND.withDescription("Index '${request.fqn()} does not exist!").asException())
     } catch (e: DatabaseException) {
-        LOGGER.error("Error while rebuilding index '${request.index.fqn()}'", e)
-        responseObserver.onError(Status.UNKNOWN.withDescription("Failed to rebuild index '${request.index.fqn()}' because of database error: ${e.message}").asException())
+        LOGGER.error("Error while rebuilding index '${request.fqn()}'", e)
+        responseObserver.onError(Status.UNKNOWN.withDescription("Failed to rebuild index '${request.fqn()}' because of database error: ${e.message}").asException())
     } catch (e: Throwable) {
-        LOGGER.error("Error while rebuilding index '${request.index.fqn()}'", e)
-        responseObserver.onError(Status.UNKNOWN.withDescription("Failed to rebuild index '${request.index.fqn()}' because of an unknown error: ${e.message}").asException())
+        LOGGER.error("Error while rebuilding index '${request.fqn()}'", e)
+        responseObserver.onError(Status.UNKNOWN.withDescription("Failed to rebuild index '${request.fqn()}' because of an unknown error: ${e.message}").asException())
+    }
+
+    /**
+     * gRPC endpoint for listing available [Index][org.vitrivr.cottontail.database.index.Index] for a given [Entity][org.vitrivr.cottontail.database.entity.Entity]
+     */
+    override fun listIndexes(request: CottontailGrpc.Entity, responseObserver: StreamObserver<CottontailGrpc.Index>) = try {
+        val entityName = request.fqn()
+
+        /* Get entity and stream available index structures. */
+        val entity = this.catalogue.schemaForName(entityName.schema()).entityForName(entityName)
+        entity.allIndexes().forEach {
+            val index = CottontailGrpc.Index.newBuilder()
+                    .setName(it.name.simple)
+                    .setType(CottontailGrpc.IndexType.valueOf(it.type.name))
+                    .setEntity(CottontailGrpc.Entity.newBuilder().setName(entity.name.simple).setSchema(CottontailGrpc.Schema.newBuilder().setName(entity.parent.name.simple)))
+            responseObserver.onNext(index.build())
+        }
+
+        /* Notify caller of success. */
+        responseObserver.onCompleted()
+
+    } catch (e: DatabaseException.SchemaDoesNotExistException) {
+        LOGGER.error("Error while optimizing entity '${request.fqn()}'", e)
+        responseObserver.onError(Status.NOT_FOUND.withDescription("Schema '${request.schema.fqn()} does not exist!").asException())
+    } catch (e: DatabaseException.EntityDoesNotExistException) {
+        LOGGER.error("Error while optimizing entity '${request.fqn()}'", e)
+        responseObserver.onError(Status.NOT_FOUND.withDescription("Entity '${request.fqn()} does not exist!").asException())
+    } catch (e: DatabaseException) {
+        LOGGER.error("Error while optimizing entity '${request.fqn()}'", e)
+        responseObserver.onError(Status.UNKNOWN.withDescription("Failed to optimize entity '${request.fqn()}' because of database error: ${e.message}").asException())
+    } catch (e: Throwable) {
+        LOGGER.error("Error while optimizing entity '${request.fqn()}'", e)
+        responseObserver.onError(Status.UNKNOWN.withDescription("Failed to optimize entity '${request.fqn()}' because of an unknown error: ${e.message}").asException())
     }
 
     /**
