@@ -26,7 +26,7 @@ abstract class LSHIndex<T : VectorValue<*>>(final override val name: Name.IndexN
     final override val produces: Array<ColumnDef<*>> = arrayOf(ColumnDef(this.parent.name.column("distance"), ColumnType.forName("DOUBLE")))
 
     /** The type of [Index] */
-    final override val type: IndexType = IndexType.LSH
+    override val type: IndexType = IndexType.LSH
 
     /** The internal [DB] reference. */
     protected val db = if (parent.parent.parent.config.memoryConfig.forceUnmapMappedFiles) {

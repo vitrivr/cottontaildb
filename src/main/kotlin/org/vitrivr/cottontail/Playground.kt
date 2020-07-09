@@ -28,10 +28,10 @@ object Playground {
 
 
         this.ddlService.createIndex(
-                CottontailGrpc.CreateIndexMessage.newBuilder().addColumns("feature").setIndex(
+                CottontailGrpc.IndexDefinition.newBuilder().addColumns("feature").setIndex(
                         CottontailGrpc.Index.newBuilder()
                                 .setEntity(CottontailGrpc.Entity.newBuilder().setName("features_audiotranscription").setSchema(CottontailGrpc.Schema.newBuilder().setName("cineast").build()))
-                                .setType(CottontailGrpc.Index.IndexType.LUCENE)
+                                .setType(CottontailGrpc.IndexType.LUCENE)
                                 .setName("feature_index")
                                 .build()
                 ).build()
