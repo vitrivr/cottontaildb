@@ -97,6 +97,11 @@ dependencies {
     compile group: 'org.apache.lucene', name: 'lucene-codecs', version: luceneVersion
     compile group: 'org.apache.lucene', name: 'lucene-queryparser', version: luceneVersion
 
+    ////// CLIKT
+    compile group: 'com.github.ajalt', name: 'clikt', version: '2.6.0'
+    ////// JLine 3
+    compile group: 'org.jline', name: 'jline', version: '3.15.0'
+
     ///// JUnit 5
     testCompile group: 'org.junit.jupiter', name: 'junit-jupiter-api', version: '5.6.2'
     testCompile group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: '5.6.2'
