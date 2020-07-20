@@ -29,7 +29,7 @@ Cottontail DB release artifacts (either built or downloaded from the releases pa
 
 There is a pre-built Docker container for Cottontail DB for every release version. You can run it using the following command
 
-``docker run --name cottontaildb -p 1865:1865 -v /path/to/volume:/cottontail-data docker.pkg.github.com/vitrivr/cottontaildb/cottontaildb:<version>``
+``docker run --name cottontaildb -p 1865:1865 -v /path/to/volume:/cottontaildb-data docker.pkg.github.com/vitrivr/cottontaildb/cottontaildb:<version>``
 
 It is important to expose the Cottontail DB port using `-p 1865:1865` (adjust uf using a different port) and to map the data directory from the host into the container using `-v`. The data directory is expected to contain a valid `config.json` file!
 
