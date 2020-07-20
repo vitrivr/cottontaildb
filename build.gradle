@@ -117,6 +117,20 @@ dependencies {
     compile group: 'org.apache.commons', name: 'commons-math3', version: '3.6.1'
 }
 
+jar {
+
+    doFirst {
+        // FAT JAR (with dependencies)
+        from { configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
+    }
+    // To prevent unwanted files
+    exclude 'META-INF/*.RSA', 'META-INF/*.SF', 'META-INF/*.DSA'
+
+    manifest {
+        attributes 'Main-Class': mainClassName
+    }
+}
+
 idea {
     module {
         downloadJavadoc = true
