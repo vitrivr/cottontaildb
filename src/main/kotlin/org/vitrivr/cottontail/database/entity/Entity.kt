@@ -477,6 +477,16 @@ class Entity(override val name: Name, override val parent: Schema) : DBO {
         }
 
         /**
+         * Returns the maximum tuple ID occupied by entries in this [Entity].
+         *
+         * @return The maximum tuple ID occupied by entries in this [Entity].
+         */
+        fun maxTupleId(): Long = this.localLock.read {
+            checkValidForRead()
+            return this@Entity.columns.first().maxTupleId
+        }
+
+        /**
          * Applies the provided function to each entry found in this [Entity]. The provided function cannot not change
          * the data stored in the [Entity]!
          *
