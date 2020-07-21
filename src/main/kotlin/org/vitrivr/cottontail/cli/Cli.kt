@@ -1,8 +1,11 @@
 package org.vitrivr.cottontail.cli
 
+import com.github.ajalt.clikt.core.CliktCommand
 import org.jline.reader.Completer
 import org.jline.reader.LineReaderBuilder
 import org.jline.reader.impl.completer.AggregateCompleter
+import org.jline.reader.impl.completer.ArgumentCompleter
+import org.jline.reader.impl.completer.NullCompleter
 import org.jline.reader.impl.completer.StringsCompleter
 import org.jline.terminal.Terminal
 import org.jline.terminal.TerminalBuilder
@@ -25,15 +28,75 @@ object Cli {
     private const val PROMPT = "cottontaildb>"
 
 
+    /**
+     * The cottontail grpc server reference.
+     * This is for gracefully stopping the db in case this CLI is within the same JVM as the db
+     */
     lateinit var cottontailServer: CottontailGrpcServer
+
+
+    private val completer: DelegateCompleter = DelegateCompleter(AggregateCompleter(StringsCompleter("help")))
+
+    private lateinit var clikt:CliktCommand
+
+    /**
+     * Add the given list of completion candidates to completion
+     */
+    fun updateCompletion(strings:List<String>){
+        if(::clikt.isInitialized){
+            completer.delegate = AggregateCompleter(
+                    StringsCompleter("help"),
+                    StringsCompleter(clikt.registeredSubcommandNames()),
+                    StringsCompleter(strings))
+        }else{
+            completer.delegate = AggregateCompleter(
+                    StringsCompleter("help"),
+                    StringsCompleter(strings)
+            )
+        }
+    }
+
+    /**
+     * Adds dedicated argument completers to the completion
+     */
+    fun updateArgumentCompletion(schemata:List<String>, entities:List<String>){
+        val args = ArgumentCompleter(
+                StringsCompleter(clikt.registeredSubcommandNames()),// should be safe to call
+                StringsCompleter(schemata),
+                StringsCompleter(entities),
+                NullCompleter()
+        )
+        args.setStrictCommand(true)
+        args.isStrict = false
+        completer.delegate = AggregateCompleter(
+                StringsCompleter("help"),
+                args
+        )
+    }
+
+
+    /**
+     * Resets the autocompletion.
+     * Resetting means, that in case the commands are already loaded, these are set plus "help"
+     * Otherwise only "help" is added to the completion.
+     */
+    fun resetCompletion(){
+        if(::clikt.isInitialized){
+            completer.delegate = AggregateCompleter(
+                    StringsCompleter("help"),
+                    StringsCompleter(clikt.registeredSubcommandNames()))
+        }else{
+            completer.delegate = AggregateCompleter(StringsCompleter("help"))
+        }
+    }
 
     /**
      * Blocking REPL of the CLI
      */
     fun loop(host:String = "localhost", port:Int = 1865){
-        val cmds = CottontailCommand(host, port)
+        clikt = CottontailCommand(host, port)
 
-        var terminal: Terminal? = null
+        val terminal: Terminal?
         try{
             terminal = TerminalBuilder.terminal()
         }catch(e:IOException){
@@ -42,24 +105,21 @@ object Cli {
                     "Exiting...")
         }
 
-        val completer: Completer = AggregateCompleter(
-                StringsCompleter("help"),
-                StringsCompleter(cmds.registeredSubcommandNames())
-        )
+        (clikt as CottontailCommand).initCompletion()
 
         val lineReader = LineReaderBuilder.builder().terminal(terminal).completer(completer).build()
 
         while(true){
             val line = lineReader.readLine(PROMPT).trim()
             if(line.toLowerCase() == "help"){
-                println(cmds.getFormattedHelp())
+                println(clikt.getFormattedHelp())
                 continue
             }
             if(line.isBlank()){
                 continue
             }
             try{
-                cmds.parse(splitLine(line))
+                clikt.parse(splitLine(line))
             }catch(e:Exception){
                 when (e) {
                     is com.github.ajalt.clikt.core.NoSuchSubcommand -> println("command not found")
