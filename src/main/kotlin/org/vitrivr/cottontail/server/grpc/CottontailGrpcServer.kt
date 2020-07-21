@@ -30,7 +30,6 @@ class CottontailGrpcServer(val config: ServerConfig, val catalogue: Catalogue, p
     /** Reference to the gRPC server. */
     private val server = ServerBuilder.forPort(config.port)
             .executor(this.executor)
-            .maxInboundMessageSize(config.messageSize)
             .addService(CottonDDLService(this.catalogue))
             .addService(CottonDMLService(this.catalogue))
             .addService(CottonDQLService(this.catalogue, this.engine))
