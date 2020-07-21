@@ -14,19 +14,28 @@ import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.recordset.Recordset
 import org.vitrivr.cottontail.server.grpc.helper.DataHelper
 import org.vitrivr.cottontail.server.grpc.helper.GrpcQueryBinder
-import org.vitrivr.cottontail.utilities.math.BitUtil
 import java.util.*
+import kotlin.time.ExperimentalTime
+import kotlin.time.measureTime
+import kotlin.time.measureTimedValue
 
-class CottonDQLService(val catalogue: Catalogue, val engine: ExecutionEngine, val maxMessageSize: Int) : CottonDQLGrpc.CottonDQLImplBase() {
+/**
+ * Implementation of [CottonDQLGrpc.CottonDQLImplBase], the gRPC endpoint for quering data in Cottontail DB.
+ *
+ * @author Ralph Gasser
+ * @version 1.1
+ */
+@ExperimentalTime
+class CottonDQLService(val catalogue: Catalogue, val engine: ExecutionEngine) : CottonDQLGrpc.CottonDQLImplBase() {
     /** Logger used for logging the output. */
     companion object {
         private val LOGGER = LoggerFactory.getLogger(CottonDQLService::class.java)
     }
 
     /**
-     *  gRPC endpoint for handling simple queries.
+     * gRPC endpoint for handling simple queries.
      */
-    override fun query(request: CottontailGrpc.QueryMessage, responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) = try {
+    override fun query(request: CottontailGrpc.QueryMessage, responseObserver: StreamObserver<CottontailGrpc.QueryResultMessage>) = try {
         /* Start the query by giving the start signal. */
         val queryId = if (request.queryId == null || request.queryId == "") {
             UUID.randomUUID().toString()
@@ -35,22 +44,28 @@ class CottonDQLService(val catalogue: Catalogue, val engine: ExecutionEngine, va
         }
 
         /* Bind query and generate execution plan */
-        val startBinding = System.currentTimeMillis()
-        val binder = GrpcQueryBinder(catalogue = this.catalogue, engine = this.engine)
-        val plan = binder.parseAndBind(request.query)
-        LOGGER.trace("Parsing & binding query $queryId took ${System.currentTimeMillis() - startBinding}ms.")
+        val totalDuration = {
+            /* Bind query and generate execution plan */
+            val planTimedValue = measureTimedValue {
+                val binder = GrpcQueryBinder(catalogue = this@CottonDQLService.catalogue, engine = this@CottonDQLService.engine)
+                binder.parseAndBind(request.query)
+            }
+            LOGGER.trace("Parsing & binding query $queryId took ${planTimedValue.duration}.")
 
-        /* Execute query. */
-        val startExecution = System.currentTimeMillis()
-        val results = plan.execute()
-        LOGGER.trace("Executing query $queryId took ${System.currentTimeMillis() - startExecution}ms.")
+            /* Execute query. */
+            val resultsTimedValue = measureTimedValue {
+                planTimedValue.value.execute()
+            }
+            LOGGER.trace("Executing query $queryId took ${resultsTimedValue.duration}.")
 
-        /* Send back results. */
-        this.spoolResults(queryId, results, responseObserver)
+            /* Send back results. */
+            this.spoolResults(queryId, resultsTimedValue.value, responseObserver)
 
-        /* Complete query. */
-        LOGGER.info("Query $queryId took ${System.currentTimeMillis() - startBinding}ms.")
-        responseObserver.onCompleted()
+            /* Complete query. */
+            responseObserver.onCompleted()
+        }
+
+        LOGGER.info("Query $queryId took $totalDuration.")
     } catch (e: QueryException.QuerySyntaxException) {
         LOGGER.error("Error while executing query $request", e)
         responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Query syntax is invalid: ${e.message}").asException())
@@ -71,30 +86,39 @@ class CottonDQLService(val catalogue: Catalogue, val engine: ExecutionEngine, va
     /**
      *  gRPC endpoint for handling batched queries.
      */
-    override fun batchedQuery(request: CottontailGrpc.BatchedQueryMessage, responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) = try {
+    override fun batchedQuery(request: CottontailGrpc.BatchedQueryMessage, responseObserver: StreamObserver<CottontailGrpc.QueryResultMessage>) = try {
         /* Start the query by giving the start signal. */
-        val start = System.currentTimeMillis()
-        val queryId = UUID.randomUUID().toString()
+        val queryId = if (request.queryId == null || request.queryId == "") {
+            UUID.randomUUID().toString()
+        } else {
+            request.queryId
+        }
 
-        request.queriesList.forEachIndexed { index, query ->
-            /* Bind query and generate execution plan */
-            val startBinding = System.currentTimeMillis()
-            val binder = GrpcQueryBinder(catalogue = this@CottonDQLService.catalogue, engine = this@CottonDQLService.engine)
-            val plan = binder.parseAndBind(query)
-            LOGGER.trace("Parsing & binding query $index of batch $queryId took ${System.currentTimeMillis() - startBinding}ms.")
+        val totalDuration = measureTime {
+            request.queriesList.forEachIndexed { index, query ->
+                /* Bind query and generate execution plan */
+                val planTimedValue = measureTimedValue {
+                    val binder = GrpcQueryBinder(catalogue = this@CottonDQLService.catalogue, engine = this@CottonDQLService.engine)
+                    binder.parseAndBind(query)
+                }
+                LOGGER.trace("Parsing & binding query $index of batch $queryId took ${planTimedValue.duration}.")
 
-            /* Execute query. */
-            val startExecution = System.currentTimeMillis()
-            val results = plan.execute()
-            LOGGER.trace("Executing query $index of batch $queryId took ${System.currentTimeMillis() - startExecution}ms.")
+                /* Execute query. */
+                val resultsTimedValue = measureTimedValue {
+                    planTimedValue.value.execute()
+                }
+                LOGGER.trace("Executing query $index of batch $queryId took ${resultsTimedValue.duration}.")
 
-            /* Send back results. */
-            this.spoolResults(queryId, results, responseObserver, index)
+                /* Send back results. */
+                this.spoolResults(queryId, resultsTimedValue.value, responseObserver, index)
+            }
+
+            /* Send onCompleted() signal. */
+            responseObserver.onCompleted()
         }
 
         /* Complete query. */
-        LOGGER.info("Batched query $queryId took ${System.currentTimeMillis() - start}ms to complete.")
-        responseObserver.onCompleted()
+        LOGGER.info("Batched query $queryId took $totalDuration to complete.")
     } catch (e: QueryException.QuerySyntaxException) {
         LOGGER.error("Error while executing batched query $request", e)
         responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Query syntax is invalid: ${e.message}").asException())
@@ -121,35 +145,29 @@ class CottonDQLService(val catalogue: Catalogue, val engine: ExecutionEngine, va
     }
 
     /**
-     * Batches and spools the results in the given [Recordset]
+     * Spools the results in the given [Recordset] to gRPC
      *
      * @param queryId The ID of the query.
      * @param results [Recordset] containing the results.
      * @param responseObserver [StreamObserver] used to send back the results.
      * @param index Optional index of the result (for batched queries).
      */
-    private fun spoolResults(queryId: String, results: Recordset, responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>, index: Int = 0) {
+    private fun spoolResults(queryId: String, results: Recordset, responseObserver: StreamObserver<CottontailGrpc.QueryResultMessage>, index: Int = 0) {
         if (results.rowCount > 0) {
-            val startSending = System.currentTimeMillis()
-            val first = results.first()
-            if (first != null) {
-                val exampleSize = BitUtil.nextPowerOfTwo(recordToTuple(first).build().serializedSize)
-                val pageSize = (this.maxMessageSize / exampleSize)
-                val maxPages = Math.floorDiv(results.rowCount, pageSize).toInt()
+            val duration = measureTime {
+                /* Create template for QueryResultMessage. */
+                val template = CottontailGrpc.QueryResultMessage.newBuilder().setQueryId(queryId).setHits(results.rowCount)
 
-                /* Return results. */
+                /* Iterate over results and send them back. */
                 val iterator = results.iterator()
-                for (i in 0..maxPages) {
-                    val responseBuilder = CottontailGrpc.QueryResponseMessage.newBuilder().setStart(i == 0).setPageSize(pageSize).setPage(i).setMaxPage(maxPages).setTotalHits(results.rowCount.toInt()) /* TODO: Make necessary values in Proto Definition Longs. */
-                    for (j in i * pageSize until kotlin.math.min(results.rowCount, (i * pageSize + pageSize).toLong())) {
-                        responseBuilder.addResults(recordToTuple(iterator.next()))
-                    }
-                    responseObserver.onNext(responseBuilder.build())
+                for (record in iterator) {
+                    responseObserver.onNext(template.clone().setTuple(recordToTuple(record)).build())
                 }
             }
-            LOGGER.trace("Sending back ${results.rowCount} rows for position $index of query $queryId took ${System.currentTimeMillis() - startSending}ms.")
+
+            LOGGER.trace("Sending back ${results.rowCount} rows for position $index of query $queryId took $duration.")
         } else {
-            responseObserver.onNext(CottontailGrpc.QueryResponseMessage.newBuilder().setStart(false).setPageSize(0).setPage(0).setMaxPage(0).setTotalHits(0).build())
+            responseObserver.onNext(CottontailGrpc.QueryResultMessage.newBuilder().setHits(0).setQueryId(queryId).build())
             LOGGER.trace("Position $index of query $queryId yielded no results.")
         }
     }

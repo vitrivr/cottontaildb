@@ -13,25 +13,27 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.SynchronousQueue
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
+import kotlin.time.ExperimentalTime
 
 /**
  * Main server class for the gRPC endpoint provided by Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 1.0.1
+ * @version 1.0.2
  */
+@ExperimentalTime
 class CottontailGrpcServer(val config: ServerConfig, val catalogue: Catalogue, private val engine: ExecutionEngine) {
 
     /** The [ThreadPoolExecutor] used for handling the individual GRPC calls. */
     private val executor: ExecutorService = ThreadPoolExecutor(this.config.coreThreads, this.config.maxThreads, this.config.keepAliveTime, TimeUnit.MILLISECONDS, SynchronousQueue())
 
-    /** Reference to the GRPC server. */
+    /** Reference to the gRPC server. */
     private val server = ServerBuilder.forPort(config.port)
             .executor(this.executor)
             .maxInboundMessageSize(config.messageSize)
             .addService(CottonDDLService(this.catalogue))
             .addService(CottonDMLService(this.catalogue))
-            .addService(CottonDQLService(this.catalogue, this.engine, config.messageSize))
+            .addService(CottonDQLService(this.catalogue, this.engine))
             .let {
                 if (config.useTls) {
                     val certFile = config.certFile?.toFile() ?: throw Exception()

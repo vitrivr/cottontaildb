@@ -104,9 +104,11 @@ object DatabasePreview {
                                         .build()
                         ))
         ).build()
-        val query = dqlService.query(qm)
-        query.forEach { page ->
-            println(page.resultsList)
+        val results = this.dqlService.query(qm)
+        results.forEach { result ->
+            if (result.tuple != null) {
+                println(result.tuple)
+            }
         }
     }
 
@@ -136,10 +138,10 @@ object DatabasePreview {
                         .setProjection(CottontailGrpc.Projection.newBuilder().setOp(CottontailGrpc.Projection.Operation.COUNT).build())
 
         ).build()
-        val query = dqlService.query(qm)
-        query.forEach { page ->
-            if (!page.resultsList.isEmpty()) {
-                println(page.resultsList.first())
+        val results = dqlService.query(qm)
+        results.forEach { result ->
+            if (result.tuple != null) {
+                println(result.tuple)
             }
         }
     }
@@ -152,10 +154,12 @@ object DatabasePreview {
                         .setProjection(MatchAll())
                         .setLimit(limit)
         ).build()
-        val query = dqlService.query(qm)
+        val results = dqlService.query(qm)
         println("Previewing $limit elements of $entity")
-        query.forEach { page ->
-            println(page.resultsList.dropLast(Math.max(0, page.resultsCount - limit).toInt()))
+        results.forEach { result ->
+            if (result.tuple != null) {
+                println(result.tuple)
+            }
         }
     }
 

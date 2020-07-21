@@ -8,6 +8,7 @@ import org.vitrivr.cottontail.execution.ExecutionEngine
 import org.vitrivr.cottontail.server.grpc.CottontailGrpcServer
 import java.nio.file.Files
 import java.nio.file.Paths
+import kotlin.time.ExperimentalTime
 
 /**
  * Entry point for Cottontail DB demon.
@@ -15,15 +16,15 @@ import java.nio.file.Paths
  * @param args Program arguments.
  */
 @UnstableDefault
+@ExperimentalTime
 fun main(args: Array<String>) {
     /* Check, if args were set properly. */
-    val path =
-            if (args.isEmpty()) {
-                System.err.println("No config path specified, taking default config at config.json")
-                "config.json"
-            } else {
-                args[0]
-            }
+    val path = if (args.isEmpty()) {
+        System.err.println("No config path specified, taking default config at config.json")
+        "config.json"
+    } else {
+        args[0]
+    }
 
     /* Load config file and start Cottontail DB. */
     Files.newBufferedReader(Paths.get(path)).use { reader ->
