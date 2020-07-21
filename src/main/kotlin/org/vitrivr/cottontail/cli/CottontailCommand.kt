@@ -80,7 +80,6 @@ class CottontailCommand(private val host: String, private val port: Int) : NoOpC
             }
         }
         Cli.updateArgumentCompletion(schemata = schemata.map{it.name}, entities = entities.map { it.name })
-        println("DEBUG: init' completion")
     }
 
 
