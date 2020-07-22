@@ -50,7 +50,8 @@ class CottontailCommand(private val host: String, private val port: Int) : NoOpC
                 CountEntityCommand(),
                 QueryByColumnValueEqualsEntityCommand(),
                 ReloadCommand(),
-                StopCommand())
+                StopCommand()
+        )
 
         initDbCon(host, port)
     }
@@ -172,7 +173,7 @@ class CottontailCommand(private val host: String, private val port: Int) : NoOpC
      */
     inner class OptimizeEntityCommand : AbstractEntityCommand(name = "optimize", help = "Optimizes the specified entity, e.g. rebuilds the indices") {
         override fun exec() {
-            println("Optimizing entity $entity.")
+            println("Optimizing entity $entity. Please be patient...")
             this@CottontailCommand.ddlService.optimizeEntity(this.entity.proto())
             println("Optimization complete!")
         }
@@ -219,7 +220,7 @@ class CottontailCommand(private val host: String, private val port: Int) : NoOpC
                 result.tuple
                 size += 1
             }
-            println("Printed $size individual results")
+            println("Printed $size results.")
         }
     }
 
@@ -229,7 +230,7 @@ class CottontailCommand(private val host: String, private val port: Int) : NoOpC
     inner class DropEntityCommand : AbstractEntityCommand(name = "drop", help = "Drops the given entity from the database and deletes it therefore") {
         override fun exec() {
             this@CottontailCommand.ddlService.dropEntity(this.entity.proto())
-            println("Successfully ropped entity ${this.entity}.")
+            println("Successfully dropped entity ${this.entity}.")
         }
     }
 
