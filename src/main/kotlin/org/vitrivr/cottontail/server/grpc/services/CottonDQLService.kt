@@ -44,7 +44,7 @@ class CottonDQLService(val catalogue: Catalogue, val engine: ExecutionEngine) : 
         }
 
         /* Bind query and generate execution plan */
-        val totalDuration = {
+        val totalDuration = measureTime {
             /* Bind query and generate execution plan */
             val planTimedValue = measureTimedValue {
                 val binder = GrpcQueryBinder(catalogue = this@CottonDQLService.catalogue, engine = this@CottonDQLService.engine)
