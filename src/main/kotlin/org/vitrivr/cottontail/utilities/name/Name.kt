@@ -67,7 +67,7 @@ class Name(name: String) {
         this.name.matches(FQN_NAME_REGEX) -> NameType.FQN
         this.name.matches(FQN_WILDCARD_NAME_REGEX) -> NameType.FQN_WILDCARD
         this.name.matches(WILDCARD_NAME_REGEX) -> NameType.WILDCARD
-        else -> throw IllegalArgumentException("The provided name {$name} does not match any of the supported name types.")
+        else -> throw IllegalArgumentException("The provided name $name does not match any of the supported name types.")
     }
 
     /**

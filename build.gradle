@@ -97,6 +97,11 @@ dependencies {
     compile group: 'org.apache.lucene', name: 'lucene-codecs', version: luceneVersion
     compile group: 'org.apache.lucene', name: 'lucene-queryparser', version: luceneVersion
 
+    ////// CLIKT
+    compile group: 'com.github.ajalt', name: 'clikt', version: '2.6.0'
+    ////// JLine 3
+    compile group: 'org.jline', name: 'jline', version: '3.15.0'
+
     ///// JUnit 5
     testCompile group: 'org.junit.jupiter', name: 'junit-jupiter-api', version: '5.6.2'
     testCompile group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: '5.6.2'
@@ -110,6 +115,20 @@ dependencies {
     ///// Apache Commons Math » 3.6
     ///// https://mvnrepository.com/artifact/org.apache.commons/commons-math3
     compile group: 'org.apache.commons', name: 'commons-math3', version: '3.6.1'
+}
+
+jar {
+
+    doFirst {
+        // FAT JAR (with dependencies)
+        from { configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
+    }
+    // To prevent unwanted files
+    exclude 'META-INF/*.RSA', 'META-INF/*.SF', 'META-INF/*.DSA'
+
+    manifest {
+        attributes 'Main-Class': mainClassName
+    }
 }
 
 idea {
