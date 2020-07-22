@@ -4,15 +4,27 @@ package org.vitrivr.cottontail.model.basics
  * A [Name] that identifies a DBO used within Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.0.1
  */
 sealed class Name(vararg components: String) {
 
+    companion object {
+        /* Default delimiter between name components. */
+        const val NAME_COMPONENT_DELIMITER = "."
+
+        /* Default delimiter between name components. */
+        const val NAME_COMPONENT_ROOT = "warren"
+    }
+
     /** Internal array of [Name] components. */
-    val components = components.map { it.toLowerCase() }.toTypedArray()
+    val components = if (components[0] == NAME_COMPONENT_ROOT) {
+        components.map { it.toLowerCase() }.toTypedArray()
+    } else {
+        arrayOf(NAME_COMPONENT_ROOT, *components.map { it.toLowerCase() }.toTypedArray())
+    }
 
     /** Returns the last component of this [Name], i.e. the simple name. */
-    val simple: String
+    open val simple: String
         get() = this.components.last()
 
     /** Returns true if this [Name] matches the other [Name]. */
@@ -21,7 +33,7 @@ sealed class Name(vararg components: String) {
     /**
      * The [RootName] which always is 'warren'.
      */
-    object RootName : Name() {
+    object RootName : Name(NAME_COMPONENT_ROOT) {
         override fun matches(other: Name): Boolean = (other == this)
     }
 
@@ -30,8 +42,19 @@ sealed class Name(vararg components: String) {
      */
     class SchemaName(vararg components: String) : Name(*components) {
         init {
-            require(components.size == 1) { "$this is not a valid schema name." }
+            if (components[0] == NAME_COMPONENT_ROOT) {
+                require(components.size == 2) { "$this is not a valid index name." }
+            } else {
+                require(components.size == 1) { "$this is not a valid index name." }
+            }
         }
+
+        /**
+         * Returns [RootName] of this [SchemaName].
+
+         * @return [RootName]
+         */
+        fun root() = RootName
 
         /**
          * Generates an [EntityName] as child of this [SchemaName].
@@ -49,15 +72,26 @@ sealed class Name(vararg components: String) {
      */
     class EntityName(vararg components: String) : Name(*components) {
         init {
-            require(components.size == 2) { "$this is not a valid entity name." }
+            if (components[0] == NAME_COMPONENT_ROOT) {
+                require(components.size == 3) { "$this is not a valid entity name." }
+            } else {
+                require(components.size == 2) { "$this is not a valid entity name." }
+            }
         }
 
         /**
-         * Generates the parent [SchemaName] from this [EntityName].
+         * Returns [RootName] of this [EntityName].
+         *
+         * @return [RootName]
+         */
+        fun root() = RootName
+
+        /**
+         * Returns parent [SchemaName] for this [EntityName].
          *
          * @return Parent [SchemaName]
          */
-        fun schema(): SchemaName = SchemaName(*this.components.copyOfRange(0, 1))
+        fun schema(): SchemaName = SchemaName(*this.components.copyOfRange(0, 2))
 
         /**
          * Generates an [IndexName] as child of this [EntityName].
@@ -84,22 +118,33 @@ sealed class Name(vararg components: String) {
      */
     class IndexName(vararg components: String) : Name(*components) {
         init {
-            require(components.size == 3) { "$this is not a valid index name." }
+            if (components[0] == NAME_COMPONENT_ROOT) {
+                require(components.size == 4) { "$this is not a valid index name." }
+            } else {
+                require(components.size == 3) { "$this is not a valid index name." }
+            }
         }
 
         /**
-         * Generates the parent [SchemaName] from this [IndexName].
+         * Returns [RootName] of this [EntityName].
+         *
+         * @return [RootName]
+         */
+        fun root() = RootName
+
+        /**
+         * Returns parent [SchemaName] of this [IndexName].
          *
          * @return Parent [SchemaName]
          */
-        fun schema(): SchemaName = SchemaName(*this.components.copyOfRange(0, 1))
+        fun schema(): SchemaName = SchemaName(*this.components.copyOfRange(0, 2))
 
         /**
-         * Generates the parent [EntityName] from this [IndexName].
+         * Returns parent  [EntityName] of this [IndexName].
          *
          * @return Parent [EntityName]
          */
-        fun entity(): EntityName = EntityName(*this.components.copyOfRange(0, 2))
+        fun entity(): EntityName = EntityName(*this.components.copyOfRange(0, 3))
 
         override fun matches(other: Name): Boolean = (other == this)
     }
@@ -109,25 +154,38 @@ sealed class Name(vararg components: String) {
      */
     class ColumnName(vararg components: String) : Name(*components) {
         init {
-            require(components.size == 3 || components.size == 1) { "$this is not a valid column name." }
+            if (components[0] == NAME_COMPONENT_ROOT) {
+                require(components.size == 4 || components.size == 2) { "$this is not a valid column name." }
+            } else {
+                require(components.size == 3 || components.size == 1) { "$this is not a valid column name." }
+            }
         }
 
         /**
-         * Generates the parent [SchemaName] from this [ColumnName].
+         * Returns [RootName] of this [EntityName].
+         *
+         * @return [RootName]
+         */
+        fun root() = RootName
+
+        /**
+         * Returns parent [SchemaName] of this [ColumnName].
          *
          * @return Parent [SchemaName]
          */
         fun schema(): SchemaName? = if (this.components.size == 3) {
-            SchemaName(*this.components.copyOfRange(0, 1))
-        } else { null }
+            SchemaName(*this.components.copyOfRange(0, 2))
+        } else {
+            null
+        }
 
         /**
-         * Generates the parent [EntityName] from this [ColumnName].
+         * Returns parent [EntityName] of this [ColumnName].
          *
          * @return Parent [EntityName]
          */
         fun entity(): EntityName? = if (this.components.size == 3) {
-            EntityName(*this.components.copyOfRange(0, 2))
+            EntityName(*this.components.copyOfRange(0, 3))
         } else { null }
 
         /**
@@ -179,6 +237,5 @@ sealed class Name(vararg components: String) {
      *
      * @return [String] representation of this [Name].
      */
-    override fun toString(): String = "warren.${this.components.joinToString(".")}"
-
+    override fun toString(): String = this.components.joinToString(NAME_COMPONENT_DELIMITER)
 }
