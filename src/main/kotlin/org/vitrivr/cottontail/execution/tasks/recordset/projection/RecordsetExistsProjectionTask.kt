@@ -26,7 +26,8 @@ class RecordsetExistsProjectionTask : ExecutionTask("RecordsetExistsProjectionTa
                 ?: throw TaskExecutionException("EXISTS projection could not be executed because parent task has failed.")
 
         /* Create new Recordset with new columns. */
-        val recordset = Recordset(arrayOf(ColumnDef.withAttributes(parent.columns.first().name.entity()?.column("exists(*)") ?: Name.ColumnName("exists(*)"), "BOOLEAN")))
+        val recordset = Recordset(arrayOf(ColumnDef.withAttributes(parent.columns.first().name.entity()?.column("exists(*)")
+                ?: Name.ColumnName("exists()"), "BOOLEAN")))
         recordset.addRowUnsafe(arrayOf(BooleanValue(parent.rowCount > 0)))
         return recordset
     }

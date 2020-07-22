@@ -26,7 +26,8 @@ class RecordsetCountProjectionTask : ExecutionTask("RecordsetCountProjectionTask
                 ?: throw TaskExecutionException("COUNT projection could not be executed because parent task has failed.")
 
         /* Create new Recordset with new columns. */
-        val recordset = Recordset(arrayOf(ColumnDef.withAttributes(parent.columns.first().name.entity()?.column("count(*)") ?: Name.ColumnName("count(*)"), "LONG")))
+        val recordset = Recordset(arrayOf(ColumnDef.withAttributes(parent.columns.first().name.entity()?.column("count()")
+                ?: Name.ColumnName("count()"), "LONG")))
         recordset.addRowUnsafe(arrayOf(LongValue(parent.rowCount)))
         return recordset
     }

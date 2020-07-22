@@ -2,7 +2,8 @@ package org.vitrivr.cottontail.database.index
 
 import org.vitrivr.cottontail.database.events.DataChangeEvent
 import org.vitrivr.cottontail.database.general.Transaction
-import org.vitrivr.cottontail.database.queries.predicates.Predicate
+import org.vitrivr.cottontail.database.queries.components.Predicate
+
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Filterable
 import org.vitrivr.cottontail.model.basics.Name
