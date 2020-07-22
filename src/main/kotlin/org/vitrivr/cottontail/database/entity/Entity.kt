@@ -94,7 +94,14 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
     private val indexes: MutableCollection<Index> = this.header.indexes.map { idx ->
         val index = this.store.get(idx, IndexEntrySerializer) ?: throw DatabaseException.DataCorruptionException("Failed to open entity '$name': Could not read index definition at position $idx!")
         index.type.open(this.name.index(index.name), this, index.columns.map { col ->
-            this.columnForName(this.name.column(col)) ?: throw DatabaseException.DataCorruptionException("Failed to open entity '$name': It hosts an index for column '$col' that does not exist on the entity!")
+            if (col.contains(".")) {
+                /** TODO: For backwards compatibility; remove in future version. */
+                this.columnForName(this.name.column(col.split(".").last()))
+                        ?: throw DatabaseException.DataCorruptionException("Failed to open entity '$name': It hosts an index for column '$col' that does not exist on the entity!")
+            } else {
+                this.columnForName(this.name.column(col))
+                        ?: throw DatabaseException.DataCorruptionException("Failed to open entity '$name': It hosts an index for column '$col' that does not exist on the entity!")
+            }
         }.toTypedArray())
     }.toMutableSet()
 
