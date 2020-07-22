@@ -6,6 +6,7 @@ import org.vitrivr.cottontail.database.queries.planning.basics.AbstractNodeExpre
 import org.vitrivr.cottontail.database.queries.planning.basics.NodeExpression
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.cost.Costs
+import org.vitrivr.cottontail.database.queries.predicates.ProjectionType
 import org.vitrivr.cottontail.execution.tasks.basics.ExecutionStage
 import org.vitrivr.cottontail.execution.tasks.entity.fetch.EntityFetchColumnsTask
 import org.vitrivr.cottontail.execution.tasks.recordset.projection.*
@@ -20,14 +21,6 @@ import org.vitrivr.cottontail.utilities.name.Name
  * @version 1.1
  */
 data class ProjectionNodeExpression(val type: ProjectionType = ProjectionType.SELECT, val entity: Entity, val columns: Array<ColumnDef<*>>, val fields: Map<Name, Name?>) : AbstractNodeExpression() {
-
-    /**
-     * The type of [ProjectionNodeExpression]
-     */
-    enum class ProjectionType {
-        SELECT, SELECT_DISTINCT, COUNT, COUNT_DISTINCT, EXISTS, SUM, MAX, MIN, MEAN
-    }
-
     init {
         /* Sanity check. */
         when (type) {
@@ -35,6 +28,9 @@ data class ProjectionNodeExpression(val type: ProjectionType = ProjectionType.SE
                 throw QueryException.QuerySyntaxException("Projection of type $type must specify at least one column.")
             }
             ProjectionType.SELECT_DISTINCT -> if (columns.isEmpty()) {
+                throw QueryException.QuerySyntaxException("Projection of type $type must specify at least one column.")
+            }
+            ProjectionType.COUNT_DISTINCT -> if (columns.isEmpty()) {
                 throw QueryException.QuerySyntaxException("Projection of type $type must specify at least one column.")
             }
             ProjectionType.MAX -> if (columns.isEmpty()) {
