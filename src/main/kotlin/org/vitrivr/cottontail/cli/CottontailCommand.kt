@@ -19,25 +19,29 @@ import org.vitrivr.cottontail.grpc.CottontailGrpc
 import kotlin.system.exitProcess
 
 /**
- * Wrapper and single access to the actual commands.
- * Also, provides the GRPC bindings
+ * Wrapper class and single access point to the actual commands.  Also, provides the gRPC bindings
  *
- * How to add more commands:
- * Write dedicated inner class (extend [AbstractEntityCommand] if it's an entity specific command, otherwise [AbstractCottontailCommand]
- * Add this command to subcommands call in line 32ff (init of this class)
+ * <strong>How to add more commands:</strong>
+ * <ul>
+ *     <li>Write dedicated inner class (extend [AbstractEntityCommand] if it's an entity specific command, otherwise [AbstractCottontailCommand])</li>
+ *     <li>Add this command to subcommands call in line 32ff (init of this class)</li>
+ * </ul>
+ *
+ * @author Loris Sauter
+ * @version 1.0
  */
-class CottontailCommand(private val host:String, private val port:Int):NoOpCliktCommand("cottontaildb"){
+class CottontailCommand(host: String, port: Int):NoOpCliktCommand("cottontaildb"){
     init {
         context { helpFormatter = CliHelpFormatter() }
         subcommands(
-                ListAllEntitiesCommand(),
-                PreviewEntityCommand(),
-                ShowEntityCommand(),
-                DropEntityCommand(),
-                OptimizeEntityCommand(),
-                CountEntityCommand(),
-                QueryByColumnValueEqualsEntityCommand(),
-                StopCommand())
+            ListAllEntitiesCommand(),
+            PreviewEntityCommand(),
+            ShowEntityCommand(),
+            DropEntityCommand(),
+            OptimizeEntityCommand(),
+            CountEntityCommand(),
+            QueryByColumnValueEqualsEntityCommand(),
+            StopCommand())
     }
 
     val channel = ManagedChannelBuilder.forAddress(host, port).usePlaintext().build()
@@ -72,7 +76,6 @@ class CottontailCommand(private val host:String, private val port:Int):NoOpClikt
                     if (_entity.schema.name != _schema.name) {
                         println("Data integrity threat! entity $_entity ist returned when listing entities for schema $_schema")
                     }
-//                    println("${_schema.name} - ${_entity.name}")
                     println("  ${_entity.name}")
                 }
             }
@@ -201,7 +204,5 @@ class CottontailCommand(private val host:String, private val port:Int):NoOpClikt
             Cli.stopServer()
             exitProcess(0)
         }
-
     }
-
 }

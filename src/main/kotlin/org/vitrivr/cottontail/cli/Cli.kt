@@ -12,19 +12,20 @@ import java.util.ArrayList
 import java.util.regex.Pattern
 
 /**
- * Command line interface instance.
- * Setup and general parsing. Actual commands are dedicated
+ * Command line interface instance.  Setup and general parsing. Actual commands are implemented as
+ * dedicated classes.
  *
  * This is basically a port of https://github.com/lucaro/DRES 's CLI
+ *
+ * @author Loris Sauter
+ * @version 1.0
  */
 object Cli {
 
-    /**
-     * The default prompt -- just fancification
-     */
+    /** The default prompt -- just fancification */
     private const val PROMPT = "cottontaildb>"
 
-
+    /** CottotanilGrpcServer instance. */
     lateinit var cottontailServer: CottontailGrpcServer
 
     /**
@@ -98,11 +99,8 @@ object Cli {
     }
 
     fun stopServer(){
-        println("Stopping CottontailDB server...")
-        if(::cottontailServer.isInitialized){
+        if (::cottontailServer.isInitialized){
             cottontailServer.stop()
         }
-        println("No more hopping along :-(")
     }
-
 }

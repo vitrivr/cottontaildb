@@ -9,50 +9,38 @@ import org.vitrivr.cottontail.execution.ExecutionEngine
 import org.vitrivr.cottontail.server.grpc.CottontailGrpcServer
 import java.nio.file.Files
 import java.nio.file.Paths
+import kotlin.system.exitProcess
 
 /**
- * Entry point for Cottontail DB demon.
+ * Entry point for Cottontail DB demon and CLI.
  *
  * @param args Program arguments.
  */
 @UnstableDefault
 fun main(args: Array<String>) {
 
-    /* Check the argumetns */
-    when (args.size) {
-        1 -> {
-            /* What is it? is it cli? */
-            if (args[0].toLowerCase() == "cli" || args[0].toLowerCase() == "prompt") {
-                startCli()
-            } else {
-                /* Check, if args were set properly. */
-                val path =
-                        if (args.isEmpty()) {
-                            System.err.println("No config path specified, taking default config at config.json")
-                            "config.json"
-                        } else {
-                            args[0]
-                        }
-                startDB(path)
+    /* Handle case when arguments are empty. */
+    if (args.isEmpty()) {
+        System.err.println("No config path specified; using default config at ./config.json.")
+        startDB()
+    }
+
+    /* Check the arguments and start Cottontail DB accordingly */
+    when (args[0].toLowerCase()) {
+        "cli", "prompt" -> {
+            if (args.size < 3) {
+                println("To start the CLI start Cottontail DB use\n" +
+                        "$> cli [<host>] [<port>]")
+                exitProcess(1)
             }
+            Cli.loop(args[1], args[2].toInt())
         }
-        3 -> {
-            if (args[0].toLowerCase() == "cli" || args[0].toLowerCase() == "prompt") {
-                startCli(args[1], args[2].toInt())
-            } else {
-                printCliHelp()
-            }
-        }
-        else -> {
-            /* Start DB as default case */
-            System.err.println("No config path specified, taking default config at config.json")
-            startDB()
-        }
+        else -> startDB(args[0])
     }
 }
 
 /**
- * Traditional cottontaildb server startup
+ * Traditional Cottontail DB server startup
  */
 fun startDB(configPath: String = "config.json") {
     /* Load config file and start Cottontail DB. */
@@ -65,27 +53,11 @@ fun startDB(configPath: String = "config.json") {
         if (config.cli) {
             /* Start local cli */
             Cli.cottontailServer = server
-            startCli("localhost", config.serverConfig.port)
+            Cli.loop("localhost", config.serverConfig.port)
         } else {
             while (server.isRunning) {
                 Thread.sleep(1000)
             }
         }
     }
-}
-
-/**
- * Starts the (blocking) CLI REPL
- */
-fun startCli(host: String = "localhost", port: Int = 1865) {
-    println("Starting CLI...")
-    Cli.loop(host, port)
-}
-
-/**
- * Prints info about how to start w/ cli
- */
-fun printCliHelp() {
-    println("To start the CLI start cottontaildb use\n" +
-            "$> cli [<host>] [<port>]")
 }
