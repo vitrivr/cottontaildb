@@ -4,7 +4,7 @@ import com.github.dexecutor.core.task.Task
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.general.query
 import org.vitrivr.cottontail.database.index.Index
-import org.vitrivr.cottontail.database.queries.predicates.KnnPredicate
+import org.vitrivr.cottontail.database.queries.components.KnnPredicate
 import org.vitrivr.cottontail.execution.tasks.basics.ExecutionTask
 import org.vitrivr.cottontail.model.recordset.Recordset
 import org.vitrivr.cottontail.model.values.types.VectorValue

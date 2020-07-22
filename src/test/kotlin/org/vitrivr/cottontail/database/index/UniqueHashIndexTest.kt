@@ -6,8 +6,8 @@ import org.vitrivr.cottontail.TestConstants
 import org.vitrivr.cottontail.database.catalogue.Catalogue
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.general.begin
-import org.vitrivr.cottontail.database.queries.ComparisonOperator
-import org.vitrivr.cottontail.database.queries.predicates.AtomicBooleanPredicate
+import org.vitrivr.cottontail.database.queries.components.AtomicBooleanPredicate
+import org.vitrivr.cottontail.database.queries.components.ComparisonOperator
 import org.vitrivr.cottontail.database.schema.Schema
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord

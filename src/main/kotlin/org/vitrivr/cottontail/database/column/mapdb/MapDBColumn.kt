@@ -8,8 +8,8 @@ import org.vitrivr.cottontail.database.column.ColumnType
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.general.Transaction
 import org.vitrivr.cottontail.database.general.TransactionStatus
-import org.vitrivr.cottontail.database.queries.predicates.BooleanPredicate
-import org.vitrivr.cottontail.database.queries.predicates.Predicate
+import org.vitrivr.cottontail.database.queries.components.BooleanPredicate
+import org.vitrivr.cottontail.database.queries.components.Predicate
 import org.vitrivr.cottontail.database.schema.Schema
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Record

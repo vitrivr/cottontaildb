@@ -13,10 +13,10 @@ import org.vitrivr.cottontail.database.general.begin
 import org.vitrivr.cottontail.database.index.Index
 import org.vitrivr.cottontail.database.index.IndexTransaction
 import org.vitrivr.cottontail.database.index.IndexType
-import org.vitrivr.cottontail.database.queries.ComparisonOperator
-import org.vitrivr.cottontail.database.queries.predicates.AtomicBooleanPredicate
-import org.vitrivr.cottontail.database.queries.predicates.BooleanPredicate
-import org.vitrivr.cottontail.database.queries.predicates.Predicate
+import org.vitrivr.cottontail.database.queries.components.AtomicBooleanPredicate
+import org.vitrivr.cottontail.database.queries.components.BooleanPredicate
+import org.vitrivr.cottontail.database.queries.components.ComparisonOperator
+import org.vitrivr.cottontail.database.queries.components.Predicate
 import org.vitrivr.cottontail.database.schema.Schema
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Record

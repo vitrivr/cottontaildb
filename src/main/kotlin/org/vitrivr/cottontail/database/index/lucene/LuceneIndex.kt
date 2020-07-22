@@ -18,13 +18,9 @@ import org.vitrivr.cottontail.database.events.DataChangeEventType
 import org.vitrivr.cottontail.database.index.Index
 import org.vitrivr.cottontail.database.index.IndexType
 import org.vitrivr.cottontail.database.index.hash.UniqueHashIndex
-import org.vitrivr.cottontail.database.queries.ComparisonOperator
+import org.vitrivr.cottontail.database.queries.components.*
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.cost.Costs
-import org.vitrivr.cottontail.database.queries.predicates.AtomicBooleanPredicate
-import org.vitrivr.cottontail.database.queries.predicates.BooleanPredicate
-import org.vitrivr.cottontail.database.queries.predicates.CompoundBooleanPredicate
-import org.vitrivr.cottontail.database.queries.predicates.Predicate
 import org.vitrivr.cottontail.database.schema.Schema
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Record

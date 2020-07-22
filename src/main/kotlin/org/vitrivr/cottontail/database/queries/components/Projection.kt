@@ -1,12 +1,12 @@
-package org.vitrivr.cottontail.database.queries.predicates
+package org.vitrivr.cottontail.database.queries.components
 
 /**
- * The types of projection operations supported by Cottontail DB.
+ * Enumeration of all [Projection] operations supported by Cottontail DB.
  *
  * @author Ralph Gasser
  * @version 1.0
  */
-enum class ProjectionType(val aggregating: Boolean) {
+enum class Projection(val aggregating: Boolean) {
     SELECT(false),
     SELECT_DISTINCT(false),
     COUNT(true),
