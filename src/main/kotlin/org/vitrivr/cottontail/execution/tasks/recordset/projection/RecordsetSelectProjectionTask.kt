@@ -43,7 +43,7 @@ class RecordsetSelectProjectionTask(val fields: Map<Name.ColumnName, Name.Column
                     if (v != null) {
                         renameIndex.add(Pair(i, v))
                     } else if (normalize) {
-                        renameIndex.add(Pair(i, Name.ColumnName(c.name.components[2])))
+                        renameIndex.add(Pair(i, Name.ColumnName(c.name.components[3])))
                     }
                 }
             }
