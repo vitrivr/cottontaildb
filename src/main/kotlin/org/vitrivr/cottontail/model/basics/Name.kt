@@ -155,7 +155,7 @@ sealed class Name(vararg components: String) {
     class ColumnName(vararg components: String) : Name(*components) {
         init {
             if (components[0] == NAME_COMPONENT_ROOT) {
-                require(components.size == 4 || components.size == 2) { "$this is not a valid column name." }
+                require(components.size == 4) { "$this is not a valid column name." }
             } else {
                 require(components.size == 3 || components.size == 1) { "$this is not a valid column name." }
             }
@@ -187,17 +187,6 @@ sealed class Name(vararg components: String) {
         fun entity(): EntityName? = if (this.components.size == 3) {
             EntityName(*this.components.copyOfRange(0, 3))
         } else { null }
-
-        /**
-         * Transforms this [ColumnName] to a [String]
-         *
-         * @return [String] representation of this [Name].
-         */
-        override fun toString(): String = if (this.components.size == 1) {
-            this.components[0]
-        } else {
-            "warren.${this.components.joinToString(".")}"
-        }
 
         override fun matches(other: Name): Boolean = (other == this)
     }
