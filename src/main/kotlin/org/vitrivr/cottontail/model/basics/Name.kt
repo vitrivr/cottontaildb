@@ -17,7 +17,7 @@ sealed class Name(vararg components: String) {
     }
 
     /** Internal array of [Name] components. */
-    val components = if (components[0] == NAME_COMPONENT_ROOT) {
+    open val components = if (components[0] == NAME_COMPONENT_ROOT) {
         components.map { it.toLowerCase() }.toTypedArray()
     } else {
         arrayOf(NAME_COMPONENT_ROOT, *components.map { it.toLowerCase() }.toTypedArray())
@@ -159,6 +159,11 @@ sealed class Name(vararg components: String) {
             } else {
                 require(components.size == 3 || components.size == 1) { "$this is not a valid column name." }
             }
+        }
+
+        override val components: Array<String> = when (components.size) {
+            3 -> arrayOf(NAME_COMPONENT_ROOT, *components.map { it.toLowerCase() }.toTypedArray())
+            else -> components.map { it.toLowerCase() }.toTypedArray()
         }
 
         /**
