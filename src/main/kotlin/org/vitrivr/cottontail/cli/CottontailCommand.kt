@@ -217,10 +217,12 @@ class CottontailCommand(private val host: String, private val port: Int) : NoOpC
             val query = this@CottontailCommand.dqlService.query(qm)
             var size = 0
             query.forEach { result ->
-                println(result.tuple)
-                size += 1
+                if (result.hits > 0) {
+                    println(result.tuple)
+                    size += 1
+                }
             }
-            println("Printed $size results.")
+            println("Found and printed $size results.")
         }
     }
 
