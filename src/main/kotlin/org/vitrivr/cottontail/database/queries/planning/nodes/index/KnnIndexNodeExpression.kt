@@ -2,11 +2,11 @@ package org.vitrivr.cottontail.database.queries.planning.nodes.index
 
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.index.Index
+import org.vitrivr.cottontail.database.queries.components.KnnPredicate
 import org.vitrivr.cottontail.database.queries.planning.QueryPlannerContext
 import org.vitrivr.cottontail.database.queries.planning.basics.AbstractNodeExpression
 import org.vitrivr.cottontail.database.queries.planning.basics.NodeExpression
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
-import org.vitrivr.cottontail.database.queries.predicates.KnnPredicate
 import org.vitrivr.cottontail.execution.tasks.basics.ExecutionStage
 import org.vitrivr.cottontail.execution.tasks.entity.knn.IndexScanKnnTask
 

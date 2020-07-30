@@ -13,9 +13,9 @@ import org.vitrivr.cottontail.utilities.name.Name
  * A [Task] used during query execution. It takes a single [Entity] as input, counts the number of rows. It thereby creates a 1x1 [Recordset].
  *
  * @author Ralph Gasser
- * @version 1.0.2
+ * @version 1.0.3
  */
-class EntityCountProjectionTask(val entity: Entity) : ExecutionTask("EntityCountProjectionTask[${entity.fqn}") {
+class EntityCountProjectionTask(val entity: Entity, val alias: String? = null) : ExecutionTask("EntityCountProjectionTask[${entity.fqn}") {
 
     /**
      * Executes this [EntityCountProjectionTask]
@@ -23,11 +23,12 @@ class EntityCountProjectionTask(val entity: Entity) : ExecutionTask("EntityCount
     override fun execute(): Recordset {
         assertNullaryInput()
 
-        val column = arrayOf(ColumnDef.withAttributes(Name("${entity.fqn}.count()"), "LONG"))
+        val column = arrayOf(ColumnDef.withAttributes(Name(this.alias
+                ?: "${entity.fqn}.count()"), "LONG"))
         return this.entity.Tx(true).query {
             val recordset = Recordset(column, capacity = 1)
             recordset.addRowUnsafe(arrayOf(LongValue(it.count())))
             recordset
-        }!!
+        } ?: Recordset(column)
     }
 }

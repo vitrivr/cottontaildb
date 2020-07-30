@@ -2,8 +2,8 @@ package org.vitrivr.cottontail.execution.tasks.entity.knn
 
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.general.query
-import org.vitrivr.cottontail.database.queries.predicates.BooleanPredicate
-import org.vitrivr.cottontail.database.queries.predicates.KnnPredicate
+import org.vitrivr.cottontail.database.queries.components.BooleanPredicate
+import org.vitrivr.cottontail.database.queries.components.KnnPredicate
 import org.vitrivr.cottontail.execution.tasks.TaskSetupException
 import org.vitrivr.cottontail.execution.tasks.basics.ExecutionTask
 import org.vitrivr.cottontail.math.knn.selection.ComparablePair

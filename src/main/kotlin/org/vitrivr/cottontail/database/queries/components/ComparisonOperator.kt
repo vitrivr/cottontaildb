@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail.database.queries
+package org.vitrivr.cottontail.database.queries.components
 
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.values.PatternValue
@@ -6,7 +6,7 @@ import org.vitrivr.cottontail.model.values.StringValue
 import org.vitrivr.cottontail.model.values.types.Value
 
 /**
- * List of query [ComparisonOperator]s.
+ * Enumeration of query [ComparisonOperator]s.
  *
  * @author Ralph Gasser
  * @version 1.0

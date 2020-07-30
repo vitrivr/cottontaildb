@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.database.queries.planning.nodes.basics
 
 import org.vitrivr.cottontail.database.entity.Entity
+import org.vitrivr.cottontail.database.queries.components.Projection
 import org.vitrivr.cottontail.database.queries.planning.QueryPlannerContext
 import org.vitrivr.cottontail.database.queries.planning.basics.AbstractNodeExpression
 import org.vitrivr.cottontail.database.queries.planning.basics.NodeExpression
@@ -19,45 +20,41 @@ import org.vitrivr.cottontail.utilities.name.Name
  * @author Ralph Gasser
  * @version 1.1
  */
-data class ProjectionNodeExpression(val type: ProjectionType = ProjectionType.SELECT, val entity: Entity, val columns: Array<ColumnDef<*>>, val fields: Map<Name, Name?>) : AbstractNodeExpression() {
-
-    /**
-     * The type of [ProjectionNodeExpression]
-     */
-    enum class ProjectionType {
-        SELECT, SELECT_DISTINCT, COUNT, COUNT_DISTINCT, EXISTS, SUM, MAX, MIN, MEAN
-    }
-
+data class ProjectionNodeExpression(val type: Projection = Projection.SELECT, val entity: Entity, val columns: Array<ColumnDef<*>>, val fields: Map<Name, Name?>) : AbstractNodeExpression() {
     init {
         /* Sanity check. */
         when (type) {
-            ProjectionType.SELECT -> if (columns.isEmpty()) {
+            Projection.SELECT -> if (columns.isEmpty()) {
                 throw QueryException.QuerySyntaxException("Projection of type $type must specify at least one column.")
             }
-            ProjectionType.SELECT_DISTINCT -> if (columns.isEmpty()) {
+            Projection.SELECT_DISTINCT -> if (columns.isEmpty()) {
                 throw QueryException.QuerySyntaxException("Projection of type $type must specify at least one column.")
             }
-            ProjectionType.MAX -> if (columns.isEmpty()) {
+            Projection.COUNT_DISTINCT -> if (columns.isEmpty()) {
+                throw QueryException.QuerySyntaxException("Projection of type $type must specify at least one column.")
+            }
+            Projection.MAX -> if (columns.isEmpty()) {
                 throw QueryException.QuerySyntaxException("Projection of type $type must specify a column.")
             } else if (!columns.first().type.numeric) {
                 throw QueryException.QueryBindException("Projection of type $type can only be applied on a numeric column, which ${columns.first().name} is not.")
             }
-            ProjectionType.MIN -> if (columns.isEmpty()) {
+            Projection.MIN -> if (columns.isEmpty()) {
                 throw QueryException.QuerySyntaxException("Projection of type $type must specify a column.")
             } else if (!columns.first().type.numeric) {
                 throw QueryException.QueryBindException("Projection of type $type can only be applied to a numeric column, which ${columns.first().name} is not.")
             }
-            ProjectionType.SUM -> if (columns.isEmpty()) {
+            Projection.SUM -> if (columns.isEmpty()) {
                 throw QueryException.QuerySyntaxException("Projection of type $type must specify a column.")
             } else if (!columns.first().type.numeric) {
                 throw QueryException.QueryBindException("Projection of type $type can only be applied to a numeric column, which ${columns.first().name} is not.")
             }
-            ProjectionType.MEAN -> if (columns.isEmpty()) {
+            Projection.MEAN -> if (columns.isEmpty()) {
                 throw QueryException.QuerySyntaxException("Projection of type $type must specify a column.")
             } else if (!columns.first().type.numeric) {
                 throw QueryException.QueryBindException("Projection of type $type can only be applied to a numeric column, which ${columns.first().name} is not.")
             }
-            else -> {}
+            else -> {
+            }
         }
     }
 
@@ -74,40 +71,40 @@ data class ProjectionNodeExpression(val type: ProjectionType = ProjectionType.SE
     override fun copy(): NodeExpression = ProjectionNodeExpression(this.type, this.entity, this.columns, this.fields)
 
     override fun toStage(context: QueryPlannerContext): ExecutionStage = when (this.type) {
-        ProjectionType.SELECT -> {
+        Projection.SELECT -> {
             val fetch = ExecutionStage(ExecutionStage.MergeType.ONE, this.parents.first().toStage(context)).addTask(EntityFetchColumnsTask(this.entity, this.columns))
             ExecutionStage(ExecutionStage.MergeType.ONE, fetch).addTask(RecordsetSelectProjectionTask(this.fields))
         }
-        ProjectionType.SELECT_DISTINCT -> {
+        Projection.SELECT_DISTINCT -> {
             val fetch = ExecutionStage(ExecutionStage.MergeType.ONE, this.parents.first().toStage(context)).addTask(EntityFetchColumnsTask(this.entity, this.columns))
             val project = ExecutionStage(ExecutionStage.MergeType.ONE, fetch).addTask(RecordsetSelectProjectionTask(this.fields))
             ExecutionStage(ExecutionStage.MergeType.ONE, project).addTask(RecordsetDistinctTask())
         }
-        ProjectionType.COUNT -> {
+        Projection.COUNT -> {
             ExecutionStage(ExecutionStage.MergeType.ONE, this.parents.first().toStage(context)).addTask(RecordsetCountProjectionTask())
         }
-        ProjectionType.COUNT_DISTINCT -> {
+        Projection.COUNT_DISTINCT -> {
             val fetch = ExecutionStage(ExecutionStage.MergeType.ONE, this.parents.first().toStage(context)).addTask(EntityFetchColumnsTask(this.entity, this.columns))
             val distinct = ExecutionStage(ExecutionStage.MergeType.ONE, fetch).addTask(RecordsetDistinctTask())
             ExecutionStage(ExecutionStage.MergeType.ONE, distinct).addTask(RecordsetCountProjectionTask())
         }
-        ProjectionType.SUM -> {
+        Projection.SUM -> {
             val fetch = ExecutionStage(ExecutionStage.MergeType.ONE, this.parents.first().toStage(context)).addTask(EntityFetchColumnsTask(this.entity, this.columns))
             ExecutionStage(ExecutionStage.MergeType.ONE, fetch).addTask(RecordsetSumProjectionTask(this.columns, this.fields))
         }
-        ProjectionType.MAX -> {
+        Projection.MAX -> {
             val fetch = ExecutionStage(ExecutionStage.MergeType.ONE, this.parents.first().toStage(context)).addTask(EntityFetchColumnsTask(this.entity, this.columns))
             ExecutionStage(ExecutionStage.MergeType.ONE, fetch).addTask(RecordsetMaxProjectionTask(this.columns, this.fields))
         }
-        ProjectionType.MIN -> {
+        Projection.MIN -> {
             val fetch = ExecutionStage(ExecutionStage.MergeType.ONE, this.parents.first().toStage(context)).addTask(EntityFetchColumnsTask(this.entity, this.columns))
             ExecutionStage(ExecutionStage.MergeType.ONE, fetch).addTask(RecordsetMinProjectionTask(this.columns, this.fields))
         }
-        ProjectionType.MEAN -> {
+        Projection.MEAN -> {
             val fetch = ExecutionStage(ExecutionStage.MergeType.ONE, this.parents.first().toStage(context)).addTask(EntityFetchColumnsTask(entity, this.columns))
             ExecutionStage(ExecutionStage.MergeType.ONE, fetch).addTask(RecordsetMeanProjectionTask(this.columns, this.fields))
         }
-        ProjectionType.EXISTS -> ExecutionStage(ExecutionStage.MergeType.ONE, this.parents.first().toStage(context)).addTask(RecordsetExistsProjectionTask())
+        Projection.EXISTS -> ExecutionStage(ExecutionStage.MergeType.ONE, this.parents.first().toStage(context)).addTask(RecordsetExistsProjectionTask())
     }
 
     override fun equals(other: Any?): Boolean {

@@ -4,17 +4,12 @@ import org.vitrivr.cottontail.database.catalogue.Catalogue
 import org.vitrivr.cottontail.database.column.*
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.index.IndexType
-import org.vitrivr.cottontail.database.queries.ComparisonOperator
-import org.vitrivr.cottontail.database.queries.ConnectionOperator
+import org.vitrivr.cottontail.database.queries.components.*
 import org.vitrivr.cottontail.database.queries.planning.CottontailQueryPlanner
 import org.vitrivr.cottontail.database.queries.planning.QueryPlannerContext
 import org.vitrivr.cottontail.database.queries.planning.basics.NodeExpression
 import org.vitrivr.cottontail.database.queries.planning.nodes.basics.*
 import org.vitrivr.cottontail.database.queries.planning.rules.*
-import org.vitrivr.cottontail.database.queries.predicates.AtomicBooleanPredicate
-import org.vitrivr.cottontail.database.queries.predicates.BooleanPredicate
-import org.vitrivr.cottontail.database.queries.predicates.CompoundBooleanPredicate
-import org.vitrivr.cottontail.database.queries.predicates.KnnPredicate
 import org.vitrivr.cottontail.execution.ExecutionEngine
 import org.vitrivr.cottontail.execution.ExecutionPlan
 import org.vitrivr.cottontail.execution.tasks.basics.ExecutionTask
@@ -41,11 +36,12 @@ class GrpcQueryBinder(val catalogue: Catalogue, private val engine: ExecutionEng
 
     /** [ExecutionPlanFactor] used to generate [ExecutionPlan]s from query definitions. */
     private val planner = CottontailQueryPlanner(
-        KnnPushdownRule,
-        KnnIndexRule,
-        LimitPushdownRule,
-        PredicatePushdownRule,
-        PredicatePushdownWithIndexRule
+            KnnPushdownRule,
+            KnnIndexRule,
+            LimitPushdownRule,
+            PredicatePushdownRule,
+            PredicatePushdownWithIndexRule,
+            AggregatingProjectionPushdownRule
     )
 
     /**
@@ -373,7 +369,7 @@ class GrpcQueryBinder(val catalogue: Catalogue, private val engine: ExecutionEng
             }
         }.toMap()
 
-        ProjectionNodeExpression(type = ProjectionNodeExpression.ProjectionType.valueOf(projection.op.name), entity = entity, columns = requestedColumns.distinct().toTypedArray(), fields = fields)
+        ProjectionNodeExpression(type = Projection.valueOf(projection.op.name), entity = entity, columns = requestedColumns.distinct().toTypedArray(), fields = fields)
     } catch (e: java.lang.IllegalArgumentException) {
         throw QueryException.QuerySyntaxException("The query lacks a valid SELECT-clause (projection): ${projection.op} is not supported.")
     }
