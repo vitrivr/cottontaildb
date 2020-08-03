@@ -35,7 +35,7 @@ import kotlin.time.ExperimentalTime
  * </ul>
  *
  * @author Loris Sauter
- * @version 1.0
+ * @version 1.0.1
  */
 class CottontailCommand(private val host: String, private val port: Int) : NoOpCliktCommand(name = "cottontail", help = "The base command") {
 
@@ -152,9 +152,12 @@ class CottontailCommand(private val host: String, private val port: Int) : NoOpC
             ).build()
             val query = this@CottontailCommand.dqlService.query(qm)
             println("Previewing $limit elements of $entity:")
-            query.forEach { result -> println(result.tuple) }
+            query.forEach { result ->
+                result.resultsList.forEach {
+                    println(it)
+                }
+            }
         }
-
     }
 
     /**
@@ -191,7 +194,11 @@ class CottontailCommand(private val host: String, private val port: Int) : NoOpC
 
             ).build()
             val query = this@CottontailCommand.dqlService.query(qm)
-            query.forEach { result -> println(result.tuple) }
+            query.forEach {  result ->
+                result.resultsList.forEach {
+                    println(it)
+                }
+            }
         }
     }
 
@@ -217,8 +224,8 @@ class CottontailCommand(private val host: String, private val port: Int) : NoOpC
             val query = this@CottontailCommand.dqlService.query(qm)
             var size = 0
             query.forEach { result ->
-                if (result.hits > 0) {
-                    println(result.tuple)
+                result.resultsList.forEach {
+                    println(it)
                     size += 1
                 }
             }
