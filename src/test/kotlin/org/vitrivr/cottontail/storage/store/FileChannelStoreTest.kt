@@ -18,8 +18,8 @@ class FileChannelStoreTest {
 
     @BeforeEach
     fun initialize() {
+        Files.delete(this.path)
         this.store = FileChannelStore(this.path, false)
-
     }
 
     @AfterEach
