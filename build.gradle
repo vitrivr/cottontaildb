@@ -135,8 +135,7 @@ jar {
 idea {
     module {
         downloadJavadoc = true
-
-        excludeDirs += file('data')
+        excludeDirs += file('cottontaildb-data')
     }
 }
 
