@@ -18,8 +18,8 @@ class MappedFileChannelStoreTest {
 
     @BeforeEach
     fun initialize() {
+        Files.delete(this.path)
         this.store = MappedFileChannelStore(this.path, false)
-
     }
 
     @AfterEach
