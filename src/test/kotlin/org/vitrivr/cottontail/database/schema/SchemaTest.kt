@@ -43,13 +43,13 @@ class SchemaTest {
     @Test
     fun EntityCreateTest() {
         /* Create a few entities. */
-        val entityNames = arrayOf(Name.EntityName("test1"), Name.EntityName("test2"), Name.EntityName("test3"))
+        val entityNames = arrayOf("one", "two", "three")
         for (name in entityNames) {
-            schema?.createEntity(name, ColumnDef.withAttributes(Name.ColumnName("id"), "STRING"))
-            assertTrue(Files.isReadable(TestConstants.config.root.resolve("schema_${schemaName}").resolve("entity_$name")))
-            assertTrue(Files.isDirectory(TestConstants.config.root.resolve("schema_${schemaName}").resolve("entity_$name")))
-            assertTrue(Files.isReadable(TestConstants.config.root.resolve("schema_${schemaName}").resolve("entity_$name").resolve("col_id.db")))
-            assertTrue(Files.isReadable(TestConstants.config.root.resolve("schema_${schemaName}").resolve("entity_$name").resolve(Entity.FILE_CATALOGUE)))
+            schema?.createEntity(Name.EntityName("test", name), ColumnDef.withAttributes(Name.ColumnName("id"), "STRING"))
+            assertTrue(Files.isReadable(TestConstants.config.root.resolve("schema_schema-test").resolve("entity_$name")))
+            assertTrue(Files.isDirectory(TestConstants.config.root.resolve("schema_schema-test").resolve("entity_$name")))
+            assertTrue(Files.isReadable(TestConstants.config.root.resolve("schema_schema-test").resolve("entity_$name").resolve("col_id.db")))
+            assertTrue(Files.isReadable(TestConstants.config.root.resolve("schema_schema-test").resolve("entity_$name").resolve(Entity.FILE_CATALOGUE)))
         }
 
         /* Check size of the schema. */
@@ -57,7 +57,7 @@ class SchemaTest {
 
         /* Check stored entity names. */
         entityNames.zip(schema!!.entities) { a, b ->
-            assertEquals(a, b)
+            assertEquals(a, b.simple)
         }
     }
 }

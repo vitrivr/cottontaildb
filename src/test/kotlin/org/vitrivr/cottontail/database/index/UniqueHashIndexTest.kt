@@ -29,9 +29,9 @@ import java.util.stream.Collectors
 class UniqueHashIndexTest {
 
     private val collectionSize = 1_000_000
-    private val schemaName = Name.SchemaName("schema-test")
-    private val entityName = Name.EntityName("entity-test")
-    private val indexName = Name.IndexName("${this.entityName}_id_hash_index")
+    private val schemaName = Name.SchemaName("test")
+    private val entityName = Name.EntityName("test", "entity")
+    private val indexName = Name.IndexName("test","entity","id_hash_index")
 
     private val columns = arrayOf(
             ColumnDef.withAttributes(Name.ColumnName("id"), "STRING", -1, false),
