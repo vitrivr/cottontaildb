@@ -12,7 +12,7 @@ import java.util.*
 import java.util.stream.Collectors
 
 class CatalogueTest {
-    private val schemaName = Name("schema-test")
+    private val schemaName = Name.SchemaName("schema-test")
 
     /** */
     private var catalogue: Catalogue = Catalogue(TestConstants.config)

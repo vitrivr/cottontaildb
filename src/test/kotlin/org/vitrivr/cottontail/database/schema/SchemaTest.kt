@@ -16,7 +16,7 @@ import java.util.stream.Collectors
 
 class SchemaTest {
 
-    private val schemaName = Name("schema-test")
+    private val schemaName = Name.SchemaName("schema-test")
 
     /** */
     private var catalogue: Catalogue = Catalogue(TestConstants.config)
@@ -43,9 +43,9 @@ class SchemaTest {
     @Test
     fun EntityCreateTest() {
         /* Create a few entities. */
-        val entityNames = arrayOf(Name("test1"), Name("test2"), Name("test3"))
+        val entityNames = arrayOf(Name.EntityName("test1"), Name.EntityName("test2"), Name.EntityName("test3"))
         for (name in entityNames) {
-            schema?.createEntity(name, ColumnDef.withAttributes(Name("id"), "STRING"))
+            schema?.createEntity(name, ColumnDef.withAttributes(Name.ColumnName("id"), "STRING"))
             assertTrue(Files.isReadable(TestConstants.config.root.resolve("schema_${schemaName}").resolve("entity_$name")))
             assertTrue(Files.isDirectory(TestConstants.config.root.resolve("schema_${schemaName}").resolve("entity_$name")))
             assertTrue(Files.isReadable(TestConstants.config.root.resolve("schema_${schemaName}").resolve("entity_$name").resolve("col_id.db")))

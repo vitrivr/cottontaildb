@@ -29,13 +29,13 @@ import java.util.stream.Collectors
 class UniqueHashIndexTest {
 
     private val collectionSize = 1_000_000
-    private val schemaName = Name("schema-test")
-    private val entityName = Name("entity-test")
-    private val indexName = Name("${this.entityName}_id_hash_index")
+    private val schemaName = Name.SchemaName("schema-test")
+    private val entityName = Name.EntityName("entity-test")
+    private val indexName = Name.IndexName("${this.entityName}_id_hash_index")
 
     private val columns = arrayOf(
-            ColumnDef.withAttributes(Name("id"), "STRING", -1, false),
-            ColumnDef.withAttributes(Name("feature"), "FLOAT_VEC", 128, false)
+            ColumnDef.withAttributes(Name.ColumnName("id"), "STRING", -1, false),
+            ColumnDef.withAttributes(Name.ColumnName("feature"), "FLOAT_VEC", 128, false)
     )
 
     /** Catalogue used for testing. */
