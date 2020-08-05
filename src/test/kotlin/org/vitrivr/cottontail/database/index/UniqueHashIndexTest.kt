@@ -23,19 +23,19 @@ import java.util.stream.Collectors
  * This is a collection of test cases to test the correct behaviour of [UniqueHashIndex].
  *
  * @author Ralph Gasser
- * @param 1.0
+ * @param 1.1
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class UniqueHashIndexTest {
 
     private val collectionSize = 1_000_000
     private val schemaName = Name.SchemaName("test")
-    private val entityName = Name.EntityName("test", "entity")
-    private val indexName = Name.IndexName("test","entity","id_hash_index")
+    private val entityName = schemaName.entity("entity")
+    private val indexName = entityName.index("id_hash_index")
 
     private val columns = arrayOf(
-            ColumnDef.withAttributes(Name.ColumnName("id"), "STRING", -1, false),
-            ColumnDef.withAttributes(Name.ColumnName("feature"), "FLOAT_VEC", 128, false)
+            ColumnDef.withAttributes(entityName.column("id"), "STRING", -1, false),
+            ColumnDef.withAttributes(entityName.column("feature"), "FLOAT_VEC", 128, false)
     )
 
     /** Catalogue used for testing. */
@@ -104,7 +104,7 @@ class UniqueHashIndexTest {
             assertEquals(1, rec.rowCount)
             assertEquals(1, rec.columnCount)
             assertEquals(entry.key, tx.read(rec.first()!!.tupleId)[this.columns[0]])
-            assertEquals(entry.value, tx.read(rec.first()!!.tupleId)[this.columns[1]]!!)
+            assertArrayEquals(entry.value.data, (tx.read(rec.first()!!.tupleId)[this.columns[1]] as FloatVectorValue).data)
             true
         }
     }
