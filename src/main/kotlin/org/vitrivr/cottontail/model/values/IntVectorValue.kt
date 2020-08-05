@@ -156,20 +156,52 @@ inline class IntVectorValue(val data: IntArray) : RealVectorValue<Int> {
         return IntValue(sum)
     }
 
-    override fun l1(other: VectorValue<*>): IntValue {
-        var sum = 0
-        for (i in this.indices) {
-            sum += (other[i].value.toInt() - this[i].value).absoluteValue
+    override fun l1(other: VectorValue<*>): FloatValue = when (other) {
+        is LongVectorValue -> {
+            var sum = 0.0f
+            for (i in this.data.indices) {
+                sum += (this.data[i] - other.data[i]).absoluteValue
+            }
+            FloatValue(sum)
         }
-        return IntValue(sum)
+        is IntVectorValue -> {
+            var sum = 0.0f
+            for (i in this.data.indices) {
+                sum += (this.data[i] - other.data[i]).absoluteValue
+            }
+            FloatValue(sum)
+        }
+        else -> {
+            var sum = 0.0f
+            for (i in this.data.indices) {
+                sum += (this.data[i] - other[i].value.toFloat()).absoluteValue
+            }
+            FloatValue(sum)
+        }
     }
 
-    override fun l2(other: VectorValue<*>): FloatValue {
-        var sum = 0.0f
-        for (i in this.indices) {
-            sum += (other[i].value.toFloat() - this[i].value).pow(2)
+    override fun l2(other: VectorValue<*>): FloatValue = when (other) {
+        is LongVectorValue -> {
+            var sum = 0.0f
+            for (i in this.data.indices) {
+                sum += (this.data[i] - other.data[i]).toFloat().pow(2)
+            }
+            FloatValue(kotlin.math.sqrt(sum))
         }
-        return FloatValue(kotlin.math.sqrt(sum))
+        is IntVectorValue -> {
+            var sum = 0.0f
+            for (i in this.data.indices) {
+                sum += (this.data[i] - other.data[i]).toFloat().pow(2)
+            }
+            FloatValue(kotlin.math.sqrt(sum))
+        }
+        else -> {
+            var sum = 0.0f
+            for (i in this.data.indices) {
+                sum += (this.data[i] - other[i].value.toFloat()).pow(2)
+            }
+            FloatValue(kotlin.math.sqrt(sum))
+        }
     }
 
     override fun lp(other: VectorValue<*>, p: Int): FloatValue {

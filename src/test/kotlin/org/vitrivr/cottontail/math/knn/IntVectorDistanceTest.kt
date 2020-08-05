@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail.math
+package org.vitrivr.cottontail.math.knn
 
 import org.apache.commons.math3.util.MathArrays
 import org.junit.jupiter.api.Assertions
@@ -18,7 +18,7 @@ class IntVectorDistanceTest {
 
     companion object {
         const val COLLECTION_SIZE = 1_000_000
-        const val DELTA = 1e-12
+        const val DELTA = 1e-6
         val RANDOM = SplittableRandom()
     }
 
@@ -79,7 +79,7 @@ class IntVectorDistanceTest {
             sum3 += MathArrays.distance(it.data, query.data).pow(2)
         }
 
-        println("Calculating L2^2 distance for collection (s=${COLLECTION_SIZE}, d=$dimensions) took ${time1 / COLLECTION_SIZE} (optimized) resp. ${time2 / COLLECTION_SIZE} per vector on average.")
+        println("Calculating L2^2 distance for collection (s=$COLLECTION_SIZE, d=$dimensions) took ${time1 / COLLECTION_SIZE} (optimized) resp. ${time2 / COLLECTION_SIZE} per vector on average.")
 
         Assertions.assertTrue(time1 < time2, "Optimized version of L2^2 is slower than default version!")
         Assertions.assertTrue(sum1 / sum3 < 1.0 + DELTA, "Deviation for optimized version detected. Expected: $sum3, Received: $sum1")
