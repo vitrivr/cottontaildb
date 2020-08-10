@@ -12,7 +12,6 @@ import org.vitrivr.cottontail.model.values.IntValue
 import org.vitrivr.cottontail.utilities.VectorUtility
 import org.vitrivr.cottontail.utilities.name.Name
 import org.junit.jupiter.api.Assertions.*
-import org.opentest4j.AssertionFailedError
 import org.vitrivr.cottontail.model.values.BooleanVectorValue
 import java.nio.file.Files
 import java.util.*

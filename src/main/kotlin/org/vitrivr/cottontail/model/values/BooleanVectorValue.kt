@@ -10,7 +10,7 @@ import java.util.*
  * @author Ralph Gasser
  * @version 1.1
  */
-inline class BooleanVectorValue(val data: BooleanArray) : VectorValue<Int> {
+inline class BooleanVectorValue(val data: BooleanArray) : RealVectorValue<Int> {
 
     companion object {
         /**
@@ -93,59 +93,108 @@ inline class BooleanVectorValue(val data: BooleanArray) : VectorValue<Int> {
      */
     override fun copy(): BooleanVectorValue = BooleanVectorValue(this.data.copyOf())
 
-    override fun plus(other: VectorValue<*>): VectorValue<Int> {
-        throw UnsupportedOperationException("A BooleanVector array cannot be used to perform arithmetic operations!")
+    override fun plus(other: VectorValue<*>): VectorValue<Int> = when (other) {
+        is BooleanVectorValue -> IntVectorValue(IntArray(this.data.size) {
+            (this.data[it].toInt() + other.data[it].toInt())
+        })
+        is IntVectorValue -> IntVectorValue(IntArray(this.data.size) {
+            (this.data[it].toInt() + other.data[it])
+        })
+        else -> IntVectorValue(IntArray(this.data.size) {
+            (this.data[it].toInt() + other[it].asInt().value)
+        })
     }
 
-    override fun minus(other: VectorValue<*>): VectorValue<Int> {
-        throw UnsupportedOperationException("A BooleanVector array cannot be used to perform arithmetic operations!")
+    override fun minus(other: VectorValue<*>): VectorValue<Int> = when (other) {
+        is BooleanVectorValue -> IntVectorValue(IntArray(this.data.size) {
+            (this.data[it].toInt() - other.data[it].toInt())
+        })
+        is IntVectorValue -> IntVectorValue(IntArray(this.data.size) {
+            (this.data[it].toInt() - other.data[it])
+        })
+        else -> IntVectorValue(IntArray(this.data.size) {
+            (this.data[it].toInt() - other[it].asInt().value)
+        })
     }
 
-    override fun times(other: VectorValue<*>): VectorValue<Int> {
-        throw UnsupportedOperationException("A BooleanVector array cannot be used to perform arithmetic operations!")
+    override fun times(other: VectorValue<*>): VectorValue<Int> = when (other) {
+        is BooleanVectorValue -> IntVectorValue(IntArray(this.data.size) {
+            (this.data[it].toInt() * other.data[it].toInt())
+        })
+        is IntVectorValue -> IntVectorValue(IntArray(this.data.size) {
+            (this.data[it].toInt() * other.data[it])
+        })
+        else -> IntVectorValue(IntArray(this.data.size) {
+            (this.data[it].toInt() * other[it].asInt().value)
+        })
     }
 
-    override fun div(other: VectorValue<*>): VectorValue<Int> {
-        throw UnsupportedOperationException("A BooleanVector array cannot be used to perform arithmetic operations!")
+    override fun div(other: VectorValue<*>): VectorValue<Int> = when (other) {
+        is BooleanVectorValue -> IntVectorValue(IntArray(this.data.size) {
+            (this.data[it].toInt() / other.data[it].toInt())
+        })
+        is IntVectorValue -> IntVectorValue(IntArray(this.data.size) {
+            (this.data[it].toInt() / other.data[it])
+        })
+        else -> IntVectorValue(IntArray(this.data.size) {
+            (this.data[it].toInt() / other[it].asInt().value)
+        })
     }
 
-    override fun plus(other: NumericValue<*>): VectorValue<Int>  {
-        throw UnsupportedOperationException("A BooleanVector array cannot be used to perform arithmetic operations!")
+    override fun plus(other: NumericValue<*>): VectorValue<Int> = IntVectorValue(IntArray(this.logicalSize) {
+        (this.data[it].toInt() + other.asInt().value)
+    })
+
+    override fun minus(other: NumericValue<*>): VectorValue<Int> = IntVectorValue(IntArray(this.logicalSize) {
+        (this.data[it].toInt() - other.asInt().value)
+    })
+
+    override fun times(other: NumericValue<*>): VectorValue<Int> = IntVectorValue(IntArray(this.logicalSize) {
+        (this.data[it].toInt() * other.asInt().value)
+    })
+
+    override fun div(other: NumericValue<*>): VectorValue<Int> = IntVectorValue(IntArray(this.logicalSize) {
+        (this.data[it].toInt() / other.asInt().value)
+    })
+
+    override fun pow(x: Int): DoubleVectorValue = if (x == 0) {
+        DoubleVectorValue.one(this.data.size)
+    } else {
+        DoubleVectorValue(DoubleArray(this.data.size) {
+            if (this.data[it]) { 1.0 } else { 0.0 }
+        })
     }
 
-    override fun minus(other: NumericValue<*>): VectorValue<Int>  {
-        throw UnsupportedOperationException("A BooleanVector array cannot be used to perform arithmetic operations!")
+    override fun sqrt(): DoubleVectorValue = DoubleVectorValue(DoubleArray(this.data.size) {
+        if (this.data[it]) { 1.0 } else { 0.0 }
+    })
+
+    override fun abs(): RealVectorValue<Int> = this.copy()
+
+    override fun sum(): DoubleValue = DoubleValue(this.data.sumByDouble { if (it) { 1.0 } else { 0.0 }})
+
+    override fun norm2(): DoubleValue {
+        var sum = 0.0
+        for (i in this.data) {
+            if (i) sum += 1.0
+        }
+        return DoubleValue(kotlin.math.sqrt(sum))
     }
 
-    override fun times(other: NumericValue<*>): VectorValue<Int>  {
-        throw UnsupportedOperationException("A BooleanVector array cannot be used to perform arithmetic operations!")
-    }
-
-    override fun div(other: NumericValue<*>): VectorValue<Int>  {
-        throw UnsupportedOperationException("A BooleanVector array cannot be used to perform arithmetic operations!")
-    }
-
-    override fun pow(x: Int): DoubleVectorValue {
-        throw UnsupportedOperationException("A BooleanVector array cannot be used to perform arithmetic operations!")
-    }
-
-    override fun sqrt(): DoubleVectorValue {
-        throw UnsupportedOperationException("A BooleanVector array cannot be used to perform arithmetic operations!")
-    }
-
-    override fun abs(): RealVectorValue<Int> {
-        throw UnsupportedOperationException("A BooleanVector array cannot be used to perform arithmetic operations!")
-    }
-
-    override fun sum(): IntValue {
-        throw UnsupportedOperationException("A BooleanVector array cannot be used to perform arithmetic operations!")
-    }
-
-    override fun norm2(): RealValue<*> {
-        throw UnsupportedOperationException("A BooleanVector array cannot be used to perform arithmetic operations!")
-    }
-
-    override fun dot(other: VectorValue<*>): RealValue<*> {
-        throw UnsupportedOperationException("A BooleanVector array cannot be used to perform arithmetic operations!")
+    override fun dot(other: VectorValue<*>): DoubleValue = when (other) {
+        is BooleanVectorValue -> {
+            var sum = 0.0
+            for (i in this.data.indices) {
+                if (this.data[i] && other.data[i]) sum += 1.0
+            }
+            DoubleValue(sum)
+        }
+        else -> {
+            var sum = 0.0
+            for (i in this.data.indices) {
+                if (this.data[i]) sum += other[i].asDouble().value
+            }
+            DoubleValue(sum)
+        }
     }
 }
