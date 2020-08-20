@@ -1,6 +1,5 @@
 package org.vitrivr.cottontail
 
-import kotlinx.serialization.UnstableDefault
 import kotlinx.serialization.json.Json
 import org.vitrivr.cottontail.cli.Cli
 import org.vitrivr.cottontail.config.Config
@@ -17,7 +16,6 @@ import kotlin.time.ExperimentalTime
  *
  * @param args Program arguments.
  */
-@UnstableDefault
 @ExperimentalTime
 fun main(args: Array<String>) {
 
@@ -48,7 +46,7 @@ fun main(args: Array<String>) {
 fun startDB(configPath: String = "config.json") {
     /* Load config file and start Cottontail DB. */
     Files.newBufferedReader(Paths.get(configPath)).use { reader ->
-        val config = Json.parse(Config.serializer(), reader.readText())
+        val config = Json.decodeFromString(Config.serializer(), reader.readText())
         val catalogue = Catalogue(config)
         val engine = ExecutionEngine(config.executionConfig)
         val server = CottontailGrpcServer(config.serverConfig, catalogue, engine)
