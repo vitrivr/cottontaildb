@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.cli
 
 import com.github.ajalt.clikt.core.CliktCommand
+import org.jline.reader.EndOfFileException
 import org.jline.reader.LineReaderBuilder
 import org.jline.reader.impl.completer.AggregateCompleter
 import org.jline.reader.impl.completer.ArgumentCompleter
@@ -95,7 +96,7 @@ object Cli {
         val terminal: Terminal?
         try {
             terminal = TerminalBuilder.terminal()
-        }catch(e:IOException){
+        }catch (e: IOException){
             error("Could not init terminal for reason:\n" +
                     "${e.message}\n" +
                     "Exiting...")
@@ -106,17 +107,22 @@ object Cli {
         val lineReader = LineReaderBuilder.builder().terminal(terminal).completer(completer).build()
 
         while(true){
-            val line = lineReader.readLine(PROMPT).trim()
+            /* Catch ^D end of file as exit method */
+            val line = try {
+                lineReader.readLine(PROMPT).trim()
+            } catch (e: EndOfFileException) {
+                "stop"
+            }
             if(line.toLowerCase() == "help"){
                 println(clikt.getFormattedHelp())
                 continue
             }
-            if(line.isBlank()){
+            if(line.isBlank()) {
                 continue
             }
             try{
                 clikt.parse(splitLine(line))
-            }catch(e:Exception){
+            }catch (e: Exception){
                 when (e) {
                     is com.github.ajalt.clikt.core.NoSuchSubcommand -> println("command not found")
                     is com.github.ajalt.clikt.core.PrintHelpMessage -> println(e.command.getFormattedHelp())
