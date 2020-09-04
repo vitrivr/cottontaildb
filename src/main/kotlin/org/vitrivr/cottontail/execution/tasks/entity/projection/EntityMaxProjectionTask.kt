@@ -3,8 +3,10 @@ package org.vitrivr.cottontail.execution.tasks.entity.projection
 import com.github.dexecutor.core.task.Task
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.general.query
+import org.vitrivr.cottontail.execution.tasks.TaskSetupException
 import org.vitrivr.cottontail.execution.tasks.basics.ExecutionTask
 import org.vitrivr.cottontail.model.basics.ColumnDef
+import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.recordset.Recordset
 import org.vitrivr.cottontail.model.values.*
 import kotlin.math.max
@@ -15,7 +17,13 @@ import kotlin.math.max
  * @author Ralph Gasser
  * @version 1.0.3
  */
-class EntityMaxProjectionTask(val entity: Entity, val column: ColumnDef<*>, val alias: String? = null) : ExecutionTask("EntityMaxProjectionTask[${entity.name}]") {
+class EntityMaxProjectionTask(val entity: Entity, val column: ColumnDef<*>, val alias: Name.ColumnName? = null) : ExecutionTask("EntityMaxProjectionTask") {
+
+    init {
+        if (!this.column.type.numeric) {
+            throw TaskSetupException(this, "MAX projection could not be setup because column $column is not numeric.")
+        }
+    }
 
     /**
      * Executes this [EntityExistsProjectionTask]
@@ -23,8 +31,8 @@ class EntityMaxProjectionTask(val entity: Entity, val column: ColumnDef<*>, val 
     override fun execute(): Recordset {
         assertNullaryInput()
 
-        val resultsColumn = ColumnDef.withAttributes(this.entity.name.column("max(${column.name})"), "DOUBLE")
-
+        val resultsColumn = ColumnDef.withAttributes(this.alias
+                ?: this.entity.name.column("max(${column.name})"), "DOUBLE")
         return this.entity.Tx(true, columns = arrayOf(this.column)).query {
             var max = Double.MIN_VALUE
             val recordset = Recordset(arrayOf(resultsColumn), capacity = 1)

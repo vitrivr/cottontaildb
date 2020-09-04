@@ -4,6 +4,7 @@ import com.github.dexecutor.core.task.Task
 import com.github.dexecutor.core.task.TaskExecutionException
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.execution.tasks.basics.ExecutionTask
+import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.recordset.Recordset
 
@@ -16,7 +17,7 @@ import org.vitrivr.cottontail.model.recordset.Recordset
  * @author Ralph Gasser
  * @version 1.2
  */
-class RecordsetSelectProjectionTask(val fields: Map<Name.ColumnName, Name.ColumnName?>) : ExecutionTask("RecordsetSelectProjectionTask") {
+class RecordsetSelectProjectionTask(val fields: List<Pair<ColumnDef<*>, Name.ColumnName?>>) : ExecutionTask("RecordsetSelectProjectionTask") {
     /**
      * Executes this [RecordsetSelectProjectionTask]
      */
@@ -24,12 +25,13 @@ class RecordsetSelectProjectionTask(val fields: Map<Name.ColumnName, Name.Column
         assertUnaryInput()
 
         /* Get records from parent task. */
-        val parent = this.first() ?: throw TaskExecutionException("SELECT projection could not be executed because parent task has failed.")
+        val parent = this.first()
+                ?: throw TaskExecutionException("SELECT projection could not be executed because parent task has failed.")
 
         /* Find longest, common prefix of all projection sub-clauses. */
-        val normalize = this.fields.keys.all {
-            it.components.getOrNull(0)  == this.fields.keys.first().components.getOrNull(0) &&
-                it.components.getOrNull(1)  == this.fields.keys.first().components.getOrNull(1)
+        val normalize = this.fields.all {
+            it.first.name.components.getOrNull(0) == this.fields.first().first.name.components.getOrNull(0) &&
+                    it.first.name.components.getOrNull(1) == this.fields.first().first.name.components.getOrNull(1)
         }
 
         /* Determine columns to rename. */
@@ -38,7 +40,7 @@ class RecordsetSelectProjectionTask(val fields: Map<Name.ColumnName, Name.Column
         parent.columns.forEachIndexed { i, c ->
             var match = false
             this.fields.forEach { (k, v) ->
-                if (k == c.name) {
+                if (k.name == c.name) {
                     match = true
                     if (v != null) {
                         renameIndex.add(Pair(i, v))

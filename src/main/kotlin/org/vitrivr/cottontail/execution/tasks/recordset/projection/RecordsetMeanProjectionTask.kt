@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.execution.tasks.recordset.projection
 
 import com.github.dexecutor.core.task.Task
 import com.github.dexecutor.core.task.TaskExecutionException
+import org.vitrivr.cottontail.execution.tasks.TaskSetupException
 import org.vitrivr.cottontail.execution.tasks.basics.ExecutionTask
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Name
@@ -14,7 +15,14 @@ import org.vitrivr.cottontail.model.values.*
  * @author Ralph Gasser
  * @version 1.1
  */
-class RecordsetMeanProjectionTask(val columns: Array<ColumnDef<*>>, val fields: Map<Name.ColumnName, Name.ColumnName?>) : ExecutionTask("RecordsetMeanProjectionTask") {
+class RecordsetMeanProjectionTask(val column: ColumnDef<*>, val alias: Name.ColumnName? = null) : ExecutionTask("RecordsetMeanProjectionTask") {
+
+    init {
+        if (!this.column.type.numeric) {
+            throw TaskSetupException(this, "MEAN projection could not be setup because column $column is not numeric.")
+        }
+    }
+
     /**
      * Executes this [RecordsetCountProjectionTask]
      */
@@ -26,9 +34,9 @@ class RecordsetMeanProjectionTask(val columns: Array<ColumnDef<*>>, val fields: 
                 ?: throw TaskExecutionException("MEAN projection could not be executed because parent task has failed.")
 
         /* Calculate mean(). */
-        val column = this.columns.first()
-        val resultsColumn = ColumnDef.withAttributes(this.fields[column.name]
-                ?: (column.name.entity()?.column("mean(${column.name})") ?: Name.ColumnName("mean(${column.name})")), "DOUBLE")
+        val resultsColumn = ColumnDef.withAttributes(this.alias
+                ?: (column.name.entity()?.column("mean(${column.name})")
+                        ?: Name.ColumnName("mean(${column.name})")), "DOUBLE")
         val results = Recordset(arrayOf(resultsColumn))
         if (parent.rowCount > 0) {
             var sum = 0.0

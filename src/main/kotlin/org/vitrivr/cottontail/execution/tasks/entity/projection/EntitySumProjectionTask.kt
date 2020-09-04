@@ -3,8 +3,10 @@ package org.vitrivr.cottontail.execution.tasks.entity.projection
 import com.github.dexecutor.core.task.Task
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.general.query
+import org.vitrivr.cottontail.execution.tasks.TaskSetupException
 import org.vitrivr.cottontail.execution.tasks.basics.ExecutionTask
 import org.vitrivr.cottontail.model.basics.ColumnDef
+import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.recordset.Recordset
 import org.vitrivr.cottontail.model.values.*
 
@@ -12,9 +14,15 @@ import org.vitrivr.cottontail.model.values.*
  * A [Task] used during query execution. It takes a single [Entity] and determines the mean value of a specific [ColumnDef]. It thereby creates a 1x1 [Recordset].
  *
  * @author Ralph Gasser
- * @version 1.0.2
+ * @version 1.1
  */
-class EntitySumProjectionTask(val entity: Entity, val column: ColumnDef<*>, val alias: String? = null) : ExecutionTask("EntitySumProjectionTask[${entity.name}]") {
+class EntitySumProjectionTask(val entity: Entity, val column: ColumnDef<*>, val alias: Name.ColumnName? = null) : ExecutionTask("EntitySumProjectionTask") {
+
+    init {
+        if (!this.column.type.numeric) {
+            throw TaskSetupException(this, "MEAN projection could not be setup because column $column is not numeric.")
+        }
+    }
 
     /**
      * Executes this [EntityExistsProjectionTask]
@@ -22,8 +30,8 @@ class EntitySumProjectionTask(val entity: Entity, val column: ColumnDef<*>, val 
     override fun execute(): Recordset {
         assertNullaryInput()
 
-        val resultsColumn = ColumnDef.withAttributes(this.entity.name.column("sum(${this.column.name})"), "DOUBLE")
-
+        val resultsColumn = ColumnDef.withAttributes(this.alias
+                ?: this.entity.name.column("sum(${this.column.name})"), "DOUBLE")
         return this.entity.Tx(true, columns = arrayOf(this.column)).query { tx ->
             var sum = 0.0
             val recordset = Recordset(arrayOf(resultsColumn), capacity = 1)

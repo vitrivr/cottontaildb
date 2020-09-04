@@ -7,7 +7,7 @@ package org.vitrivr.cottontail.database.queries.planning.cost
  * @author Ralph Gasser
  * @version 1.0
  */
-data class Cost constructor(val io: Float, val cpu: Float, val memory: Float) : Comparable<Cost> {
+data class Cost constructor(val io: Float = 0.0f, val cpu: Float = 0.0f, val memory: Float = 0.0f) : Comparable<Cost> {
 
     companion object {
         val ZERO = Cost(0.0f, 0.0f, 0.0f)

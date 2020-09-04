@@ -1,8 +1,6 @@
-package org.vitrivr.cottontail.database.queries.planning.nodes.basics
+package org.vitrivr.cottontail.database.queries.planning.nodes.physical.recordset
 
 import org.vitrivr.cottontail.database.queries.planning.QueryPlannerContext
-import org.vitrivr.cottontail.database.queries.planning.basics.AbstractNodeExpression
-import org.vitrivr.cottontail.database.queries.planning.basics.NodeExpression
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.execution.tasks.basics.ExecutionStage
 import org.vitrivr.cottontail.execution.tasks.recordset.transform.RecordsetLimitTask
@@ -14,7 +12,7 @@ import kotlin.math.min
  * @author Ralph Gasser
  * @version 1.0
  */
-class LimitNodeExpression(limit: Long, skip: Long) : AbstractNodeExpression() {
+class RecordsetLimitPhysicalNodeExpression(limit: Long, skip: Long) : AbstractRecordsetPhysicalNodeExpression() {
 
     val limit = if (limit.coerceAtLeast(0) == 0L) {
         Long.MAX_VALUE
@@ -28,20 +26,16 @@ class LimitNodeExpression(limit: Long, skip: Long) : AbstractNodeExpression() {
         skip
     }
 
-    override val output: Long
-        get() = min((parents.first().output - this.skip), this.limit)
+    override val outputSize: Long
+        get() = min((this.input.outputSize - this.skip), this.limit)
 
     override val cost: Cost
-        get() = Cost(
-                0.0f,
-                this.output * 1e-5f,
-                (parents.first().cost.memory / parents.first().output) * this.output
-        )
+        get() = Cost(cpu = this.outputSize * 1e-5f, memory = this.input.let { (it.cost.memory / it.outputSize) * this.outputSize })
 
-    override fun copy(): NodeExpression = LimitNodeExpression(this.limit, this.skip)
+    override fun copy() = RecordsetLimitPhysicalNodeExpression(this.limit, this.skip)
 
     override fun toStage(context: QueryPlannerContext): ExecutionStage {
-        val stage = ExecutionStage(ExecutionStage.MergeType.ONE, this.parents.first().toStage(context))
+        val stage = ExecutionStage(ExecutionStage.MergeType.ONE, this.input.toStage(context))
         stage.addTask(RecordsetLimitTask(this.limit, this.skip))
         return stage
     }

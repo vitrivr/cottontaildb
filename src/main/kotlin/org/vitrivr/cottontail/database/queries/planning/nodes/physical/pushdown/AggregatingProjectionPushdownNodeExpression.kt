@@ -1,15 +1,15 @@
-package org.vitrivr.cottontail.database.queries.planning.nodes.pushdown
+package org.vitrivr.cottontail.database.queries.planning.nodes.physical.pushdown
 
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.queries.components.Projection
 import org.vitrivr.cottontail.database.queries.planning.QueryPlannerContext
-import org.vitrivr.cottontail.database.queries.planning.basics.AbstractNodeExpression
-import org.vitrivr.cottontail.database.queries.planning.basics.NodeExpression
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.cost.Costs
+import org.vitrivr.cottontail.database.queries.planning.nodes.physical.entity.AbstractEntityPhysicalNodeExpression
 import org.vitrivr.cottontail.execution.tasks.basics.ExecutionStage
 import org.vitrivr.cottontail.execution.tasks.entity.projection.*
 import org.vitrivr.cottontail.model.basics.ColumnDef
+import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.exceptions.QueryException
 
 /**
@@ -18,9 +18,9 @@ import org.vitrivr.cottontail.model.exceptions.QueryException
  * memory and then performing the filtering on that data.
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.1
  */
-class AggregatingProjectionPushdownNodeExpression(val type: Projection, val entity: Entity, val column: ColumnDef<*>? = null, val alias: String? = null) : AbstractNodeExpression() {
+class AggregatingProjectionPushdownNodeExpression(val type: Projection, val entity: Entity, val column: ColumnDef<*>? = null, val alias: Name.ColumnName? = null) : AbstractEntityPhysicalNodeExpression() {
 
     init {
         /* Sanity check. */
@@ -38,27 +38,26 @@ class AggregatingProjectionPushdownNodeExpression(val type: Projection, val enti
             } else if (this.column.type.numeric) {
                 throw QueryException.QueryBindException("Projection of type $type can only be applied on a numeric column, which ${this.column.name} is not.")
             }
-            else -> throw IllegalArgumentException("ProjectionPushdownNodeExpression cannot be used for projection of type $type.")
+            else -> throw IllegalArgumentException("AggregatingProjectionPushdownNodeExpression cannot be used for projection of type $type.")
         }
     }
 
-    /** [Cost] of executing this [KnnPushdownNodeExpression]. */
-    override val output: Long
-        get() = ((this.parents.firstOrNull()?.output ?: 0)).toLong()
+    /** [Cost] of executing this [KnnPushdownPhysicalNodeExpression]. */
+    override val outputSize: Long = 1L
 
     override val cost: Cost
         get() = when (type) {
             Projection.COUNT -> Cost(Costs.DISK_ACCESS_READ, Costs.MEMORY_ACCESS_READ, 0.0f)
-            Projection.COUNT_DISTINCT -> Cost(Costs.DISK_ACCESS_READ, Costs.MEMORY_ACCESS_READ, (this.output * this.column!!.physicalSize).toFloat())
+            Projection.COUNT_DISTINCT -> Cost(Costs.DISK_ACCESS_READ, Costs.MEMORY_ACCESS_READ, (this.column!!.physicalSize).toFloat())
             Projection.EXISTS -> Cost(Costs.DISK_ACCESS_READ, Costs.MEMORY_ACCESS_READ, 0.0f)
-            Projection.SUM -> Cost(this.output * Costs.DISK_ACCESS_READ, this.output * Costs.MEMORY_ACCESS_READ, 0.0f)
-            Projection.MAX -> Cost(this.output * Costs.DISK_ACCESS_READ, this.output * Costs.MEMORY_ACCESS_READ, 0.0f)
-            Projection.MIN -> Cost(this.output * Costs.DISK_ACCESS_READ, this.output * Costs.MEMORY_ACCESS_READ, 0.0f)
-            Projection.MEAN -> Cost(this.output * Costs.DISK_ACCESS_READ, this.output * Costs.MEMORY_ACCESS_READ, 0.0f)
+            Projection.SUM -> Cost(this.entity.statistics.rows * Costs.DISK_ACCESS_READ, Costs.MEMORY_ACCESS_READ, 0.0f)
+            Projection.MAX -> Cost(this.entity.statistics.rows * Costs.DISK_ACCESS_READ, Costs.MEMORY_ACCESS_READ, 0.0f)
+            Projection.MIN -> Cost(this.entity.statistics.rows * Costs.DISK_ACCESS_READ, Costs.MEMORY_ACCESS_READ, 0.0f)
+            Projection.MEAN -> Cost(this.entity.statistics.rows * Costs.DISK_ACCESS_READ, Costs.MEMORY_ACCESS_READ, 0.0f)
             else -> Cost.INVALID
         }
 
-    override fun copy(): NodeExpression = AggregatingProjectionPushdownNodeExpression(this.type, this.entity, this.column, this.alias)
+    override fun copy() = AggregatingProjectionPushdownNodeExpression(this.type, this.entity, this.column, this.alias)
 
     override fun toStage(context: QueryPlannerContext): ExecutionStage {
         val stage = ExecutionStage(ExecutionStage.MergeType.ONE)

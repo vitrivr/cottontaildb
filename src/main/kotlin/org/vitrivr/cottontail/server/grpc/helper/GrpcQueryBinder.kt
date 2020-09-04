@@ -5,12 +5,13 @@ import org.vitrivr.cottontail.database.column.*
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.index.IndexType
 import org.vitrivr.cottontail.database.queries.components.*
-import org.vitrivr.cottontail.database.queries.planning.CottontailQueryPlanner
-import org.vitrivr.cottontail.database.queries.planning.QueryPlannerContext
 import org.vitrivr.cottontail.database.queries.planning.basics.NodeExpression
-import org.vitrivr.cottontail.database.queries.planning.nodes.basics.*
-import org.vitrivr.cottontail.database.queries.planning.rules.*
-import org.vitrivr.cottontail.execution.ExecutionEngine
+import org.vitrivr.cottontail.database.queries.planning.nodes.logical.EntityScanLogicalNodeExpression
+import org.vitrivr.cottontail.database.queries.planning.nodes.logical.FilterLogicalNodeExpression
+import org.vitrivr.cottontail.database.queries.planning.nodes.logical.KnnLogicalNodeExpression
+import org.vitrivr.cottontail.database.queries.planning.nodes.logical.ProjectionLogicalNodeExpression
+import org.vitrivr.cottontail.database.queries.planning.nodes.physical.recordset.RecordsetLimitPhysicalNodeExpression
+import org.vitrivr.cottontail.database.queries.planning.nodes.physical.recordset.RecordsetProjectionPhysicalNodeExpression
 import org.vitrivr.cottontail.execution.ExecutionPlan
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.math.knn.metrics.Distances
@@ -28,20 +29,9 @@ import org.vitrivr.cottontail.model.values.*
  * 3) A [ExecutionPlan] is constructed from the internal query objects.
  *
  * @author Ralph Gasser
- * @version 1.1
+ * @version 1.2
  */
-class GrpcQueryBinder(val catalogue: Catalogue, private val engine: ExecutionEngine) {
-
-    /** [ExecutionPlanFactor] used to generate [ExecutionPlan]s from query definitions. */
-    private val planner = CottontailQueryPlanner(
-            KnnPushdownRule,
-            KnnIndexRule,
-            LimitPushdownRule,
-            PredicatePushdownRule,
-            PredicatePushdownWithIndexRule,
-            AggregatingProjectionPushdownRule
-    )
-
+class GrpcQueryBinder(val catalogue: Catalogue) {
     /**
      * Binds the given [CottontailGrpc.Query] to the database objects and thereby creates an [ExecutionPlan].
      *
@@ -50,7 +40,7 @@ class GrpcQueryBinder(val catalogue: Catalogue, private val engine: ExecutionEng
      *
      * @throws QueryException.QuerySyntaxException If [CottontailGrpc.Query] is structurally incorrect.
      */
-    fun parseAndBind(query: CottontailGrpc.Query): ExecutionPlan {
+    fun parseAndBind(query: CottontailGrpc.Query): NodeExpression {
         if (!query.hasFrom()) throw QueryException.QuerySyntaxException("Missing FROM-clause in query.")
         if (query.from.hasQuery()) {
             throw QueryException.QuerySyntaxException("Cottontail DB currently doesn't support sub-selects.")
@@ -63,38 +53,34 @@ class GrpcQueryBinder(val catalogue: Catalogue, private val engine: ExecutionEng
      *
      * @param query The simple [CottontailGrpc.Query] object.
      */
-    private fun parseAndBindSimpleQuery(query: CottontailGrpc.Query): ExecutionPlan {
+    private fun parseAndBindSimpleQuery(query: CottontailGrpc.Query): NodeExpression {
         /* Create scan clause. */
         val scanClause = parseAndBindSimpleFrom(query.from)
         var root: NodeExpression = scanClause
 
-        /* Create kNN and where clause. */
-        if (query.hasWhere() && query.hasKnn()) {
-            root = root.setChild(PredicatedKnnNodeExpression(parseAndBindKnnPredicate(scanClause.entity, query.knn), parseAndBindBooleanPredicate(scanClause.entity, query.where)))
-        } else if (query.hasWhere()) {
-            root = root.setChild(FilterNodeExpression(parseAndBindBooleanPredicate(scanClause.entity, query.where)))
-        } else if (query.hasKnn()) {
-            root = root.setChild(KnnNodeExpression(parseAndBindKnnPredicate(scanClause.entity, query.knn)))
-
+        /* Create WHERE-clause. */
+        if (query.hasWhere()) {
+            root = root.updateOutput(FilterLogicalNodeExpression(parseAndBindBooleanPredicate(scanClause.entity, query.where)))
         }
 
-        /* Add LIMIT and SKIP. */
-        if (query.limit > 0L || query.skip > 0L) {
-            root = root.setChild(LimitNodeExpression(query.limit, query.skip))
+        /* Process kNN-clause (mind precedence of WHERE-clause. */
+        if (query.hasKnn()) {
+            root = root.updateOutput(KnnLogicalNodeExpression(parseAndBindKnnPredicate(scanClause.entity, query.knn)))
         }
 
-        /* Create projection clause. */
+        /* Process projection clause. */
         root = if (query.hasProjection()) {
-            root.setChild(parseAndBindProjection(scanClause.entity, query.projection))
+            root.updateOutput(parseAndBindProjection(scanClause.entity, query.projection))
         } else {
-            root.setChild(parseAndBindProjection(scanClause.entity, CottontailGrpc.Projection.newBuilder().setOp(CottontailGrpc.Projection.Operation.SELECT).putAttributes("*", "").build()))
+            root.updateOutput(parseAndBindProjection(scanClause.entity, CottontailGrpc.Projection.newBuilder().setOp(CottontailGrpc.Projection.Operation.SELECT).putAttributes("*", "").build()))
         }
 
-        /* Transform to ExecutionPlan. */
-        val candidates = this.planner.optimize(root, 3, 3)
-        val plan = this.engine.newExecutionPlan()
-        plan.compileStage(candidates.minBy { it.totalCost }!!.toStage(QueryPlannerContext(this.engine.availableThreads)))
-        return plan
+        /* Process LIMIT and SKIP. */
+        if (query.limit > 0L || query.skip > 0L) {
+            root = root.updateOutput(RecordsetLimitPhysicalNodeExpression(query.limit, query.skip))
+        }
+
+        return root
     }
 
     /**
@@ -103,15 +89,15 @@ class GrpcQueryBinder(val catalogue: Catalogue, private val engine: ExecutionEng
      * @param from The [CottontailGrpc.From] object.
      * @return The resulting [EntityEntityScanNodeExpression].
      */
-    private fun parseAndBindSimpleFrom(from: CottontailGrpc.From): EntityScanNodeExpression = try {
+    private fun parseAndBindSimpleFrom(from: CottontailGrpc.From): EntityScanLogicalNodeExpression = try {
         when (from.fromCase) {
             CottontailGrpc.From.FromCase.ENTITY -> {
                 val entityName = from.entity.fqn()
-                EntityScanNodeExpression.FullEntityScanNodeExpression(entity = this.catalogue.schemaForName(entityName.schema()).entityForName(entityName))
+                EntityScanLogicalNodeExpression.EntityFullScanLogicalNodeExpression(entity = this.catalogue.schemaForName(entityName.schema()).entityForName(entityName))
             }
             CottontailGrpc.From.FromCase.SAMPLE -> {
                 val entityName = from.sample.entity.fqn()
-                EntityScanNodeExpression.SampledEntityScanNodeExpression(entity = this.catalogue.schemaForName(entityName.schema()).entityForName(entityName), size = from.sample.size, seed = from.sample.seed)
+                EntityScanLogicalNodeExpression.EntitySampleLogicalNodeExpression(entity = this.catalogue.schemaForName(entityName.schema()).entityForName(entityName), size = from.sample.size, seed = from.sample.seed)
             }
             else -> throw QueryException.QuerySyntaxException("Invalid FROM-clause in query.")
         }
@@ -384,9 +370,9 @@ class GrpcQueryBinder(val catalogue: Catalogue, private val engine: ExecutionEng
      * @param entity The [Entity] involved in the projection.
      * @param projection The [CottontailGrpc.Projection] object.
      *
-     * @return The resulting [ProjectionNodeExpression].
+     * @return The resulting [RecordsetProjectionPhysicalNodeExpression].
      */
-    private fun parseAndBindProjection(entity: Entity, projection: CottontailGrpc.Projection): ProjectionNodeExpression = try {
+    private fun parseAndBindProjection(entity: Entity, projection: CottontailGrpc.Projection): ProjectionLogicalNodeExpression = try {
         val availableColumns = entity.allColumns()
         val requestedColumns = mutableListOf<ColumnDef<*>>()
         val fields = mutableMapOf<Name.ColumnName, Name.ColumnName?>()
@@ -420,7 +406,7 @@ class GrpcQueryBinder(val catalogue: Catalogue, private val engine: ExecutionEng
             }
         }
 
-        ProjectionNodeExpression(type = Projection.valueOf(projection.op.name), entity = entity, columns = requestedColumns.distinct().toTypedArray(), fields = fields)
+        RecordsetProjectionPhysicalNodeExpression(type = Projection.valueOf(projection.op.name), entity = entity, columns = requestedColumns.distinct().toTypedArray(), fields = fields)
     } catch (e: java.lang.IllegalArgumentException) {
         throw QueryException.QuerySyntaxException("The query lacks a valid SELECT-clause (projection): ${projection.op} is not supported.")
     }

@@ -1,10 +1,13 @@
 package org.vitrivr.cottontail.server.grpc.services
 
-import io.grpc.*
+import io.grpc.Status
 import io.grpc.stub.StreamObserver
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.database.catalogue.Catalogue
+import org.vitrivr.cottontail.database.queries.planning.CottontailQueryPlanner
+import org.vitrivr.cottontail.database.queries.planning.QueryPlannerContext
 import org.vitrivr.cottontail.execution.ExecutionEngine
+import org.vitrivr.cottontail.execution.ExecutionPlan
 import org.vitrivr.cottontail.execution.tasks.ExecutionPlanException
 import org.vitrivr.cottontail.grpc.CottonDQLGrpc
 import org.vitrivr.cottontail.grpc.CottontailGrpc
@@ -28,10 +31,18 @@ import kotlin.time.measureTimedValue
  */
 @ExperimentalTime
 class CottonDQLService(val catalogue: Catalogue, val engine: ExecutionEngine) : CottonDQLGrpc.CottonDQLImplBase() {
+
+
     /** Logger used for logging the output. */
     companion object {
         private val LOGGER = LoggerFactory.getLogger(CottonDQLService::class.java)
     }
+
+    /** [GrpcQueryBinder] used to generate logical [NodeExpression] tree from a gRPC query. */
+    private val binder = GrpcQueryBinder(catalogue = this@CottonDQLService.catalogue)
+
+    /** [ExecutionPlanFactor] used to generate [ExecutionPlan]s from query definitions. */
+    private val planner = CottontailQueryPlanner()
 
     /**
      * gRPC endpoint for handling simple queries.
@@ -44,14 +55,21 @@ class CottonDQLService(val catalogue: Catalogue, val engine: ExecutionEngine) : 
             request.queryId
         }
 
-        /* Bind query and generate execution plan */
         val totalDuration = measureTime {
-            /* Bind query and generate execution plan */
-            val planTimedValue = measureTimedValue {
-                val binder = GrpcQueryBinder(catalogue = this@CottonDQLService.catalogue, engine = this@CottonDQLService.engine)
-                binder.parseAndBind(request.query)
+            /* Bind query and create logical plan. */
+            val bindTimedValue = measureTimedValue {
+                this.binder.parseAndBind(request.query)
             }
-            LOGGER.trace("Parsing & binding query $queryId took ${planTimedValue.duration}.")
+            LOGGER.trace("Parsing & binding query $queryId took ${bindTimedValue.duration}.")
+
+            /* Plan query and create execution plan. */
+            val planTimedValue = measureTimedValue {
+                val candidates = this.planner.optimize(bindTimedValue.value, 3, 3)
+                val plan = this.engine.newExecutionPlan()
+                plan.compileStage(candidates.minBy { it.totalCost }!!.toStage(QueryPlannerContext(this.engine.availableThreads)))
+                plan
+            }
+            LOGGER.trace("Planning query $queryId took ${planTimedValue.duration}.")
 
             /* Execute query. */
             val resultsTimedValue = measureTimedValue {
@@ -97,18 +115,26 @@ class CottonDQLService(val catalogue: Catalogue, val engine: ExecutionEngine) : 
 
         val totalDuration = measureTime {
             request.queriesList.forEachIndexed { index, query ->
-                /* Bind query and generate execution plan */
-                val planTimedValue = measureTimedValue {
-                    val binder = GrpcQueryBinder(catalogue = this@CottonDQLService.catalogue, engine = this@CottonDQLService.engine)
-                    binder.parseAndBind(query)
+                /* Bind query and create logical plan. */
+                val bindTimedValue = measureTimedValue {
+                    this.binder.parseAndBind(query)
                 }
-                LOGGER.trace("Parsing & binding query $index of batch $queryId took ${planTimedValue.duration}.")
+                LOGGER.trace("Parsing & binding query: $queryId, index: $index took ${bindTimedValue.duration}.")
+
+                /* Plan query and create execution plan. */
+                val planTimedValue = measureTimedValue {
+                    val candidates = this.planner.optimize(bindTimedValue.value, 3, 3)
+                    val plan = this.engine.newExecutionPlan()
+                    plan.compileStage(candidates.minBy { it.totalCost }!!.toStage(QueryPlannerContext(this.engine.availableThreads)))
+                    plan
+                }
+                LOGGER.trace("Planning query: $queryId, index: $index took ${planTimedValue.duration}.")
 
                 /* Execute query. */
                 val resultsTimedValue = measureTimedValue {
                     planTimedValue.value.execute()
                 }
-                LOGGER.trace("Executing query $index of batch $queryId took ${resultsTimedValue.duration}.")
+                LOGGER.trace("Executing query: $queryId, index: $index took ${resultsTimedValue.duration}.")
 
                 /* Send back results. */
                 this.spoolResults(queryId, resultsTimedValue.value, responseObserver, index)
