@@ -5,29 +5,30 @@ import io.grpc.stub.StreamObserver
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.database.catalogue.Catalogue
 import org.vitrivr.cottontail.database.queries.planning.CottontailQueryPlanner
-import org.vitrivr.cottontail.database.queries.planning.QueryPlannerContext
 import org.vitrivr.cottontail.execution.ExecutionEngine
-import org.vitrivr.cottontail.execution.ExecutionPlan
-import org.vitrivr.cottontail.execution.tasks.ExecutionPlanException
+import org.vitrivr.cottontail.execution.exceptions.ExecutionException
+import org.vitrivr.cottontail.execution.operators.basics.ProducingOperator
+import org.vitrivr.cottontail.execution.operators.basics.SinkOperator
 import org.vitrivr.cottontail.grpc.CottonDQLGrpc
 import org.vitrivr.cottontail.grpc.CottontailGrpc
+import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.recordset.Recordset
+import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.server.grpc.helper.DataHelper
 import org.vitrivr.cottontail.server.grpc.helper.GrpcQueryBinder
-import org.vitrivr.cottontail.utilities.math.BitUtil
-import java.util.*
+
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTime
 import kotlin.time.measureTimedValue
 
 /**
- * Implementation of [CottonDQLGrpc.CottonDQLImplBase], the gRPC endpoint for quering data in Cottontail DB.
+ * Implementation of [CottonDQLGrpc.CottonDQLImplBase], the gRPC endpoint for querying data in Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 1.2
+ * @version 1.3
  */
 @ExperimentalTime
 class CottonDQLService(val catalogue: Catalogue, val engine: ExecutionEngine) : CottonDQLGrpc.CottonDQLImplBase() {
@@ -38,60 +39,47 @@ class CottonDQLService(val catalogue: Catalogue, val engine: ExecutionEngine) : 
         private val LOGGER = LoggerFactory.getLogger(CottonDQLService::class.java)
     }
 
-    /** [GrpcQueryBinder] used to generate logical [NodeExpression] tree from a gRPC query. */
+    /** [GrpcQueryBinder] used to generate [NodeExpression.LogicalNodeExpression] tree from a gRPC query. */
     private val binder = GrpcQueryBinder(catalogue = this@CottonDQLService.catalogue)
 
-    /** [ExecutionPlanFactor] used to generate [ExecutionPlan]s from query definitions. */
+    /** [CottontailQueryPlanner] used to generate execution plans from query definitions. */
     private val planner = CottontailQueryPlanner()
 
     /**
      * gRPC endpoint for handling simple queries.
      */
     override fun query(request: CottontailGrpc.QueryMessage, responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) = try {
-        /* Start the query by giving the start signal. */
-        val queryId = if (request.queryId == null || request.queryId == "") {
-            UUID.randomUUID().toString()
-        } else {
-            request.queryId
+        /* Create a new execution context for the query. */
+        val context = this.engine.ExecutionContext()
+        val queryId = request.queryId.ifBlank { context.uuid.toString() }
+
+        /* Bind query and create logical plan. */
+        val bindTimedValue = measureTimedValue {
+            this.binder.parseAndBind(request.query)
         }
+        LOGGER.trace("Parsing & binding query ${context.uuid} took ${bindTimedValue.duration}.")
 
-        val totalDuration = measureTime {
-            /* Bind query and create logical plan. */
-            val bindTimedValue = measureTimedValue {
-                this.binder.parseAndBind(request.query)
+        /* Plan query and create execution plan. */
+        val planningTime = measureTime {
+            val candidates = this.planner.plan(bindTimedValue.value, 3, 3)
+            if (candidates.isEmpty()) {
+                responseObserver.onError(Status.INTERNAL.withDescription("Query execution failed because no valid execution plan could be produced").asException())
+                return
             }
-            LOGGER.trace("Parsing & binding query $queryId took ${bindTimedValue.duration}.")
-
-            /* Plan query and create execution plan. */
-            val planTimedValue = measureTimedValue {
-                val candidates = this.planner.optimize(bindTimedValue.value, 3, 3)
-                val plan = this.engine.newExecutionPlan()
-                plan.compileStage(candidates.minBy { it.totalCost }!!.toStage(QueryPlannerContext(this.engine.availableThreads)))
-                plan
-            }
-            LOGGER.trace("Planning query $queryId took ${planTimedValue.duration}.")
-
-            /* Execute query. */
-            val resultsTimedValue = measureTimedValue {
-                planTimedValue.value.execute()
-            }
-            LOGGER.trace("Executing query $queryId took ${resultsTimedValue.duration}.")
-
-            /* Send back results. */
-            this.spoolResults(queryId, resultsTimedValue.value, responseObserver)
-
-            /* Complete query. */
-            responseObserver.onCompleted()
+            val operator = candidates.minByOrNull { it.totalCost }!!.toOperator(context)
+            context.addOperator(ResultsSpoolerOperator(operator, context, queryId, 0, responseObserver))
         }
+        LOGGER.trace("Planning query ${context.uuid} took $planningTime.")
 
-        LOGGER.info("Query $queryId took $totalDuration.")
+        /* Schedule query for execution. */
+        context.schedule()
     } catch (e: QueryException.QuerySyntaxException) {
         LOGGER.error("Error while executing query $request", e)
         responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Query syntax is invalid: ${e.message}").asException())
     } catch (e: QueryException.QueryBindException) {
         LOGGER.error("Error while executing query $request", e)
         responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Query binding failed: ${e.message}").asException())
-    } catch (e: ExecutionPlanException) {
+    } catch (e: ExecutionException) {
         LOGGER.error("Error while executing query $request", e)
         responseObserver.onError(Status.INTERNAL.withDescription("Query execution failed because execution engine signaled an error: ${e.message}").asException())
     } catch (e: DatabaseException) {
@@ -106,12 +94,9 @@ class CottonDQLService(val catalogue: Catalogue, val engine: ExecutionEngine) : 
      *  gRPC endpoint for handling batched queries.
      */
     override fun batchedQuery(request: CottontailGrpc.BatchedQueryMessage, responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) = try {
-        /* Start the query by giving the start signal. */
-        val queryId = if (request.queryId == null || request.queryId == "") {
-            UUID.randomUUID().toString()
-        } else {
-            request.queryId
-        }
+        /* Create a new execution context for the query. */
+        val context = this.engine.ExecutionContext()
+        val queryId = request.queryId.ifBlank { context.uuid.toString() }
 
         val totalDuration = measureTime {
             request.queriesList.forEachIndexed { index, query ->
@@ -123,25 +108,15 @@ class CottonDQLService(val catalogue: Catalogue, val engine: ExecutionEngine) : 
 
                 /* Plan query and create execution plan. */
                 val planTimedValue = measureTimedValue {
-                    val candidates = this.planner.optimize(bindTimedValue.value, 3, 3)
-                    val plan = this.engine.newExecutionPlan()
-                    plan.compileStage(candidates.minBy { it.totalCost }!!.toStage(QueryPlannerContext(this.engine.availableThreads)))
-                    plan
+                    val candidates = this.planner.plan(bindTimedValue.value, 3, 3)
+                    val operator = candidates.minByOrNull { it.totalCost }!!.toOperator(context)
+                    context.addOperator(ResultsSpoolerOperator(operator, context, queryId, index, responseObserver))
                 }
                 LOGGER.trace("Planning query: $queryId, index: $index took ${planTimedValue.duration}.")
 
-                /* Execute query. */
-                val resultsTimedValue = measureTimedValue {
-                    planTimedValue.value.execute()
-                }
-                LOGGER.trace("Executing query: $queryId, index: $index took ${resultsTimedValue.duration}.")
-
-                /* Send back results. */
-                this.spoolResults(queryId, resultsTimedValue.value, responseObserver, index)
+                /* Schedule query for execution. */
+                context.schedule()
             }
-
-            /* Send onCompleted() signal. */
-            responseObserver.onCompleted()
         }
 
         /* Complete query. */
@@ -152,7 +127,7 @@ class CottonDQLService(val catalogue: Catalogue, val engine: ExecutionEngine) : 
     } catch (e: QueryException.QueryBindException) {
         LOGGER.error("Error while executing batched query $request", e)
         responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Query binding failed: ${e.message}").asException())
-    } catch (e: ExecutionPlanException) {
+    } catch (e: ExecutionException) {
         LOGGER.error("Error while executing batched query $request", e)
         responseObserver.onError(Status.INTERNAL.withDescription("Query execution failed because execution engine signaled an error: ${e.message}").asException())
     } catch (e: DatabaseException) {
@@ -172,44 +147,68 @@ class CottonDQLService(val catalogue: Catalogue, val engine: ExecutionEngine) : 
     }
 
     /**
-     * Spools the results in the given [Recordset] to gRPC
+     * A [SinkOperator] that spools the results in the given [Recordset] to the gRPC [StreamObserver].
      *
-     * @param queryId The ID of the query.
-     * @param results [Recordset] containing the results.
+     * @param parent [ProducingOperator] that produces the results.
+     * @param context [ExecutionEngine.ExecutionContext] the [ExecutionEngine.ExecutionContext]
      * @param responseObserver [StreamObserver] used to send back the results.
      * @param index Optional index of the result (for batched queries).
      */
-    private fun spoolResults(queryId: String, results: Recordset, responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>, index: Int = 0) {
-        if (results.rowCount > 0) {
-            val first = results.first()!!
-            val exampleSize = BitUtil.nextPowerOfTwo(recordToTuple(first).build().serializedSize)
-            val pageSize = (4_194_000_000 / exampleSize).toInt()
-            val maxPages = Math.floorDiv(results.rowCount, pageSize)
+    class ResultsSpoolerOperator(parent: ProducingOperator, context: ExecutionEngine.ExecutionContext, val queryId: String, val index: Int, val responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) : SinkOperator(parent, context) {
 
-            /* Return results. */
-            val duration = measureTime {
-                val iterator = results.iterator()
-                for (i in 0..maxPages) {
-                    val responseBuilder = CottontailGrpc.QueryResponseMessage.newBuilder().setPageSize(pageSize).setPage(i).setMaxPage(maxPages).setTotalHits(results.rowCount)
-                    for (j in i * pageSize until kotlin.math.min(results.rowCount, (i * pageSize + pageSize))) {
-                        responseBuilder.addResults(recordToTuple(iterator.next()))
-                    }
-                    responseObserver.onNext(responseBuilder.build())
-                }
-            }
+        override val columns: Array<ColumnDef<*>> = this.parent.columns
 
-            LOGGER.trace("Sending back ${results.rowCount} rows for position $index of query $queryId took $duration.")
-        } else {
-            responseObserver.onNext(CottontailGrpc.QueryResponseMessage.newBuilder().setPage(0).setMaxPage(0).setTotalHits(0).setPageSize(0).setQueryId(queryId).build())
-            LOGGER.trace("Position $index of query $queryId yielded no results.")
+        /* Size of an individual results page based on the estimate of a single tuple's size. */
+        private val pageSize: Int = StandaloneRecord(0L, this.columns, this.columns.map { it.defaultValue() }.toTypedArray()).let {
+            (4_194_000_000 / recordToTuple(it).build().serializedSize).toInt()
         }
-    }
 
-    /**
-     * Generates a new [CottontailGrpc.Tuple.Builder] from a given [Record].
-     *
-     * @param record [Record] to create a [CottontailGrpc.Tuple.Builder] from.
-     * @return Resulting [CottontailGrpc.Tuple.Builder]
-     */
-    private fun recordToTuple(record: Record): CottontailGrpc.Tuple.Builder = CottontailGrpc.Tuple.newBuilder().putAllData(record.toMap().map { it.key.toString() to DataHelper.toData(it.value) }.toMap())
+        /* Number of tuples returned so far. */
+        private var counter = 0
+
+        /* Number of tuples returned so far. */
+        private var responseBuilder = CottontailGrpc.QueryResponseMessage.newBuilder().setQueryId(this.queryId)
+
+        /**
+         * Called when [ResultsSpoolerOperator] received a new [Record].
+         */
+        override fun process(record: Record?) {
+            if (record != null) {
+                val tuple = recordToTuple(record)
+                if (this.counter % this.pageSize == 0) {
+                    this.responseObserver.onNext(this.responseBuilder.build())
+                    this.responseBuilder = CottontailGrpc.QueryResponseMessage.newBuilder().setQueryId(this.queryId)
+                }
+
+                /* Add entry to page and increment counter. */
+                this.responseBuilder.addResults(tuple)
+                this.counter++
+            }
+        }
+
+        /**
+         * Called when [ResultsSpoolerOperator] is opened.
+         */
+        override fun prepareOpen() {
+            /* */
+        }
+
+        /**
+         * Called when [ResultsSpoolerOperator] is closed. Sends the last results and completes transmission.
+         */
+        override fun prepareClose() {
+            if (this.responseBuilder.resultsList.size > 0) {
+                this.responseObserver.onNext(this.responseBuilder.build())
+            }
+            this.responseObserver.onCompleted()
+        }
+
+        /**
+         * Generates a new [CottontailGrpc.Tuple.Builder] from a given [Record].
+         *
+         * @param record [Record] to create a [CottontailGrpc.Tuple.Builder] from.
+         * @return Resulting [CottontailGrpc.Tuple.Builder]
+         */
+        private fun recordToTuple(record: Record): CottontailGrpc.Tuple.Builder = CottontailGrpc.Tuple.newBuilder().putAllData(record.toMap().map { it.key.toString() to DataHelper.toData(it.value) }.toMap())
+    }
 }

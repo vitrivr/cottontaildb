@@ -5,14 +5,10 @@ import org.vitrivr.cottontail.database.column.*
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.index.IndexType
 import org.vitrivr.cottontail.database.queries.components.*
-import org.vitrivr.cottontail.database.queries.planning.basics.NodeExpression
-import org.vitrivr.cottontail.database.queries.planning.nodes.logical.EntityScanLogicalNodeExpression
-import org.vitrivr.cottontail.database.queries.planning.nodes.logical.FilterLogicalNodeExpression
-import org.vitrivr.cottontail.database.queries.planning.nodes.logical.KnnLogicalNodeExpression
-import org.vitrivr.cottontail.database.queries.planning.nodes.logical.ProjectionLogicalNodeExpression
-import org.vitrivr.cottontail.database.queries.planning.nodes.physical.recordset.RecordsetLimitPhysicalNodeExpression
-import org.vitrivr.cottontail.database.queries.planning.nodes.physical.recordset.RecordsetProjectionPhysicalNodeExpression
-import org.vitrivr.cottontail.execution.ExecutionPlan
+import org.vitrivr.cottontail.database.queries.planning.nodes.interfaces.NodeExpression
+import org.vitrivr.cottontail.database.queries.planning.nodes.logical.*
+import org.vitrivr.cottontail.database.queries.planning.nodes.physical.recordset.ProjectionPhysicalNodeExpression
+
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.math.knn.metrics.Distances
 import org.vitrivr.cottontail.model.basics.ColumnDef
@@ -40,7 +36,7 @@ class GrpcQueryBinder(val catalogue: Catalogue) {
      *
      * @throws QueryException.QuerySyntaxException If [CottontailGrpc.Query] is structurally incorrect.
      */
-    fun parseAndBind(query: CottontailGrpc.Query): NodeExpression {
+    fun parseAndBind(query: CottontailGrpc.Query): NodeExpression.LogicalNodeExpression {
         if (!query.hasFrom()) throw QueryException.QuerySyntaxException("Missing FROM-clause in query.")
         if (query.from.hasQuery()) {
             throw QueryException.QuerySyntaxException("Cottontail DB currently doesn't support sub-selects.")
@@ -53,17 +49,17 @@ class GrpcQueryBinder(val catalogue: Catalogue) {
      *
      * @param query The simple [CottontailGrpc.Query] object.
      */
-    private fun parseAndBindSimpleQuery(query: CottontailGrpc.Query): NodeExpression {
+    private fun parseAndBindSimpleQuery(query: CottontailGrpc.Query): NodeExpression.LogicalNodeExpression {
         /* Create scan clause. */
         val scanClause = parseAndBindSimpleFrom(query.from)
-        var root: NodeExpression = scanClause
+        var root: NodeExpression.LogicalNodeExpression = scanClause
 
         /* Create WHERE-clause. */
         if (query.hasWhere()) {
             root = root.updateOutput(FilterLogicalNodeExpression(parseAndBindBooleanPredicate(scanClause.entity, query.where)))
         }
 
-        /* Process kNN-clause (mind precedence of WHERE-clause. */
+        /* Process kNN-clause (Important: mind precedence of WHERE-clause. */
         if (query.hasKnn()) {
             root = root.updateOutput(KnnLogicalNodeExpression(parseAndBindKnnPredicate(scanClause.entity, query.knn)))
         }
@@ -77,7 +73,7 @@ class GrpcQueryBinder(val catalogue: Catalogue) {
 
         /* Process LIMIT and SKIP. */
         if (query.limit > 0L || query.skip > 0L) {
-            root = root.updateOutput(RecordsetLimitPhysicalNodeExpression(query.limit, query.skip))
+            root = root.updateOutput(LimitLogicalNodeExpression(query.limit, query.skip))
         }
 
         return root
@@ -370,18 +366,16 @@ class GrpcQueryBinder(val catalogue: Catalogue) {
      * @param entity The [Entity] involved in the projection.
      * @param projection The [CottontailGrpc.Projection] object.
      *
-     * @return The resulting [RecordsetProjectionPhysicalNodeExpression].
+     * @return The resulting [ProjectionPhysicalNodeExpression].
      */
     private fun parseAndBindProjection(entity: Entity, projection: CottontailGrpc.Projection): ProjectionLogicalNodeExpression = try {
         val availableColumns = entity.allColumns()
-        val requestedColumns = mutableListOf<ColumnDef<*>>()
-        val fields = mutableMapOf<Name.ColumnName, Name.ColumnName?>()
+        val fields = mutableListOf<Pair<ColumnDef<*>, Name.ColumnName?>>()
 
         /* Handle star projection. */
         if (projection.attributesMap.containsKey("*")) {
             availableColumns.forEach {
-                requestedColumns.add(it)
-                fields[it.name] = null
+                fields.add(Pair(it, null))
             }
         }
 
@@ -390,23 +384,18 @@ class GrpcQueryBinder(val catalogue: Catalogue) {
             /* Fetch columns that match field and add them to list of requested columns */
             if (expr != "*") {
                 val columnName = entity.name.column(expr)
-                for (c in availableColumns) {
-                    if (c.name == columnName) {
-                        requestedColumns.add(c)
-                        break
-                    }
-                }
+                val column = availableColumns.first { it.name == columnName }
 
                 /* Return field to alias mapping. */
-                fields[columnName] = if (alias.isEmpty()) {
+                fields.add(Pair(column, if (alias.isBlank()) {
                     null
                 } else {
                     Name.ColumnName(alias)
-                }
+                }))
             }
         }
 
-        RecordsetProjectionPhysicalNodeExpression(type = Projection.valueOf(projection.op.name), entity = entity, columns = requestedColumns.distinct().toTypedArray(), fields = fields)
+        ProjectionLogicalNodeExpression(type = Projection.valueOf(projection.op.name), fields = fields)
     } catch (e: java.lang.IllegalArgumentException) {
         throw QueryException.QuerySyntaxException("The query lacks a valid SELECT-clause (projection): ${projection.op} is not supported.")
     }
