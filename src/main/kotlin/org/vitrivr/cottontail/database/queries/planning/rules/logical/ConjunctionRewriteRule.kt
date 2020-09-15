@@ -2,7 +2,8 @@ package org.vitrivr.cottontail.database.queries.planning.rules.logical
 
 import org.vitrivr.cottontail.database.queries.components.CompoundBooleanPredicate
 import org.vitrivr.cottontail.database.queries.components.ConnectionOperator
-import org.vitrivr.cottontail.database.queries.planning.nodes.interfaces.LogicalRewriteRule
+import org.vitrivr.cottontail.database.queries.planning.nodes.interfaces.NodeExpression
+import org.vitrivr.cottontail.database.queries.planning.nodes.interfaces.RewriteRule
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.FilterLogicalNodeExpression
 
 /**
@@ -12,7 +13,7 @@ import org.vitrivr.cottontail.database.queries.planning.nodes.logical.FilterLogi
  * @author Ralph Gasser
  * @version 1.0
  */
-object ConjunctionRewriteRule : LogicalRewriteRule {
+object ConjunctionRewriteRule : RewriteRule {
 
     /**
      * Checks if this [ConjunctionRewriteRule] can be applied to the given [NodeExpression].

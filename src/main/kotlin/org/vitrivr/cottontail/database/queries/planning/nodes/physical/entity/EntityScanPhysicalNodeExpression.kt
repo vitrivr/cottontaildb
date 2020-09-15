@@ -1,12 +1,12 @@
 package org.vitrivr.cottontail.database.queries.planning.nodes.physical.entity
 
 import org.vitrivr.cottontail.database.entity.Entity
-import org.vitrivr.cottontail.database.queries.planning.QueryPlannerContext
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.cost.Costs
-import org.vitrivr.cottontail.execution.tasks.basics.ExecutionStage
-import org.vitrivr.cottontail.execution.tasks.entity.source.EntityLinearScanTask
-import org.vitrivr.cottontail.execution.tasks.entity.source.EntitySampleTask
+import org.vitrivr.cottontail.execution.ExecutionEngine
+import org.vitrivr.cottontail.execution.operators.basics.ProducingOperator
+import org.vitrivr.cottontail.execution.operators.sources.EntitySampleOperator
+import org.vitrivr.cottontail.execution.operators.sources.EntityScanOperator
 import org.vitrivr.cottontail.model.basics.ColumnDef
 
 /**
@@ -35,11 +35,7 @@ sealed class EntityScanPhysicalNodeExpression : AbstractEntityPhysicalNodeExpres
         override val outputSize = this.entity.statistics.rows
         override val cost = Cost(this.entity.statistics.rows * this.columns.size * Costs.DISK_ACCESS_READ, 0.0f, (this.outputSize * this.columns.map { it.physicalSize }.sum()).toFloat())
         override fun copy() = FullEntityScanPhysicalNodeExpression(this.entity, this.columns)
-        override fun toStage(context: QueryPlannerContext): ExecutionStage {
-            val stage = ExecutionStage(ExecutionStage.MergeType.ONE)
-            stage.addTask(EntityLinearScanTask(this.entity, this.columns))
-            return stage
-        }
+        override fun toOperator(context: ExecutionEngine.ExecutionContext): ProducingOperator = EntityScanOperator(context, this.entity, this.columns)
     }
 
     /**
@@ -54,11 +50,7 @@ sealed class EntityScanPhysicalNodeExpression : AbstractEntityPhysicalNodeExpres
         override val outputSize = this.end - this.start
         override val cost = Cost(this.outputSize * this.columns.size * Costs.DISK_ACCESS_READ, 0.0f, (this.outputSize * this.columns.map { it.physicalSize }.sum()).toFloat())
         override fun copy() = RangedEntityScanPhysicalNodeExpression(this.entity, this.columns, this.start, this.end)
-        override fun toStage(context: QueryPlannerContext): ExecutionStage {
-            val stage = ExecutionStage(ExecutionStage.MergeType.ONE)
-            stage.addTask(EntityLinearScanTask(this.entity, this.columns, this.start, this.end))
-            return stage
-        }
+        override fun toOperator(context: ExecutionEngine.ExecutionContext): ProducingOperator = EntityScanOperator(context, this.entity, this.columns, this.start until this.end)
     }
 
     /**
@@ -72,10 +64,6 @@ sealed class EntityScanPhysicalNodeExpression : AbstractEntityPhysicalNodeExpres
         override val outputSize = this.size
         override val cost = Cost(this.size * this.columns.size * Costs.DISK_ACCESS_READ, 5 * this.size * Costs.MEMORY_ACCESS_READ, (this.outputSize * this.columns.map { it.physicalSize }.sum()).toFloat())
         override fun copy() = SampledEntityScanPhysicalNodeExpression(this.entity, this.columns, this.size, this.seed)
-        override fun toStage(context: QueryPlannerContext): ExecutionStage {
-            val stage = ExecutionStage(ExecutionStage.MergeType.ONE)
-            stage.addTask(EntitySampleTask(this.entity, this.columns, this.size, this.seed))
-            return stage
-        }
+        override fun toOperator(context: ExecutionEngine.ExecutionContext): ProducingOperator = EntitySampleOperator(context, this.entity, this.columns, this.size, this.seed)
     }
 }

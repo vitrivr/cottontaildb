@@ -1,9 +1,9 @@
 package org.vitrivr.cottontail.database.queries.planning.nodes.interfaces
 
-import org.vitrivr.cottontail.database.queries.planning.QueryPlannerContext
 import org.vitrivr.cottontail.database.queries.planning.RuleShuttle
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
-import org.vitrivr.cottontail.execution.tasks.basics.ExecutionStage
+import org.vitrivr.cottontail.execution.ExecutionEngine
+import org.vitrivr.cottontail.execution.operators.basics.ProducingOperator
 
 /**
  * [NodeExpression]s are components in the Cottontail DB execution plan and represent flow of
@@ -24,6 +24,9 @@ sealed class NodeExpression {
     /** The [NodeExpression] provides the inputs for this [NodeExpression]. */
     val inputs: MutableList<NodeExpression> = mutableListOf()
 
+    /** The [RuleShuttle] that last visited this [NodeExpression] */
+    var lastVisitor: RuleShuttle? = null
+
     /**
      * The  [NodeExpression] that receives the results produced by this [NodeExpression] as input.
      *
@@ -37,7 +40,7 @@ sealed class NodeExpression {
 
     /** True, if the tree up and until this [NodeExpression] is executable. */
     val executable: Boolean
-        get() = (this is PhysicalNodeExpression) && this.inputs.all { executable }
+        get() = (this is PhysicalNodeExpression) && this.inputs.all { it.executable }
 
     /**
      * Applies the [RewriteRule]s contained in the given [RuleShuttle] to this [NodeExpression]
@@ -47,9 +50,12 @@ sealed class NodeExpression {
      * @param shuttle The [RuleShuttle] to apply.
      * @param candidates The list of candidates.
      */
-    fun <T : NodeExpression> apply(shuttle: RuleShuttle<T>, candidates: MutableList<T>) {
-        shuttle.apply(this, candidates)
-        this.inputs.forEach { it.apply(shuttle, candidates) }
+    fun apply(shuttle: RuleShuttle, candidates: MutableList<NodeExpression>) {
+        if (this.lastVisitor != shuttle) {
+            shuttle.apply(this, candidates)
+            this.inputs.forEach { it.apply(shuttle, candidates) }
+            this.lastVisitor = shuttle
+        }
     }
 
     /**
@@ -61,7 +67,7 @@ sealed class NodeExpression {
      * @param child The [NodeExpression] that should act as new child of this [NodeExpression].
      * @return Reference to the provided [NodeExpression]
      */
-    fun updateOutput(output: NodeExpression): NodeExpression {
+    fun <T : NodeExpression> updateOutput(output: T): T {
         this.output?.inputs?.remove(this)
         output.inputs.add(this)
         this.output = output
@@ -184,6 +190,6 @@ sealed class NodeExpression {
          *
          * @return [ExecutionStage]
          */
-        abstract fun toStage(context: QueryPlannerContext): ExecutionStage
+        abstract fun toOperator(context: ExecutionEngine.ExecutionContext): ProducingOperator
     }
 }

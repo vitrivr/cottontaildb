@@ -5,7 +5,7 @@ package org.vitrivr.cottontail.database.queries.planning.nodes.interfaces
  * @author Ralph Gasser
  * @version 1.0
  */
-interface RewriteRule<T : NodeExpression> {
+interface RewriteRule {
     /**
      * Checks if this [LogicalRewriteRule] can be applied to the given [NodeExpression]
      *
@@ -21,5 +21,5 @@ interface RewriteRule<T : NodeExpression> {
      * @param node The input [NodeExpression].
      * @return The output [NodeExpression] or null, if no rewrite was done.
      */
-    fun apply(node: NodeExpression): T?
+    fun apply(node: NodeExpression): NodeExpression?
 }

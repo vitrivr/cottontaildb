@@ -1,9 +1,9 @@
 package org.vitrivr.cottontail.database.queries.planning.nodes.physical.recordset
 
-import org.vitrivr.cottontail.database.queries.planning.QueryPlannerContext
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
-import org.vitrivr.cottontail.execution.tasks.basics.ExecutionStage
-import org.vitrivr.cottontail.execution.tasks.recordset.transform.RecordsetLimitTask
+import org.vitrivr.cottontail.execution.ExecutionEngine
+import org.vitrivr.cottontail.execution.operators.basics.ProducingOperator
+import org.vitrivr.cottontail.execution.operators.transform.LimitOperator
 import kotlin.math.min
 
 /**
@@ -12,7 +12,7 @@ import kotlin.math.min
  * @author Ralph Gasser
  * @version 1.0
  */
-class RecordsetLimitPhysicalNodeExpression(limit: Long, skip: Long) : AbstractRecordsetPhysicalNodeExpression() {
+class LimitPhysicalNodeExpression(limit: Long, skip: Long) : AbstractRecordsetPhysicalNodeExpression() {
 
     val limit = if (limit.coerceAtLeast(0) == 0L) {
         Long.MAX_VALUE
@@ -32,11 +32,7 @@ class RecordsetLimitPhysicalNodeExpression(limit: Long, skip: Long) : AbstractRe
     override val cost: Cost
         get() = Cost(cpu = this.outputSize * 1e-5f, memory = this.input.let { (it.cost.memory / it.outputSize) * this.outputSize })
 
-    override fun copy() = RecordsetLimitPhysicalNodeExpression(this.limit, this.skip)
+    override fun copy() = LimitPhysicalNodeExpression(this.limit, this.skip)
 
-    override fun toStage(context: QueryPlannerContext): ExecutionStage {
-        val stage = ExecutionStage(ExecutionStage.MergeType.ONE, this.input.toStage(context))
-        stage.addTask(RecordsetLimitTask(this.limit, this.skip))
-        return stage
-    }
+    override fun toOperator(context: ExecutionEngine.ExecutionContext): ProducingOperator = LimitOperator(this.input.toOperator(context), context, this.skip, this.limit)
 }

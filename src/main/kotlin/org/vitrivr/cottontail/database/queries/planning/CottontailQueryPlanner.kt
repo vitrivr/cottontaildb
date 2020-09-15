@@ -1,10 +1,9 @@
 package org.vitrivr.cottontail.database.queries.planning
 
-import org.vitrivr.cottontail.database.queries.planning.nodes.interfaces.LogicalRewriteRule
 import org.vitrivr.cottontail.database.queries.planning.nodes.interfaces.NodeExpression
-import org.vitrivr.cottontail.database.queries.planning.nodes.interfaces.PhysicalRewriteRule
+import org.vitrivr.cottontail.database.queries.planning.nodes.interfaces.RewriteRule
 import org.vitrivr.cottontail.database.queries.planning.rules.logical.ConjunctionRewriteRule
-import org.vitrivr.cottontail.database.queries.planning.rules.physical.pushdown.*
+import org.vitrivr.cottontail.database.queries.planning.rules.physical.implementation.*
 import java.util.*
 
 /**
@@ -24,8 +23,8 @@ import java.util.*
  * @version 1.1
  */
 class CottontailQueryPlanner(
-        stage1Rules: Collection<LogicalRewriteRule> = DEFAULT_STAGE1_RULESET,
-        stage2Rules: Collection<PhysicalRewriteRule> = DEFAULT_STAGE2_RULESET
+        stage1Rules: Collection<RewriteRule> = DEFAULT_STAGE1_RULESET,
+        stage2Rules: Collection<RewriteRule> = DEFAULT_STAGE2_RULESET
 ) {
 
     /**
@@ -34,16 +33,15 @@ class CottontailQueryPlanner(
     companion object {
 
         /** Ruleset for Stage 1 of optimisation. */
-        val DEFAULT_STAGE1_RULESET = listOf<LogicalRewriteRule>(ConjunctionRewriteRule)
+        val DEFAULT_STAGE1_RULESET = listOf<RewriteRule>(ConjunctionRewriteRule)
 
         /** Ruleset for Stage 2 of optimisation. */
         val DEFAULT_STAGE2_RULESET = listOf(
-                KnnPushdownRule,
-                KnnIndexRule,
-                LimitPushdownRule,
-                PredicatePushdownRule,
-                PredicatePushdownWithIndexRule,
-                AggregatingProjectionPushdownRule
+                EntityScanImplementationRule,
+                FilterImplementationRule,
+                KnnImplementationRule,
+                LimitImplementationRule,
+                ProjectionImplementationRule
         )
     }
 
@@ -62,13 +60,13 @@ class CottontailQueryPlanner(
      * @param recursion The depth of recursion before final candidate is selected.
      * @param candidatesPerLevel The number of candidates to generate per recursion level.
      */
-    fun plan(expression: LogicalNodeExpression, recursion: Int, candidatesPerLevel: Int): Collection<NodeExpression> {
+    fun plan(expression: NodeExpression.LogicalNodeExpression, recursion: Int, candidatesPerLevel: Int): Collection<NodeExpression.PhysicalNodeExpression> {
         /** Generate stage 1 candidates by logical optimization. */
         val stage1 = this.optimize(expression, this.stage1Shuttle, recursion, candidatesPerLevel)
 
         /** Generate stage 2 candidates by physical optimization. */
         val stage2 = stage1.flatMap { this.optimize(it, this.stage2Shuttle, recursion, candidatesPerLevel) }
-        return stage2.filter { it.root.executable }
+        return stage2.filter { it.root.executable }.filterIsInstance<NodeExpression.PhysicalNodeExpression>()
     }
 
 
@@ -78,7 +76,7 @@ class CottontailQueryPlanner(
      *
      * @param expression The [LogicalNodeExpression] that should be optimized.
      */
-    fun optimize(expression: NodeExpression, shuttle: RuleShuttle<*>, recursion: Int, candidatesPerLevel: Int): Collection<NodeExpression> {
+    fun optimize(expression: NodeExpression, shuttle: RuleShuttle, recursion: Int, candidatesPerLevel: Int): Collection<NodeExpression> {
         val candidates = mutableListOf<NodeExpression>()
         if (recursion > 0) {
             for (e in this.generateCandidates(expression, shuttle)) {
@@ -97,10 +95,10 @@ class CottontailQueryPlanner(
      * @param shuttle The [RuleShuttle] to use for optimization.
      * @param stopAfter The maximum number of iterations after which optimization will be aborted.
      */
-    private fun <T : NodeExpression> generateCandidates(expression: NodeExpression, shuttle: RuleShuttle<T>, stopAfter: Int = Int.MAX_VALUE): Collection<T> {
+    private fun generateCandidates(expression: NodeExpression, shuttle: RuleShuttle, stopAfter: Int = Int.MAX_VALUE): Collection<NodeExpression> {
 
         /** Initialize the list of LogicalNodeExpression candidates with the initial expression. */
-        val candidates = LinkedList<T>()
+        val candidates = LinkedList<NodeExpression>()
         val next = LinkedList<NodeExpression>()
         next.add(expression)
 
@@ -108,7 +106,7 @@ class CottontailQueryPlanner(
         var iterations = 0
         while (next.size > 0 && iterations <= stopAfter) {
             val current = next.removeAt(0)
-            val localCandidates = mutableListOf<T>()
+            val localCandidates = mutableListOf<NodeExpression>()
             current.apply(shuttle, localCandidates)
 
             if (localCandidates.size > 0) {
