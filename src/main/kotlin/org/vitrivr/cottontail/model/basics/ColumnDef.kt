@@ -4,7 +4,6 @@ import org.vitrivr.cottontail.database.column.*
 import org.vitrivr.cottontail.model.exceptions.ValidationException
 import org.vitrivr.cottontail.model.values.*
 import org.vitrivr.cottontail.model.values.types.Value
-import java.util.*
 
 
 /**
@@ -104,7 +103,7 @@ class ColumnDef<T: Value>(val name: Name.ColumnName, val type: ColumnType<T>, va
         this.type is FloatVectorColumnType -> FloatVectorValue(FloatArray(this.logicalSize))
         this.type is LongVectorColumnType -> LongVectorValue(LongArray(this.logicalSize))
         this.type is IntVectorColumnType -> IntVectorValue(IntArray(this.logicalSize))
-        this.type is BooleanVectorColumnType -> BooleanVectorValue(BitSet(this.logicalSize))
+        this.type is BooleanVectorColumnType -> BooleanVectorValue(BooleanArray(this.logicalSize))
         this.type is Complex32VectorColumnType -> Complex32VectorValue(FloatArray(2 * this.logicalSize) { 0.0f })
         this.type is Complex64VectorColumnType -> Complex64VectorValue(DoubleArray(2 * this.logicalSize) { 0.0 })
         else -> throw RuntimeException("Default value for the specified type $type has not been specified yet!")

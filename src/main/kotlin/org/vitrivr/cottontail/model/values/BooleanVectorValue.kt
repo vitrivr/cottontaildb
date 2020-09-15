@@ -1,7 +1,6 @@
 package org.vitrivr.cottontail.model.values
 
 import org.vitrivr.cottontail.model.values.types.*
-import org.vitrivr.cottontail.utilities.extensions.init
 import org.vitrivr.cottontail.utilities.extensions.toInt
 import java.util.*
 
@@ -69,7 +68,7 @@ inline class BooleanVectorValue(val value: BooleanArray) : VectorValue<Int> {
      *
      * @return Exact copy of this [BooleanVectorValue].
      */
-    override fun copy(): BooleanVectorValue = BooleanVectorValue(BitSet(this.logicalSize).init { this.value[it] })
+    override fun copy(): BooleanVectorValue = BooleanVectorValue(this.value.copyOf())
 
     override fun plus(other: VectorValue<*>): VectorValue<Int> {
         throw UnsupportedOperationException("A BooleanVector array cannot be used to perform arithmetic operations!")

@@ -3,7 +3,6 @@ package org.vitrivr.cottontail.server.grpc.helper
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.values.*
-import org.vitrivr.cottontail.utilities.extensions.init
 import java.util.*
 
 /**
@@ -143,8 +142,8 @@ fun CottontailGrpc.Data.toShortValue(): ShortValue? = when (this.dataCase) {
     }).toShort())
     CottontailGrpc.Data.DataCase.INTDATA -> ShortValue(this.intData.toShort())
     CottontailGrpc.Data.DataCase.LONGDATA -> ShortValue(this.longData.toShort())
-    CottontailGrpc.Data.DataCase.FLOATDATA -> ShortValue(this.floatData.toShort())
-    CottontailGrpc.Data.DataCase.DOUBLEDATA -> ShortValue(this.doubleData.toShort())
+    CottontailGrpc.Data.DataCase.FLOATDATA -> ShortValue(this.floatData.toInt().toShort())
+    CottontailGrpc.Data.DataCase.DOUBLEDATA -> ShortValue(this.doubleData.toInt().toShort())
     CottontailGrpc.Data.DataCase.STRINGDATA -> ShortValue(this.stringData.toShortOrNull()
             ?: throw QueryException.UnsupportedCastException("A value of type STRING (v='${this.stringData}') cannot be cast to SHORT."))
     CottontailGrpc.Data.DataCase.NULLDATA -> null
@@ -169,8 +168,8 @@ fun CottontailGrpc.Data.toByteValue(): ByteValue? = when (this.dataCase) {
     }).toByte())
     CottontailGrpc.Data.DataCase.INTDATA -> ByteValue(this.intData.toByte())
     CottontailGrpc.Data.DataCase.LONGDATA -> ByteValue(this.longData.toByte())
-    CottontailGrpc.Data.DataCase.FLOATDATA -> ByteValue(this.floatData.toByte())
-    CottontailGrpc.Data.DataCase.DOUBLEDATA -> ByteValue(this.doubleData.toByte())
+    CottontailGrpc.Data.DataCase.FLOATDATA -> ByteValue(this.floatData.toInt().toByte())
+    CottontailGrpc.Data.DataCase.DOUBLEDATA -> ByteValue(this.doubleData.toInt().toByte())
     CottontailGrpc.Data.DataCase.STRINGDATA -> ByteValue(this.stringData.toByteOrNull()
             ?: throw QueryException.UnsupportedCastException("A value of type STRING (v='${this.stringData}') cannot be cast to BYTE."))
     CottontailGrpc.Data.DataCase.NULLDATA -> null
@@ -404,12 +403,12 @@ fun CottontailGrpc.Data.toIntVectorValue(): IntVectorValue? = when (this.dataCas
  * @throws QueryException.UnsupportedCastException If cast is not possible.
  */
 fun CottontailGrpc.Data.toBooleanVectorValue(): BooleanVectorValue? = when (this.dataCase) {
-    CottontailGrpc.Data.DataCase.BOOLEANDATA -> BooleanVectorValue(BitSet(1).init { this.booleanData })
-    CottontailGrpc.Data.DataCase.INTDATA -> BooleanVectorValue(BitSet(1).init { this.intData > 0 })
-    CottontailGrpc.Data.DataCase.LONGDATA -> BooleanVectorValue(BitSet(1).init { this.longData > 0 })
-    CottontailGrpc.Data.DataCase.FLOATDATA -> BooleanVectorValue(BitSet(1).init { this.floatData > 0f })
-    CottontailGrpc.Data.DataCase.DOUBLEDATA -> BooleanVectorValue(BitSet(1).init { this.doubleData > 0.0 })
-    CottontailGrpc.Data.DataCase.STRINGDATA -> BooleanVectorValue(BitSet(1).init { this.stringData == "true" })
+    CottontailGrpc.Data.DataCase.BOOLEANDATA -> BooleanVectorValue(BooleanArray(1))
+    CottontailGrpc.Data.DataCase.INTDATA -> BooleanVectorValue(BooleanArray(1) { this.intData > 0 })
+    CottontailGrpc.Data.DataCase.LONGDATA -> BooleanVectorValue(BooleanArray(1) { this.longData > 0 })
+    CottontailGrpc.Data.DataCase.FLOATDATA -> BooleanVectorValue(BooleanArray(1) { this.floatData > 0f })
+    CottontailGrpc.Data.DataCase.DOUBLEDATA -> BooleanVectorValue(BooleanArray(1) { this.doubleData > 0.0 })
+    CottontailGrpc.Data.DataCase.STRINGDATA -> BooleanVectorValue(BooleanArray(1) { this.stringData == "true" })
     CottontailGrpc.Data.DataCase.VECTORDATA -> this.vectorData.toBooleanVectorValue()
     CottontailGrpc.Data.DataCase.NULLDATA -> null
     CottontailGrpc.Data.DataCase.COMPLEX32DATA -> throw QueryException.UnsupportedCastException("A value of COMPLEX32 cannot be cast to VECTOR[BOOL].")
