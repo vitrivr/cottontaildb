@@ -10,6 +10,14 @@ inline class ByteValue(override val value: Byte): RealValue<Byte> {
         val ZERO = ByteValue(0.toByte())
     }
 
+    /**
+     * Constructor for an arbitrary [Number].
+     *
+     * @param number The [Number] that should be converted to a [ShortValue]
+     */
+    constructor(number: Number) : this(number.toByte())
+
+
     override val logicalSize: Int
         get() = -1
 
