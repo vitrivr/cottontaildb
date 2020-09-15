@@ -88,9 +88,6 @@ dependencies {
     compile group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.13.2'
     compile group: 'org.slf4j', name: 'slf4j-log4j12', version: '1.7.30'
 
-    ////// Dexecutor
-    compile group: 'com.github.dexecutor', name: 'dexecutor-core', version: '2.1.1'
-
     ////// Lucene
     compile group: 'org.apache.lucene', name: 'lucene-core', version: luceneVersion
     compile group: 'org.apache.lucene', name: 'lucene-analyzers-common', version: luceneVersion
@@ -99,6 +96,7 @@ dependencies {
 
     ////// CLIKT
     compile group: 'com.github.ajalt', name: 'clikt', version: '2.6.0'
+
     ////// JLine 3
     compile group: 'org.jline', name: 'jline', version: '3.15.0'
 
