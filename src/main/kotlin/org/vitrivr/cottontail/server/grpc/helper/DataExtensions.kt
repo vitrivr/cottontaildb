@@ -404,12 +404,12 @@ fun CottontailGrpc.Data.toIntVectorValue(): IntVectorValue? = when (this.dataCas
  * @throws QueryException.UnsupportedCastException If cast is not possible.
  */
 fun CottontailGrpc.Data.toBooleanVectorValue(): BooleanVectorValue? = when (this.dataCase) {
-    CottontailGrpc.Data.DataCase.BOOLEANDATA -> BooleanVectorValue(BitSet(1).init { this.booleanData })
-    CottontailGrpc.Data.DataCase.INTDATA -> BooleanVectorValue(BitSet(1).init { this.intData > 0 })
-    CottontailGrpc.Data.DataCase.LONGDATA -> BooleanVectorValue(BitSet(1).init { this.longData > 0 })
-    CottontailGrpc.Data.DataCase.FLOATDATA -> BooleanVectorValue(BitSet(1).init { this.floatData > 0f })
-    CottontailGrpc.Data.DataCase.DOUBLEDATA -> BooleanVectorValue(BitSet(1).init { this.doubleData > 0.0 })
-    CottontailGrpc.Data.DataCase.STRINGDATA -> BooleanVectorValue(BitSet(1).init { this.stringData == "true" })
+    CottontailGrpc.Data.DataCase.BOOLEANDATA -> BooleanVectorValue(BooleanArray(1) { this.booleanData })
+    CottontailGrpc.Data.DataCase.INTDATA -> BooleanVectorValue(BooleanArray(1) { this.intData > 0 })
+    CottontailGrpc.Data.DataCase.LONGDATA -> BooleanVectorValue(BooleanArray(1) { this.longData > 0 })
+    CottontailGrpc.Data.DataCase.FLOATDATA -> BooleanVectorValue(BooleanArray(1) { this.floatData > 0f })
+    CottontailGrpc.Data.DataCase.DOUBLEDATA -> BooleanVectorValue(BooleanArray(1) { this.doubleData > 0.0 })
+    CottontailGrpc.Data.DataCase.STRINGDATA -> BooleanVectorValue(BooleanArray(1) { this.stringData == "true" })
     CottontailGrpc.Data.DataCase.VECTORDATA -> this.vectorData.toBooleanVectorValue()
     CottontailGrpc.Data.DataCase.NULLDATA -> null
     CottontailGrpc.Data.DataCase.COMPLEX32DATA -> throw QueryException.UnsupportedCastException("A value of COMPLEX32 cannot be cast to VECTOR[BOOL].")

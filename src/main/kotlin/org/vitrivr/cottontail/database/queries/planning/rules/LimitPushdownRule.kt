@@ -18,7 +18,7 @@ object LimitPushdownRule : NodeRewriteRule {
             val p1 = node.parents.first()
             if (p1 is EntityScanNodeExpression.FullEntityScanNodeExpression) {
                 val start = 1L + node.skip // TODO: This actually only works if there are no deletions.
-                val end = (start + node.limit).coerceAtMost(p1.entity.statistics.rows)
+                val end = (start + node.limit)
                 val res = EntityScanNodeExpression.RangedEntityScanNodeExpression(p1.entity, p1.columns, start, end)
                 val childNode = node.copyChildren()
                 if (childNode != null) {

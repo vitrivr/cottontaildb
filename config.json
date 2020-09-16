@@ -1,5 +1,5 @@
 {
-  "root": "/cottontaildb-data",
+  "root": "./cottontaildb-data",
   "memoryConfig": {
     "forceUnmapMappedFiles": true,
     "dataPageShift": 22,

@@ -1,11 +1,18 @@
-FROM zenika/kotlin:1.3-jdk11
+FROM zenika/kotlin:1.3-jdk11 AS build
 
-RUN apt-get update
-RUN apt-get install -y git
+COPY . /cottontail-src
+RUN cd /cottontail-src && \
+  ./gradlew distTar && \
+  mkdir cottontaildb-bin && \
+  cd cottontaildb-bin && \
+  tar xf ../build/distributions/cottontaildb-bin.tar
+
+
+FROM zenika/kotlin:1.3-jdk11-slim
+
 RUN mkdir /cottontaildb-data
-
-ADD config.json /cottontaildb-data/
-ADD build/distributions/cottontaildb-bin.tar /
+COPY config.json /cottontaildb-data/
+COPY --from=build /cottontail-src/cottontaildb-bin /
 
 EXPOSE 1865
 

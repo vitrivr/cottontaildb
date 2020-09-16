@@ -8,12 +8,27 @@ import java.util.*
  * Utility class used to generate a stream of [VectorValue]s.
  *
  * @author Ralph Gasser
- * @version 1.1
+ * @version 1.2
  */
 object VectorUtility {
 
     /**
-     * Generates a sequence of random [IntArray] of the given size.
+     * Generates a sequence of random [BooleanVectorValue] of the given size.
+     *
+     * @param size The size of the random vectors.
+     * @param items The number of items to return from the [Iterator]
+     */
+    fun randomBoolVectorSequence(size: Int, items: Int = Int.MAX_VALUE, random: SplittableRandom = SplittableRandom()): Iterator<BooleanVectorValue> = object : Iterator<BooleanVectorValue> {
+        var left = items
+        override fun hasNext(): Boolean = this.left > 0
+        override fun next(): BooleanVectorValue {
+            this.left -= 1
+            return BooleanVectorValue.random(size, random)
+        }
+    }
+
+    /**
+     * Generates a sequence of random [IntVectorValue] of the given size.
      *
      * @param size The size of the random vectors.
      * @param items The number of items to return from the [Iterator]
@@ -28,7 +43,7 @@ object VectorUtility {
     }
 
     /**
-     * Generates a sequence of random [FloatArray] of the given size.
+     * Generates a sequence of random [LongVectorValue] of the given size.
      *
      * @param size The size of the random vectors.
      * @param items The number of items to return from the [Iterator]
