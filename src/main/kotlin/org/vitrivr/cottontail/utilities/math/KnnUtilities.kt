@@ -13,7 +13,7 @@ import org.vitrivr.cottontail.model.values.DoubleValue
  * Utilities and constants used for nearest neighbor search.
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.1
  */
 object KnnUtilities {
 
@@ -24,13 +24,28 @@ object KnnUtilities {
     val DISTANCE_COLUMN_TYPE = DoubleColumnType
 
     /**
-     * Combines a [Collection] of [MinHeapSelection] data structures into a [Recordset].
+     * Transforms a [Selection] data structure into a [Recordset].
      *
-     * @param column The [ColumnDef] of the new [Recordset]
+     * @param columns The [ColumnDef] of the new [Recordset]
+     * @param selection The [Selection] to convert.
+     * @return [Recordset]
+     */
+    fun selectionToRecordset(columns: Array<ColumnDef<*>>, selection: Selection<ComparablePair<Record, DoubleValue>>): Recordset {
+        val dataset = Recordset(columns, capacity = selection.size.toLong())
+        for (i in 0 until selection.size) {
+            dataset.addRowUnsafe(selection[i].first.tupleId, arrayOf(*selection[i].first.values, DoubleValue(selection[i].second)))
+        }
+        return dataset
+    }
+
+    /**
+     * Combines a [Collection] of [Selection] data structures into a [Recordset].
+     *
+     * @param columns The [ColumnDef] of the new [Recordset]
      * @param list List of [MinHeapSelection]s to combine.
      * @return [Recordset]
      */
-    fun selectToRecordset(columns: Array<ColumnDef<*>>, list: List<Selection<ComparablePair<Record, DoubleValue>>>): Recordset {
+    fun selectionsToRecordset(columns: Array<ColumnDef<*>>, list: Collection<Selection<ComparablePair<Record, DoubleValue>>>): Recordset {
         val dataset = Recordset(columns, capacity = (list.size * list.first().size).toLong())
         for (knn in list) {
             for (i in 0 until knn.size) {

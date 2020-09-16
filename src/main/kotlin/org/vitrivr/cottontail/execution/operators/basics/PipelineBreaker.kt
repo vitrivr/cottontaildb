@@ -22,7 +22,6 @@ abstract class PipelineBreaker(val parent: ProducingOperator, context: Execution
     override val depleted: Boolean
         get() = this.nextIndex >= (this.cache?.rowCount ?: Long.MAX_VALUE)
 
-
     /** Cached [Recordset] that contains materialized data. */
     protected var cache: Recordset? = null
 
@@ -47,7 +46,7 @@ abstract class PipelineBreaker(val parent: ProducingOperator, context: Execution
         this.status = OperatorStatus.OPEN
     }
 
-    /** Implementation of [Operator.next] */
+    /** Implementation of [ProducingOperator.next] */
     final override fun next(): Record? {
         check(this.status == OperatorStatus.OPEN) { "Cannot call next() on an operator that is in state ${this.status}." }
 

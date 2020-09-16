@@ -116,16 +116,15 @@ class ExecutionEngine(config: ExecutionConfig) {
          * @param callable The [Callable] that should be executed.
          * @return The [Recordset] produced by the [Callable]
          */
-        fun executeBranch(branch: Callable<Recordset>): Future<Recordset> = this@ExecutionEngine.executor.submit(branch)
+        fun <T> executeBranch(branch: Callable<T>): Future<T> = this@ExecutionEngine.executor.submit(branch)
 
         /**
-         * Executes a branches represented by a list of [Callable]s. Waits for all [Callable]s
-         * to complete.
+         * Executes a branches represented by a list of [Callable]s. Waits for all [Callable]s to complete.
          *
          * @param callables The [Callable]s that should be executed.
          * @return The [Recordset]s produced by the [Callable]s
          */
-        fun executeBranches(branches: List<Callable<Recordset>>): List<Future<Recordset>> = branches.map { this@ExecutionEngine.executor.submit(it) }
+        fun <T> executeBranches(branches: List<Callable<T>>): List<Future<T>> = this@ExecutionEngine.executor.invokeAll(branches)
 
         /**
          * Executes this [ExecutionContext] and pushes all [Record]s into the provided [Consumer].

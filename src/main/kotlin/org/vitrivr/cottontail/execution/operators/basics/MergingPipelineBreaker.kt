@@ -3,7 +3,7 @@ package org.vitrivr.cottontail.execution.operators.basics
 import org.vitrivr.cottontail.execution.ExecutionEngine
 import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.recordset.Recordset
-import java.util.concurrent.Future
+import java.util.concurrent.Callable
 
 /**
  * An [Operator] that can be pipelined and has multiple, incoming parent [Operator]s that must
@@ -22,7 +22,7 @@ abstract class MergingPipelineBreaker(val parents: List<ProducingOperator>, cont
         get() = this.parents.all { it.operational }
 
     /** Implementation of [Operator.open] */
-    final override fun open() {
+    override fun open() {
         check(this.status == OperatorStatus.CREATED) { "Cannot open operator that is in state ${this.status}." }
 
         /* Call parents. */
@@ -35,13 +35,15 @@ abstract class MergingPipelineBreaker(val parents: List<ProducingOperator>, cont
         this.status = OperatorStatus.OPEN
     }
 
-    /** Implementation of [Operator.next] */
-    final override fun next(): Record? {
+    /** Implementation of [ProducingOperator.next] */
+    override fun next(): Record? {
         check(this.status == OperatorStatus.OPEN) { "Cannot call next() on an operator that is in state ${this.status}." }
 
         /* Checks if cache is null and triggers execution of incoming operators, if true. */
         if (this.caches.isEmpty()) {
-            this.caches.addAll(this.executeIncomingOperators().get())
+            val branches = this.incomingOperators()
+            val future = this.context.executeBranches(branches)
+            future.forEach { this.caches.add(it.get()) }
         }
 
         /* Returns the next record. */
@@ -56,7 +58,7 @@ abstract class MergingPipelineBreaker(val parents: List<ProducingOperator>, cont
     protected abstract fun getNext(): Record?
 
     /** Implementation of [Operator.close] */
-    final override fun close() {
+    override fun close() {
         check(this.status == OperatorStatus.OPEN) { "Cannot close operator that is state ${this.status}." }
 
         /* Call parents. */
@@ -95,5 +97,5 @@ abstract class MergingPipelineBreaker(val parents: List<ProducingOperator>, cont
      *
      * @return [Recordset] of materialized data.
      */
-    abstract fun executeIncomingOperators(): Future<List<Recordset>>
+    abstract fun incomingOperators(): List<Callable<Recordset>>
 }
