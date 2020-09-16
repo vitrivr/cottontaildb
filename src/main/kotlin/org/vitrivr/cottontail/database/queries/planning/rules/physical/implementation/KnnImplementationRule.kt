@@ -6,6 +6,9 @@ import org.vitrivr.cottontail.database.queries.planning.nodes.logical.KnnLogical
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.recordset.KnnPhysicalNodeExpression
 
 /**
+ * A [RewriteRule] that implements a [KnnLogicalNodeExpression] by a [KnnPhysicalNodeExpression].
+ *
+ * This is a simple 1:1 replacement (implementation).
  *
  * @author Ralph Gasser
  * @version 1.0

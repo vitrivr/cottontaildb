@@ -3,9 +3,14 @@ package org.vitrivr.cottontail.database.queries.planning.rules.physical.implemen
 import org.vitrivr.cottontail.database.queries.planning.nodes.interfaces.NodeExpression
 import org.vitrivr.cottontail.database.queries.planning.nodes.interfaces.RewriteRule
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.FilterLogicalNodeExpression
+import org.vitrivr.cottontail.database.queries.planning.nodes.logical.KnnLogicalNodeExpression
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.recordset.FilterPhysicalNodeExpression
+import org.vitrivr.cottontail.database.queries.planning.nodes.physical.recordset.KnnPhysicalNodeExpression
 
 /**
+ * A [RewriteRule] that implements a [FilterLogicalNodeExpression] by a [FilterPhysicalNodeExpression].
+ *
+ * This is a simple 1:1 replacement (implementation).
  *
  * @author Ralph Gasser
  * @version 1.0
