@@ -66,28 +66,32 @@ class GrpcQueryBinder(val catalogue: Catalogue) {
         /* Create WHERE-clause. */
         if (query.hasWhere()) {
             val where = FilterLogicalNodeExpression(parseAndBindBooleanPredicate(entity, query.where))
-            where.addInput(root)
+            root = where.addInput(root)
         }
 
         /* Process kNN-clause (Important: mind precedence of WHERE-clause. */
         if (query.hasKnn()) {
             val knn = KnnLogicalNodeExpression(parseAndBindKnnPredicate(entity, query.knn))
             knn.addInput(root)
+            root = knn
         }
 
         /* Process projection clause. */
         root = if (query.hasProjection()) {
             val projection = parseAndBindProjection(entity, query.projection)
             projection.addInput(root)
+            projection
         } else {
             val projection = parseAndBindProjection(entity, CottontailGrpc.Projection.newBuilder().setOp(CottontailGrpc.Projection.Operation.SELECT).putAttributes("*", "").build())
             projection.addInput(root)
+            projection
         }
 
         /* Process LIMIT and SKIP. */
         if (query.limit > 0L || query.skip > 0L) {
             val limit = LimitLogicalNodeExpression(query.limit, query.skip)
-            limit.addInput(root)
+            root = limit.addInput(root)
+            root = limit
         }
 
         return root
