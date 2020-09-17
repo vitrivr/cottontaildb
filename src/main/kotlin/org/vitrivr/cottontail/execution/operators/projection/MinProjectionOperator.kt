@@ -2,8 +2,8 @@ package org.vitrivr.cottontail.execution.operators.projection
 
 import org.vitrivr.cottontail.database.column.*
 import org.vitrivr.cottontail.execution.ExecutionEngine
-import org.vitrivr.cottontail.execution.exceptions.ExecutionException
-import org.vitrivr.cottontail.execution.exceptions.OperatorException
+import org.vitrivr.cottontail.execution.exceptions.OperatorExecutionException
+import org.vitrivr.cottontail.execution.exceptions.OperatorSetupException
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.basics.PipelineBreaker
 import org.vitrivr.cottontail.execution.operators.basics.ProducingOperator
@@ -40,7 +40,7 @@ class MinProjectionOperator(parent: ProducingOperator, context: ExecutionEngine.
                 ?: Name.ColumnName("max(${column.name})"), "FLOAT"))
         DoubleColumnType -> arrayOf(ColumnDef.withAttributes(parent.columns.first().name.entity()?.column("max(${column.name})")
                 ?: Name.ColumnName("max(${column.name})"), "DOUBLE"))
-        else -> throw OperatorException("The provided column $column type cannot be used for a MIN projection. ")
+        else -> throw OperatorSetupException("The provided column $column type cannot be used for a MIN projection. ")
     }
 
     override fun prepareOpen() {}
@@ -74,7 +74,7 @@ class MinProjectionOperator(parent: ProducingOperator, context: ExecutionEngine.
             LongColumnType -> recordset.addRowUnsafe(arrayOf(LongValue(min)))
             FloatColumnType -> recordset.addRowUnsafe(arrayOf(FloatValue(min)))
             DoubleColumnType -> recordset.addRowUnsafe(arrayOf(DoubleValue(min)))
-            else -> throw ExecutionException("The provided column $column cannot be used for a MIN projection. ")
+            else -> throw OperatorExecutionException("The provided column $column cannot be used for a MIN projection. ")
         }
         recordset
     }

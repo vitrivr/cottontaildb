@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.execution.operators.predicates
 
 import org.vitrivr.cottontail.database.queries.components.KnnPredicate
 import org.vitrivr.cottontail.execution.ExecutionEngine
-import org.vitrivr.cottontail.execution.exceptions.OperatorException
+import org.vitrivr.cottontail.execution.exceptions.OperatorSetupException
 import org.vitrivr.cottontail.execution.operators.basics.*
 import org.vitrivr.cottontail.math.knn.selection.ComparablePair
 import org.vitrivr.cottontail.math.knn.selection.MinHeapSelection
@@ -80,7 +80,7 @@ class ParallelKnnOperator(parents: List<ProducingOperator>, context: ExecutionEn
     init {
         /* Sanity check; columns must be the same for all parents. */
         if (!this.parents.all { it.columns.contentEquals(this.parents.first().columns) }) {
-            throw OperatorException("Error during setup of ParallelKnnOperator; columns produced by incoming branches are not the same.")
+            throw OperatorSetupException("Error during setup of ParallelKnnOperator; columns produced by incoming branches are not the same.")
         }
     }
 

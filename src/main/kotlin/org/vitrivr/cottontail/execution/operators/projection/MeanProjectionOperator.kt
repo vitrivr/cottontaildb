@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.execution.operators.projection
 
 import org.vitrivr.cottontail.execution.ExecutionEngine
-import org.vitrivr.cottontail.execution.exceptions.ExecutionException
+import org.vitrivr.cottontail.execution.exceptions.OperatorExecutionException
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.basics.PipelineBreaker
 import org.vitrivr.cottontail.execution.operators.basics.ProducingOperator
@@ -44,7 +44,7 @@ class MeanProjectionOperator(parent: ProducingOperator, context: ExecutionEngine
                     is LongValue -> value.value.toDouble()
                     is FloatValue -> value.value.toDouble()
                     is DoubleValue -> value.value
-                    else -> throw ExecutionException("The provided column $column cannot be used for a MEAN projection.")
+                    else -> throw OperatorExecutionException("The provided column $column cannot be used for a MEAN projection.")
                 }
             }
         }
