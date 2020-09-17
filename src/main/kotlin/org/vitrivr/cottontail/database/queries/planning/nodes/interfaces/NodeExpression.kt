@@ -110,7 +110,7 @@ abstract class NodeExpression {
         val t = this.copy()
         for (p in this.inputs) {
             val c = p.copyWithInputs()
-            c.addInput(c)
+            t.addInput(c)
         }
         return t
     }
