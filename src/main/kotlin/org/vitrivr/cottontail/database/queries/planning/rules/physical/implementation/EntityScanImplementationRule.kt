@@ -2,8 +2,8 @@ package org.vitrivr.cottontail.database.queries.planning.rules.physical.implemen
 
 import org.vitrivr.cottontail.database.queries.planning.nodes.interfaces.NodeExpression
 import org.vitrivr.cottontail.database.queries.planning.nodes.interfaces.RewriteRule
-import org.vitrivr.cottontail.database.queries.planning.nodes.logical.EntityScanLogicalNodeExpression
-import org.vitrivr.cottontail.database.queries.planning.nodes.physical.entity.EntityScanPhysicalNodeExpression
+import org.vitrivr.cottontail.database.queries.planning.nodes.logical.sources.EntityScanLogicalNodeExpression
+import org.vitrivr.cottontail.database.queries.planning.nodes.physical.sources.EntityScanPhysicalNodeExpression
 
 /**
  * A [RewriteRule] that replaces a [EntityScanLogicalNodeExpression] by a [EntityScanPhysicalNodeExpression].

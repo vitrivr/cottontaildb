@@ -1,15 +1,14 @@
-package org.vitrivr.cottontail.database.queries.planning.nodes.logical
-
-import org.vitrivr.cottontail.database.queries.planning.nodes.interfaces.NodeExpression
+package org.vitrivr.cottontail.database.queries.planning.nodes.logical.projection
+import org.vitrivr.cottontail.database.queries.planning.nodes.logical.UnaryLogicalNodeExpression
 
 /**
- * A [NodeExpression.LogicalNodeExpression] that represents the application of a LIMIT and/or SKIP clause on the
+ * A [UnaryLogicalNodeExpression] that represents the application of a LIMIT and/or SKIP clause on the
  * final result [org.vitrivr.cottontail.model.recordset.Recordset].
  *
  * @author Ralph Gasser
  * @version 1.0
  */
-class LimitLogicalNodeExpression(limit: Long, skip: Long) : NodeExpression.LogicalNodeExpression() {
+class LimitLogicalNodeExpression(limit: Long, skip: Long): UnaryLogicalNodeExpression() {
 
     /** Number of records to limit the result set to. */
     val limit = if (limit.coerceAtLeast(0) == 0L) {
@@ -24,9 +23,6 @@ class LimitLogicalNodeExpression(limit: Long, skip: Long) : NodeExpression.Logic
     } else {
         skip
     }
-
-    /** Input arity of [LimitLogicalNodeExpression] is always one, since it acts on a single [org.vitrivr.cottontail.model.recordset.Recordset]. */
-    override val inputArity: Int = 1
 
     /**
      * Returns a copy of this [LimitLogicalNodeExpression]

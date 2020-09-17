@@ -1,19 +1,20 @@
-package org.vitrivr.cottontail.database.queries.planning.nodes.physical.recordset
+package org.vitrivr.cottontail.database.queries.planning.nodes.physical.predicates
 
 import org.vitrivr.cottontail.database.queries.components.BooleanPredicate
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.cost.Costs
+import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalNodeExpression
 import org.vitrivr.cottontail.execution.ExecutionEngine
 import org.vitrivr.cottontail.execution.operators.basics.ProducingOperator
 import org.vitrivr.cottontail.execution.operators.predicates.FilterOperator
 
 /**
- * A [NodeExpression] that represents application of a [BooleanPredicate] on some intermediate result [Recordset].
+ * A [UnaryPhysicalNodeExpression] that represents application of a [BooleanPredicate] on some intermediate result.
  *
  * @author Ralph Gasser
  * @version 1.0
  */
-class FilterPhysicalNodeExpression(val predicate: BooleanPredicate, val selectivity: Float = Costs.DEFAULT_SELECTIVITY) : AbstractRecordsetPhysicalNodeExpression() {
+class FilterPhysicalNodeExpression(val predicate: BooleanPredicate, val selectivity: Float = Costs.DEFAULT_SELECTIVITY) : UnaryPhysicalNodeExpression() {
 
     override val outputSize: Long
         get() = (this.input.outputSize * this.selectivity).toLong()

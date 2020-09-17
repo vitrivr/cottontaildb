@@ -2,10 +2,8 @@ package org.vitrivr.cottontail.database.queries.planning.rules.physical.implemen
 
 import org.vitrivr.cottontail.database.queries.planning.nodes.interfaces.NodeExpression
 import org.vitrivr.cottontail.database.queries.planning.nodes.interfaces.RewriteRule
-import org.vitrivr.cottontail.database.queries.planning.nodes.logical.FilterLogicalNodeExpression
-import org.vitrivr.cottontail.database.queries.planning.nodes.logical.KnnLogicalNodeExpression
-import org.vitrivr.cottontail.database.queries.planning.nodes.physical.recordset.FilterPhysicalNodeExpression
-import org.vitrivr.cottontail.database.queries.planning.nodes.physical.recordset.KnnPhysicalNodeExpression
+import org.vitrivr.cottontail.database.queries.planning.nodes.logical.predicates.FilterLogicalNodeExpression
+import org.vitrivr.cottontail.database.queries.planning.nodes.physical.predicates.FilterPhysicalNodeExpression
 
 /**
  * A [RewriteRule] that implements a [FilterLogicalNodeExpression] by a [FilterPhysicalNodeExpression].
@@ -19,13 +17,10 @@ object FilterImplementationRule : RewriteRule {
     override fun canBeApplied(node: NodeExpression): Boolean = node is FilterLogicalNodeExpression
     override fun apply(node: NodeExpression): NodeExpression? {
         if (node is FilterLogicalNodeExpression) {
-            val parent = node.copyWithInputs().inputs.first()
-            val children = node.copyOutput()
+            val parent = (node.copyWithInputs() as FilterLogicalNodeExpression).input
             val p = FilterPhysicalNodeExpression(node.predicate)
-            parent.updateOutput(p)
-            if (children != null) {
-                p.updateOutput(children)
-            }
+            p.addInput(parent)
+            node.copyOutput()?.addInput(p)
             return p
         }
         return null

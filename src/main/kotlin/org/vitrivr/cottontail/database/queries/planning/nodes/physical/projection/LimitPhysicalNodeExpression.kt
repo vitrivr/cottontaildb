@@ -1,18 +1,19 @@
-package org.vitrivr.cottontail.database.queries.planning.nodes.physical.recordset
+package org.vitrivr.cottontail.database.queries.planning.nodes.physical.projection
 
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
+import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalNodeExpression
 import org.vitrivr.cottontail.execution.ExecutionEngine
 import org.vitrivr.cottontail.execution.operators.basics.ProducingOperator
 import org.vitrivr.cottontail.execution.operators.transform.LimitOperator
 import kotlin.math.min
 
 /**
- * A [NodeExpression] that represents the application of a LIMIT or SKIP clause on the final result [Recordset].
+ * A [UnaryPhysicalNodeExpression] that represents the application of a LIMIT or SKIP clause on the result.
  *
  * @author Ralph Gasser
  * @version 1.0
  */
-class LimitPhysicalNodeExpression(limit: Long, skip: Long) : AbstractRecordsetPhysicalNodeExpression() {
+class LimitPhysicalNodeExpression(limit: Long, skip: Long) : UnaryPhysicalNodeExpression() {
 
     val limit = if (limit.coerceAtLeast(0) == 0L) {
         Long.MAX_VALUE

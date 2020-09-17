@@ -1,10 +1,12 @@
-package org.vitrivr.cottontail.database.queries.planning.nodes.physical.entity
+package org.vitrivr.cottontail.database.queries.planning.nodes.physical.sources
 
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.index.Index
 import org.vitrivr.cottontail.database.queries.components.BooleanPredicate
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.cost.Costs
+import org.vitrivr.cottontail.database.queries.planning.nodes.physical.NullaryPhysicalNodeExpression
+import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalNodeExpression
 import org.vitrivr.cottontail.execution.ExecutionEngine
 import org.vitrivr.cottontail.execution.operators.basics.ProducingOperator
 
@@ -14,7 +16,8 @@ import org.vitrivr.cottontail.execution.operators.basics.ProducingOperator
  * @author Ralph Gasser
  * @version 1.1
  */
-class IndexScanPhysicalNodeExpression(val entity: Entity, val index: Index, val predicate: BooleanPredicate, val selectivity: Float = Costs.DEFAULT_SELECTIVITY) : AbstractEntityPhysicalNodeExpression() {
+class IndexScanPhysicalNodeExpression(val entity: Entity, val index: Index, val predicate: BooleanPredicate, val selectivity: Float = Costs.DEFAULT_SELECTIVITY) : NullaryPhysicalNodeExpression() {
+
 
     /** [Cost] of executing this [KnnPushdownPhysicalNodeExpression]. */
     override val outputSize: Long
@@ -26,6 +29,10 @@ class IndexScanPhysicalNodeExpression(val entity: Entity, val index: Index, val 
     override fun copy() = IndexScanPhysicalNodeExpression(this.entity, this.index, this.predicate, this.selectivity)
 
     override fun toOperator(context: ExecutionEngine.ExecutionContext): ProducingOperator {
+        TODO("Not yet implemented")
+    }
+
+    override fun partition(p: Int): Array<NullaryPhysicalNodeExpression> {
         TODO("Not yet implemented")
     }
 }

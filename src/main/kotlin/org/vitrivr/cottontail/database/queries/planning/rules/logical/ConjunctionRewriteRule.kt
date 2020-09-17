@@ -4,7 +4,7 @@ import org.vitrivr.cottontail.database.queries.components.CompoundBooleanPredica
 import org.vitrivr.cottontail.database.queries.components.ConnectionOperator
 import org.vitrivr.cottontail.database.queries.planning.nodes.interfaces.NodeExpression
 import org.vitrivr.cottontail.database.queries.planning.nodes.interfaces.RewriteRule
-import org.vitrivr.cottontail.database.queries.planning.nodes.logical.FilterLogicalNodeExpression
+import org.vitrivr.cottontail.database.queries.planning.nodes.logical.predicates.FilterLogicalNodeExpression
 
 /**
  * Decomposes a [FilterLogicalNodeExpression] that contains a [CompoundBooleanPredicate] connected with
@@ -39,23 +39,18 @@ object ConjunctionRewriteRule : RewriteRule {
                 node.predicate is CompoundBooleanPredicate &&
                 node.predicate.connector == ConnectionOperator.AND) {
 
-            val parents = node.copyWithInputs().inputs
-            val children = node.copyOutput()
+            val parent = (node.copyWithInputs() as FilterLogicalNodeExpression).input
             val p1 = FilterLogicalNodeExpression(node.predicate.p1)
             val p2 = FilterLogicalNodeExpression(node.predicate.p2)
 
             /* Connect parents of node with p1. */
-            for (parent in parents) {
-                parent.updateOutput(p1)
-            }
+            p1.addInput(parent)
 
             /* Connect parents with p1 with p2. */
-            p1.updateOutput(p2)
+            p2.addInput(p1)
 
             /* Connect p2 with children of node. */
-            if (children != null) {
-                p2.updateOutput(children)
-            }
+            node.copyOutput()?.addInput(p2)
 
             return p1
         }

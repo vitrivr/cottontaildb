@@ -5,9 +5,15 @@ import org.vitrivr.cottontail.database.column.*
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.index.IndexType
 import org.vitrivr.cottontail.database.queries.components.*
-import org.vitrivr.cottontail.database.queries.planning.nodes.interfaces.NodeExpression
-import org.vitrivr.cottontail.database.queries.planning.nodes.logical.*
-import org.vitrivr.cottontail.database.queries.planning.nodes.physical.recordset.ProjectionPhysicalNodeExpression
+import org.vitrivr.cottontail.database.queries.planning.nodes.logical.LogicalNodeExpression
+import org.vitrivr.cottontail.database.queries.planning.nodes.logical.NullaryLogicalNodeExpression
+import org.vitrivr.cottontail.database.queries.planning.nodes.logical.predicates.FilterLogicalNodeExpression
+import org.vitrivr.cottontail.database.queries.planning.nodes.logical.predicates.KnnLogicalNodeExpression
+import org.vitrivr.cottontail.database.queries.planning.nodes.logical.projection.LimitLogicalNodeExpression
+import org.vitrivr.cottontail.database.queries.planning.nodes.logical.projection.ProjectionLogicalNodeExpression
+import org.vitrivr.cottontail.database.queries.planning.nodes.logical.sources.EntitySampleLogicalNodeExpression
+import org.vitrivr.cottontail.database.queries.planning.nodes.logical.sources.EntityScanLogicalNodeExpression
+import org.vitrivr.cottontail.database.queries.planning.nodes.physical.projection.ProjectionPhysicalNodeExpression
 
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.math.knn.metrics.Distances
@@ -21,22 +27,23 @@ import org.vitrivr.cottontail.model.values.*
  * This helper class parses and binds queries issued through the gRPC endpoint. The process encompasses three steps:
  *
  * 1) The [CottontailGrpc.Query] is decomposed into its components.
- * 2) The gRPC query components are bound to Cottontail DB [DBO] objects and internal query objects are constructed. This step includes some basic validation.
- * 3) A [ExecutionPlan] is constructed from the internal query objects.
+ * 2) The gRPC query components are bound to Cottontail DB objects and internal query objects are constructed. This step includes some basic validation.
+ * 3) A [LogicalNodeExpression] tree is constructed from the internal query objects.
  *
  * @author Ralph Gasser
- * @version 1.2
+ * @version 1.2.1
  */
 class GrpcQueryBinder(val catalogue: Catalogue) {
     /**
-     * Binds the given [CottontailGrpc.Query] to the database objects and thereby creates an [ExecutionPlan].
+     * Binds the given [CottontailGrpc.Query] to the database objects and thereby creates
+     * a tree of [LogicalNodeExpression]s.
      *
      * @param query The [CottontailGrpc.Query] that should be bound.
-     * @return [ExecutionPlan]
+     * @return [LogicalNodeExpression]
      *
      * @throws QueryException.QuerySyntaxException If [CottontailGrpc.Query] is structurally incorrect.
      */
-    fun parseAndBind(query: CottontailGrpc.Query): NodeExpression.LogicalNodeExpression {
+    fun parseAndBind(query: CottontailGrpc.Query): LogicalNodeExpression {
         if (!query.hasFrom()) throw QueryException.QuerySyntaxException("Missing FROM-clause in query.")
         if (query.from.hasQuery()) {
             throw QueryException.QuerySyntaxException("Cottontail DB currently doesn't support sub-selects.")
@@ -45,35 +52,42 @@ class GrpcQueryBinder(val catalogue: Catalogue) {
     }
 
     /**
-     * Parses and binds a simple [CottontailGrpc.Query] without any joins and subselects and thereby generates an [ExecutionPlan].
+     * Parses and binds a simple [CottontailGrpc.Query] without any joins and subselects and thereby
+     * generates a tree of [LogicalNodeExpression]s.
      *
      * @param query The simple [CottontailGrpc.Query] object.
      */
-    private fun parseAndBindSimpleQuery(query: CottontailGrpc.Query): NodeExpression.LogicalNodeExpression {
+    private fun parseAndBindSimpleQuery(query: CottontailGrpc.Query): LogicalNodeExpression {
         /* Create scan clause. */
         val scanClause = parseAndBindSimpleFrom(query.from)
-        var root: NodeExpression.LogicalNodeExpression = scanClause
+        val entity: Entity = scanClause.first
+        var root: LogicalNodeExpression = scanClause.second
 
         /* Create WHERE-clause. */
         if (query.hasWhere()) {
-            root = root.updateOutput(FilterLogicalNodeExpression(parseAndBindBooleanPredicate(scanClause.entity, query.where)))
+            val where = FilterLogicalNodeExpression(parseAndBindBooleanPredicate(entity, query.where))
+            where.addInput(root)
         }
 
         /* Process kNN-clause (Important: mind precedence of WHERE-clause. */
         if (query.hasKnn()) {
-            root = root.updateOutput(KnnLogicalNodeExpression(parseAndBindKnnPredicate(scanClause.entity, query.knn)))
+            val knn = KnnLogicalNodeExpression(parseAndBindKnnPredicate(entity, query.knn))
+            knn.addInput(root)
         }
 
         /* Process projection clause. */
         root = if (query.hasProjection()) {
-            root.updateOutput(parseAndBindProjection(scanClause.entity, query.projection))
+            val projection = parseAndBindProjection(entity, query.projection)
+            projection.addInput(root)
         } else {
-            root.updateOutput(parseAndBindProjection(scanClause.entity, CottontailGrpc.Projection.newBuilder().setOp(CottontailGrpc.Projection.Operation.SELECT).putAttributes("*", "").build()))
+            val projection = parseAndBindProjection(entity, CottontailGrpc.Projection.newBuilder().setOp(CottontailGrpc.Projection.Operation.SELECT).putAttributes("*", "").build())
+            projection.addInput(root)
         }
 
         /* Process LIMIT and SKIP. */
         if (query.limit > 0L || query.skip > 0L) {
-            root = root.updateOutput(LimitLogicalNodeExpression(query.limit, query.skip))
+            val limit = LimitLogicalNodeExpression(query.limit, query.skip)
+            limit.addInput(root)
         }
 
         return root
@@ -83,17 +97,19 @@ class GrpcQueryBinder(val catalogue: Catalogue) {
      * Parses and binds a [CottontailGrpc.From] clause.
      *
      * @param from The [CottontailGrpc.From] object.
-     * @return The resulting [EntityEntityScanNodeExpression].
+     * @return The resulting [Pair] of [Entity] and [NullaryLogicalNodeExpression].
      */
-    private fun parseAndBindSimpleFrom(from: CottontailGrpc.From): EntityScanLogicalNodeExpression = try {
+    private fun parseAndBindSimpleFrom(from: CottontailGrpc.From): Pair<Entity,NullaryLogicalNodeExpression> = try {
         when (from.fromCase) {
             CottontailGrpc.From.FromCase.ENTITY -> {
                 val entityName = from.entity.fqn()
-                EntityScanLogicalNodeExpression.EntityFullScanLogicalNodeExpression(entity = this.catalogue.schemaForName(entityName.schema()).entityForName(entityName))
+                val entity = this.catalogue.schemaForName(entityName.schema()).entityForName(entityName)
+                Pair(entity, EntityScanLogicalNodeExpression(entity = entity))
             }
             CottontailGrpc.From.FromCase.SAMPLE -> {
                 val entityName = from.sample.entity.fqn()
-                EntityScanLogicalNodeExpression.EntitySampleLogicalNodeExpression(entity = this.catalogue.schemaForName(entityName.schema()).entityForName(entityName), size = from.sample.size, seed = from.sample.seed)
+                val entity = this.catalogue.schemaForName(entityName.schema()).entityForName(entityName)
+                Pair(entity, EntitySampleLogicalNodeExpression(entity = entity, size = from.sample.size, seed = from.sample.seed))
             }
             else -> throw QueryException.QuerySyntaxException("Invalid FROM-clause in query.")
         }
@@ -125,7 +141,7 @@ class GrpcQueryBinder(val catalogue: Catalogue) {
      * Parses and binds an atomic boolean predicate
      *
      * @param entity The [Entity] from which fetch columns.
-     * @param projection The [CottontailGrpc.Knn] object.
+     * @param compound The [CottontailGrpc.CompoundBooleanPredicate] object.
      *
      * @return The resulting [AtomicBooleanPredicate].
      */
@@ -155,7 +171,7 @@ class GrpcQueryBinder(val catalogue: Catalogue) {
      * Parses and binds an atomic boolean predicate
      *
      * @param entity The [Entity] from which fetch columns.
-     * @param projection The [CottontailGrpc.Knn] object.
+     * @param atomic The [CottontailGrpc.AtomicLiteralBooleanPredicate] object.
      *
      * @return The resulting [AtomicBooleanPredicate].
      */

@@ -2,8 +2,8 @@ package org.vitrivr.cottontail.database.queries.planning.rules.physical.implemen
 
 import org.vitrivr.cottontail.database.queries.planning.nodes.interfaces.NodeExpression
 import org.vitrivr.cottontail.database.queries.planning.nodes.interfaces.RewriteRule
-import org.vitrivr.cottontail.database.queries.planning.nodes.logical.KnnLogicalNodeExpression
-import org.vitrivr.cottontail.database.queries.planning.nodes.physical.recordset.KnnPhysicalNodeExpression
+import org.vitrivr.cottontail.database.queries.planning.nodes.logical.predicates.KnnLogicalNodeExpression
+import org.vitrivr.cottontail.database.queries.planning.nodes.physical.predicates.KnnPhysicalNodeExpression
 
 /**
  * A [RewriteRule] that implements a [KnnLogicalNodeExpression] by a [KnnPhysicalNodeExpression].
@@ -17,13 +17,10 @@ object KnnImplementationRule : RewriteRule {
     override fun canBeApplied(node: NodeExpression): Boolean = node is KnnLogicalNodeExpression
     override fun apply(node: NodeExpression): NodeExpression? {
         if (node is KnnLogicalNodeExpression) {
-            val parent = node.copyWithInputs().inputs.first()
-            val children = node.copyOutput()
+            val parent = (node.copyWithInputs() as KnnLogicalNodeExpression).input
             val p = KnnPhysicalNodeExpression(node.predicate)
-            parent.updateOutput(p)
-            if (children != null) {
-                p.updateOutput(children)
-            }
+            p.addInput(parent)
+            node.copyOutput()?.addInput(p)
             return p
         }
         return null

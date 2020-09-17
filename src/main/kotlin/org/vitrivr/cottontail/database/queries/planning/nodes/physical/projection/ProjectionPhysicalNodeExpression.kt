@@ -1,8 +1,9 @@
-package org.vitrivr.cottontail.database.queries.planning.nodes.physical.recordset
+package org.vitrivr.cottontail.database.queries.planning.nodes.physical.projection
 
 import org.vitrivr.cottontail.database.queries.components.Projection
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.cost.Costs
+import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalNodeExpression
 import org.vitrivr.cottontail.execution.ExecutionEngine
 import org.vitrivr.cottontail.execution.operators.basics.ProducingOperator
 import org.vitrivr.cottontail.execution.operators.projection.*
@@ -11,12 +12,12 @@ import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.exceptions.QueryException
 
 /**
- * Formalizes a [ProjectionPhysicalNodeExpression] operation in the Cottontail DB query execution engine.
+ * Formalizes a [UnaryPhysicalNodeExpression] operation in the Cottontail DB query execution engine.
  *
  * @author Ralph Gasser
  * @version 1.1
  */
-data class ProjectionPhysicalNodeExpression(val type: Projection, val fields: List<Pair<ColumnDef<*>, Name.ColumnName?>>) : AbstractRecordsetPhysicalNodeExpression() {
+data class ProjectionPhysicalNodeExpression(val type: Projection, val fields: List<Pair<ColumnDef<*>, Name.ColumnName?>>) : UnaryPhysicalNodeExpression() {
     init {
         /* Sanity check. */
         when (type) {

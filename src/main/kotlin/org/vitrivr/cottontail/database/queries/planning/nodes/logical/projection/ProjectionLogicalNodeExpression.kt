@@ -1,18 +1,18 @@
-package org.vitrivr.cottontail.database.queries.planning.nodes.logical
+package org.vitrivr.cottontail.database.queries.planning.nodes.logical.projection
 
 import org.vitrivr.cottontail.database.queries.components.Projection
-import org.vitrivr.cottontail.database.queries.planning.nodes.interfaces.NodeExpression
+import org.vitrivr.cottontail.database.queries.planning.nodes.logical.UnaryLogicalNodeExpression
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.exceptions.QueryException
 
 /**
- * A [NodeExpression.LogicalNodeExpression] that represents a projection operation on a [org.vitrivr.cottontail.model.recordset.Recordset].
+ * A [UnaryLogicalNodeExpression] that represents a projection operation on a [org.vitrivr.cottontail.model.recordset.Recordset].
  *
  * @author Ralph Gasser
  * @version 1.0
  */
-class ProjectionLogicalNodeExpression(val type: Projection = Projection.SELECT, val fields: List<Pair<ColumnDef<*>, Name.ColumnName?>>) : NodeExpression.LogicalNodeExpression() {
+class ProjectionLogicalNodeExpression(val type: Projection = Projection.SELECT, val fields: List<Pair<ColumnDef<*>, Name.ColumnName?>>) : UnaryLogicalNodeExpression() {
     init {
         /* Sanity check. */
         when (type) {
@@ -49,9 +49,6 @@ class ProjectionLogicalNodeExpression(val type: Projection = Projection.SELECT, 
             }
         }
     }
-
-    /** Input arity of [ProjectionLogicalNodeExpression] is always one, since it acts on a single [org.vitrivr.cottontail.model.recordset.Recordset]. */
-    override val inputArity: Int = 1
 
     /**
      * Returns a copy of this [ProjectionLogicalNodeExpression]

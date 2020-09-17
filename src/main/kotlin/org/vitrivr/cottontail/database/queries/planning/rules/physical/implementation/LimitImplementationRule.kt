@@ -2,10 +2,8 @@ package org.vitrivr.cottontail.database.queries.planning.rules.physical.implemen
 
 import org.vitrivr.cottontail.database.queries.planning.nodes.interfaces.NodeExpression
 import org.vitrivr.cottontail.database.queries.planning.nodes.interfaces.RewriteRule
-import org.vitrivr.cottontail.database.queries.planning.nodes.logical.KnnLogicalNodeExpression
-import org.vitrivr.cottontail.database.queries.planning.nodes.logical.LimitLogicalNodeExpression
-import org.vitrivr.cottontail.database.queries.planning.nodes.physical.recordset.KnnPhysicalNodeExpression
-import org.vitrivr.cottontail.database.queries.planning.nodes.physical.recordset.LimitPhysicalNodeExpression
+import org.vitrivr.cottontail.database.queries.planning.nodes.logical.projection.LimitLogicalNodeExpression
+import org.vitrivr.cottontail.database.queries.planning.nodes.physical.projection.LimitPhysicalNodeExpression
 
 /**
  * A [RewriteRule] that implements a [LimitLogicalNodeExpression] by a [LimitPhysicalNodeExpression].
@@ -19,13 +17,10 @@ object LimitImplementationRule : RewriteRule {
     override fun canBeApplied(node: NodeExpression): Boolean = node is LimitLogicalNodeExpression
     override fun apply(node: NodeExpression): NodeExpression? {
         if (node is LimitLogicalNodeExpression) {
-            val parent = node.copyWithInputs().inputs.first()
-            val children = node.copyOutput()
+            val parent = (node.copyWithInputs() as LimitLogicalNodeExpression).input
             val p = LimitPhysicalNodeExpression(node.limit, node.skip)
-            parent.updateOutput(p)
-            if (children != null) {
-                p.updateOutput(children)
-            }
+            p.addInput(parent)
+            node.copyOutput()?.addInput(p)
             return p
         }
         return null
