@@ -20,14 +20,12 @@ import kotlin.math.min
  * @version 1.0
  */
 class EntityScanPhysicalNodeExpression(val entity: Entity, val columns: Array<ColumnDef<*>> = entity.allColumns().toTypedArray(), val range: LongRange = 1L until entity.statistics.maxTupleId): NullaryPhysicalNodeExpression() {
-
     init {
         require(this.range.first > 0L) { "Start of a ranged entity scan must be greater than zero." }
     }
 
-
-
     override val outputSize = this.range.last - this.range.first
+    override val canBePartitioned: Boolean = true
     override val cost = Cost(this.outputSize * this.columns.size * Costs.DISK_ACCESS_READ, 0.0f, (this.outputSize * this.columns.map { it.physicalSize }.sum()).toFloat())
     override fun copy() = EntityScanPhysicalNodeExpression(this.entity, this.columns, this.range)
     override fun toOperator(context: ExecutionEngine.ExecutionContext): ProducingOperator = EntityScanOperator(context, this.entity, this.columns, this.range)

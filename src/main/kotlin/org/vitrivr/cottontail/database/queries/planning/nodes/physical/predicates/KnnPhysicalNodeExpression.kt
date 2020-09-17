@@ -6,6 +6,8 @@ import org.vitrivr.cottontail.database.queries.planning.nodes.interfaces.NodeExp
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.NullaryPhysicalNodeExpression
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalNodeExpression
 import org.vitrivr.cottontail.execution.ExecutionEngine
+import org.vitrivr.cottontail.execution.exceptions.OperatorSetupException
+import org.vitrivr.cottontail.execution.operators.basics.ProducingOperator
 import org.vitrivr.cottontail.execution.operators.predicates.KnnOperator
 import org.vitrivr.cottontail.execution.operators.predicates.ParallelKnnOperator
 import java.lang.Integer.min
@@ -27,10 +29,10 @@ class KnnPhysicalNodeExpression(val knn: KnnPredicate<*>) : UnaryPhysicalNodeExp
         )
 
     override fun copy() = KnnPhysicalNodeExpression(this.knn)
-    override fun toOperator(context: ExecutionEngine.ExecutionContext) {
+    override fun toOperator(context: ExecutionEngine.ExecutionContext): ProducingOperator {
         if (this.cost.cpu > 1.0f) {
-            val base = NodeExpression.seekBase(this.input)
-            if (base is NullaryPhysicalNodeExpression) {
+            val base = seekBase(this.input)
+            return if (base is NullaryPhysicalNodeExpression && base.canBePartitioned) {
                 val partitions = base.partition(min(this.cost.cpu.toInt(), context.availableThreads))
                 val operators = partitions.map {
                     var prev: NodeExpression? = null
@@ -46,9 +48,11 @@ class KnnPhysicalNodeExpression(val knn: KnnPredicate<*>) : UnaryPhysicalNodeExp
                     it.toOperator(context)
                 }
                 ParallelKnnOperator(operators, context, this.knn)
+            } else {
+                KnnOperator(this.input.toOperator(context), context, this.knn)
             }
         } else {
-            KnnOperator(this.input.toOperator(context), context, this.knn)
+            return KnnOperator(this.input.toOperator(context), context, this.knn)
         }
     }
 }

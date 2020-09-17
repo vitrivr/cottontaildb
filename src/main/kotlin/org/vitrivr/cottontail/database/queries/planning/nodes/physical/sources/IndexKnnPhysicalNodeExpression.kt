@@ -16,21 +16,15 @@ import org.vitrivr.cottontail.execution.operators.basics.ProducingOperator
  * @version 1.1
  */
 class IndexKnnPhysicalNodeExpression(val entity: Entity, val knn: KnnPredicate<*>, val index: Index) : NullaryPhysicalNodeExpression() {
-
-
-    override val outputSize: Long
-        get() = (this.knn.k * this.knn.query.size).toLong()
-
-    override val cost: Cost
-        get() = this.index.cost(this.knn)
-
+    override val canBePartitioned: Boolean = false
+    override val outputSize: Long = (this.knn.k * this.knn.query.size).toLong()
+    override val cost: Cost = this.index.cost(this.knn)
     override fun copy() = IndexKnnPhysicalNodeExpression(this.entity, this.knn, this.index)
-
     override fun toOperator(context: ExecutionEngine.ExecutionContext): ProducingOperator {
         TODO("Not yet implemented")
     }
-
-    override fun partition(p: Int): Array<NullaryPhysicalNodeExpression> {
-        TODO("Not yet implemented")
+    override fun partition(p: Int): List<NullaryPhysicalNodeExpression> {
+        /* TODO: May actually be possible for certain index structures. */
+        throw IllegalStateException("IndexKnnPhysicalNodeExpression cannot be partitioned.")
     }
 }
