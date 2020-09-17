@@ -80,7 +80,7 @@ class ParallelKnnOperator(parents: List<ProducingOperator>, context: ExecutionEn
     init {
         /* Sanity check; columns must be the same for all parents. */
         if (!this.parents.all { it.columns.contentEquals(this.parents.first().columns) }) {
-            throw OperatorSetupException("Error during setup of ParallelKnnOperator; columns produced by incoming branches are not the same.")
+            throw OperatorSetupException(this, "Error during setup of ParallelKnnOperator; columns produced by incoming branches are not the same.")
         }
     }
 
