@@ -22,7 +22,7 @@ class EntitySampleOperator(context: ExecutionEngine.ExecutionContext, entity: En
     private var returned = 0L
 
     init {
-        if (this.size <= 0L) throw OperatorSetupException("EntitySampleOperator sample size is invalid (size=${this.size}).")
+        if (this.size <= 0L) throw OperatorSetupException(this, "EntitySampleOperator sample size is invalid (size=${this.size}).")
     }
 
     /** True, if this [EntityScanOperator] is depleted, i.e., won't return any more [Record]s. */

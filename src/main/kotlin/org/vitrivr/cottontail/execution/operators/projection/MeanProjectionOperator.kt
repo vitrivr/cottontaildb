@@ -44,7 +44,7 @@ class MeanProjectionOperator(parent: ProducingOperator, context: ExecutionEngine
                     is LongValue -> value.value.toDouble()
                     is FloatValue -> value.value.toDouble()
                     is DoubleValue -> value.value
-                    else -> throw OperatorExecutionException("The provided column $column cannot be used for a MEAN projection.")
+                    else -> throw OperatorExecutionException(this, "The provided column $column cannot be used for a MEAN projection.")
                 }
             }
         }

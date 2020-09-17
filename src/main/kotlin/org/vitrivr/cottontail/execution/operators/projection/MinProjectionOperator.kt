@@ -40,7 +40,7 @@ class MinProjectionOperator(parent: ProducingOperator, context: ExecutionEngine.
                 ?: Name.ColumnName("max(${column.name})"), "FLOAT"))
         DoubleColumnType -> arrayOf(ColumnDef.withAttributes(parent.columns.first().name.entity()?.column("max(${column.name})")
                 ?: Name.ColumnName("max(${column.name})"), "DOUBLE"))
-        else -> throw OperatorSetupException("The provided column $column type cannot be used for a MIN projection. ")
+        else -> throw OperatorSetupException(this, "The provided column $column type cannot be used for a MIN projection. ")
     }
 
     override fun prepareOpen() {}
@@ -74,7 +74,7 @@ class MinProjectionOperator(parent: ProducingOperator, context: ExecutionEngine.
             LongColumnType -> recordset.addRowUnsafe(arrayOf(LongValue(min)))
             FloatColumnType -> recordset.addRowUnsafe(arrayOf(FloatValue(min)))
             DoubleColumnType -> recordset.addRowUnsafe(arrayOf(DoubleValue(min)))
-            else -> throw OperatorExecutionException("The provided column $column cannot be used for a MIN projection. ")
+            else -> throw OperatorExecutionException(this, "The provided column $column cannot be used for a MIN projection. ")
         }
         recordset
     }
