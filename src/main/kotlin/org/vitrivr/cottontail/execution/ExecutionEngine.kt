@@ -23,14 +23,6 @@ class ExecutionEngine(config: ExecutionConfig) {
     /** The [ThreadPoolExecutor] used for executing queries. */
     private val executor = ThreadPoolExecutor(config.coreThreads, config.maxThreads, config.keepAliveMs, TimeUnit.MILLISECONDS, ArrayBlockingQueue(config.queueSize))
 
-    /** The maximum amount of parallelism allowed by this [ExecutionEngine] instance. */
-    val maxThreads
-        get() = this.executor.maximumPoolSize
-
-    /** The number of [Thread]s currently available. This is an estimate and may change very quickly. */
-    val availableThreads
-        get() = this.executor.maximumPoolSize - this.executor.activeCount
-
     /** Set of [ExecutionContext]s that are currently PENDING or RUNNING. */
     val contexts = ConcurrentHashMap<UUID, ExecutionContext>()
 
@@ -51,10 +43,18 @@ class ExecutionEngine(config: ExecutionConfig) {
             private set
 
         /** List of [SinkOperator]s that should be executed in this context. */
-        val operators: List<SinkOperator> = mutableListOf()
+        private val operators: List<SinkOperator> = mutableListOf()
 
         /** Map of all [Entity.Tx] that have been created as part of this [ExecutionContext]. */
-        val transactions: MutableMap<Entity, Entity.Tx> = mutableMapOf()
+        private val transactions: MutableMap<Entity, Entity.Tx> = mutableMapOf()
+
+        /** The maximum amount of parallelism allowed by this [ExecutionEngine] instance. */
+        val maxThreads
+            get() = this@ExecutionEngine.executor.maximumPoolSize
+
+        /** The number of [Thread]s currently available. This is an estimate and may change very quickly. */
+        val availableThreads
+            get() = this@ExecutionEngine.executor.maximumPoolSize - this@ExecutionEngine.executor.activeCount
 
         init {
             this@ExecutionEngine.contexts[this.uuid] = this
