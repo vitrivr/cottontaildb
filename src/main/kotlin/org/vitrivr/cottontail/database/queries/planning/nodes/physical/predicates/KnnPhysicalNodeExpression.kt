@@ -6,7 +6,6 @@ import org.vitrivr.cottontail.database.queries.planning.nodes.interfaces.NodeExp
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.NullaryPhysicalNodeExpression
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalNodeExpression
 import org.vitrivr.cottontail.execution.ExecutionEngine
-import org.vitrivr.cottontail.execution.exceptions.OperatorSetupException
 import org.vitrivr.cottontail.execution.operators.basics.ProducingOperator
 import org.vitrivr.cottontail.execution.operators.predicates.KnnOperator
 import org.vitrivr.cottontail.execution.operators.predicates.ParallelKnnOperator
@@ -44,7 +43,6 @@ class KnnPhysicalNodeExpression(val knn: KnnPredicate<*>) : UnaryPhysicalNodeExp
                         prev = next.copy()
                         next = prev.inputs.first()
                     }
-                    next.addInput(it)
                     it.toOperator(context)
                 }
                 ParallelKnnOperator(operators, context, this.knn)
