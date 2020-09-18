@@ -23,14 +23,25 @@ import org.vitrivr.cottontail.model.recordset.StandaloneRecord
  */
 class SelectProjectionOperator(parent: Operator, context: ExecutionEngine.ExecutionContext, val fields: List<Pair<Name.ColumnName, Name.ColumnName?>>) : PipelineOperator(parent, context) {
 
+    /** True if names should be flattened, i.e., prefixes should be removed. */
+    private val flattenNames = this.fields.all { it.first.schema() == this.fields.first().first.schema() }
+
     /** Mapping from input [ColumnDef] to output [Name.ColumnName]. */
     private val mapping: Map<ColumnDef<*>, Name.ColumnName> = this.parent.columns.mapNotNull { c ->
         val name = this.fields.find { f -> f.first.matches(c.name) }
         if (name != null) {
             if (name.first.wildcard) {
-                c to (c.name)
+                if (this.flattenNames) {
+                    c to Name.ColumnName(c.name.simple)
+                } else {
+                    c to (c.name)
+                }
             } else {
-                c to (name.second ?: name.first)
+                if (this.flattenNames) {
+                    c to (name.second ?: Name.ColumnName(name.first.simple))
+                } else {
+                    c to (name.second ?: name.first)
+                }
             }
         } else {
             null
