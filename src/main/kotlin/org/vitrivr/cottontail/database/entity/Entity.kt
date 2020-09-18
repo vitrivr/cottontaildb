@@ -356,7 +356,7 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
         }
 
         /** List of all [ColumnDef]s affected by this [Entity.Tx]. */
-        val columns = this.colTxs.map { it.columnDef as ColumnDef<*> }.toTypedArray()
+        val columns = this.colTxs.map { it.columnDef }.toTypedArray()
 
         /** Flag indicating whether or not this [Entity.Tx] was closed */
         @Volatile
@@ -376,7 +376,6 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
         /**
          * Commits all changes made through this [Entity.Tx] since the last commit or rollback.
          */
-        @Synchronized
         override fun commit() = this.localLock.write {
             if (this.status == TransactionStatus.DIRTY) {
                 this.colTxs.forEach { it.commit() }
@@ -388,7 +387,6 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
         /**
          * Rolls all changes made through this [Entity.Tx] back to the last commit.
          */
-        @Synchronized
         override fun rollback() = this.localLock.write {
             if (this.status == TransactionStatus.DIRTY) {
                 this.colTxs.forEach { it.rollback() }
@@ -400,7 +398,6 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
         /**
          * Closes this [Entity.Tx] and thereby releases all the [Column.Tx] and the global lock. Closed [Entity.Tx] cannot be used anymore!
          */
-        @Synchronized
         override fun close() = this.localLock.write {
             if (this.status != TransactionStatus.CLOSED) {
                 if (this.status == TransactionStatus.DIRTY) {
@@ -900,7 +897,6 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
         /**
          * Checks if this [Entity.Tx] is in a valid state for read operations to happen.
          */
-        @Synchronized
         private fun checkValidForRead() {
             if (this.status == TransactionStatus.CLOSED) throw TransactionException.TransactionClosedException(tid)
             if (this.status == TransactionStatus.ERROR) throw TransactionException.TransactionInErrorException(tid)
@@ -909,7 +905,6 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
         /**
          * Checks if this [Entity.Tx] is in a valid state for write operations to happen.
          */
-        @Synchronized
         private fun checkValidForWrite() {
             if (this.readonly) throw TransactionException.TransactionReadOnlyException(tid)
             if (this.status == TransactionStatus.CLOSED) throw TransactionException.TransactionClosedException(tid)
