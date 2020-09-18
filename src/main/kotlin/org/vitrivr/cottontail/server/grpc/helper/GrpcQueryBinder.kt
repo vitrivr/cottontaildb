@@ -90,7 +90,7 @@ class GrpcQueryBinder(val catalogue: Catalogue) {
         /* Process LIMIT and SKIP. */
         if (query.limit > 0L || query.skip > 0L) {
             val limit = LimitLogicalNodeExpression(query.limit, query.skip)
-            root = limit.addInput(root)
+            limit.addInput(root)
             root = limit
         }
 
@@ -383,38 +383,59 @@ class GrpcQueryBinder(val catalogue: Catalogue) {
     /**
      * Parses and binds the projection part of a gRPC [CottontailGrpc.Query]
      *
-     * @param entity The [Entity] involved in the projection.
      * @param projection The [CottontailGrpc.Projection] object.
      *
      * @return The resulting [ProjectionPhysicalNodeExpression].
      */
     private fun parseAndBindProjection(entity: Entity, projection: CottontailGrpc.Projection): ProjectionLogicalNodeExpression = try {
-        val availableColumns = entity.allColumns()
-        val fields = mutableListOf<Pair<ColumnDef<*>, Name.ColumnName?>>()
-
-        /* Handle star projection. */
-        if (projection.attributesMap.containsKey("*")) {
-            availableColumns.forEach {
-                fields.add(Pair(it, null))
-            }
-        }
-
         /* Handle other kinds of projections. */
+        val fields = mutableListOf<Pair<Name.ColumnName, Name.ColumnName?>>()
         projection.attributesMap.forEach { (expr, alias) ->
-            /* Fetch columns that match field and add them to list of requested columns */
-            if (expr != "*") {
-                val columnName = entity.name.column(expr)
-                val column = availableColumns.first { it.name == columnName }
-
-                /* Return field to alias mapping. */
-                fields.add(Pair(column, if (alias.isBlank()) {
-                    null
-                } else {
-                    Name.ColumnName(alias)
-                }))
+            val split = expr.split('.')
+            when (split.size) {
+                1 -> {
+                    val columnName = entity.name.column(split[0])
+                    if (columnName.wildcard) {
+                        fields.add(Pair(columnName, null as Name.ColumnName?))
+                    } else {
+                        fields.add(Pair(columnName, if (alias.isBlank()) {
+                            null
+                        } else {
+                            Name.ColumnName(alias)
+                        }))
+                    }
+                }
+                2 -> {
+                    if (split[0] == entity.name.simple) {
+                        val columnName = entity.name.column(split[1])
+                        if (columnName.wildcard) {
+                            fields.add(Pair(columnName, null as Name.ColumnName?))
+                        } else {
+                            fields.add(Pair(columnName, if (alias.isBlank()) {
+                                null
+                            } else {
+                                Name.ColumnName(alias)
+                            }))
+                        }
+                    }
+                }
+                3 -> {
+                    if (split[0] == entity.parent.name.simple && split[1] == entity.name.simple) {
+                        val columnName = entity.name.column(split[2])
+                        if (columnName.wildcard) {
+                            fields.add(Pair(columnName, null as Name.ColumnName?))
+                        } else {
+                            fields.add(Pair(columnName, if (alias.isBlank()) {
+                                null
+                            } else {
+                                Name.ColumnName(alias)
+                            }))
+                        }
+                    }
+                }
+                else -> throw QueryException.QuerySyntaxException("The provided column '$expr' is invalid.")
             }
         }
-
         ProjectionLogicalNodeExpression(type = Projection.valueOf(projection.op.name), fields = fields)
     } catch (e: java.lang.IllegalArgumentException) {
         throw QueryException.QuerySyntaxException("The query lacks a valid SELECT-clause (projection): ${projection.op} is not supported.")
