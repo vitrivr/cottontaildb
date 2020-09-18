@@ -5,8 +5,8 @@ import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.values.types.Value
 
 /**
- * A [Record] implementation as returned and processed by Cottontail DB. These types of records can exist
- * without an enclosing [Recordset] and are necessary for some applications.
+ * A [Record] implementation as returned and processed by Cottontail DB. A [StandaloneRecord] can exist
+ * without an enclosing [Recordset], which is necessary for some applications.
  *
  * <strong>Important:</strong> The use of [StandaloneRecord] is discouraged when data volume becomes large,
  * as each [StandaloneRecord] has its own reference to the [ColumnDef]s it contains.
