@@ -42,10 +42,7 @@ data class ProjectionPhysicalNodeExpression(val type: Projection, val fields: Li
         get() = this.input.outputSize
 
     override val cost: Cost
-        get() = Cost(
-                io = this.outputSize * this.fields.size * Costs.MEMORY_ACCESS_READ,
-                memory = (this.outputSize * this.fields.map { it.first.physicalSize }.sum()).toFloat()
-        )
+        get() = Cost(io = this.outputSize * this.fields.size * Costs.MEMORY_ACCESS_READ)
 
     override fun copy() = ProjectionPhysicalNodeExpression(this.type, this.fields)
     override fun toOperator(context: ExecutionEngine.ExecutionContext) = when (this.type) {

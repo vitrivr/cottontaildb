@@ -23,10 +23,7 @@ class KnnPhysicalNodeExpression(val knn: KnnPredicate<*>) : UnaryPhysicalNodeExp
         get() = (this.knn.k * this.knn.query.size).toLong()
 
     override val cost: Cost
-        get() = Cost(
-            cpu = this.input.outputSize * this.knn.cost,
-            memory = (this.outputSize * this.knn.columns.map { it.physicalSize }.sum()).toFloat()
-        )
+        get() = Cost(cpu = this.input.outputSize * this.knn.cost, memory = (this.outputSize * this.knn.columns.map { it.physicalSize }.sum()).toFloat())
 
     override fun copy() = KnnPhysicalNodeExpression(this.knn)
     override fun toOperator(context: ExecutionEngine.ExecutionContext): Operator {

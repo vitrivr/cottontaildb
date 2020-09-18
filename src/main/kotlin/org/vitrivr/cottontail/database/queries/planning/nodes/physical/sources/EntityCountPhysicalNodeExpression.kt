@@ -16,7 +16,7 @@ import org.vitrivr.cottontail.execution.operators.sources.EntityCountOperator
 data class EntityCountPhysicalNodeExpression(val entity: Entity) : NullaryPhysicalNodeExpression() {
     override val outputSize = 1L
     override val canBePartitioned: Boolean = false
-    override val cost = Cost(Costs.DISK_ACCESS_READ, Costs.MEMORY_ACCESS_READ, 0.0f)
+    override val cost = Cost(Costs.DISK_ACCESS_READ, Costs.MEMORY_ACCESS_READ)
     override fun copy() = EntityCountPhysicalNodeExpression(this.entity)
     override fun toOperator(context: ExecutionEngine.ExecutionContext) = EntityCountOperator(context, this.entity)
     override fun partition(p: Int): List<NullaryPhysicalNodeExpression> {

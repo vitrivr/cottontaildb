@@ -19,10 +19,7 @@ class FilterPhysicalNodeExpression(val predicate: BooleanPredicate, val selectiv
         get() = (this.input.outputSize * this.selectivity).toLong()
 
     override val cost: Cost
-        get() = Cost(
-                cpu = this.input.outputSize * this.predicate.cost,
-                memory = (this.outputSize * this.predicate.columns.map { it.physicalSize }.sum()).toFloat()
-        )
+        get() = Cost(cpu = this.input.outputSize * this.predicate.cost)
 
     override fun copy() = FilterPhysicalNodeExpression(this.predicate, this.selectivity)
     override fun toOperator(context: ExecutionEngine.ExecutionContext) = FilterOperator(this.input.toOperator(context), context, this.predicate)

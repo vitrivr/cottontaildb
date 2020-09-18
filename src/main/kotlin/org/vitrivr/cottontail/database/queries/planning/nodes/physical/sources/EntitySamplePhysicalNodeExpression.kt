@@ -22,7 +22,7 @@ data class EntitySamplePhysicalNodeExpression(val entity: Entity, val columns: A
 
     override val outputSize = this.size
     override val canBePartitioned: Boolean = true
-    override val cost = Cost(this.size * this.columns.size * Costs.DISK_ACCESS_READ, 5 * this.size * Costs.MEMORY_ACCESS_READ, (this.outputSize * this.columns.map { it.physicalSize }.sum()).toFloat())
+    override val cost = Cost(this.outputSize * this.columns.size * Costs.DISK_ACCESS_READ, this.size * Costs.MEMORY_ACCESS_READ)
     override fun copy() = EntitySamplePhysicalNodeExpression(this.entity, this.columns, this.size, this.seed)
     override fun toOperator(context: ExecutionEngine.ExecutionContext) = EntitySampleOperator(context, this.entity, this.columns, this.size, this.seed)
     override fun partition(p: Int): List<NullaryPhysicalNodeExpression> {

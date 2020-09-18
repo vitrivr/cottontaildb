@@ -24,7 +24,7 @@ class EntityScanPhysicalNodeExpression(val entity: Entity, val columns: Array<Co
 
     override val outputSize = this.range.last - this.range.first
     override val canBePartitioned: Boolean = true
-    override val cost = Cost(this.outputSize * this.columns.size * Costs.DISK_ACCESS_READ, 0.0f, (this.outputSize * this.columns.map { it.physicalSize }.sum()).toFloat())
+    override val cost = Cost(this.outputSize * this.columns.size * Costs.DISK_ACCESS_READ)
     override fun copy() = EntityScanPhysicalNodeExpression(this.entity, this.columns, this.range)
     override fun toOperator(context: ExecutionEngine.ExecutionContext) = EntityScanOperator(context, this.entity, this.columns, this.range)
     override fun partition(p: Int): List<NullaryPhysicalNodeExpression> {
