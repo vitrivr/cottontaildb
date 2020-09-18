@@ -3,7 +3,10 @@ package org.vitrivr.cottontail.execution.operators.predicates
 import org.vitrivr.cottontail.database.queries.components.KnnPredicate
 import org.vitrivr.cottontail.execution.ExecutionEngine
 import org.vitrivr.cottontail.execution.exceptions.OperatorSetupException
-import org.vitrivr.cottontail.execution.operators.basics.*
+import org.vitrivr.cottontail.execution.operators.basics.MergingPipelineBreaker
+import org.vitrivr.cottontail.execution.operators.basics.Operator
+import org.vitrivr.cottontail.execution.operators.basics.OperatorStatus
+import org.vitrivr.cottontail.execution.operators.basics.ProducingOperator
 import org.vitrivr.cottontail.math.knn.selection.ComparablePair
 import org.vitrivr.cottontail.math.knn.selection.MinHeapSelection
 import org.vitrivr.cottontail.math.knn.selection.MinSingleSelection
@@ -14,7 +17,6 @@ import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.recordset.Recordset
 import org.vitrivr.cottontail.model.values.DoubleValue
 import org.vitrivr.cottontail.utilities.math.KnnUtilities
-import java.lang.IllegalStateException
 import java.util.concurrent.Callable
 
 /**
@@ -41,7 +43,7 @@ class ParallelKnnOperator(parents: List<ProducingOperator>, context: ExecutionEn
 
     /** [ParallelKnnOperator]s are depleted, once they have returned all records. */
     override val depleted: Boolean
-        get() = this.returned > this.cache?.rowCount ?: Long.MAX_VALUE
+        get() = this.returned >= this.cache?.rowCount ?: Long.MAX_VALUE
 
     /** Number entries returned by this [ParallelKnnOperator]. */
     private var returned = 0L
