@@ -403,7 +403,7 @@ fun CottontailGrpc.Data.toIntVectorValue(): IntVectorValue? = when (this.dataCas
  * @throws QueryException.UnsupportedCastException If cast is not possible.
  */
 fun CottontailGrpc.Data.toBooleanVectorValue(): BooleanVectorValue? = when (this.dataCase) {
-    CottontailGrpc.Data.DataCase.BOOLEANDATA -> BooleanVectorValue(BooleanArray(1))
+    CottontailGrpc.Data.DataCase.BOOLEANDATA -> BooleanVectorValue(BooleanArray(1) { this.booleanData })
     CottontailGrpc.Data.DataCase.INTDATA -> BooleanVectorValue(BooleanArray(1) { this.intData > 0 })
     CottontailGrpc.Data.DataCase.LONGDATA -> BooleanVectorValue(BooleanArray(1) { this.longData > 0 })
     CottontailGrpc.Data.DataCase.FLOATDATA -> BooleanVectorValue(BooleanArray(1) { this.floatData > 0f })

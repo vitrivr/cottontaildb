@@ -6,16 +6,18 @@ buildscript {
     ext.kotlinVersion = '1.4.0'
 
     repositories {
-        mavenCentral()
+        jcenter()
     }
     dependencies {
         classpath "com.google.protobuf:protobuf-gradle-plugin:0.8.8"
         classpath "org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion"
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion"
         classpath "org.jetbrains.kotlin:kotlin-serialization:$kotlinVersion"
+        classpath 'com.github.jengelman.gradle.plugins:shadow:6.0.0'
     }
 }
 
+apply plugin: 'com.github.johnrengelman.shadow'
 apply plugin: 'application'
 apply plugin: 'java'
 apply plugin: 'kotlin'
@@ -114,20 +116,13 @@ dependencies {
     ///// Apache Commons Math » 3.6
     ///// https://mvnrepository.com/artifact/org.apache.commons/commons-math3
     compile group: 'org.apache.commons', name: 'commons-math3', version: '3.6.1'
+
+    ///// Picnic
+    compile group: 'com.jakewharton.picnic', name: 'picnic', version: '0.3.1'
 }
 
-jar {
-
-    doFirst {
-        // FAT JAR (with dependencies)
-        from { configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
-    }
-    // To prevent unwanted files
-    exclude 'META-INF/*.RSA', 'META-INF/*.SF', 'META-INF/*.DSA'
-
-    manifest {
-        attributes 'Main-Class': mainClassName
-    }
+shadowJar {
+    mergeServiceFiles()
 }
 
 idea {

@@ -18,12 +18,23 @@ or initialize submodules after cloning using the following command from within t
 Before executing or building Cottontail DB, you must generate Proto sources by executing the Gradle task `generateProto`, i.e. by running `./gradlew generateProto` from within the project directory.
 
 ### Building and starting Cottontail DB
-You can simply start a Cottontail DB instance using `./gradlew run`. Alternatively, an executable distribution of Cottontail DB can then be built from sources using the 
+You can simply build an executable JAR with the `./gradlew shadowJar` gradle task.
+Alternatively -- preferably -- an executable distribution of Cottontail DB can then be built from sources using the 
 Gradle tasks `distTar` or `distZip`. Distributions will be stored relative to the project root in `build/distributions` as either TAR or ZIP file.
 
 Cottontail DB release artifacts (either built or downloaded from the releases page) can be started by executing `bin/cottontaildb` or `bin/cottontaildb.bat` (Windows). It requires a path to a valid configuration file as a program argument, i.e.
 
 ``bin/cottontaildb /path/to/your/config.json``
+
+This should bring up the following cottontail CLI prompt:
+
+```
+2020-09-16 15:20:20 INFO  CottontailGrpcServer:62 - Cottontail DB server is up and running at port 1865 ! Hop along...
+cottontaildb> 
+```
+
+To get a list of available commands, type `help`. Currently, there is type-ahead for commands,
+schema and entity.
 
 ### Using Cottontail DB Docker Container
 

@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.cli
 
 import com.github.ajalt.clikt.core.CliktCommand
+import org.jline.reader.EndOfFileException
 import org.jline.reader.LineReaderBuilder
 import org.jline.reader.impl.completer.AggregateCompleter
 import org.jline.reader.impl.completer.ArgumentCompleter
@@ -23,13 +24,13 @@ import kotlin.time.ExperimentalTime
  * @author Loris Sauter
  * @version 1.0
  */
+@ExperimentalTime
 object Cli {
 
     /** The default prompt -- just fancification */
-    private const val PROMPT = "cottontaildb>"
+    private const val PROMPT = "cottontaildb> "
 
-    /** CottotanilGrpcServer instance; user for gracefully stoppin the CLI. */
-    @ExperimentalTime
+    /** CottotanilGrpcServer instance; user for gracefully stopping the CLI. */
     lateinit var cottontailServer: CottontailGrpcServer
 
 
@@ -108,7 +109,12 @@ object Cli {
         val lineReader = LineReaderBuilder.builder().terminal(terminal).completer(completer).build()
 
         while (true) {
-            val line = lineReader.readLine(PROMPT).trim()
+            /* Catch ^D end of file as exit method */
+            val line = try {
+                lineReader.readLine(PROMPT).trim()
+            } catch (e: EndOfFileException) {
+                "stop"
+            }
             if (line.toLowerCase() == "help") {
                 println(clikt.getFormattedHelp())
                 continue
@@ -118,6 +124,7 @@ object Cli {
             }
             try {
                 clikt.parse(splitLine(line))
+                println()
             } catch (e: Exception) {
                 when (e) {
                     is com.github.ajalt.clikt.core.NoSuchSubcommand -> println("command not found")
@@ -155,7 +162,6 @@ object Cli {
         return matchList
     }
 
-    @ExperimentalTime
     fun stopServer() {
         if (::cottontailServer.isInitialized) {
             cottontailServer.stop()
