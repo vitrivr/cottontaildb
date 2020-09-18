@@ -19,10 +19,7 @@ import org.vitrivr.cottontail.model.recordset.Recordset
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.server.grpc.helper.DataHelper
 import org.vitrivr.cottontail.server.grpc.helper.GrpcQueryBinder
-
-import kotlin.time.ExperimentalTime
-import kotlin.time.measureTime
-import kotlin.time.measureTimedValue
+import kotlin.time.*
 
 /**
  * Implementation of [CottonDQLGrpc.CottonDQLImplBase], the gRPC endpoint for querying data in Cottontail DB.
@@ -39,7 +36,7 @@ class CottonDQLService(val catalogue: Catalogue, val engine: ExecutionEngine) : 
         private val LOGGER = LoggerFactory.getLogger(CottonDQLService::class.java)
     }
 
-    /** [GrpcQueryBinder] used to generate [NodeExpression.LogicalNodeExpression] tree from a gRPC query. */
+    /** [GrpcQueryBinder] used to generate [org.vitrivr.cottontail.database.queries.planning.nodes.logical.LogicalNodeExpression] tree from a gRPC query. */
     private val binder = GrpcQueryBinder(catalogue = this@CottonDQLService.catalogue)
 
     /** [CottontailQueryPlanner] used to generate execution plans from query definitions. */
@@ -155,7 +152,7 @@ class CottonDQLService(val catalogue: Catalogue, val engine: ExecutionEngine) : 
      * @param index Optional index of the result (for batched queries).
      */
     class ResultsSpoolerOperator(parent: ProducingOperator, context: ExecutionEngine.ExecutionContext, val queryId: String, val index: Int, val responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) : SinkOperator(parent, context) {
-
+        /** The [ColumnDef]s returned by this [ResultsSpoolerOperator]. */
         override val columns: Array<ColumnDef<*>> = this.parent.columns
 
         /* Size of an individual results page based on the estimate of a single tuple's size. */
@@ -168,6 +165,9 @@ class CottonDQLService(val catalogue: Catalogue, val engine: ExecutionEngine) : 
 
         /* Number of tuples returned so far. */
         private var responseBuilder = CottontailGrpc.QueryResponseMessage.newBuilder().setQueryId(this.queryId)
+
+        /** Timestamp of when this [ResultsSpoolerOperator] was created. */
+        private var start: Long? = null
 
         /**
          * Called when [ResultsSpoolerOperator] received a new [Record].
@@ -190,7 +190,7 @@ class CottonDQLService(val catalogue: Catalogue, val engine: ExecutionEngine) : 
          * Called when [ResultsSpoolerOperator] is opened.
          */
         override fun prepareOpen() {
-            /* */
+            this.start = System.currentTimeMillis()
         }
 
         /**
@@ -201,6 +201,10 @@ class CottonDQLService(val catalogue: Catalogue, val engine: ExecutionEngine) : 
                 this.responseObserver.onNext(this.responseBuilder.build())
             }
             this.responseObserver.onCompleted()
+
+            /* Log execution time. */
+            val duration = (System.currentTimeMillis() - this.start!!).toDuration(DurationUnit.MILLISECONDS)
+            LOGGER.trace("Executing query: $queryId, index: $index took $duration.")
         }
 
         /**
