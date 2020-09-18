@@ -43,9 +43,9 @@ sealed class Name(vararg components: String) {
     class SchemaName(vararg components: String) : Name(*components) {
         init {
             if (components[0] == NAME_COMPONENT_ROOT) {
-                require(components.size == 2) { "$this is not a valid index name." }
+                require(components.size == 2) { "$this is not a valid schema name." }
             } else {
-                require(components.size == 1) { "$this is not a valid index name." }
+                require(components.size == 1) { "$this is not a valid schema name." }
             }
         }
 
@@ -166,6 +166,10 @@ sealed class Name(vararg components: String) {
             else -> components.map { it.toLowerCase() }.toTypedArray()
         }
 
+        /** True if this [ColumnName] is a wildcard. */
+        val wildcard: Boolean
+            get() = this.components.last() == "*"
+
         /**
          * Returns [RootName] of this [EntityName].
          *
@@ -178,7 +182,7 @@ sealed class Name(vararg components: String) {
          *
          * @return Parent [SchemaName]
          */
-        fun schema(): SchemaName? = if (this.components.size == 3) {
+        fun schema(): SchemaName? = if (this.components.size == 4) {
             SchemaName(*this.components.copyOfRange(0, 2))
         } else {
             null
@@ -189,11 +193,24 @@ sealed class Name(vararg components: String) {
          *
          * @return Parent [EntityName]
          */
-        fun entity(): EntityName? = if (this.components.size == 3) {
+        fun entity(): EntityName? = if (this.components.size == 4) {
             EntityName(*this.components.copyOfRange(0, 3))
-        } else { null }
+        } else {
+            null
+        }
 
-        override fun matches(other: Name): Boolean = (other == this)
+        /**
+         *
+         */
+        override fun matches(other: Name): Boolean = if (this.wildcard) {
+            if (other is ColumnName) {
+                this.schema() == other.schema()
+            } else {
+                false
+            }
+        } else {
+            other == this
+        }
     }
 
     /**
