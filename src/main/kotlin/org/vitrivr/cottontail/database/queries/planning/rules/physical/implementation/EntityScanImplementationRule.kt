@@ -16,7 +16,7 @@ object EntityScanImplementationRule : RewriteRule {
     override fun apply(node: NodeExpression): NodeExpression? {
         val children = node.copyOutput()
         if (node is EntityScanLogicalNodeExpression) {
-            val p = EntityScanLogicalNodeExpression(node.entity)
+            val p = EntityScanPhysicalNodeExpression(node.entity)
             children?.addInput(p)
             return p
         }
