@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.database.queries.planning.rules.logical
 
 import org.vitrivr.cottontail.database.queries.components.CompoundBooleanPredicate
 import org.vitrivr.cottontail.database.queries.components.ConnectionOperator
+import org.vitrivr.cottontail.database.queries.planning.exceptions.NodeExpressionTreeException
 import org.vitrivr.cottontail.database.queries.planning.nodes.interfaces.NodeExpression
 import org.vitrivr.cottontail.database.queries.planning.nodes.interfaces.RewriteRule
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.predicates.FilterLogicalNodeExpression
@@ -19,7 +20,7 @@ object ConjunctionRewriteRule : RewriteRule {
      * Checks if this [ConjunctionRewriteRule] can be applied to the given [NodeExpression].
      *
      * @param node The input [NodeExpression] to check.
-     * @return True if [LogicalRewriteRule] can be applied, false otherwise.
+     * @return True if [RewriteRule] can be applied, false otherwise.
      */
     override fun canBeApplied(node: NodeExpression): Boolean =
             node is FilterLogicalNodeExpression &&
@@ -39,7 +40,7 @@ object ConjunctionRewriteRule : RewriteRule {
                 node.predicate is CompoundBooleanPredicate &&
                 node.predicate.connector == ConnectionOperator.AND) {
 
-            val parent = (node.copyWithInputs() as FilterLogicalNodeExpression).input
+            val parent = (node.copyWithInputs() as FilterLogicalNodeExpression).input ?: throw NodeExpressionTreeException.IncompleteNodeExpressionTreeException(node, "Expected parent but none was found.")
             val p1 = FilterLogicalNodeExpression(node.predicate.p1)
             val p2 = FilterLogicalNodeExpression(node.predicate.p2)
 

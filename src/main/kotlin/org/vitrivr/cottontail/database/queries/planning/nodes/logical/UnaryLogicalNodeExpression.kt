@@ -1,5 +1,7 @@
 package org.vitrivr.cottontail.database.queries.planning.nodes.logical
 
+import org.vitrivr.cottontail.database.queries.planning.nodes.interfaces.NodeExpression
+
 /**
  * An abstract [LogicalNodeExpression] implementation that has a single [NodeExpression] as input.
  *
@@ -11,13 +13,6 @@ abstract class UnaryLogicalNodeExpression : LogicalNodeExpression() {
     final override val inputArity: Int = 1
 
     /** Reference to the input [LogicalNodeExpression]. */
-    val input: LogicalNodeExpression
-        get() {
-            val input = this.inputs.getOrNull(0)
-            if (input is LogicalNodeExpression) {
-                return input
-            } else {
-                throw Exception()
-            }
-        }
+    val input: NodeExpression?
+        get() =  this.inputs.getOrNull(0)
 }
