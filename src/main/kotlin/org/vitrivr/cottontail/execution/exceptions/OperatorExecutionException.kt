@@ -8,4 +8,4 @@ import org.vitrivr.cottontail.execution.operators.basics.Operator
  * @author Ralph Gasser
  * @version 1.0
  */
-class OperatorExecutionException(val operator: Operator, override val message: String) : Exception("Execution error in operator $operator: $message")
+class OperatorExecutionException(val operator: Operator, message: String) : ExecutionException("Execution error in operator $operator: $message")

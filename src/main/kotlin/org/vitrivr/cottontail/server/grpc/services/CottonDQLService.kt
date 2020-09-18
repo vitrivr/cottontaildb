@@ -10,7 +10,7 @@ import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.database.catalogue.Catalogue
 import org.vitrivr.cottontail.database.queries.planning.CottontailQueryPlanner
 import org.vitrivr.cottontail.execution.ExecutionEngine
-import org.vitrivr.cottontail.execution.exceptions.OperatorExecutionException
+import org.vitrivr.cottontail.execution.exceptions.ExecutionException
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.basics.SinkOperator
 import org.vitrivr.cottontail.grpc.CottonDQLGrpc
@@ -87,15 +87,15 @@ class CottonDQLService(val catalogue: Catalogue, val engine: ExecutionEngine) : 
     } catch (e: QueryException.QueryBindException) {
         LOGGER.error("Error while executing query $request", e)
         responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Query binding failed: ${e.message}").asException())
-    } catch (e: OperatorExecutionException) {
+    } catch (e: ExecutionException) {
         LOGGER.error("Error while executing query $request", e)
-        responseObserver.onError(Status.INTERNAL.withDescription("Query execution failed because execution engine signaled an error: ${e.message}").asException())
+        responseObserver.onError(Status.INTERNAL.withDescription("Query execution failed: ${e.message}").asException())
     } catch (e: DatabaseException) {
         LOGGER.error("Error while executing query $request", e)
-        responseObserver.onError(Status.INTERNAL.withDescription("Query execution failed because of a database error: ${e.message}").asException())
+        responseObserver.onError(Status.INTERNAL.withDescription("Query execution failed failed because of a database error: ${e.message}").asException())
     } catch (e: Throwable) {
         LOGGER.error("Error while executing query $request", e)
-        responseObserver.onError(Status.UNKNOWN.withDescription("Query execution failed failed because of a unknown error: ${e.message}").asException())
+        responseObserver.onError(Status.UNKNOWN.withDescription("Query execution failed failed because of an unknown error: ${e.message}").asException())
     }
 
     /**
@@ -136,12 +136,12 @@ class CottonDQLService(val catalogue: Catalogue, val engine: ExecutionEngine) : 
     } catch (e: QueryException.QueryBindException) {
         LOGGER.error("Error while executing batched query $request", e)
         responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Query binding failed: ${e.message}").asException())
-    } catch (e: OperatorExecutionException) {
-        LOGGER.error("Error while executing batched query $request", e)
-        responseObserver.onError(Status.INTERNAL.withDescription("Query execution failed because execution engine signaled an error: ${e.message}").asException())
+    } catch (e: ExecutionException) {
+        LOGGER.error("Error while executing query $request", e)
+        responseObserver.onError(Status.INTERNAL.withDescription("Query execution failed: ${e.message}").asException())
     } catch (e: DatabaseException) {
-        LOGGER.error("Error while executing batched query $request", e)
-        responseObserver.onError(Status.INTERNAL.withDescription("Query execution failed because of a database error: ${e.message}").asException())
+        LOGGER.error("Error while executing query $request", e)
+        responseObserver.onError(Status.INTERNAL.withDescription("Query execution failed failed because of a database error: ${e.message}").asException())
     } catch (e: Throwable) {
         LOGGER.error("Error while executing batched query $request", e)
         responseObserver.onError(Status.UNKNOWN.withDescription("Query execution failed failed because of a unknown error: ${e.message}").asException())
@@ -158,7 +158,7 @@ class CottonDQLService(val catalogue: Catalogue, val engine: ExecutionEngine) : 
     /**
      * A [SinkOperator] that spools the results in the given [Recordset] to the gRPC [StreamObserver].
      *
-     * @param parent [ProducingOperator] that produces the results.
+     * @param parent [Operator] that produces the results.
      * @param context [ExecutionEngine.ExecutionContext] the [ExecutionEngine.ExecutionContext]
      * @param responseObserver [StreamObserver] used to send back the results.
      * @param index Optional index of the result (for batched queries).

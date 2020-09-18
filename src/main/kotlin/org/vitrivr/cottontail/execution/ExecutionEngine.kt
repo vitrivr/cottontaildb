@@ -4,9 +4,12 @@ import kotlinx.coroutines.ExecutorCoroutineDispatcher
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.runBlocking
+import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.config.ExecutionConfig
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.execution.ExecutionEngine.ExecutionContext
+import org.vitrivr.cottontail.execution.exceptions.ExecutionException
+import org.vitrivr.cottontail.execution.exceptions.OperatorExecutionException
 import org.vitrivr.cottontail.execution.operators.basics.SinkOperator
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import java.util.*
@@ -23,7 +26,10 @@ import java.util.concurrent.TimeUnit
  * @version 1.1
  */
 class ExecutionEngine(config: ExecutionConfig) {
-
+    /** Logger used for logging the output. */
+    companion object {
+        private val LOGGER = LoggerFactory.getLogger(ExecutionEngine::class.java)
+    }
 
     /** The [ThreadPoolExecutor] used for executing queries. */
     private val executor = ThreadPoolExecutor(
@@ -122,11 +128,17 @@ class ExecutionEngine(config: ExecutionConfig) {
                     operator.open()
 
                     /* Execute flow. */
-                    val flow = operator.toFlow(this)
-                    flow.collect()
-
-                    /* Close operators. */
-                    operator.close()
+                    try {
+                        operator.toFlow(this).collect()
+                    } catch (e: OperatorExecutionException) {
+                        throw e
+                    } catch (e: Throwable) {
+                        LOGGER.error("Unhandled exception during query execution: ${e.message}")
+                        throw ExecutionException("Unhandled exception during query execution (${e.javaClass.simpleName})")
+                    } finally {
+                        /* Close operators. */
+                        operator.close()
+                    }
                 }
             }
 
