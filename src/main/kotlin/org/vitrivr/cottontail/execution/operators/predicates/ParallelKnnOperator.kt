@@ -1,7 +1,10 @@
 package org.vitrivr.cottontail.execution.operators.predicates
 
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import org.vitrivr.cottontail.database.queries.components.KnnPredicate
 import org.vitrivr.cottontail.execution.ExecutionEngine
 import org.vitrivr.cottontail.execution.operators.basics.MergingPipelineBreaker
@@ -82,18 +85,18 @@ class ParallelKnnOperator(parents: List<Operator>, context: ExecutionEngine.Exec
             }
         }
 
+        /* Compose new flow. */
         return flow {
-            parentFlows.forEach { flow ->
-                if (flow === parentFlows.last()) {
-                    flow.collect { record ->
-                        action(record)
-                    }
-                } else {
-                    flow.onEach { record ->
-                        action(record)
-                    }.launchIn(scope)
-                }
+            /* Execute incoming flows and wait for completion. */
+            parentFlows.map { flow ->
+                flow.onEach { record ->
+                    action(record)
+                }.launchIn(scope)
+            }.forEach {
+                it.join()
             }
+
+            /* Emit kNN values. */
             for (knn in knnSet) {
                 for (i in 0 until knn.size) {
                     emit(StandaloneRecord(knn[i].first.tupleId, this@ParallelKnnOperator.columns, arrayOf(*knn[i].first.values, DoubleValue(knn[i].second))))
