@@ -26,7 +26,7 @@ import java.util.regex.Pattern
 object Cli {
 
     /** The default prompt -- just fancification */
-    private const val PROMPT = "cottontaildb>"
+    private const val PROMPT = "cottontaildb> "
 
     /** CottotanilGrpcServer instance; user for gracefully stoppin the CLI. */
     lateinit var cottontailServer: CottontailGrpcServer
@@ -122,7 +122,8 @@ object Cli {
             }
             try{
                 clikt.parse(splitLine(line))
-            }catch (e: Exception){
+                println()
+            }catch(e:Exception){
                 when (e) {
                     is com.github.ajalt.clikt.core.NoSuchSubcommand -> println("command not found")
                     is com.github.ajalt.clikt.core.PrintHelpMessage -> println(e.command.getFormattedHelp())

@@ -7,9 +7,13 @@ import com.github.ajalt.clikt.core.subcommands
 import com.github.ajalt.clikt.output.CliktHelpFormatter
 import com.github.ajalt.clikt.output.HelpFormatter
 import com.github.ajalt.clikt.parameters.arguments.argument
+import com.github.ajalt.clikt.parameters.arguments.default
+import com.github.ajalt.clikt.parameters.arguments.defaultLazy
+import com.github.ajalt.clikt.parameters.arguments.validate
 import com.github.ajalt.clikt.parameters.options.*
 import com.github.ajalt.clikt.parameters.types.int
 import com.github.ajalt.clikt.parameters.types.long
+import com.jakewharton.picnic.table
 import io.grpc.ManagedChannel
 import io.grpc.ManagedChannelBuilder
 import io.grpc.StatusRuntimeException
@@ -38,6 +42,7 @@ class CottontailCommand(private val host: String, private val port: Int) : NoOpC
         subcommands(
                 ListAllEntitiesCommand(),
                 PreviewEntityCommand(),
+                TabulatedPreviewEntityCommand(),
                 ShowEntityCommand(),
                 DropEntityCommand(),
                 OptimizeEntityCommand(),
@@ -134,9 +139,9 @@ class CottontailCommand(private val host: String, private val port: Int) : NoOpC
      * Command to preview a given entity
      */
     inner class PreviewEntityCommand : AbstractEntityCommand(name = "preview", help = "Gives a preview of the entity specified") {
-        private val limit: Long by option("-l", "--limit", help = "Limits the amount of printed results").long().default(10).validate { require(it > 0) }
+        // FIXME the option clashes with the current completion handling
+        private val limit: Long by option("-l", "--limit", help = "Limits the amount of printed results").long().default(10).validate { require(it > 1) }
         override fun exec() {
-            println("Showing first $limit elements of entity $schema.$entity")
             val qm = CottontailGrpc.QueryMessage.newBuilder().setQuery(
                     CottontailGrpc.Query.newBuilder()
                             .setFrom(From(Entity(entity, Schema(schema))))
@@ -149,7 +154,62 @@ class CottontailCommand(private val host: String, private val port: Int) : NoOpC
                 println(page.resultsList.dropLast(Math.max(0, page.resultsCount - limit).toInt()))
             }
         }
+    }
 
+    inner class TabulatedPreviewEntityCommand : AbstractEntityCommand(name = "table", help = "Tabulated preview of an entity") {
+        private val limit: Long by option("-l", "--limit", help = "Limits the amount of printed results").long().default(10).validate { require(it > 1) }
+
+        override fun exec() {
+            println("Presenting first $limit elements of entity $schema.$entity")
+            val qm = CottontailGrpc.QueryMessage.newBuilder().setQuery(
+                    CottontailGrpc.Query.newBuilder()
+                            .setFrom(From(Entity(entity, Schema(schema))))
+                            .setProjection(MatchAll())
+                            .setLimit(limit)
+            ).build()
+            val query = this@CottontailCommand.dqlService.query(qm)
+            query.forEach { page ->
+                tabulate(page.resultsList.dropLast(Math.max(0, page.resultsCount - limit).toInt()))
+            }
+        }
+
+        private fun tabulate(tuples: List<CottontailGrpc.Tuple>) {
+            val tbl = table {
+                cellStyle {
+                    border = true
+                    paddingLeft = 1
+                    paddingRight = 1
+                }
+                header {
+                    row {
+                        tuples.first().dataMap.keys.forEach { cell(it) }
+                    }
+                }
+                body {
+                    tuples.forEach {
+                        row {
+                            it.dataMap.values.map {
+                                when (it.dataCase) {
+                                    CottontailGrpc.Data.DataCase.BOOLEANDATA -> it.booleanData.toString()
+                                    CottontailGrpc.Data.DataCase.INTDATA -> it.intData.toString()
+                                    CottontailGrpc.Data.DataCase.LONGDATA -> it.longData.toString()
+                                    CottontailGrpc.Data.DataCase.FLOATDATA -> it.floatData.toString()
+                                    CottontailGrpc.Data.DataCase.DOUBLEDATA -> it.doubleData.toString()
+                                    CottontailGrpc.Data.DataCase.STRINGDATA -> it.stringData
+                                    CottontailGrpc.Data.DataCase.COMPLEX32DATA -> it.complex32Data.toString()
+                                    CottontailGrpc.Data.DataCase.COMPLEX64DATA -> it.complex64Data.toString()
+                                    CottontailGrpc.Data.DataCase.VECTORDATA -> it.vectorData.toString() // fixme not sure whether this is reasonable
+                                    CottontailGrpc.Data.DataCase.NULLDATA -> "~~NULL~~"
+                                    CottontailGrpc.Data.DataCase.DATA_NOT_SET -> "~~N/A~~"
+                                    else -> ""
+                                }
+                            }.forEach { cell(it) }
+                        }
+                    }
+                }
+            }
+            println(tbl)
+        }
     }
 
     /**
