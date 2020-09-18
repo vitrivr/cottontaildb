@@ -108,7 +108,7 @@ dependencies {
     ///// Kotlin
     compile group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib', version: kotlinVersion
     compile group: 'org.jetbrains.kotlin', name: 'kotlin-reflect', version: kotlinVersion
-    compile group: 'org.jetbrains.kotlinx', name: 'kotlinx-coroutines-core', version: '1.3.5'
+    compile group: 'org.jetbrains.kotlinx', name: 'kotlinx-coroutines-core', version: '1.3.9'
     compile group: 'org.jetbrains.kotlinx', name: 'kotlinx-serialization-core', version: '1.0.0-RC'
 
     ///// Apache Commons Math » 3.6

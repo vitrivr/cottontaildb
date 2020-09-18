@@ -7,7 +7,7 @@ import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.cost.Costs
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.NullaryPhysicalNodeExpression
 import org.vitrivr.cottontail.execution.ExecutionEngine
-import org.vitrivr.cottontail.execution.operators.basics.ProducingOperator
+import org.vitrivr.cottontail.execution.operators.basics.Operator
 
 /**
  * A [AbstractEntityPhysicalNodeExpression] that represents a predicated lookup using an [Index].
@@ -20,9 +20,10 @@ class IndexScanPhysicalNodeExpression(val entity: Entity, val index: Index, val 
     override val outputSize: Long = (this.entity.statistics.rows * this.selectivity).toLong()
     override val cost: Cost = this.index.cost(this.predicate)
     override fun copy() = IndexScanPhysicalNodeExpression(this.entity, this.index, this.predicate, this.selectivity)
-    override fun toOperator(context: ExecutionEngine.ExecutionContext): ProducingOperator {
+    override fun toOperator(context: ExecutionEngine.ExecutionContext): Operator {
         TODO("Not yet implemented")
     }
+
     override fun partition(p: Int): List<NullaryPhysicalNodeExpression> {
         /* TODO: May actually be possible for certain index structures. */
         throw IllegalStateException("IndexKnnPhysicalNodeExpression cannot be partitioned.")

@@ -1,28 +1,15 @@
 package org.vitrivr.cottontail.execution.operators.basics
 
 import org.vitrivr.cottontail.execution.ExecutionEngine
-import org.vitrivr.cottontail.model.basics.Record
 
 /**
  * An [Operator] that can be pipelined, i.e., has a parent [Operator] and no materialization of
  * intermediate results is required.
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.1
  */
-abstract class PipelineOperator(val parent: ProducingOperator, context: ExecutionEngine.ExecutionContext) : ProducingOperator(context) {
-
-    /**
-     * True, if this [PipelineOperator] is depleted, i.e., won't return any more [Record]s.
-     * Usually depends on the parent [Operator]. Can be overridden.
-     */
-    override val depleted: Boolean
-        get() = this.parent.depleted
-
-    /** [PipelineOperator]s are operational if their parent [Operator] is operational. */
-    override val operational: Boolean
-        get() = this.parent.operational
-
+abstract class PipelineOperator(val parent: Operator, context: ExecutionEngine.ExecutionContext) : Operator(context) {
     /** Implementation of [Operator.open] */
     final override fun open() {
         check(this.status == OperatorStatus.CREATED) { "Cannot open operator that is in state ${this.status}." }
@@ -36,12 +23,6 @@ abstract class PipelineOperator(val parent: ProducingOperator, context: Executio
 
         /* Update status. */
         this.status = OperatorStatus.OPEN
-    }
-
-    /** Implementation of [Operator.next] */
-    override fun next(): Record? {
-        check(this.status == OperatorStatus.OPEN) { "Cannot call next() on an operator that is in state ${this.status}." }
-        return this.getNext(this.parent.next())
     }
 
     /** Implementation of [Operator.close] */
@@ -59,22 +40,12 @@ abstract class PipelineOperator(val parent: ProducingOperator, context: Executio
     }
 
     /**
-     * Produces the next [Record] based on the provided input [Record].
-     *
-     * @param input The input [Record] to operate on.
-     * @return  The resulting [Record].
-     */
-    protected abstract fun getNext(input: Record?): Record?
-
-    /**
      * This method can be used to make necessary preparations, e.g., acquire relevant locks,
      * pre-fetch data etc. prior to query execution. Called by [Operator.open].
      *
      * Can be overridden by an implementing class.
      */
-    protected fun prepareOpen() {
-        /* No op. */
-    }
+    protected abstract fun prepareOpen()
 
     /**
      * This method can be used to make necessary preparations prior to closing the operation.
@@ -82,7 +53,5 @@ abstract class PipelineOperator(val parent: ProducingOperator, context: Executio
      *
      * Can be overridden by an implementing class.
      */
-    protected fun prepareClose() {
-        /* No op. */
-    }
+    protected abstract fun prepareClose()
 }

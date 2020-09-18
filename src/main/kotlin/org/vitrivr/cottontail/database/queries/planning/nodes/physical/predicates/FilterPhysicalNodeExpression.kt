@@ -5,7 +5,6 @@ import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.cost.Costs
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalNodeExpression
 import org.vitrivr.cottontail.execution.ExecutionEngine
-import org.vitrivr.cottontail.execution.operators.basics.ProducingOperator
 import org.vitrivr.cottontail.execution.operators.predicates.FilterOperator
 
 /**
@@ -26,5 +25,5 @@ class FilterPhysicalNodeExpression(val predicate: BooleanPredicate, val selectiv
         )
 
     override fun copy() = FilterPhysicalNodeExpression(this.predicate, this.selectivity)
-    override fun toOperator(context: ExecutionEngine.ExecutionContext): ProducingOperator = FilterOperator(this.input.toOperator(context), context, this.predicate)
+    override fun toOperator(context: ExecutionEngine.ExecutionContext) = FilterOperator(this.input.toOperator(context), context, this.predicate)
 }

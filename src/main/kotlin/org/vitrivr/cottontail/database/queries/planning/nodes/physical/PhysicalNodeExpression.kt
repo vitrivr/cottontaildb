@@ -4,7 +4,7 @@ import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.interfaces.NodeExpression
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.LogicalNodeExpression
 import org.vitrivr.cottontail.execution.ExecutionEngine
-import org.vitrivr.cottontail.execution.operators.basics.ProducingOperator
+import org.vitrivr.cottontail.execution.operators.basics.Operator
 
 /**
  * A physical [NodeExpression] in the Cottontail DB query execution plan.
@@ -60,5 +60,5 @@ abstract class PhysicalNodeExpression : NodeExpression() {
      *
      * @return [ExecutionStage]
      */
-    abstract fun toOperator(context: ExecutionEngine.ExecutionContext): ProducingOperator
+    abstract fun toOperator(context: ExecutionEngine.ExecutionContext): Operator
 }

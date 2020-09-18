@@ -1,15 +1,19 @@
 package org.vitrivr.cottontail.execution
 
+import kotlinx.coroutines.ExecutorCoroutineDispatcher
+import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.runBlocking
 import org.vitrivr.cottontail.config.ExecutionConfig
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.execution.ExecutionEngine.ExecutionContext
 import org.vitrivr.cottontail.execution.operators.basics.SinkOperator
 import org.vitrivr.cottontail.model.basics.ColumnDef
-import org.vitrivr.cottontail.model.basics.Record
-import org.vitrivr.cottontail.model.recordset.Recordset
 import java.util.*
-import java.util.concurrent.*
-import java.util.function.Consumer
+import java.util.concurrent.ArrayBlockingQueue
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ThreadPoolExecutor
+import java.util.concurrent.TimeUnit
 
 /**
  * The default [ExecutionEngine] for Cottontail DB. It hosts all the necessary facilities to create
@@ -20,8 +24,18 @@ import java.util.function.Consumer
  */
 class ExecutionEngine(config: ExecutionConfig) {
 
+
     /** The [ThreadPoolExecutor] used for executing queries. */
-    private val executor = ThreadPoolExecutor(config.coreThreads, config.maxThreads, config.keepAliveMs, TimeUnit.MILLISECONDS, ArrayBlockingQueue(config.queueSize))
+    private val executor = ThreadPoolExecutor(
+            config.coreThreads,
+            config.maxThreads,
+            config.keepAliveMs,
+            TimeUnit.MILLISECONDS,
+            ArrayBlockingQueue(config.queueSize)
+    )
+
+    /** The [ExecutorCoroutineDispatcher] used for executing queries. */
+    private val dispatcher = this.executor.asCoroutineDispatcher()
 
     /** Set of [ExecutionContext]s that are currently PENDING or RUNNING. */
     val contexts = ConcurrentHashMap<UUID, ExecutionContext>()
@@ -32,7 +46,7 @@ class ExecutionEngine(config: ExecutionConfig) {
      * @author Ralph Gasser
      * @version 1.0
      */
-    inner class ExecutionContext : Runnable {
+    inner class ExecutionContext {
 
         /** The [UUID] that identifies this [ExecutionContext]. */
         val uuid: UUID = UUID.randomUUID()
@@ -56,6 +70,9 @@ class ExecutionEngine(config: ExecutionConfig) {
         val availableThreads
             get() = this@ExecutionEngine.executor.maximumPoolSize - this@ExecutionEngine.executor.activeCount
 
+        val coroutineDispatcher
+            get() = this@ExecutionEngine.dispatcher
+
         init {
             this@ExecutionEngine.contexts[this.uuid] = this
         }
@@ -68,9 +85,6 @@ class ExecutionEngine(config: ExecutionConfig) {
         fun addOperator(operator: SinkOperator) {
             if (this.operators.contains(operator)) {
                 throw IllegalArgumentException("Operator $operator cannot be added to list of operators because that operator is already part of that list.")
-            }
-            if (!operator.operational) {
-                throw IllegalArgumentException("Operator $operator cannot be added to list of operators because that operator is not operational.")
             }
             (this.operators as MutableList).add(operator)
         }
@@ -94,64 +108,31 @@ class ExecutionEngine(config: ExecutionConfig) {
         }
 
         /**
-         * Schedules this [ExecutionContext] for execution. Can only be invoked once on a given instance of [ExecutionContext]
-         *
-         * @throws IllegalStateException If [ExecutionContext] has been scheduled already.
+         * Executes this [ExecutionContext] in the [dispatcher] of the enclosing [ExecutionEngine].
          */
         @Synchronized
-        fun schedule() {
+        fun execute() {
             check(this.state == ExecutionStatus.CREATED) { "Cannot schedule ExecutionContext ${this.uuid} because it is in state ${this.state}." }
 
-            if (!this.operators.all { it.operational }) {
-                TODO()
-            }
-
-            this@ExecutionEngine.executor.execute(this)
-            this.state = ExecutionStatus.SCHEDULED
-        }
-
-        /**
-         * Executes a branch represented by a [Callable]. Waits for the [Callable] to complete.
-         *
-         * @param callable The [Callable] that should be executed.
-         * @return The [Recordset] produced by the [Callable]
-         */
-        fun <T> executeBranch(branch: Callable<T>): Future<T> = this@ExecutionEngine.executor.submit(branch)
-
-        /**
-         * Executes a branches represented by a list of [Callable]s. Waits for all [Callable]s to complete.
-         *
-         * @param callables The [Callable]s that should be executed.
-         * @return The [Recordset]s produced by the [Callable]s
-         */
-        fun <T> executeBranches(branches: List<Callable<T>>): List<Future<T>> = this@ExecutionEngine.executor.invokeAll(branches)
-
-        /**
-         * Executes this [ExecutionContext] and pushes all [Record]s into the provided [Consumer].
-         */
-        @Synchronized
-        override fun run() {
-            /* Check and update state. */
-            check(this.state == ExecutionStatus.SCHEDULED) { "Cannot run ExecutionContext ${this.uuid} because it is in state ${this.state}." }
+            /* Update state and execute. */
             this.state = ExecutionStatus.RUNNING
+            runBlocking(this@ExecutionEngine.dispatcher) {
+                for (operator in this@ExecutionContext.operators) {
+                    /* Close operators. */
+                    operator.open()
 
-            /* Process operators one by one. */
-            for (operator in this.operators) {
-                operator.open()
+                    /* Execute flow. */
+                    val flow = operator.toFlow(this)
+                    flow.collect()
 
-                /* Execute the operator. */
-                while (!operator.depleted) {
-                    val next = operator.process()
+                    /* Close operators. */
+                    operator.close()
                 }
-
-                /* Close operators. */
-                operator.close()
             }
 
-            /* Update state and remove context. */
+            /* Remove this ExecutionContext. */
             this.state = ExecutionStatus.COMPLETED
             this@ExecutionEngine.contexts.remove(this.uuid)
         }
     }
-
 }

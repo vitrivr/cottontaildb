@@ -5,7 +5,6 @@ import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.cost.Costs
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalNodeExpression
 import org.vitrivr.cottontail.execution.ExecutionEngine
-import org.vitrivr.cottontail.execution.operators.basics.ProducingOperator
 import org.vitrivr.cottontail.execution.operators.projection.*
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Name
@@ -49,7 +48,7 @@ data class ProjectionPhysicalNodeExpression(val type: Projection, val fields: Li
         )
 
     override fun copy() = ProjectionPhysicalNodeExpression(this.type, this.fields)
-    override fun toOperator(context: ExecutionEngine.ExecutionContext): ProducingOperator = when (this.type) {
+    override fun toOperator(context: ExecutionEngine.ExecutionContext) = when (this.type) {
         Projection.SELECT -> SelectProjectionOperator(this.input.toOperator(context), context, this.fields)
         Projection.SELECT_DISTINCT -> TODO()
         Projection.COUNT -> ExistsProjectionOperator(this.input.toOperator(context), context)

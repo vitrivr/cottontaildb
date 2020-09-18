@@ -8,7 +8,6 @@ package org.vitrivr.cottontail.execution
  */
 enum class ExecutionStatus {
     CREATED,
-    SCHEDULED,
     RUNNING,
     COMPLETED
 }

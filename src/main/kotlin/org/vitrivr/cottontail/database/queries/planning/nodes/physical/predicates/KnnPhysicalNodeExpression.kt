@@ -6,10 +6,11 @@ import org.vitrivr.cottontail.database.queries.planning.nodes.interfaces.NodeExp
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.NullaryPhysicalNodeExpression
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalNodeExpression
 import org.vitrivr.cottontail.execution.ExecutionEngine
-import org.vitrivr.cottontail.execution.operators.basics.ProducingOperator
+import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.predicates.KnnOperator
 import org.vitrivr.cottontail.execution.operators.predicates.ParallelKnnOperator
 import java.lang.Integer.min
+import kotlin.math.roundToInt
 
 /**
  * A [UnaryPhysicalNodeExpression] that represents the application of a [KnnPredicate] on some intermediate result.
@@ -28,11 +29,11 @@ class KnnPhysicalNodeExpression(val knn: KnnPredicate<*>) : UnaryPhysicalNodeExp
         )
 
     override fun copy() = KnnPhysicalNodeExpression(this.knn)
-    override fun toOperator(context: ExecutionEngine.ExecutionContext): ProducingOperator {
+    override fun toOperator(context: ExecutionEngine.ExecutionContext): Operator {
         if (this.cost.cpu > 1.0f) {
             val base = seekBase(this.input)
             return if (base is NullaryPhysicalNodeExpression && base.canBePartitioned) {
-                val partitions = base.partition(min(this.cost.cpu.toInt(), context.availableThreads))
+                val partitions = base.partition(min(this.cost.cpu.roundToInt(), context.availableThreads))
                 val operators = partitions.map {
                     var prev: NodeExpression? = null
                     var next: NodeExpression = this.input
