@@ -11,7 +11,7 @@ import org.vitrivr.cottontail.model.basics.ColumnDef
  * @author Ralph Gasser
  * @version 1.0
  */
-abstract class AbstractEntityOperator(context: ExecutionEngine.ExecutionContext, private val entity: Entity, override val columns: Array<ColumnDef<*>>) : SourceOperator(context) {
+abstract class AbstractEntityOperator(context: ExecutionEngine.ExecutionContext, protected val entity: Entity, override val columns: Array<ColumnDef<*>>) : SourceOperator(context) {
     /** Transaction used by this [AbstractEntityOperator]. */
     protected var transaction: Entity.Tx? = null
 

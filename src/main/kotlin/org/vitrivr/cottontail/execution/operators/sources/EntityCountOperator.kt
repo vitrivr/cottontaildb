@@ -23,6 +23,15 @@ class EntityCountOperator(context: ExecutionEngine.ExecutionContext, entity: Ent
     /** The [ColumnDef] returned by this [EntitySampleOperator]. */
     override val columns: Array<ColumnDef<*>> = arrayOf(ColumnDef.withAttributes(entity.name.column("count()"), "LONG"))
 
+    override fun prepareOpen() {
+        this.transaction = this.entity.Tx(readonly = true)
+    }
+
+    override fun prepareClose() {
+        this.transaction!!.close()
+        this.transaction = null
+    }
+
     /**
      * Converts this [EntityCountOperator] to a [Flow] and returns it.
      *

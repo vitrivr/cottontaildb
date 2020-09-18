@@ -6,6 +6,7 @@ import org.vitrivr.cottontail.database.queries.planning.nodes.logical.LogicalNod
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.PhysicalNodeExpression
 import org.vitrivr.cottontail.database.queries.planning.rules.logical.ConjunctionRewriteRule
 import org.vitrivr.cottontail.database.queries.planning.rules.physical.implementation.*
+import org.vitrivr.cottontail.database.queries.planning.rules.physical.pushdown.CountPushdownRule
 import java.util.*
 
 /**
@@ -39,6 +40,7 @@ class CottontailQueryPlanner(
 
         /** Ruleset for Stage 2 of optimisation. */
         val DEFAULT_STAGE2_RULESET = listOf(
+                CountPushdownRule,
                 EntityScanImplementationRule,
                 FilterImplementationRule,
                 KnnImplementationRule,
