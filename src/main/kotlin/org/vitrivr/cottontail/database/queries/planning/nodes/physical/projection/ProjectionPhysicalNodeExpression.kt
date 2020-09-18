@@ -51,7 +51,7 @@ data class ProjectionPhysicalNodeExpression(val type: Projection, val fields: Li
     override fun toOperator(context: ExecutionEngine.ExecutionContext) = when (this.type) {
         Projection.SELECT -> SelectProjectionOperator(this.input.toOperator(context), context, this.fields)
         Projection.SELECT_DISTINCT -> TODO()
-        Projection.COUNT -> ExistsProjectionOperator(this.input.toOperator(context), context)
+        Projection.COUNT -> CountProjectionOperator(this.input.toOperator(context), context)
         Projection.COUNT_DISTINCT -> TODO()
         Projection.EXISTS -> ExistsProjectionOperator(this.input.toOperator(context), context)
         Projection.SUM -> SumProjectionOperator(this.input.toOperator(context), context, this.fields.first().first)
