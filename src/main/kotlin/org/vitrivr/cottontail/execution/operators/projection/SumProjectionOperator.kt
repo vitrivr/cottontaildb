@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
 import org.vitrivr.cottontail.execution.ExecutionEngine
 import org.vitrivr.cottontail.execution.exceptions.OperatorExecutionException
+import org.vitrivr.cottontail.execution.exceptions.OperatorSetupException
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.basics.OperatorStatus
 import org.vitrivr.cottontail.execution.operators.basics.PipelineBreaker
@@ -22,10 +23,20 @@ import org.vitrivr.cottontail.model.values.*
  * @author Ralph Gasser
  * @version 1.1.0
  */
-class SumProjectionOperator(parent: Operator, context: ExecutionEngine.ExecutionContext, val column: ColumnDef<*>) : PipelineBreaker(parent, context) {
+class SumProjectionOperator(parent: Operator, context: ExecutionEngine.ExecutionContext, val name: Name.ColumnName, val alias: Name.ColumnName? = null) : PipelineBreaker(parent, context) {
+    /** The [ColumnDef] of the incoming [Operator] that is being used for calculation. */
+    private val parentColumn: ColumnDef<*> = this.parent.columns.firstOrNull { it.name == name && it.type.numeric }
+            ?: throw OperatorSetupException(this, "The provided column $name cannot be used for a SUM projection. It either doesn't exist or has the wrong type.")
+
     /** Columns produced by [MeanProjectionOperator]. */
-    override val columns: Array<ColumnDef<*>> = arrayOf(ColumnDef.withAttributes(this.parent.columns.first().name.entity()?.column("sum(${column.name})")
-            ?: Name.ColumnName("sum(${column.name})"), "DOUBLE"))
+    override val columns: Array<ColumnDef<*>> = arrayOf(
+            ColumnDef.withAttributes(
+                    this.alias
+                            ?: (parentColumn.name.entity()?.column("sum(${this.parentColumn.name.simple})")
+                                    ?: Name.ColumnName("sum(${this.parentColumn.name.simple}")),
+                    "DOUBLE"
+            )
+    )
 
     override fun prepareOpen() { /*NoOp */
     }
@@ -47,7 +58,7 @@ class SumProjectionOperator(parent: Operator, context: ExecutionEngine.Execution
         return flow {
             var sum = 0.0
             parentFlow.collect {
-                val value = it[this@SumProjectionOperator.column]
+                val value = it[this@SumProjectionOperator.parentColumn]
                 sum += when (value) {
                     is ByteValue -> value.value.toDouble()
                     is ShortValue -> value.value.toDouble()
@@ -55,7 +66,7 @@ class SumProjectionOperator(parent: Operator, context: ExecutionEngine.Execution
                     is LongValue -> value.value.toDouble()
                     is FloatValue -> value.value.toDouble()
                     is DoubleValue -> value.value
-                    else -> throw OperatorExecutionException(this@SumProjectionOperator, "The provided column $column cannot be used for a SUM projection.")
+                    else -> throw OperatorExecutionException(this@SumProjectionOperator, "The provided column $parentColumn cannot be used for a SUM projection.")
                 }
             }
             emit(StandaloneRecord(0L, this@SumProjectionOperator.columns, arrayOf(DoubleValue(sum))))

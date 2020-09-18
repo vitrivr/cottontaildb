@@ -6,7 +6,6 @@ import org.vitrivr.cottontail.database.queries.planning.cost.Costs
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalNodeExpression
 import org.vitrivr.cottontail.execution.ExecutionEngine
 import org.vitrivr.cottontail.execution.operators.projection.*
-import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.exceptions.QueryException
 
@@ -16,7 +15,7 @@ import org.vitrivr.cottontail.model.exceptions.QueryException
  * @author Ralph Gasser
  * @version 1.1
  */
-data class ProjectionPhysicalNodeExpression(val type: Projection, val fields: List<Pair<ColumnDef<*>, Name.ColumnName?>>) : UnaryPhysicalNodeExpression() {
+data class ProjectionPhysicalNodeExpression(val type: Projection, val fields: List<Pair<Name.ColumnName, Name.ColumnName?>>) : UnaryPhysicalNodeExpression() {
     init {
         /* Sanity check. */
         when (type) {
@@ -30,8 +29,6 @@ data class ProjectionPhysicalNodeExpression(val type: Projection, val fields: Li
             Projection.MIN,
             Projection.MAX -> if (fields.isEmpty()) {
                 throw QueryException.QuerySyntaxException("Projection of type $type must specify a column.")
-            } else if (!fields.first().first.type.numeric) {
-                throw QueryException.QueryBindException("Projection of type $type can only be applied on a numeric column, which ${fields.first().first.name} is not.")
             }
             else -> {
             }

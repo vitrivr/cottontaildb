@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
 import org.vitrivr.cottontail.execution.ExecutionEngine
 import org.vitrivr.cottontail.execution.exceptions.OperatorExecutionException
+import org.vitrivr.cottontail.execution.exceptions.OperatorSetupException
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.basics.OperatorStatus
 import org.vitrivr.cottontail.execution.operators.basics.PipelineBreaker
@@ -24,10 +25,21 @@ import org.vitrivr.cottontail.model.values.*
  * @author Ralph Gasser
  * @version 1.1.0
  */
-class MeanProjectionOperator(parent: Operator, context: ExecutionEngine.ExecutionContext, val column: ColumnDef<*>) : PipelineBreaker(parent, context) {
+class MeanProjectionOperator(parent: Operator, context: ExecutionEngine.ExecutionContext, val name: Name.ColumnName, val alias: Name.ColumnName? = null) : PipelineBreaker(parent, context) {
+
+    /** The [ColumnDef] of the incoming [Operator] that is being used for calculation. */
+    private val parentColumn: ColumnDef<*> = this.parent.columns.firstOrNull { it.name == name && it.type.numeric }
+            ?: throw OperatorSetupException(this, "The provided column $name cannot be used for a MEAN projection. It either doesn't exist or has the wrong type.")
+
     /** Columns produced by [MeanProjectionOperator]. */
-    override val columns: Array<ColumnDef<*>> = arrayOf(ColumnDef.withAttributes(parent.columns.first().name.entity()?.column("mean(${column.name})")
-            ?: Name.ColumnName("mean(${column.name})"), "DOUBLE"))
+    override val columns: Array<ColumnDef<*>> = arrayOf(
+            ColumnDef.withAttributes(
+                    this.alias
+                            ?: (parentColumn.name.entity()?.column("mean(${this.parentColumn.name.simple})")
+                                    ?: Name.ColumnName("mean(${this.parentColumn.name.simple}")),
+                    "DOUBLE"
+            )
+    )
 
     override fun prepareOpen() { /*NoOp */
     }
@@ -50,7 +62,7 @@ class MeanProjectionOperator(parent: Operator, context: ExecutionEngine.Executio
             var sum = 0.0
             var count = 0L
             parentFlow.collect {
-                val value = it[this@MeanProjectionOperator.column]
+                val value = it[this@MeanProjectionOperator.parentColumn]
                 count++
                 sum += when (value) {
                     is ByteValue -> value.value.toDouble()
@@ -59,7 +71,7 @@ class MeanProjectionOperator(parent: Operator, context: ExecutionEngine.Executio
                     is LongValue -> value.value.toDouble()
                     is FloatValue -> value.value.toDouble()
                     is DoubleValue -> value.value
-                    else -> throw OperatorExecutionException(this@MeanProjectionOperator, "The provided column $column cannot be used for a MEAN projection.")
+                    else -> throw OperatorExecutionException(this@MeanProjectionOperator, "The provided column $name cannot be used for a MEAN projection.")
                 }
             }
             emit(StandaloneRecord(0L, this@MeanProjectionOperator.columns, arrayOf(DoubleValue(sum / count))))
