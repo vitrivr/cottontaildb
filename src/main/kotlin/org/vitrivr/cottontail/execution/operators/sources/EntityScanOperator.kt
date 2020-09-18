@@ -12,7 +12,7 @@ import org.vitrivr.cottontail.model.basics.Record
  * @author Ralph Gasser
  * @version 1.0
  */
-class EntityScanOperator(context: ExecutionEngine.ExecutionContext, entity: Entity, override val columns: Array<ColumnDef<*>>, private val range: LongRange = 1L until entity.statistics.maxTupleId) : AbstractEntityOperator(context, entity, columns) {
+class EntityScanOperator(context: ExecutionEngine.ExecutionContext, entity: Entity, override val columns: Array<ColumnDef<*>>, private val range: LongRange = 1L..entity.statistics.maxTupleId) : AbstractEntityOperator(context, entity, columns) {
     /** The maximum tuple ID held by the [Entity]. */
     private var nextTupleId = this.range.first
 

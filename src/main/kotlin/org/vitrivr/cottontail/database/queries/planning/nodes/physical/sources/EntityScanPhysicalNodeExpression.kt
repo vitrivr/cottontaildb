@@ -7,7 +7,6 @@ import org.vitrivr.cottontail.database.queries.planning.nodes.physical.NullaryPh
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalNodeExpression
 import org.vitrivr.cottontail.execution.ExecutionEngine
 import org.vitrivr.cottontail.execution.operators.basics.ProducingOperator
-import org.vitrivr.cottontail.execution.operators.sources.EntitySampleOperator
 import org.vitrivr.cottontail.execution.operators.sources.EntityScanOperator
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import java.lang.Math.floorDiv
@@ -19,7 +18,7 @@ import kotlin.math.min
  * @author Ralph Gasser
  * @version 1.0
  */
-class EntityScanPhysicalNodeExpression(val entity: Entity, val columns: Array<ColumnDef<*>> = entity.allColumns().toTypedArray(), val range: LongRange = 1L until entity.statistics.maxTupleId): NullaryPhysicalNodeExpression() {
+class EntityScanPhysicalNodeExpression(val entity: Entity, val columns: Array<ColumnDef<*>> = entity.allColumns().toTypedArray(), val range: LongRange = 1L..entity.statistics.maxTupleId) : NullaryPhysicalNodeExpression() {
     init {
         require(this.range.first > 0L) { "Start of a ranged entity scan must be greater than zero." }
     }
@@ -32,8 +31,8 @@ class EntityScanPhysicalNodeExpression(val entity: Entity, val columns: Array<Co
     override fun partition(p: Int): List<NullaryPhysicalNodeExpression> {
         val partitionSize = floorDiv(this.range.last - this.range.first + 1, p) + 1
         return (0 until p).map {
-            val start =  it * partitionSize
-            val end = min((it + 1) * partitionSize, this.range.last)
+            val start = it * partitionSize + 1
+            val end = min((it + 1) * partitionSize, this.range.last) + 1
             EntityScanPhysicalNodeExpression(this.entity, this.columns, start until end)
         }
     }
