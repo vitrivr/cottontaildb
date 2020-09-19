@@ -8,6 +8,7 @@ import org.vitrivr.cottontail.database.column.Column
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.events.DataChangeEvent
 import org.vitrivr.cottontail.database.events.DataChangeEventType
+import org.vitrivr.cottontail.database.general.TransactionStatus
 import org.vitrivr.cottontail.database.index.Index
 import org.vitrivr.cottontail.database.index.IndexTransaction
 import org.vitrivr.cottontail.database.index.IndexType
@@ -149,7 +150,6 @@ class UniqueHashIndex(override val name: Name.IndexName, override val parent: En
                     LOGGER.warn("Value must be unique for instances of unique hash-index but '$value' (tid=$tid) is not! Skipping entry...")
                 }
             }
-            this@UniqueHashIndex.db.commit()
         }
 
         /**
@@ -159,45 +159,37 @@ class UniqueHashIndex(override val name: Name.IndexName, override val parent: En
          * @param update Collection of [DataChangeEvent]s to process.
          */
         override fun update(update: Collection<DataChangeEvent>) = this.localLock.read {
-            try {
-                /* Check if this [Tx] allowed to write. */
-                checkValidForWrite()
-                val localMap = this@UniqueHashIndex.map as HTreeMap<Value, Long>
+            /* Check if this [Tx] allowed to write. */
+            checkValidForWrite()
+            val localMap = this@UniqueHashIndex.map as HTreeMap<Value, Long>
 
-                /* Define action for inserting an entry based on a DataChangeEvent. */
-                val atomicInsert = { event: DataChangeEvent ->
-                    val newValue = event.new?.get(this.columns[0])
-                            ?: throw ValidationException.IndexUpdateException(this.name, "Values cannot be null for instances of UniqueHashIndex but tid=${event.new?.tupleId} is.")
-                    localMap[newValue] = event.new.tupleId
-                }
+            /* Define action for inserting an entry based on a DataChangeEvent. */
+            val atomicInsert = { event: DataChangeEvent ->
+                val newValue = event.new?.get(this.columns[0])
+                        ?: throw ValidationException.IndexUpdateException(this.name, "Values cannot be null for instances of UniqueHashIndex but tid=${event.new?.tupleId} is.")
+                localMap[newValue] = event.new.tupleId
+            }
 
-                /* Define action for deleting an entry based on a DataChangeEvent. */
-                val atomicDelete = { event: DataChangeEvent ->
-                    val oldValue = event.old?.get(this.columns[0])
-                            ?: throw ValidationException.IndexUpdateException(this.name, "Values cannot be null for instances of UniqueHashIndex but tid=${event.new?.tupleId} is.")
-                    localMap.remove(oldValue)
-                }
+            /* Define action for deleting an entry based on a DataChangeEvent. */
+            val atomicDelete = { event: DataChangeEvent ->
+                val oldValue = event.old?.get(this.columns[0])
+                        ?: throw ValidationException.IndexUpdateException(this.name, "Values cannot be null for instances of UniqueHashIndex but tid=${event.new?.tupleId} is.")
+                localMap.remove(oldValue)
+            }
 
-                /* Process the DataChangeEvents. */
-                loop@ for (event in update) {
-                    when (event.type) {
-                        DataChangeEventType.INSERT -> atomicInsert(event)
-                        DataChangeEventType.UPDATE -> {
-                            if (event.new?.get(this.columns[0]) != event.old?.get(this.columns[0])) {
-                                atomicDelete(event)
-                                atomicInsert(event)
-                            }
+            /* Process the DataChangeEvents. */
+            loop@ for (event in update) {
+                when (event.type) {
+                    DataChangeEventType.INSERT -> atomicInsert(event)
+                    DataChangeEventType.UPDATE -> {
+                        if (event.new?.get(this.columns[0]) != event.old?.get(this.columns[0])) {
+                            atomicDelete(event)
+                            atomicInsert(event)
                         }
-                        DataChangeEventType.DELETE -> atomicDelete(event)
-                        else -> continue@loop
                     }
+                    DataChangeEventType.DELETE -> atomicDelete(event)
+                    else -> continue@loop
                 }
-
-                /* Commit the change. */
-                this@UniqueHashIndex.db.commit()
-            } catch (e: Throwable) {
-                this@UniqueHashIndex.db.rollback()
-                throw e
             }
         }
 
@@ -275,6 +267,38 @@ class UniqueHashIndex(override val name: Name.IndexName, override val parent: En
                     this@Tx.localLock.unlock(this.lock)
                     this.closed = true
                 }
+            }
+        }
+
+        /**
+         * Commits all changes to the [UniqueHashIndex] made through this [NonUniqueHashIndex.Tx]
+         */
+        override fun commit() = this.localLock.read {
+            checkValidForWrite()
+            this@UniqueHashIndex.db.commit()
+        }
+
+        /**
+         * Makes a rollback on all changes to the [UniqueHashIndex] made through this [NonUniqueHashIndex.Tx]
+         */
+        override fun rollback() = this.localLock.read {
+            checkValidForWrite()
+            this@UniqueHashIndex.db.rollback()
+        }
+
+        /**
+         * Closes this [UniqueHashIndex.Tx] and releases the global lock. Closed [IndexTransaction]s cannot be used anymore!
+         */
+        override fun close() = this.localLock.write {
+            if (this.status != TransactionStatus.CLOSED) {
+                if (!this.readonly && this.status == TransactionStatus.DIRTY) {
+                    this.localLock.read {
+                        this@UniqueHashIndex.db.rollback()
+                    }
+                }
+                this.status = TransactionStatus.CLOSED
+                this@UniqueHashIndex.txLock.unlock(this.txStamp)
+                this@UniqueHashIndex.globalLock.unlockRead(this.globalStamp)
             }
         }
     }

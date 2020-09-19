@@ -104,7 +104,7 @@ abstract class Index : DBO {
         /** Flag indicating whether or not this [IndexTransaction] was closed */
         @Volatile
         final override var status: TransactionStatus = TransactionStatus.CLEAN
-            private set
+            protected set
 
         /** Flag indicating whether this [IndexTransaction] is readonly. */
         final override val readonly: Boolean = parent.readonly
@@ -163,12 +163,6 @@ abstract class Index : DBO {
          * @return True if incremental [Index] updates are supported.
          */
         override fun supportsIncrementalUpdate(): Boolean = this@Index.supportsIncrementalUpdate()
-
-        /** Has no effect since updating an [Index] takes immediate effect. */
-        override fun commit() {}
-
-        /** Has no effect since updating an [Index] takes immediate effect. */
-        override fun rollback() {}
 
         /**
          * Closes this [Index.Tx] and releases the global lock. Closed [Entity.Tx] cannot be used anymore!

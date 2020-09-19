@@ -7,6 +7,7 @@ import org.vitrivr.cottontail.database.column.Column
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.events.DataChangeEvent
 import org.vitrivr.cottontail.database.events.DataChangeEventType
+import org.vitrivr.cottontail.database.general.TransactionStatus
 import org.vitrivr.cottontail.database.index.Index
 import org.vitrivr.cottontail.database.index.IndexTransaction
 import org.vitrivr.cottontail.database.index.IndexType
@@ -126,9 +127,8 @@ class NonUniqueHashIndex(override val name: Name.IndexName, override val parent:
     private inner class Tx(parent: Entity.Tx) : Index.Tx(parent) {
         /**
          * (Re-)builds the [NonUniqueHashIndex].
-         **/
+         */
         override fun rebuild() = this.localLock.read {
-
             /* Check if this [Tx] allows for writing. */
             checkValidForWrite()
 
@@ -149,7 +149,6 @@ class NonUniqueHashIndex(override val name: Name.IndexName, override val parent:
             }
             val castMap = this@NonUniqueHashIndex.map as HTreeMap<Value, LongArray>
             localMap.forEach { (value, l) -> castMap[value] = l.toLongArray() }
-            this@NonUniqueHashIndex.db.commit()
         }
 
         /**
@@ -159,60 +158,52 @@ class NonUniqueHashIndex(override val name: Name.IndexName, override val parent:
          * @param update Collection of [DataChangeEvent]s to process.
          */
         override fun update(update: Collection<DataChangeEvent>) = this.localLock.read {
-            try {
-                /* Check if this [Tx] allows for writing. */
-                checkValidForWrite()
+            /* Check if this [Tx] allows for writing. */
+            checkValidForWrite()
 
-                val localMap = this@NonUniqueHashIndex.map as HTreeMap<Value, LongArray>
+            val localMap = this@NonUniqueHashIndex.map as HTreeMap<Value, LongArray>
 
-                /* Define action for inserting an entry based on a DataChangeEvent. */
-                val atomicInsert = { event: DataChangeEvent ->
-                    val newValue = event.new?.get(this.columns[0])
-                            ?: throw ValidationException.IndexUpdateException(this.name, "Values cannot be null for instances of UniqueHashIndex but tid=${event.new?.tupleId} is.")
-                    if (localMap.containsKey(newValue)) {
-                        val oldArray = localMap[newValue]!!
-                        if (!oldArray.contains(event.new.tupleId)) {
-                            val newArray = oldArray.copyOf(oldArray.size + 1)
-                            newArray[oldArray.size] = event.new.tupleId
-                            localMap[newValue] = newArray
-                        }
-                    } else {
-                        localMap[newValue] = longArrayOf(event.new.tupleId)
+            /* Define action for inserting an entry based on a DataChangeEvent. */
+            val atomicInsert = { event: DataChangeEvent ->
+                val newValue = event.new?.get(this.columns[0])
+                        ?: throw ValidationException.IndexUpdateException(this.name, "Values cannot be null for instances of UniqueHashIndex but tid=${event.new?.tupleId} is.")
+                if (localMap.containsKey(newValue)) {
+                    val oldArray = localMap[newValue]!!
+                    if (!oldArray.contains(event.new.tupleId)) {
+                        val newArray = oldArray.copyOf(oldArray.size + 1)
+                        newArray[oldArray.size] = event.new.tupleId
+                        localMap[newValue] = newArray
+                    }
+                } else {
+                    localMap[newValue] = longArrayOf(event.new.tupleId)
+                }
+            }
+
+            /* Define action for deleting an entry based on a DataChangeEvent. */
+            val atomicDelete = { event: DataChangeEvent ->
+                val oldValue = event.old?.get(this.columns[0])
+                        ?: throw ValidationException.IndexUpdateException(this.name, "Values cannot be null for instances of UniqueHashIndex but tid=${event.new?.tupleId} is.")
+                if (localMap.containsKey(oldValue)) {
+                    val oldArray = localMap[oldValue]!!
+                    if (oldArray.contains(event.old.tupleId)) {
+                        localMap[oldValue] = oldArray.filter { it != event.old.tupleId }.toLongArray()
                     }
                 }
+            }
 
-                /* Define action for deleting an entry based on a DataChangeEvent. */
-                val atomicDelete = { event: DataChangeEvent ->
-                    val oldValue = event.old?.get(this.columns[0])
-                            ?: throw ValidationException.IndexUpdateException(this.name, "Values cannot be null for instances of UniqueHashIndex but tid=${event.new?.tupleId} is.")
-                    if (localMap.containsKey(oldValue)) {
-                        val oldArray = localMap[oldValue]!!
-                        if (oldArray.contains(event.old.tupleId)) {
-                            localMap[oldValue] = oldArray.filter { it != event.old.tupleId }.toLongArray()
+            /* Process the DataChangeEvents. */
+            loop@ for (event in update) {
+                when (event.type) {
+                    DataChangeEventType.INSERT -> atomicInsert(event)
+                    DataChangeEventType.UPDATE -> {
+                        if (event.new?.get(this.columns[0]) != event.old?.get(this.columns[0])) {
+                            atomicDelete(event)
+                            atomicInsert(event)
                         }
                     }
+                    DataChangeEventType.DELETE -> atomicDelete(event)
+                    else -> continue@loop
                 }
-
-                /* Process the DataChangeEvents. */
-                loop@ for (event in update) {
-                    when (event.type) {
-                        DataChangeEventType.INSERT -> atomicInsert(event)
-                        DataChangeEventType.UPDATE -> {
-                            if (event.new?.get(this.columns[0]) != event.old?.get(this.columns[0])) {
-                                atomicDelete(event)
-                                atomicInsert(event)
-                            }
-                        }
-                        DataChangeEventType.DELETE -> atomicDelete(event)
-                        else -> continue@loop
-                    }
-                }
-
-                /* Commit the change. */
-                this@NonUniqueHashIndex.db.commit()
-            } catch (e: Throwable) {
-                this@NonUniqueHashIndex.db.rollback()
-                throw e
             }
         }
 
@@ -294,6 +285,38 @@ class NonUniqueHashIndex(override val name: Name.IndexName, override val parent:
                     this@Tx.localLock.unlock(this.lock)
                     this.closed = true
                 }
+            }
+        }
+
+        /**
+         * Commits all changes to the [NonUniqueHashIndex] made through this [NonUniqueHashIndex.Tx]
+         */
+        override fun commit() = this.localLock.read {
+            checkValidForWrite()
+            this@NonUniqueHashIndex.db.commit()
+        }
+
+        /**
+         * Makes a rollback on all changes to the [NonUniqueHashIndex] made through this [NonUniqueHashIndex.Tx]
+         */
+        override fun rollback() = this.localLock.read {
+            checkValidForWrite()
+            this@NonUniqueHashIndex.db.rollback()
+        }
+
+        /**
+         * Closes this [NonUniqueHashIndex.Tx] and releases the global lock. Closed [IndexTransaction]s cannot be used anymore!
+         */
+        override fun close() = this.localLock.write {
+            if (this.status != TransactionStatus.CLOSED) {
+                if (!this.readonly && this.status == TransactionStatus.DIRTY) {
+                    this.localLock.read {
+                        this@NonUniqueHashIndex.db.rollback()
+                    }
+                }
+                this.status = TransactionStatus.CLOSED
+                this@NonUniqueHashIndex.txLock.unlock(this.txStamp)
+                this@NonUniqueHashIndex.globalLock.unlockRead(this.globalStamp)
             }
         }
     }

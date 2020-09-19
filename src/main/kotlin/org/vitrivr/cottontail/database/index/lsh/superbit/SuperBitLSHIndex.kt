@@ -3,9 +3,12 @@ package org.vitrivr.cottontail.database.index.lsh.superbit
 import org.vitrivr.cottontail.database.column.Column
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.events.DataChangeEvent
+import org.vitrivr.cottontail.database.general.TransactionStatus
 import org.vitrivr.cottontail.database.index.Index
 import org.vitrivr.cottontail.database.index.IndexTransaction
 import org.vitrivr.cottontail.database.index.IndexType
+import org.vitrivr.cottontail.database.index.hash.NonUniqueHashIndex
+import org.vitrivr.cottontail.database.index.hash.UniqueHashIndex
 import org.vitrivr.cottontail.database.index.lsh.LSHIndex
 import org.vitrivr.cottontail.database.queries.components.AtomicBooleanPredicate
 import org.vitrivr.cottontail.database.queries.components.KnnPredicate
@@ -19,6 +22,7 @@ import org.vitrivr.cottontail.model.exceptions.StoreException
 import org.vitrivr.cottontail.model.recordset.Recordset
 import org.vitrivr.cottontail.model.values.types.VectorValue
 import org.vitrivr.cottontail.utilities.extensions.read
+import org.vitrivr.cottontail.utilities.extensions.write
 
 /**
  * Represents a LSH based index in the Cottontail DB data model. An [Index] belongs to an [Entity] and can be used to
@@ -125,9 +129,6 @@ class SuperBitLSHIndex<T : VectorValue<*>>(name: Name.IndexName, parent: Entity,
             /* Replace existing map. */
             this@SuperBitLSHIndex.map.clear()
             local.forEachIndexed { bucket, list -> this@SuperBitLSHIndex.map[bucket] = list.toLongArray() }
-
-            /* Commit local database. */
-            this@SuperBitLSHIndex.db.commit()
         }
 
         /**
@@ -137,12 +138,7 @@ class SuperBitLSHIndex<T : VectorValue<*>>(name: Name.IndexName, parent: Entity,
          * @param update Collection of [DataChangeEvent]s to process.
          */
         override fun update(update: Collection<DataChangeEvent>) = this.localLock.read {
-            try {
-                TODO()
-            } catch (e: Throwable) {
-                this@SuperBitLSHIndex.db.rollback()
-                throw e
-            }
+            TODO()
         }
 
         /**
@@ -206,6 +202,38 @@ class SuperBitLSHIndex<T : VectorValue<*>>(name: Name.IndexName, parent: Entity,
                     this@Tx.localLock.unlock(this.stamp)
                     this.closed = true
                 }
+            }
+        }
+
+        /**
+         * Commits all changes to the [UniqueHashIndex] made through this [NonUniqueHashIndex.Tx]
+         */
+        override fun commit() = this.localLock.read {
+            checkValidForWrite()
+            this@SuperBitLSHIndex.db.commit()
+        }
+
+        /**
+         * Makes a rollback on all changes to the [UniqueHashIndex] made through this [NonUniqueHashIndex.Tx]
+         */
+        override fun rollback() = this.localLock.read {
+            checkValidForWrite()
+            this@SuperBitLSHIndex.db.rollback()
+        }
+
+        /**
+         * Closes this [UniqueHashIndex.Tx] and releases the global lock. Closed [IndexTransaction]s cannot be used anymore!
+         */
+        override fun close() = this.localLock.write {
+            if (this.status != TransactionStatus.CLOSED) {
+                if (!this.readonly && this.status == TransactionStatus.DIRTY) {
+                    this.localLock.read {
+                        this@SuperBitLSHIndex.db.rollback()
+                    }
+                }
+                this.status = TransactionStatus.CLOSED
+                this@SuperBitLSHIndex.txLock.unlock(this.txStamp)
+                this@SuperBitLSHIndex.globalLock.unlockRead(this.globalStamp)
             }
         }
 

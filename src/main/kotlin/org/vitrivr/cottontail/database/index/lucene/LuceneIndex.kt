@@ -15,6 +15,7 @@ import org.vitrivr.cottontail.database.column.ColumnType
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.events.DataChangeEvent
 import org.vitrivr.cottontail.database.events.DataChangeEventType
+import org.vitrivr.cottontail.database.general.TransactionStatus
 import org.vitrivr.cottontail.database.index.Index
 import org.vitrivr.cottontail.database.index.IndexTransaction
 import org.vitrivr.cottontail.database.index.IndexType
@@ -90,6 +91,36 @@ class LuceneIndex(override val name: Name.IndexName, override val parent: Entity
     private var indexReader = DirectoryReader.open(this.directory)
 
     /**
+     * Checks if this [LuceneIndex] can process the given [Predicate].
+     *
+     * @param predicate [Predicate] to test.
+     * @return True if [Predicate] can be processed, false otherwise.
+     */
+    override fun canProcess(predicate: Predicate): Boolean = if (predicate is BooleanPredicate) {
+        predicate.columns.all { this.columns.contains(it) } && predicate.atomics.all { it.operator == ComparisonOperator.LIKE || it.operator == ComparisonOperator.EQUAL }
+    } else {
+        false
+    }
+
+    /**
+     * Calculates the cost estimate of this [UniqueHashIndex] processing the provided [Predicate].
+     *
+     * @param predicate [Predicate] to check.
+     * @return Cost estimate for the [Predicate]
+     */
+    override fun cost(predicate: Predicate): Cost = when {
+        canProcess(predicate) -> {
+            val searcher = IndexSearcher(this.indexReader)
+            var cost = Cost.ZERO
+            predicate.columns.forEach {
+                cost += Cost(Costs.DISK_ACCESS_READ, Costs.DISK_ACCESS_READ, it.physicalSize.toFloat()) * searcher.collectionStatistics(it.name.simple).sumTotalTermFreq()
+            }
+            cost
+        }
+        else -> Cost.INVALID
+    }
+
+    /**
      * Returns true, if the [LuceneIndex] supports incremental updates, and false otherwise.
      *
      * @return True if incremental [Index] updates are supported.
@@ -118,25 +149,31 @@ class LuceneIndex(override val name: Name.IndexName, override val parent: Entity
      * A [IndexTransaction] that affects this [Index].
      */
     private inner class Tx(parent: Entity.Tx) : Index.Tx(parent) {
+
+        /** The [IndexWriter] instance used to access this [LuceneIndex]. */
+        private val writer = if (!this.readonly) {
+            IndexWriter(this@LuceneIndex.directory, IndexWriterConfig(StandardAnalyzer()).setOpenMode(IndexWriterConfig.OpenMode.APPEND).setMaxBufferedDocs(100_000).setCommitOnClose(false))
+        } else {
+            null
+        }
+
         /**
          * (Re-)builds the [LuceneIndex].
          */
         override fun rebuild() = this.localLock.read {
-            LOGGER.trace("Rebuilding lucene index {}", name)
-            val writer = IndexWriter(this@LuceneIndex.directory, IndexWriterConfig(StandardAnalyzer()).setOpenMode(IndexWriterConfig.OpenMode.APPEND).setMaxBufferedDocs(100_000).setCommitOnClose(true))
-            writer.deleteAll()
+            checkValidForWrite()
+
+            LOGGER.trace("Rebuilding lucene index {}", this@LuceneIndex.name)
+
+            this.writer?.deleteAll()
             var count = 0
             this.parent.scan().forEach { tid ->
                 val record = this.parent.read(tid)
-                writer.addDocument(documentFromRecord(record))
+                writer?.addDocument(documentFromRecord(record))
                 count++
             }
-            writer.close()
 
-            /* Open new IndexReader and close new one. */
-            val oldReader = this@LuceneIndex.indexReader
-            this@LuceneIndex.indexReader = DirectoryReader.open(this@LuceneIndex.directory)
-            oldReader.close()
+            LOGGER.trace("Rebuilding lucene index complete!", this@LuceneIndex.name)
         }
 
         /**
@@ -146,20 +183,17 @@ class LuceneIndex(override val name: Name.IndexName, override val parent: Entity
          * @param update Collection of [DataChangeEvent]s to process.
          */
         override fun update(update: Collection<DataChangeEvent>) = this.localLock.read {
-
             this.checkValidForWrite()
-
-            val writer = IndexWriter(this@LuceneIndex.directory, IndexWriterConfig(StandardAnalyzer()).setOpenMode(IndexWriterConfig.OpenMode.APPEND).setMaxBufferedDocs(100_000).setCommitOnClose(true))
 
             /* Define action for inserting an entry based on a DataChangeEvent. */
             fun atomicInsert(event: DataChangeEvent) {
-                writer.addDocument(documentFromRecord(event.new!!))
+                this.writer?.addDocument(documentFromRecord(event.new!!))
             }
 
 
             /* Define action for deleting an entry based on a DataChangeEvent. */
             fun atomicDelete(event: DataChangeEvent) {
-                writer.deleteDocuments(NumericDocValuesField.newSlowExactQuery(TID_COLUMN, event.old!!.tupleId))
+                this.writer?.deleteDocuments(NumericDocValuesField.newSlowExactQuery(TID_COLUMN, event.old!!.tupleId))
             }
 
             /* Process the DataChangeEvents. */
@@ -237,7 +271,6 @@ class LuceneIndex(override val name: Name.IndexName, override val parent: Entity
             /* Execute query and add results. */
             private val results = this.searcher.search(this.query, Integer.MAX_VALUE)
 
-
             /**
              * Returns `true` if the iteration has more elements.
              */
@@ -265,35 +298,41 @@ class LuceneIndex(override val name: Name.IndexName, override val parent: Entity
                 }
             }
         }
-    }
 
-    /**
-     * Checks if this [LuceneIndex] can process the given [Predicate].
-     *
-     * @param predicate [Predicate] to test.
-     * @return True if [Predicate] can be processed, false otherwise.
-     */
-    override fun canProcess(predicate: Predicate): Boolean = if (predicate is BooleanPredicate) {
-        predicate.columns.all { this.columns.contains(it) } && predicate.atomics.all { it.operator == ComparisonOperator.LIKE || it.operator == ComparisonOperator.EQUAL }
-    } else {
-        false
-    }
+        /**
+         * Commits all changes to the [LuceneIndex] made through this [LuceneIndex.Tx]
+         */
+        override fun commit() = this.localLock.read {
+            this.checkValidForWrite()
 
-    /**
-     * Calculates the cost estimate of this [UniqueHashIndex] processing the provided [Predicate].
-     *
-     * @param predicate [Predicate] to check.
-     * @return Cost estimate for the [Predicate]
-     */
-    override fun cost(predicate: Predicate): Cost = when {
-        canProcess(predicate) -> {
-            val searcher = IndexSearcher(this.indexReader)
-            var cost = Cost.ZERO
-            predicate.columns.forEach {
-                cost += Cost(Costs.DISK_ACCESS_READ, Costs.DISK_ACCESS_READ, it.physicalSize.toFloat()) * searcher.collectionStatistics(it.name.simple).sumTotalTermFreq()
-            }
-            cost
+            /* Commits changes made throug the local IndexWriter. */
+            this.writer?.commit()
+
+            /* Opens new IndexReader and close new one. */
+            val oldReader = this@LuceneIndex.indexReader
+            this@LuceneIndex.indexReader = DirectoryReader.open(this@LuceneIndex.directory)
+            oldReader.close()
         }
-        else -> Cost.INVALID
+
+        /**
+         * Makes a rollback on all changes to the [LuceneIndex] made through this [LuceneIndex.Tx]
+         */
+        override fun rollback() = this.localLock.read {
+            this.checkValidForWrite()
+            this.writer?.rollback()
+            Unit
+        }
+
+        /**
+         * Closes this [LuceneIndex.Tx] and releases the global lock. Closed [LuceneIndex.Tx] cannot be used anymore!
+         */
+        override fun close() = this.localLock.write {
+            if (this.status != TransactionStatus.CLOSED) {
+                this.writer?.close()
+                this.status = TransactionStatus.CLOSED
+                this@LuceneIndex.txLock.unlock(this.txStamp)
+                this@LuceneIndex.globalLock.unlockRead(this.globalStamp)
+            }
+        }
     }
 }

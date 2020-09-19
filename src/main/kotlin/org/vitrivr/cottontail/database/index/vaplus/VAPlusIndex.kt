@@ -8,9 +8,11 @@ import org.vitrivr.cottontail.database.column.Column
 import org.vitrivr.cottontail.database.column.ColumnType
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.events.DataChangeEvent
+import org.vitrivr.cottontail.database.general.TransactionStatus
 import org.vitrivr.cottontail.database.index.Index
 import org.vitrivr.cottontail.database.index.IndexTransaction
 import org.vitrivr.cottontail.database.index.IndexType
+import org.vitrivr.cottontail.database.index.hash.NonUniqueHashIndex
 import org.vitrivr.cottontail.database.index.hash.UniqueHashIndex
 import org.vitrivr.cottontail.database.index.lsh.superbit.SuperBitLSHIndex
 import org.vitrivr.cottontail.database.queries.components.AtomicBooleanPredicate
@@ -187,7 +189,6 @@ class VAPlusIndex(override val name: Name.IndexName, override val parent: Entity
             }
             val meta = VAPlusMeta(marks, signatureGenerator, kltMatrix)
             this@VAPlusIndex.meta.set(meta)
-            this@VAPlusIndex.db.commit()
         }
 
         /**
@@ -197,14 +198,8 @@ class VAPlusIndex(override val name: Name.IndexName, override val parent: Entity
          * @param update Collection of [DataChangeEvent]s to process.
          */
         override fun update(update: Collection<DataChangeEvent>) = this.localLock.read {
-            try {
-                checkValidForWrite()
-
-                TODO()
-            } catch (e: Throwable) {
-                this@VAPlusIndex.db.rollback()
-                throw e
-            }
+            checkValidForWrite()
+            TODO()
         }
 
         /**
@@ -293,6 +288,38 @@ class VAPlusIndex(override val name: Name.IndexName, override val parent: Entity
                     this@Tx.localLock.unlock(this.stamp)
                     this.closed = true
                 }
+            }
+        }
+
+        /**
+         * Commits all changes to the [UniqueHashIndex] made through this [NonUniqueHashIndex.Tx]
+         */
+        override fun commit() = this.localLock.read {
+            checkValidForWrite()
+            this@VAPlusIndex.db.commit()
+        }
+
+        /**
+         * Makes a rollback on all changes to the [UniqueHashIndex] made through this [NonUniqueHashIndex.Tx]
+         */
+        override fun rollback() = this.localLock.read {
+            checkValidForWrite()
+            this@VAPlusIndex.db.rollback()
+        }
+
+        /**
+         * Closes this [UniqueHashIndex.Tx] and releases the global lock. Closed [IndexTransaction]s cannot be used anymore!
+         */
+        override fun close() = this.localLock.write {
+            if (this.status != TransactionStatus.CLOSED) {
+                if (!this.readonly && this.status == TransactionStatus.DIRTY) {
+                    this.localLock.read {
+                        this@VAPlusIndex.db.rollback()
+                    }
+                }
+                this.status = TransactionStatus.CLOSED
+                this@VAPlusIndex.txLock.unlock(this.txStamp)
+                this@VAPlusIndex.globalLock.unlockRead(this.globalStamp)
             }
         }
     }
