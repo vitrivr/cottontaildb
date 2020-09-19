@@ -66,7 +66,8 @@ class GrpcQueryBinder(val catalogue: Catalogue) {
         /* Create WHERE-clause. */
         if (query.hasWhere()) {
             val where = FilterLogicalNodeExpression(parseAndBindBooleanPredicate(entity, query.where))
-            root = where.addInput(root)
+            where.addInput(root)
+            root = where
         }
 
         /* Process kNN-clause (Important: mind precedence of WHERE-clause. */
