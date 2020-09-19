@@ -42,9 +42,10 @@ class VAPlus : Serializable {
         val p = size / tx.count().toDouble()
         val dataSample = ArrayList<DoubleArray>(size + 100)
         val random = SplittableRandom(System.currentTimeMillis())
-        tx.forEach {
+        tx.scan().forEach {
+            val record = tx.read(it)
             if (random.nextDouble() >= 1.0 - p) {
-                dataSample.add(convertToDoubleArray(it[column] as VectorValue<*>))
+                dataSample.add(convertToDoubleArray(record[column] as VectorValue<*>))
             }
         }
         return dataSample.toTypedArray()

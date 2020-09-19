@@ -3,19 +3,14 @@ package org.vitrivr.cottontail.database.index
 import org.vitrivr.cottontail.database.events.DataChangeEvent
 import org.vitrivr.cottontail.database.general.Transaction
 import org.vitrivr.cottontail.database.queries.components.Predicate
-
-import org.vitrivr.cottontail.model.basics.ColumnDef
-import org.vitrivr.cottontail.model.basics.Filterable
-import org.vitrivr.cottontail.model.basics.Name
-import org.vitrivr.cottontail.model.basics.Record
+import org.vitrivr.cottontail.model.basics.*
 import org.vitrivr.cottontail.model.exceptions.ValidationException
-import org.vitrivr.cottontail.model.recordset.Recordset
 
 /**
  * A [Transaction] that operates on a single [Index]. [Transaction]s are a unit of isolation for data operations (read/write).
  *
  * @author Ralph Gasser
- * @version 1.3
+ * @version 1.4
  */
 interface IndexTransaction : Transaction, Filterable {
     /** The simple [Name]s of the [Index] that underpins this [IndexTransaction] */
@@ -57,10 +52,11 @@ interface IndexTransaction : Transaction, Filterable {
     fun update(update: Collection<DataChangeEvent>)
 
     /**
-     * Performs a lookup through this [IndexTransaction] and returns a [Recordset].
+     * Performs a lookup through this [IndexTransaction] and returns a [CloseableIterator] of
+     * all the [TupleId]s that match the [Predicate].
      *
      * @param predicate The [Predicate] to perform the lookup.
-     * @return The resulting [Recordset].
+     * @return The resulting [CloseableIterator].
      */
-    override fun filter(predicate: Predicate): Recordset
+    override fun filter(predicate: Predicate): CloseableIterator<TupleId>
 }

@@ -1,7 +1,10 @@
 package org.vitrivr.cottontail.database.column
 
 import org.vitrivr.cottontail.database.general.Transaction
-import org.vitrivr.cottontail.model.basics.*
+import org.vitrivr.cottontail.model.basics.ColumnDef
+import org.vitrivr.cottontail.model.basics.Countable
+import org.vitrivr.cottontail.model.basics.Deletable
+import org.vitrivr.cottontail.model.basics.Scanable
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import org.vitrivr.cottontail.model.values.types.Value
 
@@ -14,7 +17,7 @@ import org.vitrivr.cottontail.model.values.types.Value
  * @author Ralph Gasser
  * @version 1.0
  */
-interface ColumnTransaction<T: Value> : Transaction, Countable, Scanable, Filterable, Deletable {
+interface ColumnTransaction<T : Value> : Transaction, Countable, Scanable, Deletable {
     /**
      * The [ColumnDef] of the [Column] underlying this [ColumnTransaction].
      *

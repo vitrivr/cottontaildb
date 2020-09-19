@@ -27,8 +27,10 @@ class EntityScanOperator(context: ExecutionEngine.ExecutionContext, entity: Enti
     override fun toFlow(scope: CoroutineScope): Flow<Record> {
         check(this.status == OperatorStatus.OPEN) { "Cannot convert operator $this to flow because it is in state ${this.status}." }
         return flow {
-            for (tupleId in this@EntityScanOperator.range) {
-                emit(this@EntityScanOperator.transaction!!.read(tupleId))
+            this@EntityScanOperator.transaction!!.scan(this@EntityScanOperator.range).use { iterator ->
+                for (tupleId in iterator) {
+                    emit(this@EntityScanOperator.transaction!!.read(tupleId))
+                }
             }
         }
     }

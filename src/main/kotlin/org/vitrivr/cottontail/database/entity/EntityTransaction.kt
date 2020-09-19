@@ -12,7 +12,7 @@ import org.vitrivr.cottontail.model.basics.*
  * @author Ralph Gasser
  * @version 1.2
  */
-interface EntityTransaction : Transaction, Filterable, Scanable, Countable, Deletable {
+interface EntityTransaction : Transaction, Scanable, Countable, Deletable {
     /**
      * Returns a collection of all the [IndexTransaction] available to this [EntityTransaction].
      *

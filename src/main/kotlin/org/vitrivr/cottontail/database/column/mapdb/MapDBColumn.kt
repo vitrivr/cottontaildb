@@ -8,23 +8,16 @@ import org.vitrivr.cottontail.database.column.ColumnType
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.general.Transaction
 import org.vitrivr.cottontail.database.general.TransactionStatus
-import org.vitrivr.cottontail.database.queries.components.BooleanPredicate
-import org.vitrivr.cottontail.database.queries.components.Predicate
-import org.vitrivr.cottontail.model.basics.ColumnDef
-import org.vitrivr.cottontail.model.basics.Name
-import org.vitrivr.cottontail.model.basics.Record
+import org.vitrivr.cottontail.model.basics.*
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
-import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.exceptions.TransactionException
-import org.vitrivr.cottontail.model.recordset.Recordset
 import org.vitrivr.cottontail.model.values.types.Value
+import org.vitrivr.cottontail.utilities.extensions.read
 import org.vitrivr.cottontail.utilities.extensions.write
 import java.nio.file.Path
 import java.util.*
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import java.util.concurrent.locks.StampedLock
-import kotlin.concurrent.read
-import kotlin.concurrent.write
 
 /**
  * Represents a single column in the Cottontail DB model. A [MapDBColumn] record is identified by a tuple ID (long)
@@ -184,7 +177,7 @@ class MapDBColumn<T : Value>(override val name: Name.ColumnName, override val pa
         }
 
         /** A [ReentrantReadWriteLock] local to this [Entity.Tx]. It makes sure, that this [Entity] cannot be committed, closed or rolled back while it is being used. */
-        private val localLock = ReentrantReadWriteLock()
+        private val localLock = StampedLock()
 
         /**
          * Commits all changes made through this [Tx] since the last commit or rollback.
@@ -265,178 +258,61 @@ class MapDBColumn<T : Value>(override val name: Name.ColumnName, override val pa
         }
 
         /**
-         * Applies the provided function on each element found in this [MapDBColumn]. The function cannot not change
-         * the data stored in the [MapDBColumn]!
+         * Creates and returns a new [CloseableIterator] for this [MapDBColumn.Tx] that returns
+         * all [TupleId]s contained within the surrounding [MapDBColumn].
          *
-         * @param action The function that should be applied.
+         * @return [CloseableIterator]
          */
-        override fun forEach(action: (Record) -> Unit) = forEach(1L, this@MapDBColumn.store.maxRecid, action)
+        override fun scan() = this.scan(1L..this@MapDBColumn.maxTupleId)
 
         /**
-         * Applies the provided function on each element found in the given range in this [MapDBColumn]. The function
-         * cannot not change the data stored in the [MapDBColumn]!
+         * Creates and returns a new [CloseableIterator] for this [MapDBColumn.Tx] that returns
+         * all [TupleId]s contained within the surrounding [MapDBColumn] and a certain range.
          *
-         * @param from The tuple ID of the first [Record] to iterate over.
-         * @param to The tuple ID of the last [Record] to iterate over.
-         * @param action The function that should be applied.
+         * @param range The [LongRange] that should be scanned.
+         * @return [CloseableIterator]
          */
-        override fun forEach(from: Long, to: Long, action: (Record) -> Unit) = this.localLock.read {
-            checkValidForRead()
-            this@MapDBColumn.store.RecordIdIterator(from.coerceAtLeast(1L), to.coerceAtMost(this@MapDBColumn.store.maxRecid)).use { iterator ->
-                iterator.forEachRemaining {
-                    if (it != CottontailStoreWAL.EOF_ENTRY) {
-                        action(ColumnRecord(it, this@MapDBColumn.store.get(it, this.serializer)))
-                    }
-                }
-            }
-        }
+        override fun scan(range: LongRange) = object : CloseableIterator<TupleId> {
 
-        /**
-         * Applies the provided mapping function on each value found in the given range in this [MapDBColumn],
-         * returning a collection of the desired output values.
-         *
-         * @param action The mapping function that should be applied.
-         * @return A collection of Pairs mapping the tupleId to the generated value.
-         */
-        override fun <R> map(action: (Record) -> R): Collection<R> = map(1L, this@MapDBColumn.store.maxRecid, action)
-
-        /**
-         * Applies the provided mapping function on each value found in this [MapDBColumn], returning a collection
-         * of the desired output values.
-         *
-         * @param from The tuple ID of the first [Record] to iterate over.
-         * @param to The tuple ID of the last [Record] to iterate over.
-         * @param action The mapping function that should be applied.
-         * @return A collection of Pairs mapping the tupleId to the generated value.
-         */
-        override fun <R> map(from: Long, to: Long, action: (Record) -> R): Collection<R> = this.localLock.read {
-            checkValidForRead()
-            val list = mutableListOf<R>()
-            this@MapDBColumn.store.RecordIdIterator(from.coerceAtLeast(1L), to.coerceAtMost(this@MapDBColumn.store.maxRecid)).use { iterator ->
-                iterator.forEachRemaining {
-                    if (it != CottontailStoreWAL.EOF_ENTRY) {
-                        list.add(action(ColumnRecord(it, this@MapDBColumn.store.get(it, this.serializer))))
-                    }
-                }
-            }
-            return list
-        }
-
-
-        /**
-         * Checks whether or not this [MapDBColumn] can process the given predicate and returns true or false respectively.
-         *
-         * @param predicate The [BooleanPredicate] to check.
-         * @return True if predicate can be processed, false otherwise.
-         */
-        override fun canProcess(predicate: Predicate): Boolean = predicate is BooleanPredicate
-
-        /**
-         * Applies the provided predicate to each [Record] found in this [MapDBColumn], returning a [Recordset] that contains all
-         * output values that pass the predicate's test (i.e. return true)
-         *
-         * @param predicate The [BooleanPredicate] that should be applied.
-         * @return A filtered [Recordset] of [Record]s that passed the test.
-         */
-        override fun filter(predicate: Predicate): Recordset = this.localLock.read {
-            if (predicate is BooleanPredicate) {
+            init {
                 checkValidForRead()
-                val recordset = Recordset(arrayOf(this@MapDBColumn.columnDef))
-                this@MapDBColumn.store.RecordIdIterator().use { iterator ->
-                    iterator.forEachRemaining {
-                        if (it != CottontailStoreWAL.EOF_ENTRY) {
-                            val data = ColumnRecord(it, this@MapDBColumn.store.get(it, this.serializer))
-                            if (predicate.matches(data)) recordset.addRowUnsafe(data.values)
-                        }
-                    }
-                }
-                return recordset
-            } else {
-                throw QueryException.UnsupportedPredicateException("MapDBColumn#filter() does not support predicates of type '${predicate::class.simpleName}'.")
             }
-        }
 
-        /**
-         * Applies the provided action to each [Record] that matches the given [Predicate]. The function cannot not change
-         * the data stored in the [MapDBColumn]!
-         *
-         * @param predicate The [BooleanPredicate] to filter [Record]s.
-         * @param action The function that should be applied.
-         *
-         * @throws QueryException.UnsupportedPredicateException If predicate is not a [BooleanPredicate].
-         */
-        override fun forEach(predicate: Predicate, action: (Record) -> Unit) = forEach(1L, this@MapDBColumn.store.maxRecid, predicate, action)
+            /** Acquires a read lock on the surrounding [MapDBColumn.Tx]*/
+            private val lock = this@Tx.localLock.readLock()
 
-        /**
-         * Applies the provided action to each [Record] in the given range that matches the given [Predicate]. The function cannot not change
-         * the data stored in the [MapDBColumn]!
-         *
-         * @param from The tuple ID of the first [Record] to iterate over.
-         * @param to The tuple ID of the last [Record] to iterate over.
-         * @param predicate The [BooleanPredicate] to filter [Record]s.
-         * @param action The function that should be applied.
-         *
-         * @throws QueryException.UnsupportedPredicateException If predicate is not a [BooleanPredicate].
-         */
-        override fun forEach(from: Long, to: Long, predicate: Predicate, action: (Record) -> Unit) = this.localLock.read {
-            if (predicate is BooleanPredicate) {
-                checkValidForRead()
-                this@MapDBColumn.store.RecordIdIterator(from.coerceAtLeast(1L), to.coerceAtMost(this@MapDBColumn.store.maxRecid)).use { iterator ->
-                    iterator.forEachRemaining {
-                        if (it != CottontailStoreWAL.EOF_ENTRY) {
-                            val record = ColumnRecord(it, this@MapDBColumn.store.get(it, this.serializer))
-                            if (predicate.matches(record)) {
-                                action(record)
-                            }
-                        }
-                    }
-                }
-            } else {
-                throw QueryException.UnsupportedPredicateException("MapDBColumn#forEach() does not support predicates of type '${predicate::class.simpleName}'.")
+            /** Wraps a [RecordIdIterator] from the [MapDBColumn]. */
+            private val wrapped = this@MapDBColumn.store.RecordIdIterator(range)
+
+            /** Flag indicating whether this [CloseableIterator] has been closed. */
+            @Volatile
+            private var closed = false
+
+            /**
+             * Returns the next element in the iteration.
+             */
+            override fun next(): TupleId {
+                check(!this.closed) { "Illegal invocation of next(): This CloseableIterator has been closed." }
+                return this.wrapped.next()
             }
-        }
 
-        /**
-         * Applies the provided mapping function to each [Record] that matches the given [Predicate], returning a collection
-         * of the desired output values.
-         *
-         * @param predicate The [Predicate] to filter [Record]s.
-         * @param action The mapping function that should be applied.
-         * @return Collection of the results of the mapping function.
-         *
-         * @throws QueryException.UnsupportedPredicateException If predicate is not a [BooleanPredicate].
-         */
-        override fun <R> map(predicate: Predicate, action: (Record) -> R): Collection<R> = map(1L, this@MapDBColumn.store.maxRecid, predicate, action)
+            /**
+             * Returns `true` if the iteration has more elements.
+             */
+            override fun hasNext(): Boolean {
+                check(!this.closed) { "Illegal invocation of hasNext(): This CloseableIterator has been closed." }
+                return this.wrapped.hasNext()
+            }
 
-        /**
-         * Applies the provided mapping function to each [Record] in the given range that matches the given [Predicate], returning a collection
-         * of the desired output values.
-         *
-         * @param from The tuple ID of the first [Record] to iterate over.
-         * @param to The tuple ID of the last [Record] to iterate over.
-         * @param predicate The [BooleanPredicate] to filter [Record]s.
-         * @param action The mapping function that should be applied.
-         * @return Collection of the results of the mapping function.
-         *
-         * @throws QueryException.UnsupportedPredicateException If predicate is not a [BooleanPredicate].
-         */
-        override fun <R> map(from: Long, to: Long, predicate: Predicate, action: (Record) -> R): Collection<R> = this.localLock.read {
-            if (predicate is BooleanPredicate) {
-                checkValidForRead()
-                val list = mutableListOf<R>()
-                this@MapDBColumn.store.RecordIdIterator(from.coerceAtLeast(1L), to.coerceAtMost(this@MapDBColumn.store.maxRecid)).use { iterator ->
-                    iterator.forEachRemaining {
-                        if (it != CottontailStoreWAL.EOF_ENTRY) {
-                            val record = ColumnRecord(it, this@MapDBColumn.store.get(it, this.serializer))
-                            if (predicate.matches(record)) {
-                                list.add(action(ColumnRecord(it, this@MapDBColumn.store.get(it, this.serializer))))
-                            }
-                        }
-                    }
+            /**
+             * Closes this [CloseableIterator] and releases all locks associated with it.
+             */
+            override fun close() {
+                if (!this.closed) {
+                    this.wrapped.close()
+                    this@Tx.localLock.unlock(this.lock)
+                    this.closed = true
                 }
-                return list
-            } else {
-                throw QueryException.UnsupportedPredicateException("MapDBColumn#map() does not support predicates of type '${predicate::class.simpleName}'.")
             }
         }
 

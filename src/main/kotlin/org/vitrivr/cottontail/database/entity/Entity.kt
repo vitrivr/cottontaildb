@@ -13,19 +13,14 @@ import org.vitrivr.cottontail.database.general.begin
 import org.vitrivr.cottontail.database.index.Index
 import org.vitrivr.cottontail.database.index.IndexTransaction
 import org.vitrivr.cottontail.database.index.IndexType
-import org.vitrivr.cottontail.database.queries.components.AtomicBooleanPredicate
 import org.vitrivr.cottontail.database.queries.components.BooleanPredicate
 import org.vitrivr.cottontail.database.queries.components.ComparisonOperator
 import org.vitrivr.cottontail.database.queries.components.Predicate
 import org.vitrivr.cottontail.database.schema.Schema
-import org.vitrivr.cottontail.model.basics.ColumnDef
-import org.vitrivr.cottontail.model.basics.Name
-import org.vitrivr.cottontail.model.basics.Record
-import org.vitrivr.cottontail.model.basics.Tuple
+import org.vitrivr.cottontail.model.basics.*
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.exceptions.TransactionException
-import org.vitrivr.cottontail.model.recordset.Recordset
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.types.Value
 import org.vitrivr.cottontail.utilities.extensions.read
@@ -33,11 +28,8 @@ import org.vitrivr.cottontail.utilities.extensions.write
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.*
-import java.util.concurrent.locks.ReentrantReadWriteLock
 import java.util.concurrent.locks.StampedLock
 import java.util.stream.Collectors
-import kotlin.concurrent.read
-import kotlin.concurrent.write
 
 /**
  * Represents a single entity in the Cottontail DB data model. An [Entity] has name that must remain unique within a [Schema].
@@ -350,7 +342,7 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
 
         /** List of [IndexTransaction] associated with this [Entity.Tx]. */
         private val indexTxs: Collection<IndexTransaction> = if (!ommitIndex) {
-            this@Entity.indexes.map { it.Tx(this.readonly, this) }
+            this@Entity.indexes.map { it.begin(this) }
         } else {
             emptyList()
         }
@@ -370,8 +362,12 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
             }
         }
 
-        /** A [ReentrantReadWriteLock] local to this [Entity.Tx]. It makes sure, that this [Entity] cannot be committed, closed or rolled back while it is being used. */
-        private val localLock = ReentrantReadWriteLock()
+        /**
+         * A [StampedLock] local to this [Entity.Tx].
+         *
+         * It assures that this [Entity] cannot be committed, closed or rolled back while it is being used.
+         */
+        private val localLock = StampedLock()
 
         /**
          * Commits all changes made through this [Entity.Tx] since the last commit or rollback.
@@ -419,51 +415,12 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
          *
          * @throws DatabaseException If tuple with the desired ID doesn't exist OR is invalid.
          */
-        fun read(tupleId: Long): Record = this.localLock.read {
+        fun read(tupleId: TupleId): Record = this.localLock.read {
             checkValidForRead()
             checkValidTupleId(tupleId)
 
             /* Return value of all the desired columns. */
             return StandaloneRecord(tupleId, this.columns).assign(this.colTxs.map { it.read(tupleId) }.toTypedArray())
-        }
-
-        /**
-         * Reads the specified values of one or many [Column]s and returns them as a [Recordset]
-         *
-         * @param tupleId The ID of the desired entry.
-         * @return The resulting [Recordset].
-         *
-         * @throws DatabaseException If tuple with the desired ID doesn't exist OR is invalid.
-         */
-        fun readMany(tupleIds: Collection<Long>): Recordset = this.localLock.read {
-            checkValidForRead()
-            val dataset = Recordset(this.columns)
-            tupleIds.forEach { tid ->
-                checkValidTupleId(tid)
-                dataset.addRowUnsafe(tid, this.colTxs.map { it.read(tid) }.toTypedArray())
-            }
-            return dataset
-        }
-
-        /**
-         * Reads all values of one or many [Column]s and returns them as a [Recordset].
-         *
-         * @return The resulting [Recordset].
-         */
-        fun readAll(): Recordset = this.localLock.read {
-            checkValidForRead()
-
-            val dataset = Recordset(this.columns)
-            val data = Array<Value?>(this.columns.size) { null }
-
-            this.colTxs[0].forEach {
-                data[0] = it.values[0]
-                for (i in 1 until columns.size) {
-                    data[i] = this.colTxs[i].read(it.tupleId)
-                }
-                dataset.addRowUnsafe(it.tupleId, data)
-            }
-            return dataset
         }
 
         /**
@@ -487,215 +444,65 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
         }
 
         /**
-         * Applies the provided function to each entry found in this [Entity]. The provided function cannot not change
-         * the data stored in the [Entity]!
+         * Creates and returns a new [CloseableIterator] for this [Entity.Tx] that returns
+         * all [TupleId]s contained within the surrounding [Entity].
          *
-         * @param action The function to apply to each [Entity] entry.
+         * <strong>Important:</strong> It remains to the caller to close the [CloseableIterator]
+         *
+         * @return [CloseableIterator]
          */
-        override fun forEach(action: (Record) -> Unit) = forEach(1L, this@Entity.statistics.maxTupleId, action)
+        override fun scan(): CloseableIterator<TupleId> = scan(2L..this.maxTupleId())
 
         /**
-         * Applies the provided function to each entry found in the given range in this [Entity]. The provided function
-         * cannot not change the data stored in the [Entity]!
+         * Creates and returns a new [CloseableIterator] for this [Entity.Tx] that returns all [TupleId]s
+         * contained within the surrounding [Entity] and a certain range.
          *
-         * @param from The tuple ID of the first [Record] to iterate over.
-         * @param to The tuple ID of the last [Record] to iterate over.
-         * @param action The function to apply to each [Entity] entry.
+         * <strong>Important:</strong> It remains to the caller to close the [CloseableIterator]
+         *
+         * @param range The [LongRange] that should be scanned.
+         * @return [CloseableIterator]
          */
-        override fun forEach(from: Long, to: Long, action: (Record) -> Unit) = this.localLock.read {
-            checkValidForRead()
-            val data = Array<Value?>(columns.size) { null }
-            this.colTxs[0].forEach(from, to) {
-                data[0] = it.values[0]
-                for (i in 1 until columns.size) {
-                    data[i] = this.colTxs[i].read(it.tupleId)
-                }
-                action(StandaloneRecord(tupleId = it.tupleId, columns = columns, init = data))
+        override fun scan(range: LongRange) = object : CloseableIterator<TupleId> {
+            init {
+                checkValidForRead()
             }
-        }
 
+            /** Acquires a read lock for the surrounding [Entity.Tx]*/
+            private val lock = this@Tx.localLock.readLock()
 
-        /**
-         * Applies the provided mapping function on each [Record] found in the given range in this [Entity], returning a collection of the desired output values.
-         *
-         * @param action The mapping that should be applied to each [Tuple].
-         *
-         * @return A collection of Pairs mapping the tupleId to the generated value.
-         */
-        override fun <R> map(action: (Record) -> R): Collection<R> = map(1L, this@Entity.statistics.maxTupleId, action)
+            /** The wrapped [CloseableIterator] of the first (primary) column. */
+            private val wrapped = this@Tx.colTxs[0].scan(range)
 
-        /**
-         * Applies the provided mapping function on each [Record] found in this [Entity], returning a collection of the desired output values.
-         *
-         * @param from The tuple ID of the first [Record] to iterate over.
-         * @param to The tuple ID of the last [Record] to iterate over.
-         * @param action The mapping that should be applied to each [Tuple].
-         *
-         * @return A collection of Pairs mapping the tupleId to the generated value.
-         */
-        override fun <R> map(from: Long, to: Long, action: (Record) -> R): Collection<R> = this.localLock.read {
-            checkValidForRead()
+            /** Flag indicating whether this [CloseableIterator] has been closed. */
+            @Volatile
+            private var closed = false
 
-            val data = Array<Value?>(columns.size) { null }
-            val list = mutableListOf<R>()
-
-            this.colTxs[0].forEach(from, to) {
-                data[0] = it.values[0]
-                for (i in 1 until columns.size) {
-                    data[i] = this.colTxs[i].read(it.tupleId)
-                }
-                list.add(action(StandaloneRecord(it.tupleId, columns).assign(data)))
+            /**
+             * Returns the next element in the iteration.
+             */
+            override fun next(): TupleId {
+                check(!this.closed) { "Illegal invocation of next(): This CloseableIterator has been closed." }
+                return this.wrapped.next()
             }
-            return list
-        }
 
-        /**
-         * Checks if this [Entity.Tx] can process the provided [Predicate] natively (without index).
-         *
-         * @param predicate [Predicate] to check.
-         * @return True if [Predicate] can be processed, false otherwise.
-         */
-        override fun canProcess(predicate: Predicate): Boolean = predicate is BooleanPredicate
-
-        /**
-         * Reads all values of one or many [Column]s and returns those that match the provided predicate as a [Recordset]. Explicitly scans the entire [Entity] and
-         * does not use any [Index] structures.
-         *
-         * @param predicate The [Predicate] to apply. Only columns contained in that [Predicate] will be read.
-         * @return The resulting [Recordset].
-         */
-        override fun filter(predicate: Predicate): Recordset = this.localLock.read {
-            checkValidForRead()
-            checkColumnsExist(*predicate.columns.toTypedArray())
-
-            val dataset = Recordset(this.columns)
-            val data = Array<Value?>(this.columns.size) { null }
-
-            /* Handle filter() for different cases. */
-            when (predicate) {
-                /* Case 1: Predicate affects single column (AtomicBooleanPredicate). */
-                is AtomicBooleanPredicate<*> -> {
-                    this.colTxs.first { it.columnDef == predicate.columns.first() }.forEach(predicate) {
-                        for (i in columns.indices) {
-                            data[i] = this.colTxs[i].read(it.tupleId)
-                        }
-                        dataset.addRowUnsafe(it.tupleId, data)
-                    }
-                }
-                /* Case 2 (general): Multi-column boolean predicate. */
-                is BooleanPredicate -> {
-                    this.colTxs[0].forEach {
-                        data[0] = it.values[0]
-                        for (i in 1 until columns.size) {
-                            data[i] = this.colTxs[i].read(it.tupleId)
-                        }
-                        dataset.addRowIfUnsafe(it.tupleId, predicate, data)
-                    }
-                }
-                else -> throw QueryException.UnsupportedPredicateException("Entity#filter() does not support predicates of type '${predicate::class.simpleName}'.")
+            /**
+             * Returns `true` if the iteration has more elements.
+             */
+            override fun hasNext(): Boolean {
+                check(!this.closed) { "Illegal invocation of hasNext(): This CloseableIterator has been closed." }
+                return this.wrapped.hasNext()
             }
-            return dataset
-        }
 
-        /**
-         * Applies the provided action to each [Record] that matches the given [Predicate]. Explicitly scans the entire [Entity] and
-         * does not use any [Index] structures.
-         *
-         * @param predicate The [BooleanPredicate] to filter [Record]s.
-         * @param action The action that should be applied.
-         */
-        override fun forEach(predicate: Predicate, action: (Record) -> Unit) = forEach(1L, this@Entity.statistics.maxTupleId, predicate, action)
-
-        /**
-         * Applies the provided action to each [Record] in the given range that matches the given [Predicate]. Explicitly scans the entire [Entity] and
-         * does not use any [Index] structures.
-         *
-         * @param from The tuple ID of the first [Record] to iterate over.
-         * @param to The tuple ID of the last [Record] to iterate over.
-         * @param predicate The [Predicate] to filter [Record]s.
-         * @param action The action that should be applied.
-         */
-        override fun forEach(from: Long, to: Long, predicate: Predicate, action: (Record) -> Unit) = this.localLock.read {
-            checkValidForRead()
-            checkColumnsExist(*predicate.columns.toTypedArray())
-
-            /* Extract necessary data structures. */
-            val data = Array<Value?>(this.columns.size) { null }
-
-            /* Handle forEach() for different cases. */
-            when (predicate) {
-                /* Case 1: Predicate affects single column (AtomicBooleanPredicate). */
-                is AtomicBooleanPredicate<*> -> this.colTxs.first { it.columnDef == predicate.columns.first() }.forEach(from, to, predicate) {
-                    for (i in columns.indices) {
-                        data[i] = this.colTxs[i].read(it.tupleId)
-                    }
-                    action(StandaloneRecord(it.tupleId, columns).assign(data))
+            /**
+             * Closes this [CloseableIterator] and releases all locks and resources associated with it.
+             */
+            override fun close() {
+                if (!this.closed) {
+                    this.wrapped.close()
+                    this@Tx.localLock.unlock(this.lock)
+                    this.closed = true
                 }
-                /* Case 2 (general): Multi-column boolean predicate. */
-                is BooleanPredicate -> this.colTxs[0].forEach(from, to) {
-                    data[0] = it.values[0]
-                    for (i in 1 until columns.size) {
-                        data[i] = this.colTxs[i].read(it.tupleId)
-                    }
-                    val record = StandaloneRecord(it.tupleId, columns).assign(data)
-                    if (predicate.matches(record)) {
-                        action(record)
-                    }
-                }
-                else -> throw QueryException.UnsupportedPredicateException("Entity#forEach() does not support predicates of type '${predicate::class.simpleName}'.")
             }
-        }
-
-        /**
-         * Applies the provided mapping function to each [Record] that matches the given [Predicate]. Explicitly scans the entire [Entity] and
-         * does not use any [Index] structures.
-         *
-         * @param predicate The [Predicate] to filter [Record]s.
-         * @param action The mapping function that should be applied.
-         * @return Collection of the results of the mapping function.
-         */
-        override fun <R> map(predicate: Predicate, action: (Record) -> R): Collection<R> = map(1L, this@Entity.statistics.maxTupleId, predicate, action)
-
-        /**
-         * Applies the provided mapping function to each [Record] in the given range that matches the given [Predicate]. Explicitly scans the entire [Entity] and
-         * does not use any [Index] structures.
-         *
-         * @param from The tuple ID of the first [Record] to iterate over.
-         * @param to The tuple ID of the last [Record] to iterate over.
-         * @param predicate The [Predicate] to filter [Record]s.
-         * @param action The mapping function that should be applied.
-         * @return Collection of the results of the mapping function.
-         */
-        override fun <R> map(from: Long, to: Long, predicate: Predicate, action: (Record) -> R): Collection<R> = this.localLock.read {
-            checkValidForRead()
-            checkColumnsExist(*predicate.columns.toTypedArray())
-
-            val data = Array<Value?>(columns.size) { null }
-            val list = mutableListOf<R>()
-
-            /* Handle map() for different cases. */
-            when (predicate) {
-                /* Case 1: Predicate affects single column (AtomicBooleanPredicate). */
-                is AtomicBooleanPredicate<*> -> this.colTxs.first { it.columnDef == predicate.columns.first() }.forEach(from, to, predicate) {
-                    for (i in columns.indices) {
-                        data[i] = this.colTxs[i].read(it.tupleId)
-                    }
-                    list.add(action(StandaloneRecord(it.tupleId, columns).assign(data)))
-                }
-                /* Case 2 (general): Multi-column boolean predicate. */
-                is BooleanPredicate -> this.colTxs[0].forEach(from, to) {
-                    data[0] = it.values[0]
-                    for (i in 1 until columns.size) {
-                        data[i] = this.colTxs[i].read(it.tupleId)
-                    }
-                    val record = StandaloneRecord(it.tupleId, columns).assign(data)
-                    if (predicate.matches(record)) {
-                        list.add(action(record))
-                    }
-                }
-                else -> throw QueryException.UnsupportedPredicateException("Entity#forEach() does not support predicates of type '${predicate::class.simpleName}'.")
-            }
-            return list
         }
 
         /**
