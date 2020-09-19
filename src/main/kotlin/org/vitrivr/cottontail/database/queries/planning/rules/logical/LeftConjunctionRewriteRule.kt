@@ -14,10 +14,10 @@ import org.vitrivr.cottontail.database.queries.planning.nodes.logical.predicates
  * @author Ralph Gasser
  * @version 1.0
  */
-object ConjunctionRewriteRule : RewriteRule {
+object LeftConjunctionRewriteRule : RewriteRule {
 
     /**
-     * Checks if this [ConjunctionRewriteRule] can be applied to the given [NodeExpression].
+     * Checks if this [LeftConjunctionRewriteRule] can be applied to the given [NodeExpression].
      *
      * @param node The input [NodeExpression] to check.
      * @return True if [RewriteRule] can be applied, false otherwise.
