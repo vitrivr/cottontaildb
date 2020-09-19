@@ -4,8 +4,10 @@ import org.vitrivr.cottontail.database.queries.planning.nodes.interfaces.NodeExp
 import org.vitrivr.cottontail.database.queries.planning.nodes.interfaces.RewriteRule
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.LogicalNodeExpression
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.PhysicalNodeExpression
-import org.vitrivr.cottontail.database.queries.planning.rules.logical.ConjunctionRewriteRule
+import org.vitrivr.cottontail.database.queries.planning.rules.logical.LeftConjunctionRewriteRule
+import org.vitrivr.cottontail.database.queries.planning.rules.logical.RightConjunctionRewriteRule
 import org.vitrivr.cottontail.database.queries.planning.rules.physical.implementation.*
+import org.vitrivr.cottontail.database.queries.planning.rules.physical.index.BooleanIndexScanRule
 import org.vitrivr.cottontail.database.queries.planning.rules.physical.pushdown.CountPushdownRule
 import java.util.*
 
@@ -36,10 +38,11 @@ class CottontailQueryPlanner(
     companion object {
 
         /** Ruleset for Stage 1 of optimisation. */
-        val DEFAULT_STAGE1_RULESET = listOf<RewriteRule>(ConjunctionRewriteRule)
+        val DEFAULT_STAGE1_RULESET = listOf<RewriteRule>(LeftConjunctionRewriteRule, RightConjunctionRewriteRule)
 
         /** Ruleset for Stage 2 of optimisation. */
         val DEFAULT_STAGE2_RULESET = listOf(
+                BooleanIndexScanRule,
                 CountPushdownRule,
                 EntityScanImplementationRule,
                 FilterImplementationRule,
