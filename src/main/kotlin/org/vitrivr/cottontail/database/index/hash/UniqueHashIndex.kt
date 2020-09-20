@@ -164,14 +164,14 @@ class UniqueHashIndex(override val name: Name.IndexName, override val parent: En
             val localMap = this@UniqueHashIndex.map as HTreeMap<Value, Long>
 
             /* Define action for inserting an entry based on a DataChangeEvent. */
-            val atomicInsert = { event: DataChangeEvent ->
+            fun atomicInsert(event: DataChangeEvent) {
                 val newValue = event.new?.get(this.columns[0])
                         ?: throw ValidationException.IndexUpdateException(this.name, "Values cannot be null for instances of UniqueHashIndex but tid=${event.new?.tupleId} is.")
                 localMap[newValue] = event.new.tupleId
             }
 
             /* Define action for deleting an entry based on a DataChangeEvent. */
-            val atomicDelete = { event: DataChangeEvent ->
+            fun atomicDelete(event: DataChangeEvent) {
                 val oldValue = event.old?.get(this.columns[0])
                         ?: throw ValidationException.IndexUpdateException(this.name, "Values cannot be null for instances of UniqueHashIndex but tid=${event.new?.tupleId} is.")
                 localMap.remove(oldValue)
