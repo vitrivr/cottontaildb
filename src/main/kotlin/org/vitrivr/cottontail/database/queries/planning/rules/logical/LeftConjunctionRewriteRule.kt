@@ -29,8 +29,9 @@ object LeftConjunctionRewriteRule : RewriteRule {
 
 
     /**
-     * Transforms the given [NodeExpression] (and potentially its parents and children) to a new
-     * [NodeExpression] that produces the equivalent output.
+     *  Decomposes the provided [FilterLogicalNodeExpression] with a conjunction into two consecutive
+     * [FilterLogicalNodeExpression]s, where each resulting [FilterLogicalNodeExpression] covers
+     * one part of the conjunction. Gives precedence to the left part of the conjunction.
      *
      * @param node The input [NodeExpression].
      * @return The output [NodeExpression] or null, if no rewrite was done.

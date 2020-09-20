@@ -17,7 +17,7 @@ import org.vitrivr.cottontail.database.queries.planning.nodes.logical.predicates
 object RightConjunctionRewriteRule : RewriteRule {
 
     /**
-     * Checks if this [LeftConjunctionRewriteRule] can be applied to the given [NodeExpression].
+     * Checks if this [RightConjunctionRewriteRule] can be applied to the given [NodeExpression].
      *
      * @param node The input [NodeExpression] to check.
      * @return True if [RewriteRule] can be applied, false otherwise.
@@ -29,8 +29,9 @@ object RightConjunctionRewriteRule : RewriteRule {
 
 
     /**
-     * Transforms the given [NodeExpression] (and potentially its parents and children) to a new
-     * [NodeExpression] that produces the equivalent output.
+     * Decomposes the provided [FilterLogicalNodeExpression] with a conjunction (AND) into two
+     * consecutive [FilterLogicalNodeExpression]s, where each resulting [FilterLogicalNodeExpression]
+     * covers one part of the conjunction. Gives precedence to the right part of the conjunction.
      *
      * @param node The input [NodeExpression].
      * @return The output [NodeExpression] or null, if no rewrite was done.
