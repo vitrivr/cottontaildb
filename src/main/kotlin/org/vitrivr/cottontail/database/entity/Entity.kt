@@ -373,8 +373,9 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
          * Commits all changes made through this [Entity.Tx] since the last commit or rollback.
          */
         override fun commit() = this.localLock.write {
-            if (this.status == TransactionStatus.DIRTY) {
+            if (this.status == TransactionStatus.DIRTY || this.indexTxs.any { it.status == TransactionStatus.DIRTY }) {
                 this.colTxs.forEach { it.commit() }
+                this.indexTxs.forEach { it.commit() }
                 this@Entity.store.commit()
                 this.status = TransactionStatus.CLEAN
             }
