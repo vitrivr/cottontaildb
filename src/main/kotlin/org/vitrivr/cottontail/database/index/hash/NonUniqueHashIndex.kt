@@ -3,6 +3,7 @@ package org.vitrivr.cottontail.database.index.hash
 import org.mapdb.DBMaker
 import org.mapdb.HTreeMap
 import org.mapdb.Serializer
+import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.database.column.Column
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.events.DataChangeEvent
@@ -11,6 +12,7 @@ import org.vitrivr.cottontail.database.general.TransactionStatus
 import org.vitrivr.cottontail.database.index.Index
 import org.vitrivr.cottontail.database.index.IndexTransaction
 import org.vitrivr.cottontail.database.index.IndexType
+import org.vitrivr.cottontail.database.index.lucene.LuceneIndex
 import org.vitrivr.cottontail.database.queries.components.AtomicBooleanPredicate
 import org.vitrivr.cottontail.database.queries.components.ComparisonOperator
 import org.vitrivr.cottontail.database.queries.components.Predicate
@@ -43,6 +45,7 @@ class NonUniqueHashIndex(override val name: Name.IndexName, override val parent:
      */
     companion object {
         const val MAP_FIELD_NAME = "nu_map"
+        private val LOGGER = LoggerFactory.getLogger(NonUniqueHashIndex::class.java)
     }
 
     /** Path to the [NonUniqueHashIndex] file. */
@@ -132,23 +135,29 @@ class NonUniqueHashIndex(override val name: Name.IndexName, override val parent:
             /* Check if this [Tx] allows for writing. */
             checkValidForWrite()
 
+            LOGGER.trace("Rebuilding non-unique hash index {}", this@NonUniqueHashIndex.name)
+
             /* Clear existing map. */
             this@NonUniqueHashIndex.map.clear()
 
             /* (Re-)create index entries. */
             val localMap = mutableMapOf<Value, MutableList<Long>>()
-            this.parent.scan().forEach { tid ->
-                val record = this.parent.read(tid)
-                val value = record[this.columns[0]]
-                        ?: throw ValidationException.IndexUpdateException(this.name, "A value cannot be null for instances of non-unique hash-index but tid=$tid is")
-                if (!localMap.containsKey(value)) {
-                    localMap[value] = mutableListOf(tid)
-                } else {
-                    localMap[value]!!.add(tid)
+            this.parent.scan().use { s ->
+                s.forEach { tid ->
+                    val record = this.parent.read(tid)
+                    val value = record[this.columns[0]]
+                            ?: throw ValidationException.IndexUpdateException(this.name, "A value cannot be null for instances of non-unique hash-index but tid=$tid is")
+                    if (!localMap.containsKey(value)) {
+                        localMap[value] = mutableListOf(tid)
+                    } else {
+                        localMap[value]!!.add(tid)
+                    }
                 }
             }
             val castMap = this@NonUniqueHashIndex.map as HTreeMap<Value, LongArray>
             localMap.forEach { (value, l) -> castMap[value] = l.toLongArray() }
+
+            LOGGER.trace("Rebuilding non-unique hash complete!")
         }
 
         /**

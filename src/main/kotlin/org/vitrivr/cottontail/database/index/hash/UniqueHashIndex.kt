@@ -135,21 +135,27 @@ class UniqueHashIndex(override val name: Name.IndexName, override val parent: En
             /* Check if this [Tx] allowed to write. */
             checkValidForWrite()
 
+            LOGGER.trace("Rebuilding unique hash index {}", this@UniqueHashIndex.name)
+
             /* Clear existing map. */
             this@UniqueHashIndex.map.clear()
 
             /* (Re-)create index entries. */
             val localMap = this@UniqueHashIndex.map as HTreeMap<Value, Long>
-            this.parent.scan().forEach { tid ->
-                val record = this.parent.read(tid)
-                val value = record[this.columns[0]]
-                        ?: throw ValidationException.IndexUpdateException(this.name, "A value cannot be null for instances of non-unique hash-index but tid=$tid is")
-                if (!localMap.containsKey(value)) {
-                    localMap[value] = tid
-                } else {
-                    LOGGER.warn("Value must be unique for instances of unique hash-index but '$value' (tid=$tid) is not! Skipping entry...")
+            this.parent.scan().use{ s->
+                s.forEach { tid ->
+                    val record = this.parent.read(tid)
+                    val value = record[this.columns[0]]
+                            ?: throw ValidationException.IndexUpdateException(this.name, "A value cannot be null for instances of non-unique hash-index but tid=$tid is")
+                    if (!localMap.containsKey(value)) {
+                        localMap[value] = tid
+                    } else {
+                        LOGGER.warn("Value must be unique for instances of unique hash-index but '$value' (tid=$tid) is not! Skipping entry...")
+                    }
                 }
             }
+
+            LOGGER.trace("Rebuilding unique hash index complete!")
         }
 
         /**

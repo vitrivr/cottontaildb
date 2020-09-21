@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.database.index.lsh.superbit
 
+import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.database.column.Column
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.events.DataChangeEvent
@@ -10,6 +11,7 @@ import org.vitrivr.cottontail.database.index.IndexType
 import org.vitrivr.cottontail.database.index.hash.NonUniqueHashIndex
 import org.vitrivr.cottontail.database.index.hash.UniqueHashIndex
 import org.vitrivr.cottontail.database.index.lsh.LSHIndex
+import org.vitrivr.cottontail.database.index.lucene.LuceneIndex
 import org.vitrivr.cottontail.database.queries.components.AtomicBooleanPredicate
 import org.vitrivr.cottontail.database.queries.components.KnnPredicate
 import org.vitrivr.cottontail.database.queries.components.Predicate
@@ -41,6 +43,7 @@ class SuperBitLSHIndex<T : VectorValue<*>>(name: Name.IndexName, parent: Entity,
         const val CONFIG_NAME_SEED = "seed"
         private const val CONFIG_DEFAULT_STAGES = 3
         private const val CONFIG_DEFAULT_BUCKETS = 10
+        private val LOGGER = LoggerFactory.getLogger(SuperBitLSHIndex::class.java)
     }
 
     /** Internal configuration object for [SuperBitLSHIndex]. */
@@ -111,18 +114,25 @@ class SuperBitLSHIndex<T : VectorValue<*>>(name: Name.IndexName, parent: Entity,
          * (Re-)builds the [SuperBitLSHIndex].
          */
         override fun rebuild() = this.localLock.read {
+
+            checkValidForWrite()
+
+            LOGGER.trace("Rebuilding SB-LSH index {}", this@SuperBitLSHIndex.name)
+
             /* LSH. */
             val specimen = this.acquireSpecimen(this.parent) ?: return
             val lsh = SuperBitLSH(this@SuperBitLSHIndex.config.get().stages, this@SuperBitLSHIndex.config.get().buckets, this.columns[0].logicalSize, this@SuperBitLSHIndex.config.get().seed, specimen)
 
             /* (Re-)create index entries locally. */
             val local = Array(this@SuperBitLSHIndex.config.get().buckets) { mutableListOf<Long>() }
-            this.parent.scan().forEach {
-                val record = this.parent.read(it)
-                val value = record[this.columns[0]]
-                if (value is VectorValue<*>) {
-                    val bucket: Int = lsh.hash(value).last()
-                    local[bucket].add(it)
+            this.parent.scan().use { s->
+                s.forEach {
+                    val record = this.parent.read(it)
+                    val value = record[this.columns[0]]
+                    if (value is VectorValue<*>) {
+                        val bucket: Int = lsh.hash(value).last()
+                        local[bucket].add(it)
+                    }
                 }
             }
 

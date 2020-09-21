@@ -167,10 +167,12 @@ class LuceneIndex(override val name: Name.IndexName, override val parent: Entity
 
             this.writer?.deleteAll()
             var count = 0
-            this.parent.scan().forEach { tid ->
-                val record = this.parent.read(tid)
-                writer?.addDocument(documentFromRecord(record))
-                count++
+            this.parent.scan().use { s->
+                s.forEach { tid ->
+                    val record = this.parent.read(tid)
+                    writer?.addDocument(documentFromRecord(record))
+                    count++
+                }
             }
 
             LOGGER.trace("Rebuilding lucene index complete!", this@LuceneIndex.name)
