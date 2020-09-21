@@ -170,7 +170,7 @@ class LuceneIndex(override val name: Name.IndexName, override val parent: Entity
             this.parent.scan().use { s->
                 s.forEach { tid ->
                     val record = this.parent.read(tid)
-                    writer?.addDocument(documentFromRecord(record))
+                    this.writer?.addDocument(documentFromRecord(record))
                     count++
                 }
             }
@@ -301,13 +301,9 @@ class LuceneIndex(override val name: Name.IndexName, override val parent: Entity
             }
         }
 
-        /**
-         * Commits all changes to the [LuceneIndex] made through this [LuceneIndex.Tx]
-         */
-        override fun commit() = this.localLock.read {
-            this.checkValidForWrite()
-
-            /* Commits changes made throug the local IndexWriter. */
+        /** Performs the actual COMMIT operation by committing the [IndexWriter] and updating the [IndexReader]. */
+        override fun performCommit() {
+            /* Commits changes made throught the LuceneWriter. */
             this.writer?.commit()
 
             /* Opens new IndexReader and close new one. */
@@ -316,25 +312,14 @@ class LuceneIndex(override val name: Name.IndexName, override val parent: Entity
             oldReader.close()
         }
 
-        /**
-         * Makes a rollback on all changes to the [LuceneIndex] made through this [LuceneIndex.Tx]
-         */
-        override fun rollback() = this.localLock.read {
-            this.checkValidForWrite()
+        /** Performs the actual ROLLBACK operation by rolling back the [IndexWriter]. */
+        override fun performRollback() {
             this.writer?.rollback()
-            Unit
         }
 
-        /**
-         * Closes this [LuceneIndex.Tx] and releases the global lock. Closed [LuceneIndex.Tx] cannot be used anymore!
-         */
-        override fun close() = this.localLock.write {
-            if (this.status != TransactionStatus.CLOSED) {
-                this.writer?.close()
-                this.status = TransactionStatus.CLOSED
-                this@LuceneIndex.txLock.unlock(this.txStamp)
-                this@LuceneIndex.globalLock.unlockRead(this.globalStamp)
-            }
+        /** Makes the necessary cleanup by closing the [IndexWriter]. */
+        override fun cleanup() {
+            this.writer?.close()
         }
     }
 }

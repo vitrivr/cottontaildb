@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.database.index.hash
 
+import org.apache.lucene.index.IndexWriter
 import org.mapdb.DBMaker
 import org.mapdb.HTreeMap
 import org.mapdb.Serializer
@@ -297,36 +298,18 @@ class NonUniqueHashIndex(override val name: Name.IndexName, override val parent:
             }
         }
 
-        /**
-         * Commits all changes to the [NonUniqueHashIndex] made through this [NonUniqueHashIndex.Tx]
-         */
-        override fun commit() = this.localLock.read {
-            checkValidForWrite()
+        /** Performs the actual COMMIT operation by rolling back the [DB]. */
+        override fun performCommit() {
             this@NonUniqueHashIndex.db.commit()
         }
 
-        /**
-         * Makes a rollback on all changes to the [NonUniqueHashIndex] made through this [NonUniqueHashIndex.Tx]
-         */
-        override fun rollback() = this.localLock.read {
-            checkValidForWrite()
+        /** Performs the actual ROLLBACK operation by rolling back the [DB]. */
+        override fun performRollback() {
             this@NonUniqueHashIndex.db.rollback()
         }
 
-        /**
-         * Closes this [NonUniqueHashIndex.Tx] and releases the global lock. Closed [IndexTransaction]s cannot be used anymore!
-         */
-        override fun close() = this.localLock.write {
-            if (this.status != TransactionStatus.CLOSED) {
-                if (!this.readonly && this.status == TransactionStatus.DIRTY) {
-                    this.localLock.read {
-                        this@NonUniqueHashIndex.db.rollback()
-                    }
-                }
-                this.status = TransactionStatus.CLOSED
-                this@NonUniqueHashIndex.txLock.unlock(this.txStamp)
-                this@NonUniqueHashIndex.globalLock.unlockRead(this.globalStamp)
-            }
+        override fun cleanup() {
+            /* No Op. */
         }
     }
 }

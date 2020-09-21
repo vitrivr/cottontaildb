@@ -13,6 +13,7 @@ import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.exceptions.TransactionException
 import org.vitrivr.cottontail.model.exceptions.ValidationException
 import org.vitrivr.cottontail.model.recordset.Recordset
+import org.vitrivr.cottontail.utilities.extensions.read
 import org.vitrivr.cottontail.utilities.extensions.write
 import java.util.*
 import java.util.concurrent.locks.StampedLock
@@ -165,15 +166,69 @@ abstract class Index : DBO {
         override fun supportsIncrementalUpdate(): Boolean = this@Index.supportsIncrementalUpdate()
 
         /**
-         * Closes this [Index.Tx] and releases the global lock. Closed [Entity.Tx] cannot be used anymore!
+         * Commits all changes to the [Index] made through this [Index.Tx]
          */
-        override fun close() = this.localLock.write {
+        final override fun commit() = this.localLock.read {
+            if (this.status == TransactionStatus.DIRTY) {
+                this.performCommit()
+                this.status = TransactionStatus.CLEAN
+            }
+        }
+
+        /**
+         * Performs the actual COMMIT operation. It is up to the implementing class to obtain locks on necessary
+         * data structures and cleanup the transaction.
+         *
+         * Implementers of this method may safely assume that upon reaching this method, all necessary locks on
+         * Cottontail DB's data structures have been obtained to safely perform the COMMIT operation on the [Index].
+         * Furthermore, this operation will only be called if the [status] is equal to [TransactionStatus.DIRTY]
+         */
+        protected abstract fun performCommit()
+
+        /**
+         * Makes a rollback on all changes to the [Index] made through this [Index.Tx]
+         */
+        final override fun rollback() = this.localLock.read {
+            if (this.status == TransactionStatus.DIRTY || this.status == TransactionStatus.ERROR) {
+                this.performRollback()
+                this.status = TransactionStatus.CLEAN
+            }
+        }
+
+        /**
+         * Performs the actual ROLLBACK operation. It is up to the implementing class to obtain locks on necessary
+         * data structures and cleanup the transaction.
+         *
+         * Implementers of this method may safely assume that upon reaching this method, all necessary locks on
+         * Cottontail DB's data structures have been obtained to safely perform the ROLLBACK operation on the [Index].
+         * Furthermore, this operation will only be called if the [status] is equal to [TransactionStatus.DIRTY] or
+         * [TransactionStatus.ERROR]
+         */
+        protected abstract fun performRollback()
+
+        /**
+         * Closes this [Index.Tx] and releases the global lock. If there are uncommitted changes, these changes
+         * will be rolled back. Closed [Index.Tx] cannot be used anymore!
+         */
+        final override fun close() = this.localLock.write {
             if (this.status != TransactionStatus.CLOSED) {
+                if (this.status == TransactionStatus.DIRTY || this.status == TransactionStatus.ERROR) {
+                    this.rollback()
+                }
                 this.status = TransactionStatus.CLOSED
                 this@Index.txLock.unlock(this.txStamp)
                 this@Index.globalLock.unlockRead(this.globalStamp)
             }
         }
+
+        /**
+         * Cleans all local resources obtained by this [Index] implementation. Called as part of and prior to finalizing
+         * the [close] operation
+         *
+         * Implementers of this method may safely assume that upon reaching this method, all necessary locks on
+         * Cottontail DB's data structures have been obtained to safely perform the CLOSE operation on the [Index].
+         */
+        protected abstract fun cleanup()
 
         /**
          * Checks if this [Index.Tx] is in a valid state for write operations to happen.
@@ -182,6 +237,9 @@ abstract class Index : DBO {
             if (this.readonly) throw TransactionException.TransactionReadOnlyException(tid)
             if (this.status == TransactionStatus.CLOSED) throw TransactionException.TransactionClosedException(tid)
             if (this.status == TransactionStatus.ERROR) throw TransactionException.TransactionInErrorException(tid)
+            if (this.status != TransactionStatus.DIRTY) {
+                this.status = TransactionStatus.DIRTY
+            }
         }
 
         /**

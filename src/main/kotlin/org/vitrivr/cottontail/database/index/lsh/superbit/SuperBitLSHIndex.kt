@@ -215,36 +215,18 @@ class SuperBitLSHIndex<T : VectorValue<*>>(name: Name.IndexName, parent: Entity,
             }
         }
 
-        /**
-         * Commits all changes to the [UniqueHashIndex] made through this [NonUniqueHashIndex.Tx]
-         */
-        override fun commit() = this.localLock.read {
-            checkValidForWrite()
+        /** Performs the actual COMMIT operation by rolling back the [DB]. */
+        override fun performCommit() {
             this@SuperBitLSHIndex.db.commit()
         }
 
-        /**
-         * Makes a rollback on all changes to the [UniqueHashIndex] made through this [NonUniqueHashIndex.Tx]
-         */
-        override fun rollback() = this.localLock.read {
-            checkValidForWrite()
+        /** Performs the actual ROLLBACK operation by rolling back the [DB]. */
+        override fun performRollback() {
             this@SuperBitLSHIndex.db.rollback()
         }
 
-        /**
-         * Closes this [UniqueHashIndex.Tx] and releases the global lock. Closed [IndexTransaction]s cannot be used anymore!
-         */
-        override fun close() = this.localLock.write {
-            if (this.status != TransactionStatus.CLOSED) {
-                if (!this.readonly && this.status == TransactionStatus.DIRTY) {
-                    this.localLock.read {
-                        this@SuperBitLSHIndex.db.rollback()
-                    }
-                }
-                this.status = TransactionStatus.CLOSED
-                this@SuperBitLSHIndex.txLock.unlock(this.txStamp)
-                this@SuperBitLSHIndex.globalLock.unlockRead(this.globalStamp)
-            }
+        override fun cleanup() {
+            /* No Op. */
         }
 
         /**
