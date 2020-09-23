@@ -52,6 +52,67 @@ class GrpcQueryBinder(val catalogue: Catalogue) {
     }
 
     /**
+     * Binds the given [CottontailGrpc.UpdateMessage] to the database objects and thereby creates
+     * a tree of [LogicalNodeExpression]s.
+     *
+     * @param update The [CottontailGrpc.UpdateMessage] that should be bound.
+     * @return [LogicalNodeExpression]
+     *
+     * @throws QueryException.QuerySyntaxException If [CottontailGrpc.Query] is structurally incorrect.
+     */
+    fun parseAndBindUpdate(delete: CottontailGrpc.UpdateMessage): LogicalNodeExpression {
+        /* Create scan clause. */
+        val scanClause = parseAndBindSimpleFrom(delete.from)
+        val entity: Entity = scanClause.first
+        var root: LogicalNodeExpression = scanClause.second
+
+        /* Create WHERE-clause. */
+        if (delete.hasWhere()) {
+            val where = FilterLogicalNodeExpression(parseAndBindBooleanPredicate(entity, delete.where))
+            where.addInput(root)
+            root = where
+        }
+
+        return root
+    }
+
+    /**
+     * Binds the given [CottontailGrpc.DeleteMessage] to the database objects and thereby creates
+     * a tree of [LogicalNodeExpression]s.
+     *
+     * @param delete The [CottontailGrpc.DeleteMessage] that should be bound.
+     * @return [LogicalNodeExpression]
+     *
+     * @throws QueryException.QuerySyntaxException If [CottontailGrpc.Query] is structurally incorrect.
+     */
+    fun parseAndBindDelete(delete: CottontailGrpc.DeleteMessage): LogicalNodeExpression {
+        /* Create scan clause. */
+        val scanClause = parseAndBindSimpleFrom(delete.from)
+        val entity: Entity = scanClause.first
+        var root: LogicalNodeExpression = scanClause.second
+
+        /* Create WHERE-clause. */
+        if (delete.hasWhere()) {
+            val where = FilterLogicalNodeExpression(parseAndBindBooleanPredicate(entity, delete.where))
+            where.addInput(root)
+            root = where
+        }
+
+        return root
+    }
+
+    /**
+     * Binds the given [CottontailGrpc.TruncateMessage] to the database objects and thereby creates
+     * a tree of [LogicalNodeExpression]s.
+     *
+     * @param truncate The [CottontailGrpc.DeleteMessage] that should be bound.
+     * @return [LogicalNodeExpression]
+     *
+     * @throws QueryException.QuerySyntaxException If [CottontailGrpc.Query] is structurally incorrect.
+     */
+    fun parseAndBindTruncate(delete: CottontailGrpc.TruncateMessage): LogicalNodeExpression = parseAndBindSimpleFrom(delete.from).second
+
+    /**
      * Parses and binds a simple [CottontailGrpc.Query] without any joins and subselects and thereby
      * generates a tree of [LogicalNodeExpression]s.
      *
