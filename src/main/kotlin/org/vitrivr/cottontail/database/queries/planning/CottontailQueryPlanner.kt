@@ -4,11 +4,7 @@ import org.vitrivr.cottontail.database.queries.planning.nodes.interfaces.NodeExp
 import org.vitrivr.cottontail.database.queries.planning.nodes.interfaces.RewriteRule
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.LogicalNodeExpression
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.PhysicalNodeExpression
-import org.vitrivr.cottontail.database.queries.planning.rules.logical.LeftConjunctionRewriteRule
-import org.vitrivr.cottontail.database.queries.planning.rules.logical.RightConjunctionRewriteRule
-import org.vitrivr.cottontail.database.queries.planning.rules.physical.implementation.*
-import org.vitrivr.cottontail.database.queries.planning.rules.physical.index.BooleanIndexScanRule
-import org.vitrivr.cottontail.database.queries.planning.rules.physical.pushdown.CountPushdownRule
+import org.vitrivr.cottontail.model.exceptions.QueryException
 import java.util.*
 
 /**
@@ -27,36 +23,13 @@ import java.util.*
  * @author Ralph Gasser
  * @version 1.1
  */
-class CottontailQueryPlanner(
-        stage1Rules: Collection<RewriteRule> = DEFAULT_STAGE1_RULESET,
-        stage2Rules: Collection<RewriteRule> = DEFAULT_STAGE2_RULESET
-) {
+class CottontailQueryPlanner(logicalRewriteRules: Collection<RewriteRule>, physicalRewriteRules: Collection<RewriteRule>) {
 
-    /**
-     * Companion object.
-     */
-    companion object {
+    /** The [RuleShuttle] for the logical rewrite phase. */
+    private val logicalShuttle = RuleShuttle(logicalRewriteRules)
 
-        /** Ruleset for Stage 1 of optimisation. */
-        val DEFAULT_STAGE1_RULESET = listOf<RewriteRule>(LeftConjunctionRewriteRule, RightConjunctionRewriteRule)
-
-        /** Ruleset for Stage 2 of optimisation. */
-        val DEFAULT_STAGE2_RULESET = listOf(
-                BooleanIndexScanRule,
-                CountPushdownRule,
-                EntityScanImplementationRule,
-                FilterImplementationRule,
-                KnnImplementationRule,
-                LimitImplementationRule,
-                ProjectionImplementationRule
-        )
-    }
-
-    /** */
-    private val stage1Shuttle = RuleShuttle(stage1Rules)
-
-    /** */
-    private val stage2Shuttle = RuleShuttle(stage2Rules)
+    /** The [RuleShuttle] for the physical rewrite phase. */
+    private val physicalShuttle = RuleShuttle(physicalRewriteRules)
 
     /**
      * Generates a list of equivalent [NodeExpression]s by recursively applying [RewriteRule]s
@@ -66,30 +39,42 @@ class CottontailQueryPlanner(
      * @param expression The [NodeExpression] to optimize.
      * @param recursion The depth of recursion before final candidate is selected.
      * @param candidatesPerLevel The number of candidates to generate per recursion level.
+     *
+     * @throws QueryException.QueryPlannerException If planner fails to generate a valid execution plan.
      */
     fun plan(expression: LogicalNodeExpression, recursion: Int, candidatesPerLevel: Int): Collection<PhysicalNodeExpression> {
         /** Generate stage 1 candidates by logical optimization. */
-        val stage1 = this.optimize(expression, this.stage1Shuttle, recursion, candidatesPerLevel)
+        val stage1 = this.optimize(expression, this.logicalShuttle, recursion, candidatesPerLevel)
 
         /** Generate stage 2 candidates by physical optimization. */
-        val stage2 = stage1.flatMap { this.optimize(it, this.stage2Shuttle, recursion, candidatesPerLevel) }
-        return stage2.filter { it.root.executable }.filterIsInstance<PhysicalNodeExpression>()
+        val stage2 = stage1.flatMap {
+            this.optimize(it, this.physicalShuttle, recursion, candidatesPerLevel)
+        }.filter {
+            it.root.executable
+        }.filterIsInstance<PhysicalNodeExpression>()
+        if (stage2.isEmpty()) {
+            throw QueryException.QueryPlannerException("Failed to generate a physical execution plan for expression: $expression.")
+        } else {
+            return stage2
+        }
     }
-
 
     /**
      * Performs optimization of a [LogicalNodeExpression] tree, by applying plan rewrite rules that
-     * manipulate that tree and return equivalent [LogicalNodeExpression] trees..
+     * manipulate that tree and return equivalent [LogicalNodeExpression] trees.
      *
      * @param expression The [LogicalNodeExpression] that should be optimized.
      */
     fun optimize(expression: NodeExpression, shuttle: RuleShuttle, recursion: Int, candidatesPerLevel: Int): Collection<NodeExpression> {
         val candidates = mutableListOf<NodeExpression>()
         if (recursion > 0) {
-            for (e in this.generateCandidates(expression, shuttle)) {
+            val generated = this.generateCandidates(expression, shuttle)
+            for (e in generated) {
                 candidates.addAll(this.optimize(e, shuttle, recursion - 1, candidatesPerLevel))
+                if (candidates.size > candidatesPerLevel) {
+                    break
+                }
             }
-            candidates.add(expression)
         }
         return candidates
     }
