@@ -11,12 +11,12 @@ import org.vitrivr.cottontail.model.values.types.Value
  * @author Ralph Gasser
  * @version 1.0
  */
-class UpdateLogicalNodeExpression(val entity: Entity, val values: Map<ColumnDef<*>, Value>): UnaryLogicalNodeExpression() {
+class UpdateLogicalNodeExpression(val entity: Entity, val values: List<Pair<ColumnDef<*>, Value?>>) : UnaryLogicalNodeExpression() {
 
     /**
-     * Returns a copy of this [DeleteLogicalNodeExpression]
+     * Returns a copy of this [UpdateLogicalNodeExpression]
      *
-     * @return Copy of this [DeleteLogicalNodeExpression]
+     * @return Copy of this [UpdateLogicalNodeExpression]
      */
     override fun copy(): UpdateLogicalNodeExpression = UpdateLogicalNodeExpression(this.entity, this.values)
 }

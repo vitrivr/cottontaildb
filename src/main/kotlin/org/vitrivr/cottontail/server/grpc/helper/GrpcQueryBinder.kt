@@ -7,6 +7,8 @@ import org.vitrivr.cottontail.database.index.IndexType
 import org.vitrivr.cottontail.database.queries.components.*
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.LogicalNodeExpression
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.NullaryLogicalNodeExpression
+import org.vitrivr.cottontail.database.queries.planning.nodes.logical.management.DeleteLogicalNodeExpression
+import org.vitrivr.cottontail.database.queries.planning.nodes.logical.management.UpdateLogicalNodeExpression
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.predicates.FilterLogicalNodeExpression
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.predicates.KnnLogicalNodeExpression
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.projection.LimitLogicalNodeExpression
@@ -14,7 +16,6 @@ import org.vitrivr.cottontail.database.queries.planning.nodes.logical.projection
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.sources.EntitySampleLogicalNodeExpression
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.sources.EntityScanLogicalNodeExpression
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.projection.ProjectionPhysicalNodeExpression
-
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.math.knn.metrics.Distances
 import org.vitrivr.cottontail.model.basics.ColumnDef
@@ -35,8 +36,7 @@ import org.vitrivr.cottontail.model.values.*
  */
 class GrpcQueryBinder(val catalogue: Catalogue) {
     /**
-     * Binds the given [CottontailGrpc.Query] to the database objects and thereby creates
-     * a tree of [LogicalNodeExpression]s.
+     * Binds the given [CottontailGrpc.Query] to the database objects and thereby creates a tree of [LogicalNodeExpression]s.
      *
      * @param query The [CottontailGrpc.Query] that should be bound.
      * @return [LogicalNodeExpression]
@@ -60,20 +60,31 @@ class GrpcQueryBinder(val catalogue: Catalogue) {
      *
      * @throws QueryException.QuerySyntaxException If [CottontailGrpc.Query] is structurally incorrect.
      */
-    fun parseAndBindUpdate(delete: CottontailGrpc.UpdateMessage): LogicalNodeExpression {
-        /* Create scan clause. */
-        val scanClause = parseAndBindSimpleFrom(delete.from)
+    fun parseAndBindUpdate(update: CottontailGrpc.UpdateMessage): LogicalNodeExpression {
+        /* Create SCAN-clause. */
+        val scanClause = parseAndBindSimpleFrom(update.from)
         val entity: Entity = scanClause.first
         var root: LogicalNodeExpression = scanClause.second
 
         /* Create WHERE-clause. */
-        if (delete.hasWhere()) {
-            val where = FilterLogicalNodeExpression(parseAndBindBooleanPredicate(entity, delete.where))
+        if (update.hasWhere()) {
+            val where = FilterLogicalNodeExpression(parseAndBindBooleanPredicate(entity, update.where))
             where.addInput(root)
             root = where
         }
 
-        return root
+        /* Parse values to update. */
+        val values = update.tuple.dataMap.map {
+            val columnName = entity.name.column(it.key)
+            val column = entity.columnForName(columnName)
+                    ?: throw QueryException.QueryBindException("Failed to bind column '$columnName'. Column does not exist on entity'.")
+            column to it.value.toValue(column)
+        }
+
+        /* Create and return UPDATE-clause. */
+        val upd = UpdateLogicalNodeExpression(entity, values)
+        upd.addInput(root)
+        return upd
     }
 
     /**
@@ -86,7 +97,7 @@ class GrpcQueryBinder(val catalogue: Catalogue) {
      * @throws QueryException.QuerySyntaxException If [CottontailGrpc.Query] is structurally incorrect.
      */
     fun parseAndBindDelete(delete: CottontailGrpc.DeleteMessage): LogicalNodeExpression {
-        /* Create scan clause. */
+        /* Create SCAN-clause. */
         val scanClause = parseAndBindSimpleFrom(delete.from)
         val entity: Entity = scanClause.first
         var root: LogicalNodeExpression = scanClause.second
@@ -98,7 +109,10 @@ class GrpcQueryBinder(val catalogue: Catalogue) {
             root = where
         }
 
-        return root
+        /* Create and return DELETE-clause. */
+        val del = DeleteLogicalNodeExpression(entity)
+        del.addInput(root)
+        return del
     }
 
     /**
@@ -110,7 +124,17 @@ class GrpcQueryBinder(val catalogue: Catalogue) {
      *
      * @throws QueryException.QuerySyntaxException If [CottontailGrpc.Query] is structurally incorrect.
      */
-    fun parseAndBindTruncate(delete: CottontailGrpc.TruncateMessage): LogicalNodeExpression = parseAndBindSimpleFrom(delete.from).second
+    fun parseAndBindTruncate(truncate: CottontailGrpc.TruncateMessage): LogicalNodeExpression {
+        /* Create SCAN-clause. */
+        val scanClause = parseAndBindSimpleFrom(truncate.from)
+        val entity: Entity = scanClause.first
+        val root: LogicalNodeExpression = scanClause.second
+
+        /* Create and return DELETE-clause. */
+        val del = DeleteLogicalNodeExpression(entity)
+        del.addInput(root)
+        return del
+    }
 
     /**
      * Parses and binds a simple [CottontailGrpc.Query] without any joins and subselects and thereby
@@ -253,80 +277,14 @@ class GrpcQueryBinder(val catalogue: Catalogue) {
 
         /* Perform some sanity checks. */
         when {
-            operator == ComparisonOperator.LIKE && !entity.hasIndexForColumn(column, IndexType.LUCENE) -> throw QueryException.QueryBindException("Failed to bind query '${atomic.attribute} LIKE :1' on entity '${entity.name}'. The entity does not have a text-index on the specified column '${column.name}', which is required for LIKE comparisons.")
+            operator == ComparisonOperator.LIKE && !entity.hasIndexForColumn(column, IndexType.LUCENE) -> throw QueryException.QueryBindException("Failed to bind clause '${atomic.attribute} LIKE :1' on entity '${entity.name}'. The entity does not have a text-index on the specified column '${column.name}', which is required for LIKE comparisons.")
         }
 
         /* Return the resulting AtomicBooleanPredicate. */
-        return when (column.type) {
-            is DoubleColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<DoubleValue>, operator = operator, not = atomic.not, values = atomic.dataList.map {
-                it.toDoubleValue()
-                        ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
-            })
-            is FloatColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<FloatValue>, operator = operator, not = atomic.not, values = atomic.dataList.map {
-                it.toFloatValue()
-                        ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
-            })
-            is LongColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<LongValue>, operator = operator, not = atomic.not, values = atomic.dataList.map {
-                it.toLongValue()
-                        ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
-            })
-            is IntColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<IntValue>, operator = operator, not = atomic.not, values = atomic.dataList.map {
-                it.toIntValue()
-                        ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
-            })
-            is ShortColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<ShortValue>, operator = operator, not = atomic.not, values = atomic.dataList.map {
-                it.toShortValue()
-                        ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
-            })
-            is ByteColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<ByteValue>, operator = operator, not = atomic.not, values = atomic.dataList.map {
-                it.toByteValue()
-                        ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
-            })
-            is BooleanColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<BooleanValue>, operator = operator, not = atomic.not, values = atomic.dataList.map {
-                it.toBooleanValue()
-                        ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
-            })
-            is StringColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<StringValue>, operator = operator, not = atomic.not, values = atomic.dataList.map {
-                it.toStringValue()
-                        ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
-            })
-            is Complex32ColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Complex32Value>, operator = operator, not = atomic.not, values = atomic.dataList.map {
-                it.toComplex32Value()
-                        ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
-            })
-            is Complex64ColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Complex64Value>, operator = operator, not = atomic.not, values = atomic.dataList.map {
-                it.toComplex64Value()
-                        ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
-            })
-            is FloatVectorColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<FloatVectorValue>, operator = operator, not = atomic.not, values = atomic.dataList.map {
-                it.toFloatVectorValue()
-                        ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
-            })
-            is DoubleVectorColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<DoubleVectorValue>, operator = operator, not = atomic.not, values = atomic.dataList.map {
-                it.toDoubleVectorValue()
-                        ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
-            })
-            is LongVectorColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<LongVectorValue>, operator = operator, not = atomic.not, values = atomic.dataList.map {
-                it.toLongVectorValue()
-                        ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
-            })
-            is IntVectorColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<IntVectorValue>, operator = operator, not = atomic.not, values = atomic.dataList.map {
-                it.toIntVectorValue()
-                        ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
-            })
-            is BooleanVectorColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<BooleanVectorValue>, operator = operator, not = atomic.not, values = atomic.dataList.map {
-                it.toBooleanVectorValue()
-                        ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
-            })
-            is Complex32VectorColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Complex32VectorValue>, operator = operator, not = atomic.not, values = atomic.dataList.map {
-                it.toComplex32VectorValue()
-                        ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
-            })
-            is Complex64VectorColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Complex64VectorValue>, operator = operator, not = atomic.not, values = atomic.dataList.map {
-                it.toComplex64VectorValue()
-                        ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
-            })
-        }
+        return AtomicBooleanPredicate(column, operator, atomic.not, atomic.dataList.map {
+            it.toValue(column)
+                    ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
+        })
     }
 
     /**
