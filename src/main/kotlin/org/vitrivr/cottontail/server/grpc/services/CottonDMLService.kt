@@ -6,14 +6,27 @@ import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.database.catalogue.Catalogue
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.general.Transaction
+import org.vitrivr.cottontail.database.queries.planning.CottontailQueryPlanner
+import org.vitrivr.cottontail.database.queries.planning.rules.logical.LeftConjunctionRewriteRule
+import org.vitrivr.cottontail.database.queries.planning.rules.logical.RightConjunctionRewriteRule
+import org.vitrivr.cottontail.database.queries.planning.rules.physical.implementation.DeleteImplementationRule
+import org.vitrivr.cottontail.database.queries.planning.rules.physical.implementation.EntityScanImplementationRule
+import org.vitrivr.cottontail.database.queries.planning.rules.physical.implementation.FilterImplementationRule
+import org.vitrivr.cottontail.database.queries.planning.rules.physical.implementation.UpdateImplementationRule
+import org.vitrivr.cottontail.database.queries.planning.rules.physical.index.BooleanIndexScanRule
+import org.vitrivr.cottontail.execution.ExecutionEngine
+import org.vitrivr.cottontail.execution.exceptions.ExecutionException
+import org.vitrivr.cottontail.execution.operators.basics.SinkOperator
 import org.vitrivr.cottontail.grpc.CottonDMLGrpc
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
+import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.exceptions.ValidationException
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.types.Value
+import org.vitrivr.cottontail.server.grpc.helper.GrpcQueryBinder
 import org.vitrivr.cottontail.server.grpc.helper.fqn
 import org.vitrivr.cottontail.server.grpc.helper.toValue
 import org.vitrivr.cottontail.utilities.extensions.read
@@ -21,6 +34,9 @@ import org.vitrivr.cottontail.utilities.extensions.write
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.locks.StampedLock
+import kotlin.time.ExperimentalTime
+import kotlin.time.measureTime
+import kotlin.time.measureTimedValue
 
 /**
  * Implementation of [CottonDMLGrpc.CottonDMLImplBase], the gRPC endpoint for inserting data into Cottontail DB [Entity]s.
@@ -28,11 +44,184 @@ import java.util.concurrent.locks.StampedLock
  * @author Ralph Gasser
  * @version 1.1.0
  */
-class CottonDMLService(val catalogue: Catalogue) : CottonDMLGrpc.CottonDMLImplBase() {
+@ExperimentalTime
+class CottonDMLService(val catalogue: Catalogue, val engine: ExecutionEngine) : CottonDMLGrpc.CottonDMLImplBase() {
     /** Logger used for logging the output. */
     companion object {
         private val LOGGER = LoggerFactory.getLogger(CottonDMLService::class.java)
     }
+
+    /** [GrpcQueryBinder] used to generate [org.vitrivr.cottontail.database.queries.planning.nodes.logical.LogicalNodeExpression] tree from a gRPC query. */
+    private val binder = GrpcQueryBinder(this.catalogue)
+
+    /** [CottontailQueryPlanner] used to generate execution plans from query definitions. */
+    private val planner = CottontailQueryPlanner(
+            logicalRewriteRules = listOf(LeftConjunctionRewriteRule, RightConjunctionRewriteRule),
+            physicalRewriteRules = listOf(BooleanIndexScanRule, EntityScanImplementationRule, FilterImplementationRule, DeleteImplementationRule, UpdateImplementationRule)
+    )
+
+    /**
+     * gRPC endpoint for handling UPDATE queries.
+     */
+    override fun update(request: CottontailGrpc.UpdateMessage, responseObserver: StreamObserver<CottontailGrpc.Status>) = try {
+        /* Create a new execution context for the query. */
+        val context = this.engine.ExecutionContext()
+        val queryId = request.queryId.ifBlank { context.uuid.toString() }
+        val totalDuration = measureTime {
+            /* Bind query and create logical plan. */
+            val bindTimedValue = measureTimedValue {
+                this.binder.parseAndBindUpdate(request)
+            }
+            LOGGER.trace("Parsing & binding UPDATE $queryId took ${bindTimedValue.duration}.")
+
+            /* Plan query and create execution plan. */
+            val planningTime = measureTime {
+                val candidates = this.planner.plan(bindTimedValue.value, 3, 3)
+                if (candidates.isEmpty()) {
+                    responseObserver.onError(Status.INTERNAL.withDescription("UPDATE query execution failed because no valid execution plan could be produced").asException())
+                    return
+                }
+                val operator = candidates.minByOrNull { it.totalCost }!!.toOperator(context)
+                if (operator is SinkOperator) {
+                    context.addOperator(operator)
+                } else {
+                    TODO()
+                }
+            }
+            LOGGER.trace("Planning UPDATE $queryId took $planningTime.")
+
+            /* Execute query. */
+            context.execute()
+        }
+
+        /* Complete query. */
+        responseObserver.onCompleted()
+        LOGGER.trace("Executing UPDATE ${context.uuid} took $totalDuration to complete.")
+    } catch (e: QueryException.QuerySyntaxException) {
+        LOGGER.error("Error while executing UPDATE $request", e)
+        responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("UPDATE syntax is invalid: ${e.message}").asException())
+    } catch (e: QueryException.QueryBindException) {
+        LOGGER.error("Error while executing UPDATE $request", e)
+        responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("UPDATE query binding failed: ${e.message}").asException())
+    } catch (e: ExecutionException) {
+        LOGGER.error("Error while executing UPDATE $request", e)
+        responseObserver.onError(Status.INTERNAL.withDescription("UPDATE execution failed: ${e.message}").asException())
+    } catch (e: DatabaseException) {
+        LOGGER.error("Error while executing UPDATE $request", e)
+        responseObserver.onError(Status.INTERNAL.withDescription("UPDATE execution failed failed because of a database error: ${e.message}").asException())
+    } catch (e: Throwable) {
+        LOGGER.error("Error while executing UPDATE $request", e)
+        responseObserver.onError(Status.UNKNOWN.withDescription("UPDATE execution failed failed because of an unknown error: ${e.message}").asException())
+    }
+
+    /**
+     * gRPC endpoint for handling DELETE queries.
+     */
+    override fun delete(request: CottontailGrpc.DeleteMessage, responseObserver: StreamObserver<CottontailGrpc.Status>) = try {
+        /* Create a new execution context for the query. */
+        val context = this.engine.ExecutionContext()
+        val queryId = request.queryId.ifBlank { context.uuid.toString() }
+        val totalDuration = measureTime {
+            /* Bind query and create logical plan. */
+            val bindTimedValue = measureTimedValue {
+                this.binder.parseAndBindDelete(request)
+            }
+            LOGGER.trace("Parsing & binding DELETE $queryId took ${bindTimedValue.duration}.")
+
+            /* Plan query and create execution plan. */
+            val planningTime = measureTime {
+                val candidates = this.planner.plan(bindTimedValue.value, 3, 3)
+                if (candidates.isEmpty()) {
+                    responseObserver.onError(Status.INTERNAL.withDescription("DELETE query execution failed because no valid execution plan could be produced").asException())
+                    return
+                }
+                val operator = candidates.minByOrNull { it.totalCost }!!.toOperator(context)
+                if (operator is SinkOperator) {
+                    context.addOperator(operator)
+                } else {
+                    TODO()
+                }
+            }
+            LOGGER.trace("Planning DELETE $queryId took $planningTime.")
+
+            /* Execute query. */
+            context.execute()
+        }
+
+        /* Complete query. */
+        responseObserver.onCompleted()
+        LOGGER.trace("Executing DELETE ${context.uuid} took $totalDuration to complete.")
+    } catch (e: QueryException.QuerySyntaxException) {
+        LOGGER.error("Error while executing DELETE $request", e)
+        responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("DELETE syntax is invalid: ${e.message}").asException())
+    } catch (e: QueryException.QueryBindException) {
+        LOGGER.error("Error while executing DELETE $request", e)
+        responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("DELETE query binding failed: ${e.message}").asException())
+    } catch (e: ExecutionException) {
+        LOGGER.error("Error while executing DELETE $request", e)
+        responseObserver.onError(Status.INTERNAL.withDescription("DELETE execution failed: ${e.message}").asException())
+    } catch (e: DatabaseException) {
+        LOGGER.error("Error while executing DELETE $request", e)
+        responseObserver.onError(Status.INTERNAL.withDescription("DELETE execution failed failed because of a database error: ${e.message}").asException())
+    } catch (e: Throwable) {
+        LOGGER.error("Error while executing DELETE $request", e)
+        responseObserver.onError(Status.UNKNOWN.withDescription("DELETE execution failed failed because of an unknown error: ${e.message}").asException())
+    }
+
+    /**
+     * gRPC endpoint for handling TRUNCATE queries.
+     */
+    override fun truncate(request: CottontailGrpc.TruncateMessage, responseObserver: StreamObserver<CottontailGrpc.Status>) = try {
+        /* Create a new execution context for the query. */
+        val context = this.engine.ExecutionContext()
+        val queryId = request.queryId.ifBlank { context.uuid.toString() }
+        val totalDuration = measureTime {
+            /* Bind query and create logical plan. */
+            val bindTimedValue = measureTimedValue {
+                this.binder.parseAndBindTruncate(request)
+            }
+            LOGGER.trace("Parsing & binding TRUNCATE $queryId took ${bindTimedValue.duration}.")
+
+            /* Plan query and create execution plan. */
+            val planningTime = measureTime {
+                val candidates = this.planner.plan(bindTimedValue.value, 3, 3)
+                if (candidates.isEmpty()) {
+                    responseObserver.onError(Status.INTERNAL.withDescription("TRUNCATE query execution failed because no valid execution plan could be produced").asException())
+                    return
+                }
+                val operator = candidates.minByOrNull { it.totalCost }!!.toOperator(context)
+                if (operator is SinkOperator) {
+                    context.addOperator(operator)
+                } else {
+                    TODO()
+                }
+            }
+            LOGGER.trace("Planning DELETE $queryId took $planningTime.")
+
+            /* Execute query. */
+            context.execute()
+        }
+
+        /* Complete query. */
+        responseObserver.onCompleted()
+        LOGGER.trace("Executing TRUNCATE ${context.uuid} took $totalDuration to complete.")
+    } catch (e: QueryException.QuerySyntaxException) {
+        LOGGER.error("Error while executing TRUNCATE $request", e)
+        responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("TRUNCATE syntax is invalid: ${e.message}").asException())
+    } catch (e: QueryException.QueryBindException) {
+        LOGGER.error("Error while executing TRUNCATE $request", e)
+        responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("TRUNCATE query binding failed: ${e.message}").asException())
+    } catch (e: ExecutionException) {
+        LOGGER.error("Error while executing TRUNCATE $request", e)
+        responseObserver.onError(Status.INTERNAL.withDescription("TRUNCATE execution failed: ${e.message}").asException())
+    } catch (e: DatabaseException) {
+        LOGGER.error("Error while executing TRUNCATE $request", e)
+        responseObserver.onError(Status.INTERNAL.withDescription("TRUNCATE execution failed failed because of a database error: ${e.message}").asException())
+    } catch (e: Throwable) {
+        LOGGER.error("Error while executing TRUNCATE $request", e)
+        responseObserver.onError(Status.UNKNOWN.withDescription("TRUNCATE execution failed failed because of an unknown error: ${e.message}").asException())
+    }
+
 
     /**
      * gRPC endpoint for inserting data in a streaming mode; transactions will stay open until the caller explicitly completes or until an error occurs.

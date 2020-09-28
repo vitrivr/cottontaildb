@@ -9,6 +9,11 @@ import kotlinx.coroutines.flow.flow
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.database.catalogue.Catalogue
 import org.vitrivr.cottontail.database.queries.planning.CottontailQueryPlanner
+import org.vitrivr.cottontail.database.queries.planning.rules.logical.LeftConjunctionRewriteRule
+import org.vitrivr.cottontail.database.queries.planning.rules.logical.RightConjunctionRewriteRule
+import org.vitrivr.cottontail.database.queries.planning.rules.physical.implementation.*
+import org.vitrivr.cottontail.database.queries.planning.rules.physical.index.BooleanIndexScanRule
+import org.vitrivr.cottontail.database.queries.planning.rules.physical.pushdown.CountPushdownRule
 import org.vitrivr.cottontail.execution.ExecutionEngine
 import org.vitrivr.cottontail.execution.exceptions.ExecutionException
 import org.vitrivr.cottontail.execution.operators.basics.Operator
@@ -21,8 +26,8 @@ import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.recordset.Recordset
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
-import org.vitrivr.cottontail.server.grpc.helper.DataHelper
 import org.vitrivr.cottontail.server.grpc.helper.GrpcQueryBinder
+import org.vitrivr.cottontail.server.grpc.helper.toData
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTime
 import kotlin.time.measureTimedValue
@@ -46,7 +51,21 @@ class CottonDQLService(val catalogue: Catalogue, val engine: ExecutionEngine) : 
     private val binder = GrpcQueryBinder(catalogue = this@CottonDQLService.catalogue)
 
     /** [CottontailQueryPlanner] used to generate execution plans from query definitions. */
-    private val planner = CottontailQueryPlanner()
+    private val planner = CottontailQueryPlanner(
+            logicalRewriteRules = listOf(
+                    LeftConjunctionRewriteRule,
+                    RightConjunctionRewriteRule
+            ),
+            physicalRewriteRules = listOf(
+                    BooleanIndexScanRule,
+                    CountPushdownRule,
+                    EntityScanImplementationRule,
+                    FilterImplementationRule,
+                    KnnImplementationRule,
+                    LimitImplementationRule,
+                    ProjectionImplementationRule
+            )
+    )
 
     /**
      * gRPC endpoint for handling simple queries.
@@ -212,7 +231,7 @@ class CottonDQLService(val catalogue: Catalogue, val engine: ExecutionEngine) : 
                 }
 
                 /* Signal completion. */
-                emit(StandaloneRecord(0L, emptyArray()))
+                emit(StandaloneRecord(0L, emptyArray(), emptyArray()))
             }
         }
 
@@ -222,6 +241,10 @@ class CottonDQLService(val catalogue: Catalogue, val engine: ExecutionEngine) : 
          * @param record [Record] to create a [CottontailGrpc.Tuple.Builder] from.
          * @return Resulting [CottontailGrpc.Tuple.Builder]
          */
-        private fun recordToTuple(record: Record): CottontailGrpc.Tuple.Builder = CottontailGrpc.Tuple.newBuilder().putAllData(record.toMap().map { it.key.toString() to DataHelper.toData(it.value) }.toMap())
+        private fun recordToTuple(record: Record): CottontailGrpc.Tuple.Builder = CottontailGrpc.Tuple
+                .newBuilder().putAllData(record.toMap().map {
+                    it.key.toString() to (it.value?.toData()
+                            ?: CottontailGrpc.Data.newBuilder().setNullData(CottontailGrpc.Null.getDefaultInstance()).build())
+                }.toMap())
     }
 }
