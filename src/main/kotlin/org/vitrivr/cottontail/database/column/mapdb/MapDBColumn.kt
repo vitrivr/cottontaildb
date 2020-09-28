@@ -293,7 +293,6 @@ class MapDBColumn<T : Value>(override val name: Name.ColumnName, override val pa
              */
             override fun close() {
                 if (!this.closed) {
-                    this.wrapped.close()
                     this@Tx.localLock.unlock(this.lock)
                     this.closed = true
                 }

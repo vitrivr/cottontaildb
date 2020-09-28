@@ -9,10 +9,8 @@ import org.mapdb.volume.ReadOnlyVolume
 import org.mapdb.volume.SingleByteArrayVol
 import org.mapdb.volume.Volume
 import org.mapdb.volume.VolumeFactory
-import java.io.Closeable
 import java.io.File
 import java.util.*
-import java.util.concurrent.atomic.AtomicLong
 
 /**
  * This is a re-implementation / copy of Map DB's [StoreWAL] class with minor modifications.
@@ -928,23 +926,17 @@ class CottontailStoreWAL(
      * @author Ralph Gasser
      * @version 1.0
      */
-    inner class RecordIdIterator(range: LongRange = 0L..this@CottontailStoreWAL.maxRecid) : LongIterator(), Closeable {
+    inner class RecordIdIterator(range: LongRange = 2L..this@CottontailStoreWAL.maxRecid) : LongIterator() {
         /** Creates a local snapshot of the maximum record ID. */
-        private val maximumRecordId = range.last.coerceIn(0L, this@CottontailStoreWAL.maxRecid)
+        private val maximumRecordId = range.last.coerceIn(2L, this@CottontailStoreWAL.maxRecid)
 
         /** Current record ID. */
-        private val currentRecordId = AtomicLong(range.first.coerceIn(0L, this.maximumRecordId))
+        @Volatile
+        private var currentRecordId = range.first.coerceIn(2L, this.maximumRecordId)
 
         /** Flag indicating that this [RecordIdIterator] has been closed. */
         @Volatile
         private var closed = false
-
-        /**
-         * Creates a lock for this [LongIterator]
-         */
-        init {
-            CottontailUtils.lockReadAll(locks)
-        }
 
         /**
          * Returns the next record ID currently in use. Due to the way, hasNext() is evaluated, this method may reach the
@@ -952,48 +944,32 @@ class CottontailStoreWAL(
          *
          * @return The next record ID.
          */
+        @Synchronized
         override fun nextLong(): Long {
             check(!this.closed) { "Illegal invocation of nextLong(): This RecordIdIterator has been closed." }
-            var localIndex = this.currentRecordId.incrementAndGet()
-            do {
-                val indexVal = getIndexVal(localIndex)
-                if (indexValFlagUnused(indexVal).not()) {
-                    break
-                }
-                if (localIndex >= this.maximumRecordId) {
-                    break
-                }
-                localIndex = this.currentRecordId.incrementAndGet()
-            } while (true)
-
-            return if (localIndex <= this.maximumRecordId) {
-                localIndex
-            } else {
-                EOF_ENTRY
-            }
+            return (this.currentRecordId++)
         }
 
         /**
          * Returns true as long as the current record ID is smaller than the maximum record ID.
          */
+        @Synchronized
         override fun hasNext(): Boolean {
             check(!this.closed) { "Illegal invocation of hasNext(): This RecordIdIterator has been closed." }
-            return this.currentRecordId.get() < this.maximumRecordId
-        }
+            do {
+                if (this.currentRecordId > this.maximumRecordId) {
+                    return false
+                }
+                val segment = recidToSegment(this.currentRecordId)
+                CottontailUtils.lockRead(locks[segment]) {
+                    val indexVal = getIndexVal(this.currentRecordId)
+                    if (!indexValFlagUnused(indexVal) && indexValToSize(indexVal) != DELETED_RECORD_SIZE) {
+                        return true
+                    }
+                    this.currentRecordId += 1
+                }
 
-        /**
-         * Relinquishes the lock held by this [LongIterator]
-         */
-        override fun close() {
-            if (!this.closed) {
-                CottontailUtils.unlockReadAll(locks)
-                this.closed = true
-            }
+            } while (true)
         }
-
-        /**
-         * Closes this [RecordIdIterator] upon finalization.
-         */
-        protected fun finalize() = this.close()
     }
 }
