@@ -31,7 +31,7 @@ class CottontailGrpcServer(val config: ServerConfig, val catalogue: Catalogue, p
     private val server = ServerBuilder.forPort(config.port)
             .executor(this.executor)
             .addService(CottonDDLService(this.catalogue))
-            .addService(CottonDMLService(this.catalogue))
+            .addService(CottonDMLService(this.catalogue, this.engine))
             .addService(CottonDQLService(this.catalogue, this.engine))
             .let {
                 if (config.useTls) {
