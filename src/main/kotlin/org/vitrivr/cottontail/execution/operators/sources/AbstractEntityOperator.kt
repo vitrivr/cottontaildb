@@ -20,7 +20,7 @@ abstract class AbstractEntityOperator(context: ExecutionEngine.ExecutionContext,
     }
 
     override fun prepareClose() {
-        this.transaction!!.close()
+        this.transaction?.close()
         this.transaction = null
     }
 }
