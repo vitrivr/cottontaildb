@@ -136,7 +136,7 @@ class UniqueHashIndex(override val name: Name.IndexName, override val parent: En
 
             /* (Re-)create index entries. */
             val localMap = this@UniqueHashIndex.map as HTreeMap<Value, Long>
-            this.parent.scan().use{ s->
+            this.parent.scan().use { s ->
                 s.forEach { tid ->
                     val record = this.parent.read(tid, this@UniqueHashIndex.columns)
                     val value = record[this.columns[0]]

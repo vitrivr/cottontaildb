@@ -2,23 +2,24 @@ package org.vitrivr.cottontail.storage.serialization
 
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertArrayEquals
-import org.junit.jupiter.api.RepeatedTest
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import org.vitrivr.cottontail.TestConstants
 import org.vitrivr.cottontail.database.catalogue.Catalogue
 import org.vitrivr.cottontail.database.column.ColumnType
+import org.vitrivr.cottontail.database.general.begin
 import org.vitrivr.cottontail.model.basics.ColumnDef
+import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.BooleanVectorValue
-import org.vitrivr.cottontail.model.values.Complex64VectorValue
 import org.vitrivr.cottontail.model.values.IntValue
 import org.vitrivr.cottontail.utilities.VectorUtility
-import org.vitrivr.cottontail.utilities.name.Name
 import java.nio.file.Files
 import java.util.*
 import java.util.stream.Collectors
 
 /**
- * Test cases that test for correctness of some basic distance calculations with [Complex64VectorValue].
+ * Test cases that test for correctness of [BooleanVectorValue] serialization
  *
  * @author Ralph Gasser
  * @version 1.0
@@ -32,7 +33,7 @@ class FixedBooleanVectorValueSerializationTest {
 
     /** */
     private var schema = catalogue.let {
-        val name = Name("schema-test")
+        val name = Name.SchemaName("schema-test")
         it.createSchema(name)
         it.schemaForName(name)
     }
@@ -45,15 +46,15 @@ class FixedBooleanVectorValueSerializationTest {
     }
 
     /**
-     *
+     * Executes the test.
      */
-    @RepeatedTest(100)
-    fun test() {
-        val size = this.random.nextInt(2048)
-        val nameEntity = Name("boolean-test")
-        val idCol = ColumnDef(Name("id"), ColumnType.forName("INTEGER"), -1, false)
-        val vectorCol = ColumnDef(Name("vector"), ColumnType.forName("BOOL_VEC"), size, false)
-
+    @ParameterizedTest
+    @ValueSource(ints = [32, 33, 64, 65, 128, 130, 256, 260, 512, 1024, 1023, 2048])
+    fun test(dimension: Int) {
+        val nameEntity = this.schema.name.entity("boolean-test")
+        val idCol = ColumnDef(nameEntity.column("id"), ColumnType.forName("INTEGER"), -1, false)
+        val vectorCol = ColumnDef(nameEntity.column("vector"), ColumnType.forName("BOOL_VEC"), dimension, false)
+        val columns = arrayOf(idCol, vectorCol)
 
         /* Prepare entity. */
         this.schema.createEntity(nameEntity, idCol, vectorCol)
@@ -64,27 +65,23 @@ class FixedBooleanVectorValueSerializationTest {
         val r1 = SplittableRandom(seed)
 
         /* Insert data into column. */
-        val tx1 = schema.Tx(false)
-        val rec1 = StandaloneRecord(columns = arrayOf(idCol, vectorCol))
-        var i1 = 1L
-        VectorUtility.randomBoolVectorSequence(size, 1_000_000, r1).forEach {
-            rec1.assign(arrayOf(IntValue(++i1), it))
-            tx1.insert(rec1)
+        schema.Tx(false).begin { tx1 ->
+            var i1 = 1L
+            VectorUtility.randomBoolVectorSequence(dimension, 100_000, r1).forEach {
+                tx1.insert(StandaloneRecord(columns = arrayOf(idCol, vectorCol), values = arrayOf(IntValue(++i1), it)))
+            }
+            true
         }
-        tx1.commit()
-        tx1.close()
 
         /* Read data from column. */
         val r2 = SplittableRandom(seed)
-        val tx2 = schema.Tx(true)
-        var i2 = 1L
-        try {
-            VectorUtility.randomBoolVectorSequence(size, 1_000_000, r2).forEach {
-                val rec2 = tx2.read(++i2)
+        val tx2 = schema.Tx(true).begin { tx2 ->
+            var i2 = 1L
+            VectorUtility.randomBoolVectorSequence(dimension, 100_000, r2).forEach {
+                val rec2 = tx2.read(++i2, columns)
                 assertArrayEquals(it.data, (rec2[vectorCol] as BooleanVectorValue).data)
             }
-        } finally {
-            tx2.close()
+            true
         }
     }
 }
