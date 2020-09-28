@@ -16,7 +16,7 @@ import java.util.*
  * An [AbstractEntityOperator] that samples an [Entity] and streams all [Record]s found within.
  *
  * @author Ralph Gasser
- * @version 1.1.1
+ * @version 1.1.2
  */
 class EntitySampleOperator(context: ExecutionEngine.ExecutionContext, entity: Entity, columns: Array<ColumnDef<*>>, val size: Long, val seed: Long) : AbstractEntityOperator(context, entity, columns) {
 
@@ -33,13 +33,14 @@ class EntitySampleOperator(context: ExecutionEngine.ExecutionContext, entity: En
      */
     override fun toFlow(scope: CoroutineScope): Flow<Record> {
         check(this.status == OperatorStatus.OPEN) { "Cannot convert operator $this to flow because it is in state ${this.status}." }
+        val tx = this.context.getTx(this.entity)
         val random = SplittableRandom(this.seed)
         return flow {
             for (i in 0 until size) {
                 var record: Record? = null
                 while (record == null) {
-                    val next = random.nextLong(this@EntitySampleOperator.transaction!!.maxTupleId())
-                    record = this@EntitySampleOperator.transaction!!.read(next, this@EntitySampleOperator.columns)
+                    val next = random.nextLong(tx.maxTupleId())
+                    record = tx.read(next, this@EntitySampleOperator.columns)
                 }
                 emit(record)
             }

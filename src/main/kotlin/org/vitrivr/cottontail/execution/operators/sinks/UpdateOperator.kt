@@ -24,7 +24,7 @@ import kotlin.time.measureTime
  * A [SinkOperator] that updates all entries in an [Entity] that it receives with the provided [Value].
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.0.1
  */
 class UpdateOperator(parent: Operator, context: ExecutionEngine.ExecutionContext, val entity: Entity, val values: List<Pair<ColumnDef<*>, Value?>>) : SinkOperator(parent, context) {
     /** Columns returned by [UpdateOperator]. */
@@ -33,15 +33,12 @@ class UpdateOperator(parent: Operator, context: ExecutionEngine.ExecutionContext
             ColumnDef.withAttributes(Name.ColumnName("duration_ms"), "DOUBLE", -1, false),
     )
 
-    private var transaction: Entity.Tx? = null
-
     override fun prepareOpen() {
-        this.transaction = this.context.requestTransaction(this.entity, false)
+        this.context.prepareTransaction(this.entity, false)
     }
 
     override fun prepareClose() {
-        this.transaction?.close()
-        this.transaction = null
+        /* NoOp. */
     }
 
     /**
@@ -56,17 +53,18 @@ class UpdateOperator(parent: Operator, context: ExecutionEngine.ExecutionContext
     override fun toFlow(scope: CoroutineScope): Flow<Record> {
         var updated = 0L
         val parent = this.parent.toFlow(scope)
+        val tx = this.context.getTx(this.entity)
         return flow {
             val time = measureTime {
                 parent.collect { record ->
                     for (value in this@UpdateOperator.values) {
                         record[value.first] = value.second
                     }
-                    this@UpdateOperator.transaction?.update(record) /* Safe, cause tuple IDs are retained for simple queries. */
+                    tx.update(record) /* Safe, cause tuple IDs are retained for simple queries. */
                     updated += 1
                 }
             }
-            this@UpdateOperator.transaction?.commit()
+            tx.commit()
             emit(StandaloneRecord(0L, this@UpdateOperator.columns, arrayOf(LongValue(updated), DoubleValue(time.inMilliseconds))))
         }
     }

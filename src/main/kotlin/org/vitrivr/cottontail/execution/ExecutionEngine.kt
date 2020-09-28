@@ -11,7 +11,6 @@ import org.vitrivr.cottontail.execution.ExecutionEngine.ExecutionContext
 import org.vitrivr.cottontail.execution.exceptions.ExecutionException
 import org.vitrivr.cottontail.execution.exceptions.OperatorExecutionException
 import org.vitrivr.cottontail.execution.operators.basics.SinkOperator
-import org.vitrivr.cottontail.model.basics.ColumnDef
 import java.util.*
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.ConcurrentHashMap
@@ -50,7 +49,7 @@ class ExecutionEngine(config: ExecutionConfig) {
      * A concrete [ExecutionContext] used for executing a query.
      *
      * @author Ralph Gasser
-     * @version 1.0
+     * @version 1.0.1
      */
     inner class ExecutionContext {
 
@@ -95,22 +94,36 @@ class ExecutionEngine(config: ExecutionConfig) {
             (this.operators as MutableList).add(operator)
         }
 
-
         /**
-         * Requests a new [Entity.Tx] for the given [Entity] and the given [ColumnDef]s. Calling this
-         * method will cause the [Entity.Tx] to be registered.
+         * Requests a new [Entity.Tx] for the given [Entity].
+         *
+         * Calling this method will cause the [Entity.Tx] to be registered and opened. If
+         * multiple operators request an [Entity.Tx] for the same [Entity], only one [Entity.Tx]
+         * will be created. Furthermore, this method takes care of upgrading existing [readonly]
+         * [Entity.Tx] to writeable [Entity.Tx] if necessary.
          *
          * @param entity [Entity] to request the [Entity.Tx] for.
-         * @param readonly Whether the new [Entity.Tx] should be readonly-
+         * @param readonly Whether the new [Entity.Tx] should be readonly.
          *
          * @return [Entity.Tx]
          */
-        fun requestTransaction(entity: Entity, readonly: Boolean): Entity.Tx {
+        fun prepareTransaction(entity: Entity, readonly: Boolean) {
             if (!this.transactions.containsKey(entity)) {
                 this.transactions[entity] = entity.Tx(readonly = readonly, tid = this.uuid)
+            } else if (!readonly && this.transactions[entity]!!.readonly) {
+                this.transactions[entity]!!.close() /* Upgrade transaction. */
+                this.transactions[entity] = entity.Tx(readonly = readonly, tid = this.uuid)
             }
-            return this.transactions[entity]!!
         }
+
+        /**
+         * Returns the [Entity.Tx] for the provided [Entity]. If such an [Entity.Tx] doesn't
+         * exist, an [ExecutionException] is thrown.
+         *
+         * @param entity [Entity] to return the [Entity.Tx] for.
+         * @return entity [Entity.Tx]
+         */
+        fun getTx(entity: Entity) = this.transactions[entity] ?: throw ExecutionException("")
 
         /**
          * Executes this [ExecutionContext] in the [dispatcher] of the enclosing [ExecutionEngine].
@@ -123,7 +136,7 @@ class ExecutionEngine(config: ExecutionConfig) {
             this.state = ExecutionStatus.RUNNING
             runBlocking(this@ExecutionEngine.dispatcher) {
                 for (operator in this@ExecutionContext.operators) {
-                    /* Close operators. */
+                    /* Open operators. */
                     operator.open()
 
                     /* Execute flow. */
@@ -135,6 +148,11 @@ class ExecutionEngine(config: ExecutionConfig) {
                         LOGGER.error("Unhandled exception during query execution: ${e.message}")
                         throw ExecutionException("Unhandled exception during query execution (${e.javaClass.simpleName})")
                     } finally {
+                        /* Close all transactions. */
+                        this@ExecutionContext.transactions.forEach { (_, tx) ->
+                            tx.close()
+                        }
+
                         /* Close operators. */
                         operator.close()
                     }

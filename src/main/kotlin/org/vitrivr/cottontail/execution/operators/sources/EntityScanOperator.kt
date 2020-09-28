@@ -14,7 +14,7 @@ import org.vitrivr.cottontail.model.basics.Record
  * An [AbstractEntityOperator] that scans an [Entity] and streams all [Record]s found within.
  *
  * @author Ralph Gasser
- * @version 1.1.1
+ * @version 1.1.2
  */
 class EntityScanOperator(context: ExecutionEngine.ExecutionContext, entity: Entity, override val columns: Array<ColumnDef<*>>, private val range: LongRange = 2L..entity.statistics.maxTupleId) : AbstractEntityOperator(context, entity, columns) {
     /**
@@ -26,10 +26,11 @@ class EntityScanOperator(context: ExecutionEngine.ExecutionContext, entity: Enti
      */
     override fun toFlow(scope: CoroutineScope): Flow<Record> {
         check(this.status == OperatorStatus.OPEN) { "Cannot convert operator $this to flow because it is in state ${this.status}." }
+        val tx = this.context.getTx(this.entity)
         return flow {
-            this@EntityScanOperator.transaction!!.scan(this@EntityScanOperator.range).use { iterator ->
+            tx.scan(this@EntityScanOperator.range).use { iterator ->
                 for (tupleId in iterator) {
-                    emit(this@EntityScanOperator.transaction!!.read(tupleId, this@EntityScanOperator.columns))
+                    emit(tx.read(tupleId, this@EntityScanOperator.columns))
                 }
             }
         }

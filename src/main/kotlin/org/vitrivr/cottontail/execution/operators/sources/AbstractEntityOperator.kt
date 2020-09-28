@@ -9,18 +9,14 @@ import org.vitrivr.cottontail.model.basics.ColumnDef
  * An abstract [SourceOperator] that access an [Entity].
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.0.1
  */
 abstract class AbstractEntityOperator(context: ExecutionEngine.ExecutionContext, protected val entity: Entity, override val columns: Array<ColumnDef<*>>) : SourceOperator(context) {
-    /** Transaction used by this [AbstractEntityOperator]. */
-    protected var transaction: Entity.Tx? = null
-
     override fun prepareOpen() {
-        this.transaction = this.entity.Tx(readonly = true)
+        this.context.prepareTransaction(this.entity, true)
     }
 
     override fun prepareClose() {
-        this.transaction?.close()
-        this.transaction = null
+        /* NoOp. */
     }
 }

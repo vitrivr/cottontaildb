@@ -23,7 +23,7 @@ import kotlin.time.measureTime
  * A [SinkOperator] that deletes all entries in an [Entity] that it receives.
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.0.1
  */
 class DeleteOperator(parent: Operator, context: ExecutionEngine.ExecutionContext, val entity: Entity): SinkOperator(parent, context) {
     /** Columns returned by [UpdateOperator]. */
@@ -32,15 +32,12 @@ class DeleteOperator(parent: Operator, context: ExecutionEngine.ExecutionContext
         ColumnDef.withAttributes(Name.ColumnName("duration_ms"), "DOUBLE", -1, false),
     )
 
-    private var transaction: Entity.Tx? = null
-
     override fun prepareOpen() {
-        this.transaction = this.context.requestTransaction(this.entity, false)
+        this.context.prepareTransaction(this.entity, false)
     }
 
     override fun prepareClose() {
-        this.transaction?.close()
-        this.transaction = null
+        /* NoOp. */
     }
 
     /**
@@ -55,14 +52,15 @@ class DeleteOperator(parent: Operator, context: ExecutionEngine.ExecutionContext
     override fun toFlow(scope: CoroutineScope): Flow<Record> {
         var deleted = 0L
         val parent = this.parent.toFlow(scope)
+        val tx = this.context.getTx(this.entity)
         return flow {
             val time = measureTime {
                 parent.collect {
-                    this@DeleteOperator.transaction?.delete(it.tupleId) /* Safe, cause tuple IDs are retained for simple queries. */
+                    tx.delete(it.tupleId) /* Safe, cause tuple IDs are retained for simple queries. */
                     deleted += 1
                 }
             }
-            this@DeleteOperator.transaction?.commit()
+            tx.commit()
             emit(StandaloneRecord(0L, this@DeleteOperator.columns, arrayOf(LongValue(deleted), DoubleValue(time.inMilliseconds))))
         }
     }
