@@ -16,7 +16,7 @@ import org.vitrivr.cottontail.server.grpc.helper.fqn
  * This is a gRPC service endpoint that handles DDL (=Data Definition Language) request for Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 1.1
+ * @version 1.1.1
  */
 class CottonDDLService(val catalogue: Catalogue) : CottonDDLGrpc.CottonDDLImplBase() {
     /** Logger used for logging the output. */
@@ -27,11 +27,11 @@ class CottonDDLService(val catalogue: Catalogue) : CottonDDLGrpc.CottonDDLImplBa
     /**
      * gRPC endpoint for creating a new [Schema][org.vitrivr.cottontail.database.schema.Schema]
      */
-    override fun createSchema(request: CottontailGrpc.Schema, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) = try {
+    override fun createSchema(request: CottontailGrpc.Schema, responseObserver: StreamObserver<CottontailGrpc.Status>) = try {
         val schemaName = request.fqn()
         LOGGER.trace("Creating schema {}", schemaName)
         this.catalogue.createSchema(schemaName)
-        responseObserver.onNext(CottontailGrpc.SuccessStatus.newBuilder().setTimestamp(System.currentTimeMillis()).build())
+        responseObserver.onNext(CottontailGrpc.Status.newBuilder().setSuccess(true).setTimestamp(System.currentTimeMillis()).build())
         responseObserver.onCompleted()
     } catch (e: DatabaseException.SchemaAlreadyExistsException) {
         LOGGER.error("Error while creating schema", e)
@@ -47,11 +47,11 @@ class CottonDDLService(val catalogue: Catalogue) : CottonDDLGrpc.CottonDDLImplBa
     /**
      * gRPC endpoint for dropping a [Schema][org.vitrivr.cottontail.database.schema.Schema]
      */
-    override fun dropSchema(request: CottontailGrpc.Schema, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) = try {
+    override fun dropSchema(request: CottontailGrpc.Schema, responseObserver: StreamObserver<CottontailGrpc.Status>) = try {
         val schemaName = request.fqn()
         LOGGER.trace("Dropping schema {}", schemaName)
         this.catalogue.dropSchema(schemaName)
-        responseObserver.onNext(CottontailGrpc.SuccessStatus.newBuilder().setTimestamp(System.currentTimeMillis()).build())
+        responseObserver.onNext(CottontailGrpc.Status.newBuilder().setSuccess(true).setTimestamp(System.currentTimeMillis()).build())
         responseObserver.onCompleted()
     } catch (e: DatabaseException.SchemaDoesNotExistException) {
         LOGGER.error("Error while dropping schema '${request.name}'", e)
@@ -84,7 +84,7 @@ class CottonDDLService(val catalogue: Catalogue) : CottonDDLGrpc.CottonDDLImplBa
      *
      * gRPC endpoint for creating a new [Entity][org.vitrivr.cottontail.database.entity.Entity]
      */
-    override fun createEntity(request: CottontailGrpc.EntityDefinition, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) = try {
+    override fun createEntity(request: CottontailGrpc.EntityDefinition, responseObserver: StreamObserver<CottontailGrpc.Status>) = try {
         val entityName = request.entity.fqn()
         LOGGER.trace("Creating entity {}...", entityName)
         val schema = this.catalogue.schemaForName(entityName.schema())
@@ -94,7 +94,7 @@ class CottonDDLService(val catalogue: Catalogue) : CottonDDLGrpc.CottonDDLImplBa
             ColumnDef(name, type, it.length, it.nullable)
         }
         schema.createEntity(entityName, *columns.toTypedArray())
-        responseObserver.onNext(CottontailGrpc.SuccessStatus.newBuilder().setTimestamp(System.currentTimeMillis()).build())
+        responseObserver.onNext(CottontailGrpc.Status.newBuilder().setSuccess(true).setTimestamp(System.currentTimeMillis()).build())
         responseObserver.onCompleted()
     } catch (e: DatabaseException.SchemaDoesNotExistException) {
         LOGGER.error("Error while creating entity '${request.entity.fqn()}'", e)
@@ -136,11 +136,11 @@ class CottonDDLService(val catalogue: Catalogue) : CottonDDLGrpc.CottonDDLImplBa
     /**
      * gRPC endpoint for dropping a particular [Schema][org.vitrivr.cottontail.database.schema.Schema]
      */
-    override fun dropEntity(request: CottontailGrpc.Entity, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) = try {
+    override fun dropEntity(request: CottontailGrpc.Entity, responseObserver: StreamObserver<CottontailGrpc.Status>) = try {
         val entityName = request.fqn()
         LOGGER.trace("Dropping entity {}...", entityName)
         this.catalogue.schemaForName(entityName.schema()).dropEntity(entityName)
-        responseObserver.onNext(CottontailGrpc.SuccessStatus.newBuilder().setTimestamp(System.currentTimeMillis()).build())
+        responseObserver.onNext(CottontailGrpc.Status.newBuilder().setSuccess(true).setTimestamp(System.currentTimeMillis()).build())
         responseObserver.onCompleted()
     } catch (e: DatabaseException.SchemaDoesNotExistException) {
         LOGGER.error("Error while dropping entity '${request.fqn()}'", e)
@@ -181,7 +181,7 @@ class CottonDDLService(val catalogue: Catalogue) : CottonDDLGrpc.CottonDDLImplBa
     /**
      * gRPC endpoint for creating a particular [Index][org.vitrivr.cottontail.database.index.Index]
      */
-    override fun createIndex(request: CottontailGrpc.IndexDefinition, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) = try {
+    override fun createIndex(request: CottontailGrpc.IndexDefinition, responseObserver: StreamObserver<CottontailGrpc.Status>) = try {
         LOGGER.trace("Creating index {}", request)
         val indexName = request.index.fqn()
         val entity = this.catalogue.schemaForName(indexName.schema()).entityForName(indexName.entity())
@@ -195,7 +195,7 @@ class CottonDDLService(val catalogue: Catalogue) : CottonDDLGrpc.CottonDDLImplBa
         entity.createIndex(indexName, IndexType.valueOf(request.index.type.toString()), columns, request.paramsMap)
 
         /* Notify caller of success. */
-        responseObserver.onNext(CottontailGrpc.SuccessStatus.newBuilder().setTimestamp(System.currentTimeMillis()).build())
+        responseObserver.onNext(CottontailGrpc.Status.newBuilder().setSuccess(true).setTimestamp(System.currentTimeMillis()).build())
         responseObserver.onCompleted()
         LOGGER.trace("Index {} created successfully!", request)
     } catch (e: DatabaseException.SchemaDoesNotExistException) {
@@ -221,13 +221,13 @@ class CottonDDLService(val catalogue: Catalogue) : CottonDDLGrpc.CottonDDLImplBa
     /**
      * gRPC endpoint for dropping a particular [Index][org.vitrivr.cottontail.database.index.Index]
      */
-    override fun dropIndex(request: CottontailGrpc.Index, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) = try {
+    override fun dropIndex(request: CottontailGrpc.Index, responseObserver: StreamObserver<CottontailGrpc.Status>) = try {
         val indexName = request.fqn()
         LOGGER.trace("Dropping index {}", indexName)
         this.catalogue.schemaForName(indexName.schema()).entityForName(indexName.entity()).dropIndex(indexName)
 
         /* Notify caller of success. */
-        responseObserver.onNext(CottontailGrpc.SuccessStatus.newBuilder().setTimestamp(System.currentTimeMillis()).build())
+        responseObserver.onNext(CottontailGrpc.Status.newBuilder().setSuccess(true).setTimestamp(System.currentTimeMillis()).build())
         responseObserver.onCompleted()
         LOGGER.trace("Index {} dropped successfully!", request)
     } catch (e: DatabaseException.SchemaDoesNotExistException) {
@@ -250,7 +250,7 @@ class CottonDDLService(val catalogue: Catalogue) : CottonDDLGrpc.CottonDDLImplBa
     /**
      * gRPC endpoint for rebuilding a particular [Index][org.vitrivr.cottontail.database.index.Index]
      */
-    override fun rebuildIndex(request: CottontailGrpc.Index, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) = try {
+    override fun rebuildIndex(request: CottontailGrpc.Index, responseObserver: StreamObserver<CottontailGrpc.Status>) = try {
         val indexName = request.fqn()
         LOGGER.trace("Rebuilding index {}", indexName)
 
@@ -258,7 +258,7 @@ class CottonDDLService(val catalogue: Catalogue) : CottonDDLGrpc.CottonDDLImplBa
         this.catalogue.schemaForName(indexName.schema()).entityForName(indexName.entity()).updateIndex(indexName)
 
         /* Notify caller of success. */
-        responseObserver.onNext(CottontailGrpc.SuccessStatus.newBuilder().setTimestamp(System.currentTimeMillis()).build())
+        responseObserver.onNext(CottontailGrpc.Status.newBuilder().setSuccess(true).setTimestamp(System.currentTimeMillis()).build())
         responseObserver.onCompleted()
         LOGGER.trace("Index {} rebuilt successfully!", request)
     } catch (e: DatabaseException.SchemaDoesNotExistException) {
@@ -314,14 +314,14 @@ class CottonDDLService(val catalogue: Catalogue) : CottonDDLGrpc.CottonDDLImplBa
     /**
      * gRPC endpoint for optimizing a particular entity. Currently just rebuilds all the indexes.
      */
-    override fun optimizeEntity(request: CottontailGrpc.Entity, responseObserver: StreamObserver<CottontailGrpc.SuccessStatus>) = try {
+    override fun optimizeEntity(request: CottontailGrpc.Entity, responseObserver: StreamObserver<CottontailGrpc.Status>) = try {
         val entityName = request.fqn()
 
         /* Update indexes. */
         this.catalogue.schemaForName(entityName.schema()).entityForName(entityName).updateAllIndexes()
 
         /* Notify caller of success. */
-        responseObserver.onNext(CottontailGrpc.SuccessStatus.newBuilder().setTimestamp(System.currentTimeMillis()).build())
+        responseObserver.onNext(CottontailGrpc.Status.newBuilder().setSuccess(true).setTimestamp(System.currentTimeMillis()).build())
         responseObserver.onCompleted()
     } catch (e: DatabaseException.SchemaDoesNotExistException) {
         LOGGER.error("Error while optimizing entity '${request.fqn()}'", e)

@@ -16,7 +16,6 @@ import org.vitrivr.cottontail.database.queries.planning.rules.physical.implement
 import org.vitrivr.cottontail.database.queries.planning.rules.physical.index.BooleanIndexScanRule
 import org.vitrivr.cottontail.execution.ExecutionEngine
 import org.vitrivr.cottontail.execution.exceptions.ExecutionException
-import org.vitrivr.cottontail.execution.operators.basics.SinkOperator
 import org.vitrivr.cottontail.grpc.CottonDMLGrpc
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.model.basics.ColumnDef
@@ -27,6 +26,7 @@ import org.vitrivr.cottontail.model.exceptions.ValidationException
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.types.Value
 import org.vitrivr.cottontail.server.grpc.helper.GrpcQueryBinder
+import org.vitrivr.cottontail.server.grpc.helper.ResultsSpoolerOperator
 import org.vitrivr.cottontail.server.grpc.helper.fqn
 import org.vitrivr.cottontail.server.grpc.helper.toValue
 import org.vitrivr.cottontail.utilities.extensions.read
@@ -63,7 +63,7 @@ class CottonDMLService(val catalogue: Catalogue, val engine: ExecutionEngine) : 
     /**
      * gRPC endpoint for handling UPDATE queries.
      */
-    override fun update(request: CottontailGrpc.UpdateMessage, responseObserver: StreamObserver<CottontailGrpc.Status>) = try {
+    override fun update(request: CottontailGrpc.UpdateMessage, responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) = try {
         /* Create a new execution context for the query. */
         val context = this.engine.ExecutionContext()
         val queryId = request.queryId.ifBlank { context.uuid.toString() }
@@ -82,11 +82,7 @@ class CottonDMLService(val catalogue: Catalogue, val engine: ExecutionEngine) : 
                     return
                 }
                 val operator = candidates.minByOrNull { it.totalCost }!!.toOperator(context)
-                if (operator is SinkOperator) {
-                    context.addOperator(operator)
-                } else {
-                    TODO()
-                }
+                context.addOperator(ResultsSpoolerOperator(operator, context, queryId, 0, responseObserver))
             }
             LOGGER.trace("Planning UPDATE $queryId took $planningTime.")
 
@@ -117,7 +113,7 @@ class CottonDMLService(val catalogue: Catalogue, val engine: ExecutionEngine) : 
     /**
      * gRPC endpoint for handling DELETE queries.
      */
-    override fun delete(request: CottontailGrpc.DeleteMessage, responseObserver: StreamObserver<CottontailGrpc.Status>) = try {
+    override fun delete(request: CottontailGrpc.DeleteMessage, responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) = try {
         /* Create a new execution context for the query. */
         val context = this.engine.ExecutionContext()
         val queryId = request.queryId.ifBlank { context.uuid.toString() }
@@ -130,17 +126,13 @@ class CottonDMLService(val catalogue: Catalogue, val engine: ExecutionEngine) : 
 
             /* Plan query and create execution plan. */
             val planningTime = measureTime {
-                val candidates = this.planner.plan(bindTimedValue.value, 3, 3)
+                val candidates = this.planner.plan(bindTimedValue.value, 3, 20)
                 if (candidates.isEmpty()) {
                     responseObserver.onError(Status.INTERNAL.withDescription("DELETE query execution failed because no valid execution plan could be produced").asException())
                     return
                 }
                 val operator = candidates.minByOrNull { it.totalCost }!!.toOperator(context)
-                if (operator is SinkOperator) {
-                    context.addOperator(operator)
-                } else {
-                    TODO()
-                }
+                context.addOperator(ResultsSpoolerOperator(operator, context, queryId, 0, responseObserver))
             }
             LOGGER.trace("Planning DELETE $queryId took $planningTime.")
 
@@ -171,7 +163,7 @@ class CottonDMLService(val catalogue: Catalogue, val engine: ExecutionEngine) : 
     /**
      * gRPC endpoint for handling TRUNCATE queries.
      */
-    override fun truncate(request: CottontailGrpc.TruncateMessage, responseObserver: StreamObserver<CottontailGrpc.Status>) = try {
+    override fun truncate(request: CottontailGrpc.TruncateMessage, responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) = try {
         /* Create a new execution context for the query. */
         val context = this.engine.ExecutionContext()
         val queryId = request.queryId.ifBlank { context.uuid.toString() }
@@ -190,13 +182,9 @@ class CottonDMLService(val catalogue: Catalogue, val engine: ExecutionEngine) : 
                     return
                 }
                 val operator = candidates.minByOrNull { it.totalCost }!!.toOperator(context)
-                if (operator is SinkOperator) {
-                    context.addOperator(operator)
-                } else {
-                    TODO()
-                }
+                context.addOperator(ResultsSpoolerOperator(operator, context, queryId, 0, responseObserver))
             }
-            LOGGER.trace("Planning DELETE $queryId took $planningTime.")
+            LOGGER.trace("Planning TRUNCATE $queryId took $planningTime.")
 
             /* Execute query. */
             context.execute()
