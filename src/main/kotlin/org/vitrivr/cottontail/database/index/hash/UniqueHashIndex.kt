@@ -15,7 +15,6 @@ import org.vitrivr.cottontail.database.queries.components.AtomicBooleanPredicate
 import org.vitrivr.cottontail.database.queries.components.ComparisonOperator
 import org.vitrivr.cottontail.database.queries.components.Predicate
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
-import org.vitrivr.cottontail.database.queries.planning.cost.Costs
 import org.vitrivr.cottontail.database.schema.Schema
 import org.vitrivr.cottontail.model.basics.*
 import org.vitrivr.cottontail.model.exceptions.QueryException
@@ -97,8 +96,8 @@ class UniqueHashIndex(override val name: Name.IndexName, override val parent: En
      */
     override fun cost(predicate: Predicate): Cost = when {
         predicate !is AtomicBooleanPredicate<*> || predicate.columns.first() != this.columns[0] -> Cost.INVALID
-        predicate.operator == ComparisonOperator.EQUAL -> Cost(Costs.DISK_ACCESS_READ, Costs.MEMORY_ACCESS_READ, predicate.columns.map { it.physicalSize }.sum().toFloat())
-        predicate.operator == ComparisonOperator.IN -> Cost(Costs.DISK_ACCESS_READ, Costs.MEMORY_ACCESS_READ, predicate.columns.map { it.physicalSize }.sum().toFloat()) * predicate.values.size
+        predicate.operator == ComparisonOperator.EQUAL -> Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_MEMORY_ACCESS_READ, predicate.columns.map { it.physicalSize }.sum().toFloat())
+        predicate.operator == ComparisonOperator.IN -> Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_MEMORY_ACCESS_READ, predicate.columns.map { it.physicalSize }.sum().toFloat()) * predicate.values.size
         else -> Cost.INVALID
     }
 
