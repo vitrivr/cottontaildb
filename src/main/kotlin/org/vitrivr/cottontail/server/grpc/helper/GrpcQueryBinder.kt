@@ -7,12 +7,12 @@ import org.vitrivr.cottontail.database.index.IndexType
 import org.vitrivr.cottontail.database.queries.components.*
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.LogicalNodeExpression
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.NullaryLogicalNodeExpression
-import org.vitrivr.cottontail.database.queries.planning.nodes.logical.management.DeleteLogicalNodeExpression
-import org.vitrivr.cottontail.database.queries.planning.nodes.logical.management.UpdateLogicalNodeExpression
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.predicates.FilterLogicalNodeExpression
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.predicates.KnnLogicalNodeExpression
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.projection.LimitLogicalNodeExpression
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.projection.ProjectionLogicalNodeExpression
+import org.vitrivr.cottontail.database.queries.planning.nodes.logical.sinks.DeleteLogicalNodeExpression
+import org.vitrivr.cottontail.database.queries.planning.nodes.logical.sinks.UpdateLogicalNodeExpression
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.sources.EntitySampleLogicalNodeExpression
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.sources.EntityScanLogicalNodeExpression
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.projection.ProjectionPhysicalNodeExpression
