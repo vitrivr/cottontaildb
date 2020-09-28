@@ -4,7 +4,6 @@ import io.grpc.Status
 import io.grpc.stub.StreamObserver
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.database.catalogue.Catalogue
-import org.vitrivr.cottontail.database.column.*
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.general.Transaction
 import org.vitrivr.cottontail.grpc.CottonDMLGrpc
@@ -15,7 +14,8 @@ import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import org.vitrivr.cottontail.model.exceptions.ValidationException
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.types.Value
-import org.vitrivr.cottontail.server.grpc.helper.*
+import org.vitrivr.cottontail.server.grpc.helper.fqn
+import org.vitrivr.cottontail.server.grpc.helper.toValue
 import org.vitrivr.cottontail.utilities.extensions.read
 import org.vitrivr.cottontail.utilities.extensions.write
 import java.util.*
@@ -26,50 +26,19 @@ import java.util.concurrent.locks.StampedLock
  * Implementation of [CottonDMLGrpc.CottonDMLImplBase], the gRPC endpoint for inserting data into Cottontail DB [Entity]s.
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.1.0
  */
 class CottonDMLService(val catalogue: Catalogue) : CottonDMLGrpc.CottonDMLImplBase() {
     /** Logger used for logging the output. */
     companion object {
         private val LOGGER = LoggerFactory.getLogger(CottonDMLService::class.java)
-
-        /**
-         * Casts the provided [CottontailGrpc.Data] to a data type supported by the provided [ColumnDef]
-         *
-         * @param value The [CottontailGrpc.Data] to cast.
-         * @param col The [ColumnDef] of the column, the data should be stored in.
-         * @return The converted value.
-         */
-        private fun castToColumn(value: CottontailGrpc.Data, col: ColumnDef<*>): Value? = if (value.dataCase == CottontailGrpc.Data.DataCase.DATA_NOT_SET || value.dataCase == null) {
-            null
-        } else {
-            when (col.type) {
-                is BooleanColumnType -> value.toBooleanValue()
-                is ByteColumnType -> value.toByteValue()
-                is ShortColumnType -> value.toShortValue()
-                is IntColumnType -> value.toIntValue()
-                is LongColumnType -> value.toLongValue()
-                is FloatColumnType -> value.toFloatValue()
-                is DoubleColumnType -> value.toDoubleValue()
-                is StringColumnType -> value.toStringValue()
-                is IntVectorColumnType -> value.toIntVectorValue()
-                is LongVectorColumnType -> value.toLongVectorValue()
-                is FloatVectorColumnType -> value.toFloatVectorValue()
-                is DoubleVectorColumnType -> value.toDoubleVectorValue()
-                is BooleanVectorColumnType -> value.toBooleanVectorValue()
-                is Complex32ColumnType -> value.toComplex32Value()
-                is Complex64ColumnType -> value.toComplex64Value()
-                is Complex32VectorColumnType -> value.toComplex32VectorValue()
-                is Complex64VectorColumnType -> value.toComplex64VectorValue()
-            }
-        }
     }
 
     /**
      * gRPC endpoint for inserting data in a streaming mode; transactions will stay open until the caller explicitly completes or until an error occurs.
      * As new entities are being inserted, new transactions will be created and thus new locks will be acquired.
      */
-    override fun insert(responseObserver: StreamObserver<CottontailGrpc.InsertStatus>): StreamObserver<CottontailGrpc.InsertMessage> = InsertSink(responseObserver)
+    override fun insert(responseObserver: StreamObserver<CottontailGrpc.Status>): StreamObserver<CottontailGrpc.InsertMessage> = InsertSink(responseObserver)
 
     /**
      * Class that acts as [StreamObserver] for [CottontailGrpc.InsertMessage]s.
@@ -77,10 +46,10 @@ class CottonDMLService(val catalogue: Catalogue) : CottonDMLGrpc.CottonDMLImplBa
      * @author Ralph Gasser
      * @version 1.0
      */
-    inner class InsertSink(private val responseObserver: StreamObserver<CottontailGrpc.InsertStatus>): StreamObserver<CottontailGrpc.InsertMessage> {
+    inner class InsertSink(private val responseObserver: StreamObserver<CottontailGrpc.Status>) : StreamObserver<CottontailGrpc.InsertMessage> {
 
         /** List of all the [Entity.Tx] associated with this call. */
-        private val transactions = ConcurrentHashMap<Name, Entity.Tx>()
+        private val transactions = ConcurrentHashMap<Name.EntityName, Entity.Tx>()
 
         /** Generates a new transaction id. */
         private val txId = UUID.randomUUID()
@@ -111,7 +80,7 @@ class CottonDMLService(val catalogue: Catalogue) : CottonDMLGrpc.CottonDMLImplBa
                 this.closeLock.read {
                     if (this.closed) return
                     val fqn = try {
-                        request.entity.fqn()
+                        request.from.entity.fqn()
                     } catch (e: IllegalArgumentException) {
                         responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Failed to insert into entity: ${e.message}").asException())
                         return
@@ -128,38 +97,42 @@ class CottonDMLService(val catalogue: Catalogue) : CottonDMLGrpc.CottonDMLImplBa
                     }
 
                     /* Execute insert action. */
-                    val insert = request.tuple.dataMap.map {
-                        val col = tx.columns.find { c -> c.name == fqn.column(it.key) } ?: throw ValidationException("Insert failed because column ${it.key} does not exist in entity '$fqn'.")
-                        col to castToColumn(it.value, col)
-                    }.toMap()
+                    val columns = ArrayList<ColumnDef<*>>(request.tuple.dataMap.size)
+                    val values = ArrayList<Value?>(request.tuple.dataMap.size)
+                    request.tuple.dataMap.forEach {
+                        val col = tx.entity.columnForName(fqn.column(it.key))
+                                ?: throw ValidationException("INSERT failed because column ${it.key} does not exist in entity '$fqn'.")
+                        columns.add(col)
+                        values.add(it.value.toValue(col))
+                    }
 
-                    /* Conduct insert. */
-                    tx.insert(StandaloneRecord(columns = insert.keys.toTypedArray(), init = insert.values.toTypedArray()))
+                    /* Conduct INSERT. */
+                    tx.insert(StandaloneRecord(columns = columns.toTypedArray(), values = values.toTypedArray()))
 
                     /* Increment counter. */
                     this.counter += 1
 
                     /* Respond with status. */
-                    this.responseObserver.onNext(CottontailGrpc.InsertStatus.newBuilder().setSuccess(true).setTimestamp(System.currentTimeMillis()).build())
+                    this.responseObserver.onNext(CottontailGrpc.Status.newBuilder().setSuccess(true).setTimestamp(System.currentTimeMillis()).build())
                 }
             } catch (e: DatabaseException.SchemaDoesNotExistException) {
                 this.cleanup(false)
-                this.responseObserver.onError(Status.NOT_FOUND.withDescription("Insert failed because schema '${request.entity.schema.name} does not exist!").asException())
+                this.responseObserver.onError(Status.NOT_FOUND.withDescription("INSERT failed because schema '${request.from.entity.schema.name} does not exist!").asException())
             } catch (e: DatabaseException.EntityDoesNotExistException) {
                 this.cleanup(false)
-                this.responseObserver.onError(Status.NOT_FOUND.withDescription("Insert failed because entity '${request.entity.fqn()} does not exist!").asException())
+                this.responseObserver.onError(Status.NOT_FOUND.withDescription("INSERT failed because entity '${request.from.entity.fqn()} does not exist!").asException())
             } catch (e: DatabaseException.ColumnDoesNotExistException) {
                 this.cleanup(false)
-                this.responseObserver.onError(Status.NOT_FOUND.withDescription("Insert failed because column '${e.column}' does not exist!").asException())
+                this.responseObserver.onError(Status.NOT_FOUND.withDescription("INSERT failed because column '${e.column}' does not exist!").asException())
             } catch (e: ValidationException) {
                 this.cleanup(false)
-                this.responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Insert failed because data validation failed: ${e.message}").asException())
+                this.responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("INSERT failed because data validation failed: ${e.message}").asException())
             } catch (e: DatabaseException) {
                 this.cleanup(false)
-                this.responseObserver.onError(Status.INTERNAL.withDescription("Insert failed because of a database error: ${e.message}").asException())
+                this.responseObserver.onError(Status.INTERNAL.withDescription("INSERT failed because of a database error: ${e.message}").asException())
             } catch (e: Throwable) {
                 this.cleanup(false)
-                this.responseObserver.onError(Status.UNKNOWN.withDescription("Insert failed because of a unknown error: ${e.message}").asException())
+                this.responseObserver.onError(Status.UNKNOWN.withDescription("INSERT failed because of a unknown error: ${e.message}").asException())
             }
         }
 
