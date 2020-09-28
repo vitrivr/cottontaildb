@@ -1,6 +1,5 @@
 package org.vitrivr.cottontail.execution.operators.management
 
-import io.grpc.stub.StreamObserver
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
@@ -11,7 +10,6 @@ import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.basics.OperatorStatus
 import org.vitrivr.cottontail.execution.operators.basics.PipelineBreaker
 import org.vitrivr.cottontail.execution.operators.predicates.FilterOperator
-import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Record
@@ -27,7 +25,7 @@ import kotlin.time.measureTime
  * @author Ralph Gasser
  * @version 1.0.1
  */
-class DeleteOperator(parent: Operator, context: ExecutionEngine.ExecutionContext, val entity: Entity, val queryId: String, val responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) : PipelineBreaker(parent, context) {
+class DeleteOperator(parent: Operator, context: ExecutionEngine.ExecutionContext, val entity: Entity) : PipelineBreaker(parent, context) {
     /** Columns returned by [DeleteOperator]. */
     override val columns: Array<ColumnDef<*>> = arrayOf(
             ColumnDef.withAttributes(Name.ColumnName("deleted"), "LONG", -1, false),
