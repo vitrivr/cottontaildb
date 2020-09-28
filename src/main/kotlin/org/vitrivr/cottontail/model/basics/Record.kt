@@ -15,7 +15,7 @@ import org.vitrivr.cottontail.model.values.types.Value
  * @see org.vitrivr.cottontail.database.entity.Entity
  *
  * @author Ralph Gasser
- * @version 1.1
+ * @version 1.2
  */
 interface Record {
 
@@ -59,17 +59,17 @@ interface Record {
      * the second to the second column etc.
      *
      * @param values The values to assign. Cannot contain more than [Record.size] values.
+     *
+     * @throws IllegalArgumentException If [values] array size does not match [columns] array size.
+     * @throws ValidationException If provided [Value]'s don't match the [ColumnDef].
      */
     fun assign(values: Array<Value?>): Record {
-        if (values.size <= this.size) {
-            values.forEachIndexed { i, v ->
-                this.columns[i].validateOrThrow(v)
-                this.values[i] = v
-            }
-            return this
-        } else {
-            throw IllegalArgumentException("The number of values ${values.size} exceeds this record's size ${this.size}.")
+        require(this.values.size == this.columns.size) { "The number of values must be equal to the number of columns held by this record (v = ${this.values.size}, c = ${this.columns.size})" }
+        values.forEachIndexed { i, v ->
+            this.columns[i].validateOrThrow(v)
+            this.values[i] = v
         }
+        return this
     }
 
     /**
@@ -95,11 +95,8 @@ interface Record {
      */
     operator fun <T: Value> get(column: ColumnDef<T>): T? {
         val index = this.columns.indexOfFirst { it == column }
-        return if (index > -1) {
-            column.type.cast(values[index])
-        } else {
-            throw IllegalArgumentException("The specified column ${column.name} is not contained in this record.")
-        }
+        require(index > -1) { "The specified column ${column.name}  (type=${column.type.name})  is not contained in this record." }
+        return column.type.cast(this.values[index])
     }
 
     /**
@@ -110,11 +107,8 @@ interface Record {
      */
     operator fun set(column: ColumnDef<*>, value: Value?) {
         val index = this.columns.indexOfFirst { it == column }
-        if (index > -1) {
-            column.validateOrThrow(value)
-            values[index] = value
-        } else {
-            throw IllegalArgumentException("The specified column ${column.name} (type=${column.type.name}) is not contained in this record.")
-        }
+        require(index > -1) { "The specified column ${column.name}  (type=${column.type.name})  is not contained in this record." }
+        column.validateOrThrow(value)
+        this.values[index] = value
     }
 }

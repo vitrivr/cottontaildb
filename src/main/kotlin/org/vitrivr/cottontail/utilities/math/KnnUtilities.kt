@@ -33,7 +33,7 @@ object KnnUtilities {
     fun selectionToRecordset(columns: Array<ColumnDef<*>>, selection: Selection<ComparablePair<Record, DoubleValue>>): Recordset {
         val dataset = Recordset(columns, capacity = selection.size.toLong())
         for (i in 0 until selection.size) {
-            dataset.addRowUnsafe(selection[i].first.tupleId, arrayOf(*selection[i].first.values, DoubleValue(selection[i].second)))
+            dataset.addRow(selection[i].first.tupleId, arrayOf(*selection[i].first.values, DoubleValue(selection[i].second)))
         }
         return dataset
     }
@@ -49,7 +49,7 @@ object KnnUtilities {
         val dataset = Recordset(columns, capacity = (list.size * list.first().size).toLong())
         for (knn in list) {
             for (i in 0 until knn.size) {
-                dataset.addRowUnsafe(knn[i].first.tupleId, arrayOf(*knn[i].first.values, DoubleValue(knn[i].second)))
+                dataset.addRow(knn[i].first.tupleId, arrayOf(*knn[i].first.values, DoubleValue(knn[i].second)))
             }
         }
         return dataset

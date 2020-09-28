@@ -18,7 +18,6 @@ import java.util.concurrent.locks.StampedLock
  * a [Recordset] is being generated. Furthermore, the entire query execution pipeline processes, transforms and produces [Recordset]s.
  *
  * @see org.vitrivr.cottontail.database.entity.Entity
- * @see QueryExecutionTask
  *
  * @author Ralph Gasser
  * @version 1.5
@@ -51,88 +50,40 @@ class Recordset(val columns: Array<ColumnDef<*>>, capacity: Long = 250L) : Scana
             }
         }
 
-
-    /**
-     * Creates a new [Record] and appends it to this [Recordset]. This is a potentially unsafe operation.
-     *
-     * @param values The values to add to this [Recordset].
-     */
-    fun addRowUnsafe(values: Array<Value?>) = this.lock.write {
-        this.list.add(RecordsetRecord(this.list.size64()).assign(values))
-    }
-
     /**
      * Creates a new [Record] given the provided tupleId and values and appends it to this [Recordset].
-     * This is a potentially unsafe operation.
      *
-     * @param tupleId The tupleId of the new [Record].
+     * @param tupleId The [TupleId] of the new [Record].
      * @param values The values to add to this [Recordset].
      */
-    fun addRowUnsafe(tupleId: Long, values: Array<Value?>) = this.lock.write {
-        this.list.add(RecordsetRecord(tupleId).assign(values))
+    fun addRow(tupleId: TupleId, values: Array<Value?>) = this.lock.write {
+        this.list.add(RecordsetRecord(tupleId, values))
     }
 
     /**
-     * Creates a new [Record] given the provided tupleId and values and appends them to this [Recordset]
-     * if they match the provided [BooleanPredicate]. This is a potentially unsafe operation.
+     * Creates a new [Record] and appends it to this [Recordset]. The [TupleId] of the new [Record]
+     * is deduced from the number of [Record]s in the [Recordset]. I.e., it is not safe to assume
+     * that this method produces unique [TupleId], unless all [Record]s have only been added through
+     * this method.
      *
-     * @param tupleId The tupleId of the new [Record].
-     * @param predicate The [BooleanPredicate] to match the [Record] against
      * @param values The values to add to this [Recordset].
-     * @return True if [Record] was added, false otherwise.
      */
-    fun addRowIfUnsafe(tupleId: Long, predicate: BooleanPredicate, values: Array<Value?>): Boolean = this.lock.write {
-        val record = RecordsetRecord(tupleId).assign(values)
-        return if (predicate.matches(record)) {
-            this.list.add(record)
-            true
-        } else {
-            false
-        }
-    }
+    fun addRow(values: Array<Value?>) = this.addRow(this.list.size64(), values)
 
     /**
      * Appends a [Record] (without a tupleId) to this [Recordset].
      *
      * @param record The record to add to this [Recordset].
      */
-    fun addRow(record: Record) = this.lock.write {
-        if (record.columns.contentDeepEquals(this.columns)) {
-            this.list.add(RecordsetRecord(record.tupleId).assign(record.values))
-        } else {
-            throw IllegalArgumentException("The provided record (${this.columns.joinToString(".")}) is incompatible with this record set (${this.columns.joinToString(".")}.")
-        }
-    }
-
-    /**
-     * Creates a new [Record] given the provided tupleId and values and appends them to this [Recordset]
-     * if they match the provided [BooleanPredicate].
-     *
-     * @param tupleId The tupleId of the new [Record].
-     * @param predicate The [BooleanPredicate] to match the [Record] against
-     * @param record The values to add to this [Recordset].
-     * @return True if [Record] was added, false otherwise.
-     */
-    fun addRowIf(predicate: BooleanPredicate, record: Record): Boolean = this.lock.write {
-        if (record.columns.contentDeepEquals(this.columns)) {
-            return if (predicate.matches(record)) {
-                this.list.add(RecordsetRecord(record.tupleId).assign(record.values))
-                true
-            } else {
-                false
-            }
-        } else {
-            throw IllegalArgumentException("The provided record (${this.columns.joinToString(".")}) is incompatible with this record set (${this.columns.joinToString(".")}.")
-        }
-    }
+    fun addRow(record: Record) = this.addRow(record.tupleId, record.values)
 
     /**
      * Retrieves the value for the specified tuple ID from this [Recordset].
      *
-     * @param tupleId The tuple ID for which to return the [Record]
+     * @param tupleId The [TupleId] for which to return the [Record]
      * @return The [Record]
      */
-    operator fun get(tupleId: Long): Record {
+    operator fun get(tupleId: TupleId): Record {
         var stamp = this.lock.tryOptimisticRead()
         val value = this.list[tupleId]
         return if (this.lock.validate(stamp)) {
@@ -214,7 +165,11 @@ class Recordset(val columns: Array<ColumnDef<*>>, capacity: Long = 250L) : Scana
      * @param predicate [Predicate] to check.
      * @return True if [Predicate] can be processed, false otherwise.
      */
-    override fun canProcess(predicate: Predicate): Boolean = predicate is BooleanPredicate
+    override fun canProcess(predicate: Predicate): Boolean = predicate is BooleanPredicate && predicate.columns.all { this.columns.contains(it) }
+
+    /**
+     *
+     */
     override fun filter(predicate: Predicate): CloseableIterator<TupleId> {
         TODO("Not yet implemented")
     }
@@ -308,25 +263,26 @@ class Recordset(val columns: Array<ColumnDef<*>>, capacity: Long = 250L) : Scana
      * @author Ralph Gasser
      * @version 1.0
      */
-    inner class RecordsetRecord(override val tupleId: Long, init: Array<Value?>? = null) : Record {
+    inner class RecordsetRecord(override val tupleId: Long, override val values: Array<Value?>) : Record {
 
         /** Array of [ColumnDef]s that describes the [Column][org.vitrivr.cottontail.database.column.Column] of this [Record]. */
         override val columns: Array<ColumnDef<*>>
             get() = this@Recordset.columns
 
-        /** Array of column values (one entry per column). Initializes with null. */
-        override val values: Array<Value?> = if (init != null) {
-            assert(init.size == columns.size)
-            init.forEachIndexed { index, any -> columns[index].validateOrThrow(any) }
-            init
-        } else Array(columns.size) { columns[it].defaultValue() }
+        init {
+            /** Sanity check. */
+            require(this.values.size == this.columns.size) { "The number of values must be equal to the number of columns held by the StandaloneRecord (v = ${this.values.size}, c = ${this.columns.size})" }
+            this.columns.forEachIndexed { index, columnDef ->
+                columnDef.validateOrThrow(this.values[index])
+            }
+        }
 
         /**
          * Copies this [Record] and returns the copy.
          *
          * @return Copy of this [Record]
          */
-        override fun copy(): Record = StandaloneRecord(tupleId, columns = columns, init = values.copyOf())
+        override fun copy(): Record = StandaloneRecord(tupleId, columns = this.columns, this.values.copyOf())
 
         override fun equals(other: Any?): Boolean {
             if (this === other) return true

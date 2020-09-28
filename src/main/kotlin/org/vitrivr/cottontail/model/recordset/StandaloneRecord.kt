@@ -14,26 +14,22 @@ import org.vitrivr.cottontail.model.values.types.Value
  * @author Ralph Gasser
  * @version 1.0
  */
-class StandaloneRecord(override val tupleId: Long = Long.MIN_VALUE, override val columns: Array<ColumnDef<*>>, init: Array<Value?>? = null) : Record {
+class StandaloneRecord(override val tupleId: Long = Long.MIN_VALUE, override val columns: Array<ColumnDef<*>>, override val values: Array<Value?>) : Record {
+
+    init {
+        /** Sanity check. */
+        require(this.values.size == this.columns.size) { "The number of values must be equal to the number of columns held by the StandaloneRecord (v = ${this.values.size}, c = ${this.columns.size})" }
+        this.columns.forEachIndexed { index, columnDef ->
+            columnDef.validateOrThrow(this.values[index])
+        }
+    }
 
     /**
-     * Array of column values (one entry per column in the same order).
+     * Copies this [StandaloneRecord] and returns the copy.
      *
-     * This array is initialized either with the init-array provided with the constructor OR an empty array
-     * of NULL/default values for the [org.vitrivr.cottontail.database.column.ColumnType].
+     * @return Copy of this [StandaloneRecord]
      */
-    override val values: Array<Value?> = if (init != null) {
-        assert(this.columns.size == init.size)
-        init.forEachIndexed { index, any -> this.columns[index].validateOrThrow(any) }
-        init
-    } else Array(this.columns.size) { this.columns[it].defaultValue() }
-
-    /**
-     * Copies this [Record] and returns the copy.
-     *
-     * @return Copy of this [Record]
-     */
-    override fun copy(): Record = StandaloneRecord(tupleId, columns = columns, init = values.copyOf())
+    override fun copy(): Record = StandaloneRecord(this.tupleId, this.columns, this.values.copyOf())
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
