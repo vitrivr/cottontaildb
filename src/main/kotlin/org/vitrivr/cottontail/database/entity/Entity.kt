@@ -456,7 +456,7 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
          *
          * @return [CloseableIterator]
          */
-        override fun scan(): CloseableIterator<TupleId> = scan(2L..this.maxTupleId())
+        override fun scan(): CloseableIterator<TupleId> = scan(1L..this.maxTupleId())
 
         /**
          * Creates and returns a new [CloseableIterator] for this [Entity.Tx] that returns all [TupleId]s
@@ -659,7 +659,7 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
          * @param tupleId The tuple ID to check.
          */
         private fun checkValidTupleId(tupleId: Long) {
-            if (tupleId < HEADER_RECORD_ID) {
+            if (tupleId <= HEADER_RECORD_ID) {
                 throw TransactionException.InvalidTupleId(tid, tupleId)
             }
         }

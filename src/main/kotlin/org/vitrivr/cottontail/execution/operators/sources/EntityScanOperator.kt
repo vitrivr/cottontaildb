@@ -16,7 +16,7 @@ import org.vitrivr.cottontail.model.basics.Record
  * @author Ralph Gasser
  * @version 1.1.2
  */
-class EntityScanOperator(context: ExecutionEngine.ExecutionContext, entity: Entity, override val columns: Array<ColumnDef<*>>, private val range: LongRange = 2L..entity.statistics.maxTupleId) : AbstractEntityOperator(context, entity, columns) {
+class EntityScanOperator(context: ExecutionEngine.ExecutionContext, entity: Entity, override val columns: Array<ColumnDef<*>>, private val range: LongRange = 1L..entity.statistics.maxTupleId) : AbstractEntityOperator(context, entity, columns) {
     /**
      * Converts this [EntityScanOperator] to a [Flow] and returns it.
      *

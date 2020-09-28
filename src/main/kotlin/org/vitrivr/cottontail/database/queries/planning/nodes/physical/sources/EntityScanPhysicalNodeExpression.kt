@@ -16,7 +16,7 @@ import kotlin.math.min
  * @author Ralph Gasser
  * @version 1.0
  */
-class EntityScanPhysicalNodeExpression(val entity: Entity, val columns: Array<ColumnDef<*>> = entity.allColumns().toTypedArray(), val range: LongRange = 2L..entity.statistics.maxTupleId) : NullaryPhysicalNodeExpression() {
+class EntityScanPhysicalNodeExpression(val entity: Entity, val columns: Array<ColumnDef<*>> = entity.allColumns().toTypedArray(), val range: LongRange = 1L..entity.statistics.maxTupleId) : NullaryPhysicalNodeExpression() {
     init {
         require(this.range.first > 0L) { "Start of a ranged entity scan must be greater than zero." }
     }
