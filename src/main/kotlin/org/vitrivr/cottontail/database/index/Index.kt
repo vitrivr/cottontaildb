@@ -200,7 +200,7 @@ abstract class Index : DBO {
         final override fun close() = this.localLock.write {
             if (this.status != TransactionStatus.CLOSED) {
                 if (this.status == TransactionStatus.DIRTY || this.status == TransactionStatus.ERROR) {
-                    this.rollback()
+                    this.performRollback()
                 }
                 this.status = TransactionStatus.CLOSED
                 this@Index.txLock.unlock(this.txStamp)
