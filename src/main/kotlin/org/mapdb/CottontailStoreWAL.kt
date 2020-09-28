@@ -928,11 +928,11 @@ class CottontailStoreWAL(
      */
     inner class RecordIdIterator(range: LongRange = 2L..this@CottontailStoreWAL.maxRecid) : LongIterator() {
         /** Creates a local snapshot of the maximum record ID. */
-        private val maximumRecordId = range.last.coerceIn(2L, this@CottontailStoreWAL.maxRecid)
+        private val maximumRecordId = range.last.coerceAtMost(this@CottontailStoreWAL.maxRecid)
 
         /** Current record ID. */
         @Volatile
-        private var currentRecordId = range.first.coerceIn(2L, this.maximumRecordId)
+        private var currentRecordId = range.first.coerceAtLeast(2L)
 
         /** Flag indicating that this [RecordIdIterator] has been closed. */
         @Volatile
