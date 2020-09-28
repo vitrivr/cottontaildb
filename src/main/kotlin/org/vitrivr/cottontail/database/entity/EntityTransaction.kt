@@ -13,6 +13,10 @@ import org.vitrivr.cottontail.model.basics.*
  * @version 1.2
  */
 interface EntityTransaction : Transaction, Scanable, Countable, Modifiable {
+
+    /** Reference to the [Entity] affected by this [EntityTransaction]. */
+    val entity: Entity
+
     /**
      * Returns a collection of all the [IndexTransaction] available to this [EntityTransaction].
      *

@@ -342,10 +342,14 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
             emptyList()
         }
 
-        /** Flag indicating whether or not this [Entity.Tx] was closed */
+        /** Flag indicating this [Entity.Tx]'s current status. */
         @Volatile
         override var status: TransactionStatus = TransactionStatus.CLEAN
             private set
+
+        /** Reference to the [Entity]. */
+        override val entity: Entity
+            get() = this@Entity
 
         /** Tries to acquire a global read-lock on this [Entity]. */
         init {
@@ -551,7 +555,13 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
          */
         override fun insert(record: Record): TupleId? = this.localLock.read {
             checkValidForWrite()
-            checkColumnsExist(*record.columns) /* Perform sanity check on columns before locking. */
+
+            /* Perform sanity check; all columns held by this entity must be contained in the record. */
+            this.entity.allColumns().forEach {
+                if (!record.columns.contains(it)) {
+                    throw TransactionException.TransactionValidationException(this.tid, "The provided record is missing the column $it, which is required for an insert.")
+                }
+            }
 
             try {
                 var lastRecId: Long? = null
