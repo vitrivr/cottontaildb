@@ -16,7 +16,6 @@ import org.vitrivr.cottontail.math.knn.metrics.CosineDistance
 import org.vitrivr.cottontail.model.basics.*
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import org.vitrivr.cottontail.model.exceptions.QueryException
-import org.vitrivr.cottontail.model.exceptions.StoreException
 import org.vitrivr.cottontail.model.recordset.Recordset
 import org.vitrivr.cottontail.model.values.types.VectorValue
 import org.vitrivr.cottontail.utilities.extensions.read
@@ -59,10 +58,6 @@ class SuperBitLSHIndex<T : VectorValue<*>>(name: Name.IndexName, parent: Entity,
             val stages = params[CONFIG_NAME_STAGES]?.toIntOrNull() ?: CONFIG_DEFAULT_STAGES
             val seed = params[CONFIG_NAME_SEED]?.toLongOrNull() ?: System.currentTimeMillis()
             this.config.set(SuperBitLSHIndexConfig(buckets, stages, seed))
-        } else {
-            if (config.get() == null) {
-                throw StoreException("No parameters supplied, and the config from disk was also empty.")
-            }
         }
     }
 
