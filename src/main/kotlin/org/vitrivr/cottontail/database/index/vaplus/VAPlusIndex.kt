@@ -8,11 +8,9 @@ import org.vitrivr.cottontail.database.column.Column
 import org.vitrivr.cottontail.database.column.ColumnType
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.events.DataChangeEvent
-import org.vitrivr.cottontail.database.general.TransactionStatus
 import org.vitrivr.cottontail.database.index.Index
 import org.vitrivr.cottontail.database.index.IndexTransaction
 import org.vitrivr.cottontail.database.index.IndexType
-import org.vitrivr.cottontail.database.index.hash.NonUniqueHashIndex
 import org.vitrivr.cottontail.database.index.hash.UniqueHashIndex
 import org.vitrivr.cottontail.database.index.lsh.superbit.SuperBitLSHIndex
 import org.vitrivr.cottontail.database.queries.components.AtomicBooleanPredicate
@@ -38,7 +36,7 @@ import java.nio.file.Path
  * TODO: Fix and finalize implementation.
  *
  * @author Manuel Huerbin
- * @version 1.1
+ * @version 1.1.1
  */
 class VAPlusIndex(override val name: Name.IndexName, override val parent: Entity, override val columns: Array<ColumnDef<*>>) : Index() {
 
@@ -56,6 +54,9 @@ class VAPlusIndex(override val name: Name.IndexName, override val parent: Entity
 
     /** The type of [Index] */
     override val type: IndexType = IndexType.VAF
+
+    /** True since [VAPlusIndex] supports incremental updates. */
+    override val supportsIncrementalUpdate: Boolean = true
 
     /** The [VAPlusIndex] implementation returns exactly the columns that is indexed. */
     override val produces: Array<ColumnDef<*>> = arrayOf(ColumnDef(this.parent.name.column("distance"), ColumnType.forName("DOUBLE")))
@@ -101,14 +102,6 @@ class VAPlusIndex(override val name: Name.IndexName, override val parent: Entity
         predicate !is KnnPredicate<*> || predicate.columns.first() != this.columns[0] -> Cost.INVALID
         else -> Cost.ZERO /* TODO: Determine. */
     }
-
-    /**
-     * Returns true since [VAPlusIndex] supports incremental updates.
-     *
-     * @return True
-     */
-    override fun supportsIncrementalUpdate(): Boolean = true
-
 
     /**
      * Calculates bound for given signature.
@@ -164,7 +157,7 @@ class VAPlusIndex(override val name: Name.IndexName, override val parent: Entity
             val dimension = this.columns[0].logicalSize
 
             // VA-file get data sample
-            val dataSampleTmp = vaPlus.getDataSample(this.parent, this.columns[0], maxOf(trainingSize, minimumNumberOfTuples))
+            val dataSampleTmp = vaPlus.getDataSample(this.parent, this.columns, maxOf(trainingSize, minimumNumberOfTuples))
 
             // VA-file in KLT domain
             val (dataSample, kltMatrix) = vaPlus.transformToKLTDomain(dataSampleTmp)
@@ -179,7 +172,7 @@ class VAPlusIndex(override val name: Name.IndexName, override val parent: Entity
             // Indexing
             val kltMatrixBar = kltMatrix.transpose()
             this.parent.scan().forEach {
-                val record = this.parent.read(it)
+                val record = this.parent.read(it, this.columns)
                 val doubleArray = vaPlus.convertToDoubleArray(record[this.columns[0]] as VectorValue<*>)
                 val dataMatrix = MatrixUtils.createRealMatrix(arrayOf(doubleArray))
                 val vector = kltMatrixBar.multiply(dataMatrix.transpose()).getColumnVector(0).toArray()

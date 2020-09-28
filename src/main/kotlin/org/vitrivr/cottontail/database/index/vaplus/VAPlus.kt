@@ -38,14 +38,14 @@ class VAPlus : Serializable {
      * @param size  The size of the data sample.
      * @return  An subset from data.
      */
-    fun getDataSample(tx: Entity.Tx, column: ColumnDef<*>, size: Int): Array<DoubleArray> {
+    fun getDataSample(tx: Entity.Tx, column: Array<ColumnDef<*>>, size: Int): Array<DoubleArray> {
         val p = size / tx.count().toDouble()
         val dataSample = ArrayList<DoubleArray>(size + 100)
         val random = SplittableRandom(System.currentTimeMillis())
         tx.scan().forEach {
-            val record = tx.read(it)
+            val record = tx.read(it, column)
             if (random.nextDouble() >= 1.0 - p) {
-                dataSample.add(convertToDoubleArray(record[column] as VectorValue<*>))
+                dataSample.add(convertToDoubleArray(record[column.first()] as VectorValue<*>))
             }
         }
         return dataSample.toTypedArray()

@@ -31,7 +31,7 @@ class MinHeapSelection<T : Comparable<T>>(override val k: Int) : Selection<T> {
     var added: Int = 0
         private set
 
-    /** Returns the current size of this [MinHeapSelection], i.e. the number of items contained in the heap. */
+    /** Returns the size of this [MinHeapSelection], i.e., the number of items contained in the heap. */
     override val size: Int
         get() = this.accessLock.read { this.heap.size }
 
@@ -71,22 +71,19 @@ class MinHeapSelection<T : Comparable<T>>(override val k: Int) : Selection<T> {
      * value seen, i = 1 the second largest, ..., i = k-1 the last position
      * tracked. Also, i must be less than the number of previous assimilated.
      */
-    override operator fun get(i: Int): T {
-        var lock = this.accessLock.readLock()
-        val maxIdx = this.size - 1
-        require(i <= maxIdx) { "Index $i is out of bounds  for this MinHeapSelect." }
+    override operator fun get(i: Int): T = this.accessLock.write {
+        val maxIdx = this.heap.size - 1
+        require(i <= maxIdx) { "Index $i is out of bounds for this MinHeapSelect." }
 
         if (i == this.k - 1) {
             return this.heap[0]
         }
 
         if (!this.sorted) {
-            lock = this.accessLock.tryConvertToWriteLock(lock)
             this.sort()
         }
 
         val ret = this.heap[maxIdx - i]
-        this.accessLock.unlock(lock)
         return ret
     }
 

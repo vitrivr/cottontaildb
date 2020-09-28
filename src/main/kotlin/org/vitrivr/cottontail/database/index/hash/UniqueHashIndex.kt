@@ -8,7 +8,6 @@ import org.vitrivr.cottontail.database.column.Column
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.events.DataChangeEvent
 import org.vitrivr.cottontail.database.events.DataChangeEventType
-import org.vitrivr.cottontail.database.general.TransactionStatus
 import org.vitrivr.cottontail.database.index.Index
 import org.vitrivr.cottontail.database.index.IndexTransaction
 import org.vitrivr.cottontail.database.index.IndexType
@@ -36,7 +35,7 @@ import java.nio.file.Path
  * @see Entity.Tx
  *
  * @author Ralph Gasser
- * @version 1.2
+ * @version 1.2.1
  */
 class UniqueHashIndex(override val name: Name.IndexName, override val parent: Entity, override val columns: Array<ColumnDef<*>>) : Index() {
 
@@ -53,6 +52,9 @@ class UniqueHashIndex(override val name: Name.IndexName, override val parent: En
 
     /** The type of [Index] */
     override val type: IndexType = IndexType.HASH_UQ
+
+    /** True since [UniqueHashIndex] supports incremental updates. */
+    override val supportsIncrementalUpdate: Boolean = true
 
     /** The [UniqueHashIndex] implementation returns exactly the columns that is indexed. */
     override val produces: Array<ColumnDef<*>> = this.columns
@@ -101,13 +103,6 @@ class UniqueHashIndex(override val name: Name.IndexName, override val parent: En
     }
 
     /**
-     * Returns true since [UniqueHashIndex] supports incremental updates.
-     *
-     * @return True
-     */
-    override fun supportsIncrementalUpdate(): Boolean = true
-
-    /**
      * Opens and returns a new [IndexTransaction] object that can be used to interact with this [Index].
      *
      * @param parent If the [Entity.Tx] that requested the [IndexTransaction].
@@ -144,7 +139,7 @@ class UniqueHashIndex(override val name: Name.IndexName, override val parent: En
             val localMap = this@UniqueHashIndex.map as HTreeMap<Value, Long>
             this.parent.scan().use{ s->
                 s.forEach { tid ->
-                    val record = this.parent.read(tid)
+                    val record = this.parent.read(tid, this@UniqueHashIndex.columns)
                     val value = record[this.columns[0]]
                             ?: throw ValidationException.IndexUpdateException(this.name, "A value cannot be null for instances of non-unique hash-index but tid=$tid is")
                     if (!localMap.containsKey(value)) {
@@ -208,7 +203,6 @@ class UniqueHashIndex(override val name: Name.IndexName, override val parent: En
          * <strong>Important:</strong> It remains to the caller to close the [CloseableIterator]
          *
          * @param predicate The [Predicate] for the lookup
-         * @param tx Reference to the [Entity.Tx] the call to this method belongs to.
          *
          * @return The resulting [CloseableIterator]
          */
@@ -276,12 +270,12 @@ class UniqueHashIndex(override val name: Name.IndexName, override val parent: En
             }
         }
 
-        /** Performs the actual COMMIT operation by rolling back the [DB]. */
+        /** Performs the actual COMMIT operation by rolling back the [IndexTransaction]. */
         override fun performCommit() {
             this@UniqueHashIndex.db.commit()
         }
 
-        /** Performs the actual ROLLBACK operation by rolling back the [DB]. */
+        /** Performs the actual ROLLBACK operation by rolling back the [IndexTransaction]. */
         override fun performRollback() {
             this@UniqueHashIndex.db.rollback()
         }

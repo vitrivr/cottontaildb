@@ -101,14 +101,13 @@ class ExecutionEngine(config: ExecutionConfig) {
          * method will cause the [Entity.Tx] to be registered.
          *
          * @param entity [Entity] to request the [Entity.Tx] for.
-         * @param columns [ColumnDef<*>]s to request the [Entity.Tx] for.
          * @param readonly Whether the new [Entity.Tx] should be readonly-
          *
          * @return [Entity.Tx]
          */
-        fun requestTransaction(entity: Entity, columns: Array<ColumnDef<*>>, readonly: Boolean): Entity.Tx {
+        fun requestTransaction(entity: Entity, readonly: Boolean): Entity.Tx {
             if (!this.transactions.containsKey(entity)) {
-                this.transactions[entity] = entity.Tx(readonly = readonly, columns = columns, tid = this.uuid)
+                this.transactions[entity] = entity.Tx(readonly = readonly, tid = this.uuid)
             }
             return this.transactions[entity]!!
         }

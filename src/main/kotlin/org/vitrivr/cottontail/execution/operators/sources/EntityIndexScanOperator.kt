@@ -17,7 +17,7 @@ import org.vitrivr.cottontail.model.basics.Record
  * An [AbstractEntityOperator] that scans an [Entity.Index] and streams all [Record]s found within.
  *
  * @author Ralph Gasser
- * @version 1.1
+ * @version 1.1.1
  */
 class EntityIndexScanOperator(context: ExecutionEngine.ExecutionContext, entity: Entity, columns: Array<ColumnDef<*>>, private val predicate: BooleanPredicate, val indexHint: IndexType) : AbstractEntityOperator(context, entity, columns) {
 
@@ -33,7 +33,7 @@ class EntityIndexScanOperator(context: ExecutionEngine.ExecutionContext, entity:
         return flow {
             this@EntityIndexScanOperator.indexTx!!.filter(this@EntityIndexScanOperator.predicate).use { iterator ->
                 for (tupleId in iterator) {
-                    emit(this@EntityIndexScanOperator.transaction!!.read(tupleId))
+                    emit(this@EntityIndexScanOperator.transaction!!.read(tupleId, this@EntityIndexScanOperator.columns))
                 }
             }
         }

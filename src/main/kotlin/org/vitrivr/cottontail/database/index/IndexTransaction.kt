@@ -25,12 +25,8 @@ interface IndexTransaction : Transaction, Filterable {
     /** The [IndexType] of the [Index] that underpins this [IndexTransaction]. */
     val type: IndexType
 
-    /**
-     * Returns true, if the [Index] underpinning this [IndexTransaction] supports incremental updates, and false otherwise.
-     *
-     * @return True if incremental [Index] updates are supported.
-     */
-    fun supportsIncrementalUpdate(): Boolean
+    /** True, if the [Index] underpinning this [IndexTransaction] supports incremental updates, and false otherwise. */
+    val supportsIncrementalUpdate: Boolean
 
     /**
      * (Re-)builds the underlying [Index] completely.

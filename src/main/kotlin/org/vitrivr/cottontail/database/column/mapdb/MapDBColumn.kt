@@ -232,22 +232,6 @@ class MapDBColumn<T : Value>(override val name: Name.ColumnName, override val pa
         }
 
         /**
-         * Gets and returns several entries from this [MapDBColumn].
-         *
-         * @param tupleIds The IDs of the desired entries
-         * @return List of the desired entries.
-         *
-         * @throws DatabaseException If the tuple with the desired ID doesn't exist OR is invalid.
-         */
-        override fun readAll(tupleIds: Collection<Long>): Collection<T?> = this.localLock.read {
-            checkValidForRead()
-            return tupleIds.map {
-                checkValidTupleId(it)
-                this@MapDBColumn.store.get(it, this.serializer)
-            }
-        }
-
-        /**
          * Returns the number of entries in this [MapDBColumn]. Action acquires a global read dataLock for the [MapDBColumn].
          *
          * @return The number of entries in this [MapDBColumn].
@@ -346,38 +330,6 @@ class MapDBColumn<T : Value>(override val name: Name.ColumnName, override val pa
         }
 
         /**
-         * Inserts a list of new records in this [MapDBColumn]. This tasks will set this [MapDBColumn.Tx] to [TransactionStatus.DIRTY]
-         * and acquire a column-wide write lock until the [MapDBColumn.Tx] either commit or rollback is issued.
-         *
-         * @param records The records that should be inserted. Can contain null values!
-         * @return The tupleId of the inserted record OR the allocated space in case of a null value.
-         */
-        override fun insertAll(records: Collection<T?>): Collection<Long> = this.localLock.read {
-            try {
-                checkValidForWrite()
-
-                val tupleIds = records.map {
-                    if (it == null) {
-                        this@MapDBColumn.store.preallocate()
-                    } else {
-                        this@MapDBColumn.store.put(this@MapDBColumn.type.cast(it), serializer)
-                    }
-                }
-
-                /* Update header. */
-                val header = this@MapDBColumn.header
-                header.count += records.size
-                header.modified = System.currentTimeMillis()
-                this@MapDBColumn.store.update(HEADER_RECORD_ID, header, ColumnHeaderSerializer)
-                tupleIds
-            } catch (e: DBException) {
-                this.status = TransactionStatus.ERROR
-                throw TransactionException.TransactionStorageException(this.tid, e.message
-                        ?: "Unknown")
-            }
-        }
-
-        /**
          * Updates the entry with the specified tuple ID and sets it to the new value. This tasks will set this [MapDBColumn.Tx]
          * to [TransactionStatus.DIRTY] and acquire a column-wide write lock until the [MapDBColumn.Tx] either commit or rollback is issued.
          *
@@ -433,32 +385,6 @@ class MapDBColumn<T : Value>(override val name: Name.ColumnName, override val pa
                 header.count -= 1
                 header.modified = System.currentTimeMillis()
                 this@MapDBColumn.store.update(HEADER_RECORD_ID, header, ColumnHeaderSerializer)
-            } catch (e: DBException) {
-                this.status = TransactionStatus.ERROR
-                throw TransactionException.TransactionStorageException(this.tid, e.message
-                        ?: "Unknown")
-            }
-        }
-
-        /**
-         * Deletes all the specified records from this [MapDBColumn]. This tasks will set this [MapDBColumn.Tx] to [TransactionStatus.DIRTY]
-         * and acquire a column-wide write lock until the [MapDBColumn.Tx] either commit or rollback is issued.
-         *
-         * @param tupleIds The IDs of the records that should be deleted.
-         */
-        override fun deleteAll(tupleIds: Collection<Long>) = this.localLock.read {
-            try {
-                checkValidForWrite()
-                tupleIds.forEach {
-                    checkValidTupleId(it)
-                    this@MapDBColumn.store.delete(it, this.serializer)
-                }
-
-                /* Update header. */
-                val header = this@MapDBColumn.header
-                header.count -= tupleIds.size
-                header.modified = System.currentTimeMillis()
-                store.update(HEADER_RECORD_ID, header, ColumnHeaderSerializer)
             } catch (e: DBException) {
                 this.status = TransactionStatus.ERROR
                 throw TransactionException.TransactionStorageException(this.tid, e.message

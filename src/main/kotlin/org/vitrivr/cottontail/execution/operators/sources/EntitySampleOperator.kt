@@ -16,7 +16,7 @@ import java.util.*
  * An [AbstractEntityOperator] that samples an [Entity] and streams all [Record]s found within.
  *
  * @author Ralph Gasser
- * @version 1.1
+ * @version 1.1.1
  */
 class EntitySampleOperator(context: ExecutionEngine.ExecutionContext, entity: Entity, columns: Array<ColumnDef<*>>, val size: Long, val seed: Long) : AbstractEntityOperator(context, entity, columns) {
 
@@ -39,7 +39,7 @@ class EntitySampleOperator(context: ExecutionEngine.ExecutionContext, entity: En
                 var record: Record? = null
                 while (record == null) {
                     val next = random.nextLong(this@EntitySampleOperator.transaction!!.maxTupleId())
-                    record = this@EntitySampleOperator.transaction!!.read(next)
+                    record = this@EntitySampleOperator.transaction!!.read(next, this@EntitySampleOperator.columns)
                 }
                 emit(record)
             }

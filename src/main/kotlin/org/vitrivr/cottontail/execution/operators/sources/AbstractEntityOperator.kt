@@ -16,7 +16,7 @@ abstract class AbstractEntityOperator(context: ExecutionEngine.ExecutionContext,
     protected var transaction: Entity.Tx? = null
 
     override fun prepareOpen() {
-        this.transaction = this.entity.Tx(readonly = true, columns = this.columns)
+        this.transaction = this.entity.Tx(readonly = true)
     }
 
     override fun prepareClose() {

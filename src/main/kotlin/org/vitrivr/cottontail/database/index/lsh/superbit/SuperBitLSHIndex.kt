@@ -4,14 +4,10 @@ import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.database.column.Column
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.events.DataChangeEvent
-import org.vitrivr.cottontail.database.general.TransactionStatus
 import org.vitrivr.cottontail.database.index.Index
 import org.vitrivr.cottontail.database.index.IndexTransaction
 import org.vitrivr.cottontail.database.index.IndexType
-import org.vitrivr.cottontail.database.index.hash.NonUniqueHashIndex
-import org.vitrivr.cottontail.database.index.hash.UniqueHashIndex
 import org.vitrivr.cottontail.database.index.lsh.LSHIndex
-import org.vitrivr.cottontail.database.index.lucene.LuceneIndex
 import org.vitrivr.cottontail.database.queries.components.AtomicBooleanPredicate
 import org.vitrivr.cottontail.database.queries.components.KnnPredicate
 import org.vitrivr.cottontail.database.queries.components.Predicate
@@ -24,7 +20,6 @@ import org.vitrivr.cottontail.model.exceptions.StoreException
 import org.vitrivr.cottontail.model.recordset.Recordset
 import org.vitrivr.cottontail.model.values.types.VectorValue
 import org.vitrivr.cottontail.utilities.extensions.read
-import org.vitrivr.cottontail.utilities.extensions.write
 
 /**
  * Represents a LSH based index in the Cottontail DB data model. An [Index] belongs to an [Entity] and can be used to
@@ -32,7 +27,7 @@ import org.vitrivr.cottontail.utilities.extensions.write
  * [Recordset]s.
  *
  * @author Manuel Huerbin & Ralph Gasser
- * @version 1.2
+ * @version 1.2.1
  */
 class SuperBitLSHIndex<T : VectorValue<*>>(name: Name.IndexName, parent: Entity, columns: Array<ColumnDef<*>>, params: Map<String, String>? = null) : LSHIndex<T>(name, parent, columns) {
 
@@ -49,6 +44,10 @@ class SuperBitLSHIndex<T : VectorValue<*>>(name: Name.IndexName, parent: Entity,
     /** Internal configuration object for [SuperBitLSHIndex]. */
     val config = this.db.atomicVar(CONFIG_NAME, SuperBitLSHIndexConfig.Serializer).createOrOpen()
 
+    /** True since [SuperBitLSHIndex] supports incremental updates. */
+    override val supportsIncrementalUpdate: Boolean = true
+
+    /** The [IndexType] of this [SuperBitLSHIndex]. */
     override val type = IndexType.SUPERBIT_LSH
 
     init {
@@ -92,13 +91,6 @@ class SuperBitLSHIndex<T : VectorValue<*>>(name: Name.IndexName, parent: Entity,
     }
 
     /**
-     * Returns true since [SuperBitLSHIndex] supports incremental updates.
-     *
-     * @return True
-     */
-    override fun supportsIncrementalUpdate(): Boolean = true
-
-    /**
      * Opens and returns a new [IndexTransaction] object that can be used to interact with this [Index].
      *
      * @param parent If the [Entity.Tx] that requested the [IndexTransaction].
@@ -127,7 +119,7 @@ class SuperBitLSHIndex<T : VectorValue<*>>(name: Name.IndexName, parent: Entity,
             val local = Array(this@SuperBitLSHIndex.config.get().buckets) { mutableListOf<Long>() }
             this.parent.scan().use { s->
                 s.forEach {
-                    val record = this.parent.read(it)
+                    val record = this.parent.read(it, this@SuperBitLSHIndex.columns)
                     val value = record[this.columns[0]]
                     if (value is VectorValue<*>) {
                         val bucket: Int = lsh.hash(value).last()
@@ -215,12 +207,12 @@ class SuperBitLSHIndex<T : VectorValue<*>>(name: Name.IndexName, parent: Entity,
             }
         }
 
-        /** Performs the actual COMMIT operation by rolling back the [DB]. */
+        /** Performs the actual COMMIT operation by rolling back the [IndexTransaction]. */
         override fun performCommit() {
             this@SuperBitLSHIndex.db.commit()
         }
 
-        /** Performs the actual ROLLBACK operation by rolling back the [DB]. */
+        /** Performs the actual ROLLBACK operation by rolling back the [IndexTransaction]. */
         override fun performRollback() {
             this@SuperBitLSHIndex.db.rollback()
         }
@@ -237,7 +229,7 @@ class SuperBitLSHIndex<T : VectorValue<*>>(name: Name.IndexName, parent: Entity,
          */
         private fun acquireSpecimen(tx: Entity.Tx): VectorValue<*>? {
             for (index in 2L until tx.count()) {
-                val read = tx.read(index)[this.columns[0]]
+                val read = tx.read(index, this@SuperBitLSHIndex.columns)[this.columns[0]]
                 if (read is VectorValue<*>) {
                     return read
                 }

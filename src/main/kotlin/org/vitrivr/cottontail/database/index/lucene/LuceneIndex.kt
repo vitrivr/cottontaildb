@@ -15,11 +15,11 @@ import org.vitrivr.cottontail.database.column.ColumnType
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.events.DataChangeEvent
 import org.vitrivr.cottontail.database.events.DataChangeEventType
-import org.vitrivr.cottontail.database.general.TransactionStatus
 import org.vitrivr.cottontail.database.index.Index
 import org.vitrivr.cottontail.database.index.IndexTransaction
 import org.vitrivr.cottontail.database.index.IndexType
 import org.vitrivr.cottontail.database.index.hash.UniqueHashIndex
+import org.vitrivr.cottontail.database.index.lsh.superbit.SuperBitLSHIndex
 import org.vitrivr.cottontail.database.queries.components.*
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.cost.Costs
@@ -35,7 +35,7 @@ import java.nio.file.Path
  * for string comparisons using the EQUAL or LIKE operator.
  *
  * @author Luca Rossetto & Ralph Gasser
- * @version 1.2
+ * @version 1.2.1
  */
 class LuceneIndex(override val name: Name.IndexName, override val parent: Entity, override val columns: Array<ColumnDef<*>>) : Index() {
 
@@ -69,6 +69,9 @@ class LuceneIndex(override val name: Name.IndexName, override val parent: Entity
 
     /** The path to the directory that contains the data for this [LuceneIndex]. */
     override val path: Path = this.parent.path.resolve("idx_lucene_$name")
+
+    /** True since [SuperBitLSHIndex] supports incremental updates. */
+    override val supportsIncrementalUpdate: Boolean = true
 
     /** The type of this [Index]. */
     override val type: IndexType = IndexType.LUCENE
@@ -121,13 +124,6 @@ class LuceneIndex(override val name: Name.IndexName, override val parent: Entity
     }
 
     /**
-     * Returns true, if the [LuceneIndex] supports incremental updates, and false otherwise.
-     *
-     * @return True if incremental [Index] updates are supported.
-     */
-    override fun supportsIncrementalUpdate(): Boolean = true
-
-    /**
      * Opens and returns a new [IndexTransaction] object that can be used to interact with this [Index].
      *
      * @param parent If the [Entity.Tx] that requested the [IndexTransaction].
@@ -169,7 +165,7 @@ class LuceneIndex(override val name: Name.IndexName, override val parent: Entity
             var count = 0
             this.parent.scan().use { s->
                 s.forEach { tid ->
-                    val record = this.parent.read(tid)
+                    val record = this.parent.read(tid, this@LuceneIndex.columns)
                     this.writer?.addDocument(documentFromRecord(record))
                     count++
                 }

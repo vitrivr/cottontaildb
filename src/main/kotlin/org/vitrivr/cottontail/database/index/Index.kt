@@ -11,26 +11,21 @@ import org.vitrivr.cottontail.database.schema.Schema
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.exceptions.TransactionException
-import org.vitrivr.cottontail.model.exceptions.ValidationException
-import org.vitrivr.cottontail.model.recordset.Recordset
 import org.vitrivr.cottontail.utilities.extensions.read
 import org.vitrivr.cottontail.utilities.extensions.write
 import java.util.*
 import java.util.concurrent.locks.StampedLock
 
 /**
- * Represents an index in the Cottontail DB data model. An [Index] belongs to an [Entity] and can be used to index one to many
- * [Column]s. Usually, [Index]es allow for faster data access. They process [Predicate]s and return [Recordset]s.
- *
- * Calling the default constructor for an [Index] should open that [Index]. In order to initialize or rebuild it, a call to
- * [Index.update] us necessary. For concurrency reason, that call can only be issued through an [IndexTransaction].
+ * Represents an [Index] structure in the Cottontail DB data model. An [Index] belongs to an [Entity]
+ * and can be used to index one to many [Column]s. Usually, [Index]es allow for faster data access.
  *
  * @see Schema
  * @see Column
  * @see Entity.Tx
  *
  * @author Ralph Gasser
- * @version 1.5
+ * @version 1.6
  */
 abstract class Index : DBO {
 
@@ -50,13 +45,17 @@ abstract class Index : DBO {
     abstract val columns: Array<ColumnDef<*>>
 
     /**
-     * The [ColumnDef] that are produces by this [Index]. They may differ from the indexed columns, since some [Index] implementations
-     * only return a tuple ID OR because some implementations may add some kind of score.
+     * The [ColumnDef] that are produced by this [Index]. They may differ from the indexed columns,
+     * since some [Index] implementations only return a tuple ID OR because some implementations may
+     * add some kind of score.
      */
     abstract val produces: Array<ColumnDef<*>>
 
     /** The type of [Index]. */
     abstract val type: IndexType
+
+    /** True, if the [Index] supports incremental updates, and false otherwise. */
+    abstract val supportsIncrementalUpdate: Boolean
 
     /**
      * Checks if this [Index] can process the provided [Predicate] and returns true if so and false otherwise.
@@ -83,14 +82,6 @@ abstract class Index : DBO {
     }
 
     /**
-     * Returns true, if the [Index] supports incremental updates, and false otherwise.
-     *
-     * @return True if incremental [Index] updates are supported.
-     */
-    @Throws(ValidationException.IndexUpdateException::class)
-    protected abstract fun supportsIncrementalUpdate(): Boolean
-
-    /**
      * Opens and returns a new [IndexTransaction] object that can be used to interact with this [Index].
      *
      * @param parent If the [Entity.Tx] that requested the [IndexTransaction].
@@ -110,7 +101,6 @@ abstract class Index : DBO {
         /** Flag indicating whether this [IndexTransaction] is readonly. */
         final override val readonly: Boolean = parent.readonly
 
-        /** Tries to acquire a global read-lock on the [MapDBColumn]. */
         init {
             if (this@Index.closed) {
                 throw TransactionException.TransactionDBOClosedException(this.tid)
@@ -146,9 +136,13 @@ abstract class Index : DBO {
         override val produces: Array<ColumnDef<*>>
             get() = this@Index.produces
 
-        /** he [IndexType] of the [Index] that underpins this [IndexTransaction]. */
+        /** The [IndexType] of the [Index] that underpins this [IndexTransaction]. */
         override val type: IndexType
             get() = this@Index.type
+
+        /** Returns true, if the [Index] underpinning this [IndexTransaction] supports incremental updates, and false otherwise. */
+        override val supportsIncrementalUpdate: Boolean
+            get() = this@Index.supportsIncrementalUpdate
 
         /**
          * Checks if this [IndexTransaction] can process the provided [Predicate].
@@ -157,13 +151,6 @@ abstract class Index : DBO {
          * @return True if [Predicate] can be processed, false otherwise.
          */
         override fun canProcess(predicate: Predicate): Boolean = this@Index.canProcess(predicate)
-
-        /**
-         * Returns true, if the [Index] underpinning this [IndexTransaction] supports incremental updates, and false otherwise.
-         *
-         * @return True if incremental [Index] updates are supported.
-         */
-        override fun supportsIncrementalUpdate(): Boolean = this@Index.supportsIncrementalUpdate()
 
         /**
          * Commits all changes to the [Index] made through this [Index.Tx]
@@ -231,7 +218,8 @@ abstract class Index : DBO {
         protected abstract fun cleanup()
 
         /**
-         * Checks if this [Index.Tx] is in a valid state for write operations to happen.
+         * Checks if this [Index.Tx] is in a valid state for write operations to happen and sets its
+         * [status] to [TransactionStatus.DIRTY]
          */
         protected fun checkValidForWrite() {
             if (this.readonly) throw TransactionException.TransactionReadOnlyException(tid)

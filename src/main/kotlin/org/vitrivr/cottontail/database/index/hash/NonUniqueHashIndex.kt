@@ -1,6 +1,5 @@
 package org.vitrivr.cottontail.database.index.hash
 
-import org.apache.lucene.index.IndexWriter
 import org.mapdb.DBMaker
 import org.mapdb.HTreeMap
 import org.mapdb.Serializer
@@ -9,11 +8,9 @@ import org.vitrivr.cottontail.database.column.Column
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.events.DataChangeEvent
 import org.vitrivr.cottontail.database.events.DataChangeEventType
-import org.vitrivr.cottontail.database.general.TransactionStatus
 import org.vitrivr.cottontail.database.index.Index
 import org.vitrivr.cottontail.database.index.IndexTransaction
 import org.vitrivr.cottontail.database.index.IndexType
-import org.vitrivr.cottontail.database.index.lucene.LuceneIndex
 import org.vitrivr.cottontail.database.queries.components.AtomicBooleanPredicate
 import org.vitrivr.cottontail.database.queries.components.ComparisonOperator
 import org.vitrivr.cottontail.database.queries.components.Predicate
@@ -38,7 +35,7 @@ import java.nio.file.Path
  * @see Entity.Tx
  *
  * @author Luca Rossetto & Ralph Gasser
- * @version 1.2
+ * @version 1.2.1
  */
 class NonUniqueHashIndex(override val name: Name.IndexName, override val parent: Entity, override val columns: Array<ColumnDef<*>>) : Index() {
     /**
@@ -54,6 +51,9 @@ class NonUniqueHashIndex(override val name: Name.IndexName, override val parent:
 
     /** The type of [Index] */
     override val type: IndexType = IndexType.HASH_UQ
+
+    /** True since [NonUniqueHashIndex] supports incremental updates. */
+    override val supportsIncrementalUpdate: Boolean = true
 
     /** The [NonUniqueHashIndex] implementation returns exactly the columns that is indexed. */
     override val produces: Array<ColumnDef<*>> = this.columns
@@ -102,13 +102,6 @@ class NonUniqueHashIndex(override val name: Name.IndexName, override val parent:
     }
 
     /**
-     * Returns true since [NonUniqueHashIndex] supports incremental updates.
-     *
-     * @return True
-     */
-    override fun supportsIncrementalUpdate(): Boolean = true
-
-    /**
      * Opens and returns a new [IndexTransaction] object that can be used to interact with this [Index].
      *
      * @param parent If the [Entity.Tx] that requested the [IndexTransaction].
@@ -145,7 +138,7 @@ class NonUniqueHashIndex(override val name: Name.IndexName, override val parent:
             val localMap = mutableMapOf<Value, MutableList<Long>>()
             this.parent.scan().use { s ->
                 s.forEach { tid ->
-                    val record = this.parent.read(tid)
+                    val record = this.parent.read(tid, this.columns)
                     val value = record[this.columns[0]]
                             ?: throw ValidationException.IndexUpdateException(this.name, "A value cannot be null for instances of non-unique hash-index but tid=$tid is")
                     if (!localMap.containsKey(value)) {
@@ -226,7 +219,6 @@ class NonUniqueHashIndex(override val name: Name.IndexName, override val parent:
          * <strong>Important:</strong> It remains to the caller to close the [CloseableIterator]
          *
          * @param predicate The [Predicate] for the lookup
-         * @param tx Reference to the [Entity.Tx] the call to this method belongs to.
          *
          * @return The resulting [CloseableIterator]
          */
@@ -298,12 +290,12 @@ class NonUniqueHashIndex(override val name: Name.IndexName, override val parent:
             }
         }
 
-        /** Performs the actual COMMIT operation by rolling back the [DB]. */
+        /** Performs the actual COMMIT operation by rolling back the [IndexTransaction]. */
         override fun performCommit() {
             this@NonUniqueHashIndex.db.commit()
         }
 
-        /** Performs the actual ROLLBACK operation by rolling back the [DB]. */
+        /** Performs the actual ROLLBACK operation by rolling back the [IndexTransaction]. */
         override fun performRollback() {
             this@NonUniqueHashIndex.db.rollback()
         }
