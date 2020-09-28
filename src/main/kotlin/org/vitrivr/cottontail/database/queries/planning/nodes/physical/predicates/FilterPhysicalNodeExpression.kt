@@ -2,7 +2,6 @@ package org.vitrivr.cottontail.database.queries.planning.nodes.physical.predicat
 
 import org.vitrivr.cottontail.database.queries.components.BooleanPredicate
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
-import org.vitrivr.cottontail.database.queries.planning.cost.Costs
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalNodeExpression
 import org.vitrivr.cottontail.execution.ExecutionEngine
 import org.vitrivr.cottontail.execution.operators.predicates.FilterOperator
@@ -13,7 +12,7 @@ import org.vitrivr.cottontail.execution.operators.predicates.FilterOperator
  * @author Ralph Gasser
  * @version 1.0
  */
-class FilterPhysicalNodeExpression(val predicate: BooleanPredicate, val selectivity: Float = Costs.DEFAULT_SELECTIVITY) : UnaryPhysicalNodeExpression() {
+class FilterPhysicalNodeExpression(val predicate: BooleanPredicate, val selectivity: Float = Cost.COST_DEFAULT_SELECTIVITY) : UnaryPhysicalNodeExpression() {
 
     override val outputSize: Long
         get() = (this.input.outputSize * this.selectivity).toLong()

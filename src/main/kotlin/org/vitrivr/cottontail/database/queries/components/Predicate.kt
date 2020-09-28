@@ -2,7 +2,6 @@ package org.vitrivr.cottontail.database.queries.components
 
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
-import org.vitrivr.cottontail.database.queries.planning.cost.Costs
 import org.vitrivr.cottontail.database.queries.predicates.KnnPredicateHint
 import org.vitrivr.cottontail.math.knn.metrics.DistanceKernel
 import org.vitrivr.cottontail.model.basics.ColumnDef
@@ -72,7 +71,7 @@ data class AtomicBooleanPredicate<T : Value>(private val column: ColumnDef<T>, v
     }
 
     /** The number of operations required by this [AtomicBooleanPredicate]. */
-    override val cost: Float = 3 * Costs.MEMORY_ACCESS_READ
+    override val cost: Float = 3 * Cost.COST_MEMORY_ACCESS_READ
 
     /** Set of [ColumnDef] that are affected by this [AtomicBooleanPredicate]. */
     override val columns: Set<ColumnDef<T>> = setOf(this.column)
@@ -88,14 +87,11 @@ data class AtomicBooleanPredicate<T : Value>(private val column: ColumnDef<T>, v
      * @return true if [Record] matches this [AtomicBooleanPredicate], false otherwise.
      */
     override fun matches(record: Record): Boolean {
-        if (record.has(column)) {
-            return if (not) {
-                !operator.match(record[column], values)
-            } else {
-                operator.match(record[column], values)
-            }
+        require(record.has(this.column)) { "AtomicBooleanPredicate cannot be applied to record because it does not contain the expected column ${this.column}." }
+        return if (this.not) {
+            !this.operator.match(record[this.column], this.values)
         } else {
-            throw QueryException.ColumnDoesNotExistException(column)
+            this.operator.match(record[this.column], this.values)
         }
     }
 }
@@ -155,7 +151,7 @@ data class KnnPredicate<T : VectorValue<*>>(val column: ColumnDef<T>, val k: Int
     override val columns: Set<ColumnDef<*>> = setOf(column)
 
     /** Cost required for applying this [KnnPredicate] to a single record. */
-    override val cost: Float = Costs.MEMORY_ACCESS_READ * this.distance.cost * (this.query.size + (this.weights?.size
+    override val cost: Float = Cost.COST_MEMORY_ACCESS_READ * this.distance.cost * (this.query.size + (this.weights?.size
             ?: 0))
 
     override fun equals(other: Any?): Boolean {

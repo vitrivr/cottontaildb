@@ -22,7 +22,6 @@ import org.vitrivr.cottontail.database.index.hash.UniqueHashIndex
 import org.vitrivr.cottontail.database.index.lsh.superbit.SuperBitLSHIndex
 import org.vitrivr.cottontail.database.queries.components.*
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
-import org.vitrivr.cottontail.database.queries.planning.cost.Costs
 import org.vitrivr.cottontail.model.basics.*
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.values.StringValue
@@ -116,7 +115,7 @@ class LuceneIndex(override val name: Name.IndexName, override val parent: Entity
             val searcher = IndexSearcher(this.indexReader)
             var cost = Cost.ZERO
             predicate.columns.forEach {
-                cost += Cost(Costs.DISK_ACCESS_READ, Costs.DISK_ACCESS_READ, it.physicalSize.toFloat()) * searcher.collectionStatistics(it.name.simple).sumTotalTermFreq()
+                cost += Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_DISK_ACCESS_READ, it.physicalSize.toFloat()) * searcher.collectionStatistics(it.name.simple).sumTotalTermFreq()
             }
             cost
         }

@@ -2,7 +2,6 @@ package org.vitrivr.cottontail.database.queries.planning.nodes.physical.projecti
 
 import org.vitrivr.cottontail.database.queries.components.Projection
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
-import org.vitrivr.cottontail.database.queries.planning.cost.Costs
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalNodeExpression
 import org.vitrivr.cottontail.execution.ExecutionEngine
 import org.vitrivr.cottontail.execution.operators.projection.*
@@ -39,7 +38,7 @@ data class ProjectionPhysicalNodeExpression(val type: Projection, val fields: Li
         get() = this.input.outputSize
 
     override val cost: Cost
-        get() = Cost(io = this.outputSize * this.fields.size * Costs.MEMORY_ACCESS_READ)
+        get() = Cost(cpu = this.outputSize * this.fields.size * Cost.COST_MEMORY_ACCESS_READ)
 
     override fun copy() = ProjectionPhysicalNodeExpression(this.type, this.fields)
     override fun toOperator(context: ExecutionEngine.ExecutionContext) = when (this.type) {

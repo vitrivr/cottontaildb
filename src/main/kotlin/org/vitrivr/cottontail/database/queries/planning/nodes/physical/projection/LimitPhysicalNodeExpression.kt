@@ -1,7 +1,6 @@
 package org.vitrivr.cottontail.database.queries.planning.nodes.physical.projection
 
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
-import org.vitrivr.cottontail.database.queries.planning.cost.Costs
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalNodeExpression
 import org.vitrivr.cottontail.execution.ExecutionEngine
 import org.vitrivr.cottontail.execution.operators.transform.LimitOperator
@@ -31,7 +30,7 @@ class LimitPhysicalNodeExpression(limit: Long, skip: Long) : UnaryPhysicalNodeEx
         get() = min((this.input.outputSize - this.skip), this.limit)
 
     override val cost: Cost
-        get() = Cost(cpu = this.outputSize * Costs.MEMORY_ACCESS_READ)
+        get() = Cost(cpu = this.outputSize * Cost.COST_MEMORY_ACCESS_READ)
 
     override fun copy() = LimitPhysicalNodeExpression(this.limit, this.skip)
 
