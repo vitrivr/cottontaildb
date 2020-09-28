@@ -71,9 +71,6 @@ class CottontailQueryPlanner(logicalRewriteRules: Collection<RewriteRule>, physi
             val generated = this.generateCandidates(expression, shuttle)
             for (e in generated) {
                 candidates.addAll(this.optimize(e, shuttle, recursion - 1, candidatesPerLevel))
-                if (candidates.size > candidatesPerLevel) {
-                    break
-                }
             }
             candidates.add(expression)
         }
