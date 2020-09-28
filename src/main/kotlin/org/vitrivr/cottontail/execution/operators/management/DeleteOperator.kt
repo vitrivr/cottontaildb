@@ -1,5 +1,6 @@
-package org.vitrivr.cottontail.execution.operators.sinks
+package org.vitrivr.cottontail.execution.operators.management
 
+import io.grpc.stub.StreamObserver
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
@@ -8,8 +9,9 @@ import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.execution.ExecutionEngine
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.basics.OperatorStatus
-import org.vitrivr.cottontail.execution.operators.basics.SinkOperator
+import org.vitrivr.cottontail.execution.operators.basics.PipelineBreaker
 import org.vitrivr.cottontail.execution.operators.predicates.FilterOperator
+import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Record
@@ -20,16 +22,16 @@ import kotlin.time.ExperimentalTime
 import kotlin.time.measureTime
 
 /**
- * A [SinkOperator] that deletes all entries in an [Entity] that it receives.
+ * A [PipelineBreaker] that deletes all entries in an [Entity] that it receives.
  *
  * @author Ralph Gasser
  * @version 1.0.1
  */
-class DeleteOperator(parent: Operator, context: ExecutionEngine.ExecutionContext, val entity: Entity): SinkOperator(parent, context) {
-    /** Columns returned by [UpdateOperator]. */
+class DeleteOperator(parent: Operator, context: ExecutionEngine.ExecutionContext, val entity: Entity, val queryId: String, val responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) : PipelineBreaker(parent, context) {
+    /** Columns returned by [DeleteOperator]. */
     override val columns: Array<ColumnDef<*>> = arrayOf(
-        ColumnDef.withAttributes(Name.ColumnName("deleted"), "LONG", -1, false),
-        ColumnDef.withAttributes(Name.ColumnName("duration_ms"), "DOUBLE", -1, false),
+            ColumnDef.withAttributes(Name.ColumnName("deleted"), "LONG", -1, false),
+            ColumnDef.withAttributes(Name.ColumnName("duration_ms"), "DOUBLE", -1, false),
     )
 
     override fun prepareOpen() {

@@ -1,11 +1,11 @@
-package org.vitrivr.cottontail.database.queries.planning.nodes.physical.sinks
+package org.vitrivr.cottontail.database.queries.planning.nodes.physical.management
 
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalNodeExpression
 import org.vitrivr.cottontail.execution.ExecutionEngine
 import org.vitrivr.cottontail.execution.operators.basics.Operator
-import org.vitrivr.cottontail.execution.operators.sinks.DeleteOperator
+import org.vitrivr.cottontail.execution.operators.management.DeleteOperator
 
 /**
  * A [DeletePhysicalNodeExpression] that formalizes a delete operation on an [Entity].

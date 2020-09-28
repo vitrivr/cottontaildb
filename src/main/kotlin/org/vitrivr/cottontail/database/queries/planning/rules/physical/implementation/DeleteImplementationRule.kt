@@ -3,8 +3,8 @@ package org.vitrivr.cottontail.database.queries.planning.rules.physical.implemen
 import org.vitrivr.cottontail.database.queries.planning.exceptions.NodeExpressionTreeException
 import org.vitrivr.cottontail.database.queries.planning.nodes.interfaces.NodeExpression
 import org.vitrivr.cottontail.database.queries.planning.nodes.interfaces.RewriteRule
-import org.vitrivr.cottontail.database.queries.planning.nodes.logical.sinks.DeleteLogicalNodeExpression
-import org.vitrivr.cottontail.database.queries.planning.nodes.physical.sinks.DeletePhysicalNodeExpression
+import org.vitrivr.cottontail.database.queries.planning.nodes.logical.management.DeleteLogicalNodeExpression
+import org.vitrivr.cottontail.database.queries.planning.nodes.physical.management.DeletePhysicalNodeExpression
 
 /**
  * A [RewriteRule] that transforms a [DeleteLogicalNodeExpression] into a [DeletePhysicalNodeExpression].

@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail.database.queries.planning.nodes.physical.sinks
+package org.vitrivr.cottontail.database.queries.planning.nodes.physical.management
 
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
@@ -6,7 +6,7 @@ import org.vitrivr.cottontail.database.queries.planning.nodes.physical.PhysicalN
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalNodeExpression
 import org.vitrivr.cottontail.execution.ExecutionEngine
 import org.vitrivr.cottontail.execution.operators.basics.Operator
-import org.vitrivr.cottontail.execution.operators.sinks.UpdateOperator
+import org.vitrivr.cottontail.execution.operators.management.UpdateOperator
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.values.types.Value
 

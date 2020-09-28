@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail.database.queries.planning.nodes.logical.sinks
+package org.vitrivr.cottontail.database.queries.planning.nodes.logical.management
 
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.UnaryLogicalNodeExpression

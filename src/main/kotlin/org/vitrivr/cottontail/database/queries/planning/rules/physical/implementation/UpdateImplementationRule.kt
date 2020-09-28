@@ -3,8 +3,8 @@ package org.vitrivr.cottontail.database.queries.planning.rules.physical.implemen
 import org.vitrivr.cottontail.database.queries.planning.exceptions.NodeExpressionTreeException
 import org.vitrivr.cottontail.database.queries.planning.nodes.interfaces.NodeExpression
 import org.vitrivr.cottontail.database.queries.planning.nodes.interfaces.RewriteRule
-import org.vitrivr.cottontail.database.queries.planning.nodes.logical.sinks.UpdateLogicalNodeExpression
-import org.vitrivr.cottontail.database.queries.planning.nodes.physical.sinks.UpdatePhysicalNodeExpression
+import org.vitrivr.cottontail.database.queries.planning.nodes.logical.management.UpdateLogicalNodeExpression
+import org.vitrivr.cottontail.database.queries.planning.nodes.physical.management.UpdatePhysicalNodeExpression
 
 /**
  * A [RewriteRule] that transforms a [UpdateLogicalNodeExpression] to a [UpdatePhysicalNodeExpression].

@@ -75,6 +75,7 @@ class CottontailQueryPlanner(logicalRewriteRules: Collection<RewriteRule>, physi
                     break
                 }
             }
+            candidates.add(expression)
         }
         return candidates
     }
