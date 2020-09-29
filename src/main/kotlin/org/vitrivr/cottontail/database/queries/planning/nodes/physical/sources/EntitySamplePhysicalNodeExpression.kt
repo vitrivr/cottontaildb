@@ -25,10 +25,10 @@ data class EntitySamplePhysicalNodeExpression(val entity: Entity, val columns: A
     override fun copy() = EntitySamplePhysicalNodeExpression(this.entity, this.columns, this.size, this.seed)
     override fun toOperator(context: ExecutionEngine.ExecutionContext) = EntitySampleOperator(context, this.entity, this.columns, this.size, this.seed)
     override fun partition(p: Int): List<NullaryPhysicalNodeExpression> {
-        val partitionSize = Math.floorDiv(this.size, p) + 1
+        val partitionSize: Long = Math.floorDiv(this.size, p.toLong()) + 1L
         return (0 until p).map {
             val start = it * partitionSize
-            val end = min((it + 1) * partitionSize, this.size)
+            val end = min((it + 1L) * partitionSize, this.size)
             EntitySamplePhysicalNodeExpression(this.entity, this.columns, end - start + 1)
         }
     }

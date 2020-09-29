@@ -7,7 +7,6 @@ import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhys
 import org.vitrivr.cottontail.execution.ExecutionEngine
 import org.vitrivr.cottontail.execution.operators.sources.EntityScanOperator
 import org.vitrivr.cottontail.model.basics.ColumnDef
-import java.lang.Math.floorDiv
 import kotlin.math.min
 
 /**
@@ -27,10 +26,10 @@ class EntityScanPhysicalNodeExpression(val entity: Entity, val columns: Array<Co
     override fun copy() = EntityScanPhysicalNodeExpression(this.entity, this.columns, this.range)
     override fun toOperator(context: ExecutionEngine.ExecutionContext) = EntityScanOperator(context, this.entity, this.columns, this.range)
     override fun partition(p: Int): List<NullaryPhysicalNodeExpression> {
-        val partitionSize = floorDiv(this.range.last - this.range.first + 1, p)
+        val partitionSize = Math.floorDiv(this.range.last - this.range.first + 1L, p.toLong())
         return (0 until p).map {
             val start = range.first + it * partitionSize
-            val end = range.first + min((it + 1) * partitionSize, this.range.last)
+            val end = range.first + min((it + 1L) * partitionSize, this.range.last)
             EntityScanPhysicalNodeExpression(this.entity, this.columns, start until end)
         }
     }
