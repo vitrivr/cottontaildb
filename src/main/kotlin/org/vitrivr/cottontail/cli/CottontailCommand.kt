@@ -34,7 +34,7 @@ import kotlin.time.ExperimentalTime
  * </ul>
  *
  * @author Loris Sauter
- * @version 1.0
+ * @version 1.0.1
  */
 @ExperimentalTime
 class CottontailCommand(private val host: String, private val port: Int) : NoOpCliktCommand(name = "cottontail", help = "The base command") {
@@ -167,11 +167,20 @@ class CottontailCommand(private val host: String, private val port: Int) : NoOpC
                     CottontailGrpc.Query.newBuilder()
                             .setFrom(CottontailGrpc.From.newBuilder().setEntity(CottontailGrpc.Entity.newBuilder().setName(entity).setSchema(CottontailGrpc.Schema.newBuilder().setName(schema))))
                             .setProjection(MatchAll())
-                            .setLimit(limit)
+                            .setLimit(this.limit)
             ).build()
             val query = this@CottontailCommand.dqlService.query(qm)
-            query.forEach { page ->
-                tabulate(page.resultsList.dropLast(Math.max(0, page.resultsCount - limit).toInt()))
+
+            val tuples = mutableListOf<CottontailGrpc.Tuple>()
+            query.forEach {
+                it.resultsList.forEach {
+                    tuples.add(it)
+                }
+            }
+            if (tuples.size > 0) {
+                tabulate(tuples)
+            } else {
+                println("No results!")
             }
         }
 
@@ -184,7 +193,9 @@ class CottontailCommand(private val host: String, private val port: Int) : NoOpC
                 }
                 header {
                     row {
-                        tuples.first().dataMap.keys.forEach { cell(it) }
+                        tuples.first().dataMap.keys.forEach {
+                            this.cell(it)
+                        }
                     }
                 }
                 body {
