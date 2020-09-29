@@ -25,11 +25,11 @@ class EntityIndexScanOperator(context: ExecutionEngine.ExecutionContext, entity:
     /** Get [Index] that */
     private val index = this.entity.allIndexes().filter { it.type == this.indexHint && it.canProcess(this.predicate) }.first()
 
-    /** Determine [ColumnDef] produced by this [EntityIndexScanOperator]. */
-    override val columns: Array<ColumnDef<*>> = this.index.produces + super.columns
-
     /** Determine [ColumnDef]s that are not produced by the [Index] and require separate fetching. */
     private val columnsToFetch = super.columns.filter { !this.index.produces.contains(it) }.toTypedArray()
+
+    /** Determine [ColumnDef] produced by this [EntityIndexScanOperator]. */
+    override val columns: Array<ColumnDef<*>> = this.index.produces + this.columnsToFetch
 
     override fun toFlow(scope: CoroutineScope): Flow<Record> {
         check(this.status == OperatorStatus.OPEN) { "Cannot convert operator $this to flow because it is in state ${this.status}." }
