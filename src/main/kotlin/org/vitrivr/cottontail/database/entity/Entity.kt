@@ -179,9 +179,10 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
     fun createIndex(name: Name.IndexName, type: IndexType, columns: Array<ColumnDef<*>>, params: Map<String, String> = emptyMap()) = this.closeLock.read {
         /* Create new index. */
         check(!this.closed) { "Entity ${this.name} has been closed and cannot be used anymore." }
-        val index: Index = this.indexLock.write {
+        this.indexLock.write {
             val indexEntry = this.header.indexes.map {
-                Pair(it, this.store.get(it, IndexEntrySerializer) ?: throw DatabaseException.DataCorruptionException("Failed to create index '$name': Could not read index definition at position $it!"))
+                Pair(it, this.store.get(it, IndexEntrySerializer)
+                        ?: throw DatabaseException.DataCorruptionException("Failed to create index '$name': Could not read index definition at position $it!"))
             }.find { this.name.index(it.second.name) == name }
 
             if (indexEntry != null) throw DatabaseException.IndexAlreadyExistsException(name)
@@ -206,19 +207,6 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
                 pathsToDelete.forEach { Files.delete(it) }
                 throw DatabaseException("Failed to create index '$name' due to a storage exception: ${e.message}")
             }
-
-            newIndex
-        }
-
-        /* Rebuilds the index. */
-        try {
-            val tx = Tx(readonly = false)
-            tx.index(name)?.rebuild()
-            tx.close()
-        } catch (e: Throwable) {
-            val pathsToDelete = Files.walk(index.path).sorted(Comparator.reverseOrder()).collect(Collectors.toList())
-            pathsToDelete.forEach { Files.delete(it) }
-            throw DatabaseException("Failed to create index '$name' due to a build failure: ${e.message}")
         }
     }
 
@@ -454,9 +442,11 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
          *
          * <strong>Important:</strong> It remains to the caller to close the [CloseableIterator]
          *
+         * @param columns The [ColumnDef]s that should be scanned.
+         *
          * @return [CloseableIterator]
          */
-        override fun scan(): CloseableIterator<TupleId> = scan(1L..this.maxTupleId())
+        override fun scan(columns: Array<ColumnDef<*>>): CloseableIterator<Record> = scan(columns, 1L..this.maxTupleId())
 
         /**
          * Creates and returns a new [CloseableIterator] for this [Entity.Tx] that returns all [TupleId]s
@@ -464,13 +454,16 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
          *
          * <strong>Important:</strong> It remains to the caller to close the [CloseableIterator]
          *
+         * @param columns The [ColumnDef]s that should be scanned.
          * @param range The [LongRange] that should be scanned.
+         *
          * @return [CloseableIterator]
          */
-        override fun scan(range: LongRange) = object : CloseableIterator<TupleId> {
+        override fun scan(columns: Array<ColumnDef<*>>, range: LongRange) = object : CloseableIterator<Record> {
             init {
                 checkValidForRead()
             }
+
 
             /** Acquires a read lock for the surrounding [Entity.Tx]*/
             private val lock = this@Tx.localLock.readLock()
@@ -485,9 +478,9 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
             /**
              * Returns the next element in the iteration.
              */
-            override fun next(): TupleId {
+            override fun next(): Record {
                 check(!this.closed) { "Illegal invocation of next(): This CloseableIterator has been closed." }
-                return this.wrapped.next()
+                return this@Tx.read(this.wrapped.next(), columns)
             }
 
             /**

@@ -36,7 +36,7 @@ import java.nio.file.Path
  * TODO: Fix and finalize implementation.
  *
  * @author Manuel Huerbin
- * @version 1.1.1
+ * @version 1.1.2
  */
 class VAPlusIndex(override val name: Name.IndexName, override val parent: Entity, override val columns: Array<ColumnDef<*>>) : Index() {
 
@@ -171,14 +171,13 @@ class VAPlusIndex(override val name: Name.IndexName, override val parent: Entity
 
             // Indexing
             val kltMatrixBar = kltMatrix.transpose()
-            this.parent.scan().forEach {
-                val record = this.parent.read(it, this.columns)
+            this.parent.scan(this@VAPlusIndex.columns).forEach { record ->
                 val doubleArray = vaPlus.convertToDoubleArray(record[this.columns[0]] as VectorValue<*>)
                 val dataMatrix = MatrixUtils.createRealMatrix(arrayOf(doubleArray))
                 val vector = kltMatrixBar.multiply(dataMatrix.transpose()).getColumnVector(0).toArray()
                 //val signature = signatureGenerator.toSignature(vaPlus.getCells(vector, marks))
                 val signature = vaPlus.getCells(vector, marks)
-                this@VAPlusIndex.signatures.add(VAPlusSignature(it, signature))
+                this@VAPlusIndex.signatures.add(VAPlusSignature(record.tupleId, signature))
             }
             val meta = VAPlusMeta(marks, signatureGenerator, kltMatrix)
             this@VAPlusIndex.meta.set(meta)
@@ -208,7 +207,7 @@ class VAPlusIndex(override val name: Name.IndexName, override val parent: Entity
          *
          * @return The resulting [CloseableIterator]
          */
-        override fun filter(predicate: Predicate): CloseableIterator<TupleId> = object : CloseableIterator<TupleId> {
+        override fun filter(predicate: Predicate): CloseableIterator<Record> = object : CloseableIterator<Record> {
 
             private val predicate = if (predicate is KnnPredicate<*>) {
                 predicate
@@ -271,7 +270,7 @@ class VAPlusIndex(override val name: Name.IndexName, override val parent: Entity
                 TODO("Not yet implemented")
             }
 
-            override fun next(): TupleId {
+            override fun next(): Record {
                 check(!this.closed) { "Illegal invocation of next(): This CloseableIterator has been closed." }
                 TODO("Not yet implemented")
             }

@@ -17,6 +17,7 @@ import org.vitrivr.cottontail.model.basics.*
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.recordset.Recordset
+import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.types.VectorValue
 import org.vitrivr.cottontail.utilities.extensions.read
 
@@ -26,7 +27,7 @@ import org.vitrivr.cottontail.utilities.extensions.read
  * [Recordset]s.
  *
  * @author Manuel Huerbin & Ralph Gasser
- * @version 1.2.1
+ * @version 1.2.2
  */
 class SuperBitLSHIndex<T : VectorValue<*>>(name: Name.IndexName, parent: Entity, columns: Array<ColumnDef<*>>, params: Map<String, String>? = null) : LSHIndex<T>(name, parent, columns) {
 
@@ -112,13 +113,12 @@ class SuperBitLSHIndex<T : VectorValue<*>>(name: Name.IndexName, parent: Entity,
 
             /* (Re-)create index entries locally. */
             val local = Array(this@SuperBitLSHIndex.config.get().buckets) { mutableListOf<Long>() }
-            this.parent.scan().use { s->
-                s.forEach {
-                    val record = this.parent.read(it, this@SuperBitLSHIndex.columns)
+            this.parent.scan(this@SuperBitLSHIndex.columns).use { s ->
+                s.forEach { record ->
                     val value = record[this.columns[0]]
                     if (value is VectorValue<*>) {
                         val bucket: Int = lsh.hash(value).last()
-                        local[bucket].add(it)
+                        local[bucket].add(record.tupleId)
                     }
                 }
             }
@@ -149,7 +149,7 @@ class SuperBitLSHIndex<T : VectorValue<*>>(name: Name.IndexName, parent: Entity,
          * @param predicate The [Predicate] for the lookup*
          * @return The resulting [CloseableIterator]
          */
-        override fun filter(predicate: Predicate) = object : CloseableIterator<TupleId> {
+        override fun filter(predicate: Predicate) = object : CloseableIterator<Record> {
 
             /** Cast [AtomicBooleanPredicate] (if such a cast is possible).  */
             val predicate = if (predicate is KnnPredicate<*>) {
@@ -189,9 +189,9 @@ class SuperBitLSHIndex<T : VectorValue<*>>(name: Name.IndexName, parent: Entity,
                 return this.tupleIds.isNotEmpty()
             }
 
-            override fun next(): TupleId {
+            override fun next(): Record {
                 check(!this.closed) { "Illegal invocation of next(): This CloseableIterator has been closed." }
-                return this.tupleIds.removeFirst()
+                return StandaloneRecord(this.tupleIds.removeFirst(), this@SuperBitLSHIndex.columns, emptyArray())
             }
 
             override fun close() {

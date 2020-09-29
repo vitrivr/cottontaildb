@@ -10,18 +10,22 @@ package org.vitrivr.cottontail.model.basics
  */
 interface Scanable {
     /**
-     * Returns an [Iterator] for all the [TupleId]s in this [Scanable].
+     * Returns an [Iterator] for all the [Record]s in this [Scanable].
      *
-     * @return action Iterator<TupleId>
+     * @param columns The [ColumnDef]s that should be scanned.
+     *
+     * @return CloseableIterator<Record>
      */
-    fun scan(): CloseableIterator<TupleId>
+    fun scan(columns: Array<ColumnDef<*>>): CloseableIterator<Record>
 
     /**
      * Returns an [Iterator] for all the [TupleId]s contained in the provide [LongRange]
      * and this [Scanable]. Can be used for partitioning.
      *
+     * @param columns The [ColumnDef]s that should be scanned.
      * @param range The [LongRange] to iterate over
-     * @return action Iterator<TupleId>
+     *
+     * @return CloseableIterator<TupleId>
      */
-    fun scan(range: LongRange): CloseableIterator<TupleId>
+    fun scan(columns: Array<ColumnDef<*>>, range: LongRange): CloseableIterator<Record>
 }

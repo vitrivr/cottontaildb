@@ -20,7 +20,7 @@ import java.util.concurrent.locks.StampedLock
  * @see org.vitrivr.cottontail.database.entity.Entity
  *
  * @author Ralph Gasser
- * @version 1.5
+ * @version 1.5.1
  */
 class Recordset(val columns: Array<ColumnDef<*>>, capacity: Long = 250L) : Scanable, Filterable {
     /** List of all the [Record]s contained in this [Recordset] (TupleId -> Record). */
@@ -170,7 +170,7 @@ class Recordset(val columns: Array<ColumnDef<*>>, capacity: Long = 250L) : Scana
     /**
      *
      */
-    override fun filter(predicate: Predicate): CloseableIterator<TupleId> {
+    override fun filter(predicate: Predicate): CloseableIterator<Record> {
         TODO("Not yet implemented")
     }
 
@@ -305,11 +305,11 @@ class Recordset(val columns: Array<ColumnDef<*>>, capacity: Long = 250L) : Scana
         }
     }
 
-    override fun scan(): CloseableIterator<TupleId> {
+    override fun scan(columns: Array<ColumnDef<*>>): CloseableIterator<Record> {
         TODO("Not yet implemented")
     }
 
-    override fun scan(range: LongRange): CloseableIterator<TupleId> {
+    override fun scan(columns: Array<ColumnDef<*>>, range: LongRange): CloseableIterator<Record> {
         TODO("Not yet implemented")
     }
 

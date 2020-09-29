@@ -20,6 +20,7 @@ import org.vitrivr.cottontail.model.basics.*
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.exceptions.ValidationException
 import org.vitrivr.cottontail.model.recordset.Recordset
+import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.types.Value
 import org.vitrivr.cottontail.utilities.extensions.read
 import org.vitrivr.cottontail.utilities.extensions.write
@@ -34,7 +35,7 @@ import java.nio.file.Path
  * @see Entity.Tx
  *
  * @author Ralph Gasser
- * @version 1.2.1
+ * @version 1.2.2
  */
 class UniqueHashIndex(override val name: Name.IndexName, override val parent: Entity, override val columns: Array<ColumnDef<*>>) : Index() {
 
@@ -58,7 +59,7 @@ class UniqueHashIndex(override val name: Name.IndexName, override val parent: En
     /** The [UniqueHashIndex] implementation returns exactly the columns that is indexed. */
     override val produces: Array<ColumnDef<*>> = this.columns
 
-    /** The internal [DB] reference. */
+    /** The internal database reference. */
     private val db = if (parent.parent.parent.config.memoryConfig.forceUnmapMappedFiles) {
         DBMaker.fileDB(this.path.toFile()).fileMmapEnable().transactionEnable().make()
     } else {
@@ -66,7 +67,7 @@ class UniqueHashIndex(override val name: Name.IndexName, override val parent: En
     }
 
     /** Map structure used for [UniqueHashIndex]. */
-    private val map: HTreeMap<out Value, Long> = this.db.hashMap(MAP_FIELD_NAME, this.columns.first().type.serializer(this.columns.size), Serializer.LONG_PACKED).counterEnable().createOrOpen()
+    private val map: HTreeMap<out Value, TupleId> = this.db.hashMap(MAP_FIELD_NAME, this.columns.first().type.serializer(this.columns.size), Serializer.LONG_PACKED).counterEnable().createOrOpen()
 
     /**
      * Flag indicating if this [UniqueHashIndex] has been closed.
@@ -135,14 +136,13 @@ class UniqueHashIndex(override val name: Name.IndexName, override val parent: En
             this@UniqueHashIndex.map.clear()
 
             /* (Re-)create index entries. */
-            val localMap = this@UniqueHashIndex.map as HTreeMap<Value, Long>
-            this.parent.scan().use { s ->
-                s.forEach { tid ->
-                    val record = this.parent.read(tid, this@UniqueHashIndex.columns)
+            val localMap = this@UniqueHashIndex.map as HTreeMap<Value, TupleId>
+            this.parent.scan(this@UniqueHashIndex.columns).use { s ->
+                s.forEach { record ->
                     val value = record[this.columns[0]]
                             ?: throw ValidationException.IndexUpdateException(this.name, "A value cannot be null for instances of non-unique hash-index but tid=$tid is")
                     if (!localMap.containsKey(value)) {
-                        localMap[value] = tid
+                        localMap[value] = record.tupleId
                     } else {
                         LOGGER.warn("Value must be unique for instances of unique hash-index but '$value' (tid=$tid) is not! Skipping entry...")
                     }
@@ -161,7 +161,7 @@ class UniqueHashIndex(override val name: Name.IndexName, override val parent: En
         override fun update(update: Collection<DataChangeEvent>) = this.localLock.read {
             /* Check if this [Tx] allowed to write. */
             checkValidForWrite()
-            val localMap = this@UniqueHashIndex.map as HTreeMap<Value, Long>
+            val localMap = this@UniqueHashIndex.map as HTreeMap<Value, TupleId>
 
             /* Define action for inserting an entry based on a DataChangeEvent. */
             fun atomicInsert(event: DataChangeEvent) {
@@ -195,7 +195,7 @@ class UniqueHashIndex(override val name: Name.IndexName, override val parent: En
 
         /**
          * Performs a lookup through this [UniqueHashIndex.Tx] and returns a [CloseableIterator] of
-         * all [TupleId]s that match the [Predicate]. Only supports [AtomicBooleanPredicate]s.
+         * all [Record]s that match the [Predicate]. Only supports [AtomicBooleanPredicate]s.
          *
          * The [CloseableIterator] is not thread safe!
          *
@@ -205,7 +205,7 @@ class UniqueHashIndex(override val name: Name.IndexName, override val parent: En
          *
          * @return The resulting [CloseableIterator]
          */
-        override fun filter(predicate: Predicate): CloseableIterator<TupleId> = object : CloseableIterator<TupleId> {
+        override fun filter(predicate: Predicate): CloseableIterator<Record> = object : CloseableIterator<Record> {
 
             /** Cast [AtomicBooleanPredicate] (if such a cast is possible).  */
             private val predicate = if (predicate !is AtomicBooleanPredicate<*>) {
@@ -226,21 +226,8 @@ class UniqueHashIndex(override val name: Name.IndexName, override val parent: En
             @Volatile
             private var closed = false
 
-            /** Pre-fetched [TupleId]s that match the [Predicate]. */
-            private val results = if (this.predicate.not) {
-                val blackList = when (this.predicate.operator) {
-                    ComparisonOperator.IN,
-                    ComparisonOperator.EQUAL -> this.predicate.values.mapNotNull { this@UniqueHashIndex.map[it] }.toMutableList()
-                    else -> throw QueryException.UnsupportedPredicateException("Instance of unique hash-index does not support ${this.predicate.operator} comparison operators.")
-                }
-                this@UniqueHashIndex.map.values.filterNotNull().filter { !blackList.contains(it) }.toMutableList()
-            } else {
-                when (this.predicate.operator) {
-                    ComparisonOperator.IN,
-                    ComparisonOperator.EQUAL -> this.predicate.values.mapNotNull { this@UniqueHashIndex.map[it] }.toMutableList()
-                    else -> throw QueryException.UnsupportedPredicateException("Instance of unique hash-index does not support ${this.predicate.operator} comparison operators.")
-                }
-            }
+            /** Pre-fetched [Record]s that match the [Predicate]. */
+            private val results = this.prepare()
 
             /**
              * Returns `true` if the iteration has more elements.
@@ -253,7 +240,7 @@ class UniqueHashIndex(override val name: Name.IndexName, override val parent: En
             /**
              * Returns the next element in the iteration.
              */
-            override fun next(): TupleId {
+            override fun next(): Record {
                 check(!this.closed) { "Illegal invocation of next(): This CloseableIterator has been closed." }
                 return this.results.removeFirst()
             }
@@ -265,6 +252,34 @@ class UniqueHashIndex(override val name: Name.IndexName, override val parent: En
                 if (!this.closed) {
                     this@Tx.localLock.unlock(this.lock)
                     this.closed = true
+                }
+            }
+
+            /**
+             * Prepares the list of matching [Record]s and returns it.
+             */
+            private fun prepare(): MutableList<Record> {
+                val n = when (this.predicate.operator) {
+                    ComparisonOperator.EQUAL -> 1
+                    ComparisonOperator.IN -> this.predicate.values.size
+                    else -> throw QueryException.UnsupportedPredicateException("Instance of unique hash-index does not support ${this.predicate.operator} comparison operators.")
+                }
+                return if (this.predicate.not) {
+                    val blackList = this.predicate.values.take(n).mapNotNull { this@UniqueHashIndex.map[it] }.toHashSet()
+                    this@UniqueHashIndex.map.map {
+                        StandaloneRecord(it.value, this@UniqueHashIndex.produces, arrayOf(it.key))
+                    }.filter {
+                        !blackList.contains(it.tupleId)
+                    }.toMutableList()
+                } else {
+                    this.predicate.values.take(n).mapNotNull {
+                        val tupleId = this@UniqueHashIndex.map[it]
+                        if (tupleId != null) {
+                            StandaloneRecord(tupleId, this@UniqueHashIndex.produces, arrayOf(it))
+                        } else {
+                            null
+                        }
+                    }.toMutableList()
                 }
             }
         }

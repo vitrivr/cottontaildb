@@ -49,10 +49,10 @@ interface IndexTransaction : Transaction, Filterable {
 
     /**
      * Performs a lookup through this [IndexTransaction] and returns a [CloseableIterator] of
-     * all the [TupleId]s that match the [Predicate].
+     * all the [Record]s that match the [Predicate].
      *
      * @param predicate The [Predicate] to perform the lookup.
      * @return The resulting [CloseableIterator].
      */
-    override fun filter(predicate: Predicate): CloseableIterator<TupleId>
+    override fun filter(predicate: Predicate): CloseableIterator<Record>
 }

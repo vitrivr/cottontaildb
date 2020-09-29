@@ -102,7 +102,7 @@ class UniqueHashIndexTest {
             val index = tx.indexes().first()
             index.filter(predicate).use {
                 it.forEach {
-                    val rec = tx.read(it, this.columns)
+                    val rec = tx.read(it.tupleId, this.columns)
                     assertEquals(entry.key, rec[this.columns[0]])
                     assertArrayEquals(entry.value.data, (rec[this.columns[1]] as FloatVectorValue).data)
                 }

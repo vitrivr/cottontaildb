@@ -5,7 +5,6 @@ import org.vitrivr.cottontail.model.values.types.RealVectorValue
 import org.vitrivr.cottontail.model.values.types.Value
 import org.vitrivr.cottontail.model.values.types.VectorValue
 import java.util.*
-import kotlin.math.absoluteValue
 import kotlin.math.pow
 
 /**
@@ -156,59 +155,59 @@ inline class IntVectorValue(val data: IntArray) : RealVectorValue<Int> {
         return IntValue(sum)
     }
 
-    override fun l1(other: VectorValue<*>): FloatValue = when (other) {
+    override fun l1(other: VectorValue<*>): IntValue = when (other) {
         is LongVectorValue -> {
-            var sum = 0.0f
+            var sum = 0
             for (i in this.data.indices) {
-                sum += (this.data[i] - other.data[i]).absoluteValue
+                sum += kotlin.math.abs(this.data[i] - other.data[i].toInt())
             }
-            FloatValue(sum)
+            IntValue(sum)
         }
         is IntVectorValue -> {
-            var sum = 0.0f
+            var sum = 0
             for (i in this.data.indices) {
-                sum += (this.data[i] - other.data[i]).absoluteValue
+                sum += kotlin.math.abs(this.data[i] - other.data[i])
             }
-            FloatValue(sum)
+            IntValue(sum)
         }
         else -> {
-            var sum = 0.0f
+            var sum = 0
             for (i in this.data.indices) {
-                sum += (this.data[i] - other[i].value.toFloat()).absoluteValue
+                sum += kotlin.math.abs(this.data[i] - other[i].value.toInt())
             }
-            FloatValue(sum)
+            IntValue(sum)
         }
     }
 
-    override fun l2(other: VectorValue<*>): FloatValue = when (other) {
+    override fun l2(other: VectorValue<*>): IntValue = when (other) {
         is LongVectorValue -> {
-            var sum = 0.0f
+            var sum = 0
             for (i in this.data.indices) {
-                sum += (this.data[i] - other.data[i]).toFloat().pow(2)
+                sum += (this.data[i] - other.data[i].toInt()) * (this.data[i] - other.data[i].toInt())
             }
-            FloatValue(kotlin.math.sqrt(sum))
+            IntValue(kotlin.math.sqrt(sum.toDouble()).toInt())
         }
         is IntVectorValue -> {
-            var sum = 0.0f
+            var sum = 0
             for (i in this.data.indices) {
-                sum += (this.data[i] - other.data[i]).toFloat().pow(2)
+                sum += (this.data[i] - other.data[i]) * (this.data[i] - other.data[i])
             }
-            FloatValue(kotlin.math.sqrt(sum))
+            IntValue(kotlin.math.sqrt(sum.toDouble()).toInt())
         }
         else -> {
-            var sum = 0.0f
+            var sum = 0
             for (i in this.data.indices) {
-                sum += (this.data[i] - other[i].value.toFloat()).pow(2)
+                sum += (this.data[i] - other[i].value.toInt()) * (this.data[i] - other[i].value.toInt())
             }
-            FloatValue(kotlin.math.sqrt(sum))
+            IntValue(kotlin.math.sqrt(sum.toDouble()).toInt())
         }
     }
 
-    override fun lp(other: VectorValue<*>, p: Int): FloatValue {
-        var sum = 0.0f
-        for (i in this.indices) {
-            sum += (other[i].value.toFloat() - this[i].value).pow(p)
+    override fun lp(other: VectorValue<*>, p: Int): IntValue {
+        var sum = 0
+        for (i in this.data.indices) {
+            sum += (this.data[i] - other[i].value.toInt()) * (this.data[i] - other[i].value.toInt())
         }
-        return FloatValue(sum.pow(1.0f/p))
+        return IntValue(sum.toDouble().pow(1.0 / p).toInt())
     }
 }

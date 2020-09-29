@@ -16,10 +16,14 @@ import org.vitrivr.cottontail.database.queries.components.ComparisonOperator
 import org.vitrivr.cottontail.database.queries.components.Predicate
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.schema.Schema
-import org.vitrivr.cottontail.model.basics.*
+import org.vitrivr.cottontail.model.basics.CloseableIterator
+import org.vitrivr.cottontail.model.basics.ColumnDef
+import org.vitrivr.cottontail.model.basics.Name
+import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.exceptions.ValidationException
 import org.vitrivr.cottontail.model.recordset.Recordset
+import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.types.Value
 import org.vitrivr.cottontail.utilities.extensions.read
 import org.vitrivr.cottontail.utilities.extensions.write
@@ -34,7 +38,7 @@ import java.nio.file.Path
  * @see Entity.Tx
  *
  * @author Luca Rossetto & Ralph Gasser
- * @version 1.2.1
+ * @version 1.2.2
  */
 class NonUniqueHashIndex(override val name: Name.IndexName, override val parent: Entity, override val columns: Array<ColumnDef<*>>) : Index() {
     /**
@@ -57,7 +61,7 @@ class NonUniqueHashIndex(override val name: Name.IndexName, override val parent:
     /** The [NonUniqueHashIndex] implementation returns exactly the columns that is indexed. */
     override val produces: Array<ColumnDef<*>> = this.columns
 
-    /** The internal [DB] reference. */
+    /** The internal database reference. */
     private val db = if (parent.parent.parent.config.memoryConfig.forceUnmapMappedFiles) {
         DBMaker.fileDB(this.path.toFile()).fileMmapEnable().cleanerHackEnable().transactionEnable().make()
     } else {
@@ -135,15 +139,14 @@ class NonUniqueHashIndex(override val name: Name.IndexName, override val parent:
 
             /* (Re-)create index entries. */
             val localMap = mutableMapOf<Value, MutableList<Long>>()
-            this.parent.scan().use { s ->
-                s.forEach { tid ->
-                    val record = this.parent.read(tid, this.columns)
+            this.parent.scan(this.columns).use { s ->
+                s.forEach { record ->
                     val value = record[this.columns[0]]
                             ?: throw ValidationException.IndexUpdateException(this.name, "A value cannot be null for instances of non-unique hash-index but tid=$tid is")
                     if (!localMap.containsKey(value)) {
-                        localMap[value] = mutableListOf(tid)
+                        localMap[value] = mutableListOf(record.tupleId)
                     } else {
-                        localMap[value]!!.add(tid)
+                        localMap[value]!!.add(record.tupleId)
                     }
                 }
             }
@@ -211,7 +214,7 @@ class NonUniqueHashIndex(override val name: Name.IndexName, override val parent:
 
         /**
          * Performs a lookup through this [NonUniqueHashIndex.Tx] and returns a [CloseableIterator] of
-         * all [TupleId]s that match the [Predicate]. Only supports [AtomicBooleanPredicate]s.
+         * all [Record]s that match the [Predicate]. Only supports [AtomicBooleanPredicate]s.
          *
          * The [CloseableIterator] is not thread safe!
          *
@@ -221,7 +224,7 @@ class NonUniqueHashIndex(override val name: Name.IndexName, override val parent:
          *
          * @return The resulting [CloseableIterator]
          */
-        override fun filter(predicate: Predicate): CloseableIterator<TupleId> = object : CloseableIterator<TupleId> {
+        override fun filter(predicate: Predicate): CloseableIterator<Record> = object : CloseableIterator<Record> {
 
             /** Cast [AtomicBooleanPredicate] (if such a cast is possible).  */
             private val predicate = if (predicate !is AtomicBooleanPredicate<*>) {
@@ -242,25 +245,8 @@ class NonUniqueHashIndex(override val name: Name.IndexName, override val parent:
             @Volatile
             private var closed = false
 
-            /** Pre-fetched [TupleId]s that match the [Predicate]. */
-            private val results = if (this.predicate.not) {
-                val blackList = when (this.predicate.operator) {
-                    ComparisonOperator.IN -> this.predicate.values.mapNotNull { this@NonUniqueHashIndex.map[it] }.flatMap { it.asIterable() }.toSet()
-                    ComparisonOperator.EQUAL -> this@NonUniqueHashIndex.map[this.predicate.values.first()]?.toSet()
-                            ?: emptySet()
-                    else -> throw QueryException.UnsupportedPredicateException("Instance of unique hash-index does not support ${this.predicate.operator} comparison operators.")
-                }
-                this@NonUniqueHashIndex.map.values.flatMap {
-                    it?.asIterable() ?: emptyList()
-                }.filter { !blackList.contains(it) }.toMutableList()
-            } else {
-                when (this.predicate.operator) {
-                    ComparisonOperator.IN -> this.predicate.values.mapNotNull { this@NonUniqueHashIndex.map[it] }.flatMap { it.asIterable() }.toMutableList()
-                    ComparisonOperator.EQUAL -> this@NonUniqueHashIndex.map[this.predicate.values.first()]?.toMutableList()
-                            ?: mutableListOf()
-                    else -> throw QueryException.UnsupportedPredicateException("Instance of unique hash-index does not support ${this.predicate.operator} comparison operators.")
-                }
-            }
+            /** Pre-fetched [Record]s that match the [Predicate]. */
+            private val results = this.prepare()
 
             /**
              * Returns `true` if the iteration has more elements.
@@ -273,7 +259,7 @@ class NonUniqueHashIndex(override val name: Name.IndexName, override val parent:
             /**
              * Returns the next element in the iteration.
              */
-            override fun next(): TupleId {
+            override fun next(): Record {
                 check(!this.closed) { "Illegal invocation of next(): This CloseableIterator has been closed." }
                 return this.results.removeFirst()
             }
@@ -285,6 +271,36 @@ class NonUniqueHashIndex(override val name: Name.IndexName, override val parent:
                 if (!this.closed) {
                     this@Tx.localLock.unlock(this.lock)
                     this.closed = true
+                }
+            }
+
+            /**
+             * Prepares the list of matching [Record]s and returns it.
+             */
+            private fun prepare(): MutableList<Record> {
+                val n = when (this.predicate.operator) {
+                    ComparisonOperator.EQUAL -> 1
+                    ComparisonOperator.IN -> this.predicate.values.size
+                    else -> throw QueryException.UnsupportedPredicateException("Instance of unique hash-index does not support ${this.predicate.operator} comparison operators.")
+                }
+                return if (this.predicate.not) {
+                    val blackList = this.predicate.values.take(n).flatMap {
+                        this@NonUniqueHashIndex.map[it]?.asList() ?: emptyList()
+                    }.toHashSet()
+                    this@NonUniqueHashIndex.map.flatMap { entry ->
+                        val value = arrayOf(entry.key)
+                        entry.value.filter {
+                            !blackList.contains(it)
+                        }.map {
+                            StandaloneRecord(it, this@NonUniqueHashIndex.produces, value)
+                        }
+                    }.toMutableList()
+                } else {
+                    this.predicate.values.take(n).flatMap { v ->
+                        this@NonUniqueHashIndex.map[v]?.map { tupleId ->
+                            StandaloneRecord(tupleId, this@NonUniqueHashIndex.produces, arrayOf(v))
+                        } ?: emptyList()
+                    }.toMutableList()
                 }
             }
         }

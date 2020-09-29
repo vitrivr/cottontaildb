@@ -2,7 +2,8 @@ package org.vitrivr.cottontail.math.knn
 
 import org.apache.commons.math3.util.MathArrays
 import org.junit.jupiter.api.Assertions
-import org.junit.jupiter.api.RepeatedTest
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import org.vitrivr.cottontail.math.knn.metrics.EuclidianDistance
 import org.vitrivr.cottontail.math.knn.metrics.ManhattanDistance
 import org.vitrivr.cottontail.math.knn.metrics.SquaredEuclidianDistance
@@ -17,15 +18,15 @@ import kotlin.time.measureTime
 class IntVectorDistanceTest {
 
     companion object {
-        const val COLLECTION_SIZE = 1_000_000
+        const val COLLECTION_SIZE = 100_000
         const val DELTA = 1e-6
         val RANDOM = SplittableRandom()
     }
 
     @ExperimentalTime
-    @RepeatedTest(3)
-    fun testL1Distance() {
-        val dimensions = RANDOM.nextInt(2048)
+    @ParameterizedTest
+    @ValueSource(ints = [32, 33, 64, 65, 128, 256, 512, 531, 1023, 2048])
+    fun testL1Distance(dimensions: Int) {
         val query = IntVectorValue.random(dimensions, RANDOM)
         val collection = VectorUtility.randomIntVectorSequence(dimensions, COLLECTION_SIZE, RANDOM)
 
@@ -56,9 +57,9 @@ class IntVectorDistanceTest {
     }
 
     @ExperimentalTime
-    @RepeatedTest(3)
-    fun testL2SquaredDistance() {
-        val dimensions = RANDOM.nextInt(2048)
+    @ParameterizedTest
+    @ValueSource(ints = [31, 32, 63, 65, 128, 256, 512, 514, 1023, 2049])
+    fun testL2SquaredDistance(dimensions: Int) {
         val query = IntVectorValue.random(dimensions, RANDOM)
         val collection = VectorUtility.randomIntVectorSequence(dimensions, COLLECTION_SIZE, RANDOM)
 
@@ -89,9 +90,9 @@ class IntVectorDistanceTest {
     }
 
     @ExperimentalTime
-    @RepeatedTest(3)
-    fun testL2Distance() {
-        val dimensions = RANDOM.nextInt(2048)
+    @ParameterizedTest
+    @ValueSource(ints = [30, 32, 64, 66, 127, 256, 513, 515, 1025, 2048, 2049])
+    fun testL2Distance(dimensions: Int) {
         val query = IntVectorValue.random(dimensions, RANDOM)
         val collection = VectorUtility.randomIntVectorSequence(dimensions, COLLECTION_SIZE, RANDOM)
 

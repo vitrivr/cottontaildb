@@ -28,7 +28,7 @@ import java.util.concurrent.locks.StampedLock
  * @param <T> Type of the value held by this [MapDBColumn].
  *
  * @author Ralph Gasser
- * @version 1.3
+ * @version 1.3.1
  */
 class MapDBColumn<T : Value>(override val name: Name.ColumnName, override val parent: Entity) : Column<T> {
 

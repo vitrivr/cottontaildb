@@ -24,6 +24,8 @@ import org.vitrivr.cottontail.database.queries.components.*
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.model.basics.*
 import org.vitrivr.cottontail.model.exceptions.QueryException
+import org.vitrivr.cottontail.model.recordset.StandaloneRecord
+import org.vitrivr.cottontail.model.values.FloatValue
 import org.vitrivr.cottontail.model.values.StringValue
 import org.vitrivr.cottontail.utilities.extensions.read
 import org.vitrivr.cottontail.utilities.extensions.write
@@ -34,7 +36,7 @@ import java.nio.file.Path
  * for string comparisons using the EQUAL or LIKE operator.
  *
  * @author Luca Rossetto & Ralph Gasser
- * @version 1.2.1
+ * @version 1.2.2
  */
 class LuceneIndex(override val name: Name.IndexName, override val parent: Entity, override val columns: Array<ColumnDef<*>>) : Index() {
 
@@ -162,9 +164,8 @@ class LuceneIndex(override val name: Name.IndexName, override val parent: Entity
 
             this.writer?.deleteAll()
             var count = 0
-            this.parent.scan().use { s->
-                s.forEach { tid ->
-                    val record = this.parent.read(tid, this@LuceneIndex.columns)
+            this.parent.scan(this@LuceneIndex.columns).use { s ->
+                s.forEach { record ->
                     this.writer?.addDocument(documentFromRecord(record))
                     count++
                 }
@@ -226,7 +227,7 @@ class LuceneIndex(override val name: Name.IndexName, override val parent: Entity
          * @param predicate The [Predicate] for the lookup*
          * @return The resulting [CloseableIterator]
          */
-        override fun filter(predicate: Predicate) = object : CloseableIterator<TupleId> {
+        override fun filter(predicate: Predicate) = object : CloseableIterator<Record> {
             /** Cast [BooleanPredicate] (if such a cast is possible). */
             private val predicate = if (predicate !is BooleanPredicate) {
                 throw QueryException.UnsupportedPredicateException("Index '${this@LuceneIndex.name}' (lucene index) does not support predicates of type '${predicate::class.simpleName}'.")
@@ -279,10 +280,11 @@ class LuceneIndex(override val name: Name.IndexName, override val parent: Entity
             /**
              * Returns the next element in the iteration.
              */
-            override fun next(): TupleId {
+            override fun next(): Record {
                 check(!this.closed) { "Illegal invocation of next(): This CloseableIterator has been closed." }
-                val doc = this.searcher.doc(this.results.scoreDocs[this.returned++].doc)
-                return doc[TID_COLUMN].toLong()
+                val scores = this.results.scoreDocs[this.returned++]
+                val doc = this.searcher.doc(scores.doc)
+                return StandaloneRecord(doc[TID_COLUMN].toLong(), this@LuceneIndex.produces, arrayOf(FloatValue(scores.score)))
             }
 
             /**
@@ -298,7 +300,7 @@ class LuceneIndex(override val name: Name.IndexName, override val parent: Entity
 
         /** Performs the actual COMMIT operation by committing the [IndexWriter] and updating the [IndexReader]. */
         override fun performCommit() {
-            /* Commits changes made throught the LuceneWriter. */
+            /* Commits changes made through the LuceneWriter. */
             this.writer?.commit()
 
             /* Opens new IndexReader and close new one. */

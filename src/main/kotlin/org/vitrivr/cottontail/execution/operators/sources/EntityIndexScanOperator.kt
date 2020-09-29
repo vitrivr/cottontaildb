@@ -26,8 +26,8 @@ class EntityIndexScanOperator(context: ExecutionEngine.ExecutionContext, entity:
         val indexTx = tx.indexes(this.predicate.columns.toTypedArray(), this.indexHint).first()
         return flow {
             indexTx.filter(this@EntityIndexScanOperator.predicate).use { iterator ->
-                for (tupleId in iterator) {
-                    emit(tx.read(tupleId, this@EntityIndexScanOperator.columns))
+                for (record in iterator) {
+                    emit(tx.read(record.tupleId, this@EntityIndexScanOperator.columns))
                 }
             }
         }
