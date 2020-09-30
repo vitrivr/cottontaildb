@@ -72,6 +72,11 @@ To connect to Cottontail DB, use the gRPC library of your preference based on th
 
 The [example repository](https://github.com/vitrivr/cottontaildb-examples) points to some simple examples as to how Cottontail DB can be used.
 
+##Citation
+We kindly ask you to refer to the following paper in publications mentioning or employing Cottontail DB:
+
+Ralph Gasser, Luca Rossetto, Silvan Heller, Heiko Schuldt. _Cottontail DB: An Open Source Database System for Multimedia Retrieval and Analysis._ In Proceedings of 28th ACM International Conference on Multimedia (ACM MM 2020), Seattle, USA, 2020
+
 ## Credits
 Cottontail DB is based on the ideas presented in the following papers:
 
