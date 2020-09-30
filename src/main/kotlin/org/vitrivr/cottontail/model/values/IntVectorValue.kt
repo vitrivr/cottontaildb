@@ -125,19 +125,19 @@ inline class IntVectorValue(val data: IntArray) : RealVectorValue<Int> {
         (this[it] / other.asInt()).value
     })
 
-    override fun pow(x: Int) = DoubleVectorValue(DoubleArray(this.data.size) {
-        this.data[it].toDouble().pow(x)
+    override fun pow(x: Int) = FloatVectorValue(FloatArray(this.data.size) {
+        this.data[it].toFloat().pow(x)
     })
 
-    override fun sqrt() = DoubleVectorValue(DoubleArray(this.data.size) {
-        kotlin.math.sqrt(this.data[it].toDouble())
+    override fun sqrt() = FloatVectorValue(FloatArray(this.data.size) {
+        kotlin.math.sqrt(this.data[it].toFloat())
     })
 
     override fun abs() = IntVectorValue(IntArray(this.data.size) {
         kotlin.math.abs(this.data[it])
     })
 
-    override fun sum(): IntValue = IntValue(this.data.sum())
+    override fun sum(): FloatValue = FloatValue(this.data.map { it.toFloat() }.sum())
 
     override fun norm2(): FloatValue {
         var sum = 0.0f
@@ -147,67 +147,62 @@ inline class IntVectorValue(val data: IntArray) : RealVectorValue<Int> {
         return FloatValue(kotlin.math.sqrt(sum))
     }
 
-    override fun dot(other: VectorValue<*>): IntValue {
-        var sum = 0
+    override fun dot(other: VectorValue<*>): FloatValue {
+        var sum = 0.0f
         for (i in this.indices) {
             sum += other[i].value.toInt() * this[i].value
         }
-        return IntValue(sum)
+        return FloatValue(sum)
     }
 
-    override fun l1(other: VectorValue<*>): IntValue = when (other) {
-        is LongVectorValue -> {
-            var sum = 0
-            for (i in this.data.indices) {
-                sum += kotlin.math.abs(this.data[i] - other.data[i].toInt())
-            }
-            IntValue(sum)
-        }
+    override fun l1(other: VectorValue<*>): FloatValue = when (other) {
         is IntVectorValue -> {
-            var sum = 0
+            var sum = 0.0f
             for (i in this.data.indices) {
                 sum += kotlin.math.abs(this.data[i] - other.data[i])
             }
-            IntValue(sum)
+            FloatValue(sum)
         }
         else -> {
-            var sum = 0
+            var sum = 0.0f
             for (i in this.data.indices) {
                 sum += kotlin.math.abs(this.data[i] - other[i].value.toInt())
             }
-            IntValue(sum)
+            FloatValue(sum)
         }
     }
 
-    override fun l2(other: VectorValue<*>): IntValue = when (other) {
-        is LongVectorValue -> {
-            var sum = 0
-            for (i in this.data.indices) {
-                sum += (this.data[i] - other.data[i].toInt()) * (this.data[i] - other.data[i].toInt())
-            }
-            IntValue(kotlin.math.sqrt(sum.toDouble()).toInt())
-        }
+    override fun l2(other: VectorValue<*>): FloatValue = when (other) {
         is IntVectorValue -> {
-            var sum = 0
+            var sum = 0.0f
             for (i in this.data.indices) {
-                sum += (this.data[i] - other.data[i]) * (this.data[i] - other.data[i])
+                sum += (this.data[i] - other.data[i]).toFloat().pow(2)
             }
-            IntValue(kotlin.math.sqrt(sum.toDouble()).toInt())
+            FloatValue(kotlin.math.sqrt(sum))
         }
         else -> {
-            var sum = 0
+            var sum = 0.0f
             for (i in this.data.indices) {
-                sum += (this.data[i] - other[i].value.toInt()) * (this.data[i] - other[i].value.toInt())
+                sum += (this.data[i] - other[i].value.toInt()).toFloat().pow(2)
             }
-            IntValue(kotlin.math.sqrt(sum.toDouble()).toInt())
+            FloatValue(kotlin.math.sqrt(sum))
         }
     }
 
-    override fun lp(other: VectorValue<*>, p: Int): IntValue {
-        var sum = 0
-        for (i in this.data.indices) {
-            sum += (this.data[i] - other[i].value.toInt()) * (this.data[i] - other[i].value.toInt())
+    override fun lp(other: VectorValue<*>, p: Int): FloatValue = when (other) {
+        is IntVectorValue -> {
+            var sum = 0.0f
+            for (i in this.data.indices) {
+                sum += (this.data[i] - other.data[i]) * (this.data[i] - other.data[i]).toFloat().pow(p)
+            }
+            FloatValue(sum.pow(1.0f / p))
         }
-        return IntValue(sum.toDouble().pow(1.0 / p).toInt())
+        else -> {
+            var sum = 0.0f
+            for (i in this.data.indices) {
+                sum += (this.data[i] - other[i].value.toInt()).toFloat().pow(p)
+            }
+            FloatValue(sum.pow(1.0f / p))
+        }
     }
 }

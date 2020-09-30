@@ -5,6 +5,7 @@ import org.apache.commons.math3.exception.DimensionMismatchException
 import org.junit.jupiter.api.RepeatedTest
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.vitrivr.cottontail.math.*
 import org.vitrivr.cottontail.model.values.*
 import java.util.*
 
@@ -18,8 +19,7 @@ class Complex64VectorValueTest {
 
     private val random = SplittableRandom()
 
-    companion object {
-    }
+    companion object;
 
     @RepeatedTest(100)
     fun testAdd() {

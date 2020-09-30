@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail.math.basics
+package org.vitrivr.cottontail.math
 
 import org.apache.commons.math3.complex.Complex
 import org.apache.commons.math3.complex.ComplexField

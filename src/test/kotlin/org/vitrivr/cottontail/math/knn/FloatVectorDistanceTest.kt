@@ -7,28 +7,27 @@ import org.vitrivr.cottontail.math.isApproximatelyTheSame
 import org.vitrivr.cottontail.math.knn.metrics.EuclidianDistance
 import org.vitrivr.cottontail.math.knn.metrics.ManhattanDistance
 import org.vitrivr.cottontail.math.knn.metrics.SquaredEuclidianDistance
-import org.vitrivr.cottontail.model.values.IntVectorValue
+import org.vitrivr.cottontail.model.values.FloatVectorValue
 import org.vitrivr.cottontail.utilities.VectorUtility
 import kotlin.math.abs
-import kotlin.math.pow
 import kotlin.time.Duration
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTime
 
 /**
- * Test cases that test for correctness of some basic distance calculations with [IntVectorDistanceTest].
+ * Test cases that test for correctness of some basic distance calculations with [FloatVectorValue].
  *
  * @author Ralph Gasser
  * @version 1.0
  */
-class IntVectorDistanceTest : AbstractDistanceTest() {
+class FloatVectorDistanceTest : AbstractDistanceTest() {
 
     @ExperimentalTime
     @ParameterizedTest
     @MethodSource("dimensions")
-    fun testL1Distance(dimensions: Int) {
-        val query = IntVectorValue.random(dimensions, RANDOM)
-        val collection = VectorUtility.randomIntVectorSequence(dimensions, TestConstants.collectionSize, RANDOM)
+    fun testL1Distance(dimension: Int) {
+        val query = FloatVectorValue.random(dimension, RANDOM)
+        val collection = VectorUtility.randomFloatVectorSequence(dimension, TestConstants.collectionSize, RANDOM)
 
         var sum1 = 0.0f
         var sum2 = 0.0f
@@ -42,15 +41,15 @@ class IntVectorDistanceTest : AbstractDistanceTest() {
                 sum1 += ManhattanDistance(it, query).value.toFloat()
             }
             time2 += measureTime {
-                sum2 += (it - query).abs().sum().value
+                sum2 += (query - it).abs().sum().value
             }
             sum3 += l1(it.data, query.data)
         }
 
-        println("Calculating L1 distance for collection (s=${TestConstants.collectionSize}, d=$dimensions) took ${time1 / TestConstants.collectionSize} (optimized) resp. ${time2 / TestConstants.collectionSize} per vector on average.")
+        println("Calculating L1 distance for collection (s=${TestConstants.collectionSize}, d=$dimension) took ${time1 / TestConstants.collectionSize} (optimized) resp. ${time2 / TestConstants.collectionSize}  per vector on average.")
 
         if (time1 > time2) {
-            LOGGER.warn("Optimized version of L2^2 is slower than default version!")
+            LOGGER.warn("Optimized version of L1 is slower than default version!")
         }
         isApproximatelyTheSame(sum3, sum1)
         isApproximatelyTheSame(sum3, sum2)
@@ -59,9 +58,9 @@ class IntVectorDistanceTest : AbstractDistanceTest() {
     @ExperimentalTime
     @ParameterizedTest
     @MethodSource("dimensions")
-    fun testL2SquaredDistance(dimensions: Int) {
-        val query = IntVectorValue.random(dimensions, RANDOM)
-        val collection = VectorUtility.randomIntVectorSequence(dimensions, TestConstants.collectionSize, RANDOM)
+    fun testL2SquaredDistance(dimension: Int) {
+        val query = FloatVectorValue.random(dimension, RANDOM)
+        val collection = VectorUtility.randomFloatVectorSequence(dimension, TestConstants.collectionSize, RANDOM)
 
         var sum1 = 0.0f
         var sum2 = 0.0f
@@ -75,12 +74,12 @@ class IntVectorDistanceTest : AbstractDistanceTest() {
                 sum1 += SquaredEuclidianDistance(it, query).value.toFloat()
             }
             time2 += measureTime {
-                sum2 += (it - query).pow(2).sum().value
+                sum2 += (query - it).pow(2).sum().value
             }
             sum3 += l2squared(it.data, query.data)
         }
 
-        println("Calculating L2^2 distance for collection (s=${TestConstants.collectionSize}, d=$dimensions) took ${time1 / TestConstants.collectionSize} (optimized) resp. ${time2 / TestConstants.collectionSize} per vector on average.")
+        println("Calculating L2^2 distance for collection (s=${TestConstants.collectionSize}, d=$dimension) took ${time1 / TestConstants.collectionSize} (optimized) resp. ${time2 / TestConstants.collectionSize}  per vector on average.")
 
         if (time1 > time2) {
             LOGGER.warn("Optimized version of L2^2 is slower than default version!")
@@ -92,9 +91,9 @@ class IntVectorDistanceTest : AbstractDistanceTest() {
     @ExperimentalTime
     @ParameterizedTest
     @MethodSource("dimensions")
-    fun testL2Distance(dimensions: Int) {
-        val query = IntVectorValue.random(dimensions, RANDOM)
-        val collection = VectorUtility.randomIntVectorSequence(dimensions, TestConstants.collectionSize, RANDOM)
+    fun testL2Distance(dimension: Int) {
+        val query = FloatVectorValue.random(dimension, RANDOM)
+        val collection = VectorUtility.randomFloatVectorSequence(dimension, TestConstants.collectionSize, RANDOM)
 
         var sum1 = 0.0f
         var sum2 = 0.0f
@@ -113,10 +112,10 @@ class IntVectorDistanceTest : AbstractDistanceTest() {
             sum3 += l2(it.data, query.data)
         }
 
-        println("Calculating L2 distance for collection (s=${TestConstants.collectionSize}, d=$dimensions) took ${time1 / TestConstants.collectionSize} (optimized) resp. ${time2 / TestConstants.collectionSize} per vector on average.")
+        println("Calculating L2 distance for collection (s=${TestConstants.collectionSize}, d=$dimension) took ${time1 / TestConstants.collectionSize} (optimized) resp. ${time2 / TestConstants.collectionSize} per vector on average.")
 
         if (time1 > time2) {
-            LOGGER.warn("Optimized version of L2^2 is slower than default version!")
+            LOGGER.warn("Optimized version of L2 is slower than default version!")
         }
         isApproximatelyTheSame(sum3, sum1)
         isApproximatelyTheSame(sum3, sum2)
@@ -129,7 +128,7 @@ class IntVectorDistanceTest : AbstractDistanceTest() {
      * @param p2 the second point
      * @return the L<sub>1</sub> distance between the two points
      */
-    fun l1(p1: IntArray, p2: IntArray): Float {
+    fun l1(p1: FloatArray, p2: FloatArray): Float {
         require(p1.size == p2.size) { "Dimension mismatch!" }
         var sum = 0.0f
         for (i in p1.indices) {
@@ -145,12 +144,12 @@ class IntVectorDistanceTest : AbstractDistanceTest() {
      * @param p2 the second point
      * @return the L<sub>2</sub> distance between the two points
      */
-    private fun l2(p1: IntArray, p2: IntArray): Float {
+    private fun l2(p1: FloatArray, p2: FloatArray): Float {
         require(p1.size == p2.size) { "Dimension mismatch!" }
         var sum = 0.0f
         for (i in p1.indices) {
             val dp = p1[i] - p2[i]
-            sum += dp.toFloat().pow(2)
+            sum += dp * dp
         }
         return kotlin.math.sqrt(sum)
     }
@@ -162,12 +161,12 @@ class IntVectorDistanceTest : AbstractDistanceTest() {
      * @param p2 the second point
      * @return the L<sub>2</sub> distance between the two points
      */
-    private fun l2squared(p1: IntArray, p2: IntArray): Float {
+    private fun l2squared(p1: FloatArray, p2: FloatArray): Float {
         require(p1.size == p2.size) { "Dimension mismatch!" }
         var sum = 0.0f
         for (i in p1.indices) {
             val dp = p1[i] - p2[i]
-            sum += dp.toFloat().pow(2)
+            sum += dp * dp
         }
         return sum
     }

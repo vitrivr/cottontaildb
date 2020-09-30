@@ -1,17 +1,15 @@
 package org.vitrivr.cottontail.math.knn
 
-import org.apache.commons.math3.util.MathArrays
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.params.ParameterizedTest
-import org.junit.jupiter.params.provider.ValueSource
+import org.junit.jupiter.params.provider.MethodSource
+import org.vitrivr.cottontail.TestConstants
+import org.vitrivr.cottontail.math.isApproximatelyTheSame
 import org.vitrivr.cottontail.math.knn.metrics.EuclidianDistance
 import org.vitrivr.cottontail.math.knn.metrics.ManhattanDistance
 import org.vitrivr.cottontail.math.knn.metrics.SquaredEuclidianDistance
 import org.vitrivr.cottontail.model.values.DoubleVectorValue
 import org.vitrivr.cottontail.utilities.VectorUtility
-import java.util.*
-import kotlin.math.pow
+import kotlin.math.abs
 import kotlin.time.Duration
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTime
@@ -22,20 +20,14 @@ import kotlin.time.measureTime
  * @author Ralph Gasser
  * @version 1.0
  */
-class DoubleVectorDistanceTest {
-
-    companion object {
-        const val COLLECTION_SIZE = 1_000_000
-        const val DELTA = 1e-10
-        val RANDOM = SplittableRandom()
-    }
+class DoubleVectorDistanceTest : AbstractDistanceTest() {
 
     @ExperimentalTime
     @ParameterizedTest
-    @ValueSource(ints = [32, 64, 128, 256, 512, 1024])
+    @MethodSource("dimensions")
     fun testL1Distance(dimension: Int) {
         val query = DoubleVectorValue.random(dimension, RANDOM)
-        val collection = VectorUtility.randomDoubleVectorSequence(dimension, COLLECTION_SIZE, RANDOM)
+        val collection = VectorUtility.randomDoubleVectorSequence(dimension, TestConstants.collectionSize, RANDOM)
 
         var sum1 = 0.0
         var sum2 = 0.0
@@ -49,26 +41,26 @@ class DoubleVectorDistanceTest {
                 sum1 += ManhattanDistance(it, query).value
             }
             time2 += measureTime {
-                sum2 += (query-it).abs().sum().value
+                sum2 += (query - it).abs().sum().value
             }
-            sum3 += MathArrays.distance1(it.data, query.data)
+            sum3 += l1(it.data, query.data)
         }
 
-        println("Calculating L1 distance for collection (s=$COLLECTION_SIZE, d=$dimension) took ${time1 / COLLECTION_SIZE} (optimized) resp. ${time2 / COLLECTION_SIZE}  per vector on average.")
+        println("Calculating L1 distance for collection (s=${TestConstants.collectionSize}, d=$dimension) took ${time1 / TestConstants.collectionSize} (optimized) resp. ${time2 / TestConstants.collectionSize}  per vector on average.")
 
-        assertTrue(time1 < time2, "Optimized version of L1 is slower than default version!")
-        assertTrue(sum1 / sum3 < 1.0 + DELTA, "Deviation for optimized version detected. Expected: $sum3, Received: $sum1")
-        assertTrue(sum1 / sum3 > 1.0 - DELTA, "Deviation for optimized version detected. Expected: $sum3, Received: $sum1")
-        assertTrue(sum2 / sum3 < 1.0 + DELTA, "Deviation for manual version detected. Expected: $sum3, Received: $sum2")
-        assertTrue(sum2 / sum3 > 1.0 - DELTA, "Deviation for manual version detected. Expected: $sum3, Received: $sum2")
+        if (time1 > time2) {
+            LOGGER.warn("Optimized version of L1 is slower than default version!")
+        }
+        isApproximatelyTheSame(sum3, sum1)
+        isApproximatelyTheSame(sum3, sum2)
     }
 
     @ExperimentalTime
     @ParameterizedTest
-    @ValueSource(ints = [32, 64, 128, 256, 512, 1024])
+    @MethodSource("dimensions")
     fun testL2SquaredDistance(dimension: Int) {
         val query = DoubleVectorValue.random(dimension, RANDOM)
-        val collection = VectorUtility.randomDoubleVectorSequence(dimension, COLLECTION_SIZE, RANDOM)
+        val collection = VectorUtility.randomDoubleVectorSequence(dimension, TestConstants.collectionSize, RANDOM)
 
         var sum1 = 0.0
         var sum2 = 0.0
@@ -82,28 +74,26 @@ class DoubleVectorDistanceTest {
                 sum1 += SquaredEuclidianDistance(it, query).value
             }
             time2 += measureTime {
-                sum2 += (query-it).pow(2).sum().value
+                sum2 += (query - it).pow(2).sum().value
             }
-            sum3 += MathArrays.distance(it.data, query.data).pow(2)
+            sum3 += l2squared(it.data, query.data)
         }
 
-        println("Calculating L2^2 distance for collection (s=$COLLECTION_SIZE, d=$dimension) took ${time1 / COLLECTION_SIZE} (optimized) resp. ${time2 / COLLECTION_SIZE}  per vector on average.")
+        println("Calculating L2^2 distance for collection (s=${TestConstants.collectionSize}, d=$dimension) took ${time1 / TestConstants.collectionSize} (optimized) resp. ${time2 / TestConstants.collectionSize}  per vector on average.")
 
-        assertTrue(time1 < time2, "Optimized version of L2^2 is slower than default version!")
-        assertEquals(sum3 , sum1, "L2^2 for optimized version does no equal expected value.")
-        assertEquals(sum3 , sum2, "L2^2 for default version does no equal expected value.")
-        assertTrue(sum1 / sum3 < 1.0 + DELTA, "Deviation for optimized version detected. Expected: $sum3, Received: $sum1")
-        assertTrue(sum1 / sum3 > 1.0 - DELTA, "Deviation for optimized version detected. Expected: $sum3, Received: $sum1")
-        assertTrue(sum2 / sum3 < 1.0 + DELTA, "Deviation for manual version detected. Expected: $sum3, Received: $sum2")
-        assertTrue(sum2 / sum3 > 1.0 - DELTA, "Deviation for manual version detected. Expected: $sum3, Received: $sum2")
+        if (time1 > time2) {
+            LOGGER.warn("Optimized version of L2^2 is slower than default version!")
+        }
+        isApproximatelyTheSame(sum3, sum1)
+        isApproximatelyTheSame(sum3, sum2)
     }
 
     @ExperimentalTime
     @ParameterizedTest
-    @ValueSource(ints = [32, 64, 128, 256, 512, 1024])
+    @MethodSource("dimensions")
     fun testL2Distance(dimension: Int) {
         val query = DoubleVectorValue.random(dimension, RANDOM)
-        val collection = VectorUtility.randomDoubleVectorSequence(dimension, COLLECTION_SIZE, RANDOM)
+        val collection = VectorUtility.randomDoubleVectorSequence(dimension, TestConstants.collectionSize, RANDOM)
 
         var sum1 = 0.0
         var sum2 = 0.0
@@ -117,19 +107,67 @@ class DoubleVectorDistanceTest {
                 sum1 += EuclidianDistance(it, query).value
             }
             time2 += measureTime {
-                sum2 += (query-it).pow(2).sum().sqrt().value
+                sum2 += (query - it).pow(2).sum().sqrt().value
             }
-            sum3 += MathArrays.distance(it.data, query.data)
+            sum3 += l2(it.data, query.data)
         }
 
-        println("Calculating L2 distance for collection (s=$COLLECTION_SIZE, d=$dimension) took ${time1 / COLLECTION_SIZE} (optimized) resp. ${time2 / COLLECTION_SIZE} per vector on average.")
+        println("Calculating L2 distance for collection (s=${TestConstants.collectionSize}, d=$dimension) took ${time1 / TestConstants.collectionSize} (optimized) resp. ${time2 / TestConstants.collectionSize} per vector on average.")
 
-        assertTrue(time1 < time2, "Optimized version of L2 is slower than default version!")
-        assertEquals(sum3 , sum1, "L2 for optimized version does not equal expected value.")
-        assertEquals(sum3 , sum2,"L2 for default version does not equal expected value.")
-        assertTrue(sum1 / sum3 < 1.0 + DELTA, "Deviation for optimized version detected. Expected: $sum3, Received: $sum1")
-        assertTrue(sum1 / sum3 > 1.0 - DELTA, "Deviation for optimized version detected. Expected: $sum3, Received: $sum1")
-        assertTrue(sum2 / sum3 < 1.0 + DELTA, "Deviation for manual version detected. Expected: $sum3, Received: $sum2")
-        assertTrue(sum2 / sum3 > 1.0 - DELTA, "Deviation for manual version detected. Expected: $sum3, Received: $sum2")
+        if (time1 > time2) {
+            LOGGER.warn("Optimized version of L2 is slower than default version!")
+        }
+        isApproximatelyTheSame(sum3, sum1)
+        isApproximatelyTheSame(sum3, sum2)
+    }
+
+    /**
+     * Calculates the L<sub>1</sub> (sum of abs) distance between two points.
+     *
+     * @param p1 the first point
+     * @param p2 the second point
+     * @return the L<sub>1</sub> distance between the two points
+     */
+    fun l1(p1: DoubleArray, p2: DoubleArray): Double {
+        require(p1.size == p2.size) { "Dimension mismatch!" }
+        var sum = 0.0
+        for (i in p1.indices) {
+            sum += abs(p1[i] - p2[i])
+        }
+        return sum
+    }
+
+    /**
+     * Calculates the L<sub>2</sub> (Euclidean) distance between two points.
+     *
+     * @param p1 the first point
+     * @param p2 the second point
+     * @return the L<sub>2</sub> distance between the two points
+     */
+    private fun l2(p1: DoubleArray, p2: DoubleArray): Double {
+        require(p1.size == p2.size) { "Dimension mismatch!" }
+        var sum = 0.0
+        for (i in p1.indices) {
+            val dp = p1[i] - p2[i]
+            sum += dp * dp
+        }
+        return kotlin.math.sqrt(sum)
+    }
+
+    /**
+     * Calculates the L<sub>2</sub> (Euclidean) distance between two points.
+     *
+     * @param p1 the first point
+     * @param p2 the second point
+     * @return the L<sub>2</sub> distance between the two points
+     */
+    private fun l2squared(p1: DoubleArray, p2: DoubleArray): Double {
+        require(p1.size == p2.size) { "Dimension mismatch!" }
+        var sum = 0.0
+        for (i in p1.indices) {
+            val dp = p1[i] - p2[i]
+            sum += dp * dp
+        }
+        return sum
     }
 }

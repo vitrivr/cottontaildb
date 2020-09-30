@@ -3,6 +3,7 @@ package org.vitrivr.cottontail.math.basics
 import org.apache.commons.math3.linear.ArrayRealVector
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.RepeatedTest
+import org.vitrivr.cottontail.math.isApproximatelyTheSame
 import org.vitrivr.cottontail.model.values.BooleanVectorValue
 import org.vitrivr.cottontail.utilities.extensions.toDouble
 import java.util.*
