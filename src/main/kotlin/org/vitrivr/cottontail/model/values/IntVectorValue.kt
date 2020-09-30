@@ -11,7 +11,7 @@ import kotlin.math.pow
  * This is an abstraction over an [IntArray] and it represents a vector of [Int]s.
  *
  * @author Ralph Gasser
- * @version 1.1
+ * @version 1.3
  */
 inline class IntVectorValue(val data: IntArray) : RealVectorValue<Int> {
 
@@ -93,37 +93,69 @@ inline class IntVectorValue(val data: IntArray) : RealVectorValue<Int> {
      */
     override fun copy(): IntVectorValue = IntVectorValue(this.data.copyOf(this.logicalSize))
 
-    override fun plus(other: VectorValue<*>) = IntVectorValue(IntArray(this.logicalSize) {
-        (this[it] + other[it].asInt()).value
-    })
+    override fun plus(other: VectorValue<*>) = when (other) {
+        is IntVectorValue -> IntVectorValue(IntArray(this.data.size) {
+            (this.data[it] + other.data[it])
+        })
+        else -> IntVectorValue(IntArray(this.data.size) {
+            (this.data[it] + other[it].asInt().value)
+        })
+    }
 
-    override fun minus(other: VectorValue<*>) = IntVectorValue(IntArray(this.logicalSize) {
-        (this[it] - other[it].asInt()).value
-    })
+    override fun minus(other: VectorValue<*>) = when (other) {
+        is IntVectorValue -> IntVectorValue(IntArray(this.data.size) {
+            (this.data[it] - other.data[it])
+        })
+        else -> IntVectorValue(IntArray(this.data.size) {
+            (this.data[it] - other[it].asInt().value)
+        })
+    }
 
-    override fun times(other: VectorValue<*>) = IntVectorValue(IntArray(this.logicalSize) {
-        (this[it] * other[it].asInt()).value
-    })
+    override fun times(other: VectorValue<*>) = when (other) {
+        is IntVectorValue -> IntVectorValue(IntArray(this.data.size) {
+            (this.data[it] * other.data[it])
+        })
+        else -> IntVectorValue(IntArray(this.data.size) {
+            (this.data[it] * other[it].asInt().value)
+        })
+    }
 
-    override fun div(other: VectorValue<*>) = IntVectorValue(IntArray(this.logicalSize) {
-        (this[it] / other[it].asInt()).value
-    })
+    override fun div(other: VectorValue<*>) = when (other) {
+        is IntVectorValue -> IntVectorValue(IntArray(this.data.size) {
+            (this.data[it] / other.data[it])
+        })
+        else -> IntVectorValue(IntArray(this.data.size) {
+            (this.data[it] / other[it].asInt().value)
+        })
+    }
 
-    override fun plus(other: NumericValue<*>) = IntVectorValue(IntArray(this.logicalSize) {
-        (this[it] + other.asInt()).value
-    })
+    override fun plus(other: NumericValue<*>): IntVectorValue {
+        val otherAsInt = other.asInt().value
+        return IntVectorValue(IntArray(this.logicalSize) {
+            (this.data[it] + otherAsInt)
+        })
+    }
 
-    override fun minus(other: NumericValue<*>) = IntVectorValue(IntArray(this.logicalSize) {
-        (this[it] - other.asInt()).value
-    })
+    override fun minus(other: NumericValue<*>): IntVectorValue {
+        val otherAsInt = other.asInt().value
+        return IntVectorValue(IntArray(this.logicalSize) {
+            (this.data[it] - otherAsInt)
+        })
+    }
 
-    override fun times(other: NumericValue<*>) = IntVectorValue(IntArray(this.logicalSize) {
-        (this[it] * other.asInt()).value
-    })
+    override fun times(other: NumericValue<*>): IntVectorValue {
+        val otherAsInt = other.asInt().value
+        return IntVectorValue(IntArray(this.logicalSize) {
+            (this.data[it] * otherAsInt)
+        })
+    }
 
-    override fun div(other: NumericValue<*>) = IntVectorValue(IntArray(this.logicalSize) {
-        (this[it] / other.asInt()).value
-    })
+    override fun div(other: NumericValue<*>): IntVectorValue {
+        val otherAsInt = other.asInt().value
+        return IntVectorValue(IntArray(this.logicalSize) {
+            (this.data[it] / otherAsInt)
+        })
+    }
 
     override fun pow(x: Int) = FloatVectorValue(FloatArray(this.data.size) {
         this.data[it].toFloat().pow(x)
@@ -204,5 +236,19 @@ inline class IntVectorValue(val data: IntArray) : RealVectorValue<Int> {
             }
             FloatValue(sum.pow(1.0f / p))
         }
+    }
+
+    override fun hamming(other: VectorValue<*>): IntValue = when (other) {
+        is IntVectorValue -> {
+            var sum = 0
+            val start = Arrays.mismatch(this.data, other.data)
+            for (i in start until other.data.size) {
+                if (this.data[i] != other.data[i]) {
+                    sum += 1
+                }
+            }
+            IntValue(sum)
+        }
+        else -> IntValue(this.data.size)
     }
 }

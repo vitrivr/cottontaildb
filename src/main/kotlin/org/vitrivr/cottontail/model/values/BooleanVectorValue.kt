@@ -11,7 +11,7 @@ import java.util.*
  * This is an abstraction over a [BooleanArray] and it represents a vector of [Boolean]s.
  *
  * @author Ralph Gasser
- * @version 1.1
+ * @version 1.3
  */
 inline class BooleanVectorValue(val data: BooleanArray) : RealVectorValue<Int> {
 
@@ -213,5 +213,19 @@ inline class BooleanVectorValue(val data: BooleanArray) : RealVectorValue<Int> {
             }
             DoubleValue(sum)
         }
+    }
+
+    override fun hamming(other: VectorValue<*>): IntValue = when (other) {
+        is BooleanVectorValue -> {
+            var sum = 0
+            val start = Arrays.mismatch(this.data, other.data)
+            for (i in start until other.data.size) {
+                if (this.data[i] != other.data[i]) {
+                    sum += 1
+                }
+            }
+            IntValue(sum)
+        }
+        else -> super.hamming(other).asInt()
     }
 }

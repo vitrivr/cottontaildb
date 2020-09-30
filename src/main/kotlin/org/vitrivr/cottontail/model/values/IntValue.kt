@@ -8,6 +8,7 @@ inline class IntValue(override val value: Int): RealValue<Int> {
 
     companion object {
         val ZERO = IntValue(0)
+        val ONE = IntValue(1)
     }
 
     /**

@@ -12,7 +12,7 @@ import kotlin.math.pow
  * This is an abstraction over a [FloatArray] and it represents a vector of [Float]s.
  *
  * @author Ralph Gasser
- * @version 1.1
+ * @version 1.3
  */
 inline class FloatVectorValue(val data: FloatArray) : RealVectorValue<Float> {
 
@@ -99,9 +99,6 @@ inline class FloatVectorValue(val data: FloatArray) : RealVectorValue<Float> {
         is FloatVectorValue -> FloatVectorValue(FloatArray(this.data.size) {
             (this.data[it] + other.data[it])
         })
-        is DoubleVectorValue -> FloatVectorValue(FloatArray(this.data.size) {
-            (this.data[it] + other.data[it]).toFloat()
-        })
         else -> FloatVectorValue(FloatArray(this.data.size) {
             (this.data[it] + other[it].asFloat().value)
         })
@@ -112,9 +109,6 @@ inline class FloatVectorValue(val data: FloatArray) : RealVectorValue<Float> {
         is FloatVectorValue -> FloatVectorValue(FloatArray(this.data.size) {
             (this.data[it] - other.data[it])
         })
-        is DoubleVectorValue -> FloatVectorValue(FloatArray(this.data.size) {
-            (this.data[it] - other.data[it]).toFloat()
-        })
         else -> FloatVectorValue(FloatArray(this.data.size) {
             (this.data[it] - other[it].asFloat().value)
         })
@@ -124,9 +118,6 @@ inline class FloatVectorValue(val data: FloatArray) : RealVectorValue<Float> {
         is FloatVectorValue -> FloatVectorValue(FloatArray(this.data.size) {
             (this.data[it] * other.data[it])
         })
-        is DoubleVectorValue -> FloatVectorValue(FloatArray(this.data.size) {
-            (this.data[it] * other.data[it]).toFloat()
-        })
         else -> FloatVectorValue(FloatArray(this.data.size) {
             (this.data[it] * other[it].asFloat().value)
         })
@@ -135,9 +126,6 @@ inline class FloatVectorValue(val data: FloatArray) : RealVectorValue<Float> {
     override fun div(other: VectorValue<*>) = when (other) {
         is FloatVectorValue -> FloatVectorValue(FloatArray(this.data.size) {
             (this.data[it] / other.data[it])
-        })
-        is DoubleVectorValue -> FloatVectorValue(FloatArray(this.data.size) {
-            (this.data[it] / other.data[it]).toFloat()
         })
         else -> FloatVectorValue(FloatArray(this.data.size) {
             (this.data[it] / other[it].asFloat().value)
@@ -195,13 +183,6 @@ inline class FloatVectorValue(val data: FloatArray) : RealVectorValue<Float> {
     }
 
     override fun dot(other: VectorValue<*>): DoubleValue = when (other) {
-        is DoubleVectorValue -> {
-            var sum = 0.0
-            for (i in this.data.indices) {
-                sum += this.data[i] * other.data[i]
-            }
-            DoubleValue(sum)
-        }
         is FloatVectorValue -> {
             var sum = 0.0
             for (i in this.data.indices) {
@@ -219,13 +200,6 @@ inline class FloatVectorValue(val data: FloatArray) : RealVectorValue<Float> {
     }
 
     override fun l1(other: VectorValue<*>): DoubleValue = when (other) {
-        is DoubleVectorValue -> {
-            var sum = 0.0
-            for (i in this.data.indices) {
-                sum += kotlin.math.abs(this.data[i] - other.data[i])
-            }
-            DoubleValue(sum)
-        }
         is FloatVectorValue -> {
             var sum = 0.0
             for (i in this.data.indices) {
@@ -243,13 +217,6 @@ inline class FloatVectorValue(val data: FloatArray) : RealVectorValue<Float> {
     }
 
     override fun l2(other: VectorValue<*>): DoubleValue = when (other) {
-        is DoubleVectorValue -> {
-            var sum = 0.0
-            for (i in this.data.indices) {
-                sum += (this.data[i] - other.data[i]).pow(2)
-            }
-            DoubleValue(kotlin.math.sqrt(sum))
-        }
         is FloatVectorValue -> {
             var sum = 0.0
             for (i in this.data.indices) {
@@ -267,13 +234,6 @@ inline class FloatVectorValue(val data: FloatArray) : RealVectorValue<Float> {
     }
 
     override fun lp(other: VectorValue<*>, p: Int) = when (other) {
-        is DoubleVectorValue -> {
-            var sum = 0.0
-            for (i in this.data.indices) {
-                sum += (this.data[i] - other.data[i]).absoluteValue.pow(p)
-            }
-            DoubleValue(sum.pow(1.0 / p))
-        }
         is FloatVectorValue -> {
             var sum = 0.0
             for (i in this.data.indices) {
@@ -288,5 +248,19 @@ inline class FloatVectorValue(val data: FloatArray) : RealVectorValue<Float> {
             }
             DoubleValue(sum.pow(1.0 / p))
         }
+    }
+
+    override fun hamming(other: VectorValue<*>): FloatValue = when (other) {
+        is FloatVectorValue -> {
+            var sum = 0f
+            val start = Arrays.mismatch(this.data, other.data)
+            for (i in start until other.data.size) {
+                if (this.data[i] != other.data[i]) {
+                    sum += 1.0f
+                }
+            }
+            FloatValue(sum)
+        }
+        else -> FloatValue(this.data.size)
     }
 }

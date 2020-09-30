@@ -11,7 +11,7 @@ import kotlin.math.pow
  * This is an abstraction over a [FloatArray] and it represents a vector of [Float]s.
  *
  * @author Ralph Gasser
- * @version 1.1
+ * @version 1.3
  */
 inline class LongVectorValue(val data: LongArray) : RealVectorValue<Long> {
 
@@ -94,37 +94,69 @@ inline class LongVectorValue(val data: LongArray) : RealVectorValue<Long> {
      */
     override fun copy(): LongVectorValue = LongVectorValue(this.data.copyOf(this.logicalSize))
 
-    override fun plus(other: VectorValue<*>): LongVectorValue = LongVectorValue(LongArray(this.logicalSize) {
-        (this[it] + other[it].asLong()).value
-    })
+    override fun plus(other: VectorValue<*>): LongVectorValue = when (other) {
+        is LongVectorValue -> LongVectorValue(LongArray(this.data.size) {
+            (this.data[it] + other.data[it])
+        })
+        else -> LongVectorValue(LongArray(this.data.size) {
+            (this.data[it] + other[it].asLong().value)
+        })
+    }
 
-    override fun minus(other: VectorValue<*>): LongVectorValue = LongVectorValue(LongArray(this.logicalSize) {
-        (this[it] - other[it].asLong()).value
-    })
+    override fun minus(other: VectorValue<*>): LongVectorValue = when (other) {
+        is LongVectorValue -> LongVectorValue(LongArray(this.data.size) {
+            (this.data[it] - other.data[it])
+        })
+        else -> LongVectorValue(LongArray(this.data.size) {
+            (this.data[it] - other[it].asLong().value)
+        })
+    }
 
-    override fun times(other: VectorValue<*>): LongVectorValue = LongVectorValue(LongArray(this.logicalSize) {
-        (this[it] * other[it].asLong()).value
-    })
+    override fun times(other: VectorValue<*>): LongVectorValue = when (other) {
+        is LongVectorValue -> LongVectorValue(LongArray(this.data.size) {
+            (this.data[it] * other.data[it])
+        })
+        else -> LongVectorValue(LongArray(this.data.size) {
+            (this.data[it] * other[it].asLong().value)
+        })
+    }
 
-    override fun div(other: VectorValue<*>): LongVectorValue = LongVectorValue(LongArray(this.logicalSize) {
-        (this[it] / other[it].asLong()).value
-    })
+    override fun div(other: VectorValue<*>): LongVectorValue = when (other) {
+        is LongVectorValue -> LongVectorValue(LongArray(this.data.size) {
+            (this.data[it] / other.data[it])
+        })
+        else -> LongVectorValue(LongArray(this.data.size) {
+            (this.data[it] / other[it].asLong().value)
+        })
+    }
 
-    override fun plus(other: NumericValue<*>): LongVectorValue = LongVectorValue(LongArray(this.logicalSize) {
-        (this[it] + other.asLong()).value
-    })
+    override fun plus(other: NumericValue<*>): LongVectorValue {
+        val otherAsLong = other.asLong().value
+        return LongVectorValue(LongArray(this.logicalSize) {
+            (this.data[it] + otherAsLong)
+        })
+    }
 
-    override fun minus(other: NumericValue<*>): LongVectorValue = LongVectorValue(LongArray(this.logicalSize) {
-        (this[it] - other.asLong()).value
-    })
+    override fun minus(other: NumericValue<*>): LongVectorValue {
+        val otherAsLong = other.asLong().value
+        return LongVectorValue(LongArray(this.logicalSize) {
+            (this.data[it] - otherAsLong)
+        })
+    }
 
-    override fun times(other: NumericValue<*>): LongVectorValue = LongVectorValue(LongArray(this.logicalSize) {
-        (this[it] * other.asLong()).value
-    })
+    override fun times(other: NumericValue<*>): LongVectorValue {
+        val otherAsLong = other.asLong().value
+        return LongVectorValue(LongArray(this.logicalSize) {
+            (this.data[it] * otherAsLong)
+        })
+    }
 
-    override fun div(other: NumericValue<*>): LongVectorValue = LongVectorValue(LongArray(this.logicalSize) {
-        (this[it] / other.asLong()).value
-    })
+    override fun div(other: NumericValue<*>): LongVectorValue {
+        val otherAsLong = other.asLong().value
+        return LongVectorValue(LongArray(this.logicalSize) {
+            (this.data[it] / otherAsLong)
+        })
+    }
 
     override fun pow(x: Int) = DoubleVectorValue(DoubleArray(this.data.size) {
         this.data[it].toDouble().pow(x)
@@ -205,5 +237,19 @@ inline class LongVectorValue(val data: LongArray) : RealVectorValue<Long> {
             }
             DoubleValue(sum.pow(1.0 / p))
         }
+    }
+
+    override fun hamming(other: VectorValue<*>): LongValue = when (other) {
+        is LongVectorValue -> {
+            var sum = 0L
+            val start = Arrays.mismatch(this.data, other.data)
+            for (i in start until other.data.size) {
+                if (this.data[i] != other.data[i]) {
+                    sum += 1L
+                }
+            }
+            LongValue(sum)
+        }
+        else -> LongValue(this.data.size)
     }
 }
