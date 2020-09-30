@@ -40,7 +40,7 @@ class LongVectorDistanceTest : AbstractDistanceTest() {
 
         collection.forEach {
             time1 += measureTime {
-                sum1 += ManhattanDistance(it, query).value.toFloat()
+                sum1 += ManhattanDistance(it, query).value
             }
             time2 += measureTime {
                 sum2 += (it - query).abs().sum().value
