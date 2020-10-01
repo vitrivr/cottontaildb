@@ -4,7 +4,6 @@ import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.RepeatedTest
 import org.vitrivr.cottontail.model.values.*
 import org.vitrivr.cottontail.model.values.types.Value
-import java.util.*
 
 /**
  * Test case that tests for correctness of [ComparisonOperator]s.
@@ -13,10 +12,6 @@ import java.util.*
  * @version 1.0
  */
 class NumericValueComparisonOperatorTest {
-
-    /** The random number generator for this [NumericValueComparisonOperatorTest]. */
-    private val random = SplittableRandom()
-
     /**
      * Checks correctness of the [ComparisonOperator.ISNULL] operator.
      */
