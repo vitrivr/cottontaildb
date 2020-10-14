@@ -77,6 +77,28 @@ We kindly ask you to refer to the following paper in publications mentioning or 
 
 Ralph Gasser, Luca Rossetto, Silvan Heller, Heiko Schuldt. _Cottontail DB: An Open Source Database System for Multimedia Retrieval and Analysis._ In Proceedings of 28th ACM International Conference on Multimedia (ACM MM 2020), Seattle, USA, 2020
 
+**Link:** https://doi.org/10.1145/3394171.3414538
+
+**Bibtex:**
+
+```
+@inproceedings{10.1145/3394171.3414538,
+    author = {Gasser, Ralph and Rossetto, Luca and Heller, Silvan and Schuldt, Heiko},
+    title = {Cottontail DB: An Open Source Database System for Multimedia Retrieval and Analysis},
+    year = {2020},
+    isbn = {9781450379885},
+    publisher = {Association for Computing Machinery},
+    address = {New York, NY, USA},
+    doi = {10.1145/3394171.3414538},
+    booktitle = {Proceedings of the 28th ACM International Conference on Multimedia},
+    pages = {4465–4468},
+    numpages = {4},
+    keywords = {open source, multimedia retrieval, database, multimedia indexing, data management system},
+    location = {Seattle, WA, USA},
+    series = {MM '20}
+}
+```
+
 ## Credits
 Cottontail DB is based on the ideas presented in the following papers:
 
