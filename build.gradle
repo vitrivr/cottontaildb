@@ -71,11 +71,19 @@ publishing {
     }
     repositories {
         maven {
-            name = "GitHubPackages"
+            name = "GitHub Packages"
             url = "https://maven.pkg.github.com/vitrivr/cottontaildb"
             credentials {
                 username = System.getenv("GITHUB_ACTOR")
                 password = System.getenv("GITHUB_TOKEN")
+            }
+        }
+        maven {
+            name = "DBIS Nexus"
+            url = "https://dbis-nexus.dmi.unibas.ch/repository/maven-snapshots/"
+            credentials {
+                username = System.getenv("DBIS_NEXUS_USERNAME")
+                password = System.getenv("DBIS_NEXUS_PASSWORD")
             }
         }
     }
