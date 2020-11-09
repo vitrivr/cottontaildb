@@ -242,7 +242,7 @@ class CottontailCommand(private val host: String, private val port: Int) : NoOpC
     inner class OptimizeEntityCommand : AbstractEntityCommand(name = "optimize", help = "Optimizes the specified entity, e.g. rebuilds the indices") {
         override fun exec() {
             println("Optimizing entity $schema.$entity")
-            this@CottontailCommand.ddlService.optimizeEntity(CottontailGrpc.Entity.newBuilder().setName(entity).setSchema(CottontailGrpc.Schema.newBuilder().setName(schema)).build())
+            this@CottontailCommand.ddlService.optimize(CottontailGrpc.Entity.newBuilder().setName(entity).setSchema(CottontailGrpc.Schema.newBuilder().setName(schema)).build())
             println("Optimization complete!")
         }
     }

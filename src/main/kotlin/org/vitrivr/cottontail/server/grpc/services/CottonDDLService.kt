@@ -6,11 +6,16 @@ import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.database.catalogue.Catalogue
 import org.vitrivr.cottontail.database.column.ColumnType
 import org.vitrivr.cottontail.database.index.IndexType
+import org.vitrivr.cottontail.execution.exceptions.ExecutionException
 import org.vitrivr.cottontail.grpc.CottonDDLGrpc
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
+import org.vitrivr.cottontail.model.exceptions.QueryException
+import org.vitrivr.cottontail.server.grpc.helper.ResultsSpoolerOperator
 import org.vitrivr.cottontail.server.grpc.helper.fqn
+import kotlin.time.measureTime
+import kotlin.time.measureTimedValue
 
 /**
  * This is a gRPC service endpoint that handles DDL (=Data Definition Language) request for Cottontail DB.
@@ -314,7 +319,7 @@ class CottonDDLService(val catalogue: Catalogue) : CottonDDLGrpc.CottonDDLImplBa
     /**
      * gRPC endpoint for optimizing a particular entity. Currently just rebuilds all the indexes.
      */
-    override fun optimizeEntity(request: CottontailGrpc.Entity, responseObserver: StreamObserver<CottontailGrpc.Status>) = try {
+    override fun optimize(request: CottontailGrpc.Entity, responseObserver: StreamObserver<CottontailGrpc.Status>) = try {
         val entityName = request.fqn()
 
         /* Update indexes. */
@@ -335,5 +340,36 @@ class CottonDDLService(val catalogue: Catalogue) : CottonDDLGrpc.CottonDDLImplBa
     } catch (e: Throwable) {
         LOGGER.error("Error while optimizing entity '${request.fqn()}'", e)
         responseObserver.onError(Status.UNKNOWN.withDescription("Failed to optimize entity '${request.fqn()}' because of an unknown error: ${e.message}").asException())
+    }
+
+    /**
+     * gRPC endpoint for handling TRUNCATE queries.
+     */
+    override fun truncate(request: CottontailGrpc.Entity, responseObserver: StreamObserver<CottontailGrpc.Status>) = try {
+        val entityName = request.fqn()
+        LOGGER.trace("Truncating entity {}...", entityName)
+
+        /* Drop and re-create entity. */
+        val schema = this.catalogue.schemaForName(entityName.schema())
+        val columns = schema.entityForName(entityName).allColumns().toTypedArray()
+        schema.dropEntity(entityName)
+        schema.createEntity(entityName, *columns)
+
+        responseObserver.onNext(CottontailGrpc.Status.newBuilder().setSuccess(true).setTimestamp(System.currentTimeMillis()).build())
+        responseObserver.onCompleted()
+
+        LOGGER.trace("Truncating $entityName successfull!", request)
+    } catch (e: DatabaseException.SchemaDoesNotExistException) {
+        LOGGER.error("Error while truncating entity '${request.fqn()}'", e)
+        responseObserver.onError(Status.NOT_FOUND.withDescription("Schema '${request.schema.fqn()}' does not exist!").asException())
+    } catch (e: DatabaseException.EntityDoesNotExistException) {
+        LOGGER.error("Error while truncating entity '${request.fqn()}'", e)
+        responseObserver.onError(Status.NOT_FOUND.withDescription("Entity '${request.fqn()}' does not exist!").asException())
+    } catch (e: DatabaseException) {
+        LOGGER.error("Error while truncating entity '${request.fqn()}'", e)
+        responseObserver.onError(Status.UNKNOWN.withDescription("Failed to drop entity '${request.fqn()}' because of database error: ${e.message}").asException())
+    } catch (e: Throwable) {
+        LOGGER.error("Error while truncating entity '${request.fqn()}'", e)
+        responseObserver.onError(Status.UNKNOWN.withDescription("Failed to drop entity '${request.fqn()}' because of unknown error: ${e.message}").asException())
     }
 }
