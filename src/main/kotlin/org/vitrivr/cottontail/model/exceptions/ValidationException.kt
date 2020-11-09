@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.model.exceptions
 
-import org.vitrivr.cottontail.utilities.name.Name
+import org.vitrivr.cottontail.model.basics.Name
 
 
 /**

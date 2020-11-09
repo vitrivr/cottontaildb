@@ -2,7 +2,6 @@ package org.vitrivr.cottontail.database.index
 
 import org.vitrivr.cottontail.database.column.Column
 import org.vitrivr.cottontail.database.entity.Entity
-import org.vitrivr.cottontail.database.events.DataChangeEvent
 import org.vitrivr.cottontail.database.general.DBO
 import org.vitrivr.cottontail.database.general.Transaction
 import org.vitrivr.cottontail.database.general.TransactionStatus
@@ -10,27 +9,23 @@ import org.vitrivr.cottontail.database.queries.components.Predicate
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.schema.Schema
 import org.vitrivr.cottontail.model.basics.ColumnDef
-import org.vitrivr.cottontail.model.basics.Record
+import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.exceptions.TransactionException
-import org.vitrivr.cottontail.model.exceptions.ValidationException
-import org.vitrivr.cottontail.model.recordset.Recordset
-import org.vitrivr.cottontail.utilities.name.Name
+import org.vitrivr.cottontail.utilities.extensions.read
+import org.vitrivr.cottontail.utilities.extensions.write
 import java.util.*
 import java.util.concurrent.locks.StampedLock
 
 /**
- * Represents an index in the Cottontail DB data model. An [Index] belongs to an [Entity] and can be used to index one to many
- * [Column]s. Usually, [Index]es allow for faster data access. They process [Predicate]s and return [Recordset]s.
- *
- * Calling the default constructor for an [Index] should open that [Index]. In order to initialize or rebuild it, a call to
- * [Index.update] us necessary. For concurrency reason, that call can only be issued through an [IndexTransaction].
+ * Represents an [Index] structure in the Cottontail DB data model. An [Index] belongs to an [Entity]
+ * and can be used to index one to many [Column]s. Usually, [Index]es allow for faster data access.
  *
  * @see Schema
  * @see Column
  * @see Entity.Tx
  *
  * @author Ralph Gasser
- * @version 1.4
+ * @version 1.6
  */
 abstract class Index : DBO {
 
@@ -40,20 +35,27 @@ abstract class Index : DBO {
     /** An internal lock that is used to synchronize concurrent read & write access to this [Index] by different [Index.Tx]. */
     protected val txLock = StampedLock()
 
-    /** Reference to the [Entity], this index belongs to. */
+    /** The [Name.IndexName] of this [Index]. */
+    abstract override val name: Name.IndexName
+
+    /** Reference to the [Entity], this [Index] belongs to. */
     abstract override val parent: Entity
 
     /** The [ColumnDef] that are covered (i.e. indexed) by this [Index]. */
     abstract val columns: Array<ColumnDef<*>>
 
     /**
-     * The [ColumnDef] that are produces by this [Index]. They may differ from the indexed columns, since some [Index] implementations
-     * only return a tuple ID OR because some implementations may add some kind of score.
+     * The [ColumnDef] that are produced by this [Index]. They may differ from the indexed columns,
+     * since some [Index] implementations only return a tuple ID OR because some implementations may
+     * add some kind of score.
      */
     abstract val produces: Array<ColumnDef<*>>
 
     /** The type of [Index]. */
     abstract val type: IndexType
+
+    /** True, if the [Index] supports incremental updates, and false otherwise. */
+    abstract val supportsIncrementalUpdate: Boolean
 
     /**
      * Checks if this [Index] can process the provided [Predicate] and returns true if so and false otherwise.
@@ -80,154 +82,51 @@ abstract class Index : DBO {
     }
 
     /**
-     * Returns true, if the [Index] supports incremental updates, and false otherwise.
+     * Opens and returns a new [IndexTransaction] object that can be used to interact with this [Index].
      *
-     * @return True if incremental [Index] updates are supported.
+     * @param parent If the [Entity.Tx] that requested the [IndexTransaction].
      */
-    @Throws(ValidationException.IndexUpdateException::class)
-    protected abstract fun supportsIncrementalUpdate(): Boolean
-
-    /**
-     * (Re-)builds the [Index]. Invoking this method should rebuild the [Index] immediately, without the
-     * need to commit (i.e. commit actions must take place inside).
-     *
-     * This is an internal method! External invocation is only possible through a [Index.Tx] object.
-     *
-     * @param tx Reference to the [Entity.Tx] the call to this method belongs to.
-     */
-    @Throws(ValidationException.IndexUpdateException::class)
-    protected abstract fun rebuild(tx: Entity.Tx)
-
-    /**
-     * Updates the [Index] with the provided [DataChangeEvent]s. The updates take effect immediately, without the need to
-     * commit (i.e. commit actions must take place inside).
-     *
-     * Not all [Index] implementations support incremental updates. Should be indicated by [IndexTransaction#supportsIncrementalUpdate()]
-     *
-     * @param update [Record]s to update this [Index] with wrapped in the corresponding [DataChangeEvent].
-     * @param tx Reference to the [Entity.Tx] the call to this method belongs to.
-     * @throws [ValidationException.IndexUpdateException] If update of [Index] fails for some reason.
-     */
-    @Throws(ValidationException.IndexUpdateException::class)
-    protected abstract fun update(update: Collection<DataChangeEvent>, tx: Entity.Tx)
-
-    /**
-     * Performs a lookup through this [Index] and returns [Recordset]. This is an internal method! External
-     * invocation is only possible through a [Index.Tx] object.
-     *
-     * This is the minimal method any [Index] implementation must support.
-     *
-     * @param predicate The [Predicate] to perform the lookup.
-     * @param tx Reference to the [Entity.Tx] the call to this method belongs to.
-     * @return The resulting [Recordset].
-     *
-     * @throws QueryException.UnsupportedPredicateException If predicate is not supported by [Index].
-     */
-    protected abstract fun filter(predicate: Predicate, tx: Entity.Tx): Recordset
-
-    /**
-     * Applies the given action to all the [Index] entries that match the given [Predicate]. This is an internal method!
-     * External invocation is only possible through a [Index.Tx] object.
-     *
-     * The default implementation simply performs a lookup and applies the action in memory. More efficient implementations
-     * are possible in many cases.
-     *
-     * @param predicate The [Predicate] to perform the lookup.
-     * @param tx Reference to the [Entity.Tx] the call to this method belongs to.
-     * @param action The action that should be applied.
-     *
-     * @throws QueryException.UnsupportedPredicateException If predicate is not supported by [Index].
-     */
-    protected open fun forEach(predicate: Predicate, tx: Entity.Tx, action: (Record) -> Unit) = this.filter(predicate, tx).forEach(action)
-
-    /**
-     * Applies the given action to all the [Index] entries that match the given [Predicate] and are located in the given range.
-     * This is an internal method! External invocation is only possible through a [Index.Tx] object.
-     *
-     * The default implementation simply performs a lookup using the predicate and applies the action in memory. More efficient
-     * implementations are possible in many cases.
-     *
-     * @param from The tuple ID to scan from.
-     * @param to The tuple ID to scan to.
-     * @param predicate The [Predicate] to perform the lookup.
-     * @param tx Reference to the [Entity.Tx] the call to this method belongs to.
-     * @param action The action that should be applied.
-     *
-     * @throws QueryException.UnsupportedPredicateException If predicate is not supported by [Index].
-     */
-    protected open fun forEach(from: Long, to: Long, predicate: Predicate, tx: Entity.Tx, action: (Record) -> Unit) = this.filter(predicate, tx).forEach(from, to, action)
-
-    /**
-     * Applies the given mapping function to all the [Index] entries that match the given [Predicate]. This is an internal
-     * method! External invocation is only possible through a [Index.Tx] object.
-     *
-     * The default implementation simply performs a lookup and applies the mapping function in memory.
-     * More efficient implementations are possible in many cases.
-     *
-     * @param predicate The [Predicate] to perform the lookup.
-     * @param tx Reference to the [Entity.Tx] the call to this method belongs to.
-     * @param action The action that should be applied.
-     *
-     * @throws QueryException.UnsupportedPredicateException If predicate is not supported by [Index].
-     */
-    protected open fun <R> map(predicate: Predicate, tx: Entity.Tx, action: (Record) -> R): Collection<R> = this.filter(predicate, tx).map(action)
-
-    /**
-     * Applies the given mapping function to all the [Index] entries that match the given [Predicate] and are located in the given range.
-     * This is an internal method! External invocation is only possible through a [Index.Tx] object.
-     *
-     * The default implementation simply performs a lookup and applies the mapping function in memory.
-     * More efficient implementations are possible in many cases.
-     *
-     * @param from The tuple ID to scan from.
-     * @param to The tuple ID to scan to.
-     * @param predicate The [Predicate] to perform the lookup.
-     * @param tx Reference to the [Entity.Tx] the call to this method belongs to.
-     * @param action The action that should be applied.
-     *
-     * @throws QueryException.UnsupportedPredicateException If predicate is not supported by [Index].
-     */
-    protected open fun <R> map(from: Long, to: Long, predicate: Predicate, tx: Entity.Tx, action: (Record) -> R): Collection<R> = this.filter(predicate, tx).map(from, to, action)
+    abstract fun begin(parent: Entity.Tx): IndexTransaction
 
     /**
      * A [Transaction] that affects this [Index].
      */
-    inner class Tx constructor(override val readonly: Boolean, val parent: Entity.Tx) : IndexTransaction {
+    protected abstract inner class Tx constructor(val parent: Entity.Tx) : IndexTransaction {
 
-        /** Flag indicating whether or not this [Entity.Tx] was closed */
+        /** Flag indicating whether or not this [IndexTransaction] was closed */
         @Volatile
-        override var status: TransactionStatus = TransactionStatus.CLEAN
-            private set
+        final override var status: TransactionStatus = TransactionStatus.CLEAN
+            protected set
 
-        /** Tries to acquire a global read-lock on the [MapDBColumn]. */
+        /** Flag indicating whether this [IndexTransaction] is readonly. */
+        final override val readonly: Boolean = parent.readonly
+
         init {
             if (this@Index.closed) {
-                throw TransactionException.TransactionDBOClosedException(tid)
+                throw TransactionException.TransactionDBOClosedException(this.tid)
             }
         }
 
-
         /** The transaction ID of this [Index.Tx] is inherited by the parent [Entity.Tx]. */
-        override val tid: UUID
+        final override val tid: UUID
             get() = this.parent.tid
 
         /** Obtains a global (non-exclusive) read-lock on [Index]. Prevents enclosing [Index] from being closed while this [Index.Tx] is still in use. */
-        private val globalStamp = this@Index.globalLock.readLock()
+        protected val globalStamp = this@Index.globalLock.readLock()
 
         /** Obtains tx lock on [Index]. Prevents concurrent read & write access to the enclosing [Index]. */
-        private val txStamp = if (this.readonly) {
+        protected val txStamp = if (this.readonly) {
             this@Index.txLock.readLock()
         } else {
             this@Index.txLock.writeLock()
         }
 
+        /** A local [StampedLock] that mediates access to this [Tx] and it being closed. */
+        protected val localLock = StampedLock()
+
         /** The simple [Name]s of the [Index] that underpins this [IndexTransaction] */
         override val name: Name
             get() = this@Index.name
-
-        /** The fqn [Name]s of the [Index] that underpins this [IndexTransaction] */
-        override val fqn: Name
-            get() = this@Index.fqn
 
         /** The [ColumnDef]s covered by the [Index] that underpins this [IndexTransaction]. */
         override val columns: Array<ColumnDef<*>>
@@ -237,10 +136,13 @@ abstract class Index : DBO {
         override val produces: Array<ColumnDef<*>>
             get() = this@Index.produces
 
-        /** he [IndexType] of the [Index] that underpins this [IndexTransaction]. */
+        /** The [IndexType] of the [Index] that underpins this [IndexTransaction]. */
         override val type: IndexType
             get() = this@Index.type
 
+        /** Returns true, if the [Index] underpinning this [IndexTransaction] supports incremental updates, and false otherwise. */
+        override val supportsIncrementalUpdate: Boolean
+            get() = this@Index.supportsIncrementalUpdate
 
         /**
          * Checks if this [IndexTransaction] can process the provided [Predicate].
@@ -251,99 +153,55 @@ abstract class Index : DBO {
         override fun canProcess(predicate: Predicate): Boolean = this@Index.canProcess(predicate)
 
         /**
-         * (Re-)builds the underlying [Index].
+         * Commits all changes to the [Index] made through this [Index.Tx]
          */
-        override fun rebuild() {
-            this.checkValidForWrite()
-            this@Index.rebuild(this.parent)
+        final override fun commit() = this.localLock.read {
+            if (this.status == TransactionStatus.DIRTY) {
+                this.performCommit()
+                this.status = TransactionStatus.CLEAN
+            }
         }
 
         /**
-         * Returns true, if the [Index] underpinning this [IndexTransaction] supports incremental updates, and false otherwise.
+         * Performs the actual COMMIT operation. It is up to the implementing class to obtain locks on necessary
+         * data structures and cleanup the transaction.
          *
-         * @return True if incremental [Index] updates are supported.
+         * Implementers of this method may safely assume that upon reaching this method, all necessary locks on
+         * Cottontail DB's data structures have been obtained to safely perform the COMMIT operation on the [Index].
+         * Furthermore, this operation will only be called if the [status] is equal to [TransactionStatus.DIRTY]
          */
-        override fun supportsIncrementalUpdate(): Boolean = this@Index.supportsIncrementalUpdate()
+        protected abstract fun performCommit()
 
         /**
-         * Updates the [Index] underlying this [IndexTransaction] with the provided [DataChangeEvent].
-         *
-         * Not all [Index] implementations support incremental updates. Should be indicated by [IndexTransaction#supportsIncrementalUpdate()]
-         *
-         * @param update Collection of [Record]s to update wrapped in the corresponding [DataChangeEvent]s.
-         * @throws [ValidationException.IndexUpdateException] If rebuild of [Index] fails for some reason.
+         * Makes a rollback on all changes to the [Index] made through this [Index.Tx]
          */
-        override fun update(update: Collection<DataChangeEvent>) {
-            this.checkValidForWrite()
-            this@Index.update(update, this.parent)
+        final override fun rollback() = this.localLock.read {
+            if (this.status == TransactionStatus.DIRTY || this.status == TransactionStatus.ERROR) {
+                this.performRollback()
+                this.status = TransactionStatus.CLEAN
+            }
         }
 
         /**
-         * Performs a lookup through the underlying [Index] and returns a [Recordset].
+         * Performs the actual ROLLBACK operation. It is up to the implementing class to obtain locks on necessary
+         * data structures and cleanup the transaction.
          *
-         * @param predicate The [Predicate] to perform the lookup.
-         * @return The resulting [Recordset].
-         *
-         * @throws QueryException.UnsupportedPredicateException If predicate is not supported by [Index].
+         * Implementers of this method may safely assume that upon reaching this method, all necessary locks on
+         * Cottontail DB's data structures have been obtained to safely perform the ROLLBACK operation on the [Index].
+         * Furthermore, this operation will only be called if the [status] is equal to [TransactionStatus.DIRTY] or
+         * [TransactionStatus.ERROR]
          */
-        override fun filter(predicate: Predicate): Recordset = this@Index.filter(predicate, this.parent)
+        protected abstract fun performRollback()
 
         /**
-         * Applies the given action to all the [Index] entries that match the given [Predicate].
-         *
-         * @param predicate The [Predicate] to perform the lookup.
-         * @param action The action that should be applied.
-         *
-         * @throws QueryException.UnsupportedPredicateException If predicate is not supported by [Index].
+         * Closes this [Index.Tx] and releases the global lock. If there are uncommitted changes, these changes
+         * will be rolled back. Closed [Index.Tx] cannot be used anymore!
          */
-        override fun forEach(predicate: Predicate, action: (Record) -> Unit) = this@Index.forEach(predicate, this.parent, action)
-
-        /**
-         * Applies the given action to all the [Index] entries that match the given [Predicate] and are within the given range.
-         *
-         * @param from The tuple ID to scan from.
-         * @param to The tuple ID to scan to.
-         * @param predicate The [Predicate] to perform the lookup.
-         * @param action The action that should be applied.
-         *
-         * @throws QueryException.UnsupportedPredicateException If predicate is not supported by [Index].
-         */
-        override fun forEach(from: Long, to: Long, predicate: Predicate, action: (Record) -> Unit) = this@Index.forEach(from, to, predicate, this.parent, action)
-
-        /**
-         * Applies the given mapping function to all the [Index] entries that match the given [Predicate].
-         *
-         * @param predicate The [Predicate] to perform the lookup.
-         * @param action The action that should be applied.
-         *
-         * @throws QueryException.UnsupportedPredicateException If predicate is not supported by [Index].
-         */
-        override fun <R> map(predicate: Predicate, action: (Record) -> R): Collection<R> = this@Index.map(predicate, this.parent, action)
-
-        /**
-         * Applies the given mapping function to all the [Index] entries that match the given [Predicate] and are within the given range.
-         *
-         * @param from The tuple ID to scan from.
-         * @param to The tuple ID to scan to.
-         * @param predicate The [Predicate] to perform the lookup.
-         * @param action The action that should be applied.
-         *
-         * @throws QueryException.UnsupportedPredicateException If predicate is not supported by [Index].
-         */
-        override fun <R> map(from: Long, to: Long, predicate: Predicate, action: (Record) -> R): Collection<R> = this@Index.map(from, to, predicate, this.parent, action)
-
-        /** Has no effect since updating an [Index] takes immediate effect. */
-        override fun commit() {}
-
-        /** Has no effect since updating an [Index] takes immediate effect. */
-        override fun rollback() {}
-
-        /**
-         * Closes this [Index.Tx] and releases the global lock. Closed [Entity.Tx] cannot be used anymore!
-         */
-        @Synchronized
-        override fun close() {
+        final override fun close() = this.localLock.write {
             if (this.status != TransactionStatus.CLOSED) {
+                if (this.status == TransactionStatus.DIRTY || this.status == TransactionStatus.ERROR) {
+                    this.performRollback()
+                }
                 this.status = TransactionStatus.CLOSED
                 this@Index.txLock.unlock(this.txStamp)
                 this@Index.globalLock.unlockRead(this.globalStamp)
@@ -351,11 +209,31 @@ abstract class Index : DBO {
         }
 
         /**
-         * Checks if this [Index.Tx] is in a valid state for write operations to happen.
+         * Cleans all local resources obtained by this [Index] implementation. Called as part of and prior to finalizing
+         * the [close] operation
+         *
+         * Implementers of this method may safely assume that upon reaching this method, all necessary locks on
+         * Cottontail DB's data structures have been obtained to safely perform the CLOSE operation on the [Index].
          */
-        @Synchronized
-        private fun checkValidForWrite() {
+        protected abstract fun cleanup()
+
+        /**
+         * Checks if this [Index.Tx] is in a valid state for write operations to happen and sets its
+         * [status] to [TransactionStatus.DIRTY]
+         */
+        protected fun checkValidForWrite() {
             if (this.readonly) throw TransactionException.TransactionReadOnlyException(tid)
+            if (this.status == TransactionStatus.CLOSED) throw TransactionException.TransactionClosedException(tid)
+            if (this.status == TransactionStatus.ERROR) throw TransactionException.TransactionInErrorException(tid)
+            if (this.status != TransactionStatus.DIRTY) {
+                this.status = TransactionStatus.DIRTY
+            }
+        }
+
+        /**
+         * Checks if this [Index.Tx] is in a valid state for read operations to happen.
+         */
+        protected fun checkValidForRead() {
             if (this.status == TransactionStatus.CLOSED) throw TransactionException.TransactionClosedException(tid)
             if (this.status == TransactionStatus.ERROR) throw TransactionException.TransactionInErrorException(tid)
         }

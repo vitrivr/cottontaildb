@@ -3,26 +3,18 @@ package org.vitrivr.cottontail.database.index
 import org.vitrivr.cottontail.database.events.DataChangeEvent
 import org.vitrivr.cottontail.database.general.Transaction
 import org.vitrivr.cottontail.database.queries.components.Predicate
-
-import org.vitrivr.cottontail.model.basics.ColumnDef
-import org.vitrivr.cottontail.model.basics.Filterable
-import org.vitrivr.cottontail.model.basics.Record
+import org.vitrivr.cottontail.model.basics.*
 import org.vitrivr.cottontail.model.exceptions.ValidationException
-import org.vitrivr.cottontail.model.recordset.Recordset
-import org.vitrivr.cottontail.utilities.name.Name
 
 /**
  * A [Transaction] that operates on a single [Index]. [Transaction]s are a unit of isolation for data operations (read/write).
  *
  * @author Ralph Gasser
- * @version 1.2
+ * @version 1.4
  */
 interface IndexTransaction : Transaction, Filterable {
     /** The simple [Name]s of the [Index] that underpins this [IndexTransaction] */
     val name: Name
-
-    /** The fqn [Name]s of the [Index] that underpins this [IndexTransaction] */
-    val fqn: Name
 
     /** The [ColumnDef]s covered by the [Index] that underpins this [IndexTransaction]. */
     val columns: Array<ColumnDef<*>>
@@ -33,12 +25,8 @@ interface IndexTransaction : Transaction, Filterable {
     /** The [IndexType] of the [Index] that underpins this [IndexTransaction]. */
     val type: IndexType
 
-    /**
-     * Returns true, if the [Index] underpinning this [IndexTransaction] supports incremental updates, and false otherwise.
-     *
-     * @return True if incremental [Index] updates are supported.
-     */
-    fun supportsIncrementalUpdate(): Boolean
+    /** True, if the [Index] underpinning this [IndexTransaction] supports incremental updates, and false otherwise. */
+    val supportsIncrementalUpdate: Boolean
 
     /**
      * (Re-)builds the underlying [Index] completely.
@@ -60,10 +48,11 @@ interface IndexTransaction : Transaction, Filterable {
     fun update(update: Collection<DataChangeEvent>)
 
     /**
-     * Performs a lookup through this [IndexTransaction] and returns a [Recordset].
+     * Performs a lookup through this [IndexTransaction] and returns a [CloseableIterator] of
+     * all the [Record]s that match the [Predicate].
      *
      * @param predicate The [Predicate] to perform the lookup.
-     * @return The resulting [Recordset].
+     * @return The resulting [CloseableIterator].
      */
-    override fun filter(predicate: Predicate): Recordset
+    override fun filter(predicate: Predicate): CloseableIterator<Record>
 }

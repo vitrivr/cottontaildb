@@ -9,14 +9,14 @@ import org.vitrivr.cottontail.TestConstants
 import org.vitrivr.cottontail.database.catalogue.Catalogue
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.model.basics.ColumnDef
-import org.vitrivr.cottontail.utilities.name.Name
+import org.vitrivr.cottontail.model.basics.Name
 import java.nio.file.Files
 import java.util.*
 import java.util.stream.Collectors
 
 class SchemaTest {
 
-    private val schemaName = Name("schema-test")
+    private val schemaName = Name.SchemaName("schema-test")
 
     /** */
     private var catalogue: Catalogue = Catalogue(TestConstants.config)
@@ -43,13 +43,13 @@ class SchemaTest {
     @Test
     fun EntityCreateTest() {
         /* Create a few entities. */
-        val entityNames = arrayOf(Name("test1"), Name("test2"), Name("test3"))
+        val entityNames = arrayOf("one", "two", "three")
         for (name in entityNames) {
-            schema?.createEntity(name, ColumnDef.withAttributes(Name("id"), "STRING"))
-            assertTrue(Files.isReadable(TestConstants.config.root.resolve("schema_${schemaName}").resolve("entity_$name")))
-            assertTrue(Files.isDirectory(TestConstants.config.root.resolve("schema_${schemaName}").resolve("entity_$name")))
-            assertTrue(Files.isReadable(TestConstants.config.root.resolve("schema_${schemaName}").resolve("entity_$name").resolve("col_id.db")))
-            assertTrue(Files.isReadable(TestConstants.config.root.resolve("schema_${schemaName}").resolve("entity_$name").resolve(Entity.FILE_CATALOGUE)))
+            schema?.createEntity(Name.EntityName("test", name), ColumnDef.withAttributes(Name.ColumnName("id"), "STRING"))
+            assertTrue(Files.isReadable(TestConstants.config.root.resolve("schema_schema-test").resolve("entity_$name")))
+            assertTrue(Files.isDirectory(TestConstants.config.root.resolve("schema_schema-test").resolve("entity_$name")))
+            assertTrue(Files.isReadable(TestConstants.config.root.resolve("schema_schema-test").resolve("entity_$name").resolve("col_id.db")))
+            assertTrue(Files.isReadable(TestConstants.config.root.resolve("schema_schema-test").resolve("entity_$name").resolve(Entity.FILE_CATALOGUE)))
         }
 
         /* Check size of the schema. */
@@ -57,7 +57,7 @@ class SchemaTest {
 
         /* Check stored entity names. */
         entityNames.zip(schema!!.entities) { a, b ->
-            assertEquals(a, b)
+            assertEquals(a, b.simple)
         }
     }
 }

@@ -3,12 +3,37 @@ package org.vitrivr.cottontail.model.values
 import org.vitrivr.cottontail.model.values.types.NumericValue
 import org.vitrivr.cottontail.model.values.types.RealValue
 import org.vitrivr.cottontail.model.values.types.Value
+import org.vitrivr.cottontail.utilities.extensions.nextByte
+import java.util.*
 
+/**
+ * This is an abstraction over a [Byte].
+ *
+ * @author Ralph Gasser
+ * @version 1.3.1
+ */
 inline class ByteValue(override val value: Byte): RealValue<Byte> {
 
     companion object {
         val ZERO = ByteValue(0.toByte())
+        val ONE = ByteValue(1.toByte())
+
+        /**
+         * Generates a random [ByteValue].
+         *
+         * @param rnd A [SplittableRandom] to generate the random numbers.
+         * @return Random [ByteValue]
+         */
+        fun random(rnd: SplittableRandom = Value.RANDOM) = ByteValue(rnd.nextByte())
     }
+
+    /**
+     * Constructor for an arbitrary [Number].
+     *
+     * @param number The [Number] that should be converted to a [ShortValue]
+     */
+    constructor(number: Number) : this(number.toByte())
+
 
     override val logicalSize: Int
         get() = -1

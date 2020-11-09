@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.database.queries.components
 
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
-import org.vitrivr.cottontail.database.queries.planning.cost.Costs
+import org.vitrivr.cottontail.database.queries.predicates.KnnPredicateHint
 import org.vitrivr.cottontail.math.knn.metrics.DistanceKernel
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Record
@@ -71,7 +71,7 @@ data class AtomicBooleanPredicate<T : Value>(private val column: ColumnDef<T>, v
     }
 
     /** The number of operations required by this [AtomicBooleanPredicate]. */
-    override val cost: Float = 3 * Costs.MEMORY_ACCESS_READ
+    override val cost: Float = 3 * Cost.COST_MEMORY_ACCESS_READ
 
     /** Set of [ColumnDef] that are affected by this [AtomicBooleanPredicate]. */
     override val columns: Set<ColumnDef<T>> = setOf(this.column)
@@ -87,14 +87,11 @@ data class AtomicBooleanPredicate<T : Value>(private val column: ColumnDef<T>, v
      * @return true if [Record] matches this [AtomicBooleanPredicate], false otherwise.
      */
     override fun matches(record: Record): Boolean {
-        if (record.has(column)) {
-            return if (not) {
-                !operator.match(record[column], values)
-            } else {
-                operator.match(record[column], values)
-            }
+        require(record.has(this.column)) { "AtomicBooleanPredicate cannot be applied to record because it does not contain the expected column ${this.column}." }
+        return if (this.not) {
+            !this.operator.match(record[this.column], this.values)
         } else {
-            throw QueryException.ColumnDoesNotExistException(column)
+            this.operator.match(record[this.column], this.values)
         }
     }
 }
@@ -136,7 +133,7 @@ data class CompoundBooleanPredicate(val connector: ConnectionOperator, val p1: B
  * @author Ralph Gasser
  * @version 1.0
  */
-data class KnnPredicate<T: VectorValue<*>>(val column: ColumnDef<T>, val k: Int, val inexact: Boolean, val query: List<T>, val distance: DistanceKernel, val weights: List<VectorValue<*>>? = null) : Predicate() {
+data class KnnPredicate<T : VectorValue<*>>(val column: ColumnDef<T>, val k: Int, val query: List<T>, val distance: DistanceKernel, val weights: List<VectorValue<*>>? = null, val hint: KnnPredicateHint? = null) : Predicate() {
     init {
         /* Some basic sanity checks. */
         if (k <= 0) throw QueryException.QuerySyntaxException("The value of k for a kNN query cannot be smaller than one (is $k)s!")
@@ -154,8 +151,7 @@ data class KnnPredicate<T: VectorValue<*>>(val column: ColumnDef<T>, val k: Int,
     override val columns: Set<ColumnDef<*>> = setOf(column)
 
     /** Cost required for applying this [KnnPredicate] to a single record. */
-    override val cost: Float = Costs.MEMORY_ACCESS_READ * this.distance.cost * (this.query.size + (this.weights?.size
-            ?: 0))
+    override val cost: Float = this.distance.cost * (this.query.size + (this.weights?.size ?: 0))
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -167,11 +163,8 @@ data class KnnPredicate<T: VectorValue<*>>(val column: ColumnDef<T>, val k: Int,
         if (k != other.k) return false
         if (query != other.query) return false
         if (distance != other.distance) return false
-        if (weights != null) {
-            if (other.weights == null) return false
-            if (weights != other.weights) return false
-        } else if (other.weights != null) return false
-
+        if (weights != other.weights) return false
+        if (hint != other.hint) return false
         return true
     }
 
@@ -181,6 +174,7 @@ data class KnnPredicate<T: VectorValue<*>>(val column: ColumnDef<T>, val k: Int,
         result = 31 * result + query.hashCode()
         result = 31 * result + distance.hashCode()
         result = 31 * result + (weights?.hashCode() ?: 0)
+        result = 31 * result + (hint?.hashCode() ?: 0)
         return result
     }
 }

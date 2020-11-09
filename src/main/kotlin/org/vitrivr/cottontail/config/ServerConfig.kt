@@ -23,7 +23,6 @@ import java.nio.file.Path
 @Serializable
 data class ServerConfig(
     val port: Int = 1865,
-    val messageSize: Int = 4194304,
     val coreThreads: Int = Runtime.getRuntime().availableProcessors() / 2,
     val maxThreads: Int = Runtime.getRuntime().availableProcessors() * 2,
     val keepAliveTime: Long = 500,

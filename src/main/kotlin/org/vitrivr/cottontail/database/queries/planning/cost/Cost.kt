@@ -7,11 +7,23 @@ package org.vitrivr.cottontail.database.queries.planning.cost
  * @author Ralph Gasser
  * @version 1.0
  */
-data class Cost constructor(val io: Float, val cpu: Float, val memory: Float) : Comparable<Cost> {
+data class Cost constructor(val io: Float = 0.0f, val cpu: Float = 0.0f, val memory: Float = 0.0f) : Comparable<Cost> {
 
     companion object {
         val ZERO = Cost(0.0f, 0.0f, 0.0f)
         val INVALID = Cost(Float.NaN, Float.NaN, Float.NaN)
+
+        /* Cost read access to disk. TODO: Calculate based on local hardware. */
+        const val COST_DISK_ACCESS_READ = 1e-5f
+
+        /* Cost read access to disk. TODO: Calculate based on local hardware. */
+        const val COST_DISK_ACCESS_WRITE = 1e-2f
+
+        /* Cost read access to memory. TODO: Calculate based on local hardware. */
+        const val COST_MEMORY_ACCESS_READ = 1e-6f
+
+        /* Default selectivity for boolean predicates. */
+        const val COST_DEFAULT_SELECTIVITY = 0.5f
     }
 
 

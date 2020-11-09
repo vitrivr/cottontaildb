@@ -13,6 +13,7 @@ import org.vitrivr.cottontail.server.grpc.CottontailGrpcServer
 import java.io.IOException
 import java.util.*
 import java.util.regex.Pattern
+import kotlin.time.ExperimentalTime
 
 /**
  * Command line interface instance.  Setup and general parsing. Actual commands are implemented as
@@ -23,12 +24,13 @@ import java.util.regex.Pattern
  * @author Loris Sauter
  * @version 1.0
  */
+@ExperimentalTime
 object Cli {
 
     /** The default prompt -- just fancification */
     private const val PROMPT = "cottontaildb> "
 
-    /** CottotanilGrpcServer instance; user for gracefully stoppin the CLI. */
+    /** CottotanilGrpcServer instance; user for gracefully stopping the CLI. */
     lateinit var cottontailServer: CottontailGrpcServer
 
 
@@ -96,7 +98,7 @@ object Cli {
         val terminal: Terminal?
         try {
             terminal = TerminalBuilder.terminal()
-        }catch (e: IOException){
+        } catch (e: IOException) {
             error("Could not init terminal for reason:\n" +
                     "${e.message}\n" +
                     "Exiting...")
@@ -106,24 +108,24 @@ object Cli {
 
         val lineReader = LineReaderBuilder.builder().terminal(terminal).completer(completer).build()
 
-        while(true){
+        while (true) {
             /* Catch ^D end of file as exit method */
             val line = try {
                 lineReader.readLine(PROMPT).trim()
             } catch (e: EndOfFileException) {
                 "stop"
             }
-            if(line.toLowerCase() == "help"){
+            if (line.toLowerCase() == "help") {
                 println(clikt.getFormattedHelp())
                 continue
             }
-            if(line.isBlank()) {
+            if (line.isBlank()) {
                 continue
             }
-            try{
+            try {
                 clikt.parse(splitLine(line))
                 println()
-            }catch(e:Exception){
+            } catch (e: Exception) {
                 when (e) {
                     is com.github.ajalt.clikt.core.NoSuchSubcommand -> println("command not found")
                     is com.github.ajalt.clikt.core.PrintHelpMessage -> println(e.command.getFormattedHelp())
@@ -160,8 +162,8 @@ object Cli {
         return matchList
     }
 
-    fun stopServer(){
-        if (::cottontailServer.isInitialized){
+    fun stopServer() {
+        if (::cottontailServer.isInitialized) {
             cottontailServer.stop()
         }
     }

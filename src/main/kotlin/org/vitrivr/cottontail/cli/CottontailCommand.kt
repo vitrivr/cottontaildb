@@ -7,21 +7,22 @@ import com.github.ajalt.clikt.core.subcommands
 import com.github.ajalt.clikt.output.CliktHelpFormatter
 import com.github.ajalt.clikt.output.HelpFormatter
 import com.github.ajalt.clikt.parameters.arguments.argument
-import com.github.ajalt.clikt.parameters.arguments.default
-import com.github.ajalt.clikt.parameters.arguments.defaultLazy
-import com.github.ajalt.clikt.parameters.arguments.validate
 import com.github.ajalt.clikt.parameters.options.*
 import com.github.ajalt.clikt.parameters.types.int
 import com.github.ajalt.clikt.parameters.types.long
+
 import com.jakewharton.picnic.table
 import io.grpc.ManagedChannel
 import io.grpc.ManagedChannelBuilder
 import io.grpc.StatusRuntimeException
+
 import org.vitrivr.cottontail.grpc.CottonDDLGrpc
 import org.vitrivr.cottontail.grpc.CottonDMLGrpc
 import org.vitrivr.cottontail.grpc.CottonDQLGrpc
 import org.vitrivr.cottontail.grpc.CottontailGrpc
+
 import kotlin.system.exitProcess
+import kotlin.time.ExperimentalTime
 
 /**
  * Wrapper class and single access point to the actual commands.  Also, provides the gRPC bindings
@@ -33,8 +34,9 @@ import kotlin.system.exitProcess
  * </ul>
  *
  * @author Loris Sauter
- * @version 1.0
+ * @version 1.0.1
  */
+@ExperimentalTime
 class CottontailCommand(private val host: String, private val port: Int) : NoOpCliktCommand(name = "cottontail", help = "The base command") {
 
     init {
@@ -144,7 +146,7 @@ class CottontailCommand(private val host: String, private val port: Int) : NoOpC
         override fun exec() {
             val qm = CottontailGrpc.QueryMessage.newBuilder().setQuery(
                     CottontailGrpc.Query.newBuilder()
-                            .setFrom(From(Entity(entity, Schema(schema))))
+                            .setFrom(CottontailGrpc.From.newBuilder().setEntity(CottontailGrpc.Entity.newBuilder().setName(entity).setSchema(CottontailGrpc.Schema.newBuilder().setName(schema))))
                             .setProjection(MatchAll())
                             .setLimit(limit)
             ).build()
@@ -163,13 +165,22 @@ class CottontailCommand(private val host: String, private val port: Int) : NoOpC
             println("Presenting first $limit elements of entity $schema.$entity")
             val qm = CottontailGrpc.QueryMessage.newBuilder().setQuery(
                     CottontailGrpc.Query.newBuilder()
-                            .setFrom(From(Entity(entity, Schema(schema))))
+                            .setFrom(CottontailGrpc.From.newBuilder().setEntity(CottontailGrpc.Entity.newBuilder().setName(entity).setSchema(CottontailGrpc.Schema.newBuilder().setName(schema))))
                             .setProjection(MatchAll())
-                            .setLimit(limit)
+                            .setLimit(this.limit)
             ).build()
             val query = this@CottontailCommand.dqlService.query(qm)
-            query.forEach { page ->
-                tabulate(page.resultsList.dropLast(Math.max(0, page.resultsCount - limit).toInt()))
+
+            val tuples = mutableListOf<CottontailGrpc.Tuple>()
+            query.forEach {
+                it.resultsList.forEach {
+                    tuples.add(it)
+                }
+            }
+            if (tuples.size > 0) {
+                tabulate(tuples)
+            } else {
+                println("No results!")
             }
         }
 
@@ -182,7 +193,9 @@ class CottontailCommand(private val host: String, private val port: Int) : NoOpC
                 }
                 header {
                     row {
-                        tuples.first().dataMap.keys.forEach { cell(it) }
+                        tuples.first().dataMap.keys.forEach {
+                            this.cell(it)
+                        }
                     }
                 }
                 body {
@@ -217,7 +230,7 @@ class CottontailCommand(private val host: String, private val port: Int) : NoOpC
      */
     inner class ShowEntityCommand : AbstractEntityCommand(name = "show", help = "Gives an overview of the entity and its columns") {
         override fun exec() {
-            val details = this@CottontailCommand.ddlService.entityDetails(Entity(entity, Schema(schema)))
+            val details = this@CottontailCommand.ddlService.entityDetails(CottontailGrpc.Entity.newBuilder().setName(entity).setSchema(CottontailGrpc.Schema.newBuilder().setName(schema)).build())
             println("Entity ${details.entity.schema.name}.${details.entity.name} with ${details.columnsCount} columns: ")
             print("  ${details.columnsList.map { "${it.name} (${it.type})" }.joinToString(", ")}")
         }
@@ -229,7 +242,7 @@ class CottontailCommand(private val host: String, private val port: Int) : NoOpC
     inner class OptimizeEntityCommand : AbstractEntityCommand(name = "optimize", help = "Optimizes the specified entity, e.g. rebuilds the indices") {
         override fun exec() {
             println("Optimizing entity $schema.$entity")
-            this@CottontailCommand.ddlService.optimizeEntity(Entity(entity, Schema(schema)))
+            this@CottontailCommand.ddlService.optimizeEntity(CottontailGrpc.Entity.newBuilder().setName(entity).setSchema(CottontailGrpc.Schema.newBuilder().setName(schema)).build())
             println("Optimization complete!")
         }
     }
@@ -239,7 +252,7 @@ class CottontailCommand(private val host: String, private val port: Int) : NoOpC
             println("Counting elements of entity $schema.$entity")
             val qm = CottontailGrpc.QueryMessage.newBuilder().setQuery(
                     CottontailGrpc.Query.newBuilder()
-                            .setFrom(From(Entity(entity, Schema(schema))))
+                            .setFrom(CottontailGrpc.From.newBuilder().setEntity(CottontailGrpc.Entity.newBuilder().setName(entity).setSchema(CottontailGrpc.Schema.newBuilder().setName(schema))))
                             .setProjection(CottontailGrpc.Projection.newBuilder().setOp(CottontailGrpc.Projection.Operation.COUNT).build())
 
             ).build()
@@ -258,7 +271,7 @@ class CottontailCommand(private val host: String, private val port: Int) : NoOpC
         override fun exec() {
             val qm = CottontailGrpc.QueryMessage.newBuilder().setQuery(
                     CottontailGrpc.Query.newBuilder()
-                            .setFrom(From(Entity(entity, Schema(schema))))
+                            .setFrom(CottontailGrpc.From.newBuilder().setEntity(CottontailGrpc.Entity.newBuilder().setName(entity).setSchema(CottontailGrpc.Schema.newBuilder().setName(schema))))
                             .setProjection(MatchAll())
                             .setWhere(Where(
                                     CottontailGrpc.AtomicLiteralBooleanPredicate.newBuilder()
@@ -283,7 +296,7 @@ class CottontailCommand(private val host: String, private val port: Int) : NoOpC
      */
     inner class DropEntityCommand : AbstractEntityCommand(name = "drop", help = "Drops the given entity from the database and deletes it therefore") {
         override fun exec() {
-            this@CottontailCommand.ddlService.dropEntity(Entity(entity, Schema(schema)))
+            this@CottontailCommand.ddlService.dropEntity(CottontailGrpc.Entity.newBuilder().setName(entity).setSchema(CottontailGrpc.Schema.newBuilder().setName(schema)).build())
             println("Dropped entity $schema.$entity")
         }
     }

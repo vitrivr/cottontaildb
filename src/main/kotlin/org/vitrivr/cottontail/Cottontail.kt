@@ -1,6 +1,5 @@
 package org.vitrivr.cottontail
 
-import kotlinx.serialization.UnstableDefault
 import kotlinx.serialization.json.Json
 import org.vitrivr.cottontail.cli.Cli
 import org.vitrivr.cottontail.config.Config
@@ -8,21 +7,23 @@ import org.vitrivr.cottontail.database.catalogue.Catalogue
 import org.vitrivr.cottontail.execution.ExecutionEngine
 import org.vitrivr.cottontail.server.grpc.CottontailGrpcServer
 import java.nio.file.Files
+import java.nio.file.Path
 import java.nio.file.Paths
 import kotlin.system.exitProcess
+import kotlin.time.ExperimentalTime
 
 /**
  * Entry point for Cottontail DB demon and CLI.
  *
  * @param args Program arguments.
  */
-@UnstableDefault
+@ExperimentalTime
 fun main(args: Array<String>) {
 
     /* Handle case when arguments are empty. */
     if (args.isEmpty()) {
         System.err.println("No config path specified; using default config at ./config.json.")
-        startDB()
+        standalone(Paths.get("./config.json")) /* Start with default value. */
     }
 
     /* Check the arguments and start Cottontail DB accordingly */
@@ -35,17 +36,20 @@ fun main(args: Array<String>) {
             }
             Cli.loop(args[1], args[2].toInt())
         }
-        else -> startDB(args[0])
+        else -> standalone(Paths.get(args[0]))
     }
 }
 
 /**
- * Traditional Cottontail DB server startup
+ * Traditional Cottontail DB server startup method (standalone).
+ *
+ * @param configPath The [Path] to the configuration file.
  */
-fun startDB(configPath: String = "config.json") {
+@ExperimentalTime
+fun standalone(configPath: Path) {
     /* Load config file and start Cottontail DB. */
-    Files.newBufferedReader(Paths.get(configPath)).use { reader ->
-        val config = Json.parse(Config.serializer(), reader.readText())
+    Files.newBufferedReader(configPath).use { reader ->
+        val config = Json.decodeFromString(Config.serializer(), reader.readText())
         val catalogue = Catalogue(config)
         val engine = ExecutionEngine(config.executionConfig)
         val server = CottontailGrpcServer(config.serverConfig, catalogue, engine)
@@ -59,5 +63,24 @@ fun startDB(configPath: String = "config.json") {
                 Thread.sleep(1000)
             }
         }
+    }
+}
+
+/**
+ * Cottontail DB server startup method for embedded mode.
+ *
+ * @param configPath The [Path] to the configuration file.
+ * @return [CottontailGrpcServer] instance.
+ */
+@ExperimentalTime
+fun embedded(configPath: String = "config.json"): CottontailGrpcServer {
+    /* Load config file and start Cottontail DB. */
+    Files.newBufferedReader(Paths.get(configPath)).use { reader ->
+        val config = Json.decodeFromString(Config.serializer(), reader.readText())
+        val catalogue = Catalogue(config)
+        val engine = ExecutionEngine(config.executionConfig)
+        val server = CottontailGrpcServer(config.serverConfig, catalogue, engine)
+        server.start()
+        return server
     }
 }

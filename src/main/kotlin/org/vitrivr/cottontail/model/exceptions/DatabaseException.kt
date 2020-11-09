@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.model.exceptions
 
 import org.vitrivr.cottontail.database.column.ColumnType
-import org.vitrivr.cottontail.utilities.name.Name
+import org.vitrivr.cottontail.model.basics.Name
 
 open class DatabaseException(message: String) : Throwable(message) {
     /**
@@ -18,7 +18,7 @@ open class DatabaseException(message: String) : Throwable(message) {
      *
      * @param schema [Name] of the [Schema][org.vitrivr.cottontail.database.schema.Schema].
      */
-    class SchemaDoesNotExistException(schema: Name) : DatabaseException("Schema '$schema' does not exist!")
+    class SchemaDoesNotExistException(schema: Name.SchemaName) : DatabaseException("Schema '$schema' does not exist!")
 
     /**
      * Thrown when trying to create an [Entity][org.vitrivr.cottontail.database.entity.Entity]
@@ -26,7 +26,7 @@ open class DatabaseException(message: String) : Throwable(message) {
      *
      * @param entity [Name] of the [Entity][org.vitrivr.cottontail.database.entity.Entity].
      */
-    class EntityAlreadyExistsException(entity: Name) : DatabaseException("Entity '$entity' does already exist!")
+    class EntityAlreadyExistsException(entity: Name.EntityName) : DatabaseException("Entity '$entity' does already exist!")
 
     /**
      * Thrown when trying to access an [Entity][org.vitrivr.cottontail.database.entity.Entity]
@@ -34,7 +34,7 @@ open class DatabaseException(message: String) : Throwable(message) {
      *
      * @param entity [Name] of the [Entity][org.vitrivr.cottontail.database.entity.Entity].
      */
-    class EntityDoesNotExistException(entity: Name) : DatabaseException("Entity '$entity' does not exist!")
+    class EntityDoesNotExistException(entity: Name.EntityName) : DatabaseException("Entity '$entity' does not exist!")
 
     /**
      * Thrown whenever trying to create an [Index][org.vitrivr.cottontail.database.index.Index]
@@ -42,7 +42,7 @@ open class DatabaseException(message: String) : Throwable(message) {
      *
      * @param index The [Name] of the [Index][org.vitrivr.cottontail.database.index.Index]
      */
-    class IndexAlreadyExistsException(val index: Name) : DatabaseException("Index '$index' does already exist!")
+    class IndexAlreadyExistsException(val index: Name.IndexName) : DatabaseException("Index '$index' does already exist!")
 
     /**
      * Thrown whenever trying to access an [Index][org.vitrivr.cottontail.database.index.Index]
@@ -57,7 +57,7 @@ open class DatabaseException(message: String) : Throwable(message) {
      *
      * @param index The [Name] of the [Index][org.vitrivr.cottontail.database.index.Index]
      */
-    class IndexNotSupportedException(val index: Name, val reason: String) : DatabaseException("Index '$index' could not be created: $reason")
+    class IndexNotSupportedException(val index: Name.IndexName, val reason: String) : DatabaseException("Index '$index' could not be created: $reason")
 
     /**
      * Thrown upon creation of an [Entity][org.vitrivr.cottontail.database.entity.Entity]
@@ -66,7 +66,7 @@ open class DatabaseException(message: String) : Throwable(message) {
      * @param entity [Name] of the affected [Entity][org.vitrivr.cottontail.database.entity.Entity]
      * @param columns [Name] of the [Column][org.vitrivr.cottontail.database.column.Column]s in the definition.
      */
-    class DuplicateColumnException(entity: Name, columns: Collection<Name>) : DatabaseException("Entity '$entity' could not be created because it contains duplicate column names (c=[${columns.joinToString(",")}])!")
+    class DuplicateColumnException(entity: Name.EntityName, columns: Collection<Name>) : DatabaseException("Entity '$entity' could not be created because it contains duplicate column names (c=[${columns.joinToString(",")}])!")
 
     /**
      * Thrown whenever trying to access a [Column][org.vitrivr.cottontail.database.column.Column]
@@ -74,7 +74,7 @@ open class DatabaseException(message: String) : Throwable(message) {
      *
      * @param column The [Name] of the [Column][org.vitrivr.cottontail.database.column.Column].
      */
-    class ColumnDoesNotExistException(val column: Name) : DatabaseException("Column $column does not exist.")
+    class ColumnDoesNotExistException(val column: Name.ColumnName) : DatabaseException("Column $column does not exist.")
 
     /**
      * Thrown by [Index][org.vitrivr.cottontail.database.index.Index]es if they are given a

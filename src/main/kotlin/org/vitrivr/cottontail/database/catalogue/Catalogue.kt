@@ -9,9 +9,8 @@ import org.vitrivr.cottontail.database.general.DBO
 import org.vitrivr.cottontail.database.schema.Schema
 import org.vitrivr.cottontail.database.schema.SchemaHeader
 import org.vitrivr.cottontail.database.schema.SchemaHeaderSerializer
+import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
-import org.vitrivr.cottontail.utilities.name.Name
-import org.vitrivr.cottontail.utilities.name.NameType
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
@@ -36,10 +35,7 @@ class Catalogue(val config: Config) : DBO {
     override val path: Path = config.root
 
     /** Constant name of the [Catalogue] object. */
-    override val name: Name = Name("warren")
-
-    /** Constant name of the [Catalogue] object. */
-    override val fqn: Name = this.name
+    override val name: Name.RootName = Name.RootName
 
     /** Constant parent [DBO], which is null in case of the [Catalogue]. */
     override val parent: DBO? = null
@@ -48,7 +44,7 @@ class Catalogue(val config: Config) : DBO {
     private val lock = ReentrantReadWriteLock()
 
     /** A in-memory registry of all the [Schema]s contained in this [Catalogue]. When a [Catalogue] is opened, all the [Schema]s will be loaded. */
-    private val registry: HashMap<Name, Schema> = HashMap()
+    private val registry: HashMap<Name.SchemaName, Schema> = HashMap()
 
     /** The [StoreWAL] that contains the Cottontail DB catalogue. */
     private val store: CottontailStoreWAL = path.let {
@@ -66,7 +62,7 @@ class Catalogue(val config: Config) : DBO {
                 ?: throw DatabaseException.DataCorruptionException("Failed to open Cottontail DB catalogue header!")
 
     /** List of [Schema] names registered in this [Catalogue]. */
-    val schemas: Collection<Name>
+    val schemas: Collection<Name.SchemaName>
         get() = this.lock.read { this.registry.keys.toList() }
 
     /** Size of this [Catalogue] in terms of [Schema]s it contains. */
@@ -108,30 +104,25 @@ class Catalogue(val config: Config) : DBO {
             if (!Files.exists(path)) {
                 throw DatabaseException.DataCorruptionException("Broken catalogue entry for schema '${schema.name}'. Path $path does not exist!")
             }
-            val s = Schema(Name(schema.name), path, this)
+            val s = Schema(Name.SchemaName(schema.name), path, this)
             this.registry[s.name] = s
         }
     }
 
     /**
-     * Creates a new, empty [Schema] with the given name and [Path]
+     * Creates a new, empty [Schema] with the given [Name.SchemaName] and [Path]
      *
-     * @param name The name of the new [Name].
+     * @param name The [Name.SchemaName] of the new [Schema].
      * @param data The path where this new [Schema] will be located. Defaults to a path relative to the current one.
      */
-    fun createSchema(name: Name) = this.lock.write {
-        /* Check the type of name and normalize it. */
-        if (name.type != NameType.SIMPLE) {
-            throw IllegalArgumentException("The provided name '$name' is of type '${name.type} and cannot be used to access a schema.")
-        }
-
+    fun createSchema(name: Name.SchemaName) = this.lock.write {
         /* Check if schema with that name exists. */
         if (this.registry.containsKey(name)) {
             throw DatabaseException.SchemaAlreadyExistsException(name)
         }
 
         /* Create empty folder for entity. */
-        val path = this.path.resolve("schema_$name")
+        val path = this.path.resolve("schema_${name.simple}")
         try {
             if (!Files.exists(path)) {
                 Files.createDirectories(path)
@@ -156,7 +147,7 @@ class Catalogue(val config: Config) : DBO {
             store.close()
 
             /* Update catalogue. */
-            val sid = this.store.put(CatalogueEntry(name.name), CatalogueEntrySerializer)
+            val sid = this.store.put(CatalogueEntry(name.simple), CatalogueEntrySerializer)
 
             /* Update header. */
             val new = this.header.let { CatalogueHeader(it.size + 1, it.created, System.currentTimeMillis(), it.schemas.copyOf(it.schemas.size + 1)) }
@@ -175,26 +166,22 @@ class Catalogue(val config: Config) : DBO {
     }
 
     /**
-     * Drops an existing [Schema] with the given name. <strong>Warning:</strong> Dropping a [Schema] deletes all the files associated with it [Schema]!
+     * Drops an existing [Schema] with the given [Name.SchemaName].
      *
-     * @param name The name of the [Schema] to be dropped.
+     * <strong>Warning:</strong> Dropping a [Schema] deletes all the files associated with it [Schema]!
+     *
+     * @param name The [Name.SchemaName] of the [Schema] to be dropped.
      */
-    fun dropSchema(name: Name) = this.lock.write {
-        /* Check the type of name. */
-        if (name.type != NameType.SIMPLE) {
-            throw IllegalArgumentException("The provided name '$name' is of type '${name.type} and cannot be used to access a schema.")
-        }
-
+    fun dropSchema(name: Name.SchemaName) = this.lock.write {
         /* Try to close the schema. Open registry cannot be dropped. */
         (this.registry[name] ?: throw DatabaseException.SchemaDoesNotExistException(name)).close()
 
         /* Extract the catalogue entry. */
         val catalogueEntry = this.header.schemas
                 .map {
-                    Pair(it, this.store.get(it, CatalogueEntrySerializer)
-                            ?: throw DatabaseException.DataCorruptionException("Failed to read Cottontail DB catalogue entry for SID=$it!"))
+                    it to (this.store.get(it, CatalogueEntrySerializer) ?: throw DatabaseException.DataCorruptionException("Failed to read Cottontail DB catalogue entry for SID=$it!"))
                 }
-                .find { Name(it.second.name) == name }
+                .find { it.second.name == name.simple }
                 ?: throw DatabaseException("Failed to drop schema '$name'. Did not find a Cottontail DB catalogue entry for schema $name!")
 
         /* Remove catalogue entry + update header. */
@@ -212,18 +199,17 @@ class Catalogue(val config: Config) : DBO {
         this.registry.remove(name)
 
         /* Delete files that belong to the schema. */
-        val path = this.path.resolve("schema_$name")
+        val path = this.path.resolve("schema_${name.simple}")
         val pathsToDelete = Files.walk(path).sorted(Comparator.reverseOrder()).collect(Collectors.toList())
         pathsToDelete.forEach { Files.delete(it) }
     }
 
     /**
-     * Returns the [Schema] for the given [Name]. The provided [Name] must be of [NameType.SIMPLE]
+     * Returns the [Schema] for the given [Name.SchemaName].
      *
-     * @param name [Name] of the [Schema].
+     * @param name [Name.SchemaName] of the [Schema].
      */
-    fun schemaForName(name: Name): Schema = this.lock.read {
-        require(name.type == NameType.SIMPLE) { "The provided name '$name' is of type ${name.type} and cannot be used to access a schema." }
+    fun schemaForName(name: Name.SchemaName): Schema = this.lock.read {
         this.registry[name] ?: throw DatabaseException.SchemaDoesNotExistException(name)
     }
 
@@ -261,7 +247,7 @@ class Catalogue(val config: Config) : DBO {
 
         /* Create and initialize new store. */
         val store = CottontailStoreWAL.make(
-                file = config.root.resolve(Catalogue.FILE_CATALOGUE).toString(),
+                file = config.root.resolve(FILE_CATALOGUE).toString(),
                 volumeFactory = this.config.memoryConfig.volumeFactory,
                 allocateIncrement = 1L shl this.config.memoryConfig.cataloguePageShift,
                 fileLockWait = config.lockTimeout

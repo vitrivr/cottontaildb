@@ -5,14 +5,14 @@ import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import org.vitrivr.cottontail.TestConstants
 import org.vitrivr.cottontail.database.schema.Schema
+import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
-import org.vitrivr.cottontail.utilities.name.Name
 import java.nio.file.Files
 import java.util.*
 import java.util.stream.Collectors
 
 class CatalogueTest {
-    private val schemaName = Name("schema-test")
+    private val schemaName = Name.SchemaName("schema-test")
 
     /** */
     private var catalogue: Catalogue = Catalogue(TestConstants.config)
@@ -33,12 +33,12 @@ class CatalogueTest {
         val schema = catalogue.schemaForName(schemaName)
 
         /* Check if directory exists. */
-        Assertions.assertTrue(Files.isReadable(TestConstants.config.root.resolve("schema_${schemaName}")))
-        Assertions.assertTrue(Files.isDirectory(TestConstants.config.root.resolve("schema_${schemaName}")))
+        Assertions.assertTrue(Files.isReadable(TestConstants.config.root.resolve("schema_schema-test")))
+        Assertions.assertTrue(Files.isDirectory(TestConstants.config.root.resolve("schema_schema-test")))
 
         /* Check if catalogue file exists. */
-        Assertions.assertTrue(Files.isReadable(TestConstants.config.root.resolve("schema_${schemaName}").resolve(Schema.FILE_CATALOGUE)))
-        Assertions.assertFalse(Files.isDirectory(TestConstants.config.root.resolve("schema_${schemaName}").resolve(Schema.FILE_CATALOGUE)))
+        Assertions.assertTrue(Files.isReadable(TestConstants.config.root.resolve("schema_schema-test").resolve(Schema.FILE_CATALOGUE)))
+        Assertions.assertFalse(Files.isDirectory(TestConstants.config.root.resolve("schema_schema-test").resolve(Schema.FILE_CATALOGUE)))
 
         /* Check if schema contains the expected number of entities (zero). */
         Assertions.assertEquals(0, schema.size)
@@ -52,19 +52,19 @@ class CatalogueTest {
         catalogue.createSchema(schemaName)
 
         /* Check if directory exists. */
-        Assertions.assertTrue(Files.isReadable(TestConstants.config.root.resolve("schema_${schemaName}")))
-        Assertions.assertTrue(Files.isDirectory(TestConstants.config.root.resolve("schema_${schemaName}")))
+        Assertions.assertTrue(Files.isReadable(TestConstants.config.root.resolve("schema_schema-test")))
+        Assertions.assertTrue(Files.isDirectory(TestConstants.config.root.resolve("schema_schema-test")))
 
         /* Check if catalogue file exists. */
-        Assertions.assertTrue(Files.isReadable(TestConstants.config.root.resolve("schema_${schemaName}").resolve(Schema.FILE_CATALOGUE)))
-        Assertions.assertFalse(Files.isDirectory(TestConstants.config.root.resolve("schema_${schemaName}").resolve(Schema.FILE_CATALOGUE)))
+        Assertions.assertTrue(Files.isReadable(TestConstants.config.root.resolve("schema_schema-test").resolve(Schema.FILE_CATALOGUE)))
+        Assertions.assertFalse(Files.isDirectory(TestConstants.config.root.resolve("schema_schema-test").resolve(Schema.FILE_CATALOGUE)))
 
         /* Now drop schema. */
         catalogue.dropSchema(schemaName)
 
         /* Check if directory exists. */
-        Assertions.assertFalse(Files.isReadable(TestConstants.config.root.resolve("schema_${schemaName}")))
-        Assertions.assertFalse(Files.isReadable(TestConstants.config.root.resolve("schema_${schemaName}").resolve(Schema.FILE_CATALOGUE)))
+        Assertions.assertFalse(Files.isReadable(TestConstants.config.root.resolve("schema_schema-test")))
+        Assertions.assertFalse(Files.isReadable(TestConstants.config.root.resolve("schema_schema-test").resolve(Schema.FILE_CATALOGUE)))
 
         /* Check that correct exception is thrown. */
         Assertions.assertThrows(DatabaseException.SchemaDoesNotExistException::class.java) { catalogue.schemaForName(schemaName) }

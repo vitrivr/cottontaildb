@@ -1,7 +1,10 @@
 package org.vitrivr.cottontail.database.column
 
 import org.vitrivr.cottontail.database.general.Transaction
-import org.vitrivr.cottontail.model.basics.*
+import org.vitrivr.cottontail.model.basics.CloseableIterator
+import org.vitrivr.cottontail.model.basics.ColumnDef
+import org.vitrivr.cottontail.model.basics.Countable
+import org.vitrivr.cottontail.model.basics.TupleId
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import org.vitrivr.cottontail.model.values.types.Value
 
@@ -12,14 +15,11 @@ import org.vitrivr.cottontail.model.values.types.Value
  * the desired level of isolation.
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.1
  */
-interface ColumnTransaction<T: Value> : Transaction, Countable, Scanable, Filterable, Deletable {
-    /**
-     * The [ColumnDef] of the [Column] underlying this [ColumnTransaction].
-     *
-     * @return [ColumnTransaction]
-     */
+interface ColumnTransaction<T : Value> : Transaction, Countable {
+
+    /** The [ColumnDef] of the [Column] underlying this [ColumnTransaction]. */
     val columnDef: ColumnDef<T>
 
     /**
@@ -33,45 +33,52 @@ interface ColumnTransaction<T: Value> : Transaction, Countable, Scanable, Filter
     fun read(tupleId: Long): T?
 
     /**
-     * Gets and returns several entries from this [Column].
+     * Inserts a new [Value] in this [Column].
      *
-     * @param tupleIds The IDs of the desired entries
-     * @return List of the desired entries.
-     *
-     * @throws DatabaseException If the tuple with the desired ID doesn't exist OR is invalid.
+     * @param record The [Value] that should be inserted. Can be null!
+     * @return The [TupleId] of the inserted record OR the allocated space in case of a null value.
      */
-    fun readAll(tupleIds: Collection<Long>): Collection<T?>
+    fun insert(record: T?): TupleId
 
     /**
-     * Inserts a new record in this [Column].
+     * Updates the entry with the specified [TupleId] and sets it to the new [Value].
      *
-     * @param record The record that should be inserted. Can be null!
-     * @return The tupleId of the inserted record OR the allocated space in case of a null value.
+     * @param tupleId The [TupleId] of the entry that should be updated.
+     * @param value The new [Value].
      */
-    fun insert(record: T?): Long
+    fun update(tupleId: TupleId, value: T?)
 
     /**
-     * Inserts a list of new records in this [Column].
-     *
-     * @param records The records that should be inserted. Can contain null values!
-     * @return The tupleId of the inserted record OR the allocated space in case of a null value.
-     */
-    fun insertAll(records: Collection<T?>): Collection<Long>
-
-    /**
-     * Updates the entry with the specified tuple ID and sets it to the new value.
+     * Updates the entry with the specified [TupleId] and sets it to the new [Value] if, and only if,
+     * it currently hold the expected [Value].
      *
      * @param tupleId The ID of the record that should be updated
-     * @param value The new value.
-     */
-    fun update(tupleId: Long, value: T?)
-
-    /**
-     * Updates the entry with the specified tuple ID and sets it to the new value.
-     *
-     * @param tupleId The ID of the record that should be updated
-     * @param value The new value.
-     * @param expected The value expected to be there.
+     * @param value The new [Value].
+     * @param expected The [Value] expected to be there.
      */
     fun compareAndUpdate(tupleId: Long, value: T?, expected: T?): Boolean
+
+    /**
+     * Deletes the entry with the specified [TupleId] and sets it to the new value.
+     *
+     * @param tupleId The ID of the record that should be updated
+     */
+    fun delete(tupleId: TupleId)
+
+    /**
+     * Creates and returns a new [CloseableIterator] for this [ColumnTransaction] that returns all
+     * [TupleId]s contained within the surrounding [Column].
+     *
+     * @return [CloseableIterator]
+     */
+    fun scan(): CloseableIterator<Long>
+
+    /**
+     * Creates and returns a new [CloseableIterator] for this [ColumnTransaction] that returns
+     * all [TupleId]s contained within the surrounding [Column] and a certain range.
+     *
+     * @param range The [LongRange] that should be scanned.
+     * @return [CloseableIterator]
+     */
+    fun scan(range: LongRange): CloseableIterator<Long>
 }

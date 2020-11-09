@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.model.values
 
 import org.vitrivr.cottontail.model.values.types.*
+import org.vitrivr.cottontail.model.values.types.Value.Companion.RANDOM
 import java.util.*
 import kotlin.math.absoluteValue
 import kotlin.math.pow
@@ -9,7 +10,7 @@ import kotlin.math.pow
  * This is an abstraction over a [DoubleArray] and it represents a vector of [Double]s.
  *
  * @author Ralph Gasser
- * @version 1.1
+ * @version 1.3.1
  */
 inline class DoubleVectorValue(val data: DoubleArray) : RealVectorValue<Double> {
 
@@ -20,7 +21,7 @@ inline class DoubleVectorValue(val data: DoubleArray) : RealVectorValue<Double> 
          * @param size Size of the new [DoubleVectorValue]
          * @param rnd A [SplittableRandom] to generate the random numbers.
          */
-        fun random(size: Int, rnd: SplittableRandom = SplittableRandom(System.currentTimeMillis())) = DoubleVectorValue(DoubleArray(size) { rnd.nextDouble() })
+        fun random(size: Int, rnd: SplittableRandom = RANDOM) = DoubleVectorValue(DoubleArray(size) { rnd.nextDouble() })
 
         /**
          * Generates a [Complex32VectorValue] of the given size initialized with ones.
@@ -90,39 +91,71 @@ inline class DoubleVectorValue(val data: DoubleArray) : RealVectorValue<Double> 
      *
      * @return Exact copy of this [DoubleVectorValue].
      */
-    override fun copy(): DoubleVectorValue = DoubleVectorValue(this.data.copyOf(this.logicalSize))
+    override fun copy(): DoubleVectorValue = DoubleVectorValue(this.data.copyOf(this.data.size))
 
-    override fun plus(other: VectorValue<*>) = DoubleVectorValue(DoubleArray(this.data.size) {
-        (this[it] + other[it]).asDouble().value
-    })
+    override fun plus(other: VectorValue<*>) = when (other) {
+        is DoubleVectorValue -> DoubleVectorValue(DoubleArray(this.data.size) {
+            (this.data[it] + other.data[it])
+        })
+        else -> DoubleVectorValue(DoubleArray(this.data.size) {
+            (this.data[it] + other[it].asDouble().value)
+        })
+    }
 
-    override fun minus(other: VectorValue<*>) = DoubleVectorValue(DoubleArray(this.data.size) {
-        (this[it] - other[it]).asDouble().value
-    })
+    override fun minus(other: VectorValue<*>) = when (other) {
+        is DoubleVectorValue -> DoubleVectorValue(DoubleArray(this.data.size) {
+            (this.data[it] - other.data[it])
+        })
+        else -> DoubleVectorValue(DoubleArray(this.data.size) {
+            (this.data[it] - other[it].asDouble().value)
+        })
+    }
 
-    override fun times(other: VectorValue<*>) = DoubleVectorValue(DoubleArray(this.data.size) {
-        (this[it] * other[it]).asDouble().value
-    })
+    override fun times(other: VectorValue<*>) = when (other) {
+        is DoubleVectorValue -> DoubleVectorValue(DoubleArray(this.data.size) {
+            (this.data[it] * other.data[it])
+        })
+        else -> DoubleVectorValue(DoubleArray(this.data.size) {
+            (this.data[it] * other[it].asDouble().value)
+        })
+    }
 
-    override fun div(other: VectorValue<*>) = DoubleVectorValue(DoubleArray(this.data.size) {
-        (this[it] / other[it]).asDouble().value
-    })
+    override fun div(other: VectorValue<*>) = when (other) {
+        is DoubleVectorValue -> DoubleVectorValue(DoubleArray(this.data.size) {
+            (this.data[it] / other.data[it])
+        })
+        else -> DoubleVectorValue(DoubleArray(this.data.size) {
+            (this.data[it] / other[it].asDouble().value)
+        })
+    }
 
-    override fun plus(other: NumericValue<*>) = DoubleVectorValue(DoubleArray(this.logicalSize) {
-        (this[it] + other.asDouble()).value
-    })
+    override fun plus(other: NumericValue<*>): DoubleVectorValue {
+        val otherAsDouble = other.asDouble().value
+        return DoubleVectorValue(DoubleArray(this.logicalSize) {
+            (this.data[it] + otherAsDouble)
+        })
+    }
 
-    override fun minus(other: NumericValue<*>) = DoubleVectorValue(DoubleArray(this.logicalSize) {
-        (this[it] - other.asDouble()).value
-    })
+    override fun minus(other: NumericValue<*>): DoubleVectorValue {
+        val otherAsDouble = other.asDouble().value
+        return DoubleVectorValue(DoubleArray(this.logicalSize) {
+            (this.data[it] - otherAsDouble)
+        })
+    }
 
-    override fun times(other: NumericValue<*>) = DoubleVectorValue(DoubleArray(this.logicalSize) {
-        (this[it] * other.asDouble()).value
-    })
+    override fun times(other: NumericValue<*>): DoubleVectorValue {
+        val otherAsDouble = other.asDouble().value
+        return DoubleVectorValue(DoubleArray(this.logicalSize) {
+            (this.data[it] * otherAsDouble)
+        })
+    }
 
-    override fun div(other: NumericValue<*>) = DoubleVectorValue(DoubleArray(this.logicalSize) {
-        (this[it] / other.asDouble()).value
-    })
+    override fun div(other: NumericValue<*>): DoubleVectorValue {
+        val otherAsDouble = other.asDouble().value
+        return DoubleVectorValue(DoubleArray(this.logicalSize) {
+            (this.data[it] / otherAsDouble)
+        })
+    }
 
     override fun pow(x: Int) = DoubleVectorValue(DoubleArray(this.data.size) {
         this.data[it].pow(x)
@@ -132,7 +165,7 @@ inline class DoubleVectorValue(val data: DoubleArray) : RealVectorValue<Double> 
         kotlin.math.sqrt(this.data[it])
     })
 
-    override fun abs()= DoubleVectorValue(DoubleArray(this.data.size) {
+    override fun abs() = DoubleVectorValue(DoubleArray(this.data.size) {
         kotlin.math.abs(this.data[it])
     })
 
@@ -148,13 +181,6 @@ inline class DoubleVectorValue(val data: DoubleArray) : RealVectorValue<Double> 
 
     override fun dot(other: VectorValue<*>): DoubleValue = when (other) {
         is DoubleVectorValue -> {
-            var sum = 0.0
-            for (i in this.data.indices) {
-                sum += this.data[i] * other.data[i]
-            }
-            DoubleValue(sum)
-        }
-        is FloatVectorValue -> {
             var sum = 0.0
             for (i in this.data.indices) {
                 sum += this.data[i] * other.data[i]
@@ -178,13 +204,6 @@ inline class DoubleVectorValue(val data: DoubleArray) : RealVectorValue<Double> 
             }
             DoubleValue(sum)
         }
-        is FloatVectorValue -> {
-            var sum = 0.0
-            for (i in this.data.indices) {
-                sum += kotlin.math.abs(this.data[i] - other.data[i])
-            }
-            DoubleValue(sum)
-        }
         else -> {
             var sum = 0.0
             for (i in this.data.indices) {
@@ -196,13 +215,6 @@ inline class DoubleVectorValue(val data: DoubleArray) : RealVectorValue<Double> 
 
     override fun l2(other: VectorValue<*>): DoubleValue = when (other) {
         is DoubleVectorValue -> {
-            var sum = 0.0
-            for (i in this.data.indices) {
-                sum += (this.data[i] - other.data[i]).pow(2)
-            }
-            DoubleValue(kotlin.math.sqrt(sum))
-        }
-        is FloatVectorValue -> {
             var sum = 0.0
             for (i in this.data.indices) {
                 sum += (this.data[i] - other.data[i]).pow(2)
@@ -226,13 +238,6 @@ inline class DoubleVectorValue(val data: DoubleArray) : RealVectorValue<Double> 
             }
             DoubleValue(sum.pow(1.0 / p))
         }
-        is FloatVectorValue -> {
-            var sum = 0.0
-            for (i in this.data.indices) {
-                sum += (this.data[i] - other.data[i]).absoluteValue.pow(p)
-            }
-            DoubleValue(sum.pow(1.0 / p))
-        }
         else -> {
             var sum = 0.0
             for (i in this.data.indices) {
@@ -240,5 +245,19 @@ inline class DoubleVectorValue(val data: DoubleArray) : RealVectorValue<Double> 
             }
             DoubleValue(sum.pow(1.0 / p))
         }
+    }
+
+    override fun hamming(other: VectorValue<*>): DoubleValue = when (other) {
+        is DoubleVectorValue -> {
+            var sum = 0.0
+            val start = Arrays.mismatch(this.data, other.data)
+            for (i in start until other.data.size) {
+                if (this.data[i] != other.data[i]) {
+                    sum += 1.0
+                }
+            }
+            DoubleValue(sum)
+        }
+        else -> DoubleValue(this.data.size)
     }
 }

@@ -6,8 +6,8 @@ import org.vitrivr.cottontail.database.index.hash.UniqueHashIndex
 import org.vitrivr.cottontail.database.index.lsh.superbit.SuperBitLSHIndex
 import org.vitrivr.cottontail.database.index.lucene.LuceneIndex
 import org.vitrivr.cottontail.model.basics.ColumnDef
+import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.values.types.VectorValue
-import org.vitrivr.cottontail.utilities.name.Name
 
 enum class IndexType(val inexact: Boolean) {
     HASH_UQ(false), /* A hash based index with unique values. */
@@ -23,10 +23,10 @@ enum class IndexType(val inexact: Boolean) {
     /**
      * Opens an index of this [IndexType] using the given name and [Entity].
      *
-     * @param name Name of the [Index]
+     * @param name [Name.IndexName] of the [Index]
      * @param entity The [Entity] the desired [Index] belongs to.
      */
-    fun open(name: Name, entity: Entity, columns: Array<ColumnDef<*>>): Index = when (this) {
+    fun open(name: Name.IndexName, entity: Entity, columns: Array<ColumnDef<*>>): Index = when (this) {
         HASH_UQ -> UniqueHashIndex(name, entity, columns)
         HASH -> NonUniqueHashIndex(name, entity, columns)
         LUCENE -> LuceneIndex(name, entity, columns)
@@ -37,12 +37,12 @@ enum class IndexType(val inexact: Boolean) {
     /**
      * Creates an index of this [IndexType] using the given name and [Entity].
      *
-     * @param name Name of the [Index]
+     * @param name [Name.IndexName] of the [Index]
      * @param entity The [Entity] the desired [Index] belongs to.
      * @param columns The [ColumnDef] for which to create the [Index]
      * @param params Additions configuration params.
      */
-    fun create(name: Name, entity: Entity, columns: Array<ColumnDef<*>>, params: Map<String, String> = emptyMap()) = when (this) {
+    fun create(name: Name.IndexName, entity: Entity, columns: Array<ColumnDef<*>>, params: Map<String, String> = emptyMap()) = when (this) {
         HASH_UQ -> UniqueHashIndex(name, entity, columns)
         HASH -> NonUniqueHashIndex(name, entity, columns)
         LUCENE -> LuceneIndex(name, entity, columns)

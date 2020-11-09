@@ -5,23 +5,21 @@ import org.vitrivr.cottontail.database.column.Column
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.events.DataChangeEvent
 import org.vitrivr.cottontail.database.index.Index
-import org.vitrivr.cottontail.database.index.hash.UniqueHashIndex
+import org.vitrivr.cottontail.database.index.IndexTransaction
+import org.vitrivr.cottontail.database.index.IndexType
 import org.vitrivr.cottontail.database.index.lsh.LSHIndex
+import org.vitrivr.cottontail.database.queries.components.AtomicBooleanPredicate
 import org.vitrivr.cottontail.database.queries.components.KnnPredicate
 import org.vitrivr.cottontail.database.queries.components.Predicate
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.math.knn.metrics.CosineDistance
-import org.vitrivr.cottontail.math.knn.selection.ComparablePair
-import org.vitrivr.cottontail.math.knn.selection.MinHeapSelection
-import org.vitrivr.cottontail.math.knn.selection.MinSingleSelection
-import org.vitrivr.cottontail.model.basics.ColumnDef
-import org.vitrivr.cottontail.model.basics.Record
+import org.vitrivr.cottontail.model.basics.*
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.recordset.Recordset
-import org.vitrivr.cottontail.model.values.DoubleValue
+import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.types.VectorValue
-import org.vitrivr.cottontail.utilities.name.Name
+import org.vitrivr.cottontail.utilities.extensions.read
 
 /**
  * Represents a LSH based index in the Cottontail DB data model. An [Index] belongs to an [Entity] and can be used to
@@ -29,9 +27,9 @@ import org.vitrivr.cottontail.utilities.name.Name
  * [Recordset]s.
  *
  * @author Manuel Huerbin & Ralph Gasser
- * @version 1.1
+ * @version 1.2.2
  */
-class SuperBitLSHIndex<T : VectorValue<*>>(name: Name, parent: Entity, columns: Array<ColumnDef<*>>, params: Map<String, String>? = null) : LSHIndex<T>(name, parent, columns) {
+class SuperBitLSHIndex<T : VectorValue<*>>(name: Name.IndexName, parent: Entity, columns: Array<ColumnDef<*>>, params: Map<String, String>? = null) : LSHIndex<T>(name, parent, columns) {
 
     companion object {
         const val CONFIG_NAME = "lsh_config"
@@ -40,11 +38,17 @@ class SuperBitLSHIndex<T : VectorValue<*>>(name: Name, parent: Entity, columns: 
         const val CONFIG_NAME_SEED = "seed"
         private const val CONFIG_DEFAULT_STAGES = 3
         private const val CONFIG_DEFAULT_BUCKETS = 10
-        private val LOGGER = LoggerFactory.getLogger(UniqueHashIndex::class.java)
+        private val LOGGER = LoggerFactory.getLogger(SuperBitLSHIndex::class.java)
     }
 
     /** Internal configuration object for [SuperBitLSHIndex]. */
     val config = this.db.atomicVar(CONFIG_NAME, SuperBitLSHIndexConfig.Serializer).createOrOpen()
+
+    /** True since [SuperBitLSHIndex] supports incremental updates. */
+    override val supportsIncrementalUpdate: Boolean = true
+
+    /** The [IndexType] of this [SuperBitLSHIndex]. */
+    override val type = IndexType.SUPERBIT_LSH
 
     init {
         if (!columns.all { it.type.vector }) {
@@ -56,91 +60,6 @@ class SuperBitLSHIndex<T : VectorValue<*>>(name: Name, parent: Entity, columns: 
             val seed = params[CONFIG_NAME_SEED]?.toLongOrNull() ?: System.currentTimeMillis()
             this.config.set(SuperBitLSHIndexConfig(buckets, stages, seed))
         }
-    }
-
-    /**
-     * Performs a lookup through this [SuperBitLSHIndex].
-     *
-     * @param predicate The [Predicate] for the lookup
-     * @return The resulting [Recordset]
-     */
-    override fun filter(predicate: Predicate, tx: Entity.Tx): Recordset {
-        if (predicate is KnnPredicate<*>) {
-            /* Guard: Only process predicates that are supported. */
-            require(this.canProcess(predicate)) { throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (lsh-index) does not support the provided predicate.") }
-
-            /* Prepare empty Recordset and LSH object. */
-            val recordset = Recordset(this.produces, (predicate.k * predicate.query.size).toLong())
-            val lsh = SuperBitLSH(this.config.get().stages, this.config.get().buckets, this.columns.first().logicalSize, this.config.get().seed, predicate.query.first())
-
-            /* Generate record set .*/
-            for (i in predicate.query.indices) {
-                val query = predicate.query[i]
-                val knn = if (predicate.k == 1) {
-                    MinSingleSelection<ComparablePair<Long, DoubleValue>>()
-                } else {
-                    MinHeapSelection<ComparablePair<Long, DoubleValue>>(predicate.k)
-                }
-
-                val bucket: Int = lsh.hash(query).last()
-                val tupleIds = this.map[bucket]
-                if (tupleIds != null) {
-                    tupleIds.forEach {
-                        val record = tx.read(it)
-                        val value = record[predicate.column]
-                        if (value is VectorValue<*>) {
-                            if (predicate.weights != null) {
-                                knn.offer(ComparablePair(it, predicate.distance(query, value, predicate.weights[i])))
-                            } else {
-                                knn.offer(ComparablePair(it, predicate.distance(query, value)))
-                            }
-                        }
-                    }
-                    for (j in 0 until knn.size) {
-                        recordset.addRowUnsafe(knn[j].first, arrayOf(knn[j].second))
-                    }
-                }
-            }
-            return recordset
-        } else {
-            throw QueryException.UnsupportedPredicateException("Index '${this.fqn}' (LSH Index) does not support predicates of type '${predicate::class.simpleName}'.")
-        }
-    }
-
-    /** (Re-)builds the [SuperBitLSHIndex]. */
-    override fun rebuild(tx: Entity.Tx) {
-        /* LSH. */
-        val specimen = this.acquireSpecimen(tx) ?: return
-        val lsh = SuperBitLSH(this.config.get().stages, this.config.get().buckets, this.columns[0].logicalSize, this.config.get().seed, specimen)
-
-        /* (Re-)create index entries locally. */
-        val local = Array(this.config.get().buckets) { mutableListOf<Long>() }
-        tx.forEach {
-            val value = it[this.columns[0]]
-            if (value is VectorValue<*>) {
-                val bucket: Int = lsh.hash(value).last()
-                local[bucket].add(it.tupleId)
-            }
-        }
-
-        /* Replace existing map. */
-        this.map.clear()
-        local.forEachIndexed { bucket, list -> this.map[bucket] = list.toLongArray() }
-
-        /* Commit local database. */
-        this.db.commit()
-    }
-
-    /**
-     * Updates the [SuperBitLSHIndex] with the provided [Record]. This method determines, whether the [Record] should be added or updated
-     *
-     * @param record Record to update the [SuperBitLSHIndex] with.
-     */
-    override fun update(update: Collection<DataChangeEvent>, tx: Entity.Tx) = try {
-        // TODO
-    } catch (e: Throwable) {
-        this.db.rollback()
-        throw e
     }
 
     /**
@@ -168,25 +87,149 @@ class SuperBitLSHIndex<T : VectorValue<*>>(name: Name, parent: Entity, columns: 
     }
 
     /**
-     * Returns true since [SuperBitLSHIndex] supports incremental updates.
+     * Opens and returns a new [IndexTransaction] object that can be used to interact with this [Index].
      *
-     * @return True
+     * @param parent If the [Entity.Tx] that requested the [IndexTransaction].
      */
-    override fun supportsIncrementalUpdate(): Boolean = true
+    override fun begin(parent: Entity.Tx): IndexTransaction = Tx(parent)
 
     /**
-     * Tries to find a specimen of the [VectorValue] in the [Entity] underpinning this [SuperBitLSHIndex]
-     *
-     * @param tx [Entity.Tx] used to read from [Entity]
-     * @return A specimen of the [VectorValue] that should be indexed.
+     * A [IndexTransaction] that affects this [Index].
      */
-    private fun acquireSpecimen(tx: Entity.Tx): VectorValue<*>? {
-        for (index in 2L until tx.count()) {
-            val read = tx.read(index)[this.columns[0]]
-            if (read is VectorValue<*>) {
-                return read
+    private inner class Tx(parent: Entity.Tx) : Index.Tx(parent) {
+
+        /**
+         * (Re-)builds the [SuperBitLSHIndex].
+         */
+        override fun rebuild() = this.localLock.read {
+
+            checkValidForWrite()
+
+            LOGGER.trace("Rebuilding SB-LSH index {}", this@SuperBitLSHIndex.name)
+
+            /* LSH. */
+            val specimen = this.acquireSpecimen(this.parent) ?: return
+            val lsh = SuperBitLSH(this@SuperBitLSHIndex.config.get().stages, this@SuperBitLSHIndex.config.get().buckets, this.columns[0].logicalSize, this@SuperBitLSHIndex.config.get().seed, specimen)
+
+            /* (Re-)create index entries locally. */
+            val local = Array(this@SuperBitLSHIndex.config.get().buckets) { mutableListOf<Long>() }
+            this.parent.scan(this@SuperBitLSHIndex.columns).use { s ->
+                s.forEach { record ->
+                    val value = record[this.columns[0]]
+                    if (value is VectorValue<*>) {
+                        val bucket: Int = lsh.hash(value).last()
+                        local[bucket].add(record.tupleId)
+                    }
+                }
+            }
+
+            /* Replace existing map. */
+            this@SuperBitLSHIndex.map.clear()
+            local.forEachIndexed { bucket, list -> this@SuperBitLSHIndex.map[bucket] = list.toLongArray() }
+        }
+
+        /**
+         * Updates the [SuperBitLSHIndex] with the provided [DataChangeEvent]s. This method determines,
+         * whether the [Record] affected by the [DataChangeEvent] should be added or updated
+         *
+         * @param update Collection of [DataChangeEvent]s to process.
+         */
+        override fun update(update: Collection<DataChangeEvent>) = this.localLock.read {
+            TODO()
+        }
+
+        /**
+         * Performs a lookup through this [SuperBitLSHIndex] and returns a [CloseableIterator] of
+         * all [TupleId]s that match the [Predicate]. Only supports [KnnPredicate]s.
+         *
+         * The [CloseableIterator] is not thread safe!
+         *
+         * <strong>Important:</strong> It remains to the caller to close the [CloseableIterator]
+         *
+         * @param predicate The [Predicate] for the lookup*
+         * @return The resulting [CloseableIterator]
+         */
+        override fun filter(predicate: Predicate) = object : CloseableIterator<Record> {
+
+            /** Cast [AtomicBooleanPredicate] (if such a cast is possible).  */
+            val predicate = if (predicate is KnnPredicate<*>) {
+                predicate
+            } else {
+                throw QueryException.UnsupportedPredicateException("Index '${this@SuperBitLSHIndex.name}' (LSH Index) does not support predicates of type '${predicate::class.simpleName}'.")
+            }
+
+            /* Performs some sanity checks. */
+            init {
+                checkValidForRead()
+
+                if (this.predicate.columns.first() != this@SuperBitLSHIndex.columns[0] || this.predicate.distance !is CosineDistance) {
+                    throw QueryException.UnsupportedPredicateException("Index '${this@SuperBitLSHIndex.name}' (lsh-index) does not support the provided predicate.")
+                }
+            }
+
+            /** Generates a shared lock on the enclosing [Tx]. This lock is kept until the [CloseableIterator] is closed. */
+            private val stamp = this@Tx.localLock.readLock()
+
+            /** Flag indicating whether this [CloseableIterator] has been closed. */
+            @Volatile
+            private var closed = false
+
+            /** [SuperBitLSH] data structure to calculate the bucket index. */
+            private val lsh = SuperBitLSH(this@SuperBitLSHIndex.config.get().stages, this@SuperBitLSHIndex.config.get().buckets, this@SuperBitLSHIndex.columns.first().logicalSize, this@SuperBitLSHIndex.config.get().seed, this.predicate.query.first())
+
+            /** List of [TupleId]s returned by this [CloseableIterator]. */
+            private val tupleIds = this.predicate.query.mapNotNull {
+                this@SuperBitLSHIndex.map[this.lsh.hash(it).last()]
+            }.flatMap {
+                it.asIterable()
+            }.toMutableList()
+
+            override fun hasNext(): Boolean {
+                check(!this.closed) { "Illegal invocation of hasNext(): This CloseableIterator has been closed." }
+                return this.tupleIds.isNotEmpty()
+            }
+
+            override fun next(): Record {
+                check(!this.closed) { "Illegal invocation of next(): This CloseableIterator has been closed." }
+                return StandaloneRecord(this.tupleIds.removeFirst(), this@SuperBitLSHIndex.columns, emptyArray())
+            }
+
+            override fun close() {
+                if (!this.closed) {
+                    this@Tx.localLock.unlock(this.stamp)
+                    this.closed = true
+                }
             }
         }
-        return null
+
+        /** Performs the actual COMMIT operation by rolling back the [IndexTransaction]. */
+        override fun performCommit() {
+            this@SuperBitLSHIndex.db.commit()
+        }
+
+        /** Performs the actual ROLLBACK operation by rolling back the [IndexTransaction]. */
+        override fun performRollback() {
+            this@SuperBitLSHIndex.db.rollback()
+        }
+
+        override fun cleanup() {
+            /* No Op. */
+        }
+
+        /**
+         * Tries to find a specimen of the [VectorValue] in the [Entity] underpinning this [SuperBitLSHIndex]
+         *
+         * @param tx [Entity.Tx] used to read from [Entity]
+         * @return A specimen of the [VectorValue] that should be indexed.
+         */
+        private fun acquireSpecimen(tx: Entity.Tx): VectorValue<*>? {
+            for (index in 2L until tx.count()) {
+                val read = tx.read(index, this@SuperBitLSHIndex.columns)[this.columns[0]]
+                if (read is VectorValue<*>) {
+                    return read
+                }
+            }
+            return null
+        }
     }
 }

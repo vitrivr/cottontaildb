@@ -5,11 +5,9 @@ import it.unimi.dsi.fastutil.objects.ObjectBigArrayBigList
 import org.vitrivr.cottontail.database.queries.components.BooleanPredicate
 import org.vitrivr.cottontail.database.queries.components.Predicate
 import org.vitrivr.cottontail.model.basics.*
-import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.values.types.Value
 import org.vitrivr.cottontail.utilities.extensions.read
 import org.vitrivr.cottontail.utilities.extensions.write
-import org.vitrivr.cottontail.utilities.name.Name
 import java.util.concurrent.locks.StampedLock
 
 /**
@@ -20,10 +18,9 @@ import java.util.concurrent.locks.StampedLock
  * a [Recordset] is being generated. Furthermore, the entire query execution pipeline processes, transforms and produces [Recordset]s.
  *
  * @see org.vitrivr.cottontail.database.entity.Entity
- * @see QueryExecutionTask
  *
  * @author Ralph Gasser
- * @version 1.3
+ * @version 1.5.1
  */
 class Recordset(val columns: Array<ColumnDef<*>>, capacity: Long = 250L) : Scanable, Filterable {
     /** List of all the [Record]s contained in this [Recordset] (TupleId -> Record). */
@@ -53,88 +50,40 @@ class Recordset(val columns: Array<ColumnDef<*>>, capacity: Long = 250L) : Scana
             }
         }
 
-
-    /**
-     * Creates a new [Record] and appends it to this [Recordset]. This is a potentially unsafe operation.
-     *
-     * @param values The values to add to this [Recordset].
-     */
-    fun addRowUnsafe(values: Array<Value?>) = this.lock.write {
-        this.list.add(RecordsetRecord(this.list.size64()).assign(values))
-    }
-
     /**
      * Creates a new [Record] given the provided tupleId and values and appends it to this [Recordset].
-     * This is a potentially unsafe operation.
      *
-     * @param tupleId The tupleId of the new [Record].
+     * @param tupleId The [TupleId] of the new [Record].
      * @param values The values to add to this [Recordset].
      */
-    fun addRowUnsafe(tupleId: Long, values: Array<Value?>) = this.lock.write {
-        this.list.add(RecordsetRecord(tupleId).assign(values))
+    fun addRow(tupleId: TupleId, values: Array<Value?>) = this.lock.write {
+        this.list.add(RecordsetRecord(tupleId, values))
     }
 
     /**
-     * Creates a new [Record] given the provided tupleId and values and appends them to this [Recordset]
-     * if they match the provided [BooleanPredicate]. This is a potentially unsafe operation.
+     * Creates a new [Record] and appends it to this [Recordset]. The [TupleId] of the new [Record]
+     * is deduced from the number of [Record]s in the [Recordset]. I.e., it is not safe to assume
+     * that this method produces unique [TupleId], unless all [Record]s have only been added through
+     * this method.
      *
-     * @param tupleId The tupleId of the new [Record].
-     * @param predicate The [BooleanPredicate] to match the [Record] against
      * @param values The values to add to this [Recordset].
-     * @return True if [Record] was added, false otherwise.
      */
-    fun addRowIfUnsafe(tupleId: Long, predicate: BooleanPredicate, values: Array<Value?>): Boolean = this.lock.write {
-        val record = RecordsetRecord(tupleId).assign(values)
-        return if (predicate.matches(record)) {
-            this.list.add(record)
-            true
-        } else {
-            false
-        }
-    }
+    fun addRow(values: Array<Value?>) = this.addRow(this.list.size64(), values)
 
     /**
      * Appends a [Record] (without a tupleId) to this [Recordset].
      *
      * @param record The record to add to this [Recordset].
      */
-    fun addRow(record: Record) = this.lock.write {
-        if (record.columns.contentDeepEquals(this.columns)) {
-            this.list.add(RecordsetRecord(record.tupleId).assign(record.values))
-        } else {
-            throw IllegalArgumentException("The provided record (${this.columns.joinToString(".")}) is incompatible with this record set (${this.columns.joinToString(".")}.")
-        }
-    }
-
-    /**
-     * Creates a new [Record] given the provided tupleId and values and appends them to this [Recordset]
-     * if they match the provided [BooleanPredicate].
-     *
-     * @param tupleId The tupleId of the new [Record].
-     * @param predicate The [BooleanPredicate] to match the [Record] against
-     * @param record The values to add to this [Recordset].
-     * @return True if [Record] was added, false otherwise.
-     */
-    fun addRowIf(predicate: BooleanPredicate, record: Record): Boolean = this.lock.write {
-        if (record.columns.contentDeepEquals(this.columns)) {
-            return if (predicate.matches(record)) {
-                this.list.add(RecordsetRecord(record.tupleId).assign(record.values))
-                true
-            } else {
-                false
-            }
-        } else {
-            throw IllegalArgumentException("The provided record (${this.columns.joinToString(".")}) is incompatible with this record set (${this.columns.joinToString(".")}.")
-        }
-    }
+    fun addRow(record: Record) = this.addRow(record.tupleId, record.values)
 
     /**
      * Retrieves the value for the specified tuple ID from this [Recordset].
      *
-     * @param tupleId The tuple ID for which to return the [Record]
+     * @param tupleId The [TupleId] for which to return the [Record]
      * @return The [Record]
      */
-    operator fun get(tupleId: Long): Record {
+    operator fun get(tupleId: TupleId): Record {
         var stamp = this.lock.tryOptimisticRead()
         val value = this.list[tupleId]
         return if (this.lock.validate(stamp)) {
@@ -160,11 +109,11 @@ class Recordset(val columns: Array<ColumnDef<*>>, capacity: Long = 250L) : Scana
             throw IllegalArgumentException("UNION of record sets not possible; columns of the two record sets are not the same!")
         }
         return Recordset(this.columns).also { new ->
-            this.forEach {
-                new.addRow(it)
+            (0L until this.list.size64()).forEach {
+                new.addRow(this.list[it])
             }
-            other.forEach {
-                new.addRow(it)
+            (0L until this.list.size64()).forEach {
+                new.addRow(this.list[it])
             }
         }
     }
@@ -206,55 +155,8 @@ class Recordset(val columns: Array<ColumnDef<*>>, capacity: Long = 250L) : Scana
      *
      * @param action The action that should be applied.
      */
-    override fun forEach(action: (Record) -> Unit) = this.lock.read {
-        this.list.forEach(action)
-    }
-
-    /**
-     * Applies the provided action to each [Record] in this [Recordset].
-     *
-     * @param from The tuple ID of the first [Record] to iterate over.
-     * @param to The tuple ID of the last [Record] to iterate over.
-     * @param action The action that should be applied.
-     */
-    override fun forEach(from: Long, to: Long, action: (Record) -> Unit) = this.lock.read {
-        if (from >= this.list.size64() || to >= this.list.size64()) throw ArrayIndexOutOfBoundsException("Range [$from, $to] is out of bounds for Recordset with size ${this.list.size64()}.")
-        (from until to).forEach {
-            action(this.list[it])
-        }
-    }
-
-    /**
-     * Applies the provided action to each [Record] in this [Recordset].
-     *
-     * @param action The action that should be applied.
-     */
     fun forEachIndexed(action: (Int, Record) -> Unit) = this.lock.read {
         this.list.forEachIndexed(action)
-    }
-
-    /**
-     * Applies the provided mapping function to each [Record] in this [Recordset].
-     *
-     * @param action The mapping function that should be applied.
-     */
-    override fun <R> map(action: (Record) -> R): Collection<R> = this.lock.read {
-        this.list.map(action)
-    }
-
-
-    /**
-     * Applies the provided mapping function to each [Record] in this [Recordset].
-     *
-     * @param from The tuple ID of the first [Record] to iterate over.
-     * @param to The tuple ID of the last [Record] to iterate over.
-     * @param action The mapping function that should be applied.
-     */
-    override fun <R> map(from: Long, to: Long, action: (Record) -> R): Collection<R> = this.lock.read {
-        if (from >= this.list.size64() || to >= this.list.size64()) throw ArrayIndexOutOfBoundsException("Range [$from, $to] is out of bounds for Recordset with size ${this.list.size64()}.")
-        (from until to).map {
-            action(this.list[it])
-        }
     }
 
     /**
@@ -263,85 +165,13 @@ class Recordset(val columns: Array<ColumnDef<*>>, capacity: Long = 250L) : Scana
      * @param predicate [Predicate] to check.
      * @return True if [Predicate] can be processed, false otherwise.
      */
-    override fun canProcess(predicate: Predicate): Boolean = predicate is BooleanPredicate
+    override fun canProcess(predicate: Predicate): Boolean = predicate is BooleanPredicate && predicate.columns.all { this.columns.contains(it) }
 
     /**
-     * Filters this [Filterable] thereby creating and returning a new [Filterable].
      *
-     * @param predicate [Predicate] to filter [Record]s.
-     * @return New [Filterable]
      */
-    override fun filter(predicate: Predicate): Recordset = if (predicate is BooleanPredicate) {
-        val recordset = Recordset(this.columns)
-        this.lock.read {
-            this.list.asSequence().filter { predicate.matches(it) }.forEach { recordset.addRow(it) }
-        }
-        recordset
-    } else {
-        throw QueryException.UnsupportedPredicateException("Recordset#filter() does not support predicates of type '${predicate::class.simpleName}'.")
-    }
-
-    /**
-     * Applies the provided action to each [Record] that matches the given [Predicate].
-     *
-     * @param predicate The [Predicate] to filter [Record]s.
-     * @param action The action that should be applied.
-     */
-    override fun forEach(predicate: Predicate, action: (Record) -> Unit) = if (predicate is BooleanPredicate) {
-        this.lock.read {
-            this.list.asSequence().filter { predicate.matches(it) }.forEach { action(it) }
-        }
-    } else {
-        throw QueryException.UnsupportedPredicateException("Recordset#forEach() does not support predicates of type '${predicate::class.simpleName}'.")
-    }
-
-    /**
-     * Applies the provided action to each [Record] in the given range that matches the given [Predicate].
-     *
-     * @param from The tuple ID of the first [Record] to iterate over.
-     * @param to The tuple ID of the last [Record] to iterate over.
-     * @param predicate The [Predicate] to filter [Record]s.
-     * @param action The action that should be applied.
-     */
-    override fun forEach(from: Long, to: Long, predicate: Predicate, action: (Record) -> Unit) = if (predicate is BooleanPredicate) {
-        this.lock.read {
-            if (from >= this.list.size64() || to >= this.list.size64()) throw ArrayIndexOutOfBoundsException("Range [$from, $to] is out of bounds for Recordset with size ${this.list.size64()}.")
-            (from until to).asSequence().map { this.list[it] }.filter { predicate.matches(it) }.forEach { action(it) }
-        }
-    } else {
-        throw QueryException.UnsupportedPredicateException("Recordset#forEach() does not support predicates of type '${predicate::class.simpleName}'.")
-    }
-
-
-    /**
-     * Applies the provided mapping function to each [Record] that matches the given [Predicate].
-     *
-     * @param predicate The [Predicate] to filter [Record]s.
-     * @param action The mapping function that should be applied.
-     */
-    override fun <R> map(predicate: Predicate, action: (Record) -> R): Collection<R> = if (predicate is BooleanPredicate) {
-        this.lock.read {
-            this.list.asSequence().filter { predicate.matches(it) }.map(action).toList()
-        }
-    } else {
-        throw QueryException.UnsupportedPredicateException("Recordset#map() does not support predicates of type '${predicate::class.simpleName}'.")
-    }
-
-    /**
-     * Applies the provided mapping function to each [Record] in the given range that matches the given [Predicate].
-     *
-     * @param from The tuple ID of the first [Record] to iterate over.
-     * @param to The tuple ID of the last [Record] to iterate over.
-     * @param predicate The [Predicate] to filter [Record]s.
-     * @param action The mapping function that should be applied.
-     */
-    override fun <R> map(from: Long, to: Long, predicate: Predicate, action: (Record) -> R): Collection<R> = if (predicate is BooleanPredicate) {
-        this.lock.read {
-            if (from >= this.list.size64() || to >= this.list.size64()) throw ArrayIndexOutOfBoundsException("Range [$from, $to] is out of bounds for Recordset with size ${this.list.size64()}.")
-            (from until to).asSequence().map { this.list[it] }.filter { predicate.matches(it) }.map(action).toList()
-        }
-    } else {
-        throw QueryException.UnsupportedPredicateException("Recordset#map() does not support predicates of type '${predicate::class.simpleName}'.")
+    override fun filter(predicate: Predicate): CloseableIterator<Record> {
+        TODO("Not yet implemented")
     }
 
     /**
@@ -359,49 +189,6 @@ class Recordset(val columns: Array<ColumnDef<*>>, capacity: Long = 250L) : Scana
      * @return Index of the specified [ColumnDef].
      */
     fun indexOf(column: ColumnDef<*>): Int = this.columns.indexOf(column)
-
-    /**
-     * Drops the columns with the specified indexes and returns a new [Recordset].
-     *
-     * @param columns A list of column indexes to drop.
-     * @return A new [Recordset] without the specified [ColumnDef]s
-     */
-    fun dropColumnsWithIndex(columns: Collection<Int>): Recordset = this.lock.write {
-        val recordset = Recordset(this.columns.filterIndexed { i, _ -> !columns.contains(i) }.toTypedArray())
-        this.list.forEach {
-            recordset.addRowUnsafe(it.tupleId, it.values.filterIndexed {i, _ -> !columns.contains(i) }.toTypedArray())
-        }
-        return recordset
-    }
-
-    /**
-     * Drops the columns with the specified indexes and returns a new [Recordset].
-     *
-     * @param columns A list of columns to drop.
-     * @return A new [Recordset] without the specified [ColumnDef]s
-     */
-    fun dropColumns(columns: Collection<ColumnDef<*>>): Recordset = this.dropColumnsWithIndex(columns.map { this.indexOf(it) })
-
-    /**
-     * Renames the columns with the specified indexes and returns a new [Recordset].
-     *
-     * @param columns A list of columns to drop.
-     * @return A new [Recordset] without the specified [ColumnDef]s
-     */
-    fun renameColumnsWithIndex(columns: Collection<Pair<Int, Name>>): Recordset {
-        val renamed = this.columns.mapIndexed { i, col ->
-            val rename = columns.find { i == it.first }
-            if (rename != null) {
-                ColumnDef(rename.second, col.type, col.logicalSize, col.nullable)
-            } else {
-                col
-            }
-        }.toTypedArray()
-
-        val recordset = Recordset(renamed)
-        this.forEach { r -> recordset.addRowUnsafe(r.tupleId, r.values) }
-        return recordset
-    }
 
     /**
      * Returns a list view of this [Recordset]. If this [Recordset] contains more than [Int.MAX_VALUE] [Record]s,
@@ -476,25 +263,26 @@ class Recordset(val columns: Array<ColumnDef<*>>, capacity: Long = 250L) : Scana
      * @author Ralph Gasser
      * @version 1.0
      */
-    inner class RecordsetRecord(override val tupleId: Long, init: Array<Value?>? = null) : Record {
+    inner class RecordsetRecord(override val tupleId: Long, override val values: Array<Value?>) : Record {
 
         /** Array of [ColumnDef]s that describes the [Column][org.vitrivr.cottontail.database.column.Column] of this [Record]. */
         override val columns: Array<ColumnDef<*>>
             get() = this@Recordset.columns
 
-        /** Array of column values (one entry per column). Initializes with null. */
-        override val values: Array<Value?> = if (init != null) {
-            assert(init.size == columns.size)
-            init.forEachIndexed { index, any -> columns[index].validateOrThrow(any) }
-            init
-        } else Array(columns.size) { columns[it].defaultValue() }
+        init {
+            /** Sanity check. */
+            require(this.values.size == this.columns.size) { "The number of values must be equal to the number of columns held by the StandaloneRecord (v = ${this.values.size}, c = ${this.columns.size})" }
+            this.columns.forEachIndexed { index, columnDef ->
+                columnDef.validateOrThrow(this.values[index])
+            }
+        }
 
         /**
          * Copies this [Record] and returns the copy.
          *
          * @return Copy of this [Record]
          */
-        override fun copy(): Record = StandaloneRecord(tupleId, columns = columns, init = values.copyOf())
+        override fun copy(): Record = StandaloneRecord(tupleId, columns = this.columns, this.values.copyOf())
 
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
@@ -516,4 +304,14 @@ class Recordset(val columns: Array<ColumnDef<*>>, capacity: Long = 250L) : Scana
             return result
         }
     }
+
+    override fun scan(columns: Array<ColumnDef<*>>): CloseableIterator<Record> {
+        TODO("Not yet implemented")
+    }
+
+    override fun scan(columns: Array<ColumnDef<*>>, range: LongRange): CloseableIterator<Record> {
+        TODO("Not yet implemented")
+    }
+
+
 }

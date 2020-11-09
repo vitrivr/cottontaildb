@@ -4,9 +4,6 @@ import org.mapdb.DataInput2
 import org.mapdb.DataOutput2
 import org.mapdb.Serializer
 import org.vitrivr.cottontail.model.values.BooleanVectorValue
-import org.vitrivr.cottontail.model.values.DoubleVectorValue
-import java.util.*
-import kotlin.math.max
 import kotlin.math.min
 
 /**
@@ -36,7 +33,7 @@ class FixedBooleanVectorSerializer(val size: Int): Serializer<BooleanVectorValue
     override fun serialize(out: DataOutput2, value: BooleanVectorValue) {
         val words = LongArray(this.arraySize) {
             var v = 0L
-            for (idx in (it shl LONG_BIT_SHIFT) until min((it+1) shl LONG_BIT_SHIFT, this.size)) {
+            for (idx in (it shl LONG_BIT_SHIFT) until min((it + 1) shl LONG_BIT_SHIFT, this.size)) {
                 if (value.data[idx]) {
                     v = v or (1L shl idx)
                 }

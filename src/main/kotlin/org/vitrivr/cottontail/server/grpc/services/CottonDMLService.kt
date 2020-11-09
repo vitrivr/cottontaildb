@@ -4,73 +4,218 @@ import io.grpc.Status
 import io.grpc.stub.StreamObserver
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.database.catalogue.Catalogue
-import org.vitrivr.cottontail.database.column.*
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.general.Transaction
+import org.vitrivr.cottontail.database.queries.planning.CottontailQueryPlanner
+import org.vitrivr.cottontail.database.queries.planning.rules.logical.LeftConjunctionRewriteRule
+import org.vitrivr.cottontail.database.queries.planning.rules.logical.RightConjunctionRewriteRule
+import org.vitrivr.cottontail.database.queries.planning.rules.physical.implementation.DeleteImplementationRule
+import org.vitrivr.cottontail.database.queries.planning.rules.physical.implementation.EntityScanImplementationRule
+import org.vitrivr.cottontail.database.queries.planning.rules.physical.implementation.FilterImplementationRule
+import org.vitrivr.cottontail.database.queries.planning.rules.physical.implementation.UpdateImplementationRule
+import org.vitrivr.cottontail.database.queries.planning.rules.physical.index.BooleanIndexScanRule
+import org.vitrivr.cottontail.execution.ExecutionEngine
+import org.vitrivr.cottontail.execution.exceptions.ExecutionException
 import org.vitrivr.cottontail.grpc.CottonDMLGrpc
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.model.basics.ColumnDef
+import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
+import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.exceptions.ValidationException
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.types.Value
-import org.vitrivr.cottontail.server.grpc.helper.*
+import org.vitrivr.cottontail.server.grpc.helper.GrpcQueryBinder
+import org.vitrivr.cottontail.server.grpc.helper.ResultsSpoolerOperator
+import org.vitrivr.cottontail.server.grpc.helper.fqn
+import org.vitrivr.cottontail.server.grpc.helper.toValue
 import org.vitrivr.cottontail.utilities.extensions.read
 import org.vitrivr.cottontail.utilities.extensions.write
-import org.vitrivr.cottontail.utilities.name.Name
-import org.vitrivr.cottontail.utilities.name.NameType
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.locks.StampedLock
+import kotlin.time.ExperimentalTime
+import kotlin.time.measureTime
+import kotlin.time.measureTimedValue
 
 /**
  * Implementation of [CottonDMLGrpc.CottonDMLImplBase], the gRPC endpoint for inserting data into Cottontail DB [Entity]s.
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.1.0
  */
-class CottonDMLService(val catalogue: Catalogue) : CottonDMLGrpc.CottonDMLImplBase() {
+@ExperimentalTime
+class CottonDMLService(val catalogue: Catalogue, val engine: ExecutionEngine) : CottonDMLGrpc.CottonDMLImplBase() {
     /** Logger used for logging the output. */
     companion object {
         private val LOGGER = LoggerFactory.getLogger(CottonDMLService::class.java)
-
-        /**
-         * Casts the provided [CottontailGrpc.Data] to a data type supported by the provided [ColumnDef]
-         *
-         * @param value The [CottontailGrpc.Data] to cast.
-         * @param col The [ColumnDef] of the column, the data should be stored in.
-         * @return The converted value.
-         */
-        private fun castToColumn(value: CottontailGrpc.Data, col: ColumnDef<*>): Value? = if (value.dataCase == CottontailGrpc.Data.DataCase.DATA_NOT_SET || value.dataCase == null) {
-            null
-        } else {
-            when (col.type) {
-                is BooleanColumnType -> value.toBooleanValue()
-                is ByteColumnType -> value.toByteValue()
-                is ShortColumnType -> value.toShortValue()
-                is IntColumnType -> value.toIntValue()
-                is LongColumnType -> value.toLongValue()
-                is FloatColumnType -> value.toFloatValue()
-                is DoubleColumnType -> value.toDoubleValue()
-                is StringColumnType -> value.toStringValue()
-                is IntVectorColumnType -> value.toIntVectorValue()
-                is LongVectorColumnType -> value.toLongVectorValue()
-                is FloatVectorColumnType -> value.toFloatVectorValue()
-                is DoubleVectorColumnType -> value.toDoubleVectorValue()
-                is BooleanVectorColumnType -> value.toBooleanVectorValue()
-                is Complex32ColumnType -> value.toComplex32Value()
-                is Complex64ColumnType -> value.toComplex64Value()
-                is Complex32VectorColumnType -> value.toComplex32VectorValue()
-                is Complex64VectorColumnType -> value.toComplex64VectorValue()
-            }
-        }
     }
+
+    /** [GrpcQueryBinder] used to generate [org.vitrivr.cottontail.database.queries.planning.nodes.logical.LogicalNodeExpression] tree from a gRPC query. */
+    private val binder = GrpcQueryBinder(this.catalogue)
+
+    /** [CottontailQueryPlanner] used to generate execution plans from query definitions. */
+    private val planner = CottontailQueryPlanner(
+            logicalRewriteRules = listOf(LeftConjunctionRewriteRule, RightConjunctionRewriteRule),
+            physicalRewriteRules = listOf(BooleanIndexScanRule, EntityScanImplementationRule, FilterImplementationRule, DeleteImplementationRule, UpdateImplementationRule)
+    )
+
+    /**
+     * gRPC endpoint for handling UPDATE queries.
+     */
+    override fun update(request: CottontailGrpc.UpdateMessage, responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) = try {
+        /* Create a new execution context for the query. */
+        val context = this.engine.ExecutionContext()
+        val queryId = request.queryId.ifBlank { context.uuid.toString() }
+        val totalDuration = measureTime {
+            /* Bind query and create logical plan. */
+            val bindTimedValue = measureTimedValue {
+                this.binder.parseAndBindUpdate(request)
+            }
+            LOGGER.trace("Parsing & binding UPDATE $queryId took ${bindTimedValue.duration}.")
+
+            /* Plan query and create execution plan. */
+            val planningTime = measureTime {
+                val candidates = this.planner.plan(bindTimedValue.value)
+                if (candidates.isEmpty()) {
+                    responseObserver.onError(Status.INTERNAL.withDescription("UPDATE query execution failed because no valid execution plan could be produced").asException())
+                    return
+                }
+                val operator = candidates.minByOrNull { it.totalCost }!!.toOperator(context)
+                context.addOperator(ResultsSpoolerOperator(operator, context, queryId, 0, responseObserver))
+            }
+            LOGGER.trace("Planning UPDATE $queryId took $planningTime.")
+
+            /* Execute query. */
+            context.execute()
+        }
+
+        /* Complete query. */
+        responseObserver.onCompleted()
+        LOGGER.trace("Executing UPDATE ${context.uuid} took $totalDuration to complete.")
+    } catch (e: QueryException.QuerySyntaxException) {
+        LOGGER.error("Error while executing UPDATE $request", e)
+        responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("UPDATE syntax is invalid: ${e.message}").asException())
+    } catch (e: QueryException.QueryBindException) {
+        LOGGER.error("Error while executing UPDATE $request", e)
+        responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("UPDATE query binding failed: ${e.message}").asException())
+    } catch (e: ExecutionException) {
+        LOGGER.error("Error while executing UPDATE $request", e)
+        responseObserver.onError(Status.INTERNAL.withDescription("UPDATE execution failed: ${e.message}").asException())
+    } catch (e: DatabaseException) {
+        LOGGER.error("Error while executing UPDATE $request", e)
+        responseObserver.onError(Status.INTERNAL.withDescription("UPDATE execution failed failed because of a database error: ${e.message}").asException())
+    } catch (e: Throwable) {
+        LOGGER.error("Error while executing UPDATE $request", e)
+        responseObserver.onError(Status.UNKNOWN.withDescription("UPDATE execution failed failed because of an unknown error: ${e.message}").asException())
+    }
+
+    /**
+     * gRPC endpoint for handling DELETE queries.
+     */
+    override fun delete(request: CottontailGrpc.DeleteMessage, responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) = try {
+        /* Create a new execution context for the query. */
+        val context = this.engine.ExecutionContext()
+        val queryId = request.queryId.ifBlank { context.uuid.toString() }
+        val totalDuration = measureTime {
+            /* Bind query and create logical plan. */
+            val bindTimedValue = measureTimedValue {
+                this.binder.parseAndBindDelete(request)
+            }
+            LOGGER.trace("Parsing & binding DELETE $queryId took ${bindTimedValue.duration}.")
+
+            /* Plan query and create execution plan. */
+            val planningTime = measureTime {
+                val candidates = this.planner.plan(bindTimedValue.value)
+                if (candidates.isEmpty()) {
+                    responseObserver.onError(Status.INTERNAL.withDescription("DELETE query execution failed because no valid execution plan could be produced").asException())
+                    return
+                }
+                val operator = candidates.minByOrNull { it.totalCost }!!.toOperator(context)
+                context.addOperator(ResultsSpoolerOperator(operator, context, queryId, 0, responseObserver))
+            }
+            LOGGER.trace("Planning DELETE $queryId took $planningTime.")
+
+            /* Execute query. */
+            context.execute()
+        }
+
+        /* Complete query. */
+        responseObserver.onCompleted()
+        LOGGER.trace("Executing DELETE ${context.uuid} took $totalDuration to complete.")
+    } catch (e: QueryException.QuerySyntaxException) {
+        LOGGER.error("Error while executing DELETE $request", e)
+        responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("DELETE syntax is invalid: ${e.message}").asException())
+    } catch (e: QueryException.QueryBindException) {
+        LOGGER.error("Error while executing DELETE $request", e)
+        responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("DELETE query binding failed: ${e.message}").asException())
+    } catch (e: ExecutionException) {
+        LOGGER.error("Error while executing DELETE $request", e)
+        responseObserver.onError(Status.INTERNAL.withDescription("DELETE execution failed: ${e.message}").asException())
+    } catch (e: DatabaseException) {
+        LOGGER.error("Error while executing DELETE $request", e)
+        responseObserver.onError(Status.INTERNAL.withDescription("DELETE execution failed failed because of a database error: ${e.message}").asException())
+    } catch (e: Throwable) {
+        LOGGER.error("Error while executing DELETE $request", e)
+        responseObserver.onError(Status.UNKNOWN.withDescription("DELETE execution failed failed because of an unknown error: ${e.message}").asException())
+    }
+
+    /**
+     * gRPC endpoint for handling TRUNCATE queries.
+     */
+    override fun truncate(request: CottontailGrpc.TruncateMessage, responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) = try {
+        /* Create a new execution context for the query. */
+        val context = this.engine.ExecutionContext()
+        val queryId = request.queryId.ifBlank { context.uuid.toString() }
+        val totalDuration = measureTime {
+            /* Bind query and create logical plan. */
+            val bindTimedValue = measureTimedValue {
+                this.binder.parseAndBindTruncate(request)
+            }
+            LOGGER.trace("Parsing & binding TRUNCATE $queryId took ${bindTimedValue.duration}.")
+
+            /* Plan query and create execution plan. */
+            val planningTime = measureTime {
+                val candidates = this.planner.plan(bindTimedValue.value)
+                if (candidates.isEmpty()) {
+                    responseObserver.onError(Status.INTERNAL.withDescription("TRUNCATE query execution failed because no valid execution plan could be produced").asException())
+                    return
+                }
+                val operator = candidates.minByOrNull { it.totalCost }!!.toOperator(context)
+                context.addOperator(ResultsSpoolerOperator(operator, context, queryId, 0, responseObserver))
+            }
+            LOGGER.trace("Planning TRUNCATE $queryId took $planningTime.")
+
+            /* Execute query. */
+            context.execute()
+        }
+
+        /* Complete query. */
+        responseObserver.onCompleted()
+        LOGGER.trace("Executing TRUNCATE ${context.uuid} took $totalDuration to complete.")
+    } catch (e: QueryException.QuerySyntaxException) {
+        LOGGER.error("Error while executing TRUNCATE $request", e)
+        responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("TRUNCATE syntax is invalid: ${e.message}").asException())
+    } catch (e: QueryException.QueryBindException) {
+        LOGGER.error("Error while executing TRUNCATE $request", e)
+        responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("TRUNCATE query binding failed: ${e.message}").asException())
+    } catch (e: ExecutionException) {
+        LOGGER.error("Error while executing TRUNCATE $request", e)
+        responseObserver.onError(Status.INTERNAL.withDescription("TRUNCATE execution failed: ${e.message}").asException())
+    } catch (e: DatabaseException) {
+        LOGGER.error("Error while executing TRUNCATE $request", e)
+        responseObserver.onError(Status.INTERNAL.withDescription("TRUNCATE execution failed failed because of a database error: ${e.message}").asException())
+    } catch (e: Throwable) {
+        LOGGER.error("Error while executing TRUNCATE $request", e)
+        responseObserver.onError(Status.UNKNOWN.withDescription("TRUNCATE execution failed failed because of an unknown error: ${e.message}").asException())
+    }
+
 
     /**
      * gRPC endpoint for inserting data in a streaming mode; transactions will stay open until the caller explicitly completes or until an error occurs.
      * As new entities are being inserted, new transactions will be created and thus new locks will be acquired.
      */
-    override fun insert(responseObserver: StreamObserver<CottontailGrpc.InsertStatus>): StreamObserver<CottontailGrpc.InsertMessage> = InsertSink(responseObserver)
+    override fun insert(responseObserver: StreamObserver<CottontailGrpc.Status>): StreamObserver<CottontailGrpc.InsertMessage> = InsertSink(responseObserver)
 
     /**
      * Class that acts as [StreamObserver] for [CottontailGrpc.InsertMessage]s.
@@ -78,10 +223,10 @@ class CottonDMLService(val catalogue: Catalogue) : CottonDMLGrpc.CottonDMLImplBa
      * @author Ralph Gasser
      * @version 1.0
      */
-    inner class InsertSink(private val responseObserver: StreamObserver<CottontailGrpc.InsertStatus>): StreamObserver<CottontailGrpc.InsertMessage> {
+    inner class InsertSink(private val responseObserver: StreamObserver<CottontailGrpc.Status>) : StreamObserver<CottontailGrpc.InsertMessage> {
 
         /** List of all the [Entity.Tx] associated with this call. */
-        private val transactions = ConcurrentHashMap<Name, Entity.Tx>()
+        private val transactions = ConcurrentHashMap<Name.EntityName, Entity.Tx>()
 
         /** Generates a new transaction id. */
         private val txId = UUID.randomUUID()
@@ -111,11 +256,10 @@ class CottonDMLService(val catalogue: Catalogue) : CottonDMLGrpc.CottonDMLImplBa
                 /* Check if call was closed and return. */
                 this.closeLock.read {
                     if (this.closed) return
-                    val fqn = Name(request.entity.fqn())
-
-                    /* Check if name is correctly formatted. */
-                    if (fqn.type != NameType.FQN) {
-                        responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Failed to insert into entity: Invalid entity name '$fqn'.").asException())
+                    val fqn = try {
+                        request.from.entity.fqn()
+                    } catch (e: IllegalArgumentException) {
+                        responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Failed to insert into entity: ${e.message}").asException())
                         return
                     }
 
@@ -123,46 +267,49 @@ class CottonDMLService(val catalogue: Catalogue) : CottonDMLGrpc.CottonDMLImplBa
                     var tx = this.transactions[fqn]
                     if (tx == null) {
                         /* Extract required schema and entity. */
-                        val schema = this@CottonDMLService.catalogue.schemaForName(fqn.first())
-                        val entity = schema.entityForName(fqn.last())
+                        val schema = this@CottonDMLService.catalogue.schemaForName(fqn.schema())
+                        val entity = schema.entityForName(fqn)
                         tx = entity.Tx(false, this.txId)
                         this.transactions[fqn] = tx
                     }
 
                     /* Execute insert action. */
-                    val insert = request.tuple.dataMap.map {
-                        val col = tx.columns.find { c -> c.name.last() == Name(it.key) }
-                                ?: throw ValidationException("Insert failed because column ${it.key} does not exist in entity '$fqn'.")
-                        col to castToColumn(it.value, col)
-                    }.toMap()
+                    val columns = ArrayList<ColumnDef<*>>(request.tuple.dataMap.size)
+                    val values = ArrayList<Value?>(request.tuple.dataMap.size)
+                    request.tuple.dataMap.forEach {
+                        val col = tx.entity.columnForName(fqn.column(it.key))
+                                ?: throw ValidationException("INSERT failed because column ${it.key} does not exist in entity '$fqn'.")
+                        columns.add(col)
+                        values.add(it.value.toValue(col))
+                    }
 
-                    /* Conduct insert. */
-                    tx.insert(StandaloneRecord(columns = insert.keys.toTypedArray(), init = insert.values.toTypedArray()))
+                    /* Conduct INSERT. */
+                    tx.insert(StandaloneRecord(columns = columns.toTypedArray(), values = values.toTypedArray()))
 
                     /* Increment counter. */
                     this.counter += 1
 
                     /* Respond with status. */
-                    this.responseObserver.onNext(CottontailGrpc.InsertStatus.newBuilder().setSuccess(true).setTimestamp(System.currentTimeMillis()).build())
+                    this.responseObserver.onNext(CottontailGrpc.Status.newBuilder().setSuccess(true).setTimestamp(System.currentTimeMillis()).build())
                 }
             } catch (e: DatabaseException.SchemaDoesNotExistException) {
                 this.cleanup(false)
-                this.responseObserver.onError(Status.NOT_FOUND.withDescription("Insert failed because schema '${request.entity.schema.name} does not exist!").asException())
+                this.responseObserver.onError(Status.NOT_FOUND.withDescription("INSERT failed because schema '${request.from.entity.schema.name} does not exist!").asException())
             } catch (e: DatabaseException.EntityDoesNotExistException) {
                 this.cleanup(false)
-                this.responseObserver.onError(Status.NOT_FOUND.withDescription("Insert failed because entity '${request.entity.fqn()} does not exist!").asException())
+                this.responseObserver.onError(Status.NOT_FOUND.withDescription("INSERT failed because entity '${request.from.entity.fqn()} does not exist!").asException())
             } catch (e: DatabaseException.ColumnDoesNotExistException) {
                 this.cleanup(false)
-                this.responseObserver.onError(Status.NOT_FOUND.withDescription("Insert failed because column '${e.column}' does not exist!").asException())
+                this.responseObserver.onError(Status.NOT_FOUND.withDescription("INSERT failed because column '${e.column}' does not exist!").asException())
             } catch (e: ValidationException) {
                 this.cleanup(false)
-                this.responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Insert failed because data validation failed: ${e.message}").asException())
+                this.responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("INSERT failed because data validation failed: ${e.message}").asException())
             } catch (e: DatabaseException) {
                 this.cleanup(false)
-                this.responseObserver.onError(Status.INTERNAL.withDescription("Insert failed because of a database error: ${e.message}").asException())
+                this.responseObserver.onError(Status.INTERNAL.withDescription("INSERT failed because of a database error: ${e.message}").asException())
             } catch (e: Throwable) {
                 this.cleanup(false)
-                this.responseObserver.onError(Status.UNKNOWN.withDescription("Insert failed because of a unknown error: ${e.message}").asException())
+                this.responseObserver.onError(Status.UNKNOWN.withDescription("INSERT failed because of a unknown error: ${e.message}").asException())
             }
         }
 

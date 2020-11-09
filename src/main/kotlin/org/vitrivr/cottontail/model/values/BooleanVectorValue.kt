@@ -1,6 +1,9 @@
 package org.vitrivr.cottontail.model.values
 
-import org.vitrivr.cottontail.model.values.types.*
+import org.vitrivr.cottontail.model.values.types.NumericValue
+import org.vitrivr.cottontail.model.values.types.RealVectorValue
+import org.vitrivr.cottontail.model.values.types.Value
+import org.vitrivr.cottontail.model.values.types.VectorValue
 import org.vitrivr.cottontail.utilities.extensions.toInt
 import java.util.*
 
@@ -8,7 +11,7 @@ import java.util.*
  * This is an abstraction over a [BooleanArray] and it represents a vector of [Boolean]s.
  *
  * @author Ralph Gasser
- * @version 1.1
+ * @version 1.3.1
  */
 inline class BooleanVectorValue(val data: BooleanArray) : RealVectorValue<Int> {
 
@@ -18,8 +21,9 @@ inline class BooleanVectorValue(val data: BooleanArray) : RealVectorValue<Int> {
          *
          * @param size Size of the new [IntVectorValue]
          * @param rnd A [SplittableRandom] to generate the random numbers.
+         * @return Random [BooleanVectorValue] of size [size]
          */
-        fun random(size: Int, rnd: SplittableRandom = SplittableRandom(System.currentTimeMillis())) = BooleanVectorValue(BooleanArray(size) { rnd.nextBoolean() })
+        fun random(size: Int, rnd: SplittableRandom = Value.RANDOM) = BooleanVectorValue(BooleanArray(size) { rnd.nextBoolean() })
 
         /**
          * Generates a [IntVectorValue] of the given size initialized with ones.
@@ -161,17 +165,31 @@ inline class BooleanVectorValue(val data: BooleanArray) : RealVectorValue<Int> {
         DoubleVectorValue.one(this.data.size)
     } else {
         DoubleVectorValue(DoubleArray(this.data.size) {
-            if (this.data[it]) { 1.0 } else { 0.0 }
+            if (this.data[it]) {
+                1.0
+            } else {
+                0.0
+            }
         })
     }
 
     override fun sqrt(): DoubleVectorValue = DoubleVectorValue(DoubleArray(this.data.size) {
-        if (this.data[it]) { 1.0 } else { 0.0 }
+        if (this.data[it]) {
+            1.0
+        } else {
+            0.0
+        }
     })
 
     override fun abs(): RealVectorValue<Int> = this.copy()
 
-    override fun sum(): DoubleValue = DoubleValue(this.data.sumByDouble { if (it) { 1.0 } else { 0.0 }})
+    override fun sum(): DoubleValue = DoubleValue(this.data.sumByDouble {
+        if (it) {
+            1.0
+        } else {
+            0.0
+        }
+    })
 
     override fun norm2(): DoubleValue {
         var sum = 0.0
@@ -196,5 +214,19 @@ inline class BooleanVectorValue(val data: BooleanArray) : RealVectorValue<Int> {
             }
             DoubleValue(sum)
         }
+    }
+
+    override fun hamming(other: VectorValue<*>): IntValue = when (other) {
+        is BooleanVectorValue -> {
+            var sum = 0
+            val start = Arrays.mismatch(this.data, other.data)
+            for (i in start until other.data.size) {
+                if (this.data[i] != other.data[i]) {
+                    sum += 1
+                }
+            }
+            IntValue(sum)
+        }
+        else -> super.hamming(other).asInt()
     }
 }

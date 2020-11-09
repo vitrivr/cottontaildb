@@ -21,9 +21,7 @@ object HammingDistance : DistanceKernel {
      *
      * @return Distance between a and b.
      */
-    override operator fun invoke(a: VectorValue<*>, b: VectorValue<*>): DoubleValue {
-        TODO()
-    }
+    override operator fun invoke(a: VectorValue<*>, b: VectorValue<*>): DoubleValue = (a hamming b).asDouble()
 
     /**
      * Calculates the weighted Hamming distance between two [VectorValue]s.
@@ -35,6 +33,12 @@ object HammingDistance : DistanceKernel {
      * @return Distance between a and b.
      */
     override operator fun invoke(a: VectorValue<*>, b: VectorValue<*>, weights: VectorValue<*>): DoubleValue {
-        TODO()
+        var sum = 0.0
+        for (i in 0 until a.logicalSize) {
+            if (a[i] == b[i]) {
+                sum += weights[i].value.toDouble()
+            }
+        }
+        return DoubleValue(sum)
     }
 }

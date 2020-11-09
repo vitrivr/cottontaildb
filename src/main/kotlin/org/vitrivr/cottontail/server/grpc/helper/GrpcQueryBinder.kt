@@ -5,54 +5,45 @@ import org.vitrivr.cottontail.database.column.*
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.index.IndexType
 import org.vitrivr.cottontail.database.queries.components.*
-import org.vitrivr.cottontail.database.queries.planning.CottontailQueryPlanner
-import org.vitrivr.cottontail.database.queries.planning.QueryPlannerContext
-import org.vitrivr.cottontail.database.queries.planning.basics.NodeExpression
-import org.vitrivr.cottontail.database.queries.planning.nodes.basics.*
-import org.vitrivr.cottontail.database.queries.planning.rules.*
-import org.vitrivr.cottontail.execution.ExecutionEngine
-import org.vitrivr.cottontail.execution.ExecutionPlan
-import org.vitrivr.cottontail.execution.tasks.basics.ExecutionTask
+import org.vitrivr.cottontail.database.queries.planning.nodes.logical.LogicalNodeExpression
+import org.vitrivr.cottontail.database.queries.planning.nodes.logical.NullaryLogicalNodeExpression
+import org.vitrivr.cottontail.database.queries.planning.nodes.logical.management.DeleteLogicalNodeExpression
+import org.vitrivr.cottontail.database.queries.planning.nodes.logical.management.UpdateLogicalNodeExpression
+import org.vitrivr.cottontail.database.queries.planning.nodes.logical.predicates.FilterLogicalNodeExpression
+import org.vitrivr.cottontail.database.queries.planning.nodes.logical.predicates.KnnLogicalNodeExpression
+import org.vitrivr.cottontail.database.queries.planning.nodes.logical.projection.LimitLogicalNodeExpression
+import org.vitrivr.cottontail.database.queries.planning.nodes.logical.projection.ProjectionLogicalNodeExpression
+import org.vitrivr.cottontail.database.queries.planning.nodes.logical.sources.EntitySampleLogicalNodeExpression
+import org.vitrivr.cottontail.database.queries.planning.nodes.logical.sources.EntityScanLogicalNodeExpression
+import org.vitrivr.cottontail.database.queries.planning.nodes.physical.projection.ProjectionPhysicalNodeExpression
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.math.knn.metrics.Distances
 import org.vitrivr.cottontail.model.basics.ColumnDef
+import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.values.*
-import org.vitrivr.cottontail.utilities.name.Match
-import org.vitrivr.cottontail.utilities.name.Name
 
 /**
  * This helper class parses and binds queries issued through the gRPC endpoint. The process encompasses three steps:
  *
  * 1) The [CottontailGrpc.Query] is decomposed into its components.
- * 2) The gRPC query components are bound to Cottontail DB [DBO] objects and internal query objects are constructed. This step includes some basic validation.
- * 3) A [ExecutionPlan] is constructed from the internal query objects.
+ * 2) The gRPC query components are bound to Cottontail DB objects and internal query objects are constructed. This step includes some basic validation.
+ * 3) A [LogicalNodeExpression] tree is constructed from the internal query objects.
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.2.1
  */
-class GrpcQueryBinder(val catalogue: Catalogue, private val engine: ExecutionEngine) {
-
-    /** [ExecutionPlanFactor] used to generate [ExecutionPlan]s from query definitions. */
-    private val planner = CottontailQueryPlanner(
-            KnnPushdownRule,
-            KnnIndexRule,
-            LimitPushdownRule,
-            PredicatePushdownRule,
-            PredicatePushdownWithIndexRule,
-            AggregatingProjectionPushdownRule
-    )
-
+class GrpcQueryBinder(val catalogue: Catalogue) {
     /**
-     * Binds the given [CottontailGrpc.Query] to the database objects and thereby creates an [ExecutionPlan].
+     * Binds the given [CottontailGrpc.Query] to the database objects and thereby creates a tree of [LogicalNodeExpression]s.
      *
      * @param query The [CottontailGrpc.Query] that should be bound.
-     * @return [ExecutionPlan]
+     * @return [LogicalNodeExpression]
      *
      * @throws QueryException.QuerySyntaxException If [CottontailGrpc.Query] is structurally incorrect.
      */
-    fun parseAndBind(query: CottontailGrpc.Query): ExecutionPlan {
+    fun parseAndBind(query: CottontailGrpc.Query): LogicalNodeExpression {
         if (!query.hasFrom()) throw QueryException.QuerySyntaxException("Missing FROM-clause in query.")
         if (query.from.hasQuery()) {
             throw QueryException.QuerySyntaxException("Cottontail DB currently doesn't support sub-selects.")
@@ -61,54 +52,155 @@ class GrpcQueryBinder(val catalogue: Catalogue, private val engine: ExecutionEng
     }
 
     /**
-     * Parses and binds a simple [CottontailGrpc.Query] without any joins and subselects and thereby generates an [ExecutionPlan].
+     * Binds the given [CottontailGrpc.UpdateMessage] to the database objects and thereby creates
+     * a tree of [LogicalNodeExpression]s.
+     *
+     * @param update The [CottontailGrpc.UpdateMessage] that should be bound.
+     * @return [LogicalNodeExpression]
+     *
+     * @throws QueryException.QuerySyntaxException If [CottontailGrpc.Query] is structurally incorrect.
+     */
+    fun parseAndBindUpdate(update: CottontailGrpc.UpdateMessage): LogicalNodeExpression {
+        /* Create SCAN-clause. */
+        val scanClause = parseAndBindSimpleFrom(update.from)
+        val entity: Entity = scanClause.first
+        var root: LogicalNodeExpression = scanClause.second
+
+        /* Create WHERE-clause. */
+        if (update.hasWhere()) {
+            val where = FilterLogicalNodeExpression(parseAndBindBooleanPredicate(entity, update.where))
+            where.addInput(root)
+            root = where
+        }
+
+        /* Parse values to update. */
+        val values = update.tuple.dataMap.map {
+            val columnName = entity.name.column(it.key)
+            val column = entity.columnForName(columnName)
+                    ?: throw QueryException.QueryBindException("Failed to bind column '$columnName'. Column does not exist on entity'.")
+            column to it.value.toValue(column)
+        }
+
+        /* Create and return UPDATE-clause. */
+        val upd = UpdateLogicalNodeExpression(entity, values)
+        upd.addInput(root)
+        return upd
+    }
+
+    /**
+     * Binds the given [CottontailGrpc.DeleteMessage] to the database objects and thereby creates
+     * a tree of [LogicalNodeExpression]s.
+     *
+     * @param delete The [CottontailGrpc.DeleteMessage] that should be bound.
+     * @return [LogicalNodeExpression]
+     *
+     * @throws QueryException.QuerySyntaxException If [CottontailGrpc.Query] is structurally incorrect.
+     */
+    fun parseAndBindDelete(delete: CottontailGrpc.DeleteMessage): LogicalNodeExpression {
+        /* Create SCAN-clause. */
+        val scanClause = parseAndBindSimpleFrom(delete.from)
+        val entity: Entity = scanClause.first
+        var root: LogicalNodeExpression = scanClause.second
+
+        /* Create WHERE-clause. */
+        if (delete.hasWhere()) {
+            val where = FilterLogicalNodeExpression(parseAndBindBooleanPredicate(entity, delete.where))
+            where.addInput(root)
+            root = where
+        }
+
+        /* Create and return DELETE-clause. */
+        val del = DeleteLogicalNodeExpression(entity)
+        del.addInput(root)
+        return del
+    }
+
+    /**
+     * Binds the given [CottontailGrpc.TruncateMessage] to the database objects and thereby creates
+     * a tree of [LogicalNodeExpression]s.
+     *
+     * @param truncate The [CottontailGrpc.DeleteMessage] that should be bound.
+     * @return [LogicalNodeExpression]
+     *
+     * @throws QueryException.QuerySyntaxException If [CottontailGrpc.Query] is structurally incorrect.
+     */
+    fun parseAndBindTruncate(truncate: CottontailGrpc.TruncateMessage): LogicalNodeExpression {
+        /* Create SCAN-clause. */
+        val scanClause = parseAndBindSimpleFrom(truncate.from)
+        val entity: Entity = scanClause.first
+        val root: LogicalNodeExpression = scanClause.second
+
+        /* Create and return DELETE-clause. */
+        val del = DeleteLogicalNodeExpression(entity)
+        del.addInput(root)
+        return del
+    }
+
+    /**
+     * Parses and binds a simple [CottontailGrpc.Query] without any joins and subselects and thereby
+     * generates a tree of [LogicalNodeExpression]s.
      *
      * @param query The simple [CottontailGrpc.Query] object.
      */
-    private fun parseAndBindSimpleQuery(query: CottontailGrpc.Query): ExecutionPlan {
+    private fun parseAndBindSimpleQuery(query: CottontailGrpc.Query): LogicalNodeExpression {
         /* Create scan clause. */
         val scanClause = parseAndBindSimpleFrom(query.from)
-        var root: NodeExpression = scanClause
+        val entity: Entity = scanClause.first
+        var root: LogicalNodeExpression = scanClause.second
 
-        /* Create kNN and where clause. */
-        if (query.hasWhere() && query.hasKnn()) {
-            root = root.setChild(PredicatedKnnNodeExpression(parseAndBindKnnPredicate(scanClause.entity, query.knn), parseAndBindBooleanPredicate(scanClause.entity, query.where)))
-        } else if (query.hasWhere()) {
-            root = root.setChild(FilterNodeExpression(parseAndBindBooleanPredicate(scanClause.entity, query.where)))
-        } else if (query.hasKnn()) {
-            root = root.setChild(KnnNodeExpression(parseAndBindKnnPredicate(scanClause.entity, query.knn)))
-
+        /* Create WHERE-clause. */
+        if (query.hasWhere()) {
+            val where = FilterLogicalNodeExpression(parseAndBindBooleanPredicate(entity, query.where))
+            where.addInput(root)
+            root = where
         }
 
-        /* Add LIMIT and SKIP. */
-        if (query.limit > 0L || query.skip > 0L) {
-            root = root.setChild(LimitNodeExpression(query.limit, query.skip))
+        /* Process kNN-clause (Important: mind precedence of WHERE-clause. */
+        if (query.hasKnn()) {
+            val knn = KnnLogicalNodeExpression(parseAndBindKnnPredicate(entity, query.knn))
+            knn.addInput(root)
+            root = knn
         }
 
-        /* Create projection clause. */
+        /* Process projection clause. */
         root = if (query.hasProjection()) {
-            root.setChild(parseAndBindProjection(scanClause.entity, query.projection))
+            val projection = parseAndBindProjection(entity, query.projection)
+            projection.addInput(root)
+            projection
         } else {
-            root.setChild(parseAndBindProjection(scanClause.entity, CottontailGrpc.Projection.newBuilder().setOp(CottontailGrpc.Projection.Operation.SELECT).putAttributes("*", "").build()))
+            val projection = parseAndBindProjection(entity, CottontailGrpc.Projection.newBuilder().setOp(CottontailGrpc.Projection.Operation.SELECT).putAttributes("*", "").build())
+            projection.addInput(root)
+            projection
         }
 
-        /* Transform to ExecutionPlan. */
-        val candidates = this.planner.optimize(root, 3, 3)
-        val plan = this.engine.newExecutionPlan()
-        plan.compileStage(candidates.minBy { it.totalCost }!!.toStage(QueryPlannerContext(this.engine.availableThreads)))
-        return plan
+        /* Process LIMIT and SKIP. */
+        if (query.limit > 0L || query.skip > 0L) {
+            val limit = LimitLogicalNodeExpression(query.limit, query.skip)
+            limit.addInput(root)
+            root = limit
+        }
+
+        return root
     }
 
     /**
      * Parses and binds a [CottontailGrpc.From] clause.
      *
      * @param from The [CottontailGrpc.From] object.
-     * @return The resulting [EntityEntityScanNodeExpression].
+     * @return The resulting [Pair] of [Entity] and [NullaryLogicalNodeExpression].
      */
-    private fun parseAndBindSimpleFrom(from: CottontailGrpc.From): EntityScanNodeExpression = try {
+    private fun parseAndBindSimpleFrom(from: CottontailGrpc.From): Pair<Entity,NullaryLogicalNodeExpression> = try {
         when (from.fromCase) {
-            CottontailGrpc.From.FromCase.ENTITY -> EntityScanNodeExpression.FullEntityScanNodeExpression(entity = this.catalogue.schemaForName(Name(from.entity.schema.name)).entityForName(Name(from.entity.name)))
-            CottontailGrpc.From.FromCase.SAMPLE -> EntityScanNodeExpression.SampledEntityScanNodeExpression(entity = this.catalogue.schemaForName(Name(from.sample.entity.schema.name)).entityForName(Name(from.sample.entity.name)), size = from.sample.size, seed = from.sample.seed)
+            CottontailGrpc.From.FromCase.ENTITY -> {
+                val entityName = from.entity.fqn()
+                val entity = this.catalogue.schemaForName(entityName.schema()).entityForName(entityName)
+                Pair(entity, EntityScanLogicalNodeExpression(entity = entity))
+            }
+            CottontailGrpc.From.FromCase.SAMPLE -> {
+                val entityName = from.sample.entity.fqn()
+                val entity = this.catalogue.schemaForName(entityName.schema()).entityForName(entityName)
+                Pair(entity, EntitySampleLogicalNodeExpression(entity = entity, size = from.sample.size, seed = from.sample.seed))
+            }
             else -> throw QueryException.QuerySyntaxException("Invalid FROM-clause in query.")
         }
     } catch (e: DatabaseException.SchemaDoesNotExistException) {
@@ -139,7 +231,7 @@ class GrpcQueryBinder(val catalogue: Catalogue, private val engine: ExecutionEng
      * Parses and binds an atomic boolean predicate
      *
      * @param entity The [Entity] from which fetch columns.
-     * @param projection The [CottontailGrpc.Knn] object.
+     * @param compound The [CottontailGrpc.CompoundBooleanPredicate] object.
      *
      * @return The resulting [AtomicBooleanPredicate].
      */
@@ -169,14 +261,14 @@ class GrpcQueryBinder(val catalogue: Catalogue, private val engine: ExecutionEng
      * Parses and binds an atomic boolean predicate
      *
      * @param entity The [Entity] from which fetch columns.
-     * @param projection The [CottontailGrpc.Knn] object.
+     * @param atomic The [CottontailGrpc.AtomicLiteralBooleanPredicate] object.
      *
      * @return The resulting [AtomicBooleanPredicate].
      */
     @Suppress("UNCHECKED_CAST")
     private fun parseAndBindAtomicBooleanPredicate(entity: Entity, atomic: CottontailGrpc.AtomicLiteralBooleanPredicate): AtomicBooleanPredicate<*> {
-        val column = entity.columnForName(Name(atomic.attribute))
-                ?: throw QueryException.QueryBindException("Failed to bind column '${atomic.attribute}'. Column does not exist on entity '${entity.fqn}'.")
+        val columnName = entity.name.column(atomic.attribute)
+        val column = entity.columnForName(columnName) ?: throw QueryException.QueryBindException("Failed to bind column '$columnName'. Column does not exist on entity'.")
         val operator = try {
             ComparisonOperator.valueOf(atomic.op.name)
         } catch (e: IllegalArgumentException) {
@@ -185,159 +277,123 @@ class GrpcQueryBinder(val catalogue: Catalogue, private val engine: ExecutionEng
 
         /* Perform some sanity checks. */
         when {
-            operator == ComparisonOperator.LIKE && !entity.hasIndexForColumn(column, IndexType.LUCENE) -> throw QueryException.QueryBindException("Failed to bind query '${atomic.attribute} LIKE :1' on entity '${entity.fqn}'. The entity does not have a text-index on the specified column '${column.name}', which is required for LIKE comparisons.")
+            operator == ComparisonOperator.LIKE && !entity.hasIndexForColumn(column, IndexType.LUCENE) -> throw QueryException.QueryBindException("Failed to bind clause '${atomic.attribute} LIKE :1' on entity '${entity.name}'. The entity does not have a text-index on the specified column '${column.name}', which is required for LIKE comparisons.")
         }
 
         /* Return the resulting AtomicBooleanPredicate. */
-        return when (column.type) {
-            is DoubleColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<DoubleValue>, operator = operator, not = atomic.not, values = atomic.dataList.map {
-                it.toDoubleValue()
-                        ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
-            })
-            is FloatColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<FloatValue>, operator = operator, not = atomic.not, values = atomic.dataList.map {
-                it.toFloatValue()
-                        ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
-            })
-            is LongColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<LongValue>, operator = operator, not = atomic.not, values = atomic.dataList.map {
-                it.toLongValue()
-                        ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
-            })
-            is IntColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<IntValue>, operator = operator, not = atomic.not, values = atomic.dataList.map {
-                it.toIntValue()
-                        ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
-            })
-            is ShortColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<ShortValue>, operator = operator, not = atomic.not, values = atomic.dataList.map {
-                it.toShortValue()
-                        ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
-            })
-            is ByteColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<ByteValue>, operator = operator, not = atomic.not, values = atomic.dataList.map {
-                it.toByteValue()
-                        ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
-            })
-            is BooleanColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<BooleanValue>, operator = operator, not = atomic.not, values = atomic.dataList.map {
-                it.toBooleanValue()
-                        ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
-            })
-            is StringColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<StringValue>, operator = operator, not = atomic.not, values = atomic.dataList.map {
-                it.toStringValue()
-                        ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
-            })
-            is Complex32ColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Complex32Value>, operator = operator, not = atomic.not, values = atomic.dataList.map {
-                it.toComplex32Value()
-                        ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
-            })
-            is Complex64ColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Complex64Value>, operator = operator, not = atomic.not, values = atomic.dataList.map {
-                it.toComplex64Value()
-                        ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
-            })
-            is FloatVectorColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<FloatVectorValue>, operator = operator, not = atomic.not, values = atomic.dataList.map {
-                it.toFloatVectorValue()
-                        ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
-            })
-            is DoubleVectorColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<DoubleVectorValue>, operator = operator, not = atomic.not, values = atomic.dataList.map {
-                it.toDoubleVectorValue()
-                        ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
-            })
-            is LongVectorColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<LongVectorValue>, operator = operator, not = atomic.not, values = atomic.dataList.map {
-                it.toLongVectorValue()
-                        ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
-            })
-            is IntVectorColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<IntVectorValue>, operator = operator, not = atomic.not, values = atomic.dataList.map {
-                it.toIntVectorValue()
-                        ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
-            })
-            is BooleanVectorColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<BooleanVectorValue>, operator = operator, not = atomic.not, values = atomic.dataList.map {
-                it.toBooleanVectorValue()
-                        ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
-            })
-            is Complex32VectorColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Complex32VectorValue>, operator = operator, not = atomic.not, values = atomic.dataList.map {
-                it.toComplex32VectorValue()
-                        ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
-            })
-            is Complex64VectorColumnType -> AtomicBooleanPredicate(column = column as ColumnDef<Complex64VectorValue>, operator = operator, not = atomic.not, values = atomic.dataList.map {
-                it.toComplex64VectorValue()
-                        ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
-            })
-        }
+        return AtomicBooleanPredicate(column, operator, atomic.not, atomic.dataList.map {
+            it.toValue(column)
+                    ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
+        })
     }
 
     /**
      * Parses and binds the kNN-lookup part of a GRPC [CottontailGrpc.Query]
      *
      * @param entity The [Entity] from which fetch columns.
-     * @param projection The [CottontailGrpc.Knn] object.
+     * @param knn The [CottontailGrpc.Knn] object.
      *
-     * @return The resulting [ExecutionTask].
+     * @return The resulting [KnnPredicate].
      */
     @Suppress("UNCHECKED_CAST")
     private fun parseAndBindKnnPredicate(entity: Entity, knn: CottontailGrpc.Knn): KnnPredicate<*> {
-        val column = entity.columnForName(Name(knn.attribute))
-                ?: throw QueryException.QueryBindException("Failed to bind column '${knn.attribute}'. Column does not exist on entity '${entity.fqn}'!")
+        val columnName = entity.name.column(knn.attribute)
+        val column = entity.columnForName(columnName)
+                ?: throw QueryException.QueryBindException("Failed to bind column '$columnName'. Column does not exist on entity!")
         val distance = Distances.valueOf(knn.distance.name).kernel
-        val weights = if (knn.weightsCount > 0) {
-            knn.weightsList.map { w -> w.toFloatVectorValue() }
-        } else {
-            null
-        }
+        val hint = knn.hint.toHint(entity)
+
 
         return when (column.type) {
             is DoubleVectorColumnType -> {
                 val query = knn.queryList.map { q -> q.toDoubleVectorValue() }
-                val weights = knn.weightsList.map { it.toDoubleVectorValue() }
-                if (weights.all { it.allOnes() }) {
-                    KnnPredicate(column = column as ColumnDef<DoubleVectorValue>, k = knn.k, inexact = knn.inexact, query = query, distance = distance)
+                if (knn.weightsCount > 0) {
+                    val weights = knn.weightsList.map { w -> w.toDoubleVectorValue() }
+                    if (weights.all { it.allOnes() }) {
+                        KnnPredicate(column = column as ColumnDef<DoubleVectorValue>, k = knn.k, query = query, distance = distance, hint = hint)
+                    } else {
+                        KnnPredicate(column = column as ColumnDef<DoubleVectorValue>, k = knn.k, query = query, weights = weights, distance = distance, hint = hint)
+                    }
                 } else {
-                    KnnPredicate(column = column as ColumnDef<DoubleVectorValue>, k = knn.k, inexact = knn.inexact, query = query, weights = weights, distance = distance)
+                    KnnPredicate(column = column as ColumnDef<DoubleVectorValue>, k = knn.k, query = query, distance = distance, hint = hint)
                 }
             }
             is FloatVectorColumnType -> {
                 val query = knn.queryList.map { q -> q.toFloatVectorValue() }
-                val weights = knn.weightsList.map { it.toFloatVectorValue() }
-                if (weights.all { it.allOnes() }) {
-                    KnnPredicate(column = column as ColumnDef<FloatVectorValue>, k = knn.k, inexact = knn.inexact, query = query, distance = distance)
+                if (knn.weightsCount > 0) {
+                    val weights = knn.weightsList.map { it.toFloatVectorValue() }
+                    if (weights.all { it.allOnes() }) {
+                        KnnPredicate(column = column as ColumnDef<FloatVectorValue>, k = knn.k, query = query, distance = distance, hint = hint)
+                    } else {
+                        KnnPredicate(column = column as ColumnDef<FloatVectorValue>, k = knn.k, query = query, weights = weights, distance = distance, hint = hint)
+                    }
                 } else {
-                    KnnPredicate(column = column as ColumnDef<FloatVectorValue>, k = knn.k, inexact = knn.inexact, query = query, weights = weights, distance = distance)
-                }            }
+                    KnnPredicate(column = column as ColumnDef<FloatVectorValue>, k = knn.k, query = query, distance = distance, hint = hint)
+                }
+            }
             is LongVectorColumnType -> {
                 val query = knn.queryList.map { q -> q.toLongVectorValue() }
-                val weights = knn.weightsList.map { it.toLongVectorValue() }
-                if (weights.all { it.allOnes() }) {
-                    KnnPredicate(column = column as ColumnDef<LongVectorValue>, k = knn.k, inexact = knn.inexact, query = query, distance = distance)
+                if (knn.weightsCount > 0) {
+                    val weights = knn.weightsList.map { it.toLongVectorValue() }
+                    if (weights.all { it.allOnes() }) {
+                        KnnPredicate(column = column as ColumnDef<LongVectorValue>, k = knn.k, query = query, distance = distance, hint = hint)
+                    } else {
+                        KnnPredicate(column = column as ColumnDef<LongVectorValue>, k = knn.k, query = query, weights = weights, distance = distance, hint = hint)
+                    }
                 } else {
-                    KnnPredicate(column = column as ColumnDef<LongVectorValue>, k = knn.k, inexact = knn.inexact, query = query, weights = weights, distance = distance)
+                    KnnPredicate(column = column as ColumnDef<LongVectorValue>, k = knn.k, query = query, distance = distance, hint = hint)
                 }
             }
             is IntVectorColumnType -> {
                 val query = knn.queryList.map { q -> q.toIntVectorValue() }
-                val weights = knn.weightsList.map { it.toIntVectorValue() }
-                if (weights.all { it.allOnes() }) {
-                    KnnPredicate(column = column as ColumnDef<IntVectorValue>, k = knn.k, inexact = knn.inexact, query = query, distance = distance)
+                if (knn.weightsCount > 0) {
+                    val weights = knn.weightsList.map { it.toIntVectorValue() }
+                    if (weights.all { it.allOnes() }) {
+                        KnnPredicate(column = column as ColumnDef<IntVectorValue>, k = knn.k, query = query, distance = distance, hint = hint)
+                    } else {
+                        KnnPredicate(column = column as ColumnDef<IntVectorValue>, k = knn.k, query = query, weights = weights, distance = distance, hint = hint)
+                    }
                 } else {
-                    KnnPredicate(column = column as ColumnDef<IntVectorValue>, k = knn.k, inexact = knn.inexact, query = query, weights = weights, distance = distance)
-                }            }
+                    KnnPredicate(column = column as ColumnDef<IntVectorValue>, k = knn.k, query = query, distance = distance, hint = hint)
+                }
+            }
             is BooleanVectorColumnType -> {
                 val query = knn.queryList.map { q -> q.toBooleanVectorValue() }
-                val weights = knn.weightsList.map { it.toBooleanVectorValue() }
-                if (weights.all { it.allOnes() }) {
-                    KnnPredicate(column = column as ColumnDef<BooleanVectorValue>, k = knn.k, inexact = knn.inexact, query = query, distance = distance)
+                if (knn.weightsCount > 0) {
+                    val weights = knn.weightsList.map { it.toBooleanVectorValue() }
+                    if (weights.all { it.allOnes() }) {
+                        KnnPredicate(column = column as ColumnDef<BooleanVectorValue>, k = knn.k, query = query, distance = distance, hint = hint)
+                    } else {
+                        KnnPredicate(column = column as ColumnDef<BooleanVectorValue>, k = knn.k, query = query, weights = weights, distance = distance, hint = hint)
+                    }
                 } else {
-                    KnnPredicate(column = column as ColumnDef<BooleanVectorValue>, k = knn.k, inexact = knn.inexact, query = query, weights = weights, distance = distance)
-                }            }
+                    KnnPredicate(column = column as ColumnDef<BooleanVectorValue>, k = knn.k, query = query, distance = distance, hint = hint)
+                }
+            }
             is Complex32VectorColumnType -> {
                 val query = knn.queryList.map { q -> q.toComplex32VectorValue() }
-                val weights = knn.weightsList.map { it.toComplex32VectorValue() }
-                if (weights.all { it.allOnes() }) {
-                    KnnPredicate(column = column as ColumnDef<Complex32VectorValue>, k = knn.k, inexact = knn.inexact, query = query, distance = distance)
+                if (knn.weightsCount > 0) {
+                    val weights = knn.weightsList.map { it.toComplex32VectorValue() }
+                    if (weights.all { it.allOnes() }) {
+                        KnnPredicate(column = column as ColumnDef<Complex32VectorValue>, k = knn.k, query = query, distance = distance, hint = hint)
+                    } else {
+                        KnnPredicate(column = column as ColumnDef<Complex32VectorValue>, k = knn.k, query = query, weights = weights, distance = distance, hint = hint)
+                    }
                 } else {
-                    KnnPredicate(column = column as ColumnDef<Complex32VectorValue>, k = knn.k, inexact = knn.inexact, query = query, weights = weights, distance = distance)
-                }            }
+                    KnnPredicate(column = column as ColumnDef<Complex32VectorValue>, k = knn.k, query = query, distance = distance, hint = hint)
+                }
+            }
             is Complex64VectorColumnType -> {
                 val query = knn.queryList.map { q -> q.toComplex64VectorValue() }
-                val weights = knn.weightsList.map { it.toComplex64VectorValue() }
-                if (weights.all { it.allOnes() }) {
-                    KnnPredicate(column = column as ColumnDef<Complex64VectorValue>, k = knn.k, inexact = knn.inexact, query = query, distance = distance)
-                } else {
-                    KnnPredicate(column = column as ColumnDef<Complex64VectorValue>, k = knn.k, inexact = knn.inexact, query = query, weights = weights, distance = distance)
+                if (knn.weightsCount > 0) {
+                    val weights = knn.weightsList.map { it.toComplex64VectorValue() }
+                    if (weights.all { it.allOnes() }) {
+                        KnnPredicate(column = column as ColumnDef<Complex64VectorValue>, k = knn.k, query = query, distance = distance, hint = hint)
+                    } else {
+                        KnnPredicate(column = column as ColumnDef<Complex64VectorValue>, k = knn.k, query = query, weights = weights, distance = distance, hint = hint)
+                    }
+                } else{
+                    KnnPredicate(column = column as ColumnDef<Complex64VectorValue>, k = knn.k, query = query, distance = distance, hint = hint)
                 }
             }
             else -> throw QueryException.QuerySyntaxException("A kNN predicate does not contain a valid query vector!")
@@ -345,31 +401,62 @@ class GrpcQueryBinder(val catalogue: Catalogue, private val engine: ExecutionEng
     }
 
     /**
-     * Parses and binds the projection part of a GRPC [CottontailGrpc.Query]
+     * Parses and binds the projection part of a gRPC [CottontailGrpc.Query]
      *
-     * @param involvedEntities The list of [Entity] objects involved in the projection.
      * @param projection The [CottontailGrpc.Projection] object.
      *
-     * @return The resulting [ProjectionNodeExpression].
+     * @return The resulting [ProjectionPhysicalNodeExpression].
      */
-    private fun parseAndBindProjection(entity: Entity, projection: CottontailGrpc.Projection): ProjectionNodeExpression = try {
-        val availableColumns = entity.allColumns()
-        val requestedColumns = mutableListOf<ColumnDef<*>>()
-
-        val fields = projection.attributesMap.map { (expr, alias) ->
-            /* Fetch columns that match field and add them to list of requested columns */
-            val field = entity.fqn.append(expr)
-            availableColumns.forEach { if (field.match(it.name) != Match.NO_MATCH) requestedColumns.add(it) }
-
-            /* Return field to alias mapping. */
-            field to if (alias.isEmpty()) {
-                null
-            } else {
-                Name(alias)
+    private fun parseAndBindProjection(entity: Entity, projection: CottontailGrpc.Projection): ProjectionLogicalNodeExpression = try {
+        /* Handle other kinds of projections. */
+        val fields = mutableListOf<Pair<Name.ColumnName, Name.ColumnName?>>()
+        projection.attributesMap.forEach { (expr, alias) ->
+            val split = expr.split('.')
+            when (split.size) {
+                1 -> {
+                    val columnName = entity.name.column(split[0])
+                    if (columnName.wildcard) {
+                        fields.add(Pair(columnName, null as Name.ColumnName?))
+                    } else {
+                        fields.add(Pair(columnName, if (alias.isBlank()) {
+                            null
+                        } else {
+                            Name.ColumnName(alias)
+                        }))
+                    }
+                }
+                2 -> {
+                    if (split[0] == entity.name.simple) {
+                        val columnName = entity.name.column(split[1])
+                        if (columnName.wildcard) {
+                            fields.add(Pair(columnName, null as Name.ColumnName?))
+                        } else {
+                            fields.add(Pair(columnName, if (alias.isBlank()) {
+                                null
+                            } else {
+                                Name.ColumnName(alias)
+                            }))
+                        }
+                    }
+                }
+                3 -> {
+                    if (split[0] == entity.parent.name.simple && split[1] == entity.name.simple) {
+                        val columnName = entity.name.column(split[2])
+                        if (columnName.wildcard) {
+                            fields.add(Pair(columnName, null as Name.ColumnName?))
+                        } else {
+                            fields.add(Pair(columnName, if (alias.isBlank()) {
+                                null
+                            } else {
+                                Name.ColumnName(alias)
+                            }))
+                        }
+                    }
+                }
+                else -> throw QueryException.QuerySyntaxException("The provided column '$expr' is invalid.")
             }
-        }.toMap()
-
-        ProjectionNodeExpression(type = Projection.valueOf(projection.op.name), entity = entity, columns = requestedColumns.distinct().toTypedArray(), fields = fields)
+        }
+        ProjectionLogicalNodeExpression(type = Projection.valueOf(projection.op.name), fields = fields)
     } catch (e: java.lang.IllegalArgumentException) {
         throw QueryException.QuerySyntaxException("The query lacks a valid SELECT-clause (projection): ${projection.op} is not supported.")
     }

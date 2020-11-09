@@ -3,12 +3,6 @@ package org.vitrivr.cottontail.cli
 import com.google.protobuf.Empty
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 
-fun Entity(name: String, schema: CottontailGrpc.Schema): CottontailGrpc.Entity = CottontailGrpc.Entity.newBuilder().setName(name).setSchema(schema).build()
-
-fun Schema(name: String) = CottontailGrpc.Schema.newBuilder().setName(name).build()
-
-fun From(entity: CottontailGrpc.Entity): CottontailGrpc.From = CottontailGrpc.From.newBuilder().setEntity(entity).build()
-
 fun Projection(operation: CottontailGrpc.Projection.Operation): CottontailGrpc.Projection = CottontailGrpc.Projection.newBuilder().setOp(operation).build()
 
 fun Where(predicate: CottontailGrpc.AtomicLiteralBooleanPredicate): CottontailGrpc.Where = CottontailGrpc.Where.newBuilder().setAtomic(predicate).build()
