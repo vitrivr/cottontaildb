@@ -47,6 +47,28 @@ compileTestKotlin {
 }
 
 publishing {
+    publications {
+        maven(MavenPublication) {
+            from components.java
+            pom {
+                name = 'Cottontail DB (embedded)'
+                description = 'An embedded version of Cottontail DB.'
+                url = 'https://github.com/vitrivr/cottontaildb/'
+                licenses {
+                    license {
+                        name = 'MIT License'
+                    }
+                }
+                developers {
+                    developer {
+                        id = 'ppanopticon'
+                        name = 'Ralph Gasser'
+                        email = 'ralph.gasser@unibas.ch'
+                    }
+                }
+            }
+        }
+    }
     repositories {
         maven {
             name = "GitHubPackages"
