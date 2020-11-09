@@ -3,8 +3,15 @@ package org.vitrivr.cottontail.model.values
 import org.vitrivr.cottontail.model.values.types.NumericValue
 import org.vitrivr.cottontail.model.values.types.RealValue
 import org.vitrivr.cottontail.model.values.types.Value
+import java.util.*
 import kotlin.math.pow
 
+/**
+ * This is an abstraction over a [Double].
+ *
+ * @author Ralph Gasser
+ * @version 1.3.1
+ */
 inline class DoubleValue(override val value: Double): RealValue<Double> {
 
     companion object {
@@ -12,6 +19,14 @@ inline class DoubleValue(override val value: Double): RealValue<Double> {
         val ONE = DoubleValue(1.0)
         val NaN = DoubleValue(Double.NaN)
         val INF = DoubleValue(Double.POSITIVE_INFINITY)
+
+        /**
+         * Generates a random [DoubleValue].
+         *
+         * @param rnd A [SplittableRandom] to generate the random numbers.
+         * @return Random [FloatValue]
+         */
+        fun random(rnd: SplittableRandom = Value.RANDOM) = DoubleValue(rnd.nextDouble())
     }
 
     /**
@@ -61,8 +76,8 @@ inline class DoubleValue(override val value: Double): RealValue<Double> {
     override fun asFloat(): FloatValue = FloatValue(this.value.toFloat())
     override fun asInt(): IntValue = IntValue(this.value.toInt())
     override fun asLong(): LongValue = LongValue(this.value.toLong())
-    override fun asShort(): ShortValue = ShortValue(this.value.toShort())
-    override fun asByte(): ByteValue = ByteValue(this.value.toByte())
+    override fun asShort(): ShortValue = ShortValue(this.value.toInt().toShort())
+    override fun asByte(): ByteValue = ByteValue(this.value.toInt().toByte())
     override fun asComplex32(): Complex32Value = Complex32Value(this.asFloat(), FloatValue(0.0f))
     override fun asComplex64(): Complex64Value = Complex64Value(this.asDouble(), DoubleValue(0.0))
 
