@@ -28,13 +28,11 @@ import java.lang.Integer.max
 class ResultsSpoolerOperator(parent: Operator, context: ExecutionEngine.ExecutionContext, val queryId: String, val index: Int, val responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) : SinkOperator(parent, context) {
 
     companion object {
-        private val LOGGER = LoggerFactory.getLogger(ResultsSpoolerOperator::class.java)
-    }
+        private const val MAX_PAGE_SIZE_BYTES = 5_000_000 }
 
     /** The [ColumnDef]s returned by this [ResultsSpoolerOperator]. */
     override val columns: Array<ColumnDef<*>> = this.parent.columns
 
-    val MAX_PAGE_SIZE_BYTES = 5_000_000
 
     /**
      * Called when [ResultsSpoolerOperator] is opened.
