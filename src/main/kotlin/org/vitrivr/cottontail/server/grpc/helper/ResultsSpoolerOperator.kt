@@ -14,6 +14,7 @@ import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
+import java.lang.Integer.max
 
 /**
  * A [SinkOperator] that spools the results produced by the parent operator to the gRPC [StreamObserver].
@@ -56,20 +57,13 @@ class ResultsSpoolerOperator(parent: Operator, context: ExecutionEngine.Executio
         /* Number of tuples returned so far. */
         var responseBuilder = CottontailGrpc.QueryResponseMessage.newBuilder().setQueryId(this.queryId)
 
-        return flow {
-            var pageSize: Int
-            try {
-                val first = parent.first()
-                val firstTuple = recordToTuple(first).build()
-                pageSize = MAX_PAGE_SIZE_BYTES / firstTuple.serializedSize;
-                responseBuilder.addResults(firstTuple)
-                counter++
-            }catch (e: NoSuchElementException){
-                LOGGER.warn("No element in resultset, so page size estimation is not possible")
-                pageSize = 10
-            }
-            parent.collect {
+        /* Determine size of page. */
+        val pageSize = StandaloneRecord(0L, this.columns, this.columns.map { it.defaultValue() }.toTypedArray()).let {
+            (MAX_PAGE_SIZE_BYTES / max(recordToTuple(it).build().serializedSize, 1))
+        }
 
+        return flow {
+            parent.collect {
                 val tuple = recordToTuple(it)
                 if (counter % pageSize == 0) {
                     this@ResultsSpoolerOperator.responseObserver.onNext(responseBuilder.build())
@@ -98,7 +92,8 @@ class ResultsSpoolerOperator(parent: Operator, context: ExecutionEngine.Executio
      * @return Resulting [CottontailGrpc.Tuple.Builder]
      */
     private fun recordToTuple(record: Record): CottontailGrpc.Tuple.Builder = CottontailGrpc.Tuple
-            .newBuilder().putAllData(record.toMap().map {
+            .newBuilder()
+            .putAllData(record.toMap().map {
                 it.key.toString() to (it.value?.toData()
                         ?: CottontailGrpc.Data.newBuilder().setNullData(CottontailGrpc.Null.getDefaultInstance()).build())
             }.toMap())
