@@ -3,10 +3,12 @@ package org.vitrivr.cottontail.database.queries.planning.nodes.physical.predicat
 import org.vitrivr.cottontail.database.queries.components.KnnPredicate
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalNodeExpression
+import org.vitrivr.cottontail.database.queries.predicates.KnnPredicateHint
 import org.vitrivr.cottontail.execution.ExecutionEngine
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.predicates.KnnOperator
 import org.vitrivr.cottontail.execution.operators.predicates.ParallelKnnOperator
+import java.lang.Integer.max
 import java.lang.Integer.min
 import kotlin.math.roundToInt
 
@@ -27,7 +29,12 @@ class KnnPhysicalNodeExpression(val knn: KnnPredicate<*>) : UnaryPhysicalNodeExp
     override fun toOperator(context: ExecutionEngine.ExecutionContext): Operator {
         if (this.cost.cpu > 1.0f) {
             return if (this.input.canBePartitioned) {
-                val partitions = this.input.partition(min(this.cost.cpu.roundToInt(), context.availableThreads))
+                val hint = this.knn.hint
+                val partitions = if (hint is KnnPredicateHint.KnnParallelismPredicateHint) {
+                    this.input.partition(max(hint.min, min(context.availableThreads, hint.max)))
+                } else {
+                    this.input.partition(min(this.cost.cpu.roundToInt(), context.availableThreads))
+                }
                 val operators = partitions.map {
                     it.toOperator(context)
                 }
