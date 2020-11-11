@@ -30,7 +30,7 @@ class KnnPhysicalNodeExpression(val knn: KnnPredicate<*>) : UnaryPhysicalNodeExp
         if (this.cost.cpu > 1.0f) {
             return if (this.input.canBePartitioned) {
                 val hint = this.knn.hint
-                val partitions = if (hint is KnnPredicateHint.KnnParallelismPredicateHint) {
+                val partitions = if (hint is KnnPredicateHint.ParallelKnnPredicateHint) {
                     this.input.partition(max(hint.min, min(context.availableThreads, hint.max)))
                 } else {
                     this.input.partition(min(this.cost.cpu.roundToInt(), context.availableThreads))
