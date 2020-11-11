@@ -50,7 +50,13 @@ object KnnIndexScanRule : RewriteRule {
                             kNN.addInput(fetch).addInput(p)
                         }
                     }
-                    return node.copyOutput()?.addInput(res.root)
+                    val delta = parent.columns.filter { !candidate.produces.contains(it) }
+                    return if (delta.isNotEmpty()) {
+                        val fetch = FetchPhysicalNodeExpression(candidate.parent, delta.toTypedArray())
+                        node.copyOutput()?.addInput(fetch)?.addInput(res.root)
+                    } else {
+                        node.copyOutput()?.addInput(res.root)
+                    }
                 }
             }
         }
