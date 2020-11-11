@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
+import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.execution.ExecutionEngine
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.basics.SinkOperator
@@ -24,6 +25,11 @@ import org.vitrivr.cottontail.model.recordset.StandaloneRecord
  * @param responseObserver [StreamObserver] used to send back the results.
  */
 class ResultsSpoolerOperator(parent: Operator, context: ExecutionEngine.ExecutionContext, val queryId: String, val index: Int, val responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) : SinkOperator(parent, context) {
+
+    companion object {
+        private val LOGGER = LoggerFactory.getLogger(ResultsSpoolerOperator::class.java)
+    }
+
     /** The [ColumnDef]s returned by this [ResultsSpoolerOperator]. */
     override val columns: Array<ColumnDef<*>> = this.parent.columns
 
@@ -51,11 +57,17 @@ class ResultsSpoolerOperator(parent: Operator, context: ExecutionEngine.Executio
         var responseBuilder = CottontailGrpc.QueryResponseMessage.newBuilder().setQueryId(this.queryId)
 
         return flow {
-            val first = parent.first()
-            val firstTuple = recordToTuple(first).build()
-            val pageSize: Int = MAX_PAGE_SIZE_BYTES / firstTuple.serializedSize;
-            responseBuilder.addResults(firstTuple)
-            counter++
+            var pageSize: Int
+            try {
+                val first = parent.first()
+                val firstTuple = recordToTuple(first).build()
+                pageSize = MAX_PAGE_SIZE_BYTES / firstTuple.serializedSize;
+                responseBuilder.addResults(firstTuple)
+                counter++
+            }catch (e: NoSuchElementException){
+                LOGGER.warn("No element in resultset, so page size estimation is not possible")
+                pageSize = 10
+            }
             parent.collect {
 
                 val tuple = recordToTuple(it)
