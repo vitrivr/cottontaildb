@@ -12,14 +12,15 @@ import org.vitrivr.cottontail.database.queries.planning.nodes.physical.sources.I
  * [EntityScanLogicalNodeExpression] through a single [IndexScanPhysicalNodeExpression].
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.0.1
  */
 object BooleanIndexScanRule : RewriteRule {
     override fun canBeApplied(node: NodeExpression): Boolean = node is FilterLogicalNodeExpression
+            && node.input is EntityScanLogicalNodeExpression
+
     override fun apply(node: NodeExpression): NodeExpression? {
         if (node is FilterLogicalNodeExpression) {
-            val parent = (node.copyWithInputs() as FilterLogicalNodeExpression).input
-                    ?: throw NodeExpressionTreeException.IncompleteNodeExpressionTreeException(node, "Expected parent but none was found.")
+            val parent = node.input ?: throw NodeExpressionTreeException.IncompleteNodeExpressionTreeException(node, "Expected parent but none was found.")
             if (parent is EntityScanLogicalNodeExpression) {
                 val candidate = parent.entity.allIndexes().find {
                     it.canProcess(node.predicate)
