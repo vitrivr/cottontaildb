@@ -5,6 +5,7 @@ import io.grpc.stub.StreamObserver
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.database.catalogue.Catalogue
 import org.vitrivr.cottontail.database.queries.planning.CottontailQueryPlanner
+import org.vitrivr.cottontail.database.queries.planning.rules.logical.DeferredFetchAfterFilterRewriteRule
 import org.vitrivr.cottontail.database.queries.planning.rules.logical.DeferredFetchAfterKnnRewriteRule
 import org.vitrivr.cottontail.database.queries.planning.rules.logical.LeftConjunctionRewriteRule
 import org.vitrivr.cottontail.database.queries.planning.rules.logical.RightConjunctionRewriteRule
@@ -47,19 +48,19 @@ class CottonDQLService(val catalogue: Catalogue, val engine: ExecutionEngine) : 
             logicalRewriteRules = listOf(
                 LeftConjunctionRewriteRule,
                 RightConjunctionRewriteRule,
-                DeferredFetchAfterKnnRewriteRule,
+                DeferredFetchAfterFilterRewriteRule,
                 DeferredFetchAfterKnnRewriteRule
             ),
             physicalRewriteRules = listOf(
-                    KnnIndexScanRule,
-                    BooleanIndexScanRule,
-                    CountPushdownRule,
-                    EntityScanImplementationRule,
-                    FilterImplementationRule,
-                    KnnImplementationRule,
-                    LimitImplementationRule,
-                    ProjectionImplementationRule,
-                    FetchImplementationRule
+                KnnIndexScanRule,
+                BooleanIndexScanRule,
+                CountPushdownRule,
+                EntityScanImplementationRule,
+                FilterImplementationRule,
+                KnnImplementationRule,
+                LimitImplementationRule,
+                ProjectionImplementationRule,
+                FetchImplementationRule
             )
     )
 
