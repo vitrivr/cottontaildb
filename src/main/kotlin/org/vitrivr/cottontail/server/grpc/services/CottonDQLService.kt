@@ -47,6 +47,7 @@ class CottonDQLService(val catalogue: Catalogue, val engine: ExecutionEngine) : 
             logicalRewriteRules = listOf(
                 LeftConjunctionRewriteRule,
                 RightConjunctionRewriteRule,
+                DeferredFetchAfterKnnRewriteRule,
                 DeferredFetchAfterKnnRewriteRule
             ),
             physicalRewriteRules = listOf(
