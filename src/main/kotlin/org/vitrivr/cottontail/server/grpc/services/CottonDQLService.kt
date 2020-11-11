@@ -10,6 +10,7 @@ import org.vitrivr.cottontail.database.queries.planning.rules.logical.LeftConjun
 import org.vitrivr.cottontail.database.queries.planning.rules.logical.RightConjunctionRewriteRule
 import org.vitrivr.cottontail.database.queries.planning.rules.physical.implementation.*
 import org.vitrivr.cottontail.database.queries.planning.rules.physical.index.BooleanIndexScanRule
+import org.vitrivr.cottontail.database.queries.planning.rules.physical.index.KnnIndexScanRule
 import org.vitrivr.cottontail.database.queries.planning.rules.physical.pushdown.CountPushdownRule
 import org.vitrivr.cottontail.execution.ExecutionEngine
 import org.vitrivr.cottontail.execution.exceptions.ExecutionException
@@ -27,7 +28,7 @@ import kotlin.time.measureTimedValue
  * Implementation of [CottonDQLGrpc.CottonDQLImplBase], the gRPC endpoint for querying data in Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 1.3
+ * @version 1.3.0
  */
 @ExperimentalTime
 class CottonDQLService(val catalogue: Catalogue, val engine: ExecutionEngine) : CottonDQLGrpc.CottonDQLImplBase() {
@@ -44,11 +45,12 @@ class CottonDQLService(val catalogue: Catalogue, val engine: ExecutionEngine) : 
     /** [CottontailQueryPlanner] used to generate execution plans from query definitions. */
     private val planner = CottontailQueryPlanner(
             logicalRewriteRules = listOf(
-                    LeftConjunctionRewriteRule,
-                    RightConjunctionRewriteRule,
-                    DeferredFetchAfterKnnRewriteRule
+                LeftConjunctionRewriteRule,
+                RightConjunctionRewriteRule,
+                DeferredFetchAfterKnnRewriteRule
             ),
             physicalRewriteRules = listOf(
+                    KnnIndexScanRule,
                     BooleanIndexScanRule,
                     CountPushdownRule,
                     EntityScanImplementationRule,

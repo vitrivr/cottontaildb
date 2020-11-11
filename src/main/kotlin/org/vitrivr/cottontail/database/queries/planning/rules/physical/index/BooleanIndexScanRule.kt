@@ -26,7 +26,7 @@ object BooleanIndexScanRule : RewriteRule {
                     it.canProcess(node.predicate)
                 }
                 if (candidate != null) {
-                    val p = IndexScanPhysicalNodeExpression(parent.entity, candidate, node.predicate)
+                    val p = IndexScanPhysicalNodeExpression(candidate, node.predicate)
                     node.copyOutput()?.addInput(p)
                     return p
                 }

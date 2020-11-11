@@ -14,7 +14,7 @@ import kotlin.math.roundToInt
  * A [UnaryPhysicalNodeExpression] that represents the application of a [KnnPredicate] on some intermediate result.
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.0.0
  */
 class KnnPhysicalNodeExpression(val knn: KnnPredicate<*>) : UnaryPhysicalNodeExpression() {
     override val outputSize: Long
