@@ -4,6 +4,7 @@ import io.grpc.stub.StreamObserver
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import org.vitrivr.cottontail.execution.ExecutionEngine
 import org.vitrivr.cottontail.execution.operators.basics.Operator
@@ -26,10 +27,7 @@ class ResultsSpoolerOperator(parent: Operator, context: ExecutionEngine.Executio
     /** The [ColumnDef]s returned by this [ResultsSpoolerOperator]. */
     override val columns: Array<ColumnDef<*>> = this.parent.columns
 
-    /* Size of an individual results page based on the estimate of a single tuple's size. */
-    private val pageSize: Int = StandaloneRecord(0L, this.columns, this.columns.map { it.defaultValue() }.toTypedArray()).let {
-        (4_194_000_000 / recordToTuple(it).build().serializedSize).toInt()
-    }
+    val MAX_PAGE_SIZE_BYTES = 5_000_000
 
     /**
      * Called when [ResultsSpoolerOperator] is opened.
@@ -53,9 +51,15 @@ class ResultsSpoolerOperator(parent: Operator, context: ExecutionEngine.Executio
         var responseBuilder = CottontailGrpc.QueryResponseMessage.newBuilder().setQueryId(this.queryId)
 
         return flow {
+            val first = parent.first()
+            val firstTuple = recordToTuple(first).build()
+            val pageSize: Int = MAX_PAGE_SIZE_BYTES / firstTuple.serializedSize;
+            responseBuilder.addResults(firstTuple)
+            counter++
             parent.collect {
+
                 val tuple = recordToTuple(it)
-                if (counter % this@ResultsSpoolerOperator.pageSize == 0) {
+                if (counter % pageSize == 0) {
                     this@ResultsSpoolerOperator.responseObserver.onNext(responseBuilder.build())
                     responseBuilder = CottontailGrpc.QueryResponseMessage.newBuilder().setQueryId(this@ResultsSpoolerOperator.queryId)
                 }
