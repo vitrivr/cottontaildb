@@ -205,6 +205,7 @@ abstract class Index : DBO {
                 this.status = TransactionStatus.CLOSED
                 this@Index.txLock.unlock(this.txStamp)
                 this@Index.globalLock.unlockRead(this.globalStamp)
+                this.cleanup()
             }
         }
 
