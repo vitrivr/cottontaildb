@@ -8,7 +8,6 @@ import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.predicates.KnnOperator
 import org.vitrivr.cottontail.execution.operators.predicates.ParallelKnnOperator
 import java.lang.Integer.min
-import kotlin.math.roundToInt
 
 /**
  * A [UnaryPhysicalNodeExpression] that represents the application of a [KnnPredicate] on some intermediate result.
@@ -25,9 +24,10 @@ class KnnPhysicalNodeExpression(val knn: KnnPredicate<*>) : UnaryPhysicalNodeExp
 
     override fun copy() = KnnPhysicalNodeExpression(this.knn)
     override fun toOperator(context: ExecutionEngine.ExecutionContext): Operator {
-        if (this.cost.cpu > 1.0f) {
+        val parallelisation = this.cost.parallelisation()
+        if (parallelisation > 1) {
             return if (this.input.canBePartitioned) {
-                val partitions = this.input.partition(min(this.cost.cpu.roundToInt(), context.availableThreads))
+                val partitions = this.input.partition(min(parallelisation, context.availableThreads))
                 val operators = partitions.map {
                     it.toOperator(context)
                 }
