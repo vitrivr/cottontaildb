@@ -12,6 +12,7 @@ import org.vitrivr.cottontail.database.queries.components.AtomicBooleanPredicate
 import org.vitrivr.cottontail.database.queries.components.KnnPredicate
 import org.vitrivr.cottontail.database.queries.components.Predicate
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
+import org.vitrivr.cottontail.math.knn.metrics.AbsoluteInnerProductDistance
 import org.vitrivr.cottontail.math.knn.metrics.CosineDistance
 import org.vitrivr.cottontail.model.basics.*
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
@@ -69,7 +70,7 @@ class SuperBitLSHIndex<T : VectorValue<*>>(name: Name.IndexName, parent: Entity,
      * @return True if [Predicate] can be processed, false otherwise.
      */
     override fun canProcess(predicate: Predicate): Boolean = if (predicate is KnnPredicate<*>) {
-        predicate.columns.first() == this.columns[0] && predicate.distance is CosineDistance
+        predicate.columns.first() == this.columns[0] && (predicate.distance is CosineDistance ||predicate.distance is AbsoluteInnerProductDistance)
     } else {
         false
     }
@@ -162,7 +163,7 @@ class SuperBitLSHIndex<T : VectorValue<*>>(name: Name.IndexName, parent: Entity,
             init {
                 checkValidForRead()
 
-                if (this.predicate.columns.first() != this@SuperBitLSHIndex.columns[0] || this.predicate.distance !is CosineDistance) {
+                if (this.predicate.columns.first() != this@SuperBitLSHIndex.columns[0] || !(this.predicate.distance is CosineDistance || this.predicate.distance is AbsoluteInnerProductDistance)) {
                     throw QueryException.UnsupportedPredicateException("Index '${this@SuperBitLSHIndex.name}' (lsh-index) does not support the provided predicate.")
                 }
             }
