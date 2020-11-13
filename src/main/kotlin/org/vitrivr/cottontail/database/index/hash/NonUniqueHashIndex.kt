@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.database.index.hash
 
-import org.mapdb.DBMaker
+import org.mapdb.DB
 import org.mapdb.HTreeMap
 import org.mapdb.Serializer
 import org.slf4j.LoggerFactory
@@ -50,7 +50,7 @@ class NonUniqueHashIndex(override val name: Name.IndexName, override val parent:
     }
 
     /** Path to the [NonUniqueHashIndex] file. */
-    override val path: Path = this.parent.path.resolve("idx_nu_$name.db")
+    override val path: Path = this.parent.path.resolve("idx_nu_${name.simple}.db")
 
     /** The type of [Index] */
     override val type: IndexType = IndexType.HASH_UQ
@@ -61,21 +61,11 @@ class NonUniqueHashIndex(override val name: Name.IndexName, override val parent:
     /** The [NonUniqueHashIndex] implementation returns exactly the columns that is indexed. */
     override val produces: Array<ColumnDef<*>> = this.columns
 
-    /** The internal database reference. */
-    private val db = if (parent.parent.parent.config.memoryConfig.forceUnmapMappedFiles) {
-        DBMaker.fileDB(this.path.toFile()).fileMmapEnable().cleanerHackEnable().transactionEnable().make()
-    } else {
-        DBMaker.fileDB(this.path.toFile()).fileMmapEnable().transactionEnable().make()
-    }
+    /** The internal [DB] reference. */
+    private val db: DB = this.parent.parent.parent.config.mapdb.db(this.path)
 
     /** Map structure used for [NonUniqueHashIndex]. */
     private val map: HTreeMap<out Value, LongArray> = this.db.hashMap(MAP_FIELD_NAME, this.columns.first().type.serializer(this.columns.size), Serializer.LONG_ARRAY).counterEnable().createOrOpen()
-
-    init {
-        /* Initial commit. */
-        this.db.commit()
-    }
-
 
     /**
      * Flag indicating if this [NonUniqueHashIndex] has been closed.
@@ -83,6 +73,10 @@ class NonUniqueHashIndex(override val name: Name.IndexName, override val parent:
     @Volatile
     override var closed: Boolean = false
         private set
+
+    init {
+        this.db.commit() /* Initial commit. */
+    }
 
     /**
      * Checks if the provided [Predicate] can be processed by this instance of [NonUniqueHashIndex]. [NonUniqueHashIndex] can be used to process IN and EQUALS
@@ -105,8 +99,8 @@ class NonUniqueHashIndex(override val name: Name.IndexName, override val parent:
      */
     override fun cost(predicate: Predicate): Cost = when {
         predicate !is AtomicBooleanPredicate<*> || predicate.columns.first() != this.columns[0] -> Cost.INVALID
-        predicate.operator == ComparisonOperator.EQUAL -> Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_MEMORY_ACCESS_READ, predicate.columns.map { it.physicalSize }.sum().toFloat())
-        predicate.operator == ComparisonOperator.IN -> Cost(Cost.COST_DISK_ACCESS_READ * predicate.values.size, Cost.COST_MEMORY_ACCESS_READ * predicate.values.size, predicate.columns.map { it.physicalSize }.sum().toFloat())
+        predicate.operator == ComparisonOperator.EQUAL -> Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_MEMORY_ACCESS, predicate.columns.map { it.physicalSize }.sum().toFloat())
+        predicate.operator == ComparisonOperator.IN -> Cost(Cost.COST_DISK_ACCESS_READ * predicate.values.size, Cost.COST_MEMORY_ACCESS * predicate.values.size, predicate.columns.map { it.physicalSize }.sum().toFloat())
         else -> Cost.INVALID
     }
 
