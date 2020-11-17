@@ -1,5 +1,5 @@
 group 'org.vitrivr'
-version '0.9.1'
+version '0.10'
 
 buildscript {
     ext.luceneVersion = '7.7.1'
