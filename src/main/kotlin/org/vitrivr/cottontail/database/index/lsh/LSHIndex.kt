@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.database.index.lsh
 
-import org.mapdb.DBMaker
+import org.mapdb.DB
 import org.mapdb.HTreeMap
 import org.mapdb.Serializer
 import org.vitrivr.cottontail.database.entity.Entity
@@ -19,7 +19,7 @@ abstract class LSHIndex<T : VectorValue<*>>(final override val name: Name.IndexN
     }
 
     /** Path to the [LSHIndex] file. */
-    final override val path: Path = this.parent.path.resolve("idx_lsh_$name.db")
+    final override val path: Path = this.parent.path.resolve("idx_lsh_${name.simple}.db")
 
     /** The [LSHIndex] implementation returns exactly the columns that is indexed. */
     final override val produces: Array<ColumnDef<*>> = emptyArray()
@@ -27,12 +27,8 @@ abstract class LSHIndex<T : VectorValue<*>>(final override val name: Name.IndexN
     /** The type of [Index] */
     override val type: IndexType = IndexType.LSH
 
-    /** The internal database reference. */
-    protected val db = if (parent.parent.parent.config.memoryConfig.forceUnmapMappedFiles) {
-        DBMaker.fileDB(this.path.toFile()).fileMmapEnable().cleanerHackEnable().transactionEnable().make()
-    } else {
-        DBMaker.fileDB(this.path.toFile()).fileMmapEnable().transactionEnable().make()
-    }
+    /** The internal [DB] reference. */
+    protected val db: DB = this.parent.parent.parent.config.mapdb.db(this.path)
 
     /** Map structure used for [LSHIndex]. Contains bucket ID and maps it to array of longs. */
     protected val map: HTreeMap<Int, LongArray> = this.db.hashMap(MAP_FIELD_NAME, Serializer.INTEGER, Serializer.LONG_ARRAY).counterEnable().createOrOpen()

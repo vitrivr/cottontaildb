@@ -136,12 +136,7 @@ class Catalogue(val config: Config) : DBO {
         /* Generate the store for the new schema and update catalogue. */
         try {
             /* Create new store. */
-            val store = StoreWAL.make(
-                    file = path.resolve(Schema.FILE_CATALOGUE).toString(),
-                    volumeFactory = this.config.memoryConfig.volumeFactory,
-                    allocateIncrement = 1L shl this.config.memoryConfig.cataloguePageShift,
-                    fileLockWait = this.config.lockTimeout
-            )
+            val store = this.config.mapdb.store(path.resolve(Schema.FILE_CATALOGUE))
             store.put(SchemaHeader(), SchemaHeaderSerializer)
             store.commit()
             store.close()
@@ -220,12 +215,7 @@ class Catalogue(val config: Config) : DBO {
      * @return [StoreWAL] object.
      */
     private fun openStore(path: Path): CottontailStoreWAL = try {
-        CottontailStoreWAL.make(
-                file = path.toString(),
-                volumeFactory = this.config.memoryConfig.volumeFactory,
-                allocateIncrement = 1L shl this.config.memoryConfig.cataloguePageShift,
-                fileLockWait = this.config.lockTimeout
-        )
+        this.config.mapdb.store(path)
     } catch (e: DBException) {
         throw DatabaseException("Failed to open Cottontail DB catalogue: ${e.message}'.")
     }
@@ -246,12 +236,7 @@ class Catalogue(val config: Config) : DBO {
         }
 
         /* Create and initialize new store. */
-        val store = CottontailStoreWAL.make(
-                file = config.root.resolve(FILE_CATALOGUE).toString(),
-                volumeFactory = this.config.memoryConfig.volumeFactory,
-                allocateIncrement = 1L shl this.config.memoryConfig.cataloguePageShift,
-                fileLockWait = config.lockTimeout
-        )
+        val store = this.config.mapdb.store(this.config.root.resolve(FILE_CATALOGUE))
         store.put(CatalogueHeader(), CatalogueHeaderSerializer)
         store.commit()
         store

@@ -69,7 +69,7 @@ class LuceneIndex(override val name: Name.IndexName, override val parent: Entity
     override val produces: Array<ColumnDef<*>> = arrayOf(ColumnDef(this.parent.name.column("score"), ColumnType.forName("FLOAT")))
 
     /** The path to the directory that contains the data for this [LuceneIndex]. */
-    override val path: Path = this.parent.path.resolve("idx_lucene_$name")
+    override val path: Path = this.parent.path.resolve("idx_lucene_${name.simple}")
 
     /** True since [SuperBitLSHIndex] supports incremental updates. */
     override val supportsIncrementalUpdate: Boolean = true

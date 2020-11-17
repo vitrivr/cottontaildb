@@ -27,22 +27,19 @@ import org.vitrivr.cottontail.utilities.math.KnnUtilities
  * This is a [PipelineBreaker]
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.1.1
  */
 class KnnOperator<T : VectorValue<*>>(parent: Operator, context: ExecutionEngine.ExecutionContext, val knn: KnnPredicate<T>) : PipelineBreaker(parent, context) {
 
     /** The columns produced by this [KnnOperator]. */
     override val columns: Array<ColumnDef<*>> = arrayOf(
-            *this.parent.columns,
-            ColumnDef(this.knn.column.name.entity()?.column(KnnUtilities.DISTANCE_COLUMN_NAME)
-                    ?: Name.ColumnName(KnnUtilities.DISTANCE_COLUMN_NAME), KnnUtilities.DISTANCE_COLUMN_TYPE)
+        *this.parent.columns,
+        KnnUtilities.columnDef(this.knn.column.name.entity())
     )
 
-    override fun prepareOpen() { /* NoOp */
-    }
+    override fun prepareOpen() { /* NoOp */ }
 
-    override fun prepareClose() { /* NoOp */
-    }
+    override fun prepareClose() { /* NoOp */ }
 
     /**
      * Converts this [KnnOperator] to a [Flow] and returns it.

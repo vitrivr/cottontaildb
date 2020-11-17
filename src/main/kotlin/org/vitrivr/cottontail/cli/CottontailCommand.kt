@@ -258,7 +258,7 @@ class CottontailCommand(private val host: String, private val port: Int) : NoOpC
             ).build()
             val query = this@CottontailCommand.dqlService.query(qm)
             query.forEach { page ->
-                if (!page.resultsList.isEmpty()) {
+                if (page.resultsList.isNotEmpty()) {
                     println(page.resultsList.first())
                 }
             }
