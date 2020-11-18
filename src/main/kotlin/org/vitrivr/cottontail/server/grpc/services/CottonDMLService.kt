@@ -301,7 +301,6 @@ class CottonDMLService(val catalogue: Catalogue, val engine: ExecutionEngine) : 
                         it.value.rollback()
                     }
                 } finally {
-                    it.value.indexes().forEach{ idx -> idx.close()}
                     it.value.close()
                 }
             }
