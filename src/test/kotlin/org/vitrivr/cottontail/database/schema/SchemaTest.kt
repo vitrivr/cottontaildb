@@ -18,7 +18,7 @@ import java.util.stream.Collectors
 
 class SchemaTest {
 
-    private val schemaName = Name.SchemaName("schema-test")
+    private val schemaName = Name.SchemaName("test")
     private val entityName = Name.EntityName("test", "one")
 
     /** */
@@ -49,10 +49,10 @@ class SchemaTest {
         val entityNames = arrayOf("one", "two", "three")
         for (name in entityNames) {
             schema?.createEntity(Name.EntityName("test", name), ColumnDef.withAttributes(Name.ColumnName("id"), "STRING"))
-            assertTrue(Files.isReadable(TestConstants.config.root.resolve("schema_schema-test").resolve("entity_$name")))
-            assertTrue(Files.isDirectory(TestConstants.config.root.resolve("schema_schema-test").resolve("entity_$name")))
-            assertTrue(Files.isReadable(TestConstants.config.root.resolve("schema_schema-test").resolve("entity_$name").resolve("col_id.db")))
-            assertTrue(Files.isReadable(TestConstants.config.root.resolve("schema_schema-test").resolve("entity_$name").resolve(Entity.FILE_CATALOGUE)))
+            assertTrue(Files.isReadable(TestConstants.config.root.resolve("schema_test").resolve("entity_$name")))
+            assertTrue(Files.isDirectory(TestConstants.config.root.resolve("schema_test").resolve("entity_$name")))
+            assertTrue(Files.isReadable(TestConstants.config.root.resolve("schema_test").resolve("entity_$name").resolve("col_id.db")))
+            assertTrue(Files.isReadable(TestConstants.config.root.resolve("schema_test").resolve("entity_$name").resolve(Entity.FILE_CATALOGUE)))
         }
 
         /* Check size of the schema. */
@@ -64,11 +64,10 @@ class SchemaTest {
         }
     }
 
-    @Test
     @RepeatedTest(2)
     fun createLuceneEntity() {
-        schema?.createEntity(entityName, ColumnDef.withAttributes(Name.ColumnName("id"), "STRING"), ColumnDef.withAttributes(Name.ColumnName("feature"), "STRING"))
-        schema?.entityForName(entityName)?.createIndex(Name.IndexName("lucene-idx"), IndexType.LUCENE, arrayOf(ColumnDef.withAttributes(Name.ColumnName("feature"), "STRING")))
+        schema?.createEntity(entityName, ColumnDef.withAttributes(entityName.column("id"), "STRING"), ColumnDef.withAttributes(entityName.column("feature"), "STRING"))
+        schema?.entityForName(entityName)?.createIndex(entityName.index("lucene-idx"), IndexType.LUCENE, arrayOf(ColumnDef.withAttributes(entityName.column("feature"), "STRING")))
     }
 
     private fun dropLuceneEntity() {
