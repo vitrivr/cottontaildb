@@ -51,12 +51,7 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
 
     /** Internal reference to the [StoreWAL] underpinning this [Entity]. */
     private val store: CottontailStoreWAL = try {
-        CottontailStoreWAL.make(
-            file = this.path.resolve(FILE_CATALOGUE).toString(),
-            volumeFactory = this.parent.parent.config.memoryConfig.volumeFactory,
-            allocateIncrement = 1L shl this.parent.parent.config.memoryConfig.dataPageShift,
-            fileLockWait = this.parent.parent.config.lockTimeout
-        )
+        this.parent.parent.config.mapdb.store(this.path.resolve(FILE_CATALOGUE))
     } catch (e: DBException) {
         throw DatabaseException("Failed to open entity '$name': ${e.message}'.")
     }
