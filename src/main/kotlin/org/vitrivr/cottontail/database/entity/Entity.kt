@@ -370,10 +370,18 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
          */
         override fun rollback() = this.localLock.write {
             if (this.status == TransactionStatus.DIRTY) {
-                this.colTxs.forEach { it.value.rollback() }
-                this@Entity.store.rollback()
+                this.performRollback()
                 this.status = TransactionStatus.CLEAN
             }
+        }
+
+        /**
+         * Performs the actual ROLLBACK operation.
+         */
+        private fun performRollback() {
+            this.indexTxs.forEach { it.rollback() }
+            this.colTxs.forEach { it.value.rollback() }
+            this@Entity.store.rollback()
         }
 
         /**
@@ -382,7 +390,7 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
         override fun close() = this.localLock.write {
             if (this.status != TransactionStatus.CLOSED) {
                 if (this.status == TransactionStatus.DIRTY) {
-                    this.rollback()
+                    this.performRollback()
                 }
                 this.indexTxs.forEach { it.close() }
                 this.colTxs.forEach { it.value.close() }
