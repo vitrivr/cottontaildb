@@ -23,10 +23,10 @@ import java.util.Comparator
 import java.util.stream.Collectors
 
 class InsertTest {
-    private val schemaName = Name.SchemaName("schema-test")
+    private val schemaName = Name.SchemaName("test")
     private val entityName = Name.EntityName("test", "one")
-    private val idColumn = ColumnDef.withAttributes(Name.ColumnName("id"), "STRING")
-    private val featureColumn = ColumnDef.withAttributes(Name.ColumnName("feature"), "STRING")
+    private val idColumn = ColumnDef.withAttributes(this.entityName.column("id"), "STRING")
+    private val featureColumn = ColumnDef.withAttributes(this.entityName.column("feature"), "STRING")
 
     /** */
     private var catalogue: Catalogue = Catalogue(TestConstants.config)
@@ -50,10 +50,9 @@ class InsertTest {
         pathsToDelete.forEach { Files.delete(it) }
     }
 
-    @Test
     fun createLuceneEntity() {
         schema?.createEntity(entityName, idColumn, featureColumn)
-        schema?.entityForName(entityName)?.createIndex(Name.IndexName("lucene-idx"), IndexType.LUCENE, arrayOf(ColumnDef.withAttributes(Name.ColumnName("feature"), "STRING")))
+        schema?.entityForName(entityName)?.createIndex(entityName.index("lucene-idx"), IndexType.LUCENE, arrayOf(ColumnDef.withAttributes(entityName.column("feature"), "STRING")))
     }
 
     private fun dropLuceneEntity() {
@@ -73,9 +72,11 @@ class InsertTest {
 
     private fun insertRandomRecord() {
         val tx = schema?.entityForName(entityName)?.Tx(false)
-        tx?.insert(generateRecord())
-        tx?.commit()
-        tx?.close()
+        tx.use {
+            tx?.insert(generateRecord())
+            tx?.commit()
+            tx?.close()
+        }
     }
 
     @Test
