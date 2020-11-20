@@ -2,7 +2,6 @@ package org.vitrivr.cottontail.database.index.vaplus
 
 import org.apache.commons.math3.linear.MatrixUtils
 import org.mapdb.Atomic
-import org.mapdb.DBMaker
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.database.column.Column
 import org.vitrivr.cottontail.database.column.ColumnType
@@ -62,11 +61,7 @@ class VAPlusIndex(override val name: Name.IndexName, override val parent: Entity
     override val produces: Array<ColumnDef<*>> = arrayOf(ColumnDef(this.parent.name.column("distance"), ColumnType.forName("DOUBLE")))
 
     /** The internal [DB] reference. */
-    private val db = if (parent.parent.parent.config.memoryConfig.forceUnmapMappedFiles) {
-        DBMaker.fileDB(this.path.toFile()).fileMmapEnable().cleanerHackEnable().transactionEnable().make()
-    } else {
-        DBMaker.fileDB(this.path.toFile()).fileMmapEnable().transactionEnable().make()
-    }
+    private val db = parent.parent.parent.config.mapdb.db(this.path)
 
     /** Map structure used for [VAPlusIndex]. */
     private val meta: Atomic.Var<VAPlusMeta> = this.db.atomicVar(META_FIELD_NAME, VAPlusMetaSerializer).createOrOpen()

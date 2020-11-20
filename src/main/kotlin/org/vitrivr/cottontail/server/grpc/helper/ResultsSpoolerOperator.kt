@@ -28,7 +28,8 @@ import java.lang.Integer.max
 class ResultsSpoolerOperator(parent: Operator, context: ExecutionEngine.ExecutionContext, val queryId: String, val index: Int, val responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) : SinkOperator(parent, context) {
 
     companion object {
-        private const val MAX_PAGE_SIZE_BYTES = 5_000_000 }
+        private const val MAX_PAGE_SIZE_BYTES = 5_000_000
+    }
 
     /** The [ColumnDef]s returned by this [ResultsSpoolerOperator]. */
     override val columns: Array<ColumnDef<*>> = this.parent.columns
@@ -48,29 +49,20 @@ class ResultsSpoolerOperator(parent: Operator, context: ExecutionEngine.Executio
 
     override fun toFlow(scope: CoroutineScope): Flow<Record> {
         val parent = this.parent.toFlow(scope)
-
-        /* Number of tuples returned so far. */
-        var counter = 0
-
-        /* Number of tuples returned so far. */
-        var responseBuilder = CottontailGrpc.QueryResponseMessage.newBuilder().setQueryId(this.queryId)
-
-        /* Determine size of page. */
-        val pageSize = StandaloneRecord(0L, this.columns, this.columns.map { it.defaultValue() }.toTypedArray()).let {
-            (MAX_PAGE_SIZE_BYTES / max(recordToTuple(it).build().serializedSize, 1))
-        }
-
         return flow {
+            var responseBuilder = CottontailGrpc.QueryResponseMessage.newBuilder().setQueryId(this@ResultsSpoolerOperator.queryId)
+            var accumulatedSize = 0L
             parent.collect {
-                val tuple = recordToTuple(it)
-                if (counter % pageSize == 0) {
+                val tuple = recordToTuple(it).build()
+                if (accumulatedSize + tuple.serializedSize >= MAX_PAGE_SIZE_BYTES) {
                     this@ResultsSpoolerOperator.responseObserver.onNext(responseBuilder.build())
                     responseBuilder = CottontailGrpc.QueryResponseMessage.newBuilder().setQueryId(this@ResultsSpoolerOperator.queryId)
+                    accumulatedSize = 0L
                 }
 
                 /* Add entry to page and increment counter. */
                 responseBuilder.addResults(tuple)
-                counter++
+                accumulatedSize += tuple.serializedSize
             }
 
             /* Flush remaining tuples. */

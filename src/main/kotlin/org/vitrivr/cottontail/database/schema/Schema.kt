@@ -1,9 +1,9 @@
 package org.vitrivr.cottontail.database.schema
 
+import org.mapdb.CottontailStoreWAL
 import org.mapdb.DBException
 import org.mapdb.Serializer
 import org.mapdb.Store
-import org.mapdb.StoreWAL
 import org.vitrivr.cottontail.database.catalogue.Catalogue
 import org.vitrivr.cottontail.database.column.mapdb.MapDBColumn
 import org.vitrivr.cottontail.database.entity.Entity
@@ -56,13 +56,8 @@ class Schema(override val name: Name.SchemaName, override val path: Path, overri
     }
 
     /** Internal reference to the [Store] underpinning this [MapDBColumn]. */
-    private val store: StoreWAL = try {
-        StoreWAL.make(
-                file = this.path.resolve(FILE_CATALOGUE).toString(),
-                volumeFactory = this.parent.config.memoryConfig.volumeFactory,
-                allocateIncrement = 1L shl this.parent.config.memoryConfig.cataloguePageShift,
-                fileLockWait = this.parent.config.lockTimeout
-        )
+    private val store: CottontailStoreWAL = try {
+        this.parent.config.mapdb.store(this.path.resolve(FILE_CATALOGUE))
     } catch (e: DBException) {
         throw DatabaseException("Failed to open schema $name at '$path': ${e.message}'")
     }
@@ -127,17 +122,12 @@ class Schema(override val name: Name.SchemaName, override val path: Path, overri
                 val recId = this.store.put(name.simple, Serializer.STRING)
 
                 /* Generate the entity. */
-                val store = StoreWAL.make(
-                        file = data.resolve(Entity.FILE_CATALOGUE).toString(),
-                        volumeFactory = this.parent.config.memoryConfig.volumeFactory,
-                        allocateIncrement = 1L shl this.parent.config.memoryConfig.cataloguePageShift,
-                        fileLockWait = this.parent.config.lockTimeout
-                )
+                val store = this.parent.config.mapdb.store(data.resolve(Entity.FILE_CATALOGUE))
                 store.preallocate() /* Pre-allocates the header. */
 
                 /* Initialize the entities header. */
                 val columnIds = columns.map {
-                    MapDBColumn.initialize(it, data, this.parent.config.memoryConfig)
+                    MapDBColumn.initialize(it, data, this.parent.config.mapdb)
                     store.put(it.name.simple, Serializer.STRING)
                 }.toLongArray()
                 store.update(Entity.HEADER_RECORD_ID, EntityHeader(columns = columnIds), EntityHeaderSerializer)

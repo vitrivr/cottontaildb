@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.database.index.hash
 
-import org.mapdb.DBMaker
+import org.mapdb.DB
 import org.mapdb.HTreeMap
 import org.mapdb.Serializer
 import org.slf4j.LoggerFactory
@@ -48,7 +48,7 @@ class UniqueHashIndex(override val name: Name.IndexName, override val parent: En
     }
 
     /** Path to the [UniqueHashIndex] file. */
-    override val path: Path = this.parent.path.resolve("idx_$name.db")
+    override val path: Path = this.parent.path.resolve("idx_${name.simple}.db")
 
     /** The type of [Index] */
     override val type: IndexType = IndexType.HASH_UQ
@@ -59,20 +59,11 @@ class UniqueHashIndex(override val name: Name.IndexName, override val parent: En
     /** The [UniqueHashIndex] implementation returns exactly the columns that is indexed. */
     override val produces: Array<ColumnDef<*>> = this.columns
 
-    /** The internal database reference. */
-    private val db = if (parent.parent.parent.config.memoryConfig.forceUnmapMappedFiles) {
-        DBMaker.fileDB(this.path.toFile()).fileMmapEnable().transactionEnable().make()
-    } else {
-        DBMaker.fileDB(this.path.toFile()).fileMmapEnable().transactionEnable().make()
-    }
+    /** The internal [DB] reference. */
+    private val db: DB = this.parent.parent.parent.config.mapdb.db(this.path)
 
     /** Map structure used for [UniqueHashIndex]. */
     private val map: HTreeMap<out Value, TupleId> = this.db.hashMap(MAP_FIELD_NAME, this.columns.first().type.serializer(this.columns.size), Serializer.LONG_PACKED).counterEnable().createOrOpen()
-
-    init {
-        /* Initial commit. */
-        this.db.commit()
-    }
 
     /**
      * Flag indicating if this [UniqueHashIndex] has been closed.
@@ -80,6 +71,10 @@ class UniqueHashIndex(override val name: Name.IndexName, override val parent: En
     @Volatile
     override var closed: Boolean = false
         private set
+
+    init {
+        this.db.commit() /* Initial commit. */
+    }
 
     /**
      * Checks if the provided [Predicate] can be processed by this instance of [UniqueHashIndex]. [UniqueHashIndex] can be used to process IN and EQUALS
@@ -102,8 +97,8 @@ class UniqueHashIndex(override val name: Name.IndexName, override val parent: En
      */
     override fun cost(predicate: Predicate): Cost = when {
         predicate !is AtomicBooleanPredicate<*> || predicate.columns.first() != this.columns[0] -> Cost.INVALID
-        predicate.operator == ComparisonOperator.EQUAL -> Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_MEMORY_ACCESS_READ, predicate.columns.map { it.physicalSize }.sum().toFloat())
-        predicate.operator == ComparisonOperator.IN -> Cost(Cost.COST_DISK_ACCESS_READ * predicate.values.size, Cost.COST_MEMORY_ACCESS_READ * predicate.values.size, predicate.columns.map { it.physicalSize }.sum().toFloat())
+        predicate.operator == ComparisonOperator.EQUAL -> Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_MEMORY_ACCESS, predicate.columns.map { it.physicalSize }.sum().toFloat())
+        predicate.operator == ComparisonOperator.IN -> Cost(Cost.COST_DISK_ACCESS_READ * predicate.values.size, Cost.COST_MEMORY_ACCESS * predicate.values.size, predicate.columns.map { it.physicalSize }.sum().toFloat())
         else -> Cost.INVALID
     }
 

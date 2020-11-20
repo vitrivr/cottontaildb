@@ -1,8 +1,8 @@
 {
   "root": "./cottontaildb-data",
-  "memoryConfig": {
-    "forceUnmapMappedFiles": true,
-    "dataPageShift": 22,
-    "cataloguePageShift": 20
+  "mapdb": {
+    "enableMmap": true,
+    "forceUnmap": true,
+    "pageShift": 22
   }
 }

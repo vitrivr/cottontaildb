@@ -25,6 +25,7 @@ enum class IndexType(val inexact: Boolean) {
      *
      * @param name [Name.IndexName] of the [Index]
      * @param entity The [Entity] the desired [Index] belongs to.
+     * @param columns The [ColumnDef] for which to open the [Index]
      */
     fun open(name: Name.IndexName, entity: Entity, columns: Array<ColumnDef<*>>): Index = when (this) {
         HASH_UQ -> UniqueHashIndex(name, entity, columns)

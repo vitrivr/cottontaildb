@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.database.column.mapdb
 
 import org.mapdb.*
-import org.vitrivr.cottontail.config.MemoryConfig
+import org.vitrivr.cottontail.config.MapDBConfig
 import org.vitrivr.cottontail.database.column.Column
 import org.vitrivr.cottontail.database.column.ColumnTransaction
 import org.vitrivr.cottontail.database.column.ColumnType
@@ -37,12 +37,7 @@ class MapDBColumn<T : Value>(override val name: Name.ColumnName, override val pa
 
     /** Internal reference to the [Store] underpinning this [MapDBColumn]. */
     private var store: CottontailStoreWAL = try {
-        CottontailStoreWAL.make(
-                file = this.path.toString(),
-                volumeFactory = this.parent.parent.parent.config.memoryConfig.volumeFactory,
-                allocateIncrement = (1L shl this.parent.parent.parent.config.memoryConfig.dataPageShift),
-                fileLockWait = this.parent.parent.parent.config.lockTimeout
-        )
+        this.parent.parent.parent.config.mapdb.store(this.path)
     } catch (e: DBException) {
         throw DatabaseException("Failed to open column at '$path': ${e.message}'")
     }
@@ -110,13 +105,13 @@ class MapDBColumn<T : Value>(override val name: Name.ColumnName, override val pa
          *
          * @param parent The folder that contains the data file
          * @param definition The [ColumnDef] that specified the [MapDBColumn]
-         * @param config The [MemoryConfig] used to initialize the [MapDBColumn]
+         * @param config The [MapDBConfig] used to initialize the [MapDBColumn]
          */
-        fun initialize(definition: ColumnDef<*>, path: Path, config: MemoryConfig) {
+        fun initialize(definition: ColumnDef<*>, path: Path, config: MapDBConfig) {
             val store = StoreWAL.make(
                     file = path.resolve("col_${definition.name.simple}.db").toString(),
                     volumeFactory = config.volumeFactory,
-                    allocateIncrement = 1L shl config.dataPageShift
+                    allocateIncrement = 1L shl config.pageShift
             )
             store.put(ColumnHeader(type = definition.type, size = definition.logicalSize, nullable = definition.nullable), ColumnHeaderSerializer)
             store.commit()
