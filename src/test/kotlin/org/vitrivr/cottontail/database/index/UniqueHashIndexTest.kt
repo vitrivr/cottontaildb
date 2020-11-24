@@ -23,7 +23,7 @@ import java.util.stream.Collectors
  * This is a collection of test cases to test the correct behaviour of [UniqueHashIndex].
  *
  * @author Ralph Gasser
- * @param 1.1
+ * @param 1.1.1
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class UniqueHashIndexTest {
@@ -77,6 +77,7 @@ class UniqueHashIndexTest {
         this.catalogue.close()
         val pathsToDelete = Files.walk(TestConstants.config.root).sorted(Comparator.reverseOrder()).collect(Collectors.toList())
         pathsToDelete.forEach { Files.delete(it) }
+        this.list.clear()
     }
 
     /**
@@ -93,18 +94,18 @@ class UniqueHashIndexTest {
     /**
      * Tests if Index#filter() returns the values that have been stored.
      */
-    @Test
     @RepeatedTest(100)
     fun testFilterEqualPositive() {
         this.entity?.Tx(readonly = true)?.begin { tx ->
-            val entry = this.list.entries.random()
-            val predicate = AtomicBooleanPredicate(this.columns[0] as ColumnDef<StringValue>, ComparisonOperator.EQUAL, false, listOf(entry.key))
-            val index = tx.indexes().first()
-            index.filter(predicate).use {
-                it.forEach {
-                    val rec = tx.read(it.tupleId, this.columns)
-                    assertEquals(entry.key, rec[this.columns[0]])
-                    assertArrayEquals(entry.value.data, (rec[this.columns[1]] as FloatVectorValue).data)
+            for (entry in this.list.entries) {
+                val predicate = AtomicBooleanPredicate(this.columns[0] as ColumnDef<StringValue>, ComparisonOperator.EQUAL, false, listOf(entry.key))
+                val index = tx.indexes().first()
+                index.filter(predicate).use {
+                    it.forEach { r ->
+                        val rec = tx.read(r.tupleId, this.columns)
+                        assertEquals(entry.key, rec[this.columns[0]])
+                        assertArrayEquals(entry.value.data, (rec[this.columns[1]] as FloatVectorValue).data)
+                    }
                 }
             }
             true
@@ -114,16 +115,13 @@ class UniqueHashIndexTest {
     /**
      * Tests if Index#filter() only returns stored values.
      */
-    @Test
     @RepeatedTest(100)
     fun testFilterEqualNegative() {
         this.entity?.Tx(readonly = true)?.begin { tx ->
             val index = tx.indexes().first()
             var count = 0
             index.filter(AtomicBooleanPredicate(this.columns[0] as ColumnDef<StringValue>, ComparisonOperator.EQUAL, false, listOf(StringValue(UUID.randomUUID().toString())))).use {
-                it.forEach {
-                    count += 1
-                }
+                it.forEach { count += 1 }
             }
             assertEquals(0, count)
             true
@@ -134,13 +132,16 @@ class UniqueHashIndexTest {
      * Populates the test database with data.
      */
     private fun populateDatabase() {
+        val random = SplittableRandom()
         this.entity?.Tx(readonly = false)?.begin { tx ->
             /* Insert data .*/
             for (i in 0..this.collectionSize) {
                 val uuid = StringValue(UUID.randomUUID().toString())
-                val vector = FloatVectorValue.random(128)
+                val vector = FloatVectorValue.random(128, random)
                 val values: Array<Value?> = arrayOf(uuid, vector)
-                this.list[uuid] = vector
+                if (random.nextDouble(0.0, 1.0) > 0.99) { /* Translate; keep 1/100th of all entries in list */
+                    this.list[uuid] = vector
+                }
                 tx.insert(StandaloneRecord(columns = this.columns, values = values))
             }
             true
