@@ -180,6 +180,7 @@ test {
             testLogging {
                 // set options for log level LIFECYCLE
                 events "failed"
+                info.events = ["failed", "skipped"]
             }
         }
     }
