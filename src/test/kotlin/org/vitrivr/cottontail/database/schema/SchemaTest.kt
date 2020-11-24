@@ -4,10 +4,12 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.RepeatedTest
 import org.junit.jupiter.api.Test
 import org.vitrivr.cottontail.TestConstants
 import org.vitrivr.cottontail.database.catalogue.Catalogue
 import org.vitrivr.cottontail.database.entity.Entity
+import org.vitrivr.cottontail.database.index.IndexType
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Name
 import java.nio.file.Files
@@ -16,7 +18,8 @@ import java.util.stream.Collectors
 
 class SchemaTest {
 
-    private val schemaName = Name.SchemaName("schema-test")
+    private val schemaName = Name.SchemaName("test")
+    private val entityName = Name.EntityName("test", "one")
 
     /** */
     private var catalogue: Catalogue = Catalogue(TestConstants.config)
@@ -46,10 +49,10 @@ class SchemaTest {
         val entityNames = arrayOf("one", "two", "three")
         for (name in entityNames) {
             schema?.createEntity(Name.EntityName("test", name), ColumnDef.withAttributes(Name.ColumnName("id"), "STRING"))
-            assertTrue(Files.isReadable(TestConstants.config.root.resolve("schema_schema-test").resolve("entity_$name")))
-            assertTrue(Files.isDirectory(TestConstants.config.root.resolve("schema_schema-test").resolve("entity_$name")))
-            assertTrue(Files.isReadable(TestConstants.config.root.resolve("schema_schema-test").resolve("entity_$name").resolve("col_id.db")))
-            assertTrue(Files.isReadable(TestConstants.config.root.resolve("schema_schema-test").resolve("entity_$name").resolve(Entity.FILE_CATALOGUE)))
+            assertTrue(Files.isReadable(TestConstants.config.root.resolve("schema_test").resolve("entity_$name")))
+            assertTrue(Files.isDirectory(TestConstants.config.root.resolve("schema_test").resolve("entity_$name")))
+            assertTrue(Files.isReadable(TestConstants.config.root.resolve("schema_test").resolve("entity_$name").resolve("col_id.db")))
+            assertTrue(Files.isReadable(TestConstants.config.root.resolve("schema_test").resolve("entity_$name").resolve(Entity.FILE_CATALOGUE)))
         }
 
         /* Check size of the schema. */
@@ -59,5 +62,21 @@ class SchemaTest {
         entityNames.zip(schema!!.entities) { a, b ->
             assertEquals(a, b.simple)
         }
+    }
+
+    @RepeatedTest(2)
+    fun createLuceneEntity() {
+        schema?.createEntity(entityName, ColumnDef.withAttributes(entityName.column("id"), "STRING"), ColumnDef.withAttributes(entityName.column("feature"), "STRING"))
+        schema?.entityForName(entityName)?.createIndex(entityName.index("lucene-idx"), IndexType.LUCENE, arrayOf(ColumnDef.withAttributes(entityName.column("feature"), "STRING")))
+    }
+
+    private fun dropLuceneEntity() {
+        schema?.dropEntity(entityName)
+    }
+
+    @Test
+    fun createAndDropLuceneEntity() {
+        createLuceneEntity()
+        dropLuceneEntity()
     }
 }

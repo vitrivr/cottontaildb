@@ -1,5 +1,5 @@
 group 'org.vitrivr'
-version '0.10'
+version '0.10.1'
 
 buildscript {
     ext.luceneVersion = '7.7.1'
@@ -149,6 +149,7 @@ dependencies {
     testCompile group: 'org.junit.jupiter', name: 'junit-jupiter-api', version: '5.7.0'
     testCompile group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: '5.7.0'
     testCompile group: 'org.junit.jupiter', name: 'junit-jupiter-params', version: '5.7.0'
+    testImplementation group: 'org.junit.platform', name: 'junit-platform-commons', version: '1.7.0'
 
     ///// Kotlin
     compile group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib', version: kotlinVersion
@@ -170,6 +171,24 @@ idea {
         downloadJavadoc = true
         excludeDirs += file('cottontaildb-data')
     }
+}
+
+// https://stackoverflow.com/questions/61580713/gradle-test-print-stdout-stderror-for-failed-tests
+test {
+    doFirst {
+        if (System.getenv('CI')) {
+            testLogging {
+                // set options for log level LIFECYCLE
+                events "failed"
+                info.events = ["failed", "skipped"]
+            }
+        }
+    }
+}
+
+tasks.withType(Test) {
+    useJUnitPlatform()
+    jvmArgs '--enable-preview'
 }
 
 ///// Default names for distributions
