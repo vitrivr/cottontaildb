@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.math.basics
 
 import org.apache.commons.math3.complex.Complex
 import org.apache.commons.math3.exception.DimensionMismatchException
+import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.RepeatedTest
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -13,8 +14,9 @@ import java.util.*
  * Some basic test cases that test for correctness of [Complex32VectorValue] arithmetic operations.
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.0.1
  */
+@Disabled
 class Complex32VectorValueTest {
 
     private val random = SplittableRandom()
