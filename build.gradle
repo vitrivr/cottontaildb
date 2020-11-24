@@ -173,6 +173,18 @@ idea {
     }
 }
 
+// https://stackoverflow.com/questions/61580713/gradle-test-print-stdout-stderror-for-failed-tests
+test {
+    doFirst {
+        if (System.getenv('CI')) {
+            testLogging {
+                // set options for log level LIFECYCLE
+                events "failed"
+            }
+        }
+    }
+}
+
 tasks.withType(Test) {
     useJUnitPlatform()
     jvmArgs '--enable-preview'

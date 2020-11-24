@@ -24,6 +24,6 @@ jobs:
         key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle') }}
         restore-keys: ${{ runner.os }}-gradle
     - name: Test with gradle
-      run: ./gradlew test --stacktrace
+      run: ./gradlew test
     - name: ShadowJar
       run: ./gradlew shadowJar
