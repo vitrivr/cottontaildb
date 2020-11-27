@@ -18,6 +18,7 @@ import org.vitrivr.cottontail.model.values.types.Value
 import java.nio.file.Files
 import java.util.*
 import java.util.stream.Collectors
+import kotlin.collections.HashMap
 
 /**
  * This is a collection of test cases to test the correct behaviour of [UniqueHashIndex].
@@ -51,7 +52,7 @@ class UniqueHashIndexTest {
     private var index: Index? = null
 
     /** List of values stored in this [UniqueHashIndexTest]. */
-    private var list: MutableMap<StringValue, FloatVectorValue> = mutableMapOf()
+    private var list = HashMap<StringValue, FloatVectorValue>(1000)
 
     @BeforeAll
     fun initialize() {
@@ -134,13 +135,15 @@ class UniqueHashIndexTest {
     private fun populateDatabase() {
         val random = SplittableRandom()
         this.entity?.Tx(readonly = false)?.begin { tx ->
-            /* Insert data .*/
+            /* Insert data and track how many entries have been stored for the test later. */
+            var stored = 0
             for (i in 0..this.collectionSize) {
                 val uuid = StringValue(UUID.randomUUID().toString())
                 val vector = FloatVectorValue.random(128, random)
                 val values: Array<Value?> = arrayOf(uuid, vector)
-                if (random.nextDouble(0.0, 1.0) > 0.99) { /* Translate; keep 1/100th of all entries in list */
+                if (random.nextBoolean() && stored <= 1000) {
                     this.list[uuid] = vector
+                    stored++
                 }
                 tx.insert(StandaloneRecord(columns = this.columns, values = values))
             }
