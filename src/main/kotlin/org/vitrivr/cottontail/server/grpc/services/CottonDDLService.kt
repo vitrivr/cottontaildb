@@ -6,16 +6,11 @@ import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.database.catalogue.Catalogue
 import org.vitrivr.cottontail.database.column.ColumnType
 import org.vitrivr.cottontail.database.index.IndexType
-import org.vitrivr.cottontail.execution.exceptions.ExecutionException
 import org.vitrivr.cottontail.grpc.CottonDDLGrpc
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
-import org.vitrivr.cottontail.model.exceptions.QueryException
-import org.vitrivr.cottontail.server.grpc.helper.ResultsSpoolerOperator
 import org.vitrivr.cottontail.server.grpc.helper.fqn
-import kotlin.time.measureTime
-import kotlin.time.measureTimedValue
 
 /**
  * This is a gRPC service endpoint that handles DDL (=Data Definition Language) request for Cottontail DB.
@@ -120,7 +115,13 @@ class CottonDDLService(val catalogue: Catalogue) : CottonDDLGrpc.CottonDDLImplBa
         val entity = this.catalogue.schemaForName(entityName.schema()).entityForName(entityName)
         val def = CottontailGrpc.EntityDefinition.newBuilder().setEntity(request)
         for (c in entity.allColumns()) {
-            def.addColumns(CottontailGrpc.ColumnDefinition.newBuilder().setName(c.name.simple).setNullable(c.nullable).setLength(c.logicalSize).setType(CottontailGrpc.Type.valueOf(c.type.name)))
+            def.addColumns(CottontailGrpc.ColumnDefinition.newBuilder()
+                    .setEngine(CottontailGrpc.Engine.MAPDB)
+                    .setName(c.name.simple)
+                    .setNullable(c.nullable)
+                    .setLength(c.logicalSize)
+                    .setType(CottontailGrpc.Type.valueOf(c.type.name))
+            )
         }
         responseObserver.onNext(def.build())
         responseObserver.onCompleted()
