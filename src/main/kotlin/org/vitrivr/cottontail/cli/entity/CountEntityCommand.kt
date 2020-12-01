@@ -12,7 +12,7 @@ import kotlin.time.ExperimentalTime
  * @version 1.0.1
  */
 @ExperimentalTime
-class CountEntityCommand(dqlStub: CottonDQLGrpc.CottonDQLBlockingStub) : AbstractQueryCommand(name = "count", help = "Counts the given entity's rows", stub = dqlStub) {
+class CountEntityCommand(dqlStub: CottonDQLGrpc.CottonDQLBlockingStub) : AbstractQueryCommand(name = "count", help = "Counts the number of entries in the given entity. Usage: entity count <schema>.<entity>", stub = dqlStub) {
     override fun exec() {
         val qm = CottontailGrpc.QueryMessage.newBuilder().setQuery(
                 CottontailGrpc.Query.newBuilder()
