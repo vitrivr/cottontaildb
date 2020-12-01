@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail.cli.schema
+package org.vitrivr.cottontail.cli.entity
 
 import com.jakewharton.picnic.table
 
@@ -17,7 +17,7 @@ import kotlin.time.measureTimedValue
  * @version 1.0.1
  */
 @ExperimentalTime
-class ListAllEntitiesCommand(private val ddlStub: CottonDDLGrpc.CottonDDLBlockingStub) : AbstractCottontailCommand(name = "entities-all", help = "Lists all entities for all schemas stored in Cottontail DB.") {
+class ListAllEntitiesCommand(private val ddlStub: CottonDDLGrpc.CottonDDLBlockingStub) : AbstractCottontailCommand(name = "all", help = "Lists all entities stored in Cottontail DB.") {
     override fun exec() {
         /* Execute query. */
         var hits = 0
@@ -50,7 +50,7 @@ class ListAllEntitiesCommand(private val ddlStub: CottonDDLGrpc.CottonDDLBlockin
         }
 
         /* Output results. */
-        println("Listing all entities found $hits entries (took ${tbl.duration}).}")
+        println("$hits entities found (took ${tbl.duration}).}")
         println(tbl.value)
     }
 }

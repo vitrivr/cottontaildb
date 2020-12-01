@@ -24,6 +24,8 @@ class DropEntityCommand(private val ddlStub: CottonDDLGrpc.CottonDDLBlockingStub
                 this.ddlStub.dropEntity(this.entityName.proto())
             }
             println("Successfully dropped entity ${this.entityName} (took $time).")
+        } else {
+            println("Drop entity aborted.")
         }
     }
 }

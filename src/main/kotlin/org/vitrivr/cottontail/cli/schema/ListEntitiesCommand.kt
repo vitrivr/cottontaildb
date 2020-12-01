@@ -15,7 +15,7 @@ import kotlin.time.measureTimedValue
  * @version 1.0
  */
 @ExperimentalTime
-class ListEntitiesCommand(private val ddlStub: CottonDDLGrpc.CottonDDLBlockingStub) : AbstractSchemaCommand(name = "entities", help = "Lists all entities for a given schema.") {
+class ListEntitiesCommand(private val ddlStub: CottonDDLGrpc.CottonDDLBlockingStub) : AbstractSchemaCommand(name = "list", help = "Lists all entities for a given schema. schema list <name>") {
 
     override fun exec() {
         /* Execute query. */
@@ -47,7 +47,7 @@ class ListEntitiesCommand(private val ddlStub: CottonDDLGrpc.CottonDDLBlockingSt
         }
 
         /* Output results. */
-        println("List entities for ${this.schemaName} found $hits entries (took ${tbl.duration}).}")
+        println("$hits entities found for schema ${this.schemaName} (took ${tbl.duration}).")
         println(tbl.value)
     }
 }
