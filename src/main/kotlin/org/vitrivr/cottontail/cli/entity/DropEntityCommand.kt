@@ -14,7 +14,7 @@ import kotlin.time.measureTime
  * @version 1.0
  */
 @ExperimentalTime
-class DropEntityCommand(private val ddlStub: CottonDDLGrpc.CottonDDLBlockingStub) : AbstractEntityCommand(name = "drop", help = "Drops the given entity from the database and deletes it therefore") {
+class DropEntityCommand(private val ddlStub: CottonDDLGrpc.CottonDDLBlockingStub) : AbstractEntityCommand(name = "drop", help = "Drops the given entity from the database. Usage: entity drop <schema>.<entity>") {
 
     private val confirm by option().prompt(text = "Do you really want to drop the entity ${this.entityName} (y/N)?")
 
