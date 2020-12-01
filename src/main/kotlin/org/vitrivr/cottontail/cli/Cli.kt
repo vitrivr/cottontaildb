@@ -23,8 +23,10 @@ import org.vitrivr.cottontail.cli.schema.DropSchemaCommand
 import org.vitrivr.cottontail.cli.schema.ListAllSchemaCommand
 import org.vitrivr.cottontail.cli.schema.ListEntitiesCommand
 import org.vitrivr.cottontail.grpc.CottonDDLGrpc
+import org.vitrivr.cottontail.grpc.CottonDMLGrpc
 import org.vitrivr.cottontail.grpc.CottonDQLGrpc
 import org.vitrivr.cottontail.grpc.CottontailGrpc
+import org.vitrivr.cottontail.server.grpc.services.CottonDMLService
 import java.io.IOException
 import java.util.*
 import java.util.regex.Pattern
@@ -201,6 +203,9 @@ class Cli(val host: String = "localhost", val port: Int = 1865) {
         /** The [CottonDDLGrpc.CottonDDLBlockingStub] used for changing Cottontail DB DBOs. */
         private val ddlService = CottonDDLGrpc.newBlockingStub(this.channel)
 
+        /** The [CottonDMLService.CottonDMLBlockingStub] used for changing Cottontail DB data. */
+        private val dmlService = CottonDMLGrpc.newBlockingStub(this.channel)
+
         init {
             context { helpFormatter = CliHelpFormatter() }
             subcommands(
@@ -213,11 +218,13 @@ class Cli(val host: String = "localhost", val port: Int = 1865) {
                             printHelpOnEmptyArgs = true
                     ).subcommands(
                             AboutEntityCommand(this.ddlService),
-                            PreviewEntityCommand(this.dqlService),
+                            ClearEntityCommand(this.dmlService),
                             CountEntityCommand(this.dqlService),
-                            FindInEntityCommand(this.dqlService),
                             DropEntityCommand(this.ddlService),
-                            OptimizeEntityCommand(this.ddlService)
+                            FindInEntityCommand(this.dqlService),
+                            ListAllEntitiesCommand(this.ddlService),
+                            OptimizeEntityCommand(this.ddlService),
+                            PreviewEntityCommand(this.dqlService)
                     ),
 
                     /* Schema related commands. */
@@ -231,11 +238,10 @@ class Cli(val host: String = "localhost", val port: Int = 1865) {
                             CreateSchemaCommand(this.ddlService),
                             DropSchemaCommand(this.ddlService),
                             ListAllSchemaCommand(this.ddlService),
-                            ListEntitiesCommand(this.ddlService),
+                            ListEntitiesCommand(this.ddlService)
                     ),
 
                     /* General commands. */
-                    ListAllEntitiesCommand(this.ddlService),
                     StopCommand()
             )
         }
