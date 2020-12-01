@@ -51,7 +51,7 @@ sealed class BooleanPredicate : Predicate() {
  * A atomic [BooleanPredicate] that compares the column of a [Record] to a provided value (or a set of provided values).
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.0.1
  */
 data class AtomicBooleanPredicate<T : Value>(private val column: ColumnDef<T>, val operator: ComparisonOperator, val not: Boolean = false, var values: Collection<Value>) : BooleanPredicate() {
     init {
@@ -97,17 +97,18 @@ data class AtomicBooleanPredicate<T : Value>(private val column: ColumnDef<T>, v
 }
 
 /**
- * A compound [BooleanPredicate] that connects two other [BooleanPredicate]s through a logical AND or OR connection.
+ * A compound [BooleanPredicate] that connects two other [BooleanPredicate]s through a logical
+ * AND or OR connection.
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.0.1
  */
 data class CompoundBooleanPredicate(val connector: ConnectionOperator, val p1: BooleanPredicate, val p2: BooleanPredicate) : BooleanPredicate() {
     /** The [AtomicBooleanPredicate]s that make up this [CompoundBooleanPredicate]. */
     override val atomics = this.p1.atomics + this.p2.atomics
 
     /** Set of [ColumnDef] that are affected by this [CompoundBooleanPredicate]. */
-    override val columns: Set<ColumnDef<*>> = p1.columns + p2.columns
+    override val columns: Set<ColumnDef<*>> = this.p1.columns + this.p2.columns
 
     /** The total number of operations required by this [CompoundBooleanPredicate]. */
     override val cost = this.p1.cost + this.p2.cost
@@ -119,8 +120,8 @@ data class CompoundBooleanPredicate(val connector: ConnectionOperator, val p1: B
      * @return true if [Record] matches this [CompoundBooleanPredicate], false otherwise.
      */
     override fun matches(record: Record): Boolean = when (connector) {
-        ConnectionOperator.AND -> p1.matches(record) && p2.matches(record)
-        ConnectionOperator.OR -> p1.matches(record) || p2.matches(record)
+        ConnectionOperator.AND -> this.p1.matches(record) && this.p2.matches(record)
+        ConnectionOperator.OR -> this.p1.matches(record) || this.p2.matches(record)
     }
 }
 

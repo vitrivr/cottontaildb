@@ -5,7 +5,7 @@ import org.vitrivr.cottontail.grpc.CottonDDLGrpc
 import org.vitrivr.cottontail.grpc.CottonDMLGrpc
 import org.vitrivr.cottontail.grpc.CottonDQLGrpc
 import org.vitrivr.cottontail.grpc.CottontailGrpc
-import org.vitrivr.cottontail.model.values.FloatVectorValue
+import org.vitrivr.cottontail.model.values.IntVectorValue
 import java.nio.file.Files
 import java.nio.file.Paths
 
@@ -19,16 +19,16 @@ object Playground {
     val ddlService = CottonDDLGrpc.newBlockingStub(channel)
     val dmlService = CottonDMLGrpc.newBlockingStub(channel)
 
-    val schema = CottontailGrpc.Schema.newBuilder().setName("cineast").build()
+    val schema = CottontailGrpc.Schema.newBuilder().setName("cottontail").build()
     val entity = CottontailGrpc.Entity.newBuilder()
             .setSchema(schema)
-            .setName("cineast_metadata")
+            .setName("tab4")
             .build()
 
 
     @JvmStatic
     fun main(args: Array<String>) {
-        this.executeIn()
+        this.executeKnn()
     }
 
 
@@ -88,14 +88,21 @@ object Playground {
 
 
     private fun executeKnn() {
-        val vector = FloatVectorValue.random(2048).let {
-            CottontailGrpc.Vector.newBuilder().setFloatVector(CottontailGrpc.FloatVector.newBuilder().addAllVector(it.data.asIterable()))
+        val vector = IntVectorValue.random(2).let {
+            CottontailGrpc.Vector.newBuilder().setIntVector(CottontailGrpc.IntVector.newBuilder().addAllVector(it.data.asIterable()))
         }
         val query = CottontailGrpc.QueryMessage.newBuilder().setQuery(
                 CottontailGrpc.Query.newBuilder()
                         .setFrom(CottontailGrpc.From.newBuilder().setEntity(entity))
-                        .setKnn(CottontailGrpc.Knn.newBuilder().addQuery(vector).setDistance(CottontailGrpc.Knn.Distance.L2).setK(100).setAttribute("feature"))
-                        .setProjection(CottontailGrpc.Projection.newBuilder().putAttributes("id", "").putAttributes("distance", ""))
+                        .setKnn(CottontailGrpc.Knn.newBuilder()
+                                .addQuery(vector)
+                                .setDistance(CottontailGrpc.Knn.Distance.L2)
+                                .setK(5)
+                                .setAttribute("col27")
+                                .setHint(CottontailGrpc.KnnHint.newBuilder().setNoIndexHint(CottontailGrpc.KnnHint.NoIndexKnnHint.getDefaultInstance()))
+                        )
+                        .setProjection(CottontailGrpc.Projection.newBuilder().putAttributes("col26", "ctid").putAttributes("distance", "dist"))
+                        .setLimit(5)
         )
         val results = this.dqlService.query(query.build())
         results.forEach {
