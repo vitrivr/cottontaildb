@@ -18,7 +18,9 @@ import org.jline.reader.impl.completer.StringsCompleter
 import org.jline.terminal.Terminal
 import org.jline.terminal.TerminalBuilder
 import org.vitrivr.cottontail.cli.entity.*
-import org.vitrivr.cottontail.cli.schema.ListAllEntitiesCommand
+import org.vitrivr.cottontail.cli.schema.CreateSchemaCommand
+import org.vitrivr.cottontail.cli.schema.DropSchemaCommand
+import org.vitrivr.cottontail.cli.schema.ListAllSchemaCommand
 import org.vitrivr.cottontail.cli.schema.ListEntitiesCommand
 import org.vitrivr.cottontail.grpc.CottonDDLGrpc
 import org.vitrivr.cottontail.grpc.CottonDQLGrpc
@@ -188,7 +190,7 @@ class Cli(val host: String = "localhost", val port: Int = 1865) {
      * @version 1.0.2
      */
     @ExperimentalTime
-    inner class CottontailCommand : NoOpCliktCommand(name = "cottontail", help = "The base command") {
+    inner class CottontailCommand : NoOpCliktCommand(name = "cottontail", help = "The base command for all CLI commands.") {
 
         /** The [ManagedChannel] used to conect to Cottontail DB. */
         private val channel: ManagedChannel = ManagedChannelBuilder.forAddress(this@Cli.host, this@Cli.port).usePlaintext().build()
@@ -202,19 +204,38 @@ class Cli(val host: String = "localhost", val port: Int = 1865) {
         init {
             context { helpFormatter = CliHelpFormatter() }
             subcommands(
-                    /* DQL related commands. */
-                    PreviewEntityCommand(this.dqlService),
-                    CountEntityCommand(this.dqlService),
-                    FindInEntityCommand(this.dqlService),
+                    /* Entity related commands. */
+                    NoOpCliktCommand(
+                            name = "entity",
+                            help = "Groups commands that act on Cottontail DB entities. Usually requires the entity's qualified name.",
+                            epilog = "Entity related commands usually have the form: entity <command> <name>, `entity about schema_name.entity_name. Check help for command specific parameters.",
+                            invokeWithoutSubcommand = true,
+                            printHelpOnEmptyArgs = true
+                    ).subcommands(
+                            AboutEntityCommand(this.ddlService),
+                            PreviewEntityCommand(this.dqlService),
+                            CountEntityCommand(this.dqlService),
+                            FindInEntityCommand(this.dqlService),
+                            DropEntityCommand(this.ddlService),
+                            OptimizeEntityCommand(this.ddlService)
+                    ),
 
-                    /* DDL related commands. */
+                    /* Schema related commands. */
+                    NoOpCliktCommand(
+                            name = "schema",
+                            help = "Groups commands that act on Cottontail DB  schemas. Usually requires the schema's qualified name",
+                            epilog = "Schema related commands usually have the form: schema <command> <name>, e.g., `schema list schema_name` Check help for command specific parameters.",
+                            invokeWithoutSubcommand = true,
+                            printHelpOnEmptyArgs = true
+                    ).subcommands(
+                            CreateSchemaCommand(this.ddlService),
+                            DropSchemaCommand(this.ddlService),
+                            ListAllSchemaCommand(this.ddlService),
+                            ListEntitiesCommand(this.ddlService),
+                    ),
+
+                    /* General commands. */
                     ListAllEntitiesCommand(this.ddlService),
-                    ListEntitiesCommand(this.ddlService),
-                    AboutEntityCommand(this.ddlService),
-                    DropEntityCommand(this.ddlService),
-                    OptimizeEntityCommand(this.ddlService),
-
-                    /* CLI related commands. */
                     StopCommand()
             )
         }
