@@ -143,10 +143,11 @@ class ExecutionEngine(config: ExecutionConfig) {
                     try {
                         operator.toFlow(this).collect()
                     } catch (e: OperatorExecutionException) {
+                        LOGGER.error("Unhandled exception during query execution: ${e.stackTraceToString()}")
                         throw e
                     } catch (e: Throwable) {
-                        LOGGER.error("Unhandled exception during query execution: ${e.message}")
-                        throw ExecutionException("Unhandled exception during query execution (${e.javaClass.simpleName})")
+                        LOGGER.error("Unhandled exception during query execution: ${e.stackTraceToString()}")
+                        throw ExecutionException("Unhandled exception during query execution: ${e.message}.")
                     } finally {
                         /* Close all transactions. */
                         this@ExecutionContext.transactions.forEach { (_, tx) ->

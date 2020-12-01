@@ -242,21 +242,27 @@ class CottonDMLService(val catalogue: Catalogue, val engine: ExecutionEngine) : 
                     this.responseObserver.onNext(CottontailGrpc.Status.newBuilder().setSuccess(true).setTimestamp(System.currentTimeMillis()).build())
                 }
             } catch (e: DatabaseException.SchemaDoesNotExistException) {
+                LOGGER.error("Error while inserting data", e)
                 this.cleanup(false)
                 this.responseObserver.onError(Status.NOT_FOUND.withDescription("INSERT failed because schema '${request.from.entity.schema.name} does not exist!").asException())
             } catch (e: DatabaseException.EntityDoesNotExistException) {
+                LOGGER.error("Error while inserting data", e)
                 this.cleanup(false)
                 this.responseObserver.onError(Status.NOT_FOUND.withDescription("INSERT failed because entity '${request.from.entity.fqn()} does not exist!").asException())
             } catch (e: DatabaseException.ColumnDoesNotExistException) {
+                LOGGER.error("Error while inserting data", e)
                 this.cleanup(false)
                 this.responseObserver.onError(Status.NOT_FOUND.withDescription("INSERT failed because column '${e.column}' does not exist!").asException())
             } catch (e: ValidationException) {
+                LOGGER.error("Error while inserting data", e)
                 this.cleanup(false)
                 this.responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("INSERT failed because data validation failed: ${e.message}").asException())
             } catch (e: DatabaseException) {
+                LOGGER.error("Error while inserting data", e)
                 this.cleanup(false)
                 this.responseObserver.onError(Status.INTERNAL.withDescription("INSERT failed because of a database error: ${e.message}").asException())
             } catch (e: Throwable) {
+                LOGGER.error("Error while inserting data", e)
                 this.cleanup(false)
                 this.responseObserver.onError(Status.UNKNOWN.withDescription("INSERT failed because of a unknown error: ${e.message}").asException())
             }

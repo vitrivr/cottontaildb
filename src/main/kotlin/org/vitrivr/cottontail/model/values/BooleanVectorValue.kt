@@ -65,7 +65,7 @@ inline class BooleanVectorValue(val data: BooleanArray) : RealVectorValue<Int> {
         get() = this.data.indices
 
     /**
-     * Returns the i-th entry of  this [BooleanVectorValue].
+     * Returns the i-th entry of this [BooleanVectorValue].
      *
      * @param i Index of the entry.
      * @return The value at index i.
