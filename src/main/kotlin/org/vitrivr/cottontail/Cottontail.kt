@@ -7,7 +7,6 @@ import org.vitrivr.cottontail.database.catalogue.Catalogue
 import org.vitrivr.cottontail.execution.ExecutionEngine
 import org.vitrivr.cottontail.server.grpc.CottontailGrpcServer
 import java.nio.file.Files
-import java.nio.file.Path
 import java.nio.file.Paths
 import kotlin.system.exitProcess
 import kotlin.time.ExperimentalTime
@@ -26,7 +25,7 @@ fun main(args: Array<String>) {
             println("To start the CLI start Cottontail DB use\n" + "$> cli [<host>] [<port>]")
             exitProcess(1)
         }
-        Cli.loop(args[1], args[2].toInt())
+        Cli(args[1], args[2].toInt()).loop()
         return
     }
 
@@ -60,15 +59,15 @@ fun standalone(config: Config) {
     /* Start gRPC Server. */
     server.start()
 
-    /* Start CLI or wait for server to complete. */
+    /* Start CLI (if configured). */
     if (config.cli) {
-        /* Start local cli */
-        Cli.cottontailServer = server
-        Cli.loop("localhost", config.server.port)
-    } else {
-        while (server.isRunning) {
-            Thread.sleep(1000)
-        }
+        Cli("localhost", config.server.port).loop()
+        server.stop()
+    }
+
+    /* Wait for gRPC server to be stopped. */
+    while (server.isRunning) {
+        Thread.sleep(1000)
     }
 }
 
