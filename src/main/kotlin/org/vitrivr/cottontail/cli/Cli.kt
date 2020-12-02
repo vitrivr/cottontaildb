@@ -220,6 +220,7 @@ class Cli(val host: String = "localhost", val port: Int = 1865) {
                             AboutEntityCommand(this.ddlService),
                             ClearEntityCommand(this.dmlService),
                             CountEntityCommand(this.dqlService),
+                            CreateEntityCommand(this.ddlService),
                             DropEntityCommand(this.ddlService),
                             FindInEntityCommand(this.dqlService),
                             ListAllEntitiesCommand(this.ddlService),
