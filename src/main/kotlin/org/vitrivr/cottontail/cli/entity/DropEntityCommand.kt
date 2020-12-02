@@ -8,10 +8,10 @@ import kotlin.time.ExperimentalTime
 import kotlin.time.measureTime
 
 /**
- * Command to drop, i.e. remove the given entity
+ * Command to drop, i.e., remove a [org.vitrivr.cottontail.database.entity.Entity] by its name.
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.0.1
  */
 @ExperimentalTime
 class DropEntityCommand(private val ddlStub: CottonDDLGrpc.CottonDDLBlockingStub) : AbstractEntityCommand(name = "drop", help = "Drops the given entity from the database. Usage: entity drop <schema>.<entity>") {
