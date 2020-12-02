@@ -11,6 +11,7 @@ import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import org.vitrivr.cottontail.server.grpc.helper.fqn
+import org.vitrivr.cottontail.server.grpc.helper.proto
 
 /**
  * This is a gRPC service endpoint that handles DDL (=Data Definition Language) request for Cottontail DB.
@@ -296,7 +297,17 @@ class CottonDDLService(val catalogue: Catalogue) : CottonDDLGrpc.CottonDDLImplBa
             val index = CottontailGrpc.Index.newBuilder()
                     .setName(it.name.simple)
                     .setType(CottontailGrpc.IndexType.valueOf(it.type.name))
-                    .setEntity(CottontailGrpc.Entity.newBuilder().setName(entity.name.simple).setSchema(CottontailGrpc.Schema.newBuilder().setName(entity.parent.name.simple)))
+                    .setEntity(entity.name.proto())
+
+            it.columns.forEach { c ->
+                index.addColumns(CottontailGrpc.ColumnDefinition.newBuilder()
+                        .setEngine(CottontailGrpc.Engine.MAPDB)
+                        .setName(c.name.simple)
+                        .setNullable(c.nullable)
+                        .setLength(c.logicalSize)
+                        .setType(CottontailGrpc.Type.valueOf(c.type.name))
+                )
+            }
             responseObserver.onNext(index.build())
         }
 
