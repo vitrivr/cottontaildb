@@ -206,6 +206,22 @@ class Cli(val host: String = "localhost", val port: Int = 1865) {
         /** The [CottonDMLService.CottonDMLBlockingStub] used for changing Cottontail DB data. */
         private val dmlService = CottonDMLGrpc.newBlockingStub(this.channel)
 
+        override fun aliases(): Map<String, List<String>> {
+            return mapOf(
+                    "sls" to listOf("schema all"),
+                    "els" to listOf("schema list"),
+                    "ls" to listOf("entity all"),
+                    "edelete" to listOf("entity drop"),
+                    "edel" to listOf("entity drop"),
+                    "erm" to listOf("entity drop"),
+                    "eremove" to listOf("entity drop"),
+                    "delete" to listOf("schema drop"),
+                    "del" to listOf("schema drop"),
+                    "rm" to listOf("schema drop"),
+                    "remove" to listOf("schema drop")
+            )
+        }
+
         init {
             context { helpFormatter = CliHelpFormatter() }
             subcommands(
@@ -225,7 +241,9 @@ class Cli(val host: String = "localhost", val port: Int = 1865) {
                             FindInEntityCommand(this.dqlService),
                             ListAllEntitiesCommand(this.ddlService),
                             OptimizeEntityCommand(this.ddlService),
-                            PreviewEntityCommand(this.dqlService)
+                            PreviewEntityCommand(this.dqlService),
+                            CreateIndexCommand(this.ddlService),
+                            ListIndicesComand(this.ddlService)
                     ),
 
                     /* Schema related commands. */

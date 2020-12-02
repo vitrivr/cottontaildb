@@ -22,8 +22,8 @@ fun main(args: Array<String>) {
     /** Check if only CLI should be started. */
     if (args.isNotEmpty() && args[0] in arrayOf("prompt", "cli")) {
         if (args.size < 3) {
-            println("To start the CLI start Cottontail DB use\n" + "$> cli [<host>] [<port>]")
-            exitProcess(1)
+            println("Starting CLI on default setup")
+            Cli().loop()
         }
         Cli(args[1], args[2].toInt()).loop()
         return
