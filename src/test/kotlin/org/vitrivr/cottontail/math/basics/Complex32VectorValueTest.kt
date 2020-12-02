@@ -23,7 +23,7 @@ class Complex32VectorValueTest {
 
     companion object;
 
-    @RepeatedTest(100)
+    @RepeatedTest(25)
     fun testAdd() {
         val size = random.nextInt(2048)
 
@@ -47,7 +47,7 @@ class Complex32VectorValueTest {
         equalVectors(complex32VectorFromFieldVector(addRealp), addReal)
     }
 
-    @RepeatedTest(100)
+    @RepeatedTest(25)
     fun testAddScalar() {
         val size = random.nextInt(2048)
         val inc = Complex32Value.random(random)
@@ -66,7 +66,7 @@ class Complex32VectorValueTest {
         equalVectors(complex32VectorFromFieldVector(addRealp), addReal)
     }
 
-    @RepeatedTest(100)
+    @RepeatedTest(25)
     fun testSub() {
         val size = random.nextInt(2048)
 
@@ -90,7 +90,7 @@ class Complex32VectorValueTest {
         equalVectors(complex32VectorFromFieldVector(subRealp), subReal)
     }
 
-    @RepeatedTest(100)
+    @RepeatedTest(25)
     fun testSubScalar() {
         val size = random.nextInt(2048)
         val number = Complex32Value.random(random)
@@ -109,7 +109,7 @@ class Complex32VectorValueTest {
         equalVectors(complex32VectorFromFieldVector(subRealp), subReal)
     }
 
-    @RepeatedTest(100)
+    @RepeatedTest(25)
     fun testMult() {
         val size = random.nextInt(2048)
 
@@ -133,7 +133,7 @@ class Complex32VectorValueTest {
         equalVectors(complex32VectorFromFieldVector(mulRealp), mulReal)
     }
 
-    @RepeatedTest(100)
+    @RepeatedTest(25)
     fun testMultScalar() {
         val size = random.nextInt(2048)
         val fac = Complex32Value.random(random)
@@ -152,7 +152,7 @@ class Complex32VectorValueTest {
         equalVectors(complex32VectorFromFieldVector(multRealp), multReal)
     }
 
-    @RepeatedTest(100)
+    @RepeatedTest(25)
     fun testDiv() {
         val size = random.nextInt(2048)
 
@@ -176,7 +176,7 @@ class Complex32VectorValueTest {
         equalVectors(complex32VectorFromFieldVector(divRealp), divReal)
     }
 
-    @RepeatedTest(100)
+    @RepeatedTest(25)
     fun testDivScalar() {
         val size = random.nextInt(2048)
         val number = Complex32Value.random(random)
@@ -195,7 +195,7 @@ class Complex32VectorValueTest {
         equalVectors(complex32VectorFromFieldVector(divRealp), divReal)
     }
 
-    @RepeatedTest(100)
+    @RepeatedTest(25)
     fun testPow() {
         val size = random.nextInt(2048)
         val exp = random.nextInt(10)
@@ -210,7 +210,7 @@ class Complex32VectorValueTest {
         }
     }
 
-    @RepeatedTest(100)
+    @RepeatedTest(25)
     fun testAbs() {
         val size = random.nextInt(2048)
         val c1 = Complex32VectorValue.random(size, this.random)
@@ -222,7 +222,7 @@ class Complex32VectorValueTest {
         }
     }
 
-    @RepeatedTest(100)
+    @RepeatedTest(25)
     fun testSqrt() {
         val size = random.nextInt(2048)
         val c1 = Complex32VectorValue.random(size, this.random)
@@ -236,7 +236,7 @@ class Complex32VectorValueTest {
         }
     }
 
-    @RepeatedTest(100)
+    @RepeatedTest(25)
     fun testDot() {
         val size = random.nextInt(2048)
 
@@ -276,7 +276,7 @@ class Complex32VectorValueTest {
         isApproximatelyTheSame(dotRealp2.imaginary.toFloat(), dotReal.imaginary.value)
     }
 
-    @RepeatedTest(100)
+    @RepeatedTest(25)
     fun testSum() {
         val size = random.nextInt(2048)
         val c1 = Complex32VectorValue.random(size, this.random)
@@ -291,7 +291,7 @@ class Complex32VectorValueTest {
         isApproximatelyTheSame(sump.imaginary.value, sum.imaginary.value)
     }
 
-    @RepeatedTest(100)
+    @RepeatedTest(25)
     fun testL1() {
         val size = random.nextInt(2048)
         val c1 = Complex32VectorValue.random(size, this.random)
@@ -309,7 +309,7 @@ class Complex32VectorValueTest {
         isApproximatelyTheSame(l2p2.toFloat(), l1.asFloat().value)
     }
 
-    @RepeatedTest(100)
+    @RepeatedTest(25)
     fun testL2() {
         val size = random.nextInt(2048)
         val c1 = Complex32VectorValue.random(size, this.random)
@@ -327,7 +327,7 @@ class Complex32VectorValueTest {
         isApproximatelyTheSame(l2p2.toFloat(), l2.asFloat().value)
     }
 
-    @RepeatedTest(100)
+    @RepeatedTest(25)
     fun testLp() {
         val size = random.nextInt(2048)
         val p = random.nextInt(2, 10)
