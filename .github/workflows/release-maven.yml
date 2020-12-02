@@ -1,4 +1,4 @@
-name: Publish Cottontail DB to GitHub Packages & Maven Central Repository
+name: Publish Cottontail DB to Maven Central Repository
 on:
   push:
     tags:
