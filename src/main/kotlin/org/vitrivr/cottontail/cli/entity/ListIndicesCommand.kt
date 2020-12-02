@@ -14,7 +14,7 @@ import kotlin.time.measureTimedValue
  * @version 1.0.0
  */
 @ExperimentalTime
-class ListIndicesComand(
+class ListIndicesCommand(
         private val ddlStub: CottonDDLGrpc.CottonDDLBlockingStub)
     : AbstractEntityCommand(
         name="list-indices",

@@ -208,17 +208,17 @@ class Cli(val host: String = "localhost", val port: Int = 1865) {
 
         override fun aliases(): Map<String, List<String>> {
             return mapOf(
-                    "sls" to listOf("schema all"),
-                    "els" to listOf("schema list"),
-                    "ls" to listOf("entity all"),
-                    "edelete" to listOf("entity drop"),
-                    "edel" to listOf("entity drop"),
-                    "erm" to listOf("entity drop"),
-                    "eremove" to listOf("entity drop"),
-                    "delete" to listOf("schema drop"),
-                    "del" to listOf("schema drop"),
-                    "rm" to listOf("schema drop"),
-                    "remove" to listOf("schema drop")
+                    "sls" to listOf("schema", "all"),
+                    "els" to listOf("schema", "list"),
+                    "ls" to listOf("entity", "all"),
+                    "edelete" to listOf("entity", "drop"),
+                    "edel" to listOf("entity", "drop"),
+                    "erm" to listOf("entity", "drop"),
+                    "eremove" to listOf("entity", "drop"),
+                    "delete" to listOf("schema", "drop"),
+                    "del" to listOf("schema", "drop"),
+                    "rm" to listOf("schema", "drop"),
+                    "remove" to listOf("schema", "drop")
             )
         }
 
@@ -226,13 +226,19 @@ class Cli(val host: String = "localhost", val port: Int = 1865) {
             context { helpFormatter = CliHelpFormatter() }
             subcommands(
                     /* Entity related commands. */
-                    NoOpCliktCommand(
+                    object : NoOpCliktCommand(
                             name = "entity",
                             help = "Groups commands that act on Cottontail DB entities. Usually requires the entity's qualified name.",
                             epilog = "Entity related commands usually have the form: entity <command> <name>, `entity about schema_name.entity_name. Check help for command specific parameters.",
                             invokeWithoutSubcommand = true,
                             printHelpOnEmptyArgs = true
-                    ).subcommands(
+                    ) {
+                        override fun aliases(): Map<String, List<String>> {
+                            return mapOf(
+                                    "ls" to listOf("list")
+                            )
+                        }
+                    }.subcommands(
                             AboutEntityCommand(this.ddlService),
                             ClearEntityCommand(this.dmlService),
                             CountEntityCommand(this.dqlService),
@@ -242,17 +248,24 @@ class Cli(val host: String = "localhost", val port: Int = 1865) {
                             OptimizeEntityCommand(this.ddlService),
                             PreviewEntityCommand(this.dqlService),
                             CreateIndexCommand(this.ddlService),
-                            ListIndicesComand(this.ddlService)
+                            ListIndicesCommand(this.ddlService),
+                            DropIndexCommand(this.ddlService)
                     ),
 
                     /* Schema related commands. */
-                    NoOpCliktCommand(
+                    object : NoOpCliktCommand(
                             name = "schema",
                             help = "Groups commands that act on Cottontail DB  schemas. Usually requires the schema's qualified name",
                             epilog = "Schema related commands usually have the form: schema <command> <name>, e.g., `schema list schema_name` Check help for command specific parameters.",
                             invokeWithoutSubcommand = true,
                             printHelpOnEmptyArgs = true
-                    ).subcommands(
+                    ) {
+                        override fun aliases(): Map<String, List<String>> {
+                            return mapOf(
+                                    "ls" to listOf("list")
+                            )
+                        }
+                    }.subcommands(
                             CreateSchemaCommand(this.ddlService),
                             DropSchemaCommand(this.ddlService),
                             ListAllSchemaCommand(this.ddlService),
@@ -296,6 +309,10 @@ class Cli(val host: String = "localhost", val port: Int = 1865) {
                 addOptions(parameters)
                 addArguments(parameters)
                 addCommands(parameters)
+                if (programName.endsWith("cottontail")) { // hack for beautification
+                    addEpilog("              ((`\\\u0085            ___ \\\\ '--._\u0085         .'`   `'    o  )\u0085        /    \\   '. __.'\u0085       _|    /_  \\ \\_\\_\u0085      {_\\______\\-'\\__\\_\\\u0085\u0085" +
+                            "by jks from https://www.asciiart.eu/animals/rabbits")
+                }
             }
         }
 

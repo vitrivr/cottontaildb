@@ -51,7 +51,7 @@ class CreateIndexCommand(
             ddlStub.rebuildIndex(idx);
         }
         if(status.value.success){
-            println("Successfully created index (in ${status.duration}) and rebuilt in ${rebuilt.duration}")
+            println("Successfully created index ${index.name} (in ${status.duration}) and rebuilt it (took ${rebuilt.duration})")
         }else{
             println("Failed to create the index")
         }

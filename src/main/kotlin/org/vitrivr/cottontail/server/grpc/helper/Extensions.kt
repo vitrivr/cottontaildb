@@ -49,6 +49,13 @@ fun Name.SchemaName.proto() = CottontailGrpc.Schema.newBuilder().setName(this.si
 fun Name.EntityName.protoFrom(): CottontailGrpc.From = CottontailGrpc.From.newBuilder().setEntity(this.proto()).build()
 
 /**
+ * Extension function that generates the [CottontailGrpc.Index] for the given [Name.IndexName].
+ *
+ * @return [CottontailGrpc.Index] for the given [Name.IndexName]
+ */
+fun Name.IndexName.proto() = CottontailGrpc.Index.newBuilder().setName(this.simple).build()
+
+/**
  * Extension function that generates the [KnnPredicateHint] for the given [CottontailGrpc.KnnHint].
  *
  * @param entity The [Entity] the given [KnnPredicateHint] is evaluated for.
