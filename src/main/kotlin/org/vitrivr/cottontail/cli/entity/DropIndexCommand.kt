@@ -27,7 +27,7 @@ class DropIndexCommand(
 
         override fun exec() {
             val indices = ddlStub.listIndexes(entityName.proto()).asSequence()
-            if(!indices.map { it.name }.contains(name)){
+            if(!indices.map { it.index.name }.contains(name)){
                 println("Entity $entityName does not have such an index $name.")
                 return
             }

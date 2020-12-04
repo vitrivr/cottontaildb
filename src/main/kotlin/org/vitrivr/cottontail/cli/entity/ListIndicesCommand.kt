@@ -48,8 +48,8 @@ class ListIndicesCommand(
             body {
                 indices.forEach {
                     row {
-                        cell(it.name)
-                        cell(it.type.name)
+                        cell(it.index.name)
+                        cell(it.index.type.name)
                         it.columnsList.forEach {
                             cell(it.name)
                             cell(it.type)

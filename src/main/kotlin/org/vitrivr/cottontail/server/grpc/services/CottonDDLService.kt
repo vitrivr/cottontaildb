@@ -288,7 +288,7 @@ class CottonDDLService(val catalogue: Catalogue) : CottonDDLGrpc.CottonDDLImplBa
     /**
      * gRPC endpoint for listing available [Index][org.vitrivr.cottontail.database.index.Index] for a given [Entity][org.vitrivr.cottontail.database.entity.Entity]
      */
-    override fun listIndexes(request: CottontailGrpc.Entity, responseObserver: StreamObserver<CottontailGrpc.Index>) = try {
+    override fun listIndexes(request: CottontailGrpc.Entity, responseObserver: StreamObserver<CottontailGrpc.IndexDescription>) = try {
         val entityName = request.fqn()
 
         /* Get entity and stream available index structures. */
@@ -299,8 +299,11 @@ class CottonDDLService(val catalogue: Catalogue) : CottonDDLGrpc.CottonDDLImplBa
                     .setType(CottontailGrpc.IndexType.valueOf(it.type.name))
                     .setEntity(entity.name.proto())
 
+            val indexDescription = CottontailGrpc.IndexDescription.newBuilder()
+                .setIndex(index)
+
             it.columns.forEach { c ->
-                index.addColumns(CottontailGrpc.ColumnDefinition.newBuilder()
+                indexDescription.addColumns(CottontailGrpc.ColumnDefinition.newBuilder()
                         .setEngine(CottontailGrpc.Engine.MAPDB)
                         .setName(c.name.simple)
                         .setNullable(c.nullable)
@@ -308,7 +311,8 @@ class CottonDDLService(val catalogue: Catalogue) : CottonDDLGrpc.CottonDDLImplBa
                         .setType(CottontailGrpc.Type.valueOf(c.type.name))
                 )
             }
-            responseObserver.onNext(index.build())
+
+            responseObserver.onNext(indexDescription.build())
         }
 
         /* Notify caller of success. */

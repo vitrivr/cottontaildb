@@ -42,6 +42,13 @@ class CreateIndexCommand(
                 .setName("index-${index.name.toLowerCase()}-${entityName.schema()}_${entity.name}_${attribute}")
                 .setType(index)
                 .build()
+
+        val indices = ddlStub.listIndexes(entityName.proto()).asSequence()
+        if(indices.map { it.index.name }.contains(idx.name)){
+            println("Entity $entityName does already have such an index $idx.name.")
+            return
+        }
+
         val idxMsg = CottontailGrpc.IndexDefinition.newBuilder()
                 .setIndex(idx).addColumns(attribute).build()
         val status = measureTimedValue {
