@@ -27,6 +27,8 @@ class ListIndicesCommand(
         }
         val indices = time.value.iterator().asSequence().toList()
 
+        val highestColumnCount = indices.map { it.columnsCount }.max() ?: 1
+
         val tbl = table {
             cellStyle {
                 border = true
@@ -37,15 +39,22 @@ class ListIndicesCommand(
                 row {
                     cell("Index name")
                     cell("Index type")
-                    cell("Column name")
+                    (0 until highestColumnCount).forEach {
+                        cell("Column $it name")
+                        cell("Column $it type")
+                    }
                 }
             }
             body {
                 indices.forEach {
                     row {
-                        cell(it.name)
-                        cell(it.type.name)
-                        cell("Coming Soon(tm)")
+                        cell(it.index.name)
+                        cell(it.index.type.name)
+                        it.columnsList.forEach {
+                            cell(it.name)
+                            cell(it.type)
+                        }
+
                     }
                 }
             }

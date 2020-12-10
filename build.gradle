@@ -109,7 +109,7 @@ signing {
 
 dependencies {
     ///// Cottontail DB Driver
-    compile group: 'org.vitrivr', name: 'cottontaildb-proto', version: '0.11-SNAPSHOT'
+    compile group: 'org.vitrivr', name: 'cottontaildb-proto', version: '0.12.1-SNAPSHOT'
 
     ///// MapDB dependency
     compile group: 'org.mapdb', name: 'mapdb', version: '3.0.8'

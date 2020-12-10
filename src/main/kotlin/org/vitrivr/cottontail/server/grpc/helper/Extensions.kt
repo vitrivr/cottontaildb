@@ -53,7 +53,7 @@ fun Name.EntityName.protoFrom(): CottontailGrpc.From = CottontailGrpc.From.newBu
  *
  * @return [CottontailGrpc.Index] for the given [Name.IndexName]
  */
-fun Name.IndexName.proto() = CottontailGrpc.Index.newBuilder().setName(this.simple).build()
+fun Name.IndexName.proto() = CottontailGrpc.Index.newBuilder().setEntity(this.entity().proto()).setName(this.simple).build()
 
 /**
  * Extension function that generates the [KnnPredicateHint] for the given [CottontailGrpc.KnnHint].

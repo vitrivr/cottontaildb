@@ -206,7 +206,9 @@ class Cli(val host: String = "localhost", val port: Int = 1865) {
         /** The [CottonDMLService.CottonDMLBlockingStub] used for changing Cottontail DB data. */
         private val dmlService = CottonDMLGrpc.newBlockingStub(this.channel)
 
+        /** A list of aliases: mapping of alias name to commands */
         override fun aliases(): Map<String, List<String>> {
+            /* List of top-level aliases */
             return mapOf(
                     "sls" to listOf("schema", "all"),
                     "els" to listOf("schema", "list"),
@@ -218,7 +220,10 @@ class Cli(val host: String = "localhost", val port: Int = 1865) {
                     "delete" to listOf("schema", "drop"),
                     "del" to listOf("schema", "drop"),
                     "rm" to listOf("schema", "drop"),
-                    "remove" to listOf("schema", "drop")
+                    "remove" to listOf("schema", "drop"),
+                    "li" to listOf("entity","list-indices"),
+                    "quit" to listOf("stop"),
+                    "exit" to listOf("stop")
             )
         }
 
@@ -234,8 +239,10 @@ class Cli(val host: String = "localhost", val port: Int = 1865) {
                             printHelpOnEmptyArgs = true
                     ) {
                         override fun aliases(): Map<String, List<String>> {
+                            /* List of entity aliases: entity <alias> */
                             return mapOf(
-                                    "ls" to listOf("list")
+                                    "ls" to listOf("list"),
+                                    "list-indexes" to listOf("list-indices")
                             )
                         }
                     }.subcommands(

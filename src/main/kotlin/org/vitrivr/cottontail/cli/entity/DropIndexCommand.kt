@@ -22,15 +22,23 @@ class DropIndexCommand(
         help="Drops the index on an entity. Usage: entity drop-index <schema>.<entity> <index>"
 ) {
 
-    val name: Name.IndexName by argument(
+    val name: String by argument(
             name="name", help = "The name of the index. Ideally from a previous list-indices call")
-            .convert { Name.IndexName(it) }
 
         override fun exec() {
-
-            val res = measureTimedValue {
-                ddlStub.dropIndex(name.proto())
+            val indices = ddlStub.listIndexes(entityName.proto()).asSequence()
+            if(!indices.map { it.index.name }.contains(name)){
+                println("Entity $entityName does not have such an index $name.")
+                return
             }
-
+            val idx = Name.IndexName(*entityName.components + name)
+            val status = measureTimedValue {
+                ddlStub.dropIndex(idx.proto())
+            }
+            if(status.value.success){
+                println("Successfully dropped index $name (in ${status.duration})")
+            }else{
+                println("Failed to remove the index")
+            }
     }
 }
