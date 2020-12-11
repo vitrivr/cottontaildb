@@ -3,7 +3,6 @@ package org.vitrivr.cottontail.database.dml
 import org.apache.commons.lang3.RandomStringUtils
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.RepeatedTest
 import org.junit.jupiter.api.Test
 import org.vitrivr.cottontail.TestConstants
 import org.vitrivr.cottontail.database.catalogue.Catalogue
@@ -12,14 +11,11 @@ import org.vitrivr.cottontail.database.schema.Schema
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Record
-import org.vitrivr.cottontail.model.exceptions.ValidationException
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.StringValue
 import org.vitrivr.cottontail.model.values.types.Value
-import org.vitrivr.cottontail.server.grpc.helper.toValue
 import java.nio.file.Files
-import java.util.ArrayList
-import java.util.Comparator
+import java.util.*
 import java.util.stream.Collectors
 
 class InsertTest {
