@@ -12,14 +12,14 @@ import org.vitrivr.cottontail.execution.operators.sources.EntityIndexScanOperato
  * A [NodeExpression.PhysicalNodeExpression] that represents a kNN query via an [Index] that support kNN lookups
  *
  * @author Ralph Gasser
- * @version 1.1.1
+ * @version 1.1.2
  */
 class IndexKnnPhysicalNodeExpression(val index: Index, val knn: KnnPredicate<*>) : NullaryPhysicalNodeExpression() {
     override val canBePartitioned: Boolean = false
     override val outputSize: Long = (this.knn.k * this.knn.query.size).toLong()
     override val cost: Cost = this.index.cost(this.knn)
     override fun copy() = IndexKnnPhysicalNodeExpression(this.index, this.knn)
-    override fun toOperator(context: ExecutionEngine.ExecutionContext): Operator = EntityIndexScanOperator(context, this.index, this.knn)
+    override fun toOperator(engine: ExecutionEngine): Operator = EntityIndexScanOperator(this.index, this.knn)
     override fun partition(p: Int): List<NullaryPhysicalNodeExpression> {
         /* TODO: May actually be possible for certain index structures. */
         throw IllegalStateException("IndexKnnPhysicalNodeExpression cannot be partitioned.")

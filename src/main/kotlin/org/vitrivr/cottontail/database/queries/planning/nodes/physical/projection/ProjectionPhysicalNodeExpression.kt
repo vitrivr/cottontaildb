@@ -12,7 +12,7 @@ import org.vitrivr.cottontail.model.exceptions.QueryException
  * Formalizes a [UnaryPhysicalNodeExpression] operation in the Cottontail DB query execution engine.
  *
  * @author Ralph Gasser
- * @version 1.1
+ * @version 1.1.1
  */
 data class ProjectionPhysicalNodeExpression(val type: Projection, val fields: List<Pair<Name.ColumnName, Name.ColumnName?>>) : UnaryPhysicalNodeExpression() {
     init {
@@ -41,16 +41,16 @@ data class ProjectionPhysicalNodeExpression(val type: Projection, val fields: Li
         get() = Cost(cpu = this.outputSize * this.fields.size * Cost.COST_MEMORY_ACCESS)
 
     override fun copy() = ProjectionPhysicalNodeExpression(this.type, this.fields)
-    override fun toOperator(context: ExecutionEngine.ExecutionContext) = when (this.type) {
-        Projection.SELECT -> SelectProjectionOperator(this.input.toOperator(context), context, this.fields)
+    override fun toOperator(engine: ExecutionEngine) = when (this.type) {
+        Projection.SELECT -> SelectProjectionOperator(this.input.toOperator(engine), this.fields)
         Projection.SELECT_DISTINCT -> TODO()
-        Projection.COUNT -> CountProjectionOperator(this.input.toOperator(context), context)
+        Projection.COUNT -> CountProjectionOperator(this.input.toOperator(engine))
         Projection.COUNT_DISTINCT -> TODO()
-        Projection.EXISTS -> ExistsProjectionOperator(this.input.toOperator(context), context)
-        Projection.SUM -> SumProjectionOperator(this.input.toOperator(context), context, this.fields.first().first)
-        Projection.MAX -> MaxProjectionOperator(this.input.toOperator(context), context, this.fields.first().first)
-        Projection.MIN -> MinProjectionOperator(this.input.toOperator(context), context, this.fields.first().first)
-        Projection.MEAN -> MeanProjectionOperator(this.input.toOperator(context), context, this.fields.first().first)
+        Projection.EXISTS -> ExistsProjectionOperator(this.input.toOperator(engine))
+        Projection.SUM -> SumProjectionOperator(this.input.toOperator(engine), this.fields.first().first)
+        Projection.MAX -> MaxProjectionOperator(this.input.toOperator(engine), this.fields.first().first)
+        Projection.MIN -> MinProjectionOperator(this.input.toOperator(engine), this.fields.first().first)
+        Projection.MEAN -> MeanProjectionOperator(this.input.toOperator(engine), this.fields.first().first)
     }
 
     override fun equals(other: Any?): Boolean {

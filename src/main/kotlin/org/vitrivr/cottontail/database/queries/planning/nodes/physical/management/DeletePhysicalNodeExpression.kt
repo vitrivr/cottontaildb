@@ -11,7 +11,7 @@ import org.vitrivr.cottontail.execution.operators.management.DeleteOperator
  * A [DeletePhysicalNodeExpression] that formalizes a delete operation on an [Entity].
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.0.1
  */
 class DeletePhysicalNodeExpression(val entity: Entity) : UnaryPhysicalNodeExpression() {
     override val outputSize: Long = 1L
@@ -21,5 +21,5 @@ class DeletePhysicalNodeExpression(val entity: Entity) : UnaryPhysicalNodeExpres
 
     override fun copy(): DeletePhysicalNodeExpression = DeletePhysicalNodeExpression(this.entity)
 
-    override fun toOperator(context: ExecutionEngine.ExecutionContext): Operator = DeleteOperator(this.input.toOperator(context), context, this.entity)
+    override fun toOperator(engine: ExecutionEngine): Operator = DeleteOperator(this.input.toOperator(engine), this.entity)
 }

@@ -10,7 +10,7 @@ import kotlin.math.min
  * A [UnaryPhysicalNodeExpression] that represents the application of a LIMIT or SKIP clause on the result.
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.0.1
  */
 class LimitPhysicalNodeExpression(limit: Long, skip: Long) : UnaryPhysicalNodeExpression() {
 
@@ -34,5 +34,5 @@ class LimitPhysicalNodeExpression(limit: Long, skip: Long) : UnaryPhysicalNodeEx
 
     override fun copy() = LimitPhysicalNodeExpression(this.limit, this.skip)
 
-    override fun toOperator(context: ExecutionEngine.ExecutionContext) = LimitOperator(this.input.toOperator(context), context, this.skip, this.limit)
+    override fun toOperator(engine: ExecutionEngine) = LimitOperator(this.input.toOperator(engine), this.skip, this.limit)
 }

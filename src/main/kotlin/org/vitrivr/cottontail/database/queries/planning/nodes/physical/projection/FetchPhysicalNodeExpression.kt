@@ -14,7 +14,7 @@ import org.vitrivr.cottontail.model.basics.ColumnDef
  * This can be used for late population, which can lead to optimized performance for kNN queries
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.0.1
  */
 class FetchPhysicalNodeExpression(val entity: Entity, val fetch: Array<ColumnDef<*>>) : UnaryPhysicalNodeExpression() {
 
@@ -26,5 +26,5 @@ class FetchPhysicalNodeExpression(val entity: Entity, val fetch: Array<ColumnDef
 
     override fun copy() = FetchPhysicalNodeExpression(this.entity, this.fetch)
 
-    override fun toOperator(context: ExecutionEngine.ExecutionContext) = FetchOperator(this.input.toOperator(context), context, this.entity, this.fetch)
+    override fun toOperator(engine: ExecutionEngine) = FetchOperator(this.input.toOperator(engine), this.entity, this.fetch)
 }

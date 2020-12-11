@@ -10,7 +10,7 @@ import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.execution.ExecutionEngine.ExecutionContext
 import org.vitrivr.cottontail.execution.exceptions.ExecutionException
 import org.vitrivr.cottontail.execution.exceptions.OperatorExecutionException
-import org.vitrivr.cottontail.execution.operators.basics.SinkOperator
+import org.vitrivr.cottontail.execution.operators.basics.Operator
 import java.util.*
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.ConcurrentHashMap
@@ -45,13 +45,17 @@ class ExecutionEngine(config: ExecutionConfig) {
     /** Set of [ExecutionContext]s that are currently PENDING or RUNNING. */
     val contexts = ConcurrentHashMap<UUID, ExecutionContext>()
 
+    /** The number of [Thread]s currently available. This is an estimate and may change very quickly. */
+    val availableThreads
+        get() = this@ExecutionEngine.executor.maximumPoolSize - this@ExecutionEngine.executor.activeCount
+
     /**
      * A concrete [ExecutionContext] used for executing a query.
      *
      * @author Ralph Gasser
-     * @version 1.0.1
+     * @version 1.1.0
      */
-    inner class ExecutionContext {
+    inner class ExecutionContext(private val operator: Operator.SinkOperator) {
 
         /** The [UUID] that identifies this [ExecutionContext]. */
         val uuid: UUID = UUID.randomUUID()
@@ -60,9 +64,6 @@ class ExecutionEngine(config: ExecutionConfig) {
         @Volatile
         var state: ExecutionStatus = ExecutionStatus.CREATED
             private set
-
-        /** List of [SinkOperator]s that should be executed in this context. */
-        private val operators: List<SinkOperator> = mutableListOf()
 
         /** Map of all [Entity.Tx] that have been created as part of this [ExecutionContext]. */
         private val transactions: MutableMap<Entity, Entity.Tx> = mutableMapOf()
@@ -75,45 +76,12 @@ class ExecutionEngine(config: ExecutionConfig) {
         val availableThreads
             get() = this@ExecutionEngine.executor.maximumPoolSize - this@ExecutionEngine.executor.activeCount
 
+        /** */
         val coroutineDispatcher
             get() = this@ExecutionEngine.dispatcher
 
         init {
             this@ExecutionEngine.contexts[this.uuid] = this
-        }
-
-        /**
-         * Adds the given [SinkOperator] to the list of [SinkOperator]s that should be executed by this [ExecutionContext].
-         *
-         * @param operator The [SinkOperator] to add.
-         */
-        fun addOperator(operator: SinkOperator) {
-            if (this.operators.contains(operator)) {
-                throw IllegalArgumentException("Operator $operator cannot be added to list of operators because that operator is already part of that list.")
-            }
-            (this.operators as MutableList).add(operator)
-        }
-
-        /**
-         * Requests a new [Entity.Tx] for the given [Entity].
-         *
-         * Calling this method will cause the [Entity.Tx] to be registered and opened. If
-         * multiple operators request an [Entity.Tx] for the same [Entity], only one [Entity.Tx]
-         * will be created. Furthermore, this method takes care of upgrading existing [readonly]
-         * [Entity.Tx] to writeable [Entity.Tx] if necessary.
-         *
-         * @param entity [Entity] to request the [Entity.Tx] for.
-         * @param readonly Whether the new [Entity.Tx] should be readonly.
-         *
-         * @return [Entity.Tx]
-         */
-        fun prepareTransaction(entity: Entity, readonly: Boolean) {
-            if (!this.transactions.containsKey(entity)) {
-                this.transactions[entity] = entity.Tx(readonly = readonly, tid = this.uuid)
-            } else if (!readonly && this.transactions[entity]!!.readonly) {
-                this.transactions[entity]!!.close() /* Upgrade transaction. */
-                this.transactions[entity] = entity.Tx(readonly = readonly, tid = this.uuid)
-            }
         }
 
         /**
@@ -123,7 +91,15 @@ class ExecutionEngine(config: ExecutionConfig) {
          * @param entity [Entity] to return the [Entity.Tx] for.
          * @return entity [Entity.Tx]
          */
-        fun getTx(entity: Entity) = this.transactions[entity] ?: throw ExecutionException("")
+        fun getTx(entity: Entity, readonly: Boolean = true): Entity.Tx {
+            if (!this.transactions.containsKey(entity)) {
+                this.transactions[entity] = entity.Tx(readonly = readonly, tid = this.uuid)
+            } else if (!readonly && this.transactions[entity]!!.readonly) {
+                this.transactions[entity]!!.close() /* Upgrade transaction. */
+                this.transactions[entity] = entity.Tx(readonly = readonly, tid = this.uuid)
+            }
+            return this.transactions[entity]!!
+        }
 
         /**
          * Executes this [ExecutionContext] in the [dispatcher] of the enclosing [ExecutionEngine].
@@ -135,27 +111,19 @@ class ExecutionEngine(config: ExecutionConfig) {
             /* Update state and execute. */
             this.state = ExecutionStatus.RUNNING
             runBlocking(this@ExecutionEngine.dispatcher) {
-                for (operator in this@ExecutionContext.operators) {
-                    /* Open operators. */
-                    operator.open()
-
-                    /* Execute flow. */
-                    try {
-                        operator.toFlow(this).collect()
-                    } catch (e: OperatorExecutionException) {
-                        LOGGER.error("Unhandled exception during query execution: ${e.stackTraceToString()}")
-                        throw e
-                    } catch (e: Throwable) {
-                        LOGGER.error("Unhandled exception during query execution: ${e.stackTraceToString()}")
-                        throw ExecutionException("Unhandled exception during query execution: ${e.message}.")
-                    } finally {
-                        /* Close all transactions. */
-                        this@ExecutionContext.transactions.forEach { (_, tx) ->
-                            tx.close()
-                        }
-
-                        /* Close operators. */
-                        operator.close()
+                /* Execute flow. */
+                try {
+                    this@ExecutionContext.operator.toFlow(this@ExecutionContext).collect()
+                } catch (e: OperatorExecutionException) {
+                    LOGGER.error("Unhandled exception during query execution: ${e.stackTraceToString()}")
+                    throw e
+                } catch (e: Throwable) {
+                    LOGGER.error("Unhandled exception during query execution: ${e.stackTraceToString()}")
+                    throw ExecutionException("Unhandled exception during query execution: ${e.message}.")
+                } finally {
+                    /* Close all transactions. */
+                    this@ExecutionContext.transactions.forEach { (_, tx) ->
+                        tx.close()
                     }
                 }
             }

@@ -14,7 +14,7 @@ import org.vitrivr.cottontail.model.values.types.Value
  * A [UpdatePhysicalNodeExpression] that formalizes a update operation on an [Entity].
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.0.1
  */
 class UpdatePhysicalNodeExpression(val entity: Entity, val values: List<Pair<ColumnDef<*>, Value?>>) : UnaryPhysicalNodeExpression() {
     override val outputSize: Long = 1L
@@ -24,5 +24,5 @@ class UpdatePhysicalNodeExpression(val entity: Entity, val values: List<Pair<Col
 
     override fun copy(): PhysicalNodeExpression = UpdatePhysicalNodeExpression(this.entity, this.values)
 
-    override fun toOperator(context: ExecutionEngine.ExecutionContext): Operator = UpdateOperator(this.input.toOperator(context), context, this.entity, this.values)
+    override fun toOperator(engine: ExecutionEngine): Operator = UpdateOperator(this.input.toOperator(engine), this.entity, this.values)
 }

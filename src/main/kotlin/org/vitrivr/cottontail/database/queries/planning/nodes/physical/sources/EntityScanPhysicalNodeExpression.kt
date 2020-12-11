@@ -13,7 +13,7 @@ import kotlin.math.min
  * A [UnaryPhysicalNodeExpression] that formalizes a scan of a physical [Entity] in Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.0.1
  */
 class EntityScanPhysicalNodeExpression(val entity: Entity, val columns: Array<ColumnDef<*>> = entity.allColumns().toTypedArray(), val range: LongRange = 1L..entity.statistics.maxTupleId) : NullaryPhysicalNodeExpression() {
     init {
@@ -22,9 +22,9 @@ class EntityScanPhysicalNodeExpression(val entity: Entity, val columns: Array<Co
 
     override val outputSize = this.range.last - this.range.first
     override val canBePartitioned: Boolean = true
-    override val cost = Cost(this.outputSize * this.columns.size * Cost.COST_DISK_ACCESS_READ, this.outputSize * Cost.COST_MEMORY_ACCESS)
+    override val cost = Cost(this.outputSize * this.columns.size * Cost.COST_DISK_ACCESS_READ, this.outputSize * this.columns.size * Cost.COST_MEMORY_ACCESS)
     override fun copy() = EntityScanPhysicalNodeExpression(this.entity, this.columns, this.range)
-    override fun toOperator(context: ExecutionEngine.ExecutionContext) = EntityScanOperator(context, this.entity, this.columns, this.range)
+    override fun toOperator(engine: ExecutionEngine) = EntityScanOperator(this.entity, this.columns, this.range)
     override fun partition(p: Int): List<NullaryPhysicalNodeExpression> {
         val partitionSize = Math.floorDiv(this.range.last - this.range.first + 1L, p.toLong())
         return (0 until p).map {
