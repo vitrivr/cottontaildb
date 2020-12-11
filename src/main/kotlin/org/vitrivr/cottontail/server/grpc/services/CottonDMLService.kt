@@ -65,8 +65,7 @@ class CottonDMLService(val catalogue: Catalogue, val engine: ExecutionEngine) : 
      */
     override fun update(request: CottontailGrpc.UpdateMessage, responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) = try {
         /* Create a new execution context for the query. */
-        val context = this.engine.ExecutionContext()
-        val queryId = request.queryId.ifBlank { context.uuid.toString() }
+        val queryId = request.queryId.ifBlank { UUID.randomUUID().toString() }
         val totalDuration = measureTime {
             /* Bind query and create logical plan. */
             val bindTimedValue = measureTimedValue {
@@ -75,24 +74,24 @@ class CottonDMLService(val catalogue: Catalogue, val engine: ExecutionEngine) : 
             LOGGER.trace("Parsing & binding UPDATE $queryId took ${bindTimedValue.duration}.")
 
             /* Plan query and create execution plan. */
-            val planningTime = measureTime {
+            val plannedTimedValue = measureTimedValue {
                 val candidates = this.planner.plan(bindTimedValue.value)
                 if (candidates.isEmpty()) {
                     responseObserver.onError(Status.INTERNAL.withDescription("UPDATE query execution failed because no valid execution plan could be produced").asException())
                     return
                 }
-                val operator = candidates.minByOrNull { it.totalCost }!!.toOperator(context)
-                context.addOperator(ResultsSpoolerOperator(operator, context, queryId, 0, responseObserver))
+                val operator = candidates.minByOrNull { it.totalCost }!!.toOperator(this.engine)
+                this.engine.ExecutionContext(ResultsSpoolerOperator(operator, queryId, 0, responseObserver))
             }
-            LOGGER.trace("Planning UPDATE $queryId took $planningTime.")
+            LOGGER.trace("Planning UPDATE $queryId took ${plannedTimedValue.duration}.")
 
             /* Execute query. */
-            context.execute()
+            plannedTimedValue.value.execute()
         }
 
         /* Complete query. */
         responseObserver.onCompleted()
-        LOGGER.trace("Executing UPDATE ${context.uuid} took $totalDuration to complete.")
+        LOGGER.trace("Executing UPDATE $queryId took $totalDuration to complete.")
     } catch (e: QueryException.QuerySyntaxException) {
         LOGGER.error("Error while executing UPDATE $request", e)
         responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("UPDATE syntax is invalid: ${e.message}").asException())
@@ -115,8 +114,7 @@ class CottonDMLService(val catalogue: Catalogue, val engine: ExecutionEngine) : 
      */
     override fun delete(request: CottontailGrpc.DeleteMessage, responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) = try {
         /* Create a new execution context for the query. */
-        val context = this.engine.ExecutionContext()
-        val queryId = request.queryId.ifBlank { context.uuid.toString() }
+        val queryId = request.queryId.ifBlank { UUID.randomUUID().toString() }
         val totalDuration = measureTime {
             /* Bind query and create logical plan. */
             val bindTimedValue = measureTimedValue {
@@ -125,24 +123,24 @@ class CottonDMLService(val catalogue: Catalogue, val engine: ExecutionEngine) : 
             LOGGER.trace("Parsing & binding DELETE $queryId took ${bindTimedValue.duration}.")
 
             /* Plan query and create execution plan. */
-            val planningTime = measureTime {
+            val planTimedValue = measureTimedValue {
                 val candidates = this.planner.plan(bindTimedValue.value)
                 if (candidates.isEmpty()) {
                     responseObserver.onError(Status.INTERNAL.withDescription("DELETE query execution failed because no valid execution plan could be produced").asException())
                     return
                 }
-                val operator = candidates.minByOrNull { it.totalCost }!!.toOperator(context)
-                context.addOperator(ResultsSpoolerOperator(operator, context, queryId, 0, responseObserver))
+                val operator = candidates.minByOrNull { it.totalCost }!!.toOperator(this.engine)
+                this.engine.ExecutionContext(ResultsSpoolerOperator(operator, queryId, 0, responseObserver))
             }
-            LOGGER.trace("Planning DELETE $queryId took $planningTime.")
+            LOGGER.trace("Planning DELETE $queryId took ${planTimedValue.duration}.")
 
             /* Execute query. */
-            context.execute()
+            planTimedValue.value.execute()
         }
 
         /* Complete query. */
         responseObserver.onCompleted()
-        LOGGER.trace("Executing DELETE ${context.uuid} took $totalDuration to complete.")
+        LOGGER.trace("Executing DELETE $queryId took $totalDuration to complete.")
     } catch (e: QueryException.QuerySyntaxException) {
         LOGGER.error("Error while executing DELETE $request", e)
         responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("DELETE syntax is invalid: ${e.message}").asException())

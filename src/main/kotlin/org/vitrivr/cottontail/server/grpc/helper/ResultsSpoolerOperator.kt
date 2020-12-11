@@ -1,54 +1,36 @@
 package org.vitrivr.cottontail.server.grpc.helper
 
 import io.grpc.stub.StreamObserver
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
-import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.execution.ExecutionEngine
 import org.vitrivr.cottontail.execution.operators.basics.Operator
-import org.vitrivr.cottontail.execution.operators.basics.SinkOperator
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
-import java.lang.Integer.max
 
 /**
- * A [SinkOperator] that spools the results produced by the parent operator to the gRPC [StreamObserver].
+ * A [Operator.SinkOperator] used during query execution. Spools the results produced by the parent
+ * operator to the gRPC [StreamObserver].
  *
  * @param parent [Operator] that produces the results.
- * @param context [ExecutionEngine.ExecutionContext] the [ExecutionEngine.ExecutionContext]
  * @param queryId The ID of the query that produced the results
  * @param index Optional index of the result (for batched queries).
  * @param responseObserver [StreamObserver] used to send back the results.
  */
-class ResultsSpoolerOperator(parent: Operator, context: ExecutionEngine.ExecutionContext, val queryId: String, val index: Int, val responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) : SinkOperator(parent, context) {
+class ResultsSpoolerOperator(parent: Operator, val queryId: String, val index: Int, val responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) : Operator.SinkOperator(parent) {
 
     companion object {
-        private const val MAX_PAGE_SIZE_BYTES = 5_000_000
+        private const val MAX_PAGE_SIZE_BYTES = 4_000_000
     }
 
     /** The [ColumnDef]s returned by this [ResultsSpoolerOperator]. */
     override val columns: Array<ColumnDef<*>> = this.parent.columns
 
-
-    /**
-     * Called when [ResultsSpoolerOperator] is opened.
-     */
-    override fun prepareOpen() { /* No Op. */
-    }
-
-    /**
-     * Called when [ResultsSpoolerOperator] is closed. Sends the last results and completes transmission.
-     */
-    override fun prepareClose() { /* No Op. */
-    }
-
-    override fun toFlow(scope: CoroutineScope): Flow<Record> {
-        val parent = this.parent.toFlow(scope)
+    override fun toFlow(context: ExecutionEngine.ExecutionContext): Flow<Record> {
+        val parent = this.parent.toFlow(context)
         return flow {
             var responseBuilder = CottontailGrpc.QueryResponseMessage.newBuilder().setQueryId(this@ResultsSpoolerOperator.queryId)
             var accumulatedSize = 0L
@@ -84,7 +66,7 @@ class ResultsSpoolerOperator(parent: Operator, context: ExecutionEngine.Executio
     private fun recordToTuple(record: Record): CottontailGrpc.Tuple.Builder = CottontailGrpc.Tuple
             .newBuilder()
             .putAllData(record.toMap().map {
-                it.key.toString() to (it.value?.toData()
+                it.key.name.toString() to (it.value?.toData()
                         ?: CottontailGrpc.Data.newBuilder().setNullData(CottontailGrpc.Null.getDefaultInstance()).build())
             }.toMap())
 }

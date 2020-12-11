@@ -21,6 +21,7 @@ import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.server.grpc.helper.GrpcQueryBinder
 import org.vitrivr.cottontail.server.grpc.helper.ResultsSpoolerOperator
+import java.util.*
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTime
 import kotlin.time.measureTimedValue
@@ -29,7 +30,7 @@ import kotlin.time.measureTimedValue
  * Implementation of [CottonDQLGrpc.CottonDQLImplBase], the gRPC endpoint for querying data in Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 1.3.0
+ * @version 1.3.1
  */
 @ExperimentalTime
 class CottonDQLService(val catalogue: Catalogue, val engine: ExecutionEngine) : CottonDQLGrpc.CottonDQLImplBase() {
@@ -69,8 +70,7 @@ class CottonDQLService(val catalogue: Catalogue, val engine: ExecutionEngine) : 
      */
     override fun query(request: CottontailGrpc.QueryMessage, responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) = try {
         /* Create a new execution context for the query. */
-        val context = this.engine.ExecutionContext()
-        val queryId = request.queryId.ifBlank { context.uuid.toString() }
+        val queryId = request.queryId.ifBlank { UUID.randomUUID().toString() }
         val totalDuration = measureTime {
             /* Bind query and create logical plan. */
             val bindTimedValue = measureTimedValue {
@@ -79,24 +79,24 @@ class CottonDQLService(val catalogue: Catalogue, val engine: ExecutionEngine) : 
             LOGGER.trace("Parsing & binding query $queryId took ${bindTimedValue.duration}.")
 
             /* Plan query and create execution plan. */
-            val planningTime = measureTime {
+            val planTimedValue = measureTimedValue {
                 val candidates = this.planner.plan(bindTimedValue.value)
                 if (candidates.isEmpty()) {
                     responseObserver.onError(Status.INTERNAL.withDescription("Query execution failed because no valid execution plan could be produced").asException())
                     return
                 }
-                val operator = candidates.minByOrNull { it.totalCost }!!.toOperator(context)
-                context.addOperator(ResultsSpoolerOperator(operator, context, queryId, 0, responseObserver))
+                val operator = candidates.minByOrNull { it.totalCost }!!.toOperator(this.engine)
+                this.engine.ExecutionContext(ResultsSpoolerOperator(operator, queryId, 0, responseObserver))
             }
-            LOGGER.trace("Planning query $queryId took $planningTime.")
+            LOGGER.trace("Planning query $queryId took ${planTimedValue.duration}.")
 
             /* Execute query. */
-            context.execute()
+            planTimedValue.value.execute()
         }
 
         /* Complete query. */
         responseObserver.onCompleted()
-        LOGGER.trace("Executing query ${context.uuid} took $totalDuration to complete.")
+        LOGGER.trace("Executing query $queryId took $totalDuration to complete.")
     } catch (e: QueryException.QuerySyntaxException) {
         LOGGER.error("Error while executing query $request", e)
         responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Query syntax is invalid: ${e.message}").asException())
@@ -119,8 +119,7 @@ class CottonDQLService(val catalogue: Catalogue, val engine: ExecutionEngine) : 
      */
     override fun batchedQuery(request: CottontailGrpc.BatchedQueryMessage, responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) = try {
         /* Create a new execution context for the query. */
-        val context = this.engine.ExecutionContext()
-        val queryId = request.queryId.ifBlank { context.uuid.toString() }
+        val queryId = request.queryId.ifBlank { UUID.randomUUID().toString() }
 
         val totalDuration = measureTime {
             request.queriesList.forEachIndexed { index, query ->
@@ -133,13 +132,13 @@ class CottonDQLService(val catalogue: Catalogue, val engine: ExecutionEngine) : 
                 /* Plan query and create execution plan. */
                 val planTimedValue = measureTimedValue {
                     val candidates = this.planner.plan(bindTimedValue.value)
-                    val operator = candidates.minByOrNull { it.totalCost }!!.toOperator(context)
-                    context.addOperator(ResultsSpoolerOperator(operator, context, queryId, index, responseObserver))
+                    val operator = candidates.minByOrNull { it.totalCost }!!.toOperator(this.engine)
+                    this.engine.ExecutionContext(ResultsSpoolerOperator(operator, queryId, index, responseObserver))
                 }
                 LOGGER.trace("Planning query: $queryId, index: $index took ${planTimedValue.duration}.")
 
                 /* Schedule query for execution. */
-                context.execute()
+                planTimedValue.value.execute()
             }
         }
 

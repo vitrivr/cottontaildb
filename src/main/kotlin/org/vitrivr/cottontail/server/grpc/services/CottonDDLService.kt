@@ -11,7 +11,6 @@ import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import org.vitrivr.cottontail.server.grpc.helper.fqn
-import org.vitrivr.cottontail.server.grpc.helper.proto
 
 /**
  * This is a gRPC service endpoint that handles DDL (=Data Definition Language) request for Cottontail DB.
@@ -352,51 +351,6 @@ class CottonDDLService(val catalogue: Catalogue) : CottonDDLGrpc.CottonDDLImplBa
         responseObserver.onError(Status.DATA_LOSS.withDescription(message).asException())
     } catch (e: Throwable) {
         val message = "Failed to rebuild index '${request.fqn()}' because of an unknown error."
-        LOGGER.error(message, e)
-        responseObserver.onError(Status.UNKNOWN.withDescription(message).withCause(e).asException())
-    }
-
-    /**
-     * gRPC endpoint for listing available [org.vitrivr.cottontail.database.index.Index] for a given [org.vitrivr.cottontail.database.entity.Entity]
-     */
-    override fun listIndexes(request: CottontailGrpc.Entity, responseObserver: StreamObserver<CottontailGrpc.Index>) = try {
-        /* Get entity and stream available index structures. */
-        val entityName = request.fqn()
-        val entity = this.catalogue.schemaForName(entityName.schema()).entityForName(entityName)
-        entity.allIndexes().forEach {
-            val index = CottontailGrpc.Index.newBuilder()
-                    .setName(it.name.simple)
-                    .setType(CottontailGrpc.IndexType.valueOf(it.type.name))
-                    .setEntity(entityName.proto())
-
-            it.columns.forEach { c ->
-                index.addColumns(CottontailGrpc.ColumnDefinition.newBuilder()
-                        .setEngine(CottontailGrpc.Engine.MAPDB)
-                        .setName(c.name.simple)
-                        .setNullable(c.nullable)
-                        .setLength(c.logicalSize)
-                        .setType(CottontailGrpc.Type.valueOf(c.type.name))
-                )
-            }
-            responseObserver.onNext(index.build())
-        }
-
-        /* Notify caller of success. */
-        responseObserver.onCompleted()
-    } catch (e: DatabaseException.SchemaDoesNotExistException) {
-        val message = "Failed to list indexes for entity '${request.fqn()}': Schema does not exist."
-        LOGGER.info(message)
-        responseObserver.onError(Status.NOT_FOUND.withDescription(message).asException())
-    } catch (e: DatabaseException.EntityDoesNotExistException) {
-        val message = "Failed to list indexes for entity '${request.fqn()}': Entity does not exist."
-        LOGGER.info(message)
-        responseObserver.onError(Status.NOT_FOUND.withDescription(message).asException())
-    } catch (e: DatabaseException) {
-        val message = "Failed to list indexes for entity '${request.fqn()}' because of a database error."
-        LOGGER.error(message, e)
-        responseObserver.onError(Status.DATA_LOSS.withDescription(message).asException())
-    } catch (e: Throwable) {
-        val message = "Failed to list indexes for entity '${request.fqn()}' because of an unknown error."
         LOGGER.error(message, e)
         responseObserver.onError(Status.UNKNOWN.withDescription(message).withCause(e).asException())
     }
