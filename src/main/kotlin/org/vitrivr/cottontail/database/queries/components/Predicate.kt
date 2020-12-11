@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.database.queries.components
 
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.predicates.KnnPredicateHint
@@ -56,7 +57,7 @@ sealed class BooleanPredicate : Predicate() {
 data class AtomicBooleanPredicate<T : Value>(private val column: ColumnDef<T>, val operator: ComparisonOperator, val not: Boolean = false, var values: Collection<Value>) : BooleanPredicate() {
     init {
         if (this.operator == ComparisonOperator.IN) {
-            this.values = this.values.toSet()
+            this.values = ObjectOpenHashSet(this.values)
         }
 
         if (this.operator == ComparisonOperator.LIKE) {
@@ -71,7 +72,18 @@ data class AtomicBooleanPredicate<T : Value>(private val column: ColumnDef<T>, v
     }
 
     /** The number of operations required by this [AtomicBooleanPredicate]. */
-    override val cost: Float = 3 * Cost.COST_MEMORY_ACCESS
+    override val cost: Float = when (this.operator) {
+        ComparisonOperator.ISNULL,
+        ComparisonOperator.ISNOTNULL -> 1.0f
+        ComparisonOperator.EQUAL,
+        ComparisonOperator.GREATER,
+        ComparisonOperator.LESS,
+        ComparisonOperator.GEQUAL,
+        ComparisonOperator.LEQUAL -> 2.0f
+        ComparisonOperator.BETWEEN -> 4.0f
+        ComparisonOperator.IN -> this.values.size + 1.0f
+        ComparisonOperator.LIKE -> 10.0f /* ToDo: Make more explicit. */
+    }
 
     /** Set of [ColumnDef] that are affected by this [AtomicBooleanPredicate]. */
     override val columns: Set<ColumnDef<T>> = setOf(this.column)
@@ -86,13 +98,10 @@ data class AtomicBooleanPredicate<T : Value>(private val column: ColumnDef<T>, v
      * @param record The [Record] to check.
      * @return true if [Record] matches this [AtomicBooleanPredicate], false otherwise.
      */
-    override fun matches(record: Record): Boolean {
-        require(record.has(this.column)) { "AtomicBooleanPredicate cannot be applied to record because it does not contain the expected column ${this.column}." }
-        return if (this.not) {
-            !this.operator.match(record[this.column], this.values)
-        } else {
-            this.operator.match(record[this.column], this.values)
-        }
+    override fun matches(record: Record): Boolean = if (this.not) {
+        !this.operator.match(record[this.column], this.values)
+    } else {
+        this.operator.match(record[this.column], this.values)
     }
 }
 
