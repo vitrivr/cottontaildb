@@ -9,6 +9,7 @@ import org.vitrivr.cottontail.cli.MatchAll
 import org.vitrivr.cottontail.grpc.CottonDQLGrpc
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.server.grpc.helper.protoFrom
+import org.vitrivr.cottontail.utilities.output.TabulationUtilities
 import kotlin.time.ExperimentalTime
 
 /**
@@ -31,7 +32,7 @@ class PreviewEntityCommand constructor(dqlStub: CottonDQLGrpc.CottonDQLBlockingS
 
         /* Execute and prepare table. */
         val results = this.execute(qm)
-        val table = this.tabulate(results.value)
+        val table = TabulationUtilities.tabulate(results.value)
 
         /* Print. */
         println("Previewing ${this.limit} elements of  ${this.entityName} (took: ${results.duration}):")

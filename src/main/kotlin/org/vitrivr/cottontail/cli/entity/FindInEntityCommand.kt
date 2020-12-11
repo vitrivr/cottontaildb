@@ -7,6 +7,7 @@ import org.vitrivr.cottontail.cli.Where
 import org.vitrivr.cottontail.grpc.CottonDQLGrpc
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.server.grpc.helper.protoFrom
+import org.vitrivr.cottontail.utilities.output.TabulationUtilities
 import kotlin.time.ExperimentalTime
 
 /**
@@ -34,7 +35,7 @@ class FindInEntityCommand(dqlStub: CottonDQLGrpc.CottonDQLBlockingStub) : Abstra
 
         /* Execute and prepare table. */
         val results = this.execute(qm)
-        val table = this.tabulate(results.value)
+        val table = TabulationUtilities.tabulate(results.value)
 
         /* Print. */
         println("Found ${results.value.size} elements of ${this.entityName} (took: ${results.duration}):")

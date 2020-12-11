@@ -3,6 +3,7 @@ package org.vitrivr.cottontail.cli.entity
 import org.vitrivr.cottontail.grpc.CottonDQLGrpc
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.server.grpc.helper.protoFrom
+import org.vitrivr.cottontail.utilities.output.TabulationUtilities
 import kotlin.time.ExperimentalTime
 
 /**
@@ -22,7 +23,7 @@ class CountEntityCommand(dqlStub: CottonDQLGrpc.CottonDQLBlockingStub) : Abstrac
 
         /* Execute and prepare table. */
         val results = this.execute(qm)
-        val table = this.tabulate(results.value)
+        val table = TabulationUtilities.tabulate(results.value)
 
         /* Print. */
         println("Counting elements of  ${this.entityName} (took: ${results.duration}):")
