@@ -4,9 +4,7 @@ import io.grpc.stub.StreamObserver
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
-import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.execution.ExecutionEngine
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.basics.SinkOperator
@@ -14,7 +12,6 @@ import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
-import java.lang.Integer.max
 
 /**
  * A [SinkOperator] that spools the results produced by the parent operator to the gRPC [StreamObserver].
@@ -28,7 +25,7 @@ import java.lang.Integer.max
 class ResultsSpoolerOperator(parent: Operator, context: ExecutionEngine.ExecutionContext, val queryId: String, val index: Int, val responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) : SinkOperator(parent, context) {
 
     companion object {
-        private const val MAX_PAGE_SIZE_BYTES = 5_000_000
+        private const val MAX_PAGE_SIZE_BYTES = 4_000_000
     }
 
     /** The [ColumnDef]s returned by this [ResultsSpoolerOperator]. */
