@@ -42,7 +42,7 @@ import java.util.stream.Collectors
  * @see Entity.Tx
  *
  * @author Ralph Gasser
- * @version 1.5
+ * @version 1.5.1
  */
 class Entity(override val name: Name.EntityName, override val parent: Schema) : DBO {
 
@@ -204,7 +204,6 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
             }
         }
     }
-
 
     /**
      * Drops the [Index] with the given name.
@@ -467,7 +466,6 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
                 checkValidForRead()
             }
 
-
             /** Acquires a read lock for the surrounding [Entity.Tx]*/
             private val lock = this@Tx.localLock.readLock()
 
@@ -561,8 +559,7 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
 
             try {
                 var lastRecId: Long? = null
-                record.columns.zip(record.values) { columnDef, value ->
-                    columnDef.validateOrThrow(value)
+                record.forEach { columnDef, value ->
                     val recId = (this.colTxs.getValue(columnDef) as ColumnTransaction<Value>).insert(value)
                     if (lastRecId != recId && lastRecId != null) {
                         throw DatabaseException.DataCorruptionException("Entity '${this@Entity.name}' is corrupt. Insert did not yield same record ID for all columns involved!")
@@ -600,8 +597,7 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
             checkValidForWrite()
             checkColumnsExist(*record.columns)
             try {
-                record.columns.zip(record.values) { columnDef, value ->
-                    columnDef.validateOrThrow(value)
+                record.forEach { columnDef, value ->
                     (this.colTxs.getValue(columnDef) as ColumnTransaction<Value>).update(record.tupleId, value)
                 }
                 Unit

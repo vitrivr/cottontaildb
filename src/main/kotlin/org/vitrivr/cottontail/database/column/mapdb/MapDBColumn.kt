@@ -120,20 +120,6 @@ class MapDBColumn<T : Value>(override val name: Name.ColumnName, override val pa
     }
 
     /**
-     * Thinly veiled implementation of the [Record] interface for internal use.
-     */
-    inner class ColumnRecord(override val tupleId: Long, val value: Value?) : Record {
-        override val columns
-            get() = arrayOf(this@MapDBColumn.columnDef)
-        override val values
-            get() = arrayOf(this.value)
-
-        override fun first(): Value? = this.value
-        override fun last(): Value? = this.value
-        override fun copy(): Record = ColumnRecord(this.tupleId, this.value)
-    }
-
-    /**
      * A [Transaction] that affects this [MapDBColumn].
      */
     inner class Tx constructor(override val readonly: Boolean, override val tid: UUID) : ColumnTransaction<T> {
