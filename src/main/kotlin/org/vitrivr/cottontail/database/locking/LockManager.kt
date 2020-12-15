@@ -22,6 +22,13 @@ class LockManager {
     private val waitForGraph: WaitForGraph = WaitForGraph()
 
     /**
+     * Returns an list all [DBO] [Name]s that are currently locked.
+     *
+     * @return List of all [DBO]s that are currently locked.
+     */
+    fun allLocks(): List<Pair<Name, Lock>> = this.locks.map { v -> v.key.name to v.value }
+
+    /**
      * Tries to acquire a lock on [Name] for the given [LockHolder].
      *
      * @param txn [LockHolder] to acquire the lock for.
