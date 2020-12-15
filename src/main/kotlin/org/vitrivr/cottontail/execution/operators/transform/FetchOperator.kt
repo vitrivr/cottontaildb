@@ -3,7 +3,8 @@ package org.vitrivr.cottontail.execution.operators.transform
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import org.vitrivr.cottontail.database.entity.Entity
-import org.vitrivr.cottontail.execution.ExecutionEngine
+import org.vitrivr.cottontail.database.entity.EntityTx
+import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Record
@@ -26,13 +27,13 @@ class FetchOperator(parent: Operator, val entity: Entity, val fetch: Array<Colum
     override val breaker: Boolean = false
 
     /**
-     * Converts this [LimitOperator] to a [Flow] and returns it.
+     * Converts this [FetchOperator] to a [Flow] and returns it.
      *
-     * @param context The [ExecutionEngine.ExecutionContext] used for execution
-     * @return [Flow] representing this [LimitOperator]
+     * @param context The [TransactionContext] used for execution
+     * @return [Flow] representing this [FetchOperator]
      */
-    override fun toFlow(context: ExecutionEngine.ExecutionContext): Flow<Record> {
-        val tx = context.getTx(this.entity)
+    override fun toFlow(context: TransactionContext): Flow<Record> {
+        val tx = context.getTx(this.entity) as EntityTx
         val buffer = ArrayList<Value?>(this.columns.size)
         return this.parent.toFlow(context).map { r ->
             buffer.clear()

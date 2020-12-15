@@ -1,7 +1,11 @@
 package org.vitrivr.cottontail.cli.entity
 
-import org.vitrivr.cottontail.grpc.CottonDQLGrpc
+import com.jakewharton.picnic.Table
 import org.vitrivr.cottontail.grpc.CottontailGrpc
+import org.vitrivr.cottontail.grpc.DQLGrpc
+import org.vitrivr.cottontail.utilities.output.TabulationUtilities
+import java.util.*
+
 import kotlin.time.ExperimentalTime
 import kotlin.time.TimedValue
 import kotlin.time.measureTimedValue
@@ -13,7 +17,7 @@ import kotlin.time.measureTimedValue
  * @version 1.0.1
  */
 @ExperimentalTime
-abstract class AbstractQueryCommand(private val stub: CottonDQLGrpc.CottonDQLBlockingStub, name: String, help: String) : AbstractEntityCommand(name, help) {
+abstract class AbstractQueryCommand(private val stub: DQLGrpc.DQLBlockingStub, name: String, help: String) : AbstractEntityCommand(name, help) {
 
     /**
      * Takes a [CottontailGrpc.QueryMessage], executes and collects all results into a [List]
@@ -22,14 +26,7 @@ abstract class AbstractQueryCommand(private val stub: CottonDQLGrpc.CottonDQLBlo
      * @param query The query to collect.
      * @return [TimedValue] of the query response.
      */
-    protected fun execute(query: CottontailGrpc.QueryMessage): TimedValue<List<CottontailGrpc.Tuple>> = measureTimedValue {
-        val tuples = mutableListOf<CottontailGrpc.Tuple>()
-        val res = this.stub.query(query)
-        res.forEach {
-            it.resultsList.forEach {
-                tuples.add(it)
-            }
-        }
-        tuples
+    protected fun executeAndTabulate(query: CottontailGrpc.QueryMessage): TimedValue<Table> = measureTimedValue {
+        TabulationUtilities.tabulate(this.stub.query(query))
     }
 }

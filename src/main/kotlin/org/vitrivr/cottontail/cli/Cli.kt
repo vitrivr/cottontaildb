@@ -22,11 +22,9 @@ import org.vitrivr.cottontail.cli.schema.CreateSchemaCommand
 import org.vitrivr.cottontail.cli.schema.DropSchemaCommand
 import org.vitrivr.cottontail.cli.schema.ListAllSchemaCommand
 import org.vitrivr.cottontail.cli.schema.ListEntitiesCommand
-import org.vitrivr.cottontail.grpc.CottonDDLGrpc
-import org.vitrivr.cottontail.grpc.CottonDMLGrpc
-import org.vitrivr.cottontail.grpc.CottonDQLGrpc
-import org.vitrivr.cottontail.grpc.CottontailGrpc
-import org.vitrivr.cottontail.server.grpc.services.CottonDMLService
+import org.vitrivr.cottontail.grpc.*
+import org.vitrivr.cottontail.server.grpc.services.DMLService
+import org.vitrivr.cottontail.server.grpc.services.TXNService
 import java.io.IOException
 import java.util.*
 import java.util.regex.Pattern
@@ -195,16 +193,23 @@ class Cli(val host: String = "localhost", val port: Int = 1865) {
     inner class CottontailCommand : NoOpCliktCommand(name = "cottontail", help = "The base command for all CLI commands.") {
 
         /** The [ManagedChannel] used to conect to Cottontail DB. */
-        private val channel: ManagedChannel = ManagedChannelBuilder.forAddress(this@Cli.host, this@Cli.port).usePlaintext().build()
+        private val channel: ManagedChannel = ManagedChannelBuilder
+                .forAddress(this@Cli.host, this@Cli.port)
+                .enableFullStreamDecompression()
+                .usePlaintext()
+                .build()
 
-        /** The [CottonDQLGrpc.CottonDQLBlockingStub] used for querying Cottontail DB. */
-        private val dqlService = CottonDQLGrpc.newBlockingStub(this.channel)
+        /** The [DQLGrpc.DQLBlockingStub] used for querying Cottontail DB. */
+        private val dqlService = DQLGrpc.newBlockingStub(this.channel)
 
-        /** The [CottonDDLGrpc.CottonDDLBlockingStub] used for changing Cottontail DB DBOs. */
-        private val ddlService = CottonDDLGrpc.newBlockingStub(this.channel)
+        /** The [DDLGrpc.DDLBlockingStub] used for changing Cottontail DB DBOs. */
+        private val ddlService = DDLGrpc.newBlockingStub(this.channel)
 
-        /** The [CottonDMLService.CottonDMLBlockingStub] used for changing Cottontail DB data. */
-        private val dmlService = CottonDMLGrpc.newBlockingStub(this.channel)
+        /** The [DMLService.DMLBlockingStub] used for changing Cottontail DB data. */
+        private val dmlService = DMLGrpc.newBlockingStub(this.channel)
+
+        /** The [TXNService.TXNBlockingStub] used for changing Cottontail DB data. */
+        private val txnService = TXNGrpc.newBlockingStub(this.channel)
 
         /** A list of aliases: mapping of alias name to commands */
         override fun aliases(): Map<String, List<String>> {
@@ -289,13 +294,10 @@ class Cli(val host: String = "localhost", val port: Int = 1865) {
          * Initializes the auto completion for entity names.
          */
         fun initCompletion() {
-            val schemata = mutableListOf<CottontailGrpc.Schema>()
-            val entities = mutableListOf<CottontailGrpc.Entity>()
-            this@CottontailCommand.ddlService.listSchemas(CottontailGrpc.Empty.getDefaultInstance()).forEach { _schema ->
-                schemata.add(_schema)
-                this@CottontailCommand.ddlService.listEntities(_schema).forEach { _entity ->
-                    entities.add(_entity)
-                }
+            val schemata = mutableListOf<CottontailGrpc.SchemaName>()
+            val entities = mutableListOf<CottontailGrpc.EntityName>()
+            this@CottontailCommand.ddlService.listSchemas(CottontailGrpc.ListSchemaMessage.getDefaultInstance()).forEach { _schema ->
+                /* ToDo. */
             }
             this@Cli.updateArgumentCompletion(schemata = schemata.map { it.name }, entities = entities.map { it.name })
         }

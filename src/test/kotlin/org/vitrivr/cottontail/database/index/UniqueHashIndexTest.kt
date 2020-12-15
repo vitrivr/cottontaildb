@@ -5,7 +5,6 @@ import org.junit.jupiter.api.Assertions.*
 import org.vitrivr.cottontail.TestConstants
 import org.vitrivr.cottontail.database.catalogue.Catalogue
 import org.vitrivr.cottontail.database.entity.Entity
-import org.vitrivr.cottontail.database.general.begin
 import org.vitrivr.cottontail.database.queries.components.AtomicBooleanPredicate
 import org.vitrivr.cottontail.database.queries.components.ComparisonOperator
 import org.vitrivr.cottontail.database.schema.Schema
@@ -95,7 +94,7 @@ class UniqueHashIndexTest {
     /**
      * Tests if Index#filter() returns the values that have been stored.
      */
-    @RepeatedTest(100)
+    @RepeatedTest(10)
     fun testFilterEqualPositive() {
         this.entity?.Tx(readonly = true)?.begin { tx ->
             for (entry in this.list.entries) {
@@ -116,7 +115,7 @@ class UniqueHashIndexTest {
     /**
      * Tests if Index#filter() only returns stored values.
      */
-    @RepeatedTest(100)
+    @RepeatedTest(10)
     fun testFilterEqualNegative() {
         this.entity?.Tx(readonly = true)?.begin { tx ->
             val index = tx.indexes().first()

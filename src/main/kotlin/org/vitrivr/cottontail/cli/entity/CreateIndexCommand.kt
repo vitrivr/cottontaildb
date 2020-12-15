@@ -1,67 +1,49 @@
 package org.vitrivr.cottontail.cli.entity
 
 import com.github.ajalt.clikt.parameters.arguments.argument
+import com.github.ajalt.clikt.parameters.options.convert
+import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
-import com.github.ajalt.clikt.parameters.options.prompt
-import com.github.ajalt.clikt.parameters.types.choice
 import com.github.ajalt.clikt.parameters.types.enum
-import org.vitrivr.cottontail.database.index.IndexType
-import org.vitrivr.cottontail.grpc.CottonDDLGrpc
+import io.grpc.StatusException
 import org.vitrivr.cottontail.grpc.CottontailGrpc
+import org.vitrivr.cottontail.grpc.DDLGrpc
+import org.vitrivr.cottontail.server.grpc.helper.fqn
 import org.vitrivr.cottontail.server.grpc.helper.proto
+import org.vitrivr.cottontail.utilities.output.TabulationUtilities
 import kotlin.time.ExperimentalTime
-import kotlin.time.measureTime
 import kotlin.time.measureTimedValue
 
 /**
  * Command to create a index on a specified entities column from Cottontail DB.
  *
- * @author Loris Sauter
- * @version 1.0.0
+ * @author Loris Sauter & Ralph Gasser
+ * @version 1.0.1
  */
 @ExperimentalTime
-class CreateIndexCommand(
-        private val ddlStub: CottonDDLGrpc.CottonDDLBlockingStub)
-    : AbstractEntityCommand(
-        name = "create-index",
-        help = "Creates an index on the given entity and rebuilds the newly created index. Usage: entity createIndex <schema>.<entity> <column> <index>") {
+class CreateIndexCommand(private val ddlStub: DDLGrpc.DDLBlockingStub) : AbstractEntityCommand(name = "create-index", help = "Creates an index on the given entity and rebuilds the newly created index. Usage: entity createIndex <schema>.<entity> <column> <index>") {
 
     private val attribute by argument(name="column", help="The column name to create the index for")
     private val index by argument(name="index", help = "The index to create").enum<CottontailGrpc.IndexType>()
+    private val rebuild: Boolean by option("-r", "--rebuild", help = "Limits the amount of printed results").convert { it.toBoolean() }.default(false)
 
     override fun exec() {
         val entity = entityName.proto()
-        val details = this.ddlStub.entityDetails(this.entityName.proto())
-        if(!details.columnsList.map { it.name }.contains(attribute)){
-            println("The given entity $entity does not have such a column $attribute")
-            return
-        }
+        val index = CottontailGrpc.IndexDefinition.newBuilder()
+                .setIndex(CottontailGrpc.IndexDetails.newBuilder()
+                        .setName(CottontailGrpc.IndexName.newBuilder().setEntity(entity).setName("index-${index.name.toLowerCase()}-${entityName.schema()}_${entity.name}_${attribute}"))
+                        .setType(this.index)
+                        .build())
+                .addColumns(this.attribute).build()
 
-        val idx = CottontailGrpc.Index.newBuilder()
-                .setEntity(entity)
-                .setName("index-${index.name.toLowerCase()}-${entityName.schema()}_${entity.name}_${attribute}")
-                .setType(index)
-                .build()
-
-        val indices = ddlStub.listIndexes(entityName.proto()).asSequence()
-        if(indices.map { it.index.name }.contains(idx.name)){
-            println("Entity $entityName does already have such an index $idx.name.")
-            return
+        try {
+            val timedTable = measureTimedValue {
+                TabulationUtilities.tabulate(this.ddlStub.createIndex(CottontailGrpc.CreateIndexMessage.newBuilder().setRebuild(this.rebuild).setDefinition(index).build()))
+            }
+            println("Successfully created index ${index.index.name.fqn()} (took ${timedTable.duration}).")
+            print(timedTable.value)
+        } catch (e: StatusException) {
+            println("Error while creating index ${index.index.name.fqn()}: ${e.message}.")
         }
-
-        val idxMsg = CottontailGrpc.IndexDefinition.newBuilder()
-                .setIndex(idx).addColumns(attribute).build()
-        val status = measureTimedValue {
-            ddlStub.createIndex(idxMsg)
-        }
-        val rebuilt = measureTimedValue {
-            ddlStub.rebuildIndex(idx);
-        }
-        if(status.value.success){
-            println("Successfully created index ${index.name} (in ${status.duration}) and rebuilt it (took ${rebuilt.duration})")
-        }else{
-            println("Failed to create the index")
-        }
-
     }
 }

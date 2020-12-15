@@ -1,8 +1,8 @@
 package org.vitrivr.cottontail.execution.operators.basics
 
 import kotlinx.coroutines.flow.Flow
+import org.vitrivr.cottontail.execution.TransactionContext
 
-import org.vitrivr.cottontail.execution.ExecutionEngine
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Record
 
@@ -20,10 +20,10 @@ sealed class Operator {
     /**
      * Converts this [Operator] to a [Flow] and returns it.
      *
-     * @param context The [ExecutionEngine.ExecutionContext] used for execution.
+     * @param context The [TransactionContext] used for execution.
      * @return [Flow]
      */
-    abstract fun toFlow(context: ExecutionEngine.ExecutionContext): Flow<Record>
+    abstract fun toFlow(context: TransactionContext): Flow<Record>
 
 
     /**
@@ -53,9 +53,11 @@ sealed class Operator {
      * An [Operator] that acts as a sink, i.e., processes and consumes [Record]s.
      *
      * @author Ralph Gasser
-     * @version 1.1.1
+     * @version 1.1.2
      */
-    abstract class SinkOperator(val parent: Operator) : Operator()
+    abstract class SinkOperator(val parent: Operator) : Operator() {
+        final override val columns: Array<ColumnDef<*>> = emptyArray()
+    }
 
     /**
      * An [Operator] that acts as a source, i.e., thus has no parent [Operator].

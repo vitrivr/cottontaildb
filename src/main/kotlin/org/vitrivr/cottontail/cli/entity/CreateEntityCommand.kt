@@ -4,11 +4,12 @@ import com.github.ajalt.clikt.output.TermUi
 import com.jakewharton.picnic.table
 import io.grpc.Status
 import io.grpc.StatusRuntimeException
-import org.vitrivr.cottontail.grpc.CottonDDLGrpc
 import org.vitrivr.cottontail.grpc.CottontailGrpc
+import org.vitrivr.cottontail.grpc.DDLGrpc
 import org.vitrivr.cottontail.server.grpc.helper.proto
+import org.vitrivr.cottontail.utilities.output.TabulationUtilities
 import kotlin.time.ExperimentalTime
-import kotlin.time.measureTime
+import kotlin.time.measureTimedValue
 
 /**
  * Command to create a new a [org.vitrivr.cottontail.database.entity.Entity].
@@ -17,7 +18,7 @@ import kotlin.time.measureTime
  * @version 1.0.0
  */
 @ExperimentalTime
-class CreateEntityCommand(private val ddlStub: CottonDDLGrpc.CottonDDLBlockingStub) : AbstractEntityCommand(name = "create", help = "Creates a new entity in the database. Usage: entity create <schema>.<entity>") {
+class CreateEntityCommand(private val ddlStub: DDLGrpc.DDLBlockingStub) : AbstractEntityCommand(name = "create", help = "Creates a new entity in the database. Usage: entity create <schema>.<entity>") {
 
     override fun exec() {
         /* Perform sanity check. */
@@ -67,10 +68,11 @@ class CreateEntityCommand(private val ddlStub: CottonDDLGrpc.CottonDDLBlockingSt
 
         /* As for final confirmation and create entity. */
         if (TermUi.confirm(text = "Please confirm that you want to create the entity:\n$tbl", default = true) == true) {
-            val time = measureTime {
-                this.ddlStub.createEntity(colDef.build())
+            val time = measureTimedValue {
+                TabulationUtilities.tabulate(this.ddlStub.createEntity(CottontailGrpc.CreateEntityMessage.newBuilder().setDefinition(colDef).build()))
             }
-            println("Entity ${this.entityName} created successfully (took $time).")
+            println("Entity ${this.entityName} created successfully (took ${time.duration}).")
+            print(time.value)
         } else {
             println("Create entity ${this.entityName} aborted!")
         }
@@ -83,12 +85,14 @@ class CreateEntityCommand(private val ddlStub: CottonDDLGrpc.CottonDDLBlockingSt
      */
     private fun checkValid(): Boolean {
         try {
-            val ret = this.ddlStub.listEntities(this.entityName.schema().proto())
+            val ret = this.ddlStub.listEntities(CottontailGrpc.ListEntityMessage.newBuilder().setSchema(this.entityName.schema().proto()).build())
             while (ret.hasNext()) {
+
+                /* ToDo: Check entities.
                 if (ret.next().name == this.entityName.simple) {
                     println("Error: Entity ${this.entityName} already exists!")
                     return false
-                }
+                }*/
             }
             return true
         } catch (e: StatusRuntimeException) {

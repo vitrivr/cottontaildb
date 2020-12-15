@@ -4,7 +4,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
 import org.vitrivr.cottontail.database.entity.Entity
-import org.vitrivr.cottontail.execution.ExecutionEngine
+import org.vitrivr.cottontail.database.entity.EntityTx
+import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.predicates.FilterOperator
 import org.vitrivr.cottontail.model.basics.ColumnDef
@@ -37,14 +38,14 @@ class DeleteOperator(parent: Operator, val entity: Entity) : Operator.PipelineOp
     /**
      * Converts this [FilterOperator] to a [Flow] and returns it.
      *
-     * @param context The [ExecutionEngine.ExecutionContext] used for execution
+     * @param context The [TransactionContext] used for execution
      * @return [Flow] representing this [FilterOperator]
      */
     @ExperimentalTime
-    override fun toFlow(context: ExecutionEngine.ExecutionContext): Flow<Record> {
+    override fun toFlow(context: TransactionContext): Flow<Record> {
         var deleted = 0L
         val parent = this.parent.toFlow(context)
-        val tx = context.getTx(this.entity, true)
+        val tx = context.getTx(this.entity) as EntityTx
         return flow {
             val time = measureTime {
                 parent.collect {
@@ -52,7 +53,6 @@ class DeleteOperator(parent: Operator, val entity: Entity) : Operator.PipelineOp
                     deleted += 1
                 }
             }
-            tx.commit()
             emit(StandaloneRecord(0L, this@DeleteOperator.columns, arrayOf(LongValue(deleted), DoubleValue(time.inMilliseconds))))
         }
     }

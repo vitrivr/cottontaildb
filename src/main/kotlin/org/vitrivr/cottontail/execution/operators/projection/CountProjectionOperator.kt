@@ -1,11 +1,10 @@
 package org.vitrivr.cottontail.execution.operators.projection
 
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
+import org.vitrivr.cottontail.execution.TransactionContext
 
-import org.vitrivr.cottontail.execution.ExecutionEngine
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Name
@@ -33,10 +32,10 @@ class CountProjectionOperator(parent: Operator) : Operator.PipelineOperator(pare
     /**
      * Converts this [CountProjectionOperator] to a [Flow] and returns it.
      *
-     * @param context The [CoroutineScope] used for execution
+     * @param context The [TransactionContext] used for execution
      * @return [Flow] representing this [CountProjectionOperator]
      */
-    override fun toFlow(context: ExecutionEngine.ExecutionContext): Flow<Record> {
+    override fun toFlow(context: TransactionContext): Flow<Record> {
         val parentFlow = this.parent.toFlow(context)
         return flow {
             var counter = 0L

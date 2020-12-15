@@ -1,10 +1,9 @@
 package org.vitrivr.cottontail.cli.schema
 
-import com.jakewharton.picnic.table
 import org.vitrivr.cottontail.cli.AbstractCottontailCommand
-import org.vitrivr.cottontail.grpc.CottonDDLGrpc
 import org.vitrivr.cottontail.grpc.CottontailGrpc
-import org.vitrivr.cottontail.server.grpc.helper.fqn
+import org.vitrivr.cottontail.grpc.DDLGrpc
+import org.vitrivr.cottontail.utilities.output.TabulationUtilities
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTimedValue
 
@@ -15,36 +14,15 @@ import kotlin.time.measureTimedValue
  * @version 1.0.1
  */
 @ExperimentalTime
-class ListAllSchemaCommand(private val ddlStub: CottonDDLGrpc.CottonDDLBlockingStub) : AbstractCottontailCommand(name = "all", help = "Lists all schemas stored in Cottontail DB. Usage: schema all") {
+class ListAllSchemaCommand(private val ddlStub: DDLGrpc.DDLBlockingStub) : AbstractCottontailCommand(name = "all", help = "Lists all schemas stored in Cottontail DB. Usage: schema all") {
     override fun exec() {
         /* Execute query. */
-        var hits = 0
-        val tbl = measureTimedValue {
-            table {
-                cellStyle {
-                    border = true
-                    paddingLeft = 1
-                    paddingRight = 1
-                }
-                header {
-                    row {
-                        cell("Node")
-                        cell("Schema")
-                    }
-                }
-                this@ListAllSchemaCommand.ddlStub.listSchemas(CottontailGrpc.Empty.getDefaultInstance()).forEach { _schema ->
-                    row {
-                        val e = _schema.fqn()
-                        cell("warren")
-                        cell(e.simple)
-                    }
-                    hits++
-                }
-            }
+        val timedTable = measureTimedValue {
+            TabulationUtilities.tabulate(this@ListAllSchemaCommand.ddlStub.listSchemas(CottontailGrpc.ListSchemaMessage.getDefaultInstance()))
         }
 
         /* Output results. */
-        println("$hits schemas found (took ${tbl.duration}).")
-        println(tbl.value)
+        println("${timedTable.value.rowCount} schemas found (took ${timedTable.duration}).")
+        print(timedTable.value)
     }
 }

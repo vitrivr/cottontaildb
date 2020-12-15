@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.execution.operators.projection
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import org.vitrivr.cottontail.execution.ExecutionEngine
+import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Name
@@ -56,10 +56,10 @@ class SelectProjectionOperator(parent: Operator, val fields: List<Pair<Name.Colu
     /**
      * Converts this [SelectProjectionOperator] to a [Flow] and returns it.
      *
-     * @param context The [ExecutionEngine.ExecutionContext] used for execution
+     * @param context The [TransactionContext] used for execution
      * @return [Flow] representing this [SelectProjectionOperator]
      */
-    override fun toFlow(context: ExecutionEngine.ExecutionContext): Flow<Record> {
+    override fun toFlow(context: TransactionContext): Flow<Record> {
         return this.parent.toFlow(context).map { r ->
             StandaloneRecord(r.tupleId, this.columns, this.mapping.map { r[it.key] }.toTypedArray())
         }

@@ -3,7 +3,7 @@ package org.vitrivr.cottontail.execution.operators.projection
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
-import org.vitrivr.cottontail.execution.ExecutionEngine
+import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.exceptions.OperatorExecutionException
 import org.vitrivr.cottontail.execution.exceptions.OperatorSetupException
 import org.vitrivr.cottontail.execution.operators.basics.Operator
@@ -44,10 +44,10 @@ class MeanProjectionOperator(parent: Operator, val name: Name.ColumnName, val al
     /**
      * Converts this [MeanProjectionOperator] to a [Flow] and returns it.
      *
-     * @param context The [ExecutionEngine.ExecutionContext] used for execution
+     * @param context The [TransactionContext] used for execution
      * @return [Flow] representing this [MeanProjectionOperator]
      */
-    override fun toFlow(context: ExecutionEngine.ExecutionContext): Flow<Record> {
+    override fun toFlow(context: TransactionContext): Flow<Record> {
         val parentFlow = this.parent.toFlow(context)
         return flow {
             var sum = 0.0

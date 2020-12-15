@@ -1,10 +1,9 @@
 package org.vitrivr.cottontail.cli.schema
 
-import com.jakewharton.picnic.table
-
-import org.vitrivr.cottontail.grpc.CottonDDLGrpc
-import org.vitrivr.cottontail.server.grpc.helper.fqn
+import org.vitrivr.cottontail.grpc.CottontailGrpc
+import org.vitrivr.cottontail.grpc.DDLGrpc
 import org.vitrivr.cottontail.server.grpc.helper.proto
+import org.vitrivr.cottontail.utilities.output.TabulationUtilities
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTimedValue
 
@@ -12,42 +11,18 @@ import kotlin.time.measureTimedValue
  * Command to list available entities and schemata
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.0.1
  */
 @ExperimentalTime
-class ListEntitiesCommand(private val ddlStub: CottonDDLGrpc.CottonDDLBlockingStub) : AbstractSchemaCommand(name = "list", help = "Lists all entities for a given schema. schema list <name>") {
-
+class ListEntitiesCommand(private val ddlStub: DDLGrpc.DDLBlockingStub) : AbstractSchemaCommand(name = "list", help = "Lists all entities for a given schema. schema list <name>") {
     override fun exec() {
         /* Execute query. */
-        var hits = 0
-        val tbl = measureTimedValue {
-            table {
-                cellStyle {
-                    border = true
-                    paddingLeft = 1
-                    paddingRight = 1
-                }
-                header {
-                    row {
-                        cell("Node")
-                        cell("Schema")
-                        cell("Entity")
-                    }
-                }
-                this@ListEntitiesCommand.ddlStub.listEntities(this@ListEntitiesCommand.schemaName.proto()).forEach { _entity ->
-                    row {
-                        val e = _entity.fqn()
-                        cell("warren")
-                        cell(e.schema().simple)
-                        cell(e.simple)
-                    }
-                    hits++
-                }
-            }
+        val timedTable = measureTimedValue {
+            TabulationUtilities.tabulate(this.ddlStub.listEntities(CottontailGrpc.ListEntityMessage.newBuilder().setSchema(this.schemaName.proto()).build()))
         }
 
         /* Output results. */
-        println("$hits entities found for schema ${this.schemaName} (took ${tbl.duration}).")
-        println(tbl.value)
+        println("${timedTable.value.rowCount} entities found for schema ${this.schemaName} (took ${timedTable.duration}).")
+        print(timedTable.value)
     }
 }

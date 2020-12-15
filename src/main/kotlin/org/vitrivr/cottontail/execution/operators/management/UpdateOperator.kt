@@ -4,9 +4,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
 import org.vitrivr.cottontail.database.entity.Entity
-import org.vitrivr.cottontail.execution.ExecutionEngine
+import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
-import org.vitrivr.cottontail.execution.operators.predicates.FilterOperator
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Record
@@ -18,7 +17,7 @@ import kotlin.time.ExperimentalTime
 import kotlin.time.measureTime
 
 /**
- * An [Operator.MergingPipelineOperator] used during query execution. Updates all entries in an [Entity]
+ * An [Operator.PipelineOperator] used during query execution. Updates all entries in an [Entity]
  * that it receives with the provided [Value].
  *
  * @author Ralph Gasser
@@ -35,18 +34,16 @@ class UpdateOperator(parent: Operator, val entity: Entity, val values: List<Pair
     override val breaker: Boolean = false
 
     /**
-     * Converts this [FilterOperator] to a [Flow] and returns it.
+     * Converts this [UpdateOperator] to a [Flow] and returns it.
      *
-     * @param context The [ExecutionEngine.ExecutionContext] used for execution
-     * @return [Flow] representing this [FilterOperator]
-     *
-     * @throws IllegalStateException If this [Operator.status] is not [OperatorStatus.OPEN]
+     * @param context The [TransactionContext] used for execution
+     * @return [Flow] representing this [UpdateOperator]
      */
     @ExperimentalTime
-    override fun toFlow(context: ExecutionEngine.ExecutionContext): Flow<Record> {
+    override fun toFlow(context: TransactionContext): Flow<Record> {
         var updated = 0L
         val parent = this.parent.toFlow(context)
-        val tx = context.getTx(this.entity)
+        val tx = context.getTx(this.entity) as Entity.Tx
         return flow {
             val time = measureTime {
                 parent.collect { record ->

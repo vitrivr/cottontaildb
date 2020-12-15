@@ -4,11 +4,10 @@ import kotlinx.serialization.json.Json
 import org.vitrivr.cottontail.cli.Cli
 import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.database.catalogue.Catalogue
-import org.vitrivr.cottontail.execution.ExecutionEngine
+import org.vitrivr.cottontail.execution.TransactionManager
 import org.vitrivr.cottontail.server.grpc.CottontailGrpcServer
 import java.nio.file.Files
 import java.nio.file.Paths
-import kotlin.system.exitProcess
 import kotlin.time.ExperimentalTime
 
 /**
@@ -53,7 +52,7 @@ fun main(args: Array<String>) {
 fun standalone(config: Config) {
     /* Instantiate Catalogue, execution engine and gRPC server. */
     val catalogue = Catalogue(config)
-    val engine = ExecutionEngine(config.execution)
+    val engine = TransactionManager(config.execution)
     val server = CottontailGrpcServer(config.server, catalogue, engine)
 
     /* Start gRPC Server. */
@@ -81,7 +80,7 @@ fun standalone(config: Config) {
 fun embedded(config: Config): CottontailGrpcServer {
     /* Instantiate Catalogue, execution engine and gRPC server. */
     val catalogue = Catalogue(config)
-    val engine = ExecutionEngine(config.execution)
+    val engine = TransactionManager(config.execution)
     val server = CottontailGrpcServer(config.server, catalogue, engine)
 
     /* Start gRPC Server and return object. */

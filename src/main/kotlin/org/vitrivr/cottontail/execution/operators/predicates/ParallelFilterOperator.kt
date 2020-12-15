@@ -1,9 +1,10 @@
 package org.vitrivr.cottontail.execution.operators.predicates
 
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import org.vitrivr.cottontail.database.queries.components.BooleanPredicate
-import org.vitrivr.cottontail.execution.ExecutionEngine
+import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Record
@@ -27,16 +28,32 @@ class ParallelFilterOperator(parents: List<Operator>, private val predicate: Boo
     override val breaker: Boolean = false
 
     /**
-     * Converts this [FilterOperator] to a [Flow] and returns it.
+     * Converts this [ParallelFilterOperator] to a [Flow] and returns it.
      *
-     * @param context The [ExecutionEngine.ExecutionContext] used for execution
+     * @param context The [TransactionContext] used for execution
      * @return [Flow] representing this [FilterOperator]
      */
     @ExperimentalCoroutinesApi
-    override fun toFlow(context: ExecutionEngine.ExecutionContext): Flow<Record> {
-        val parentFlows = this.parents.map { it.toFlow(context) }.toTypedArray()
-        return parentFlows.map { flow ->
-            flow.filter { r -> this@ParallelFilterOperator.predicate.matches(r) }.flowOn(context.coroutineDispatcher)
-        }.merge()
+    override fun toFlow(context: TransactionContext): Flow<Record> {
+
+        /* Obtain parent flows amd compose new flow. */
+        val list = mutableListOf<Record>()
+        val parentFlows = this.parents.map { it.toFlow(context) }
+        return flow {
+            /* Execute incoming flows and wait for completion. */
+            parentFlows.map { flow ->
+                flow.onEach { record ->
+                    if (this@ParallelFilterOperator.predicate.matches(record)) {
+                        list.add(record)
+                    }
+                }.launchIn(CoroutineScope(context.dispatcher))
+            }.forEach {
+                it.join()
+            }
+
+            list.forEach {
+                emit(it)
+            }
+        }
     }
 }

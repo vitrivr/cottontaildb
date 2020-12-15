@@ -4,7 +4,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
 import org.vitrivr.cottontail.database.queries.components.KnnPredicate
-import org.vitrivr.cottontail.execution.ExecutionEngine
+import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.math.knn.selection.ComparablePair
 import org.vitrivr.cottontail.math.knn.selection.MinHeapSelection
@@ -41,10 +41,10 @@ class KnnOperator<T : VectorValue<*>>(parent: Operator, val knn: KnnPredicate<T>
     /**
      * Converts this [KnnOperator] to a [Flow] and returns it.
      *
-     * @param context The [ ExecutionEngine.ExecutionContext] used for execution
+     * @param context The [TransactionContext] used for execution
      * @return [Flow] representing this [KnnOperator]
      */
-    override fun toFlow(context: ExecutionEngine.ExecutionContext): Flow<Record> {
+    override fun toFlow(context: TransactionContext): Flow<Record> {
         /* Obtain parent flow. */
         val parentFlow = this.parent.toFlow(context)
 

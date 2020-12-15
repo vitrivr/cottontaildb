@@ -1,8 +1,10 @@
 package org.vitrivr.cottontail.cli.entity
 
-import com.jakewharton.picnic.table
-import org.vitrivr.cottontail.grpc.CottonDDLGrpc
+import io.grpc.StatusException
+import org.vitrivr.cottontail.grpc.CottontailGrpc
+import org.vitrivr.cottontail.grpc.DDLGrpc
 import org.vitrivr.cottontail.server.grpc.helper.proto
+import org.vitrivr.cottontail.utilities.output.TabulationUtilities
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTimedValue
 
@@ -13,41 +15,16 @@ import kotlin.time.measureTimedValue
  * @version 1.0.1
  */
 @ExperimentalTime
-class AboutEntityCommand(private val dqlStub: CottonDDLGrpc.CottonDDLBlockingStub) : AbstractEntityCommand(name = "about", help = "Gives an overview of the entity and its columns.") {
+class AboutEntityCommand(private val dqlStub: DDLGrpc.DDLBlockingStub) : AbstractEntityCommand(name = "about", help = "Gives an overview of the entity and its columns.") {
     override fun exec() {
-        val details = measureTimedValue {
-            this.dqlStub.entityDetails(this.entityName.proto())
+        try {
+            val timedTable = measureTimedValue {
+                TabulationUtilities.tabulate(this.dqlStub.entityDetails(CottontailGrpc.EntityDetailsMessage.newBuilder().setEntity(this.entityName.proto()).build()))
+            }
+            println("Details for entity ${this.entityName} (took ${timedTable.duration}):")
+            print(timedTable.value)
+        } catch (e: StatusException) {
+            println("Failed to load details for entity ${this.entityName}: ${e.message}.")
         }
-        val tbl = table {
-            cellStyle {
-                border = true
-                paddingLeft = 1
-                paddingRight = 1
-            }
-            header {
-                row {
-                    cell("Column name")
-                    cell("Storage engine")
-                    cell("Column type")
-                    cell("Column size")
-                    cell("Nullable")
-                }
-            }
-            body {
-                details.value.columnsList.forEach {
-                    row {
-                        cell(it.name)
-                        cell(it.engine.name)
-                        cell(it.type.name)
-                        cell(it.length)
-                        cell(it.nullable)
-                    }
-                }
-            }
-        }
-
-
-        println("Details for entity ${this.entityName} (took ${details.duration}):")
-        println(tbl)
     }
 }

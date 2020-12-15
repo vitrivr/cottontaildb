@@ -1,12 +1,10 @@
 package org.vitrivr.cottontail.cli.entity
 
-import com.jakewharton.picnic.table
 
 import org.vitrivr.cottontail.cli.AbstractCottontailCommand
-import org.vitrivr.cottontail.grpc.CottonDDLGrpc
 import org.vitrivr.cottontail.grpc.CottontailGrpc
-import org.vitrivr.cottontail.server.grpc.helper.fqn
-
+import org.vitrivr.cottontail.grpc.DDLGrpc
+import org.vitrivr.cottontail.utilities.output.TabulationUtilities
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTimedValue
 
@@ -14,43 +12,18 @@ import kotlin.time.measureTimedValue
  * List all [org.vitrivr.cottontail.database.entity.Entity] stored in Cottontail DB.
  *
  * @author Loris Sauter & Ralph Gasser
- * @version 1.0.1
+ * @version 1.0.2
  */
 @ExperimentalTime
-class ListAllEntitiesCommand(private val ddlStub: CottonDDLGrpc.CottonDDLBlockingStub) : AbstractCottontailCommand(name = "all", help = "Lists all entities stored in Cottontail DB.") {
+class ListAllEntitiesCommand(private val ddlStub: DDLGrpc.DDLBlockingStub) : AbstractCottontailCommand(name = "all", help = "Lists all entities stored in Cottontail DB.") {
     override fun exec() {
         /* Execute query. */
-        var hits = 0
-        val tbl = measureTimedValue {
-            table {
-                cellStyle {
-                    border = true
-                    paddingLeft = 1
-                    paddingRight = 1
-                }
-                header {
-                    row {
-                        cell("Node")
-                        cell("Schema")
-                        cell("Entity")
-                    }
-                }
-                this@ListAllEntitiesCommand.ddlStub.listSchemas(CottontailGrpc.Empty.getDefaultInstance()).forEach { _schema ->
-                    this@ListAllEntitiesCommand.ddlStub.listEntities(_schema).forEach { _entity ->
-                        row {
-                            val e = _entity.fqn()
-                            cell("warren")
-                            cell(e.schema().simple)
-                            cell(e.simple)
-                        }
-                        hits++
-                    }
-                }
-            }
+        val timedTable = measureTimedValue {
+            TabulationUtilities.tabulate(this.ddlStub.listEntities(CottontailGrpc.ListEntityMessage.newBuilder().build()))
         }
 
         /* Output results. */
-        println("$hits entities found (took ${tbl.duration}).}")
-        println(tbl.value)
+        println("${timedTable.value.rowCount} entities found (took ${timedTable.duration}).")
+        print(timedTable.value)
     }
 }

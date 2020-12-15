@@ -32,10 +32,10 @@ data class MapDBConfig(
      * @return [CottontailStoreWAL] instance.
      */
     fun store(path: Path): CottontailStoreWAL = CottontailStoreWAL.make(
-            file = path.toString(),
-            volumeFactory = this.volumeFactory,
-            allocateIncrement = 1L shl this.pageShift,
-            fileLockWait = this.lockTimeout
+        file = path.toString(),
+        volumeFactory = this.volumeFactory,
+        allocateIncrement = 1L shl this.pageShift,
+        fileLockWait = this.lockTimeout
     )
 
     /**

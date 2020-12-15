@@ -22,7 +22,7 @@ inline class StringValue(override val value: String) : ScalarValue<String> {
         fun random(size: Int, rnd: SplittableRandom = Value.RANDOM): StringValue {
             val builder = StringBuilder()
             rnd.ints(48, 122).filter {
-                (it in 57..65 || it in 90..97)
+                (it in 48..57 || it in 65..90 || it in 97..172)
             }.limit(size.toLong()).forEach {
                 builder.appendCodePoint(it)
             }

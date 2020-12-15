@@ -4,7 +4,6 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.values.types.Value
-import java.util.*
 
 /**
  * A [Record] implementation as returned and processed by Cottontail DB. A [StandaloneRecord] can
@@ -16,7 +15,7 @@ import java.util.*
  * @author Ralph Gasser
  * @version 1.0.1
  */
-class StandaloneRecord(override var tupleId: Long = Long.MIN_VALUE, override val columns: Array<ColumnDef<*>>, values: Array<Value?> = Array(columns.size) { null }) : Record {
+class StandaloneRecord(override var tupleId: Long = Long.MIN_VALUE, override val columns: Array<ColumnDef<*>>, private val values: Array<Value?> = Array(columns.size) { null }) : Record {
 
     init {
         /** Sanity check. */
@@ -27,22 +26,22 @@ class StandaloneRecord(override var tupleId: Long = Long.MIN_VALUE, override val
     }
 
     /** Initialize internal [Object2ObjectOpenHashMap] used to map columns to values. */
-    private val map = Object2ObjectOpenHashMap(this.columns, values)
+    //private val map = Object2ObjectOpenHashMap(this.columns, values)
 
     /**
      * Copies this [StandaloneRecord] and returns the copy.
      *
      * @return Copy of this [StandaloneRecord]
      */
-    override fun copy(): Record = StandaloneRecord(this.tupleId, this.columns, this.columns.map { this.map[it] }.toTypedArray())
+    override fun copy(): Record = StandaloneRecord(this.tupleId, this.columns, this.values)
 
     /**
      * Iterates over the [ColumnDef] and [Value] pairs in this [Record] in the order specified by [columns].
      *
      * @param action The action to apply to each [ColumnDef], [Value] pair.
      */
-    override fun forEach(action: (ColumnDef<*>, Value?) -> Unit) {
-        for (c in this.columns) action(c, this.map[c])
+    override fun forEach(action: (ColumnDef<*>, Value?) -> Unit) = this.columns.forEachIndexed {
+        index, columnDef ->  action(columnDef, this.values[index])
     }
 
     /**
@@ -51,14 +50,14 @@ class StandaloneRecord(override var tupleId: Long = Long.MIN_VALUE, override val
      * @param column The [ColumnDef] specifying the column
      * @return True if record contains the [ColumnDef], false otherwise.
      */
-    override fun has(column: ColumnDef<*>): Boolean = this.map.containsKey(column)
+    override fun has(column: ColumnDef<*>): Boolean = this.columns.contains(column)
 
     /**
      * Returns an unmodifiable [Map] of the data contained in this [StandaloneRecord].
      *
      * @return Unmodifiable [Map] of the data in this [StandaloneRecord].
      */
-    override fun toMap(): Map<ColumnDef<*>, Value?> = Collections.unmodifiableMap(this.map)
+    override fun toMap(): Map<ColumnDef<*>, Value?> = this.columns.mapIndexed { index, columnDef -> columnDef to this.values[index] }.toMap()
 
     /**
      * Retrieves the value for the specified [ColumnDef] from this [StandaloneRecord].
@@ -67,8 +66,9 @@ class StandaloneRecord(override var tupleId: Long = Long.MIN_VALUE, override val
      * @return The value for the [ColumnDef]
      */
     override fun get(column: ColumnDef<*>): Value? {
-        require(this.map.contains(column)) { "The specified column ${column.name}  (type=${column.type.name}) is not contained in this record." }
-        return this.map[column]
+        val index = this.columns.indexOf(column)
+        require(index > -1) { "The specified column ${column.name}  (type=${column.type.name}) is not contained in this record." }
+        return this.values[index]
     }
 
     /**
@@ -78,9 +78,10 @@ class StandaloneRecord(override var tupleId: Long = Long.MIN_VALUE, override val
      * @param value The new value for the [ColumnDef]
      */
     override fun set(column: ColumnDef<*>, value: Value?) {
-        require(this.map.contains(column)) { "The specified column ${column.name}  (type=${column.type.name})  is not contained in this record." }
+        val index = this.columns.indexOf(column)
+        require(index > -1) { "The specified column ${column.name} (type=${column.type.name})  is not contained in this record." }
         column.validateOrThrow(value)
-        this.map[column] = value
+        this.values[index] = value
     }
 
 
@@ -91,7 +92,8 @@ class StandaloneRecord(override var tupleId: Long = Long.MIN_VALUE, override val
         other as StandaloneRecord
 
         if (tupleId != other.tupleId) return false
-        if (map != other.map) return false
+        if (!this.columns.contentDeepEquals(other.columns)) return false
+        if (!this.values.contentDeepEquals(other.values)) return false
 
         return true
     }
@@ -99,7 +101,7 @@ class StandaloneRecord(override var tupleId: Long = Long.MIN_VALUE, override val
     override fun hashCode(): Int {
         var result = tupleId.hashCode()
         result = 31 * result + columns.hashCode()
-        result = 31 * result + map.hashCode()
+        result = 31 * result + values.hashCode()
         return result
     }
 }

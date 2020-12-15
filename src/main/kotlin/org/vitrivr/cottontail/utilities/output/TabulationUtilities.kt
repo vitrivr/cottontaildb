@@ -4,6 +4,8 @@ import com.jakewharton.picnic.Table
 import com.jakewharton.picnic.TableSectionDsl
 import com.jakewharton.picnic.table
 import org.vitrivr.cottontail.grpc.CottontailGrpc
+import org.vitrivr.cottontail.server.grpc.helper.fqn
+import java.util.*
 
 /**
  * Utility class for tabulated output.
@@ -12,12 +14,42 @@ import org.vitrivr.cottontail.grpc.CottontailGrpc
  * @version 1.0.0
  */
 object TabulationUtilities {
+
     /**
-     * Takes a [List] of [CottontailGrpc.Tuple], iterates over it and arranges the results in a [Table].
+     * Takes a [Iterator] of [CottontailGrpc.QueryResponseMessage], iterates over it and arranges
+     * the results in a [Table].
      *
-     * @param tuples The [List] to go over.
+     * @param result The [Iterator] of [CottontailGrpc.QueryResponseMessage] to go visualize.
      */
-    fun tabulate(tuples: List<CottontailGrpc.Tuple>): Table = table {
+    fun tabulate(result: Iterator<CottontailGrpc.QueryResponseMessage>): Table {
+        var next = result.next()
+        return table {
+            cellStyle {
+                border = true
+                paddingLeft = 1
+                paddingRight = 1
+            }
+            header {
+                row {
+                    next.columnsList.forEach { cell(it.fqn()) }
+                }
+            }
+            body {
+                next.tuplesList.forEach { tupleToRow(this, it) }
+                while(result.hasNext()) {
+                    next = result.next()
+                    next.tuplesList.forEach { tupleToRow(this, it) }
+                }
+            }
+        }
+    }
+
+    /**
+     * Takes a  [CottontailGrpc.QueryResponseMessage] and arranges its results in a [Table].
+     *
+     * @param result The [CottontailGrpc.QueryResponseMessage] to go visualize.
+     */
+    fun tabulate(result: CottontailGrpc.QueryResponseMessage): Table = table {
         cellStyle {
             border = true
             paddingLeft = 1
@@ -25,48 +57,34 @@ object TabulationUtilities {
         }
         header {
             row {
-                tuples.first().dataMap.keys.forEach { this.cell(it) }
+                result.columnsList.forEach { cell(it.fqn()) }
             }
         }
         body {
-            tuples.forEach { tupleToRow(this, it) }
-        }
-    }
-
-    /**
-     * Takes a [Iterator] of [CottontailGrpc.QueryResponseMessage], iterates over it and arranges
-     * the results in a [Table].
-     *
-     * @param results The [Iterator] to go over.
-     */
-    fun tabulate(results: Iterator<CottontailGrpc.QueryResponseMessage>): Table {
-        val list = mutableListOf<CottontailGrpc.Tuple>()
-        results.forEach {
-            it.resultsList.forEach {
-                list.add(it)
+            result.tuplesList.forEach {
+                tupleToRow(this, it)
             }
         }
-        return this.tabulate(list)
     }
 
     /**
-     * Transforms an individual [CottontailGrpc.Tuple] to a row in a table.
+     * Transforms an individual [CottontailGrpc.Literal] to a row in a table.
      *
      * @param table The [TableSectionDsl] to create the row for.
-     * @param tuple The [CottontailGrpc.Tuple] to transform.
+     * @param tuple The [CottontailGrpc.Literal] to transform.
      */
-    private fun tupleToRow(table: TableSectionDsl, tuple: CottontailGrpc.Tuple) = table.row {
-        tuple.dataMap.values.map {
+    private fun tupleToRow(table: TableSectionDsl, tuple: CottontailGrpc.QueryResponseMessage.Tuple) = table.row {
+        tuple.dataList.map {
             when (it.dataCase) {
-                CottontailGrpc.Data.DataCase.BOOLEANDATA -> it.booleanData.toString()
-                CottontailGrpc.Data.DataCase.INTDATA -> it.intData.toString()
-                CottontailGrpc.Data.DataCase.LONGDATA -> it.longData.toString()
-                CottontailGrpc.Data.DataCase.FLOATDATA -> it.floatData.toString()
-                CottontailGrpc.Data.DataCase.DOUBLEDATA -> it.doubleData.toString()
-                CottontailGrpc.Data.DataCase.STRINGDATA -> it.stringData
-                CottontailGrpc.Data.DataCase.COMPLEX32DATA -> "${it.complex32Data.real} + i${it.complex32Data.imaginary}"
-                CottontailGrpc.Data.DataCase.COMPLEX64DATA -> "${it.complex32Data.real} + i${it.complex32Data.imaginary}"
-                CottontailGrpc.Data.DataCase.VECTORDATA -> when (it.vectorData.vectorDataCase) {
+                CottontailGrpc.Literal.DataCase.BOOLEANDATA -> it.booleanData.toString()
+                CottontailGrpc.Literal.DataCase.INTDATA -> it.intData.toString()
+                CottontailGrpc.Literal.DataCase.LONGDATA -> it.longData.toString()
+                CottontailGrpc.Literal.DataCase.FLOATDATA -> it.floatData.toString()
+                CottontailGrpc.Literal.DataCase.DOUBLEDATA -> it.doubleData.toString()
+                CottontailGrpc.Literal.DataCase.STRINGDATA -> it.stringData
+                CottontailGrpc.Literal.DataCase.COMPLEX32DATA -> "${it.complex32Data.real} + i${it.complex32Data.imaginary}"
+                CottontailGrpc.Literal.DataCase.COMPLEX64DATA -> "${it.complex32Data.real} + i${it.complex32Data.imaginary}"
+                CottontailGrpc.Literal.DataCase.VECTORDATA -> when (it.vectorData.vectorDataCase) {
                     CottontailGrpc.Vector.VectorDataCase.FLOATVECTOR -> this@TabulationUtilities.vectorToString(it.vectorData.floatVector.vectorList)
                     CottontailGrpc.Vector.VectorDataCase.DOUBLEVECTOR -> this@TabulationUtilities.vectorToString(it.vectorData.doubleVector.vectorList)
                     CottontailGrpc.Vector.VectorDataCase.INTVECTOR -> this@TabulationUtilities.vectorToString(it.vectorData.intVector.vectorList)
@@ -76,8 +94,8 @@ object TabulationUtilities {
                     CottontailGrpc.Vector.VectorDataCase.COMPLEX64VECTOR -> this@TabulationUtilities.vectorToString(it.vectorData.complex64Vector.vectorList.map { c -> "${c.real} + i${c.imaginary}" })
                     CottontailGrpc.Vector.VectorDataCase.VECTORDATA_NOT_SET -> "~~NULL~~"
                 }
-                CottontailGrpc.Data.DataCase.NULLDATA -> "~~NULL~~"
-                CottontailGrpc.Data.DataCase.DATA_NOT_SET -> "~~N/A~~"
+                CottontailGrpc.Literal.DataCase.NULLDATA -> "~~NULL~~"
+                CottontailGrpc.Literal.DataCase.DATA_NOT_SET -> "~~N/A~~"
                 else -> ""
             }
         }.forEach { cell(it) }
