@@ -1,32 +1,32 @@
 package org.vitrivr.cottontail.database.schema
 
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
 import org.mapdb.CottontailStoreWAL
 import org.mapdb.DBException
 import org.mapdb.Serializer
 import org.mapdb.Store
+
 import org.vitrivr.cottontail.database.catalogue.Catalogue
 import org.vitrivr.cottontail.database.column.mapdb.MapDBColumn
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.entity.EntityHeader
 import org.vitrivr.cottontail.database.entity.EntityHeaderSerializer
+import org.vitrivr.cottontail.database.general.AbstractTx
 import org.vitrivr.cottontail.database.general.DBO
+import org.vitrivr.cottontail.database.general.TxStatus
+import org.vitrivr.cottontail.database.locking.LockMode
+import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import org.vitrivr.cottontail.utilities.extensions.read
+
 import java.io.IOException
-import java.lang.ref.SoftReference
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.*
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.locks.ReentrantLock
-import java.util.concurrent.locks.ReentrantReadWriteLock
 import java.util.concurrent.locks.StampedLock
 import java.util.stream.Collectors
-import kotlin.concurrent.read
-import kotlin.concurrent.withLock
-import kotlin.concurrent.write
 
 /**
  * Represents an schema in the Cottontail DB data model. A [Schema] is a collection of [Entity] objects that belong together
@@ -40,10 +40,9 @@ import kotlin.concurrent.write
  * @see MapDBColumn
  *
  * @author Ralph Gasser
- * @version 1.3
+ * @version 1.4.0
  */
-class Schema(override val name: Name.SchemaName, override val path: Path, override val parent: Catalogue) : DBO {
-
+class Schema(override val name: Name.SchemaName, override val parent: Catalogue) : DBO {
     /**
      * Companion object with different constants.
      */
@@ -55,6 +54,9 @@ class Schema(override val name: Name.SchemaName, override val path: Path, overri
         const val FILE_CATALOGUE = "index.db"
     }
 
+    /** The [Path] to the [Schema]'s main folder. */
+    override val path = this.parent.path.resolve("schema_${name.simple}")
+
     /** Internal reference to the [Store] underpinning this [MapDBColumn]. */
     private val store: CottontailStoreWAL = try {
         this.parent.config.mapdb.store(this.path.resolve(FILE_CATALOGUE))
@@ -64,70 +66,140 @@ class Schema(override val name: Name.SchemaName, override val path: Path, overri
 
     /** Reference to the [SchemaHeader] of the [Schema]. */
     private val header
-        get() = this.store.get(HEADER_RECORD_ID, SchemaHeaderSerializer) ?: throw DatabaseException.DataCorruptionException("Failed to open header of schema $name!")
+        get() = this.store.get(HEADER_RECORD_ID, SchemaHeaderSerializer)
+                ?: throw DatabaseException.DataCorruptionException("Failed to open header of schema $name!")
 
     /** A lock used to mediate access the closed state of this [Schema]. */
     private val closeLock = StampedLock()
 
-    /** A lock used to mediate access to changes to the entities contained in this [Schema]. */
-    private val entityLock = ReentrantReadWriteLock()
-
-    /** A lock used to mediate access to [loaded] cache. */
-    private val cacheLock = ReentrantLock()
-
-    /** A map of loaded [Entity] references. The [SoftReference] allow for coping with changing memory conditions. */
-    private val loaded = ConcurrentHashMap<Name, SoftReference<Entity>>()
-
-    /** Returns a list of [Entity] held by this [Schema]. */
-    val entities: List<Name.EntityName>
-        get() = this.header.entities.map {
-            this.name.entity(this.store.get(it, Serializer.STRING) ?: throw DatabaseException.DataCorruptionException("Failed to read schema $name ($path): Could not find entity name of ID $it."))
-        }
-
-    /** Size of the [Schema] in terms of [Entity] objects it contains. */
-    val size
-        get() = this.entityLock.read { this.header.entities.size }
+    /** A map of loaded [Entity] references. */
+    private val registry: MutableMap<Name.EntityName, Entity> = Collections.synchronizedMap(Object2ObjectOpenHashMap())
 
     /** Flag indicating whether or not this [Schema] has been closed. */
     @Volatile
     override var closed: Boolean = false
         private set
 
+    init {
+        /* Initialize all entities. */
+        this.header.entities.map {
+            val name = this.name.entity(this.store.get(it, Serializer.STRING)
+                    ?: throw DatabaseException.DataCorruptionException("Failed to read schema $name ($path): Could not find entity name of ID $it."))
+            this.registry[name] = Entity(name, this)
+        }
+    }
+
     /**
-     * Creates a new [Entity] in this [Schema].
+     * Creates and returns a new [Schema.Tx] for the given [TransactionContext].
      *
-     * @param name The name of the [Entity] that should be created.
+     * @param context The [TransactionContext] to create the [Schema.Tx] for.
+     * @return New [Schema.Tx]
      */
-    fun createEntity(name: Name.EntityName, vararg columns: ColumnDef<*>) = this.closeLock.read {
-        /* Check closed status. */
-        if (this.closed) {
-            throw IllegalStateException("Schema ${this.name} has been closed and cannot be used anymore.")
+    override fun newTx(context: TransactionContext) = this.Tx(context)
+
+    /**
+     * Closes this [Schema] and all the [Entity] objects that are contained within.
+     *
+     * Since locks to [DBO] or [Transaction][org.vitrivr.cottontail.database.general.Tx]
+     * objects may be held by other threads, it can take a
+     * while for this method to complete.
+     */
+    override fun close() = this.closeLock.read {
+        if (!this.closed) {
+            this.registry.entries.removeIf {
+                it.value.close()
+                true
+            }
+            this.store.close()
+            this.closed = true
+        }
+    }
+
+    /**
+     * A [Tx] that affects this [Schema].
+     *
+     * @author Ralph Gasser
+     * @version 1.0.0
+     */
+    inner class Tx(context: TransactionContext) : AbstractTx(context), SchemaTx {
+
+        /** Obtains a global (non-exclusive) read-lock on [Schema]. Prevents enclosing [Schema] from being closed. */
+        private val closeStamp = this@Schema.closeLock.readLock()
+
+        /** Reference to the surrounding [Schema]. */
+        override val dbo: DBO
+            get() = this@Schema
+
+        /** Actions that should be executed after committing this [Tx]. */
+        private val postCommitAction = mutableListOf<Runnable>()
+
+        /** Actions that should be executed after rolling back this [Tx]. */
+        private val postRollbackAction = mutableListOf<Runnable>()
+
+        /**
+         * Returns a list of [Entity] held by this [Schema].
+         *
+         * @return [List] of all [Name.EntityName].
+         */
+        override fun listEntities(): List<Name.EntityName> = this.withReadLock {
+            return this@Schema.header.entities.map {
+                this@Schema.name.entity(this@Schema.store.get(it, Serializer.STRING)
+                        ?: throw DatabaseException.DataCorruptionException("Failed to read schema $name ($path): Could not find entity name of ID $it."))
+            }
         }
 
-        if (columns.map { it.name }.distinct().size != columns.size) throw DatabaseException.DuplicateColumnException(name, columns.map { it.name })
-        if (this.entities.contains(name)) throw DatabaseException.EntityAlreadyExistsException(name)
+        /**
+         * Returns an instance of [Entity] if such an instance exists. If the [Entity] has been loaded before,
+         * that [Entity] is re-used. Otherwise, the [Entity] will be loaded from disk.
+         *
+         * @param name Name of the [Entity] to access.
+         * @return [Entity] or null.
+         */
+        override fun entityForName(name: Name.EntityName): Entity = this.withReadLock {
+            return this@Schema.registry[name]
+                    ?: throw DatabaseException.EntityDoesNotExistException(name)
+        }
 
-        this.entityLock.write {
-            /* Create empty folder for entity. */
-            val data = this.path.resolve("entity_${name.simple}")
+        /**
+         * Creates a new [Entity] in this [Schema].
+         *
+         * @param name The name of the [Entity] that should be created.
+         * @param columns The [ColumnDef] of the columns the new [Entity] should have
+         */
+        override fun createEntity(name: Name.EntityName, vararg columns: ColumnDef<*>) = this.withWriteLock {
+            if (columns.map { it.name }.distinct().size != columns.size) throw DatabaseException.DuplicateColumnException(name, columns.map { it.name })
+            if (this.listEntities().contains(name)) throw DatabaseException.EntityAlreadyExistsException(name)
 
             try {
+                /* Create empty folder for entity. */
+                val data = this@Schema.path.resolve("entity_${name.simple}")
                 if (!Files.exists(data)) {
                     Files.createDirectories(data)
                 } else {
                     throw DatabaseException("Failed to create entity '$name'. Data directory '$data' seems to be occupied.")
                 }
 
+                /* ON COMMIT: Make entity available. */
+                this.postCommitAction.add {
+                    this@Schema.registry[name] = Entity(name, this@Schema)
+                }
+
+                /* ON ROLLBACK: Delete unused entity folder. */
+                this.postRollbackAction.add {
+                    val pathsToDelete = Files.walk(data).sorted(Comparator.reverseOrder()).collect(Collectors.toList())
+                    pathsToDelete.forEach { Files.delete(it) }
+                }
+
                 /* Store entry for new entity. */
-                val recId = this.store.put(name.simple, Serializer.STRING)
+                val recId = this@Schema.store.put(name.simple, Serializer.STRING)
 
                 /* Generate the entity. */
-                val store = this.parent.config.mapdb.store(data.resolve(Entity.FILE_CATALOGUE))
+                val store = this@Schema.parent.config.mapdb.store(data.resolve(Entity.FILE_CATALOGUE))
                 store.preallocate() /* Pre-allocates the header. */
 
                 /* Initialize the entities header. */
                 val columnIds = columns.map {
-                    MapDBColumn.initialize(it, data, this.parent.config.mapdb)
+                    MapDBColumn.initialize(it, data, this@Schema.parent.config.mapdb)
                     store.put(it.name.simple, Serializer.STRING)
                 }.toLongArray()
                 store.update(Entity.HEADER_RECORD_ID, EntityHeader(columns = columnIds), EntityHeaderSerializer)
@@ -135,114 +207,103 @@ class Schema(override val name: Name.SchemaName, override val path: Path, overri
                 store.close()
 
                 /* Update schema header. */
-                val header = this.header
+                val header = this@Schema.header
                 header.modified = System.currentTimeMillis()
                 header.entities = header.entities.copyOf(header.entities.size + 1)
                 header.entities[header.entities.size - 1] = recId
-                this.store.update(HEADER_RECORD_ID, header, SchemaHeaderSerializer)
-
-                /* Commit changes to local schema. */
-                this.store.commit()
+                this@Schema.store.update(HEADER_RECORD_ID, header, SchemaHeaderSerializer)
             } catch (e: DBException) {
-                this.store.rollback()
-                val pathsToDelete = Files.walk(data).sorted(Comparator.reverseOrder()).collect(Collectors.toList())
-                pathsToDelete.forEach { Files.delete(it) }
+                this.status = TxStatus.ERROR
                 throw DatabaseException("Failed to create entity '$name' due to error in the underlying data store: {${e.message}")
             } catch (e: IOException) {
+                this.status = TxStatus.ERROR
                 throw DatabaseException("Failed to create entity '$name' due to an IO exception: {${e.message}")
             }
         }
-    }
 
-    /**
-     * Drops an [Entity] in this [Schema]. The act of dropping an [Entity] requires a lock on that [Entity].
-     *
-     * @param name The name of the [Entity] that should be dropped.
-     */
-    fun dropEntity(name: Name.EntityName) = this.closeLock.read {
-        /* Check closed status. */
-        if (this.closed) {
-            throw IllegalStateException("Schema ${this.name} has been closed and cannot be used anymore.")
-        }
+        /**
+         * Drops an [Entity] from this [Schema].
+         *
+         * @param name The name of the [Entity] that should be dropped.
+         */
+        override fun dropEntity(name: Name.EntityName) = this.withWriteLock {
+            /* Get entity and try to obtain lock. */
+            val entity = this@Schema.registry[name]
+                    ?: throw DatabaseException.EntityDoesNotExistException(name)
+            val entityRecId = this@Schema.header.entities.find { this@Schema.store.get(it, Serializer.STRING) == name.simple }
+                    ?: throw DatabaseException.DataCorruptionException("Could not find RecId for entity $name.")
+            if (this.context.lockOn(entity) == LockMode.NO_LOCK) {
+                this.context.requestLock(entity, LockMode.EXCLUSIVE)
+            }
 
-        this.entityLock.write {
-            val entityRecId = this.header.entities.find { this.store.get(it, Serializer.STRING) == name.simple } ?: throw DatabaseException.EntityDoesNotExistException(name)
+            /* Close entity and remove it from registry. */
+            entity.close()
+            this@Schema.registry.remove(name)
 
-            val entity = this.entityForName(name)
-            entity.allIndexes().map { it.name }.forEach { entity.dropIndex(it) }
-
-            /* Unload the entity and remove it. */
-            this.loaded.remove(name)?.get()?.close()
-
-            /* Remove entity. */
             try {
-                /* Delete entity name from list. */
-                this.store.delete(entityRecId, Serializer.STRING)
+                /* Rename folder and of entity it for deletion. */
+                val shadowEntity = entity.path.resolveSibling(entity.path.fileName.toString() + "~dropped")
+                Files.move(entity.path, shadowEntity)
+
+                /* ON COMMIT: Remove schema from registry and delete files. */
+                this.postCommitAction.add {
+                    val pathsToDelete = Files.walk(shadowEntity).sorted(Comparator.reverseOrder()).collect(Collectors.toList())
+                    pathsToDelete.forEach { Files.deleteIfExists(it) }
+                    this.context.releaseLock(entity)
+                }
+
+                /* ON ROLLBACK: Re-map entity and move back files. */
+                this.postRollbackAction.add {
+                    Files.move(shadowEntity, entity.path)
+                    this@Schema.registry[name] = Entity(name, this@Schema)
+                    this.context.releaseLock(entity)
+                }
+
+                /* Delete entry for entity. */
+                this@Schema.store.delete(entityRecId, Serializer.STRING)
 
                 /* Update header. */
-                val header = this.header
+                val header = this@Schema.header
                 header.modified = System.currentTimeMillis()
                 header.entities = header.entities.filter { it != entityRecId }.toLongArray()
-                this.store.update(HEADER_RECORD_ID, header, SchemaHeaderSerializer)
-
-                /* Commit. */
-                this.store.commit()
+                this@Schema.store.update(HEADER_RECORD_ID, header, SchemaHeaderSerializer)
             } catch (e: DBException) {
-                this.store.rollback()
+                this.status = TxStatus.ERROR
                 throw DatabaseException("Entity '$name' could not be dropped, because of an error in the underlying data store: ${e.message}!")
             }
-
-            /* Delete all files associated with the entity. */
-            val pathsToDelete = Files.walk(this.path.resolve("entity_${name.simple}")).sorted(Comparator.reverseOrder()).collect(Collectors.toList())
-            pathsToDelete.forEach { Files.deleteIfExists(it) }
-        }
-    }
-
-
-    /**
-     * Returns an instance of [Entity] if such an instance exists. If the [Entity] has been loaded before,
-     * that [Entity] is re-used. Otherwise, the [Entity] will be loaded from disk.
-     *
-     * @param name Name of the [Entity] to access.
-     */
-    fun entityForName(name: Name.EntityName): Entity = this.closeLock.read {
-        /* Check closed status. */
-        if (this.closed) {
-            throw IllegalStateException("Schema ${this.name} has been closed and cannot be used anymore.")
         }
 
-        this.entityLock.read {
-            if (!this.entities.contains(name)) throw DatabaseException.EntityDoesNotExistException(name)
-            this.cacheLock.withLock {
-                var ret = this.loaded[name]?.get()
-                return if (ret != null) {
-                    ret
-                } else {
-                    ret = Entity(name, this)
-                    this.loaded[name] = SoftReference(ret)
-                    ret
-                }
-            }
-        }
-    }
+        /**
+         * Performs a COMMIT of all changes made through this [Schema.Tx].
+         */
+        override fun performCommit() {
+            /* Perform commit. */
+            this@Schema.store.commit()
 
-    /**
-     * Closes this [Schema] and all the [Entity] objects that are contained within.
-     *
-     * Since locks to [DBO] or [Transaction][org.vitrivr.cottontail.database.general.Transaction]
-     * objects may be held by other threads, it can take a
-     * while for this method to complete.
-     */
-    override fun close() = this.closeLock.read {
-        if (!this.closed) {
-            this.cacheLock.withLock {
-                this.loaded.entries.removeIf {
-                    it.value.get()?.close()
-                    true
-                }
-            }
-            this.store.close()
-            this.closed = true
+            /* Execute post-commit actions. */
+            this.postCommitAction.forEach { it.run() }
+            this.postRollbackAction.clear()
+            this.postCommitAction.clear()
+        }
+
+        /**
+         * Performs a ROLLBACK of all changes made through this [Schema.Tx].
+         */
+        override fun performRollback() {
+            /* Perform rollback. */
+            this@Schema.store.rollback()
+
+            /* Execute post-rollback actions. */
+            this.postRollbackAction.forEach { it.run() }
+            this.postRollbackAction.clear()
+            this.postCommitAction.clear()
+        }
+
+        /**
+         * Releases the [closeLock] on the [Schema].
+         */
+        override fun cleanup() {
+            this@Schema.closeLock.unlockRead(this.closeStamp)
         }
     }
 }

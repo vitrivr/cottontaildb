@@ -15,11 +15,11 @@ import org.vitrivr.cottontail.database.queries.planning.rules.physical.implement
 import org.vitrivr.cottontail.database.queries.planning.rules.physical.implementation.UpdateImplementationRule
 import org.vitrivr.cottontail.database.queries.planning.rules.physical.index.BooleanIndexScanRule
 import org.vitrivr.cottontail.execution.TransactionManager
-import org.vitrivr.cottontail.execution.TransactionStatus
 import org.vitrivr.cottontail.execution.exceptions.ExecutionException
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.grpc.DMLGrpc
 import org.vitrivr.cottontail.model.exceptions.QueryException
+import org.vitrivr.cottontail.model.exceptions.TransactionException
 import org.vitrivr.cottontail.server.grpc.helper.GrpcQueryBinder
 import org.vitrivr.cottontail.server.grpc.operators.SpoolerSinkOperator
 import java.util.*
@@ -52,23 +52,15 @@ class DMLService(val catalogue: Catalogue, override val manager: TransactionMana
     /**
      * gRPC endpoint for handling UPDATE queries.
      */
-    override fun update(request: CottontailGrpc.UpdateMessage, responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) {
+    override fun update(request: CottontailGrpc.UpdateMessage, responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) = this.withTransactionContext(request.txId) function@{ tx ->
         /* Determine query ID. */
         val queryId = request.queryId.ifBlank { UUID.randomUUID().toString() }
-
-        /* Obtain transaction or create new one. */
-        val commitDirectly = !request.hasTxId()
-        val transaction = if (commitDirectly) {
-            this.manager.Transaction()
-        } else {
-            this.resumeTransaction(request.txId, responseObserver) ?: return
-        }
 
         try {
             val totalDuration = measureTime {
                 /* Bind query and create logical plan. */
                 val bindTimedValue = measureTimedValue {
-                    this.binder.parseAndBindUpdate(request, transaction)
+                    this.binder.parseAndBindUpdate(request, tx)
                 }
                 LOGGER.trace("Parsing & binding UPDATE $queryId took ${bindTimedValue.duration}.")
 
@@ -77,72 +69,58 @@ class DMLService(val catalogue: Catalogue, override val manager: TransactionMana
                     val candidates = this.planner.plan(bindTimedValue.value)
                     if (candidates.isEmpty()) {
                         responseObserver.onError(Status.INTERNAL.withDescription("UPDATE query execution failed because no valid execution plan could be produced").asException())
-                        return
+                        return@function
                     }
                     SpoolerSinkOperator(candidates.minByOrNull { it.totalCost }!!.toOperator(this.manager), queryId, 0, responseObserver)
                 }
                 LOGGER.trace("Planning UPDATE $queryId took ${plannedTimedValue.duration}.")
 
-                /* Execute query. */
-                transaction.execute(plannedTimedValue.value)
+                /* Execute UPDATE. */
+                tx.execute(plannedTimedValue.value)
             }
 
-            /* Finalize transaction. */
-            if (!commitDirectly && transaction.state === TransactionStatus.OPEN) {
-                transaction.commit()
-                LOGGER.trace("Executed UPDATE $queryId in $totalDuration.")
-            } else {
-                LOGGER.trace("Executed UPDATE $queryId in $totalDuration (pending commit).")
-            }
+            /* Finalize invocation. */
             responseObserver.onCompleted()
+            LOGGER.trace("Executed UPDATE $queryId in $totalDuration.")
+        } catch (e: TransactionException.TransactionNotFoundException) {
+            val message = "UPDATE query $queryId failed: Could not execute query $queryId because transaction ${e.txId} could not be resumed."
+            LOGGER.info(message)
+            responseObserver.onError(Status.FAILED_PRECONDITION.withDescription(message).asException())
         } catch (e: QueryException.QuerySyntaxException) {
             val message = "UPDATE query $queryId failed due to syntax error: ${e.message}"
             LOGGER.info(message)
             responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(message).asException())
-            transaction.rollback()
         } catch (e: QueryException.QueryBindException) {
             val message = "UPDATE query $queryId failed due to binding error: ${e.message}"
             LOGGER.info(message)
             responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(message).asException())
-            transaction.rollback()
         } catch (e: DeadlockException) {
             val message = "UPDATE query $queryId failed due to deadlock with other transaction: ${e.message}"
             LOGGER.info(message)
             responseObserver.onError(Status.ABORTED.withDescription(message).asException())
-            transaction.rollback()
         } catch (e: ExecutionException) {
             val message = "UPDATE query $queryId failed due to execution error: ${e.message}"
             LOGGER.info(message)
             responseObserver.onError(Status.INTERNAL.withDescription(message).asException())
-            transaction.rollback()
         } catch (e: Throwable) {
             val message = "UPDATE query $queryId failed due an unhandled error: ${e.message}"
             LOGGER.error(message, e)
             responseObserver.onError(Status.UNKNOWN.withDescription(message).asException())
-            transaction.rollback()
         }
     }
 
     /**
      * gRPC endpoint for handling DELETE queries.
      */
-    override fun delete(request: CottontailGrpc.DeleteMessage, responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) {
+    override fun delete(request: CottontailGrpc.DeleteMessage, responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) = this.withTransactionContext(request.txId) function@{ tx ->
         /* Determine query ID. */
         val queryId = request.queryId.ifBlank { UUID.randomUUID().toString() }
-
-        /* Obtain transaction or create new one. */
-        val commitDirectly = !request.hasTxId()
-        val transaction = if (commitDirectly) {
-            this.manager.Transaction()
-        } else {
-            this.resumeTransaction(request.txId, responseObserver) ?: return
-        }
 
         try {
             val totalDuration = measureTime {
                 /* Bind query and create logical plan. */
                 val bindTimedValue = measureTimedValue {
-                    this.binder.parseAndBindDelete(request, transaction)
+                    this.binder.parseAndBindDelete(request, tx)
                 }
                 LOGGER.trace("Parsing & binding DELETE $queryId took ${bindTimedValue.duration}.")
 
@@ -151,73 +129,59 @@ class DMLService(val catalogue: Catalogue, override val manager: TransactionMana
                     val candidates = this.planner.plan(bindTimedValue.value)
                     if (candidates.isEmpty()) {
                         responseObserver.onError(Status.INTERNAL.withDescription("DELETE query execution failed because no valid execution plan could be produced").asException())
-                        return
+                        return@function
                     }
                     val operator = candidates.minByOrNull { it.totalCost }!!.toOperator(this.manager)
                     SpoolerSinkOperator(operator, queryId, 0, responseObserver)
                 }
                 LOGGER.trace("Planning DELETE $queryId took ${planTimedValue.duration}.")
 
-                /* Execute query. */
-                transaction.execute(planTimedValue.value)
+                /* Execute UPDATE. */
+                tx.execute(planTimedValue.value)
             }
 
-            /* Finalize transaction. */
-            if (!commitDirectly && transaction.state === TransactionStatus.OPEN) {
-                transaction.commit()
-                LOGGER.trace("Executed DELETE $queryId in $totalDuration.")
-            } else {
-                LOGGER.trace("Executed DELETE $queryId in $totalDuration (pending commit).")
-            }
+            /* Finalize invocation. */
             responseObserver.onCompleted()
+            LOGGER.trace("Executed DELETE $queryId in $totalDuration.")
+        } catch (e: TransactionException.TransactionNotFoundException) {
+            val message = "DELETE query $queryId failed: Could not execute query $queryId because transaction ${e.txId} could not be resumed."
+            LOGGER.info(message)
+            responseObserver.onError(Status.FAILED_PRECONDITION.withDescription(message).asException())
         } catch (e: QueryException.QuerySyntaxException) {
             val message = "DELETE query $queryId failed due to syntax error: ${e.message}"
             LOGGER.info(message)
             responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(message).asException())
-            transaction.rollback()
         } catch (e: QueryException.QueryBindException) {
             val message = "DELETE query $queryId failed due to binding error: ${e.message}"
             LOGGER.info(message)
             responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(message).asException())
-            transaction.rollback()
         } catch (e: DeadlockException) {
             val message = "DELETE query $queryId failed due to deadlock with other transaction: ${e.message}"
             LOGGER.info(message)
             responseObserver.onError(Status.ABORTED.withDescription(message).asException())
-            transaction.rollback()
         } catch (e: ExecutionException) {
             val message = "DELETE query $queryId failed due to execution error: ${e.message}"
             LOGGER.info(message)
             responseObserver.onError(Status.INTERNAL.withDescription(message).asException())
-            transaction.rollback()
         } catch (e: Throwable) {
             val message = "DELETE query $queryId failed due an unhandled error: ${e.message}"
             LOGGER.error(message, e)
             responseObserver.onError(Status.UNKNOWN.withDescription(message).asException())
-            transaction.rollback()
         }
     }
 
     /**
      * gRPC endpoint for handling INSERT queries.
      */
-    override fun insert(request: CottontailGrpc.InsertMessage, responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) {
+    override fun insert(request: CottontailGrpc.InsertMessage, responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) = this.withTransactionContext(request.txId) function@{ tx ->
         /* Determine query ID. */
         val queryId = request.queryId.ifBlank { UUID.randomUUID().toString() }
-
-        /* Obtain transaction or create new one. */
-        val commitDirectly = !request.hasTxId()
-        val transaction = if (commitDirectly) {
-            this.manager.Transaction()
-        } else {
-            this.resumeTransaction(request.txId, responseObserver) ?: return
-        }
 
         try {
             val totalDuration = measureTime {
                 /* Bind query and create logical plan. */
                 val bindTimedValue = measureTimedValue {
-                    this.binder.parseAndBindInsert(request, transaction)
+                    this.binder.parseAndBindInsert(request, tx)
                 }
                 LOGGER.info("Parsing & binding INSERT $queryId took ${bindTimedValue.duration}.")
 
@@ -226,50 +190,44 @@ class DMLService(val catalogue: Catalogue, override val manager: TransactionMana
                     val candidates = this.planner.plan(bindTimedValue.value)
                     if (candidates.isEmpty()) {
                         responseObserver.onError(Status.INTERNAL.withDescription("INSERT query execution failed because no valid execution plan could be produced").asException())
-                        return
+                        return@function
                     }
                     val operator = candidates.minByOrNull { it.totalCost }!!.toOperator(this.manager)
                     SpoolerSinkOperator(operator, queryId, 0, responseObserver)
                 }
                 LOGGER.info("Planning INSERT $queryId took ${planTimedValue.duration}.")
 
-                /* Execute query. */
-                transaction.execute(planTimedValue.value)
+                /* Execute INSERT. */
+                tx.execute(planTimedValue.value)
             }
 
-            /* Finalize transaction. */
-            if (!commitDirectly && transaction.state === TransactionStatus.OPEN) {
-                transaction.commit()
-                LOGGER.trace("Executed INSERT $queryId in $totalDuration.")
-            } else {
-                LOGGER.trace("Executed INSERT $queryId in $totalDuration (pending commit).")
-            }
+            /* Finalize invocation. */
             responseObserver.onCompleted()
+            LOGGER.trace("Executed INSERT $queryId in $totalDuration.")
+        } catch (e: TransactionException.TransactionNotFoundException) {
+            val message = "INSERT query $queryId failed: Could not execute query $queryId because transaction ${e.txId} could not be resumed."
+            LOGGER.info(message)
+            responseObserver.onError(Status.FAILED_PRECONDITION.withDescription(message).asException())
         } catch (e: QueryException.QuerySyntaxException) {
             val message = "INSERT query $queryId failed due to syntax error: ${e.message}"
             LOGGER.info(message)
             responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(message).asException())
-            transaction.rollback()
         } catch (e: QueryException.QueryBindException) {
             val message = "INSERT query $queryId failed due to binding error: ${e.message}"
             LOGGER.info(message)
             responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(message).asException())
-            transaction.rollback()
         } catch (e: DeadlockException) {
             val message = "INSERT query $queryId failed due to deadlock with other transaction: ${e.message}"
             LOGGER.info(message)
             responseObserver.onError(Status.ABORTED.withDescription(message).asException())
-            transaction.rollback()
         } catch (e: ExecutionException) {
             val message = "INSERT query $queryId failed due to execution error: ${e.message}"
             LOGGER.info(message)
             responseObserver.onError(Status.INTERNAL.withDescription(message).asException())
-            transaction.rollback()
         } catch (e: Throwable) {
             val message = "INSERT query $queryId failed due an unhandled error: ${e.message}"
             LOGGER.error(message, e)
             responseObserver.onError(Status.UNKNOWN.withDescription(message).asException())
-            transaction.rollback()
         }
     }
 }

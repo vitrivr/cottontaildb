@@ -7,8 +7,18 @@ package org.vitrivr.cottontail.execution
  * @version 1.1.0
  */
 enum class TransactionStatus {
-    OPEN,  /** [TransactionManager.Transaction] is running and able to process queries. */
-    ERROR, /** [TransactionManager.Transaction] marked for rollback due to an execution error. */
-    ROLLBACK, /** [TransactionManager.Transaction] was marked for rollback. */
-    COMMIT, /** [TransactionManager.Transaction] was marked for commit. */
+    READY,
+
+    /** [TransactionManager.Transaction] is ready and able to process queries. */
+    RUNNING,
+
+    /** [TransactionManager.Transaction] is running and therefore new queries have to wait. */
+    ERROR,
+
+    /** [TransactionManager.Transaction] was marked for rollback due to an execution error. */
+    ROLLBACK,
+
+    /** [TransactionManager.Transaction] was rolled back. Execution not possible. */
+    COMMIT,
+    /** [TransactionManager.Transaction] was committed. Execution not possible. */
 }

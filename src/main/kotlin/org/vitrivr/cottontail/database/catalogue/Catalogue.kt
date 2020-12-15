@@ -1,24 +1,30 @@
 package org.vitrivr.cottontail.database.catalogue
 
-import org.mapdb.CottontailStoreWAL
-import org.mapdb.DBException
-import org.mapdb.StoreWAL
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
+
+import org.mapdb.*
 import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.database.entity.Entity
+import org.vitrivr.cottontail.database.general.AbstractTx
 import org.vitrivr.cottontail.database.general.DBO
+import org.vitrivr.cottontail.database.general.TxStatus
+import org.vitrivr.cottontail.database.locking.LockMode
 import org.vitrivr.cottontail.database.schema.Schema
 import org.vitrivr.cottontail.database.schema.SchemaHeader
 import org.vitrivr.cottontail.database.schema.SchemaHeaderSerializer
+import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
+import org.vitrivr.cottontail.utilities.extensions.read
+import org.vitrivr.cottontail.utilities.extensions.write
+
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.StandardCopyOption
 import java.util.*
-import java.util.concurrent.locks.ReentrantReadWriteLock
+import java.util.concurrent.locks.StampedLock
 import java.util.stream.Collectors
-import kotlin.concurrent.read
-import kotlin.concurrent.write
 
 
 /**
@@ -28,9 +34,20 @@ import kotlin.concurrent.write
  * @see Schema
  *
  * @author Ralph Gasser
- * @version 1.1
+ * @version 1.1.0
  */
 class Catalogue(val config: Config) : DBO {
+    /**
+     * Companion object to [Catalogue]
+     */
+    companion object {
+        /** ID of the schema header! */
+        internal const val HEADER_RECORD_ID: Long = 1L
+
+        /** Filename for the [Entity] catalogue.  */
+        internal const val FILE_CATALOGUE = "catalogue.db"
+    }
+
     /** Root to Cottontail DB root folder. */
     override val path: Path = config.root
 
@@ -41,10 +58,7 @@ class Catalogue(val config: Config) : DBO {
     override val parent: DBO? = null
 
     /** A lock used to mediate access to this [Catalogue]. */
-    private val lock = ReentrantReadWriteLock()
-
-    /** A in-memory registry of all the [Schema]s contained in this [Catalogue]. When a [Catalogue] is opened, all the [Schema]s will be loaded. */
-    private val registry: HashMap<Name.SchemaName, Schema> = HashMap()
+    private val closeLock = StampedLock()
 
     /** The [StoreWAL] that contains the Cottontail DB catalogue. */
     private val store: CottontailStoreWAL = path.let {
@@ -61,38 +75,17 @@ class Catalogue(val config: Config) : DBO {
         get() = this.store.get(HEADER_RECORD_ID, CatalogueHeaderSerializer)
                 ?: throw DatabaseException.DataCorruptionException("Failed to open Cottontail DB catalogue header!")
 
-    /** List of [Schema] names registered in this [Catalogue]. */
-    val schemas: Collection<Name.SchemaName>
-        get() = this.lock.read { this.registry.keys.toList() }
+    /** A in-memory registry of all the [Schema]s contained in this [Catalogue]. When a [Catalogue] is opened, all the [Schema]s will be loaded. */
+    private val registry: MutableMap<Name.SchemaName, Schema> = Collections.synchronizedMap(Object2ObjectOpenHashMap<Name.SchemaName, Schema>())
 
     /** Size of this [Catalogue] in terms of [Schema]s it contains. */
     val size: Int
-        get() = this.lock.read { this.header.schemas.size }
+        get() = this.closeLock.read { this.header.schemas.size }
 
     /** Status indicating whether this [Catalogue] is open or closed. */
     @Volatile
     override var closed: Boolean = false
         private set
-
-    /**
-     * Closes the [Catalogue] and all objects contained within.
-     */
-    override fun close() = this.lock.write {
-        this.registry.forEach { (_, v) -> v.close() }
-        this.store.close()
-        this.closed = true
-    }
-
-    /**
-     * Handles finalization of the [Catalogue].
-     */
-    @Synchronized
-    protected fun finalize() {
-        if (!this.closed) {
-            /* Should not happen! */
-            this.close()
-        }
-    }
 
     /** Initialization logic for [Catalogue]. */
     init {
@@ -104,109 +97,11 @@ class Catalogue(val config: Config) : DBO {
             if (!Files.exists(path)) {
                 throw DatabaseException.DataCorruptionException("Broken catalogue entry for schema '${schema.name}'. Path $path does not exist!")
             }
-            val s = Schema(Name.SchemaName(schema.name), path, this)
+            val s = Schema(Name.SchemaName(schema.name), this)
             this.registry[s.name] = s
         }
     }
 
-    /**
-     * Creates a new, empty [Schema] with the given [Name.SchemaName] and [Path]
-     *
-     * @param name The [Name.SchemaName] of the new [Schema].
-     * @param data The path where this new [Schema] will be located. Defaults to a path relative to the current one.
-     */
-    fun createSchema(name: Name.SchemaName) = this.lock.write {
-        /* Check if schema with that name exists. */
-        if (this.registry.containsKey(name)) {
-            throw DatabaseException.SchemaAlreadyExistsException(name)
-        }
-
-        /* Create empty folder for entity. */
-        val path = this.path.resolve("schema_${name.simple}")
-        try {
-            if (!Files.exists(path)) {
-                Files.createDirectories(path)
-            } else {
-                throw DatabaseException("Failed to create schema '$name'. Data directory '$path' seems to be occupied.")
-            }
-        } catch (e: IOException) {
-            throw DatabaseException("Failed to create schema '$name' due to an IO exception: ${e.message}")
-        }
-
-        /* Generate the store for the new schema and update catalogue. */
-        try {
-            /* Create new store. */
-            val store = this.config.mapdb.store(path.resolve(Schema.FILE_CATALOGUE))
-            store.put(SchemaHeader(), SchemaHeaderSerializer)
-            store.commit()
-            store.close()
-
-            /* Update catalogue. */
-            val sid = this.store.put(CatalogueEntry(name.simple), CatalogueEntrySerializer)
-
-            /* Update header. */
-            val new = this.header.let { CatalogueHeader(it.size + 1, it.created, System.currentTimeMillis(), it.schemas.copyOf(it.schemas.size + 1)) }
-            new.schemas[new.schemas.size - 1] = sid
-            this.store.update(HEADER_RECORD_ID, new, CatalogueHeaderSerializer)
-            this.store.commit()
-        } catch (e: DBException) {
-            this.store.rollback()
-            val pathsToDelete = Files.walk(path).sorted(Comparator.reverseOrder()).collect(Collectors.toList())
-            pathsToDelete.forEach { Files.delete(it) }
-            throw DatabaseException("Failed to create schema '$name' due to a storage exception: ${e.message}")
-        }
-
-        /* Add schema to local map. */
-        this.registry[name] = Schema(name, path, this)
-    }
-
-    /**
-     * Drops an existing [Schema] with the given [Name.SchemaName].
-     *
-     * <strong>Warning:</strong> Dropping a [Schema] deletes all the files associated with it [Schema]!
-     *
-     * @param name The [Name.SchemaName] of the [Schema] to be dropped.
-     */
-    fun dropSchema(name: Name.SchemaName) = this.lock.write {
-        /* Try to close the schema. Open registry cannot be dropped. */
-        (this.registry[name] ?: throw DatabaseException.SchemaDoesNotExistException(name)).close()
-
-        /* Extract the catalogue entry. */
-        val catalogueEntry = this.header.schemas
-                .map {
-                    it to (this.store.get(it, CatalogueEntrySerializer) ?: throw DatabaseException.DataCorruptionException("Failed to read Cottontail DB catalogue entry for SID=$it!"))
-                }
-                .find { it.second.name == name.simple }
-                ?: throw DatabaseException("Failed to drop schema '$name'. Did not find a Cottontail DB catalogue entry for schema $name!")
-
-        /* Remove catalogue entry + update header. */
-        try {
-            this.store.delete(catalogueEntry.first, CatalogueEntrySerializer)
-            val new = this.header.let { CatalogueHeader(it.size - 1, it.created, System.currentTimeMillis(), it.schemas.filter { it != catalogueEntry.first }.toLongArray()) }
-            this.store.update(HEADER_RECORD_ID, new, CatalogueHeaderSerializer)
-            this.store.commit()
-        } catch (e: DBException) {
-            this.store.rollback()
-            throw DatabaseException("Failed to drop schema '$name' due to a storage exception: ${e.message}")
-        }
-
-        /* Remove schema from registry. */
-        this.registry.remove(name)
-
-        /* Delete files that belong to the schema. */
-        val path = this.path.resolve("schema_${name.simple}")
-        val pathsToDelete = Files.walk(path).sorted(Comparator.reverseOrder()).collect(Collectors.toList())
-        pathsToDelete.forEach { Files.delete(it) }
-    }
-
-    /**
-     * Returns the [Schema] for the given [Name.SchemaName].
-     *
-     * @param name [Name.SchemaName] of the [Schema].
-     */
-    fun schemaForName(name: Name.SchemaName): Schema = this.lock.read {
-        this.registry[name] ?: throw DatabaseException.SchemaDoesNotExistException(name)
-    }
 
     /**
      * Opens the data store underlying this Cottontail DB [Catalogue]
@@ -245,13 +140,201 @@ class Catalogue(val config: Config) : DBO {
     }
 
     /**
-     * Companion object to [Catalogue]
+     * Creates and returns a new [Catalogue.Tx] for the given [TransactionContext].
+     *
+     * @param context The [TransactionContext] to create the [Catalogue.Tx] for.
+     * @return New [Catalogue.Tx]
      */
-    companion object {
-        /** ID of the schema header! */
-        internal const val HEADER_RECORD_ID: Long = 1L
+    override fun newTx(context: TransactionContext): Tx = Tx(context)
 
-        /** Filename for the [Entity] catalogue.  */
-        internal const val FILE_CATALOGUE = "catalogue.db"
+    /**
+     * Closes the [Catalogue] and all objects contained within.
+     */
+    override fun close() = this.closeLock.write {
+        this.registry.forEach { (_, v) -> v.close() }
+        this.store.close()
+        this.closed = true
+    }
+
+    /**
+     * A [Tx] that affects this [Catalogue].
+     *
+     * @author Ralph Gasser
+     * @version 1.0.0
+     */
+    inner class Tx(context: TransactionContext) : AbstractTx(context), CatalogueTx {
+
+        /** Reference to the [Catalogue] this [CatalogueTx] belongs to. */
+        override val dbo: Catalogue
+            get() = this@Catalogue
+
+        /** Obtains a global (non-exclusive) read-lock on [Catalogue]. Prevents enclosing [Schema] from being closed. */
+        private val closeStamp = this@Catalogue.closeLock.readLock()
+
+        /** Actions that should be executed after committing this [Tx]. */
+        private val postCommitAction = mutableListOf<Runnable>()
+
+        /** Actions that should be executed after rolling back this [Tx]. */
+        private val postRollbackAction = mutableListOf<Runnable>()
+
+        /**
+         * Returns a list of [Name.SchemaName] held by this [Catalogue].
+         *
+         * @return [List] of all [Name.SchemaName].
+         */
+        override fun listSchemas(): List<Name.SchemaName> = this.withReadLock {
+            this@Catalogue.header.schemas.map {
+                Name.SchemaName(this@Catalogue.store.get(it, Serializer.STRING)
+                        ?: throw DatabaseException.DataCorruptionException("Failed to read catalogue ($path): Could not find schema name of RecId $it."))
+            }
+        }
+
+        /**
+         * Returns the [Schema] for the given [Name.SchemaName].
+         *
+         * @param name [Name.SchemaName] to obtain the [Schema] for.
+         */
+        override fun schemaForName(name: Name.SchemaName): Schema = this.withReadLock {
+            this@Catalogue.registry[name]
+                    ?: throw DatabaseException.SchemaDoesNotExistException(name)
+        }
+
+        /**
+         * Creates a new, empty [Schema] with the given [Name.SchemaName] and [Path]
+         *
+         * @param name The [Name.SchemaName] of the new [Schema].
+         */
+        override fun createSchema(name: Name.SchemaName) = this.withWriteLock {
+            /* Check if schema with that name exists. */
+            if (this.listSchemas().contains(name)) throw DatabaseException.SchemaAlreadyExistsException(name)
+
+            try {
+                /* Create empty folder for entity. */
+                val path = this@Catalogue.path.resolve("schema_${name.simple}")
+                if (!Files.exists(path)) {
+                    Files.createDirectories(path)
+                } else {
+                    throw DatabaseException("Failed to create schema '$name'. Data directory '$path' seems to be occupied.")
+                }
+
+                /* ON COMMIT: Make schema available. */
+                this.postCommitAction.add {
+                    this@Catalogue.registry[name] = Schema(name, this@Catalogue)
+                }
+
+                /* ON ROLLBACK: Remove schema folder. */
+                this.postRollbackAction.add {
+                    val pathsToDelete = Files.walk(path).sorted(Comparator.reverseOrder()).collect(Collectors.toList())
+                    pathsToDelete.forEach { Files.delete(it) }
+                }
+
+                /* Generate the store for the new schema. */
+                val store = this@Catalogue.config.mapdb.store(path.resolve(Schema.FILE_CATALOGUE))
+                store.put(SchemaHeader(), SchemaHeaderSerializer)
+                store.commit()
+                store.close()
+
+                /* Update catalogue. */
+                val sid = this@Catalogue.store.put(CatalogueEntry(name.simple), CatalogueEntrySerializer)
+
+                /* Update header. */
+                val new = this@Catalogue.header.let { CatalogueHeader(it.size + 1, it.created, System.currentTimeMillis(), it.schemas.copyOf(it.schemas.size + 1)) }
+                new.schemas[new.schemas.size - 1] = sid
+                this@Catalogue.store.update(HEADER_RECORD_ID, new, CatalogueHeaderSerializer)
+            } catch (e: DBException) {
+                this.status = TxStatus.ERROR
+                throw DatabaseException("Failed to create schema '$name' due to a storage exception: ${e.message}")
+            } catch (e: IOException) {
+                throw DatabaseException("Failed to create schema '$name' due to an IO exception: ${e.message}")
+            }
+        }
+
+        /**
+         * Drops an existing [Schema] with the given [Name.SchemaName].
+         *
+         * @param name The [Name.SchemaName] of the [Schema] to be dropped.
+         */
+        override fun dropSchema(name: Name.SchemaName) = this.withWriteLock {
+            /* Obtain schema and acquire exclusive lock on it. */
+            val schema = this.schemaForName(name)
+            if (this.context.lockOn(schema) == LockMode.NO_LOCK) {
+                this.context.requestLock(schema, LockMode.EXCLUSIVE)
+            }
+
+            /* Close schema and remove from registry. This is a reversible operation! */
+            schema.close()
+            this@Catalogue.registry.remove(name)
+
+            /* Remove catalogue entry + update header. */
+            try {
+                /* Rename folder and mark it for deletion. */
+                val shadowSchema = schema.path.resolveSibling(schema.path.fileName.toString() + "~dropped")
+                Files.move(schema.path, shadowSchema, StandardCopyOption.ATOMIC_MOVE)
+
+                /* ON ROLLBACK: Move back schema data and re-open it. */
+                this.postRollbackAction.add {
+                    Files.move(shadowSchema, schema.path)
+                    this@Catalogue.registry[name] = Schema(name, this@Catalogue)
+                    this.context.releaseLock(schema)
+                }
+
+                /* ON COMMIT: Remove schema from registry and delete files. */
+                this.postCommitAction.add {
+                    val pathsToDelete = Files.walk(shadowSchema).sorted(Comparator.reverseOrder()).collect(Collectors.toList())
+                    pathsToDelete.forEach { Files.deleteIfExists(it) }
+                    this.context.releaseLock(schema)
+                }
+
+                /* Extract the catalogue entry. */
+                val catalogueEntry = this@Catalogue.header.schemas.map {
+                    it to (this@Catalogue.store.get(it, CatalogueEntrySerializer)
+                            ?: throw DatabaseException.DataCorruptionException("Failed to read Cottontail DB catalogue entry for RecId $it!"))
+                }.find { it.second.name == name.simple }
+                        ?: throw DatabaseException.DataCorruptionException("Failed to drop schema '$name'. Did not find a Cottontail DB catalogue entry for schema $name!")
+
+                this@Catalogue.store.delete(catalogueEntry.first, CatalogueEntrySerializer)
+                val new = this@Catalogue.header.let { CatalogueHeader(it.size - 1, it.created, System.currentTimeMillis(), it.schemas.filter { it != catalogueEntry.first }.toLongArray()) }
+                this@Catalogue.store.update(HEADER_RECORD_ID, new, CatalogueHeaderSerializer)
+            } catch (e: DBException) {
+                this.status = TxStatus.ERROR
+                throw DatabaseException("Failed to drop schema '$name' due to a storage exception: ${e.message}")
+            } catch (e: IOException) {
+                this.status = TxStatus.ERROR
+                throw DatabaseException("Failed to drop schema '$name' due to a IO exception: ${e.message}")
+            }
+        }
+
+        /**
+         * Performs a commit of all changes made through this [Catalogue.Tx].
+         */
+        override fun performCommit() {
+            /* Perform commit. */
+            this@Catalogue.store.commit()
+
+            /* Execute post-commit actions. */
+            this.postCommitAction.forEach { it.run() }
+            this.postRollbackAction.clear()
+            this.postCommitAction.clear()
+        }
+
+        /**
+         * Performs a rollback of all changes made through this [Catalogue.Tx].
+         */
+        override fun performRollback() {
+            /* Perform rollback. */
+            this@Catalogue.store.rollback()
+
+            /* Execute post-rollback actions. */
+            this.postRollbackAction.forEach { it.run() }
+            this.postRollbackAction.clear()
+            this.postCommitAction.clear()
+        }
+
+        /**
+         * Releases the [closeLock] on the [Catalogue].
+         */
+        override fun cleanup() {
+            this@Catalogue.closeLock.unlockRead(this.closeStamp)
+        }
     }
 }

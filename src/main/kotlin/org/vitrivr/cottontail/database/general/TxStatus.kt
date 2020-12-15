@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.database.general
 
-enum class TransactionStatus {
+enum class TxStatus {
     CLEAN
     /** Transaction has not been used to modify anything yet. */
     ,

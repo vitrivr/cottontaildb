@@ -6,16 +6,18 @@ import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.database.column.Column
 import org.vitrivr.cottontail.database.column.ColumnType
 import org.vitrivr.cottontail.database.entity.Entity
+import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.events.DataChangeEvent
 import org.vitrivr.cottontail.database.index.Index
-import org.vitrivr.cottontail.database.index.IndexTransaction
+import org.vitrivr.cottontail.database.index.IndexTx
 import org.vitrivr.cottontail.database.index.IndexType
-import org.vitrivr.cottontail.database.index.hash.UniqueHashIndex
+import org.vitrivr.cottontail.database.index.hash.NonUniqueHashIndex
 import org.vitrivr.cottontail.database.index.lsh.superbit.SuperBitLSHIndex
 import org.vitrivr.cottontail.database.queries.components.AtomicBooleanPredicate
 import org.vitrivr.cottontail.database.queries.components.KnnPredicate
 import org.vitrivr.cottontail.database.queries.components.Predicate
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
+import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.math.knn.selection.ComparablePair
 import org.vitrivr.cottontail.math.knn.selection.MinHeapSelection
 import org.vitrivr.cottontail.model.basics.*
@@ -23,7 +25,6 @@ import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.recordset.Recordset
 import org.vitrivr.cottontail.model.values.DoubleValue
 import org.vitrivr.cottontail.model.values.types.VectorValue
-import org.vitrivr.cottontail.utilities.extensions.read
 import org.vitrivr.cottontail.utilities.extensions.write
 import java.nio.file.Path
 
@@ -115,16 +116,16 @@ class VAPlusIndex(override val name: Name.IndexName, override val parent: Entity
     }.sum()
 
     /**
-     * Opens and returns a new [IndexTransaction] object that can be used to interact with this [Index].
+     * Opens and returns a new [IndexTx] object that can be used to interact with this [Index].
      *
-     * @param parent If the [Entity.Tx] that requested the [IndexTransaction].
+     * @param context [TransactionContext] that requested the [IndexTx].
      */
-    override fun begin(parent: Entity.Tx): IndexTransaction = Tx(parent)
+    override fun newTx(context: TransactionContext): IndexTx = Tx(context)
 
     /**
      * Closes this [VAPlusIndex] and the associated data structures.
      */
-    override fun close() = this.globalLock.write {
+    override fun close() = this.closeLock.write {
         if (!this.closed) {
             this.db.close()
             this.closed = true
@@ -132,16 +133,17 @@ class VAPlusIndex(override val name: Name.IndexName, override val parent: Entity
     }
 
     /**
-     * A [IndexTransaction] that affects this [UniqueHashIndex].
+     * An [IndexTx] that affects this [NonUniqueHashIndex].
+     *
+     * @author Ralph Gasser
+     * @version 1.3.0
      */
-    private inner class Tx(parent: Entity.Tx) : Index.Tx(parent) {
+    private inner class Tx(context: TransactionContext) : Index.Tx(context) {
 
         /**
          * (Re-)builds the [VAPlusIndex].
          */
-        override fun rebuild() = this.localLock.read {
-            checkValidForWrite()
-
+        override fun rebuild() = this.withWriteLock {
             /* Clear existing map. */
             this@VAPlusIndex.signatures.clear()
 
@@ -151,8 +153,11 @@ class VAPlusIndex(override val name: Name.IndexName, override val parent: Entity
             val minimumNumberOfTuples = 1000
             val dimension = this.columns[0].logicalSize
 
+            /* Get transaction on entity. */
+            val txn = this.context.getTx(this.dbo.parent) as EntityTx
+
             // VA-file get data sample
-            val dataSampleTmp = vaPlus.getDataSample(this.parent, this.columns, maxOf(trainingSize, minimumNumberOfTuples))
+            val dataSampleTmp = vaPlus.getDataSample(txn, this.columns, maxOf(trainingSize, minimumNumberOfTuples))
 
             // VA-file in KLT domain
             val (dataSample, kltMatrix) = vaPlus.transformToKLTDomain(dataSampleTmp)
@@ -166,7 +171,7 @@ class VAPlusIndex(override val name: Name.IndexName, override val parent: Entity
 
             // Indexing
             val kltMatrixBar = kltMatrix.transpose()
-            this.parent.scan(this@VAPlusIndex.columns).forEach { record ->
+            txn.scan(this@VAPlusIndex.columns).forEach { record ->
                 val doubleArray = vaPlus.convertToDoubleArray(record[this.columns[0]] as VectorValue<*>)
                 val dataMatrix = MatrixUtils.createRealMatrix(arrayOf(doubleArray))
                 val vector = kltMatrixBar.multiply(dataMatrix.transpose()).getColumnVector(0).toArray()
@@ -184,8 +189,7 @@ class VAPlusIndex(override val name: Name.IndexName, override val parent: Entity
          *
          * @param update Collection of [DataChangeEvent]s to process.
          */
-        override fun update(update: Collection<DataChangeEvent>) = this.localLock.read {
-            checkValidForWrite()
+        override fun update(update: Collection<DataChangeEvent>) = this.withWriteLock {
             TODO()
         }
 
@@ -212,15 +216,11 @@ class VAPlusIndex(override val name: Name.IndexName, override val parent: Entity
 
             /* Performs some sanity checks. */
             init {
-                checkValidForRead()
-
                 if (this.predicate.columns.first() == this@VAPlusIndex.columns[0]) {
                     throw QueryException.UnsupportedPredicateException("Index '${this@VAPlusIndex.name}' (vaf-index) does not support the provided predicate.")
                 }
+                this@Tx.withReadLock { /* No op. */ }
             }
-
-            /** Generates a shared lock on the enclosing [Tx]. This lock is kept until the [CloseableIterator] is closed. */
-            private val stamp = this@Tx.localLock.readLock()
 
             /** Flag indicating whether this [CloseableIterator] has been closed. */
             @Volatile
@@ -272,7 +272,6 @@ class VAPlusIndex(override val name: Name.IndexName, override val parent: Entity
 
             override fun close() {
                 if (!this.closed) {
-                    this@Tx.localLock.unlock(this.stamp)
                     this.closed = true
                 }
             }
@@ -286,10 +285,6 @@ class VAPlusIndex(override val name: Name.IndexName, override val parent: Entity
         /** Performs the actual ROLLBACK operation by rolling back the [DB]. */
         override fun performRollback() {
             this@VAPlusIndex.db.rollback()
-        }
-
-        override fun cleanup() {
-            /* No Op. */
         }
     }
 }

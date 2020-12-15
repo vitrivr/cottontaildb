@@ -3,7 +3,7 @@ package org.vitrivr.cottontail.database.queries.planning.nodes.physical.predicat
 import org.vitrivr.cottontail.database.queries.components.BooleanPredicate
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalNodeExpression
-import org.vitrivr.cottontail.execution.ExecutionEngine
+import org.vitrivr.cottontail.execution.TransactionManager
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.predicates.FilterOperator
 import org.vitrivr.cottontail.execution.operators.predicates.ParallelFilterOperator
@@ -28,7 +28,7 @@ class FilterPhysicalNodeExpression(val predicate: BooleanPredicate, val selectiv
         get() = Cost(cpu = this.input.outputSize * this.predicate.cost * Cost.COST_MEMORY_ACCESS)
 
     override fun copy() = FilterPhysicalNodeExpression(this.predicate, this.selectivity)
-    override fun toOperator(engine: ExecutionEngine): Operator {
+    override fun toOperator(engine: TransactionManager): Operator {
         val parallelisation = Integer.min(this.cost.parallelisation(), MAX_PARALLELISATION)
         return if (parallelisation > 1) {
             val operators = this.input.partition(parallelisation).map { it.toOperator(engine) }

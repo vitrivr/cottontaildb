@@ -3,7 +3,7 @@ package org.vitrivr.cottontail.database.queries.planning.nodes.physical.sources
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.NullaryPhysicalNodeExpression
-import org.vitrivr.cottontail.execution.ExecutionEngine
+import org.vitrivr.cottontail.execution.TransactionManager
 import org.vitrivr.cottontail.execution.operators.sources.EntityCountOperator
 
 /**
@@ -17,7 +17,7 @@ data class EntityCountPhysicalNodeExpression(val entity: Entity) : NullaryPhysic
     override val canBePartitioned: Boolean = false
     override val cost = Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_MEMORY_ACCESS)
     override fun copy() = EntityCountPhysicalNodeExpression(this.entity)
-    override fun toOperator(engine: ExecutionEngine) = EntityCountOperator(this.entity)
+    override fun toOperator(engine: TransactionManager) = EntityCountOperator(this.entity)
     override fun partition(p: Int): List<NullaryPhysicalNodeExpression> {
         throw IllegalStateException("EntityCountPhysicalNodeExpression cannot be partitioned.")
     }

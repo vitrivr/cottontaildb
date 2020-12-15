@@ -6,22 +6,23 @@ import org.mapdb.Serializer
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.database.column.Column
 import org.vitrivr.cottontail.database.entity.Entity
+import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.events.DataChangeEvent
 import org.vitrivr.cottontail.database.events.DataChangeEventType
 import org.vitrivr.cottontail.database.index.Index
-import org.vitrivr.cottontail.database.index.IndexTransaction
+import org.vitrivr.cottontail.database.index.IndexTx
 import org.vitrivr.cottontail.database.index.IndexType
 import org.vitrivr.cottontail.database.queries.components.AtomicBooleanPredicate
 import org.vitrivr.cottontail.database.queries.components.ComparisonOperator
 import org.vitrivr.cottontail.database.queries.components.Predicate
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.schema.Schema
+import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.model.basics.*
-import org.vitrivr.cottontail.model.exceptions.ValidationException
+import org.vitrivr.cottontail.model.exceptions.TxException
 import org.vitrivr.cottontail.model.recordset.Recordset
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.types.Value
-import org.vitrivr.cottontail.utilities.extensions.read
 import org.vitrivr.cottontail.utilities.extensions.write
 import java.nio.file.Path
 import java.util.*
@@ -35,7 +36,7 @@ import java.util.*
  * @see Entity.Tx
  *
  * @author Ralph Gasser
- * @version 1.2.5
+ * @version 1.3.0
  */
 class UniqueHashIndex(override val name: Name.IndexName, override val parent: Entity, override val columns: Array<ColumnDef<*>>) : Index() {
 
@@ -102,16 +103,16 @@ class UniqueHashIndex(override val name: Name.IndexName, override val parent: En
     }
 
     /**
-     * Opens and returns a new [IndexTransaction] object that can be used to interact with this [Index].
+     * Opens and returns a new [IndexTx] object that can be used to interact with this [Index].
      *
-     * @param parent If the [Entity.Tx] that requested the [IndexTransaction].
+     * @param context [TransactionContext] to open the [Index.Tx] for.
      */
-    override fun begin(parent: Entity.Tx): IndexTransaction = Tx(parent)
+    override fun newTx(context: TransactionContext): IndexTx = Tx(context)
 
     /**
      * Closes this [UniqueHashIndex] and the associated data structures.
      */
-    override fun close() = this.globalLock.write {
+    override fun close() = this.closeLock.write {
         if (!this.closed) {
             this.db.close()
             this.closed = true
@@ -119,16 +120,17 @@ class UniqueHashIndex(override val name: Name.IndexName, override val parent: En
     }
 
     /**
-     * A [IndexTransaction] that affects this [UniqueHashIndex].
+     * An [IndexTx] that affects this [UniqueHashIndex].
+     *
+     * @author Ralph Gasser
+     * @version 1.3.0
      */
-    private inner class Tx(parent: Entity.Tx) : Index.Tx(parent) {
+    private inner class Tx(context: TransactionContext) : Index.Tx(context) {
+
         /**
          * (Re-)builds the [UniqueHashIndex].
          **/
-        override fun rebuild() = this.localLock.read {
-            /* Check if this [Tx] allowed to write. */
-            checkValidForWrite()
-
+        override fun rebuild() = this.withWriteLock {
             LOGGER.trace("Rebuilding unique hash index {}", this@UniqueHashIndex.name)
 
             /* Clear existing map. */
@@ -136,14 +138,15 @@ class UniqueHashIndex(override val name: Name.IndexName, override val parent: En
 
             /* (Re-)create index entries. */
             val localMap = this@UniqueHashIndex.map as HTreeMap<Value, TupleId>
-            this.parent.scan(this@UniqueHashIndex.columns).use { s ->
+            val txn = this.context.getTx(this.dbo.parent) as EntityTx
+            txn.scan(this@UniqueHashIndex.columns).use { s ->
                 s.forEach { record ->
                     val value = record[this.columns[0]]
-                            ?: throw ValidationException.IndexUpdateException(this.name, "A value cannot be null for instances of non-unique hash-index but tid=$tid is")
+                            ?: throw TxException.TxValidationException(this.context.txId, "A value cannot be null for instances of unique hash-index but tuple ${record.tupleId} is.")
                     if (!localMap.containsKey(value)) {
                         localMap[value] = record.tupleId
                     } else {
-                        LOGGER.warn("Value must be unique for instances of unique hash-index but '$value' (tid=$tid) is not! Skipping entry...")
+                        throw TxException.TxValidationException(this.context.txId, "Value $value must be unique for instances of unique hash-index but is not.")
                     }
                 }
             }
@@ -157,22 +160,20 @@ class UniqueHashIndex(override val name: Name.IndexName, override val parent: En
          *
          * @param update Collection of [DataChangeEvent]s to process.
          */
-        override fun update(update: Collection<DataChangeEvent>) = this.localLock.read {
-            /* Check if this [Tx] allowed to write. */
-            checkValidForWrite()
+        override fun update(update: Collection<DataChangeEvent>) = this.withWriteLock {
             val localMap = this@UniqueHashIndex.map as HTreeMap<Value, TupleId>
 
             /* Define action for inserting an entry based on a DataChangeEvent. */
             fun atomicInsert(event: DataChangeEvent) {
                 val newValue = event.new?.get(this.columns[0])
-                        ?: throw ValidationException.IndexUpdateException(this.name, "Values cannot be null for instances of UniqueHashIndex but tid=${event.new?.tupleId} is.")
+                        ?: throw TxException.TxValidationException(this.context.txId, "A value cannot be null for instances of unique hash-index but tuple ${event.new?.tupleId} is.")
                 localMap[newValue] = event.new.tupleId
             }
 
             /* Define action for deleting an entry based on a DataChangeEvent. */
             fun atomicDelete(event: DataChangeEvent) {
                 val oldValue = event.old?.get(this.columns[0])
-                        ?: throw ValidationException.IndexUpdateException(this.name, "Values cannot be null for instances of UniqueHashIndex but tid=${event.new?.tupleId} is.")
+                        ?: throw TxException.TxValidationException(this.context.txId, "A value cannot be null for instances of unique hash-index but tuple ${event.new?.tupleId} is.")
                 localMap.remove(oldValue)
             }
 
@@ -211,14 +212,11 @@ class UniqueHashIndex(override val name: Name.IndexName, override val parent: En
 
             /* Perform initial sanity checks. */
             init {
-                checkValidForRead()
                 require(predicate is AtomicBooleanPredicate<*>) { "NonUniqueHashIndex.filter() does only support AtomicBooleanPredicates." }
                 require(!predicate.not) { "NonUniqueHashIndex.filter() does not support negated statements (i.e. NOT EQUALS or NOT IN)." }
+                this@Tx.withReadLock { /* No op. */ }
                 this.predicate = predicate
             }
-
-            /** Generates a shared lock on the enclosing [Tx]. This lock is kept until the [CloseableIterator] is closed. */
-            private val lock = this@Tx.localLock.readLock()
 
             /** Flag indicating whether this [CloseableIterator] has been closed. */
             @Volatile
@@ -257,24 +255,19 @@ class UniqueHashIndex(override val name: Name.IndexName, override val parent: En
              */
             override fun close() {
                 if (!this.closed) {
-                    this@Tx.localLock.unlock(this.lock)
                     this.closed = true
                 }
             }
         }
 
-        /** Performs the actual COMMIT operation by rolling back the [IndexTransaction]. */
+        /** Performs the actual COMMIT operation by rolling back the [IndexTx]. */
         override fun performCommit() {
             this@UniqueHashIndex.db.commit()
         }
 
-        /** Performs the actual ROLLBACK operation by rolling back the [IndexTransaction]. */
+        /** Performs the actual ROLLBACK operation by rolling back the [IndexTx]. */
         override fun performRollback() {
             this@UniqueHashIndex.db.rollback()
-        }
-
-        override fun cleanup() {
-            /* No Op. */
         }
     }
 }

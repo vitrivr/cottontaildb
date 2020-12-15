@@ -22,6 +22,7 @@ import org.vitrivr.cottontail.cli.schema.CreateSchemaCommand
 import org.vitrivr.cottontail.cli.schema.DropSchemaCommand
 import org.vitrivr.cottontail.cli.schema.ListAllSchemaCommand
 import org.vitrivr.cottontail.cli.schema.ListEntitiesCommand
+import org.vitrivr.cottontail.cli.system.ListTransactionsCommand
 import org.vitrivr.cottontail.grpc.*
 import org.vitrivr.cottontail.server.grpc.services.DMLService
 import org.vitrivr.cottontail.server.grpc.services.TXNService
@@ -217,6 +218,7 @@ class Cli(val host: String = "localhost", val port: Int = 1865) {
             return mapOf(
                     "sls" to listOf("schema", "all"),
                     "els" to listOf("schema", "list"),
+                    "tls" to listOf("system", "list-transactions"),
                     "ls" to listOf("entity", "all"),
                     "edelete" to listOf("entity", "drop"),
                     "edel" to listOf("entity", "drop"),
@@ -226,9 +228,11 @@ class Cli(val host: String = "localhost", val port: Int = 1865) {
                     "del" to listOf("schema", "drop"),
                     "rm" to listOf("schema", "drop"),
                     "remove" to listOf("schema", "drop"),
-                    "li" to listOf("entity","list-indices"),
+                    "li" to listOf("entity", "list-indices"),
                     "quit" to listOf("stop"),
-                    "exit" to listOf("stop")
+                    "exit" to listOf("stop"),
+                    "schemas" to listOf("schema"),
+                    "entities" to listOf("entity"),
             )
         }
 
@@ -283,6 +287,26 @@ class Cli(val host: String = "localhost", val port: Int = 1865) {
                             DropSchemaCommand(this.ddlService),
                             ListAllSchemaCommand(this.ddlService),
                             ListEntitiesCommand(this.ddlService)
+                    ),
+
+                    /* Transaction related commands. */
+                    object : NoOpCliktCommand(
+                            name = "system",
+                            help = "Groups commands that act on the Cottontail DB on a system level.",
+                            epilog = "Transaction related commands usually have the form: system <command> <txId>, e.g., `transaction list-transactions`.",
+                            invokeWithoutSubcommand = true,
+                            printHelpOnEmptyArgs = true
+                    ) {
+                        override fun aliases(): Map<String, List<String>> {
+                            return mapOf(
+                                    "ls" to listOf("list"),
+                                    "tls" to listOf("transactions"),
+                                    "list-transactionstls" to listOf("transactions")
+                            )
+
+                        }
+                    }.subcommands(
+                            ListTransactionsCommand(this.txnService)
                     ),
 
                     /* General commands. */

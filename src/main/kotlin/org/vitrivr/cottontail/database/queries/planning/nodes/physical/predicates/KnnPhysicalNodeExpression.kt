@@ -4,7 +4,7 @@ import org.vitrivr.cottontail.database.queries.components.KnnPredicate
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalNodeExpression
 import org.vitrivr.cottontail.database.queries.predicates.KnnPredicateHint
-import org.vitrivr.cottontail.execution.ExecutionEngine
+import org.vitrivr.cottontail.execution.TransactionManager
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.predicates.KnnOperator
 import org.vitrivr.cottontail.execution.operators.predicates.ParallelKnnOperator
@@ -25,7 +25,7 @@ class KnnPhysicalNodeExpression(val knn: KnnPredicate<*>) : UnaryPhysicalNodeExp
         get() = Cost(cpu = this.input.outputSize * this.knn.cost, memory = (this.outputSize * this.knn.columns.map { it.physicalSize }.sum()).toFloat())
 
     override fun copy() = KnnPhysicalNodeExpression(this.knn)
-    override fun toOperator(engine: ExecutionEngine): Operator {
+    override fun toOperator(engine: TransactionManager): Operator {
         val hint = this.knn.hint
         val pMax = engine.availableThreads / 4
         val p = if (hint is KnnPredicateHint.ParallelKnnPredicateHint) {

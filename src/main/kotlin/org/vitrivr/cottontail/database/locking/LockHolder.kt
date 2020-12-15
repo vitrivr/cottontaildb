@@ -15,7 +15,11 @@ import java.util.*
  */
 open class LockHolder(val txId: TransactionId) : Comparable<LockHolder> {
     /** The [Lock]s held by this [Transaction]. */
-    private val locks = ObjectOpenHashSet<Lock>()
+    protected val locks = ObjectOpenHashSet<Lock>()
+
+    /** Returns the number of [Lock]s held by this [LockHolder]. */
+    val numberOfLocks: Int
+        get() = this.locks.size
 
     /**
      * Accessor for all [Lock]s held by this [LockHolder].

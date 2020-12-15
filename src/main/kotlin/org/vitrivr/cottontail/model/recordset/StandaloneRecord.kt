@@ -13,7 +13,7 @@ import org.vitrivr.cottontail.model.values.types.Value
  * large, as each [StandaloneRecord] has its own reference to the [ColumnDef]s it contains.
  *
  * @author Ralph Gasser
- * @version 1.0.1
+ * @version 1.0.2
  */
 class StandaloneRecord(override var tupleId: Long = Long.MIN_VALUE, override val columns: Array<ColumnDef<*>>, private val values: Array<Value?> = Array(columns.size) { null }) : Record {
 
@@ -21,7 +21,9 @@ class StandaloneRecord(override var tupleId: Long = Long.MIN_VALUE, override val
         /** Sanity check. */
         require(values.size == this.columns.size) { "The number of values must be equal to the number of columns held by the StandaloneRecord (v = ${values.size}, c = ${this.columns.size})" }
         this.columns.forEachIndexed { index, columnDef ->
-            columnDef.validateOrThrow(values[index])
+            if (!columnDef.validate(values[index])) {
+                throw IllegalArgumentException("Provided value ${values[index]} is incompatible with column ${columnDef}.")
+            }
         }
     }
 
@@ -80,7 +82,9 @@ class StandaloneRecord(override var tupleId: Long = Long.MIN_VALUE, override val
     override fun set(column: ColumnDef<*>, value: Value?) {
         val index = this.columns.indexOf(column)
         require(index > -1) { "The specified column ${column.name} (type=${column.type.name})  is not contained in this record." }
-        column.validateOrThrow(value)
+        if (!column.validate(value)) {
+            throw IllegalArgumentException("Provided value $value is incompatible with column $column.")
+        }
         this.values[index] = value
     }
 

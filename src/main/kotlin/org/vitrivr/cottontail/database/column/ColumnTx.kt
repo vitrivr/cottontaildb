@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.database.column
 
-import org.vitrivr.cottontail.database.general.Transaction
+import org.vitrivr.cottontail.database.general.Tx
 import org.vitrivr.cottontail.model.basics.CloseableIterator
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Countable
@@ -9,18 +9,23 @@ import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import org.vitrivr.cottontail.model.values.types.Value
 
 /**
- * A [Transaction] that operates on a single [Column]. [Transaction]s are a unit of isolation for data
- * operations (read/write). This interface defines the basic operations supported by such a [Transaction].
- * However, it does not dictate the isolation level. It is up to the implementation to define and implement
- * the desired level of isolation.
+ * A [Tx] that operates on a single [Column]. [Tx]s are a unit of isolation for data operations
+ * (read/write).
+ *
+ * This interface defines the basic operations supported by such a [Tx]. However,  it does not
+ * dictate the isolation level. It is up to the implementation to define and implement  the desired
+ * level of isolation.
  *
  * @author Ralph Gasser
- * @version 1.1
+ * @version 1.1.1
  */
-interface ColumnTransaction<T : Value> : Transaction, Countable {
+interface ColumnTx<T : Value> : Tx, Countable {
+    /** Reference to the [Column] this [ColumnTx] belongs to. */
+    override val dbo: Column<T>
 
-    /** The [ColumnDef] of the [Column] underlying this [ColumnTransaction]. */
+    /** The [ColumnDef] of the [Column] underlying this [ColumnTx]. */
     val columnDef: ColumnDef<T>
+        get() = this.dbo.columnDef
 
     /**
      * Gets and returns an entry from this [Column].
@@ -66,7 +71,7 @@ interface ColumnTransaction<T : Value> : Transaction, Countable {
     fun delete(tupleId: TupleId)
 
     /**
-     * Creates and returns a new [CloseableIterator] for this [ColumnTransaction] that returns all
+     * Creates and returns a new [CloseableIterator] for this [ColumnTx] that returns all
      * [TupleId]s contained within the surrounding [Column].
      *
      * @return [CloseableIterator]
@@ -74,7 +79,7 @@ interface ColumnTransaction<T : Value> : Transaction, Countable {
     fun scan(): CloseableIterator<Long>
 
     /**
-     * Creates and returns a new [CloseableIterator] for this [ColumnTransaction] that returns
+     * Creates and returns a new [CloseableIterator] for this [ColumnTx] that returns
      * all [TupleId]s contained within the surrounding [Column] and a certain range.
      *
      * @param range The [LongRange] that should be scanned.

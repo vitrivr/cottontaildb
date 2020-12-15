@@ -3,7 +3,7 @@ package org.vitrivr.cottontail.database.queries.planning.nodes.physical.projecti
 import org.vitrivr.cottontail.database.queries.components.Projection
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalNodeExpression
-import org.vitrivr.cottontail.execution.ExecutionEngine
+import org.vitrivr.cottontail.execution.TransactionManager
 import org.vitrivr.cottontail.execution.operators.projection.*
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.exceptions.QueryException
@@ -41,7 +41,7 @@ data class ProjectionPhysicalNodeExpression(val type: Projection, val fields: Li
         get() = Cost(cpu = this.outputSize * this.fields.size * Cost.COST_MEMORY_ACCESS)
 
     override fun copy() = ProjectionPhysicalNodeExpression(this.type, this.fields)
-    override fun toOperator(engine: ExecutionEngine) = when (this.type) {
+    override fun toOperator(engine: TransactionManager) = when (this.type) {
         Projection.SELECT -> SelectProjectionOperator(this.input.toOperator(engine), this.fields)
         Projection.SELECT_DISTINCT -> TODO()
         Projection.COUNT -> CountProjectionOperator(this.input.toOperator(engine))

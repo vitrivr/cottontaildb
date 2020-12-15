@@ -15,11 +15,11 @@ import org.vitrivr.cottontail.database.queries.planning.rules.physical.implement
 import org.vitrivr.cottontail.database.queries.planning.rules.physical.index.KnnIndexScanRule
 import org.vitrivr.cottontail.database.queries.planning.rules.physical.pushdown.CountPushdownRule
 import org.vitrivr.cottontail.execution.TransactionManager
-import org.vitrivr.cottontail.execution.TransactionStatus
 import org.vitrivr.cottontail.execution.exceptions.ExecutionException
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.grpc.DQLGrpc
 import org.vitrivr.cottontail.model.exceptions.QueryException
+import org.vitrivr.cottontail.model.exceptions.TransactionException
 import org.vitrivr.cottontail.server.grpc.helper.GrpcQueryBinder
 import org.vitrivr.cottontail.server.grpc.operators.SpoolerSinkOperator
 import java.util.*
@@ -67,24 +67,16 @@ class DQLService(val catalogue: Catalogue, override val manager: TransactionMana
     /**
      * gRPC endpoint for executing queries.
      */
-    override fun query(request: CottontailGrpc.QueryMessage, responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) {
+    override fun query(request: CottontailGrpc.QueryMessage, responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) = this.withTransactionContext(request.txId) function@{ tx ->
         /* Determine query ID. */
         val queryId = request.queryId.ifBlank { UUID.randomUUID().toString() }
-
-        /* Obtain transaction or create new one. */
-        val commitDirectly = !request.hasTxId()
-        val transaction = if (commitDirectly) {
-            this.manager.Transaction()
-        } else {
-            this.resumeTransaction(request.txId, responseObserver) ?: return
-        }
 
         try {
             /* Start query execution. */
             val totalDuration = measureTime {
                 /* Bind query and create logical plan. */
                 val bindTimedValue = measureTimedValue {
-                    this.binder.parseAndBindQuery(request.query, transaction)
+                    this.binder.parseAndBindQuery(request.query, tx)
                 }
                 LOGGER.trace("Parsing & binding query $queryId took ${bindTimedValue.duration}.")
 
@@ -93,7 +85,7 @@ class DQLService(val catalogue: Catalogue, override val manager: TransactionMana
                     val candidates = this.planner.plan(bindTimedValue.value)
                     if (candidates.isEmpty()) {
                         responseObserver.onError(Status.INTERNAL.withDescription("Query execution failed because no valid execution plan could be produced").asException())
-                        return
+                        return@function
                     }
                     val operator = candidates.minByOrNull { it.totalCost }!!.toOperator(this.manager)
                     SpoolerSinkOperator(operator, queryId, 0, responseObserver)
@@ -101,64 +93,52 @@ class DQLService(val catalogue: Catalogue, override val manager: TransactionMana
                 LOGGER.trace("Planning query $queryId took ${planTimedValue.duration}.")
 
                 /* Execute query in transaction context. */
-                transaction.execute(planTimedValue.value)
+                tx.execute(planTimedValue.value)
             }
 
             /* Finalize transaction. */
-            if (!commitDirectly && transaction.state === TransactionStatus.OPEN) {
-                transaction.commit()
-                LOGGER.trace("Executing query $queryId took $totalDuration to complete.")
-            }
+            LOGGER.trace("Executing query $queryId took $totalDuration to complete.")
             responseObserver.onCompleted()
+        } catch (e: TransactionException.TransactionNotFoundException) {
+            val message = "Could not execute query $queryId because transaction ${e.txId} could not be resumed."
+            LOGGER.info(message)
+            responseObserver.onError(Status.FAILED_PRECONDITION.withDescription(message).asException())
         } catch (e: QueryException.QuerySyntaxException) {
             val message = "Could not execute query $queryId due to syntax error: ${e.message}"
             LOGGER.info(message)
             responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(message).asException())
-            transaction.rollback()
         } catch (e: QueryException.QueryBindException) {
             val message = "Could not execute query $queryId because DBO could not be found: ${e.message}"
             LOGGER.info(message)
             responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(message).asException())
-            transaction.rollback()
         } catch (e: DeadlockException) {
             val message = "Could not execute query $queryId due to deadlock with other transaction: ${e.message}"
             LOGGER.info(message)
             responseObserver.onError(Status.ABORTED.withDescription(message).asException())
-            transaction.rollback()
         } catch (e: ExecutionException) {
             val message = "Could not execute query $queryId due to an unhandled execution error: ${e.message}"
             LOGGER.error(message, e)
             responseObserver.onError(Status.INTERNAL.withDescription(message).asException())
-            transaction.rollback()
         } catch (e: Throwable) {
             val message = "Could not execute query $queryId due to an unhandled error: ${e.message}"
             LOGGER.error(message, e)
             responseObserver.onError(Status.UNKNOWN.withDescription(message).asException())
-            transaction.rollback()
         }
     }
 
     /**
      * gRPC endpoint for explaining queries.
      */
-    override fun explain(request: CottontailGrpc.QueryMessage, responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>)  {
+    override fun explain(request: CottontailGrpc.QueryMessage, responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) = this.withTransactionContext(request.txId) function@{ tx ->
         /* Determine query ID. */
         val queryId = request.queryId.ifBlank { UUID.randomUUID().toString() }
-
-        /* Obtain transaction or create new one. */
-        val commitDirectly = !request.hasTxId()
-        val transaction = if (commitDirectly) {
-            this.manager.Transaction()
-        } else {
-            this.resumeTransaction(request.txId, responseObserver) ?: return
-        }
 
         try {
             /* Start query execution. */
             val totalDuration = measureTime {
                 /* Bind query and create logical plan. */
                 val bindTimedValue = measureTimedValue {
-                    this.binder.parseAndBindQuery(request.query, transaction)
+                    this.binder.parseAndBindQuery(request.query, tx)
                 }
                 LOGGER.trace("Parsing & binding query $queryId took ${bindTimedValue.duration}.")
 
@@ -167,7 +147,7 @@ class DQLService(val catalogue: Catalogue, override val manager: TransactionMana
                     val candidates = this.planner.plan(bindTimedValue.value)
                     if (candidates.isEmpty()) {
                         responseObserver.onError(Status.INTERNAL.withDescription("Query execution failed because no valid execution plan could be produced").asException())
-                        return
+                        return@function
                     }
 
                     /* Select candidate with lowest cos. */
@@ -179,37 +159,32 @@ class DQLService(val catalogue: Catalogue, override val manager: TransactionMana
                 LOGGER.trace("Planning query $queryId took ${planTimedValue.duration}.")
             }
 
-            /* Finalize transaction. */
-            if (!commitDirectly && transaction.state === TransactionStatus.OPEN) {
-                transaction.commit()
-            }
-            responseObserver.onCompleted()
             LOGGER.trace("Explaining query $queryId took $totalDuration to complete.")
+            responseObserver.onCompleted()
+        } catch (e: TransactionException.TransactionNotFoundException) {
+            val message = "Could not explain query $queryId because transaction ${e.txId} could not be resumed."
+            LOGGER.info(message)
+            responseObserver.onError(Status.FAILED_PRECONDITION.withDescription(message).asException())
         } catch (e: QueryException.QuerySyntaxException) {
             val message = "Could not explain query $queryId due to syntax error: ${e.message}"
             LOGGER.info(message)
             responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(message).asException())
-            transaction.rollback()
         } catch (e: QueryException.QueryBindException) {
             val message = "Could not explain query $queryId because DBO could not be found: ${e.message}"
             LOGGER.info(message)
             responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(message).asException())
-            transaction.rollback()
         } catch (e: DeadlockException) {
             val message = "Could not explain query $queryId due to deadlock with other transaction: ${e.message}"
             LOGGER.info(message)
             responseObserver.onError(Status.ABORTED.withDescription(message).asException())
-            transaction.rollback()
         } catch (e: ExecutionException) {
             val message = "Could not explain query $queryId due to an unhandled execution error: ${e.message}"
             LOGGER.error(message, e)
             responseObserver.onError(Status.INTERNAL.withDescription(message).asException())
-            transaction.rollback()
         } catch (e: Throwable) {
             val message = "Could not explain query $queryId due to an unhandled error: ${e.message}"
             LOGGER.error(message, e)
             responseObserver.onError(Status.UNKNOWN.withDescription(message).asException())
-            transaction.rollback()
         }
     }
 

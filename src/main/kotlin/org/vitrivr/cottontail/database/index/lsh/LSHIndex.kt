@@ -41,7 +41,7 @@ abstract class LSHIndex<T : VectorValue<*>>(final override val name: Name.IndexN
     /**
      * Closes this [SuperBitLSHIndex] and the associated data structures.
      */
-    final override fun close() = this.globalLock.write {
+    final override fun close() = this.closeLock.write {
         if (!this.closed) {
             this.db.close()
             this.closed = true

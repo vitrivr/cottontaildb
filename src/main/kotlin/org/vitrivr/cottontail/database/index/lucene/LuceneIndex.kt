@@ -13,21 +13,22 @@ import org.apache.lucene.store.NativeFSLockFactory
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.database.column.ColumnType
 import org.vitrivr.cottontail.database.entity.Entity
+import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.events.DataChangeEvent
 import org.vitrivr.cottontail.database.events.DataChangeEventType
 import org.vitrivr.cottontail.database.index.Index
-import org.vitrivr.cottontail.database.index.IndexTransaction
+import org.vitrivr.cottontail.database.index.IndexTx
 import org.vitrivr.cottontail.database.index.IndexType
 import org.vitrivr.cottontail.database.index.hash.UniqueHashIndex
 import org.vitrivr.cottontail.database.index.lsh.superbit.SuperBitLSHIndex
 import org.vitrivr.cottontail.database.queries.components.*
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
+import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.model.basics.*
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.FloatValue
 import org.vitrivr.cottontail.model.values.StringValue
-import org.vitrivr.cottontail.utilities.extensions.read
 import org.vitrivr.cottontail.utilities.extensions.write
 import java.nio.file.Path
 
@@ -36,7 +37,7 @@ import java.nio.file.Path
  * for string comparisons using the EQUAL or LIKE operator.
  *
  * @author Luca Rossetto & Ralph Gasser
- * @version 1.2.2
+ * @version 1.3.0
  */
 class LuceneIndex(override val name: Name.IndexName, override val parent: Entity, override val columns: Array<ColumnDef<*>>) : Index() {
 
@@ -125,16 +126,16 @@ class LuceneIndex(override val name: Name.IndexName, override val parent: Entity
     }
 
     /**
-     * Opens and returns a new [IndexTransaction] object that can be used to interact with this [Index].
+     * Opens and returns a new [IndexTx] object that can be used to interact with this [Index].
      *
-     * @param parent If the [Entity.Tx] that requested the [IndexTransaction].
+     * @param context If the [TransactionContext] to create the [IndexTx] for.
      */
-    override fun begin(parent: Entity.Tx): IndexTransaction = Tx(parent)
+    override fun newTx(context: TransactionContext): IndexTx = Tx(context)
 
     /**
      * Closes this [LuceneIndex] and the associated data structures.
      */
-    override fun close() = this.globalLock.write {
+    override fun close() = this.closeLock.write {
         if (!this.closed) {
             this.indexReader.close()
             this.directory.close()
@@ -143,34 +144,31 @@ class LuceneIndex(override val name: Name.IndexName, override val parent: Entity
     }
 
     /**
-     * A [IndexTransaction] that affects this [Index].
+     * An [IndexTx] that affects this [LuceneIndex].
+     *
+     * @author Ralph Gasser
+     * @version 1.3.0
      */
-    private inner class Tx(parent: Entity.Tx) : Index.Tx(parent) {
+    private inner class Tx(context: TransactionContext) : Index.Tx(context) {
 
         /** The [IndexWriter] instance used to access this [LuceneIndex]. */
-        private val writer = if (!this.readonly) {
-            IndexWriter(this@LuceneIndex.directory, IndexWriterConfig(StandardAnalyzer()).setOpenMode(IndexWriterConfig.OpenMode.APPEND).setMaxBufferedDocs(100_000).setCommitOnClose(false))
-        } else {
-            null
-        }
+        private val writer = IndexWriter(this@LuceneIndex.directory, IndexWriterConfig(StandardAnalyzer()).setOpenMode(IndexWriterConfig.OpenMode.APPEND).setMaxBufferedDocs(100_000).setCommitOnClose(false))
 
         /**
          * (Re-)builds the [LuceneIndex].
          */
-        override fun rebuild() = this.localLock.read {
-            checkValidForWrite()
-
+        override fun rebuild() = this.withWriteLock {
             LOGGER.trace("Rebuilding lucene index {}", this@LuceneIndex.name)
 
-            this.writer?.deleteAll()
+            this.writer.deleteAll()
             var count = 0
-            this.parent.scan(this@LuceneIndex.columns).use { s ->
+            val txn = this.context.getTx(this.dbo.parent) as EntityTx
+            txn.scan(this@LuceneIndex.columns).use { s ->
                 s.forEach { record ->
-                    this.writer?.addDocument(documentFromRecord(record))
+                    this.writer.addDocument(documentFromRecord(record))
                     count++
                 }
             }
-
             LOGGER.trace("Rebuilding lucene index complete!", this@LuceneIndex.name)
         }
 
@@ -180,18 +178,16 @@ class LuceneIndex(override val name: Name.IndexName, override val parent: Entity
          *
          * @param update Collection of [DataChangeEvent]s to process.
          */
-        override fun update(update: Collection<DataChangeEvent>) = this.localLock.read {
-            this.checkValidForWrite()
-
+        override fun update(update: Collection<DataChangeEvent>) = this.withWriteLock {
             /* Define action for inserting an entry based on a DataChangeEvent. */
             fun atomicInsert(event: DataChangeEvent) {
-                this.writer?.addDocument(documentFromRecord(event.new!!))
+                this.writer.addDocument(documentFromRecord(event.new!!))
             }
 
 
             /* Define action for deleting an entry based on a DataChangeEvent. */
             fun atomicDelete(event: DataChangeEvent) {
-                this.writer?.deleteDocuments(NumericDocValuesField.newSlowExactQuery(TID_COLUMN, event.old!!.tupleId))
+                this.writer.deleteDocuments(NumericDocValuesField.newSlowExactQuery(TID_COLUMN, event.old!!.tupleId))
             }
 
             /* Process the DataChangeEvents. */
@@ -237,17 +233,14 @@ class LuceneIndex(override val name: Name.IndexName, override val parent: Entity
 
             /* Performs some sanity checks. */
             init {
-                checkValidForRead()
-
                 if (!this.predicate.columns.all { this@LuceneIndex.columns.contains(it) })
                     throw QueryException.UnsupportedPredicateException("Index '${this@LuceneIndex.name}' (lucene-index) is lacking certain fields the provided predicate requires.")
 
                 if (!this.predicate.atomics.all { it.operator == ComparisonOperator.LIKE || it.operator == ComparisonOperator.EQUAL })
                     throw QueryException.UnsupportedPredicateException("Index '${this@LuceneIndex.name}' (lucene-index) can only process LIKE comparisons.")
-            }
 
-            /** Generates a shared lock on the enclosing [Tx]. This lock is kept until the [CloseableIterator] is closed. */
-            private val stamp = this@Tx.localLock.readLock()
+                this@Tx.withReadLock { }
+            }
 
             /** Number of [TupleId]s returned by this [CloseableIterator]. */
             @Volatile
@@ -292,7 +285,6 @@ class LuceneIndex(override val name: Name.IndexName, override val parent: Entity
              */
             override fun close() {
                 if (!this.closed) {
-                    this@Tx.localLock.unlock(this.stamp)
                     this.closed = true
                 }
             }
@@ -301,7 +293,7 @@ class LuceneIndex(override val name: Name.IndexName, override val parent: Entity
         /** Performs the actual COMMIT operation by committing the [IndexWriter] and updating the [IndexReader]. */
         override fun performCommit() {
             /* Commits changes made through the LuceneWriter. */
-            this.writer?.commit()
+            this.writer.commit()
 
             /* Opens new IndexReader and close new one. */
             val oldReader = this@LuceneIndex.indexReader
@@ -311,12 +303,13 @@ class LuceneIndex(override val name: Name.IndexName, override val parent: Entity
 
         /** Performs the actual ROLLBACK operation by rolling back the [IndexWriter]. */
         override fun performRollback() {
-            this.writer?.rollback()
+            this.writer.rollback()
         }
 
         /** Makes the necessary cleanup by closing the [IndexWriter]. */
         override fun cleanup() {
-            this.writer?.close()
+            this.writer.close()
+            super.cleanup()
         }
     }
 }

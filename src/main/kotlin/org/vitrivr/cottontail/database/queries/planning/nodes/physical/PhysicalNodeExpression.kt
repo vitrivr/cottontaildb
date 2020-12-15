@@ -3,7 +3,7 @@ package org.vitrivr.cottontail.database.queries.planning.nodes.physical
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.interfaces.NodeExpression
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.LogicalNodeExpression
-import org.vitrivr.cottontail.execution.ExecutionEngine
+import org.vitrivr.cottontail.execution.TransactionManager
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 
 /**
@@ -76,8 +76,8 @@ abstract class PhysicalNodeExpression : NodeExpression() {
     /**
      * Converts this [PhysicalNodeExpression] to the corresponding [Operator].
      *
-     * @param engine The [ExecutionEngine] the [Operator] should be executed in.
+     * @param engine The [TransactionManager] the [Operator] should be executed in.
      * @return [Operator]
      */
-    abstract fun toOperator(engine: ExecutionEngine): Operator
+    abstract fun toOperator(engine: TransactionManager): Operator
 }

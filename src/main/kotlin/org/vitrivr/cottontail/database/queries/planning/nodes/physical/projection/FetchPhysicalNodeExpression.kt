@@ -3,7 +3,7 @@ package org.vitrivr.cottontail.database.queries.planning.nodes.physical.projecti
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalNodeExpression
-import org.vitrivr.cottontail.execution.ExecutionEngine
+import org.vitrivr.cottontail.execution.TransactionManager
 import org.vitrivr.cottontail.execution.operators.transform.FetchOperator
 import org.vitrivr.cottontail.model.basics.ColumnDef
 
@@ -26,5 +26,5 @@ class FetchPhysicalNodeExpression(val entity: Entity, val fetch: Array<ColumnDef
 
     override fun copy() = FetchPhysicalNodeExpression(this.entity, this.fetch)
 
-    override fun toOperator(engine: ExecutionEngine) = FetchOperator(this.input.toOperator(engine), this.entity, this.fetch)
+    override fun toOperator(engine: TransactionManager) = FetchOperator(this.input.toOperator(engine), this.entity, this.fetch)
 }

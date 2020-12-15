@@ -1,16 +1,27 @@
 package org.vitrivr.cottontail.database.column
 
-import org.vitrivr.cottontail.database.column.mapdb.MapDBColumn
 import org.vitrivr.cottontail.database.general.DBO
+import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.model.basics.ColumnDef
+import org.vitrivr.cottontail.model.basics.Name
+import org.vitrivr.cottontail.model.basics.TupleId
 import org.vitrivr.cottontail.model.values.types.Value
 
-import java.util.*
-
 /**
+ * A [DBO] in the Cottontail DB data model that represents a [Column]. A [Column] can hold values
+ * of a given type, as specified by the [ColumnDef].
  *
+ * @author Ralph Gasser
+ * @version 1.0.0
  */
 interface Column<T: Value> : DBO {
+
+    /** The maximum [TupleId] used by this [Column]. */
+    val maxTupleId: TupleId
+
+    /** The [Name.ColumnName] of this [Column]. */
+    override val name: Name.ColumnName
+
     /**
      * This [Column]'s [ColumnDef]. It contains all the relevant information that defines a [Column]
      *
@@ -44,16 +55,10 @@ interface Column<T: Value> : DBO {
     val nullable: Boolean
         get() = this.columnDef.nullable
 
-    /** The maximum tuple ID used by this [Column]. */
-    val maxTupleId: Long
-
     /**
-     * Creates a new [ColumnTransaction] and returns it.
+     * Creates a new [ColumnTx] for the given [TransactionContext].
      *
-     * @param readonly True, if the resulting [MapDBColumn.Tx] should be a read-only transaction.
-     * @param tid The ID for the new [MapDBColumn.Tx]
-     *
-     * @return A new [ColumnTransaction] object.
+     * @param context [TransactionContext] to create [ColumnTx] for.
      */
-    fun newTransaction(readonly: Boolean = false, tid: UUID = UUID.randomUUID()): ColumnTransaction<T>
+    override fun newTx(context: TransactionContext): ColumnTx<T>
 }

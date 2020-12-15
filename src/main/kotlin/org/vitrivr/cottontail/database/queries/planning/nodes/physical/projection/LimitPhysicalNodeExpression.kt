@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.database.queries.planning.nodes.physical.projecti
 
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalNodeExpression
-import org.vitrivr.cottontail.execution.ExecutionEngine
+import org.vitrivr.cottontail.execution.TransactionManager
 import org.vitrivr.cottontail.execution.operators.transform.LimitOperator
 import kotlin.math.min
 
@@ -34,5 +34,5 @@ class LimitPhysicalNodeExpression(limit: Long, skip: Long) : UnaryPhysicalNodeEx
 
     override fun copy() = LimitPhysicalNodeExpression(this.limit, this.skip)
 
-    override fun toOperator(engine: ExecutionEngine) = LimitOperator(this.input.toOperator(engine), this.skip, this.limit)
+    override fun toOperator(engine: TransactionManager) = LimitOperator(this.input.toOperator(engine), this.skip, this.limit)
 }

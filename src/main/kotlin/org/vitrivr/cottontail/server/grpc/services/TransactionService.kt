@@ -1,10 +1,10 @@
 package org.vitrivr.cottontail.server.grpc.services
 
-import io.grpc.Status
-import io.grpc.stub.StreamObserver
 import org.vitrivr.cottontail.execution.TransactionManager
 import org.vitrivr.cottontail.execution.TransactionStatus
+import org.vitrivr.cottontail.execution.TransactionType
 import org.vitrivr.cottontail.grpc.CottontailGrpc
+import org.vitrivr.cottontail.model.exceptions.TransactionException
 
 /**
  * A facility common to all service that handle [TransactionManager.Transaction]s over gRPC.
@@ -17,18 +17,33 @@ interface TransactionService {
     val manager: TransactionManager
 
     /**
-     * Tries to resume the [TransactionManager.Transaction] with the [CottontailGrpc.TransactionId].
+     * Executes a provided action in the context of a [TransactionManager.Transaction], which is either resumed or created.
      *
-     * @param txId The [CottontailGrpc.TransactionId] to resume the [TransactionManager.Transaction] for.
-     * @param responseObserver [StreamObserver] that should be notified if resuming [TransactionManager.Transaction] failed.
-     * @return [TransactionManager.Transaction] or null, if none exists.
+     * @param txId The [CottontailGrpc.TransactionId] optionally, usually unwrapped from an incoming message.
+     * @param action The action that should be executed.
      */
-    fun resumeTransaction(txId: CottontailGrpc.TransactionId, responseObserver: StreamObserver<*>): TransactionManager.Transaction? {
-        val txn = this.manager[txId.value]
-        if (txn === null || txn.state !== TransactionStatus.OPEN) {
-            responseObserver.onError(Status.FAILED_PRECONDITION.withDescription("Could not resume transaction ${txId.value} because it either doesn't exist or is in wrong state.").asException())
-            return null
+    fun withTransactionContext(txId: CottontailGrpc.TransactionId, action: (tx: TransactionManager.Transaction) -> Unit) {
+        /* Obtain transaction. */
+        val context = if (txId === CottontailGrpc.TransactionId.getDefaultInstance()) {
+            this.manager.Transaction(TransactionType.USER_IMPLICIT) /* Start new transaction. */
+        } else {
+            val txn = this.manager[txId.value] /* Reuse existing transaction. */
+            if (txn === null || txn.type !== TransactionType.USER) {
+                throw TransactionException.TransactionNotFoundException(txId.value)
+            }
+            txn
         }
-        return txn
+
+        /* Execute action with context. */
+        action(context)
+
+        /* Finalize implicit user transactions. */
+        if (context.type === TransactionType.USER_IMPLICIT) {
+            if (context.state === TransactionStatus.ERROR) {
+                context.rollback()
+            } else {
+                context.commit()
+            }
+        }
     }
 }

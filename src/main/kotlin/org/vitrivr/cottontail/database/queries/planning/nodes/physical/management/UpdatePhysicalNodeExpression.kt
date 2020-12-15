@@ -4,7 +4,7 @@ import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.PhysicalNodeExpression
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalNodeExpression
-import org.vitrivr.cottontail.execution.ExecutionEngine
+import org.vitrivr.cottontail.execution.TransactionManager
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.management.UpdateOperator
 import org.vitrivr.cottontail.model.basics.ColumnDef
@@ -24,5 +24,5 @@ class UpdatePhysicalNodeExpression(val entity: Entity, val values: List<Pair<Col
 
     override fun copy(): PhysicalNodeExpression = UpdatePhysicalNodeExpression(this.entity, this.values)
 
-    override fun toOperator(engine: ExecutionEngine): Operator = UpdateOperator(this.input.toOperator(engine), this.entity, this.values)
+    override fun toOperator(engine: TransactionManager): Operator = UpdateOperator(this.input.toOperator(engine), this.entity, this.values)
 }

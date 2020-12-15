@@ -270,7 +270,9 @@ class Recordset(val columns: Array<ColumnDef<*>>, capacity: Long = 250L) : Scana
             /** Sanity check. */
             require(values.size == this.columns.size) { "The number of values must be equal to the number of columns held by the StandaloneRecord (v = ${values.size}, c = ${this.columns.size})" }
             this.columns.forEachIndexed { index, columnDef ->
-                columnDef.validateOrThrow(values[index])
+                if (!columnDef.validate(values[index])) {
+                    throw IllegalArgumentException("Provided value ${values[index]} is incompatible with column ${columnDef}.")
+                }
             }
         }
 
@@ -331,7 +333,9 @@ class Recordset(val columns: Array<ColumnDef<*>>, capacity: Long = 250L) : Scana
          */
         override fun set(column: ColumnDef<*>, value: Value?) {
             require(this.map.contains(column)) { "The specified column ${column.name}  (type=${column.type.name}) is not contained in this record." }
-            column.validateOrThrow(value)
+            if (!column.validate(value)) {
+                throw IllegalArgumentException("Provided value $value is incompatible with column $column.")
+            }
             this.map[column] = value
         }
 
