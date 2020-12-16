@@ -38,15 +38,12 @@ class TransactionManager(config: ExecutionConfig) {
 
     /** The [ThreadPoolExecutor] used for executing queries. */
     private val executor = ThreadPoolExecutor(
-        config.coreThreads,
-        config.maxThreads,
-        config.keepAliveMs,
-        TimeUnit.MILLISECONDS,
-        ArrayBlockingQueue(config.queueSize)
+            config.coreThreads,
+            config.maxThreads,
+            config.keepAliveMs,
+            TimeUnit.MILLISECONDS,
+            ArrayBlockingQueue(config.queueSize)
     )
-
-    /** The [LockManager] instance used by this [TransactionManager]. */
-    private val lockManager = LockManager()
 
     /** The [ExecutorCoroutineDispatcher] used for executing queries. */
     private val dispatcher = this.executor.asCoroutineDispatcher()
@@ -56,6 +53,9 @@ class TransactionManager(config: ExecutionConfig) {
 
     /** Internal counter to generate [TransactionId]s. */
     private val tidCounter = AtomicLong()
+
+    /** The [LockManager] instance used by this [TransactionManager]. */
+    val lockManager = LockManager()
 
     /** The number of [Thread]s currently available. This is an estimate and may change very quickly. */
     val availableThreads
