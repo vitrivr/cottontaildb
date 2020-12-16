@@ -22,6 +22,7 @@ import org.vitrivr.cottontail.cli.schema.CreateSchemaCommand
 import org.vitrivr.cottontail.cli.schema.DropSchemaCommand
 import org.vitrivr.cottontail.cli.schema.ListAllSchemaCommand
 import org.vitrivr.cottontail.cli.schema.ListEntitiesCommand
+import org.vitrivr.cottontail.cli.system.ListLocksCommand
 import org.vitrivr.cottontail.cli.system.ListTransactionsCommand
 import org.vitrivr.cottontail.grpc.*
 import org.vitrivr.cottontail.server.grpc.services.DMLService
@@ -265,7 +266,6 @@ class Cli(val host: String = "localhost", val port: Int = 1865) {
                             OptimizeEntityCommand(this.ddlService),
                             PreviewEntityCommand(this.dqlService),
                             CreateIndexCommand(this.ddlService),
-                            ListIndicesCommand(this.ddlService),
                             DropIndexCommand(this.ddlService)
                     ),
 
@@ -306,7 +306,8 @@ class Cli(val host: String = "localhost", val port: Int = 1865) {
 
                         }
                     }.subcommands(
-                            ListTransactionsCommand(this.txnService)
+                            ListTransactionsCommand(this.txnService),
+                            ListLocksCommand(this.txnService)
                     ),
 
                     /* General commands. */

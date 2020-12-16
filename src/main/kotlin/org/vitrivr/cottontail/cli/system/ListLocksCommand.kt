@@ -8,21 +8,21 @@ import kotlin.time.ExperimentalTime
 import kotlin.time.measureTimedValue
 
 /**
- * List all known transactions in Cottontail DB.
+ * List all known locks on  Cottontail DB resources
  *
  * @author Loris Sauter & Ralph Gasser
  * @version 1.0.1
  */
 @ExperimentalTime
-class ListTransactionsCommand(private val txnStub: TXNGrpc.TXNBlockingStub) : AbstractCottontailCommand(name = "transactions", help = "Lists all ongoing transaction in the current Cottontail DB instance.") {
+class ListLocksCommand(private val txnStub: TXNGrpc.TXNBlockingStub) : AbstractCottontailCommand(name = "locks", help = "Lists all locks in the current Cottontail DB instance.") {
     override fun exec() {
         /* Execute query. */
         val timedTable = measureTimedValue {
-            TabulationUtilities.tabulate(this@ListTransactionsCommand.txnStub.listTransactions(Empty.getDefaultInstance()))
+            TabulationUtilities.tabulate(this@ListLocksCommand.txnStub.listLocks(Empty.getDefaultInstance()))
         }
 
         /* Output results. */
-        println("${timedTable.value.rowCount} transactions found (took ${timedTable.duration}).")
+        println("${timedTable.value.rowCount} locks found (took ${timedTable.duration}).")
         print(timedTable.value)
     }
 }
