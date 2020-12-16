@@ -31,7 +31,7 @@ import kotlin.time.measureTimedValue
  * Implementation of [DQLGrpc.DQLImplBase], the gRPC endpoint for querying data in Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 1.4.0
+ * @version 1.4.1
  */
 @ExperimentalTime
 class DQLService(val catalogue: Catalogue, override val manager: TransactionManager) : DQLGrpc.DQLImplBase(), TransactionService {
@@ -67,125 +67,124 @@ class DQLService(val catalogue: Catalogue, override val manager: TransactionMana
     /**
      * gRPC endpoint for executing queries.
      */
-    override fun query(request: CottontailGrpc.QueryMessage, responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) = this.withTransactionContext(request.txId) function@{ tx ->
-        /* Determine query ID. */
-        val queryId = request.queryId.ifBlank { UUID.randomUUID().toString() }
-
-        try {
-            /* Start query execution. */
-            val totalDuration = measureTime {
-                /* Bind query and create logical plan. */
-                val bindTimedValue = measureTimedValue {
-                    this.binder.parseAndBindQuery(request.query, tx)
-                }
-                LOGGER.trace("Parsing & binding query $queryId took ${bindTimedValue.duration}.")
-
-                /* Plan query and create execution plan. */
-                val planTimedValue = measureTimedValue {
-                    val candidates = this.planner.plan(bindTimedValue.value)
-                    if (candidates.isEmpty()) {
-                        responseObserver.onError(Status.INTERNAL.withDescription("Query execution failed because no valid execution plan could be produced").asException())
-                        return@function
+    override fun query(request: CottontailGrpc.QueryMessage, responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) = try {
+        this.withTransactionContext(request.txId) { tx, q ->
+            try {
+                /* Start query execution. */
+                val totalDuration = measureTime {
+                    /* Bind query and create logical plan. */
+                    val bindTimedValue = measureTimedValue {
+                        this.binder.parseAndBindQuery(request.query, tx)
                     }
-                    val operator = candidates.minByOrNull { it.totalCost }!!.toOperator(this.manager)
-                    SpoolerSinkOperator(operator, queryId, 0, responseObserver)
+
+                    LOGGER.trace(formatMessage(tx, q, "Parsing & binding query took ${bindTimedValue.duration}."))
+
+                    /* Plan query and create execution plan. */
+                    val planTimedValue = measureTimedValue {
+                        val candidates = this.planner.plan(bindTimedValue.value)
+                        val operator = candidates.minByOrNull { it.totalCost }!!.toOperator(this.manager)
+                        SpoolerSinkOperator(operator, q, 0, responseObserver)
+                    }
+
+                    LOGGER.trace(formatMessage(tx, q, "Planning query took ${planTimedValue.duration}."))
+
+                    /* Execute query in transaction context. */
+                    tx.execute(planTimedValue.value)
                 }
-                LOGGER.trace("Planning query $queryId took ${planTimedValue.duration}.")
 
-                /* Execute query in transaction context. */
-                tx.execute(planTimedValue.value)
+                /* Finalize transaction. */
+                LOGGER.trace(formatMessage(tx, q, "Executing query took ${totalDuration}."))
+                responseObserver.onCompleted()
+            } catch (e: QueryException.QuerySyntaxException) {
+                val message = formatMessage(tx, q, "Could not execute query due to syntax error: ${e.message}")
+                LOGGER.info(message)
+                responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(message).asException())
+            } catch (e: QueryException.QueryBindException) {
+                val message = formatMessage(tx, q, "Could not execute query because DBO could not be found: ${e.message}")
+                LOGGER.info(message)
+                responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(message).asException())
+            } catch (e: QueryException.QueryPlannerException) {
+                val message = formatMessage(tx, q, "Could not execute query because of an error during query planning: ${e.message}")
+                LOGGER.info(message)
+                responseObserver.onError(Status.INTERNAL.withDescription(message).asException())
+            } catch (e: DeadlockException) {
+                val message = formatMessage(tx, q, "Could not execute query due to deadlock with other transaction: ${e.message}")
+                LOGGER.info(message)
+                responseObserver.onError(Status.ABORTED.withDescription(message).asException())
+            } catch (e: ExecutionException) {
+                val message = formatMessage(tx, q, "Could not execute query due to an unhandled execution error: ${e.message}")
+                LOGGER.error(message, e)
+                responseObserver.onError(Status.INTERNAL.withDescription(message).asException())
+            } catch (e: Throwable) {
+                val message = formatMessage(tx, q, "Could not execute query due to an unhandled error: ${e.message}")
+                LOGGER.error(message, e)
+                responseObserver.onError(Status.UNKNOWN.withDescription(message).asException())
             }
-
-            /* Finalize transaction. */
-            LOGGER.trace("Executing query $queryId took $totalDuration to complete.")
-            responseObserver.onCompleted()
-        } catch (e: TransactionException.TransactionNotFoundException) {
-            val message = "Could not execute query $queryId because transaction ${e.txId} could not be resumed."
-            LOGGER.info(message)
-            responseObserver.onError(Status.FAILED_PRECONDITION.withDescription(message).asException())
-        } catch (e: QueryException.QuerySyntaxException) {
-            val message = "Could not execute query $queryId due to syntax error: ${e.message}"
-            LOGGER.info(message)
-            responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(message).asException())
-        } catch (e: QueryException.QueryBindException) {
-            val message = "Could not execute query $queryId because DBO could not be found: ${e.message}"
-            LOGGER.info(message)
-            responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(message).asException())
-        } catch (e: DeadlockException) {
-            val message = "Could not execute query $queryId due to deadlock with other transaction: ${e.message}"
-            LOGGER.info(message)
-            responseObserver.onError(Status.ABORTED.withDescription(message).asException())
-        } catch (e: ExecutionException) {
-            val message = "Could not execute query $queryId due to an unhandled execution error: ${e.message}"
-            LOGGER.error(message, e)
-            responseObserver.onError(Status.INTERNAL.withDescription(message).asException())
-        } catch (e: Throwable) {
-            val message = "Could not execute query $queryId due to an unhandled error: ${e.message}"
-            LOGGER.error(message, e)
-            responseObserver.onError(Status.UNKNOWN.withDescription(message).asException())
         }
+    } catch (e: TransactionException.TransactionNotFoundException) {
+        val message = "Execution failed because transaction ${request.txId.value} could not be resumed."
+        LOGGER.info(message)
+        responseObserver.onError(Status.FAILED_PRECONDITION.withDescription(message).asException())
     }
 
     /**
      * gRPC endpoint for explaining queries.
      */
-    override fun explain(request: CottontailGrpc.QueryMessage, responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) = this.withTransactionContext(request.txId) function@{ tx ->
-        /* Determine query ID. */
-        val queryId = request.queryId.ifBlank { UUID.randomUUID().toString() }
-
-        try {
-            /* Start query execution. */
-            val totalDuration = measureTime {
-                /* Bind query and create logical plan. */
-                val bindTimedValue = measureTimedValue {
-                    this.binder.parseAndBindQuery(request.query, tx)
-                }
-                LOGGER.trace("Parsing & binding query $queryId took ${bindTimedValue.duration}.")
-
-                /* Plan query and create execution plan. */
-                val planTimedValue = measureTimedValue {
-                    val candidates = this.planner.plan(bindTimedValue.value)
-                    if (candidates.isEmpty()) {
-                        responseObserver.onError(Status.INTERNAL.withDescription("Query execution failed because no valid execution plan could be produced").asException())
-                        return@function
+    override fun explain(request: CottontailGrpc.QueryMessage, responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) = try {
+        this.withTransactionContext(request.txId) { tx, q ->
+            try {
+                /* Start query execution. */
+                val totalDuration = measureTime {
+                    /* Bind query and create logical plan. */
+                    val bindTimedValue = measureTimedValue {
+                        this.binder.parseAndBindQuery(request.query, tx)
                     }
 
-                    /* Select candidate with lowest cos. */
-                    val selected = candidates.minByOrNull { it.totalCost }!!
+                    LOGGER.trace(formatMessage(tx, q, "Parsing & binding query took ${bindTimedValue.duration}."))
 
-                    /* ToDo: Return explanation. */
+                    /* Plan query and create execution plan. */
+                    val planTimedValue = measureTimedValue {
+                        val candidates = this.planner.plan(bindTimedValue.value)
+                        val selected = candidates.minByOrNull { it.totalCost }!!
 
+                        /* ToDo: Return explanation. */
+
+                    }
+                    LOGGER.trace(formatMessage(tx, q, "Planning query took ${planTimedValue.duration}."))
                 }
-                LOGGER.trace("Planning query $queryId took ${planTimedValue.duration}.")
-            }
 
-            LOGGER.trace("Explaining query $queryId took $totalDuration to complete.")
-            responseObserver.onCompleted()
-        } catch (e: TransactionException.TransactionNotFoundException) {
-            val message = "Could not explain query $queryId because transaction ${e.txId} could not be resumed."
-            LOGGER.info(message)
-            responseObserver.onError(Status.FAILED_PRECONDITION.withDescription(message).asException())
-        } catch (e: QueryException.QuerySyntaxException) {
-            val message = "Could not explain query $queryId due to syntax error: ${e.message}"
-            LOGGER.info(message)
-            responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(message).asException())
-        } catch (e: QueryException.QueryBindException) {
-            val message = "Could not explain query $queryId because DBO could not be found: ${e.message}"
-            LOGGER.info(message)
-            responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(message).asException())
-        } catch (e: DeadlockException) {
-            val message = "Could not explain query $queryId due to deadlock with other transaction: ${e.message}"
-            LOGGER.info(message)
-            responseObserver.onError(Status.ABORTED.withDescription(message).asException())
-        } catch (e: ExecutionException) {
-            val message = "Could not explain query $queryId due to an unhandled execution error: ${e.message}"
-            LOGGER.error(message, e)
-            responseObserver.onError(Status.INTERNAL.withDescription(message).asException())
-        } catch (e: Throwable) {
-            val message = "Could not explain query $queryId due to an unhandled error: ${e.message}"
-            LOGGER.error(message, e)
-            responseObserver.onError(Status.UNKNOWN.withDescription(message).asException())
+                LOGGER.trace(formatMessage(tx, q, "Explaining query took ${totalDuration}."))
+                responseObserver.onCompleted()
+            } catch (e: QueryException.QuerySyntaxException) {
+                val message = formatMessage(tx, q, "Could not explain query due to syntax error: ${e.message}")
+                LOGGER.info(message)
+                responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(message).asException())
+            } catch (e: QueryException.QueryBindException) {
+                val message = formatMessage(tx, q, "Could not explain query because DBO could not be found: ${e.message}")
+                LOGGER.info(message)
+                responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(message).asException())
+            } catch (e: QueryException.QueryPlannerException) {
+                val message = formatMessage(tx, q, "Could not execute query because of an error during query planning: ${e.message}")
+                LOGGER.info(message)
+                responseObserver.onError(Status.INTERNAL.withDescription(message).asException())
+            } catch (e: DeadlockException) {
+                val message = formatMessage(tx, q, "Could not explain query due to deadlock with other transaction: ${e.message}")
+                LOGGER.info(message)
+                responseObserver.onError(Status.ABORTED.withDescription(message).asException())
+            } catch (e: ExecutionException) {
+                val message = formatMessage(tx, q, "Could not explain query due to an unhandled execution error: ${e.message}")
+                LOGGER.error(message, e)
+                responseObserver.onError(Status.INTERNAL.withDescription(message).asException())
+            } catch (e: Throwable) {
+                val message = formatMessage(tx, q, "Could not explain query due to an unhandled error: ${e.message}")
+                LOGGER.error(message, e)
+                responseObserver.onError(Status.UNKNOWN.withDescription(message).asException())
+            }
         }
+    } catch (e: TransactionException.TransactionNotFoundException) {
+        val message = "Execution failed because transaction ${request.txId.value} could not be resumed."
+        LOGGER.info(message)
+        responseObserver.onError(Status.FAILED_PRECONDITION.withDescription(message).asException())
     }
 
     /**

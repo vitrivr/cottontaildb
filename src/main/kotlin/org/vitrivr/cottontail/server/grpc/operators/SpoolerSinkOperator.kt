@@ -48,13 +48,13 @@ class SpoolerSinkOperator(parent: Operator, val queryId: String, val index: Int,
                 }
                 name.build()
             }
-            var responseBuilder = CottontailGrpc.QueryResponseMessage.newBuilder().setQueryId(this@SpoolerSinkOperator.queryId).addAllColumns(columns)
+            var responseBuilder = CottontailGrpc.QueryResponseMessage.newBuilder().setTid(CottontailGrpc.TransactionId.newBuilder().setQueryId(this@SpoolerSinkOperator.queryId).setValue(context.txId)).addAllColumns(columns)
             var accumulatedSize = 0L
             parent.collect {
                 val tuple = it.toTuple()
                 if (accumulatedSize + tuple.serializedSize >= MAX_PAGE_SIZE_BYTES) {
                     this@SpoolerSinkOperator.responseObserver.onNext(responseBuilder.build())
-                    responseBuilder = CottontailGrpc.QueryResponseMessage.newBuilder().setQueryId(this@SpoolerSinkOperator.queryId).addAllColumns(columns)
+                    responseBuilder = CottontailGrpc.QueryResponseMessage.newBuilder().setTid(CottontailGrpc.TransactionId.newBuilder().setQueryId(this@SpoolerSinkOperator.queryId).setValue(context.txId)).addAllColumns(columns)
                     accumulatedSize = 0L
                 }
 
