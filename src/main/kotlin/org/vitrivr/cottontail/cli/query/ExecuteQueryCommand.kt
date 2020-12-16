@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail.cli.entity
+package org.vitrivr.cottontail.cli.query
 
 import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.option
@@ -27,11 +27,11 @@ class ExecuteQueryCommand(dqlStub: DQLGrpc.DQLBlockingStub) : AbstractQueryComma
         val qm = Files.newInputStream(this.input).use {
             CottontailGrpc.QueryMessage.parseFrom(it)
         }
+
         /* Execute and prepare table. */
         try {
-            /* Print. */
             val results = this.executeAndTabulate(qm)
-            println("Executed query (took: ${results.duration}):")
+            println("Explained query (took: ${results.duration}):")
             print(results.value)
         } catch (e: StatusException) {
             println("Failed to execute query due to error: ${e.message}")

@@ -18,6 +18,10 @@ import org.jline.reader.impl.completer.StringsCompleter
 import org.jline.terminal.Terminal
 import org.jline.terminal.TerminalBuilder
 import org.vitrivr.cottontail.cli.entity.*
+import org.vitrivr.cottontail.cli.query.CountEntityCommand
+import org.vitrivr.cottontail.cli.query.ExecuteQueryCommand
+import org.vitrivr.cottontail.cli.query.FindInEntityCommand
+import org.vitrivr.cottontail.cli.query.PreviewEntityCommand
 import org.vitrivr.cottontail.cli.schema.CreateSchemaCommand
 import org.vitrivr.cottontail.cli.schema.DropSchemaCommand
 import org.vitrivr.cottontail.cli.schema.ListAllSchemaCommand
@@ -258,13 +262,10 @@ class Cli(val host: String = "localhost", val port: Int = 1865) {
                     }.subcommands(
                             AboutEntityCommand(this.ddlService),
                             ClearEntityCommand(this.dmlService),
-                            CountEntityCommand(this.dqlService),
                             CreateEntityCommand(this.ddlService),
                             DropEntityCommand(this.ddlService),
-                            FindInEntityCommand(this.dqlService),
                             ListAllEntitiesCommand(this.ddlService),
                             OptimizeEntityCommand(this.ddlService),
-                            PreviewEntityCommand(this.dqlService),
                             CreateIndexCommand(this.ddlService),
                             DropIndexCommand(this.ddlService)
                     ),
@@ -291,6 +292,20 @@ class Cli(val host: String = "localhost", val port: Int = 1865) {
 
                     /* Transaction related commands. */
                     object : NoOpCliktCommand(
+                            name = "query",
+                            help = "Groups commands that can be used to query Cottontail DB.",
+                            epilog = "Transaction related commands usually have the form: query <command>, e.g., `query execute`.",
+                            invokeWithoutSubcommand = true,
+                            printHelpOnEmptyArgs = true
+                    ) {}.subcommands(
+                            CountEntityCommand(this.dqlService),
+                            PreviewEntityCommand(this.dqlService),
+                            FindInEntityCommand(this.dqlService),
+                            ExecuteQueryCommand(this.dqlService)
+                    ),
+
+                    /* Transaction related commands. */
+                    object : NoOpCliktCommand(
                             name = "system",
                             help = "Groups commands that act on the Cottontail DB on a system level.",
                             epilog = "Transaction related commands usually have the form: system <command> <txId>, e.g., `transaction list-transactions`.",
@@ -303,7 +318,6 @@ class Cli(val host: String = "localhost", val port: Int = 1865) {
                                     "tls" to listOf("transactions"),
                                     "list-transactionstls" to listOf("transactions")
                             )
-
                         }
                     }.subcommands(
                             ListTransactionsCommand(this.txnService),
