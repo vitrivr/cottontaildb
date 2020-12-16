@@ -32,6 +32,7 @@ sealed class ColumnType<T : Value> {
             "BOOLEAN" -> BooleanColumnType
             "BYTE" -> ByteColumnType
             "SHORT" -> ShortColumnType
+            "INT",
             "INTEGER" -> IntColumnType
             "LONG" -> LongColumnType
             "FLOAT" -> FloatColumnType
