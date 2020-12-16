@@ -25,11 +25,12 @@ import kotlin.time.ExperimentalTime
  */
 class EntityDetailsOperator(val catalogue: Catalogue, val name: Name.EntityName) : Operator.SourceOperator() {
     override val columns: Array<ColumnDef<*>> = arrayOf(
-        ColumnDef.withAttributes(Name.ColumnName("dbo"), "STRING", -1, false),
-        ColumnDef.withAttributes(Name.ColumnName("class"), "STRING", -1, false),
-        ColumnDef.withAttributes(Name.ColumnName("type"), "STRING", -1, true),
-        ColumnDef.withAttributes(Name.ColumnName("size"), "INTEGER", -1, false),
-        ColumnDef.withAttributes(Name.ColumnName("nullable"), "BOOLEAN", -1, true)
+            ColumnDef.withAttributes(Name.ColumnName("dbo"), "STRING", -1, false),
+            ColumnDef.withAttributes(Name.ColumnName("class"), "STRING", -1, false),
+            ColumnDef.withAttributes(Name.ColumnName("type"), "STRING", -1, true),
+            ColumnDef.withAttributes(Name.ColumnName("rows"), "INTEGER", -1, true),
+            ColumnDef.withAttributes(Name.ColumnName("l_size"), "INTEGER", -1, true),
+            ColumnDef.withAttributes(Name.ColumnName("nullable"), "BOOLEAN", -1, true)
     )
     @ExperimentalTime
     override fun toFlow(context: TransactionContext): Flow<Record> {
@@ -39,23 +40,23 @@ class EntityDetailsOperator(val catalogue: Catalogue, val name: Name.EntityName)
         return flow {
             var rowId = 0L
             emit(StandaloneRecord(rowId++,
-                this@EntityDetailsOperator.columns,
-                arrayOf(StringValue(this@EntityDetailsOperator.name.toString()), StringValue("ENTITY"), null, IntValue(entityTxn.count()), null)
+                    this@EntityDetailsOperator.columns,
+                    arrayOf(StringValue(this@EntityDetailsOperator.name.toString()), StringValue("ENTITY"), null, IntValue(entityTxn.count()), null, null)
             ))
 
             val columns = entityTxn.listColumns()
             columns.forEach {
                 emit(StandaloneRecord(rowId++,
-                    this@EntityDetailsOperator.columns,
-                    arrayOf(StringValue(it.name.toString()), StringValue("COLUMN"), StringValue(it.type.toString()), IntValue(it.columnDef.logicalSize), BooleanValue(it.nullable))
+                        this@EntityDetailsOperator.columns,
+                        arrayOf(StringValue(it.name.toString()), StringValue("COLUMN"), StringValue(it.type.toString()), null, IntValue(it.columnDef.logicalSize), BooleanValue(it.nullable))
                 ))
             }
 
             val indexes = entityTxn.listIndexes()
             indexes.forEach {
                 emit(StandaloneRecord(rowId++,
-                    this@EntityDetailsOperator.columns,
-                    arrayOf(StringValue(it.name.toString()), StringValue("INDEX"), StringValue(it.type.toString()), null, null)
+                        this@EntityDetailsOperator.columns,
+                        arrayOf(StringValue(it.name.toString()), StringValue("INDEX"), StringValue(it.type.toString()), null, null, null)
                 ))
             }
         }
