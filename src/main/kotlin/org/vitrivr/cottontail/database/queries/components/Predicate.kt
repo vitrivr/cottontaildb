@@ -103,6 +103,12 @@ data class AtomicBooleanPredicate<T : Value>(private val column: ColumnDef<T>, v
     } else {
         this.operator.match(record[this.column], this.values)
     }
+
+    override fun toString(): String = if (this.not) {
+        "!(${this.column.name} ${this.operator} :values[${this.values.size}]"
+    } else {
+        "(${this.column.name} ${this.operator} :values[${this.values.size}]"
+    }
 }
 
 /**
@@ -132,6 +138,8 @@ data class CompoundBooleanPredicate(val connector: ConnectionOperator, val p1: B
         ConnectionOperator.AND -> this.p1.matches(record) && this.p2.matches(record)
         ConnectionOperator.OR -> this.p1.matches(record) || this.p2.matches(record)
     }
+
+    override fun toString(): String = "$p1 $connector $p2"
 }
 
 /**

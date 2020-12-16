@@ -2,11 +2,14 @@ package org.vitrivr.cottontail.execution.operators.system
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.PhysicalNodeExpression
+import org.vitrivr.cottontail.database.queries.planning.nodes.physical.predicates.FilterPhysicalNodeExpression
+import org.vitrivr.cottontail.database.queries.planning.nodes.physical.projection.LimitPhysicalNodeExpression
+import org.vitrivr.cottontail.database.queries.planning.nodes.physical.sources.EntityCountPhysicalNodeExpression
+import org.vitrivr.cottontail.database.queries.planning.nodes.physical.sources.EntityScanPhysicalNodeExpression
+import org.vitrivr.cottontail.database.queries.planning.nodes.physical.sources.IndexScanPhysicalNodeExpression
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
-
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Record
@@ -28,13 +31,12 @@ class ExplainQueryOperator(val candidates: Collection<PhysicalNodeExpression>) :
         get() = arrayOf(
                 ColumnDef.withAttributes(Name.ColumnName("path"), "STRING", -1, false),
                 ColumnDef.withAttributes(Name.ColumnName("name"), "STRING", -1, false),
-                ColumnDef.withAttributes(Name.ColumnName("output_size"), "INTEGER", -1, false),
-                ColumnDef.withAttributes(Name.ColumnName("cost_cpu"), "STRING", -1, false),
-                ColumnDef.withAttributes(Name.ColumnName("cost_io"), "INTEGER", -1, false),
-                ColumnDef.withAttributes(Name.ColumnName("cost_memory"), "STRING", -1, false),
+                ColumnDef.withAttributes(Name.ColumnName("output_size"), "LONG", -1, false),
+                ColumnDef.withAttributes(Name.ColumnName("cost_cpu"), "FLOAT", -1, false),
+                ColumnDef.withAttributes(Name.ColumnName("cost_io"), "FLOAT", -1, false),
+                ColumnDef.withAttributes(Name.ColumnName("cost_memory"), "FLOAT", -1, false),
                 ColumnDef.withAttributes(Name.ColumnName("partitionable"), "BOOLEAN", -1, false),
                 ColumnDef.withAttributes(Name.ColumnName("comment"), "STRING", -1, true)
-
         )
 
     override fun toFlow(context: TransactionContext): Flow<Record> {
@@ -43,15 +45,24 @@ class ExplainQueryOperator(val candidates: Collection<PhysicalNodeExpression>) :
             val plan = enumerate(nodes = listOf(candidate))
             var row = 0L
             val array = Array<Value?>(this@ExplainQueryOperator.columns.size) { null }
+
             for (p in plan) {
+                val node = p.second
                 array[0] = StringValue(p.first)
-                array[1] = StringValue(p.second.javaClass.simpleName)
-                array[2] = LongValue(p.second.outputSize)
-                array[3] = FloatValue(p.second.cost.cpu)
-                array[4] = FloatValue(p.second.cost.io)
-                array[5] = FloatValue(p.second.cost.memory)
-                array[6] = BooleanValue(p.second.canBePartitioned)
-                array[7] = null
+                array[1] = StringValue(node.javaClass.simpleName)
+                array[2] = LongValue(node.outputSize)
+                array[3] = FloatValue(node.cost.cpu)
+                array[4] = FloatValue(node.cost.io)
+                array[5] = FloatValue(node.cost.memory)
+                array[6] = BooleanValue(node.canBePartitioned)
+                array[7] = when (node) {
+                    is EntityCountPhysicalNodeExpression -> StringValue("${node.entity.name}")
+                    is EntityScanPhysicalNodeExpression -> StringValue("${node.entity.name}")
+                    is IndexScanPhysicalNodeExpression -> StringValue("${node.index.name}")
+                    is FilterPhysicalNodeExpression -> StringValue("${node.predicate}")
+                    is LimitPhysicalNodeExpression -> StringValue("SKIP ${node.skip} LIMIT ${node.limit}")
+                    else -> null
+                }
                 emit(StandaloneRecord(row++, this@ExplainQueryOperator.columns, array))
             }
         }
