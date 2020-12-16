@@ -16,6 +16,7 @@ import org.vitrivr.cottontail.database.queries.planning.rules.physical.index.Knn
 import org.vitrivr.cottontail.database.queries.planning.rules.physical.pushdown.CountPushdownRule
 import org.vitrivr.cottontail.execution.TransactionManager
 import org.vitrivr.cottontail.execution.exceptions.ExecutionException
+import org.vitrivr.cottontail.execution.operators.system.ExplainQueryOperator
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.grpc.DQLGrpc
 import org.vitrivr.cottontail.model.exceptions.QueryException
@@ -145,12 +146,12 @@ class DQLService(val catalogue: Catalogue, override val manager: TransactionMana
                     /* Plan query and create execution plan. */
                     val planTimedValue = measureTimedValue {
                         val candidates = this.planner.plan(bindTimedValue.value)
-                        val selected = candidates.minByOrNull { it.totalCost }!!
-
-                        /* ToDo: Return explanation. */
-
+                        SpoolerSinkOperator(ExplainQueryOperator(candidates), q, 0, responseObserver)
                     }
                     LOGGER.trace(formatMessage(tx, q, "Planning query took ${planTimedValue.duration}."))
+
+                    /* Execute query in transaction context. */
+                    tx.execute(planTimedValue.value)
                 }
 
                 LOGGER.trace(formatMessage(tx, q, "Explaining query took ${totalDuration}."))
