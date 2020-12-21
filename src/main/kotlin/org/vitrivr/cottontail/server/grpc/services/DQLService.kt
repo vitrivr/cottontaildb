@@ -12,6 +12,7 @@ import org.vitrivr.cottontail.database.queries.planning.rules.logical.DeferredFe
 import org.vitrivr.cottontail.database.queries.planning.rules.logical.LeftConjunctionRewriteRule
 import org.vitrivr.cottontail.database.queries.planning.rules.logical.RightConjunctionRewriteRule
 import org.vitrivr.cottontail.database.queries.planning.rules.physical.implementation.*
+import org.vitrivr.cottontail.database.queries.planning.rules.physical.index.BooleanIndexScanRule
 import org.vitrivr.cottontail.database.queries.planning.rules.physical.index.KnnIndexScanRule
 import org.vitrivr.cottontail.database.queries.planning.rules.physical.pushdown.CountPushdownRule
 import org.vitrivr.cottontail.execution.TransactionManager
@@ -47,22 +48,23 @@ class DQLService(val catalogue: Catalogue, override val manager: TransactionMana
 
     /** [CottontailQueryPlanner] used to generate execution plans from query definitions. */
     private val planner = CottontailQueryPlanner(
-        logicalRewriteRules = listOf(
-            LeftConjunctionRewriteRule,
-            RightConjunctionRewriteRule,
-            DeferredFetchAfterFilterRewriteRule,
-            DeferredFetchAfterKnnRewriteRule
-        ),
-        physicalRewriteRules = listOf(
-            KnnIndexScanRule,
-            CountPushdownRule,
-            EntityScanImplementationRule,
-            FilterImplementationRule,
-            KnnImplementationRule,
-            LimitImplementationRule,
-            ProjectionImplementationRule,
-            FetchImplementationRule
-        )
+            logicalRewriteRules = listOf(
+                    LeftConjunctionRewriteRule,
+                    RightConjunctionRewriteRule,
+                    DeferredFetchAfterFilterRewriteRule,
+                    DeferredFetchAfterKnnRewriteRule
+            ),
+            physicalRewriteRules = listOf(
+                    KnnIndexScanRule,
+                    BooleanIndexScanRule,
+                    CountPushdownRule,
+                    EntityScanImplementationRule,
+                    FilterImplementationRule,
+                    KnnImplementationRule,
+                    LimitImplementationRule,
+                    ProjectionImplementationRule,
+                    FetchImplementationRule
+            )
     )
 
     /**
