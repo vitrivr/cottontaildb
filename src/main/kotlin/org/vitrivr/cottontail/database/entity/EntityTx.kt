@@ -4,6 +4,7 @@ import org.vitrivr.cottontail.database.column.Column
 import org.vitrivr.cottontail.database.general.Tx
 import org.vitrivr.cottontail.database.index.Index
 import org.vitrivr.cottontail.database.index.IndexTx
+import org.vitrivr.cottontail.database.index.IndexType
 import org.vitrivr.cottontail.model.basics.*
 
 /**
@@ -30,6 +31,23 @@ interface EntityTx : Tx, Scanable, Countable, Modifiable {
      * @return List of all [ColumnDef]s.
      */
     fun listColumns(): List<Column<*>>
+
+    /**
+     * Creates the [Index] with the given settings
+     *
+     * @param name [Name.IndexName] of the [Index] to create.
+     * @param type Type of the [Index] to create.
+     * @param columns The list of [columns] to [Index].
+     * @param params Additional parameters for index creation.
+     */
+    fun createIndex(name: Name.IndexName, type: IndexType, columns: Array<ColumnDef<*>>, params: Map<String, String>)
+
+    /**
+     * Drops the [Index] with the given name.
+     *
+     * @param name [Name.IndexName] of the [Index] to drop.
+     */
+    fun dropIndex(name: Name.IndexName)
 
     /**
      * Lists [Name.IndexName] for all [Index] implementations that belong to this [EntityTx].

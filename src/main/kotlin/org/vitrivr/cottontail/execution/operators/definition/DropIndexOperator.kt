@@ -27,7 +27,7 @@ class DropIndexOperator(val catalogue: Catalogue, val name: Name.IndexName): Abs
         val entityTxn = context.getTx(schemaTxn.entityForName(this.name.entity())) as EntityTx
         return flow {
             val timedTupleId = measureTimedValue {
-                /* TODO. */
+                entityTxn.dropIndex(this@DropIndexOperator.name)
             }
             emit(this@DropIndexOperator.statusRecord(timedTupleId.duration))
         }

@@ -298,7 +298,7 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
          * @param type Type of the [Index] to create.
          * @param columns The list of [columns] to [Index].
          */
-        fun createIndex(name: Name.IndexName, type: IndexType, columns: Array<ColumnDef<*>>, params: Map<String, String> = emptyMap()) = this.withWriteLock {
+        override fun createIndex(name: Name.IndexName, type: IndexType, columns: Array<ColumnDef<*>>, params: Map<String, String>) = this.withWriteLock {
             if (this@Entity.indexes.containsKey(name)) {
                 throw DatabaseException.IndexAlreadyExistsException(name)
             }
@@ -337,7 +337,7 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
          *
          * @param name [Name.IndexName] of the [Index] to drop.
          */
-        fun dropIndex(name: Name.IndexName) = this.withWriteLock {
+        override fun dropIndex(name: Name.IndexName) = this.withWriteLock {
             /* Obtain index and acquire exclusive lock on it. */
             val index = this.indexForName(name)
             val indexRecId = this@Entity.header.indexes.find { this@Entity.store.get(it, Serializer.STRING) == name.simple }

@@ -26,10 +26,9 @@ class RebuildIndexOperator(val catalogue: Catalogue, val name: Name.IndexName): 
         val schemaTxn = context.getTx(catTxn.schemaForName(this.name.schema())) as SchemaTx
         val entityTxn = context.getTx(schemaTxn.entityForName(this.name.entity())) as EntityTx
         val indexTxn = context.getTx(entityTxn.indexForName(this.name)) as IndexTx
-
         return flow {
             val timedTupleId = measureTimedValue {
-                /* TODO. */
+                indexTxn.rebuild()
             }
             emit(this@RebuildIndexOperator.statusRecord(timedTupleId.duration))
         }

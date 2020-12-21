@@ -5,6 +5,7 @@ import io.grpc.stub.StreamObserver
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.database.catalogue.Catalogue
 import org.vitrivr.cottontail.database.column.ColumnType
+import org.vitrivr.cottontail.database.index.IndexType
 import org.vitrivr.cottontail.database.locking.DeadlockException
 import org.vitrivr.cottontail.execution.TransactionManager
 import org.vitrivr.cottontail.execution.operators.definition.*
@@ -434,39 +435,44 @@ class DDLService(val catalogue: Catalogue, override val manager: TransactionMana
     override fun createIndex(request: CottontailGrpc.CreateIndexMessage, responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) = try {
         this.withTransactionContext(request.txId) function@{ tx, q ->
             try {
-                val indexName = request.definition.index.name.fqn()
+                /* Parses the CreateIndexMessage message. */
+                val indexName = request.definition.name.fqn()
                 LOGGER.info("Creating index '$indexName'...")
                 val columns = request.definition.columnsList.map {
-                    indexName.entity().column(it)
-                }.toTypedArray()
+                    indexName.entity().column(it.name)
+                }
+                val indexType = IndexType.valueOf(request.definition.type.toString())
+                val params = request.definition.paramsMap
 
-                /* ToDo. */
+                /* Execution operation. */
+                val op = SpoolerSinkOperator(CreateIndexOperator(this.catalogue, indexName, indexType, columns, params), q, 0, responseObserver)
+                tx.execute(op)
 
                 /* Finalize invocation. */
                 responseObserver.onCompleted()
                 LOGGER.info("Index '$indexName' created successfully!", request)
             } catch (e: DatabaseException.SchemaDoesNotExistException) {
-                val message = formatMessage(tx, q, "Failed to create index '${request.definition.index.name.fqn()}': Schema does not exist.")
+                val message = formatMessage(tx, q, "Failed to create index '${request.definition.name.fqn()}': Schema does not exist.")
                 LOGGER.info(message)
                 responseObserver.onError(Status.NOT_FOUND.withDescription(message).asException())
             } catch (e: DatabaseException.EntityDoesNotExistException) {
-                val message = formatMessage(tx, q, "Failed to create index '${request.definition.index.name.fqn()}': Entity does not exist.")
+                val message = formatMessage(tx, q, "Failed to create index '${request.definition.name.fqn()}': Entity does not exist.")
                 LOGGER.info(message)
                 responseObserver.onError(Status.NOT_FOUND.withDescription(message).asException())
             } catch (e: DatabaseException.ColumnDoesNotExistException) {
-                val message = formatMessage(tx, q, "Failed to create index '${request.definition.index.name.fqn()}': Column does not exist.")
+                val message = formatMessage(tx, q, "Failed to create index '${request.definition.name.fqn()}': Column does not exist.")
                 LOGGER.error(message, e)
                 responseObserver.onError(Status.NOT_FOUND.withDescription(message).asException())
             } catch (e: DatabaseException.IndexAlreadyExistsException) {
-                val message = formatMessage(tx, q, "Failed to create index '${request.definition.index.name.fqn()}': Index with identical name does already exist.")
+                val message = formatMessage(tx, q, "Failed to create index '${request.definition.name.fqn()}': Index with identical name does already exist.")
                 LOGGER.error(message, e)
                 responseObserver.onError(Status.ALREADY_EXISTS.withDescription(message).asException())
             } catch (e: DatabaseException) {
-                val message = formatMessage(tx, q, "Failed to create index '${request.definition.index.name.fqn()}' because of a database error.")
+                val message = formatMessage(tx, q, "Failed to create index '${request.definition.name.fqn()}' because of a database error.")
                 LOGGER.error(message, e)
                 responseObserver.onError(Status.INTERNAL.withDescription(message).asException())
             } catch (e: Throwable) {
-                val message = formatMessage(tx, q, "Failed to create index '${request.definition.index.name.fqn()}' because of an unknown error.")
+                val message = formatMessage(tx, q, "Failed to create index '${request.definition.name.fqn()}' because of an unknown error.")
                 LOGGER.error(message, e)
                 responseObserver.onError(Status.UNKNOWN.withDescription(message).withCause(e).asException())
             }
@@ -483,10 +489,13 @@ class DDLService(val catalogue: Catalogue, override val manager: TransactionMana
     override fun dropIndex(request: CottontailGrpc.DropIndexMessage, responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) = try {
         this.withTransactionContext(request.txId) function@{ tx, q ->
             try {
+                /* Parses the DropIndexMessage message. */
                 val indexName = request.index.fqn()
                 LOGGER.info("Dropping index '$indexName'...")
 
-                /* ToDo. */
+                /* Execution operation. */
+                val op = SpoolerSinkOperator(DropIndexOperator(this.catalogue, indexName), q, 0, responseObserver)
+                tx.execute(op)
 
                 /* Notify caller of success. */
                 responseObserver.onCompleted()
@@ -525,11 +534,13 @@ class DDLService(val catalogue: Catalogue, override val manager: TransactionMana
     override fun rebuildIndex(request: CottontailGrpc.RebuildIndexMessage, responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) = try {
         this.withTransactionContext(request.txId) function@{ tx, q ->
             try {
+                /* Parses the RebuildIndexMessage message. */
                 val indexName = request.index.fqn()
                 LOGGER.info("Rebuilding index '$indexName'...")
 
-                /* Update index. */
-                /* ToDo. */
+                /* Execution operation. */
+                val op = SpoolerSinkOperator(RebuildIndexOperator(this.catalogue, indexName), q, 0, responseObserver)
+                tx.execute(op)
 
                 /* Notify caller of success. */
                 responseObserver.onCompleted()
