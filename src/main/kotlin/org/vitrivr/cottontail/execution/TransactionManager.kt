@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.execution
 
-import it.unimi.dsi.fastutil.longs.Long2ObjectLinkedOpenHashMap
+import it.unimi.dsi.fastutil.Hash.VERY_FAST_LOAD_FACTOR
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collect
@@ -21,6 +22,7 @@ import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.locks.ReentrantLock
+import kotlin.collections.ArrayList
 import kotlin.concurrent.withLock
 
 /**
@@ -34,6 +36,8 @@ class TransactionManager(config: ExecutionConfig) {
     /** Logger used for logging the output. */
     companion object {
         private val LOGGER = LoggerFactory.getLogger(TransactionManager::class.java)
+        private const val TRANSACTION_TABLE_SIZE = 100
+        private const val TRANSACTION_HISTORY = 500
     }
 
     /** The [ThreadPoolExecutor] used for executing queries. */
@@ -49,7 +53,10 @@ class TransactionManager(config: ExecutionConfig) {
     private val dispatcher = this.executor.asCoroutineDispatcher()
 
     /** Map of [Transaction]s that are currently PENDING or RUNNING. */
-    private val transactions = Long2ObjectLinkedOpenHashMap<Transaction>()
+    private val transactions = Collections.synchronizedMap(Long2ObjectOpenHashMap<Transaction>(TRANSACTION_TABLE_SIZE, VERY_FAST_LOAD_FACTOR))
+
+    /** List of ongoing or past transactions (limited to [TRANSACTION_HISTORY] entries). */
+    val transactionHistory = Collections.synchronizedList(ArrayList<Transaction>(TRANSACTION_HISTORY))
 
     /** Internal counter to generate [TransactionId]s. */
     private val tidCounter = AtomicLong()
@@ -68,11 +75,6 @@ class TransactionManager(config: ExecutionConfig) {
      * @return [Transaction] or null
      */
     operator fun get(txId: TransactionId): Transaction? = this.transactions[txId]
-
-    /**
-     *
-     */
-    fun transactions() = this.transactions.values.toList()
 
     /**
      * A concrete [Transaction] used for executing a query.
@@ -110,9 +112,13 @@ class TransactionManager(config: ExecutionConfig) {
         override val dispatcher
             get() = this@TransactionManager.dispatcher
 
-        /** Add to list of running contexts. */
         init {
+            /** Add this to transaction history and transaction table. */
+            if (this@TransactionManager.transactionHistory.size >= TRANSACTION_HISTORY) {
+                (0 until 50).forEach { this@TransactionManager.transactionHistory.removeAt(it) }
+            }
             this@TransactionManager.transactions[this.txId] = this
+            this@TransactionManager.transactionHistory.add(this)
         }
 
         /**
@@ -198,6 +204,7 @@ class TransactionManager(config: ExecutionConfig) {
             this.txns.clear()
             this.ended = System.currentTimeMillis()
             this.state = TransactionStatus.COMMIT
+            this@TransactionManager.transactions.remove(this.txId)
         }
 
         /**
@@ -212,6 +219,7 @@ class TransactionManager(config: ExecutionConfig) {
             this.txns.clear()
             this.ended = System.currentTimeMillis()
             this.state = TransactionStatus.ROLLBACK
+            this@TransactionManager.transactions.remove(this.txId)
         }
     }
 }
