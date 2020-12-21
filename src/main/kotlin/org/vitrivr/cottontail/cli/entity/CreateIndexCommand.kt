@@ -18,7 +18,7 @@ import kotlin.time.measureTimedValue
  * Command to create a index on a specified entities column from Cottontail DB.
  *
  * @author Loris Sauter & Ralph Gasser
- * @version 1.0.1
+ * @version 1.0.2
  */
 @ExperimentalTime
 class CreateIndexCommand(private val ddlStub: DDLGrpc.DDLBlockingStub) : AbstractEntityCommand(name = "create-index", help = "Creates an index on the given entity and rebuilds the newly created index. Usage: entity createIndex <schema>.<entity> <column> <index>") {
@@ -30,20 +30,19 @@ class CreateIndexCommand(private val ddlStub: DDLGrpc.DDLBlockingStub) : Abstrac
     override fun exec() {
         val entity = entityName.proto()
         val index = CottontailGrpc.IndexDefinition.newBuilder()
-                .setIndex(CottontailGrpc.IndexDetails.newBuilder()
-                        .setName(CottontailGrpc.IndexName.newBuilder().setEntity(entity).setName("index-${index.name.toLowerCase()}-${entityName.schema()}_${entity.name}_${attribute}"))
-                        .setType(this.index)
-                        .build())
-                .addColumns(this.attribute).build()
+                .setType(this.index)
+                .setName(CottontailGrpc.IndexName.newBuilder().setEntity(entity).setName("index-${index.name.toLowerCase()}-${entityName.schema()}_${entity.name}_${attribute}"))
+                .addColumns(CottontailGrpc.ColumnName.newBuilder().setName(this.attribute))
+                .build()
 
         try {
             val timedTable = measureTimedValue {
                 TabulationUtilities.tabulate(this.ddlStub.createIndex(CottontailGrpc.CreateIndexMessage.newBuilder().setRebuild(this.rebuild).setDefinition(index).build()))
             }
-            println("Successfully created index ${index.index.name.fqn()} (took ${timedTable.duration}).")
+            println("Successfully created index ${index.name.fqn()} (took ${timedTable.duration}).")
             print(timedTable.value)
         } catch (e: StatusException) {
-            println("Error while creating index ${index.index.name.fqn()}: ${e.message}.")
+            println("Error while creating index ${index.name.fqn()}: ${e.message}.")
         }
     }
 }

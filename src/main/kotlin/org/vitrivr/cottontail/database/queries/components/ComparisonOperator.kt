@@ -1,8 +1,8 @@
 package org.vitrivr.cottontail.database.queries.components
 
 import org.vitrivr.cottontail.model.exceptions.QueryException
-import org.vitrivr.cottontail.model.values.PatternValue
 import org.vitrivr.cottontail.model.values.StringValue
+import org.vitrivr.cottontail.model.values.pattern.LikePatternValue
 import org.vitrivr.cottontail.model.values.types.Value
 
 /**
@@ -18,6 +18,7 @@ enum class ComparisonOperator {
     GEQUAL, /* One entry on right-hand side required! */
     LEQUAL, /* One entry on right-hand side required! */
     LIKE, /* One entry on right-hand side required! */
+    MATCH, /* One entry on right-hand side required! */
     IN, /* One to n entries on right-hand side required! */
     BETWEEN, /* Two entries on right-hand side required! */
     ISNULL, /* No right-hand side required! */
@@ -43,12 +44,13 @@ enum class ComparisonOperator {
             ISNOTNULL -> left != null
             LIKE -> {
                 val check = right.first()
-                if (left is PatternValue && check is StringValue) {
-                    left.matches(check)
+                if (left is StringValue && check is LikePatternValue) {
+                    check.matches(left)
                 } else {
                     throw QueryException("Incompatible operands for operator $this (left = ${left?.javaClass?.simpleName}, left = ${check::class.simpleName})!")
                 }
             }
+            MATCH -> throw QueryException("Operator $this requires lucene index!")
         }
     } catch (e: NoSuchElementException) {
         throw QueryException("Incompatible operands for operator $this: Right operand cannot be empty!")

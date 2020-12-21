@@ -8,8 +8,8 @@ import org.vitrivr.cottontail.math.knn.metrics.DistanceKernel
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.exceptions.QueryException
-import org.vitrivr.cottontail.model.values.PatternValue
-import org.vitrivr.cottontail.model.values.StringValue
+import org.vitrivr.cottontail.model.values.pattern.LikePatternValue
+import org.vitrivr.cottontail.model.values.pattern.LucenePatternValue
 import org.vitrivr.cottontail.model.values.types.Value
 import org.vitrivr.cottontail.model.values.types.VectorValue
 
@@ -34,7 +34,7 @@ sealed class Predicate {
  * @see Record
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.0.0
  */
 sealed class BooleanPredicate : Predicate() {
     /** The [AtomicBooleanPredicate]s that make up this [BooleanPredicate]. */
@@ -49,24 +49,29 @@ sealed class BooleanPredicate : Predicate() {
 }
 
 /**
- * A atomic [BooleanPredicate] that compares the column of a [Record] to a provided value (or a set of provided values).
+ * An atomic [BooleanPredicate] that compares the column of a [Record] to a provided value (or a set of provided values).
  *
  * @author Ralph Gasser
- * @version 1.0.1
+ * @version 1.0.2
  */
 data class AtomicBooleanPredicate<T : Value>(private val column: ColumnDef<T>, val operator: ComparisonOperator, val not: Boolean = false, var values: Collection<Value>) : BooleanPredicate() {
     init {
+        /* Optimization; uses a set for a IN operation. */
         if (this.operator == ComparisonOperator.IN) {
             this.values = ObjectOpenHashSet(this.values)
         }
 
+        /* Optimization: Converts the incoming StringValue to a LikePatternValue. */
         if (this.operator == ComparisonOperator.LIKE) {
-            this.values = this.values.mapNotNull {
-                if (it is StringValue) {
-                    PatternValue(it.value)
-                } else {
-                    null
-                }
+            if (!this.values.all { it is LikePatternValue }) {
+                throw IllegalArgumentException("Comparison operator of type ${this.operator} requires a LikePatternValue as right operand.")
+            }
+        }
+
+        /* Optimization: Converts the incoming StringValue to a LucenePatternValue. */
+        if (this.operator == ComparisonOperator.MATCH) {
+            if (!this.values.all { it is LucenePatternValue }) {
+                throw IllegalArgumentException("Comparison operator of type ${this.operator} requires a LikePatternValue as right operand.")
             }
         }
     }
@@ -83,14 +88,14 @@ data class AtomicBooleanPredicate<T : Value>(private val column: ColumnDef<T>, v
         ComparisonOperator.BETWEEN -> 4.0f
         ComparisonOperator.IN -> this.values.size + 1.0f
         ComparisonOperator.LIKE -> 10.0f /* ToDo: Make more explicit. */
+        ComparisonOperator.MATCH -> 10.0f
     }
 
     /** Set of [ColumnDef] that are affected by this [AtomicBooleanPredicate]. */
     override val columns: Set<ColumnDef<T>> = setOf(this.column)
 
     /** The [AtomicBooleanPredicate]s that make up this [BooleanPredicate]. */
-    override val atomics: Set<AtomicBooleanPredicate<*>>
-        get() = setOf(this)
+    override val atomics: Set<AtomicBooleanPredicate<*>> = setOf(this)
 
     /**
      * Checks if the provided [Record] matches this [AtomicBooleanPredicate] and returns true or false respectively.

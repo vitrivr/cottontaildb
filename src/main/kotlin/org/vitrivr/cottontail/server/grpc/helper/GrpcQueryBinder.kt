@@ -28,6 +28,8 @@ import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.values.*
+import org.vitrivr.cottontail.model.values.pattern.LikePatternValue
+import org.vitrivr.cottontail.model.values.pattern.LucenePatternValue
 
 /**
  * This helper class parses and binds queries issued through the gRPC endpoint. The process encompasses three steps:
@@ -321,7 +323,25 @@ class GrpcQueryBinder(val catalogue: Catalogue) {
 
         /* Return the resulting AtomicBooleanPredicate. */
         AtomicBooleanPredicate(column, operator, atomic.not, atomic.rightList.map {
-            it.toValue(column) ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
+            val v = it.toValue(column)
+                    ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
+            when (operator) {
+                ComparisonOperator.LIKE -> {
+                    if (v is StringValue) {
+                        LikePatternValue(v.value)
+                    } else {
+                        throw QueryException.QuerySyntaxException("LIKE operator requires a parsable string value as second operand.")
+                    }
+                }
+                ComparisonOperator.MATCH -> {
+                    if (v is StringValue) {
+                        LucenePatternValue(v.value)
+                    } else {
+                        throw QueryException.QuerySyntaxException("MATCH operator requires a parsable string value as second operand.")
+                    }
+                }
+                else -> v
+            }
         })
     } catch (e: DatabaseException.ColumnDoesNotExistException) {
         throw QueryException.QueryBindException("Failed to bind '${e.column}'. Column does not exist!")

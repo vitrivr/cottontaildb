@@ -2,11 +2,9 @@ package org.vitrivr.cottontail.database.index.lucene
 
 import org.apache.lucene.analysis.standard.StandardAnalyzer
 import org.apache.lucene.document.*
-import org.apache.lucene.index.DirectoryReader
-import org.apache.lucene.index.IndexReader
-import org.apache.lucene.index.IndexWriter
-import org.apache.lucene.index.IndexWriterConfig
-import org.apache.lucene.search.IndexSearcher
+import org.apache.lucene.index.*
+import org.apache.lucene.queryparser.flexible.standard.QueryParserUtil
+import org.apache.lucene.search.*
 import org.apache.lucene.store.Directory
 import org.apache.lucene.store.FSDirectory
 import org.apache.lucene.store.NativeFSLockFactory
@@ -29,6 +27,8 @@ import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.FloatValue
 import org.vitrivr.cottontail.model.values.StringValue
+import org.vitrivr.cottontail.model.values.pattern.LikePatternValue
+import org.vitrivr.cottontail.model.values.pattern.LucenePatternValue
 import org.vitrivr.cottontail.utilities.extensions.write
 import java.nio.file.Path
 
@@ -37,13 +37,16 @@ import java.nio.file.Path
  * for string comparisons using the EQUAL or LIKE operator.
  *
  * @author Luca Rossetto & Ralph Gasser
- * @version 1.3.0
+ * @version 1.3.1
  */
 class LuceneIndex(override val name: Name.IndexName, override val parent: Entity, override val columns: Array<ColumnDef<*>>) : Index() {
 
     companion object {
         /** [ColumnDef] of the _tid column. */
         const val TID_COLUMN = "_tid"
+
+        /** The [ComparisonOperator]s supported by this [LuceneIndex]. */
+        private val SUPPORTS = arrayOf(ComparisonOperator.LIKE, ComparisonOperator.EQUAL, ComparisonOperator.MATCH)
 
         /**
          * Maps a [Record] to a [Document] that can be processed by Lucene.
@@ -101,11 +104,10 @@ class LuceneIndex(override val name: Name.IndexName, override val parent: Entity
      * @param predicate [Predicate] to test.
      * @return True if [Predicate] can be processed, false otherwise.
      */
-    override fun canProcess(predicate: Predicate): Boolean = if (predicate is BooleanPredicate) {
-        predicate.columns.all { this.columns.contains(it) } && predicate.atomics.all { it.operator == ComparisonOperator.LIKE || it.operator == ComparisonOperator.EQUAL }
-    } else {
-        false
-    }
+    override fun canProcess(predicate: Predicate): Boolean =
+            predicate is BooleanPredicate &&
+                    predicate.columns.all { it in this.columns } &&
+                    predicate.atomics.all { it.operator in SUPPORTS }
 
     /**
      * Calculates the cost estimate of this [UniqueHashIndex] processing the provided [Predicate].
@@ -141,6 +143,71 @@ class LuceneIndex(override val name: Name.IndexName, override val parent: Entity
             this.directory.close()
             this.closed = true
         }
+    }
+
+    /**
+     * Converts a [BooleanPredicate] to a [Query] supported by Apache Lucene.
+     *
+     * @return [Query]
+     */
+    private fun BooleanPredicate.toLuceneQuery(): Query = when (this) {
+        is AtomicBooleanPredicate<*> -> this.toLuceneQuery()
+        is CompoundBooleanPredicate -> this.toLuceneQuery()
+    }
+
+    /**
+     * Converts an [AtomicBooleanPredicate] to a [Query] supported by Apache Lucene. Conversion differs
+     * slightly depending on the [ComparisonOperator].
+     *
+     * @return [Query]
+     */
+    private fun AtomicBooleanPredicate<*>.toLuceneQuery(): Query = when (this.operator) {
+        ComparisonOperator.EQUAL -> {
+            val column = this.columns.first()
+            val string = this.values.first()
+            if (string is StringValue) {
+                TermQuery(Term("${column.name}_str", string.value))
+            } else {
+                throw throw QueryException("Conversion to Lucene query failed: EQUAL queries strictly require a StringValue as second operand!")
+            }
+        }
+        ComparisonOperator.LIKE -> {
+            val column = this.columns.first()
+            val pattern = this.values.first()
+            if (pattern is LucenePatternValue) {
+                QueryParserUtil.parse(arrayOf(pattern.value), arrayOf("${column.name}_txt"), StandardAnalyzer())
+            } else if (pattern is LikePatternValue) {
+                QueryParserUtil.parse(arrayOf(pattern.toLucene().value), arrayOf("${column.name}_txt"), StandardAnalyzer())
+            } else {
+                throw throw QueryException("Conversion to Lucene query failed: LIKE queries require a LucenePatternValue OR LikePatternValue as second operand!")
+            }
+        }
+        ComparisonOperator.MATCH -> {
+            val column = this.columns.first()
+            val pattern = this.values.first()
+            if (pattern is LucenePatternValue) {
+                QueryParserUtil.parse(arrayOf(pattern.value), arrayOf("${column.name}_txt"), StandardAnalyzer())
+            } else {
+                throw throw QueryException("Conversion to Lucene query failed: MATCH queries strictly require a LucenePatternValue as second operand!")
+            }
+        }
+        else -> throw QueryException("Lucene Query Conversion failed: Only EQUAL, MATCH and LIKE queries can be mapped to a Apache Lucene!")
+    }
+
+    /**
+     * Converts a [CompoundBooleanPredicate] to a [Query] supported by Apache Lucene.
+     *
+     * @return [Query]
+     */
+    private fun CompoundBooleanPredicate.toLuceneQuery(): Query {
+        val clause = when (this.connector) {
+            ConnectionOperator.AND -> BooleanClause.Occur.MUST
+            ConnectionOperator.OR -> BooleanClause.Occur.SHOULD
+        }
+        val builder = BooleanQuery.Builder()
+        builder.add(this.p1.toLuceneQuery(), clause)
+        builder.add(this.p2.toLuceneQuery(), clause)
+        return builder.build()
     }
 
     /**
@@ -233,12 +300,9 @@ class LuceneIndex(override val name: Name.IndexName, override val parent: Entity
 
             /* Performs some sanity checks. */
             init {
-                if (!this.predicate.columns.all { this@LuceneIndex.columns.contains(it) })
-                    throw QueryException.UnsupportedPredicateException("Index '${this@LuceneIndex.name}' (lucene-index) is lacking certain fields the provided predicate requires.")
-
-                if (!this.predicate.atomics.all { it.operator == ComparisonOperator.LIKE || it.operator == ComparisonOperator.EQUAL })
-                    throw QueryException.UnsupportedPredicateException("Index '${this@LuceneIndex.name}' (lucene-index) can only process LIKE comparisons.")
-
+                if (!this@LuceneIndex.canProcess(predicate)) {
+                    throw QueryException.UnsupportedPredicateException("Index '${this@LuceneIndex.name}' (lucene-index) cannot process the provided predicate.")
+                }
                 this@Tx.withReadLock { }
             }
 
@@ -250,11 +314,8 @@ class LuceneIndex(override val name: Name.IndexName, override val parent: Entity
             @Volatile
             private var closed = false
 
-            /* Lucene query. */
-            private val query = when (this.predicate) {
-                is AtomicBooleanPredicate<*> -> this.predicate.toLuceneQuery()
-                is CompoundBooleanPredicate -> this.predicate.toLuceneQuery()
-            }
+            /** Lucene [Query] representation of [BooleanPredicate] . */
+            private val query: Query = this.predicate.toLuceneQuery()
 
             /** [IndexSearcher] instance used for lookup. */
             private val searcher = IndexSearcher(this@LuceneIndex.indexReader)
