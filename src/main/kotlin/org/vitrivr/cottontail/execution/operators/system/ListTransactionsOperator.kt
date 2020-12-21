@@ -19,7 +19,7 @@ import org.vitrivr.cottontail.model.values.types.Value
  * An [Operator.SourceOperator] used during query execution. Used to list all ongoing transactions.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.0.1
  */
 class ListTransactionsOperator(val manager: TransactionManager) : Operator.SourceOperator() {
     override val columns: Array<ColumnDef<*>>
@@ -38,7 +38,7 @@ class ListTransactionsOperator(val manager: TransactionManager) : Operator.Sourc
         return flow {
             var row = 0L
             val values = Array<Value?>(this@ListTransactionsOperator.columns.size) { null }
-            this@ListTransactionsOperator.manager.transactions().forEach {
+            this@ListTransactionsOperator.manager.transactionHistory.forEach {
                 values[0] = LongValue(it.txId)
                 values[1] = StringValue(it.type.toString())
                 values[2] = StringValue(it.state.toString())
