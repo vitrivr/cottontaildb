@@ -73,11 +73,18 @@ class WaitForGraph {
         }
     }
 
+    /**
+     * Tries to detect deadlocks involing the given [LockHolder].
+     *
+     * @param currentTxn The [LockHolder] to check.
+     * @throws [DeadlockException] If deadlock is detected.
+     */
+    @Throws(DeadlockException::class)
     fun detectDeadlock(currentTxn: LockHolder) {
         val cycles = findCycles()
         for (cycleGroup in cycles) {
             if (cycleGroup.contains(currentTxn)) {
-                throw DeadlockException(Exception())
+                throw DeadlockException(currentTxn, cycleGroup)
             }
         }
     }

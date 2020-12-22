@@ -6,7 +6,6 @@ import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.database.catalogue.Catalogue
 import org.vitrivr.cottontail.database.column.ColumnType
 import org.vitrivr.cottontail.database.index.IndexType
-import org.vitrivr.cottontail.database.locking.DeadlockException
 import org.vitrivr.cottontail.execution.TransactionManager
 import org.vitrivr.cottontail.execution.operators.definition.*
 import org.vitrivr.cottontail.grpc.CottontailGrpc
@@ -48,7 +47,7 @@ class DDLService(val catalogue: Catalogue, override val manager: TransactionMana
                 val message = formatMessage(tx, q, "Failed to fetch list of schemas because of a database error.")
                 LOGGER.error(message, e)
                 responseObserver.onError(Status.INTERNAL.withDescription(message).asException())
-            } catch (e: DeadlockException) {
+            } catch (e: TransactionException.DeadlockException) {
                 val message = formatMessage(tx, q, "Failed to fetch list of schemas because of a deadlock with another transaction.")
                 LOGGER.info(message)
                 responseObserver.onError(Status.ABORTED.withDescription(message).asException())
@@ -85,7 +84,7 @@ class DDLService(val catalogue: Catalogue, override val manager: TransactionMana
                 val message = formatMessage(tx, q, "Failed to create schema '${request.schema.fqn()}': Schema with identical name already exists.")
                 LOGGER.info(message)
                 responseObserver.onError(Status.ALREADY_EXISTS.withDescription(message).asException())
-            } catch (e: DeadlockException) {
+            } catch (e: TransactionException.DeadlockException) {
                 val message = formatMessage(tx, q, "Failed to create schema '${request.schema.fqn()}': Deadlock with another transaction.")
                 LOGGER.info(message)
                 responseObserver.onError(Status.ABORTED.withDescription(message).asException())
@@ -126,7 +125,7 @@ class DDLService(val catalogue: Catalogue, override val manager: TransactionMana
                 val message = formatMessage(tx, q, "Failed to drop schema '${request.schema.fqn()}': Schema does not exist.")
                 LOGGER.info(message)
                 responseObserver.onError(Status.NOT_FOUND.withDescription(message).asException())
-            } catch (e: DeadlockException) {
+            } catch (e: TransactionException.DeadlockException) {
                 val message = formatMessage(tx, q, "Failed to drop schema'${request.schema.fqn()}': Deadlock with another transaction.")
                 LOGGER.info(message)
                 responseObserver.onError(Status.ABORTED.withDescription(message).asException())
@@ -174,7 +173,7 @@ class DDLService(val catalogue: Catalogue, override val manager: TransactionMana
                 val message = formatMessage(tx, q, "Failed to fetch entity information for '${request.entity.fqn()}': Entity does not exist.")
                 LOGGER.info(message)
                 responseObserver.onError(Status.NOT_FOUND.withDescription(message).asException())
-            } catch (e: DeadlockException) {
+            } catch (e: TransactionException.DeadlockException) {
                 val message = formatMessage(tx, q, "Failed to fetch entity information for '${request.entity.fqn()}': Deadlock with another transaction.")
                 LOGGER.info(message)
                 responseObserver.onError(Status.ABORTED.withDescription(message).asException())
@@ -225,7 +224,7 @@ class DDLService(val catalogue: Catalogue, override val manager: TransactionMana
                 val message = formatMessage(tx, q, "Failed to create entity '${request.definition.entity.fqn()}': Entity with identical name already exists.")
                 LOGGER.info(message)
                 responseObserver.onError(Status.ALREADY_EXISTS.withDescription(message).asException())
-            } catch (e: DeadlockException) {
+            } catch (e: TransactionException.DeadlockException) {
                 val message = formatMessage(tx, q, "Failed to create entity '${request.definition.entity.fqn()}': Deadlock with another transaction.")
                 LOGGER.info(message)
                 responseObserver.onError(Status.ABORTED.withDescription(message).asException())
@@ -273,7 +272,7 @@ class DDLService(val catalogue: Catalogue, override val manager: TransactionMana
                 val message = formatMessage(tx, q, "Failed to drop entity '${request.entity.fqn()}': Entity does not exist.")
                 LOGGER.info(message)
                 responseObserver.onError(Status.NOT_FOUND.withDescription(message).asException())
-            } catch (e: DeadlockException) {
+            } catch (e: TransactionException.DeadlockException) {
                 val message = formatMessage(tx, q, "Failed to drop entity '${request.entity.fqn()}': Deadlock with another transaction.")
                 LOGGER.info(message)
                 responseObserver.onError(Status.ABORTED.withDescription(message).asException())
@@ -317,7 +316,7 @@ class DDLService(val catalogue: Catalogue, override val manager: TransactionMana
                 val message = formatMessage(tx, q, "Failed to truncate entity '${request.entity.fqn()}': Entity does not exist.")
                 LOGGER.info(message)
                 responseObserver.onError(Status.NOT_FOUND.withDescription(message).asException())
-            } catch (e: DeadlockException) {
+            } catch (e: TransactionException.DeadlockException) {
                 val message = formatMessage(tx, q, "Failed to truncate entity '${request.entity.fqn()}': Deadlock with another transaction.")
                 LOGGER.info(message)
                 responseObserver.onError(Status.ABORTED.withDescription(message).asException())
@@ -362,7 +361,7 @@ class DDLService(val catalogue: Catalogue, override val manager: TransactionMana
                 val message = formatMessage(tx, q, "Failed to optimize entity '${request.entity.fqn()}': Entity does not exist.")
                 LOGGER.info(message)
                 responseObserver.onError(Status.NOT_FOUND.withDescription(message).asException())
-            } catch (e: DeadlockException) {
+            } catch (e: TransactionException.DeadlockException) {
                 val message = formatMessage(tx, q, "Failed to optimize entity '${request.entity.fqn()}': Deadlock with another transaction.")
                 LOGGER.info(message)
                 responseObserver.onError(Status.ABORTED.withDescription(message).asException())
@@ -409,7 +408,7 @@ class DDLService(val catalogue: Catalogue, override val manager: TransactionMana
                 val message = formatMessage(tx, q, "Failed to list entities for schema '${request.schema.fqn()}': Schema does not exist.")
                 LOGGER.info(message)
                 responseObserver.onError(Status.NOT_FOUND.withDescription(message).asException())
-            } catch (e: DeadlockException) {
+            } catch (e: TransactionException.DeadlockException) {
                 val message = formatMessage(tx, q, "Failed to list entities for schema '${request.schema.fqn()}': Deadlock with another transaction.")
                 LOGGER.info(message)
                 responseObserver.onError(Status.ABORTED.withDescription(message).asException())

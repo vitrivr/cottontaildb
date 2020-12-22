@@ -5,12 +5,12 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
 import org.vitrivr.cottontail.database.column.*
 import org.vitrivr.cottontail.execution.TransactionContext
-import org.vitrivr.cottontail.execution.exceptions.OperatorExecutionException
 import org.vitrivr.cottontail.execution.exceptions.OperatorSetupException
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Record
+import org.vitrivr.cottontail.model.exceptions.ExecutionException
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.*
 import kotlin.math.max
@@ -105,7 +105,7 @@ class MaxProjectionOperator(parent: Operator, val name: Name.ColumnName, val ali
                     is LongValue -> max = max(max, value.value.toDouble())
                     is FloatValue -> max = max(max, value.value.toDouble())
                     is DoubleValue -> max = max(max, value.value)
-                    else -> throw OperatorExecutionException(this@MaxProjectionOperator, "The provided column $parentColumn cannot be used for a MAX projection. ")
+                    else -> throw ExecutionException.OperatorExecutionException(this@MaxProjectionOperator, "The provided column $parentColumn cannot be used for a MAX projection. ")
                 }
             }
             when (parentColumn.type) {
@@ -115,7 +115,7 @@ class MaxProjectionOperator(parent: Operator, val name: Name.ColumnName, val ali
                 LongColumnType -> emit(StandaloneRecord(0L, this@MaxProjectionOperator.columns, arrayOf(LongValue(max))))
                 FloatColumnType -> emit(StandaloneRecord(0L, this@MaxProjectionOperator.columns, arrayOf(FloatValue(max))))
                 DoubleColumnType -> emit(StandaloneRecord(0L, this@MaxProjectionOperator.columns, arrayOf(DoubleValue(max))))
-                else -> throw OperatorExecutionException(this@MaxProjectionOperator, "The provided column $parentColumn cannot be used for a MAX projection. ")
+                else -> throw ExecutionException.OperatorExecutionException(this@MaxProjectionOperator, "The provided column $parentColumn cannot be used for a MAX projection. ")
             }
         }
     }

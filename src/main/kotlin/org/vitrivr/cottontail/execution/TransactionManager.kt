@@ -11,11 +11,11 @@ import org.vitrivr.cottontail.database.general.DBO
 import org.vitrivr.cottontail.database.general.Tx
 import org.vitrivr.cottontail.database.locking.*
 import org.vitrivr.cottontail.execution.TransactionManager.Transaction
-import org.vitrivr.cottontail.execution.exceptions.ExecutionException
-import org.vitrivr.cottontail.execution.exceptions.OperatorExecutionException
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.model.basics.TransactionId
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
+import org.vitrivr.cottontail.model.exceptions.ExecutionException
+import org.vitrivr.cottontail.model.exceptions.TransactionException
 import java.util.*
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.ThreadPoolExecutor
@@ -174,15 +174,15 @@ class TransactionManager(config: ExecutionConfig) {
                     } catch (e: DeadlockException) {
                         LOGGER.debug("Deadlock encountered during execution of transaction ${this@Transaction.txId}.", e)
                         this@Transaction.state = TransactionStatus.ERROR
-                        throw e
-                    } catch (e: OperatorExecutionException) {
+                        throw TransactionException.DeadlockException(this@Transaction.txId, e)
+                    } catch (e: ExecutionException.OperatorExecutionException) {
                         LOGGER.debug("Unhandled exception during operator execution in transaction ${this@Transaction.txId}.", e)
                         this@Transaction.state = TransactionStatus.ERROR
                         throw e
                     } catch (e: DatabaseException) {
                         LOGGER.warn("Unhandled database exception during execution of transaction ${this@Transaction.txId}.", e)
                         this@Transaction.state = TransactionStatus.ERROR
-                        throw ExecutionException("Unhandled exception during execution of transaction ${this@Transaction.txId}: ${e.message}")
+                        throw e
                     } catch (e: Throwable) {
                         LOGGER.error("Unhandled exception during query execution of transaction ${this@Transaction.txId}.", e)
                         this@Transaction.state = TransactionStatus.ERROR

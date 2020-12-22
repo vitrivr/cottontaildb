@@ -4,12 +4,12 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
 import org.vitrivr.cottontail.execution.TransactionContext
-import org.vitrivr.cottontail.execution.exceptions.OperatorExecutionException
 import org.vitrivr.cottontail.execution.exceptions.OperatorSetupException
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Record
+import org.vitrivr.cottontail.model.exceptions.ExecutionException
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.*
 
@@ -62,7 +62,7 @@ class MeanProjectionOperator(parent: Operator, val name: Name.ColumnName, val al
                     is LongValue -> value.value.toDouble()
                     is FloatValue -> value.value.toDouble()
                     is DoubleValue -> value.value
-                    else -> throw OperatorExecutionException(this@MeanProjectionOperator, "The provided column $name cannot be used for a MEAN projection.")
+                    else -> throw ExecutionException.OperatorExecutionException(this@MeanProjectionOperator, "The provided column $name cannot be used for a MEAN projection.")
                 }
             }
             emit(StandaloneRecord(0L, this@MeanProjectionOperator.columns, arrayOf(DoubleValue(sum / count))))

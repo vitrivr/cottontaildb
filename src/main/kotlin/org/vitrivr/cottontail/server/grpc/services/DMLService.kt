@@ -5,7 +5,6 @@ import io.grpc.stub.StreamObserver
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.database.catalogue.Catalogue
 import org.vitrivr.cottontail.database.entity.Entity
-import org.vitrivr.cottontail.database.locking.DeadlockException
 import org.vitrivr.cottontail.database.queries.planning.CottontailQueryPlanner
 import org.vitrivr.cottontail.database.queries.planning.rules.logical.LeftConjunctionRewriteRule
 import org.vitrivr.cottontail.database.queries.planning.rules.logical.RightConjunctionRewriteRule
@@ -15,9 +14,9 @@ import org.vitrivr.cottontail.database.queries.planning.rules.physical.implement
 import org.vitrivr.cottontail.database.queries.planning.rules.physical.implementation.UpdateImplementationRule
 import org.vitrivr.cottontail.database.queries.planning.rules.physical.index.BooleanIndexScanRule
 import org.vitrivr.cottontail.execution.TransactionManager
-import org.vitrivr.cottontail.execution.exceptions.ExecutionException
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.grpc.DMLGrpc
+import org.vitrivr.cottontail.model.exceptions.ExecutionException
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.exceptions.TransactionException
 import org.vitrivr.cottontail.server.grpc.helper.GrpcQueryBinder
@@ -87,7 +86,7 @@ class DMLService(val catalogue: Catalogue, override val manager: TransactionMana
                 val message = formatMessage(tx, q, "UPDATE failed because of an error during query planning: ${e.message}")
                 LOGGER.info(message)
                 responseObserver.onError(Status.INTERNAL.withDescription(message).asException())
-            } catch (e: DeadlockException) {
+            } catch (e: TransactionException.DeadlockException) {
                 val message = formatMessage(tx, q, "UPDATE failed due to deadlock with other transaction: ${e.message}")
                 LOGGER.info(message)
                 responseObserver.onError(Status.ABORTED.withDescription(message).asException())
@@ -147,7 +146,7 @@ class DMLService(val catalogue: Catalogue, override val manager: TransactionMana
                 val message = formatMessage(tx, q, "DELETE failed because of an error during query planning: ${e.message}")
                 LOGGER.info(message)
                 responseObserver.onError(Status.INTERNAL.withDescription(message).asException())
-            } catch (e: DeadlockException) {
+            } catch (e: TransactionException.DeadlockException) {
                 val message = formatMessage(tx, q, "DELETE failed due to deadlock with other transaction: ${e.message}")
                 LOGGER.info(message)
                 responseObserver.onError(Status.ABORTED.withDescription(message).asException())
@@ -207,7 +206,7 @@ class DMLService(val catalogue: Catalogue, override val manager: TransactionMana
                 val message = formatMessage(tx, q, "INSERT failed because of an error during query planning: ${e.message}")
                 LOGGER.info(message)
                 responseObserver.onError(Status.INTERNAL.withDescription(message).asException())
-            } catch (e: DeadlockException) {
+            } catch (e: TransactionException.DeadlockException) {
                 val message = "INSERT failed due to deadlock with other transaction: ${e.message}"
                 LOGGER.info(message)
                 responseObserver.onError(Status.ABORTED.withDescription(message).asException())

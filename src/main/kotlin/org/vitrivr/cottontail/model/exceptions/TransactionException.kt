@@ -13,5 +13,10 @@ open class TransactionException(val txId: TransactionId, message: String) : Data
     /**
      * Thrown whenever trying to access a [org.vitrivr.cottontail.execution.TransactionManager.Transaction] that could not be found.
      */
+    class DeadlockException(txId: TransactionId, e: org.vitrivr.cottontail.database.locking.DeadlockException) : TransactionException(txId, e.message!!)
+
+    /**
+     * Thrown whenever trying to access a [org.vitrivr.cottontail.execution.TransactionManager.Transaction] that could not be found.
+     */
     class TransactionNotFoundException(txId: TransactionId) : TransactionException(txId, "Transaction with $txId could not be found.")
 }

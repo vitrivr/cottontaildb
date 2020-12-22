@@ -5,7 +5,6 @@ import io.grpc.Status
 import io.grpc.stub.StreamObserver
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.database.catalogue.Catalogue
-import org.vitrivr.cottontail.database.locking.DeadlockException
 import org.vitrivr.cottontail.database.queries.planning.CottontailQueryPlanner
 import org.vitrivr.cottontail.database.queries.planning.rules.logical.DeferredFetchAfterFilterRewriteRule
 import org.vitrivr.cottontail.database.queries.planning.rules.logical.DeferredFetchAfterKnnRewriteRule
@@ -16,10 +15,10 @@ import org.vitrivr.cottontail.database.queries.planning.rules.physical.index.Boo
 import org.vitrivr.cottontail.database.queries.planning.rules.physical.index.KnnIndexScanRule
 import org.vitrivr.cottontail.database.queries.planning.rules.physical.pushdown.CountPushdownRule
 import org.vitrivr.cottontail.execution.TransactionManager
-import org.vitrivr.cottontail.execution.exceptions.ExecutionException
 import org.vitrivr.cottontail.execution.operators.system.ExplainQueryOperator
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.grpc.DQLGrpc
+import org.vitrivr.cottontail.model.exceptions.ExecutionException
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.exceptions.TransactionException
 import org.vitrivr.cottontail.server.grpc.helper.GrpcQueryBinder
@@ -110,7 +109,7 @@ class DQLService(val catalogue: Catalogue, override val manager: TransactionMana
                 val message = formatMessage(tx, q, "Could not execute query because of an error during query planning: ${e.message}")
                 LOGGER.info(message)
                 responseObserver.onError(Status.INTERNAL.withDescription(message).asException())
-            } catch (e: DeadlockException) {
+            } catch (e: TransactionException.DeadlockException) {
                 val message = formatMessage(tx, q, "Could not execute query due to deadlock with other transaction: ${e.message}")
                 LOGGER.info(message)
                 responseObserver.onError(Status.ABORTED.withDescription(message).asException())
@@ -170,7 +169,7 @@ class DQLService(val catalogue: Catalogue, override val manager: TransactionMana
                 val message = formatMessage(tx, q, "Could not execute query because of an error during query planning: ${e.message}")
                 LOGGER.info(message)
                 responseObserver.onError(Status.INTERNAL.withDescription(message).asException())
-            } catch (e: DeadlockException) {
+            } catch (e: TransactionException.DeadlockException) {
                 val message = formatMessage(tx, q, "Could not explain query due to deadlock with other transaction: ${e.message}")
                 LOGGER.info(message)
                 responseObserver.onError(Status.ABORTED.withDescription(message).asException())

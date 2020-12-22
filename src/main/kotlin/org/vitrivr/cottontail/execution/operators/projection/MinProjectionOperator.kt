@@ -5,12 +5,12 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
 import org.vitrivr.cottontail.database.column.*
 import org.vitrivr.cottontail.execution.TransactionContext
-import org.vitrivr.cottontail.execution.exceptions.OperatorExecutionException
 import org.vitrivr.cottontail.execution.exceptions.OperatorSetupException
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Record
+import org.vitrivr.cottontail.model.exceptions.ExecutionException
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.*
 import kotlin.math.min
@@ -106,7 +106,7 @@ class MinProjectionOperator(parent: Operator, val name: Name.ColumnName, val ali
                     is LongValue -> min = min(min, value.value.toDouble())
                     is FloatValue -> min = min(min, value.value.toDouble())
                     is DoubleValue -> min = min(min, value.value)
-                    else -> throw OperatorExecutionException(this@MinProjectionOperator, "The provided column $parentColumn cannot be used for a MIN projection.")
+                    else -> throw ExecutionException.OperatorExecutionException(this@MinProjectionOperator, "The provided column $parentColumn cannot be used for a MIN projection.")
                 }
             }
             when (parentColumn.type) {
@@ -116,7 +116,7 @@ class MinProjectionOperator(parent: Operator, val name: Name.ColumnName, val ali
                 LongColumnType -> emit(StandaloneRecord(0L, this@MinProjectionOperator.columns, arrayOf(LongValue(min))))
                 FloatColumnType -> emit(StandaloneRecord(0L, this@MinProjectionOperator.columns, arrayOf(FloatValue(min))))
                 DoubleColumnType -> emit(StandaloneRecord(0L, this@MinProjectionOperator.columns, arrayOf(DoubleValue(min))))
-                else -> throw OperatorExecutionException(this@MinProjectionOperator, "The provided column $parentColumn cannot be used for a MIN projection. ")
+                else -> throw ExecutionException.OperatorExecutionException(this@MinProjectionOperator, "The provided column $parentColumn cannot be used for a MIN projection. ")
             }
         }
     }
