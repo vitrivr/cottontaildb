@@ -20,16 +20,16 @@ object Playground {
     val ddlService = DDLGrpc.newBlockingStub(channel)
     val dmlService = DMLGrpc.newBlockingStub(channel)
 
-    val schema = CottontailGrpc.SchemaName.newBuilder().setName("cottontail").build()
+    val schema = CottontailGrpc.SchemaName.newBuilder().setName("cineast").build()
     val entity = CottontailGrpc.EntityName.newBuilder()
-            .setSchema(schema)
-            .setName("tab4")
+            .setSchema(this.schema)
+            .setName("features_ocr")
             .build()
 
 
     @JvmStatic
     fun main(args: Array<String>) {
-        this.executeIn()
+        this.executeLike()
     }
 
 
@@ -75,9 +75,27 @@ object Playground {
         }
     }
 
+    private fun executeLike() {
+        val query = CottontailGrpc.QueryMessage.newBuilder().setQuery(
+                CottontailGrpc.Query.newBuilder()
+                        .setFrom(CottontailGrpc.From.newBuilder().setEntity(entity))
+                        .setWhere(CottontailGrpc.Where.newBuilder().setAtomic(
+                                CottontailGrpc.AtomicLiteralBooleanPredicate.newBuilder()
+                                        .setLeft(CottontailGrpc.ColumnName.newBuilder().setName("feature"))
+                                        .setOp(CottontailGrpc.ComparisonOperator.LIKE)
+                                        .addRight(CottontailGrpc.Literal.newBuilder().setStringData("DE REMISE%"))
+                        ))
+                        .setProjection(CottontailGrpc.Projection.newBuilder()
+                                .addColumns(CottontailGrpc.Projection.ProjectionElement.newBuilder().setColumn(CottontailGrpc.ColumnName.newBuilder().setName("id")).setAlias(CottontailGrpc.ColumnName.newBuilder().setName("id")))
+                                .addColumns(CottontailGrpc.Projection.ProjectionElement.newBuilder().setColumn(CottontailGrpc.ColumnName.newBuilder().setName("feature")).setAlias(CottontailGrpc.ColumnName.newBuilder().setName("feature")))
+                        )).build()
+        val results = this.dqlService.query(query)
+        println(TabulationUtilities.tabulate(results))
+    }
+
 
     private fun executeKnn() {
-        val vector = IntVectorValue.random(2).let {
+        val vector = IntVectorValue.random(3).let {
             CottontailGrpc.Vector.newBuilder().setIntVector(CottontailGrpc.IntVector.newBuilder().addAllVector(it.data.asIterable()))
         }
         val query = CottontailGrpc.QueryMessage.newBuilder().setQuery(
@@ -87,12 +105,12 @@ object Playground {
                                 .addQuery(vector)
                                 .setDistance(CottontailGrpc.Knn.Distance.L2)
                                 .setK(5)
-                                .setAttribute(CottontailGrpc.ColumnName.newBuilder().setName("col27"))
+                                .setAttribute(CottontailGrpc.ColumnName.newBuilder().setName("feature"))
                                 .setHint(CottontailGrpc.KnnHint.newBuilder().setNoIndexHint(CottontailGrpc.KnnHint.NoIndexKnnHint.getDefaultInstance()))
                         )
                         .setProjection(CottontailGrpc.Projection.newBuilder()
-                                .addColumns(CottontailGrpc.Projection.ProjectionElement.newBuilder().setColumn(CottontailGrpc.ColumnName.newBuilder().setName("col27")).setAlias(CottontailGrpc.ColumnName.newBuilder().setName("ctid")))
-                                .addColumns(CottontailGrpc.Projection.ProjectionElement.newBuilder().setColumn(CottontailGrpc.ColumnName.newBuilder().setName("distance")).setAlias(CottontailGrpc.ColumnName.newBuilder().setName("dist")))
+                                .addColumns(CottontailGrpc.Projection.ProjectionElement.newBuilder().setColumn(CottontailGrpc.ColumnName.newBuilder().setName("id")).setAlias(CottontailGrpc.ColumnName.newBuilder().setName("id")))
+                                .addColumns(CottontailGrpc.Projection.ProjectionElement.newBuilder().setColumn(CottontailGrpc.ColumnName.newBuilder().setName("feature")).setAlias(CottontailGrpc.ColumnName.newBuilder().setName("feature")))
                         ))
 
         val results = this.dqlService.query(query.build())
