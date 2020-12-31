@@ -125,6 +125,7 @@ dependencies {
     ////// Lucene
     compile group: 'org.apache.lucene', name: 'lucene-core', version: luceneVersion
     compile group: 'org.apache.lucene', name: 'lucene-analyzers-common', version: luceneVersion
+    compile group: 'org.apache.lucene', name: 'lucene-analyzers-phonetic', version: luceneVersion
     compile group: 'org.apache.lucene', name: 'lucene-codecs', version: luceneVersion
     compile group: 'org.apache.lucene', name: 'lucene-queryparser', version: luceneVersion
 
