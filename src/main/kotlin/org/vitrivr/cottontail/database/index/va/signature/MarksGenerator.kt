@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail.database.index.va.marks
+package org.vitrivr.cottontail.database.index.va.signature
 
 import kotlin.math.max
 import kotlin.math.min
