@@ -174,7 +174,7 @@ class MapDBColumn<T : Value>(override val name: Name.ColumnName, override val pa
         override fun scan(range: LongRange) = object : CloseableIterator<TupleId> {
 
             init {
-                this@Tx.withWriteLock { /* No op. */ }
+                this@Tx.withReadLock { /* No op. */ }
             }
 
             /** Wraps a [CottontailStoreWAL.RecordIdIterator] from the [MapDBColumn]. */
