@@ -5,7 +5,6 @@ import org.mapdb.DBMaker
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
-import org.vitrivr.cottontail.database.column.ColumnType
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.events.DataChangeEvent
@@ -36,6 +35,7 @@ import org.vitrivr.cottontail.model.values.IntValue
 import org.vitrivr.cottontail.model.values.types.RealVectorValue
 import org.vitrivr.cottontail.model.values.types.VectorValue
 import org.vitrivr.cottontail.utilities.extensions.write
+import org.vitrivr.cottontail.utilities.math.KnnUtilities
 import java.nio.file.Path
 import java.util.*
 import kotlin.collections.ArrayDeque
@@ -55,7 +55,10 @@ class VAFIndex(override val name: Name.IndexName, override val parent: Entity, o
     override val path: Path = this.parent.path.resolve("idx_vaf_$name.db")
 
     /** The [VAFIndex] implementation returns exactly the columns that is indexed. */
-    override val produces: Array<ColumnDef<*>> = arrayOf(ColumnDef(this.parent.name.column("distance"), ColumnType.forName("DOUBLE")))
+    override val produces: Array<ColumnDef<*>> = arrayOf(
+            KnnUtilities.queryIndexColumnDef(this.parent.name),
+            KnnUtilities.distanceColumnDef(this.parent.name)
+    )
 
     /** The type of [Index]. */
     override val type = IndexType.VAF
@@ -212,12 +215,16 @@ class VAFIndex(override val name: Name.IndexName, override val parent: Entity, o
             /** Pre-calculated [QueryMarkProduct] for each query vector. */
             private val queryMarkProducts = this.predicate.query.map {
                 require(it is RealVectorValue<*>) { }
-                QueryMarkProduct(it, marks)
+                QueryMarkProduct(it, this.marks)
             }
 
             /** The [ArrayDeque] of [StandaloneRecord] produced by this [VAFIndex]. Evaluated lazily! */
             private val resultsQueue: ArrayDeque<StandaloneRecord> by lazy {
                 prepareResults()
+            }
+
+            init {
+                this@Tx.withReadLock { }
             }
 
             /** Flag indicating whether this [CloseableIterator] has been closed. */
@@ -287,7 +294,7 @@ class VAFIndex(override val name: Name.IndexName, override val parent: Entity, o
             var a = 0.0
             var b = 0.0
             signature.cells.forEachIndexed { i, cv ->
-                val c = componentProducts.product[i][cv]
+                val c = componentProducts.product[i][max(0, cv)]
                 val d = componentProducts.product[i][cv + 1]
                 if (c < d) {
                     a += c
