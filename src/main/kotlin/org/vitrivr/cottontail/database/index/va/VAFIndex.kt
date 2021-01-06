@@ -4,13 +4,16 @@ import org.mapdb.Atomic
 import org.mapdb.DBMaker
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.events.DataChangeEvent
 import org.vitrivr.cottontail.database.index.Index
 import org.vitrivr.cottontail.database.index.IndexTx
 import org.vitrivr.cottontail.database.index.IndexType
+import org.vitrivr.cottontail.database.index.va.lookup.Bounds
+import org.vitrivr.cottontail.database.index.va.lookup.L1Bounds
+import org.vitrivr.cottontail.database.index.va.lookup.L2Bounds
+import org.vitrivr.cottontail.database.index.va.lookup.LpBounds
 import org.vitrivr.cottontail.database.index.va.signature.Marks
 import org.vitrivr.cottontail.database.index.va.signature.MarksGenerator
 import org.vitrivr.cottontail.database.index.va.signature.Signature
@@ -19,8 +22,9 @@ import org.vitrivr.cottontail.database.queries.components.KnnPredicate
 import org.vitrivr.cottontail.database.queries.components.Predicate
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.execution.TransactionContext
-
-import org.vitrivr.cottontail.math.knn.metrics.Distances
+import org.vitrivr.cottontail.math.knn.metrics.EuclidianDistance
+import org.vitrivr.cottontail.math.knn.metrics.ManhattanDistance
+import org.vitrivr.cottontail.math.knn.metrics.MinkowskiDistance
 import org.vitrivr.cottontail.math.knn.selection.ComparablePair
 import org.vitrivr.cottontail.math.knn.selection.MinHeapSelection
 import org.vitrivr.cottontail.math.knn.selection.MinSingleSelection
@@ -88,7 +92,7 @@ class VAFIndex(override val name: Name.IndexName, override val parent: Entity, o
             if (config != null) {
                 this.config = config
             } else {
-                this.config = VAFIndexConfig(5, Distances.L2)
+                this.config = VAFIndexConfig(5)
             }
             configOnDisk.set(this.config)
         } else {
@@ -212,10 +216,15 @@ class VAFIndex(override val name: Name.IndexName, override val parent: Entity, o
             /** The [Marks] used by this [CloseableIterator]. */
             private val marks = this@VAFIndex.marksStore.get()
 
-            /** Pre-calculated [QueryMarkProduct] for each query vector. */
-            private val queryMarkProducts = this.predicate.query.map {
+            /** The [Bounds] objects used for filtering. */
+            private val bounds: List<Bounds> = this.predicate.query.map {
                 require(it is RealVectorValue<*>) { }
-                QueryMarkProduct(it, this.marks)
+                when (this.predicate.distance) {
+                    is ManhattanDistance -> L1Bounds(it, this.marks)
+                    is EuclidianDistance -> L2Bounds(it, this.marks)
+                    is MinkowskiDistance -> LpBounds(it, this.marks, this.predicate.distance.p)
+                    else -> throw IllegalArgumentException("")
+                }
             }
 
             /** The [ArrayDeque] of [StandaloneRecord] produced by this [VAFIndex]. Evaluated lazily! */
@@ -256,15 +265,16 @@ class VAFIndex(override val name: Name.IndexName, override val parent: Entity, o
                 }
 
                 /* Iterate over all signatures. */
-                val bounds = doubleArrayOf(0.0, 0.0)
                 for (signature in this@VAFIndex.signatures) {
                     if (signature != null) {
                         this.predicate.query.forEachIndexed { i, q ->
-                            calculateBounds(signature, this.queryMarkProducts[i], bounds)
-                            if (knns[i].size < this.predicate.k || knns[i].peek()!!.second.value > max(bounds[0], bounds[1])) {
-                                val value = txn.read(signature.tupleId, this@VAFIndex.columns)[this@VAFIndex.columns[0]]
-                                if (value is VectorValue<*>) {
-                                    knns[i].offer(ComparablePair(signature.tupleId, this.predicate.distance(value, q)))
+                            if (q is RealVectorValue<*>) {
+                                this.bounds[i].update(signature)
+                                if (knns[i].size < this.predicate.k || knns[i].peek()!!.second.value > this.bounds[i].lb) {
+                                    val value = txn.read(signature.tupleId, this@VAFIndex.columns)[this@VAFIndex.columns[0]]
+                                    if (value is VectorValue<*>) {
+                                        knns[i].offer(ComparablePair(signature.tupleId, this.predicate.distance(value, q)))
+                                    }
                                 }
                             }
                         }
@@ -280,32 +290,6 @@ class VAFIndex(override val name: Name.IndexName, override val parent: Entity, o
                 }
                 return queue
             }
-        }
-
-        /**
-         * Calculates lower and upper bound for the given [Signature] and the given [QueryMarkProduct]
-         * and writes in into the given [DoubleArray].
-         *
-         * @param signature The [Signature] to calculate the bounds for.
-         * @param componentProducts The [QueryMarkProduct] to calculate the bounds for.
-         * @param into The [DoubleArray] to write the bounds into.
-         */
-        private fun calculateBounds(signature: Signature, componentProducts: QueryMarkProduct, into: DoubleArray) {
-            var a = 0.0
-            var b = 0.0
-            signature.cells.forEachIndexed { i, cv ->
-                val c = componentProducts.product[i][max(0, cv)]
-                val d = componentProducts.product[i][cv + 1]
-                if (c < d) {
-                    a += c
-                    b += d
-                } else {
-                    a += d
-                    b += c
-                }
-            }
-            into[0] = a
-            into[1] = b
         }
 
         /**
