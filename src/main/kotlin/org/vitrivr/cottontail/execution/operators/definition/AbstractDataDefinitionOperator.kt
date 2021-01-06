@@ -28,5 +28,5 @@ abstract class AbstractDataDefinitionOperator(protected val dboName: Name, prote
     /**
      * Generates and returns a [StandaloneRecord] for the given [duration]
      */
-    fun statusRecord(duration: Duration) = StandaloneRecord(0L, this.columns, arrayOf(StringValue("CREATE ENTITY"), StringValue(dboName.toString()), DoubleValue(duration.inMilliseconds)))
+    fun statusRecord(duration: Duration) = StandaloneRecord(0L, this.columns, arrayOf(StringValue(this.action), StringValue(dboName.toString()), DoubleValue(duration.inMilliseconds)))
 }
