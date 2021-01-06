@@ -1,12 +1,11 @@
 buildscript {
-    ext.luceneVersion = '7.7.1'
-    ext.kotlinVersion = '1.4.20'
+    ext.luceneVersion = '8.7.0'
+    ext.kotlinVersion = '1.4.21'
 }
 
 plugins {
     id "org.jetbrains.kotlin.jvm" version "$kotlinVersion"
     id "org.jetbrains.kotlin.plugin.serialization" version "$kotlinVersion"
-
     id "com.github.johnrengelman.shadow" version "6.1.0"
 }
 

@@ -40,7 +40,7 @@ object KnnIndexScanRule : RewriteRule {
                             val p = IndexKnnPhysicalNodeExpression(candidate, node.predicate)
                             kNN.addInput(p)
                         }
-                        candidate.produces.contains(KnnUtilities.columnDef(node.predicate.column.name.entity())) -> { /* Case 2: Index produces distance, no kNN calculation needed. */
+                        candidate.produces.contains(KnnUtilities.distanceColumnDef(node.predicate.column.name.entity())) -> { /* Case 2: Index produces distance, no kNN calculation needed. */
                             IndexKnnPhysicalNodeExpression(candidate, node.predicate)
                         }
                         else -> {  /* Case 3: Index only produces TupleIds (and potentially useless columns). Column for kNN needs to be fetched in an extra step. */

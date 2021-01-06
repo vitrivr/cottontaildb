@@ -520,12 +520,12 @@ class CottontailStoreWAL(
 
             val walId = cacheRecords[segment].get(volOffset)
             val di = if(walId!=0L){
-                //try to get from WAL
-                DataInput2.ByteArray(wal.walGetRecord(walId,recid))
-            }else {
-                //not in WAL, load from volume
-                volume.getDataInput(volOffset,size.toInt())
-            }
+                    //try to get from WAL
+                    DataInput2.ByteArray(wal.walGetRecord(walId,recid))
+                }else {
+                    //not in WAL, load from volume
+                    volume.getDataInput(volOffset,size.toInt())
+                }
             return deserialize(serializer, di, size)
         }
     }
@@ -582,10 +582,18 @@ class CottontailStoreWAL(
         try {
             realVolume.getData(0,headBytes, 0, headBytes.size)
             cacheIndexLinks.clear()
-            cacheIndexVals.forEach { it.clear() }
-            cacheRecords.forEach { it.clear() }
+            cacheIndexVals.forEach {
+                it.clear()
+                it.compact()
+            }
+            cacheRecords.forEach {
+                it.clear()
+                it.compact()
+            }
             cacheStacks.clear()
+            cacheStacks.compact()
             indexPages.clear()
+
             for(page in indexPagesBackup)
                 indexPages.add(page)
             wal.rollback()
@@ -612,6 +620,7 @@ class CottontailStoreWAL(
                     realVolume.putLong(indexOffset, indexVal)
                 }
                 indexVals.clear()
+                indexVals.compact()
             }
             cacheIndexLinks.forEachKeyValue { indexOffset, indexVal ->
                 realVolume.putLong(indexOffset, indexVal)
@@ -623,6 +632,7 @@ class CottontailStoreWAL(
                 realVolume.putData(offset, bytes, 0, bytes.size)
             }
             cacheStacks.clear()
+            cacheStacks.compact()
 
             //move modified records from indexPages
             for (records in cacheRecords) {
@@ -631,6 +641,7 @@ class CottontailStoreWAL(
                     realVolume.putData(offset, bytes, 0, bytes.size)
                 }
                 records.clear()
+                records.compact()
             }
 
             indexPagesBackup = indexPages.toArray()

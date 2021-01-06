@@ -129,7 +129,7 @@ class UniqueHashIndex(override val name: Name.IndexName, override val parent: En
 
         /**
          * (Re-)builds the [UniqueHashIndex].
-         **/
+         */
         override fun rebuild() = this.withWriteLock {
             LOGGER.trace("Rebuilding unique hash index {}", this@UniqueHashIndex.name)
 

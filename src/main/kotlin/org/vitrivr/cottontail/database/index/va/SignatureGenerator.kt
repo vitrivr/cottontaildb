@@ -1,9 +1,12 @@
-package org.vitrivr.cottontail.database.index.vaplus
+package org.vitrivr.cottontail.database.index.va
 
 import java.util.*
 
 class SignatureGenerator(val numberOfBitsPerDimension: IntArray) {
 
+    init {
+        TODO("Don't use bitset, it doesn't have a length")
+    }
     /**
      * Create signature.
      */

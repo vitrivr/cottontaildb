@@ -367,7 +367,7 @@ class LuceneIndex(override val name: Name.IndexName, override val parent: Entity
              */
             override fun hasNext(): Boolean {
                 check(!this.closed) { "Illegal invocation of next(): This CloseableIterator has been closed." }
-                return this.returned < this.results.totalHits
+                return this.returned < this.results.totalHits.value
             }
 
             /**

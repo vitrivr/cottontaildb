@@ -4,13 +4,74 @@
 
   <appender name="console" class="org.apache.log4j.ConsoleAppender">
     <layout class="org.apache.log4j.PatternLayout">
-      <param name="ConversionPattern" value="%d{yyyy-MM-dd HH:mm:ss} %-5p %c{1}:%L - %m%n" />
+      <param name="ConversionPattern" value="%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5p %c{1}:%L - %m%n" />
+    </layout>
+  </appender>
+
+  <appender name="lshfile" class="org.apache.log4j.FileAppender">
+      <param name="File" value="lsh_index.log" />
+    <layout class="org.apache.log4j.PatternLayout">
+      <param name="ConversionPattern" value="%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5p %c{1}:%L - %m%n" />
+    </layout>
+  </appender>
+
+  <appender name="vafile" class="org.apache.log4j.FileAppender">
+    <param name="File" value="vaf_index.log" />
+    <layout class="org.apache.log4j.PatternLayout">
+      <param name="ConversionPattern" value="%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5p %c{1}:%L - %m%n" />
+    </layout>
+  </appender>
+
+  <appender name="pq" class="org.apache.log4j.FileAppender">
+    <param name="File" value="pq_index.log" />
+    <layout class="org.apache.log4j.PatternLayout">
+      <param name="ConversionPattern" value="%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5p %c{1}:%L - %m%n" />
+    </layout>
+  </appender>
+
+  <appender name="random" class="org.apache.log4j.FileAppender">
+    <param name="File" value="random_index.log" />
+    <layout class="org.apache.log4j.PatternLayout">
+      <param name="ConversionPattern" value="%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5p %c{1}:%L - %m%n" />
     </layout>
   </appender>
 
   <!-- Logger for Cottontail DB -->
-  <logger name="org.vitrivr.cottontail">
-    <level value="TRACE"/>
+<!--  <logger name="org.vitrivr.cottontail">-->
+<!--    <level value="OFF"/>-->
+<!--  </logger>-->
+    
+  <logger name="org.vitrivr.cottontail.database.index.lsh.superbit.SuperBitLSHIndex">
+    <level value="TRACE" />
+    <appender-ref ref="lshfile"/>
+  </logger>
+
+  <logger name="org.vitrivr.cottontail.database.index.lsh.superbit.NonBucketingSuperBitLSHIndex">
+    <level value="TRACE" />
+    <appender-ref ref="lshfile"/>
+  </logger>
+
+  <logger name="org.vitrivr.cottontail.database.index.va.VAFIndex">
+    <level value="TRACE" />
+    <appender-ref ref="vafile"/>
+  </logger>
+
+  <logger name="org.vitrivr.cottontail.database.index.pq.clustering.KMeansClustererComplex">
+    <level value="TRACE" />
+  </logger>
+
+  <logger name="org.vitrivr.cottontail.database.index.pq.PQIndex">
+    <level value="TRACE" />
+    <appender-ref ref="pq"/>
+  </logger>
+
+  <logger name="org.vitrivr.cottontail.database.index.random.RandomIndex">
+    <level value="TRACE" />
+    <appender-ref ref="random"/>
+  </logger>
+
+  <logger name="org.vitrivr.cottontail.database.index.greedygrouping.GreedyGroupingIndex">
+    <level value="TRACE" />
   </logger>
 
   <!-- Root logger for Cottontail DB -->

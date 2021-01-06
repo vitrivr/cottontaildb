@@ -11,7 +11,7 @@ import java.util.*
  * This is an abstraction over a [BooleanArray] and it represents a vector of [Boolean]s.
  *
  * @author Ralph Gasser
- * @version 1.3.2
+ * @version 1.3.3
  */
 inline class BooleanVectorValue(val data: BooleanArray) : RealVectorValue<Int> {
 
@@ -232,5 +232,24 @@ inline class BooleanVectorValue(val data: BooleanArray) : RealVectorValue<Int> {
             IntValue(sum)
         }
         else -> super.hamming(other).asInt()
+    }
+
+    /**
+     * Returns the subvector of length [length] starting from [start] of this [VectorValue].
+     *
+     * @param start Index of the first entry of the returned vector.
+     * @param length how many elements, including start, to return
+     * @return The subvector starting at index start containing length elements.
+     */
+    override fun get(start: Int, length: Int): VectorValue<Int> {
+        TODO("Not yet implemented")
+    }
+
+    override fun minus(other: VectorValue<*>, start: Int, otherStart: Int, length: Int): VectorValue<Int> {
+        TODO("Not yet implemented")
+    }
+
+    override fun dot(other: VectorValue<*>, start: Int, otherStart: Int, length: Int): NumericValue<*> {
+        TODO("Not yet implemented")
     }
 }

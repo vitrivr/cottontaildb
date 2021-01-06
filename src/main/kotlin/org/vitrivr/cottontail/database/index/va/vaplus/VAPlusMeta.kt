@@ -1,10 +1,11 @@
-package org.vitrivr.cottontail.database.index.vaplus
+package org.vitrivr.cottontail.database.index.va.vaplus
 
 import org.apache.commons.math3.linear.MatrixUtils
 import org.apache.commons.math3.linear.RealMatrix
 import org.mapdb.DataInput2
 import org.mapdb.DataOutput2
 import org.mapdb.Serializer
+import org.vitrivr.cottontail.database.index.va.SignatureGenerator
 
 data class VAPlusMeta(val marks: Array<DoubleArray>, val signatureGenerator: SignatureGenerator, val kltMatrix: RealMatrix)
 

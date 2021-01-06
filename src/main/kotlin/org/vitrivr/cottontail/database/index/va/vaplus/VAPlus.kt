@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail.database.index.vaplus
+package org.vitrivr.cottontail.database.index.va.vaplus
 
 /**
  * see H. Ferhatosmanoglu, E. Tuncel, D. Agrawal, A. El Abbadi (2006): High dimensional nearest neighbor searching. Information Systems.
@@ -9,7 +9,8 @@ import org.apache.commons.math3.linear.MatrixUtils
 import org.apache.commons.math3.linear.RealMatrix
 import org.apache.commons.math3.stat.correlation.Covariance
 import org.vitrivr.cottontail.database.entity.Entity
-import org.vitrivr.cottontail.database.entity.EntityTx
+import org.vitrivr.cottontail.database.index.va.marks.Marks
+import org.vitrivr.cottontail.database.index.va.marks.MarksGenerator
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.values.types.VectorValue
 import java.io.Serializable
@@ -39,13 +40,13 @@ class VAPlus : Serializable {
      * @param size  The size of the data sample.
      * @return  An subset from data.
      */
-    fun getDataSample(tx: EntityTx, columns: Array<ColumnDef<*>>, size: Int): Array<DoubleArray> {
+    fun getDataSample(tx: Entity.Tx, column: ColumnDef<*>, size: Int): Array<DoubleArray> {
         val p = size / tx.count().toDouble()
         val dataSample = ArrayList<DoubleArray>(size + 100)
         val random = SplittableRandom(System.currentTimeMillis())
-        tx.scan(columns).forEach { record ->
+        tx.forEach {
             if (random.nextDouble() >= 1.0 - p) {
-                dataSample.add(convertToDoubleArray(record[columns[0]] as VectorValue<*>))
+                dataSample.add(convertToDoubleArray(it[column] as VectorValue<*>))
             }
         }
         return dataSample.toTypedArray()
@@ -137,30 +138,13 @@ class VAPlus : Serializable {
      * @param dataSample The data sample.
      * @param b The number of bits per dimension.
      */
-    fun nonUniformQuantization(dataSample: Array<DoubleArray>, b: IntArray): Array<DoubleArray> {
+    fun nonUniformQuantization(dataSample: Array<DoubleArray>, b: IntArray): Marks {
         val numberOfMarks = IntArray(b.size) {
             minOf(maxOf(1, 2 shl (b[it] - 1)), Short.MAX_VALUE.toInt())
         }
         return MarksGenerator.getNonUniformMarks(dataSample, numberOfMarks)
     }
 
-    /**
-     * This methods calculates the signature of the vector.
-     * This method checks for every mark if the corresponding vector is beyond or not.
-     * If so, mark before is the corresponding mark.
-     *
-     * @param vector The vector.
-     * @param marks The marks.
-     * @return An [IntArray] containing the signature of the vector.
-     */
-    fun getCells(vector: DoubleArray, marks: Array<DoubleArray>): IntArray = IntArray(vector.size) {
-        val index = marks[it].indexOfFirst { i -> i >= vector[it] }
-        if (index == -1) {
-            marks[it].size - 2
-        } else {
-            index - 1
-        }
-    }
 
     /**
      * This helper method convert vector to double array.
@@ -197,7 +181,7 @@ class VAPlus : Serializable {
 
     /* Querying */
     /**
-     * This method computes bounds.
+     * This method computes bounds. What kinds of bounds?
      */
     fun computeBounds(vector: DoubleArray, marks: Array<DoubleArray>): Pair<Array<DoubleArray>, Array<DoubleArray>> {
         val lbounds = Array(marks.size) { DoubleArray(maxOf(0, marks[it].size - 1)) }

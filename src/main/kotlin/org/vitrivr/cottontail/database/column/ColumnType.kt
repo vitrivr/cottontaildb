@@ -1,4 +1,5 @@
 package org.vitrivr.cottontail.database.column
+
 import org.mapdb.Serializer
 import org.vitrivr.cottontail.database.serializers.*
 import org.vitrivr.cottontail.model.values.*
@@ -13,12 +14,13 @@ import kotlin.reflect.full.safeCast
  * @see Column
  *
  * @author Ralph Gasser
- * @version 1.1
+ * @version 1.2.0
  */
 sealed class ColumnType<T : Value> {
     abstract val name: String
     abstract val type: KClass<T>
     abstract val numeric: Boolean
+    abstract val complex: Boolean
     abstract val vector: Boolean
     abstract val size: Int
 
@@ -81,6 +83,7 @@ sealed class ColumnType<T : Value> {
 object BooleanColumnType : ColumnType<BooleanValue>() {
     override val name = "BOOLEAN"
     override val numeric = true
+    override val complex = false
     override val vector = false
     override val size: Int = Byte.SIZE_BYTES
     override val type: KClass<BooleanValue> = BooleanValue::class
@@ -91,6 +94,7 @@ object BooleanColumnType : ColumnType<BooleanValue>() {
 object ByteColumnType : ColumnType<ByteValue>() {
     override val name = "BYTE"
     override val numeric = true
+    override val complex = false
     override val vector = false
     override val size: Int = Byte.SIZE_BYTES
     override val type: KClass<ByteValue> = ByteValue::class
@@ -101,6 +105,7 @@ object ByteColumnType : ColumnType<ByteValue>() {
 object ShortColumnType : ColumnType<ShortValue>() {
     override val name = "SHORT"
     override val numeric = true
+    override val complex = false
     override val vector = false
     override val size: Int = Short.SIZE_BYTES
     override val type: KClass<ShortValue> = ShortValue::class
@@ -111,6 +116,7 @@ object ShortColumnType : ColumnType<ShortValue>() {
 object IntColumnType : ColumnType<IntValue>() {
     override val name = "INTEGER"
     override val numeric = true
+    override val complex = false
     override val vector = false
     override val size: Int = Int.SIZE_BYTES
     override val type: KClass<IntValue> = IntValue::class
@@ -121,6 +127,7 @@ object IntColumnType : ColumnType<IntValue>() {
 object LongColumnType : ColumnType<LongValue>() {
     override val name = "LONG"
     override val numeric = true
+    override val complex = false
     override val vector = false
     override val size: Int = Long.SIZE_BYTES
     override val type: KClass<LongValue> = LongValue::class
@@ -131,6 +138,7 @@ object LongColumnType : ColumnType<LongValue>() {
 object FloatColumnType : ColumnType<FloatValue>() {
     override val name = "FLOAT"
     override val numeric = true
+    override val complex = false
     override val vector = false
     override val size: Int = Int.SIZE_BYTES
     override val type: KClass<FloatValue> = FloatValue::class
@@ -141,6 +149,7 @@ object FloatColumnType : ColumnType<FloatValue>() {
 object DoubleColumnType : ColumnType<DoubleValue>() {
     override val name = "DOUBLE"
     override val numeric = true
+    override val complex = false
     override val vector = false
     override val size: Int = Long.SIZE_BYTES
     override val type: KClass<DoubleValue> = DoubleValue::class
@@ -151,6 +160,7 @@ object DoubleColumnType : ColumnType<DoubleValue>() {
 object StringColumnType : ColumnType<StringValue>() {
     override val name = "STRING"
     override val numeric = false
+    override val complex = false
     override val vector = false
     override val size: Int = Char.SIZE_BYTES
     override val type: KClass<StringValue> = StringValue::class
@@ -161,6 +171,7 @@ object StringColumnType : ColumnType<StringValue>() {
 object Complex32ColumnType : ColumnType<Complex32Value>() {
     override val name = "COMPLEX32"
     override val numeric = true
+    override val complex = true
     override val vector = false
     override val size: Int = 2 * Int.SIZE_BYTES
     override val type: KClass<Complex32Value> = Complex32Value::class
@@ -171,6 +182,7 @@ object Complex32ColumnType : ColumnType<Complex32Value>() {
 object Complex64ColumnType : ColumnType<Complex64Value>() {
     override val name = "COMPLEX64"
     override val numeric = true
+    override val complex = true
     override val vector = false
     override val size: Int = 2 * Long.SIZE_BYTES
     override val type: KClass<Complex64Value> = Complex64Value::class
@@ -181,6 +193,7 @@ object Complex64ColumnType : ColumnType<Complex64Value>() {
 object IntVectorColumnType : ColumnType<IntVectorValue>() {
     override val name = "INT_VEC"
     override val numeric = false
+    override val complex = false
     override val vector = true
     override val size: Int = Int.SIZE_BYTES
     override val type: KClass<IntVectorValue> = IntVectorValue::class
@@ -194,6 +207,7 @@ object IntVectorColumnType : ColumnType<IntVectorValue>() {
 object LongVectorColumnType : ColumnType<LongVectorValue>() {
     override val name = "LONG_VEC"
     override val numeric = false
+    override val complex = false
     override val vector = true
     override val size: Int = Long.SIZE_BYTES
     override val type: KClass<LongVectorValue> = LongVectorValue::class
@@ -207,6 +221,7 @@ object LongVectorColumnType : ColumnType<LongVectorValue>() {
 object FloatVectorColumnType : ColumnType<FloatVectorValue>() {
     override val name = "FLOAT_VEC"
     override val numeric = false
+    override val complex = false
     override val vector = true
     override val size: Int = Int.SIZE_BYTES
     override val type: KClass<FloatVectorValue> = FloatVectorValue::class
@@ -220,6 +235,7 @@ object FloatVectorColumnType : ColumnType<FloatVectorValue>() {
 object DoubleVectorColumnType : ColumnType<DoubleVectorValue>() {
     override val name = "DOUBLE_VEC"
     override val numeric = false
+    override val complex = false
     override val vector = true
     override val size: Int = Long.SIZE_BYTES
     override val type: KClass<DoubleVectorValue> = DoubleVectorValue::class
@@ -233,6 +249,7 @@ object DoubleVectorColumnType : ColumnType<DoubleVectorValue>() {
 object BooleanVectorColumnType : ColumnType<BooleanVectorValue>() {
     override val name = "BOOL_VEC"
     override val numeric = false
+    override val complex = false
     override val vector = true
     override val size: Int = Byte.SIZE_BYTES
     override val type: KClass<BooleanVectorValue> = BooleanVectorValue::class
@@ -246,6 +263,7 @@ object BooleanVectorColumnType : ColumnType<BooleanVectorValue>() {
 object Complex32VectorColumnType : ColumnType<Complex32VectorValue>() {
     override val name = "COMPLEX32_VEC"
     override val numeric = false
+    override val complex = true
     override val vector = true
     override val size: Int = 2 * Int.SIZE_BYTES
     override val type: KClass<Complex32VectorValue> = Complex32VectorValue::class
@@ -259,6 +277,7 @@ object Complex32VectorColumnType : ColumnType<Complex32VectorValue>() {
 object Complex64VectorColumnType : ColumnType<Complex64VectorValue>() {
     override val name = "COMPLEX64_VEC"
     override val numeric = false
+    override val complex = true
     override val vector = true
     override val size: Int = 2 * Long.SIZE_BYTES
     override val type: KClass<Complex64VectorValue> = Complex64VectorValue::class
