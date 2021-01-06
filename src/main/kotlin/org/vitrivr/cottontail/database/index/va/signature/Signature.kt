@@ -12,13 +12,16 @@ import org.mapdb.DataOutput2
 data class Signature(val tupleId: Long, val cells: IntArray) {
     companion object Serializer : org.mapdb.Serializer<Signature> {
         override fun serialize(out: DataOutput2, value: Signature) {
-            org.mapdb.Serializer.LONG_DELTA.serialize(out, value.tupleId)
-            org.mapdb.Serializer.INT_ARRAY.serialize(out, value.cells)
+            out.writeLong(value.tupleId)
+            out.packInt(value.cells.size)
+            for (c in value.cells) {
+                out.packInt(c)
+            }
         }
 
         override fun deserialize(input: DataInput2, available: Int) = Signature(
-                org.mapdb.Serializer.LONG_DELTA.deserialize(input, available),
-                org.mapdb.Serializer.INT_ARRAY.deserialize(input, available)
+                input.readLong(),
+                IntArray(input.unpackInt()) { input.unpackInt() }
         )
     }
 
