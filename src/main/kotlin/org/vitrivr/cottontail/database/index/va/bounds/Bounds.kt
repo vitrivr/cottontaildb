@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail.database.index.va.lookup
+package org.vitrivr.cottontail.database.index.va.bounds
 
 import org.vitrivr.cottontail.database.index.va.signature.Signature
 

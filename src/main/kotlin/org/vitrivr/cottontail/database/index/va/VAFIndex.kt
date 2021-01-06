@@ -1,7 +1,6 @@
 package org.vitrivr.cottontail.database.index.va
 
 import org.mapdb.Atomic
-import org.mapdb.DBMaker
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.database.entity.Entity
@@ -10,10 +9,10 @@ import org.vitrivr.cottontail.database.events.DataChangeEvent
 import org.vitrivr.cottontail.database.index.Index
 import org.vitrivr.cottontail.database.index.IndexTx
 import org.vitrivr.cottontail.database.index.IndexType
-import org.vitrivr.cottontail.database.index.va.lookup.Bounds
-import org.vitrivr.cottontail.database.index.va.lookup.L1Bounds
-import org.vitrivr.cottontail.database.index.va.lookup.L2Bounds
-import org.vitrivr.cottontail.database.index.va.lookup.LpBounds
+import org.vitrivr.cottontail.database.index.va.bounds.Bounds
+import org.vitrivr.cottontail.database.index.va.bounds.L1Bounds
+import org.vitrivr.cottontail.database.index.va.bounds.L2Bounds
+import org.vitrivr.cottontail.database.index.va.bounds.LpBounds
 import org.vitrivr.cottontail.database.index.va.signature.Marks
 import org.vitrivr.cottontail.database.index.va.signature.MarksGenerator
 import org.vitrivr.cottontail.database.index.va.signature.Signature
@@ -46,6 +45,12 @@ import kotlin.collections.ArrayDeque
 import kotlin.math.max
 import kotlin.math.min
 
+/**
+ * An vector approximation (VA) file based [Index] that can be used for nearest neighbor search  using Lp distance kernels.
+ *
+ * @author Gabriel Zihlmann & Ralph Gasser
+ * @version 1.0.0
+ */
 class VAFIndex(override val name: Name.IndexName, override val parent: Entity, override val columns: Array<ColumnDef<*>>, config: VAFIndexConfig? = null) : Index() {
 
     companion object {
@@ -68,11 +73,7 @@ class VAFIndex(override val name: Name.IndexName, override val parent: Entity, o
     override val type = IndexType.VAF
 
     /** The internal [DB] reference. */
-    private val db = if (parent.parent.parent.config.mapdb.forceUnmap) {
-        DBMaker.fileDB(this.path.toFile()).fileMmapEnable().cleanerHackEnable().transactionEnable().make()
-    } else {
-        DBMaker.fileDB(this.path.toFile()).fileMmapEnable().transactionEnable().make()
-    }
+    private val db = this.parent.parent.parent.config.mapdb.db(this.path)
 
     /** The [VAFIndexConfig] used by this [VAFIndex] instance. */
     private val config: VAFIndexConfig
@@ -223,7 +224,7 @@ class VAFIndex(override val name: Name.IndexName, override val parent: Entity, o
                     is ManhattanDistance -> L1Bounds(it, this.marks)
                     is EuclidianDistance -> L2Bounds(it, this.marks)
                     is MinkowskiDistance -> LpBounds(it, this.marks, this.predicate.distance.p)
-                    else -> throw IllegalArgumentException("")
+                    else -> throw IllegalArgumentException("The ${this.predicate.distance} distance kernel is not supported by VAFIndex.")
                 }
             }
 

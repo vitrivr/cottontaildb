@@ -1,27 +1,29 @@
-package org.vitrivr.cottontail.database.index.va.lookup
+package org.vitrivr.cottontail.database.index.va.bounds
 
 import org.vitrivr.cottontail.database.index.va.signature.Marks
 import org.vitrivr.cottontail.database.index.va.signature.Signature
 import org.vitrivr.cottontail.model.values.types.RealVectorValue
 import kotlin.math.max
 import kotlin.math.pow
-import kotlin.math.sqrt
 
 /**
- * A [Bounds] implementation for L2 (Euclidean) distance.
+ * A [Bounds] implementation for Lp distance.
  *
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class L2Bounds(query: RealVectorValue<*>, marks: Marks) : Bounds {
+class LpBounds(query: RealVectorValue<*>, marks: Marks, p: Int) : Bounds {
 
-    /** Lower bound of this [L2Bounds]. */
+    /** Lower bound of this [LpBounds]. */
     override var lb = 0.0
         private set
 
-    /** Upper bound of this [L2Bounds]. */
+    /** Upper bound of this [LpBounds]. */
     override var ub = 0.0
         private set
+
+    /** Exponent used for p-th root calculation. */
+    private val exp = 1.0 / p
 
     /** Cells for the query [RealVectorValue]. */
     private val rq = marks.getCells(query)
@@ -30,7 +32,7 @@ class L2Bounds(query: RealVectorValue<*>, marks: Marks) : Bounds {
     private val lat = Array(marks.marks.size) { j ->
         val qj = query[j].value.toDouble()
         Array(marks.marks[j].size) { m ->
-            doubleArrayOf((qj - marks.marks[j][m]).pow(2), (marks.marks[j][m] - qj).pow(2))
+            doubleArrayOf((qj - marks.marks[j][m]).pow(p), (marks.marks[j][m] - qj).pow(p))
         }
     }
 
@@ -58,7 +60,7 @@ class L2Bounds(query: RealVectorValue<*>, marks: Marks) : Bounds {
                 }
             }
         }
-        this.lb = sqrt(lb)
-        this.ub = sqrt(ub)
+        this.lb = lb.pow(this.exp)
+        this.ub = ub.pow(this.exp)
     }
 }
