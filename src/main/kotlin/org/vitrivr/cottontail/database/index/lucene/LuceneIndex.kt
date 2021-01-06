@@ -1,9 +1,5 @@
 package org.vitrivr.cottontail.database.index.lucene
 
-import org.apache.lucene.analysis.Analyzer
-import org.apache.lucene.analysis.core.SimpleAnalyzer
-import org.apache.lucene.analysis.core.WhitespaceAnalyzer
-import org.apache.lucene.analysis.en.EnglishAnalyzer
 import org.apache.lucene.analysis.standard.StandardAnalyzer
 import org.apache.lucene.document.*
 import org.apache.lucene.index.*
@@ -12,8 +8,6 @@ import org.apache.lucene.search.*
 import org.apache.lucene.store.Directory
 import org.apache.lucene.store.FSDirectory
 import org.apache.lucene.store.NativeFSLockFactory
-import org.mapdb.DB
-import org.mapdb.serializer.SerializerString
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.database.column.ColumnType
 import org.vitrivr.cottontail.database.entity.Entity
@@ -25,6 +19,7 @@ import org.vitrivr.cottontail.database.index.IndexTx
 import org.vitrivr.cottontail.database.index.IndexType
 import org.vitrivr.cottontail.database.index.hash.UniqueHashIndex
 import org.vitrivr.cottontail.database.index.lsh.superbit.SuperBitLSHIndex
+import org.vitrivr.cottontail.database.index.lsh.superbit.SuperBitLSHIndexConfig
 import org.vitrivr.cottontail.database.queries.components.*
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.execution.TransactionContext
@@ -45,7 +40,7 @@ import java.nio.file.Path
  * @author Luca Rossetto & Ralph Gasser
  * @version 1.3.1
  */
-class LuceneIndex(override val name: Name.IndexName, override val parent: Entity, override val columns: Array<ColumnDef<*>>, params: Map<String, String>? = null) : Index() {
+class LuceneIndex(override val name: Name.IndexName, override val parent: Entity, override val columns: Array<ColumnDef<*>>, config: LuceneIndexConfig? = null) : Index() {
 
     companion object {
         /** [ColumnDef] of the _tid column. */
@@ -54,8 +49,7 @@ class LuceneIndex(override val name: Name.IndexName, override val parent: Entity
         /** The [ComparisonOperator]s supported by this [LuceneIndex]. */
         private val SUPPORTS = arrayOf(ComparisonOperator.LIKE, ComparisonOperator.EQUAL, ComparisonOperator.MATCH)
 
-        const val ANALYZER_NAME = "analyzer_config"
-        const val ANALYZER_NAME_KEY = "analyzer"
+        private const val CONFIG_NAME = "lucene_config"
 
         /**
          * Maps a [Record] to a [Document] that can be processed by Lucene.
@@ -90,12 +84,8 @@ class LuceneIndex(override val name: Name.IndexName, override val parent: Entity
     /** The type of this [Index]. */
     override val type: IndexType = IndexType.LUCENE
 
-    /** The internal [DB] reference. */
-    private val db: DB = this.parent.parent.parent.config.mapdb.db(this.path)
-
-    private val analyzerName = this.db.atomicVar(ANALYZER_NAME, SerializerString()).createOrOpen()
-
-    private val analyzerType: LuceneAnalyzerType
+    /** The [SuperBitLSHIndexConfig] used by this [SuperBitLSHIndex] instance. */
+    private val config: LuceneIndexConfig
 
     /** Flag indicating whether or not this [LuceneIndex] is open and usable. */
     @Volatile
@@ -105,32 +95,23 @@ class LuceneIndex(override val name: Name.IndexName, override val parent: Entity
     /** The [Directory] containing the data for this [LuceneIndex]. */
     private val directory: Directory = FSDirectory.open(this.path, NativeFSLockFactory.getDefault())
 
-    private fun getAnalyzer() : Analyzer = when(this.analyzerType) {
-        LuceneAnalyzerType.STANDARD -> StandardAnalyzer()
-        LuceneAnalyzerType.SIMPLE -> SimpleAnalyzer()
-        LuceneAnalyzerType.WHITESPACE -> WhitespaceAnalyzer()
-        LuceneAnalyzerType.ENGLISH -> EnglishAnalyzer()
-        LuceneAnalyzerType.SOUNDEX -> SoundexAnalyzer()
-    }
-
-
     init {
-        /* take care of setting analyzer type */
-        if (params != null) {
-            val analyzerTypeName = (try {
-                LuceneAnalyzerType.valueOf(
-                    params.getOrDefault(ANALYZER_NAME_KEY, LuceneAnalyzerType.STANDARD.name))
-            } catch (e: IllegalArgumentException) {
-                LuceneAnalyzerType.STANDARD
-            }).name
-
-            this.analyzerName.set(analyzerTypeName)
-
+        /** Tries to obtain config from disk. */
+        val db = this.parent.parent.parent.config.mapdb.db(this.path.resolve("config.db"))
+        val configOnDisk = db.atomicVar(CONFIG_NAME, LuceneIndexConfig.Serializer).createOrOpen()
+        if (configOnDisk.get() == null) {
+            if (config != null) {
+                this.config = config
+            } else {
+                this.config = LuceneIndexConfig(LuceneAnalyzerType.STANDARD)
+            }
+            configOnDisk.set(config)
+        } else {
+            this.config = configOnDisk.get()
         }
-        this.analyzerType = LuceneAnalyzerType.valueOf(this.analyzerName.get())
 
-        /** Initial commit in case writer was created. */
-        val writer = IndexWriter(this.directory, IndexWriterConfig(getAnalyzer()).setOpenMode(IndexWriterConfig.OpenMode.CREATE_OR_APPEND).setCommitOnClose(true))
+        /** Initial commit of write in case writer was created freshly. */
+        val writer = IndexWriter(this.directory, IndexWriterConfig(this.config.getAnalyzer()).setOpenMode(IndexWriterConfig.OpenMode.CREATE_OR_APPEND).setCommitOnClose(true))
         writer.close()
     }
 
@@ -258,7 +239,7 @@ class LuceneIndex(override val name: Name.IndexName, override val parent: Entity
     private inner class Tx(context: TransactionContext) : Index.Tx(context) {
 
         /** The [IndexWriter] instance used to access this [LuceneIndex]. */
-        private val writer = IndexWriter(this@LuceneIndex.directory, IndexWriterConfig(getAnalyzer()).setOpenMode(IndexWriterConfig.OpenMode.APPEND).setMaxBufferedDocs(100_000).setCommitOnClose(false))
+        private val writer = IndexWriter(this@LuceneIndex.directory, IndexWriterConfig(this@LuceneIndex.config.getAnalyzer()).setOpenMode(IndexWriterConfig.OpenMode.APPEND).setMaxBufferedDocs(100_000).setCommitOnClose(false))
 
         /**
          * (Re-)builds the [LuceneIndex].
@@ -367,7 +348,7 @@ class LuceneIndex(override val name: Name.IndexName, override val parent: Entity
              */
             override fun hasNext(): Boolean {
                 check(!this.closed) { "Illegal invocation of next(): This CloseableIterator has been closed." }
-                return this.returned < this.results.totalHits.value
+                return this.returned < this.results.totalHits
             }
 
             /**
