@@ -345,10 +345,9 @@ class DDLService(val catalogue: Catalogue, override val manager: TransactionMana
                 val entityName = request.entity.fqn()
                 LOGGER.info("Optimizing entity '$entityName'...")
 
-                /* ToDo. */
-
-                /* Update indexes. */
-                //this.catalogue.schemaForName(entityName.schema()).entityForName(entityName).updateAllIndexes()
+                /* Execution operation. */
+                val op = SpoolerSinkOperator(OptimizeEntityOperator(this.catalogue, entityName), q, 0, responseObserver)
+                tx.execute(op)
 
                 /* Finalize invocation. */
                 responseObserver.onCompleted()
