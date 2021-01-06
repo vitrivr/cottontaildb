@@ -1,5 +1,5 @@
 buildscript {
-    ext.luceneVersion = '8.7.0'
+    ext.luceneVersion = '7.7.3'
     ext.kotlinVersion = '1.4.21'
 }
 
