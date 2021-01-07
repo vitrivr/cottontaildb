@@ -359,7 +359,7 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
 
                 /* ON COMMIT: Remove index files. */
                 this.postCommitAction.add {
-                    val pathsToDelete = Files.walk(index.path).sorted(Comparator.reverseOrder()).collect(Collectors.toList())
+                    val pathsToDelete = Files.walk(shadowIndex).sorted(Comparator.reverseOrder()).collect(Collectors.toList())
                     pathsToDelete.forEach { Files.delete(it) }
                     this.context.releaseLock(index)
                 }
@@ -568,6 +568,11 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
          */
         override fun performCommit() {
             this@Entity.store.commit()
+
+            /* Execute post-commit actions. */
+            this.postCommitAction.forEach { it.run() }
+            this.postRollbackAction.clear()
+            this.postCommitAction.clear()
         }
 
         /**
@@ -575,6 +580,11 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
          */
         override fun performRollback() {
             this@Entity.store.rollback()
+
+            /* Execute post-rollback actions. */
+            this.postRollbackAction.forEach { it.run() }
+            this.postCommitAction.clear()
+            this.postRollbackAction.clear()
         }
 
         /**
