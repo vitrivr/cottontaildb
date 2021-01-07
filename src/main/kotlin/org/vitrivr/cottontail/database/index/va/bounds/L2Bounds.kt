@@ -8,7 +8,11 @@ import kotlin.math.pow
 import kotlin.math.sqrt
 
 /**
- * A [Bounds] implementation for L2 (Euclidean) distance.
+ * A [Bounds] implementation for L2 (Euclidean) distance. This is equivalent to the implementation
+ * in [LpBounds] but more efficient. Based on [1].
+ *
+ * References:
+ * [1] Weber, R. and Blott, S., 1997. An approximation based data structure for similarity search (No. 9141, p. 416). Technical Report 24, ESPRIT Project HERMES.
  *
  * @author Ralph Gasser
  * @version 1.0.0
@@ -39,7 +43,7 @@ class L2Bounds(query: RealVectorValue<*>, marks: Marks) : Bounds {
      *
      * @param signature The [Signature] to calculate the bounds for.
      */
-    override fun update(signature: Signature) {
+    override fun update(signature: Signature): L2Bounds {
         var lb = 0.0
         var ub = 0.0
         val ri = signature.cells
@@ -60,5 +64,6 @@ class L2Bounds(query: RealVectorValue<*>, marks: Marks) : Bounds {
         }
         this.lb = sqrt(lb)
         this.ub = sqrt(ub)
+        return this
     }
 }

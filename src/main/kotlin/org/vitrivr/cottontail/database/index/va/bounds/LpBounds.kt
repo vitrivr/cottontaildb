@@ -7,7 +7,10 @@ import kotlin.math.max
 import kotlin.math.pow
 
 /**
- * A [Bounds] implementation for Lp distance.
+ * A [Bounds] implementation for Lp distance. Based on [1].
+ *
+ * References:
+ * [1] Weber, R. and Blott, S., 1997. An approximation based data structure for similarity search (No. 9141, p. 416). Technical Report 24, ESPRIT Project HERMES.
  *
  * @author Ralph Gasser
  * @version 1.0.0
@@ -41,26 +44,27 @@ class LpBounds(query: RealVectorValue<*>, marks: Marks, p: Int) : Bounds {
      *
      * @param signature The [Signature] to calculate the bounds for.
      */
-    override fun update(signature: Signature) {
-        var lb = 0.0
-        var ub = 0.0
+    override fun update(signature: Signature): LpBounds {
+        this.lb = 0.0
+        this.ub = 0.0
         val ri = signature.cells
         for (j in signature.cells.indices) {
             when {
                 ri[j] < this.rq[j] -> {
-                    lb += this.lat[j][ri[j] + 1][0]
-                    ub += this.lat[j][ri[j]][0]
+                    this.lb += this.lat[j][ri[j] + 1][0]
+                    this.ub += this.lat[j][ri[j]][0]
                 }
                 ri[j] == this.rq[j] -> {
-                    ub += max(this.lat[j][ri[j]][0], this.lat[j][ri[j] + 1][1])
+                    this.ub += max(this.lat[j][ri[j]][0], this.lat[j][ri[j] + 1][1])
                 }
                 ri[j] > this.rq[j] -> {
-                    lb += this.lat[j][ri[j]][1]
-                    ub += this.lat[j][ri[j] + 1][1]
+                    this.lb += this.lat[j][ri[j]][1]
+                    this.ub += this.lat[j][ri[j] + 1][1]
                 }
             }
         }
-        this.lb = lb.pow(this.exp)
-        this.ub = ub.pow(this.exp)
+        this.lb = this.lb.pow(this.exp)
+        this.ub = this.ub.pow(this.exp)
+        return this
     }
 }

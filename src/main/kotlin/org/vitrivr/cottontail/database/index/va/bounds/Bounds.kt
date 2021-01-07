@@ -16,9 +16,10 @@ interface Bounds {
     val ub: Double
 
     /**
-     * Updates the lower and upper bounds of this [Bounds] for the given [Signature].
+     * Updates the lower and upper bounds of this [Bounds] using the given [Signature].
      *
      * @param signature The [Signature] to calculate the bounds for.
+     * @return this
      */
-    fun update(signature: Signature)
+    fun update(signature: Signature): Bounds
 }

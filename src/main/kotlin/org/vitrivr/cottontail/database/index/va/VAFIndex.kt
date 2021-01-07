@@ -44,12 +44,18 @@ import java.util.*
 import kotlin.collections.ArrayDeque
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.time.ExperimentalTime
+import kotlin.time.measureTimedValue
 
 /**
- * An vector approximation (VA) file based [Index] that can be used for nearest neighbor search  using Lp distance kernels.
+ * An vector approximation (VA) file based [Index] that can be used for optimized nearest neighbor
+ * search using [Bounds]. Based on the algorithm proposed in [1].
+ *
+ * References:
+ * [1] Weber, R. and Blott, S., 1997. An approximation based data structure for similarity search (No. 9141, p. 416). Technical Report 24, ESPRIT Project HERMES.
  *
  * @author Gabriel Zihlmann & Ralph Gasser
- * @version 1.0.0
+ * @version 1.0.1
  */
 class VAFIndex(override val name: Name.IndexName, override val parent: Entity, override val columns: Array<ColumnDef<*>>, config: VAFIndexConfig? = null) : Index() {
 
@@ -205,6 +211,7 @@ class VAFIndex(override val name: Name.IndexName, override val parent: Entity, o
          * @param predicate The [Predicate] for the lookup
          * @return The resulting [CloseableIterator]
          */
+        @ExperimentalTime
         override fun filter(predicate: Predicate): CloseableIterator<Record> = object : CloseableIterator<Record> {
 
             /** Cast [AtomicBooleanPredicate] (if such a cast is possible).  */
@@ -265,22 +272,32 @@ class VAFIndex(override val name: Name.IndexName, override val parent: Entity, o
                     this.predicate.query.map { MinHeapSelection<ComparablePair<Long, DoubleValue>>(this.predicate.k) }
                 }
 
+                var read = 0L
+                var skipped = 0L
+
                 /* Iterate over all signatures. */
-                for (signature in this@VAFIndex.signatures) {
-                    if (signature != null) {
-                        this.predicate.query.forEachIndexed { i, q ->
-                            if (q is RealVectorValue<*>) {
-                                this.bounds[i].update(signature)
-                                if (knns[i].size < this.predicate.k || knns[i].peek()!!.second.value > this.bounds[i].lb) {
-                                    val value = txn.read(signature.tupleId, this@VAFIndex.columns)[this@VAFIndex.columns[0]]
-                                    if (value is VectorValue<*>) {
-                                        knns[i].offer(ComparablePair(signature.tupleId, this.predicate.distance(value, q)))
+                val time = measureTimedValue {
+                    for (signature in this@VAFIndex.signatures) {
+                        if (signature != null) {
+                            this.predicate.query.forEachIndexed { i, q ->
+                                if (q is RealVectorValue<*>) {
+                                    if (knns[i].size < this.predicate.k || knns[i].peek()!!.second.value > this.bounds[i].update(signature).lb) {
+                                        val value = txn.read(signature.tupleId, this@VAFIndex.columns)[this@VAFIndex.columns[0]]
+                                        if (value is VectorValue<*>) {
+                                            knns[i].offer(ComparablePair(signature.tupleId, this.predicate.distance(value, q)))
+                                        }
+                                        read += 1
+                                    } else {
+                                        skipped += 1
                                     }
                                 }
                             }
                         }
                     }
+                    (skipped.toDouble() / (read + skipped)) * 100
                 }
+
+                LOGGER.info("VA-file scan took ${time.duration}: Skipped over ${time.value}% of entries.")
 
                 /* Prepare and return list of results. */
                 val queue = ArrayDeque<StandaloneRecord>(this.predicate.k * this.predicate.query.size)
