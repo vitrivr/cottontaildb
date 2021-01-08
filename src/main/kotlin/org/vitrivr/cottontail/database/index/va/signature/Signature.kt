@@ -15,13 +15,13 @@ data class Signature(val tupleId: Long, val cells: IntArray) {
             out.writeLong(value.tupleId)
             out.packInt(value.cells.size)
             for (c in value.cells) {
-                out.packInt(c)
+                out.writeByte(c)
             }
         }
 
         override fun deserialize(input: DataInput2, available: Int) = Signature(
                 input.readLong(),
-                IntArray(input.unpackInt()) { input.unpackInt() }
+                IntArray(input.unpackInt()) { input.readUnsignedByte() }
         )
     }
 

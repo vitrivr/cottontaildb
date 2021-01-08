@@ -143,7 +143,7 @@ class VAFIndex(override val name: Name.IndexName, override val parent: Entity, o
     override fun canProcess(predicate: Predicate) = predicate is KnnPredicate<*> && predicate.column == this.columns[0]
 
     /**
-     * Opens and returns a new [IndexTx] object that can be used to interact with this [PQIndex].
+     * Opens and returns a new [IndexTx] object that can be used to interact with this [VAFIndex].
      *
      * @param context The [TransactionContext] to create this [IndexTx] for.
      */
