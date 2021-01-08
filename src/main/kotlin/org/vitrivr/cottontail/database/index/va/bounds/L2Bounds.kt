@@ -34,7 +34,12 @@ class L2Bounds(query: RealVectorValue<*>, marks: Marks) : Bounds {
     private val lat = Array(marks.marks.size) { j ->
         val qj = query[j].value.toDouble()
         Array(marks.marks[j].size) { m ->
-            doubleArrayOf((qj - marks.marks[j][m]).pow(2), (marks.marks[j][m] - qj).pow(2))
+            /*
+             * Simplification and deviation from [1], because for L2 there is only one value here.
+             *
+             * (qj - marks.marks[j][m]).pow(2) == abs(marks.marks[j][m] - qj).pow(2)
+             */
+            (qj - marks.marks[j][m]).pow(2)
         }
     }
 
@@ -44,26 +49,49 @@ class L2Bounds(query: RealVectorValue<*>, marks: Marks) : Bounds {
      * @param signature The [Signature] to calculate the bounds for.
      */
     override fun update(signature: Signature): L2Bounds {
-        var lb = 0.0
-        var ub = 0.0
-        val ri = signature.cells
-        for (j in signature.cells.indices) {
+        this.lb = 0.0
+        this.ub = 0.0
+        for ((j, rij) in signature.cells.withIndex()) {
             when {
-                ri[j] < this.rq[j] -> {
-                    lb += this.lat[j][ri[j] + 1][0]
-                    ub += this.lat[j][ri[j]][0]
+                rij < this.rq[j] -> {
+                    this.lb += this.lat[j][rij + 1]
+                    this.ub += this.lat[j][rij]
                 }
-                ri[j] == this.rq[j] -> {
-                    ub += max(this.lat[j][ri[j]][0], this.lat[j][ri[j] + 1][1])
+                rij == this.rq[j] -> {
+                    this.ub += max(this.lat[j][rij], this.lat[j][rij + 1])
                 }
-                ri[j] > this.rq[j] -> {
-                    lb += this.lat[j][ri[j]][1]
-                    ub += this.lat[j][ri[j] + 1][1]
+                rij > this.rq[j] -> {
+                    this.lb += this.lat[j][rij]
+                    this.ub += this.lat[j][rij + 1]
                 }
             }
         }
-        this.lb = sqrt(lb)
-        this.ub = sqrt(ub)
+        this.lb = sqrt(this.lb)
+        this.ub = sqrt(this.ub)
         return this
+    }
+
+    /**
+     * Checks if the given [Signature] is a VA-SSA candidate according to [1] by comparing the
+     * lower bounds estimation to the given threshold and returns true if so and false otherwise.
+     *
+     * @param signature The [Signature] to check.
+     * @param threshold The threshold for a [Signature] to be deemed a candidate. Can be used for early stopping.
+     * @return True if [Signature] is a candidate, false otherwise.
+     */
+    override fun isVASSACandidate(signature: Signature, threshold: Double): Boolean {
+        val tsquared = threshold.pow(2)
+        var lb = 0.0
+        for ((j, rij) in signature.cells.withIndex()) {
+            if (rij < this.rq[j]) {
+                lb += this.lat[j][rij + 1]
+            } else if (rij > this.rq[j]) {
+                lb += this.lat[j][rij]
+            }
+            if (lb >= tsquared) {
+                return false
+            }
+        }
+        return lb < tsquared
     }
 }

@@ -3,6 +3,7 @@ package org.vitrivr.cottontail.database.index.va.bounds
 import org.vitrivr.cottontail.database.index.va.signature.Marks
 import org.vitrivr.cottontail.database.index.va.signature.Signature
 import org.vitrivr.cottontail.model.values.types.RealVectorValue
+import kotlin.math.abs
 import kotlin.math.max
 
 /**
@@ -28,12 +29,19 @@ class L1Bounds(query: RealVectorValue<*>, marks: Marks) : Bounds {
     /** Cells for the query [RealVectorValue]. */
     private val rq = marks.getCells(query)
 
-    /** Internal lookup table for pre-calculated values used in bounds calculation. */
+    /**
+     * Internal lookup table for pre-calculated values used in bounds calculation.
+     *
+     * Simplification and deviation from [1], because for L1 there is only one value here.
+     *
+     * abs(qj - marks.marks[j][m]) == abs(marks.marks[j][m] - qj)
+     */
     private val lat = Array(marks.marks.size) { j ->
         val qj = query[j].value.toDouble()
-        Array(marks.marks[j].size) { m ->
-            doubleArrayOf((qj - marks.marks[j][m]), (marks.marks[j][m] - qj))
-        }
+        /*
+
+         */
+        Array(marks.marks[j].size) { m -> abs(qj - marks.marks[j][m]) }
     }
 
     /**
@@ -44,22 +52,44 @@ class L1Bounds(query: RealVectorValue<*>, marks: Marks) : Bounds {
     override fun update(signature: Signature): L1Bounds {
         this.lb = 0.0
         this.ub = 0.0
-        val ri = signature.cells
-        for (j in signature.cells.indices) {
+        for ((j, rij) in signature.cells.withIndex()) {
             when {
-                ri[j] < this.rq[j] -> {
-                    this.lb += this.lat[j][ri[j] + 1][0]
-                    this.ub += this.lat[j][ri[j]][0]
+                rij < this.rq[j] -> {
+                    this.lb += this.lat[j][rij + 1]
+                    this.ub += this.lat[j][rij]
                 }
-                ri[j] == this.rq[j] -> {
-                    this.ub += max(this.lat[j][ri[j]][0], this.lat[j][ri[j] + 1][1])
+                rij == this.rq[j] -> {
+                    this.ub += max(this.lat[j][rij], this.lat[j][rij + 1])
                 }
-                ri[j] > this.rq[j] -> {
-                    this.lb += this.lat[j][ri[j]][1]
-                    this.ub += this.lat[j][ri[j] + 1][1]
+                rij > this.rq[j] -> {
+                    this.lb += this.lat[j][rij]
+                    this.ub += this.lat[j][rij + 1]
                 }
             }
         }
         return this
+    }
+
+    /**
+     * Checks if the given [Signature] is a VA-SSA candidate according to [1] by comparing the
+     * lower bounds estimation to the given threshold and returns true if so and false otherwise.
+     *
+     * @param signature The [Signature] to check.
+     * @param threshold The threshold for a [Signature] to be deemed a candidate. Can be used for early stopping.
+     * @return True if [Signature] is a candidate, false otherwise.
+     */
+    override fun isVASSACandidate(signature: Signature, threshold: Double): Boolean {
+        var lb = 0.0
+        for ((j, rij) in signature.cells.withIndex()) {
+            if (rij < this.rq[j]) {
+                lb += this.lat[j][rij + 1]
+            } else if (rij > this.rq[j]) {
+                lb += this.lat[j][rij]
+            }
+            if (lb >= threshold) {
+                return false
+            }
+        }
+        return lb < threshold
     }
 }

@@ -37,4 +37,8 @@ class InnerProductBounds(query: RealVectorValue<*>, marks: Marks) : Bounds {
     override fun update(signature: Signature): LpBounds {
         TODO()
     }
+
+    override fun isVASSACandidate(signature: Signature, threshold: Double): Boolean {
+        TODO("Not yet implemented")
+    }
 }

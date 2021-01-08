@@ -7,7 +7,7 @@ import kotlin.math.max
 import kotlin.math.pow
 
 /**
- * A [Bounds] implementation for Lp distance. Based on [1].
+ * A [Bounds] implementation for squared L2 (Euclidean) distance. Based on [1].
  *
  * References:
  * [1] Weber, R. and Blott, S., 1997. An approximation based data structure for similarity search (No. 9141, p. 416). Technical Report 24, ESPRIT Project HERMES.
@@ -15,18 +15,15 @@ import kotlin.math.pow
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class LpBounds(query: RealVectorValue<*>, marks: Marks, val p: Int) : Bounds {
+class L2SBounds(query: RealVectorValue<*>, marks: Marks) : Bounds {
 
-    /** Lower bound of this [LpBounds]. */
+    /** Lower bound of this [L2Bounds]. */
     override var lb = 0.0
         private set
 
-    /** Upper bound of this [LpBounds]. */
+    /** Upper bound of this [L2Bounds]. */
     override var ub = 0.0
         private set
-
-    /** Exponent used for p-th root calculation. */
-    private val exp = 1.0 / p
 
     /** Cells for the query [RealVectorValue]. */
     private val rq = marks.getCells(query)
@@ -35,36 +32,38 @@ class LpBounds(query: RealVectorValue<*>, marks: Marks, val p: Int) : Bounds {
     private val lat = Array(marks.marks.size) { j ->
         val qj = query[j].value.toDouble()
         Array(marks.marks[j].size) { m ->
-            doubleArrayOf((qj - marks.marks[j][m]).pow(p), (marks.marks[j][m] - qj).pow(p))
+            /*
+             * Simplification and deviation from [1], because for L2 there is only one value here.
+             *
+             * (qj - marks.marks[j][m]).pow(2) == abs(marks.marks[j][m] - qj).pow(2)
+             */
+            (qj - marks.marks[j][m]).pow(2)
         }
     }
 
     /**
-     * Updates the lower and upper bounds of this [L2Bounds] for the given [Signature].
+     * Updates the lower and upper bounds of this [L2SBounds] for the given [Signature].
      *
      * @param signature The [Signature] to calculate the bounds for.
      */
-    override fun update(signature: Signature): LpBounds {
+    override fun update(signature: Signature): L2SBounds {
         this.lb = 0.0
         this.ub = 0.0
-        val ri = signature.cells
-        for (j in signature.cells.indices) {
+        for ((j, rij) in signature.cells.withIndex()) {
             when {
-                ri[j] < this.rq[j] -> {
-                    this.lb += this.lat[j][ri[j] + 1][0]
-                    this.ub += this.lat[j][ri[j]][0]
+                rij < this.rq[j] -> {
+                    this.lb += this.lat[j][rij + 1]
+                    this.ub += this.lat[j][rij]
                 }
-                ri[j] == this.rq[j] -> {
-                    this.ub += max(this.lat[j][ri[j]][0], this.lat[j][ri[j] + 1][1])
+                rij == this.rq[j] -> {
+                    this.ub += max(this.lat[j][rij], this.lat[j][rij + 1])
                 }
-                ri[j] > this.rq[j] -> {
-                    this.lb += this.lat[j][ri[j]][1]
-                    this.ub += this.lat[j][ri[j] + 1][1]
+                rij > this.rq[j] -> {
+                    this.lb += this.lat[j][rij]
+                    this.ub += this.lat[j][rij + 1]
                 }
             }
         }
-        this.lb = this.lb.pow(this.exp)
-        this.ub = this.ub.pow(this.exp)
         return this
     }
 
@@ -77,18 +76,17 @@ class LpBounds(query: RealVectorValue<*>, marks: Marks, val p: Int) : Bounds {
      * @return True if [Signature] is a candidate, false otherwise.
      */
     override fun isVASSACandidate(signature: Signature, threshold: Double): Boolean {
-        val tsquared = threshold.pow(this.p)
         var lb = 0.0
         for ((j, rij) in signature.cells.withIndex()) {
             if (rij < this.rq[j]) {
-                lb += this.lat[j][rij + 1][0]
+                lb += this.lat[j][rij + 1]
             } else if (rij > this.rq[j]) {
-                lb += this.lat[j][rij][1]
+                lb += this.lat[j][rij]
             }
-            if (lb >= tsquared) {
+            if (lb >= threshold) {
                 return false
             }
         }
-        return lb < tsquared
+        return lb < threshold
     }
 }

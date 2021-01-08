@@ -9,10 +9,7 @@ import org.vitrivr.cottontail.database.events.DataChangeEvent
 import org.vitrivr.cottontail.database.index.Index
 import org.vitrivr.cottontail.database.index.IndexTx
 import org.vitrivr.cottontail.database.index.IndexType
-import org.vitrivr.cottontail.database.index.va.bounds.Bounds
-import org.vitrivr.cottontail.database.index.va.bounds.L1Bounds
-import org.vitrivr.cottontail.database.index.va.bounds.L2Bounds
-import org.vitrivr.cottontail.database.index.va.bounds.LpBounds
+import org.vitrivr.cottontail.database.index.va.bounds.*
 import org.vitrivr.cottontail.database.index.va.signature.Marks
 import org.vitrivr.cottontail.database.index.va.signature.MarksGenerator
 import org.vitrivr.cottontail.database.index.va.signature.Signature
@@ -24,6 +21,7 @@ import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.math.knn.metrics.EuclidianDistance
 import org.vitrivr.cottontail.math.knn.metrics.ManhattanDistance
 import org.vitrivr.cottontail.math.knn.metrics.MinkowskiDistance
+import org.vitrivr.cottontail.math.knn.metrics.SquaredEuclidianDistance
 import org.vitrivr.cottontail.math.knn.selection.ComparablePair
 import org.vitrivr.cottontail.math.knn.selection.MinHeapSelection
 import org.vitrivr.cottontail.math.knn.selection.MinSingleSelection
@@ -144,7 +142,6 @@ class VAFIndex(override val name: Name.IndexName, override val parent: Entity, o
      */
     override fun canProcess(predicate: Predicate) = predicate is KnnPredicate<*> && predicate.column == this.columns[0]
 
-
     /**
      * Opens and returns a new [IndexTx] object that can be used to interact with this [PQIndex].
      *
@@ -230,6 +227,7 @@ class VAFIndex(override val name: Name.IndexName, override val parent: Entity, o
                 when (this.predicate.distance) {
                     is ManhattanDistance -> L1Bounds(it, this.marks)
                     is EuclidianDistance -> L2Bounds(it, this.marks)
+                    is SquaredEuclidianDistance -> L2SBounds(it, this.marks)
                     is MinkowskiDistance -> LpBounds(it, this.marks, this.predicate.distance.p)
                     else -> throw IllegalArgumentException("The ${this.predicate.distance} distance kernel is not supported by VAFIndex.")
                 }
@@ -272,29 +270,25 @@ class VAFIndex(override val name: Name.IndexName, override val parent: Entity, o
                     this.predicate.query.map { MinHeapSelection<ComparablePair<Long, DoubleValue>>(this.predicate.k) }
                 }
 
-                var read = 0L
-                var skipped = 0L
-
                 /* Iterate over all signatures. */
+                var read = 0L
                 val time = measureTimedValue {
                     for (signature in this@VAFIndex.signatures) {
                         if (signature != null) {
                             this.predicate.query.forEachIndexed { i, q ->
                                 if (q is RealVectorValue<*>) {
-                                    if (knns[i].size < this.predicate.k || knns[i].peek()!!.second.value > this.bounds[i].update(signature).lb) {
+                                    if (knns[i].size < this.predicate.k || this.bounds[i].isVASSACandidate(signature, knns[i].peek()!!.second.value)) {
                                         val value = txn.read(signature.tupleId, this@VAFIndex.columns)[this@VAFIndex.columns[0]]
                                         if (value is VectorValue<*>) {
                                             knns[i].offer(ComparablePair(signature.tupleId, this.predicate.distance(value, q)))
                                         }
                                         read += 1
-                                    } else {
-                                        skipped += 1
                                     }
                                 }
                             }
                         }
                     }
-                    (skipped.toDouble() / (read + skipped)) * 100
+                    (1.0 - (read.toDouble() / (this@VAFIndex.signatures.size))) * 100
                 }
 
                 LOGGER.info("VA-file scan took ${time.duration}: Skipped over ${time.value}% of entries.")
