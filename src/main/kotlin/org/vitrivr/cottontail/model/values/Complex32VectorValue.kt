@@ -1,7 +1,10 @@
 package org.vitrivr.cottontail.model.values
 
 import org.apache.commons.math3.util.FastMath
-import org.vitrivr.cottontail.model.values.types.*
+import org.vitrivr.cottontail.model.values.types.ComplexVectorValue
+import org.vitrivr.cottontail.model.values.types.NumericValue
+import org.vitrivr.cottontail.model.values.types.Value
+import org.vitrivr.cottontail.model.values.types.VectorValue
 import org.vitrivr.cottontail.utilities.extensions.nextFloat
 import java.util.*
 import kotlin.math.atan2
@@ -11,7 +14,7 @@ import kotlin.math.pow
  * This is an abstraction over an [Array] and it represents a vector of [Complex32Value]s.
  *
  * @author Manuel Huerbin & Ralph Gasser
- * @version 1.3.3
+ * @version 1.4.0
  */
 inline class Complex32VectorValue(val data: FloatArray) : ComplexVectorValue<Float> {
     companion object {
@@ -78,26 +81,40 @@ inline class Complex32VectorValue(val data: FloatArray) : ComplexVectorValue<Flo
         get() = this.data.size / 2
 
     /**
-     * Returns the i-th entry of  this [Complex32VectorValue]. All entries with i % 2 == 0 correspond
-     * to the real part of the value, whereas entries with i % 2 == 1 correspond to the imaginary part.
+     * Returns the i-th entry of  this [Complex32VectorValue].
      *
      * @param i Index of the entry.
      * @return The value at index i.
      */
     override fun get(i: Int) = Complex32Value(this.data[i shl 1], this.data[(i shl 1) + 1])
-    override fun get(start: Int, length: Int) = if (length == logicalSize) this
-    else {
-        Complex32VectorValue(FloatArray(length shl 1) {
-            data[(start shl 1) + it]
-        })
-    }
-    override fun real(): RealVectorValue<Float> = FloatVectorValue(
-            FloatArray(logicalSize) {
-                data[it shl 1]
-            }
-    )
+
+    /**
+     * Returns the real part of the i-th entry of this [Complex32VectorValue].
+     *
+     * @param i Index of the entry.
+     * @return The value at index i as [FloatValue].
+     */
     override fun real(i: Int) = FloatValue(this.data[i shl 1])
+
+    /**
+     * Returns the imaginary part of the i-th entry of this [Complex32VectorValue].
+     *
+     * @param i Index of the entry.
+     * @return The value at index i as [FloatValue].
+     */
     override fun imaginary(i: Int) = FloatValue(this.data[(i shl 1) + 1])
+
+    /**
+     * Returns a sub vector of this [DoubleVectorValue] starting at the component [start] and
+     * containing [length] components.
+     *
+     * @param start Index of the first entry of the returned vector.
+     * @param length how many elements, including start, to return
+     *
+     * @return The [DoubleVectorValue] representing the sub-vector.
+     */
+    override fun subvector(start: Int, length: Int) = Complex32VectorValue(this.data.copyOfRange(2 * start, 2 * start + 2 * length))
+
 
     /**
      * Checks for equality between this [Complex32VectorValue] and the other [Value]. Equality can only be
@@ -107,11 +124,6 @@ inline class Complex32VectorValue(val data: FloatArray) : ComplexVectorValue<Flo
      * @return True if equal, false otherwise.
      */
     override fun isEqual(other: Value): Boolean = (other is FloatVectorValue) && (this.data.contentEquals(other.data))
-    override fun imaginary() = FloatVectorValue(
-        FloatArray(logicalSize) {
-            data[(it shl 1) + 1]
-        }
-    )
 
     override fun compareTo(other: Value): Int {
         throw IllegalArgumentException("ComplexVectorValues can can only be compared for equality.")
@@ -153,43 +165,54 @@ inline class Complex32VectorValue(val data: FloatArray) : ComplexVectorValue<Flo
      *
      * @return Exact copy of this [Complex32VectorValue].
      */
-    override fun copy(): Complex32VectorValue = Complex32VectorValue(data.copyOf())
+    override fun copy(): Complex32VectorValue = Complex32VectorValue(this.data.copyOf())
+
+    /**
+     * Creates and returns a copy of this [ComplexVectorValue]'s real components.
+     *
+     * @return Copy of this [ComplexVectorValue].
+     */
+    override fun copyReal() = FloatVectorValue(FloatArray(this.logicalSize) { this.data[it shl 1] })
+
+    /**
+     * Creates and returns a copy of this [ComplexVectorValue]'s imaginary components.
+     *
+     * @return Copy of this [ComplexVectorValue].
+     */
+    override fun copyImaginary() = FloatVectorValue(FloatArray(this.logicalSize) { this.data[(it shl 1) + 1] })
 
     override fun plus(other: VectorValue<*>) = if (other.logicalSize == this.logicalSize)
         Complex32VectorValue(when (other) {
-        is Complex32VectorValue -> FloatArray(this.data.size) { this.data[it] + other.data[it] }
-        is Complex64VectorValue -> FloatArray(this.data.size) { (this.data[it] + other.data[it]).toFloat() }
-        else -> FloatArray(this.data.size) {
-            if (it % 2 == 0) {
-                this.data[it] + other[it / 2].value.toFloat()
-            } else {
-                this.data[it]
-            }
-        }
-    }) else throw IllegalArgumentException("Dimensions ${this.logicalSize} and ${other.logicalSize} don't agree!")
-
-    override operator fun minus(other: VectorValue<*>) = if (this.logicalSize == other.logicalSize)
-        minus(other, 0, 0, logicalSize)
-    else throw IllegalArgumentException("Dimensions ${this.logicalSize} and ${other.logicalSize} don't agree!")
-
-    override fun minus(other: VectorValue<*>, start: Int, otherStart: Int, length: Int) = Complex32VectorValue(
-            when (other) {
-                is Complex32VectorValue -> FloatArray(length shl 1) { this.data[(start shl 1) + it] - other.data[(otherStart shl 1) + it] }
-                is Complex64VectorValue -> FloatArray(length shl 1) { (this.data[(start shl 1) + it] - other.data[(otherStart shl 1) + it]).toFloat() }
-                else -> FloatArray(length shl 1) {
-                    if (it % 2 == 0) {
-                        this.data[(start shl 1) + it] - other[otherStart + it / 2].value.toFloat()
-                    } else {
-                        this.data[(start shl 1) + it]
+            is Complex32VectorValue -> FloatArray(this.data.size) { this.data[it] + other.data[it] }
+            is Complex64VectorValue -> FloatArray(this.data.size) { (this.data[it] + other.data[it]).toFloat() }
+            else -> FloatArray(this.data.size) {
+                if (it % 2 == 0) {
+                    this.data[it] + other[it / 2].value.toFloat()
+                } else {
+                    this.data[it]
                 }
             }
-        })
+        }) else throw IllegalArgumentException("Dimensions ${this.logicalSize} and ${other.logicalSize} don't agree!")
+
+    override operator fun minus(other: VectorValue<*>) = Complex32VectorValue(
+            when (other) {
+                is Complex32VectorValue -> FloatArray(this.logicalSize * 2) { this.data[it] - other.data[it] }
+                is Complex64VectorValue -> FloatArray(this.logicalSize * 2) { (this.data[it] - other.data[it]).toFloat() }
+                else -> FloatArray(this.logicalSize * 2) {
+                    if (it % 2 == 0) {
+                        this.data[it] - other[it / 2].value.toFloat()
+                    } else {
+                        this.data[it]
+                    }
+                }
+            }
+    )
 
     override fun times(other: VectorValue<*>) = if (other.logicalSize == this.logicalSize)
         Complex32VectorValue(when (other) {
-        is Complex32VectorValue -> FloatArray(this.data.size) {
-            if (it % 2 == 0) {
-                this.data[it] * other.data[it] - this.data[it + 1] * other.data[it + 1]
+            is Complex32VectorValue -> FloatArray(this.data.size) {
+                if (it % 2 == 0) {
+                    this.data[it] * other.data[it] - this.data[it + 1] * other.data[it + 1]
             } else {
                 this.data[it - 1] * other.data[it] + this.data[it] * other.data[it - 1]
             }
@@ -439,42 +462,34 @@ inline class Complex32VectorValue(val data: FloatArray) : ComplexVectorValue<Flo
         return Complex32Value(real, imaginary)
     }
 
-    override infix fun dot(other: VectorValue<*>) = if (other.logicalSize == this.logicalSize) {
-        dot(other, 0, 0, logicalSize)
-    } else {
-        throw IllegalArgumentException("Dimensions ${this.logicalSize} and ${other.logicalSize} don't agree!")
-    }
-
-    override fun dot(other: VectorValue<*>, start: Int, otherStart: Int, length: Int) = when (other) {
+    override infix fun dot(other: VectorValue<*>) = when (other) {
         is Complex32VectorValue -> {
             var real = 0.0f
             var imaginary = 0.0f
-            for (i in 0 until length) {
-                val iThis = (start + i) shl 1
-                val iOther = (otherStart + i) shl 1
-                real += this.data[iThis] * other.data[iOther] - this.data[iThis + 1] * (-other.data[iOther + 1])
-                imaginary += this.data[iThis] * (-other.data[iOther + 1]) + this.data[iThis + 1] * other.data[iOther]
+            for (i in 0 until this.logicalSize) {
+                val iprime = (i shl 1)
+                real += this.data[iprime] * other.data[iprime] - this.data[iprime + 1] * (-other.data[iprime + 1])
+                imaginary += this.data[iprime] * (-other.data[iprime + 1]) + this.data[iprime + 1] * other.data[iprime]
             }
             Complex32Value(real, imaginary)
         }
         is Complex64VectorValue -> {
             var real = 0.0f
             var imaginary = 0.0f
-            for (i in 0 until length) {
-                val iThis = (start + i) shl 1
-                val iOther = (otherStart + i) shl 1
-                real += (this.data[iThis] * other.data[iOther] - this.data[iThis + 1] * (-other.data[iOther + 1])).toFloat()
-                imaginary += (this.data[iThis] * (-other.data[iOther + 1]) + this.data[iThis + 1] * other.data[iOther]).toFloat()
+            for (i in 0 until this.logicalSize) {
+                val iprime = (i shl 1)
+                real += this.data[iprime] * other.data[iprime].toFloat() - this.data[iprime + 1] * (-other.data[iprime + 1]).toFloat()
+                imaginary += this.data[iprime] * (-other.data[iprime + 1]).toFloat() + this.data[iprime + 1] * other.data[iprime].toFloat()
             }
             Complex32Value(real, imaginary)
         }
         else -> {
             var real = 0.0f
             var imaginary = 0.0f
-            for (i in 0 until length) {
-                val iThis = (start + i) shl 1
-                real += this.data[iThis] * other[otherStart + i].value.toFloat()
-                imaginary += this.data[iThis + 1] * other[otherStart + i].value.toFloat()
+            for (i in 0 until this.logicalSize) {
+                val iprime = i shl 1
+                real += this.data[iprime] * other[iprime + i].value.toFloat()
+                imaginary += this.data[iprime + 1] * other[iprime + i].value.toFloat()
             }
             Complex32Value(real, imaginary)
         }
