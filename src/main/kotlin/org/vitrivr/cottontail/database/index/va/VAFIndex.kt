@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.database.index.va
 
 import org.mapdb.Atomic
+import org.mapdb.DB
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.database.entity.Entity
@@ -77,7 +78,7 @@ class VAFIndex(override val name: Name.IndexName, override val parent: Entity, o
     override val type = IndexType.VAF
 
     /** The internal [DB] reference. */
-    private val db = this.parent.parent.parent.config.mapdb.db(this.path)
+    private val db: DB = this.parent.parent.parent.config.mapdb.db(this.path)
 
     /** The [VAFIndexConfig] used by this [VAFIndex] instance. */
     private val config: VAFIndexConfig
@@ -238,13 +239,13 @@ class VAFIndex(override val name: Name.IndexName, override val parent: Entity, o
                 prepareResults()
             }
 
-            init {
-                this@Tx.withReadLock { }
-            }
-
             /** Flag indicating whether this [CloseableIterator] has been closed. */
             @Volatile
             private var closed = false
+
+            init {
+                this@Tx.withReadLock { }
+            }
 
             override fun hasNext(): Boolean = this.resultsQueue.isNotEmpty()
 
