@@ -1,8 +1,6 @@
 package org.vitrivr.cottontail.database.index
 
 import org.vitrivr.cottontail.database.entity.Entity
-import org.vitrivr.cottontail.database.index.greedygrouping.GreedyGroupingIndex
-import org.vitrivr.cottontail.database.index.greedygrouping.GreedyGroupingIndexConfig
 import org.vitrivr.cottontail.database.index.hash.NonUniqueHashIndex
 import org.vitrivr.cottontail.database.index.hash.UniqueHashIndex
 import org.vitrivr.cottontail.database.index.lsh.superbit.SuperBitLSHIndex
@@ -50,7 +48,7 @@ enum class IndexType(val inexact: Boolean) {
         LSH_SB -> SuperBitLSHIndex<VectorValue<*>>(name, entity, columns)
         VAF -> VAFIndex(name, entity, columns)
         PQ -> PQIndex(name, entity, columns, null)
-        GG -> GreedyGroupingIndex(name, entity, columns)
+        //GG -> GreedyGroupingIndex(name, entity, columns)
         else -> throw NotImplementedError("Index of type $this is not implemented.")
     }
 
@@ -68,8 +66,8 @@ enum class IndexType(val inexact: Boolean) {
         LUCENE -> LuceneIndex(name, entity, columns)
         LSH_SB -> SuperBitLSHIndex<VectorValue<*>>(name, entity, columns, SuperBitLSHIndexConfig.fromParamMap(params))
         VAF -> VAFIndex(name, entity, columns)
-        PQ -> PQIndex(name, entity, columns, PQIndexConfig.fromParamsMap(params))
-        GG -> GreedyGroupingIndex(name, entity, columns, GreedyGroupingIndexConfig.fromParamsMap(params))
+        PQ -> PQIndex(name, entity, columns, PQIndexConfig.fromParamMap(params))
+        //GG -> GreedyGroupingIndex(name, entity, columns, GreedyGroupingIndexConfig.fromParamsMap(params))
         else -> throw NotImplementedError("Index of type $this is not implemented.")
     }
 }
