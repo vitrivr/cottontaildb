@@ -3,15 +3,20 @@ package org.vitrivr.cottontail.database.index.pq
 import org.mapdb.DataInput2
 import org.mapdb.DataOutput2
 
-data class PQIndexConfig(val numSubspaces: Int, val numCentroids: Int, val learningDataFraction: Double, val seed: Long) {
+data class PQIndexConfig(
+    val numSubspaces: Int,
+    val numCentroids: Int,
+    val sampleSize: Int,
+    val seed: Long
+) {
 
     companion object Serializer : org.mapdb.Serializer<PQIndexConfig> {
 
-
+        const val AUTO_VALUE = -1
         const val NUM_SUBSPACES_KEY = "num_subspaces"
         const val NUM_CENTROIDS_KEY = "num_centroids"
-        const val LEARNING_DATA_FRACTION_KEY = "learning_data_fraction"
-        const val SEED_KEY = "learning_data_fraction"
+        const val SAMPLE_SIZE = "sample_size"
+        const val SEED_KEY = "seed"
 
         /**
          * Serializes the content of the given value into the given
@@ -25,7 +30,7 @@ data class PQIndexConfig(val numSubspaces: Int, val numCentroids: Int, val learn
         override fun serialize(out: DataOutput2, value: PQIndexConfig) {
             out.packInt(value.numSubspaces)
             out.packInt(value.numCentroids)
-            out.writeDouble(value.learningDataFraction)
+            out.packInt(value.sampleSize)
             out.packLong(value.seed)
         }
 
@@ -40,10 +45,10 @@ data class PQIndexConfig(val numSubspaces: Int, val numCentroids: Int, val learn
          * @throws IOException in case of an I/O error
          */
         override fun deserialize(input: DataInput2, available: Int) = PQIndexConfig(
-                input.unpackInt(),
-                input.unpackInt(),
-                input.readDouble(),
-                input.unpackLong()
+            input.unpackInt(),
+            input.unpackInt(),
+            input.unpackInt(),
+            input.unpackLong()
         )
 
         /**
@@ -53,10 +58,10 @@ data class PQIndexConfig(val numSubspaces: Int, val numCentroids: Int, val learn
          * @return [PQIndexConfig]
          */
         fun fromParamMap(params: Map<String, String>) = PQIndexConfig(
-                params[NUM_SUBSPACES_KEY]?.toInt() ?: throw IllegalArgumentException(""),
-                params[NUM_CENTROIDS_KEY]?.toInt() ?: throw IllegalArgumentException(""),
-                params[LEARNING_DATA_FRACTION_KEY]?.toDouble() ?: 0.1,
-                params[SEED_KEY]?.toLongOrNull() ?: System.currentTimeMillis()
+            params[NUM_SUBSPACES_KEY]?.toInt() ?: AUTO_VALUE,
+            params[NUM_CENTROIDS_KEY]?.toInt() ?: 100,
+            params[SAMPLE_SIZE]?.toInt() ?: 1500,
+            params[SEED_KEY]?.toLongOrNull() ?: System.currentTimeMillis()
         )
     }
 }

@@ -1,6 +1,5 @@
 package org.vitrivr.cottontail.database.index.pq
 
-import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
 import org.mapdb.DB
 import org.mapdb.Serializer
 import org.slf4j.LoggerFactory
@@ -59,6 +58,33 @@ class PQIndex(override val name: Name.IndexName, override val parent: Entity, ov
         const val SIG_NAME = "pq_sig"
         val LOGGER = LoggerFactory.getLogger(PQIndex::class.java)!!
 
+
+        /**
+         * Dynamically determines the number of subspaces for the given dimension.
+         *
+         * @param d The dimensionality of the vector.
+         * @return Number of subspaces to use.
+         */
+        fun defaultNumberOfSubspaces(d: Int): Int {
+            var subspaces: Int = when {
+                d == 1 -> 1
+                d == 2 -> 2
+                d <= 8 -> 4
+                d <= 64 -> 4
+                d <= 256 -> 8
+                d <= 1024 -> 16
+                d <= 4096 -> 32
+                else -> 64
+            }
+            while (subspaces < d && subspaces < Byte.MAX_VALUE) {
+                if (d % subspaces == 0) {
+                    return subspaces
+                }
+                subspaces++
+            }
+            throw IllegalArgumentException("")
+        }
+
         /**
          * The index of the permutation array is the index in the unpermuted space
          * The value at that index is to which dimension it was permuted in the permuted space
@@ -111,9 +137,14 @@ class PQIndex(override val name: Name.IndexName, override val parent: Entity, ov
         val configOnDisk = this.db.atomicVar(CONFIG_NAME, PQIndexConfig.Serializer).createOrOpen()
         if (configOnDisk.get() == null) {
             if (config != null) {
-                this.config = config
+                if (config.numSubspaces == PQIndexConfig.AUTO_VALUE || (config.numSubspaces % this.columns[0].logicalSize) != 0) {
+                    this.config =
+                        config.copy(numSubspaces = defaultNumberOfSubspaces(this.columns[0].logicalSize))
+                } else {
+                    this.config = config
+                }
             } else {
-                this.config = PQIndexConfig(10, 1, 5e-3, System.currentTimeMillis())
+                this.config = PQIndexConfig(10, 500, 5000, System.currentTimeMillis())
             }
             configOnDisk.set(this.config)
         } else {
@@ -128,6 +159,7 @@ class PQIndex(override val name: Name.IndexName, override val parent: Entity, ov
         require(this.columns[0].logicalSize >= this.config.numSubspaces) { "Logical size of the column must be greater or equal than the number of subspaces." }
         require(this.columns[0].logicalSize % this.config.numSubspaces == 0) { "Logical size of the column modulo the number of subspaces must be zero." }
     }
+
 
     /**
      * Flag indicating if this [PQIndex] has been closed.
@@ -183,35 +215,32 @@ class PQIndex(override val name: Name.IndexName, override val parent: Entity, ov
         override fun rebuild() {
             /* Obtain some learning data for training. */
             LOGGER.info("Rebuilding PQIndex:")
-            LOGGER.debug("Collecting training data...")
+            LOGGER.debug("--> Collecting training data")
             val txn = this.context.getTx(this.dbo.parent) as EntityTx
             val data = this.acquireLearningData(txn)
 
             /* Obtain PQ data structure... */
-            LOGGER.debug("Training quantizer...")
+            LOGGER.debug("--> Training quantizer")
             val pq = PQ.fromData(this@PQIndex.config, this@PQIndex.columns[0], data)
 
             /* ... and generate signatures. */
-            LOGGER.debug("Generating signatures...")
-            val signatureMap = Object2ObjectOpenHashMap<PQSignature, MutableList<TupleId>>()
+            LOGGER.debug("--> Generating signatures")
+            this@PQIndex.pqStore.set(pq)
+            this@PQIndex.signaturesStore.clear()
             txn.scan(this.columns).forEach { rec ->
                 val value = rec[this@PQIndex.columns[0]]
                 if (value is VectorValue<*>) {
                     val sig = pq.getSignature(value)
-                    signatureMap.compute(sig) { _, old ->
-                        val ret = old ?: mutableListOf<TupleId>()
-                        ret.add(rec.tupleId)
-                        ret
+                    if (this@PQIndex.signaturesStore.containsKey(sig)) {
+                        this@PQIndex.signaturesStore[sig] =
+                            longArrayOf(*this@PQIndex.signaturesStore[sig]!!, rec.tupleId)
+                    } else {
+                        this@PQIndex.signaturesStore[sig] = longArrayOf(rec.tupleId)
                     }
                 }
             }
 
-            /* Store PQ and signatures in surrounding index. */
-            this@PQIndex.pqStore.set(pq)
-            this@PQIndex.signaturesStore.clear()
-            signatureMap.forEach { (k, v) ->
-                this@PQIndex.signaturesStore[k] = v.toLongArray()
-            }
+            LOGGER.info("Rebuilding PQIndex complete.")
         }
 
         /**
@@ -352,10 +381,11 @@ class PQIndex(override val name: Name.IndexName, override val parent: Entity, ov
          * @return List of [Record]s used for learning.
          */
         private fun acquireLearningData(txn: EntityTx): List<VectorValue<*>> {
-            val learningData = mutableListOf<VectorValue<*>>()
+            val learningData = LinkedList<VectorValue<*>>()
             val rng = SplittableRandom(this@PQIndex.config.seed)
+            val learningDataFraction = this@PQIndex.config.sampleSize.toDouble() / txn.count()
             txn.scan(this.columns).forEach {
-                if (rng.nextDouble() <= this@PQIndex.config.learningDataFraction) {
+                if (rng.nextDouble() <= learningDataFraction) {
                     val value = it[this@PQIndex.columns[0]]
                     if (value is VectorValue<*>) {
                         learningData.add(value)
