@@ -11,16 +11,18 @@ import org.mapdb.DataOutput2
  * @author Gabriel Zihlmann & Ralph Gasser
  * @version 1.0.0
  */
-data class PQSignature(val cells: IntArray) {
+data class PQSignature(val cells: ByteArray) {
     companion object Serializer : org.mapdb.Serializer<PQSignature> {
         override fun serialize(out: DataOutput2, value: PQSignature) {
             out.packInt(value.cells.size)
-            for (c in value.cells) {
-                out.writeShort(c)
-            }
+            out.write(value.cells)
         }
 
-        override fun deserialize(input: DataInput2, available: Int) = PQSignature(IntArray(input.unpackInt()) { input.readUnsignedShort() })
+        override fun deserialize(input: DataInput2, available: Int): PQSignature {
+            val array = ByteArray(input.unpackInt())
+            input.readFully(array)
+            return PQSignature(array)
+        }
     }
 
     override fun equals(other: Any?): Boolean {
