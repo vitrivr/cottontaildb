@@ -200,20 +200,20 @@ inline class FloatVectorValue(val data: FloatArray) : RealVectorValue<Float> {
         return FloatValue(kotlin.math.sqrt(sum))
     }
 
-    override fun dot(other: VectorValue<*>): DoubleValue = when (other) {
+    override fun dot(other: VectorValue<*>): FloatValue = when (other) {
         is FloatVectorValue -> {
             var sum = 0.0f
             for (i in this.data.indices) {
                 sum = Math.fma(this.data[i], other.data[i], sum)
             }
-            DoubleValue(sum)
+            FloatValue(sum)
         }
         else -> {
             var sum = 0.0f
             for (i in this.data.indices) {
                 sum += Math.fma(this.data[i], other[i].value.toFloat(), sum)
             }
-            DoubleValue(sum.toDouble())
+            FloatValue(sum)
         }
     }
 
