@@ -5,6 +5,7 @@ import org.mapdb.DataInput2
 import org.mapdb.DataOutput2
 import org.vitrivr.cottontail.database.column.*
 import org.vitrivr.cottontail.database.index.pq.PQSignature
+import org.vitrivr.cottontail.database.index.pq.codebook.PQCodebook.Companion.clusterRealData
 import org.vitrivr.cottontail.model.values.*
 import org.vitrivr.cottontail.model.values.types.VectorValue
 
@@ -14,12 +15,10 @@ import org.vitrivr.cottontail.model.values.types.VectorValue
  * @author Gabriel Zihlmann & Ralph Gasser
  * @version 1.0.0
  */
-class DoublePrecisionPQCodebook(centroids: Array<DoubleVectorValue>, covMatrix: Array<DoubleVectorValue>) : AbstractPQCodebook<DoubleVectorValue>(centroids, covMatrix) {
-
-    /** The [DoublePrecisionPQCodebook] handles [DoubleVectorColumnType]s. */
-    override val type: ColumnType<DoubleVectorValue>
-        get() = DoubleVectorColumnType
-
+class DoublePrecisionPQCodebook(
+    protected val centroids: List<DoubleVectorValue>,
+    protected val covMatrix: List<DoubleVectorValue>
+) : PQCodebook<DoubleVectorValue> {
 
     /**
      * Serializer object for [DoublePrecisionPQCodebook]
@@ -37,8 +36,8 @@ class DoublePrecisionPQCodebook(centroids: Array<DoubleVectorValue>, covMatrix: 
             }
 
             /* Serialize covariance matrix. */
-            out.packInt(value.dataCovarianceMatrix.size)
-            for (v in value.dataCovarianceMatrix) {
+            out.packInt(value.covMatrix.size)
+            for (v in value.covMatrix) {
                 vectorSerializer.serialize(out, v)
             }
         }
@@ -46,8 +45,14 @@ class DoublePrecisionPQCodebook(centroids: Array<DoubleVectorValue>, covMatrix: 
         override fun deserialize(input: DataInput2, available: Int): DoublePrecisionPQCodebook {
             val logicalSize = input.unpackInt()
             val vectorSerializer = DoubleVectorColumnType.serializer(logicalSize)
-            val centroids = Array(input.unpackInt()) { vectorSerializer.deserialize(input, available) }
-            val covMatrix = Array(input.unpackInt()) { vectorSerializer.deserialize(input, available) }
+            val centroids = ArrayList<DoubleVectorValue>(input.unpackInt())
+            for (i in 0 until centroids.size) {
+                centroids.add(vectorSerializer.deserialize(input, available))
+            }
+            val covMatrix = ArrayList<DoubleVectorValue>(input.unpackInt())
+            for (i in 0 until covMatrix.size) {
+                covMatrix.add(vectorSerializer.deserialize(input, available))
+            }
             return DoublePrecisionPQCodebook(centroids, covMatrix)
         }
     }
@@ -64,41 +69,83 @@ class DoublePrecisionPQCodebook(centroids: Array<DoubleVectorValue>, covMatrix: 
          * @param seed The random seed used for learning.
          * @param maxIterations The number of iterations to use.s
          */
-        fun learnFromData(subspaceData: Array<DoubleVectorValue>, numCentroids: Int, seed: Long, maxIterations: Int): DoublePrecisionPQCodebook {
+        fun learnFromData(
+            subspaceData: List<DoubleVectorValue>,
+            numCentroids: Int,
+            seed: Long,
+            maxIterations: Int
+        ): DoublePrecisionPQCodebook {
             /* Prepare covariance matrix and centroid clusters. */
             val array = Array(subspaceData.size) { i -> subspaceData[i].data }
             val covMatrix = Covariance(array, false).covarianceMatrix
-            val centroidClusters = clusterRealData(array, covMatrix, numCentroids, seed, maxIterations)
+            val centroidClusters =
+                clusterRealData(array, covMatrix, numCentroids, seed, maxIterations)
 
             /* Convert to typed centroids and covariance matrix. */
-            val centroids = Array(numCentroids) { DoubleVectorValue(centroidClusters[it].center.point) }
-            val dataCovMatrix = covMatrix.data.map { DoubleVectorValue(it) }.toTypedArray()
+            val centroids = ArrayList<DoubleVectorValue>(numCentroids)
+            for (i in 0 until numCentroids) {
+                centroids.add(DoubleVectorValue(centroidClusters[i].center.point))
+            }
+            val dataCovMatrix = covMatrix.data.map { DoubleVectorValue(it) }
 
             /* Return PQCodebook. */
             return DoublePrecisionPQCodebook(centroids, dataCovMatrix)
         }
     }
 
+    /** The [DoublePrecisionPQCodebook] handles [DoubleVectorColumnType]s. */
+    override val type: ColumnType<DoubleVectorValue>
+        get() = DoubleVectorColumnType
+
+    /** The number of centroids contained in this [SinglePrecisionPQCodebook]. */
+    override val numberOfCentroids: Int
+        get() = this.centroids.size
+
+    /** The logical size of the centroids held by this [SinglePrecisionPQCodebook]. */
+    override val logicalSize: Int
+        get() = this.centroids[0].logicalSize
+
     /**
-     * Calculates the squared mahalanobis distance between the given [DoubleVectorValue] and the
-     * i-th centroid.
+     * Returns the centroid [VectorValue] for the given index.
      *
-     * Since usually, the centroids are smaller than the [DoubleVectorValue]s provided, only the part
-     * of the vector that matches the given [index] is compared.
-     *
-     * @param v The [VectorValue] to calculate the distance for.
-     * @param ci The index of the centroid to compare to.
-     *
-     * @return Squared mahalanobis distance between the given [VectorValue] and the i-th centroid.
+     * @param ci The index of the centroid to return.
+     * @return The [DoubleVectorValue] representing the centroid for the given index.
      */
-    override fun squaredMahalanobis(v: DoubleVectorValue, start: Int, ci: Int): Double {
-        var dist = 0.0
-        val diff = DoubleVectorValue(DoubleArray(this.logicalSize) {
-            this.centroids[ci].data[it] - v.data[start + it]
-        })
-        for ((i, m) in this.dataCovarianceMatrix.withIndex()) {
-            dist += diff.data[i] * (m.dot(diff).value)
+    override fun get(ci: Int): DoubleVectorValue = this.centroids[ci]
+
+    /**
+     * Quantizes the given [DoubleVectorValue] and returns the index of the centroid it belongs to.
+     * Distance calculation starts from the given [start] vector component and considers [logicalSize]
+     * components.
+     *
+     * @param v The [DoubleVectorValue] to quantize.
+     * @param start The index of the first component to consider for distance calculation.
+     * @return The index of the centroid the given [VectorValue] belongs to.
+     */
+    override fun quantizeSubspaceForVector(v: DoubleVectorValue, start: Int): Byte {
+        var mahIndex = 0
+        var mah = Double.POSITIVE_INFINITY
+        var i = 0
+        val diff = DoubleVectorValue(DoubleArray(this.logicalSize))
+        outer@ for (c in this.centroids) {
+            var dist = 0.0
+            for (it in diff.data.indices) {
+                diff.data[it] = c.data[it] - v.data[start + it]
+            }
+            var j = 0
+            for (m in this.covMatrix) {
+                dist = Math.fma(diff.data[j++], (m.dot(diff).value), dist)
+                if (dist >= mah) {
+                    i++
+                    continue@outer
+                }
+            }
+            if (dist < mah) {
+                mah = dist
+                mahIndex = i
+            }
+            i++
         }
-        return dist
+        return mahIndex.toByte()
     }
 }

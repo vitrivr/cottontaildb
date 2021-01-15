@@ -1,5 +1,9 @@
 package org.vitrivr.cottontail.database.index.pq.codebook
 
+import org.apache.commons.math3.linear.RealMatrix
+import org.apache.commons.math3.ml.clustering.CentroidCluster
+import org.apache.commons.math3.ml.clustering.KMeansPlusPlusClusterer
+import org.apache.commons.math3.random.JDKRandomGenerator
 import org.vitrivr.cottontail.database.column.ColumnType
 import org.vitrivr.cottontail.model.values.types.VectorValue
 
@@ -12,9 +16,67 @@ import org.vitrivr.cottontail.model.values.types.VectorValue
  */
 interface PQCodebook<T : VectorValue<*>> {
 
+    companion object {
+        /**
+         * Calculates and returns the squared mahalanobis distance between the points represented by
+         * [DoubleArray] a and b using the given covariance matrix.
+         *
+         * @param a The first [DoubleArray].
+         * @param b The second [DoubleArray].
+         * @param covMatrix The covariance [RealMatrix].
+         */
+        fun squaredMahalanobis(a: DoubleArray, b: DoubleArray, covMatrix: RealMatrix): Double {
+            require(a.size == b.size) { }
+            var dist = 0.0
+            val diff = DoubleArray(a.size) { a[it] - b[it] }
+            for (i in 0 until covMatrix.columnDimension) {
+                var h = 0.0
+                for (j in diff.indices) {
+                    h += diff[j] * covMatrix.getEntry(i, j)
+                }
+                dist += h * diff[i]
+            }
+            return dist
+        }
+
+        /**
+         * Clusters a series data points partitioned into subspaces to a pre-defined number of centroids
+         * using k-means clustering.
+         *
+         * @param data An array of [DoubleArray]s containing the subspace data.
+         * @param covMatrix The covariance [RealMatrix].
+         * @param numCentroids The desired number of centroids.
+         * @param seed The random number seed.
+         * @param maxIterations The maximum number of iterations to use for the clustering.
+         */
+        fun clusterRealData(
+            data: Array<DoubleArray>,
+            covMatrix: RealMatrix,
+            numCentroids: Int,
+            seed: Long,
+            maxIterations: Int
+        ): MutableList<CentroidCluster<ClusterableWithIndex>> {
+            /* Learn clusters using KMeans clustering. */
+            val measure: (a: DoubleArray, b: DoubleArray) -> Double =
+                { a, b -> squaredMahalanobis(a, b, covMatrix) }
+            val clusterer = KMeansPlusPlusClusterer<ClusterableWithIndex>(
+                numCentroids,
+                maxIterations,
+                measure,
+                JDKRandomGenerator(seed.toInt())
+            )
+            val centroidClusters = clusterer.cluster(data.mapIndexed { i, value ->
+                object : ClusterableWithIndex {
+                    override fun getIndex() = i
+                    override fun getPoint(): DoubleArray = value
+                }
+            })
+            return centroidClusters
+        }
+    }
+
     /** The [ColumnType] of the vectors contained in this [PQCodebook]. */
     val type: ColumnType<T>
-
 
     /** The number of centroids contained in this [PQCodebook]. */
     val numberOfCentroids: Int
@@ -38,18 +100,5 @@ interface PQCodebook<T : VectorValue<*>> {
      * @param start The index of the first [VectorValue] component to consider for distance calculation.
      * @return The index of the centroid the given [VectorValue] belongs to.
      */
-    fun quantizeSubspaceForVector(v: T, start: Int): Int
-
-    /**
-     * Calculates the squared mahalanobis distance between the given [VectorValue] and the ci-th centroid.
-     *
-     * Since usually, the centroids are smaller than the [VectorValue]s provided, only the part of
-     * the vector that matches the given [ci] is compared.
-     *
-     * @param v The [VectorValue] to calculate the distance for.
-     * @param ci The index of the centroid to compare to.
-     *
-     * @return Squared mahalanobis distance between the given [VectorValue] and the i-th centroid.
-     */
-    fun squaredMahalanobis(v: T, start: Int, ci: Int): Double
+    fun quantizeSubspaceForVector(v: T, start: Int): Byte
 }
