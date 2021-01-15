@@ -198,15 +198,15 @@ inline class DoubleVectorValue(val data: DoubleArray) : RealVectorValue<Double> 
     override infix fun dot(other: VectorValue<*>) = when (other) {
         is DoubleVectorValue -> {
             var sum = 0.0
-            for (i in 0 until other.logicalSize) {
-                sum += this.data[i] * other.data[i]
+            for (i in this.data.indices) {
+                sum = Math.fma(this.data[i], other.data[i], sum)
             }
             DoubleValue(sum)
         }
         else -> {
             var sum = 0.0
-            for (i in 0 until other.logicalSize) {
-                sum += this.data[i] * other[i].value.toDouble()
+            for (i in this.data.indices) {
+                sum = Math.fma(this.data[i], other[i].value.toDouble(), sum)
             }
             DoubleValue(sum)
         }

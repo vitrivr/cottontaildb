@@ -202,18 +202,18 @@ inline class FloatVectorValue(val data: FloatArray) : RealVectorValue<Float> {
 
     override fun dot(other: VectorValue<*>): DoubleValue = when (other) {
         is FloatVectorValue -> {
-            var sum = 0.0
-            for (i in 0 until other.logicalSize) {
-                sum += this.data[i] * other.data[i]
+            var sum = 0.0f
+            for (i in this.data.indices) {
+                sum = Math.fma(this.data[i], other.data[i], sum)
             }
             DoubleValue(sum)
         }
         else -> {
-            var sum = 0.0
-            for (i in 0 until other.logicalSize) {
-                sum += this.data[i] * other[i].value.toDouble()
+            var sum = 0.0f
+            for (i in this.data.indices) {
+                sum += Math.fma(this.data[i], other[i].value.toFloat(), sum)
             }
-            DoubleValue(sum)
+            DoubleValue(sum.toDouble())
         }
     }
 
