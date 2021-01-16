@@ -159,7 +159,7 @@ class VAFIndex(override val name: Name.IndexName, override val parent: Entity, o
          * (Re-)builds the [VAFIndex] from scratch.
          */
         override fun rebuild() = this.withWriteLock {
-            LOGGER.trace("Rebuilding VAF index {}", this@VAFIndex.name)
+            LOGGER.debug("Rebuilding VAF index {}", this@VAFIndex.name)
 
             /* Obtain transaction and calculate maximum per dimension.. */
             val txn = this.context.getTx(this@VAFIndex.parent) as EntityTx
@@ -186,7 +186,7 @@ class VAFIndex(override val name: Name.IndexName, override val parent: Entity, o
                 }
             }
 
-            LOGGER.trace("Done rebuilding VAF index {}", this@VAFIndex.name)
+            LOGGER.debug("Done rebuilding VAF index {}", this@VAFIndex.name)
         }
 
         /**
