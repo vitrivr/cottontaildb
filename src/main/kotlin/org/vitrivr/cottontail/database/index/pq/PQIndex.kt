@@ -315,9 +315,9 @@ class PQIndex(override val name: Name.IndexName, override val parent: Entity, ov
                 val txn = this@Tx.context.getTx(this@PQIndex.parent) as EntityTx
                 val tuplesPerSignature = floorDiv(txn.count(), this@PQIndex.signaturesStore.sizeLong())
                 val approxKnn = if (this.predicate.k > tuplesPerSignature) {
-                    (this.predicate.k / tuplesPerSignature) * 100
+                    (this.predicate.k / tuplesPerSignature) * 10
                 } else {
-                    100
+                    10
                 }.toInt()
                 val preKnns = Array(this.predicate.query.size) { MinHeapSelection<ComparablePair<PQSignature, Double>>(approxKnn) }
 
