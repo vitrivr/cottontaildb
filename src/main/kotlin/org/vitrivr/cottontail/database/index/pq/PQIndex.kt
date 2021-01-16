@@ -26,6 +26,7 @@ import org.vitrivr.cottontail.model.values.DoubleValue
 import org.vitrivr.cottontail.model.values.IntValue
 import org.vitrivr.cottontail.model.values.types.VectorValue
 import org.vitrivr.cottontail.utilities.extensions.write
+import org.vitrivr.cottontail.utilities.math.KnnUtilities
 import java.lang.Math.floorDiv
 import java.nio.file.Path
 import java.util.*
@@ -110,7 +111,10 @@ class PQIndex(override val name: Name.IndexName, override val parent: Entity, ov
     override val path: Path = this.parent.path.resolve("idx_pq_$name.db")
 
     /** The [PQIndex] implementation returns exactly the columns that is indexed. */
-    override val produces: Array<ColumnDef<*>> = arrayOf(ColumnDef(this.parent.name.column("distance"), ColumnType.forName("DOUBLE")))
+    override val produces: Array<ColumnDef<*>> = arrayOf(
+        KnnUtilities.queryIndexColumnDef(this.parent.name),
+        KnnUtilities.distanceColumnDef(this.parent.name)
+    )
 
     /** The type of [Index]. */
     override val type = IndexType.PQ
@@ -212,25 +216,24 @@ class PQIndex(override val name: Name.IndexName, override val parent: Entity, ov
         /**
          *
          */
-        override fun rebuild() {
+        override fun rebuild() = this.withWriteLock {
             /* Obtain some learning data for training. */
-            LOGGER.info("Rebuilding PQIndex:")
-            LOGGER.debug("--> Collecting training data")
+            LOGGER.debug("Rebuilding PQ index {}", this@PQIndex.name)
             val txn = this.context.getTx(this.dbo.parent) as EntityTx
             val data = this.acquireLearningData(txn)
 
             /* Obtain PQ data structure... */
-            LOGGER.debug("--> Training quantizer")
             val pq = PQ.fromData(this@PQIndex.config, this@PQIndex.columns[0], data)
 
             /* ... and generate signatures. */
-            LOGGER.debug("--> Generating signatures")
             this@PQIndex.pqStore.set(pq)
             this@PQIndex.signaturesStore.clear()
+
+            val signatureArray = ByteArray(pq.numberOfSubspaces)
             txn.scan(this.columns).forEach { rec ->
                 val value = rec[this@PQIndex.columns[0]]
                 if (value is VectorValue<*>) {
-                    val sig = pq.getSignature(value)
+                    val sig = pq.getSignature(value, signatureArray)
                     if (this@PQIndex.signaturesStore.containsKey(sig)) {
                         this@PQIndex.signaturesStore[sig] =
                             longArrayOf(*this@PQIndex.signaturesStore[sig]!!, rec.tupleId)
@@ -240,7 +243,7 @@ class PQIndex(override val name: Name.IndexName, override val parent: Entity, ov
                 }
             }
 
-            LOGGER.info("Rebuilding PQIndex complete.")
+            LOGGER.debug("Rebuilding PQIndex {} complete.", this@PQIndex.name)
         }
 
         /**
@@ -249,7 +252,7 @@ class PQIndex(override val name: Name.IndexName, override val parent: Entity, ov
          *
          * @param update Collection of [DataChangeEvent]s to process.
          */
-        override fun update(update: Collection<DataChangeEvent>) {
+        override fun update(update: Collection<DataChangeEvent>) = this.withWriteLock {
             TODO("Not yet implemented")
         }
 
