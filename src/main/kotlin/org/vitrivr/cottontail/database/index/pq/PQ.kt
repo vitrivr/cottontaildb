@@ -22,7 +22,11 @@ import org.vitrivr.cottontail.model.values.types.VectorValue
  * @author Gabriel Zihlmann & Ralph Gasser
  * @version 1.0.0
  */
-class PQ(val type: ColumnType<*>, val logicalSize: Int, val codebooks: Array<PQCodebook<VectorValue<*>>>) {
+class PQ(
+    val type: ColumnType<*>,
+    val logicalSize: Int,
+    val codebooks: List<PQCodebook<VectorValue<*>>>
+) {
 
     /** The number of subspaces as defined in this [PQ] implementation. */
     val numberOfSubspaces
@@ -69,16 +73,32 @@ class PQ(val type: ColumnType<*>, val logicalSize: Int, val codebooks: Array<PQC
         override fun deserialize(input: DataInput2, available: Int): PQ {
             val type = ColumnType.forName(input.readUTF())
             val logicalSize = input.unpackInt()
-            val codebooks = Array(input.unpackInt()) {
-                when (type) {
-                    FloatVectorColumnType -> SinglePrecisionPQCodebook.Serializer.deserialize(input, available)
-                    DoubleVectorColumnType -> DoublePrecisionPQCodebook.Serializer.deserialize(input, available)
-                    Complex32VectorColumnType -> SinglePrecisionPQCodebook.Serializer.deserialize(input, available)
-                    Complex64VectorColumnType -> DoublePrecisionPQCodebook.Serializer.deserialize(input, available)
-                    else -> throw IllegalStateException("")
-                }
+            val size = input.unpackInt()
+            val codebooks = ArrayList<PQCodebook<VectorValue<*>>>(size)
+            for (i in 0 until size) {
+                codebooks.add(
+                    when (type) {
+                        FloatVectorColumnType -> SinglePrecisionPQCodebook.Serializer.deserialize(
+                            input,
+                            available
+                        )
+                        DoubleVectorColumnType -> DoublePrecisionPQCodebook.Serializer.deserialize(
+                            input,
+                            available
+                        )
+                        Complex32VectorColumnType -> SinglePrecisionPQCodebook.Serializer.deserialize(
+                            input,
+                            available
+                        )
+                        Complex64VectorColumnType -> DoublePrecisionPQCodebook.Serializer.deserialize(
+                            input,
+                            available
+                        )
+                        else -> throw IllegalStateException("")
+                    } as PQCodebook<VectorValue<*>>
+                )
             }
-            return PQ(type, logicalSize, codebooks as Array<PQCodebook<VectorValue<*>>>)
+            return PQ(type, logicalSize, codebooks)
         }
     }
 
@@ -111,25 +131,35 @@ class PQ(val type: ColumnType<*>, val logicalSize: Int, val codebooks: Array<PQC
             /* Prepare subspace data. */
             LOGGER.debug("Creating subspace data")
             val subspaceData = (0 until config.numSubspaces).map { k ->
-                k to data.map { v -> v.subvector(k * dimensionsPerSubspace, dimensionsPerSubspace) }.toTypedArray()
+                data.map { v -> v.subvector(k * dimensionsPerSubspace, dimensionsPerSubspace) }
             }
 
             /* Start learning of centroids. */
             LOGGER.debug("Learning centroids")
             val codebooks = mutableListOf<PQCodebook<VectorValue<*>>>()
-            for (d in subspaceData) {
+            subspaceData.parallelStream().forEach { d ->
                 val codebook: PQCodebook<*> = when (column.type) {
-                    Complex32ColumnType -> SinglePrecisionPQCodebook.learnFromData(d.second as Array<FloatVectorValue>, config.numCentroids, config.seed, MAX_ITERATIONS)
-                    Complex64ColumnType -> DoublePrecisionPQCodebook.learnFromData(d.second as Array<DoubleVectorValue>, config.numCentroids, config.seed, MAX_ITERATIONS)
-                    FloatVectorColumnType -> SinglePrecisionPQCodebook.learnFromData(d.second as Array<FloatVectorValue>, config.numCentroids, config.seed, MAX_ITERATIONS)
-                    DoubleVectorColumnType -> DoublePrecisionPQCodebook.learnFromData(d.second as Array<DoubleVectorValue>, config.numCentroids, config.seed, MAX_ITERATIONS)
+                    Complex32ColumnType,
+                    FloatVectorColumnType -> SinglePrecisionPQCodebook.learnFromData(
+                        d as List<FloatVectorValue>,
+                        config.numCentroids,
+                        config.seed,
+                        MAX_ITERATIONS
+                    )
+                    DoubleVectorColumnType,
+                    Complex64ColumnType -> DoublePrecisionPQCodebook.learnFromData(
+                        d as List<DoubleVectorValue>,
+                        config.numCentroids,
+                        config.seed,
+                        MAX_ITERATIONS
+                    )
                     else -> throw IllegalArgumentException("VectorValue of type ${column.type} is not supported for PQ.")
                 }
                 codebooks.add(codebook as PQCodebook<VectorValue<*>>)
             }
 
             LOGGER.debug("PQ initialization done.")
-            return PQ(column.type, column.logicalSize, codebooks.toTypedArray())
+            return PQ(column.type, column.logicalSize, codebooks)
         }
     }
 
@@ -140,11 +170,23 @@ class PQ(val type: ColumnType<*>, val logicalSize: Int, val codebooks: Array<PQC
      * @param v The [VectorValue] to calculate the [PQSignature] for.
      * @return The calculated [PQSignature]
      */
-    fun getSignature(v: VectorValue<*>): PQSignature {
-        require(v.logicalSize == this.logicalSize) { "Error while deriving PQ signature: Vector dimension mismatch (expected: ${this.logicalSize}, given: ${v.logicalSize})." }
-        return PQSignature(IntArray(this.numberOfSubspaces) { k ->
-            this.codebooks[k].quantizeSubspaceForVector(v, k * this.dimensionsPerSubspace)
-        })
+    fun getSignature(v: VectorValue<*>): PQSignature =
+        getSignature(v, ByteArray(this.numberOfSubspaces))
+
+    /**
+     * Builds and returns the [PQSignature] for the specified [VectorValue],  which is simply a
+     * concatenation of the representative centroid in each subspace for the specified vector
+     *
+     * @param v The [VectorValue] to calculate the [PQSignature] for.
+     * @return The calculated [PQSignature]
+     */
+    fun getSignature(v: VectorValue<*>, array: ByteArray): PQSignature {
+        require(array.size == this.numberOfSubspaces) { "ByteArray of signature must have the same size as the number of subspaces for this PQ (expected: ${this.numberOfSubspaces}, actual: ${array.size})." }
+        for (k in array.indices) {
+            array[k] =
+                this.codebooks[k].quantizeSubspaceForVector(v, k * this.dimensionsPerSubspace)
+        }
+        return PQSignature(array)
     }
 
     /**
@@ -155,11 +197,14 @@ class PQ(val type: ColumnType<*>, val logicalSize: Int, val codebooks: Array<PQC
      * @return The [PQLookupTable] for the given [VectorValue] and the [DistanceKernel]
      */
     fun getLookupTable(v: VectorValue<*>, kernel: DistanceKernel) = PQLookupTable(
-            Array(this.numberOfSubspaces) { k ->
-                val codebook = this.codebooks[k]
-                DoubleArray(codebook.numberOfCentroids) {
-                    kernel.invoke(v.subvector(k * this.dimensionsPerSubspace, dimensionsPerSubspace), codebook[it]).value
-                }
+        Array(this.numberOfSubspaces) { k ->
+            val codebook = this.codebooks[k]
+            DoubleArray(codebook.numberOfCentroids) {
+                kernel.invoke(
+                    v.subvector(k * this.dimensionsPerSubspace, dimensionsPerSubspace),
+                    codebook[it]
+                ).value
             }
+        }
     )
 }
