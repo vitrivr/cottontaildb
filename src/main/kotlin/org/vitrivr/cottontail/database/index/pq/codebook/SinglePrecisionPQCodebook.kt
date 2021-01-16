@@ -12,7 +12,7 @@ import org.vitrivr.cottontail.model.values.FloatVectorValue
 import org.vitrivr.cottontail.model.values.types.VectorValue
 
 /**
- * An [AbstractPQCodebook] implementation for [FloatVectorValue]s (single precision)
+ * An [PQCodebook] implementation for [FloatVectorValue]s (single precision).
  *
  * @author Gabriel Zihlmann & Ralph Gasser
  * @version 1.0.0
@@ -21,6 +21,9 @@ class SinglePrecisionPQCodebook(
     protected val centroids: List<FloatVectorValue>,
     protected val covMatrix: List<FloatVectorValue>
 ) : PQCodebook<FloatVectorValue> {
+
+    /** Internal buffer for calculation of diff in [quantizeSubspaceForVector] calculation. */
+    private val diffBuffer = FloatVectorValue(FloatArray(this.logicalSize))
 
     /**
      * Serializer object for [SinglePrecisionPQCodebook]
@@ -47,16 +50,20 @@ class SinglePrecisionPQCodebook(
         override fun deserialize(input: DataInput2, available: Int): SinglePrecisionPQCodebook {
             val logicalSize = input.unpackInt()
             val vectorSerializer = FloatVectorColumnType.serializer(logicalSize)
-            val centroids = ArrayList<FloatVectorValue>(input.unpackInt())
-            for (i in 0 until centroids.size) {
+            val centroidsSize = input.unpackInt()
+            val centroids = ArrayList<FloatVectorValue>(centroidsSize)
+            for (i in 0 until centroidsSize) {
                 centroids.add(vectorSerializer.deserialize(input, available))
             }
-            val covMatrix = ArrayList<FloatVectorValue>(input.unpackInt())
-            for (i in 0 until covMatrix.size) {
+            val covMatrixSize = input.unpackInt()
+            val covMatrix = ArrayList<FloatVectorValue>(covMatrixSize)
+            for (i in 0 until covMatrixSize) {
                 covMatrix.add(vectorSerializer.deserialize(input, available))
             }
             return SinglePrecisionPQCodebook(centroids, covMatrix)
         }
+
+        override fun isTrusted(): Boolean = true
     }
 
     companion object {
@@ -119,8 +126,10 @@ class SinglePrecisionPQCodebook(
     override fun get(ci: Int): FloatVectorValue = this.centroids[ci]
 
     /**
-     * Quantizes the given [FloatVectorValue] and returns the index of the centroid it belongs to.
-     * Distance calculation starts from the given [start] vector component and considers [logicalSize] components.
+     * Quantizes the given [FloatVectorValue] and returns the index of the centroid it belongs to. Distance
+     * calculation starts from the given [start] vector component and considers [logicalSize] components.
+     *
+     * Due to internal optimizations, parallel invocation of this method is not possible (i.e. method is not thread safe).
      *
      * @param v The [VectorValue] to quantize.
      * @param start The index of the first [VectorValue] component to consider for distance calculation.
@@ -130,15 +139,14 @@ class SinglePrecisionPQCodebook(
         var mahIndex = 0
         var mah = Float.POSITIVE_INFINITY
         var i = 0
-        val diff = FloatVectorValue(FloatArray(this.logicalSize))
         outer@ for (c in this.centroids) {
             var dist = 0.0f
-            for (it in diff.data.indices) {
-                diff.data[it] = c.data[it] - v.data[start + it]
+            for (it in this.diffBuffer.data.indices) {
+                this.diffBuffer.data[it] = c.data[it] - v.data[start + it]
             }
             var j = 0
             for (m in this.covMatrix) {
-                dist = Math.fma(diff.data[j++], (m.dot(diff).value), dist)
+                dist = Math.fma(this.diffBuffer.data[j++], (m.dot(this.diffBuffer).value), dist)
                 if (dist >= mah) {
                     i++
                     continue@outer

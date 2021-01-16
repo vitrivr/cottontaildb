@@ -20,6 +20,9 @@ class DoublePrecisionPQCodebook(
     protected val covMatrix: List<DoubleVectorValue>
 ) : PQCodebook<DoubleVectorValue> {
 
+    /** Internal buffer for calculation of diff in [quantizeSubspaceForVector] calculation. */
+    private val diffBuffer = DoubleVectorValue(DoubleArray(this.logicalSize))
+
     /**
      * Serializer object for [DoublePrecisionPQCodebook]
      */
@@ -45,12 +48,14 @@ class DoublePrecisionPQCodebook(
         override fun deserialize(input: DataInput2, available: Int): DoublePrecisionPQCodebook {
             val logicalSize = input.unpackInt()
             val vectorSerializer = DoubleVectorColumnType.serializer(logicalSize)
-            val centroids = ArrayList<DoubleVectorValue>(input.unpackInt())
-            for (i in 0 until centroids.size) {
+            val centroidsSize = input.unpackInt()
+            val centroids = ArrayList<DoubleVectorValue>(centroidsSize)
+            for (i in 0 until centroidsSize) {
                 centroids.add(vectorSerializer.deserialize(input, available))
             }
-            val covMatrix = ArrayList<DoubleVectorValue>(input.unpackInt())
-            for (i in 0 until covMatrix.size) {
+            val covMatrixSize = input.unpackInt()
+            val covMatrix = ArrayList<DoubleVectorValue>(covMatrixSize)
+            for (i in 0 until covMatrixSize) {
                 covMatrix.add(vectorSerializer.deserialize(input, available))
             }
             return DoublePrecisionPQCodebook(centroids, covMatrix)
@@ -126,15 +131,14 @@ class DoublePrecisionPQCodebook(
         var mahIndex = 0
         var mah = Double.POSITIVE_INFINITY
         var i = 0
-        val diff = DoubleVectorValue(DoubleArray(this.logicalSize))
         outer@ for (c in this.centroids) {
             var dist = 0.0
-            for (it in diff.data.indices) {
-                diff.data[it] = c.data[it] - v.data[start + it]
+            for (it in this.diffBuffer.data.indices) {
+                this.diffBuffer.data[it] = c.data[it] - v.data[start + it]
             }
             var j = 0
             for (m in this.covMatrix) {
-                dist = Math.fma(diff.data[j++], (m.dot(diff).value), dist)
+                dist = Math.fma(this.diffBuffer.data[j++], (m.dot(this.diffBuffer).value), dist)
                 if (dist >= mah) {
                     i++
                     continue@outer
