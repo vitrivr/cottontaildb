@@ -47,7 +47,7 @@ enum class IndexType(val inexact: Boolean) {
         LUCENE -> LuceneIndex(name, entity, columns)
         LSH_SB -> SuperBitLSHIndex<VectorValue<*>>(name, entity, columns)
         VAF -> VAFIndex(name, entity, columns)
-        PQ -> PQIndex(name, entity, columns, null)
+        PQ -> PQIndex(name, entity, columns)
         //GG -> GreedyGroupingIndex(name, entity, columns)
         else -> throw NotImplementedError("Index of type $this is not implemented.")
     }

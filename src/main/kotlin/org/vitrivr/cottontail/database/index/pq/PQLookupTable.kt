@@ -15,8 +15,8 @@ inline class PQLookupTable(val data: Array<DoubleArray>) {
      */
     fun approximateDistance(signature: PQSignature): Double {
         var distance = 0.0
-        for (i in signature.cells) {
-            distance += this.data[i][signature.cells[i]]
+        for (i in signature.cells.indices) {
+            distance += this.data[i][signature.cells[i].toInt()]
         }
         return distance
     }
