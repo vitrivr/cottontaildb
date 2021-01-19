@@ -195,12 +195,19 @@ class PQIndex(override val name: Name.IndexName, override val parent: Entity, ov
     /**
      * Calculates the cost estimate if this [Index] processing the provided [Predicate].
      *
-     * TODO: Calculate actual cost.
-     *
      * @param predicate [Predicate] to check.
      * @return [Cost] estimate for the [Predicate]
      */
-    override fun cost(predicate: Predicate) = Cost.ZERO
+    override fun cost(predicate: Predicate) =
+        if (predicate is KnnPredicate<*> && predicate.column == this.columns[0]) {
+            Cost(
+                this.signaturesStore.size * this.config.numSubspaces * Cost.COST_DISK_ACCESS_READ + predicate.k * predicate.column.logicalSize * Cost.COST_DISK_ACCESS_READ,
+                this.signaturesStore.size * (4 * Cost.COST_MEMORY_ACCESS + Cost.COST_FLOP) + predicate.k * predicate.cost,
+                (predicate.k * this.produces.map { it.physicalSize }.sum()).toFloat()
+            )
+        } else {
+            Cost.INVALID
+        }
 
     /**
      * Opens and returns a new [IndexTx] object that can be used to interact with this [PQIndex].
