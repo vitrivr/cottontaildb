@@ -4,9 +4,10 @@ import org.mapdb.DataInput2
 import org.mapdb.DataOutput2
 
 /**
+ * A [PQSignature] as used by the [PQIndex]. Wraps an [IntArray].
  *
- * @author Ralph Gasser
- * @version 1.0
+ * @author Gabriel Zihlmann & Ralph Gasser
+ * @version 1.0.0
  */
 class PQSignature(val cells: IntArray) {
     companion object Serializer : org.mapdb.Serializer<PQSignature> {

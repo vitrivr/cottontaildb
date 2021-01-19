@@ -13,6 +13,8 @@ import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.values.DoubleVectorValue
 import org.vitrivr.cottontail.model.values.FloatVectorValue
 import org.vitrivr.cottontail.model.values.types.VectorValue
+import java.util.*
+import kotlin.collections.ArrayList
 
 /**
  * Product Quantizer (PQ) that minimizes inner product error. Input data should be permuted for better results!
@@ -181,10 +183,9 @@ class PQ(
      * @return The calculated [PQSignature]
      */
     fun getSignature(v: VectorValue<*>, array: IntArray): PQSignature {
-        require(array.size == this.numberOfSubspaces) { "ByteArray of signature must have the same size as the number of subspaces for this PQ (expected: ${this.numberOfSubspaces}, actual: ${array.size})." }
-        for (k in array.indices) {
-            array[k] =
-                this.codebooks[k].quantizeSubspaceForVector(v, k * this.dimensionsPerSubspace)
+        require(array.size == this.numberOfSubspaces) { "IntArray of signature must have the same size as the number of subspaces for this PQ (expected: ${this.numberOfSubspaces}, actual: ${array.size})." }
+        Arrays.parallelSetAll(array) { k ->
+            this.codebooks[k].quantizeSubspaceForVector(v, k * this.dimensionsPerSubspace)
         }
         return PQSignature(array)
     }

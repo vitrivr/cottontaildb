@@ -8,14 +8,14 @@ package org.vitrivr.cottontail.database.index.pq
  */
 inline class PQLookupTable(val data: Array<DoubleArray>) {
     /**
-     * Calculates and returns the approximate distance for the given [PQShortSignature].
+     * Calculates and returns the approximate distance for the given [PQSignature].
      *
-     * @param signature The [PQShortSignature] to calculate the distance for.
+     * @param signature The [PQSignature] to calculate the distance for.
      * @return Approximate distance.
      */
     fun approximateDistance(signature: PQSignature): Double {
         var distance = 0.0
-        for (i in signature.cells.indices) {
+        for ((i, d) in this.data.withIndex()) {
             distance += this.data[i][signature.cells[i]]
         }
         return distance
