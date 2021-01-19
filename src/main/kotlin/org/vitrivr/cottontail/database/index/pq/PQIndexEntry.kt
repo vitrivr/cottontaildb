@@ -4,9 +4,10 @@ import org.mapdb.DataInput2
 import org.mapdb.DataOutput2
 
 /**
+ * An inverted file entry in the [PQIndex].
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.0.0
  */
 data class PQIndexEntry(val signature: PQSignature, val tupleIds: LongArray) {
 

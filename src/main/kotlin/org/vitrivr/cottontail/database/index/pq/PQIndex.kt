@@ -32,24 +32,16 @@ import java.util.*
 import kotlin.collections.ArrayDeque
 
 /**
- * author: Gabriel Zihlmann
- * date: 25.8.2020
+ * An [Index] structure for nearest neighbor search (NNS) that uses a product quantization (PQ). Can
+ * be used for all type of [VectorValue]s and distance metrics.
  *
- * Todo: * signatures: Ints are convenient but wasting a lot of space...
- *         we should move towards only using as many bits as necessary...
- *       * avoid copying
- *       * generalize to other datatypes than Complex32VV
+ * TODO: Check if generalization to other distance metrics is actually valid.
  *
- * changes 13.10.2020:
- * * permutation of dimensions will no longer be applied. PQ is 5-10% more accurate without it!
- * * quantizing complex vectors directly is possible and about as accurate as real vectors. This has been changed
- * * in this class now. Performance implications need to be assessed
+ * References:
+ * [1] Guo, Ruiqi, et al. "Quantization based fast inner product search." Artificial Intelligence and Statistics. 2016.
  *
- * 22.10.2020:
- * * deduplication is implemented. Brings significant speedups for lower subspace and centroid counts (2-3x)
- * * beneficial to go to higher k in approximate scan. This requires more effort on re-ranking the approx
- *   matches (can become dominant and take a multiple of the time to scan without parallelization).
- *   This has been parallelized now.
+ * @author Gabriel Zihlmann & Ralph Gasser
+ * @version 1.0.0
  */
 class PQIndex(override val name: Name.IndexName, override val parent: Entity, override val columns: Array<ColumnDef<*>>, config: PQIndexConfig? = null): Index() {
     companion object {
@@ -83,26 +75,6 @@ class PQIndex(override val name: Name.IndexName, override val parent: Entity, ov
                 subspaces++
             }
             throw IllegalArgumentException("")
-        }
-
-        /**
-         * The index of the permutation array is the index in the unpermuted space
-         * The value at that index is to which dimension it was permuted in the permuted space
-         */
-        fun generateRandomPermutation(size: Int, rng: SplittableRandom): Pair<IntArray, IntArray> {
-            // init permutation of dimensions as identity permutation
-            val permutation = IntArray(size) { it }
-            // fisher-yates shuffle
-            for (i in 0 until size - 1) {
-                val toSwap = i + rng.nextInt(size - i)
-                val h = permutation[toSwap]
-                permutation[toSwap] = permutation[i]
-                permutation[i] = h
-            }
-            val reversePermutation = IntArray(permutation.size) {
-                permutation.indexOf(it)
-            }
-            return permutation to reversePermutation
         }
     }
 
@@ -165,22 +137,10 @@ class PQIndex(override val name: Name.IndexName, override val parent: Entity, ov
     }
 
 
-    /**
-     * Flag indicating if this [PQIndex] has been closed.
-     */
+    /** Flag indicating if this [PQIndex] has been closed. */
     @Volatile
     override var closed: Boolean = false
         private set
-
-    /**
-     * Closes this [PQIndex] and the associated data structures.
-     */
-    override fun close() = this.closeLock.write {
-        if (!closed) {
-            db.close()
-            closed = true
-        }
-    }
 
     /**
      * Checks if this [Index] can process the provided [Predicate] and returns true if so and false otherwise.
@@ -217,11 +177,23 @@ class PQIndex(override val name: Name.IndexName, override val parent: Entity, ov
     override fun newTx(context: TransactionContext): IndexTx = Tx(context)
 
     /**
+     * Closes this [PQIndex] and the associated data structures.
+     */
+    override fun close() = this.closeLock.write {
+        if (!this.closed) {
+            this.db.close()
+            this.closed = true
+        }
+    }
+
+    /**
      * A [IndexTx] that affects this [Index].
      */
     private inner class Tx(context: TransactionContext) : Index.Tx(context) {
         /**
-         *
+         * Rebuilds the surrounding [PQIndex] from scratch, thus re-creating the the [PQ] codebook
+         * with a new, random sample and re-calculating all the signatures. This method can
+         * take a while to complete!
          */
         override fun rebuild() = this.withWriteLock {
             /* Obtain some learning data for training. */

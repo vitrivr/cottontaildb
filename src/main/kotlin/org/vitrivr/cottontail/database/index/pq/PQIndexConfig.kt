@@ -3,6 +3,12 @@ package org.vitrivr.cottontail.database.index.pq
 import org.mapdb.DataInput2
 import org.mapdb.DataOutput2
 
+/**
+ * Configuration class for [PQIndex].
+ *
+ * @author Gabriel Zihlmann & Ralph Gasser
+ * @version 1.0.0
+ */
 data class PQIndexConfig(
     val numSubspaces: Int,
     val numCentroids: Int,
