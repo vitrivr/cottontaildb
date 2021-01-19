@@ -25,4 +25,6 @@ class FixedComplex32VectorSerializer(val size: Int) : Serializer<Complex32Vector
         }
         return Complex32VectorValue(vector)
     }
+
+    override fun isTrusted(): Boolean = true
 }

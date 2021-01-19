@@ -10,4 +10,5 @@ object DoubleValueSerializer : Serializer<DoubleValue> {
     override fun serialize(out: DataOutput2, value: DoubleValue) {
         out.writeDouble(value.value)
     }
+    override fun isTrusted(): Boolean = true
 }

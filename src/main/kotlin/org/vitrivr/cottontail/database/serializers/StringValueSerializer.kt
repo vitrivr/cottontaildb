@@ -10,4 +10,5 @@ object StringValueSerializer : Serializer<StringValue> {
     override fun serialize(out: DataOutput2, value: StringValue) {
         out.writeUTF(value.value)
     }
+    override fun isTrusted(): Boolean = true
 }

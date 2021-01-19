@@ -10,4 +10,5 @@ object IntValueSerializer : Serializer<IntValue> {
     override fun serialize(out: DataOutput2, value: IntValue) {
         out.writeInt(value.value)
     }
+    override fun isTrusted(): Boolean = true
 }

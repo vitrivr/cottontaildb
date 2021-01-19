@@ -10,4 +10,5 @@ object BooleanValueSerializer : Serializer<BooleanValue> {
     override fun serialize(out: DataOutput2, value: BooleanValue) {
         out.writeBoolean(value.value)
     }
+    override fun isTrusted(): Boolean = true
 }

@@ -52,4 +52,6 @@ class FixedBooleanVectorSerializer(val size: Int): Serializer<BooleanVectorValue
             (long and check) == check
         })
     }
+
+    override fun isTrusted(): Boolean = true
 }

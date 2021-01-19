@@ -10,4 +10,5 @@ object ByteValueSerializer : Serializer<ByteValue> {
     override fun serialize(out: DataOutput2, value: ByteValue) {
         out.writeByte(value.value.toInt())
     }
+    override fun isTrusted(): Boolean = true
 }

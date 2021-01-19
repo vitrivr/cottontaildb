@@ -11,4 +11,5 @@ object Complex64ValueSerializer : Serializer<Complex64Value> {
         out.writeDouble(value.real.value)
         out.writeDouble(value.imaginary.value)
     }
+    override fun isTrusted(): Boolean = true
 }

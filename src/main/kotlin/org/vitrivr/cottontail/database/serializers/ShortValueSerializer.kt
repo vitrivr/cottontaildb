@@ -10,4 +10,5 @@ object ShortValueSerializer : Serializer<ShortValue> {
     override fun serialize(out: DataOutput2, value: ShortValue) {
         out.writeShort(value.value.toInt())
     }
+    override fun isTrusted(): Boolean = true
 }

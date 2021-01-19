@@ -23,4 +23,6 @@ class FixedComplex64VectorSerializer(val size: Int) : Serializer<Complex64Vector
         val vector = DoubleArray(2 * this.size) { input.readDouble() }
         return Complex64VectorValue(vector)
     }
+
+    override fun isTrusted(): Boolean = true
 }
