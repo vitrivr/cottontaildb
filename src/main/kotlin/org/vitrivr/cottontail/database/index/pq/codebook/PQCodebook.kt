@@ -100,5 +100,5 @@ interface PQCodebook<T : VectorValue<*>> {
      * @param start The index of the first [VectorValue] component to consider for distance calculation.
      * @return The index of the centroid the given [VectorValue] belongs to.
      */
-    fun quantizeSubspaceForVector(v: T, start: Int): Byte
+    fun quantizeSubspaceForVector(v: T, start: Int): Int
 }

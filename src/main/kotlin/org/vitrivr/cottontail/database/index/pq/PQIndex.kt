@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.database.index.pq
 
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
 import org.mapdb.DB
-import org.mapdb.Serializer
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.database.column.*
 import org.vitrivr.cottontail.database.entity.Entity
@@ -27,7 +27,6 @@ import org.vitrivr.cottontail.model.values.IntValue
 import org.vitrivr.cottontail.model.values.types.VectorValue
 import org.vitrivr.cottontail.utilities.extensions.write
 import org.vitrivr.cottontail.utilities.math.KnnUtilities
-import java.lang.Math.floorDiv
 import java.nio.file.Path
 import java.util.*
 import kotlin.collections.ArrayDeque
@@ -56,7 +55,7 @@ class PQIndex(override val name: Name.IndexName, override val parent: Entity, ov
     companion object {
         const val CONFIG_NAME = "pq_config"
         const val PQ_NAME_REAL = "pq_cb_real"
-        const val SIG_NAME = "pq_sig"
+        const val SIGNATURE_FIELD_NAME = "pq_signatures"
         val LOGGER = LoggerFactory.getLogger(PQIndex::class.java)!!
 
 
@@ -132,7 +131,8 @@ class PQIndex(override val name: Name.IndexName, override val parent: Entity, ov
     private val pqStore = this.db.atomicVar(PQ_NAME_REAL, PQ.Serializer).createOrOpen()
 
     /** The store of signatures. */
-    private val signaturesStore = this.db.hashMap(SIG_NAME, PQSignature.Serializer, Serializer.LONG_ARRAY).counterEnable().createOrOpen()
+    private val signaturesStore =
+        this.db.indexTreeList(SIGNATURE_FIELD_NAME, PQIndexEntry.Serializer).createOrOpen()
 
     init {
         require(this.columns.size == 1) { "PQIndex only supports indexing a single column." }
@@ -226,23 +226,26 @@ class PQIndex(override val name: Name.IndexName, override val parent: Entity, ov
             val pq = PQ.fromData(this@PQIndex.config, this@PQIndex.columns[0], data)
 
             /* ... and generate signatures. */
-            this@PQIndex.pqStore.set(pq)
-            this@PQIndex.signaturesStore.clear()
-
-            val signatureArray = ByteArray(pq.numberOfSubspaces)
+            val signatureMap =
+                Object2ObjectOpenHashMap<PQSignature, LinkedList<TupleId>>(txn.count().toInt())
             txn.scan(this.columns).forEach { rec ->
                 val value = rec[this@PQIndex.columns[0]]
                 if (value is VectorValue<*>) {
-                    val sig = pq.getSignature(value, signatureArray)
-                    if (this@PQIndex.signaturesStore.containsKey(sig)) {
-                        this@PQIndex.signaturesStore[sig] =
-                            longArrayOf(*this@PQIndex.signaturesStore[sig]!!, rec.tupleId)
-                    } else {
-                        this@PQIndex.signaturesStore[sig] = longArrayOf(rec.tupleId)
+                    val sig = pq.getSignature(value)
+                    signatureMap.compute(sig) { _, v ->
+                        val ret = v ?: LinkedList<TupleId>()
+                        ret.add(rec.tupleId)
+                        ret
                     }
                 }
             }
 
+            /* Now persist everything. */
+            this@PQIndex.pqStore.set(pq)
+            this@PQIndex.signaturesStore.clear()
+            for (entry in signatureMap.entries) {
+                this@PQIndex.signaturesStore.add(PQIndexEntry(entry.key, entry.value.toLongArray()))
+            }
             LOGGER.debug("Rebuilding PQIndex {} complete.", this@PQIndex.name)
         }
 
@@ -313,20 +316,17 @@ class PQIndex(override val name: Name.IndexName, override val parent: Entity, ov
             private fun prepareResults(): ArrayDeque<StandaloneRecord> {
                 /* Prepare data structures for NNS. */
                 val txn = this@Tx.context.getTx(this@PQIndex.parent) as EntityTx
-                val tuplesPerSignature = floorDiv(txn.count(), this@PQIndex.signaturesStore.sizeLong())
-                val approxKnn = if (this.predicate.k > tuplesPerSignature) {
-                    (this.predicate.k / tuplesPerSignature) * 10
-                } else {
-                    10
-                }.toInt()
-                val preKnns = Array(this.predicate.query.size) { MinHeapSelection<ComparablePair<PQSignature, Double>>(approxKnn) }
+                val preKnns = Array(this.predicate.query.size) {
+                    MinHeapSelection<ComparablePair<LongArray, Double>>(this.predicate.k)
+                }
 
                 /* Phase 1: Perform pre-kNN based on signatures. */
-                for (k in this@PQIndex.signaturesStore.keys) {
+                for (entry in this@PQIndex.signaturesStore) {
                     for (queryIndex in this.predicate.query.indices) {
-                        val approximation = this.lookupTables[queryIndex].approximateDistance(k)
+                        val approximation =
+                            this.lookupTables[queryIndex].approximateDistance(entry!!.signature)
                         if (preKnns[queryIndex].size < this.predicate.k || preKnns[queryIndex].peek()!!.second > approximation) {
-                            preKnns[queryIndex].offer(ComparablePair(k, approximation))
+                            preKnns[queryIndex].offer(ComparablePair(entry.tupleIds, approximation))
                         }
                     }
                 }
@@ -339,7 +339,7 @@ class PQIndex(override val name: Name.IndexName, override val parent: Entity, ov
                 }
                 for ((queryIndex, query) in this.predicate.query.withIndex()) {
                     for (j in 0 until preKnns[queryIndex].size) {
-                        val tupleIds = this@PQIndex.signaturesStore[preKnns[queryIndex][j].first]!!
+                        val tupleIds = preKnns[queryIndex][j].first
                         for (tupleId in tupleIds) {
                             val exact = txn.read(tupleId, this@PQIndex.columns)[this@PQIndex.columns[0]]
                             if (exact is VectorValue<*>) {

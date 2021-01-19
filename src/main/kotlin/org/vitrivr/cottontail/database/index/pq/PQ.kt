@@ -171,7 +171,7 @@ class PQ(
      * @return The calculated [PQSignature]
      */
     fun getSignature(v: VectorValue<*>): PQSignature =
-        getSignature(v, ByteArray(this.numberOfSubspaces))
+        getSignature(v, IntArray(this.numberOfSubspaces))
 
     /**
      * Builds and returns the [PQSignature] for the specified [VectorValue],  which is simply a
@@ -180,7 +180,7 @@ class PQ(
      * @param v The [VectorValue] to calculate the [PQSignature] for.
      * @return The calculated [PQSignature]
      */
-    fun getSignature(v: VectorValue<*>, array: ByteArray): PQSignature {
+    fun getSignature(v: VectorValue<*>, array: IntArray): PQSignature {
         require(array.size == this.numberOfSubspaces) { "ByteArray of signature must have the same size as the number of subspaces for this PQ (expected: ${this.numberOfSubspaces}, actual: ${array.size})." }
         for (k in array.indices) {
             array[k] =

@@ -4,23 +4,23 @@ import org.mapdb.DataInput2
 import org.mapdb.DataOutput2
 
 /**
- * A fixed length signature used for a [PQIndex].
  *
- * TODO: Could be made more compact.
- *
- * @author Gabriel Zihlmann & Ralph Gasser
- * @version 1.0.0
+ * @author Ralph Gasser
+ * @version 1.0
  */
-data class PQSignature(val cells: ByteArray) {
+class PQSignature(val cells: IntArray) {
     companion object Serializer : org.mapdb.Serializer<PQSignature> {
         override fun serialize(out: DataOutput2, value: PQSignature) {
             out.packInt(value.cells.size)
-            out.write(value.cells)
+            for (i in value.cells) {
+                out.packInt(i)
+            }
         }
 
         override fun deserialize(input: DataInput2, available: Int): PQSignature {
-            val array = ByteArray(input.unpackInt())
-            input.readFully(array)
+            val array = IntArray(input.unpackInt()) {
+                input.unpackInt()
+            }
             return PQSignature(array)
         }
     }
@@ -36,7 +36,5 @@ data class PQSignature(val cells: ByteArray) {
         return true
     }
 
-    override fun hashCode(): Int {
-        return this.cells.contentHashCode()
-    }
+    override fun hashCode(): Int = this.cells.contentHashCode()
 }

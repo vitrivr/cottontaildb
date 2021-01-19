@@ -4,13 +4,12 @@ import org.apache.commons.math3.stat.correlation.Covariance
 import org.mapdb.DataInput2
 import org.mapdb.DataOutput2
 import org.vitrivr.cottontail.database.column.*
-import org.vitrivr.cottontail.database.index.pq.PQSignature
 import org.vitrivr.cottontail.database.index.pq.codebook.PQCodebook.Companion.clusterRealData
 import org.vitrivr.cottontail.model.values.*
 import org.vitrivr.cottontail.model.values.types.VectorValue
 
 /**
- * An [AbstractPQCodebook] implementation for [DoubleVectorValue]s
+ * A [PQCodebook] implementation for [DoubleVectorValue]s
  *
  * @author Gabriel Zihlmann & Ralph Gasser
  * @version 1.0.0
@@ -65,7 +64,7 @@ class DoublePrecisionPQCodebook(
     companion object {
 
         /**
-         * Learns the [DoublePrecisionPQCodebook] and the [PQSignature] and returns them. Internally,
+         * Learns the [DoublePrecisionPQCodebook] and the [PQShortSignature] and returns them. Internally,
          * the clustering is done with apache commons k-means++ in double precision but the returned
          * codebook contains centroids of the same datatype as was supplied.
          *
@@ -127,7 +126,7 @@ class DoublePrecisionPQCodebook(
      * @param start The index of the first component to consider for distance calculation.
      * @return The index of the centroid the given [VectorValue] belongs to.
      */
-    override fun quantizeSubspaceForVector(v: DoubleVectorValue, start: Int): Byte {
+    override fun quantizeSubspaceForVector(v: DoubleVectorValue, start: Int): Int {
         var mahIndex = 0
         var mah = Double.POSITIVE_INFINITY
         var i = 0
@@ -150,6 +149,6 @@ class DoublePrecisionPQCodebook(
             }
             i++
         }
-        return mahIndex.toByte()
+        return mahIndex
     }
 }

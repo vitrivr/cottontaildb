@@ -5,14 +5,13 @@ import org.mapdb.DataInput2
 import org.mapdb.DataOutput2
 import org.vitrivr.cottontail.database.column.ColumnType
 import org.vitrivr.cottontail.database.column.FloatVectorColumnType
-import org.vitrivr.cottontail.database.index.pq.PQSignature
 import org.vitrivr.cottontail.database.index.pq.codebook.PQCodebook.Companion.clusterRealData
 import org.vitrivr.cottontail.model.values.DoubleVectorValue
 import org.vitrivr.cottontail.model.values.FloatVectorValue
 import org.vitrivr.cottontail.model.values.types.VectorValue
 
 /**
- * An [PQCodebook] implementation for [FloatVectorValue]s (single precision).
+ * A [PQCodebook] implementation for [FloatVectorValue]s (single precision).
  *
  * @author Gabriel Zihlmann & Ralph Gasser
  * @version 1.0.0
@@ -68,7 +67,7 @@ class SinglePrecisionPQCodebook(
 
     companion object {
         /**
-         * Learns the [PQCodebook] and the [PQSignature] and returns them. Internally, the clustering
+         * Learns the [PQCodebook] and the [PQShortSignature] and returns them. Internally, the clustering
          * is done with apache commons k-means++ in double precision but the returned codebook contains
          * centroids of the same datatype as was supplied.
          *
@@ -135,7 +134,7 @@ class SinglePrecisionPQCodebook(
      * @param start The index of the first [VectorValue] component to consider for distance calculation.
      * @return The index of the centroid the given [VectorValue] belongs to.
      */
-    override fun quantizeSubspaceForVector(v: FloatVectorValue, start: Int): Byte {
+    override fun quantizeSubspaceForVector(v: FloatVectorValue, start: Int): Int {
         var mahIndex = 0
         var mah = Float.POSITIVE_INFINITY
         var i = 0
@@ -158,6 +157,6 @@ class SinglePrecisionPQCodebook(
             }
             i++
         }
-        return mahIndex.toByte()
+        return mahIndex
     }
 }
