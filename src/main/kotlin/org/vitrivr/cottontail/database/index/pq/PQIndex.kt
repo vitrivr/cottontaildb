@@ -161,9 +161,9 @@ class PQIndex(override val name: Name.IndexName, override val parent: Entity, ov
     override fun cost(predicate: Predicate) =
         if (predicate is KnnPredicate<*> && predicate.column == this.columns[0]) {
             Cost(
-                this.signaturesStore.size * this.config.numSubspaces * Cost.COST_DISK_ACCESS_READ + predicate.k * predicate.column.logicalSize * Cost.COST_DISK_ACCESS_READ,
-                this.signaturesStore.size * (4 * Cost.COST_MEMORY_ACCESS + Cost.COST_FLOP) + predicate.k * predicate.cost,
-                (predicate.k * this.produces.map { it.physicalSize }.sum()).toFloat()
+                this.signaturesStore.size * this.config.numSubspaces * Cost.COST_DISK_ACCESS_READ + predicate.query.size * predicate.k * predicate.column.logicalSize * Cost.COST_DISK_ACCESS_READ,
+                predicate.query.size * (this.signaturesStore.size * (4 * Cost.COST_MEMORY_ACCESS + Cost.COST_FLOP) + predicate.k * predicate.cost),
+                (predicate.query.size * predicate.k * this.produces.map { it.physicalSize }.sum()).toFloat()
             )
         } else {
             Cost.INVALID
