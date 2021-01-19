@@ -81,6 +81,13 @@ interface VectorValue<T : Number> : Value {
     fun copy(): VectorValue<T>
 
     /**
+     * Creates and returns a new [VectorValue] of the same type and dimension as this [VectorValue].
+     *
+     * @return New [VectorValue] of the same type and dimension as this [VectorValue].
+     */
+    fun new(): VectorValue<T>
+
+    /**
      * Calculates the element-wise sum of this and the other [VectorValue].
      *
      * @param other The [VectorValue] to add to this [VectorValue].

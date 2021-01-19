@@ -151,11 +151,19 @@ inline class Complex64VectorValue(val data: DoubleArray) : ComplexVectorValue<Do
     override fun copy(): Complex64VectorValue = Complex64VectorValue(this.data.copyOf())
 
     /**
+     * Creates and returns a new instance of [Complex64VectorValue] of the same size.
+     *
+     * @return New instance of [Complex64VectorValue]
+     */
+    override fun new(): Complex64VectorValue = Complex64VectorValue(DoubleArray(this.data.size))
+
+    /**
      * Creates and returns a copy of this [ComplexVectorValue]'s real components.
      *
      * @return Copy of this [ComplexVectorValue].
      */
-    override fun copyReal() = DoubleVectorValue(DoubleArray(this.logicalSize) { this.data[it shl 1] })
+    override fun copyReal() =
+        DoubleVectorValue(DoubleArray(this.logicalSize) { this.data[it shl 1] })
 
     /**
      * Creates and returns a copy of this [ComplexVectorValue]'s imaginary components.

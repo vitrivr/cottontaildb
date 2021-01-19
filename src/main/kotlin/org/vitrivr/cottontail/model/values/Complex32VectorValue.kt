@@ -168,6 +168,13 @@ inline class Complex32VectorValue(val data: FloatArray) : ComplexVectorValue<Flo
     override fun copy(): Complex32VectorValue = Complex32VectorValue(this.data.copyOf())
 
     /**
+     * Creates and returns a new instance of [Complex32VectorValue] of the same size.
+     *
+     * @return New instance of [Complex32VectorValue]
+     */
+    override fun new(): Complex32VectorValue = Complex32VectorValue(FloatArray(this.data.size))
+
+    /**
      * Creates and returns a copy of this [ComplexVectorValue]'s real components.
      *
      * @return Copy of this [ComplexVectorValue].

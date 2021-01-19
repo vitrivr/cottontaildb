@@ -98,6 +98,13 @@ inline class IntVectorValue(val data: IntArray) : RealVectorValue<Int> {
      */
     override fun copy(): IntVectorValue = IntVectorValue(this.data.copyOf(this.logicalSize))
 
+    /**
+     * Creates and returns a new instance of [IntVectorValue] of the same size.
+     *
+     * @return New instance of [IntVectorValue]
+     */
+    override fun new(): IntVectorValue = IntVectorValue(IntArray(this.data.size))
+
     override fun plus(other: VectorValue<*>) = when (other) {
         is IntVectorValue -> IntVectorValue(IntArray(this.data.size) {
             (this.data[it] + other.data[it])

@@ -109,6 +109,13 @@ inline class DoubleVectorValue(val data: DoubleArray) : RealVectorValue<Double> 
      */
     override fun copy(): DoubleVectorValue = DoubleVectorValue(this.data.copyOf(this.data.size))
 
+    /**
+     * Creates and returns a new instance of [DoubleVectorValue] of the same size.
+     *
+     * @return New instance of [DoubleVectorValue]
+     */
+    override fun new(): DoubleVectorValue = DoubleVectorValue(DoubleArray(this.data.size))
+
     override fun plus(other: VectorValue<*>) = when (other) {
         is DoubleVectorValue -> DoubleVectorValue(DoubleArray(this.data.size) {
             (this.data[it] + other.data[it])

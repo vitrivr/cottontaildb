@@ -112,6 +112,13 @@ inline class BooleanVectorValue(val data: BooleanArray) : RealVectorValue<Int> {
      */
     override fun copy(): BooleanVectorValue = BooleanVectorValue(this.data.copyOf())
 
+    /**
+     * Creates and returns a new instance of [BooleanVectorValue] of the same size.
+     *
+     * @return New instance of [BooleanVectorValue]
+     */
+    override fun new(): BooleanVectorValue = BooleanVectorValue(BooleanArray(this.data.size))
+
     override fun plus(other: VectorValue<*>): VectorValue<Int> = when (other) {
         is BooleanVectorValue -> IntVectorValue(IntArray(this.data.size) {
             (this.data[it].toInt() + other.data[it].toInt())

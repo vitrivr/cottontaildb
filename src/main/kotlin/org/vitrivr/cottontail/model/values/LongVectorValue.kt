@@ -99,6 +99,13 @@ inline class LongVectorValue(val data: LongArray) : RealVectorValue<Long> {
      */
     override fun copy(): LongVectorValue = LongVectorValue(this.data.copyOf(this.logicalSize))
 
+    /**
+     * Creates and returns a new instance of [LongVectorValue] of the same size.
+     *
+     * @return New instance of [LongVectorValue]
+     */
+    override fun new(): LongVectorValue = LongVectorValue(LongArray(this.data.size))
+
     override fun plus(other: VectorValue<*>): LongVectorValue = when (other) {
         is LongVectorValue -> LongVectorValue(LongArray(this.data.size) {
             (this.data[it] + other.data[it])

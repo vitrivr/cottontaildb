@@ -114,6 +114,13 @@ inline class FloatVectorValue(val data: FloatArray) : RealVectorValue<Float> {
      */
     override fun copy(): FloatVectorValue = FloatVectorValue(this.data.copyOf(this.data.size))
 
+    /**
+     * Creates and returns a new instance of [FloatVectorValue] of the same size.
+     *
+     * @return New instance of [FloatVectorValue]
+     */
+    fun new(): FloatVectorValue = FloatVectorValue(FloatArray(this.data.size))
+
     override fun plus(other: VectorValue<*>) = when (other) {
         is FloatVectorValue -> FloatVectorValue(FloatArray(this.data.size) {
             (this.data[it] + other.data[it])
