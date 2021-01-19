@@ -47,8 +47,8 @@ import kotlin.time.ExperimentalTime
 import kotlin.time.measureTimedValue
 
 /**
- * An vector approximation (VA) file based [Index] that can be used for optimized nearest neighbor
- * search using [Bounds]. Based on the algorithm proposed in [1].
+ * An [Index] structure for nearest neighbor search (NNS) that uses a vector approximation (VA) file ([1]).
+ * Can be used for all types of [RealVectorValue]s and all [MinkowskiDistance] metrics.
  *
  * References:
  * [1] Weber, R. and Blott, S., 1997. An approximation based data structure for similarity search (No. 9141, p. 416). Technical Report 24, ESPRIT Project HERMES.
@@ -70,8 +70,8 @@ class VAFIndex(override val name: Name.IndexName, override val parent: Entity, o
 
     /** The [VAFIndex] implementation returns exactly the columns that is indexed. */
     override val produces: Array<ColumnDef<*>> = arrayOf(
-            KnnUtilities.queryIndexColumnDef(this.parent.name),
-            KnnUtilities.distanceColumnDef(this.parent.name)
+        KnnUtilities.queryIndexColumnDef(this.parent.name),
+        KnnUtilities.distanceColumnDef(this.parent.name)
     )
 
     /** The type of [Index]. */
@@ -128,12 +128,19 @@ class VAFIndex(override val name: Name.IndexName, override val parent: Entity, o
     /**
      * Calculates the cost estimate if this [VAFIndex] processing the provided [Predicate].
      *
-     * TODO: Calculate actual cost.
-     *
      * @param predicate [Predicate] to check.
      * @return Cost estimate for the [Predicate]
      */
-    override fun cost(predicate: Predicate) = Cost.ZERO
+    override fun cost(predicate: Predicate) =
+        if (predicate is KnnPredicate<*> && predicate.column == this.columns[0] && (predicate.distance is MinkowskiDistance || predicate.distance is SquaredEuclidianDistance)) {
+            Cost(
+                this.signatures.size * this.columns[0].logicalSize * Cost.COST_DISK_ACCESS_READ + 0.1f * (this.signatures.size * predicate.query.size * this.columns[0].logicalSize * Cost.COST_DISK_ACCESS_READ),
+                predicate.query.size * this.signatures.size * this.columns[0].logicalSize * (2*Cost.COST_DISK_ACCESS_READ + Cost.COST_FLOP) +  0.1f * this.signatures.size * predicate.query.size * predicate.cost,
+                (predicate.query.size * predicate.k * this.produces.map { it.physicalSize }.sum()).toFloat()
+            )
+        } else {
+            Cost.INVALID
+        }
 
     /**
      * Checks if the provided [Predicate] can be processed by this instance of [VAFIndex].
