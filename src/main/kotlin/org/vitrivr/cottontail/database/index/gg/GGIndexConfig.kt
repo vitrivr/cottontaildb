@@ -14,6 +14,7 @@ data class GGIndexConfig(val numGroups: Int, val seed: Long, val distance: Dista
     companion object Serializer : org.mapdb.Serializer<GGIndexConfig> {
         const val NUM_SUBSPACES_KEY = "num_groups"
         const val SEED_KEY = "seed"
+        const val DISTANCE_KEY = "distance"
 
         /**
          * Serializes the content of the given value into the given
@@ -50,10 +51,13 @@ data class GGIndexConfig(val numGroups: Int, val seed: Long, val distance: Dista
          * @return [GGIndexConfig]
          */
         fun fromParamsMap(params: Map<String, String>) = GGIndexConfig(
-            numGroups = (params[NUM_SUBSPACES_KEY]
-                ?: error("'$NUM_SUBSPACES_KEY' not found")).toInt(),
-            seed = (params[SEED_KEY] ?: error("'SEED_KEY' not found")).toLong(),
-            distance = Distances.L2
+            numGroups = params[NUM_SUBSPACES_KEY]?.toIntOrNull() ?: 100,
+            seed = params[SEED_KEY]?.toLongOrNull() ?: System.currentTimeMillis(),
+            distance = try {
+                Distances.valueOf(params[DISTANCE_KEY] ?: "")
+            } catch (e: IllegalArgumentException) {
+                Distances.L2
+            }
         )
     }
 }
