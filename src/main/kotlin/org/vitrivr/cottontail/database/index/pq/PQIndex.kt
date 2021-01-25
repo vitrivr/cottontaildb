@@ -295,8 +295,10 @@ class PQIndex(override val name: Name.IndexName, override val parent: Entity, ov
             private fun prepareResults(): ArrayDeque<StandaloneRecord> {
                 /* Prepare data structures for NNS. */
                 val txn = this@Tx.context.getTx(this@PQIndex.parent) as EntityTx
+                val preKnnSize =
+                    (this.predicate.k * 1.15).toInt() /* Pre-kNN size is 15% larger than k. */
                 val preKnns = Array(this.predicate.query.size) {
-                    MinHeapSelection<ComparablePair<LongArray, Double>>(this.predicate.k)
+                    MinHeapSelection<ComparablePair<LongArray, Double>>(preKnnSize)
                 }
 
                 /* Phase 1: Perform pre-kNN based on signatures. */
