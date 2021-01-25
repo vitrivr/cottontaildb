@@ -2,7 +2,11 @@ package org.vitrivr.cottontail.storage.serialization
 
 import org.junit.jupiter.params.provider.Arguments
 import org.vitrivr.cottontail.TestConstants
+import org.vitrivr.cottontail.config.ExecutionConfig
 import org.vitrivr.cottontail.database.catalogue.Catalogue
+import org.vitrivr.cottontail.database.catalogue.CatalogueTest
+import org.vitrivr.cottontail.execution.TransactionManager
+import org.vitrivr.cottontail.execution.TransactionType
 import org.vitrivr.cottontail.model.basics.Name
 import java.nio.file.Files
 import java.util.*
@@ -38,11 +42,18 @@ abstract class AbstractSerializationTest {
     /** The [Catalogue] instance used for the [AbstractSerializationTest]. */
     protected val catalogue: Catalogue = Catalogue(TestConstants.config)
 
+    /** The [TransactionManager] used for this [CatalogueTest] instance. */
+    protected val manager = TransactionManager(ExecutionConfig())
+
     /** The [Schema] instance used for the [AbstractSerializationTest]. */
-    protected val schema = this.catalogue.let {
-        val name = Name.SchemaName("schema-test")
-        it.createSchema(name)
-        it.schemaForName(name)
+    protected val schema = this.catalogue.let { cat ->
+        val transaction = manager.Transaction(TransactionType.USER)
+        cat.Tx(transaction).use { txn ->
+            val name = Name.SchemaName("schema-test")
+            txn.createSchema(name)
+            txn.commit()
+            txn.schemaForName(name)
+        }
     }
 
     /**

@@ -4,14 +4,16 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
+
 import org.vitrivr.cottontail.TestConstants
 import org.vitrivr.cottontail.database.column.ColumnType
-import org.vitrivr.cottontail.database.general.begin
+import org.vitrivr.cottontail.execution.TransactionType
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.BooleanVectorValue
 import org.vitrivr.cottontail.model.values.IntValue
 import org.vitrivr.cottontail.utilities.VectorUtility
+
 import java.util.*
 
 /**
@@ -37,32 +39,36 @@ class BooleanVectorValueSerializationTest : AbstractSerializationTest() {
 
         /* Prepare entity. */
         val columns = arrayOf(idCol, vectorCol)
-        this.schema.createEntity(nameEntity, *columns)
-        val schema = this.schema.entityForName(nameEntity)
+        val txn = this.manager.Transaction(TransactionType.USER)
+        val schemaTx = this.schema.Tx(txn)
+        schemaTx.createEntity(nameEntity, *columns)
+        schemaTx.commit()
+
+        /* Load entity. */
+        val entity = schemaTx.entityForName(nameEntity)
+        val entityTx = entity.Tx(context = txn)
 
         /* Prepare random number generator. */
         val seed = System.currentTimeMillis()
         val r1 = SplittableRandom(seed)
 
         /* Insert data into column. */
-        schema.Tx(false).begin { tx1 ->
-            var i1 = 1L
-            VectorUtility.randomBoolVectorSequence(dimension, TestConstants.collectionSize, r1).forEach {
-                tx1.insert(StandaloneRecord(columns = columns, values = arrayOf(IntValue(++i1), it)))
-            }
-            true
+        var i1 = 1L
+        VectorUtility.randomBoolVectorSequence(dimension, TestConstants.collectionSize, r1).forEach {
+            entityTx.insert(StandaloneRecord(columns = columns, values = arrayOf(IntValue(++i1), it)))
         }
 
         /* Read data from column. */
         val r2 = SplittableRandom(seed)
-        schema.Tx(true).begin { tx2 ->
-            var i2 = 1L
-            VectorUtility.randomBoolVectorSequence(dimension, TestConstants.collectionSize, r2).forEach {
-                val rec2 = tx2.read(++i2, columns)
-                Assertions.assertEquals(i2, (rec2[idCol] as IntValue).asLong().value)
-                Assertions.assertArrayEquals(it.data, (rec2[vectorCol] as BooleanVectorValue).data)
-            }
-            true
+        var i2 = 1L
+        VectorUtility.randomBoolVectorSequence(dimension, TestConstants.collectionSize, r2).forEach {
+            val rec2 = entityTx.read(++i2, columns)
+            Assertions.assertEquals(i2, (rec2[idCol] as IntValue).asLong().value)
+            Assertions.assertArrayEquals(it.data, (rec2[vectorCol] as BooleanVectorValue).data)
         }
+
+        /* Close all Txs */
+        entityTx.close()
+        schemaTx.close()
     }
 }
