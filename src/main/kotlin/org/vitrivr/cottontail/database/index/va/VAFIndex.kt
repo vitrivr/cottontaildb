@@ -43,8 +43,6 @@ import java.util.*
 import kotlin.collections.ArrayDeque
 import kotlin.math.max
 import kotlin.math.min
-import kotlin.time.ExperimentalTime
-import kotlin.time.measureTimedValue
 
 /**
  * An [Index] structure for nearest neighbor search (NNS) that uses a vector approximation (VA) file ([1]).
@@ -98,7 +96,7 @@ class VAFIndex(override val name: Name.IndexName, override val parent: Entity, o
             if (config != null) {
                 this.config = config
             } else {
-                this.config = VAFIndexConfig(5)
+                this.config = VAFIndexConfig(50)
             }
             configOnDisk.set(this.config)
         } else {
@@ -216,7 +214,6 @@ class VAFIndex(override val name: Name.IndexName, override val parent: Entity, o
          * @param predicate The [Predicate] for the lookup
          * @return The resulting [CloseableIterator]
          */
-        @ExperimentalTime
         override fun filter(predicate: Predicate): CloseableIterator<Record> = object : CloseableIterator<Record> {
 
             /** Cast [AtomicBooleanPredicate] (if such a cast is possible).  */
@@ -275,37 +272,57 @@ class VAFIndex(override val name: Name.IndexName, override val parent: Entity, o
                 val knns = if (this.predicate.k == 1) {
                     this.predicate.query.map { MinSingleSelection<ComparablePair<Long, DoubleValue>>() }
                 } else {
-                    this.predicate.query.map { MinHeapSelection<ComparablePair<Long, DoubleValue>>(this.predicate.k) }
+                    this.predicate.query.map {
+                        MinHeapSelection<ComparablePair<Long, DoubleValue>>(
+                            this.predicate.k
+                        )
+                    }
                 }
 
                 /* Iterate over all signatures. */
                 var read = 0L
-                val time = measureTimedValue {
-                    for (signature in this@VAFIndex.signatures) {
-                        if (signature != null) {
-                            this.predicate.query.forEachIndexed { i, q ->
-                                if (q is RealVectorValue<*>) {
-                                    if (knns[i].size < this.predicate.k || this.bounds[i].isVASSACandidate(signature, knns[i].peek()!!.second.value)) {
-                                        val value = txn.read(signature.tupleId, this@VAFIndex.columns)[this@VAFIndex.columns[0]]
-                                        if (value is VectorValue<*>) {
-                                            knns[i].offer(ComparablePair(signature.tupleId, this.predicate.distance(value, q)))
-                                        }
-                                        read += 1
+                for (signature in this@VAFIndex.signatures) {
+                    if (signature != null) {
+                        this.predicate.query.forEachIndexed { i, q ->
+                            if (q is RealVectorValue<*>) {
+                                if (knns[i].size < this.predicate.k || this.bounds[i].isVASSACandidate(
+                                        signature,
+                                        knns[i].peek()!!.second.value
+                                    )
+                                ) {
+                                    val value = txn.read(
+                                        signature.tupleId,
+                                        this@VAFIndex.columns
+                                    )[this@VAFIndex.columns[0]]
+                                    if (value is VectorValue<*>) {
+                                        knns[i].offer(
+                                            ComparablePair(
+                                                signature.tupleId,
+                                                this.predicate.distance(value, q)
+                                            )
+                                        )
                                     }
+                                    read += 1
                                 }
                             }
                         }
                     }
-                    (1.0 - (read.toDouble() / (this@VAFIndex.signatures.size))) * 100
                 }
-
-                LOGGER.info("VA-file scan took ${time.duration}: Skipped over ${time.value}% of entries.")
+                val skipped = ((1.0 - (read.toDouble() / (this@VAFIndex.signatures.size))) * 100)
+                LOGGER.debug("VA-file scan: Skipped over $skipped% of entries.")
 
                 /* Prepare and return list of results. */
-                val queue = ArrayDeque<StandaloneRecord>(this.predicate.k * this.predicate.query.size)
+                val queue =
+                    ArrayDeque<StandaloneRecord>(this.predicate.k * this.predicate.query.size)
                 for ((queryIndex, knn) in knns.withIndex()) {
                     for (i in 0 until knn.size) {
-                        queue.add(StandaloneRecord(knn[i].first, this@VAFIndex.produces, arrayOf(IntValue(queryIndex), knn[i].second)))
+                        queue.add(
+                            StandaloneRecord(
+                                knn[i].first,
+                                this@VAFIndex.produces,
+                                arrayOf(IntValue(queryIndex), knn[i].second)
+                            )
+                        )
                     }
                 }
                 return queue
