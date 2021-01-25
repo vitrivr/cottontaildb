@@ -8,10 +8,7 @@ import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.queries.planning.CottontailQueryPlanner
 import org.vitrivr.cottontail.database.queries.planning.rules.logical.LeftConjunctionRewriteRule
 import org.vitrivr.cottontail.database.queries.planning.rules.logical.RightConjunctionRewriteRule
-import org.vitrivr.cottontail.database.queries.planning.rules.physical.implementation.DeleteImplementationRule
-import org.vitrivr.cottontail.database.queries.planning.rules.physical.implementation.EntityScanImplementationRule
-import org.vitrivr.cottontail.database.queries.planning.rules.physical.implementation.FilterImplementationRule
-import org.vitrivr.cottontail.database.queries.planning.rules.physical.implementation.UpdateImplementationRule
+import org.vitrivr.cottontail.database.queries.planning.rules.physical.implementation.*
 import org.vitrivr.cottontail.database.queries.planning.rules.physical.index.BooleanIndexScanRule
 import org.vitrivr.cottontail.execution.TransactionManager
 import org.vitrivr.cottontail.grpc.CottontailGrpc
@@ -44,7 +41,14 @@ class DMLService(val catalogue: Catalogue, override val manager: TransactionMana
     /** [CottontailQueryPlanner] used to generate execution plans from query definitions. */
     private val planner = CottontailQueryPlanner(
         logicalRewriteRules = listOf(LeftConjunctionRewriteRule, RightConjunctionRewriteRule),
-        physicalRewriteRules = listOf(BooleanIndexScanRule, EntityScanImplementationRule, FilterImplementationRule, DeleteImplementationRule, UpdateImplementationRule)
+        physicalRewriteRules = listOf(
+            BooleanIndexScanRule,
+            EntityScanImplementationRule,
+            FilterImplementationRule,
+            DeleteImplementationRule,
+            UpdateImplementationRule,
+            InsertImplementationRule
+        )
     )
 
     /**

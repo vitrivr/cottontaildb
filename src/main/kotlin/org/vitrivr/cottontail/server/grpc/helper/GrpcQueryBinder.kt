@@ -18,7 +18,6 @@ import org.vitrivr.cottontail.database.queries.planning.nodes.logical.projection
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.sources.EntitySampleLogicalNodeExpression
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.sources.EntityScanLogicalNodeExpression
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.sources.EntitySourceLogicalNodeExpression
-import org.vitrivr.cottontail.database.queries.planning.nodes.logical.sources.RecordSourceLogicalNodeExpression
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.projection.ProjectionPhysicalNodeExpression
 import org.vitrivr.cottontail.database.schema.SchemaTx
 import org.vitrivr.cottontail.execution.TransactionContext
@@ -27,6 +26,7 @@ import org.vitrivr.cottontail.math.knn.metrics.Distances
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import org.vitrivr.cottontail.model.exceptions.QueryException
+import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.*
 import org.vitrivr.cottontail.model.values.pattern.LikePatternValue
 import org.vitrivr.cottontail.model.values.pattern.LucenePatternValue
@@ -88,12 +88,13 @@ class GrpcQueryBinder(val catalogue: Catalogue) {
             val columnName = insert.insertsList[it].column.fqn()
             entityTx.columnForName(columnName).columnDef
         }
-        val root: LogicalNodeExpression = RecordSourceLogicalNodeExpression(columns)
+        val values = Array(insert.insertsCount) {
+            val columnDef = columns[it]
+            insert.insertsList[it].value.toValue(columnDef)
+        }
 
         /* Create and return INSERT-clause. */
-        val ins = InsertLogicalNodeExpression(entity)
-        ins.addInput(root)
-        ins
+        InsertLogicalNodeExpression(entity, StandaloneRecord(columns = columns, values = values))
     } catch (e: DatabaseException.ColumnDoesNotExistException) {
         throw QueryException.QueryBindException("Failed to bind '${e.column}'. Column does not exist!")
     }

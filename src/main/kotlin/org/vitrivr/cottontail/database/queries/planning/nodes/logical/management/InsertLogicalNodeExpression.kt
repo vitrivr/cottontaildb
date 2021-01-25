@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.database.queries.planning.nodes.logical.managemen
 
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.UnaryLogicalNodeExpression
+import org.vitrivr.cottontail.model.basics.Record
 
 /**
  * A [InsertLogicalNodeExpression] that formalizes a INSERT operation on an [Entity].
@@ -9,12 +10,14 @@ import org.vitrivr.cottontail.database.queries.planning.nodes.logical.UnaryLogic
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class InsertLogicalNodeExpression(val entity: Entity) : UnaryLogicalNodeExpression() {
+class InsertLogicalNodeExpression(val entity: Entity, val record: Record) :
+    UnaryLogicalNodeExpression() {
 
     /**
      * Returns a copy of this [DeleteLogicalNodeExpression]
      *
      * @return Copy of this [DeleteLogicalNodeExpression]
      */
-    override fun copy(): InsertLogicalNodeExpression = InsertLogicalNodeExpression(this.entity)
+    override fun copy(): InsertLogicalNodeExpression =
+        InsertLogicalNodeExpression(this.entity, this.record)
 }

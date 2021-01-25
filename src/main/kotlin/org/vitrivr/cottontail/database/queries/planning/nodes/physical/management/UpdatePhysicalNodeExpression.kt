@@ -11,7 +11,7 @@ import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.values.types.Value
 
 /**
- * A [UpdatePhysicalNodeExpression] that formalizes a update operation on an [Entity].
+ * A [UpdatePhysicalNodeExpression] that formalizes a UPDATE operation on an [Entity].
  *
  * @author Ralph Gasser
  * @version 1.0.1
