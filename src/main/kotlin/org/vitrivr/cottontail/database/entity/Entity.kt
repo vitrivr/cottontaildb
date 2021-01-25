@@ -298,7 +298,7 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
          * @param type Type of the [Index] to create.
          * @param columns The list of [columns] to [Index].
          */
-        override fun createIndex(name: Name.IndexName, type: IndexType, columns: Array<ColumnDef<*>>, params: Map<String, String>) = this.withWriteLock {
+        override fun createIndex(name: Name.IndexName, type: IndexType, columns: Array<ColumnDef<*>>, params: Map<String, String>): Index = this.withWriteLock {
             if (this@Entity.indexes.containsKey(name)) {
                 throw DatabaseException.IndexAlreadyExistsException(name)
             }
@@ -313,6 +313,7 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
 
             /* ON ROLLBACK: Remove index data. */
             this.postRollbackAction.add {
+                newIndex.close()
                 val pathsToDelete = Files.walk(newIndex.path).sorted(Comparator.reverseOrder()).collect(Collectors.toList())
                 pathsToDelete.forEach { Files.delete(it) }
             }
@@ -326,6 +327,7 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
                 val new = this@Entity.header.let { EntityHeader(it.size, it.created, System.currentTimeMillis(), it.columns, it.indexes.copyOf(it.indexes.size + 1)) }
                 new.indexes[new.indexes.size - 1] = sid
                 this@Entity.store.update(HEADER_RECORD_ID, new, EntityHeaderSerializer)
+                return newIndex
             } catch (e: DBException) {
                 this.status = TxStatus.ERROR
                 throw DatabaseException("Failed to create index '$name' due to a storage exception: ${e.message}")
