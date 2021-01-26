@@ -51,7 +51,7 @@ class NonUniqueHashIndex(override val name: Name.IndexName, override val parent:
     override val path: Path = this.parent.path.resolve("idx_nu_${name.simple}.db")
 
     /** The type of [Index] */
-    override val type: IndexType = IndexType.HASH_UQ
+    override val type: IndexType = IndexType.HASH
 
     /** True since [NonUniqueHashIndex] supports incremental updates. */
     override val supportsIncrementalUpdate: Boolean = true
