@@ -14,6 +14,7 @@ import org.vitrivr.cottontail.grpc.TXNGrpc
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.server.grpc.helper.proto
+import org.vitrivr.cottontail.server.grpc.helper.protoFrom
 import org.vitrivr.cottontail.utilities.di.ImportFormat
 import org.vitrivr.cottontail.utilities.di.JsonDataImporter
 import java.nio.file.Path
@@ -73,6 +74,7 @@ class ImportDataCommand(
                 if (txId != null) {
                     it.txId = txId
                 }
+                it.from = this.entityName.protoFrom()
                 this.dmlStub.insert(it.build())
             }
 
@@ -104,7 +106,8 @@ class ImportDataCommand(
                 columns.add(
                     ColumnDef.withAttributes(
                         name = Name.ColumnName(
-                            *it.dataList[0].stringData.split('.').toTypedArray()
+                            *it.dataList[0].stringData.split(Name.NAME_COMPONENT_DELIMITER)
+                                .toTypedArray()
                         ),
                         type = it.dataList[2].stringData,
                         size = it.dataList[4].intData,
