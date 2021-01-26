@@ -32,7 +32,7 @@ class KnnOperator<T : VectorValue<*>>(parent: Operator, val knn: KnnPredicate<T>
     /** The columns produced by this [KnnOperator]. */
     override val columns: Array<ColumnDef<*>> = arrayOf(
             *this.parent.columns,
-            KnnUtilities.columnDef(this.knn.column.name.entity())
+            KnnUtilities.distanceColumnDef(this.knn.column.name.entity())
     )
 
     /** [KnnOperator] does act as a pipeline breaker. */

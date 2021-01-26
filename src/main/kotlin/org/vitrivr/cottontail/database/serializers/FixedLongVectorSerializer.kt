@@ -25,4 +25,6 @@ class FixedLongVectorSerializer(val size: Int) : Serializer<LongVectorValue> {
         }
         return LongVectorValue(vector)
     }
+
+    override fun isTrusted(): Boolean = true
 }

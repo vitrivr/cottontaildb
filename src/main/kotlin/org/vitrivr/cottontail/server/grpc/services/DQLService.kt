@@ -79,7 +79,7 @@ class DQLService(val catalogue: Catalogue, override val manager: TransactionMana
                         this.binder.parseAndBindQuery(request.query, tx)
                     }
 
-                    LOGGER.trace(formatMessage(tx, q, "Parsing & binding query took ${bindTimedValue.duration}."))
+                    LOGGER.debug(formatMessage(tx, q, "Parsing & binding query took ${bindTimedValue.duration}."))
 
                     /* Plan query and create execution plan. */
                     val planTimedValue = measureTimedValue {
@@ -88,14 +88,14 @@ class DQLService(val catalogue: Catalogue, override val manager: TransactionMana
                         SpoolerSinkOperator(operator, q, 0, responseObserver)
                     }
 
-                    LOGGER.trace(formatMessage(tx, q, "Planning query took ${planTimedValue.duration}."))
+                    LOGGER.debug(formatMessage(tx, q, "Planning query took ${planTimedValue.duration}."))
 
                     /* Execute query in transaction context. */
                     tx.execute(planTimedValue.value)
                 }
 
                 /* Finalize transaction. */
-                LOGGER.trace(formatMessage(tx, q, "Executing query took ${totalDuration}."))
+                LOGGER.debug(formatMessage(tx, q, "Executing query took ${totalDuration}."))
                 responseObserver.onCompleted()
             } catch (e: QueryException.QuerySyntaxException) {
                 val message = formatMessage(tx, q, "Could not execute query due to syntax error: ${e.message}")
@@ -142,20 +142,20 @@ class DQLService(val catalogue: Catalogue, override val manager: TransactionMana
                         this.binder.parseAndBindQuery(request.query, tx)
                     }
 
-                    LOGGER.trace(formatMessage(tx, q, "Parsing & binding query took ${bindTimedValue.duration}."))
+                    LOGGER.debug(formatMessage(tx, q, "Parsing & binding query took ${bindTimedValue.duration}."))
 
                     /* Plan query and create execution plan. */
                     val planTimedValue = measureTimedValue {
                         val candidates = this.planner.plan(bindTimedValue.value)
                         SpoolerSinkOperator(ExplainQueryOperator(candidates), q, 0, responseObserver)
                     }
-                    LOGGER.trace(formatMessage(tx, q, "Planning query took ${planTimedValue.duration}."))
+                    LOGGER.debug(formatMessage(tx, q, "Planning query took ${planTimedValue.duration}."))
 
                     /* Execute query in transaction context. */
                     tx.execute(planTimedValue.value)
                 }
 
-                LOGGER.trace(formatMessage(tx, q, "Explaining query took ${totalDuration}."))
+                LOGGER.debug(formatMessage(tx, q, "Explaining query took ${totalDuration}."))
                 responseObserver.onCompleted()
             } catch (e: QueryException.QuerySyntaxException) {
                 val message = formatMessage(tx, q, "Could not explain query due to syntax error: ${e.message}")

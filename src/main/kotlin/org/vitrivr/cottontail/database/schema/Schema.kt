@@ -166,7 +166,7 @@ class Schema(override val name: Name.SchemaName, override val parent: Catalogue)
          * @param name The name of the [Entity] that should be created.
          * @param columns The [ColumnDef] of the columns the new [Entity] should have
          */
-        override fun createEntity(name: Name.EntityName, vararg columns: ColumnDef<*>) = this.withWriteLock {
+        override fun createEntity(name: Name.EntityName, vararg columns: ColumnDef<*>): Entity = this.withWriteLock {
             if (columns.map { it.name }.distinct().size != columns.size) throw DatabaseException.DuplicateColumnException(name, columns.map { it.name })
             if (this.listEntities().contains(name)) throw DatabaseException.EntityAlreadyExistsException(name)
 
@@ -177,17 +177,6 @@ class Schema(override val name: Name.SchemaName, override val parent: Catalogue)
                     Files.createDirectories(data)
                 } else {
                     throw DatabaseException("Failed to create entity '$name'. Data directory '$data' seems to be occupied.")
-                }
-
-                /* ON COMMIT: Make entity available. */
-                this.postCommitAction.add {
-                    this@Schema.registry[name] = Entity(name, this@Schema)
-                }
-
-                /* ON ROLLBACK: Delete unused entity folder. */
-                this.postRollbackAction.add {
-                    val pathsToDelete = Files.walk(data).sorted(Comparator.reverseOrder()).collect(Collectors.toList())
-                    pathsToDelete.forEach { Files.delete(it) }
                 }
 
                 /* Store entry for new entity. */
@@ -212,6 +201,21 @@ class Schema(override val name: Name.SchemaName, override val parent: Catalogue)
                 header.entities = header.entities.copyOf(header.entities.size + 1)
                 header.entities[header.entities.size - 1] = recId
                 this@Schema.store.update(HEADER_RECORD_ID, header, SchemaHeaderSerializer)
+
+                /* ON COMMIT: Make entity available. */
+                val entity = Entity(name, this@Schema)
+                this.postCommitAction.add {
+                    this@Schema.registry[name] = entity
+                }
+
+                /* ON ROLLBACK: Delete unused entity folder. */
+                this.postRollbackAction.add {
+                    entity.close()
+                    val pathsToDelete = Files.walk(data).sorted(Comparator.reverseOrder()).collect(Collectors.toList())
+                    pathsToDelete.forEach { Files.delete(it) }
+                }
+
+                return entity
             } catch (e: DBException) {
                 this.status = TxStatus.ERROR
                 throw DatabaseException("Failed to create entity '$name' due to error in the underlying data store: {${e.message}")

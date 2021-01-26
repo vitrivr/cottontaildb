@@ -260,14 +260,15 @@ class Cli(val host: String = "localhost", val port: Int = 1865) {
                             )
                         }
                     }.subcommands(
-                            AboutEntityCommand(this.ddlService),
-                            ClearEntityCommand(this.dmlService),
-                            CreateEntityCommand(this.ddlService),
-                            DropEntityCommand(this.ddlService),
-                            ListAllEntitiesCommand(this.ddlService),
-                            OptimizeEntityCommand(this.ddlService),
-                            CreateIndexCommand(this.ddlService),
-                            DropIndexCommand(this.ddlService)
+                        AboutEntityCommand(this.ddlService),
+                        ClearEntityCommand(this.dmlService),
+                        CreateEntityCommand(this.ddlService),
+                        DropEntityCommand(this.ddlService),
+                        ListAllEntitiesCommand(this.ddlService),
+                        OptimizeEntityCommand(this.ddlService),
+                        CreateIndexCommand(this.ddlService),
+                        DropIndexCommand(this.ddlService),
+                        ImportDataCommand(this.ddlService, this.dmlService, this.txnService)
                     ),
 
                     /* Schema related commands. */

@@ -25,4 +25,6 @@ class FixedDoubleVectorSerializer(val size: Int) : Serializer<DoubleVectorValue>
         }
         return DoubleVectorValue(vector)
     }
+
+    override fun isTrusted(): Boolean = true
 }

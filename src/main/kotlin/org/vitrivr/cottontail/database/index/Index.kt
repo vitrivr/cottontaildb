@@ -130,7 +130,6 @@ abstract class Index : DBO {
          */
         override fun canProcess(predicate: Predicate): Boolean = this@Index.canProcess(predicate)
 
-
         /**
          * Releases the [closeLock] in the [Index].
          */

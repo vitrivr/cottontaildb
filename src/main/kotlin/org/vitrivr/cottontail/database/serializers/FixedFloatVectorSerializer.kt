@@ -22,4 +22,6 @@ class FixedFloatVectorSerializer(val size: Int) : Serializer<FloatVectorValue> {
         val vector = FloatArray(size) { input.readFloat() }
         return FloatVectorValue(vector)
     }
+
+    override fun isTrusted(): Boolean = true
 }

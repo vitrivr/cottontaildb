@@ -10,4 +10,5 @@ object LongValueSerializer : Serializer<LongValue> {
     override fun serialize(out: DataOutput2, value: LongValue) {
         out.writeLong(value.value)
     }
+    override fun isTrusted(): Boolean = true
 }

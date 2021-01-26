@@ -25,4 +25,6 @@ class FixedIntVectorSerializer(val size: Int) : Serializer<IntVectorValue> {
         }
         return IntVectorValue(vector)
     }
+
+    override fun isTrusted(): Boolean = true
 }

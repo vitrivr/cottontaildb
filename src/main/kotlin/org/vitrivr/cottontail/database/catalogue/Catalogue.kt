@@ -204,7 +204,7 @@ class Catalogue(val config: Config) : DBO {
          *
          * @param name The [Name.SchemaName] of the new [Schema].
          */
-        override fun createSchema(name: Name.SchemaName) = this.withWriteLock {
+        override fun createSchema(name: Name.SchemaName): Schema = this.withWriteLock {
             /* Check if schema with that name exists. */
             if (this.listSchemas().contains(name)) throw DatabaseException.SchemaAlreadyExistsException(name)
 
@@ -215,17 +215,6 @@ class Catalogue(val config: Config) : DBO {
                     Files.createDirectories(path)
                 } else {
                     throw DatabaseException("Failed to create schema '$name'. Data directory '$path' seems to be occupied.")
-                }
-
-                /* ON COMMIT: Make schema available. */
-                this.postCommitAction.add {
-                    this@Catalogue.registry[name] = Schema(name, this@Catalogue)
-                }
-
-                /* ON ROLLBACK: Remove schema folder. */
-                this.postRollbackAction.add {
-                    val pathsToDelete = Files.walk(path).sorted(Comparator.reverseOrder()).collect(Collectors.toList())
-                    pathsToDelete.forEach { Files.delete(it) }
                 }
 
                 /* Generate the store for the new schema. */
@@ -241,6 +230,21 @@ class Catalogue(val config: Config) : DBO {
                 val new = this@Catalogue.header.let { CatalogueHeader(it.size + 1, it.created, System.currentTimeMillis(), it.schemas.copyOf(it.schemas.size + 1)) }
                 new.schemas[new.schemas.size - 1] = sid
                 this@Catalogue.store.update(HEADER_RECORD_ID, new, CatalogueHeaderSerializer)
+
+                /* ON COMMIT: Make schema available. */
+                val schema = Schema(name, this@Catalogue)
+                this.postCommitAction.add {
+                    this@Catalogue.registry[name] = schema
+                }
+
+                /* ON ROLLBACK: Remove schema folder. */
+                this.postRollbackAction.add {
+                    schema.close()
+                    val pathsToDelete = Files.walk(path).sorted(Comparator.reverseOrder()).collect(Collectors.toList())
+                    pathsToDelete.forEach { Files.delete(it) }
+                }
+
+                return schema
             } catch (e: DBException) {
                 this.status = TxStatus.ERROR
                 throw DatabaseException("Failed to create schema '$name' due to a storage exception: ${e.message}")

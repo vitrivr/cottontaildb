@@ -10,4 +10,5 @@ object FloatValueSerializer : Serializer<FloatValue> {
     override fun serialize(out: DataOutput2, value: FloatValue) {
         out.writeFloat(value.value)
     }
+    override fun isTrusted(): Boolean = true
 }

@@ -10,7 +10,6 @@ import org.vitrivr.cottontail.math.knn.selection.MinHeapSelection
 import org.vitrivr.cottontail.math.knn.selection.MinSingleSelection
 import org.vitrivr.cottontail.math.knn.selection.Selection
 import org.vitrivr.cottontail.model.basics.ColumnDef
-import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.DoubleValue
@@ -33,8 +32,7 @@ class ParallelKnnOperator(parents: List<Operator>, val knn: KnnPredicate<*>) : O
     /** The columns produced by this [ParallelKnnOperator]. */
     override val columns: Array<ColumnDef<*>> = arrayOf(
             *this.parents.first().columns,
-            ColumnDef(this.knn.column.name.entity()?.column(KnnUtilities.DISTANCE_COLUMN_NAME)
-                    ?: Name.ColumnName(KnnUtilities.DISTANCE_COLUMN_NAME), KnnUtilities.DISTANCE_COLUMN_TYPE)
+            KnnUtilities.distanceColumnDef(this.knn.column.name.entity())
     )
 
     /** [ParallelKnnOperator] does act as a pipeline breaker. */

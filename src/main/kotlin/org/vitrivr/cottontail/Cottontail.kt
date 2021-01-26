@@ -17,7 +17,6 @@ import kotlin.time.ExperimentalTime
  */
 @ExperimentalTime
 fun main(args: Array<String>) {
-
     /** Check if only CLI should be started. */
     if (args.isNotEmpty() && args[0] in arrayOf("prompt", "cli")) {
         if (args.size < 3) {

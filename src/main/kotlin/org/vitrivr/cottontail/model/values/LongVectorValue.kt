@@ -11,7 +11,7 @@ import kotlin.math.pow
  * This is an abstraction over a [FloatArray] and it represents a vector of [Float]s.
  *
  * @author Ralph Gasser
- * @version 1.3.2
+ * @version 1.4.0
  */
 inline class LongVectorValue(val data: LongArray) : RealVectorValue<Long> {
 
@@ -98,6 +98,13 @@ inline class LongVectorValue(val data: LongArray) : RealVectorValue<Long> {
      * @return Exact copy of this [LongVectorValue].
      */
     override fun copy(): LongVectorValue = LongVectorValue(this.data.copyOf(this.logicalSize))
+
+    /**
+     * Creates and returns a new instance of [LongVectorValue] of the same size.
+     *
+     * @return New instance of [LongVectorValue]
+     */
+    override fun new(): LongVectorValue = LongVectorValue(LongArray(this.data.size))
 
     override fun plus(other: VectorValue<*>): LongVectorValue = when (other) {
         is LongVectorValue -> LongVectorValue(LongArray(this.data.size) {
@@ -257,4 +264,15 @@ inline class LongVectorValue(val data: LongArray) : RealVectorValue<Long> {
         }
         else -> LongValue(this.data.size)
     }
+
+    /**
+     * Returns a sub vector of this [LongVectorValue] starting at the component [start] and
+     * containing [length] components.
+     *
+     * @param start Index of the first entry of the returned vector.
+     * @param length how many elements, including start, to return
+     *
+     * @return The [LongVectorValue] representing the sub-vector.
+     */
+    override fun subvector(start: Int, length: Int) = LongVectorValue(this.data.copyOfRange(start, start + length))
 }

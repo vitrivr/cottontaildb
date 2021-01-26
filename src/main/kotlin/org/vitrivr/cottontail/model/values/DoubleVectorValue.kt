@@ -10,7 +10,7 @@ import kotlin.math.pow
  * This is an abstraction over a [DoubleArray] and it represents a vector of [Double]s.
  *
  * @author Ralph Gasser
- * @version 1.3.2
+ * @version 1.4.0
  */
 inline class DoubleVectorValue(val data: DoubleArray) : RealVectorValue<Double> {
 
@@ -70,6 +70,17 @@ inline class DoubleVectorValue(val data: DoubleArray) : RealVectorValue<Double> 
     override fun get(i: Int): DoubleValue = DoubleValue(this.data[i])
 
     /**
+     * Returns a sub vector of this [DoubleVectorValue] starting at the component [start] and
+     * containing [length] components.
+     *
+     * @param start Index of the first entry of the returned vector.
+     * @param length how many elements, including start, to return
+     *
+     * @return The [DoubleVectorValue] representing the sub-vector.
+     */
+    override fun subvector(start: Int, length: Int) = DoubleVectorValue(this.data.copyOfRange(start, start + length))
+
+    /**
      * Returns the i-th entry of  this [DoubleVectorValue] as [Boolean].
      *
      * @param i Index of the entry.
@@ -98,6 +109,13 @@ inline class DoubleVectorValue(val data: DoubleArray) : RealVectorValue<Double> 
      */
     override fun copy(): DoubleVectorValue = DoubleVectorValue(this.data.copyOf(this.data.size))
 
+    /**
+     * Creates and returns a new instance of [DoubleVectorValue] of the same size.
+     *
+     * @return New instance of [DoubleVectorValue]
+     */
+    override fun new(): DoubleVectorValue = DoubleVectorValue(DoubleArray(this.data.size))
+
     override fun plus(other: VectorValue<*>) = when (other) {
         is DoubleVectorValue -> DoubleVectorValue(DoubleArray(this.data.size) {
             (this.data[it] + other.data[it])
@@ -107,12 +125,12 @@ inline class DoubleVectorValue(val data: DoubleArray) : RealVectorValue<Double> 
         })
     }
 
-    override fun minus(other: VectorValue<*>) = when (other) {
-        is DoubleVectorValue -> DoubleVectorValue(DoubleArray(this.data.size) {
+    override operator fun minus(other: VectorValue<*>) = when (other) {
+        is FloatVectorValue -> DoubleVectorValue(DoubleArray(other.logicalSize) {
             (this.data[it] - other.data[it])
         })
-        else -> DoubleVectorValue(DoubleArray(this.data.size) {
-            (this.data[it] - other[it].asDouble().value)
+        else -> DoubleVectorValue(DoubleArray(other.logicalSize) {
+            (this.data[it] - other[it].value.toDouble())
         })
     }
 
@@ -184,18 +202,18 @@ inline class DoubleVectorValue(val data: DoubleArray) : RealVectorValue<Double> 
         return DoubleValue(kotlin.math.sqrt(sum))
     }
 
-    override fun dot(other: VectorValue<*>): DoubleValue = when (other) {
+    override infix fun dot(other: VectorValue<*>) = when (other) {
         is DoubleVectorValue -> {
             var sum = 0.0
             for (i in this.data.indices) {
-                sum += this.data[i] * other.data[i]
+                sum = Math.fma(this.data[i], other.data[i], sum)
             }
             DoubleValue(sum)
         }
         else -> {
             var sum = 0.0
             for (i in this.data.indices) {
-                sum += this.data[i] * other[i].value.toDouble()
+                sum = Math.fma(this.data[i], other[i].value.toDouble(), sum)
             }
             DoubleValue(sum)
         }

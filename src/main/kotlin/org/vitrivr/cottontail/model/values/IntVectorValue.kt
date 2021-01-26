@@ -11,7 +11,7 @@ import kotlin.math.pow
  * This is an abstraction over an [IntArray] and it represents a vector of [Int]s.
  *
  * @author Ralph Gasser
- * @version 1.3.2
+ * @version 1.4.0
  */
 inline class IntVectorValue(val data: IntArray) : RealVectorValue<Int> {
 
@@ -97,6 +97,13 @@ inline class IntVectorValue(val data: IntArray) : RealVectorValue<Int> {
      * @return Exact copy of this [IntVectorValue].
      */
     override fun copy(): IntVectorValue = IntVectorValue(this.data.copyOf(this.logicalSize))
+
+    /**
+     * Creates and returns a new instance of [IntVectorValue] of the same size.
+     *
+     * @return New instance of [IntVectorValue]
+     */
+    override fun new(): IntVectorValue = IntVectorValue(IntArray(this.data.size))
 
     override fun plus(other: VectorValue<*>) = when (other) {
         is IntVectorValue -> IntVectorValue(IntArray(this.data.size) {
@@ -256,4 +263,15 @@ inline class IntVectorValue(val data: IntArray) : RealVectorValue<Int> {
         }
         else -> IntValue(this.data.size)
     }
+
+    /**
+     * Returns a sub vector of this [IntVectorValue] starting at the component [start] and
+     * containing [length] components.
+     *
+     * @param start Index of the first entry of the returned vector.
+     * @param length how many elements, including start, to return
+     *
+     * @return The [IntVectorValue] representing the sub-vector.
+     */
+    override fun subvector(start: Int, length: Int) = IntVectorValue(this.data.copyOfRange(start, start + length))
 }

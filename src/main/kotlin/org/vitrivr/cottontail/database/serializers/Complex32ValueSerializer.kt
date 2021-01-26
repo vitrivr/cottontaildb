@@ -11,4 +11,5 @@ object Complex32ValueSerializer : Serializer<Complex32Value> {
         out.writeFloat(value.real.value)
         out.writeFloat(value.imaginary.value)
     }
+    override fun isTrusted(): Boolean = true
 }

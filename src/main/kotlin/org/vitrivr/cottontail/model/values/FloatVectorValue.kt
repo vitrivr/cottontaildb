@@ -14,7 +14,7 @@ import kotlin.math.pow
  * This is an abstraction over a [FloatArray] and it represents a vector of [Float]s.
  *
  * @author Ralph Gasser
- * @version 1.3.2
+ * @version 1.4.0
  */
 inline class FloatVectorValue(val data: FloatArray) : RealVectorValue<Float> {
 
@@ -44,6 +44,7 @@ inline class FloatVectorValue(val data: FloatArray) : RealVectorValue<Float> {
 
     constructor(input: List<Number>) : this(FloatArray(input.size) { input[it].toFloat() })
     constructor(input: Array<Number>) : this(FloatArray(input.size) { input[it].toFloat() })
+    constructor(input: DoubleArray) : this(FloatArray(input.size) { input[it].toFloat() })
 
     override val logicalSize: Int
         get() = this.data.size
@@ -74,6 +75,17 @@ inline class FloatVectorValue(val data: FloatArray) : RealVectorValue<Float> {
     override fun get(i: Int): FloatValue = FloatValue(this.data[i])
 
     /**
+     * Returns a sub vector of this [FloatVectorValue] starting at the component [start] and
+     * containing [length] components.
+     *
+     * @param start Index of the first entry of the returned vector.
+     * @param length how many elements, including start, to return
+     *
+     * @return The [FloatVectorValue] representing the sub-vector.
+     */
+    override fun subvector(start: Int, length: Int) = FloatVectorValue(this.data.copyOfRange(start, start + length))
+
+    /**
      * Returns the i-th entry of  this [FloatVectorValue] as [Boolean].
      *
      * @param i Index of the entry.
@@ -102,6 +114,13 @@ inline class FloatVectorValue(val data: FloatArray) : RealVectorValue<Float> {
      */
     override fun copy(): FloatVectorValue = FloatVectorValue(this.data.copyOf(this.data.size))
 
+    /**
+     * Creates and returns a new instance of [FloatVectorValue] of the same size.
+     *
+     * @return New instance of [FloatVectorValue]
+     */
+    override fun new(): FloatVectorValue = FloatVectorValue(FloatArray(this.data.size))
+
     override fun plus(other: VectorValue<*>) = when (other) {
         is FloatVectorValue -> FloatVectorValue(FloatArray(this.data.size) {
             (this.data[it] + other.data[it])
@@ -111,8 +130,7 @@ inline class FloatVectorValue(val data: FloatArray) : RealVectorValue<Float> {
         })
     }
 
-
-    override fun minus(other: VectorValue<*>) = when (other) {
+    override operator fun minus(other: VectorValue<*>) = when (other) {
         is FloatVectorValue -> FloatVectorValue(FloatArray(this.data.size) {
             (this.data[it] - other.data[it])
         })
@@ -189,20 +207,20 @@ inline class FloatVectorValue(val data: FloatArray) : RealVectorValue<Float> {
         return FloatValue(kotlin.math.sqrt(sum))
     }
 
-    override fun dot(other: VectorValue<*>): DoubleValue = when (other) {
+    override fun dot(other: VectorValue<*>): FloatValue = when (other) {
         is FloatVectorValue -> {
-            var sum = 0.0
+            var sum = 0.0f
             for (i in this.data.indices) {
-                sum += this.data[i] * other.data[i]
+                sum = Math.fma(this.data[i], other.data[i], sum)
             }
-            DoubleValue(sum)
+            FloatValue(sum)
         }
         else -> {
-            var sum = 0.0
+            var sum = 0.0f
             for (i in this.data.indices) {
-                sum += this.data[i] * other[i].value.toDouble()
+                sum += Math.fma(this.data[i], other[i].value.toFloat(), sum)
             }
-            DoubleValue(sum)
+            FloatValue(sum)
         }
     }
 

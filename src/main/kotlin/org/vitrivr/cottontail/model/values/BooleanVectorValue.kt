@@ -11,7 +11,7 @@ import java.util.*
  * This is an abstraction over a [BooleanArray] and it represents a vector of [Boolean]s.
  *
  * @author Ralph Gasser
- * @version 1.3.2
+ * @version 1.4.0
  */
 inline class BooleanVectorValue(val data: BooleanArray) : RealVectorValue<Int> {
 
@@ -45,7 +45,7 @@ inline class BooleanVectorValue(val data: BooleanArray) : RealVectorValue<Int> {
     constructor(input: Array<Boolean>) : this(BooleanArray(input.size) { input[it] })
 
     override val logicalSize: Int
-        get() = data.size
+        get() = this.data.size
 
     /**
      * Checks for equality between this [BooleanVectorValue] and the other [Value]. Equality can only be
@@ -71,6 +71,17 @@ inline class BooleanVectorValue(val data: BooleanArray) : RealVectorValue<Int> {
      * @return The value at index i.
      */
     override fun get(i: Int): IntValue = IntValue(this.data[i].toInt())
+
+    /**
+     * Returns a sub vector of this [BooleanVectorValue] starting at the component [start] and
+     * containing [length] components.
+     *
+     * @param start Index of the first entry of the returned vector.
+     * @param length how many elements, including start, to return
+     *
+     * @return The [BooleanVectorValue] representing the sub-vector.
+     */
+    override fun subvector(start: Int, length: Int) = BooleanVectorValue(this.data.copyOfRange(start, start + length))
 
     /**
      * Returns the i-th entry of  this [BooleanVectorValue] as [Boolean].
@@ -100,6 +111,13 @@ inline class BooleanVectorValue(val data: BooleanArray) : RealVectorValue<Int> {
      * @return Exact copy of this [BooleanVectorValue].
      */
     override fun copy(): BooleanVectorValue = BooleanVectorValue(this.data.copyOf())
+
+    /**
+     * Creates and returns a new instance of [BooleanVectorValue] of the same size.
+     *
+     * @return New instance of [BooleanVectorValue]
+     */
+    override fun new(): BooleanVectorValue = BooleanVectorValue(BooleanArray(this.data.size))
 
     override fun plus(other: VectorValue<*>): VectorValue<Int> = when (other) {
         is BooleanVectorValue -> IntVectorValue(IntArray(this.data.size) {

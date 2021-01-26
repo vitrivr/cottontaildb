@@ -62,7 +62,11 @@ class CottontailGrpcServer(val config: ServerConfig, val catalogue: Catalogue, p
      */
     fun start() {
         this.server.start()
-        LOGGER.info("Cottontail DB server is up and running at port ${config.port} ! Hop along...")
+        LOGGER.info(
+            "Cottontail DB server is up and running at port ${config.port}! Hop along... (PID: ${
+                ProcessHandle.current().pid()
+            })"
+        )
     }
 
     /**
