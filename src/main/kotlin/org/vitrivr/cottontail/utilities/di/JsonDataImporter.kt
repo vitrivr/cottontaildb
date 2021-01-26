@@ -38,7 +38,7 @@ class JsonDataImporter(override val path: Path, override val schema: Array<Colum
      *
      * @return [CottontailGrpc.InsertMessage]
      */
-    override fun next(): CottontailGrpc.InsertMessage {
+    override fun next(): CottontailGrpc.InsertMessage.Builder {
         this.reader.beginObject()
         val message = CottontailGrpc.InsertMessage.newBuilder()
         for (column in this.schema) {
@@ -78,7 +78,7 @@ class JsonDataImporter(override val path: Path, override val schema: Array<Colum
             }
         }
         this.reader.endObject()
-        return message.build()
+        return message
     }
 
     /**

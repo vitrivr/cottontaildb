@@ -11,7 +11,7 @@ import java.nio.file.Path
  * @author Ralph Gasser
  * @version 1.0.0
  */
-interface DataImporter : Iterator<CottontailGrpc.InsertMessage>, AutoCloseable {
+interface DataImporter : Iterator<CottontailGrpc.InsertMessage.Builder>, AutoCloseable {
     /** The [Path] to the import file. */
     val path: Path
 
