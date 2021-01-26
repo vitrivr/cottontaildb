@@ -268,7 +268,7 @@ class Cli(val host: String = "localhost", val port: Int = 1865) {
                         OptimizeEntityCommand(this.ddlService),
                         CreateIndexCommand(this.ddlService),
                         DropIndexCommand(this.ddlService),
-                        ImportDataCommand(this.ddlService, this.dmlService)
+                        ImportDataCommand(this.ddlService, this.dmlService, this.txnService)
                     ),
 
                     /* Schema related commands. */
