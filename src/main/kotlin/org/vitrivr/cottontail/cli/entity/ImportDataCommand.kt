@@ -56,7 +56,7 @@ class ImportDataCommand(
 
     override fun exec() {
         /* Read schema and prepare Iterator. */
-        val iterator: Iterator<CottontailGrpc.InsertMessage.Builder> = when (this.format) {
+        val iterator = when (this.format) {
             Format.CSV -> TODO()
             Format.JSON -> JsonDataImporter(this.input, this.readSchema())
             Format.PROTO -> ProtoDataImporter(this.input)
@@ -88,6 +88,8 @@ class ImportDataCommand(
             if (txId != null) {
                 this.txnStub.rollback(txId)
             }
+        } finally {
+            iterator.close()
         }
     }
 
