@@ -17,7 +17,7 @@ import kotlin.time.ExperimentalTime
  * Command to preview a given entity
  *
  * @author Loris Sauter
- * @version 1.0.1
+ * @version 1.0.2
  */
 @ExperimentalTime
 class PreviewEntityCommand constructor(dqlStub: DQLGrpc.DQLBlockingStub) : AbstractQueryCommand(name = "preview", help = "Gives a preview of the entity specified", stub = dqlStub) {
@@ -31,18 +31,18 @@ class PreviewEntityCommand constructor(dqlStub: DQLGrpc.DQLBlockingStub) : Abstr
     override fun exec() {
         /* Prepare query. */
         val qm = CottontailGrpc.QueryMessage.newBuilder().setQuery(
-                CottontailGrpc.Query.newBuilder()
-                        .setFrom(this.entityName.protoFrom())
-                        .setProjection(MatchAll())
-                        .setLimit(this.limit)
-                        .setSkip(this.skip)
+            CottontailGrpc.Query.newBuilder()
+                .setFrom(this.entityName.protoFrom())
+                .setProjection(MatchAll())
+                .setLimit(this.limit)
+                .setSkip(this.skip)
         ).build()
 
-        /* Execute and prepare table. */
-        val results = this.executeAndTabulate(qm)
-
-        /* Print. */
-        println("Previewing ${this.limit} elements of  ${this.entityName} (took: ${results.duration}):")
-        println(results.value)
+        /* Execute query based on options. */
+        if (this.toFile) {
+            this.executeAndExport(qm)
+        } else {
+            this.executeAndTabulate(qm)
+        }
     }
 }

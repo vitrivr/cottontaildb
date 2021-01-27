@@ -15,8 +15,9 @@ import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.server.grpc.helper.proto
 import org.vitrivr.cottontail.server.grpc.helper.protoFrom
-import org.vitrivr.cottontail.utilities.di.ImportFormat
-import org.vitrivr.cottontail.utilities.di.JsonDataImporter
+import org.vitrivr.cottontail.utilities.data.Format
+import org.vitrivr.cottontail.utilities.data.importer.JsonDataImporter
+import org.vitrivr.cottontail.utilities.data.importer.ProtoDataImporter
 import java.nio.file.Path
 import java.nio.file.Paths
 import kotlin.time.ExperimentalTime
@@ -34,14 +35,14 @@ class ImportDataCommand(
     val txnStub: TXNGrpc.TXNBlockingStub
 ) : AbstractEntityCommand(name = "import", help = "Used to import data into Cottontail DB.") {
 
-    /** The [ImportFormat] used for the import. */
-    private val format: ImportFormat by option(
+    /** The [Format] used for the import. */
+    private val format: Format by option(
         "-f",
         "--format",
         help = "Format for used for data import (Options: ${
-            ImportFormat.values().joinToString(", ")
+            Format.values().joinToString(", ")
         })."
-    ).enum<ImportFormat>().required()
+    ).enum<Format>().required()
 
     /** The [Path] to the input file. */
     private val input: Path by option(
@@ -55,13 +56,13 @@ class ImportDataCommand(
 
     override fun exec() {
         /* Read schema and prepare Iterator. */
-        val schema = this.readSchema()
         val iterator: Iterator<CottontailGrpc.InsertMessage.Builder> = when (this.format) {
-            ImportFormat.CSV -> TODO()
-            ImportFormat.JSON -> JsonDataImporter(this.input, schema)
+            Format.CSV -> TODO()
+            Format.JSON -> JsonDataImporter(this.input, this.readSchema())
+            Format.PROTO -> ProtoDataImporter(this.input)
         }
 
-        /** Begin transaction (if single transaction optin has been set). */
+        /** Begin transaction (if single transaction option has been set). */
         val txId = if (this.singleTransaction) {
             this.txnStub.begin(Empty.getDefaultInstance())
         } else {
