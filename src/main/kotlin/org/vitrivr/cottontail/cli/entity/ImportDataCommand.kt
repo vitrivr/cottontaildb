@@ -16,8 +16,6 @@ import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.server.grpc.helper.proto
 import org.vitrivr.cottontail.server.grpc.helper.protoFrom
 import org.vitrivr.cottontail.utilities.data.Format
-import org.vitrivr.cottontail.utilities.data.importer.JsonDataImporter
-import org.vitrivr.cottontail.utilities.data.importer.ProtoDataImporter
 import java.nio.file.Path
 import java.nio.file.Paths
 import kotlin.time.ExperimentalTime
@@ -56,11 +54,8 @@ class ImportDataCommand(
 
     override fun exec() {
         /* Read schema and prepare Iterator. */
-        val iterator = when (this.format) {
-            Format.CSV -> TODO()
-            Format.JSON -> JsonDataImporter(this.input, this.readSchema())
-            Format.PROTO -> ProtoDataImporter(this.input)
-        }
+        val schema = this.readSchema()
+        val iterator = this.format.newImporter(this.input, schema)
 
         /** Begin transaction (if single transaction option has been set). */
         val txId = if (this.singleTransaction) {

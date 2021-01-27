@@ -8,8 +8,6 @@ import org.vitrivr.cottontail.cli.AbstractCottontailCommand
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.grpc.DQLGrpc
 import org.vitrivr.cottontail.utilities.data.Format
-import org.vitrivr.cottontail.utilities.data.exporter.JsonDataExporter
-import org.vitrivr.cottontail.utilities.data.exporter.ProtoDataExporter
 import org.vitrivr.cottontail.utilities.output.TabulationUtilities
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -40,7 +38,7 @@ abstract class AbstractQueryCommand(private val stub: DQLGrpc.DQLBlockingStub, n
     ).convert { Paths.get(it) }
 
     /** Flag indicating, whether query should be executed or explained. */
-    private val type: Format? by option(
+    private val format: Format? by option(
         "-f",
         "--format",
         help = "Only for option --out; export format. Defaults to PROTO"
@@ -87,14 +85,10 @@ abstract class AbstractQueryCommand(private val stub: DQLGrpc.DQLBlockingStub, n
             val duration = measureTime {
                 if (this.out != null) {
                     /* Determine which data exporter to use. */
-                    val dataExporter = when (this.type) {
-                        Format.PROTO -> ProtoDataExporter(this.out!!)
-                        Format.JSON -> JsonDataExporter(this.out!!)
-                        Format.CSV -> TODO()
-                        null -> {
-                            println("Valid output format needs to be specified for export!")
-                            return
-                        }
+                    val dataExporter = this.format?.newExporter(this.out!!)
+                    if (dataExporter == null) {
+                        println("Valid output format needs to be specified for export!")
+                        return
                     }
 
                     /* Execute query. */
