@@ -14,14 +14,17 @@ interface DataExporter : AutoCloseable {
     /** The [Path] to the import file. */
     val path: Path
 
-    /** The [Format] handled by this [DataImporter]. */
+    /** The [Format] handled by this [DataExporter]. */
     val format: Format
 
-    /** Indicator whether this [DataImporter] has been closed. */
+    /** Indicator whether this [DataExporter] has been closed. */
     val closed: Boolean
 
     /**
+     * Offers a [CottontailGrpc.QueryResponseMessage] for export by this [DataExporter].
      *
+     * Due to the nature of how Cottontail DB returns queries, individual tuples are written-out
+     * to disk in batches.
      */
     fun offer(message: CottontailGrpc.QueryResponseMessage)
 }
