@@ -23,6 +23,6 @@ class IndexScanPhysicalNodeExpression(val index: Index, val predicate: BooleanPr
 
     override fun partition(p: Int): List<NullaryPhysicalNodeExpression> {
         /* TODO: May actually be possible for certain index structures. */
-        throw IllegalStateException("IndexKnnPhysicalNodeExpression cannot be partitioned.")
+        throw IllegalStateException("IndexScanPhysicalNodeExpression cannot be partitioned.")
     }
 }
