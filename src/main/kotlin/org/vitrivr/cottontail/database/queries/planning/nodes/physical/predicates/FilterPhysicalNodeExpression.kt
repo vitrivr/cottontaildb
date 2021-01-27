@@ -30,7 +30,7 @@ class FilterPhysicalNodeExpression(val predicate: BooleanPredicate, val selectiv
     override fun copy() = FilterPhysicalNodeExpression(this.predicate, this.selectivity)
     override fun toOperator(engine: TransactionManager): Operator {
         val parallelisation = Integer.min(this.cost.parallelisation(), MAX_PARALLELISATION)
-        return if (parallelisation > 1) {
+        return if (this.canBePartitioned && parallelisation > 1) {
             val operators = this.input.partition(parallelisation).map { it.toOperator(engine) }
             ParallelFilterOperator(operators, this.predicate)
         } else {
