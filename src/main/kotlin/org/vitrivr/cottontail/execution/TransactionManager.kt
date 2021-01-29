@@ -174,18 +174,22 @@ class TransactionManager(config: ExecutionConfig) {
                     } catch (e: DeadlockException) {
                         LOGGER.debug("Deadlock encountered during execution of transaction ${this@Transaction.txId}.", e)
                         this@Transaction.state = TransactionStatus.ERROR
+                        this@Transaction.rollback()
                         throw TransactionException.DeadlockException(this@Transaction.txId, e)
                     } catch (e: ExecutionException.OperatorExecutionException) {
                         LOGGER.debug("Unhandled exception during operator execution in transaction ${this@Transaction.txId}.", e)
                         this@Transaction.state = TransactionStatus.ERROR
+                        this@Transaction.rollback()
                         throw e
                     } catch (e: DatabaseException) {
                         LOGGER.warn("Unhandled database exception during execution of transaction ${this@Transaction.txId}.", e)
                         this@Transaction.state = TransactionStatus.ERROR
+                        this@Transaction.rollback()
                         throw e
                     } catch (e: Throwable) {
                         LOGGER.error("Unhandled exception during query execution of transaction ${this@Transaction.txId}.", e)
                         this@Transaction.state = TransactionStatus.ERROR
+                        this@Transaction.rollback()
                         throw ExecutionException("Unhandled exception during execution of transaction ${this@Transaction.txId}: ${e.message}.")
                     }
                 }
