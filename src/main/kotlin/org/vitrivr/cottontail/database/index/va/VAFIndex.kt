@@ -10,10 +10,11 @@ import org.vitrivr.cottontail.database.events.DataChangeEvent
 import org.vitrivr.cottontail.database.index.Index
 import org.vitrivr.cottontail.database.index.IndexTx
 import org.vitrivr.cottontail.database.index.IndexType
+import org.vitrivr.cottontail.database.index.pq.PQIndex
 import org.vitrivr.cottontail.database.index.va.bounds.*
 import org.vitrivr.cottontail.database.index.va.signature.Marks
 import org.vitrivr.cottontail.database.index.va.signature.MarksGenerator
-import org.vitrivr.cottontail.database.index.va.signature.Signature
+import org.vitrivr.cottontail.database.index.va.signature.VAFSignature
 import org.vitrivr.cottontail.database.queries.components.AtomicBooleanPredicate
 import org.vitrivr.cottontail.database.queries.components.KnnPredicate
 import org.vitrivr.cottontail.database.queries.components.Predicate
@@ -82,10 +83,15 @@ class VAFIndex(override val name: Name.IndexName, override val parent: Entity, o
     private val config: VAFIndexConfig
 
     /** Store for the [Marks]. */
-    private val marksStore: Atomic.Var<Marks> = this.db.atomicVar(MARKS_FIELD_NAME, Marks.Serializer).createOrOpen()
+    private val marksStore: Atomic.Var<Marks> =
+        this.db.atomicVar(MARKS_FIELD_NAME, Marks.Serializer).createOrOpen()
 
     /** Store for the signatures. */
-    private val signatures = this.db.indexTreeList(SIGNATURE_FIELD_NAME, Signature.Serializer).createOrOpen()
+    private val signatures =
+        this.db.indexTreeList(SIGNATURE_FIELD_NAME, VAFSignature.Serializer).createOrOpen()
+
+    /** Internal storage variable for the dirty flag. */
+    private val dirtyStore = this.db.atomicBoolean(PQIndex.PQ_INDEX_DIRTY).createOrOpen()
 
     init {
         require(this.columns.size == 1) { "$VAFIndex only supports indexing a single column." }
@@ -112,6 +118,13 @@ class VAFIndex(override val name: Name.IndexName, override val parent: Entity, o
 
     /** False since [VAFIndex] currently doesn't support incremental updates. */
     override val supportsIncrementalUpdate: Boolean = false
+
+    /** True since [VAFIndex] supports partitioning. */
+    override val supportsPartitioning: Boolean = true
+
+    /** Indicates if this [VAFIndex] is currently considered dirty, i.e., out of sync with [Entity]. */
+    override val dirty: Boolean
+        get() = this.dirtyStore.get()
 
     /**
      * Closes this [VAFIndex] and the associated data structures.
@@ -159,6 +172,14 @@ class VAFIndex(override val name: Name.IndexName, override val parent: Entity, o
      * A [IndexTx] that affects this [Index].
      */
     private inner class Tx(context: TransactionContext) : Index.Tx(context) {
+        /**
+         * Returns the number of [VAFSignature]s in this [VAFIndex]
+         *
+         * @return The number of [VAFSignature] stored in this [VAFIndex]
+         */
+        override fun count(): Long = this.withReadLock {
+            this@VAFIndex.signatures.size.toLong()
+        }
 
         /**
          * (Re-)builds the [VAFIndex] from scratch.
@@ -187,21 +208,24 @@ class VAFIndex(override val name: Name.IndexName, override val parent: Entity, o
             txn.scan(this@VAFIndex.columns).forEach { r ->
                 val value = r[this@VAFIndex.columns[0]]
                 if (value is RealVectorValue<*>) {
-                    this@VAFIndex.signatures.add(Signature(r.tupleId, marks.getCells(value)))
+                    this@VAFIndex.signatures.add(VAFSignature(r.tupleId, marks.getCells(value)))
                 }
             }
 
+            this@VAFIndex.dirtyStore.compareAndSet(true, false)
             LOGGER.debug("Done rebuilding VAF index {}", this@VAFIndex.name)
         }
 
         /**
-         * Updates the [VAFIndex] with the provided [DataChangeEvent]s. This method determines, whether the [Record]
-         * affected by the [DataChangeEvent] should be added or updated
+         * Updates the [VAFIndex] with the provided [DataChangeEvent]s. Since the [VAFIndex] does
+         * not support incremental updates, calling this method will simply set the [VAFIndex]
+         * [dirty] flag to true.
          *
-         * @param update Collection of [DataChangeEvent]s to process.
+         * @param event [DataChangeEvent]s to process.
          */
-        override fun update(update: Collection<DataChangeEvent>) = this.withWriteLock {
-            TODO("Not yet implemented")
+        override fun update(event: DataChangeEvent) = this.withWriteLock {
+            this@VAFIndex.dirtyStore.compareAndSet(false, true)
+            Unit
         }
 
         /**
@@ -214,7 +238,23 @@ class VAFIndex(override val name: Name.IndexName, override val parent: Entity, o
          * @param predicate The [Predicate] for the lookup
          * @return The resulting [CloseableIterator]
          */
-        override fun filter(predicate: Predicate): CloseableIterator<Record> = object : CloseableIterator<Record> {
+        override fun filter(predicate: Predicate) = filterRange(predicate, 0L until this.count())
+
+        /**
+         * Performs a lookup through this [VAFIndex.Tx] and returns a [CloseableIterator] of all [Record]s
+         * that match the [Predicate] within the given [LongRange]. Only supports [KnnPredicate]s.
+         *
+         * <strong>Important:</strong> The [CloseableIterator] is not thread safe! It remains to the
+         * caller to close the [CloseableIterator]
+         *
+         * @param predicate The [Predicate] for the lookup
+         * @param range The [LongRange] of [VAFSignature]s to consider.
+         * @return The resulting [CloseableIterator]
+         */
+        override fun filterRange(
+            predicate: Predicate,
+            range: LongRange
+        ): CloseableIterator<Record> = object : CloseableIterator<Record> {
 
             /** Cast [AtomicBooleanPredicate] (if such a cast is possible).  */
             private val predicate = if (predicate is KnnPredicate<*>) {
@@ -281,7 +321,8 @@ class VAFIndex(override val name: Name.IndexName, override val parent: Entity, o
 
                 /* Iterate over all signatures. */
                 var read = 0L
-                for (signature in this@VAFIndex.signatures) {
+                for (sigIndex in range) {
+                    val signature = this@VAFIndex.signatures[sigIndex.toInt()]
                     if (signature != null) {
                         this.predicate.query.forEachIndexed { i, q ->
                             if (q is RealVectorValue<*>) {
@@ -308,6 +349,7 @@ class VAFIndex(override val name: Name.IndexName, override val parent: Entity, o
                         }
                     }
                 }
+
                 val skipped = ((1.0 - (read.toDouble() / (this@VAFIndex.signatures.size))) * 100)
                 LOGGER.debug("VA-file scan: Skipped over $skipped% of entries.")
 

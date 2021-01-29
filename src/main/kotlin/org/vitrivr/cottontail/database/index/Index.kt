@@ -24,7 +24,7 @@ import java.util.concurrent.locks.StampedLock
  * @see Entity.Tx
  *
  * @author Ralph Gasser
- * @version 1.7.0
+ * @version 1.8.0
  */
 abstract class Index : DBO {
 
@@ -52,6 +52,12 @@ abstract class Index : DBO {
 
     /** True, if the [Index] supports incremental updates, and false otherwise. */
     abstract val supportsIncrementalUpdate: Boolean
+
+    /** True, if the [Index] supports querying filtering an indexable range of the data. */
+    abstract val supportsPartitioning: Boolean
+
+    /** Flag indicating, if this [Index] reflects all changes done to the [Entity]it belongs to. */
+    abstract val dirty: Boolean
 
     /**
      * Checks if this [Index] can process the provided [Predicate] and returns true if so and false otherwise.
@@ -117,10 +123,6 @@ abstract class Index : DBO {
         /** The [IndexType] of the [Index] that underpins this [IndexTx]. */
         override val type: IndexType
             get() = this@Index.type
-
-        /** Returns true, if the [Index] underpinning this [IndexTx] supports incremental updates, and false otherwise. */
-        override val supportsIncrementalUpdate: Boolean
-            get() = this@Index.supportsIncrementalUpdate
 
         /**
          * Checks if this [IndexTx] can process the provided [Predicate].

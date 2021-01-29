@@ -41,13 +41,14 @@ import kotlin.collections.ArrayDeque
  * [1] Guo, Ruiqi, et al. "Quantization based fast inner product search." Artificial Intelligence and Statistics. 2016.
  *
  * @author Gabriel Zihlmann & Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
 class PQIndex(override val name: Name.IndexName, override val parent: Entity, override val columns: Array<ColumnDef<*>>, config: PQIndexConfig? = null): Index() {
     companion object {
-        const val CONFIG_NAME = "pq_config"
-        const val PQ_NAME_REAL = "pq_cb_real"
-        const val SIGNATURE_FIELD_NAME = "pq_signatures"
+        private const val PQ_INDEX_CONFIG = "pq_config"
+        private const val PQ_INDEX_NAME = "pq_cb_real"
+        private const val PQ_INDEX_SIGNATURES = "pq_signatures"
+        private const val PQ_INDEX_DIRTY = "pq_dirty"
         val LOGGER = LoggerFactory.getLogger(PQIndex::class.java)!!
 
 
@@ -78,7 +79,7 @@ class PQIndex(override val name: Name.IndexName, override val parent: Entity, ov
         }
     }
 
-    /** The [Path] to the [DBO]'s main file OR folder. */
+    /** The [Path] to the [PQIndex]'s main file OR folder. */
     override val path: Path = this.parent.path.resolve("idx_pq_$name.db")
 
     /** The [PQIndex] implementation returns exactly the columns that is indexed. */
@@ -90,9 +91,6 @@ class PQIndex(override val name: Name.IndexName, override val parent: Entity, ov
     /** The type of [Index]. */
     override val type = IndexType.PQ
 
-    /** False since [PQIndex] currently doesn't support incremental updates. */
-    override val supportsIncrementalUpdate: Boolean = false
-
     /** The internal [DB] reference. */
     private val db: DB = this.parent.parent.parent.config.mapdb.db(this.path)
 
@@ -100,17 +98,21 @@ class PQIndex(override val name: Name.IndexName, override val parent: Entity, ov
     private val config: PQIndexConfig
 
     /** The [PQ] instance used for real vector components. */
-    private val pqStore = this.db.atomicVar(PQ_NAME_REAL, PQ.Serializer).createOrOpen()
+    private val pqStore = this.db.atomicVar(PQ_INDEX_NAME, PQ.Serializer).createOrOpen()
 
-    /** The store of signatures. */
+    /** The store of [PQIndexEntry]. */
     private val signaturesStore =
-        this.db.indexTreeList(SIGNATURE_FIELD_NAME, PQIndexEntry.Serializer).createOrOpen()
+        this.db.indexTreeList(PQ_INDEX_SIGNATURES, PQIndexEntry.Serializer).createOrOpen()
+
+    /** Internal storage variable for the dirty flag. */
+    private val dirtyStore = this.db.atomicBoolean(PQ_INDEX_DIRTY).createOrOpen()
 
     init {
         require(this.columns.size == 1) { "PQIndex only supports indexing a single column." }
 
         /* Load or create config. */
-        val configOnDisk = this.db.atomicVar(CONFIG_NAME, PQIndexConfig.Serializer).createOrOpen()
+        val configOnDisk =
+            this.db.atomicVar(PQ_INDEX_CONFIG, PQIndexConfig.Serializer).createOrOpen()
         if (configOnDisk.get() == null) {
             if (config != null) {
                 if (config.numSubspaces == PQIndexConfig.AUTO_VALUE || (config.numSubspaces % this.columns[0].logicalSize) != 0) {
@@ -142,6 +144,16 @@ class PQIndex(override val name: Name.IndexName, override val parent: Entity, ov
     override var closed: Boolean = false
         private set
 
+    /** False since [PQIndex] currently doesn't support incremental updates. */
+    override val supportsIncrementalUpdate: Boolean = false
+
+    /** True since [PQIndex] supports partitioning. */
+    override val supportsPartitioning: Boolean = true
+
+    /** Indicates if this [PQIndex] is currently considered dirty, i.e., out of sync with [Entity]. */
+    override val dirty: Boolean
+        get() = this.dirtyStore.get()
+
     /**
      * Checks if this [Index] can process the provided [Predicate] and returns true if so and false otherwise.
      *
@@ -149,8 +161,8 @@ class PQIndex(override val name: Name.IndexName, override val parent: Entity, ov
      * @return True if [Predicate] can be processed, false otherwise.
      */
     override fun canProcess(predicate: Predicate) =
-            predicate is KnnPredicate<*>
-                    && predicate.columns.first() == this.columns[0]
+        predicate is KnnPredicate<*>
+                && predicate.columns.first() == this.columns[0]
 
     /**
      * Calculates the cost estimate if this [Index] processing the provided [Predicate].
@@ -190,6 +202,16 @@ class PQIndex(override val name: Name.IndexName, override val parent: Entity, ov
      * A [IndexTx] that affects this [Index].
      */
     private inner class Tx(context: TransactionContext) : Index.Tx(context) {
+
+        /**
+         * Returns the number of [PQIndexEntry]s in this [PQIndex]
+         *
+         * @return The number of [PQIndexEntry] stored in this [PQIndex]
+         */
+        override fun count(): Long = this.withReadLock {
+            this@PQIndex.signaturesStore.size.toLong()
+        }
+
         /**
          * Rebuilds the surrounding [PQIndex] from scratch, thus re-creating the the [PQ] codebook
          * with a new, random sample and re-calculating all the signatures. This method can
@@ -225,17 +247,20 @@ class PQIndex(override val name: Name.IndexName, override val parent: Entity, ov
             for (entry in signatureMap.entries) {
                 this@PQIndex.signaturesStore.add(PQIndexEntry(entry.key, entry.value.toLongArray()))
             }
+            this@PQIndex.dirtyStore.compareAndSet(true, false)
             LOGGER.debug("Rebuilding PQIndex {} complete.", this@PQIndex.name)
         }
 
         /**
-         * Updates the [PQIndex] with the provided [DataChangeEvent]s. This method determines,
-         * whether the [Record] affected by the [DataChangeEvent] should be added or updated
+         * Updates the [PQIndex] with the provided [DataChangeEvent]s. Since the [PQIndex] does
+         * not support incremental updates, calling this method will simply set the [PQIndex] [dirty]
+         * flag to true.
          *
-         * @param update Collection of [DataChangeEvent]s to process.
+         * @param event Collection of [DataChangeEvent]s to process.
          */
-        override fun update(update: Collection<DataChangeEvent>) = this.withWriteLock {
-            TODO("Not yet implemented")
+        override fun update(event: DataChangeEvent) = this.withWriteLock {
+            this@PQIndex.dirtyStore.compareAndSet(false, true)
+            Unit
         }
 
         /**
@@ -248,7 +273,24 @@ class PQIndex(override val name: Name.IndexName, override val parent: Entity, ov
          * @param predicate The [Predicate] for the lookup
          * @return The resulting [CloseableIterator]
          */
-        override fun filter(predicate: Predicate): CloseableIterator<Record> = object : CloseableIterator<Record> {
+        override fun filter(predicate: Predicate): CloseableIterator<Record> =
+            filterRange(predicate, 0L until this.count())
+
+        /**
+         * Performs a lookup through this [PQIndex.Tx] and returns a [CloseableIterator] of all [Record]s
+         * that match the [Predicate] in the given [LongRange]. Only supports [KnnPredicate]s.
+         *
+         * <strong>Important:</strong> The [CloseableIterator] is not thread safe! It remains to the
+         * caller to close the [CloseableIterator]
+         *
+         * @param predicate The [Predicate] for the lookup
+         * @param range The [LongRange] of [PQIndexEntry] to consider.
+         * @return The resulting [CloseableIterator]
+         */
+        override fun filterRange(
+            predicate: Predicate,
+            range: LongRange
+        ): CloseableIterator<Record> = object : CloseableIterator<Record> {
 
             /** Cast [AtomicBooleanPredicate] (if such a cast is possible).  */
             private val predicate = if (predicate is KnnPredicate<*>) {
@@ -302,7 +344,8 @@ class PQIndex(override val name: Name.IndexName, override val parent: Entity, ov
                 }
 
                 /* Phase 1: Perform pre-kNN based on signatures. */
-                for (entry in this@PQIndex.signaturesStore) {
+                for (i in range) {
+                    val entry = this@PQIndex.signaturesStore[i.toInt()]
                     for (queryIndex in this.predicate.query.indices) {
                         val approximation =
                             this.lookupTables[queryIndex].approximateDistance(entry!!.signature)

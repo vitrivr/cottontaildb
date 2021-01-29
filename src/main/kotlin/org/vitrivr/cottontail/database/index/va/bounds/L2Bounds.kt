@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.database.index.va.bounds
 
 import org.vitrivr.cottontail.database.index.va.signature.Marks
-import org.vitrivr.cottontail.database.index.va.signature.Signature
+import org.vitrivr.cottontail.database.index.va.signature.VAFSignature
 import org.vitrivr.cottontail.model.values.types.RealVectorValue
 import kotlin.math.max
 import kotlin.math.pow
@@ -44,11 +44,11 @@ class L2Bounds(query: RealVectorValue<*>, marks: Marks) : Bounds {
     }
 
     /**
-     * Updates the lower and upper bounds of this [L2Bounds] for the given [Signature].
+     * Updates the lower and upper bounds of this [L2Bounds] for the given [VAFSignature].
      *
-     * @param signature The [Signature] to calculate the bounds for.
+     * @param signature The [VAFSignature] to calculate the bounds for.
      */
-    override fun update(signature: Signature): L2Bounds {
+    override fun update(signature: VAFSignature): L2Bounds {
         this.lb = 0.0
         this.ub = 0.0
         for ((j, rij) in signature.cells.withIndex()) {
@@ -72,14 +72,14 @@ class L2Bounds(query: RealVectorValue<*>, marks: Marks) : Bounds {
     }
 
     /**
-     * Checks if the given [Signature] is a VA-SSA candidate according to [1] by comparing the
+     * Checks if the given [VAFSignature] is a VA-SSA candidate according to [1] by comparing the
      * lower bounds estimation to the given threshold and returns true if so and false otherwise.
      *
-     * @param signature The [Signature] to check.
-     * @param threshold The threshold for a [Signature] to be deemed a candidate. Can be used for early stopping.
-     * @return True if [Signature] is a candidate, false otherwise.
+     * @param signature The [VAFSignature] to check.
+     * @param threshold The threshold for a [VAFSignature] to be deemed a candidate. Can be used for early stopping.
+     * @return True if [VAFSignature] is a candidate, false otherwise.
      */
-    override fun isVASSACandidate(signature: Signature, threshold: Double): Boolean {
+    override fun isVASSACandidate(signature: VAFSignature, threshold: Double): Boolean {
         val tsquared = threshold.pow(2)
         var lb = 0.0
         for ((j, rij) in signature.cells.withIndex()) {

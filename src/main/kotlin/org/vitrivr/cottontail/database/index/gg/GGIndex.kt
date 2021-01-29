@@ -54,11 +54,12 @@ class GGIndex(
 ) : Index() {
     companion object {
         const val CONFIG_NAME = "gg_config"
-        const val GROUPS_NAME = "gg_means"
+        const val GG_INDEX_NAME = "gg_means"
+        const val GG_INDEX_DIRTY = "gg_dirty"
         val LOGGER = LoggerFactory.getLogger(GGIndex::class.java)!!
     }
 
-    /** The [Path] to the [DBO]'s main file OR folder. */
+    /** The [Path] to the [GG_INDEX_DIRTY]'s main file OR folder. */
     override val path: Path = this.parent.path.resolve("idx_gg_$name.db")
 
     /** The [PQIndex] implementation returns exactly the columns that is indexed. */
@@ -70,9 +71,6 @@ class GGIndex(
     /** The type of [Index]. */
     override val type = IndexType.GG
 
-    /** False since [GGIndex] currently doesn't support incremental updates. */
-    override val supportsIncrementalUpdate: Boolean = false
-
     /** The internal [DB] reference. */
     private val db: DB = this.parent.parent.parent.config.mapdb.db(this.path)
 
@@ -81,10 +79,13 @@ class GGIndex(
 
     /** Store of the groups mean vector and the associated [TupleId]s. */
     private val groupsStore: HTreeMap<VectorValue<*>, LongArray> = this.db.hashMap(
-        GROUPS_NAME,
+        GG_INDEX_NAME,
         this.columns[0].type.serializer(this.columns[0].logicalSize) as Serializer<VectorValue<*>>,
         Serializer.LONG_ARRAY
     ).counterEnable().createOrOpen()
+
+    /** Internal storage variable for the dirty flag. */
+    private val dirtyStore = this.db.atomicBoolean(GG_INDEX_DIRTY).createOrOpen()
 
     /**
      * Flag indicating if this [PQIndex] has been closed.
@@ -92,6 +93,16 @@ class GGIndex(
     @Volatile
     override var closed: Boolean = false
         private set
+
+    /** False since [GGIndex] currently doesn't support incremental updates. */
+    override val supportsIncrementalUpdate: Boolean = false
+
+    /** True since [GGIndex] does not support partitioning. */
+    override val supportsPartitioning: Boolean = false
+
+    /** Always false, due to incremental updating being supported. */
+    override val dirty: Boolean
+        get() = this.dirtyStore.get()
 
     init {
         require(this.columns.size == 1) { "GGIndex only supports indexing a single column." }
@@ -120,7 +131,6 @@ class GGIndex(
     override fun canProcess(predicate: Predicate) = predicate is KnnPredicate<*>
             && predicate.columns.first() == this.columns[0]
             && predicate.distance == this.config.distance.kernel
-
 
     /**
      * Calculates the cost estimate if this [Index] processing the provided [Predicate].
@@ -151,6 +161,15 @@ class GGIndex(
      * A [IndexTx] that affects this [Index].
      */
     private inner class Tx(context: TransactionContext) : Index.Tx(context) {
+        /**
+         * Returns the number of groups in this [GGIndex]
+         *
+         * @return The number of groups stored in this [GGIndex]
+         */
+        override fun count(): Long = this.withReadLock {
+            this@GGIndex.groupsStore.size.toLong()
+        }
+
         /**
          * Rebuilds the surrounding [PQIndex] from scratch using the following, greedy grouping algorithm:
          *
@@ -216,7 +235,7 @@ class GGIndex(
                     this@GGIndex.groupsStore[groupMean] = groupTids.toLongArray()
                 }
             }
-
+            this@GGIndex.dirtyStore.compareAndSet(true, false)
             PQIndex.LOGGER.debug("Rebuilding GGIndex {} complete.", this@GGIndex.name)
         }
 
@@ -224,10 +243,11 @@ class GGIndex(
          * Updates the [GGIndex] with the provided [DataChangeEvent]s. This method determines,
          * whether the [Record] affected by the [DataChangeEvent] should be added or updated
          *
-         * @param update Collection of [DataChangeEvent]s to process.
+         * @param event [DataChangeEvent]s to process.
          */
-        override fun update(update: Collection<DataChangeEvent>) = this.withWriteLock {
-            TODO("Not yet implemented")
+        override fun update(event: DataChangeEvent) = this.withWriteLock {
+            this@GGIndex.dirtyStore.compareAndSet(false, true)
+            Unit
         }
 
         /**
@@ -347,6 +367,20 @@ class GGIndex(
                     return queue
                 }
             }
+
+        /**
+         * Range filtering is not supported [GGIndex]
+         *
+         * @param predicate The [Predicate] for the lookup
+         * @param range The [LongRange] of [GGIndex] to consider.
+         * @return The resulting [CloseableIterator]
+         */
+        override fun filterRange(
+            predicate: Predicate,
+            range: LongRange
+        ): CloseableIterator<Record> {
+            throw UnsupportedOperationException("The UniqueHashIndex does not support ranged filtering!")
+        }
 
         /**
          * Commits changes to the [GGIndex].

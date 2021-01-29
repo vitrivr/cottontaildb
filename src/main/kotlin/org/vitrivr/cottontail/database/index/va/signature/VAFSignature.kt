@@ -4,14 +4,14 @@ import org.mapdb.DataInput2
 import org.mapdb.DataOutput2
 
 /**
- * A fixed length [Signature] used for vector approximation.
+ * A fixed length [VAFSignature] used for vector approximation.
  *
  * @author Gabriel Zihlmann & Ralph Gasser
  * @version 1.0.0
  */
-data class Signature(val tupleId: Long, val cells: IntArray) {
-    companion object Serializer : org.mapdb.Serializer<Signature> {
-        override fun serialize(out: DataOutput2, value: Signature) {
+data class VAFSignature(val tupleId: Long, val cells: IntArray) {
+    companion object Serializer : org.mapdb.Serializer<VAFSignature> {
+        override fun serialize(out: DataOutput2, value: VAFSignature) {
             out.writeLong(value.tupleId)
             out.packInt(value.cells.size)
             for (c in value.cells) {
@@ -19,9 +19,9 @@ data class Signature(val tupleId: Long, val cells: IntArray) {
             }
         }
 
-        override fun deserialize(input: DataInput2, available: Int) = Signature(
-                input.readLong(),
-                IntArray(input.unpackInt()) { input.readUnsignedByte() }
+        override fun deserialize(input: DataInput2, available: Int) = VAFSignature(
+            input.readLong(),
+            IntArray(input.unpackInt()) { input.readUnsignedByte() }
         )
     }
 
@@ -29,7 +29,7 @@ data class Signature(val tupleId: Long, val cells: IntArray) {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
 
-        other as Signature
+        other as VAFSignature
 
         if (tupleId != other.tupleId) return false
         if (!cells.contentEquals(other.cells)) return false

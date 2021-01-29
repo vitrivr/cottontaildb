@@ -10,6 +10,7 @@ import org.mapdb.StoreWAL
 import org.vitrivr.cottontail.database.column.Column
 import org.vitrivr.cottontail.database.column.ColumnTx
 import org.vitrivr.cottontail.database.column.mapdb.MapDBColumn
+import org.vitrivr.cottontail.database.events.DataChangeEvent
 import org.vitrivr.cottontail.database.general.AbstractTx
 import org.vitrivr.cottontail.database.general.DBO
 import org.vitrivr.cottontail.database.general.TxStatus
@@ -32,6 +33,7 @@ import java.nio.file.Path
 import java.util.*
 import java.util.concurrent.locks.StampedLock
 import java.util.stream.Collectors
+import kotlin.collections.ArrayList
 
 /**
  * Represents a single entity in the Cottontail DB data model. An [Entity] has name that must remain unique within a [Schema].
@@ -202,7 +204,7 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
         override val dbo: Entity
             get() = this@Entity
 
-        /** Tries to acquire a global read-lock on this [Entity]. */
+        /** Tries to acquire a global read-lock on this entity. */
         init {
             if (this@Entity.closed) {
                 throw TxException.TxDBOClosedException(this.context.txId)
@@ -384,7 +386,15 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
                     this.context.releaseLock(index)
                 }
 
-                val new = this@Entity.header.let { EntityHeader(it.size, it.created, System.currentTimeMillis(), it.columns, it.indexes.filter { it != indexRecId }.toLongArray()) }
+                val new = this@Entity.header.let {
+                    EntityHeader(
+                        it.size,
+                        it.created,
+                        System.currentTimeMillis(),
+                        it.columns,
+                        it.indexes.filter { recId -> recId != indexRecId }.toLongArray()
+                    )
+                }
                 this@Entity.store.update(HEADER_RECORD_ID, new, EntityHeaderSerializer)
                 this@Entity.store.delete(indexRecId, IndexEntrySerializer)
             } catch (e: DBException) {
@@ -470,43 +480,49 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
         }
 
         /**
-         * Insert the provided [Record]. Columns specified in the [Record] that are not part
-         * of the [Entity] will cause an error! This will set this [Entity.Tx] to [TxStatus.DIRTY].
+         * Insert the provided [Record]. This will set this [Entity.Tx] to [TxStatus.DIRTY].
          *
          * @param record The [Record] that should be inserted.
          * @return The ID of the record or null, if nothing was inserted.
-         * @throws TxException If some of the sub-transactions on [Column] level caused an error.
+         *
+         * @throws TxException If some of the [Tx] on [Column] or [Index] level caused an error.
          * @throws DatabaseException If a general database error occurs during the insert.
          */
         override fun insert(record: Record): TupleId? = this.withWriteLock {
-            /* Perform sanity check; all columns held by this entity must be contained in the record. */
-            this.listColumns().forEach {
-                if (!record.columns.contains(it.columnDef)) {
-                    throw TxException.TxValidationException(this.context.txId, "The provided record is missing the column $it, which is required for an insert.")
-                }
-            }
-
             try {
-                var lastTupleIdId: TupleId? = null
-                record.forEach { columnDef, value ->
-                    val column = this@Entity.columns[columnDef.name]
-                            ?: throw IllegalArgumentException("Column $columnDef does not exist on entity ${this@Entity.name}.")
-                    val tupleId = (this.context.getTx(column) as ColumnTx<Value>).insert(value)
-                    if (lastTupleIdId != tupleId && lastTupleIdId != null) {
+                var lastTupleId: TupleId? = null
+                this.listColumns().forEach {
+                    val tx = this.context.getTx(it) as ColumnTx<Value>
+                    val value = record[it.columnDef]
+                    val tupleId = tx.insert(value)
+                    if (lastTupleId != tupleId && lastTupleId != null) {
                         throw DatabaseException.DataCorruptionException("Entity '${this@Entity.name}' is corrupt. Insert did not yield same record ID for all columns involved!")
                     }
-                    lastTupleIdId = tupleId
+                    lastTupleId = tupleId
                 }
 
-                /* Update the header of this entity. */
-                if (lastTupleIdId != null) {
+                if (lastTupleId != null) {
+                    /* Update the header of this entity. */
                     val header = this@Entity.header
                     header.size += 1
                     header.modified = System.currentTimeMillis()
                     this@Entity.store.update(HEADER_RECORD_ID, header, EntityHeaderSerializer)
+
+                    /* Issue DataChangeEvent.InsertDataChange event & update indexes. */
+                    /* ToDo: System wide event bus for [DataChangeEvent]. */
+                    val values = record.columns.map { record[it] }.toTypedArray()
+                    val event = DataChangeEvent.InsertDataChangeEvent(
+                        this@Entity.name,
+                        lastTupleId!!,
+                        record.columns,
+                        new = values
+                    )
+                    this@Entity.indexes.values.forEach {
+                        (this.context.getTx(it) as IndexTx).update(event)
+                    }
                 }
 
-                return lastTupleIdId
+                return lastTupleId
             } catch (e: DatabaseException) {
                 this.status = TxStatus.ERROR
                 throw e
@@ -526,10 +542,26 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
          */
         override fun update(record: Record) = this.withWriteLock {
             try {
+                val oldValues = ArrayList<Value?>(record.columns.size)
                 record.forEach { columnDef, value ->
                     val column = this@Entity.columns[columnDef.name]
-                            ?: throw IllegalArgumentException("Column $columnDef does not exist on entity ${this@Entity.name}.")
-                    (this.context.getTx(column) as ColumnTx<Value>).update(record.tupleId, value)
+                        ?: throw IllegalArgumentException("Column $columnDef does not exist on entity ${this@Entity.name}.")
+                    val columnTx = (this.context.getTx(column) as ColumnTx<Value>)
+                    oldValues.add(columnTx.update(record.tupleId, value))
+                }
+
+                /* Issue DataChangeEvent.UpdateDataChangeEvent event & update indexes. */
+                /* ToDo: System wide event bus for [DataChangeEvent]. */
+                val newValues = record.columns.map { record[it] }.toTypedArray()
+                val event = DataChangeEvent.UpdateDataChangeEvent(
+                    this@Entity.name,
+                    record.tupleId,
+                    record.columns,
+                    new = newValues,
+                    old = oldValues.toTypedArray()
+                )
+                this@Entity.indexes.values.forEach {
+                    (this.context.getTx(it) as IndexTx).update(event)
                 }
             } catch (e: DatabaseException) {
                 this.status = TxStatus.ERROR
@@ -550,15 +582,27 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
         override fun delete(tupleId: TupleId) = this.withWriteLock {
             try {
                 /* Perform delete on each column. */
-                this@Entity.columns.values.forEach {
+                val values = this@Entity.columns.values.map {
                     (this.context.getTx(it) as ColumnTx<*>).delete(tupleId)
-                }
+                }.toTypedArray()
 
                 /* Update header. */
                 val header = this@Entity.header
                 header.size -= 1
                 header.modified = System.currentTimeMillis()
                 this@Entity.store.update(HEADER_RECORD_ID, header, EntityHeaderSerializer)
+
+                /* Issue DataChangeEvent.DeleteDataChangeEvent event & update indexes. */
+                /* ToDo: System wide event bus for [DataChangeEvent]. */
+                val event = DataChangeEvent.DeleteDataChangeEvent(
+                    this@Entity.name,
+                    tupleId,
+                    columns = this@Entity.columns.values.map { it.columnDef }.toTypedArray(),
+                    old = values
+                )
+                this@Entity.indexes.values.forEach {
+                    (this.context.getTx(it) as IndexTx).update(event)
+                }
             } catch (e: DBException) {
                 this.status = TxStatus.ERROR
                 throw DatabaseException("Deleting record $tupleId failed due to an error in the underlying storage: ${e.message}.")

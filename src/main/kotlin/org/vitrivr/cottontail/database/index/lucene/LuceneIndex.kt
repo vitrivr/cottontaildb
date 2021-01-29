@@ -8,15 +8,14 @@ import org.apache.lucene.search.*
 import org.apache.lucene.store.Directory
 import org.apache.lucene.store.FSDirectory
 import org.apache.lucene.store.NativeFSLockFactory
-import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.database.column.ColumnType
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.events.DataChangeEvent
-import org.vitrivr.cottontail.database.events.DataChangeEventType
 import org.vitrivr.cottontail.database.index.Index
 import org.vitrivr.cottontail.database.index.IndexTx
 import org.vitrivr.cottontail.database.index.IndexType
+import org.vitrivr.cottontail.database.index.hash.UniqueHashIndex
 import org.vitrivr.cottontail.database.index.lsh.superbit.SuperBitLSHIndex
 import org.vitrivr.cottontail.database.index.lsh.superbit.SuperBitLSHIndexConfig
 import org.vitrivr.cottontail.database.queries.components.*
@@ -33,11 +32,11 @@ import org.vitrivr.cottontail.utilities.extensions.write
 import java.nio.file.Path
 
 /**
- * Represents a Apache Lucene based index in the Cottontail DB data model. The [LuceneIndex] allows
- * for string comparisons using the EQUAL or LIKE operator.
+ * An Apache Lucene based [Index]. The [LuceneIndex] allows for fast search on text using the EQUAL
+ * or LIKE operator.
  *
  * @author Luca Rossetto & Ralph Gasser
- * @version 1.3.1
+ * @version 1.4.0
  */
 class LuceneIndex(override val name: Name.IndexName, override val parent: Entity, override val columns: Array<ColumnDef<*>>, config: LuceneIndexConfig? = null) : Index() {
 
@@ -49,36 +48,23 @@ class LuceneIndex(override val name: Name.IndexName, override val parent: Entity
         private val SUPPORTS = arrayOf(ComparisonOperator.LIKE, ComparisonOperator.EQUAL, ComparisonOperator.MATCH)
 
         private const val CONFIG_NAME = "lucene_config"
-
-        /**
-         * Maps a [Record] to a [Document] that can be processed by Lucene.
-         *
-         * @param record The [Record]
-         * @return The resulting [Document]
-         */
-        private fun documentFromRecord(record: Record): Document = Document().apply {
-            add(NumericDocValuesField(TID_COLUMN, record.tupleId))
-            add(StoredField(TID_COLUMN, record.tupleId))
-            record.columns.forEach {
-                val value = record[it]
-                if (value is StringValue) {
-                    add(TextField("${it.name}_txt", value.value, Field.Store.NO))
-                    add(StringField("${it.name}_str", value.value, Field.Store.NO))
-                }
-            }
-        }
-
-        private val LOGGER = LoggerFactory.getLogger(LuceneIndex::class.java)
     }
 
     /** The [LuceneIndex] implementation produces an additional score column. */
-    override val produces: Array<ColumnDef<*>> = arrayOf(ColumnDef(this.parent.name.column("score"), ColumnType.forName("FLOAT")))
+    override val produces: Array<ColumnDef<*>> =
+        arrayOf(ColumnDef(this.parent.name.column("score"), ColumnType.forName("FLOAT")))
 
     /** The path to the directory that contains the data for this [LuceneIndex]. */
     override val path: Path = this.parent.path.resolve("idx_lucene_${name.simple}")
 
     /** True since [SuperBitLSHIndex] supports incremental updates. */
     override val supportsIncrementalUpdate: Boolean = true
+
+    /** False, since [LuceneIndex] does not support partitioning. */
+    override val supportsPartitioning: Boolean = false
+
+    /** Always false, due to incremental updating being supported. */
+    override val dirty: Boolean = false
 
     /** The type of this [Index]. */
     override val type: IndexType = IndexType.LUCENE
@@ -165,6 +151,37 @@ class LuceneIndex(override val name: Name.IndexName, override val parent: Entity
     }
 
     /**
+     * Converts a [Record] to a [Document] that can be processed by Lucene.
+     *
+     * @param record The [Record]
+     * @return The resulting [Document]
+     */
+    private fun documentFromRecord(record: Record): Document {
+        val value = record[this.columns[0]]
+        if (value is StringValue) {
+            return documentFromValue(value, record.tupleId)
+        } else {
+            throw IllegalArgumentException("Given record does not contain a StringValue column named ${this.columns[0].name}.")
+        }
+    }
+
+    /**
+     * Converts a [StringValue] and a [TupleId] to [Document] that can be processed by Lucene.
+     *
+     * @param value: [StringValue] to process
+     * @param tupleId The [TupleId] to process
+     * @return The resulting [Document]
+     */
+    private fun documentFromValue(value: StringValue, tupleId: TupleId): Document {
+        val doc = Document()
+        doc.add(NumericDocValuesField(TID_COLUMN, tupleId))
+        doc.add(StoredField(TID_COLUMN, tupleId))
+        doc.add(TextField("${this.columns[0].name}_txt", value.value, Field.Store.NO))
+        doc.add(StringField("${this.columns[0].name}_str", value.value, Field.Store.NO))
+        return doc
+    }
+
+    /**
      * Converts a [BooleanPredicate] to a [Query] supported by Apache Lucene.
      *
      * @return [Query]
@@ -192,13 +209,18 @@ class LuceneIndex(override val name: Name.IndexName, override val parent: Entity
         }
         ComparisonOperator.LIKE -> {
             val column = this.columns.first()
-            val pattern = this.values.first()
-            if (pattern is LucenePatternValue) {
-                QueryParserUtil.parse(arrayOf(pattern.value), arrayOf("${column.name}_txt"), StandardAnalyzer())
-            } else if (pattern is LikePatternValue) {
-                QueryParserUtil.parse(arrayOf(pattern.toLucene().value), arrayOf("${column.name}_txt"), StandardAnalyzer())
-            } else {
-                throw throw QueryException("Conversion to Lucene query failed: LIKE queries require a LucenePatternValue OR LikePatternValue as second operand!")
+            when (val pattern = this.values.first()) {
+                is LucenePatternValue -> QueryParserUtil.parse(
+                    arrayOf(pattern.value),
+                    arrayOf("${column.name}_txt"),
+                    StandardAnalyzer()
+                )
+                is LikePatternValue -> QueryParserUtil.parse(
+                    arrayOf(pattern.toLucene().value),
+                    arrayOf("${column.name}_txt"),
+                    StandardAnalyzer()
+                )
+                else -> throw throw QueryException("Conversion to Lucene query failed: LIKE queries require a LucenePatternValue OR LikePatternValue as second operand!")
             }
         }
         ComparisonOperator.MATCH -> {
@@ -231,70 +253,81 @@ class LuceneIndex(override val name: Name.IndexName, override val parent: Entity
 
     /**
      * An [IndexTx] that affects this [LuceneIndex].
-     *
-     * @author Ralph Gasser
-     * @version 1.3.0
      */
     private inner class Tx(context: TransactionContext) : Index.Tx(context) {
 
         /** The [IndexWriter] instance used to access this [LuceneIndex]. */
-        private val writer = IndexWriter(this@LuceneIndex.directory, IndexWriterConfig(this@LuceneIndex.config.getAnalyzer()).setOpenMode(IndexWriterConfig.OpenMode.APPEND).setMaxBufferedDocs(100_000).setCommitOnClose(false))
+        private val writer = IndexWriter(
+            this@LuceneIndex.directory,
+            IndexWriterConfig(this@LuceneIndex.config.getAnalyzer()).setOpenMode(IndexWriterConfig.OpenMode.APPEND)
+                .setMaxBufferedDocs(100_000).setCommitOnClose(false)
+        )
+
+        /**
+         * Returns the number of [Document] in this [LuceneIndex], which should roughly correspond
+         * to the number of [TupleId]s it contains.
+         *
+         * @return Number of [Document]s in this [LuceneIndex]
+         */
+        override fun count(): Long = this.withReadLock {
+            return this@LuceneIndex.indexReader.numDocs().toLong()
+        }
 
         /**
          * (Re-)builds the [LuceneIndex].
          */
         override fun rebuild() = this.withWriteLock {
-            LOGGER.trace("Rebuilding lucene index {}", this@LuceneIndex.name)
+            /* Obtain Tx for parent [Entity. */
+            val entityTx = this.context.getTx(this.dbo.parent) as EntityTx
 
+            /* Recreate entries. */
             this.writer.deleteAll()
-            var count = 0
-            val txn = this.context.getTx(this.dbo.parent) as EntityTx
-            txn.scan(this@LuceneIndex.columns).use { s ->
+            entityTx.scan(this@LuceneIndex.columns).use { s ->
                 s.forEach { record ->
                     this.writer.addDocument(documentFromRecord(record))
-                    count++
                 }
             }
-            LOGGER.trace("Rebuilding lucene index complete!", this@LuceneIndex.name)
         }
 
         /**
-         * Updates the [UniqueHashIndex] with the provided [DataChangeEvent]s. This method determines,
-         * whether the [Record] affected by the [DataChangeEvent] should be added or updated
+         * Updates the [LuceneIndex] with the provided [DataChangeEvent].
          *
-         * @param update Collection of [DataChangeEvent]s to process.
+         * @param event [DataChangeEvent] to process.
          */
-        override fun update(update: Collection<DataChangeEvent>) = this.withWriteLock {
-            /* Define action for inserting an entry based on a DataChangeEvent. */
-            fun atomicInsert(event: DataChangeEvent) {
-                this.writer.addDocument(documentFromRecord(event.new!!))
+        override fun update(event: DataChangeEvent) = this.withWriteLock {
+            val index = event.columns.indexOf(this.columns[0])
+            if (index == -1) {
+                return@withWriteLock /* If DataChangeEvent does not affect a column indexed by this UniqueHashIndex. */
             }
 
-
-            /* Define action for deleting an entry based on a DataChangeEvent. */
-            fun atomicDelete(event: DataChangeEvent) {
-                this.writer.deleteDocuments(NumericDocValuesField.newSlowExactQuery(TID_COLUMN, event.old!!.tupleId))
-            }
-
-            /* Process the DataChangeEvents. */
-            for (event in update) {
-                when (event.type) {
-                    DataChangeEventType.INSERT -> atomicInsert(event)
-                    DataChangeEventType.UPDATE -> {
-                        if (event.new?.get(this.columns[0]) != event.old?.get(this.columns[0])) {
-                            atomicDelete(event)
-                            atomicInsert(event)
-                        }
-                    }
-                    DataChangeEventType.DELETE -> atomicDelete(event)
-                    else -> {
+            when (event) {
+                is DataChangeEvent.InsertDataChangeEvent -> {
+                    val new = event.new[index]
+                    if (new is StringValue) {
+                        this.writer.addDocument(
+                            this@LuceneIndex.documentFromValue(
+                                new,
+                                event.tupleId
+                            )
+                        )
                     }
                 }
+                is DataChangeEvent.UpdateDataChangeEvent -> {
+                    this.writer.deleteDocuments(Term(TID_COLUMN, event.tupleId.toString()))
+                    val new = event.new[index]
+                    if (new is StringValue) {
+                        this.writer.addDocument(
+                            this@LuceneIndex.documentFromValue(
+                                new,
+                                event.tupleId
+                            )
+                        )
+                    }
+                }
+                is DataChangeEvent.DeleteDataChangeEvent -> {
+                    this.writer.deleteDocuments(Term(TID_COLUMN, event.tupleId.toString()))
+                }
             }
-
-            val oldReader = this@LuceneIndex.indexReader
-            this@LuceneIndex.indexReader = DirectoryReader.open(this@LuceneIndex.directory)
-            oldReader.close()
         }
 
 
@@ -368,6 +401,20 @@ class LuceneIndex(override val name: Name.IndexName, override val parent: Entity
                     this.closed = true
                 }
             }
+        }
+
+        /**
+         * The [LuceneIndex] does not support ranged filtering!
+         *
+         * @param predicate The [Predicate] to perform the lookup.
+         * @param range The [LongRange] to consider.
+         * @return The resulting [CloseableIterator].
+         */
+        override fun filterRange(
+            predicate: Predicate,
+            range: LongRange
+        ): CloseableIterator<Record> {
+            throw UnsupportedOperationException("The LuceneIndex does not support ranged filtering!")
         }
 
         /** Performs the actual COMMIT operation by committing the [IndexWriter] and updating the [IndexReader]. */

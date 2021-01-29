@@ -1,9 +1,8 @@
 package org.vitrivr.cottontail.database.index.lsh.superbit
 
-import org.slf4j.LoggerFactory
 import org.mapdb.HTreeMap
 import org.mapdb.Serializer
-
+import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.database.column.Column
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.entity.EntityTx
@@ -12,6 +11,7 @@ import org.vitrivr.cottontail.database.index.Index
 import org.vitrivr.cottontail.database.index.IndexTx
 import org.vitrivr.cottontail.database.index.IndexType
 import org.vitrivr.cottontail.database.index.lsh.LSHIndex
+import org.vitrivr.cottontail.database.index.va.signature.VAFSignature
 import org.vitrivr.cottontail.database.queries.components.AtomicBooleanPredicate
 import org.vitrivr.cottontail.database.queries.components.KnnPredicate
 import org.vitrivr.cottontail.database.queries.components.Predicate
@@ -28,7 +28,6 @@ import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.IntValue
 import org.vitrivr.cottontail.model.values.types.ComplexVectorValue
 import org.vitrivr.cottontail.model.values.types.VectorValue
-
 import java.util.*
 
 /**
@@ -37,16 +36,25 @@ import java.util.*
  * [Recordset]s.
  *
  * @author Manuel Huerbin, Gabriel Zihlmann & Ralph Gasser
- * @version 1.4.0
+ * @version 1.5.0
  */
 class SuperBitLSHIndex<T : VectorValue<*>>(name: Name.IndexName, parent: Entity, columns: Array<ColumnDef<*>>, config: SuperBitLSHIndexConfig? = null) : LSHIndex<T>(name, parent, columns) {
     companion object {
-        private const val CONFIG_NAME = "lsh_config"
+        private const val SBLSH_INDEX_CONFIG = "lsh_config"
+        private const val SBLSH_INDEX_DIRTY = "lsh_dirty"
+
         private val LOGGER = LoggerFactory.getLogger(SuperBitLSHIndex::class.java)
     }
 
-    /** True since [SuperBitLSHIndex] supports incremental updates. */
-    override val supportsIncrementalUpdate: Boolean = true
+    /** False since [SuperBitLSHIndex] doesn't supports incremental updates. */
+    override val supportsIncrementalUpdate: Boolean = false
+
+    /** False since [SuperBitLSHIndex] doesn't support partitioning. */
+    override val supportsPartitioning: Boolean = false
+
+    /** Indicates if this [SuperBitLSHIndex] is currently considered dirty, i.e., out of sync with [Entity]. */
+    override val dirty: Boolean
+        get() = this.dirtyStore.get()
 
     /** The [IndexType] of this [SuperBitLSHIndex]. */
     override val type = IndexType.LSH_SB
@@ -57,11 +65,18 @@ class SuperBitLSHIndex<T : VectorValue<*>>(name: Name.IndexName, parent: Entity,
     /** The [SuperBitLSHIndexConfig] used by this [SuperBitLSHIndex] instance. */
     private val maps: List<HTreeMap<Int, LongArray>>
 
+    /** Internal storage variable for the dirty flag. */
+    private val dirtyStore = this.db.atomicBoolean(SBLSH_INDEX_DIRTY).createOrOpen()
+
     init {
         if (!columns.all { it.type.vector }) {
-            throw DatabaseException.IndexNotSupportedException(name, "Because only vector columns are supported for SuperBitLSHIndex.")
+            throw DatabaseException.IndexNotSupportedException(
+                name,
+                "Because only vector columns are supported for SuperBitLSHIndex."
+            )
         }
-        val configOnDisk = this.db.atomicVar(CONFIG_NAME, SuperBitLSHIndexConfig.Serializer).createOrOpen()
+        val configOnDisk =
+            this.db.atomicVar(SBLSH_INDEX_CONFIG, SuperBitLSHIndexConfig.Serializer).createOrOpen()
         if (configOnDisk.get() == null) {
             if (config != null) {
                 this.config = config
@@ -119,16 +134,25 @@ class SuperBitLSHIndex<T : VectorValue<*>>(name: Name.IndexName, parent: Entity,
      * A [IndexTx] that affects this [Index].
      */
     private inner class Tx(context: TransactionContext) : Index.Tx(context) {
+        /**
+         * Returns the number of [VAFSignature]s in this [SuperBitLSHIndex]
+         *
+         * @return The number of [VAFSignature] stored in this [SuperBitLSHIndex]
+         */
+        override fun count(): Long = this.withReadLock {
+            this@SuperBitLSHIndex.maps.map { it.count().toLong() }.sum()
+        }
 
         /**
          * (Re-)builds the [SuperBitLSHIndex].
          */
         override fun rebuild() = this.withWriteLock {
-            LOGGER.trace("Rebuilding SB-LSH index {}", this@SuperBitLSHIndex.name)
+            LOGGER.debug("Rebuilding SB-LSH index {}", this@SuperBitLSHIndex.name)
 
             /* LSH. */
             val tx = this.context.getTx(this.dbo.parent) as EntityTx
-            val specimen = this.acquireSpecimen(tx) ?: throw DatabaseException("Could not gather specimen to create index.") // todo: find better exception
+            val specimen = this.acquireSpecimen(tx)
+                ?: throw DatabaseException("Could not gather specimen to create index.") // todo: find better exception
             val lsh = SuperBitLSH(this@SuperBitLSHIndex.config.stages, this@SuperBitLSHIndex.config.buckets, this@SuperBitLSHIndex.config.seed, specimen, this@SuperBitLSHIndex.config.considerImaginary, this@SuperBitLSHIndex.config.samplingMethod)
 
 
@@ -158,18 +182,20 @@ class SuperBitLSHIndex<T : VectorValue<*>>(name: Name.IndexName, parent: Entity,
                 }
             }
 
-            /* Trace exit. */
-            LOGGER.trace("Rebuilding SB-LSH index completed.")
+            /* Update dirty flag. */
+            this@SuperBitLSHIndex.dirtyStore.compareAndSet(true, false)
+            LOGGER.debug("Rebuilding SB-LSH index completed.")
         }
 
         /**
-         * Updates the [SuperBitLSHIndex] with the provided [DataChangeEvent]s. This method determines,
+         * Updates the [SuperBitLSHIndex] with the provided [DataChangeEvent]. This method determines,
          * whether the [Record] affected by the [DataChangeEvent] should be added or updated
          *
-         * @param update Collection of [DataChangeEvent]s to process.
+         * @param event [DataChangeEvent]s to process.
          */
-        override fun update(update: Collection<DataChangeEvent>) = this.withWriteLock {
-            TODO()
+        override fun update(event: DataChangeEvent) = this.withWriteLock {
+            this@SuperBitLSHIndex.dirtyStore.compareAndSet(false, true)
+            Unit
         }
 
         /**
@@ -247,6 +273,20 @@ class SuperBitLSHIndex<T : VectorValue<*>>(name: Name.IndexName, parent: Entity,
                     }
                 }
             }
+        }
+
+        /**
+         * The [SuperBitLSHIndex] does not support ranged filtering!
+         *
+         * @param predicate The [Predicate] to perform the lookup.
+         * @param range The [LongRange] to consider.
+         * @return The resulting [CloseableIterator].
+         */
+        override fun filterRange(
+            predicate: Predicate,
+            range: LongRange
+        ): CloseableIterator<Record> {
+            throw UnsupportedOperationException("The SuperBitLSHIndex does not support ranged filtering!")
         }
 
         /** Performs the actual COMMIT operation by rolling back the [IndexTx]. */

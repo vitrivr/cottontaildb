@@ -122,7 +122,7 @@ class MapDBColumn<T : Value>(override val name: Name.ColumnName, override val pa
         override val dbo: Column<T>
             get() = this@MapDBColumn
 
-        /** Tries to acquire a global read-lock on the surrounding [MapDBColumn]. */
+        /** Tries to acquire a global read-lock on the surrounding column. */
         init {
             if (this@MapDBColumn.closed) {
                 throw TxException.TxDBOClosedException(this.context.txId)
@@ -211,18 +211,21 @@ class MapDBColumn<T : Value>(override val name: Name.ColumnName, override val pa
         }
 
         /**
-         * Inserts a new record in this [MapDBColumn]. This tasks will set this [MapDBColumn.Tx] to [TxStatus.DIRTY]
-         * and acquire a column-wide write lock until the [MapDBColumn.Tx] either commit or rollback is issued.
+         * Inserts a new record in this [MapDBColumn]. This tasks will set this [MapDBColumn.Tx] to
+         * [TxStatus.DIRTY] and acquire a column-wide write lock until the [MapDBColumn.Tx] either
+         * commit or rollback is issued.
          *
          * @param record The record that should be inserted. Can be null!
          * @return The tupleId of the inserted record OR the allocated space in case of a null value.
          */
         override fun insert(record: T?): Long = this.withWriteLock {
             try {
-                val tupleId = if (record == null) {
+                val tupleId = if (record == null && this.columnDef.nullable) {
                     this@MapDBColumn.store.preallocate()
+                } else if (record != null) {
+                    this@MapDBColumn.store.put(record, this.serializer)
                 } else {
-                    this@MapDBColumn.store.put(this@MapDBColumn.type.cast(record), this.serializer)
+                    throw IllegalArgumentException("Column $columnDef does not allow for null values.")
                 }
 
                 /* Update header. */
@@ -238,47 +241,67 @@ class MapDBColumn<T : Value>(override val name: Name.ColumnName, override val pa
         }
 
         /**
-         * Updates the entry with the specified tuple ID and sets it to the new value. This tasks will set this [MapDBColumn.Tx]
-         * to [TxStatus.DIRTY] and acquire a column-wide write lock until the [MapDBColumn.Tx] either commit or rollback is issued.
+         * Updates the entry with the specified tuple ID and sets it to the new value.
+         *
+         * This will set this [MapDBColumn.Tx] to [TxStatus.DIRTY] and acquire a column-wide
+         * write lock until the [MapDBColumn.Tx] either commit or rollback is issued.
          *
          * @param tupleId The ID of the record that should be updated
-         * @param value The new value.
+         * @param value The new [Value] or null.
+         * @return The old [Value] or null
          */
-        override fun update(tupleId: Long, value: T?) = this.withWriteLock {
+        override fun update(tupleId: TupleId, value: T?): T? = this.withWriteLock {
             try {
+                val ret = this@MapDBColumn.store.get(tupleId, this.serializer)
                 this@MapDBColumn.store.update(tupleId, value, this.serializer)
+                return ret
             } catch (e: DBException) {
                 this.status = TxStatus.ERROR
-                throw TxException.TxStorageException(this.context.txId, e.message
-                        ?: "Unknown")
+                throw TxException.TxStorageException(
+                    this.context.txId,
+                    e.message ?: "Unknown exception during data storage"
+                )
             }
         }
 
         /**
-         * Updates the entry with the specified tuple ID and sets it to the new value. This tasks will set this [MapDBColumn.Tx]
-         * to [TxStatus.DIRTY] and acquire a column-wide write lock until the [MapDBColumn.Tx] either commit or rollback is issued.
+         * Updates the entry with the specified tuple ID and sets it to the new value.
+         *
+         * This will set this [MapDBColumn.Tx] to [TxStatus.DIRTY] and acquire a column-wide
+         * write lock until the [MapDBColumn.Tx] either commit or rollback is issued.
          *
          * @param tupleId The ID of the record that should be updated
-         * @param value The new value.
-         * @param expected The value expected to be there.
+         * @param value The new [Value].
+         * @param expected The [Value] expected to be there.
+         * @return True upon success, false otherwise.
          */
-        override fun compareAndUpdate(tupleId: Long, value: T?, expected: T?): Boolean = this.withWriteLock {
-            try {
-                return this@MapDBColumn.store.compareAndSwap(tupleId, expected, value, this.serializer)
-            } catch (e: DBException) {
-                this.status = TxStatus.ERROR
-                throw TxException.TxStorageException(this.context.txId, e.message ?: "Unknown")
+        override fun compareAndUpdate(tupleId: TupleId, value: T?, expected: T?): Boolean =
+            this.withWriteLock {
+                try {
+                    return this@MapDBColumn.store.compareAndSwap(
+                        tupleId,
+                        expected,
+                        value,
+                        this.serializer
+                    )
+                } catch (e: DBException) {
+                    this.status = TxStatus.ERROR
+                    throw TxException.TxStorageException(this.context.txId, e.message ?: "Unknown")
+                }
             }
-        }
 
         /**
-         * Deletes a record from this [MapDBColumn]. This tasks will set this [MapDBColumn.Tx] to [TxStatus.DIRTY]
-         * and acquire a column-wide write lock until the [MapDBColumn.Tx] either commit or rollback is issued.
+         * Deletes a record from this [MapDBColumn].
          *
-         * @param tupleId The ID of the record that should be deleted
+         * This tasks will set this [MapDBColumn.Tx] to [TxStatus.DIRTY] and acquire a column-wide
+         * write lock until the [MapDBColumn.Tx] either COMMIT or ROLLBACK is issued.
+         *
+         * @param tupleId The [TupleId] of the record that should be deleted
+         * @return The old [Value]
          */
-        override fun delete(tupleId: Long) = this.withWriteLock {
+        override fun delete(tupleId: TupleId): T? = this.withWriteLock {
             try {
+                val ret = this@MapDBColumn.store.get(tupleId, this.serializer)
                 this@MapDBColumn.store.delete(tupleId, this.serializer)
 
                 /* Update header. */
@@ -286,6 +309,8 @@ class MapDBColumn<T : Value>(override val name: Name.ColumnName, override val pa
                 header.count -= 1
                 header.modified = System.currentTimeMillis()
                 this@MapDBColumn.store.update(HEADER_RECORD_ID, header, ColumnHeaderSerializer)
+
+                return ret
             } catch (e: DBException) {
                 this.status = TxStatus.ERROR
                 throw TxException.TxStorageException(this.context.txId, e.message ?: "Unknown")
