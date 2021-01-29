@@ -16,41 +16,51 @@ import org.vitrivr.cottontail.model.recordset.StandaloneRecord
  * Only produces a single [Record].
  *
  * @author Ralph Gasser
- * @version 1.1.1
+ * @version 1.1.2
  */
-class SelectProjectionOperator(parent: Operator, val fields: List<Pair<Name.ColumnName, Name.ColumnName?>>) : Operator.PipelineOperator(parent) {
+class SelectProjectionOperator(
+    parent: Operator,
+    private val fields: List<Pair<Name.ColumnName, Name.ColumnName?>>
+) : Operator.PipelineOperator(parent) {
 
     /** True if names should be flattened, i.e., prefixes should be removed. */
-    private val flattenNames = this.fields.all { it.first.schema() == this.fields.first().first.schema() }
+    private val flattenNames =
+        this.fields.all { it.first.schema() == this.fields.first().first.schema() }
+
+    /** List of expanded names, i.e., wildcards are made explicit. Important: Order as defined in [fields] is maintained! */
+    private val expandedNames = this.fields.flatMap { field ->
+        if (field.first.wildcard) {
+            this.parent.columns.filter { field.first.matches(it.name) }
+                .map { Pair(it.name, field.second) }
+        } else {
+            listOf(field)
+        }
+    }
 
     /** Mapping from input [ColumnDef] to output [Name.ColumnName]. */
-    private val mapping: Map<ColumnDef<*>, Name.ColumnName> = this.parent.columns.mapNotNull { c ->
-        val name = this.fields.find { f -> f.first.matches(c.name) }
-        if (name != null) {
-            if (name.first.wildcard) {
-                if (this.flattenNames) {
-                    c to Name.ColumnName(c.name.simple)
-                } else {
-                    c to (c.name)
-                }
-            } else {
-                if (this.flattenNames) {
-                    c to (name.second ?: Name.ColumnName(name.first.simple))
-                } else {
-                    c to (name.second ?: name.first)
-                }
-            }
+    private val mapping: List<Pair<ColumnDef<*>, Name.ColumnName>> = this.expandedNames.map {
+        val original = it.first
+        val alias = it.second
+        val column =
+            this.parent.columns.find { it.name == original } ?: throw IllegalStateException("")
+        if (this.flattenNames) {
+            column to (alias ?: Name.ColumnName(column.name.simple))
         } else {
-            null
+            column to (alias ?: column.name)
         }
-    }.toMap()
+    }
 
     /** Columns produced by [SelectProjectionOperator]. */
-    override val columns: Array<ColumnDef<*>> = this.mapping.entries.map {
-        ColumnDef.withAttributes(it.value, it.key.type.name, it.key.logicalSize, it.key.nullable)
+    override val columns: Array<ColumnDef<*>> = this.mapping.map {
+        ColumnDef.withAttributes(
+            it.second,
+            it.first.type.name,
+            it.first.logicalSize,
+            it.first.nullable
+        )
     }.toTypedArray()
 
-    /** [MinProjectionOperator] does not act as a pipeline breaker. */
+    /** [SelectProjectionOperator] does not act as a pipeline breaker. */
     override val breaker: Boolean = false
 
     /**
@@ -61,7 +71,11 @@ class SelectProjectionOperator(parent: Operator, val fields: List<Pair<Name.Colu
      */
     override fun toFlow(context: TransactionContext): Flow<Record> {
         return this.parent.toFlow(context).map { r ->
-            StandaloneRecord(r.tupleId, this.columns, this.mapping.map { r[it.key] }.toTypedArray())
+            StandaloneRecord(
+                r.tupleId,
+                this.columns,
+                this.mapping.map { r[it.first] }.toTypedArray()
+            )
         }
     }
 }
