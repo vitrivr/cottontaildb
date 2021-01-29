@@ -24,6 +24,7 @@ import org.vitrivr.cottontail.utilities.extensions.read
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.StandardCopyOption
 import java.util.*
 import java.util.concurrent.locks.StampedLock
 import java.util.stream.Collectors
@@ -247,7 +248,7 @@ class Schema(override val name: Name.SchemaName, override val parent: Catalogue)
             try {
                 /* Rename folder and of entity it for deletion. */
                 val shadowEntity = entity.path.resolveSibling(entity.path.fileName.toString() + "~dropped")
-                Files.move(entity.path, shadowEntity)
+                Files.move(entity.path, shadowEntity, StandardCopyOption.ATOMIC_MOVE)
 
                 /* ON COMMIT: Remove schema from registry and delete files. */
                 this.postCommitAction.add {
@@ -258,7 +259,7 @@ class Schema(override val name: Name.SchemaName, override val parent: Catalogue)
 
                 /* ON ROLLBACK: Re-map entity and move back files. */
                 this.postRollbackAction.add {
-                    Files.move(shadowEntity, entity.path)
+                    Files.move(shadowEntity, entity.path, StandardCopyOption.ATOMIC_MOVE)
                     this@Schema.registry[name] = Entity(name, this@Schema)
                     this.context.releaseLock(entity)
                 }

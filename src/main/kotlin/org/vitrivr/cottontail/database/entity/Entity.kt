@@ -30,6 +30,7 @@ import java.io.IOException
 
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.StandardCopyOption
 import java.util.*
 import java.util.concurrent.locks.StampedLock
 import java.util.stream.Collectors
@@ -359,7 +360,7 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
             try {
                 /* Rename index file / folder. */
                 val shadowIndex = index.path.resolveSibling(index.path.fileName.toString() + "~dropped")
-                Files.move(index.path, shadowIndex)
+                Files.move(index.path, shadowIndex, StandardCopyOption.ATOMIC_MOVE)
 
                 /* ON COMMIT: Remove index files. */
                 this.postCommitAction.add {
@@ -370,7 +371,7 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
 
                 /* ON ROLLBACK: Move back index and re-open it. */
                 this.postRollbackAction.add {
-                    Files.move(shadowIndex, index.path)
+                    Files.move(shadowIndex, index.path, StandardCopyOption.ATOMIC_MOVE)
                     val entry = this@Entity.store.get(indexRecId, IndexEntrySerializer)
                             ?: throw DatabaseException.DataCorruptionException("Failed to open entity '$name': Could not read index definition at position $indexRecId!")
                     val columns = entry.columns.map { col ->
