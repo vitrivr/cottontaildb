@@ -443,8 +443,26 @@ class DDLService(val catalogue: Catalogue, override val manager: TransactionMana
                 val params = request.definition.paramsMap
 
                 /* Execution operation. */
-                val op = SpoolerSinkOperator(CreateIndexOperator(this.catalogue, indexName, indexType, columns, params), q, 0, responseObserver)
-                tx.execute(op)
+                val createOp = SpoolerSinkOperator(
+                    CreateIndexOperator(
+                        this.catalogue,
+                        indexName,
+                        indexType,
+                        columns,
+                        params
+                    ), q, 0, responseObserver
+                )
+                tx.execute(createOp)
+
+                if (request.rebuild) {
+                    val rebuildOp = SpoolerSinkOperator(
+                        OptimizeIndexOperator(this.catalogue, indexName),
+                        q,
+                        0,
+                        responseObserver
+                    )
+                    tx.execute(rebuildOp)
+                }
 
                 /* Finalize invocation. */
                 responseObserver.onCompleted()

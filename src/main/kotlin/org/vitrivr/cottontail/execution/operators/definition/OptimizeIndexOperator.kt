@@ -15,27 +15,26 @@ import kotlin.time.ExperimentalTime
 import kotlin.time.measureTimedValue
 
 /**
- * An [Operator.SourceOperator] used during query execution. Optimizes an [Entity]
+ * An [Operator.SourceOperator] used during query execution. Can be used to optimize a single [Index]
  *
  * @author Ralph Gasser
  * @version 1.0.0
  */
 @ExperimentalTime
-class OptimizeEntityOperator(private val catalogue: Catalogue, private val name: Name.EntityName) : AbstractDataDefinitionOperator(name, "OPTIMIZE ENTITY") {
+class OptimizeIndexOperator(private val catalogue: Catalogue, private val name: Name.IndexName) :
+    AbstractDataDefinitionOperator(name, "OPTIMIZE INDEX") {
 
     override fun toFlow(context: TransactionContext): Flow<Record> {
         val catTxn = context.getTx(this.catalogue) as CatalogueTx
         val schemaTxn = context.getTx(catTxn.schemaForName(this.name.schema())) as SchemaTx
-        val entityTxn = context.getTx(schemaTxn.entityForName(this.name)) as EntityTx
+        val entityTxn = context.getTx(schemaTxn.entityForName(this.name.entity())) as EntityTx
+        val indexTxn = context.getTx(entityTxn.indexForName(this.name)) as IndexTx
         val indexes = entityTxn.listIndexes()
         return flow {
             val timedTupleId = measureTimedValue {
-                for (index in indexes) {
-                    val txn = context.getTx(index) as IndexTx
-                    txn.rebuild()
-                }
+                indexTxn.rebuild()
             }
-            emit(this@OptimizeEntityOperator.statusRecord(timedTupleId.duration))
+            emit(this@OptimizeIndexOperator.statusRecord(timedTupleId.duration))
         }
     }
 }
