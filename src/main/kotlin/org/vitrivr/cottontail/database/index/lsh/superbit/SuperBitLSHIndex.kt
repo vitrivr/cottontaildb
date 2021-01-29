@@ -28,6 +28,7 @@ import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.IntValue
 import org.vitrivr.cottontail.model.values.types.ComplexVectorValue
 import org.vitrivr.cottontail.model.values.types.VectorValue
+import java.nio.file.Path
 import java.util.*
 
 /**
@@ -38,7 +39,14 @@ import java.util.*
  * @author Manuel Huerbin, Gabriel Zihlmann & Ralph Gasser
  * @version 1.5.0
  */
-class SuperBitLSHIndex<T : VectorValue<*>>(name: Name.IndexName, parent: Entity, columns: Array<ColumnDef<*>>, config: SuperBitLSHIndexConfig? = null) : LSHIndex<T>(name, parent, columns) {
+class SuperBitLSHIndex<T : VectorValue<*>>(
+    name: Name.IndexName,
+    parent: Entity,
+    columns: Array<ColumnDef<*>>,
+    path: Path,
+    config: SuperBitLSHIndexConfig? = null
+) : LSHIndex<T>(name, parent, columns, path) {
+
     companion object {
         private const val SBLSH_INDEX_CONFIG = "lsh_config"
         private const val SBLSH_INDEX_DIRTY = "lsh_dirty"

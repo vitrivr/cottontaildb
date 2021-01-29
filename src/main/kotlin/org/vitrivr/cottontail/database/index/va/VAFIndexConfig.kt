@@ -17,7 +17,8 @@ data class VAFIndexConfig(val marksPerDimension: Int) {
             out.packInt(value.marksPerDimension)
         }
 
-        override fun deserialize(input: DataInput2, available: Int) = VAFIndexConfig(input.unpackInt())
+        override fun deserialize(input: DataInput2, available: Int) =
+            VAFIndexConfig(input.unpackInt())
 
         /**
          * Constructs a [VAFIndexConfig] from a parameter map.
@@ -25,6 +26,16 @@ data class VAFIndexConfig(val marksPerDimension: Int) {
          * @param params The parameter map.
          * @return VAFIndexConfig
          */
-        fun fromParamMap(params: Map<String, String>) = VAFIndexConfig(params[MARKS_PER_DIMENSION_KEY]!!.toInt())
+        fun fromParamMap(params: Map<String, String>) =
+            VAFIndexConfig(params[MARKS_PER_DIMENSION_KEY]!!.toInt())
     }
+
+    /**
+     * Converts this [VAFIndexConfig] to a parameters map and returns it.
+     *
+     * @return Parameter map for this [VAFIndexConfig]
+     */
+    fun toParams(): Map<String, String> = mapOf(
+        MARKS_PER_DIMENSION_KEY to this.marksPerDimension.toString()
+    )
 }

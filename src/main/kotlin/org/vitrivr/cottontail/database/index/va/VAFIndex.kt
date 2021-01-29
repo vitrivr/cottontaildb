@@ -54,7 +54,13 @@ import kotlin.math.min
  * @author Gabriel Zihlmann & Ralph Gasser
  * @version 1.0.1
  */
-class VAFIndex(override val name: Name.IndexName, override val parent: Entity, override val columns: Array<ColumnDef<*>>, config: VAFIndexConfig? = null) : Index() {
+class VAFIndex(
+    override val name: Name.IndexName,
+    override val parent: Entity,
+    override val columns: Array<ColumnDef<*>>,
+    override val path: Path,
+    config: VAFIndexConfig? = null
+) : Index() {
 
     companion object {
         private const val VAF_INDEX_CONFIG = "vaf_config"
@@ -63,9 +69,6 @@ class VAFIndex(override val name: Name.IndexName, override val parent: Entity, o
         private const val VAF_INDEX_DIRTY = "vaf_dirty"
         val LOGGER: Logger = LoggerFactory.getLogger(VAFIndex::class.java)
     }
-
-    /** The [Path] to the [VAFIndex]'s main file OR folder. */
-    override val path: Path = this.parent.path.resolve("idx_vaf_$name.db")
 
     /** The [VAFIndex] implementation returns exactly the columns that is indexed. */
     override val produces: Array<ColumnDef<*>> = arrayOf(
@@ -76,11 +79,11 @@ class VAFIndex(override val name: Name.IndexName, override val parent: Entity, o
     /** The type of [Index]. */
     override val type = IndexType.VAF
 
-    /** The internal [DB] reference. */
-    private val db: DB = this.parent.parent.parent.config.mapdb.db(this.path)
-
     /** The [VAFIndexConfig] used by this [VAFIndex] instance. */
     private val config: VAFIndexConfig
+
+    /** The internal [DB] reference. */
+    private val db: DB = this.parent.parent.parent.config.mapdb.db(this.path)
 
     /** Store for the [Marks]. */
     private val marksStore: Atomic.Var<Marks> =

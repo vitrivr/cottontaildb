@@ -6,9 +6,7 @@ import org.mapdb.Serializer
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.events.DataChangeEvent
-import org.vitrivr.cottontail.database.index.Index
-import org.vitrivr.cottontail.database.index.IndexTx
-import org.vitrivr.cottontail.database.index.IndexType
+import org.vitrivr.cottontail.database.index.*
 import org.vitrivr.cottontail.database.queries.components.AtomicBooleanPredicate
 import org.vitrivr.cottontail.database.queries.components.ComparisonOperator
 import org.vitrivr.cottontail.database.queries.components.Predicate
@@ -29,17 +27,19 @@ import java.util.*
  * @author Ralph Gasser
  * @version 1.4.0
  */
-class UniqueHashIndex(override val name: Name.IndexName, override val parent: Entity, override val columns: Array<ColumnDef<*>>) : Index() {
+class UniqueHashIndex(
+    override val name: Name.IndexName,
+    override val parent: Entity,
+    override val columns: Array<ColumnDef<*>>,
+    override val path: Path
+) : Index() {
 
     /**
      * Index-wide constants.
      */
     companion object {
-        const val MAP_FIELD_NAME = "map"
+        const val UQ_INDEX_MAP = "uq_map"
     }
-
-    /** Path to the [UniqueHashIndex] file. */
-    override val path: Path = this.parent.path.resolve("idx_${name.simple}.db")
 
     /** The type of [Index] */
     override val type: IndexType = IndexType.HASH_UQ
@@ -53,7 +53,7 @@ class UniqueHashIndex(override val name: Name.IndexName, override val parent: En
     /** Map structure used for [UniqueHashIndex]. */
     private val map: HTreeMap<Value, TupleId> =
         this.db.hashMap(
-            MAP_FIELD_NAME,
+            UQ_INDEX_MAP,
             this.columns.first().type.serializer(this.columns.size),
             Serializer.LONG_PACKED
         )

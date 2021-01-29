@@ -11,24 +11,28 @@ import org.vitrivr.cottontail.utilities.extensions.write
 import org.vitrivr.cottontail.utilities.math.KnnUtilities
 import java.nio.file.Path
 
-abstract class LSHIndex<T : VectorValue<*>>(final override val name: Name.IndexName, final override val parent: Entity, final override val columns: Array<ColumnDef<*>>, params: Map<String, String>? = null) : Index() {
+abstract class LSHIndex<T : VectorValue<*>>(
+    final override val name: Name.IndexName,
+    final override val parent: Entity,
+    final override val columns: Array<ColumnDef<*>>,
+    override val path: Path,
+    params: Map<String, String>? = null
+) : Index() {
+
     /** Index-wide constants. */
     companion object {
         const val MAP_FIELD_NAME = "lsh_map"
     }
 
-    /** Path to the [LSHIndex] file. */
-    final override val path: Path = this.parent.path.resolve("idx_lsh_${name.simple}.db")
-
     /** The [LSHIndex] implementation returns exactly the columns that is indexed. */
-    final override val produces: Array<ColumnDef<*>> = arrayOf(KnnUtilities.queryIndexColumnDef(this.name.entity()))
+    final override val produces: Array<ColumnDef<*>> =
+        arrayOf(KnnUtilities.queryIndexColumnDef(this.name.entity()))
 
     /** The type of [Index] */
     override val type: IndexType = IndexType.LSH
 
     /** The internal [DB] reference. */
     protected val db: DB = this.parent.parent.parent.config.mapdb.db(this.path)
-
 
     /** Flag indicating if this [LSHIndex] has been closed. */
     @Volatile

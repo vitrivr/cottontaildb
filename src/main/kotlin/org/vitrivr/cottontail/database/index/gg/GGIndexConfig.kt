@@ -60,4 +60,15 @@ data class GGIndexConfig(val numGroups: Int, val seed: Long, val distance: Dista
             }
         )
     }
+
+    /**
+     * Converts this [GGIndexConfig] to a parameters map and returns it.
+     *
+     * @return Parameter map for this [GGIndexConfig]
+     */
+    fun toParams(): Map<String, String> = mapOf(
+        NUM_SUBSPACES_KEY to this.numGroups.toString(),
+        SEED_KEY to this.seed.toString(),
+        DISTANCE_KEY to this.distance.toString()
+    )
 }

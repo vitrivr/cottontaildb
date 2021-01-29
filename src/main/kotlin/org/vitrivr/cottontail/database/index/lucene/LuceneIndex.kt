@@ -17,7 +17,6 @@ import org.vitrivr.cottontail.database.index.IndexTx
 import org.vitrivr.cottontail.database.index.IndexType
 import org.vitrivr.cottontail.database.index.hash.UniqueHashIndex
 import org.vitrivr.cottontail.database.index.lsh.superbit.SuperBitLSHIndex
-import org.vitrivr.cottontail.database.index.lsh.superbit.SuperBitLSHIndexConfig
 import org.vitrivr.cottontail.database.queries.components.*
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.execution.TransactionContext
@@ -38,24 +37,28 @@ import java.nio.file.Path
  * @author Luca Rossetto & Ralph Gasser
  * @version 1.4.0
  */
-class LuceneIndex(override val name: Name.IndexName, override val parent: Entity, override val columns: Array<ColumnDef<*>>, config: LuceneIndexConfig? = null) : Index() {
+class LuceneIndex(
+    override val name: Name.IndexName,
+    override val parent: Entity,
+    override val columns: Array<ColumnDef<*>>,
+    override val path: Path,
+    config: LuceneIndexConfig? = null
+) : Index() {
 
     companion object {
         /** [ColumnDef] of the _tid column. */
         const val TID_COLUMN = "_tid"
 
-        /** The [ComparisonOperator]s supported by this [LuceneIndex]. */
-        private val SUPPORTS = arrayOf(ComparisonOperator.LIKE, ComparisonOperator.EQUAL, ComparisonOperator.MATCH)
+        private const val LUCENE_INDEX_CONFIG = "lucene_config"
 
-        private const val CONFIG_NAME = "lucene_config"
+        /** The [ComparisonOperator]s supported by this [LuceneIndex]. */
+        private val SUPPORTS =
+            arrayOf(ComparisonOperator.LIKE, ComparisonOperator.EQUAL, ComparisonOperator.MATCH)
     }
 
     /** The [LuceneIndex] implementation produces an additional score column. */
     override val produces: Array<ColumnDef<*>> =
         arrayOf(ColumnDef(this.parent.name.column("score"), ColumnType.forName("FLOAT")))
-
-    /** The path to the directory that contains the data for this [LuceneIndex]. */
-    override val path: Path = this.parent.path.resolve("idx_lucene_${name.simple}")
 
     /** True since [SuperBitLSHIndex] supports incremental updates. */
     override val supportsIncrementalUpdate: Boolean = true
@@ -69,7 +72,7 @@ class LuceneIndex(override val name: Name.IndexName, override val parent: Entity
     /** The type of this [Index]. */
     override val type: IndexType = IndexType.LUCENE
 
-    /** The [SuperBitLSHIndexConfig] used by this [SuperBitLSHIndex] instance. */
+    /** The [LuceneIndexConfig] used by this [LuceneIndex] instance. */
     private val config: LuceneIndexConfig
 
     /** Flag indicating whether or not this [LuceneIndex] is open and usable. */
@@ -83,7 +86,8 @@ class LuceneIndex(override val name: Name.IndexName, override val parent: Entity
     init {
         /** Tries to obtain config from disk. */
         val db = this.parent.parent.parent.config.mapdb.db(this.path.resolve("config.db"))
-        val configOnDisk = db.atomicVar(CONFIG_NAME, LuceneIndexConfig.Serializer).createOrOpen()
+        val configOnDisk =
+            db.atomicVar(LUCENE_INDEX_CONFIG, LuceneIndexConfig.Serializer).createOrOpen()
         if (configOnDisk.get() == null) {
             if (config != null) {
                 this.config = config

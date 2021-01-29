@@ -6,7 +6,7 @@ import org.mapdb.CottontailStoreWAL
 import org.mapdb.DBException
 import org.mapdb.Serializer
 import org.mapdb.StoreWAL
-
+import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.database.column.Column
 import org.vitrivr.cottontail.database.column.ColumnTx
 import org.vitrivr.cottontail.database.column.mapdb.MapDBColumn
@@ -14,6 +14,7 @@ import org.vitrivr.cottontail.database.events.DataChangeEvent
 import org.vitrivr.cottontail.database.general.AbstractTx
 import org.vitrivr.cottontail.database.general.DBO
 import org.vitrivr.cottontail.database.general.TxStatus
+import org.vitrivr.cottontail.database.index.BrokenIndex
 import org.vitrivr.cottontail.database.index.Index
 import org.vitrivr.cottontail.database.index.IndexTx
 import org.vitrivr.cottontail.database.index.IndexType
@@ -27,8 +28,8 @@ import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.types.Value
 import org.vitrivr.cottontail.utilities.extensions.write
 import java.io.IOException
-
 import java.nio.file.Files
+import java.nio.file.NoSuchFileException
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 import java.util.*
@@ -60,6 +61,9 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
 
         /** Filename for the [Entity] catalogue.  */
         const val HEADER_RECORD_ID = 1L
+
+        /** Entity wide LOGGER instance. */
+        private val LOGGER = LoggerFactory.getLogger(Entity::class.java)
     }
 
     /** The [Path] to the [Entity]'s main folder. */
@@ -75,7 +79,7 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
     /** The header of this [Entity]. */
     private val header: EntityHeader
         get() = this.store.get(HEADER_RECORD_ID, EntityHeaderSerializer)
-                ?: throw DatabaseException.DataCorruptionException("Failed to open header of entity '$name'!")
+            ?: throw DatabaseException.DataCorruptionException("Failed to open header of entity '$name'!")
 
     /** An internal lock that is used to synchronize access to this [Entity] and [Entity.Tx] and it being closed or dropped. */
     private val closeLock = StampedLock()
@@ -95,20 +99,29 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
         }
 
         /* Initialize indexes. */
-        this.header.indexes.map { idx ->
+        this.header.indexes.forEach { idx ->
             val indexEntry = this.store.get(idx, IndexEntrySerializer)
-                    ?: throw DatabaseException.DataCorruptionException("Failed to open entity '$name': Could not read index definition at position $idx!")
+                ?: throw DatabaseException.DataCorruptionException("Failed to open entity '$name': Could not read index definition at position $idx!")
             val indexName = this.name.index(indexEntry.name)
-            val index = indexEntry.type.open(indexName, this, indexEntry.columns.map { col ->
-                if (col.contains(".")) {
-                    this.columns[this.name.column(col.split(".").last())]?.columnDef
-                            ?: throw DatabaseException.DataCorruptionException("Failed to open entity '$name': It hosts an index for column '$col' that does not exist on the entity!")
+            try {
+                this.indexes[indexName] =
+                    indexEntry.type.open(indexName, this, indexEntry.columns.map { col ->
+                        this.columns[this.name.column(col)]?.columnDef
+                            ?: throw DatabaseException.DataCorruptionException("Column '$col' does not exist on the entity!")
+                    }.toTypedArray())
+            } catch (e: Throwable) {
+                if (this.parent.parent.config.allowBrokenIndex) {
+                    LOGGER.warn("Index $indexName could not be opened and has been marked as broken. Try to optimize entity ${this.name} to resolve the issue...")
+                    this.indexes[indexName] = BrokenIndex(
+                        indexName,
+                        this,
+                        indexEntry.type,
+                        this.path.resolve(indexEntry.name)
+                    )
                 } else {
-                    this.columns[this.name.column(col)]?.columnDef
-                            ?: throw DatabaseException.DataCorruptionException("Failed to open entity '$name': It hosts an index for column '$col' that does not exist on the entity!")
+                    throw DatabaseException.DataCorruptionException("Failed to load index '$indexName': ${e.message}. Start Cottontail DB with 'allowBrokenIndex' option and retry!")
                 }
-            }.toTypedArray())
-            this.indexes[indexName] = index
+            }
         }
     }
 
@@ -401,6 +414,9 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
             } catch (e: DBException) {
                 this.status = TxStatus.ERROR
                 throw DatabaseException("Failed to drop index '$name' due to a storage exception: ${e.message}")
+            } catch (e: NoSuchFileException) {
+                /* OK: Allows for manual removal of index files. */
+                LOGGER.warn("Files for index '$name' are missing.")
             } catch (e: IOException) {
                 this.status = TxStatus.ERROR
                 throw DatabaseException("Failed to drop index '$name' due to an IO exception: ${e.message}")

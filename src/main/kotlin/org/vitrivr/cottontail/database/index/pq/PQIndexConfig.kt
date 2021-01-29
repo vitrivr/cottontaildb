@@ -70,4 +70,16 @@ data class PQIndexConfig(
             params[SEED_KEY]?.toLongOrNull() ?: System.currentTimeMillis()
         )
     }
+
+    /**
+     * Converts this [PQIndexConfig] to a parameters map and returns it.
+     *
+     * @return Parameter map for this [PQIndexConfig]
+     */
+    fun toParams(): Map<String, String> = mapOf(
+        NUM_SUBSPACES_KEY to this.numSubspaces.toString(),
+        NUM_CENTROIDS_KEY to this.numCentroids.toString(),
+        SAMPLE_SIZE to this.sampleSize.toString(),
+        SEED_KEY to this.seed.toString()
+    )
 }

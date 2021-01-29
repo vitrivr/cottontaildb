@@ -7,11 +7,16 @@ import org.mapdb.DataOutput2
  * Configuration object for [SuperBitLSHIndex].
  *
  * @author Gabriel Zihlmann
- * @version 1.0.0
+ * @version 1.0.1
  */
 data class SuperBitLSHIndexConfig(val buckets: Int, val stages: Int, val seed: Long, val considerImaginary: Boolean, val samplingMethod: SamplingMethod) {
     companion object Serializer: org.mapdb.Serializer<SuperBitLSHIndexConfig> {
 
+        const val SEED = "seed"
+        const val NUM_STAGES = "stages"
+        const val NUM_BUCKETS = "buckets"
+        const val CONSIDER_IMAGINARY = "considerimaginary"
+        const val SAMPLING_METHOD = "samplingmethod"
 
         /**
          *
@@ -42,11 +47,12 @@ data class SuperBitLSHIndexConfig(val buckets: Int, val stages: Int, val seed: L
          * @return SuperBitLSHIndexConfig
          */
         fun fromParamMap(params: Map<String, String>) = SuperBitLSHIndexConfig(
-            buckets = params[SuperBitSLHIndexConfigParamMapKeys.NUM_BUCKETS.key]!!.toInt(),
-            stages = params[SuperBitSLHIndexConfigParamMapKeys.NUM_STAGES.key]!!.toInt(),
-            seed = params[SuperBitSLHIndexConfigParamMapKeys.SEED.key]!!.toLong(),
-            considerImaginary = params[SuperBitSLHIndexConfigParamMapKeys.CONSIDER_IMAGINARY.key]!!.toInt() != 0,
-            samplingMethod = SamplingMethod.valueOf(params[SuperBitSLHIndexConfigParamMapKeys.SAMPLING_METHOD.key]!!))
+            buckets = params[NUM_BUCKETS]!!.toInt(),
+            stages = params[NUM_STAGES]!!.toInt(),
+            seed = params[SEED]!!.toLong(),
+            considerImaginary = params[CONSIDER_IMAGINARY]!!.toInt() != 0,
+            samplingMethod = SamplingMethod.valueOf(params[SAMPLING_METHOD]!!)
+        )
     }
 }
 

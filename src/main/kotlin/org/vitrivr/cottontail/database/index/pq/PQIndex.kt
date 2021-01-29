@@ -43,7 +43,13 @@ import kotlin.collections.ArrayDeque
  * @author Gabriel Zihlmann & Ralph Gasser
  * @version 1.1.0
  */
-class PQIndex(override val name: Name.IndexName, override val parent: Entity, override val columns: Array<ColumnDef<*>>, config: PQIndexConfig? = null): Index() {
+class PQIndex(
+    override val name: Name.IndexName,
+    override val parent: Entity,
+    override val columns: Array<ColumnDef<*>>,
+    override val path: Path, config: PQIndexConfig? = null
+) : Index() {
+
     companion object {
         private const val PQ_INDEX_CONFIG = "pq_config"
         private const val PQ_INDEX_NAME = "pq_cb_real"
@@ -79,9 +85,6 @@ class PQIndex(override val name: Name.IndexName, override val parent: Entity, ov
         }
     }
 
-    /** The [Path] to the [PQIndex]'s main file OR folder. */
-    override val path: Path = this.parent.path.resolve("idx_pq_$name.db")
-
     /** The [PQIndex] implementation returns exactly the columns that is indexed. */
     override val produces: Array<ColumnDef<*>> = arrayOf(
         KnnUtilities.queryIndexColumnDef(this.parent.name),
@@ -91,11 +94,11 @@ class PQIndex(override val name: Name.IndexName, override val parent: Entity, ov
     /** The type of [Index]. */
     override val type = IndexType.PQ
 
-    /** The internal [DB] reference. */
-    private val db: DB = this.parent.parent.parent.config.mapdb.db(this.path)
-
     /** The [PQIndexConfig] used by this [PQIndex] instance. */
     private val config: PQIndexConfig
+
+    /** The internal [DB] reference. */
+    private val db: DB = this.parent.parent.parent.config.mapdb.db(this.path)
 
     /** The [PQ] instance used for real vector components. */
     private val pqStore = this.db.atomicVar(PQ_INDEX_NAME, PQ.Serializer).createOrOpen()

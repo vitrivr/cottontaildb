@@ -6,9 +6,7 @@ import org.mapdb.serializer.SerializerArrayTuple
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.events.DataChangeEvent
-import org.vitrivr.cottontail.database.index.Index
-import org.vitrivr.cottontail.database.index.IndexTx
-import org.vitrivr.cottontail.database.index.IndexType
+import org.vitrivr.cottontail.database.index.*
 import org.vitrivr.cottontail.database.queries.components.AtomicBooleanPredicate
 import org.vitrivr.cottontail.database.queries.components.ComparisonOperator
 import org.vitrivr.cottontail.database.queries.components.Predicate
@@ -29,16 +27,18 @@ import java.util.*
  * @author Luca Rossetto & Ralph Gasser
  * @version 1.5.0
  */
-class NonUniqueHashIndex(override val name: Name.IndexName, override val parent: Entity, override val columns: Array<ColumnDef<*>>) : Index() {
+class NonUniqueHashIndex(
+    override val name: Name.IndexName,
+    override val parent: Entity,
+    override val columns: Array<ColumnDef<*>>,
+    override val path: Path
+) : Index() {
     /**
      * Index-wide constants.
      */
     companion object {
-        const val MAP_FIELD_NAME = "nu_map"
+        const val NUQ_INDEX_MAP = "nuq_map"
     }
-
-    /** Path to the [NonUniqueHashIndex] file. */
-    override val path: Path = this.parent.path.resolve("idx_nu_${name.simple}.db")
 
     /** The type of [Index] */
     override val type: IndexType = IndexType.HASH
@@ -61,7 +61,7 @@ class NonUniqueHashIndex(override val name: Name.IndexName, override val parent:
     /** Map structure used for [NonUniqueHashIndex]. */
     private val map: NavigableSet<Array<Any>> =
         this.db.treeSet(
-            MAP_FIELD_NAME,
+            NUQ_INDEX_MAP,
             SerializerArrayTuple(
                 this.columns.first().type.serializer(this.columns.size),
                 Serializer.LONG_DELTA

@@ -50,6 +50,7 @@ class GGIndex(
     override val name: Name.IndexName,
     override val parent: Entity,
     override val columns: Array<ColumnDef<*>>,
+    override val path: Path,
     config: GGIndexConfig? = null
 ) : Index() {
     companion object {
@@ -58,9 +59,6 @@ class GGIndex(
         const val GG_INDEX_DIRTY = "gg_dirty"
         val LOGGER = LoggerFactory.getLogger(GGIndex::class.java)!!
     }
-
-    /** The [Path] to the [GG_INDEX_DIRTY]'s main file OR folder. */
-    override val path: Path = this.parent.path.resolve("idx_gg_$name.db")
 
     /** The [PQIndex] implementation returns exactly the columns that is indexed. */
     override val produces: Array<ColumnDef<*>> = arrayOf(
@@ -71,11 +69,11 @@ class GGIndex(
     /** The type of [Index]. */
     override val type = IndexType.GG
 
-    /** The internal [DB] reference. */
-    private val db: DB = this.parent.parent.parent.config.mapdb.db(this.path)
-
     /** The [GGIndexConfig] used by this [PQIndex] instance. */
     private val config: GGIndexConfig
+
+    /** The internal [DB] reference. */
+    private val db: DB = this.parent.parent.parent.config.mapdb.db(this.path)
 
     /** Store of the groups mean vector and the associated [TupleId]s. */
     private val groupsStore: HTreeMap<VectorValue<*>, LongArray> = this.db.hashMap(
