@@ -62,14 +62,26 @@ class DMLService(val catalogue: Catalogue, override val manager: TransactionMana
                     val bindTimedValue = measureTimedValue {
                         this.binder.parseAndBindUpdate(request, tx)
                     }
-                    LOGGER.trace(formatMessage(tx, q, "Parsing & binding UPDATE took ${bindTimedValue.duration}."))
+                    LOGGER.debug(
+                        formatMessage(
+                            tx,
+                            q,
+                            "Parsing & binding UPDATE took ${bindTimedValue.duration}."
+                        )
+                    )
 
                     /* Plan query and create execution plan. */
                     val plannedTimedValue = measureTimedValue {
                         val candidates = this.planner.plan(bindTimedValue.value)
                         SpoolerSinkOperator(candidates.minByOrNull { it.totalCost }!!.toOperator(this.manager), q, 0, responseObserver)
                     }
-                    LOGGER.trace(formatMessage(tx, q, "Planning UPDATE took ${plannedTimedValue.duration}."))
+                    LOGGER.debug(
+                        formatMessage(
+                            tx,
+                            q,
+                            "Planning UPDATE took ${plannedTimedValue.duration}."
+                        )
+                    )
 
                     /* Execute UPDATE. */
                     tx.execute(plannedTimedValue.value)
@@ -77,7 +89,7 @@ class DMLService(val catalogue: Catalogue, override val manager: TransactionMana
 
                 /* Finalize invocation. */
                 responseObserver.onCompleted()
-                LOGGER.trace(formatMessage(tx, q, "Executing UPDATE took $totalDuration."))
+                LOGGER.info(formatMessage(tx, q, "Executing UPDATE took $totalDuration."))
             } catch (e: QueryException.QuerySyntaxException) {
                 val message = formatMessage(tx, q, "UPDATE failed due to syntax error: ${e.message}")
                 LOGGER.info(message)
@@ -121,7 +133,13 @@ class DMLService(val catalogue: Catalogue, override val manager: TransactionMana
                     val bindTimedValue = measureTimedValue {
                         this.binder.parseAndBindDelete(request, tx)
                     }
-                    LOGGER.trace(formatMessage(tx, q, "Parsing & binding DELETE took ${bindTimedValue.duration}."))
+                    LOGGER.debug(
+                        formatMessage(
+                            tx,
+                            q,
+                            "Parsing & binding DELETE took ${bindTimedValue.duration}."
+                        )
+                    )
 
                     /* Plan query and create execution plan. */
                     val planTimedValue = measureTimedValue {
@@ -129,7 +147,13 @@ class DMLService(val catalogue: Catalogue, override val manager: TransactionMana
                         val operator = candidates.minByOrNull { it.totalCost }!!.toOperator(this.manager)
                         SpoolerSinkOperator(operator, q, 0, responseObserver)
                     }
-                    LOGGER.trace(formatMessage(tx, q, "Planning DELETE took ${planTimedValue.duration}."))
+                    LOGGER.debug(
+                        formatMessage(
+                            tx,
+                            q,
+                            "Planning DELETE took ${planTimedValue.duration}."
+                        )
+                    )
 
                     /* Execute UPDATE. */
                     tx.execute(planTimedValue.value)
@@ -137,7 +161,7 @@ class DMLService(val catalogue: Catalogue, override val manager: TransactionMana
 
                 /* Finalize invocation. */
                 responseObserver.onCompleted()
-                LOGGER.trace(formatMessage(tx, q, "Executed DELETE in $totalDuration."))
+                LOGGER.info(formatMessage(tx, q, "Executed DELETE in $totalDuration."))
             } catch (e: QueryException.QuerySyntaxException) {
                 val message = formatMessage(tx, q, "DELETE failed due to syntax error: ${e.message}")
                 LOGGER.info(message)
@@ -181,7 +205,13 @@ class DMLService(val catalogue: Catalogue, override val manager: TransactionMana
                     val bindTimedValue = measureTimedValue {
                         this.binder.parseAndBindInsert(request, tx)
                     }
-                    LOGGER.info(formatMessage(tx, q, "Parsing & binding INSERT took ${bindTimedValue.duration}."))
+                    LOGGER.debug(
+                        formatMessage(
+                            tx,
+                            q,
+                            "Parsing & binding INSERT took ${bindTimedValue.duration}."
+                        )
+                    )
 
                     /* Plan query and create execution plan. */
                     val planTimedValue = measureTimedValue {
@@ -189,7 +219,13 @@ class DMLService(val catalogue: Catalogue, override val manager: TransactionMana
                         val operator = candidates.minByOrNull { it.totalCost }!!.toOperator(this.manager)
                         SpoolerSinkOperator(operator, q, 0, responseObserver)
                     }
-                    LOGGER.info(formatMessage(tx, q, "Planning INSERT took ${planTimedValue.duration}."))
+                    LOGGER.debug(
+                        formatMessage(
+                            tx,
+                            q,
+                            "Planning INSERT took ${planTimedValue.duration}."
+                        )
+                    )
 
                     /* Execute INSERT. */
                     tx.execute(planTimedValue.value)
@@ -197,7 +233,7 @@ class DMLService(val catalogue: Catalogue, override val manager: TransactionMana
 
                 /* Finalize invocation. */
                 responseObserver.onCompleted()
-                LOGGER.trace("Executed INSERT in $totalDuration.")
+                LOGGER.info("Executed INSERT in $totalDuration.")
             } catch (e: QueryException.QuerySyntaxException) {
                 val message = "INSERT failed due to syntax error: ${e.message}"
                 LOGGER.info(message)
