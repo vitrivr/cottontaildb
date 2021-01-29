@@ -252,13 +252,27 @@ class NonUniqueHashIndex(
             @Volatile
             private var closed = false
 
-            /** Pre-fetched [Record]s that match the [Predicate]. */
-            private val elements = ArrayDeque(
-                this@NonUniqueHashIndex.map.subSet(
-                    arrayOf(this.predicate.values.first()),
-                    arrayOf(this.predicate.values.first(), (null as Any?)) as Array<Any> /* Safe! */
-                )
-            )
+            /** Pre-fetched entries that match the [Predicate]. */
+            private val elements = LinkedList<Array<Any>>()
+
+            init {
+                if (this.predicate.operator == ComparisonOperator.IN) {
+                    this.predicate.values.forEach { v ->
+                        val subset = this@NonUniqueHashIndex.map.subSet(
+                            arrayOf(v),
+                            arrayOf(v, (null as Any?)) as Array<Any> /* Safe! */
+                        )
+                        this.elements.addAll(subset)
+                    }
+                } else if (this.predicate.operator == ComparisonOperator.EQUAL) {
+                    val v = this.predicate.values.first()
+                    val subset = this@NonUniqueHashIndex.map.subSet(
+                        arrayOf(v),
+                        arrayOf(v, (null as Any?)) as Array<Any> /* Safe! */
+                    )
+                    this.elements.addAll(subset)
+                }
+            }
 
             /**
              * Returns `true` if the iteration has more elements.
