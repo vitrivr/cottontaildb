@@ -1,8 +1,8 @@
 package org.vitrivr.cottontail.database.index.hash
 
 import org.mapdb.DB
-import org.mapdb.HTreeMap
 import org.mapdb.Serializer
+import org.mapdb.serializer.SerializerArrayTuple
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.events.DataChangeEvent
@@ -35,7 +35,6 @@ class NonUniqueHashIndex(override val name: Name.IndexName, override val parent:
      */
     companion object {
         const val MAP_FIELD_NAME = "nu_map"
-        const val COUNTER_FIELD_NAME = "counter"
     }
 
     /** Path to the [NonUniqueHashIndex] file. */
@@ -60,16 +59,16 @@ class NonUniqueHashIndex(override val name: Name.IndexName, override val parent:
     private val db: DB = this.parent.parent.parent.config.mapdb.db(this.path)
 
     /** Map structure used for [NonUniqueHashIndex]. */
-    private val map: HTreeMap<Value, LongArray> =
-        this.db.hashMap(
+    private val map: NavigableSet<Array<Any>> =
+        this.db.treeSet(
             MAP_FIELD_NAME,
-            this.columns.first().type.serializer(this.columns.size),
-            Serializer.LONG_ARRAY
+            SerializerArrayTuple(
+                this.columns.first().type.serializer(this.columns.size),
+                Serializer.LONG_DELTA
+            )
         )
-            .createOrOpen() as HTreeMap<Value, LongArray>
-
-    /** Counter for the number of [TupleId]s contained in this [NonUniqueHashIndex]. */
-    private val counter = this.db.atomicLong(COUNTER_FIELD_NAME).createOrOpen()
+            .counterEnable()
+            .createOrOpen()
 
     /**
      * Flag indicating if this [NonUniqueHashIndex] has been closed.
@@ -134,14 +133,7 @@ class NonUniqueHashIndex(override val name: Name.IndexName, override val parent:
      */
     private fun addMapping(key: Value, tupleId: TupleId): Boolean {
         if (!this.columns[0].validate(key)) return false
-        this.counter.andIncrement
-        this.map.compute(key) { _, v ->
-            if (v == null) {
-                longArrayOf(tupleId)
-            } else {
-                v + tupleId
-            }
-        }
+        this.map.add(arrayOf(key, tupleId))
         return true
     }
 
@@ -155,10 +147,7 @@ class NonUniqueHashIndex(override val name: Name.IndexName, override val parent:
      */
     private fun removeMapping(key: Value, tupleId: TupleId): Boolean {
         if (!this.columns[0].validate(key)) return false
-        this.counter.andDecrement
-        return this.map.compute(key) { _, v ->
-            v?.filter { it != tupleId }?.toLongArray()
-        } != null
+        return this.map.remove(arrayOf(key, tupleId))
     }
 
     /**
@@ -173,7 +162,7 @@ class NonUniqueHashIndex(override val name: Name.IndexName, override val parent:
          * @return Number of [TupleId]s in this [NonUniqueHashIndex]
          */
         override fun count(): Long = this.withReadLock {
-            this@NonUniqueHashIndex.counter.get()
+            this@NonUniqueHashIndex.map.size.toLong()
         }
 
         /**
@@ -189,7 +178,7 @@ class NonUniqueHashIndex(override val name: Name.IndexName, override val parent:
                 s.forEach { record ->
                     val value = record[this.columns[0]] ?: throw TxException.TxValidationException(
                         this.context.txId,
-                        "A value cannot be null for instances of non-unique hash-index but tuple ${record.tupleId} is."
+                        "A value cannot be null for instances of NonUniqueHashIndex ${this@NonUniqueHashIndex.name} but given value is (value = null, tupleId = ${record.tupleId})."
                     )
                     this@NonUniqueHashIndex.addMapping(value, record.tupleId)
                 }
@@ -264,33 +253,19 @@ class NonUniqueHashIndex(override val name: Name.IndexName, override val parent:
             private var closed = false
 
             /** Pre-fetched [Record]s that match the [Predicate]. */
-            private val elements = LinkedList(this.predicate.values)
-
-            /** The current [Value] inspected by this [NonUniqueHashIndex]. */
-            private var current: Value? = null
-
-            /** List of [TupleId]s ready for emission. */
-            private var entries = LinkedList<TupleId>()
+            private val elements = ArrayDeque(
+                this@NonUniqueHashIndex.map.subSet(
+                    arrayOf(this.predicate.values.first()),
+                    arrayOf(this.predicate.values.first(), (null as Any?)) as Array<Any> /* Safe! */
+                )
+            )
 
             /**
              * Returns `true` if the iteration has more elements.
              */
             override fun hasNext(): Boolean {
                 check(!this.closed) { "Illegal invocation of hasNext(): This CloseableIterator has been closed." }
-                if (this.entries.isNotEmpty()) {
-                    return true
-                } else {
-                    while (this.elements.isNotEmpty()) {
-                        this.current = this.elements.poll()
-                        val next = this@NonUniqueHashIndex.map[this.current!!]
-                        if (next != null) {
-                            this.entries.clear()
-                            next.forEach { this.entries.add(it) }
-                            return true
-                        }
-                    }
-                }
-                return false
+                return this.elements.isNotEmpty()
             }
 
             /**
@@ -298,7 +273,12 @@ class NonUniqueHashIndex(override val name: Name.IndexName, override val parent:
              */
             override fun next(): Record {
                 check(!this.closed) { "Illegal invocation of next(): This CloseableIterator has been closed." }
-                return StandaloneRecord(this.entries.poll(), this@Tx.columns, arrayOf(this.current))
+                val next = this.elements.poll()
+                return StandaloneRecord(
+                    next[1] as TupleId,
+                    this@Tx.columns,
+                    arrayOf(next[0] as Value)
+                )
             }
 
             /**
