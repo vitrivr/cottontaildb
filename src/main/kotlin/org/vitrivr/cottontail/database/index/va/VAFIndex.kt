@@ -10,7 +10,6 @@ import org.vitrivr.cottontail.database.events.DataChangeEvent
 import org.vitrivr.cottontail.database.index.Index
 import org.vitrivr.cottontail.database.index.IndexTx
 import org.vitrivr.cottontail.database.index.IndexType
-import org.vitrivr.cottontail.database.index.pq.PQIndex
 import org.vitrivr.cottontail.database.index.va.bounds.*
 import org.vitrivr.cottontail.database.index.va.signature.Marks
 import org.vitrivr.cottontail.database.index.va.signature.MarksGenerator
@@ -58,9 +57,10 @@ import kotlin.math.min
 class VAFIndex(override val name: Name.IndexName, override val parent: Entity, override val columns: Array<ColumnDef<*>>, config: VAFIndexConfig? = null) : Index() {
 
     companion object {
-        private const val CONFIG_NAME = "vaf_config"
-        private const val SIGNATURE_FIELD_NAME = "vaf_signatures"
-        private const val MARKS_FIELD_NAME = "vaf_marks"
+        private const val VAF_INDEX_CONFIG = "vaf_config"
+        private const val VAF_INDEX_SIGNATURES = "vaf_signatures"
+        private const val VAF_INDEX_MARKS = "vaf_marks"
+        private const val VAF_INDEX_DIRTY = "vaf_dirty"
         val LOGGER: Logger = LoggerFactory.getLogger(VAFIndex::class.java)
     }
 
@@ -84,20 +84,21 @@ class VAFIndex(override val name: Name.IndexName, override val parent: Entity, o
 
     /** Store for the [Marks]. */
     private val marksStore: Atomic.Var<Marks> =
-        this.db.atomicVar(MARKS_FIELD_NAME, Marks.Serializer).createOrOpen()
+        this.db.atomicVar(VAF_INDEX_MARKS, Marks.Serializer).createOrOpen()
 
     /** Store for the signatures. */
     private val signatures =
-        this.db.indexTreeList(SIGNATURE_FIELD_NAME, VAFSignature.Serializer).createOrOpen()
+        this.db.indexTreeList(VAF_INDEX_SIGNATURES, VAFSignature.Serializer).createOrOpen()
 
     /** Internal storage variable for the dirty flag. */
-    private val dirtyStore = this.db.atomicBoolean(PQIndex.PQ_INDEX_DIRTY).createOrOpen()
+    private val dirtyStore = this.db.atomicBoolean(VAF_INDEX_DIRTY).createOrOpen()
 
     init {
         require(this.columns.size == 1) { "$VAFIndex only supports indexing a single column." }
 
         /* Load or create config. */
-        val configOnDisk = this.db.atomicVar(CONFIG_NAME, VAFIndexConfig.Serializer).createOrOpen()
+        val configOnDisk =
+            this.db.atomicVar(VAF_INDEX_CONFIG, VAFIndexConfig.Serializer).createOrOpen()
         if (configOnDisk.get() == null) {
             if (config != null) {
                 this.config = config
