@@ -371,29 +371,48 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
 
             /* Update header. */
             try {
-                /* Rename index file / folder. */
-                val shadowIndex = index.path.resolveSibling(index.path.fileName.toString() + "~dropped")
-                Files.move(index.path, shadowIndex, StandardCopyOption.ATOMIC_MOVE)
 
-                /* ON COMMIT: Remove index files. */
-                this.postCommitAction.add {
-                    val pathsToDelete = Files.walk(shadowIndex).sorted(Comparator.reverseOrder()).collect(Collectors.toList())
-                    pathsToDelete.forEach { Files.delete(it) }
-                    this.context.releaseLock(index)
+                try {
+                    /*
+                     * Rename index file / folder:
+                     *
+                     * if these have been removed already (sometimes necessary for manual recovery),
+                     * this is not a failure scenario.
+                     */
+                    val shadowIndex =
+                        index.path.resolveSibling(index.path.fileName.toString() + "~dropped")
+                    Files.move(index.path, shadowIndex, StandardCopyOption.ATOMIC_MOVE)
+
+                    /* ON COMMIT: Remove index files. */
+                    this.postCommitAction.add {
+                        val pathsToDelete =
+                            Files.walk(shadowIndex).sorted(Comparator.reverseOrder())
+                                .collect(Collectors.toList())
+                        pathsToDelete.forEach { Files.delete(it) }
+                        this.context.releaseLock(index)
+                    }
+
+                    /* ON ROLLBACK: Move back index and re-open it. */
+                    this.postRollbackAction.add {
+                        Files.move(shadowIndex, index.path, StandardCopyOption.ATOMIC_MOVE)
+                    }
+                } catch (e: NoSuchFileException) {
+                    LOGGER.warn("Files for index '$name' are missing; dropping continues anyways.")
                 }
 
                 /* ON ROLLBACK: Move back index and re-open it. */
                 this.postRollbackAction.add {
-                    Files.move(shadowIndex, index.path, StandardCopyOption.ATOMIC_MOVE)
                     val entry = this@Entity.store.get(indexRecId, IndexEntrySerializer)
-                            ?: throw DatabaseException.DataCorruptionException("Failed to open entity '$name': Could not read index definition at position $indexRecId!")
+                        ?: throw DatabaseException.DataCorruptionException("Failed to open entity '$name': Could not read index definition at position $indexRecId!")
                     val columns = entry.columns.map { col ->
                         if (col.contains(".")) {
-                            this@Entity.columns[this@Entity.name.column(col.split(".").last())]?.columnDef
-                                    ?: throw DatabaseException.DataCorruptionException("Failed to open entity '$name': It hosts an index for column '$col' that does not exist on the entity!")
+                            this@Entity.columns[this@Entity.name.column(
+                                col.split(".").last()
+                            )]?.columnDef
+                                ?: throw DatabaseException.DataCorruptionException("Failed to open entity '$name': It hosts an index for column '$col' that does not exist on the entity!")
                         } else {
                             this@Entity.columns[this@Entity.name.column(col)]?.columnDef
-                                    ?: throw DatabaseException.DataCorruptionException("Failed to open entity '$name': It hosts an index for column '$col' that does not exist on the entity!")
+                                ?: throw DatabaseException.DataCorruptionException("Failed to open entity '$name': It hosts an index for column '$col' that does not exist on the entity!")
                         }
                     }.toTypedArray()
                     this@Entity.indexes[name] = index.type.open(name, this@Entity, columns)
@@ -414,9 +433,6 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
             } catch (e: DBException) {
                 this.status = TxStatus.ERROR
                 throw DatabaseException("Failed to drop index '$name' due to a storage exception: ${e.message}")
-            } catch (e: NoSuchFileException) {
-                /* OK: Allows for manual removal of index files. */
-                LOGGER.warn("Files for index '$name' are missing.")
             } catch (e: IOException) {
                 this.status = TxStatus.ERROR
                 throw DatabaseException("Failed to drop index '$name' due to an IO exception: ${e.message}")
