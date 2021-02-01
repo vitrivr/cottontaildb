@@ -1,6 +1,8 @@
 package org.vitrivr.cottontail.config
 
 import kotlinx.serialization.Serializable
+import org.apache.logging.log4j.Level
+import org.vitrivr.cottontail.utilities.serializers.LogLevelSerializer
 import org.vitrivr.cottontail.utilities.serializers.PathSerializer
 import java.nio.file.Path
 
@@ -19,6 +21,13 @@ data class Config(
         /** Flag indicating whether to start the CLI upon starting Cottontail DB.*/
         val cli: Boolean = true,
 
+        /** Flag indicating whether Cottontail DB should be allowed to start even in the presence of broken indexes.*/
+        val allowBrokenIndex: Boolean = true,
+
+        /** If debug mode is no and thus stack traces should be printed. */
+        @Serializable(with = LogLevelSerializer::class)
+        val logLevel: Level = Level.OFF,
+
         /** Reference to [ServerConfig], which contains configuration regarding the gRPC server. */
         val server: ServerConfig = ServerConfig(),
 
@@ -27,4 +36,10 @@ data class Config(
 
         /** Reference to [ExecutionConfig], which contains configuration regarding query execution in Cottontail DB. */
         val execution: ExecutionConfig = ExecutionConfig()
-)
+) {
+
+        /** True if Cottontail DB has been started in DEBUG mode. */
+        val debug: Boolean
+                get() = this.logLevel == Level.DEBUG
+
+}
