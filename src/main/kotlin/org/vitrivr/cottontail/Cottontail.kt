@@ -8,7 +8,9 @@ import org.vitrivr.cottontail.execution.TransactionManager
 import org.vitrivr.cottontail.server.grpc.CottontailGrpcServer
 import java.nio.file.Files
 import java.nio.file.Paths
+import kotlin.system.exitProcess
 import kotlin.time.ExperimentalTime
+
 
 /**
  * Entry point for Cottontail DB demon and CLI.
@@ -38,7 +40,13 @@ fun main(args: Array<String>) {
     /* Load config file and start Cottontail DB. */
     Files.newBufferedReader(configPath).use { reader ->
         val config = Json.decodeFromString(Config.serializer(), reader.readText())
-        standalone(config)
+        try {
+            standalone(config)
+        } catch (e: Throwable) {
+            System.err.println("Failed to start Cottontail DB due to error:")
+            System.err.println(e.printStackTrace())
+            exitProcess(1)
+        }
     }
 }
 
@@ -49,6 +57,11 @@ fun main(args: Array<String>) {
  */
 @ExperimentalTime
 fun standalone(config: Config) {
+    /* Prepare Log4j logging facilities. */
+    if (config.logConfig != null && Files.isRegularFile(config.logConfig)) {
+        System.getProperties().setProperty("log4j.configurationFile", config.logConfig.toString())
+    }
+
     /* Instantiate Catalogue, execution engine and gRPC server. */
     val catalogue = Catalogue(config)
     val engine = TransactionManager(config.execution)

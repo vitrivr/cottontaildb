@@ -1,8 +1,8 @@
 package org.vitrivr.cottontail.server.grpc
 
 import io.grpc.ServerBuilder
-import org.apache.log4j.LogManager
-import org.apache.log4j.Logger
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.config.ServerConfig
 import org.vitrivr.cottontail.database.catalogue.Catalogue
 import org.vitrivr.cottontail.execution.TransactionManager
@@ -48,7 +48,7 @@ class CottontailGrpcServer(val config: ServerConfig, val catalogue: Catalogue, p
 
     /** Companion object with Logger reference. */
     companion object {
-        val LOGGER: Logger = LogManager.getLogger(CottontailGrpcServer::class.qualifiedName)
+        val LOGGER: Logger = LoggerFactory.getLogger(CottontailGrpcServer::class.java)
     }
 
     /**

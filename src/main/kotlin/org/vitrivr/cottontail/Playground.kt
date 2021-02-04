@@ -1,6 +1,8 @@
 package org.vitrivr.cottontail
 
 import io.grpc.ManagedChannelBuilder
+import org.vitrivr.cottontail.config.MapDBConfig
+import org.vitrivr.cottontail.database.index.trie.PatriciaTrie
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.grpc.DDLGrpc
 import org.vitrivr.cottontail.grpc.DMLGrpc
@@ -29,7 +31,27 @@ object Playground {
 
     @JvmStatic
     fun main(args: Array<String>) {
-        this.executeLike()
+
+        val trie = PatriciaTrie(MapDBConfig(), Paths.get("/Users/rgasser/Downloads/test.db"))
+
+        trie.insert("A", 1L)
+        trie.insert("A", 2L)
+        trie.insert("B", 3L)
+        trie.insert("C", 4L)
+        trie.insert("D", 5L)
+
+
+        /*repeat(1_000_000) {
+            val random = SplittableRandom()
+            val str = StringValue.random(2, random)
+            trie.insert(str.value, it.toLong())
+        }*/
+
+
+
+        trie.commit()
+        trie.findKey("aa")
+        println(trie)
     }
 
 
