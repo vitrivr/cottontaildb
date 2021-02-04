@@ -1,7 +1,6 @@
 package org.vitrivr.cottontail.config
 
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.Transient
 import org.vitrivr.cottontail.utilities.serializers.PathSerializer
 import java.nio.file.Path
 
@@ -18,7 +17,7 @@ import java.nio.file.Path
  * @param privateKey Path to the private key used for TLS.
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.0.1
  */
 @Serializable
 data class ServerConfig(
@@ -32,10 +31,8 @@ data class ServerConfig(
     /**
      * True if TLS should be used for gRPC communication, false otherwise.
      */
-    @Transient
     val useTls
-        get() = this.certFile != null && this.privateKey != null
-
+        get() = (this.certFile != null && this.privateKey != null)
 }
 
 

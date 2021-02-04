@@ -5,10 +5,10 @@ import org.vitrivr.cottontail.utilities.serializers.PathSerializer
 import java.nio.file.Path
 
 /**
- * Cottntail DB configuration class.
+ * Cottontail DB configuration class.
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.3.0
  */
 @Serializable
 data class Config(
