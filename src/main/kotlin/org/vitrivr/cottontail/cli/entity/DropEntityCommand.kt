@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.cli.entity
 
 import com.github.ajalt.clikt.parameters.options.convert
-import com.github.ajalt.clikt.parameters.options.default
+import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.prompt
 import io.grpc.StatusException
@@ -25,13 +25,23 @@ class DropEntityCommand(private val ddlStub: DDLGrpc.DDLBlockingStub) : Abstract
         "-f",
         "--force",
         help = "Forces the drop and does not ask for confirmation."
-    ).convert { it.toBoolean() }.default(false)
+    ).flag(default = false)
 
-    /** Prompt asking for confirmation */
-    private val confirm by option().prompt(text = "Do you really want to drop the entity ${this.entityName} (y/N)?")
+    /** Flag that can be used to directly provide confirmation. */
+    private val confirm: Boolean by option(
+        "-c",
+        "--confirm",
+        help = "Directly provides the confirmation option."
+    ).convert {
+        it.toLowerCase() == "y"
+    }.prompt(
+        "Do you really want to drop the entity ${this.entityName} [y/N]?",
+        default = "n",
+        showDefault = false
+    )
 
     override fun exec() {
-        if (this.force || this.confirm.toLowerCase() == "y") {
+        if (this.confirm) {
             try {
                 val timedTable = measureTimedValue {
                     TabulationUtilities.tabulate(
