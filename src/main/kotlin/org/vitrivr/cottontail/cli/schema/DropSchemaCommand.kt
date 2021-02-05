@@ -1,5 +1,7 @@
 package org.vitrivr.cottontail.cli.schema
 
+import com.github.ajalt.clikt.parameters.options.convert
+import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.prompt
 import org.vitrivr.cottontail.grpc.CottontailGrpc
@@ -17,15 +19,26 @@ import kotlin.time.measureTimedValue
  */
 @ExperimentalTime
 class DropSchemaCommand(private val ddlStub: DDLGrpc.DDLBlockingStub) : AbstractSchemaCommand(name = "drop", help = "Drops the schema with the given name. Usage: schema drop <name>") {
+    /** Flag indicating whether CLI should ask for confirmation. */
+    private val force: Boolean by option(
+        "-f",
+        "--force",
+        help = "Forces the drop and does not ask for confirmation."
+    ).convert { it.toBoolean() }.default(false)
 
-    /** Confirmation input desired from the user. */
+    /** Prompt asking for confirmation */
     private val confirm by option().prompt(text = "Do you really want to drop the schema ${this.schemaName} (y/N)?")
 
     override fun exec() {
-        if (this.confirm.toLowerCase() == "y") {
+        if (this.force || this.confirm.toLowerCase() == "y") {
             /* Execute query. */
             val timedTable = measureTimedValue {
-                TabulationUtilities.tabulate(this.ddlStub.dropSchema(CottontailGrpc.DropSchemaMessage.newBuilder().setSchema(this.schemaName.proto()).build()))
+                TabulationUtilities.tabulate(
+                    this.ddlStub.dropSchema(
+                        CottontailGrpc.DropSchemaMessage.newBuilder()
+                            .setSchema(this.schemaName.proto()).build()
+                    )
+                )
             }
 
             /* Output results. */
