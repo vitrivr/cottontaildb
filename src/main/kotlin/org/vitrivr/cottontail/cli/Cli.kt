@@ -146,6 +146,7 @@ class Cli(val host: String = "localhost", val port: Int = 1865) {
                     is com.github.ajalt.clikt.core.MissingArgument,
                     is com.github.ajalt.clikt.core.MissingOption,
                     is com.github.ajalt.clikt.core.BadParameterValue,
+                    is com.github.ajalt.clikt.core.UsageError,
                     is com.github.ajalt.clikt.core.NoSuchOption -> println(e.localizedMessage)
                     is StatusException, /* Exceptions reported by Cottontail DB via gRPC. */
                     is StatusRuntimeException -> println(e.localizedMessage)
