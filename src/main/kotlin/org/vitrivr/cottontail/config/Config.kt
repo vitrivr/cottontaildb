@@ -25,12 +25,12 @@ data class Config(
         /** Path to a custom Log4j2 config file (XML). Defaults to null! */
         val logConfig: Path? = null,
 
-        /** Reference to [ServerConfig], which contains configuration regarding the gRPC server. */
-        val server: ServerConfig = ServerConfig(),
-
         /** Reference to [MapDBConfig], which contains configuration regarding the memory usage of Cottontail DB. */
         val mapdb: MapDBConfig = MapDBConfig(),
 
-        /** Reference to [ExecutionConfig], which contains configuration regarding query execution in Cottontail DB. */
+        /** Reference to [ServerConfig], which contains configuration regarding the gRPC server. */
+        val server: ServerConfig = ServerConfig(),
+
+        /** Reference to [ExecutionConfig], which contains configuration regarding execution in Cottontail DB. */
         val execution: ExecutionConfig = ExecutionConfig()
 )

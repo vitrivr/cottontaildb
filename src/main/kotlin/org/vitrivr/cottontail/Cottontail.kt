@@ -4,8 +4,9 @@ import kotlinx.serialization.json.Json
 import org.vitrivr.cottontail.cli.Cli
 import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.database.catalogue.Catalogue
-import org.vitrivr.cottontail.execution.TransactionManager
 import org.vitrivr.cottontail.server.grpc.CottontailGrpcServer
+import java.io.BufferedReader
+import java.io.InputStreamReader
 import java.nio.file.Files
 import java.nio.file.Paths
 import kotlin.system.exitProcess
@@ -64,22 +65,33 @@ fun standalone(config: Config) {
 
     /* Instantiate Catalogue, execution engine and gRPC server. */
     val catalogue = Catalogue(config)
-    val engine = TransactionManager(config.execution)
-    val server = CottontailGrpcServer(config.server, catalogue, engine)
+    val server = CottontailGrpcServer(config, catalogue)
 
-    /* Start gRPC Server. */
+    /* Start gRPC Server and print message. */
     server.start()
+    println(
+        "Cottontail DB server is up and running at port ${config.server.port}! Hop along... (PID: ${
+            ProcessHandle.current().pid()
+        })"
+    )
 
     /* Start CLI (if configured). */
     if (config.cli) {
         Cli("localhost", config.server.port).loop()
         server.stop()
+    } else {
+        /* Wait for gRPC server to be stopped. */
+        val obj = BufferedReader(InputStreamReader(System.`in`))
+        loop@ while (server.isRunning) {
+            when (obj.readLine()) {
+                "exit", "quit", "stop" -> break
+            }
+            Thread.sleep(100)
+        }
     }
 
-    /* Wait for gRPC server to be stopped. */
-    while (server.isRunning) {
-        Thread.sleep(1000)
-    }
+    /* Print shutdown message. */
+    println("Cottontail DB was shut down. Have a binky day!")
 }
 
 /**
@@ -92,8 +104,7 @@ fun standalone(config: Config) {
 fun embedded(config: Config): CottontailGrpcServer {
     /* Instantiate Catalogue, execution engine and gRPC server. */
     val catalogue = Catalogue(config)
-    val engine = TransactionManager(config.execution)
-    val server = CottontailGrpcServer(config.server, catalogue, engine)
+    val server = CottontailGrpcServer(config, catalogue)
 
     /* Start gRPC Server and return object. */
     server.start()

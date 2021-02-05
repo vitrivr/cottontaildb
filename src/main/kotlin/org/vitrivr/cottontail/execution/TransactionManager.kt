@@ -6,7 +6,6 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collect
 import org.slf4j.LoggerFactory
-import org.vitrivr.cottontail.config.ExecutionConfig
 import org.vitrivr.cottontail.database.general.DBO
 import org.vitrivr.cottontail.database.general.Tx
 import org.vitrivr.cottontail.database.locking.*
@@ -17,9 +16,7 @@ import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import org.vitrivr.cottontail.model.exceptions.ExecutionException
 import org.vitrivr.cottontail.model.exceptions.TransactionException
 import java.util.*
-import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.ThreadPoolExecutor
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.collections.ArrayList
@@ -30,24 +27,15 @@ import kotlin.concurrent.withLock
  * create and execute queries within different [Transaction]s.
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.2.1
  */
-class TransactionManager(config: ExecutionConfig) {
+class TransactionManager(private val executor: ThreadPoolExecutor) {
     /** Logger used for logging the output. */
     companion object {
         private val LOGGER = LoggerFactory.getLogger(TransactionManager::class.java)
         private const val TRANSACTION_TABLE_SIZE = 100
         private const val TRANSACTION_HISTORY = 500
     }
-
-    /** The [ThreadPoolExecutor] used for executing queries. */
-    private val executor = ThreadPoolExecutor(
-            config.coreThreads,
-            config.maxThreads,
-            config.keepAliveMs,
-            TimeUnit.MILLISECONDS,
-            ArrayBlockingQueue(config.queueSize)
-    )
 
     /** The [ExecutorCoroutineDispatcher] used for executing queries. */
     private val dispatcher = this.executor.asCoroutineDispatcher()
