@@ -449,20 +449,11 @@ class DDLService(val catalogue: Catalogue, override val manager: TransactionMana
                         indexName,
                         indexType,
                         columns,
-                        params
+                        params,
+                        request.rebuild
                     ), q, 0, responseObserver
                 )
                 tx.execute(createOp)
-
-                if (request.rebuild) {
-                    val rebuildOp = SpoolerSinkOperator(
-                        OptimizeIndexOperator(this.catalogue, indexName),
-                        q,
-                        0,
-                        responseObserver
-                    )
-                    tx.execute(rebuildOp)
-                }
 
                 /* Finalize invocation. */
                 responseObserver.onCompleted()
