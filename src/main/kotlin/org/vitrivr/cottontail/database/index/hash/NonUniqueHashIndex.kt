@@ -168,7 +168,7 @@ class NonUniqueHashIndex(
         /**
          * (Re-)builds the [NonUniqueHashIndex].
          */
-        override fun rebuild() = this.withReadLock {
+        override fun rebuild() = this.withWriteLock {
             /* Obtain Tx for parent [Entity. */
             val entityTx = this.context.getTx(this.dbo.parent) as EntityTx
 
