@@ -53,7 +53,7 @@ object Playground {
 
     private fun executeUpdate() {
         val truncateMessage = CottontailGrpc.UpdateMessage.newBuilder()
-                .setFrom(CottontailGrpc.From.newBuilder().setEntity(entity))
+                .setFrom(CottontailGrpc.From.newBuilder().setScan(CottontailGrpc.Scan.newBuilder().setEntity(entity)))
                 .setWhere(CottontailGrpc.Where.newBuilder().setCompound(
                         CottontailGrpc.CompoundBooleanPredicate.newBuilder()
                                 .setAleft(CottontailGrpc.AtomicLiteralBooleanPredicate.newBuilder()
@@ -73,7 +73,7 @@ object Playground {
 
     private fun executeDelete() {
         val truncateMessage = CottontailGrpc.DeleteMessage.newBuilder()
-                .setFrom(CottontailGrpc.From.newBuilder().setEntity(entity))
+                .setFrom(CottontailGrpc.From.newBuilder().setScan(CottontailGrpc.Scan.newBuilder().setEntity(entity)))
                 .setWhere(CottontailGrpc.Where.newBuilder().setAtomic(
                         CottontailGrpc.AtomicLiteralBooleanPredicate.newBuilder()
                                 .setLeft(CottontailGrpc.ColumnName.newBuilder().setName("objectid"))
@@ -96,7 +96,7 @@ object Playground {
     private fun executeLike() {
         val query = CottontailGrpc.QueryMessage.newBuilder().setQuery(
                 CottontailGrpc.Query.newBuilder()
-                        .setFrom(CottontailGrpc.From.newBuilder().setEntity(entity))
+                        .setFrom(CottontailGrpc.From.newBuilder().setScan(CottontailGrpc.Scan.newBuilder().setEntity(entity)))
                         .setWhere(CottontailGrpc.Where.newBuilder().setAtomic(
                                 CottontailGrpc.AtomicLiteralBooleanPredicate.newBuilder()
                                         .setLeft(CottontailGrpc.ColumnName.newBuilder().setName("feature"))
@@ -118,7 +118,7 @@ object Playground {
         }
         val query = CottontailGrpc.QueryMessage.newBuilder().setQuery(
                 CottontailGrpc.Query.newBuilder()
-                        .setFrom(CottontailGrpc.From.newBuilder().setEntity(entity))
+                        .setFrom(CottontailGrpc.From.newBuilder().setScan(CottontailGrpc.Scan.newBuilder().setEntity(entity)))
                         .setKnn(CottontailGrpc.Knn.newBuilder()
                                 .addQuery(vector)
                                 .setDistance(CottontailGrpc.Knn.Distance.L2)

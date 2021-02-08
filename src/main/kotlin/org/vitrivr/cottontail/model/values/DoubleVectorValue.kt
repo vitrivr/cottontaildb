@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.model.values
 
+import org.vitrivr.cottontail.database.column.Type
 import org.vitrivr.cottontail.model.values.types.*
 import org.vitrivr.cottontail.model.values.types.Value.Companion.RANDOM
 import java.util.*
@@ -10,7 +11,7 @@ import kotlin.math.pow
  * This is an abstraction over a [DoubleArray] and it represents a vector of [Double]s.
  *
  * @author Ralph Gasser
- * @version 1.4.0
+ * @version 1.5.0
  */
 inline class DoubleVectorValue(val data: DoubleArray) : RealVectorValue<Double> {
 
@@ -41,8 +42,13 @@ inline class DoubleVectorValue(val data: DoubleArray) : RealVectorValue<Double> 
     constructor(input: List<Number>) : this(DoubleArray(input.size) { input[it].toDouble() })
     constructor(input: Array<Number>) : this(DoubleArray(input.size) { input[it].toDouble() })
 
+    /** The logical size of this [DoubleVectorValue]. */
     override val logicalSize: Int
         get() = this.data.size
+
+    /** The [Type] of this [DoubleVectorValue]. */
+    override val type: Type<*>
+        get() = Type.DoubleVector(this.logicalSize)
 
     /**
      * Checks for equality between this [DoubleVectorValue] and the other [Value]. Equality can only be

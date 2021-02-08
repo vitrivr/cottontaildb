@@ -29,7 +29,7 @@ class DoublePrecisionPQCodebook(
         override fun serialize(out: DataOutput2, value: DoublePrecisionPQCodebook) {
             /* Serialize logical size of codebook entries. */
             out.packInt(value.logicalSize)
-            val vectorSerializer = DoubleVectorColumnType.serializer(value.logicalSize)
+            val vectorSerializer = value.type.serializer()
 
             /* Serialize centroids matrix. */
             out.packInt(value.centroids.size)
@@ -46,7 +46,7 @@ class DoublePrecisionPQCodebook(
 
         override fun deserialize(input: DataInput2, available: Int): DoublePrecisionPQCodebook {
             val logicalSize = input.unpackInt()
-            val vectorSerializer = DoubleVectorColumnType.serializer(logicalSize)
+            val vectorSerializer = Type.DoubleVector(logicalSize).serializer()
             val centroidsSize = input.unpackInt()
             val centroids = ArrayList<DoubleVectorValue>(centroidsSize)
             for (i in 0 until centroidsSize) {
@@ -98,8 +98,8 @@ class DoublePrecisionPQCodebook(
     }
 
     /** The [DoublePrecisionPQCodebook] handles [DoubleVectorColumnType]s. */
-    override val type: ColumnType<DoubleVectorValue>
-        get() = DoubleVectorColumnType
+    override val type: Type<DoubleVectorValue>
+        get() = Type.DoubleVector(this.logicalSize)
 
     /** The number of centroids contained in this [SinglePrecisionPQCodebook]. */
     override val numberOfCentroids: Int

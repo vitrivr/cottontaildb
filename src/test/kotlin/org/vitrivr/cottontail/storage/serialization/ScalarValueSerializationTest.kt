@@ -5,7 +5,7 @@ import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.RepeatedTest
 
 import org.vitrivr.cottontail.TestConstants
-import org.vitrivr.cottontail.database.column.ColumnType
+import org.vitrivr.cottontail.database.column.Type
 import org.vitrivr.cottontail.execution.TransactionType
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
@@ -31,13 +31,13 @@ class ScalarValueSerializationTest : AbstractSerializationTest() {
     @RepeatedTest(3)
     fun test() {
         val nameEntity = this.schema.name.entity("longvector-test")
-        val idCol = ColumnDef(nameEntity.column("id"), ColumnType.forName("INTEGER"), -1, false)
-        val intCol = ColumnDef(nameEntity.column("intCol"), ColumnType.forName("INTEGER"), -1, false)
-        val longCol = ColumnDef(nameEntity.column("longCol"), ColumnType.forName("LONG"), -1, false)
-        val doubleCol = ColumnDef(nameEntity.column("doubleCol"), ColumnType.forName("DOUBLE"), -1, false)
-        val floatCol = ColumnDef(nameEntity.column("floatCol"), ColumnType.forName("FLOAT"), -1, false)
-        val byteCol = ColumnDef(nameEntity.column("byteCol"), ColumnType.forName("BYTE"), -1, false)
-        val shortCol = ColumnDef(nameEntity.column("shortCol"), ColumnType.forName("SHORT"), -1, false)
+        val idCol = ColumnDef(nameEntity.column("id"), Type.forName("INTEGER"), -1, false)
+        val intCol = ColumnDef(nameEntity.column("intCol"), Type.forName("INTEGER"), -1, false)
+        val longCol = ColumnDef(nameEntity.column("longCol"), Type.forName("LONG"), -1, false)
+        val doubleCol = ColumnDef(nameEntity.column("doubleCol"), Type.forName("DOUBLE"), -1, false)
+        val floatCol = ColumnDef(nameEntity.column("floatCol"), Type.forName("FLOAT"), -1, false)
+        val byteCol = ColumnDef(nameEntity.column("byteCol"), Type.forName("BYTE"), -1, false)
+        val shortCol = ColumnDef(nameEntity.column("shortCol"), Type.forName("SHORT"), -1, false)
 
 
         /* Prepare entity. */

@@ -12,10 +12,9 @@ import org.vitrivr.cottontail.database.index.IndexTx
 import org.vitrivr.cottontail.database.index.IndexType
 import org.vitrivr.cottontail.database.index.pq.PQIndex
 import org.vitrivr.cottontail.database.index.va.VAFIndex
-import org.vitrivr.cottontail.database.queries.components.AtomicBooleanPredicate
-import org.vitrivr.cottontail.database.queries.components.KnnPredicate
-import org.vitrivr.cottontail.database.queries.components.Predicate
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
+import org.vitrivr.cottontail.database.queries.predicates.Predicate
+import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicate
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.math.knn.metrics.Distances
 import org.vitrivr.cottontail.math.knn.selection.ComparablePair
@@ -78,7 +77,7 @@ class GGIndex(
     /** Store of the groups mean vector and the associated [TupleId]s. */
     private val groupsStore: HTreeMap<VectorValue<*>, LongArray> = this.db.hashMap(
         GG_INDEX_NAME,
-        this.columns[0].type.serializer(this.columns[0].logicalSize) as Serializer<VectorValue<*>>,
+        this.columns[0].type.serializer() as Serializer<VectorValue<*>>,
         Serializer.LONG_ARRAY
     ).counterEnable().createOrOpen()
 
@@ -126,7 +125,7 @@ class GGIndex(
      * @param predicate [Predicate] to check.
      * @return True if [Predicate] can be processed, false otherwise.
      */
-    override fun canProcess(predicate: Predicate) = predicate is KnnPredicate<*>
+    override fun canProcess(predicate: Predicate) = predicate is KnnPredicate
             && predicate.columns.first() == this.columns[0]
             && predicate.distance == this.config.distance.kernel
 
@@ -171,7 +170,7 @@ class GGIndex(
         /**
          * Rebuilds the surrounding [PQIndex] from scratch using the following, greedy grouping algorithm:
          *
-         *  # Takes one dictionary element (random is probably easisest to start with)
+         *  # Takes one dictionary element (random is probably easiest to start with)
          *  # Go through all yet ungrouped elements and find k = groupSize = numElementsTotal/numGroups most similar ones
          *  # Build mean vector of those k in the group and store as group representation
          *  # Don't do any PCA/SVD as we only have 18-25 ish dims...
@@ -261,9 +260,9 @@ class GGIndex(
         override fun filter(predicate: Predicate): CloseableIterator<Record> =
             object : CloseableIterator<Record> {
 
-                /** Cast [AtomicBooleanPredicate] (if such a cast is possible).  */
+                /** Cast [KnnPredicate] (if such a cast is possible).  */
                 private val predicate =
-                    if (predicate is KnnPredicate<*> && predicate.distance == this@GGIndex.config.distance.kernel) {
+                    if (predicate is KnnPredicate && predicate.distance == this@GGIndex.config.distance.kernel) {
                         predicate
                     } else {
                         throw QueryException.UnsupportedPredicateException("Index '${this@GGIndex.name}' (GGIndex) does not support predicates of type '${predicate::class.simpleName}'.")

@@ -12,10 +12,9 @@ import org.vitrivr.cottontail.database.index.IndexTx
 import org.vitrivr.cottontail.database.index.IndexType
 import org.vitrivr.cottontail.database.index.lsh.LSHIndex
 import org.vitrivr.cottontail.database.index.va.signature.VAFSignature
-import org.vitrivr.cottontail.database.queries.components.AtomicBooleanPredicate
-import org.vitrivr.cottontail.database.queries.components.KnnPredicate
-import org.vitrivr.cottontail.database.queries.components.Predicate
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
+import org.vitrivr.cottontail.database.queries.predicates.Predicate
+import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicate
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.math.knn.metrics.AbsoluteInnerProductDistance
 import org.vitrivr.cottontail.math.knn.metrics.CosineDistance
@@ -32,8 +31,9 @@ import java.nio.file.Path
 import java.util.*
 
 /**
- * Represents a LSH based index in the Cottontail DB data model. An [Index] belongs to an [Entity] and can be used to
- * index one to many [Column]s. Usually, [Index]es allow for faster data access. They process [Predicate]s and return
+ * Represents a LSH based index in the Cottontail DB data model. An [Index] belongs to an [Entity]
+ * and can be used to index one to many [Column]s. Usually, [Index]es allow for faster data access.
+ * They process [Predicate]s and return
  * [Recordset]s.
  *
  * @author Manuel Huerbin, Gabriel Zihlmann & Ralph Gasser
@@ -112,7 +112,7 @@ class SuperBitLSHIndex<T : VectorValue<*>>(
      * @return True if [Predicate] can be processed, false otherwise.
      */
     override fun canProcess(predicate: Predicate): Boolean =
-        predicate is KnnPredicate<*>
+        predicate is KnnPredicate
         && predicate.columns.first() == this.columns[0]
         && (predicate.distance is CosineDistance
             || predicate.distance is RealInnerProductDistance
@@ -219,8 +219,8 @@ class SuperBitLSHIndex<T : VectorValue<*>>(
          */
         override fun filter(predicate: Predicate) = object : CloseableIterator<Record> {
 
-            /** Cast [AtomicBooleanPredicate] (if such a cast is possible).  */
-            val predicate = if (predicate is KnnPredicate<*>) {
+            /** Cast [KnnPredicate] (if such a cast is possible).  */
+            val predicate = if (predicate is KnnPredicate) {
                 predicate
             } else {
                 throw QueryException.UnsupportedPredicateException("Index '${this@SuperBitLSHIndex.name}' (LSH Index) does not support predicates of type '${predicate::class.simpleName}'.")

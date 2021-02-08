@@ -4,7 +4,7 @@ import org.mapdb.DataInput2
 import org.mapdb.DataOutput2
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import org.vitrivr.cottontail.database.column.*
+import org.vitrivr.cottontail.database.column.Type
 import org.vitrivr.cottontail.database.index.pq.codebook.DoublePrecisionPQCodebook
 import org.vitrivr.cottontail.database.index.pq.codebook.PQCodebook
 import org.vitrivr.cottontail.database.index.pq.codebook.SinglePrecisionPQCodebook
@@ -24,11 +24,7 @@ import kotlin.collections.ArrayList
  * @author Gabriel Zihlmann & Ralph Gasser
  * @version 1.0.0
  */
-class PQ(
-    val type: ColumnType<*>,
-    val logicalSize: Int,
-    val codebooks: List<PQCodebook<VectorValue<*>>>
-) {
+class PQ(val type: Type<*>, val codebooks: List<PQCodebook<VectorValue<*>>>) {
 
     /** The number of subspaces as defined in this [PQ] implementation. */
     val numberOfSubspaces
@@ -36,7 +32,7 @@ class PQ(
 
     /** The number of dimensions per subspace which is simply the dimensionality of the [ColumnDef] divided by the number of subspaces. */
     val dimensionsPerSubspace
-        get() = this.logicalSize / this.codebooks.size
+        get() = this.type.logicalSize / this.codebooks.size
 
     /**
      * Serializer for [PQ]
@@ -53,7 +49,7 @@ class PQ(
          */
         override fun serialize(out: DataOutput2, value: PQ) {
             out.writeUTF(value.type.name)
-            out.packInt(value.logicalSize)
+            out.packInt(value.type.logicalSize)
             out.packInt(value.codebooks.size)
             value.codebooks.forEach {
                 when (val cast = it as PQCodebook<*>) {
@@ -73,34 +69,21 @@ class PQ(
          * @return the de-serialized content of the given [DataInput2]
          */
         override fun deserialize(input: DataInput2, available: Int): PQ {
-            val type = ColumnType.forName(input.readUTF())
-            val logicalSize = input.unpackInt()
+            val type = Type.forName(input.readUTF(), input.unpackInt())
             val size = input.unpackInt()
             val codebooks = ArrayList<PQCodebook<VectorValue<*>>>(size)
             for (i in 0 until size) {
                 codebooks.add(
                     when (type) {
-                        FloatVectorColumnType -> SinglePrecisionPQCodebook.Serializer.deserialize(
-                            input,
-                            available
-                        )
-                        DoubleVectorColumnType -> DoublePrecisionPQCodebook.Serializer.deserialize(
-                            input,
-                            available
-                        )
-                        Complex32VectorColumnType -> SinglePrecisionPQCodebook.Serializer.deserialize(
-                            input,
-                            available
-                        )
-                        Complex64VectorColumnType -> DoublePrecisionPQCodebook.Serializer.deserialize(
-                            input,
-                            available
-                        )
+                        is Type.Float -> SinglePrecisionPQCodebook.Serializer.deserialize(input, available)
+                        is Type.Double -> DoublePrecisionPQCodebook.Serializer.deserialize(input, available)
+                        is Type.Complex32Vector -> SinglePrecisionPQCodebook.Serializer.deserialize(input, available)
+                        is Type.Complex64Vector -> DoublePrecisionPQCodebook.Serializer.deserialize(input, available)
                         else -> throw IllegalStateException("")
                     } as PQCodebook<VectorValue<*>>
                 )
             }
-            return PQ(type, logicalSize, codebooks)
+            return PQ(type, codebooks)
         }
     }
 
@@ -124,11 +107,11 @@ class PQ(
             /* Sanity checks. */
             require(config.numSubspaces > 0) { "Number of subspaces must be greater than zero for PQIndex." }
             require(config.numCentroids > 0) { "Number of centroids must be greater than zero for PQIndex." }
-            require(column.logicalSize >= config.numSubspaces) { "Logical size of column must be greater or equal to number of subspaces." }
-            require(column.logicalSize % config.numSubspaces == 0) { "Logical size of column modulo number of subspaces must be zero." }
+            require(column.type.logicalSize >= config.numSubspaces) { "Logical size of column must be greater or equal to number of subspaces." }
+            require(column.type.logicalSize % config.numSubspaces == 0) { "Logical size of column modulo number of subspaces must be zero." }
 
             /* Calculate some important metrics. */
-            val dimensionsPerSubspace = column.logicalSize / config.numSubspaces
+            val dimensionsPerSubspace = column.type.logicalSize / config.numSubspaces
 
             /* Prepare subspace data. */
             LOGGER.debug("Creating subspace data")
@@ -141,15 +124,15 @@ class PQ(
             val codebooks = mutableListOf<PQCodebook<VectorValue<*>>>()
             subspaceData.parallelStream().forEach { d ->
                 val codebook: PQCodebook<*> = when (column.type) {
-                    Complex32ColumnType,
-                    FloatVectorColumnType -> SinglePrecisionPQCodebook.learnFromData(
+                    is Type.Complex32Vector,
+                    is Type.FloatVector -> SinglePrecisionPQCodebook.learnFromData(
                         d as List<FloatVectorValue>,
                         config.numCentroids,
                         config.seed,
                         MAX_ITERATIONS
                     )
-                    DoubleVectorColumnType,
-                    Complex64ColumnType -> DoublePrecisionPQCodebook.learnFromData(
+                    is Type.Complex64Vector,
+                    is Type.DoubleVector -> DoublePrecisionPQCodebook.learnFromData(
                         d as List<DoubleVectorValue>,
                         config.numCentroids,
                         config.seed,
@@ -161,7 +144,7 @@ class PQ(
             }
 
             LOGGER.debug("PQ initialization done.")
-            return PQ(column.type, column.logicalSize, codebooks)
+            return PQ(column.type, codebooks)
         }
     }
 

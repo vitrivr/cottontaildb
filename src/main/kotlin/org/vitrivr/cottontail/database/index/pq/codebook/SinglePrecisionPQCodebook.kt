@@ -3,8 +3,7 @@ package org.vitrivr.cottontail.database.index.pq.codebook
 import org.apache.commons.math3.stat.correlation.Covariance
 import org.mapdb.DataInput2
 import org.mapdb.DataOutput2
-import org.vitrivr.cottontail.database.column.ColumnType
-import org.vitrivr.cottontail.database.column.FloatVectorColumnType
+import org.vitrivr.cottontail.database.column.Type
 import org.vitrivr.cottontail.database.index.pq.codebook.PQCodebook.Companion.clusterRealData
 import org.vitrivr.cottontail.model.values.DoubleVectorValue
 import org.vitrivr.cottontail.model.values.FloatVectorValue
@@ -31,7 +30,7 @@ class SinglePrecisionPQCodebook(
         override fun serialize(out: DataOutput2, value: SinglePrecisionPQCodebook) {
             /* Serialize logical size of codebook entries. */
             out.packInt(value.logicalSize)
-            val vectorSerializer = FloatVectorColumnType.serializer(value.logicalSize)
+            val vectorSerializer = value.type.serializer()
 
             /* Serialize centroids matrix. */
             out.packInt(value.centroids.size)
@@ -48,7 +47,7 @@ class SinglePrecisionPQCodebook(
 
         override fun deserialize(input: DataInput2, available: Int): SinglePrecisionPQCodebook {
             val logicalSize = input.unpackInt()
-            val vectorSerializer = FloatVectorColumnType.serializer(logicalSize)
+            val vectorSerializer = Type.FloatVector(logicalSize).serializer()
             val centroidsSize = input.unpackInt()
             val centroids = ArrayList<FloatVectorValue>(centroidsSize)
             for (i in 0 until centroidsSize) {
@@ -105,8 +104,8 @@ class SinglePrecisionPQCodebook(
     }
 
     /** The [SinglePrecisionPQCodebook] handles [FloatVectorValue]s. */
-    override val type: ColumnType<FloatVectorValue>
-        get() = FloatVectorColumnType
+    override val type: Type<FloatVectorValue>
+        get() = Type.FloatVector(this.logicalSize)
 
     /** The number of centroids contained in this [SinglePrecisionPQCodebook]. */
     override val numberOfCentroids: Int

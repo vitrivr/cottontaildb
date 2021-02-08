@@ -25,7 +25,7 @@ import org.vitrivr.cottontail.server.grpc.helper.toLiteral
  * @author Ralph Gasser
  * @version 1.1.0
  */
-class SpoolerSinkOperator(parent: Operator, val queryId: String, val index: Int, val responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) : Operator.SinkOperator(parent) {
+class SpoolerSinkOperator(parent: Operator, val queryId: String, val index: Int, val responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>? = null) : Operator.SinkOperator(parent) {
 
     companion object {
         private const val MAX_PAGE_SIZE_BYTES = 4_000_000
@@ -53,7 +53,7 @@ class SpoolerSinkOperator(parent: Operator, val queryId: String, val index: Int,
             parent.collect {
                 val tuple = it.toTuple()
                 if (accumulatedSize + tuple.serializedSize >= MAX_PAGE_SIZE_BYTES) {
-                    this@SpoolerSinkOperator.responseObserver.onNext(responseBuilder.build())
+                    this@SpoolerSinkOperator.responseObserver?.onNext(responseBuilder.build())
                     responseBuilder = CottontailGrpc.QueryResponseMessage.newBuilder().setTid(CottontailGrpc.TransactionId.newBuilder().setQueryId(this@SpoolerSinkOperator.queryId).setValue(context.txId)).addAllColumns(columns)
                     accumulatedSize = 0L
                 }
@@ -65,7 +65,7 @@ class SpoolerSinkOperator(parent: Operator, val queryId: String, val index: Int,
 
             /* Flush remaining tuples. */
             if (responseBuilder.tuplesList.size > 0) {
-                this@SpoolerSinkOperator.responseObserver.onNext(responseBuilder.build())
+                this@SpoolerSinkOperator.responseObserver?.onNext(responseBuilder.build())
             }
 
             /* Signal completion. */

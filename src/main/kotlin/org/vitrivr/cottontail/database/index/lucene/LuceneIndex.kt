@@ -8,7 +8,7 @@ import org.apache.lucene.search.*
 import org.apache.lucene.store.Directory
 import org.apache.lucene.store.FSDirectory
 import org.apache.lucene.store.NativeFSLockFactory
-import org.vitrivr.cottontail.database.column.ColumnType
+import org.vitrivr.cottontail.database.column.Type
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.events.DataChangeEvent
@@ -17,8 +17,11 @@ import org.vitrivr.cottontail.database.index.IndexTx
 import org.vitrivr.cottontail.database.index.IndexType
 import org.vitrivr.cottontail.database.index.hash.UniqueHashIndex
 import org.vitrivr.cottontail.database.index.lsh.superbit.SuperBitLSHIndex
-import org.vitrivr.cottontail.database.queries.components.*
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
+import org.vitrivr.cottontail.database.queries.predicates.Predicate
+import org.vitrivr.cottontail.database.queries.predicates.bool.BooleanPredicate
+import org.vitrivr.cottontail.database.queries.predicates.bool.ComparisonOperator
+import org.vitrivr.cottontail.database.queries.predicates.bool.ConnectionOperator
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.model.basics.*
 import org.vitrivr.cottontail.model.exceptions.QueryException
@@ -57,8 +60,7 @@ class LuceneIndex(
     }
 
     /** The [LuceneIndex] implementation produces an additional score column. */
-    override val produces: Array<ColumnDef<*>> =
-        arrayOf(ColumnDef(this.parent.name.column("score"), ColumnType.forName("FLOAT")))
+    override val produces: Array<ColumnDef<*>> = arrayOf(ColumnDef(this.parent.name.column("score"), Type.Float))
 
     /** True since [SuperBitLSHIndex] supports incremental updates. */
     override val supportsIncrementalUpdate: Boolean = true
@@ -129,7 +131,7 @@ class LuceneIndex(
             val searcher = IndexSearcher(this.indexReader)
             var cost = Cost.ZERO
             predicate.columns.forEach {
-                cost += Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_DISK_ACCESS_READ, it.physicalSize.toFloat()) * searcher.collectionStatistics(it.name.simple).sumTotalTermFreq()
+                cost += Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_DISK_ACCESS_READ, it.type.physicalSize.toFloat()) * searcher.collectionStatistics(it.name.simple).sumTotalTermFreq()
             }
             cost
         }
@@ -191,17 +193,17 @@ class LuceneIndex(
      * @return [Query]
      */
     private fun BooleanPredicate.toLuceneQuery(): Query = when (this) {
-        is AtomicBooleanPredicate<*> -> this.toLuceneQuery()
-        is CompoundBooleanPredicate -> this.toLuceneQuery()
+        is BooleanPredicate.Atomic -> this.toLuceneQuery()
+        is BooleanPredicate.Compound -> this.toLuceneQuery()
     }
 
     /**
-     * Converts an [AtomicBooleanPredicate] to a [Query] supported by Apache Lucene. Conversion differs
-     * slightly depending on the [ComparisonOperator].
+     * Converts an [BooleanPredicate.Atomic] to a [Query] supported by Apache Lucene.
+     * Conversion differs slightly depending on the [ComparisonOperator].
      *
      * @return [Query]
      */
-    private fun AtomicBooleanPredicate<*>.toLuceneQuery(): Query = when (this.operator) {
+    private fun BooleanPredicate.Atomic.toLuceneQuery(): Query = when (this.operator) {
         ComparisonOperator.EQUAL -> {
             val column = this.columns.first()
             val string = this.values.first()
@@ -240,11 +242,11 @@ class LuceneIndex(
     }
 
     /**
-     * Converts a [CompoundBooleanPredicate] to a [Query] supported by Apache Lucene.
+     * Converts a [BooleanPredicate.Compound] to a [Query] supported by Apache Lucene.
      *
      * @return [Query]
      */
-    private fun CompoundBooleanPredicate.toLuceneQuery(): Query {
+    private fun BooleanPredicate.Compound.toLuceneQuery(): Query {
         val clause = when (this.connector) {
             ConnectionOperator.AND -> BooleanClause.Occur.MUST
             ConnectionOperator.OR -> BooleanClause.Occur.SHOULD
@@ -299,45 +301,31 @@ class LuceneIndex(
          * @param event [DataChangeEvent] to process.
          */
         override fun update(event: DataChangeEvent) = this.withWriteLock {
-            val index = event.columns.indexOf(this.columns[0])
-            if (index == -1) {
-                return@withWriteLock /* If DataChangeEvent does not affect a column indexed by this UniqueHashIndex. */
-            }
-
             when (event) {
                 is DataChangeEvent.InsertDataChangeEvent -> {
-                    val new = event.new[index]
+                    val new = event.inserts[this.columns[0]]
                     if (new is StringValue) {
-                        this.writer.addDocument(
-                            this@LuceneIndex.documentFromValue(
-                                new,
-                                event.tupleId
-                            )
-                        )
+                        this.writer.addDocument(this@LuceneIndex.documentFromValue(new, event.tupleId))
                     }
                 }
                 is DataChangeEvent.UpdateDataChangeEvent -> {
                     this.writer.deleteDocuments(Term(TID_COLUMN, event.tupleId.toString()))
-                    val new = event.new[index]
+                    val new = event.updates[this.columns[0]]?.second
                     if (new is StringValue) {
-                        this.writer.addDocument(
-                            this@LuceneIndex.documentFromValue(
-                                new,
-                                event.tupleId
-                            )
-                        )
+                        this.writer.addDocument(this@LuceneIndex.documentFromValue(new, event.tupleId))
                     }
                 }
                 is DataChangeEvent.DeleteDataChangeEvent -> {
                     this.writer.deleteDocuments(Term(TID_COLUMN, event.tupleId.toString()))
                 }
             }
+            Unit
         }
 
 
         /**
          * Performs a lookup through this [LuceneIndex.Tx] and returns a [CloseableIterator] of
-         * all [TupleId]s that match the [Predicate]. Only supports [AtomicBooleanPredicate]s.
+         * all [TupleId]s that match the [Predicate]. Only supports [BooleanPredicate]s.
          *
          * The [CloseableIterator] is not thread safe!
          *

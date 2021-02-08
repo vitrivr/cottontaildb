@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.model.values
 
+import org.vitrivr.cottontail.database.column.Type
 import org.vitrivr.cottontail.model.values.types.NumericValue
 import org.vitrivr.cottontail.model.values.types.RealVectorValue
 import org.vitrivr.cottontail.model.values.types.Value
@@ -11,7 +12,7 @@ import java.util.*
  * This is an abstraction over a [BooleanArray] and it represents a vector of [Boolean]s.
  *
  * @author Ralph Gasser
- * @version 1.4.0
+ * @version 1.5.0
  */
 inline class BooleanVectorValue(val data: BooleanArray) : RealVectorValue<Int> {
 
@@ -44,8 +45,13 @@ inline class BooleanVectorValue(val data: BooleanArray) : RealVectorValue<Int> {
     constructor(input: Array<Number>) : this(BooleanArray(input.size) { input[it].toInt() == 1 })
     constructor(input: Array<Boolean>) : this(BooleanArray(input.size) { input[it] })
 
+    /** The logical size of this [BooleanVectorValue]. */
     override val logicalSize: Int
         get() = this.data.size
+
+    /** The [Type] size of this [BooleanVectorValue]. */
+    override val type: Type<*>
+        get() = Type.BooleanVector(this.logicalSize)
 
     /**
      * Checks for equality between this [BooleanVectorValue] and the other [Value]. Equality can only be

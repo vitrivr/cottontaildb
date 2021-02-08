@@ -14,7 +14,7 @@ inline class StringKey(val key: String) {
         private const val MSB = 1 shl Character.SIZE - 1
     }
 
-    /** Length of this [StringKey] in bits. */
+    /** Length of this [StringKey]. */
     val bitLength
         get() = this.key.length * Character.SIZE
 

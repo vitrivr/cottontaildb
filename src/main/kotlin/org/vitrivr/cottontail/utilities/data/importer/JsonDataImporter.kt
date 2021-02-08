@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.utilities.data.importer
 
 import com.google.gson.stream.JsonReader
 import com.google.gson.stream.JsonToken
-import org.vitrivr.cottontail.database.column.*
+import org.vitrivr.cottontail.database.column.Type
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.utilities.data.Format
@@ -47,29 +47,29 @@ class JsonDataImporter(override val path: Path, private val schema: Array<Column
             if (column.name.simple == name || column.name.toString() == name) {
                 val element = CottontailGrpc.InsertMessage.InsertElement.newBuilder()
                 val value = when (column.type) {
-                    BooleanColumnType -> CottontailGrpc.Literal.newBuilder()
+                    is Type.Boolean -> CottontailGrpc.Literal.newBuilder()
                         .setBooleanData(this.reader.nextBoolean())
-                    ByteColumnType,
-                    ShortColumnType,
-                    IntColumnType -> CottontailGrpc.Literal.newBuilder()
+                    is Type.Byte,
+                    is Type.Short,
+                    is Type.Int -> CottontailGrpc.Literal.newBuilder()
                         .setIntData(this.reader.nextInt())
-                    LongColumnType -> CottontailGrpc.Literal.newBuilder()
+                    is Type.Long -> CottontailGrpc.Literal.newBuilder()
                         .setLongData(this.reader.nextLong())
-                    FloatColumnType -> CottontailGrpc.Literal.newBuilder()
+                    is Type.Float -> CottontailGrpc.Literal.newBuilder()
                         .setFloatData(this.reader.nextDouble().toFloat())
-                    DoubleColumnType -> CottontailGrpc.Literal.newBuilder()
+                    is Type.Double -> CottontailGrpc.Literal.newBuilder()
                         .setDoubleData(this.reader.nextDouble())
-                    StringColumnType -> CottontailGrpc.Literal.newBuilder()
+                    is Type.String -> CottontailGrpc.Literal.newBuilder()
                         .setStringData(this.reader.nextString())
-                    Complex32ColumnType -> this.readComplex32Value()
-                    Complex64ColumnType -> this.readComplex64Value()
-                    IntVectorColumnType -> this.readIntVector(column.logicalSize)
-                    LongVectorColumnType -> this.readLongVector(column.logicalSize)
-                    FloatVectorColumnType -> this.readFloatVector(column.logicalSize)
-                    DoubleVectorColumnType -> this.readDoubleVector(column.logicalSize)
-                    BooleanVectorColumnType -> this.readBooleanVector(column.logicalSize)
-                    Complex32VectorColumnType -> this.readComplex32Vector(column.logicalSize)
-                    Complex64VectorColumnType -> this.readComplex64Vector(column.logicalSize)
+                    is Type.Complex32 -> this.readComplex32Value()
+                    is Type.Complex64 -> this.readComplex64Value()
+                    is Type.IntVector -> this.readIntVector(column.type.logicalSize)
+                    is Type.LongVector -> this.readLongVector(column.type.logicalSize)
+                    is Type.FloatVector -> this.readFloatVector(column.type.logicalSize)
+                    is Type.DoubleVector -> this.readDoubleVector(column.type.logicalSize)
+                    is Type.BooleanVector -> this.readBooleanVector(column.type.logicalSize)
+                    is Type.Complex32Vector -> this.readComplex32Vector(column.type.logicalSize)
+                    is Type.Complex64Vector -> this.readComplex64Vector(column.type.logicalSize)
                 }
                 element.setColumn(
                     CottontailGrpc.ColumnName.newBuilder().setName(column.name.simple)

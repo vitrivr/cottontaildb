@@ -12,7 +12,7 @@ import org.vitrivr.cottontail.model.values.types.Value
  * of a given type, as specified by the [ColumnDef].
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.0.1
  */
 interface Column<T: Value> : DBO {
 
@@ -32,9 +32,9 @@ interface Column<T: Value> : DBO {
     /**
      * This [Column]'s type.
      *
-     * @return The [ColumnType] of this [Column].
+     * @return The [Type] of this [Column].
      */
-    val type: ColumnType<T>
+    val type: Type<T>
         get() = this.columnDef.type
 
     /**
@@ -44,7 +44,7 @@ interface Column<T: Value> : DBO {
      * @return size of this [Column].
      */
     val size: Int
-        get() = this.columnDef.logicalSize
+        get() = this.columnDef.type.logicalSize
 
     /**
      * Whether or not this [Column] is nullable. Columns that are not nullable, cannot hold any

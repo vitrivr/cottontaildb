@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.database.entity
 
+import it.unimi.dsi.fastutil.objects.Object2ObjectArrayMap
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
 import org.mapdb.CottontailStoreWAL
@@ -35,7 +36,6 @@ import java.nio.file.StandardCopyOption
 import java.util.*
 import java.util.concurrent.locks.StampedLock
 import java.util.stream.Collectors
-import kotlin.collections.ArrayList
 
 /**
  * Represents a single entity in the Cottontail DB data model. An [Entity] has name that must remain unique within a [Schema].
@@ -78,17 +78,17 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
 
     /** The header of this [Entity]. */
     private val header: EntityHeader
-        get() = this.store.get(HEADER_RECORD_ID, EntityHeaderSerializer)
+        get() = this.store.get(HEADER_RECORD_ID, EntityHeader.Serializer)
             ?: throw DatabaseException.DataCorruptionException("Failed to open header of entity '$name'!")
 
     /** An internal lock that is used to synchronize access to this [Entity] and [Entity.Tx] and it being closed or dropped. */
     private val closeLock = StampedLock()
 
     /** List of all the [Column]s associated with this [Entity]; Iteration order of entries as defined in schema! */
-    private val columns: MutableMap<Name.ColumnName, Column<*>> = Collections.synchronizedMap(Object2ObjectLinkedOpenHashMap())
+    private val columns: MutableMap<Name.ColumnName, Column<*>> = Object2ObjectLinkedOpenHashMap()
 
     /** List of all the [Index]es associated with this [Entity]. */
-    private val indexes: MutableMap<Name.IndexName, Index> = Collections.synchronizedMap(Object2ObjectOpenHashMap())
+    private val indexes: MutableMap<Name.IndexName, Index> = Object2ObjectOpenHashMap()
 
     init {
         /* Initialize columns. */
@@ -100,7 +100,7 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
 
         /* Initialize indexes. */
         this.header.indexes.forEach { idx ->
-            val indexEntry = this.store.get(idx, IndexEntrySerializer)
+            val indexEntry = this.store.get(idx, IndexEntry.Serializer)
                 ?: throw DatabaseException.DataCorruptionException("Failed to open entity '$name': Could not read index definition at position $idx!")
             val indexName = this.name.index(indexEntry.name)
             try {
@@ -213,6 +213,9 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
 
         /** Actions that should be executed after rolling back this [Tx]. */
         private val postRollbackAction = mutableListOf<Runnable>()
+
+        /** A snapshot of the surrounding [Entity]'s header. */
+        private val header: EntityHeader by lazy {  this@Entity.header }
 
         /** Reference to the surrounding [Entity]. */
         override val dbo: Entity
@@ -337,12 +340,12 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
             /* Update catalogue + header. */
             try {
                 /* Update catalogue. */
-                val sid = this@Entity.store.put(IndexEntry(name.simple, type, false, columns.map { it.name.simple }.toTypedArray()), IndexEntrySerializer)
+                val sid = this@Entity.store.put(IndexEntry(name.simple, type, false, columns.map { it.name.simple }.toTypedArray()), IndexEntry.Serializer)
 
                 /* Update header. */
-                val new = this@Entity.header.let { EntityHeader(it.size, it.created, System.currentTimeMillis(), it.columns, it.indexes.copyOf(it.indexes.size + 1)) }
+                val new = this.header.let { EntityHeader(it.size, it.created, System.currentTimeMillis(), it.columns, it.indexes.copyOf(it.indexes.size + 1)) }
                 new.indexes[new.indexes.size - 1] = sid
-                this@Entity.store.update(HEADER_RECORD_ID, new, EntityHeaderSerializer)
+                this@Entity.store.update(HEADER_RECORD_ID, new, EntityHeader.Serializer)
                 return newIndex
             } catch (e: DBException) {
                 this.status = TxStatus.ERROR
@@ -402,7 +405,7 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
 
                 /* ON ROLLBACK: Move back index and re-open it. */
                 this.postRollbackAction.add {
-                    val entry = this@Entity.store.get(indexRecId, IndexEntrySerializer)
+                    val entry = this@Entity.store.get(indexRecId, IndexEntry.Serializer)
                         ?: throw DatabaseException.DataCorruptionException("Failed to open entity '$name': Could not read index definition at position $indexRecId!")
                     val columns = entry.columns.map { col ->
                         if (col.contains(".")) {
@@ -428,8 +431,8 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
                         it.indexes.filter { recId -> recId != indexRecId }.toLongArray()
                     )
                 }
-                this@Entity.store.update(HEADER_RECORD_ID, new, EntityHeaderSerializer)
-                this@Entity.store.delete(indexRecId, IndexEntrySerializer)
+                this@Entity.store.update(HEADER_RECORD_ID, new, EntityHeader.Serializer)
+                this@Entity.store.delete(indexRecId, IndexEntry.Serializer)
             } catch (e: DBException) {
                 this.status = TxStatus.ERROR
                 throw DatabaseException("Failed to drop index '$name' due to a storage exception: ${e.message}")
@@ -524,7 +527,8 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
         override fun insert(record: Record): TupleId? = this.withWriteLock {
             try {
                 var lastTupleId: TupleId? = null
-                this.listColumns().forEach {
+                val inserts = Object2ObjectArrayMap<ColumnDef<*>, Value>(this@Entity.columns.size)
+                this@Entity.columns.values.forEach {
                     val tx = this.context.getTx(it) as ColumnTx<Value>
                     val value = record[it.columnDef]
                     val tupleId = tx.insert(value)
@@ -532,24 +536,16 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
                         throw DatabaseException.DataCorruptionException("Entity '${this@Entity.name}' is corrupt. Insert did not yield same record ID for all columns involved!")
                     }
                     lastTupleId = tupleId
+                    inserts[it.columnDef] = value
                 }
 
                 if (lastTupleId != null) {
-                    /* Update the header of this entity. */
-                    val header = this@Entity.header
-                    header.size += 1
-                    header.modified = System.currentTimeMillis()
-                    this@Entity.store.update(HEADER_RECORD_ID, header, EntityHeaderSerializer)
+                    /* Update header (don't persist). */
+                    this.header.size += 1
 
                     /* Issue DataChangeEvent.InsertDataChange event & update indexes. */
                     /* ToDo: System wide event bus for [DataChangeEvent]. */
-                    val values = record.columns.map { record[it] }.toTypedArray()
-                    val event = DataChangeEvent.InsertDataChangeEvent(
-                        this@Entity.name,
-                        lastTupleId!!,
-                        record.columns,
-                        new = values
-                    )
+                    val event = DataChangeEvent.InsertDataChangeEvent(this@Entity.name, lastTupleId!!, inserts)
                     this@Entity.indexes.values.forEach {
                         (this.context.getTx(it) as IndexTx).update(event)
                     }
@@ -575,24 +571,17 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
          */
         override fun update(record: Record) = this.withWriteLock {
             try {
-                val oldValues = ArrayList<Value?>(record.columns.size)
-                record.forEach { columnDef, value ->
-                    val column = this@Entity.columns[columnDef.name]
-                        ?: throw IllegalArgumentException("Column $columnDef does not exist on entity ${this@Entity.name}.")
+                val updates = Object2ObjectArrayMap<ColumnDef<*>, Pair<Value?,Value?>>(record.columns.size)
+                record.columns.forEach { def ->
+                    val column = this@Entity.columns[def.name] ?: throw IllegalArgumentException("Column $def does not exist on entity ${this@Entity.name}.")
+                    val value = record[def]
                     val columnTx = (this.context.getTx(column) as ColumnTx<Value>)
-                    oldValues.add(columnTx.update(record.tupleId, value))
+                    updates[def] = Pair(columnTx.update(record.tupleId, value), value) /* Map: ColumnDef -> Pair[Old, New]. */
                 }
 
                 /* Issue DataChangeEvent.UpdateDataChangeEvent event & update indexes. */
                 /* ToDo: System wide event bus for [DataChangeEvent]. */
-                val newValues = record.columns.map { record[it] }.toTypedArray()
-                val event = DataChangeEvent.UpdateDataChangeEvent(
-                    this@Entity.name,
-                    record.tupleId,
-                    record.columns,
-                    new = newValues,
-                    old = oldValues.toTypedArray()
-                )
+                val event = DataChangeEvent.UpdateDataChangeEvent(this@Entity.name, record.tupleId, updates)
                 this@Entity.indexes.values.forEach {
                     (this.context.getTx(it) as IndexTx).update(event)
                 }
@@ -615,24 +604,17 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
         override fun delete(tupleId: TupleId) = this.withWriteLock {
             try {
                 /* Perform delete on each column. */
-                val values = this@Entity.columns.values.map {
-                    (this.context.getTx(it) as ColumnTx<*>).delete(tupleId)
-                }.toTypedArray()
+                val deleted = Object2ObjectArrayMap<ColumnDef<*>, Value?>(this@Entity.columns.size)
+                this@Entity.columns.values.map {
+                    deleted[it.columnDef] = (this.context.getTx(it) as ColumnTx<*>).delete(tupleId)
+                }
 
-                /* Update header. */
-                val header = this@Entity.header
-                header.size -= 1
-                header.modified = System.currentTimeMillis()
-                this@Entity.store.update(HEADER_RECORD_ID, header, EntityHeaderSerializer)
+                /* Update header (don't persist). */
+                this.header.size -= 1
 
                 /* Issue DataChangeEvent.DeleteDataChangeEvent event & update indexes. */
                 /* ToDo: System wide event bus for [DataChangeEvent]. */
-                val event = DataChangeEvent.DeleteDataChangeEvent(
-                    this@Entity.name,
-                    tupleId,
-                    columns = this@Entity.columns.values.map { it.columnDef }.toTypedArray(),
-                    old = values
-                )
+                val event = DataChangeEvent.DeleteDataChangeEvent(this@Entity.name, tupleId, deleted)
                 this@Entity.indexes.values.forEach {
                     (this.context.getTx(it) as IndexTx).update(event)
                 }
@@ -646,6 +628,9 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
          * Performs a COMMIT of all changes made through this [Entity.Tx].
          */
         override fun performCommit() {
+            /** Update and persist header + commit store. */
+            this.header.modified = System.currentTimeMillis()
+            this@Entity.store.update(HEADER_RECORD_ID, this.header, EntityHeader.Serializer)
             this@Entity.store.commit()
 
             /* Execute post-commit actions. */

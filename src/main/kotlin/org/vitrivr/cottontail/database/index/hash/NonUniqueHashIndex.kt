@@ -7,10 +7,10 @@ import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.events.DataChangeEvent
 import org.vitrivr.cottontail.database.index.*
-import org.vitrivr.cottontail.database.queries.components.AtomicBooleanPredicate
-import org.vitrivr.cottontail.database.queries.components.ComparisonOperator
-import org.vitrivr.cottontail.database.queries.components.Predicate
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
+import org.vitrivr.cottontail.database.queries.predicates.Predicate
+import org.vitrivr.cottontail.database.queries.predicates.bool.BooleanPredicate
+import org.vitrivr.cottontail.database.queries.predicates.bool.ComparisonOperator
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.model.basics.*
 import org.vitrivr.cottontail.model.exceptions.TxException
@@ -60,13 +60,7 @@ class NonUniqueHashIndex(
 
     /** Map structure used for [NonUniqueHashIndex]. */
     private val map: NavigableSet<Array<Any>> =
-        this.db.treeSet(
-            NUQ_INDEX_MAP,
-            SerializerArrayTuple(
-                this.columns.first().type.serializer(this.columns.size),
-                Serializer.LONG_DELTA
-            )
-        )
+        this.db.treeSet(NUQ_INDEX_MAP, SerializerArrayTuple(this.columns.first().type.serializer(), Serializer.LONG_DELTA))
             .counterEnable()
             .createOrOpen()
 
@@ -88,7 +82,7 @@ class NonUniqueHashIndex(
      * @param predicate The [Predicate] to check.
      * @return True if [Predicate] can be processed, false otherwise.
      */
-    override fun canProcess(predicate: Predicate): Boolean = predicate is AtomicBooleanPredicate<*>
+    override fun canProcess(predicate: Predicate): Boolean = predicate is BooleanPredicate.Atomic
             && !predicate.not
             && predicate.columns.first() == this.columns[0]
             && (predicate.operator == ComparisonOperator.IN || predicate.operator == ComparisonOperator.EQUAL)
@@ -100,9 +94,9 @@ class NonUniqueHashIndex(
      * @return Cost estimate for the [Predicate]
      */
     override fun cost(predicate: Predicate): Cost = when {
-        predicate !is AtomicBooleanPredicate<*> || predicate.columns.first() != this.columns[0] || predicate.not -> Cost.INVALID
-        predicate.operator == ComparisonOperator.EQUAL -> Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_MEMORY_ACCESS, predicate.columns.map { it.physicalSize }.sum().toFloat())
-        predicate.operator == ComparisonOperator.IN -> Cost(Cost.COST_DISK_ACCESS_READ * predicate.values.size, Cost.COST_MEMORY_ACCESS * predicate.values.size, predicate.columns.map { it.physicalSize }.sum().toFloat())
+        predicate !is BooleanPredicate.Atomic || predicate.columns.first() != this.columns[0] || predicate.not -> Cost.INVALID
+        predicate.operator == ComparisonOperator.EQUAL -> Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_MEMORY_ACCESS, predicate.columns.map { it.type.physicalSize }.sum().toFloat())
+        predicate.operator == ComparisonOperator.IN -> Cost(Cost.COST_DISK_ACCESS_READ * predicate.values.size, Cost.COST_MEMORY_ACCESS * predicate.values.size, predicate.columns.map { it.type.physicalSize }.sum().toFloat())
         else -> Cost.INVALID
     }
 
@@ -192,30 +186,25 @@ class NonUniqueHashIndex(
          * @param event [DataChangeEvent] to process.
          */
         override fun update(event: DataChangeEvent) = this.withWriteLock {
-            val index = event.columns.indexOf(this.columns[0])
-            if (index == -1) {
-                return@withWriteLock /* If DataChangeEvent does not affect a column indexed by this UniqueHashIndex. */
-            }
-
             when (event) {
                 is DataChangeEvent.InsertDataChangeEvent -> {
-                    val value = event.new[index]
+                    val value = event.inserts[this.columns[0]]
                     if (value != null) {
                         this@NonUniqueHashIndex.addMapping(value, event.tupleId)
                     }
                 }
                 is DataChangeEvent.UpdateDataChangeEvent -> {
-                    val old = event.old[index]
+                    val old = event.updates[this.columns[0]]?.first
                     if (old != null) {
                         this@NonUniqueHashIndex.removeMapping(old, event.tupleId)
                     }
-                    val new = event.new[index]
+                    val new = event.updates[this.columns[0]]?.second
                     if (new != null) {
                         this@NonUniqueHashIndex.addMapping(new, event.tupleId)
                     }
                 }
                 is DataChangeEvent.DeleteDataChangeEvent -> {
-                    val old = event.old[index]
+                    val old = event.deleted[this.columns[0]]
                     if (old != null) {
                         this@NonUniqueHashIndex.removeMapping(old, event.tupleId)
                     }
@@ -225,7 +214,7 @@ class NonUniqueHashIndex(
 
         /**
          * Performs a lookup through this [NonUniqueHashIndex.Tx] and returns a [CloseableIterator] of
-         * all [Record]s that match the [Predicate]. Only supports [AtomicBooleanPredicate]s.
+         * all [Record]s that match the [Predicate]. Only supports [ BooleanPredicate.AtomicBooleanPredicate]s.
          *
          * The [CloseableIterator] is not thread safe!
          *
@@ -237,12 +226,12 @@ class NonUniqueHashIndex(
          */
         override fun filter(predicate: Predicate): CloseableIterator<Record> = object : CloseableIterator<Record> {
 
-            /** Local [AtomicBooleanPredicate] instance. */
-            private val predicate: AtomicBooleanPredicate<*>
+            /** Local [ BooleanPredicate.AtomicBooleanPredicate] instance. */
+            private val predicate: BooleanPredicate.Atomic
 
             /* Perform initial sanity checks. */
             init {
-                require(predicate is AtomicBooleanPredicate<*>) { "NonUniqueHashIndex.filter() does only support AtomicBooleanPredicates." }
+                require(predicate is  BooleanPredicate.Atomic) { "NonUniqueHashIndex.filter() does only support AtomicBooleanPredicates." }
                 require(!predicate.not) { "NonUniqueHashIndex.filter() does not support negated statements (i.e. NOT EQUALS or NOT IN)." }
                 this@Tx.withReadLock { /* No op. */ }
                 this.predicate = predicate

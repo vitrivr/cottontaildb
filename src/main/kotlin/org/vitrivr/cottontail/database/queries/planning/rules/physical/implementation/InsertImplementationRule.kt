@@ -15,7 +15,7 @@ object InsertImplementationRule : RewriteRule {
     override fun canBeApplied(node: NodeExpression): Boolean = node is InsertLogicalNodeExpression
     override fun apply(node: NodeExpression): NodeExpression? {
         if (node is InsertLogicalNodeExpression) {
-            val p = InsertPhysicalNodeExpression(node.entity, node.record)
+            val p = InsertPhysicalNodeExpression(node.entity, node.records)
             node.copyOutput()?.addInput(p)
             return p
         }

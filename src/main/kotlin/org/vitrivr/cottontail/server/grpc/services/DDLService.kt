@@ -4,7 +4,7 @@ import io.grpc.Status
 import io.grpc.stub.StreamObserver
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.database.catalogue.Catalogue
-import org.vitrivr.cottontail.database.column.ColumnType
+import org.vitrivr.cottontail.database.column.Type
 import org.vitrivr.cottontail.database.index.IndexType
 import org.vitrivr.cottontail.execution.TransactionManager
 import org.vitrivr.cottontail.execution.operators.definition.*
@@ -204,9 +204,9 @@ class DDLService(val catalogue: Catalogue, override val manager: TransactionMana
             try {
                 LOGGER.info("Creating entity '$entityName'...")
                 val columns = request.definition.columnsList.map {
-                    val type = ColumnType.forName(it.type.name)
+                    val type = Type.forName(it.type.name, it.length)
                     val name = entityName.column(it.name)
-                    ColumnDef(name, type, it.length, it.nullable)
+                    ColumnDef(name, type, it.nullable)
                 }.toTypedArray()
 
                 /* Execution operation. */

@@ -14,10 +14,9 @@ import org.vitrivr.cottontail.database.index.va.bounds.*
 import org.vitrivr.cottontail.database.index.va.signature.Marks
 import org.vitrivr.cottontail.database.index.va.signature.MarksGenerator
 import org.vitrivr.cottontail.database.index.va.signature.VAFSignature
-import org.vitrivr.cottontail.database.queries.components.AtomicBooleanPredicate
-import org.vitrivr.cottontail.database.queries.components.KnnPredicate
-import org.vitrivr.cottontail.database.queries.components.Predicate
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
+import org.vitrivr.cottontail.database.queries.predicates.Predicate
+import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicate
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.math.knn.metrics.EuclidianDistance
 import org.vitrivr.cottontail.math.knn.metrics.ManhattanDistance
@@ -147,11 +146,11 @@ class VAFIndex(
      * @return Cost estimate for the [Predicate]
      */
     override fun cost(predicate: Predicate) =
-        if (predicate is KnnPredicate<*> && predicate.column == this.columns[0] && (predicate.distance is MinkowskiDistance || predicate.distance is SquaredEuclidianDistance)) {
+        if (predicate is KnnPredicate && predicate.column == this.columns[0] && (predicate.distance is MinkowskiDistance || predicate.distance is SquaredEuclidianDistance)) {
             Cost(
-                this.signatures.size * this.columns[0].logicalSize * Cost.COST_DISK_ACCESS_READ + 0.1f * (this.signatures.size * predicate.query.size * this.columns[0].logicalSize * Cost.COST_DISK_ACCESS_READ),
-                predicate.query.size * this.signatures.size * this.columns[0].logicalSize * (2*Cost.COST_DISK_ACCESS_READ + Cost.COST_FLOP) +  0.1f * this.signatures.size * predicate.query.size * predicate.cost,
-                (predicate.query.size * predicate.k * this.produces.map { it.physicalSize }.sum()).toFloat()
+                this.signatures.size * this.columns[0].type.logicalSize * Cost.COST_DISK_ACCESS_READ + 0.1f * (this.signatures.size * predicate.query.size * this.columns[0].type.logicalSize * Cost.COST_DISK_ACCESS_READ),
+                predicate.query.size * this.signatures.size * this.columns[0].type.logicalSize * (2*Cost.COST_DISK_ACCESS_READ + Cost.COST_FLOP) +  0.1f * this.signatures.size * predicate.query.size * predicate.cost,
+                (predicate.query.size * predicate.k * this.produces.map { it.type.physicalSize }.sum()).toFloat()
             )
         } else {
             Cost.INVALID
@@ -163,7 +162,7 @@ class VAFIndex(
      * @param predicate The [Predicate] to check.
      * @return True if [Predicate] can be processed, false otherwise.
      */
-    override fun canProcess(predicate: Predicate) = predicate is KnnPredicate<*> && predicate.column == this.columns[0]
+    override fun canProcess(predicate: Predicate) = predicate is KnnPredicate && predicate.column == this.columns[0]
 
     /**
      * Opens and returns a new [IndexTx] object that can be used to interact with this [VAFIndex].
@@ -193,8 +192,8 @@ class VAFIndex(
 
             /* Obtain transaction and calculate maximum per dimension.. */
             val txn = this.context.getTx(this@VAFIndex.parent) as EntityTx
-            val min = DoubleArray(this@VAFIndex.columns[0].logicalSize)
-            val max = DoubleArray(this@VAFIndex.columns[0].logicalSize)
+            val min = DoubleArray(this@VAFIndex.columns[0].type.logicalSize)
+            val max = DoubleArray(this@VAFIndex.columns[0].type.logicalSize)
             txn.scan(this@VAFIndex.columns).forEach { r ->
                 val value = r[this@VAFIndex.columns[0]] as VectorValue<*>
                 for (i in 0 until value.logicalSize) {
@@ -204,7 +203,7 @@ class VAFIndex(
             }
 
             /* Calculate and update marks. */
-            val marks = MarksGenerator.getEquidistantMarks(min, max, IntArray(this@VAFIndex.columns[0].logicalSize) { this@VAFIndex.config.marksPerDimension })
+            val marks = MarksGenerator.getEquidistantMarks(min, max, IntArray(this@VAFIndex.columns[0].type.logicalSize) { this@VAFIndex.config.marksPerDimension })
             this@VAFIndex.marksStore.set(marks)
 
             /* Calculate and update signatures. */
@@ -260,8 +259,8 @@ class VAFIndex(
             range: LongRange
         ): CloseableIterator<Record> = object : CloseableIterator<Record> {
 
-            /** Cast [AtomicBooleanPredicate] (if such a cast is possible).  */
-            private val predicate = if (predicate is KnnPredicate<*>) {
+            /** Cast  to [KnnPredicate] (if such a cast is possible).  */
+            private val predicate = if (predicate is KnnPredicate) {
                 predicate
             } else {
                 throw QueryException.UnsupportedPredicateException("Index '${this@VAFIndex.name}' (VAF Index) does not support predicates of type '${predicate::class.simpleName}'.")

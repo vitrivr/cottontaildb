@@ -4,7 +4,7 @@ import org.apache.commons.math3.linear.RealMatrix
 import org.apache.commons.math3.ml.clustering.CentroidCluster
 import org.apache.commons.math3.ml.clustering.KMeansPlusPlusClusterer
 import org.apache.commons.math3.random.JDKRandomGenerator
-import org.vitrivr.cottontail.database.column.ColumnType
+import org.vitrivr.cottontail.database.column.Type
 import org.vitrivr.cottontail.model.values.types.VectorValue
 
 /**
@@ -75,8 +75,8 @@ interface PQCodebook<T : VectorValue<*>> {
         }
     }
 
-    /** The [ColumnType] of the vectors contained in this [PQCodebook]. */
-    val type: ColumnType<T>
+    /** The [Type] of the vectors contained in this [PQCodebook]. */
+    val type: Type<T>
 
     /** The number of centroids contained in this [PQCodebook]. */
     val numberOfCentroids: Int

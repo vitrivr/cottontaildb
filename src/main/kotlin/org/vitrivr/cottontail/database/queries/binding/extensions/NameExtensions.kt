@@ -1,8 +1,7 @@
 package org.vitrivr.cottontail.server.grpc.helper
 
-import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.index.IndexType
-import org.vitrivr.cottontail.database.queries.predicates.KnnPredicateHint
+import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicateHint
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.model.basics.Name
 
@@ -57,7 +56,7 @@ fun Name.SchemaName.proto() = CottontailGrpc.SchemaName.newBuilder().setName(thi
  *
  * @return [CottontailGrpc.SchemaName] for the given [Name.SchemaName].
  */
-fun Name.EntityName.protoFrom(): CottontailGrpc.From = CottontailGrpc.From.newBuilder().setEntity(this.proto()).build()
+fun Name.EntityName.protoFrom(): CottontailGrpc.From = CottontailGrpc.From.newBuilder().setScan(CottontailGrpc.Scan.newBuilder().setEntity(this.proto())).build()
 
 /**
  * Extension function that generates the [CottontailGrpc.IndexName] for the given [Name.IndexName].
@@ -69,14 +68,13 @@ fun Name.IndexName.proto() = CottontailGrpc.IndexName.newBuilder().setEntity(thi
 /**
  * Extension function that generates the [KnnPredicateHint] for the given [CottontailGrpc.KnnHint].
  *
- * @param entity The [Entity] the given [KnnPredicateHint] is evaluated for.
  * @return Fully qualified name for the given [KnnPredicateHint]
  */
-fun CottontailGrpc.KnnHint.toHint(entity: Entity): KnnPredicateHint? = when (this.hintCase) {
-    CottontailGrpc.KnnHint.HintCase.ALLOWINEXACTINDEXHINT -> KnnPredicateHint.AllowInexactKnnPredicateHint(this.allowInexactIndexHint.allow)
-    CottontailGrpc.KnnHint.HintCase.NOINDEXHINT -> KnnPredicateHint.NoIndexKnnPredicateHint
-    CottontailGrpc.KnnHint.HintCase.TYPEINDEXHINT -> KnnPredicateHint.IndexTypeKnnPredicateHint(IndexType.valueOf(this.typeIndexHint.type.toString()))
-    CottontailGrpc.KnnHint.HintCase.NAMEINDEXHINT -> KnnPredicateHint.IndexNameKnnPredicateHint(entity.name.index(this.nameIndexHint.name), this.nameIndexHint.parametersMap)
-    CottontailGrpc.KnnHint.HintCase.PARALLELINDEXHINT -> KnnPredicateHint.ParallelKnnPredicateHint(this.parallelIndexHint.min, this.parallelIndexHint.max)
+fun CottontailGrpc.KnnHint.toHint(): KnnPredicateHint? = when (this.hintCase) {
+    CottontailGrpc.KnnHint.HintCase.ALLOWINEXACTINDEXHINT -> KnnPredicateHint.AllowInexactHint(this.allowInexactIndexHint.allow)
+    CottontailGrpc.KnnHint.HintCase.NOINDEXHINT -> KnnPredicateHint.NoIndexPredicateHint
+    CottontailGrpc.KnnHint.HintCase.TYPEINDEXHINT -> KnnPredicateHint.IndexTypeHint(IndexType.valueOf(this.typeIndexHint.type.toString()))
+    CottontailGrpc.KnnHint.HintCase.NAMEINDEXHINT -> KnnPredicateHint.IndexNameHint(Name.IndexName(this.nameIndexHint.name), this.nameIndexHint.parametersMap)
+    CottontailGrpc.KnnHint.HintCase.PARALLELINDEXHINT -> KnnPredicateHint.ParallelKnnHint(this.parallelIndexHint.min, this.parallelIndexHint.max)
     else -> null
 }

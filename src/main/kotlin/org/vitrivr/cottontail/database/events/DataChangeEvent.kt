@@ -9,13 +9,12 @@ import org.vitrivr.cottontail.model.values.types.Value
 /**
  * An internal [DataChangeEvent] to signal changes made to an [Entity].
  *
- * @version 1.0.0
+ * @version 1.0.1
  * @author Ralph Gasser
  */
 sealed class DataChangeEvent(
     val name: Name.EntityName,
-    val tupleId: TupleId,
-    val columns: Array<ColumnDef<*>>
+    val tupleId: TupleId
 ) {
 
     /**
@@ -24,9 +23,8 @@ sealed class DataChangeEvent(
     class InsertDataChangeEvent(
         name: Name.EntityName,
         tupleId: TupleId,
-        columns: Array<ColumnDef<*>>,
-        val new: Array<Value?>
-    ) : DataChangeEvent(name, tupleId, columns)
+        val inserts: Map<ColumnDef<*>, Value?>
+    ) : DataChangeEvent(name, tupleId)
 
     /**
      * A [DataChangeEvent] that signals n UPDATE in an [Entity]
@@ -34,10 +32,8 @@ sealed class DataChangeEvent(
     class UpdateDataChangeEvent(
         name: Name.EntityName,
         tupleId: TupleId,
-        columns: Array<ColumnDef<*>>,
-        val new: Array<Value?>,
-        val old: Array<Value?>
-    ) : DataChangeEvent(name, tupleId, columns)
+        val updates: Map<ColumnDef<*>, Pair<Value?, Value?>>,
+    ) : DataChangeEvent(name, tupleId)
 
     /**
      * A [DataChangeEvent] that signals a DELETE from an [Entity]
@@ -45,7 +41,6 @@ sealed class DataChangeEvent(
     class DeleteDataChangeEvent(
         name: Name.EntityName,
         tupleId: TupleId,
-        columns: Array<ColumnDef<*>>,
-        val old: Array<Value?>
-    ) : DataChangeEvent(name, tupleId, columns)
+        val deleted: Map<ColumnDef<*>, Value?>
+    ) : DataChangeEvent(name, tupleId)
 }

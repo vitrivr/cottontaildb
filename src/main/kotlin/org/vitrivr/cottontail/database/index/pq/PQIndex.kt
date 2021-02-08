@@ -11,10 +11,9 @@ import org.vitrivr.cottontail.database.index.Index
 import org.vitrivr.cottontail.database.index.IndexTx
 import org.vitrivr.cottontail.database.index.IndexType
 import org.vitrivr.cottontail.database.index.va.VAFIndex
-import org.vitrivr.cottontail.database.queries.components.AtomicBooleanPredicate
-import org.vitrivr.cottontail.database.queries.components.KnnPredicate
-import org.vitrivr.cottontail.database.queries.components.Predicate
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
+import org.vitrivr.cottontail.database.queries.predicates.Predicate
+import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicate
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.math.knn.selection.ComparablePair
 import org.vitrivr.cottontail.math.knn.selection.MinHeapSelection
@@ -118,9 +117,9 @@ class PQIndex(
             this.db.atomicVar(PQ_INDEX_CONFIG, PQIndexConfig.Serializer).createOrOpen()
         if (configOnDisk.get() == null) {
             if (config != null) {
-                if (config.numSubspaces == PQIndexConfig.AUTO_VALUE || (config.numSubspaces % this.columns[0].logicalSize) != 0) {
+                if (config.numSubspaces == PQIndexConfig.AUTO_VALUE || (config.numSubspaces % this.columns[0].type.logicalSize) != 0) {
                     this.config =
-                        config.copy(numSubspaces = defaultNumberOfSubspaces(this.columns[0].logicalSize))
+                        config.copy(numSubspaces = defaultNumberOfSubspaces(this.columns[0].type.logicalSize))
                 } else {
                     this.config = config
                 }
@@ -137,8 +136,8 @@ class PQIndex(
         require(this.config.numCentroids > 0) { "PQIndex supports a maximum number of ${this.config.numCentroids} centroids." }
         require(this.config.numCentroids <= Short.MAX_VALUE)
         require(this.config.numSubspaces > 0) { "PQIndex requires at least one centroid." }
-        require(this.columns[0].logicalSize >= this.config.numSubspaces) { "Logical size of the column must be greater or equal than the number of subspaces." }
-        require(this.columns[0].logicalSize % this.config.numSubspaces == 0) { "Logical size of the column modulo the number of subspaces must be zero." }
+        require(this.columns[0].type.logicalSize >= this.config.numSubspaces) { "Logical size of the column must be greater or equal than the number of subspaces." }
+        require(this.columns[0].type.logicalSize % this.config.numSubspaces == 0) { "Logical size of the column modulo the number of subspaces must be zero." }
     }
 
 
@@ -164,7 +163,7 @@ class PQIndex(
      * @return True if [Predicate] can be processed, false otherwise.
      */
     override fun canProcess(predicate: Predicate) =
-        predicate is KnnPredicate<*>
+        predicate is KnnPredicate
                 && predicate.columns.first() == this.columns[0]
 
     /**
@@ -174,11 +173,11 @@ class PQIndex(
      * @return [Cost] estimate for the [Predicate]
      */
     override fun cost(predicate: Predicate) =
-        if (predicate is KnnPredicate<*> && predicate.column == this.columns[0]) {
+        if (predicate is KnnPredicate && predicate.column == this.columns[0]) {
             Cost(
-                this.signaturesStore.size * this.config.numSubspaces * Cost.COST_DISK_ACCESS_READ + predicate.query.size * predicate.k * predicate.column.logicalSize * Cost.COST_DISK_ACCESS_READ,
+                this.signaturesStore.size * this.config.numSubspaces * Cost.COST_DISK_ACCESS_READ + predicate.query.size * predicate.k * predicate.column.type.logicalSize * Cost.COST_DISK_ACCESS_READ,
                 predicate.query.size * (this.signaturesStore.size * (4 * Cost.COST_MEMORY_ACCESS + Cost.COST_FLOP) + predicate.k * predicate.cost),
-                (predicate.query.size * predicate.k * this.produces.map { it.physicalSize }.sum()).toFloat()
+                (predicate.query.size * predicate.k * this.produces.map { it.type.physicalSize }.sum()).toFloat()
             )
         } else {
             Cost.INVALID
@@ -295,8 +294,8 @@ class PQIndex(
             range: LongRange
         ): CloseableIterator<Record> = object : CloseableIterator<Record> {
 
-            /** Cast [AtomicBooleanPredicate] (if such a cast is possible).  */
-            private val predicate = if (predicate is KnnPredicate<*>) {
+            /** Cast [KnnPredicate] (if such a cast is possible).  */
+            private val predicate = if (predicate is KnnPredicate) {
                 predicate
             } else {
                 throw QueryException.UnsupportedPredicateException("Index '${this@PQIndex.name}' (PQ Index) does not support predicates of type '${predicate::class.simpleName}'.")

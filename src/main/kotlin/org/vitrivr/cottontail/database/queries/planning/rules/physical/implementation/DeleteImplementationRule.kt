@@ -16,7 +16,7 @@ object DeleteImplementationRule : RewriteRule {
     override fun canBeApplied(node: NodeExpression): Boolean = node is DeleteLogicalNodeExpression
     override fun apply(node: NodeExpression): NodeExpression? {
         if (node is DeleteLogicalNodeExpression) {
-            val parent = node.copyWithInputs().inputs.firstOrNull()
+            val parent = node.deepCopy().inputs.firstOrNull()
                     ?: throw NodeExpressionTreeException.IncompleteNodeExpressionTreeException(node, "Expected parent for DeleteLogicalNodeExpression but none was found.")
             val p = DeletePhysicalNodeExpression(node.entity)
             p.addInput(parent)

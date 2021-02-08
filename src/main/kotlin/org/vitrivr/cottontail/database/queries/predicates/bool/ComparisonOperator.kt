@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail.database.queries.components
+package org.vitrivr.cottontail.database.queries.predicates.bool
 
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.values.StringValue

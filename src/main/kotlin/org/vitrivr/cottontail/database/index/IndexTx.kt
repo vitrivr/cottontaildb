@@ -2,12 +2,12 @@ package org.vitrivr.cottontail.database.index
 
 import org.vitrivr.cottontail.database.events.DataChangeEvent
 import org.vitrivr.cottontail.database.general.Tx
-import org.vitrivr.cottontail.database.queries.components.Predicate
+import org.vitrivr.cottontail.database.queries.predicates.Predicate
 import org.vitrivr.cottontail.model.basics.*
 import org.vitrivr.cottontail.model.exceptions.TxException
 
 /**
- * A [Transaction] that operates on a single [Index]. [Transaction]s are a unit of isolation for data operations (read/write).
+ * A [Tx] that operates on a single [Index]. [Tx]s are a unit of isolation for data operations (read/write).
  *
  * @author Ralph Gasser
  * @version 1.5.0

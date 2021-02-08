@@ -1,7 +1,9 @@
 package org.vitrivr.cottontail.execution.operators.management
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
+import org.vitrivr.cottontail.database.column.Type
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.execution.TransactionContext
@@ -23,13 +25,22 @@ import kotlin.time.measureTimedValue
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class InsertOperator(val entity: Entity, val record: Record) : Operator.SourceOperator() {
+class InsertOperator(parent: Operator, val entity: Entity) : Operator.PipelineOperator(parent) {
 
-    /** Columns returned by [UpdateOperator]. */
-    override val columns: Array<ColumnDef<*>> = arrayOf(
-        ColumnDef.withAttributes(Name.ColumnName("tupleId"), "LONG", -1, false),
-        ColumnDef.withAttributes(Name.ColumnName("duration_ms"), "DOUBLE", -1, false),
-    )
+    companion object {
+        /** The columns produced by the [InsertOperator]. */
+        val COLUMNS: Array<ColumnDef<*>> = arrayOf(
+            ColumnDef(Name.ColumnName("tupleId"), Type.Long,false),
+            ColumnDef(Name.ColumnName("duration_ms"), Type.Double,false)
+        )
+    }
+
+
+    /** Columns produced by [InsertOperator]. */
+    override val columns: Array<ColumnDef<*>> = COLUMNS
+
+    /** [InsertOperator] does not act as a pipeline breaker. */
+    override val breaker: Boolean = false
 
     /**
      * Converts this [InsertOperator] to a [Flow] and returns it.
@@ -40,11 +51,14 @@ class InsertOperator(val entity: Entity, val record: Record) : Operator.SourceOp
     @ExperimentalTime
     override fun toFlow(context: TransactionContext): Flow<Record> {
         val tx = context.getTx(this.entity) as EntityTx
+        val parent = this.parent.toFlow(context)
         return flow {
-            val timedTupleId = measureTimedValue {
-                tx.insert(this@InsertOperator.record)
+            parent.collect { record ->
+                val timedTupleId = measureTimedValue {
+                    tx.insert(record)
+                }
+                emit(StandaloneRecord(0L, this@InsertOperator.columns, arrayOf(LongValue(timedTupleId.value!!), DoubleValue(timedTupleId.duration.inMilliseconds))))
             }
-            emit(StandaloneRecord(0L, this@InsertOperator.columns, arrayOf(LongValue(timedTupleId.value!!), DoubleValue(timedTupleId.duration.inMilliseconds))))
         }
     }
 }

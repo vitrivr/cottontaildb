@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.model.values
 
+import org.vitrivr.cottontail.database.column.Type
 import org.vitrivr.cottontail.model.values.types.NumericValue
 import org.vitrivr.cottontail.model.values.types.RealVectorValue
 import org.vitrivr.cottontail.model.values.types.Value
@@ -11,7 +12,7 @@ import kotlin.math.pow
  * This is an abstraction over a [FloatArray] and it represents a vector of [Float]s.
  *
  * @author Ralph Gasser
- * @version 1.4.0
+ * @version 1.5.0
  */
 inline class LongVectorValue(val data: LongArray) : RealVectorValue<Long> {
 
@@ -42,8 +43,13 @@ inline class LongVectorValue(val data: LongArray) : RealVectorValue<Long> {
     constructor(input: List<Number>) : this(LongArray(input.size) { input[it].toLong() })
     constructor(input: Array<Number>) : this(LongArray(input.size) { input[it].toLong() })
 
+    /** The logical size of this [LongVectorValue]. */
     override val logicalSize: Int
-        get() = data.size
+        get() = this.data.size
+
+    /** The [Type] of this [LongVectorValue]. */
+    override val type: Type<*>
+        get() = Type.LongVector(this.logicalSize)
 
     /**
      * Checks for equality between this [LongVectorValue] and the other [Value]. Equality can only be

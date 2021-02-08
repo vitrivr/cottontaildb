@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.model.values
 
 import org.apache.commons.math3.util.FastMath
+import org.vitrivr.cottontail.database.column.Type
 import org.vitrivr.cottontail.model.values.types.ComplexVectorValue
 import org.vitrivr.cottontail.model.values.types.NumericValue
 import org.vitrivr.cottontail.model.values.types.Value
@@ -14,7 +15,7 @@ import kotlin.math.pow
  * This is an abstraction over an [Array] and it represents a vector of [Complex32Value]s.
  *
  * @author Manuel Huerbin & Ralph Gasser
- * @version 1.4.0
+ * @version 1.5.0
  */
 inline class Complex32VectorValue(val data: FloatArray) : ComplexVectorValue<Float> {
     companion object {
@@ -79,6 +80,10 @@ inline class Complex32VectorValue(val data: FloatArray) : ComplexVectorValue<Flo
     /** Logical size of the [Complex32VectorValue]. */
     override val logicalSize: Int
         get() = this.data.size / 2
+
+    /** The [Type] of this [Complex32VectorValue]. */
+    override val type: Type<*>
+        get() = Type.Complex32Vector(this.logicalSize)
 
     /**
      * Returns the i-th entry of  this [Complex32VectorValue].

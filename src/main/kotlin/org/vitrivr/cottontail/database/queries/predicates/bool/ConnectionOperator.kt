@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail.database.queries.components
+package org.vitrivr.cottontail.database.queries.predicates.bool
 
 /**
  * Enumeration of query [ComparisonOperator]s.

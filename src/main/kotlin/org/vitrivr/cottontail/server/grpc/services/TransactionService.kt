@@ -36,7 +36,7 @@ interface TransactionService {
             }
             txn
         }
-        val queryId = if (txId === CottontailGrpc.TransactionId.getDefaultInstance() && !txId.queryId.isEmpty()) {
+        val queryId = if (txId === CottontailGrpc.TransactionId.getDefaultInstance() && txId.queryId.isNotEmpty()) {
             txId.queryId
         } else {
             UUID.randomUUID().toString()

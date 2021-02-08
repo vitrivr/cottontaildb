@@ -6,6 +6,7 @@ import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.types.enum
 import com.google.protobuf.Empty
+import org.vitrivr.cottontail.database.column.Type
 
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.grpc.DDLGrpc
@@ -102,13 +103,9 @@ class ImportDataCommand(
         schemaInfo.tuplesList.forEach {
             if (it.dataList[1].stringData == "COLUMN") {
                 columns.add(
-                    ColumnDef.withAttributes(
-                        name = Name.ColumnName(
-                            *it.dataList[0].stringData.split(Name.NAME_COMPONENT_DELIMITER)
-                                .toTypedArray()
-                        ),
-                        type = it.dataList[2].stringData,
-                        size = it.dataList[4].intData,
+                    ColumnDef(
+                        name = Name.ColumnName(*it.dataList[0].stringData.split(Name.NAME_COMPONENT_DELIMITER).toTypedArray()),
+                        type = Type.forName(it.dataList[2].stringData,it.dataList[4].intData),
                         nullable = it.dataList[5].booleanData
                     )
                 )

@@ -10,7 +10,6 @@ import org.vitrivr.cottontail.database.catalogue.Catalogue
 import org.vitrivr.cottontail.database.column.mapdb.MapDBColumn
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.entity.EntityHeader
-import org.vitrivr.cottontail.database.entity.EntityHeaderSerializer
 import org.vitrivr.cottontail.database.general.AbstractTx
 import org.vitrivr.cottontail.database.general.DBO
 import org.vitrivr.cottontail.database.general.TxStatus
@@ -192,7 +191,7 @@ class Schema(override val name: Name.SchemaName, override val parent: Catalogue)
                     MapDBColumn.initialize(it, data, this@Schema.parent.config.mapdb)
                     store.put(it.name.simple, Serializer.STRING)
                 }.toLongArray()
-                store.update(Entity.HEADER_RECORD_ID, EntityHeader(columns = columnIds), EntityHeaderSerializer)
+                store.update(Entity.HEADER_RECORD_ID, EntityHeader(columns = columnIds), EntityHeader.Serializer)
                 store.commit()
                 store.close()
 

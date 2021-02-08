@@ -6,7 +6,7 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 
 import org.vitrivr.cottontail.TestConstants
-import org.vitrivr.cottontail.database.column.ColumnType
+import org.vitrivr.cottontail.database.column.Type
 import org.vitrivr.cottontail.execution.TransactionType
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
@@ -34,8 +34,8 @@ class BooleanVectorValueSerializationTest : AbstractSerializationTest() {
     @MethodSource("dimensions")
     fun test(dimension: Int) {
         val nameEntity = this.schema.name.entity("boolean-test")
-        val idCol = ColumnDef(nameEntity.column("id"), ColumnType.forName("INTEGER"), -1, false)
-        val vectorCol = ColumnDef(nameEntity.column("vector"), ColumnType.forName("BOOL_VEC"), dimension, false)
+        val idCol = ColumnDef(nameEntity.column("id"), Type.forName("INTEGER"), -1, false)
+        val vectorCol = ColumnDef(nameEntity.column("vector"), Type.forName("BOOL_VEC"), dimension, false)
 
         /* Prepare entity. */
         val columns = arrayOf(idCol, vectorCol)
