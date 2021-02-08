@@ -74,22 +74,41 @@ class DDLService(val catalogue: Catalogue, override val manager: TransactionMana
             try {
                 /* Execute operation. */
                 LOGGER.info("Creating schema '$schemaName'...")
-                val op = SpoolerSinkOperator(CreateSchemaOperator(this.catalogue, schemaName), q, 0, responseObserver)
+                val op = SpoolerSinkOperator(
+                    CreateSchemaOperator(this.catalogue, schemaName),
+                    q,
+                    0,
+                    responseObserver
+                )
                 tx.execute(op)
 
                 /* Finalize transaction. */
                 responseObserver.onCompleted()
                 LOGGER.info("Schema '$schemaName' created successfully!")
-            } catch (e: DatabaseException.EntityAlreadyExistsException) {
-                val message = formatMessage(tx, q, "Failed to create schema '${request.schema.fqn()}': Schema with identical name already exists.")
+            } catch (e: DatabaseException.SchemaAlreadyExistsException) {
+                val message = formatMessage(
+                    tx,
+                    q,
+                    "Failed to create schema '${request.schema.fqn()}': Schema with identical name already exists."
+                )
                 LOGGER.info(message)
-                responseObserver.onError(Status.ALREADY_EXISTS.withDescription(message).asException())
+                responseObserver.onError(
+                    Status.ALREADY_EXISTS.withDescription(message).asException()
+                )
             } catch (e: TransactionException.DeadlockException) {
-                val message = formatMessage(tx, q, "Failed to create schema '${request.schema.fqn()}': Deadlock with another transaction.")
+                val message = formatMessage(
+                    tx,
+                    q,
+                    "Failed to create schema '${request.schema.fqn()}': Deadlock with another transaction."
+                )
                 LOGGER.info(message)
                 responseObserver.onError(Status.ABORTED.withDescription(message).asException())
             } catch (e: DatabaseException) {
-                val message = formatMessage(tx, q, "Failed to create schema '${request.schema.fqn()}' because of a database error.")
+                val message = formatMessage(
+                    tx,
+                    q,
+                    "Failed to create schema '${request.schema.fqn()}' because of a database error."
+                )
                 LOGGER.error(message, e)
                 responseObserver.onError(Status.INTERNAL.withDescription(message).asException())
             } catch (e: Throwable) {
