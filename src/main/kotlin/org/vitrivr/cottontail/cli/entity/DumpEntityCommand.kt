@@ -4,9 +4,9 @@ import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
+import org.vitrivr.cottontail.database.queries.binding.extensions.protoFrom
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.grpc.DQLGrpc
-import org.vitrivr.cottontail.server.grpc.helper.protoFrom
 import org.vitrivr.cottontail.utilities.data.Format
 import java.nio.file.Path
 import java.nio.file.Paths

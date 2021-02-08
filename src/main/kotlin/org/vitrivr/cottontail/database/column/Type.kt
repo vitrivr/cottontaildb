@@ -151,6 +151,19 @@ sealed class Type<T : Value> {
     }
 
     @Suppress("UNCHECKED_CAST")
+    object Date : Type<DateValue>() {
+        override val name = "DATE"
+        override val numeric = false
+        override val complex = false
+        override val vector = false
+        override val logicalSize = 1
+        override val physicalSize = kotlin.Long.SIZE_BYTES
+        override val type: KClass<DateValue> = DateValue::class
+        override fun defaultValue(): DateValue = DateValue(System.currentTimeMillis())
+        override fun serializer(): Serializer<DateValue> = DateValueSerializer
+    }
+
+    @Suppress("UNCHECKED_CAST")
     object Float : Type<FloatValue>() {
         override val name = "FLOAT"
         override val numeric = true

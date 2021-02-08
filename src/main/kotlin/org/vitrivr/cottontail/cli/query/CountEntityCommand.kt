@@ -2,10 +2,10 @@ package org.vitrivr.cottontail.cli.query
 
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.convert
+import org.vitrivr.cottontail.database.queries.binding.extensions.protoFrom
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.grpc.DQLGrpc
 import org.vitrivr.cottontail.model.basics.Name
-import org.vitrivr.cottontail.server.grpc.helper.protoFrom
 import kotlin.time.ExperimentalTime
 
 /**

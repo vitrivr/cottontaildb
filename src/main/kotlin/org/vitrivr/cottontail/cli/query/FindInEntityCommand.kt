@@ -6,10 +6,10 @@ import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import org.vitrivr.cottontail.cli.MatchAll
 import org.vitrivr.cottontail.cli.Where
+import org.vitrivr.cottontail.database.queries.binding.extensions.protoFrom
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.grpc.DQLGrpc
 import org.vitrivr.cottontail.model.basics.Name
-import org.vitrivr.cottontail.server.grpc.helper.protoFrom
 import kotlin.time.ExperimentalTime
 
 /**

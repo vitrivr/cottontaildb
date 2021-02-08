@@ -59,8 +59,12 @@ class JsonDataImporter(override val path: Path, private val schema: Array<Column
                         .setFloatData(this.reader.nextDouble().toFloat())
                     is Type.Double -> CottontailGrpc.Literal.newBuilder()
                         .setDoubleData(this.reader.nextDouble())
-                    is Type.String -> CottontailGrpc.Literal.newBuilder()
+                    is Type.Date -> CottontailGrpc.Literal.newBuilder()
                         .setStringData(this.reader.nextString())
+                    is Type.String -> CottontailGrpc.Literal.newBuilder()
+                        .setDateData(
+                            CottontailGrpc.Date.newBuilder().setUtcTimestamp(this.reader.nextLong())
+                        )
                     is Type.Complex32 -> this.readComplex32Value()
                     is Type.Complex64 -> this.readComplex64Value()
                     is Type.IntVector -> this.readIntVector(column.type.logicalSize)

@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail.server.grpc.helper
+package org.vitrivr.cottontail.database.queries.binding.extensions
 
 import org.vitrivr.cottontail.database.index.IndexType
 import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicateHint

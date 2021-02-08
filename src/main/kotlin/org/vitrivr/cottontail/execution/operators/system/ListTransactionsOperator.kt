@@ -10,10 +10,7 @@ import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
-import org.vitrivr.cottontail.model.values.DoubleValue
-import org.vitrivr.cottontail.model.values.IntValue
-import org.vitrivr.cottontail.model.values.LongValue
-import org.vitrivr.cottontail.model.values.StringValue
+import org.vitrivr.cottontail.model.values.*
 import org.vitrivr.cottontail.model.values.types.Value
 
 /**
@@ -31,8 +28,8 @@ class ListTransactionsOperator(val manager: TransactionManager) : Operator.Sourc
             ColumnDef(Name.ColumnName("state"), Type.String, false),
             ColumnDef(Name.ColumnName("lock_count"), Type.Int, false),
             ColumnDef(Name.ColumnName("tx_count"), Type.Int, false),
-            ColumnDef(Name.ColumnName("created"), Type.Long, false),
-            ColumnDef(Name.ColumnName("ended"), Type.Long, false),
+            ColumnDef(Name.ColumnName("created"), Type.Date, false),
+            ColumnDef(Name.ColumnName("ended"), Type.Date, false),
             ColumnDef(Name.ColumnName("duration[s]"), Type.Double, false)
 
         )
@@ -50,9 +47,9 @@ class ListTransactionsOperator(val manager: TransactionManager) : Operator.Sourc
                 values[2] = StringValue(it.state.toString())
                 values[3] = IntValue(it.numberOfLocks)
                 values[4] = IntValue(it.numberOfTxs)
-                values[5] = LongValue(it.created)
+                values[5] = DateValue(it.created)
                 values[6] = if (it.ended != null) {
-                    LongValue(it.ended!!)
+                    DateValue(it.ended!!)
                 } else {
                     null
                 }
