@@ -506,7 +506,13 @@ class GrpcQueryBinder constructor(val catalogue: Catalogue) {
      */
     private fun parseAndBindProjection(input: LogicalNodeExpression, projection: CottontailGrpc.Projection, context: QueryContext): LogicalNodeExpression {
         val fields = projection.columnsList.flatMap { p ->
-            input.findColumnsForName(p.column.fqn()).map { it to p.alias?.fqn() }
+            input.findColumnsForName(p.column.fqn()).map {
+                if (p.hasAlias()) {
+                    it to p.alias.fqn()
+                } else {
+                    it to null
+                }
+            }
         }
         val type = try {
             Projection.valueOf(projection.op.name)
