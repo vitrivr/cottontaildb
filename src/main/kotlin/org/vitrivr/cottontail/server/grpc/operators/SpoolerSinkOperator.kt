@@ -63,9 +63,7 @@ class SpoolerSinkOperator(parent: Operator, val queryId: String, val index: Int,
             }
 
             /* Flush remaining tuples. */
-            if (responseBuilder.tuplesList.size > 0) {
-                this@SpoolerSinkOperator.responseObserver?.onNext(responseBuilder.build())
-            }
+            this@SpoolerSinkOperator.responseObserver?.onNext(responseBuilder.build())
 
             /* Signal completion. */
             emit(StandaloneRecord(TupleId.MIN_VALUE, emptyArray(), emptyArray()))
