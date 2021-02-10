@@ -1,7 +1,6 @@
 package org.vitrivr.cottontail.database.queries.planning.nodes.physical.predicates
 
 import org.vitrivr.cottontail.database.queries.QueryContext
-import org.vitrivr.cottontail.database.queries.binding.BooleanPredicateBinding
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalNodeExpression
 import org.vitrivr.cottontail.database.queries.predicates.bool.BooleanPredicate
@@ -17,7 +16,8 @@ import org.vitrivr.cottontail.model.basics.ColumnDef
  * @author Ralph Gasser
  * @version 1.1.0
  */
-class FilterPhysicalNodeExpression(val predicate: BooleanPredicateBinding) : UnaryPhysicalNodeExpression() {
+class FilterPhysicalNodeExpression(val predicate: BooleanPredicate) :
+    UnaryPhysicalNodeExpression() {
 
     companion object {
         const val MAX_PARALLELISM = 4
@@ -41,9 +41,9 @@ class FilterPhysicalNodeExpression(val predicate: BooleanPredicateBinding) : Una
         val parallelisation = Integer.min(this.cost.parallelisation(), MAX_PARALLELISM)
         return if (this.canBePartitioned && parallelisation > 1) {
             val operators = this.input.partition(parallelisation).map { it.toOperator(tx, ctx) }
-            ParallelFilterOperator(operators, this.predicate.apply(ctx))
+            ParallelFilterOperator(operators, this.predicate.bind(ctx))
         } else {
-            FilterOperator(this.input.toOperator(tx, ctx), this.predicate.apply(ctx))
+            FilterOperator(this.input.toOperator(tx, ctx), this.predicate.bind(ctx))
         }
     }
 
@@ -52,5 +52,5 @@ class FilterPhysicalNodeExpression(val predicate: BooleanPredicateBinding) : Una
      *
      * @return Digest for this [FilterPhysicalNodeExpression]e
      */
-    override fun digest(): Long = 31L * super.digest() + this.predicate.hashCode()
+    override fun digest(): Long = 31L * super.digest() + this.predicate.digest()
 }

@@ -1,8 +1,8 @@
 package org.vitrivr.cottontail.database.queries.planning.nodes.logical.predicates
 
-import org.vitrivr.cottontail.database.queries.binding.KnnPredicateBinding
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.LogicalNodeExpression
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.UnaryLogicalNodeExpression
+import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicate
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.utilities.math.KnnUtilities
 
@@ -12,7 +12,7 @@ import org.vitrivr.cottontail.utilities.math.KnnUtilities
  * @author Ralph Gasser
  * @version 1.1.0
  */
-class KnnLogicalNodeExpression(val predicate: KnnPredicateBinding): UnaryLogicalNodeExpression() {
+class KnnLogicalNodeExpression(val predicate: KnnPredicate) : UnaryLogicalNodeExpression() {
 
     /** The [KnnLogicalNodeExpression] returns the [ColumnDef] of its input + a distance column. */
     override val columns: Array<ColumnDef<*>> = arrayOf(
@@ -32,5 +32,5 @@ class KnnLogicalNodeExpression(val predicate: KnnPredicateBinding): UnaryLogical
      *
      * @return Digest for this [KnnLogicalNodeExpression]
      */
-    override fun digest(): Long = 31L * super.digest() + this.predicate.hashCode()
+    override fun digest(): Long = 31L * super.digest() + this.predicate.digest()
 }

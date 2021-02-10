@@ -1,6 +1,5 @@
 package org.vitrivr.cottontail.database.queries.planning.rules.logical
 
-import org.vitrivr.cottontail.database.queries.binding.BooleanPredicateBinding
 import org.vitrivr.cottontail.database.queries.planning.exceptions.NodeExpressionTreeException
 import org.vitrivr.cottontail.database.queries.planning.nodes.interfaces.NodeExpression
 import org.vitrivr.cottontail.database.queries.planning.nodes.interfaces.RewriteRule
@@ -25,7 +24,7 @@ object LeftConjunctionRewriteRule : RewriteRule {
      */
     override fun canBeApplied(node: NodeExpression): Boolean =
             node is FilterLogicalNodeExpression &&
-                    node.predicate is BooleanPredicateBinding.Compound &&
+                    node.predicate is BooleanPredicate.Compound &&
                     node.predicate.connector == ConnectionOperator.AND
 
 
@@ -39,8 +38,8 @@ object LeftConjunctionRewriteRule : RewriteRule {
      */
     override fun apply(node: NodeExpression): NodeExpression? {
         if (node is FilterLogicalNodeExpression &&
-                node.predicate is BooleanPredicateBinding.Compound &&
-                node.predicate.connector == ConnectionOperator.AND) {
+            node.predicate is BooleanPredicate.Compound &&
+            node.predicate.connector == ConnectionOperator.AND) {
 
             val parent = (node.deepCopy() as FilterLogicalNodeExpression).input ?: throw NodeExpressionTreeException.IncompleteNodeExpressionTreeException(node, "Expected parent but none was found.")
             val p1 = FilterLogicalNodeExpression(node.predicate.p1)

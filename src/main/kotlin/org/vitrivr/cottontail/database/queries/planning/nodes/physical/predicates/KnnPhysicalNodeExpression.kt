@@ -1,7 +1,6 @@
 package org.vitrivr.cottontail.database.queries.planning.nodes.physical.predicates
 
 import org.vitrivr.cottontail.database.queries.QueryContext
-import org.vitrivr.cottontail.database.queries.binding.KnnPredicateBinding
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalNodeExpression
 import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicate
@@ -21,7 +20,7 @@ import java.lang.Integer.min
  * @author Ralph Gasser
  * @version 1.3.0
  */
-class KnnPhysicalNodeExpression(val knn: KnnPredicateBinding) : UnaryPhysicalNodeExpression() {
+class KnnPhysicalNodeExpression(val knn: KnnPredicate) : UnaryPhysicalNodeExpression() {
 
     /** The [KnnPhysicalNodeExpression] returns the [ColumnDef] of its input + a distance column. */
     override val columns: Array<ColumnDef<*>>
@@ -38,8 +37,7 @@ class KnnPhysicalNodeExpression(val knn: KnnPredicateBinding) : UnaryPhysicalNod
     /** The [Cost] of a [KnnPhysicalNodeExpression]. */
     override val cost: Cost
         get() = Cost(
-            cpu = this.input.outputSize * this.knn.distance.costForDimension(this.knn.query.first().type.logicalSize) * (this.knn.query.size + (this.knn.weights?.size
-                ?: 0)),
+            cpu = this.input.outputSize * this.knn.distance.costForDimension(this.knn.query.first().type.logicalSize) * (this.knn.query.size + this.knn.weights.size),
             memory = (this.outputSize * this.columns.map { it.type.physicalSize }.sum()).toFloat()
         )
 
@@ -58,9 +56,9 @@ class KnnPhysicalNodeExpression(val knn: KnnPredicateBinding) : UnaryPhysicalNod
             val operators = partitions.map {
                 it.toOperator(tx, ctx)
             }
-            ParallelKnnOperator(operators, this.knn.apply(ctx))
+            ParallelKnnOperator(operators, this.knn.bind(ctx))
         } else {
-            KnnOperator(this.input.toOperator(tx, ctx), this.knn.apply(ctx))
+            KnnOperator(this.input.toOperator(tx, ctx), this.knn.bind(ctx))
         }
     }
 
@@ -69,6 +67,6 @@ class KnnPhysicalNodeExpression(val knn: KnnPredicateBinding) : UnaryPhysicalNod
      *
      * @return Digest for this [KnnPhysicalNodeExpression]e
      */
-    override fun digest(): Long = 31L * super.digest() + this.knn.hashCode()
+    override fun digest(): Long = 31L * super.digest() + this.knn.digest()
 }
 

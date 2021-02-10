@@ -32,7 +32,7 @@ import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import org.vitrivr.cottontail.model.exceptions.QueryException
-import org.vitrivr.cottontail.model.values.*
+import org.vitrivr.cottontail.model.values.StringValue
 import org.vitrivr.cottontail.model.values.pattern.LikePatternValue
 import org.vitrivr.cottontail.model.values.pattern.LucenePatternValue
 
@@ -340,23 +340,45 @@ class GrpcQueryBinder constructor(val catalogue: Catalogue) {
 
      * @return The resulting [BooleanPredicate.Compound].
      */
-    private fun parseAndBindCompoundBooleanPredicate(input: LogicalNodeExpression, compound: CottontailGrpc.CompoundBooleanPredicate, context: QueryContext): BooleanPredicateBinding.Compound {
+    private fun parseAndBindCompoundBooleanPredicate(
+        input: LogicalNodeExpression,
+        compound: CottontailGrpc.CompoundBooleanPredicate,
+        context: QueryContext
+    ): BooleanPredicate.Compound {
         val left = when (compound.leftCase) {
-            CottontailGrpc.CompoundBooleanPredicate.LeftCase.ALEFT -> parseAndBindAtomicBooleanPredicate(input, compound.aleft, context)
-            CottontailGrpc.CompoundBooleanPredicate.LeftCase.CLEFT -> parseAndBindCompoundBooleanPredicate(input, compound.cleft, context)
-            CottontailGrpc.CompoundBooleanPredicate.LeftCase.LEFT_NOT_SET -> throw QueryException.QuerySyntaxException("Unbalanced predicate! A compound boolean predicate must have a left and a right side.")
+            CottontailGrpc.CompoundBooleanPredicate.LeftCase.ALEFT -> parseAndBindAtomicBooleanPredicate(
+                input,
+                compound.aleft,
+                context
+            )
+            CottontailGrpc.CompoundBooleanPredicate.LeftCase.CLEFT -> parseAndBindCompoundBooleanPredicate(
+                input,
+                compound.cleft,
+                context
+            )
+            CottontailGrpc.CompoundBooleanPredicate.LeftCase.LEFT_NOT_SET -> throw QueryException.QuerySyntaxException(
+                "Unbalanced predicate! A compound boolean predicate must have a left and a right side."
+            )
             null -> throw QueryException.QuerySyntaxException("Unbalanced predicate! A compound boolean predicate must have a left and a right side.")
         }
 
         val right = when (compound.rightCase) {
-            CottontailGrpc.CompoundBooleanPredicate.RightCase.ARIGHT -> parseAndBindAtomicBooleanPredicate(input, compound.aright, context)
-            CottontailGrpc.CompoundBooleanPredicate.RightCase.CRIGHT -> parseAndBindCompoundBooleanPredicate(input, compound.cright, context)
+            CottontailGrpc.CompoundBooleanPredicate.RightCase.ARIGHT -> parseAndBindAtomicBooleanPredicate(
+                input,
+                compound.aright,
+                context
+            )
+            CottontailGrpc.CompoundBooleanPredicate.RightCase.CRIGHT -> parseAndBindCompoundBooleanPredicate(
+                input,
+                compound.cright,
+                context
+            )
             CottontailGrpc.CompoundBooleanPredicate.RightCase.RIGHT_NOT_SET -> throw QueryException.QuerySyntaxException("Unbalanced predicate! A compound boolean predicate must have a left and a right side.")
             null -> throw QueryException.QuerySyntaxException("Unbalanced predicate! A compound boolean predicate must have a left and a right side.")
         }
 
         return try {
-            BooleanPredicateBinding.Compound(ConnectionOperator.valueOf(compound.op.name), left, right)
+            BooleanPredicate.Compound(ConnectionOperator.valueOf(compound.op.name), left, right)
         } catch (e: IllegalArgumentException) {
             throw QueryException.QuerySyntaxException("'${compound.op.name}' is not a valid connection operator for a boolean predicate!")
         }
@@ -371,7 +393,11 @@ class GrpcQueryBinder constructor(val catalogue: Catalogue) {
      *
      * @return The resulting [BooleanPredicate.Atomic].
      */
-    private fun parseAndBindAtomicBooleanPredicate(input: LogicalNodeExpression, atomic: CottontailGrpc.AtomicLiteralBooleanPredicate, context: QueryContext): BooleanPredicateBinding.Atomic {
+    private fun parseAndBindAtomicBooleanPredicate(
+        input: LogicalNodeExpression,
+        atomic: CottontailGrpc.AtomicLiteralBooleanPredicate,
+        context: QueryContext
+    ): BooleanPredicate.Atomic {
         /* Parse and bind column name to input */
         val columnName = atomic.left.fqn()
         val column = input.findUniqueColumnForName(columnName)
@@ -384,9 +410,11 @@ class GrpcQueryBinder constructor(val catalogue: Catalogue) {
         }
 
         /* Return the resulting AtomicBooleanPredicate. */
-        return BooleanPredicateBinding.Atomic(column, operator, atomic.not, atomic.rightList.map {
-            val v = it.toValue(column) ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
-            when (operator) {
+        val ret = BooleanPredicate.Atomic(column, operator, atomic.not)
+        atomic.rightList.forEach {
+            val v = it.toValue(column)
+                ?: throw QueryException.QuerySyntaxException("Cannot compare ${column.name} to NULL value with operator $operator.")
+            val binding = when (operator) {
                 ComparisonOperator.LIKE -> {
                     if (v is StringValue) {
                         context.bind(LikePatternValue(v.value))
@@ -403,7 +431,9 @@ class GrpcQueryBinder constructor(val catalogue: Catalogue) {
                 }
                 else -> context.bind(v)
             }
-        })
+            ret.value(binding)
+        }
+        return ret
     }
 
     /**
@@ -422,69 +452,35 @@ class GrpcQueryBinder constructor(val catalogue: Catalogue) {
         val distance = Distances.valueOf(knn.distance.name).kernel
         val hint = knn.hint.toHint()
 
-        val predicate = when (column.type) {
+        val predicate = KnnPredicate(column = column, k = knn.k, distance = distance, hint = hint)
+        when (column.type) {
             is Type.DoubleVector -> {
-                val query = knn.queryList.map { q -> context.bind(q.toDoubleVectorValue()) }
-                if (knn.weightsCount > 0) {
-                    val weights = knn.weightsList.map { w -> context.bind(w.toDoubleVectorValue()) }
-                    KnnPredicateBinding(column = column as ColumnDef<DoubleVectorValue>, k = knn.k, query = query, weights = weights, distance = distance, hint = hint)
-                } else {
-                    KnnPredicateBinding(column = column as ColumnDef<DoubleVectorValue>, k = knn.k, query = query, distance = distance, hint = hint)
-                }
+                knn.queryList.forEach { q -> predicate.query(context.bind(q.toDoubleVectorValue())) }
+                knn.weightsList.forEach { w -> predicate.weight(w.toDoubleVectorValue()) }
             }
             is Type.FloatVector -> {
-                val query = knn.queryList.map { q -> context.bind(q.toFloatVectorValue()) }
-                if (knn.weightsCount > 0) {
-                    val weights = knn.weightsList.map { context.bind(it.toFloatVectorValue()) }
-                    KnnPredicateBinding(column = column as ColumnDef<FloatVectorValue>, k = knn.k, query = query, weights = weights, distance = distance, hint = hint)
-                } else {
-                    KnnPredicateBinding(column = column as ColumnDef<FloatVectorValue>, k = knn.k, query = query, distance = distance, hint = hint)
-                }
+                knn.queryList.forEach { q -> predicate.query(context.bind(q.toFloatVectorValue())) }
+                knn.weightsList.forEach { w -> predicate.weight(w.toFloatVectorValue()) }
             }
             is Type.LongVector -> {
-                val query = knn.queryList.map { q -> context.bind(q.toLongVectorValue()) }
-                if (knn.weightsCount > 0) {
-                    val weights = knn.weightsList.map { context.bind(it.toLongVectorValue()) }
-                    KnnPredicateBinding(column = column as ColumnDef<LongVectorValue>, k = knn.k, query = query, weights = weights, distance = distance, hint = hint)
-                } else {
-                    KnnPredicateBinding(column = column as ColumnDef<LongVectorValue>, k = knn.k, query = query, distance = distance, hint = hint)
-                }
+                knn.queryList.forEach { q -> predicate.query(context.bind(q.toLongVectorValue())) }
+                knn.weightsList.forEach { w -> predicate.weight(w.toLongVectorValue()) }
             }
             is Type.IntVector -> {
-                val query = knn.queryList.map { q -> context.bind(q.toIntVectorValue()) }
-                if (knn.weightsCount > 0) {
-                    val weights = knn.weightsList.map { context.bind(it.toIntVectorValue()) }
-                    KnnPredicateBinding(column = column as ColumnDef<IntVectorValue>, k = knn.k, query = query, weights = weights, distance = distance, hint = hint)
-                } else {
-                    KnnPredicateBinding(column = column as ColumnDef<IntVectorValue>, k = knn.k, query = query, distance = distance, hint = hint)
-                }
+                knn.queryList.forEach { q -> predicate.query(context.bind(q.toIntVectorValue())) }
+                knn.weightsList.forEach { w -> predicate.weight(w.toIntVectorValue()) }
             }
             is Type.BooleanVector -> {
-                val query = knn.queryList.map { q -> context.bind(q.toBooleanVectorValue()) }
-                if (knn.weightsCount > 0) {
-                    val weights = knn.weightsList.map { context.bind(it.toBooleanVectorValue()) }
-                    KnnPredicateBinding(column = column as ColumnDef<BooleanVectorValue>, k = knn.k, query = query, weights = weights, distance = distance, hint = hint)
-                } else {
-                    KnnPredicateBinding(column = column as ColumnDef<BooleanVectorValue>, k = knn.k, query = query, distance = distance, hint = hint)
-                }
+                knn.queryList.forEach { q -> predicate.query(context.bind(q.toBooleanVectorValue())) }
+                knn.weightsList.forEach { w -> predicate.weight(w.toBooleanVectorValue()) }
             }
             is Type.Complex32Vector -> {
-                val query = knn.queryList.map { q -> context.bind(q.toComplex32VectorValue()) }
-                if (knn.weightsCount > 0) {
-                    val weights = knn.weightsList.map { context.bind(it.toComplex32VectorValue()) }
-                    KnnPredicateBinding(column = column as ColumnDef<Complex32VectorValue>, k = knn.k, query = query, weights = weights, distance = distance, hint = hint)
-                } else {
-                    KnnPredicateBinding(column = column as ColumnDef<Complex32VectorValue>, k = knn.k, query = query, distance = distance, hint = hint)
-                }
+                knn.queryList.forEach { q -> predicate.query(context.bind(q.toComplex32VectorValue())) }
+                knn.weightsList.forEach { w -> predicate.weight(w.toComplex32VectorValue()) }
             }
             is Type.Complex64Vector -> {
-                val query = knn.queryList.map { q -> context.bind(q.toComplex64VectorValue()) }
-                if (knn.weightsCount > 0) {
-                    val weights = knn.weightsList.map { context.bind(it.toComplex64VectorValue()) }
-                    KnnPredicateBinding(column = column as ColumnDef<Complex64VectorValue>, k = knn.k, query = query, weights = weights, distance = distance, hint = hint)
-                } else {
-                    KnnPredicateBinding(column = column as ColumnDef<Complex64VectorValue>, k = knn.k, query = query, distance = distance, hint = hint)
-                }
+                knn.queryList.forEach { q -> predicate.query(context.bind(q.toComplex64VectorValue())) }
+                knn.weightsList.forEach { w -> predicate.weight(w.toComplex64VectorValue()) }
             }
             else -> throw QueryException.QuerySyntaxException("A kNN predicate does not contain a valid query vector!")
         }
