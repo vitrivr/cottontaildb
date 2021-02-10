@@ -58,6 +58,7 @@ sealed class Type<T : Value> {
     abstract val vector: kotlin.Boolean
     abstract val logicalSize: kotlin.Int
     abstract val physicalSize: kotlin.Int
+    abstract val ordinal: kotlin.Int
 
     fun compatible(value: Value) = this == value.type
 
@@ -84,6 +85,7 @@ sealed class Type<T : Value> {
     @Suppress("UNCHECKED_CAST")
     object Boolean : Type<BooleanValue>() {
         override val name = "BOOLEAN"
+        override val ordinal: kotlin.Int = 0
         override val numeric = true
         override val complex = false
         override val vector = false
@@ -96,6 +98,7 @@ sealed class Type<T : Value> {
     @Suppress("UNCHECKED_CAST")
     object Byte : Type<ByteValue>() {
         override val name = "BYTE"
+        override val ordinal: kotlin.Int = 1
         override val numeric = true
         override val complex = false
         override val vector = false
@@ -108,6 +111,7 @@ sealed class Type<T : Value> {
     @Suppress("UNCHECKED_CAST")
     object Short : Type<ShortValue>() {
         override val name = "SHORT"
+        override val ordinal: kotlin.Int = 2
         override val numeric = true
         override val complex = false
         override val vector = false
@@ -120,6 +124,7 @@ sealed class Type<T : Value> {
     @Suppress("UNCHECKED_CAST")
     object Int : Type<IntValue>() {
         override val name = "INTEGER"
+        override val ordinal: kotlin.Int = 3
         override val numeric = true
         override val complex = false
         override val vector = false
@@ -132,6 +137,7 @@ sealed class Type<T : Value> {
     @Suppress("UNCHECKED_CAST")
     object Long : Type<LongValue>() {
         override val name = "LONG"
+        override val ordinal: kotlin.Int = 4
         override val numeric = true
         override val complex = false
         override val vector = false
@@ -144,6 +150,7 @@ sealed class Type<T : Value> {
     @Suppress("UNCHECKED_CAST")
     object Date : Type<DateValue>() {
         override val name = "DATE"
+        override val ordinal: kotlin.Int = 5
         override val numeric = false
         override val complex = false
         override val vector = false
@@ -156,6 +163,7 @@ sealed class Type<T : Value> {
     @Suppress("UNCHECKED_CAST")
     object Float : Type<FloatValue>() {
         override val name = "FLOAT"
+        override val ordinal: kotlin.Int = 6
         override val numeric = true
         override val complex = false
         override val vector = false
@@ -168,6 +176,7 @@ sealed class Type<T : Value> {
     @Suppress("UNCHECKED_CAST")
     object Double : Type<DoubleValue>() {
         override val name = "DOUBLE"
+        override val ordinal: kotlin.Int = 7
         override val numeric = true
         override val complex = false
         override val vector = false
@@ -180,6 +189,7 @@ sealed class Type<T : Value> {
     @Suppress("UNCHECKED_CAST")
     object String : Type<StringValue>() {
         override val name = "STRING"
+        override val ordinal: kotlin.Int = 8
         override val numeric = false
         override val complex = false
         override val vector = false
@@ -192,6 +202,7 @@ sealed class Type<T : Value> {
     @Suppress("UNCHECKED_CAST")
     object Complex32 : Type<Complex32Value>() {
         override val name = "COMPLEX32"
+        override val ordinal: kotlin.Int = 9
         override val numeric = true
         override val complex = true
         override val vector = false
@@ -204,6 +215,7 @@ sealed class Type<T : Value> {
     @Suppress("UNCHECKED_CAST")
     object Complex64 : Type<Complex64Value>() {
         override val name = "COMPLEX64"
+        override val ordinal: kotlin.Int = 10
         override val numeric = true
         override val complex = true
         override val vector = false
@@ -216,6 +228,7 @@ sealed class Type<T : Value> {
     @Suppress("UNCHECKED_CAST")
     class IntVector(override val logicalSize: kotlin.Int) : Type<IntVectorValue>() {
         override val name = "INT_VEC"
+        override val ordinal: kotlin.Int = 11
         override val numeric = false
         override val complex = false
         override val vector = true
@@ -227,6 +240,7 @@ sealed class Type<T : Value> {
     @Suppress("UNCHECKED_CAST")
     class LongVector(override val logicalSize: kotlin.Int): Type<LongVectorValue>() {
         override val name = "LONG_VEC"
+        override val ordinal: kotlin.Int = 12
         override val numeric = false
         override val complex = false
         override val vector = true
@@ -238,6 +252,7 @@ sealed class Type<T : Value> {
     @Suppress("UNCHECKED_CAST")
     class FloatVector(override val logicalSize: kotlin.Int) : Type<FloatVectorValue>() {
         override val name = "FLOAT_VEC"
+        override val ordinal: kotlin.Int = 13
         override val numeric = false
         override val complex = false
         override val vector = true
@@ -249,6 +264,7 @@ sealed class Type<T : Value> {
     @Suppress("UNCHECKED_CAST")
     class DoubleVector(override val logicalSize: kotlin.Int) : Type<DoubleVectorValue>() {
         override val name = "DOUBLE_VEC"
+        override val ordinal: kotlin.Int = 14
         override val numeric = false
         override val complex = false
         override val vector = true
@@ -260,6 +276,7 @@ sealed class Type<T : Value> {
     @Suppress("UNCHECKED_CAST")
     class BooleanVector(override val logicalSize: kotlin.Int) : Type<BooleanVectorValue>() {
         override val name = "BOOL_VEC"
+        override val ordinal: kotlin.Int = 15
         override val numeric = false
         override val complex = false
         override val vector = true
@@ -271,6 +288,7 @@ sealed class Type<T : Value> {
     @Suppress("UNCHECKED_CAST")
     class Complex32Vector(override val logicalSize: kotlin.Int) : Type<Complex32VectorValue>() {
         override val name = "COMPLEX32_VEC"
+        override val ordinal: kotlin.Int = 16
         override val numeric = false
         override val complex = true
         override val vector = true
@@ -282,6 +300,7 @@ sealed class Type<T : Value> {
     @Suppress("UNCHECKED_CAST")
     class Complex64Vector(override val logicalSize: kotlin.Int) : Type<Complex64VectorValue>() {
         override val name = "COMPLEX64_VEC"
+        override val ordinal: kotlin.Int = 17
         override val numeric = false
         override val complex = true
         override val vector = true
