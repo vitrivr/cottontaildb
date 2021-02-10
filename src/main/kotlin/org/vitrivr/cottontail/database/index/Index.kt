@@ -1,5 +1,7 @@
 package org.vitrivr.cottontail.database.index
 
+import org.mapdb.DB
+import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.database.column.Column
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.Entity
@@ -10,7 +12,10 @@ import org.vitrivr.cottontail.database.queries.predicates.Predicate
 import org.vitrivr.cottontail.database.schema.Schema
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.model.basics.Name
+import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import org.vitrivr.cottontail.model.exceptions.TxException
+import java.nio.file.Files
+import java.nio.file.Path
 import java.util.*
 import java.util.concurrent.locks.StampedLock
 
@@ -23,27 +28,68 @@ import java.util.concurrent.locks.StampedLock
  * @see Entity.Tx
  *
  * @author Ralph Gasser
- * @version 1.8.0
+ * @version 2.0.0
  */
-abstract class Index : DBO {
+abstract class Index(final override val path: Path, final override val parent: Entity) : DBO {
+    /**
+     * Companion object of the [Entity]
+     */
+    companion object {
+
+        /** Field name for the [IndexHeader] entry.  */
+        const val INDEX_HEADER_FIELD = "cdb_index_header"
+
+        /** Field name for the index configuration entries.  */
+        const val INDEX_CONFIG_FIELD = "cdb_index_config"
+
+        /** Field name for the [Index]es 'dirty' entry.  */
+        const val INDEX_DIRTY_FIELD = "cdb_index_dirty"
+
+        /**
+         * Initializes a new Cottontail DB [Index].
+         *
+         * @param path [Path] to the index.
+         * @param name The [Name] of the index.
+         * @param type The [IndexType] of the [IndexHeader]
+         * @param columns The [ColumnDef] indexed by the [IndexHeader]
+         * @param config The Cottontail DB  configuration
+         */
+        fun initialize(
+            path: Path,
+            name: Name.IndexName,
+            type: IndexType,
+            columns: Array<ColumnDef<*>>,
+            config: Config
+        ) {
+            if (Files.exists(path)) throw DatabaseException.InvalidFileException("Could not initialize index. A file already exists under $path.")
+            val db: DB = config.mapdb.db(path)
+            val header = db.atomicVar(INDEX_HEADER_FIELD, IndexHeader.Serializer).create()
+            header.set(IndexHeader(name.simple, type, columns))
+            db.commit()
+            db.close()
+        }
+    }
 
     /** An internal lock that is used to synchronize structural changes to an [Index] (e.g. closing or deleting) with running [Index.Tx]. */
     protected val closeLock = StampedLock()
 
-    /** The [Name.IndexName] of this [Index]. */
-    abstract override val name: Name.IndexName
+    /** The internal [DB] reference for this [Index]. */
+    protected val db: DB = this.parent.parent.parent.config.mapdb.db(this.path)
 
-    /** Reference to the [Entity], this [Index] belongs to. */
-    abstract override val parent: Entity
+    /** The [IndexHeader] for this [Index]. */
+    protected val headerField =
+        this.db.atomicVar(INDEX_HEADER_FIELD, IndexHeader.Serializer).createOrOpen()
+
+    /** Internal storage variable for the dirty flag. */
+    protected val dirtyField = this.db.atomicBoolean(INDEX_DIRTY_FIELD).createOrOpen()
+
+    /** The [Name.IndexName] of this [Index]. */
+    override val name: Name.IndexName = this.parent.name.index(this.headerField.get().name)
 
     /** The [ColumnDef] that are covered (i.e. indexed) by this [Index]. */
-    abstract val columns: Array<ColumnDef<*>>
+    val columns: Array<ColumnDef<*>> = this.headerField.get().columns
 
-    /**
-     * The [ColumnDef] that are produced by this [Index]. They may differ from the indexed columns,
-     * since some [Index] implementations only return a tuple ID OR because some implementations may
-     * add some kind of score.
-     */
+    /** The [ColumnDef] that are produced by this [Index]. They often differ from the indexed columns. */
     abstract val produces: Array<ColumnDef<*>>
 
     /** The type of [Index]. */
@@ -56,7 +102,8 @@ abstract class Index : DBO {
     abstract val supportsPartitioning: Boolean
 
     /** Flag indicating, if this [Index] reflects all changes done to the [Entity]it belongs to. */
-    abstract val dirty: Boolean
+    val dirty: Boolean
+        get() = this.dirtyField.get()
 
     /**
      * Checks if this [Index] can process the provided [Predicate] and returns true if so and false otherwise.

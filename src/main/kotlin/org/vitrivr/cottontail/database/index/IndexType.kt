@@ -16,6 +16,7 @@ import org.vitrivr.cottontail.database.index.va.VAFIndex
 import org.vitrivr.cottontail.database.index.va.VAFIndexConfig
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.values.types.VectorValue
+import java.nio.file.Path
 
 /**
  * A final list of types of [Index] implementation.
@@ -23,7 +24,7 @@ import org.vitrivr.cottontail.model.values.types.VectorValue
  * TODO: This could actually be more of a 'registry' type of facility, which would allow for extensions
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 2.0.0
  */
 enum class IndexType(val inexact: Boolean) {
 
@@ -50,26 +51,19 @@ enum class IndexType(val inexact: Boolean) {
     /**
      * Opens an index of this [IndexType] using the given name and [Entity].
      *
-     * @param name [Name.IndexName] of the [Index]
+     * @param path [Name.IndexName] of the [Index]
      * @param entity The [Entity] the desired [Index] belongs to.
-     * @param columns The [ColumnDef] for which to open the [Index]
      */
-    fun open(name: Name.IndexName, entity: Entity, columns: Array<ColumnDef<*>>): Index =
-        when (this) {
-            HASH_UQ -> UniqueHashIndex(name, entity, columns, entity.path.resolve(name.simple))
-            HASH -> NonUniqueHashIndex(name, entity, columns, entity.path.resolve(name.simple))
-            LUCENE -> LuceneIndex(name, entity, columns, entity.path.resolve(name.simple))
-            LSH_SB -> SuperBitLSHIndex<VectorValue<*>>(
-                name,
-                entity,
-                columns,
-                entity.path.resolve(name.simple)
-            )
-            VAF -> VAFIndex(name, entity, columns, entity.path.resolve(name.simple))
-            PQ -> PQIndex(name, entity, columns, entity.path.resolve(name.simple))
-            GG -> GGIndex(name, entity, columns, entity.path.resolve(name.simple))
-            else -> throw NotImplementedError("Index of type $this is not implemented.")
-        }
+    fun open(path: Path, entity: Entity): Index = when (this) {
+        HASH_UQ -> UniqueHashIndex(path, entity)
+        HASH -> NonUniqueHashIndex(path, entity)
+        LUCENE -> LuceneIndex(path, entity)
+        LSH_SB -> SuperBitLSHIndex<VectorValue<*>>(path, entity)
+        VAF -> VAFIndex(path, entity)
+        PQ -> PQIndex(path, entity)
+        GG -> GGIndex(path, entity)
+        else -> throw NotImplementedError("Index of type $this is not implemented.")
+    }
 
     /**
      * Creates an index of this [IndexType] using the given name and [Entity].
@@ -79,45 +73,27 @@ enum class IndexType(val inexact: Boolean) {
      * @param columns The [ColumnDef] for which to create the [Index]
      * @param params Additions configuration params.
      */
-    fun create(name: Name.IndexName, entity: Entity, columns: Array<ColumnDef<*>>, params: Map<String, String> = emptyMap()) =
-        when (this) {
-            HASH_UQ -> UniqueHashIndex(name, entity, columns, entity.path.resolve(name.simple))
-            HASH -> NonUniqueHashIndex(name, entity, columns, entity.path.resolve(name.simple))
-            LUCENE -> LuceneIndex(
-                name,
-                entity,
-                columns,
-                entity.path.resolve(name.simple),
-                LuceneIndexConfig.fromParamMap(params)
-            )
+    fun create(
+        path: Path,
+        entity: Entity,
+        name: Name.IndexName,
+        columns: Array<ColumnDef<*>>,
+        params: Map<String, String> = emptyMap()
+    ): Index {
+        Index.initialize(path, name, this, columns, entity.parent.parent.config)
+        return when (this) {
+            HASH_UQ -> UniqueHashIndex(path, entity)
+            HASH -> NonUniqueHashIndex(path, entity)
+            LUCENE -> LuceneIndex(path, entity, LuceneIndexConfig.fromParamMap(params))
             LSH_SB -> SuperBitLSHIndex<VectorValue<*>>(
-                name,
+                path,
                 entity,
-                columns,
-                entity.path.resolve(name.simple),
                 SuperBitLSHIndexConfig.fromParamMap(params)
             )
-            VAF -> VAFIndex(
-                name,
-                entity,
-                columns,
-                entity.path.resolve(name.simple),
-                VAFIndexConfig.fromParamMap(params)
-            )
-            PQ -> PQIndex(
-                name,
-                entity,
-                columns,
-                entity.path.resolve(name.simple),
-                PQIndexConfig.fromParamMap(params)
-            )
-            GG -> GGIndex(
-                name,
-                entity,
-                columns,
-                entity.path.resolve(name.simple),
-                GGIndexConfig.fromParamsMap(params)
-            )
+            VAF -> VAFIndex(path, entity, VAFIndexConfig.fromParamMap(params))
+            PQ -> PQIndex(path, entity, PQIndexConfig.fromParamMap(params))
+            GG -> GGIndex(path, entity, GGIndexConfig.fromParamsMap(params))
             else -> throw NotImplementedError("Index of type $this is not implemented.")
         }
+    }
 }

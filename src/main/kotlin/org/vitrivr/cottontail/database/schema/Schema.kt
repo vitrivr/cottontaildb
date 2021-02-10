@@ -1,12 +1,11 @@
 package org.vitrivr.cottontail.database.schema
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
-import org.mapdb.CottontailStoreWAL
-import org.mapdb.DBException
-import org.mapdb.Serializer
-import org.mapdb.Store
+import org.mapdb.*
+
 import org.vitrivr.cottontail.database.catalogue.Catalogue
 import org.vitrivr.cottontail.database.column.ColumnDef
+import org.vitrivr.cottontail.database.column.ColumnDriver
 import org.vitrivr.cottontail.database.column.mapdb.MapDBColumn
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.entity.EntityHeader
@@ -18,6 +17,7 @@ import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import org.vitrivr.cottontail.utilities.extensions.read
+
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
@@ -27,51 +27,52 @@ import java.util.concurrent.locks.StampedLock
 import java.util.stream.Collectors
 
 /**
- * Represents an schema in the Cottontail DB data model. A [Schema] is a collection of [Entity] objects that belong together
- * (e.g., because they belong to the same application). Every [Schema] can be seen as a dedicated database and different
- * [Schema]s in Cottontail can reside in different locations.
+ * Represents an schema in the Cottontail DB data model. A [Schema] is a collection of [Entity]
+ * objects that belong together (e.g., because they belong to the same application). Every [Schema]
+ * can be seen as a dedicated database and different [Schema]s in Cottontail can reside in
+ * different locations.
  *
- * Calling the default constructor for [Schema] opens that [Schema]. It can only be opened once due to file locks and it
- * will remain open until the [Schema.close()] method is called.
+ * Calling the default constructor for [Schema] opens that [Schema]. It can only be opened once due
+ * to file locks and it will remain open until the [Schema.close()] method is called.
  *
  * @see Entity
  * @see MapDBColumn
  *
  * @author Ralph Gasser
- * @version 1.4.0
+ * @version 2.0.0
  */
-class Schema(override val name: Name.SchemaName, override val parent: Catalogue) : DBO {
+class Schema(override val path: Path, override val parent: Catalogue) : DBO {
     /**
      * Companion object with different constants.
      */
     companion object {
-        /** ID of the schema header! */
-        const val HEADER_RECORD_ID: Long = 1L
+        /** Filename for the [Entity] catalogue.  */
+        const val SCHEMA_HEADER_FIELD = "cdb_entity_header"
 
         /** Filename for the [Schema] catalogue.  */
         const val FILE_CATALOGUE = "index.db"
     }
 
-    /** The [Path] to the [Schema]'s main folder. */
-    override val path = this.parent.path.resolve("schema_${name.simple}")
-
     /** Internal reference to the [Store] underpinning this [MapDBColumn]. */
-    private val store: CottontailStoreWAL = try {
-        this.parent.config.mapdb.store(this.path.resolve(FILE_CATALOGUE))
+    private val store: DB = try {
+        this.parent.config.mapdb.db(this.path.resolve(FILE_CATALOGUE))
     } catch (e: DBException) {
-        throw DatabaseException("Failed to open schema $name at '$path': ${e.message}'")
+        throw DatabaseException("Failed to open schema at '$path': ${e.message}'")
     }
 
-    /** Reference to the [SchemaHeader] of the [Schema]. */
-    private val header
-        get() = this.store.get(HEADER_RECORD_ID, SchemaHeaderSerializer)
-                ?: throw DatabaseException.DataCorruptionException("Failed to open header of schema $name!")
+    /** The [SchemaHeader] of this [Schema]. */
+    private val headerField =
+        this.store.atomicVar(SCHEMA_HEADER_FIELD, SchemaHeader.Serializer).createOrOpen()
 
     /** A lock used to mediate access the closed state of this [Schema]. */
     private val closeLock = StampedLock()
 
     /** A map of loaded [Entity] references. */
-    private val registry: MutableMap<Name.EntityName, Entity> = Collections.synchronizedMap(Object2ObjectOpenHashMap())
+    private val registry: MutableMap<Name.EntityName, Entity> =
+        Collections.synchronizedMap(Object2ObjectOpenHashMap())
+
+    /** The [Name.SchemaName] of this [Schema]. */
+    override val name: Name.SchemaName = Name.SchemaName(this.headerField.get().name)
 
     /** Flag indicating whether or not this [Schema] has been closed. */
     @Volatile
@@ -80,10 +81,8 @@ class Schema(override val name: Name.SchemaName, override val parent: Catalogue)
 
     init {
         /* Initialize all entities. */
-        this.header.entities.map {
-            val name = this.name.entity(this.store.get(it, Serializer.STRING)
-                    ?: throw DatabaseException.DataCorruptionException("Failed to read schema $name ($path): Could not find entity name of ID $it."))
-            this.registry[name] = Entity(name, this)
+        this.headerField.get().entities.map {
+            this.registry[this.name.entity(it.name)] = Entity(it.path, this)
         }
     }
 
@@ -140,10 +139,7 @@ class Schema(override val name: Name.SchemaName, override val parent: Catalogue)
          * @return [List] of all [Name.EntityName].
          */
         override fun listEntities(): List<Name.EntityName> = this.withReadLock {
-            return this@Schema.header.entities.map {
-                this@Schema.name.entity(this@Schema.store.get(it, Serializer.STRING)
-                        ?: throw DatabaseException.DataCorruptionException("Failed to read schema $name ($path): Could not find entity name of ID $it."))
-            }
+            return this@Schema.headerField.get().entities.map { this@Schema.name.entity(it.name) }
         }
 
         /**
@@ -155,7 +151,7 @@ class Schema(override val name: Name.SchemaName, override val parent: Catalogue)
          */
         override fun entityForName(name: Name.EntityName): Entity = this.withReadLock {
             return this@Schema.registry[name]
-                    ?: throw DatabaseException.EntityDoesNotExistException(name)
+                ?: throw DatabaseException.EntityDoesNotExistException(name)
         }
 
         /**
@@ -177,40 +173,41 @@ class Schema(override val name: Name.SchemaName, override val parent: Catalogue)
                     throw DatabaseException("Failed to create entity '$name'. Data directory '$data' seems to be occupied.")
                 }
 
-                /* Store entry for new entity. */
-                val recId = this@Schema.store.put(name.simple, Serializer.STRING)
+                /* ON ROLLBACK: Delete unused entity folder. */
+                this.postRollbackAction.add {
+                    val pathsToDelete = Files.walk(data).sorted(Comparator.reverseOrder())
+                        .collect(Collectors.toList())
+                    pathsToDelete.forEach { Files.delete(it) }
+                }
 
-                /* Generate the entity. */
-                val store = this@Schema.parent.config.mapdb.store(data.resolve(Entity.FILE_CATALOGUE))
-                store.preallocate() /* Pre-allocates the header. */
-
-                /* Initialize the entities header. */
-                val columnIds = columns.map {
-                    MapDBColumn.initialize(it, data, this@Schema.parent.config.mapdb)
-                    store.put(it.name.simple, Serializer.STRING)
-                }.toLongArray()
-                store.update(Entity.HEADER_RECORD_ID, EntityHeader(columns = columnIds), EntityHeader.Serializer)
+                /* Generate the entity and initialize the new entities header. */
+                val store = this@Schema.parent.config.mapdb.db(data.resolve(Entity.CATALOGUE_FILE))
+                val columnsRefs = columns.map {
+                    val path = data.resolve("col_${it.name.simple}.db")
+                    MapDBColumn.initialize(path, it, this@Schema.parent.config.mapdb)
+                    EntityHeader.ColumnRef(it.name.simple, ColumnDriver.MAPDB, path)
+                }
+                val entityHeader = EntityHeader(name = name.simple, columns = columnsRefs)
+                store.atomicVar(Entity.ENTITY_HEADER_FIELD, EntityHeader.Serializer).create()
+                    .set(entityHeader)
                 store.commit()
                 store.close()
 
-                /* Update schema header. */
-                val header = this@Schema.header
-                header.modified = System.currentTimeMillis()
-                header.entities = header.entities.copyOf(header.entities.size + 1)
-                header.entities[header.entities.size - 1] = recId
-                this@Schema.store.update(HEADER_RECORD_ID, header, SchemaHeaderSerializer)
+                /* Update this schema's header. */
+                val oldHeader = this@Schema.headerField.get()
+                val newHeader = oldHeader.copy(modified = System.currentTimeMillis())
+                newHeader.addEntityRef(SchemaHeader.EntityRef(name.simple, data))
+                this@Schema.headerField.compareAndSet(oldHeader, newHeader)
 
                 /* ON COMMIT: Make entity available. */
-                val entity = Entity(name, this@Schema)
+                val entity = Entity(data, this@Schema)
                 this.postCommitAction.add {
                     this@Schema.registry[name] = entity
                 }
 
-                /* ON ROLLBACK: Delete unused entity folder. */
-                this.postRollbackAction.add {
+                /* ON ROLLBACK: Close entity. */
+                this.postRollbackAction.add(0) {
                     entity.close()
-                    val pathsToDelete = Files.walk(data).sorted(Comparator.reverseOrder()).collect(Collectors.toList())
-                    pathsToDelete.forEach { Files.delete(it) }
                 }
 
                 return entity
@@ -230,10 +227,10 @@ class Schema(override val name: Name.SchemaName, override val parent: Catalogue)
          */
         override fun dropEntity(name: Name.EntityName) = this.withWriteLock {
             /* Get entity and try to obtain lock. */
-            val entity = this@Schema.registry[name]
-                    ?: throw DatabaseException.EntityDoesNotExistException(name)
-            val entityRecId = this@Schema.header.entities.find { this@Schema.store.get(it, Serializer.STRING) == name.simple }
-                    ?: throw DatabaseException.DataCorruptionException("Could not find RecId for entity $name.")
+            val entity =
+                this@Schema.registry[name] ?: throw DatabaseException.EntityDoesNotExistException(
+                    name
+                )
             if (this.context.lockOn(entity) == LockMode.NO_LOCK) {
                 this.context.requestLock(entity, LockMode.EXCLUSIVE)
             }
@@ -257,18 +254,16 @@ class Schema(override val name: Name.SchemaName, override val parent: Catalogue)
                 /* ON ROLLBACK: Re-map entity and move back files. */
                 this.postRollbackAction.add {
                     Files.move(shadowEntity, entity.path, StandardCopyOption.ATOMIC_MOVE)
-                    this@Schema.registry[name] = Entity(name, this@Schema)
+                    this@Schema.registry[name] = Entity(entity.path, this@Schema)
                     this.context.releaseLock(entity)
                 }
 
-                /* Delete entry for entity. */
-                this@Schema.store.delete(entityRecId, Serializer.STRING)
-
-                /* Update header. */
-                val header = this@Schema.header
-                header.modified = System.currentTimeMillis()
-                header.entities = header.entities.filter { it != entityRecId }.toLongArray()
-                this@Schema.store.update(HEADER_RECORD_ID, header, SchemaHeaderSerializer)
+                /* Update this schema's header. */
+                val oldHeader = this@Schema.headerField.get()
+                val newHeader = oldHeader.copy(modified = System.currentTimeMillis())
+                newHeader.removeEntityRef(name.simple)
+                this@Schema.headerField.compareAndSet(oldHeader, newHeader)
+                Unit
             } catch (e: DBException) {
                 this.status = TxStatus.ERROR
                 throw DatabaseException("Entity '$name' could not be dropped, because of an error in the underlying data store: ${e.message}!")

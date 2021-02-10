@@ -15,7 +15,7 @@ import org.vitrivr.cottontail.execution.operators.sources.EntityIndexScanOperato
  * A [IndexScanPhysicalOperatorNode] that represents a predicated lookup using an [Index].
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.2.1
  */
 class IndexScanPhysicalOperatorNode(val index: Index, val predicate: BooleanPredicate) :
     NullaryPhysicalOperatorNode() {
@@ -23,7 +23,7 @@ class IndexScanPhysicalOperatorNode(val index: Index, val predicate: BooleanPred
     override val columns: Array<ColumnDef<*>>
         get() = this.index.produces
     override val canBePartitioned: Boolean = false
-    override val outputSize: Long = (this.index.parent.statistics.rows * this.selectivity).toLong()
+    override val outputSize: Long = (this.index.parent.numberOfRows * this.selectivity).toLong()
     override val cost: Cost = this.index.cost(this.predicate)
     override fun copy() = IndexScanPhysicalOperatorNode(this.index, this.predicate)
 

@@ -4,7 +4,6 @@ import org.mapdb.HTreeMap
 import org.mapdb.Serializer
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.database.column.Column
-import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.events.DataChangeEvent
@@ -38,20 +37,15 @@ import java.util.*
  * [Recordset]s.
  *
  * @author Manuel Huerbin, Gabriel Zihlmann & Ralph Gasser
- * @version 1.5.0
+ * @version 2.0.0
  */
 class SuperBitLSHIndex<T : VectorValue<*>>(
-    name: Name.IndexName,
-    parent: Entity,
-    columns: Array<ColumnDef<*>>,
     path: Path,
+    parent: Entity,
     config: SuperBitLSHIndexConfig? = null
-) : LSHIndex<T>(name, parent, columns, path) {
+) : LSHIndex<T>(path, parent) {
 
     companion object {
-        private const val SBLSH_INDEX_CONFIG = "lsh_config"
-        private const val SBLSH_INDEX_DIRTY = "lsh_dirty"
-
         private val LOGGER = LoggerFactory.getLogger(SuperBitLSHIndex::class.java)
     }
 
@@ -60,10 +54,6 @@ class SuperBitLSHIndex<T : VectorValue<*>>(
 
     /** False since [SuperBitLSHIndex] doesn't support partitioning. */
     override val supportsPartitioning: Boolean = false
-
-    /** Indicates if this [SuperBitLSHIndex] is currently considered dirty, i.e., out of sync with [Entity]. */
-    override val dirty: Boolean
-        get() = this.dirtyStore.get()
 
     /** The [IndexType] of this [SuperBitLSHIndex]. */
     override val type = IndexType.LSH_SB
@@ -74,9 +64,6 @@ class SuperBitLSHIndex<T : VectorValue<*>>(
     /** The [SuperBitLSHIndexConfig] used by this [SuperBitLSHIndex] instance. */
     private val maps: List<HTreeMap<Int, LongArray>>
 
-    /** Internal storage variable for the dirty flag. */
-    private val dirtyStore = this.db.atomicBoolean(SBLSH_INDEX_DIRTY).createOrOpen()
-
     init {
         if (!columns.all { it.type.vector }) {
             throw DatabaseException.IndexNotSupportedException(
@@ -85,7 +72,7 @@ class SuperBitLSHIndex<T : VectorValue<*>>(
             )
         }
         val configOnDisk =
-            this.db.atomicVar(SBLSH_INDEX_CONFIG, SuperBitLSHIndexConfig.Serializer).createOrOpen()
+            this.db.atomicVar(INDEX_CONFIG_FIELD, SuperBitLSHIndexConfig.Serializer).createOrOpen()
         if (configOnDisk.get() == null) {
             if (config != null) {
                 this.config = config
@@ -98,7 +85,8 @@ class SuperBitLSHIndex<T : VectorValue<*>>(
             this.config = configOnDisk.get()
         }
         this.maps = List(this.config.stages) {
-            this.db.hashMap(MAP_FIELD_NAME + "_stage$it", Serializer.INTEGER, Serializer.LONG_ARRAY).counterEnable().createOrOpen()
+            this.db.hashMap(LSH_MAP_FIELD + "_stage$it", Serializer.INTEGER, Serializer.LONG_ARRAY)
+                .counterEnable().createOrOpen()
         }
 
         /* Initial commit to underlying DB. */
@@ -192,7 +180,7 @@ class SuperBitLSHIndex<T : VectorValue<*>>(
             }
 
             /* Update dirty flag. */
-            this@SuperBitLSHIndex.dirtyStore.compareAndSet(true, false)
+            this@SuperBitLSHIndex.dirtyField.compareAndSet(true, false)
             LOGGER.debug("Rebuilding SB-LSH index completed.")
         }
 
@@ -203,7 +191,7 @@ class SuperBitLSHIndex<T : VectorValue<*>>(
          * @param event [DataChangeEvent]s to process.
          */
         override fun update(event: DataChangeEvent) = this.withWriteLock {
-            this@SuperBitLSHIndex.dirtyStore.compareAndSet(false, true)
+            this@SuperBitLSHIndex.dirtyField.compareAndSet(false, true)
             Unit
         }
 

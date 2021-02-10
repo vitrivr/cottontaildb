@@ -1,6 +1,5 @@
 package org.vitrivr.cottontail.database.index.gg
 
-import org.mapdb.DB
 import org.mapdb.HTreeMap
 import org.mapdb.Serializer
 import org.slf4j.LoggerFactory
@@ -44,19 +43,11 @@ import kotlin.collections.ArrayDeque
  * [1] Cauley, Stephen F., et al. "Fast group matching for MR fingerprinting reconstruction." Magnetic resonance in medicine 74.2 (2015): 523-528.
  *
  * @author Gabriel Zihlmann & Ralph Gasser
- * @version 1.0.0
+ * @version 2.0.0
  */
-class GGIndex(
-    override val name: Name.IndexName,
-    override val parent: Entity,
-    override val columns: Array<ColumnDef<*>>,
-    override val path: Path,
-    config: GGIndexConfig? = null
-) : Index() {
+class GGIndex(path: Path, parent: Entity, config: GGIndexConfig? = null) : Index(path, parent) {
     companion object {
-        const val CONFIG_NAME = "gg_config"
-        const val GG_INDEX_NAME = "gg_means"
-        const val GG_INDEX_DIRTY = "gg_dirty"
+        const val GG_INDEX_NAME = "cdb_gg_means"
         val LOGGER = LoggerFactory.getLogger(GGIndex::class.java)!!
     }
 
@@ -72,18 +63,12 @@ class GGIndex(
     /** The [GGIndexConfig] used by this [PQIndex] instance. */
     private val config: GGIndexConfig
 
-    /** The internal [DB] reference. */
-    private val db: DB = this.parent.parent.parent.config.mapdb.db(this.path)
-
     /** Store of the groups mean vector and the associated [TupleId]s. */
     private val groupsStore: HTreeMap<VectorValue<*>, LongArray> = this.db.hashMap(
         GG_INDEX_NAME,
         this.columns[0].type.serializer() as Serializer<VectorValue<*>>,
         Serializer.LONG_ARRAY
     ).counterEnable().createOrOpen()
-
-    /** Internal storage variable for the dirty flag. */
-    private val dirtyStore = this.db.atomicBoolean(GG_INDEX_DIRTY).createOrOpen()
 
     /**
      * Flag indicating if this [PQIndex] has been closed.
@@ -98,15 +83,11 @@ class GGIndex(
     /** True since [GGIndex] does not support partitioning. */
     override val supportsPartitioning: Boolean = false
 
-    /** Always false, due to incremental updating being supported. */
-    override val dirty: Boolean
-        get() = this.dirtyStore.get()
-
     init {
         require(this.columns.size == 1) { "GGIndex only supports indexing a single column." }
 
         /* Load or create config. */
-        val configOnDisk = this.db.atomicVar(CONFIG_NAME, GGIndexConfig.Serializer).createOrOpen()
+        val configOnDisk = this.db.atomicVar(GG_INDEX_NAME, GGIndexConfig.Serializer).createOrOpen()
         if (configOnDisk.get() == null) {
             if (config != null) {
                 this.config = config
@@ -233,7 +214,7 @@ class GGIndex(
                     this@GGIndex.groupsStore[groupMean] = groupTids.toLongArray()
                 }
             }
-            this@GGIndex.dirtyStore.compareAndSet(true, false)
+            this@GGIndex.dirtyField.compareAndSet(true, false)
             PQIndex.LOGGER.debug("Rebuilding GGIndex {} complete.", this@GGIndex.name)
         }
 
@@ -244,7 +225,7 @@ class GGIndex(
          * @param event [DataChangeEvent]s to process.
          */
         override fun update(event: DataChangeEvent) = this.withWriteLock {
-            this@GGIndex.dirtyStore.compareAndSet(false, true)
+            this@GGIndex.dirtyField.compareAndSet(false, true)
             Unit
         }
 

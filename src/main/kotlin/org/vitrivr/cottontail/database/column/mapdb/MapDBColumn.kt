@@ -14,6 +14,7 @@ import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import org.vitrivr.cottontail.model.exceptions.TxException
 import org.vitrivr.cottontail.model.values.types.Value
 import org.vitrivr.cottontail.utilities.extensions.write
+import java.nio.file.Files
 import java.nio.file.Path
 import java.util.*
 import java.util.concurrent.locks.StampedLock
@@ -26,9 +27,10 @@ import java.util.concurrent.locks.StampedLock
  * @param <T> Type of the value held by this [MapDBColumn].
  *
  * @author Ralph Gasser
- * @version 1.4.2
+ * @version 2.0.0
  */
-class MapDBColumn<T : Value>(override val name: Name.ColumnName, override val parent: Entity) : Column<T> {
+class MapDBColumn<T : Value>(override val path: Path, override val parent: Entity) : Column<T> {
+
     /**
      * Companion object with some important constants.
      */
@@ -39,23 +41,18 @@ class MapDBColumn<T : Value>(override val name: Name.ColumnName, override val pa
         /**
          * Initializes a new, empty [MapDBColumn]
          *
-         * @param definition The [ColumnDef] that specified the [MapDBColumn]
+         * @param path The [Path] to the folder in which the [MapDBColumn] file should be stored.
+         * @param definition The [ColumnDef] that specifies the [MapDBColumn]
          * @param config The [MapDBConfig] used to initialize the [MapDBColumn]
          */
-        fun initialize(definition: ColumnDef<*>, path: Path, config: MapDBConfig) {
-            val store = StoreWAL.make(
-                    file = path.resolve("col_${definition.name.simple}.db").toString(),
-                    volumeFactory = config.volumeFactory,
-                    allocateIncrement = 1L shl config.pageShift
-            )
-            store.put(ColumnHeader(type = definition.type, nullable = definition.nullable), ColumnHeader.Serializer)
+        fun initialize(path: Path, definition: ColumnDef<*>, config: MapDBConfig) {
+            if (Files.exists(path)) throw DatabaseException.InvalidFileException("Could not initialize index. A file already exists under $path.")
+            val store = config.store(path)
+            store.put(ColumnHeader(definition), ColumnHeader.Serializer)
             store.commit()
             store.close()
         }
     }
-
-    /** The [Path] to the [Entity]'s main folder. */
-    override val path: Path = parent.path.resolve("col_${name.simple}.db")
 
     /** Internal reference to the [Store] underpinning this [MapDBColumn]. */
     private var store: CottontailStoreWAL = try {
@@ -67,19 +64,17 @@ class MapDBColumn<T : Value>(override val name: Name.ColumnName, override val pa
     /** Internal reference to the header of this [MapDBColumn]. */
     private val header
         get() = this.store.get(HEADER_RECORD_ID, ColumnHeader.Serializer)
-                ?: throw DatabaseException.DataCorruptionException("Failed to open header of column '$name'!'")
+            ?: throw DatabaseException.DataCorruptionException("Failed to open header of column '$name'!'")
 
-    /**
-     * Getter for this [MapDBColumn]'s [ColumnDef]. Can be stored since [MapDBColumn]s [ColumnDef] is immutable.
-     *
-     * @return [ColumnDef] for this [MapDBColumn]
-     */
+    /** Getter for this [MapDBColumn]'s [ColumnDef]. Can be stored since [MapDBColumn]s [ColumnDef] is immutable. */
     @Suppress("UNCHECKED_CAST")
-    override val columnDef: ColumnDef<T> = this.header.let { ColumnDef(this.name, it.type as Type<T>, it.nullable) }
+    override val columnDef: ColumnDef<T> = this.header.columnDef as ColumnDef<T>
 
-    /**
-     * The maximum tuple ID used by this [Column].
-     */
+    /** The [Name.ColumnName] of this [MapDBColumn]. Can be stored since [MapDBColumn]s [ColumnDef] is immutable. */
+    override val name: Name.ColumnName
+        get() = this.columnDef.name
+
+    /** The maximum tuple ID used by this [Column]. */
     override val maxTupleId: Long
         get() = this.store.maxRecid
 

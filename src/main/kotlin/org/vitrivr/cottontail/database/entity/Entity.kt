@@ -3,20 +3,15 @@ package org.vitrivr.cottontail.database.entity
 import it.unimi.dsi.fastutil.objects.Object2ObjectArrayMap
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
-import org.mapdb.CottontailStoreWAL
-import org.mapdb.DBException
-import org.mapdb.Serializer
-import org.mapdb.StoreWAL
+import org.mapdb.*
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.database.column.Column
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.column.ColumnTx
-import org.vitrivr.cottontail.database.column.mapdb.MapDBColumn
 import org.vitrivr.cottontail.database.events.DataChangeEvent
 import org.vitrivr.cottontail.database.general.AbstractTx
 import org.vitrivr.cottontail.database.general.DBO
 import org.vitrivr.cottontail.database.general.TxStatus
-import org.vitrivr.cottontail.database.index.BrokenIndex
 import org.vitrivr.cottontail.database.index.Index
 import org.vitrivr.cottontail.database.index.IndexTx
 import org.vitrivr.cottontail.database.index.IndexType
@@ -50,37 +45,48 @@ import java.util.stream.Collectors
  * @see Entity.Tx
  *
  * @author Ralph Gasser
- * @version 1.6.0
+ * @version 2.0.0
  */
-class Entity(override val name: Name.EntityName, override val parent: Schema) : DBO {
+class Entity(override val path: Path, override val parent: Schema) : DBO {
     /**
      * Companion object of the [Entity]
      */
     companion object {
         /** Filename for the [Entity] catalogue.  */
-        const val FILE_CATALOGUE = "index.db"
+        const val CATALOGUE_FILE = "index.db"
 
         /** Filename for the [Entity] catalogue.  */
-        const val HEADER_RECORD_ID = 1L
+        const val ENTITY_HEADER_FIELD = "cdb_entity_header"
+
+        /** Filename for the [Entity] catalogue.  */
+        const val ENTITY_COUNT_FIELD = "cdb_entity_count"
+
+        /** Filename for the [Entity] catalogue.  */
+        const val ENTITY_MAX_FIELD = "cdb_entity_maxtid"
 
         /** Entity wide LOGGER instance. */
         private val LOGGER = LoggerFactory.getLogger(Entity::class.java)
     }
 
-    /** The [Path] to the [Entity]'s main folder. */
-    override val path: Path = this.parent.path.resolve("entity_${name.simple}")
-
     /** Internal reference to the [StoreWAL] underpinning this [Entity]. */
-    private val store: CottontailStoreWAL = try {
-        this.parent.parent.config.mapdb.store(this.path.resolve(FILE_CATALOGUE))
+    private val store: DB = try {
+        this.parent.parent.config.mapdb.db(this.path.resolve(CATALOGUE_FILE))
     } catch (e: DBException) {
-        throw DatabaseException("Failed to open entity '$name': ${e.message}'.")
+        throw DatabaseException("Failed to open entity at $path: ${e.message}'.")
     }
 
-    /** The header of this [Entity]. */
-    private val header: EntityHeader
-        get() = this.store.get(HEADER_RECORD_ID, EntityHeader.Serializer)
-            ?: throw DatabaseException.DataCorruptionException("Failed to open header of entity '$name'!")
+    /** The [EntityHeader] of this [Entity]. */
+    private val header =
+        this.store.atomicVar(ENTITY_HEADER_FIELD, EntityHeader.Serializer).createOrOpen()
+
+    /** The number of entries in this [Entity]. */
+    private val countField = this.store.atomicLong(ENTITY_COUNT_FIELD).createOrOpen()
+
+    /** The maximum [TupleId] in this [Entity]. */
+    private val maxTupleIdField = this.store.atomicLong(ENTITY_MAX_FIELD).createOrOpen()
+
+    /** The [Name.EntityName] of this [Entity]. */
+    override val name: Name.EntityName = this.parent.name.entity(this.header.get().name)
 
     /** An internal lock that is used to synchronize access to this [Entity] and [Entity.Tx] and it being closed or dropped. */
     private val closeLock = StampedLock()
@@ -92,39 +98,31 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
     private val indexes: MutableMap<Name.IndexName, Index> = Object2ObjectOpenHashMap()
 
     init {
-        /* Initialize columns. */
-        this.header.columns.map {
-            val columnName = this.name.column(this.store.get(it, Serializer.STRING)
-                    ?: throw DatabaseException.DataCorruptionException("Failed to open entity '$name': Could not read column definition at position $it!"))
-            this.columns[columnName] = MapDBColumn<Value>(columnName, this)
+        /** Load and initialize the [Column]s. */
+        val header = this.header.get()
+        header.columns.map {
+            val columnName = this.name.column(it.name)
+            this.columns[columnName] = it.type.open(it.path, this)
         }
 
-        /* Initialize indexes. */
-        this.header.indexes.forEach { idx ->
-            val indexEntry = this.store.get(idx, IndexEntry.Serializer)
-                ?: throw DatabaseException.DataCorruptionException("Failed to open entity '$name': Could not read index definition at position $idx!")
-            val indexName = this.name.index(indexEntry.name)
-            try {
-                this.indexes[indexName] =
-                    indexEntry.type.open(indexName, this, indexEntry.columns.map { col ->
-                        this.columns[this.name.column(col)]?.columnDef
-                            ?: throw DatabaseException.DataCorruptionException("Column '$col' does not exist on the entity!")
-                    }.toTypedArray())
-            } catch (e: Throwable) {
-                if (this.parent.parent.config.allowBrokenIndex) {
-                    LOGGER.warn("Index $indexName could not be opened and has been marked as broken. Try to optimize entity ${this.name} to resolve the issue...")
-                    this.indexes[indexName] = BrokenIndex(
-                        indexName,
-                        this,
-                        indexEntry.type,
-                        this.path.resolve(indexEntry.name)
-                    )
-                } else {
-                    throw DatabaseException.DataCorruptionException("Failed to load index '$indexName': ${e.message}. Start Cottontail DB with 'allowBrokenIndex' option and retry!")
-                }
-            }
+        /** Load and initialize the [Index]es. */
+        header.indexes.forEach {
+            val indexName = this.name.index(it.name)
+            indexes[indexName] = it.type.open(it.path, this)
         }
     }
+
+    /** Number of [Column]s in this [Entity]. */
+    val numberOfColumns: Int
+        get() = this.columns.size
+
+    /** Number of entries in this [Entity]. This is a snapshot and may change immediately. */
+    val numberOfRows: Long
+        get() = this.countField.get()
+
+    /** Estimated maximum [TupleId]s for this [Entity].  This is a snapshot and may change immediately. */
+    val maxTupleId: TupleId
+        get() = this.maxTupleIdField.get()
 
     /**
      * Status indicating whether this [Entity] is open or closed.
@@ -140,14 +138,6 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
      * @return New [Entity.Tx]
      */
     override fun newTx(context: TransactionContext) = this.Tx(context)
-
-    /**
-     * Creates and returns an [EntityStatistics] snapshot.
-     *
-     * @return [EntityStatistics] for this [Entity].
-     */
-    val statistics: EntityStatistics
-        get() = this.header.let { EntityStatistics(it.columns.size, it.size, this.columns.values.first().maxTupleId) }
 
     /**
      * Returns all [ColumnDef]s for this [Entity].
@@ -202,7 +192,7 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
      * and [IndexTx] for every [Column] and [IndexTx] associated with this [Entity].
      *
      * @author Ralph Gasser
-     * @version 1.0.0
+     * @version 1.1.0
      */
     inner class Tx(context: TransactionContext) : AbstractTx(context), EntityTx {
 
@@ -214,9 +204,6 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
 
         /** Actions that should be executed after rolling back this [Tx]. */
         private val postRollbackAction = mutableListOf<Runnable>()
-
-        /** A snapshot of the surrounding [Entity]'s header. */
-        private val header: EntityHeader by lazy {  this@Entity.header }
 
         /** Reference to the surrounding [Entity]. */
         override val dbo: Entity
@@ -256,7 +243,7 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
          * @return The number of entries in this [Entity].
          */
         override fun count(): Long = this.withReadLock {
-            return this@Entity.header.size
+            return this@Entity.countField.get()
         }
 
         /**
@@ -265,7 +252,7 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
          * @return The maximum tuple ID occupied by entries in this [Entity].
          */
         override fun maxTupleId(): TupleId = this.withReadLock {
-            return this@Entity.columns.values.first().maxTupleId
+            return this@Entity.maxTupleIdField.get()
         }
 
         /**
@@ -325,7 +312,13 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
             }
 
             /* Creates and opens the index and schedules a ROLLBACK action in case of failure. */
-            val newIndex = type.create(name, this.dbo, columns, params)
+            val newIndex = type.create(
+                this@Entity.path.resolve("${name.simple}.db"),
+                this.dbo,
+                name,
+                columns,
+                params
+            )
 
             /* ON COMMIT: Make index available. */
             this.postCommitAction.add {
@@ -341,13 +334,15 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
 
             /* Update catalogue + header. */
             try {
-                /* Update catalogue. */
-                val sid = this@Entity.store.put(IndexEntry(name.simple, type, false, columns.map { it.name.simple }.toTypedArray()), IndexEntry.Serializer)
-
-                /* Update header. */
-                val new = this.header.let { EntityHeader(it.size, it.created, System.currentTimeMillis(), it.columns, it.indexes.copyOf(it.indexes.size + 1)) }
-                new.indexes[new.indexes.size - 1] = sid
-                this@Entity.store.update(HEADER_RECORD_ID, new, EntityHeader.Serializer)
+                val oldHeader = this@Entity.header.get()
+                val newHeader = oldHeader.copy(
+                    indexes = (oldHeader.indexes + EntityHeader.IndexRef(
+                        newIndex.name.simple,
+                        newIndex.type,
+                        newIndex.path
+                    ))
+                )
+                this@Entity.header.compareAndSet(oldHeader, newHeader)
                 return newIndex
             } catch (e: DBException) {
                 this.status = TxStatus.ERROR
@@ -363,9 +358,6 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
         override fun dropIndex(name: Name.IndexName) = this.withWriteLock {
             /* Obtain index and acquire exclusive lock on it. */
             val index = this.indexForName(name)
-            val indexRecId = this@Entity.header.indexes.find { this@Entity.store.get(it, Serializer.STRING) == name.simple }
-                    ?: throw DatabaseException.DataCorruptionException("Could not find RecId for index $name.")
-
             if (this.context.lockOn(index) == LockMode.NO_LOCK) {
                 this.context.requestLock(index, LockMode.EXCLUSIVE)
             }
@@ -374,16 +366,12 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
             index.close()
             this@Entity.indexes.remove(name)
 
-            /* Update header. */
             try {
-
+                /*
+                 * Rename index file / folder: If these have been removed already (sometimes
+                 *  necessary for manual recovery), this is not a failure scenario.
+                 */
                 try {
-                    /*
-                     * Rename index file / folder:
-                     *
-                     * if these have been removed already (sometimes necessary for manual recovery),
-                     * this is not a failure scenario.
-                     */
                     val shadowIndex =
                         index.path.resolveSibling(index.path.fileName.toString() + "~dropped")
                     Files.move(index.path, shadowIndex, StandardCopyOption.ATOMIC_MOVE)
@@ -407,34 +395,15 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
 
                 /* ON ROLLBACK: Move back index and re-open it. */
                 this.postRollbackAction.add {
-                    val entry = this@Entity.store.get(indexRecId, IndexEntry.Serializer)
-                        ?: throw DatabaseException.DataCorruptionException("Failed to open entity '$name': Could not read index definition at position $indexRecId!")
-                    val columns = entry.columns.map { col ->
-                        if (col.contains(".")) {
-                            this@Entity.columns[this@Entity.name.column(
-                                col.split(".").last()
-                            )]?.columnDef
-                                ?: throw DatabaseException.DataCorruptionException("Failed to open entity '$name': It hosts an index for column '$col' that does not exist on the entity!")
-                        } else {
-                            this@Entity.columns[this@Entity.name.column(col)]?.columnDef
-                                ?: throw DatabaseException.DataCorruptionException("Failed to open entity '$name': It hosts an index for column '$col' that does not exist on the entity!")
-                        }
-                    }.toTypedArray()
-                    this@Entity.indexes[name] = index.type.open(name, this@Entity, columns)
+                    val indexRef = this@Entity.header.get().indexes.find { it.name == name.simple }
+                        ?: throw DatabaseException.DataCorruptionException("Failed to re-open index '$name': Could not read index definition from header!")
+                    this@Entity.indexes[name] = indexRef.type.open(indexRef.path, this.dbo)
                     this.context.releaseLock(index)
                 }
 
-                val new = this@Entity.header.let {
-                    EntityHeader(
-                        it.size,
-                        it.created,
-                        System.currentTimeMillis(),
-                        it.columns,
-                        it.indexes.filter { recId -> recId != indexRecId }.toLongArray()
-                    )
-                }
-                this@Entity.store.update(HEADER_RECORD_ID, new, EntityHeader.Serializer)
-                this@Entity.store.delete(indexRecId, IndexEntry.Serializer)
+                /* Update header. */
+                val oldHeader = this@Entity.header.get()
+                this@Entity.header.set(oldHeader.copy(indexes = oldHeader.indexes.filter { it.name != index.name.simple }))
             } catch (e: DBException) {
                 this.status = TxStatus.ERROR
                 throw DatabaseException("Failed to drop index '$name' due to a storage exception: ${e.message}")
@@ -543,7 +512,7 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
 
                 if (lastTupleId != null) {
                     /* Update header (don't persist). */
-                    this.header.size += 1
+                    this@Entity.countField.andIncrement
 
                     /* Issue DataChangeEvent.InsertDataChange event & update indexes. */
                     /* ToDo: System wide event bus for [DataChangeEvent]. */
@@ -612,7 +581,7 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
                 }
 
                 /* Update header (don't persist). */
-                this.header.size -= 1
+                this@Entity.countField.andDecrement
 
                 /* Issue DataChangeEvent.DeleteDataChangeEvent event & update indexes. */
                 /* ToDo: System wide event bus for [DataChangeEvent]. */
@@ -631,8 +600,12 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
          */
         override fun performCommit() {
             /** Update and persist header + commit store. */
-            this.header.modified = System.currentTimeMillis()
-            this@Entity.store.update(HEADER_RECORD_ID, this.header, EntityHeader.Serializer)
+            val oldHeader = this@Entity.header.get()
+            this@Entity.header.compareAndSet(
+                oldHeader,
+                oldHeader.copy(modified = System.currentTimeMillis())
+            )
+            this@Entity.maxTupleIdField.set(this@Entity.columns.values.first().maxTupleId)
             this@Entity.store.commit()
 
             /* Execute post-commit actions. */

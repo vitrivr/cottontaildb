@@ -11,7 +11,6 @@ import org.vitrivr.cottontail.database.general.TxStatus
 import org.vitrivr.cottontail.database.locking.LockMode
 import org.vitrivr.cottontail.database.schema.Schema
 import org.vitrivr.cottontail.database.schema.SchemaHeader
-import org.vitrivr.cottontail.database.schema.SchemaHeaderSerializer
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
@@ -28,13 +27,13 @@ import java.util.stream.Collectors
 
 
 /**
- * The main catalogue in Cottontail DB. It contains references to all the [Schema]s managed by Cottontail
- * and is the main way of accessing these [Schema]s and creating new ones.
+ * The main catalogue in Cottontail DB. It contains references to all the [Schema]s managed by
+ * Cottontail DB  and is the main way of accessing these [Schema]s and creating new ones.
  *
  * @see Schema
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 2.0.0
  */
 class Catalogue(val config: Config) : DBO {
     /**
@@ -42,7 +41,7 @@ class Catalogue(val config: Config) : DBO {
      */
     companion object {
         /** ID of the schema header! */
-        internal const val HEADER_RECORD_ID: Long = 1L
+        internal const val CATALOGUE_HEADER_FIELD: String = "cdb_catalogue_header"
 
         /** Filename for the [Entity] catalogue.  */
         internal const val FILE_CATALOGUE = "catalogue.db"
@@ -61,26 +60,18 @@ class Catalogue(val config: Config) : DBO {
     private val closeLock = StampedLock()
 
     /** The [StoreWAL] that contains the Cottontail DB catalogue. */
-    private val store: CottontailStoreWAL = path.let {
-        val file = this.path.resolve(FILE_CATALOGUE)
-        if (Files.exists(file)) {
-            openStore(file)
-        } else {
-            initStore(file)
-        }
-    }
+    private val store: DB = this.config.mapdb.db(path.resolve(FILE_CATALOGUE))
 
     /** Reference to the [CatalogueHeader] of the [Catalogue]. Accessing it will read right from the underlying store. */
-    private val header: CatalogueHeader
-        get() = this.store.get(HEADER_RECORD_ID, CatalogueHeaderSerializer)
-                ?: throw DatabaseException.DataCorruptionException("Failed to open Cottontail DB catalogue header!")
+    private val headerField =
+        this.store.atomicVar(CATALOGUE_HEADER_FIELD, CatalogueHeader.Serializer).createOrOpen()
 
     /** A in-memory registry of all the [Schema]s contained in this [Catalogue]. When a [Catalogue] is opened, all the [Schema]s will be loaded. */
     private val registry: MutableMap<Name.SchemaName, Schema> = Collections.synchronizedMap(Object2ObjectOpenHashMap<Name.SchemaName, Schema>())
 
     /** Size of this [Catalogue] in terms of [Schema]s it contains. */
     val size: Int
-        get() = this.closeLock.read { this.header.schemas.size }
+        get() = this.closeLock.read { this.headerField.get().schemas.size }
 
     /** Status indicating whether this [Catalogue] is open or closed. */
     @Volatile
@@ -89,54 +80,20 @@ class Catalogue(val config: Config) : DBO {
 
     /** Initialization logic for [Catalogue]. */
     init {
-        val header = this.header
-        for (sid in header.schemas) {
-            val schema = this.store.get(sid, CatalogueEntrySerializer)
-                    ?: throw DatabaseException.DataCorruptionException("Failed to open Cottontail DB catalogue entry!")
-            val path = this.path.resolve("schema_${schema.name}")
-            if (!Files.exists(path)) {
-                throw DatabaseException.DataCorruptionException("Broken catalogue entry for schema '${schema.name}'. Path $path does not exist!")
+        /* Initialize empty catalogue */
+        if (this.headerField.get() == null) {
+            this.headerField.set(CatalogueHeader())
+            this.store.commit()
+        }
+
+        /* Initialize. */
+        for (schemaRef in this.headerField.get().schemas) {
+            if (!Files.exists(schemaRef.path)) {
+                throw DatabaseException.DataCorruptionException("Broken catalogue entry for schema '${schemaRef.name}'. Path ${schemaRef.path} does not exist!")
             }
-            val s = Schema(Name.SchemaName(schema.name), this)
+            val s = Schema(schemaRef.path, this)
             this.registry[s.name] = s
         }
-    }
-
-
-    /**
-     * Opens the data store underlying this Cottontail DB [Catalogue]
-     *
-     * @param path The path to the data store file.
-     * @return [StoreWAL] object.
-     */
-    private fun openStore(path: Path): CottontailStoreWAL = try {
-        this.config.mapdb.store(path)
-    } catch (e: DBException) {
-        throw DatabaseException("Failed to open Cottontail DB catalogue: ${e.message}'.")
-    }
-
-    /**
-     * Initializes a new Cottontail DB [Catalogue] under the given path.
-     *
-     * @param path The path to the data store file.
-     * @return [StoreWAL] object.
-     */
-    private fun initStore(path: Path) = try {
-        try {
-            if (!Files.exists(path.parent)) {
-                Files.createDirectories(path.parent)
-            }
-        } catch (e: IOException) {
-            throw DatabaseException("Failed to create Cottontail DB catalogue due to an IO exception: ${e.message}")
-        }
-
-        /* Create and initialize new store. */
-        val store = this.config.mapdb.store(this.config.root.resolve(FILE_CATALOGUE))
-        store.put(CatalogueHeader(), CatalogueHeaderSerializer)
-        store.commit()
-        store
-    } catch (e: DBException) {
-        throw DatabaseException("Failed to initialize the Cottontail DB catalogue: ${e.message}'.")
     }
 
     /**
@@ -183,10 +140,7 @@ class Catalogue(val config: Config) : DBO {
          * @return [List] of all [Name.SchemaName].
          */
         override fun listSchemas(): List<Name.SchemaName> = this.withReadLock {
-            this@Catalogue.header.schemas.map {
-                Name.SchemaName(this@Catalogue.store.get(it, Serializer.STRING)
-                        ?: throw DatabaseException.DataCorruptionException("Failed to read catalogue ($path): Could not find schema name of RecId $it."))
-            }
+            this@Catalogue.headerField.get().schemas.map { this.dbo.name.schema(it.name) }
         }
 
         /**
@@ -210,29 +164,29 @@ class Catalogue(val config: Config) : DBO {
 
             try {
                 /* Create empty folder for entity. */
-                val path = this@Catalogue.path.resolve("schema_${name.simple}")
-                if (!Files.exists(path)) {
-                    Files.createDirectories(path)
+                val data = this@Catalogue.path.resolve("schema_${name.simple}")
+                if (!Files.exists(data)) {
+                    Files.createDirectories(data)
                 } else {
-                    throw DatabaseException("Failed to create schema '$name'. Data directory '$path' seems to be occupied.")
+                    throw DatabaseException("Failed to create schema '$name'. Data directory '$data' seems to be occupied.")
                 }
 
                 /* Generate the store for the new schema. */
-                val store = this@Catalogue.config.mapdb.store(path.resolve(Schema.FILE_CATALOGUE))
-                store.put(SchemaHeader(), SchemaHeaderSerializer)
+                val store = this@Catalogue.config.mapdb.db(data.resolve(Schema.FILE_CATALOGUE))
+                val schemaHeader =
+                    store.atomicVar(Schema.SCHEMA_HEADER_FIELD, SchemaHeader.Serializer).create()
+                schemaHeader.set(SchemaHeader(name.simple))
                 store.commit()
                 store.close()
 
-                /* Update catalogue. */
-                val sid = this@Catalogue.store.put(CatalogueEntry(name.simple), CatalogueEntrySerializer)
-
-                /* Update header. */
-                val new = this@Catalogue.header.let { CatalogueHeader(it.size + 1, it.created, System.currentTimeMillis(), it.schemas.copyOf(it.schemas.size + 1)) }
-                new.schemas[new.schemas.size - 1] = sid
-                this@Catalogue.store.update(HEADER_RECORD_ID, new, CatalogueHeaderSerializer)
+                /* Update this catalogue's header. */
+                val oldHeader = this@Catalogue.headerField.get()
+                val newHeader = oldHeader.copy(modified = System.currentTimeMillis())
+                newHeader.addSchemaRef(CatalogueHeader.SchemaRef(name.simple, data))
+                this@Catalogue.headerField.compareAndSet(oldHeader, newHeader)
 
                 /* ON COMMIT: Make schema available. */
-                val schema = Schema(name, this@Catalogue)
+                val schema = Schema(data, this@Catalogue)
                 this.postCommitAction.add {
                     this@Catalogue.registry[name] = schema
                 }
@@ -240,7 +194,8 @@ class Catalogue(val config: Config) : DBO {
                 /* ON ROLLBACK: Remove schema folder. */
                 this.postRollbackAction.add {
                     schema.close()
-                    val pathsToDelete = Files.walk(path).sorted(Comparator.reverseOrder()).collect(Collectors.toList())
+                    val pathsToDelete = Files.walk(data).sorted(Comparator.reverseOrder())
+                        .collect(Collectors.toList())
                     pathsToDelete.forEach { Files.delete(it) }
                 }
 
@@ -278,27 +233,24 @@ class Catalogue(val config: Config) : DBO {
                 /* ON ROLLBACK: Move back schema data and re-open it. */
                 this.postRollbackAction.add {
                     Files.move(shadowSchema, schema.path)
-                    this@Catalogue.registry[name] = Schema(name, this@Catalogue)
+                    this@Catalogue.registry[name] = Schema(schema.path, this@Catalogue)
                     this.context.releaseLock(schema)
                 }
 
                 /* ON COMMIT: Remove schema from registry and delete files. */
                 this.postCommitAction.add {
-                    val pathsToDelete = Files.walk(shadowSchema).sorted(Comparator.reverseOrder()).collect(Collectors.toList())
+                    val pathsToDelete = Files.walk(shadowSchema).sorted(Comparator.reverseOrder())
+                        .collect(Collectors.toList())
                     pathsToDelete.forEach { Files.deleteIfExists(it) }
                     this.context.releaseLock(schema)
                 }
 
-                /* Extract the catalogue entry. */
-                val catalogueEntry = this@Catalogue.header.schemas.map {
-                    it to (this@Catalogue.store.get(it, CatalogueEntrySerializer)
-                            ?: throw DatabaseException.DataCorruptionException("Failed to read Cottontail DB catalogue entry for RecId $it!"))
-                }.find { it.second.name == name.simple }
-                        ?: throw DatabaseException.DataCorruptionException("Failed to drop schema '$name'. Did not find a Cottontail DB catalogue entry for schema $name!")
-
-                this@Catalogue.store.delete(catalogueEntry.first, CatalogueEntrySerializer)
-                val new = this@Catalogue.header.let { CatalogueHeader(it.size - 1, it.created, System.currentTimeMillis(), it.schemas.filter { it != catalogueEntry.first }.toLongArray()) }
-                this@Catalogue.store.update(HEADER_RECORD_ID, new, CatalogueHeaderSerializer)
+                /* Update this catalogue's header. */
+                val oldHeader = this@Catalogue.headerField.get()
+                val newHeader = oldHeader.copy(modified = System.currentTimeMillis())
+                newHeader.removeSchemaRef(name.simple)
+                this@Catalogue.headerField.compareAndSet(oldHeader, newHeader)
+                Unit
             } catch (e: DBException) {
                 this.status = TxStatus.ERROR
                 throw DatabaseException("Failed to drop schema '$name' due to a storage exception: ${e.message}")

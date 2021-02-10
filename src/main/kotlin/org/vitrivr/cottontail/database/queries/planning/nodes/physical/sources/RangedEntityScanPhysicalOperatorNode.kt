@@ -14,7 +14,7 @@ import org.vitrivr.cottontail.execution.operators.sources.EntityScanOperator
  * A [UnaryPhysicalOperatorNode] that formalizes a scan of a physical [Entity] in Cottontail DB on a given range.
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.1.1
  */
 class RangedEntityScanPhysicalOperatorNode(
     val entity: Entity,
@@ -25,7 +25,7 @@ class RangedEntityScanPhysicalOperatorNode(
         require(this.range.first >= 0L) { "Start of a ranged entity scan must be greater than zero." }
     }
 
-    override val outputSize = this.entity.statistics.rows
+    override val outputSize = this.entity.numberOfRows
     override val canBePartitioned: Boolean = true
     override val cost = Cost(
         this.outputSize * this.columns.size * Cost.COST_DISK_ACCESS_READ,

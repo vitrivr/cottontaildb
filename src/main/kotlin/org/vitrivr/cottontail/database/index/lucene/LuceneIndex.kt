@@ -39,21 +39,14 @@ import java.nio.file.Path
  * or LIKE operator.
  *
  * @author Luca Rossetto & Ralph Gasser
- * @version 1.4.0
+ * @version 2.0.0
  */
-class LuceneIndex(
-    override val name: Name.IndexName,
-    override val parent: Entity,
-    override val columns: Array<ColumnDef<*>>,
-    override val path: Path,
-    config: LuceneIndexConfig? = null
-) : Index() {
+class LuceneIndex(path: Path, parent: Entity, config: LuceneIndexConfig? = null) :
+    Index(path, parent) {
 
     companion object {
         /** [ColumnDef] of the _tid column. */
         const val TID_COLUMN = "_tid"
-
-        private const val LUCENE_INDEX_CONFIG = "lucene_config"
 
         /** The [ComparisonOperator]s supported by this [LuceneIndex]. */
         private val SUPPORTS =
@@ -68,9 +61,6 @@ class LuceneIndex(
 
     /** False, since [LuceneIndex] does not support partitioning. */
     override val supportsPartitioning: Boolean = false
-
-    /** Always false, due to incremental updating being supported. */
-    override val dirty: Boolean = false
 
     /** The type of this [Index]. */
     override val type: IndexType = IndexType.LUCENE
@@ -88,9 +78,8 @@ class LuceneIndex(
 
     init {
         /** Tries to obtain config from disk. */
-        val db = this.parent.parent.parent.config.mapdb.db(this.path.resolve("config.db"))
         val configOnDisk =
-            db.atomicVar(LUCENE_INDEX_CONFIG, LuceneIndexConfig.Serializer).createOrOpen()
+            this.db.atomicVar(INDEX_CONFIG_FIELD, LuceneIndexConfig.Serializer).createOrOpen()
         if (configOnDisk.get() == null) {
             if (config != null) {
                 this.config = config

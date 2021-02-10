@@ -13,7 +13,7 @@ import org.vitrivr.cottontail.execution.operators.management.DeleteOperator
  * A [DeletePhysicalOperatorNode] that formalizes a delete operation on an [Entity].
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.1.1
  */
 class DeletePhysicalOperatorNode(val entity: Entity) : UnaryPhysicalOperatorNode() {
     /** The [DeletePhysicalOperatorNode] produces the [ColumnDef]s defined in the [DeleteOperator]. */
@@ -23,7 +23,7 @@ class DeletePhysicalOperatorNode(val entity: Entity) : UnaryPhysicalOperatorNode
     override val outputSize: Long = 1L
 
     override val cost: Cost
-        get() = Cost(io = this.entity.statistics.columns * this.input.outputSize * Cost.COST_DISK_ACCESS_WRITE)
+        get() = Cost(io = this.entity.numberOfColumns * this.input.outputSize * Cost.COST_DISK_ACCESS_WRITE)
 
     override fun copy(): DeletePhysicalOperatorNode = DeletePhysicalOperatorNode(this.entity)
 

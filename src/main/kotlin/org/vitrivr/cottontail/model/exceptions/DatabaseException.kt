@@ -4,13 +4,24 @@ import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Type
 
 open class DatabaseException(message: String) : Throwable(message) {
+
+    /**
+     * Thrown when trying to create a [DBO] with an older, unsupported version.
+     *
+     * @param found: Int Found version of [DBO]
+     * @param expected: Int Expected version of [DBO]
+     */
+    class VersionMismatchException(found: Short, expected: Short) :
+        DatabaseException("Version mismatch for DBO: Expected $expected but found $found.")
+
     /**
      * Thrown when trying to create a [Schema][org.vitrivr.cottontail.database.schema.Schema]
      * that does already exist.
      *
      * @param schema [Name] of the [Schema][org.vitrivr.cottontail.database.schema.Schema].
      */
-    class SchemaAlreadyExistsException(schema: Name) : DatabaseException("Schema '$schema' does already exist!")
+    class SchemaAlreadyExistsException(schema: Name) :
+        DatabaseException("Schema '$schema' does already exist!")
 
     /**
      * Thrown when trying to access a [Schema][org.vitrivr.cottontail.database.schema.Schema]

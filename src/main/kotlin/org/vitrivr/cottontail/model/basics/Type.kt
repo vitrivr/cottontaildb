@@ -6,16 +6,14 @@ import org.vitrivr.cottontail.model.values.*
 import org.vitrivr.cottontail.model.values.types.Value
 
 /**
- * Specifies the [Type] of a Cottontail DB [Column] or [Value]. This construct is a centerpiece of
+ * Specifies the [Type] of a Cottontail DB column or value. This construct is a centerpiece of
  * Cottontail DB's type system and allows for some  degree of type safety in the eye de-/serialization,
  * conversion and casting.
  *
  * Upon serialization, [Type]s can be stored as strings and mapped to the respective class using [Type.forName].
  *
- * @see Column
- *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.3.0
  */
 sealed class Type<T : Value> {
 
@@ -36,6 +34,7 @@ sealed class Type<T : Value> {
             "INT",
             "INTEGER" -> Int
             "LONG" -> Long
+            "DATE" -> Date
             "FLOAT" -> Float
             "DOUBLE" -> Double
             "STRING" -> String
@@ -49,6 +48,34 @@ sealed class Type<T : Value> {
             "COMPLEX32_VEC" -> Complex32Vector(logicalSize)
             "COMPLEX64_VEC" -> Complex64Vector(logicalSize)
             else -> throw java.lang.IllegalArgumentException("The column type $name does not exists!")
+        }
+
+        /**
+         * Returns the [Type] for the provided ordinal.
+         *
+         * @param ordinal For which to lookup the [Type].
+         * @param logicalSize The logical size of this [Type] (only for vector types).
+         */
+        fun forOrdinal(ordinal: kotlin.Int, logicalSize: kotlin.Int) = when (ordinal) {
+            0 -> Boolean
+            1 -> Byte
+            2 -> Short
+            3 -> Int
+            4 -> Long
+            5 -> Date
+            6 -> Float
+            7 -> Double
+            8 -> String
+            9 -> Complex32
+            10 -> Complex64
+            11 -> IntVector(logicalSize)
+            12 -> LongVector(logicalSize)
+            13 -> FloatVector(logicalSize)
+            14 -> DoubleVector(logicalSize)
+            15 -> BooleanVector(logicalSize)
+            16 -> Complex32Vector(logicalSize)
+            17 -> Complex64Vector(logicalSize)
+            else -> throw java.lang.IllegalArgumentException("The column type for ordinal $ordinal does not exists!")
         }
     }
 

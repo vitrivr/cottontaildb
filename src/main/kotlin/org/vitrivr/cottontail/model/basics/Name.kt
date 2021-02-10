@@ -35,6 +35,7 @@ sealed class Name {
     object RootName : Name() {
         override val components: Array<String> = arrayOf(NAME_COMPONENT_ROOT)
         override fun matches(other: Name): Boolean = (other == this)
+        fun schema(name: String) = SchemaName(NAME_COMPONENT_ROOT, name)
     }
 
     /**

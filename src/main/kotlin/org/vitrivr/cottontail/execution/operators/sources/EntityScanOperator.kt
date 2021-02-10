@@ -13,9 +13,13 @@ import org.vitrivr.cottontail.model.basics.Record
  * An [AbstractEntityOperator] that scans an [Entity] and streams all [Record]s found within.
  *
  * @author Ralph Gasser
- * @version 1.1.4
+ * @version 1.1.5
  */
-class EntityScanOperator(entity: Entity, override val columns: Array<ColumnDef<*>>, private val range: LongRange = 1L..entity.statistics.maxTupleId) : AbstractEntityOperator(entity, columns) {
+class EntityScanOperator(
+    entity: Entity,
+    override val columns: Array<ColumnDef<*>>,
+    private val range: LongRange
+) : AbstractEntityOperator(entity, columns) {
     /**
      * Converts this [EntityScanOperator] to a [Flow] and returns it.
      *

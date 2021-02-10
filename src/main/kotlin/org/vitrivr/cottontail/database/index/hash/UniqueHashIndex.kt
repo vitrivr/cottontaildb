@@ -1,6 +1,5 @@
 package org.vitrivr.cottontail.database.index.hash
 
-import org.mapdb.DB
 import org.mapdb.HTreeMap
 import org.mapdb.Serializer
 import org.vitrivr.cottontail.database.column.ColumnDef
@@ -26,20 +25,13 @@ import java.util.*
  * unique [Value] to a [TupleId]. Well suited for equality based lookups of [Value]s.
  *
  * @author Ralph Gasser
- * @version 1.4.0
+ * @version 2.0.0
  */
-class UniqueHashIndex(
-    override val name: Name.IndexName,
-    override val parent: Entity,
-    override val columns: Array<ColumnDef<*>>,
-    override val path: Path
-) : Index() {
+class UniqueHashIndex(path: Path, parent: Entity) : Index(path, parent) {
 
-    /**
-     * Index-wide constants.
-     */
+    /** Index-wide constants. */
     companion object {
-        const val UQ_INDEX_MAP = "uq_map"
+        const val UQ_INDEX_MAP = "cdb_uq_map"
     }
 
     /** The type of [Index] */
@@ -48,17 +40,10 @@ class UniqueHashIndex(
     /** The [UniqueHashIndex] implementation returns exactly the columns that is indexed. */
     override val produces: Array<ColumnDef<*>> = this.columns
 
-    /** The internal [DB] reference. */
-    private val db: DB = this.parent.parent.parent.config.mapdb.db(this.path)
-
     /** Map structure used for [UniqueHashIndex]. */
     private val map: HTreeMap<Value, TupleId> =
-        this.db.hashMap(
-            UQ_INDEX_MAP,
-            this.columns.first().type.serializer(),
-            Serializer.LONG_PACKED
-        )
-        .createOrOpen() as HTreeMap<Value, TupleId>
+        this.db.hashMap(UQ_INDEX_MAP, this.columns[0].type.serializer(), Serializer.LONG)
+            .createOrOpen() as HTreeMap<Value, TupleId>
 
     /**
      * Flag indicating if this [UniqueHashIndex] has been closed.
@@ -72,9 +57,6 @@ class UniqueHashIndex(
 
     /** False, since [UniqueHashIndex] does not support partitioning. */
     override val supportsPartitioning: Boolean = false
-
-    /** Always false, due to incremental updating being supported. */
-    override val dirty: Boolean = false
 
     init {
         this.db.commit() /* Initial commit. */

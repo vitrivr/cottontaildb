@@ -1,6 +1,5 @@
 package org.vitrivr.cottontail.database.index.hash
 
-import org.mapdb.DB
 import org.mapdb.Serializer
 import org.mapdb.serializer.SerializerArrayTuple
 import org.vitrivr.cottontail.database.column.ColumnDef
@@ -26,19 +25,14 @@ import java.util.*
  * to map a [Value] to a [TupleId]. Well suited for equality based lookups of [Value]s.
  *
  * @author Luca Rossetto & Ralph Gasser
- * @version 1.5.0
+ * @version 2.0.0
  */
-class NonUniqueHashIndex(
-    override val name: Name.IndexName,
-    override val parent: Entity,
-    override val columns: Array<ColumnDef<*>>,
-    override val path: Path
-) : Index() {
+class NonUniqueHashIndex(path: Path, parent: Entity) : Index(path, parent) {
     /**
      * Index-wide constants.
      */
     companion object {
-        const val NUQ_INDEX_MAP = "nuq_map"
+        const val NUQ_INDEX_MAP = "cdb_nuq_map"
     }
 
     /** The type of [Index] */
@@ -50,18 +44,15 @@ class NonUniqueHashIndex(
     /** False, since [NonUniqueHashIndex] does not support partitioning. */
     override val supportsPartitioning: Boolean = false
 
-    /** Always false, due to incremental updating being supported. */
-    override val dirty: Boolean = false
-
     /** The [NonUniqueHashIndex] implementation returns exactly the columns that is indexed. */
     override val produces: Array<ColumnDef<*>> = this.columns
 
-    /** The internal [DB] reference. */
-    private val db: DB = this.parent.parent.parent.config.mapdb.db(this.path)
-
     /** Map structure used for [NonUniqueHashIndex]. */
     private val map: NavigableSet<Array<Any>> =
-        this.db.treeSet(NUQ_INDEX_MAP, SerializerArrayTuple(this.columns.first().type.serializer(), Serializer.LONG_DELTA))
+        this.db.treeSet(
+            NUQ_INDEX_MAP,
+            SerializerArrayTuple(this.columns[0].type.serializer(), Serializer.LONG_DELTA)
+        )
             .createOrOpen()
 
     /**

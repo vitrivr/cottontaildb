@@ -1,7 +1,6 @@
 package org.vitrivr.cottontail.database.index.pq
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
-import org.mapdb.DB
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.database.column.*
 import org.vitrivr.cottontail.database.entity.Entity
@@ -40,20 +39,13 @@ import kotlin.collections.ArrayDeque
  * [1] Guo, Ruiqi, et al. "Quantization based fast inner product search." Artificial Intelligence and Statistics. 2016.
  *
  * @author Gabriel Zihlmann & Ralph Gasser
- * @version 1.1.0
+ * @version 2.0.0
  */
-class PQIndex(
-    override val name: Name.IndexName,
-    override val parent: Entity,
-    override val columns: Array<ColumnDef<*>>,
-    override val path: Path, config: PQIndexConfig? = null
-) : Index() {
+class PQIndex(path: Path, parent: Entity, config: PQIndexConfig? = null) : Index(path, parent) {
 
     companion object {
-        private const val PQ_INDEX_CONFIG = "pq_config"
-        private const val PQ_INDEX_NAME = "pq_cb_real"
-        private const val PQ_INDEX_SIGNATURES = "pq_signatures"
-        private const val PQ_INDEX_DIRTY = "pq_dirty"
+        private const val PQ_INDEX_FIELD = "cdb_pq_real"
+        private const val PQ_INDEX_SIGNATURES_FIELD = "cdb_pq_signatures"
         val LOGGER = LoggerFactory.getLogger(PQIndex::class.java)!!
 
 
@@ -96,25 +88,18 @@ class PQIndex(
     /** The [PQIndexConfig] used by this [PQIndex] instance. */
     private val config: PQIndexConfig
 
-    /** The internal [DB] reference. */
-    private val db: DB = this.parent.parent.parent.config.mapdb.db(this.path)
-
     /** The [PQ] instance used for real vector components. */
-    private val pqStore = this.db.atomicVar(PQ_INDEX_NAME, PQ.Serializer).createOrOpen()
+    private val pqStore = this.db.atomicVar(PQ_INDEX_FIELD, PQ.Serializer).createOrOpen()
 
     /** The store of [PQIndexEntry]. */
     private val signaturesStore =
-        this.db.indexTreeList(PQ_INDEX_SIGNATURES, PQIndexEntry.Serializer).createOrOpen()
-
-    /** Internal storage variable for the dirty flag. */
-    private val dirtyStore = this.db.atomicBoolean(PQ_INDEX_DIRTY).createOrOpen()
+        this.db.indexTreeList(PQ_INDEX_SIGNATURES_FIELD, PQIndexEntry.Serializer).createOrOpen()
 
     init {
-        require(this.columns.size == 1) { "PQIndex only supports indexing a single column." }
-
         /* Load or create config. */
+        require(this.columns.size == 1) { "PQIndex only supports indexing a single column." }
         val configOnDisk =
-            this.db.atomicVar(PQ_INDEX_CONFIG, PQIndexConfig.Serializer).createOrOpen()
+            this.db.atomicVar(INDEX_CONFIG_FIELD, PQIndexConfig.Serializer).createOrOpen()
         if (configOnDisk.get() == null) {
             if (config != null) {
                 if (config.numSubspaces == PQIndexConfig.AUTO_VALUE || (config.numSubspaces % this.columns[0].type.logicalSize) != 0) {
@@ -151,10 +136,6 @@ class PQIndex(
 
     /** True since [PQIndex] supports partitioning. */
     override val supportsPartitioning: Boolean = true
-
-    /** Indicates if this [PQIndex] is currently considered dirty, i.e., out of sync with [Entity]. */
-    override val dirty: Boolean
-        get() = this.dirtyStore.get()
 
     /**
      * Checks if this [Index] can process the provided [Predicate] and returns true if so and false otherwise.
@@ -249,7 +230,7 @@ class PQIndex(
             for (entry in signatureMap.entries) {
                 this@PQIndex.signaturesStore.add(PQIndexEntry(entry.key, entry.value.toLongArray()))
             }
-            this@PQIndex.dirtyStore.compareAndSet(true, false)
+            this@PQIndex.dirtyField.compareAndSet(true, false)
             LOGGER.debug("Rebuilding PQIndex {} complete.", this@PQIndex.name)
         }
 
@@ -261,7 +242,7 @@ class PQIndex(
          * @param event Collection of [DataChangeEvent]s to process.
          */
         override fun update(event: DataChangeEvent) = this.withWriteLock {
-            this@PQIndex.dirtyStore.compareAndSet(false, true)
+            this@PQIndex.dirtyField.compareAndSet(false, true)
             Unit
         }
 

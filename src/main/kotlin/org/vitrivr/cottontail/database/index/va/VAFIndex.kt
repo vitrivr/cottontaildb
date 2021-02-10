@@ -1,7 +1,6 @@
 package org.vitrivr.cottontail.database.index.va
 
 import org.mapdb.Atomic
-import org.mapdb.DB
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.database.column.ColumnDef
@@ -27,7 +26,6 @@ import org.vitrivr.cottontail.math.knn.selection.ComparablePair
 import org.vitrivr.cottontail.math.knn.selection.MinHeapSelection
 import org.vitrivr.cottontail.math.knn.selection.MinSingleSelection
 import org.vitrivr.cottontail.model.basics.CloseableIterator
-import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
@@ -51,21 +49,13 @@ import kotlin.math.min
  * [1] Weber, R. and Blott, S., 1997. An approximation based data structure for similarity search (No. 9141, p. 416). Technical Report 24, ESPRIT Project HERMES.
  *
  * @author Gabriel Zihlmann & Ralph Gasser
- * @version 1.0.1
+ * @version 2.0.0
  */
-class VAFIndex(
-    override val name: Name.IndexName,
-    override val parent: Entity,
-    override val columns: Array<ColumnDef<*>>,
-    override val path: Path,
-    config: VAFIndexConfig? = null
-) : Index() {
+class VAFIndex(path: Path, parent: Entity, config: VAFIndexConfig? = null) : Index(path, parent) {
 
     companion object {
-        private const val VAF_INDEX_CONFIG = "vaf_config"
-        private const val VAF_INDEX_SIGNATURES = "vaf_signatures"
-        private const val VAF_INDEX_MARKS = "vaf_marks"
-        private const val VAF_INDEX_DIRTY = "vaf_dirty"
+        private const val VAF_INDEX_SIGNATURES_FIELD = "vaf_signatures"
+        private const val VAF_INDEX_MARKS_FIELD = "vaf_marks"
         val LOGGER: Logger = LoggerFactory.getLogger(VAFIndex::class.java)
     }
 
@@ -81,26 +71,20 @@ class VAFIndex(
     /** The [VAFIndexConfig] used by this [VAFIndex] instance. */
     private val config: VAFIndexConfig
 
-    /** The internal [DB] reference. */
-    private val db: DB = this.parent.parent.parent.config.mapdb.db(this.path)
-
     /** Store for the [Marks]. */
     private val marksStore: Atomic.Var<Marks> =
-        this.db.atomicVar(VAF_INDEX_MARKS, Marks.Serializer).createOrOpen()
+        this.db.atomicVar(VAF_INDEX_MARKS_FIELD, Marks.Serializer).createOrOpen()
 
     /** Store for the signatures. */
     private val signatures =
-        this.db.indexTreeList(VAF_INDEX_SIGNATURES, VAFSignature.Serializer).createOrOpen()
-
-    /** Internal storage variable for the dirty flag. */
-    private val dirtyStore = this.db.atomicBoolean(VAF_INDEX_DIRTY).createOrOpen()
+        this.db.indexTreeList(VAF_INDEX_SIGNATURES_FIELD, VAFSignature.Serializer).createOrOpen()
 
     init {
         require(this.columns.size == 1) { "$VAFIndex only supports indexing a single column." }
 
         /* Load or create config. */
         val configOnDisk =
-            this.db.atomicVar(VAF_INDEX_CONFIG, VAFIndexConfig.Serializer).createOrOpen()
+            this.db.atomicVar(INDEX_CONFIG_FIELD, VAFIndexConfig.Serializer).createOrOpen()
         if (configOnDisk.get() == null) {
             if (config != null) {
                 this.config = config
@@ -124,10 +108,6 @@ class VAFIndex(
 
     /** True since [VAFIndex] supports partitioning. */
     override val supportsPartitioning: Boolean = true
-
-    /** Indicates if this [VAFIndex] is currently considered dirty, i.e., out of sync with [Entity]. */
-    override val dirty: Boolean
-        get() = this.dirtyStore.get()
 
     /**
      * Closes this [VAFIndex] and the associated data structures.
@@ -215,7 +195,7 @@ class VAFIndex(
                 }
             }
 
-            this@VAFIndex.dirtyStore.compareAndSet(true, false)
+            this@VAFIndex.dirtyField.compareAndSet(true, false)
             LOGGER.debug("Done rebuilding VAF index {}", this@VAFIndex.name)
         }
 
@@ -227,7 +207,7 @@ class VAFIndex(
          * @param event [DataChangeEvent]s to process.
          */
         override fun update(event: DataChangeEvent) = this.withWriteLock {
-            this@VAFIndex.dirtyStore.compareAndSet(false, true)
+            this@VAFIndex.dirtyField.compareAndSet(false, true)
             Unit
         }
 
