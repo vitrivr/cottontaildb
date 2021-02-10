@@ -26,11 +26,14 @@ class FilterPhysicalNodeExpression(val predicate: BooleanPredicateBinding) : Una
     private val selectivity: Float = Cost.COST_DEFAULT_SELECTIVITY
 
     /** The [FilterPhysicalNodeExpression] returns the [ColumnDef] of its input. */
-    override val columns: Array<ColumnDef<*>> = this.input.columns
+    override val columns: Array<ColumnDef<*>>
+        get() = this.input.columns
 
-    override val outputSize: Long = (this.input.outputSize * this.selectivity).toLong()
+    override val outputSize: Long
+        get() = (this.input.outputSize * this.selectivity).toLong()
 
-    override val cost: Cost = Cost(cpu = this.input.outputSize * this.predicate.cost * Cost.COST_MEMORY_ACCESS)
+    override val cost: Cost
+        get() = Cost(cpu = this.input.outputSize * this.predicate.cost * Cost.COST_MEMORY_ACCESS)
 
     override fun copy() = FilterPhysicalNodeExpression(this.predicate)
 

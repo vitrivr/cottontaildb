@@ -24,18 +24,24 @@ import java.lang.Integer.min
 class KnnPhysicalNodeExpression(val knn: KnnPredicateBinding) : UnaryPhysicalNodeExpression() {
 
     /** The [KnnPhysicalNodeExpression] returns the [ColumnDef] of its input + a distance column. */
-    override val columns: Array<ColumnDef<*>> = arrayOf(
-         *this.input.columns, KnnUtilities.distanceColumnDef(this.knn.column.name.entity())
-    )
+    override val columns: Array<ColumnDef<*>>
+        get() = arrayOf(
+            *this.input.columns,
+            KnnUtilities.distanceColumnDef(this.knn.column.name.entity())
+        )
+
 
     /** The output size of a [KnnPhysicalNodeExpression] is k times the number of queries. */
-    override val outputSize: Long = (this.knn.k * this.knn.query.size).toLong()
+    override val outputSize: Long
+        get() = (this.knn.k * this.knn.query.size).toLong()
 
     /** The [Cost] of a [KnnPhysicalNodeExpression]. */
-    override val cost: Cost = Cost(
-        cpu = this.input.outputSize * this.knn.distance.costForDimension(this.knn.query.first().type.logicalSize) * (this.knn.query.size + (this.knn.weights?.size ?: 0)),
-        memory = (this.outputSize * this.columns.map { it.type.physicalSize }.sum()).toFloat()
-    )
+    override val cost: Cost
+        get() = Cost(
+            cpu = this.input.outputSize * this.knn.distance.costForDimension(this.knn.query.first().type.logicalSize) * (this.knn.query.size + (this.knn.weights?.size
+                ?: 0)),
+            memory = (this.outputSize * this.columns.map { it.type.physicalSize }.sum()).toFloat()
+        )
 
     override fun copy() = KnnPhysicalNodeExpression(this.knn)
     override fun toOperator(tx: TransactionContext, ctx: QueryContext): Operator {
