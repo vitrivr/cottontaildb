@@ -95,7 +95,7 @@ class DQLService(val catalogue: Catalogue, override val manager: TransactionMana
                 }
 
                 /* Finalize transaction. */
-                LOGGER.debug(formatMessage(tx, q, "Executing query took ${totalDuration}."))
+                LOGGER.info(formatMessage(tx, q, "Executing query took ${totalDuration}."))
                 responseObserver.onCompleted()
             } catch (e: QueryException.QuerySyntaxException) {
                 val message = formatMessage(tx, q, "Could not execute query due to syntax error: ${e.message}")
@@ -156,7 +156,7 @@ class DQLService(val catalogue: Catalogue, override val manager: TransactionMana
                     tx.execute(planTimedValue.value)
                 }
 
-                LOGGER.debug(formatMessage(tx, q, "Explaining query took ${totalDuration}."))
+                LOGGER.info(formatMessage(tx, q, "Explaining query took ${totalDuration}."))
                 responseObserver.onCompleted()
             } catch (e: QueryException.QuerySyntaxException) {
                 val message = formatMessage(tx, q, "Could not explain query due to syntax error: ${e.message}")
