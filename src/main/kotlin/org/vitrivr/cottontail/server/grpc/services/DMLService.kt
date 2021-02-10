@@ -9,7 +9,7 @@ import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.binding.GrpcQueryBinder
 import org.vitrivr.cottontail.database.queries.planning.CottontailQueryPlanner
-import org.vitrivr.cottontail.database.queries.planning.nodes.physical.management.InsertPhysicalNodeExpression
+import org.vitrivr.cottontail.database.queries.planning.nodes.physical.management.InsertPhysicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.rules.logical.LeftConjunctionRewriteRule
 import org.vitrivr.cottontail.database.queries.planning.rules.logical.RightConjunctionRewriteRule
 import org.vitrivr.cottontail.database.queries.planning.rules.physical.implementation.*
@@ -273,11 +273,11 @@ class DMLService(val catalogue: Catalogue, override val manager: TransactionMana
                 } else {
                     val bindTime = measureTime {
                         val binding = this@DMLService.binder.bindValues(value, localContext, this.transaction)
-                        (localContext.physical as InsertPhysicalNodeExpression).records.add(binding)
+                        (localContext.physical as InsertPhysicalOperatorNode).records.add(binding)
                     }
                     LOGGER.debug(formatMessage(this.transaction, this.queryId, "Parsing & binding INSERT took $bindTime."))
 
-                    if ((localContext.physical as InsertPhysicalNodeExpression).records.size >= this@DMLService.catalogue.config.cache.insertCacheSize) {
+                    if ((localContext.physical as InsertPhysicalOperatorNode).records.size >= this@DMLService.catalogue.config.cache.insertCacheSize) {
                         this.flush()
                     }
                 }
@@ -342,7 +342,7 @@ class DMLService(val catalogue: Catalogue, override val manager: TransactionMana
         private fun flush() {
             val localContext = this.queryContext
             if (localContext != null) {
-                val records = (localContext.physical as InsertPhysicalNodeExpression).records.size
+                val records = (localContext.physical as InsertPhysicalOperatorNode).records.size
                 val duration = measureTime {
                     this.transaction.execute(NoOpSinkOperator(localContext.toOperatorTree(this.transaction)))
                     this.queryContext = null

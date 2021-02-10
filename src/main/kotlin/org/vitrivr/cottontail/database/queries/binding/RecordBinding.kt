@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.database.queries.binding
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectArrayMap
+import org.vitrivr.cottontail.database.queries.Binding
 import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Record
@@ -13,12 +14,19 @@ import org.vitrivr.cottontail.model.recordset.StandaloneRecord
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class RecordBinding(val tupleId: TupleId, columns: Array<ColumnDef<*>> = emptyArray(), values: Array<ValueBinding> = emptyArray()): Binding<Record> {
+class RecordBinding(
+    val tupleId: TupleId,
+    columns: Array<ColumnDef<*>> = emptyArray(),
+    values: Array<ValueBinding> = emptyArray()
+) :
+    Binding<Record> {
 
     /**
      *
      */
-    constructor(tupleId: TupleId, collection: Collection<Pair<ColumnDef<*>, ValueBinding>>) : this(tupleId) {
+    constructor(tupleId: TupleId, collection: Collection<Pair<ColumnDef<*>, ValueBinding>>) : this(
+        tupleId
+    ) {
         collection.forEach {
             if (it.first.type != it.second.type) {
                 throw IllegalArgumentException("Provided value ${it.first} is incompatible with column ${it.second}.")
@@ -40,7 +48,8 @@ class RecordBinding(val tupleId: TupleId, columns: Array<ColumnDef<*>> = emptyAr
      * @param context [QueryContext] to use to obtain [Record] for this [RecordBinding].
      * @return [Record]
      */
-    override fun apply(context: QueryContext): Record = StandaloneRecord(this.tupleId, this.map.map { it.key to it.value.apply(context) })
+    override fun bind(context: QueryContext): Record =
+        StandaloneRecord(this.tupleId, this.map.map { it.key to it.value.bind(context) })
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

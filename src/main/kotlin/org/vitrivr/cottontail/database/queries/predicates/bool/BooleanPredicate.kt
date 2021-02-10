@@ -2,7 +2,6 @@ package org.vitrivr.cottontail.database.queries.predicates.bool
 
 import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet
 import org.vitrivr.cottontail.database.queries.QueryContext
-import org.vitrivr.cottontail.database.queries.binding.Binding
 import org.vitrivr.cottontail.database.queries.binding.ValueBinding
 import org.vitrivr.cottontail.database.queries.predicates.Predicate
 import org.vitrivr.cottontail.model.basics.ColumnDef
@@ -39,7 +38,7 @@ sealed class BooleanPredicate : Predicate {
      *
      * @param context [QueryContext]  used to resolve [ValueBinding]s.
      */
-    abstract override fun bind(context: QueryContext): BooleanPredicate
+    abstract override fun bindValues(context: QueryContext): BooleanPredicate
 
     /**
      * Calculates and returns the digest of this [BooleanPredicate].
@@ -147,11 +146,11 @@ sealed class BooleanPredicate : Predicate {
          * @param context [QueryContext] to use to resolve [ValueBinding]s.
          * @return This [BooleanPredicate.Atomic]
          */
-        override fun bind(context: QueryContext): BooleanPredicate {
+        override fun bindValues(context: QueryContext): BooleanPredicate {
             if (!this.bindings.isEmpty()) {
                 this.values.clear()
                 this.bindings.forEach {
-                    val value = it.apply(context)
+                    val value = it.bind(context)
                         ?: throw IllegalStateException("Failed to bind value for value binding $it.")
                     this.value(value)
                 }
@@ -233,9 +232,9 @@ sealed class BooleanPredicate : Predicate {
          * @param context [QueryContext] to use to resolve this [Binding].
          * @return This [BooleanPredicate.Compound]
          */
-        override fun bind(context: QueryContext): Compound {
-            this.p1.bind(context)
-            this.p2.bind(context)
+        override fun bindValues(context: QueryContext): Compound {
+            this.p1.bindValues(context)
+            this.p2.bindValues(context)
             return this
         }
 

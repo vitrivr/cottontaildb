@@ -124,11 +124,11 @@ open class KnnPredicate(
      * @param context [QueryContext] to use to resolve [ValueBinding]s.
      * @return this [KnnPredicate]
      */
-    override fun bind(context: QueryContext): KnnPredicate {
+    override fun bindValues(context: QueryContext): KnnPredicate {
         if (!this._queryBindings.isEmpty()) {
             this._query.clear()
             this._queryBindings.forEach {
-                val value = it.apply(context)
+                val value = it.bind(context)
                 if (value is VectorValue<*>) {
                     this._query.add(value)
                 } else {
@@ -139,7 +139,7 @@ open class KnnPredicate(
         if (!this._weightsBindings.isEmpty()) {
             this._weightsBindings.clear()
             this._weightsBindings.forEach {
-                val value = it.apply(context)
+                val value = it.bind(context)
                 if (value is VectorValue<*>) {
                     this._weights.add(value)
                 } else {
