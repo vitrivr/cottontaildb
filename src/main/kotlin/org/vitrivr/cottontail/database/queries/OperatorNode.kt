@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.database.queries
 
+import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.queries.planning.RuleGroup
-import org.vitrivr.cottontail.model.basics.ColumnDef
 
 /**
  * [OperatorNode]s are [Node]s in a Cottontail DB query execution plan and represent flow of

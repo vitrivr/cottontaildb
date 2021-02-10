@@ -1,8 +1,8 @@
 package org.vitrivr.cottontail.database.queries.planning.nodes.logical.sources
 
+import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.NullaryLogicalOperatorNode
-import org.vitrivr.cottontail.model.basics.ColumnDef
 
 /**
  * A [NullaryLogicalOperatorNode] that formalizes accessing data from an [Entity].

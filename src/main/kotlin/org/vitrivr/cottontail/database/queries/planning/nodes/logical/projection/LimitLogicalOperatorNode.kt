@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.database.queries.planning.nodes.logical.projection
+import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.UnaryLogicalOperatorNode
-import org.vitrivr.cottontail.model.basics.ColumnDef
 
 /**
  * A [UnaryLogicalOperatorNode] that represents the application of a LIMIT and/or SKIP clause on the

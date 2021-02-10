@@ -1,12 +1,12 @@
 package org.vitrivr.cottontail.database.queries
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
-import org.vitrivr.cottontail.database.column.Type
 import org.vitrivr.cottontail.database.queries.binding.ValueBinding
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.LogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.PhysicalOperatorNode
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
+import org.vitrivr.cottontail.model.basics.Type
 import org.vitrivr.cottontail.model.values.types.Value
 
 /**

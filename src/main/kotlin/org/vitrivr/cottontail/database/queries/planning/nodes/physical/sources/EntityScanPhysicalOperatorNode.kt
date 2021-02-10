@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.database.queries.planning.nodes.physical.sources
 
+import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
@@ -7,7 +8,6 @@ import org.vitrivr.cottontail.database.queries.planning.nodes.physical.NullaryPh
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalOperatorNode
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.sources.EntityScanOperator
-import org.vitrivr.cottontail.model.basics.ColumnDef
 
 /**
  * A [UnaryPhysicalOperatorNode] that formalizes a scan of a physical [Entity] in Cottontail DB.

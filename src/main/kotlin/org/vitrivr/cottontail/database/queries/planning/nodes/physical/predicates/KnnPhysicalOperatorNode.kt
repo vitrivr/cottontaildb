@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.database.queries.planning.nodes.physical.predicates
 
+import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
@@ -10,7 +11,6 @@ import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.predicates.KnnOperator
 import org.vitrivr.cottontail.execution.operators.predicates.ParallelKnnOperator
-import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.utilities.math.KnnUtilities
 import java.lang.Integer.max
 import java.lang.Integer.min

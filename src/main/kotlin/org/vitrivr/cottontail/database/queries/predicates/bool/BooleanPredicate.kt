@@ -1,10 +1,10 @@
 package org.vitrivr.cottontail.database.queries.predicates.bool
 
 import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet
+import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.binding.ValueBinding
 import org.vitrivr.cottontail.database.queries.predicates.Predicate
-import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.values.pattern.LikePatternValue
 import org.vitrivr.cottontail.model.values.pattern.LucenePatternValue

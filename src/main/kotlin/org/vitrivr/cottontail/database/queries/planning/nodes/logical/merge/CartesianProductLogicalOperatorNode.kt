@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.database.queries.planning.nodes.logical.merge
 
+import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.BinaryLogicalOperatorNode
-import org.vitrivr.cottontail.model.basics.ColumnDef
 
 /**
  * A [BinaryLogicalOperatorNode] that formalizes application of a cartesian product between two

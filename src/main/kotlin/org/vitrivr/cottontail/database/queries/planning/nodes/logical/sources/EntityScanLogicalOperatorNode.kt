@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.database.queries.planning.nodes.logical.sources
 
+import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.Entity
-import org.vitrivr.cottontail.model.basics.ColumnDef
 
 /**
  * A [EntitySourceLogicalOperatorNode] that formalizes the scan of a physical [Entity] in Cottontail DB.

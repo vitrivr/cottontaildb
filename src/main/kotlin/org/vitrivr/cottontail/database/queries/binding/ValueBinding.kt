@@ -1,8 +1,8 @@
 package org.vitrivr.cottontail.database.queries.binding
 
-import org.vitrivr.cottontail.database.column.Type
 import org.vitrivr.cottontail.database.queries.Binding
 import org.vitrivr.cottontail.database.queries.QueryContext
+import org.vitrivr.cottontail.model.basics.Type
 import org.vitrivr.cottontail.model.values.types.Value
 
 /**

@@ -1,10 +1,10 @@
 package org.vitrivr.cottontail.database.queries.planning.nodes.logical.projection
 
-import org.vitrivr.cottontail.database.column.Type
+import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.UnaryLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.projection.Projection
-import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Name
+import org.vitrivr.cottontail.model.basics.Type
 import org.vitrivr.cottontail.model.exceptions.QueryException
 
 /**

@@ -1,8 +1,8 @@
 package org.vitrivr.cottontail.database.queries.predicates
 
+import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.queries.Node
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
-import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Record
 
 /**

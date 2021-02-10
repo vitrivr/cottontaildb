@@ -1,12 +1,12 @@
 package org.vitrivr.cottontail.database.queries.planning.nodes.physical.projection
 
+import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalOperatorNode
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.transform.FetchOperator
-import org.vitrivr.cottontail.model.basics.ColumnDef
 
 /**
  * A [UnaryPhysicalOperatorNode] that represents fetching certain [ColumnDef] from a specific

@@ -1,9 +1,9 @@
 package org.vitrivr.cottontail.database.queries.planning.nodes.logical.management
 
+import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.UnaryLogicalOperatorNode
 import org.vitrivr.cottontail.execution.operators.management.DeleteOperator
-import org.vitrivr.cottontail.model.basics.ColumnDef
 
 /**
  * A [DeleteLogicalOperatorNode] that formalizes a DELETE operation on an [Entity].

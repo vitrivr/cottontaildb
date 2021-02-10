@@ -1,9 +1,9 @@
 package org.vitrivr.cottontail.database.queries.binding
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectArrayMap
+import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.queries.Binding
 import org.vitrivr.cottontail.database.queries.QueryContext
-import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.basics.TupleId
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord

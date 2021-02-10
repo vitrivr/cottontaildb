@@ -1,6 +1,7 @@
-package org.vitrivr.cottontail.model.basics
+package org.vitrivr.cottontail.database.column
 
-import org.vitrivr.cottontail.database.column.Type
+import org.vitrivr.cottontail.model.basics.Name
+import org.vitrivr.cottontail.model.basics.Type
 import org.vitrivr.cottontail.model.values.types.Value
 
 

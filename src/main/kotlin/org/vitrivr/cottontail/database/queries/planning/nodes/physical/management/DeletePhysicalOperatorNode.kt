@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.database.queries.planning.nodes.physical.management
 
+import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
@@ -7,7 +8,6 @@ import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhys
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.management.DeleteOperator
-import org.vitrivr.cottontail.model.basics.ColumnDef
 
 /**
  * A [DeletePhysicalOperatorNode] that formalizes a delete operation on an [Entity].

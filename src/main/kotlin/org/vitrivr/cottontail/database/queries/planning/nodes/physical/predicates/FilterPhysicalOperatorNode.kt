@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.database.queries.planning.nodes.physical.predicates
 
+import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
@@ -9,7 +10,6 @@ import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.predicates.FilterOperator
 import org.vitrivr.cottontail.execution.operators.predicates.ParallelFilterOperator
-import org.vitrivr.cottontail.model.basics.ColumnDef
 
 /**
  * A [UnaryPhysicalOperatorNode] that represents application of a [BooleanPredicate] on some intermediate result.

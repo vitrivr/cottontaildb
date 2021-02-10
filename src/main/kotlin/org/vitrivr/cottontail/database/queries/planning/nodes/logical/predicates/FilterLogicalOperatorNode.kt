@@ -1,9 +1,9 @@
 package org.vitrivr.cottontail.database.queries.planning.nodes.logical.predicates
 
+import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.LogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.UnaryLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.predicates.bool.BooleanPredicate
-import org.vitrivr.cottontail.model.basics.ColumnDef
 
 /**
  * A [LogicalOperatorNode] that formalizes filtering using some [BooleanPredicate].

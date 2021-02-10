@@ -1,8 +1,8 @@
 package org.vitrivr.cottontail.database.queries.planning.nodes.logical.projection
 
+import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.UnaryLogicalOperatorNode
-import org.vitrivr.cottontail.model.basics.ColumnDef
 
 /**
  * A [UnaryLogicalOperatorNode] that represents fetching certain [ColumnDef] from a specific

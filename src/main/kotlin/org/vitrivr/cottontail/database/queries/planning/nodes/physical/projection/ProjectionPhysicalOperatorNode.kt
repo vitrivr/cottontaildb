@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.database.queries.planning.nodes.physical.projection
 
-import org.vitrivr.cottontail.database.column.Type
+import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.projection.ProjectionLogicalOperatorNode
@@ -8,8 +8,8 @@ import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhys
 import org.vitrivr.cottontail.database.queries.projection.Projection
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.projection.*
-import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Name
+import org.vitrivr.cottontail.model.basics.Type
 import org.vitrivr.cottontail.model.exceptions.QueryException
 
 /**

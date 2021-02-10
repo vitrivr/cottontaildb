@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.execution.operators.system
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import org.vitrivr.cottontail.database.column.Type
+import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.PhysicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.predicates.FilterPhysicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.projection.LimitPhysicalOperatorNode
@@ -11,9 +11,9 @@ import org.vitrivr.cottontail.database.queries.planning.nodes.physical.sources.E
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.sources.IndexScanPhysicalOperatorNode
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
-import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Record
+import org.vitrivr.cottontail.model.basics.Type
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.BooleanValue
 import org.vitrivr.cottontail.model.values.FloatValue

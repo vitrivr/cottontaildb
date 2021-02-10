@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.database.queries.planning.nodes.physical.sources
 
-import org.vitrivr.cottontail.database.column.Type
+import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
@@ -8,7 +8,7 @@ import org.vitrivr.cottontail.database.queries.planning.nodes.physical.NullaryPh
 import org.vitrivr.cottontail.database.queries.projection.Projection
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.sources.EntityCountOperator
-import org.vitrivr.cottontail.model.basics.ColumnDef
+import org.vitrivr.cottontail.model.basics.Type
 
 /**
  * A [NullaryPhysicalOperatorNode] that formalizes the counting entries in a physical [Entity].

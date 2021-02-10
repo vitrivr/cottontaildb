@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail.database.column
+package org.vitrivr.cottontail.model.basics
 
 import org.mapdb.Serializer
 import org.vitrivr.cottontail.database.serializers.*

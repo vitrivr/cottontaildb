@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.database.queries.binding
 
 import org.vitrivr.cottontail.database.catalogue.Catalogue
 import org.vitrivr.cottontail.database.catalogue.CatalogueTx
-import org.vitrivr.cottontail.database.column.Type
+import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.queries.QueryContext
@@ -28,8 +28,8 @@ import org.vitrivr.cottontail.database.schema.SchemaTx
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.math.knn.metrics.Distances
-import org.vitrivr.cottontail.model.basics.ColumnDef
 import org.vitrivr.cottontail.model.basics.Name
+import org.vitrivr.cottontail.model.basics.Type
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.values.StringValue
