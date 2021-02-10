@@ -57,7 +57,6 @@ class UniqueHashIndex(
             this.columns.first().type.serializer(),
             Serializer.LONG_PACKED
         )
-        .counterEnable()
         .createOrOpen() as HTreeMap<Value, TupleId>
 
     /**

@@ -61,7 +61,6 @@ class NonUniqueHashIndex(
     /** Map structure used for [NonUniqueHashIndex]. */
     private val map: NavigableSet<Array<Any>> =
         this.db.treeSet(NUQ_INDEX_MAP, SerializerArrayTuple(this.columns.first().type.serializer(), Serializer.LONG_DELTA))
-            .counterEnable()
             .createOrOpen()
 
     /**
