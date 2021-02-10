@@ -210,10 +210,6 @@ sealed class Name {
         /** True if this [ColumnName] is a wildcard. */
         val wildcard: Boolean = this.components.any { it == NAME_COMPONENT_WILDCARD }
 
-        /** True if this [ColumnName] is a fully qualified name. */
-        val fqn: Boolean
-            get() = this.components.size == 4
-
         /**
          * Returns [RootName] of this [EntityName].
          *

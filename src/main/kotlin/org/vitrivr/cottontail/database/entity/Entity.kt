@@ -283,9 +283,10 @@ class Entity(override val name: Name.EntityName, override val parent: Schema) : 
          * @return [ColumnDef] of the [Column].
          */
         override fun columnForName(name: Name.ColumnName): Column<*> = this.withReadLock {
-            if (name.fqn) {
-                this@Entity.columns[name]
-                        ?: throw DatabaseException.ColumnDoesNotExistException(name)
+            if (!name.wildcard) {
+                this@Entity.columns[name] ?: throw DatabaseException.ColumnDoesNotExistException(
+                    name
+                )
             } else {
                 val fqn = this@Entity.name.column(name.simple)
                 this@Entity.columns[fqn] ?: throw DatabaseException.ColumnDoesNotExistException(fqn)
