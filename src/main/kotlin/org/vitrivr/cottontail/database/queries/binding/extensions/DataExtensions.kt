@@ -53,7 +53,7 @@ fun Value.toLiteral(): CottontailGrpc.Literal = when (this) {
  * @return [T]
  * @throws QueryException.UnsupportedCastException If cast is not possible.
  */
-fun <T : Value> CottontailGrpc.Literal.toValue(column: ColumnDef<T>): T? {
+fun CottontailGrpc.Literal.toValue(column: ColumnDef<*>): Value? {
     val cast = when (column.type) {
         is Type.Double -> this.toDoubleValue()
         is Type.Float -> this.toFloatValue()
@@ -74,7 +74,7 @@ fun <T : Value> CottontailGrpc.Literal.toValue(column: ColumnDef<T>): T? {
         is Type.Complex32Vector -> this.toComplex32VectorValue()
         is Type.Complex64Vector -> this.toComplex64VectorValue()
     }
-    return column.type.cast(cast) ?: if (column.nullable) {
+    return cast ?: if (column.nullable) {
         null
     } else {
         throw QueryException.UnsupportedCastException("A value of NULL cannot be cast a type that isn't nullable.")

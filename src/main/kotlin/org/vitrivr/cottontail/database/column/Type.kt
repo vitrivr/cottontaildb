@@ -4,8 +4,6 @@ import org.mapdb.Serializer
 import org.vitrivr.cottontail.database.serializers.*
 import org.vitrivr.cottontail.model.values.*
 import org.vitrivr.cottontail.model.values.types.Value
-import kotlin.reflect.KClass
-import kotlin.reflect.full.safeCast
 
 /**
  * Specifies the [Type] of a Cottontail DB [Column] or [Value]. This construct is a centerpiece of
@@ -55,15 +53,13 @@ sealed class Type<T : Value> {
     }
 
     abstract val name: kotlin.String
-    abstract val type: KClass<T>
     abstract val numeric: kotlin.Boolean
     abstract val complex: kotlin.Boolean
     abstract val vector: kotlin.Boolean
     abstract val logicalSize: kotlin.Int
     abstract val physicalSize: kotlin.Int
 
-    fun cast(value: Value?): T? = this.type.safeCast(value)
-    fun compatible(value: Value) = this.type.isInstance(value)
+    fun compatible(value: Value) = this == value.type
 
     /** Returns the default value for this [Type]. */
     abstract fun defaultValue(): T
@@ -93,7 +89,6 @@ sealed class Type<T : Value> {
         override val vector = false
         override val logicalSize = 1
         override val physicalSize= kotlin.Byte.SIZE_BYTES
-        override val type: KClass<BooleanValue> = BooleanValue::class
         override fun defaultValue(): BooleanValue = BooleanValue.FALSE
         override fun serializer(): Serializer<BooleanValue> = BooleanValueSerializer
     }
@@ -106,7 +101,6 @@ sealed class Type<T : Value> {
         override val vector = false
         override val logicalSize = 1
         override val physicalSize = kotlin.Byte.SIZE_BYTES
-        override val type: KClass<ByteValue> = ByteValue::class
         override fun defaultValue(): ByteValue = ByteValue.ZERO
         override fun serializer(): Serializer<ByteValue> = ByteValueSerializer
     }
@@ -119,7 +113,6 @@ sealed class Type<T : Value> {
         override val vector = false
         override val logicalSize = 1
         override val physicalSize = kotlin.Short.SIZE_BYTES
-        override val type: KClass<ShortValue> = ShortValue::class
         override fun defaultValue(): ShortValue = ShortValue.ZERO
         override fun serializer(): Serializer<ShortValue> = ShortValueSerializer
     }
@@ -132,7 +125,6 @@ sealed class Type<T : Value> {
         override val vector = false
         override val logicalSize = 1
         override val physicalSize = kotlin.Int.SIZE_BYTES
-        override val type: KClass<IntValue> = IntValue::class
         override fun defaultValue(): IntValue = IntValue.ZERO
         override fun serializer(): Serializer<IntValue> = IntValueSerializer
     }
@@ -145,7 +137,6 @@ sealed class Type<T : Value> {
         override val vector = false
         override val logicalSize = 1
         override val physicalSize = kotlin.Long.SIZE_BYTES
-        override val type: KClass<LongValue> = LongValue::class
         override fun defaultValue(): LongValue = LongValue.ZERO
         override fun serializer(): Serializer<LongValue> = LongValueSerializer
     }
@@ -158,7 +149,6 @@ sealed class Type<T : Value> {
         override val vector = false
         override val logicalSize = 1
         override val physicalSize = kotlin.Long.SIZE_BYTES
-        override val type: KClass<DateValue> = DateValue::class
         override fun defaultValue(): DateValue = DateValue(System.currentTimeMillis())
         override fun serializer(): Serializer<DateValue> = DateValueSerializer
     }
@@ -171,7 +161,6 @@ sealed class Type<T : Value> {
         override val vector = false
         override val logicalSize = 1
         override val physicalSize = kotlin.Int.SIZE_BYTES
-        override val type: KClass<FloatValue> = FloatValue::class
         override fun defaultValue(): FloatValue = FloatValue.ZERO
         override fun serializer(): Serializer<FloatValue> = FloatValueSerializer
     }
@@ -184,7 +173,6 @@ sealed class Type<T : Value> {
         override val vector = false
         override val logicalSize = 1
         override val physicalSize = kotlin.Long.SIZE_BYTES
-        override val type: KClass<DoubleValue> = DoubleValue::class
         override fun defaultValue(): DoubleValue = DoubleValue.ZERO
         override fun serializer(): Serializer<DoubleValue> = DoubleValueSerializer
     }
@@ -197,7 +185,6 @@ sealed class Type<T : Value> {
         override val vector = false
         override val logicalSize = LOGICAL_SIZE_UNKNOWN
         override val physicalSize = LOGICAL_SIZE_UNKNOWN * Char.SIZE_BYTES
-        override val type: KClass<StringValue> = StringValue::class
         override fun defaultValue(): StringValue = StringValue.EMPTY
         override fun serializer(): Serializer<StringValue> = StringValueSerializer
     }
@@ -210,7 +197,6 @@ sealed class Type<T : Value> {
         override val vector = false
         override val logicalSize = 1
         override val physicalSize = 2 * kotlin.Int.SIZE_BYTES
-        override val type: KClass<Complex32Value> = Complex32Value::class
         override fun defaultValue(): Complex32Value = Complex32Value.ZERO
         override fun serializer(): Serializer<Complex32Value> = Complex32ValueSerializer
     }
@@ -223,7 +209,6 @@ sealed class Type<T : Value> {
         override val vector = false
         override val logicalSize = 1
         override val physicalSize = 2 * kotlin.Long.SIZE_BYTES
-        override val type: KClass<Complex64Value> = Complex64Value::class
         override fun defaultValue(): Complex64Value = Complex64Value.ZERO
         override fun serializer(): Serializer<Complex64Value> = Complex64ValueSerializer
     }
@@ -235,7 +220,6 @@ sealed class Type<T : Value> {
         override val complex = false
         override val vector = true
         override val physicalSize = this.logicalSize * kotlin.Int.SIZE_BYTES
-        override val type: KClass<IntVectorValue> = IntVectorValue::class
         override fun defaultValue(): IntVectorValue = IntVectorValue.zero(this.logicalSize)
         override fun serializer(): Serializer<IntVectorValue> = FixedIntVectorSerializer(this.logicalSize)
     }
@@ -247,7 +231,6 @@ sealed class Type<T : Value> {
         override val complex = false
         override val vector = true
         override val physicalSize = this.logicalSize * kotlin.Long.SIZE_BYTES
-        override val type: KClass<LongVectorValue> = LongVectorValue::class
         override fun defaultValue(): LongVectorValue = LongVectorValue.zero(this.logicalSize)
         override fun serializer(): Serializer<LongVectorValue> = FixedLongVectorSerializer(this.logicalSize)
     }
@@ -259,7 +242,6 @@ sealed class Type<T : Value> {
         override val complex = false
         override val vector = true
         override val physicalSize = this.logicalSize * kotlin.Int.SIZE_BYTES
-        override val type: KClass<FloatVectorValue> = FloatVectorValue::class
         override fun defaultValue(): FloatVectorValue = FloatVectorValue.zero(this.logicalSize)
         override fun serializer(): Serializer<FloatVectorValue> = FixedFloatVectorSerializer(this.logicalSize)
     }
@@ -271,7 +253,6 @@ sealed class Type<T : Value> {
         override val complex = false
         override val vector = true
         override val physicalSize = this.logicalSize * kotlin.Long.SIZE_BYTES
-        override val type: KClass<DoubleVectorValue> = DoubleVectorValue::class
         override fun defaultValue(): DoubleVectorValue = DoubleVectorValue.zero(this.logicalSize)
         override fun serializer(): Serializer<DoubleVectorValue> = FixedDoubleVectorSerializer(this.logicalSize)
     }
@@ -283,7 +264,6 @@ sealed class Type<T : Value> {
         override val complex = false
         override val vector = true
         override val physicalSize = this.logicalSize * kotlin.Byte.SIZE_BYTES
-        override val type: KClass<BooleanVectorValue> = BooleanVectorValue::class
         override fun defaultValue(): BooleanVectorValue = BooleanVectorValue.zero(this.logicalSize)
         override fun serializer(): Serializer<BooleanVectorValue> = FixedBooleanVectorSerializer(this.logicalSize)
     }
@@ -295,7 +275,6 @@ sealed class Type<T : Value> {
         override val complex = true
         override val vector = true
         override val physicalSize = this.logicalSize * 2 * kotlin.Int.SIZE_BYTES
-        override val type: KClass<Complex32VectorValue> = Complex32VectorValue::class
         override fun defaultValue(): Complex32VectorValue = Complex32VectorValue.zero(this.logicalSize)
         override fun serializer(): Serializer<Complex32VectorValue> = FixedComplex32VectorSerializer(this.logicalSize)
     }
@@ -307,7 +286,6 @@ sealed class Type<T : Value> {
         override val complex = true
         override val vector = true
         override val physicalSize = this.logicalSize * 2 * kotlin.Long.SIZE_BYTES
-        override val type: KClass<Complex64VectorValue> = Complex64VectorValue::class
         override fun defaultValue(): Complex64VectorValue = Complex64VectorValue.zero(this.logicalSize)
         override fun serializer(): Serializer<Complex64VectorValue> = FixedComplex64VectorSerializer(this.logicalSize)
     }
