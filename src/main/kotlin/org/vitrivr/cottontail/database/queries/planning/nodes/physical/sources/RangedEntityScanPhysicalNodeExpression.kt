@@ -18,7 +18,7 @@ import org.vitrivr.cottontail.model.basics.ColumnDef
  */
 class RangedEntityScanPhysicalNodeExpression(val entity: Entity, override val columns: Array<ColumnDef<*>>, val range: LongRange) : NullaryPhysicalNodeExpression() {
     init {
-        require(this.range.first > 0L) { "Start of a ranged entity scan must be greater than zero." }
+        require(this.range.first >= 0L) { "Start of a ranged entity scan must be greater than zero." }
     }
 
     override val outputSize = this.entity.statistics.rows
