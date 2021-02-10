@@ -13,11 +13,11 @@ import java.nio.file.Path
  * @version 1.0.0
  */
 enum class ColumnDriver {
+    /** A MapDB based column. */
     MAPDB,
 
-    /** A MapDB based column. */
-    HARE;
     /** Cottontail DB's own storage format. Currently not supported and here for future support. */
+    HARE;
 
     /**
      * Opens a [Column] of this [ColumnDriver].
