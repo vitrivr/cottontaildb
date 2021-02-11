@@ -6,10 +6,11 @@ import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.index.AbstractIndexTest
 import org.vitrivr.cottontail.database.index.IndexTx
 import org.vitrivr.cottontail.database.index.IndexType
-import org.vitrivr.cottontail.database.queries.components.AtomicBooleanPredicate
+import org.vitrivr.cottontail.database.queries.predicates.bool.BooleanPredicate
 import org.vitrivr.cottontail.database.queries.predicates.bool.ComparisonOperator
 import org.vitrivr.cottontail.execution.TransactionType
 import org.vitrivr.cottontail.model.basics.Name
+import org.vitrivr.cottontail.model.basics.Type
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.LongValue
 import org.vitrivr.cottontail.model.values.StringValue
@@ -26,9 +27,9 @@ import kotlin.collections.HashMap
 class NonUniqueHashIndexTest : AbstractIndexTest() {
 
     /** List of columns for this [NonUniqueHashIndexTest]. */
-    override val columns = arrayOf(
-        ColumnDef.withAttributes(this.entityName.column("id"), "STRING", -1, false),
-        ColumnDef.withAttributes(this.entityName.column("value"), "LONG", -1, false)
+    override val columns: Array<ColumnDef<*>> = arrayOf(
+        ColumnDef(this.entityName.column("id"), Type.String),
+        ColumnDef(this.entityName.column("feature"), Type.Long)
     )
 
     override val indexColumn: ColumnDef<*>
@@ -77,14 +78,23 @@ class NonUniqueHashIndexTest : AbstractIndexTest() {
         val indexTx = txn.getTx(this.index!!) as IndexTx
         val entityTx = txn.getTx(this.entity!!) as EntityTx
         for (entry in this.list.entries) {
-            val predicate = AtomicBooleanPredicate(this.columns[0] as ColumnDef<StringValue>, ComparisonOperator.EQUAL, false, listOf(entry.key))
+            val predicate = BooleanPredicate.Atomic(
+                this.columns[0] as ColumnDef<StringValue>,
+                ComparisonOperator.EQUAL,
+                false,
+            )
+            predicate.value(entry.key)
             indexTx.filter(predicate).use {
+                var found = false
                 it.forEach { r ->
                     val rec = entityTx.read(r.tupleId, this.columns)
                     val id = rec[this.columns[0]] as StringValue
                     Assertions.assertEquals(entry.key, id)
-                    Assertions.assertTrue(list[id]!!.contains(rec[this.columns[1]] as LongValue))
+                    if (entry.value.contains(rec[this.columns[1]])) {
+                        found = true
+                    }
                 }
+                Assertions.assertTrue(found)
             }
         }
         txn.commit()
@@ -98,9 +108,13 @@ class NonUniqueHashIndexTest : AbstractIndexTest() {
         val txn = this.manager.Transaction(TransactionType.SYSTEM)
         val indexTx = txn.getTx(this.index!!) as IndexTx
         var count = 0
-        indexTx.filter(AtomicBooleanPredicate(this.columns[0] as ColumnDef<StringValue>, ComparisonOperator.EQUAL, false, listOf(StringValue(UUID.randomUUID().toString())))).use {
-            it.forEach { count += 1 }
-        }
+        val predicate = BooleanPredicate.Atomic(
+            this.columns[0] as ColumnDef<StringValue>,
+            ComparisonOperator.EQUAL,
+            false
+        )
+        predicate.value(StringValue(UUID.randomUUID().toString()))
+        indexTx.filter(predicate).use { it.forEach { count += 1 } }
         Assertions.assertEquals(0, count)
         txn.commit()
     }
@@ -118,6 +132,6 @@ class NonUniqueHashIndexTest : AbstractIndexTest() {
                 list
             }
         }
-        return StandaloneRecord(columns = this.columns, values = arrayOf(id, value))
+        return StandaloneRecord(0L, columns = this.columns, values = arrayOf(id, value))
     }
 }

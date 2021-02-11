@@ -11,7 +11,7 @@ import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.index.AbstractIndexTest
 import org.vitrivr.cottontail.database.index.IndexTx
 import org.vitrivr.cottontail.database.index.IndexType
-import org.vitrivr.cottontail.database.queries.components.KnnPredicate
+import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicate
 import org.vitrivr.cottontail.execution.TransactionType
 import org.vitrivr.cottontail.math.knn.metrics.DistanceKernel
 import org.vitrivr.cottontail.math.knn.metrics.EuclidianDistance
@@ -22,6 +22,7 @@ import org.vitrivr.cottontail.math.knn.selection.MinHeapSelection
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.basics.TupleId
+import org.vitrivr.cottontail.model.basics.Type
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.DoubleValue
 import org.vitrivr.cottontail.model.values.FloatVectorValue
@@ -52,12 +53,10 @@ class VAFFloatIndexTest : AbstractIndexTest() {
     private val random = SplittableRandom()
 
     override val columns: Array<ColumnDef<*>> = arrayOf(
-        ColumnDef.withAttributes(this.entityName.column("id"), "LONG", -1, false),
-        ColumnDef.withAttributes(
+        ColumnDef(this.entityName.column("id"), Type.Long),
+        ColumnDef(
             this.entityName.column("feature"),
-            "FLOAT_VEC",
-            this.random.nextInt(128, 2048),
-            false
+            Type.FloatVector(this.random.nextInt(128, 2048))
         )
     )
 
@@ -89,14 +88,13 @@ class VAFFloatIndexTest : AbstractIndexTest() {
     fun test(distance: DistanceKernel) {
         val txn = this.manager.Transaction(TransactionType.SYSTEM)
         val k = 100
-        val query = FloatVectorValue.random(this.indexColumn.logicalSize, this.random)
+        val query = FloatVectorValue.random(this.indexColumn.type.logicalSize, this.random)
         val predicate = KnnPredicate(
             column = this.indexColumn,
             k = k,
-            query = listOf(query),
             distance = distance
         )
-
+        predicate.query(query)
         val indexTx = txn.getTx(this.index!!) as IndexTx
         val entityTx = txn.getTx(this.entity!!) as EntityTx
 
@@ -138,7 +136,7 @@ class VAFFloatIndexTest : AbstractIndexTest() {
 
     override fun nextRecord(): StandaloneRecord {
         val id = LongValue(this.counter++)
-        val vector = FloatVectorValue.random(this.indexColumn.logicalSize, this.random)
-        return StandaloneRecord(columns = this.columns, values = arrayOf(id, vector))
+        val vector = FloatVectorValue.random(this.indexColumn.type.logicalSize, this.random)
+        return StandaloneRecord(0L, columns = this.columns, values = arrayOf(id, vector))
     }
 }

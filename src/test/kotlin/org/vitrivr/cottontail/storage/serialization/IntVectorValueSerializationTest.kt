@@ -32,19 +32,20 @@ class IntVectorValueSerializationTest : AbstractSerializationTest() {
     @MethodSource("dimensions")
     fun test(dimension: Int) {
         val nameEntity = this.schema.name.entity("intvector-test")
-        val idCol = ColumnDef(nameEntity.column("id"), Type.forName("INTEGER"), -1, false)
-        val vectorCol = ColumnDef(nameEntity.column("vector"), Type.forName("INT_VEC"), dimension, false)
+
+        val idCol = ColumnDef(nameEntity.column("id"), Type.Int)
+        val vectorCol = ColumnDef(nameEntity.column("vector"), Type.IntVector(dimension))
 
         /* Prepare entity. */
         val columns = arrayOf(idCol, vectorCol)
         val txn = this.manager.Transaction(TransactionType.USER)
-        val schemaTx = this.schema.Tx(txn)
+        val schemaTx = this.schema.newTx(txn)
         schemaTx.createEntity(nameEntity, *columns)
         schemaTx.commit()
 
         /* Load entity. */
         val entity = schemaTx.entityForName(nameEntity)
-        val entityTx = entity.Tx(context = txn)
+        val entityTx = entity.newTx(context = txn)
 
         /* Prepare random number generator. */
         val seed = System.currentTimeMillis()
@@ -53,7 +54,13 @@ class IntVectorValueSerializationTest : AbstractSerializationTest() {
         /* Insert data into column. */
         var i1 = 1L
         VectorUtility.randomIntVectorSequence(dimension, TestConstants.collectionSize, r1).forEach {
-            entityTx.insert(StandaloneRecord(columns = columns, values = arrayOf(IntValue(++i1), it)))
+            entityTx.insert(
+                StandaloneRecord(
+                    i1,
+                    columns = columns,
+                    values = arrayOf(IntValue(++i1), it)
+                )
+            )
         }
         entityTx.commit()
 

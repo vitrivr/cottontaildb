@@ -51,9 +51,8 @@ class NonUniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path
     private val map: NavigableSet<Array<Any>> =
         this.db.treeSet(
             NUQ_INDEX_MAP,
-            SerializerArrayTuple(this.columns[0].type.serializer(), Serializer.LONG)
-        )
-            .createOrOpen()
+            SerializerArrayTuple(this.columns[0].type.serializer(), Serializer.LONG_DELTA)
+        ).createOrOpen()
 
     /**
      * Flag indicating if this [NonUniqueHashIndex] has been closed.

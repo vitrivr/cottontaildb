@@ -42,7 +42,7 @@ class UniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path, p
 
     /** Map structure used for [UniqueHashIndex]. */
     private val map: HTreeMap<Value, TupleId> =
-        this.db.hashMap(UQ_INDEX_MAP, this.columns[0].type.serializer(), Serializer.LONG)
+        this.db.hashMap(UQ_INDEX_MAP, this.columns[0].type.serializer(), Serializer.LONG_DELTA)
             .createOrOpen() as HTreeMap<Value, TupleId>
 
     /**
