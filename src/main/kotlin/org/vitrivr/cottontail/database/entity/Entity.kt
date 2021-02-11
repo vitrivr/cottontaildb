@@ -366,6 +366,13 @@ class Entity(override val path: Path, override val parent: Schema) : DBO {
             index.close()
             this@Entity.indexes.remove(name)
 
+            /* ON ROLLBACK: Move back index and re-open it. */
+            this.postRollbackAction.add {
+                val indexRef = this@Entity.header.get().indexes.find { it.name == name.simple }
+                    ?: throw DatabaseException.DataCorruptionException("Failed to re-open index '$name': Could not read index definition from header!")
+                this@Entity.indexes[name] = indexRef.type.open(indexRef.path, this.dbo)
+            }
+
             try {
                 /*
                  * Rename index file / folder: If these have been removed already (sometimes
@@ -391,14 +398,6 @@ class Entity(override val path: Path, override val parent: Schema) : DBO {
                     }
                 } catch (e: NoSuchFileException) {
                     LOGGER.warn("Files for index '$name' are missing; dropping continues anyways.")
-                }
-
-                /* ON ROLLBACK: Move back index and re-open it. */
-                this.postRollbackAction.add {
-                    val indexRef = this@Entity.header.get().indexes.find { it.name == name.simple }
-                        ?: throw DatabaseException.DataCorruptionException("Failed to re-open index '$name': Could not read index definition from header!")
-                    this@Entity.indexes[name] = indexRef.type.open(indexRef.path, this.dbo)
-                    this.context.releaseLock(index)
                 }
 
                 /* Update header. */
