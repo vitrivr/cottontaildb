@@ -42,6 +42,13 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
         internal const val FILE_CATALOGUE = "catalogue.db"
     }
 
+    /** For the [DefaultCatalogue], missing folders are being created. */
+    init {
+        if (!Files.exists(this.config.root)) {
+            Files.createDirectories(this.config.root)
+        }
+    }
+
     /** Root to Cottontail DB root folder. */
     override val path: Path = config.root
 
@@ -55,7 +62,7 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
     private val closeLock = StampedLock()
 
     /** The [StoreWAL] that contains the Cottontail DB catalogue. */
-    private val store: DB = this.config.mapdb.db(path.resolve(FILE_CATALOGUE))
+    private val store: DB = this.config.mapdb.db(this.path.resolve(FILE_CATALOGUE))
 
     /** Reference to the [CatalogueHeader] of the [DefaultCatalogue]. Accessing it will read right from the underlying store. */
     private val headerField =
