@@ -9,7 +9,6 @@ import org.mapdb.StoreWAL
 import org.vitrivr.cottontail.database.column.Column
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.column.ColumnTx
-import org.vitrivr.cottontail.database.column.mapdb.MapDBColumn
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.general.AbstractTx
@@ -18,6 +17,7 @@ import org.vitrivr.cottontail.database.index.IndexTx
 import org.vitrivr.cottontail.database.index.IndexType
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.legacy.BrokenIndex
+import org.vitrivr.cottontail.legacy.v1.column.ColumnV1
 import org.vitrivr.cottontail.legacy.v1.schema.SchemaV1
 import org.vitrivr.cottontail.model.basics.*
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
@@ -87,7 +87,7 @@ class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1
                     ?: throw DatabaseException.DataCorruptionException("Failed to open entity '$name': Could not read column definition at position $it!")
             )
             this.columns[columnName] =
-                MapDBColumn<Value>(this.path.resolve("col_$columnName.db"), this)
+                ColumnV1<Value>(columnName, this)
         }
 
         /* Initialize indexes (broken). */
@@ -96,7 +96,8 @@ class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1
                 ?: throw DatabaseException.DataCorruptionException("Failed to open entity '$name': Could not read index definition at position $idx!")
             val indexName = this.name.index(indexEntry.name)
             val columns = indexEntry.columns.map { col ->
-                this.columns[this.name.column(col)]?.columnDef
+                val split = col.split(".").last()
+                this.columns[this.name.column(split)]?.columnDef
                     ?: throw DatabaseException.DataCorruptionException("Column '$col' does not exist on the entity!")
             }.toTypedArray()
             this.indexes[indexName] = BrokenIndex(

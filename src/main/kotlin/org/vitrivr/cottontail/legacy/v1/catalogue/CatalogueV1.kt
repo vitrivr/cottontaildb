@@ -65,7 +65,7 @@ class CatalogueV1(override val config: Config) : Catalogue {
 
     /** A in-memory registry of all the [SchemaV1]s contained in this [CatalogueV1]. When a [CatalogueV1] is opened, all the [SchemaV1]s will be loaded. */
     private val registry: MutableMap<Name.SchemaName, SchemaV1> =
-        Collections.synchronizedMap(Object2ObjectOpenHashMap<Name.SchemaName, SchemaV1>())
+        Collections.synchronizedMap(Object2ObjectOpenHashMap())
 
     /** Size of this [CatalogueV1] in terms of [SchemaV1]s it contains. */
     override val size: Int
