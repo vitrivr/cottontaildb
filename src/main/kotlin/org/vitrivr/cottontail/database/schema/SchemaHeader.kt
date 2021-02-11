@@ -9,9 +9,9 @@ import java.nio.file.Paths
 import java.util.*
 
 /**
- * The header of the [Schema]. Contains information regarding its content!
+ * The header of the [DefaultSchema]. Contains information regarding its content!
  *
- * @see Schema
+ * @see DefaultSchema
  *
  * @author Ralph Gasser
  * @version 2.0.0
@@ -27,7 +27,7 @@ data class SchemaHeader(
 
     companion object Serializer : org.mapdb.Serializer<SchemaHeader> {
 
-        /** The version of the Cottontail DB [Schema] file. */
+        /** The version of the Cottontail DB [DefaultSchema] file. */
         const val VERSION: Short = 2
 
         override fun serialize(out: DataOutput2, value: SchemaHeader) {

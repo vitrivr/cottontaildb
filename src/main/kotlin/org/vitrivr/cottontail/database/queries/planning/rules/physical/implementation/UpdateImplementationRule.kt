@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.database.queries.planning.rules.physical.implementation
 
 import org.vitrivr.cottontail.database.queries.OperatorNode
+import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.planning.exceptions.NodeExpressionTreeException
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.management.UpdateLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.management.UpdatePhysicalOperatorNode
@@ -10,11 +11,11 @@ import org.vitrivr.cottontail.database.queries.planning.rules.RewriteRule
  * A [RewriteRule] that transforms a [UpdateLogicalOperatorNode] to a [UpdatePhysicalOperatorNode].
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.1.0
  */
 object UpdateImplementationRule : RewriteRule {
     override fun canBeApplied(node: OperatorNode): Boolean = node is UpdateLogicalOperatorNode
-    override fun apply(node: OperatorNode): OperatorNode? {
+    override fun apply(node: OperatorNode, ctx: QueryContext): OperatorNode? {
         if (node is UpdateLogicalOperatorNode) {
             val parent = node.deepCopy().inputs.firstOrNull()
                 ?: throw NodeExpressionTreeException.IncompleteNodeExpressionTreeException(

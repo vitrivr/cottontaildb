@@ -3,7 +3,7 @@ package org.vitrivr.cottontail.database.index.hash
 import org.mapdb.HTreeMap
 import org.mapdb.Serializer
 import org.vitrivr.cottontail.database.column.ColumnDef
-import org.vitrivr.cottontail.database.entity.Entity
+import org.vitrivr.cottontail.database.entity.DefaultEntity
 import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.events.DataChangeEvent
 import org.vitrivr.cottontail.database.index.*
@@ -27,14 +27,14 @@ import java.util.*
  * @author Ralph Gasser
  * @version 2.0.0
  */
-class UniqueHashIndex(path: Path, parent: Entity) : Index(path, parent) {
+class UniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path, parent) {
 
     /** Index-wide constants. */
     companion object {
         const val UQ_INDEX_MAP = "cdb_uq_map"
     }
 
-    /** The type of [Index] */
+    /** The type of [AbstractIndex] */
     override val type: IndexType = IndexType.HASH_UQ
 
     /** The [UniqueHashIndex] implementation returns exactly the columns that is indexed. */
@@ -88,9 +88,9 @@ class UniqueHashIndex(path: Path, parent: Entity) : Index(path, parent) {
     }
 
     /**
-     * Opens and returns a new [IndexTx] object that can be used to interact with this [Index].
+     * Opens and returns a new [IndexTx] object that can be used to interact with this [AbstractIndex].
      *
-     * @param context [TransactionContext] to open the [Index.Tx] for.
+     * @param context [TransactionContext] to open the [AbstractIndex.Tx] for.
      */
     override fun newTx(context: TransactionContext): IndexTx = Tx(context)
 
@@ -108,7 +108,7 @@ class UniqueHashIndex(path: Path, parent: Entity) : Index(path, parent) {
     /**
      * An [IndexTx] that affects this [UniqueHashIndex].
      */
-    private inner class Tx(context: TransactionContext) : Index.Tx(context) {
+    private inner class Tx(context: TransactionContext) : AbstractIndex.Tx(context) {
 
         /**
          * Adds a mapping from the given [Value] to the given [TupleId].

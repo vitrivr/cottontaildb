@@ -12,13 +12,12 @@ import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.sources.EntityIndexScanOperator
 
 /**
- * A [NodeExpression.PhysicalNodeExpression] that represents a kNN query via an [Index] that support kNN lookups
+ * A [NullaryPhysicalOperatorNode] that represents a kNN query via an [Index] that support kNN lookups
  *
  * @author Ralph Gasser
  * @version 1.2.0
  */
-class IndexKnnPhysicalOperatorNode(val index: Index, val predicate: KnnPredicate) :
-    NullaryPhysicalOperatorNode() {
+class IndexKnnPhysicalOperatorNode(val index: Index, val predicate: KnnPredicate) : NullaryPhysicalOperatorNode() {
     override val columns: Array<ColumnDef<*>>
         get() = this.index.produces
     override val canBePartitioned: Boolean = false

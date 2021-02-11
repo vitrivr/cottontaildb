@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.database.index
 
 import org.vitrivr.cottontail.database.column.ColumnDef
-import org.vitrivr.cottontail.database.entity.Entity
+import org.vitrivr.cottontail.database.entity.DefaultEntity
 import org.vitrivr.cottontail.database.index.gg.GGIndex
 import org.vitrivr.cottontail.database.index.gg.GGIndexConfig
 import org.vitrivr.cottontail.database.index.hash.NonUniqueHashIndex
@@ -19,7 +19,7 @@ import org.vitrivr.cottontail.model.values.types.VectorValue
 import java.nio.file.Path
 
 /**
- * A final list of types of [Index] implementation.
+ * A final list of types of [AbstractIndex] implementation.
  *
  * TODO: This could actually be more of a 'registry' type of facility, which would allow for extensions
  *
@@ -49,12 +49,12 @@ enum class IndexType(val inexact: Boolean) {
     GG(true);
 
     /**
-     * Opens an index of this [IndexType] using the given name and [Entity].
+     * Opens an index of this [IndexType] using the given name and [DefaultEntity].
      *
-     * @param path [Name.IndexName] of the [Index]
-     * @param entity The [Entity] the desired [Index] belongs to.
+     * @param path [Name.IndexName] of the [AbstractIndex]
+     * @param entity The [DefaultEntity] the desired [AbstractIndex] belongs to.
      */
-    fun open(path: Path, entity: Entity): Index = when (this) {
+    fun open(path: Path, entity: DefaultEntity): AbstractIndex = when (this) {
         HASH_UQ -> UniqueHashIndex(path, entity)
         HASH -> NonUniqueHashIndex(path, entity)
         LUCENE -> LuceneIndex(path, entity)
@@ -66,21 +66,21 @@ enum class IndexType(val inexact: Boolean) {
     }
 
     /**
-     * Creates an index of this [IndexType] using the given name and [Entity].
+     * Creates an index of this [IndexType] using the given name and [DefaultEntity].
      *
-     * @param name [Name.IndexName] of the [Index]
-     * @param entity The [Entity] the desired [Index] belongs to.
-     * @param columns The [ColumnDef] for which to create the [Index]
+     * @param name [Name.IndexName] of the [AbstractIndex]
+     * @param entity The [DefaultEntity] the desired [AbstractIndex] belongs to.
+     * @param columns The [ColumnDef] for which to create the [AbstractIndex]
      * @param params Additions configuration params.
      */
     fun create(
         path: Path,
-        entity: Entity,
+        entity: DefaultEntity,
         name: Name.IndexName,
         columns: Array<ColumnDef<*>>,
         params: Map<String, String> = emptyMap()
-    ): Index {
-        Index.initialize(path, name, this, columns, entity.parent.parent.config)
+    ): AbstractIndex {
+        AbstractIndex.initialize(path, name, this, columns, entity.parent.parent.config)
         return when (this) {
             HASH_UQ -> UniqueHashIndex(path, entity)
             HASH -> NonUniqueHashIndex(path, entity)

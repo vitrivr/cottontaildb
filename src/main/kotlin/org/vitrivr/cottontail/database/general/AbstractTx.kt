@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.database.general
 
-import org.vitrivr.cottontail.database.index.Index
+import org.vitrivr.cottontail.database.index.AbstractIndex
 import org.vitrivr.cottontail.database.index.IndexTx
 import org.vitrivr.cottontail.database.locking.LockMode
 import org.vitrivr.cottontail.execution.TransactionContext
@@ -88,7 +88,7 @@ abstract class AbstractTx(override val context: TransactionContext) : Tx {
     protected abstract fun cleanup()
 
     /**
-     * Checks if this [Index.Tx] is in a valid state for write operations to happen and sets its
+     * Checks if this [AbstractIndex.Tx] is in a valid state for write operations to happen and sets its
      * [status] to [TxStatus.DIRTY]
      */
     protected inline fun <T> withWriteLock(block: () -> (T)): T {
@@ -104,7 +104,7 @@ abstract class AbstractTx(override val context: TransactionContext) : Tx {
     }
 
     /**
-     * Checks if this [Index.Tx] is in a valid state for read operations to happen.
+     * Checks if this [AbstractIndex.Tx] is in a valid state for read operations to happen.
      */
     protected inline fun <T> withReadLock(block: () -> (T)): T {
         if (this.status == TxStatus.CLOSED) throw TxException.TxClosedException(this.context.txId)

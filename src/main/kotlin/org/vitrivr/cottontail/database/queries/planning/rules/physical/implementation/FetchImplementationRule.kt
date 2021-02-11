@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.database.queries.planning.rules.physical.implementation
 
 import org.vitrivr.cottontail.database.queries.OperatorNode
+import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.planning.exceptions.NodeExpressionTreeException
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.projection.FetchLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.projection.FetchPhysicalOperatorNode
@@ -12,11 +13,11 @@ import org.vitrivr.cottontail.database.queries.planning.rules.RewriteRule
  * This is a simple 1:1 replacement (implementation).
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
 object FetchImplementationRule : RewriteRule {
     override fun canBeApplied(node: OperatorNode): Boolean = node is FetchLogicalOperatorNode
-    override fun apply(node: OperatorNode): OperatorNode? {
+    override fun apply(node: OperatorNode, ctx: QueryContext): OperatorNode? {
         if (node is FetchLogicalOperatorNode) {
             val parent = (node.deepCopy() as FetchLogicalOperatorNode).input
                 ?: throw NodeExpressionTreeException.IncompleteNodeExpressionTreeException(

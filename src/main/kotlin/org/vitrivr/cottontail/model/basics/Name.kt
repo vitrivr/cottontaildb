@@ -39,7 +39,7 @@ sealed class Name {
     }
 
     /**
-     * A [Name] object used to identify a [Schema][org.vitrivr.cottontail.database.schema.Schema].
+     * A [Name] object used to identify a [Schema][org.vitrivr.cottontail.database.schema.DefaultSchema].
      */
     class SchemaName(vararg components: String) : Name() {
 
@@ -78,7 +78,7 @@ sealed class Name {
     }
 
     /**
-     * A [Name] object used to identify a [Entity][org.vitrivr.cottontail.database.entity.Entity].
+     * A [Name] object used to identify a [Entity][org.vitrivr.cottontail.database.entity.DefaultEntity].
      */
     class EntityName(vararg components: String) : Name() {
 
@@ -133,7 +133,7 @@ sealed class Name {
     }
 
     /**
-     * A [Name] object used to identify a [Index][org.vitrivr.cottontail.database.index.Index].
+     * A [Name] object used to identify a [Index][org.vitrivr.cottontail.database.index.AbstractIndex].
      */
     class IndexName(vararg components: String) : Name() {
 

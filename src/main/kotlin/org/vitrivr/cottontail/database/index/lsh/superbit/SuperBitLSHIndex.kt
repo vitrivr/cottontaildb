@@ -4,10 +4,10 @@ import org.mapdb.HTreeMap
 import org.mapdb.Serializer
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.database.column.Column
-import org.vitrivr.cottontail.database.entity.Entity
+import org.vitrivr.cottontail.database.entity.DefaultEntity
 import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.events.DataChangeEvent
-import org.vitrivr.cottontail.database.index.Index
+import org.vitrivr.cottontail.database.index.AbstractIndex
 import org.vitrivr.cottontail.database.index.IndexTx
 import org.vitrivr.cottontail.database.index.IndexType
 import org.vitrivr.cottontail.database.index.lsh.LSHIndex
@@ -31,8 +31,8 @@ import java.nio.file.Path
 import java.util.*
 
 /**
- * Represents a LSH based index in the Cottontail DB data model. An [Index] belongs to an [Entity]
- * and can be used to index one to many [Column]s. Usually, [Index]es allow for faster data access.
+ * Represents a LSH based index in the Cottontail DB data model. An [AbstractIndex] belongs to an [DefaultEntity]
+ * and can be used to index one to many [Column]s. Usually, [AbstractIndex]es allow for faster data access.
  * They process [Predicate]s and return
  * [Recordset]s.
  *
@@ -41,7 +41,7 @@ import java.util.*
  */
 class SuperBitLSHIndex<T : VectorValue<*>>(
     path: Path,
-    parent: Entity,
+    parent: DefaultEntity,
     config: SuperBitLSHIndexConfig? = null
 ) : LSHIndex<T>(path, parent) {
 
@@ -121,16 +121,16 @@ class SuperBitLSHIndex<T : VectorValue<*>>(
     }
 
     /**
-     * Opens and returns a new [IndexTx] object that can be used to interact with this [Index].
+     * Opens and returns a new [IndexTx] object that can be used to interact with this [AbstractIndex].
      *
      * @param context The [TransactionContext] to create this [IndexTx] for.
      */
     override fun newTx(context: TransactionContext): IndexTx = Tx(context)
 
     /**
-     * A [IndexTx] that affects this [Index].
+     * A [IndexTx] that affects this [AbstractIndex].
      */
-    private inner class Tx(context: TransactionContext) : Index.Tx(context) {
+    private inner class Tx(context: TransactionContext) : AbstractIndex.Tx(context) {
         /**
          * Returns the number of [VAFSignature]s in this [SuperBitLSHIndex]
          *
@@ -297,9 +297,9 @@ class SuperBitLSHIndex<T : VectorValue<*>>(
         }
 
         /**
-         * Tries to find a specimen of the [VectorValue] in the [Entity] underpinning this [SuperBitLSHIndex]
+         * Tries to find a specimen of the [VectorValue] in the [DefaultEntity] underpinning this [SuperBitLSHIndex]
          *
-         * @param tx [Entity.Tx] used to read from [Entity]
+         * @param tx [DefaultEntity.Tx] used to read from [DefaultEntity]
          * @return A specimen of the [VectorValue] that should be indexed.
          */
         private fun acquireSpecimen(tx: EntityTx): VectorValue<*>? {

@@ -8,9 +8,9 @@ import java.nio.file.Paths
 import java.util.*
 
 /**
- * The header section of the [Catalogue] data structure.
+ * The header section of the [DefaultCatalogue] data structure.
  *
- * @see [Catalogue]
+ * @see [DefaultCatalogue]
  *
  * @author Ralph Gasser
  * @version 2.0.0
@@ -25,7 +25,7 @@ internal data class CatalogueHeader(
     val schemas: List<SchemaRef> = LinkedList()
 
     companion object Serializer : org.mapdb.Serializer<CatalogueHeader> {
-        /** The version of the Cottontail DB [Catalogue]  file. */
+        /** The version of the Cottontail DB [DefaultCatalogue]  file. */
         internal const val VERSION: Short = 2
 
         override fun serialize(out: DataOutput2, value: CatalogueHeader) {

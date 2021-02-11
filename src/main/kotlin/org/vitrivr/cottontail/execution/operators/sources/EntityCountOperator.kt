@@ -18,7 +18,7 @@ import org.vitrivr.cottontail.model.values.LongValue
  * @author Ralph Gasser
  * @version 1.1.2
  */
-class EntityCountOperator(entity: Entity) : AbstractEntityOperator(entity, arrayOf(entity.allColumns().first())) {
+class EntityCountOperator(entity: Entity) : AbstractEntityOperator(entity, arrayOf()) {
 
     /** The [ColumnDef] returned by this [EntitySampleOperator]. */
     override val columns: Array<ColumnDef<*>> = arrayOf(

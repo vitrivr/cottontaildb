@@ -21,7 +21,7 @@ import org.vitrivr.cottontail.model.exceptions.QueryException
  * stage is done based on estimated costs.
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.3.0
  */
 class CottontailQueryPlanner(logicalRewriteRules: Collection<RewriteRule>, physicalRewriteRules: Collection<RewriteRule>, val planCacheSize: Int = 100) {
 
@@ -46,9 +46,9 @@ class CottontailQueryPlanner(logicalRewriteRules: Collection<RewriteRule>, physi
      */
     fun planAndSelect(context: QueryContext, bypassCache: Boolean = false, cache: Boolean = false) {
         /* Try to obtain PhysicalNodeExpression from plan cache, unless bypassCache has been set to true. */
-        val logicalNodeExpression = context.logical
-        require(logicalNodeExpression != null) { "Cannot plan for a QueryContext that doesn't have a valid logical query represntation." }
-        val digest = logicalNodeExpression.deepDigest()
+        val logical = context.logical
+        require(logical != null) { "Cannot plan for a QueryContext that doesn't have a valid logical query represntation." }
+        val digest = logical.deepDigest()
         if (!bypassCache) {
             if (this.planCache.containsKey(digest)) {
                 context.physical = this.planCache[digest]
@@ -57,8 +57,8 @@ class CottontailQueryPlanner(logicalRewriteRules: Collection<RewriteRule>, physi
         }
 
         /* Execute actual query planning and select candidate with lowest cost. */
-        val candidates = this.plan(logicalNodeExpression)
-        context.physical = candidates.minByOrNull { it.totalCost } ?: throw QueryException.QueryPlannerException("Failed to generate a physical execution plan for expression: $logicalNodeExpression.")
+        val candidates = this.plan(logical, context)
+        context.physical = candidates.minByOrNull { it.totalCost } ?: throw QueryException.QueryPlannerException("Failed to generate a physical execution plan for expression: $logical.")
 
         /* Update plan cache. */
         if (!cache) {
@@ -73,16 +73,18 @@ class CottontailQueryPlanner(logicalRewriteRules: Collection<RewriteRule>, physi
      * Generates a list of equivalent [PhysicalOperatorNode]s by recursively applying [RewriteRule]s
      * on the seed [LogicalOperatorNode] and derived [OperatorNode]s.
      *
-     * @param expression The [LogicalOperatorNode] to plan.
+     * @param node The [LogicalOperatorNode] to plan.
+     * @param ctx The [QueryContext] in which optimization takes place.
+     *
      * @return List of [PhysicalOperatorNode] that execute the [LogicalOperatorNode]
      */
-    fun plan(expression: LogicalOperatorNode): Collection<PhysicalOperatorNode> {
+    fun plan(node: LogicalOperatorNode, ctx: QueryContext): Collection<PhysicalOperatorNode> {
         /** Generate stage 1 candidates by logical optimization. */
-        val stage1 = (this.optimize(expression, this.logicalRules) + expression)
+        val stage1 = (this.optimize(node, this.logicalRules, ctx) + node)
 
         /** Generate stage 2 candidates by physical optimization. */
         val stage2 = stage1.flatMap {
-            this.optimize(it, this.physicalRules)
+            this.optimize(it, this.physicalRules, ctx)
         }.filterIsInstance<PhysicalOperatorNode>()
             .filter {
                 it.root.executable
@@ -99,16 +101,18 @@ class CottontailQueryPlanner(logicalRewriteRules: Collection<RewriteRule>, physi
      * Performs optimization of a [LogicalOperatorNode] tree, by applying plan rewrite rules that
      * manipulate that tree and return equivalent [LogicalOperatorNode] trees.
      *
-     * @param expression The [LogicalOperatorNode] that should be optimized.
+     * @param operator The [OperatorNode] that should be optimized.
+     * @param group The [RuleGroup] that should be applied.
+     * @param ctx The [QueryContext] in which optimization takes place.
      */
-    private fun optimize(expression: OperatorNode, group: RuleGroup): Collection<OperatorNode> {
+    private fun optimize(operator: OperatorNode, group: RuleGroup, ctx: QueryContext): Collection<OperatorNode> {
         val candidates = mutableListOf<OperatorNode>()
         val explore = mutableListOf<OperatorNode>()
-        var pointer: OperatorNode? = expression
+        var pointer: OperatorNode? = operator
         while (pointer != null) {
 
             /* Apply rules to node and add results to list for exploration. */
-            val results = group.apply(pointer)
+            val results = group.apply(pointer, ctx)
             if (results.isEmpty()) {
                 if (pointer.inputs.size > 0) {
                     explore.addAll(pointer.inputs)

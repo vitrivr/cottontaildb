@@ -2,7 +2,6 @@ package org.vitrivr.cottontail.execution.operators.sources
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.index.Index
 import org.vitrivr.cottontail.database.index.IndexTx
@@ -11,7 +10,7 @@ import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.model.basics.Record
 
 /**
- * An [AbstractEntityOperator] that scans an [Entity.Index] and streams all [Record]s found within.
+ * An [AbstractEntityOperator] that scans an [Index] and streams all [Record]s found within.
  *
  * @author Ralph Gasser
  * @version 1.2.0

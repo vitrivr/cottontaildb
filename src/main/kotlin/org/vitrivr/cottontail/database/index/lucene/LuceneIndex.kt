@@ -9,10 +9,10 @@ import org.apache.lucene.store.Directory
 import org.apache.lucene.store.FSDirectory
 import org.apache.lucene.store.NativeFSLockFactory
 import org.vitrivr.cottontail.database.column.ColumnDef
-import org.vitrivr.cottontail.database.entity.Entity
+import org.vitrivr.cottontail.database.entity.DefaultEntity
 import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.events.DataChangeEvent
-import org.vitrivr.cottontail.database.index.Index
+import org.vitrivr.cottontail.database.index.AbstractIndex
 import org.vitrivr.cottontail.database.index.IndexTx
 import org.vitrivr.cottontail.database.index.IndexType
 import org.vitrivr.cottontail.database.index.hash.UniqueHashIndex
@@ -35,14 +35,14 @@ import org.vitrivr.cottontail.utilities.extensions.write
 import java.nio.file.Path
 
 /**
- * An Apache Lucene based [Index]. The [LuceneIndex] allows for fast search on text using the EQUAL
+ * An Apache Lucene based [AbstractIndex]. The [LuceneIndex] allows for fast search on text using the EQUAL
  * or LIKE operator.
  *
  * @author Luca Rossetto & Ralph Gasser
  * @version 2.0.0
  */
-class LuceneIndex(path: Path, parent: Entity, config: LuceneIndexConfig? = null) :
-    Index(path, parent) {
+class LuceneIndex(path: Path, parent: DefaultEntity, config: LuceneIndexConfig? = null) :
+    AbstractIndex(path, parent) {
 
     companion object {
         /** [ColumnDef] of the _tid column. */
@@ -62,7 +62,7 @@ class LuceneIndex(path: Path, parent: Entity, config: LuceneIndexConfig? = null)
     /** False, since [LuceneIndex] does not support partitioning. */
     override val supportsPartitioning: Boolean = false
 
-    /** The type of this [Index]. */
+    /** The type of this [AbstractIndex]. */
     override val type: IndexType = IndexType.LUCENE
 
     /** The [LuceneIndexConfig] used by this [LuceneIndex] instance. */
@@ -129,7 +129,7 @@ class LuceneIndex(path: Path, parent: Entity, config: LuceneIndexConfig? = null)
     }
 
     /**
-     * Opens and returns a new [IndexTx] object that can be used to interact with this [Index].
+     * Opens and returns a new [IndexTx] object that can be used to interact with this [AbstractIndex].
      *
      * @param context If the [TransactionContext] to create the [IndexTx] for.
      */
@@ -250,7 +250,7 @@ class LuceneIndex(path: Path, parent: Entity, config: LuceneIndexConfig? = null)
     /**
      * An [IndexTx] that affects this [LuceneIndex].
      */
-    private inner class Tx(context: TransactionContext) : Index.Tx(context) {
+    private inner class Tx(context: TransactionContext) : AbstractIndex.Tx(context) {
 
         /** The [IndexWriter] instance used to access this [LuceneIndex]. */
         private val writer = IndexWriter(

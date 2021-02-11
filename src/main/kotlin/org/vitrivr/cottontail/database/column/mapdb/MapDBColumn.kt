@@ -5,6 +5,7 @@ import org.vitrivr.cottontail.config.MapDBConfig
 import org.vitrivr.cottontail.database.column.Column
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.column.ColumnTx
+import org.vitrivr.cottontail.database.entity.DefaultEntity
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.general.AbstractTx
 import org.vitrivr.cottontail.database.general.TxStatus
@@ -22,7 +23,7 @@ import java.util.concurrent.locks.StampedLock
 /**
  * Represents a [Column] in the Cottontail DB model that uses the Map DB storage engine.
  *
- * @see Entity
+ * @see DefaultEntity
  *
  * @param <T> Type of the value held by this [MapDBColumn].
  *

@@ -6,16 +6,16 @@ import org.vitrivr.cottontail.database.general.Tx
 import org.vitrivr.cottontail.model.basics.Name
 
 /**
- * A [Tx] that operates on a single [Schema].
+ * A [Tx] that operates on a single [DefaultSchema].
  *
  * [Tx]s are a unit of isolation for data operations (read/write).
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
 interface SchemaTx : Tx {
     /**
-     * Returns a list of [Entity] held by this [Schema].
+     * Returns a list of [Entity] held by this [DefaultSchema].
      *
      * @return [List] of all [Name.EntityName].
      */
@@ -31,7 +31,7 @@ interface SchemaTx : Tx {
     fun entityForName(name: Name.EntityName): Entity
 
     /**
-     * Creates a new [Entity] in this [Schema].
+     * Creates a new [Entity] in this [DefaultSchema].
      *
      * @param name The name of the [Entity] that should be created.
      * @return Newly created [Entity] for use in context of this [Tx]
@@ -39,7 +39,7 @@ interface SchemaTx : Tx {
     fun createEntity(name: Name.EntityName, vararg columns: ColumnDef<*>): Entity
 
     /**
-     * Drops an [Entity] in this [Schema].
+     * Drops an [Entity] in this [DefaultSchema].
      *
      * @param name The name of the [Entity] that should be dropped.
      */

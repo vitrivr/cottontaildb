@@ -3,7 +3,7 @@ package org.vitrivr.cottontail.database.index.hash
 import org.mapdb.Serializer
 import org.mapdb.serializer.SerializerArrayTuple
 import org.vitrivr.cottontail.database.column.ColumnDef
-import org.vitrivr.cottontail.database.entity.Entity
+import org.vitrivr.cottontail.database.entity.DefaultEntity
 import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.events.DataChangeEvent
 import org.vitrivr.cottontail.database.index.*
@@ -21,13 +21,13 @@ import java.nio.file.Path
 import java.util.*
 
 /**
- * Represents an [Index] in the Cottontail DB data model, that uses a persistent [HashMap]
+ * Represents an [AbstractIndex] in the Cottontail DB data model, that uses a persistent [HashMap]
  * to map a [Value] to a [TupleId]. Well suited for equality based lookups of [Value]s.
  *
  * @author Luca Rossetto & Ralph Gasser
  * @version 2.0.0
  */
-class NonUniqueHashIndex(path: Path, parent: Entity) : Index(path, parent) {
+class NonUniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path, parent) {
     /**
      * Index-wide constants.
      */
@@ -35,7 +35,7 @@ class NonUniqueHashIndex(path: Path, parent: Entity) : Index(path, parent) {
         const val NUQ_INDEX_MAP = "cdb_nuq_map"
     }
 
-    /** The type of [Index] */
+    /** The type of [AbstractIndex] */
     override val type: IndexType = IndexType.HASH
 
     /** True since [NonUniqueHashIndex] supports incremental updates. */
@@ -92,7 +92,7 @@ class NonUniqueHashIndex(path: Path, parent: Entity) : Index(path, parent) {
     }
 
     /**
-     * Opens and returns a new [IndexTx] object that can be used to interact with this [Index].
+     * Opens and returns a new [IndexTx] object that can be used to interact with this [AbstractIndex].
      *
      * @param context If the [TransactionContext] to create the [IndexTx] for..
      */
@@ -111,7 +111,7 @@ class NonUniqueHashIndex(path: Path, parent: Entity) : Index(path, parent) {
     /**
      * An [IndexTx] that affects this [NonUniqueHashIndex].
      */
-    private inner class Tx(context: TransactionContext) : Index.Tx(context) {
+    private inner class Tx(context: TransactionContext) : AbstractIndex.Tx(context) {
 
         /** A per-[Tx] buffer for (de-)serializing values into the set.*/
         private val buffer: Array<Any> = Array(2) { Any() }

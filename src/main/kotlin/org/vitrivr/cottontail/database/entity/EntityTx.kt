@@ -12,7 +12,7 @@ import org.vitrivr.cottontail.model.basics.*
  * A [Tx] that operates on a single [Entity]. [Tx]s are a unit of isolation for data operations (read/write).
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.2.1
  */
 interface EntityTx : Tx, Scanable, Countable, Modifiable {
 
@@ -34,6 +34,30 @@ interface EntityTx : Tx, Scanable, Countable, Modifiable {
     fun listColumns(): List<Column<*>>
 
     /**
+     * Returns the [Column] for the specified [Name.ColumnName]. Should be able to handle
+     * both simple names as well as fully qualified names.
+     *
+     * @param name The [Name.ColumnName] of the [Column].
+     * @return [Column].
+     */
+    fun columnForName(name: Name.ColumnName): Column<*>
+
+    /**
+     * Lists [Name.IndexName] for all [Index] implementations that belong to this [EntityTx].
+     *
+     * @return List of [Name.IndexName] managed by this [EntityTx]
+     */
+    fun listIndexes(): List<Index>
+
+    /**
+     * Returns the [IndexTx] for the given [Name.IndexName].
+     *
+     * @param name The [Name.IndexName] of the [Index] the [IndexTx] belongs to.
+     * @return [IndexTx]
+     */
+    fun indexForName(name: Name.IndexName): Index
+
+    /**
      * Creates the [Index] with the given settings
      *
      * @param name [Name.IndexName] of the [Index] to create.
@@ -52,31 +76,10 @@ interface EntityTx : Tx, Scanable, Countable, Modifiable {
     fun dropIndex(name: Name.IndexName)
 
     /**
-     * Lists [Name.IndexName] for all [Index] implementations that belong to this [EntityTx].
+     * Reads the specified [TupleId] and the specified [ColumnDef] through this [EntityTx].
      *
-     * @return List of [Name.IndexName] managed by this [EntityTx]
-     */
-    fun listIndexes(): List<Index>
-
-    /**
-     * Returns the [Column] for the specified [Name.ColumnName]. Should be able to handle
-     * both simple names as well as fully qualified names.
-     *
-     * @param name The [Name.ColumnName] of the [Column].
-     * @return [Column].
-     */
-    fun columnForName(name: Name.ColumnName): Column<*>
-
-    /**
-     * Returns the [IndexTx] for the given [Name.IndexName].
-     *
-     * @param name The [Name.IndexName] of the [Index] the [IndexTx] belongs to.
-     * @return [IndexTx]
-     */
-    fun indexForName(name: Name.IndexName): Index
-
-    /**
-     *
+     * @param tupleId The [TupleId] to read.
+     * @param columns The [ColumnDef] to read.
      */
     fun read(tupleId: TupleId, columns: Array<ColumnDef<*>>): Record
 }

@@ -4,8 +4,8 @@ import com.google.protobuf.Empty
 import io.grpc.Status
 import io.grpc.stub.StreamObserver
 import org.slf4j.LoggerFactory
-import org.vitrivr.cottontail.database.catalogue.Catalogue
-import org.vitrivr.cottontail.database.entity.Entity
+import org.vitrivr.cottontail.database.catalogue.DefaultCatalogue
+import org.vitrivr.cottontail.database.entity.DefaultEntity
 import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.binding.GrpcQueryBinder
 import org.vitrivr.cottontail.database.queries.planning.CottontailQueryPlanner
@@ -29,13 +29,13 @@ import kotlin.time.measureTime
 import kotlin.time.measureTimedValue
 
 /**
- * Implementation of [DMLGrpc.DMLImplBase], the gRPC endpoint for inserting data into Cottontail DB [Entity]s.
+ * Implementation of [DMLGrpc.DMLImplBase], the gRPC endpoint for inserting data into Cottontail DB [DefaultEntity]s.
  *
  * @author Ralph Gasser
  * @version 1.4.0
  */
 @ExperimentalTime
-class DMLService(val catalogue: Catalogue, override val manager: TransactionManager) : DMLGrpc.DMLImplBase(), TransactionService {
+class DMLService(val catalogue: DefaultCatalogue, override val manager: TransactionManager) : DMLGrpc.DMLImplBase(), TransactionService {
     /** Logger used for logging the output. */
     companion object {
         private val LOGGER = LoggerFactory.getLogger(DMLService::class.java)
@@ -67,7 +67,7 @@ class DMLService(val catalogue: Catalogue, override val manager: TransactionMana
     override fun update(request: CottontailGrpc.UpdateMessage, responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) = try {
         this.withTransactionContext(request.txId) { tx, q ->
             try {
-                val ctx = QueryContext()
+                val ctx = QueryContext(tx)
                 val totalDuration = measureTime {
                     /* Bind query and create logical plan. */
                     val bindTime = measureTime {
@@ -126,7 +126,7 @@ class DMLService(val catalogue: Catalogue, override val manager: TransactionMana
     override fun delete(request: CottontailGrpc.DeleteMessage, responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) = try {
         this.withTransactionContext(request.txId) { tx, q ->
             try {
-                val ctx = QueryContext()
+                val ctx = QueryContext(tx)
                 val totalDuration = measureTime {
                     /* Bind query and create logical plan. */
                     val bindTime = measureTime {
@@ -185,7 +185,7 @@ class DMLService(val catalogue: Catalogue, override val manager: TransactionMana
     override fun insert(request: CottontailGrpc.InsertMessage, responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) = try {
         this.withTransactionContext(request.txId) { tx, q ->
             try {
-                val ctx = QueryContext()
+                val ctx = QueryContext(tx)
                 val totalDuration = measureTime {
                     /* Bind query and create logical plan. */
                     val bindTime = measureTime {
@@ -258,7 +258,7 @@ class DMLService(val catalogue: Catalogue, override val manager: TransactionMana
             try {
                 val localContext = this.queryContext
                 if (localContext == null) {
-                    val newQueryContext = QueryContext()
+                    val newQueryContext = QueryContext(this.transaction)
                     val bindTime = measureTime {
                         this@DMLService.binder.bind(value, newQueryContext, this.transaction)
                     }

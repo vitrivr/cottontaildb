@@ -3,10 +3,10 @@ package org.vitrivr.cottontail.database.index.pq
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.database.column.*
-import org.vitrivr.cottontail.database.entity.Entity
+import org.vitrivr.cottontail.database.entity.DefaultEntity
 import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.events.DataChangeEvent
-import org.vitrivr.cottontail.database.index.Index
+import org.vitrivr.cottontail.database.index.AbstractIndex
 import org.vitrivr.cottontail.database.index.IndexTx
 import org.vitrivr.cottontail.database.index.IndexType
 import org.vitrivr.cottontail.database.index.va.VAFIndex
@@ -30,7 +30,7 @@ import java.util.*
 import kotlin.collections.ArrayDeque
 
 /**
- * An [Index] structure for nearest neighbor search (NNS) that uses a product quantization (PQ). Can
+ * An [AbstractIndex] structure for nearest neighbor search (NNS) that uses a product quantization (PQ). Can
  * be used for all type of [VectorValue]s and distance metrics.
  *
  * TODO: Check if generalization to other distance metrics is actually valid.
@@ -41,7 +41,7 @@ import kotlin.collections.ArrayDeque
  * @author Gabriel Zihlmann & Ralph Gasser
  * @version 2.0.0
  */
-class PQIndex(path: Path, parent: Entity, config: PQIndexConfig? = null) : Index(path, parent) {
+class PQIndex(path: Path, parent: DefaultEntity, config: PQIndexConfig? = null) : AbstractIndex(path, parent) {
 
     companion object {
         private const val PQ_INDEX_FIELD = "cdb_pq_real"
@@ -82,7 +82,7 @@ class PQIndex(path: Path, parent: Entity, config: PQIndexConfig? = null) : Index
         KnnUtilities.distanceColumnDef(this.parent.name)
     )
 
-    /** The type of [Index]. */
+    /** The type of [AbstractIndex]. */
     override val type = IndexType.PQ
 
     /** The [PQIndexConfig] used by this [PQIndex] instance. */
@@ -138,7 +138,7 @@ class PQIndex(path: Path, parent: Entity, config: PQIndexConfig? = null) : Index
     override val supportsPartitioning: Boolean = true
 
     /**
-     * Checks if this [Index] can process the provided [Predicate] and returns true if so and false otherwise.
+     * Checks if this [AbstractIndex] can process the provided [Predicate] and returns true if so and false otherwise.
      *
      * @param predicate [Predicate] to check.
      * @return True if [Predicate] can be processed, false otherwise.
@@ -148,7 +148,7 @@ class PQIndex(path: Path, parent: Entity, config: PQIndexConfig? = null) : Index
                 && predicate.columns.first() == this.columns[0]
 
     /**
-     * Calculates the cost estimate if this [Index] processing the provided [Predicate].
+     * Calculates the cost estimate if this [AbstractIndex] processing the provided [Predicate].
      *
      * @param predicate [Predicate] to check.
      * @return [Cost] estimate for the [Predicate]
@@ -182,9 +182,9 @@ class PQIndex(path: Path, parent: Entity, config: PQIndexConfig? = null) : Index
     }
 
     /**
-     * A [IndexTx] that affects this [Index].
+     * A [IndexTx] that affects this [AbstractIndex].
      */
-    private inner class Tx(context: TransactionContext) : Index.Tx(context) {
+    private inner class Tx(context: TransactionContext) : AbstractIndex.Tx(context) {
 
         /**
          * Returns the number of [PQIndexEntry]s in this [PQIndex]

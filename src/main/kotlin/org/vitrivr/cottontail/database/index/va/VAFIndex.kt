@@ -4,10 +4,10 @@ import org.mapdb.Atomic
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.database.column.ColumnDef
-import org.vitrivr.cottontail.database.entity.Entity
+import org.vitrivr.cottontail.database.entity.DefaultEntity
 import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.events.DataChangeEvent
-import org.vitrivr.cottontail.database.index.Index
+import org.vitrivr.cottontail.database.index.AbstractIndex
 import org.vitrivr.cottontail.database.index.IndexTx
 import org.vitrivr.cottontail.database.index.IndexType
 import org.vitrivr.cottontail.database.index.va.bounds.*
@@ -42,7 +42,7 @@ import kotlin.math.max
 import kotlin.math.min
 
 /**
- * An [Index] structure for nearest neighbor search (NNS) that uses a vector approximation (VA) file ([1]).
+ * An [AbstractIndex] structure for nearest neighbor search (NNS) that uses a vector approximation (VA) file ([1]).
  * Can be used for all types of [RealVectorValue]s and all [MinkowskiDistance] metrics.
  *
  * References:
@@ -51,7 +51,7 @@ import kotlin.math.min
  * @author Gabriel Zihlmann & Ralph Gasser
  * @version 2.0.0
  */
-class VAFIndex(path: Path, parent: Entity, config: VAFIndexConfig? = null) : Index(path, parent) {
+class VAFIndex(path: Path, parent: DefaultEntity, config: VAFIndexConfig? = null) : AbstractIndex(path, parent) {
 
     companion object {
         private const val VAF_INDEX_SIGNATURES_FIELD = "vaf_signatures"
@@ -65,7 +65,7 @@ class VAFIndex(path: Path, parent: Entity, config: VAFIndexConfig? = null) : Ind
         KnnUtilities.distanceColumnDef(this.parent.name)
     )
 
-    /** The type of [Index]. */
+    /** The type of [AbstractIndex]. */
     override val type = IndexType.VAF
 
     /** The [VAFIndexConfig] used by this [VAFIndex] instance. */
@@ -152,9 +152,9 @@ class VAFIndex(path: Path, parent: Entity, config: VAFIndexConfig? = null) : Ind
     override fun newTx(context: TransactionContext): IndexTx = Tx(context)
 
     /**
-     * A [IndexTx] that affects this [Index].
+     * A [IndexTx] that affects this [AbstractIndex].
      */
-    private inner class Tx(context: TransactionContext) : Index.Tx(context) {
+    private inner class Tx(context: TransactionContext) : AbstractIndex.Tx(context) {
         /**
          * Returns the number of [VAFSignature]s in this [VAFIndex]
          *

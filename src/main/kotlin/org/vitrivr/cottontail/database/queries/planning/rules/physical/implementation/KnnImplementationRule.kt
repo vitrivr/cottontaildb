@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.database.queries.planning.rules.physical.implementation
 
 import org.vitrivr.cottontail.database.queries.OperatorNode
+import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.planning.exceptions.NodeExpressionTreeException
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.predicates.KnnLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.predicates.KnnPhysicalOperatorNode
@@ -12,11 +13,11 @@ import org.vitrivr.cottontail.database.queries.planning.rules.RewriteRule
  * This is a simple 1:1 replacement (implementation).
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.1.0
  */
 object KnnImplementationRule : RewriteRule {
     override fun canBeApplied(node: OperatorNode): Boolean = node is KnnLogicalOperatorNode
-    override fun apply(node: OperatorNode): OperatorNode? {
+    override fun apply(node: OperatorNode, ctx: QueryContext): OperatorNode? {
         if (node is KnnLogicalOperatorNode) {
             val parent = (node.deepCopy() as KnnLogicalOperatorNode).input
                 ?: throw NodeExpressionTreeException.IncompleteNodeExpressionTreeException(

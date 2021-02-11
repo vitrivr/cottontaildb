@@ -10,13 +10,12 @@ import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.column.ColumnTx
 import org.vitrivr.cottontail.database.events.DataChangeEvent
 import org.vitrivr.cottontail.database.general.AbstractTx
-import org.vitrivr.cottontail.database.general.DBO
 import org.vitrivr.cottontail.database.general.TxStatus
 import org.vitrivr.cottontail.database.index.Index
 import org.vitrivr.cottontail.database.index.IndexTx
 import org.vitrivr.cottontail.database.index.IndexType
 import org.vitrivr.cottontail.database.locking.LockMode
-import org.vitrivr.cottontail.database.schema.Schema
+import org.vitrivr.cottontail.database.schema.DefaultSchema
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.model.basics.*
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
@@ -34,67 +33,67 @@ import java.util.concurrent.locks.StampedLock
 import java.util.stream.Collectors
 
 /**
- * Represents a single entity in the Cottontail DB data model. An [Entity] has name that must remain unique within a [Schema].
- * The [Entity] contains one to many [Column]s holding the actual data. Hence, it can be seen as a table containing tuples.
+ * Represents a single entity in the Cottontail DB data model. An [DefaultEntity] has name that must remain unique within a [DefaultSchema].
+ * The [DefaultEntity] contains one to many [Column]s holding the actual data. Hence, it can be seen as a table containing tuples.
  *
- * Calling the default constructor for [Entity] opens that [Entity]. It can only be opened once due to file locks and it
+ * Calling the default constructor for [DefaultEntity] opens that [DefaultEntity]. It can only be opened once due to file locks and it
  * will remain open until the [Entity.close()] method is called.
  *
- * @see Schema
+ * @see DefaultSchema
  * @see Column
- * @see Entity.Tx
+ * @see EntityTx
  *
  * @author Ralph Gasser
  * @version 2.0.0
  */
-class Entity(override val path: Path, override val parent: Schema) : DBO {
+class DefaultEntity(override val path: Path, override val parent: DefaultSchema): Entity {
     /**
-     * Companion object of the [Entity]
+     * Companion object of the [DefaultEntity]
      */
     companion object {
-        /** Filename for the [Entity] catalogue.  */
+        /** Filename for the [DefaultEntity] catalogue.  */
         const val CATALOGUE_FILE = "index.db"
 
-        /** Filename for the [Entity] catalogue.  */
+        /** Filename for the [DefaultEntity] catalogue.  */
         const val ENTITY_HEADER_FIELD = "cdb_entity_header"
 
-        /** Filename for the [Entity] catalogue.  */
+        /** Filename for the [DefaultEntity] catalogue.  */
         const val ENTITY_COUNT_FIELD = "cdb_entity_count"
 
-        /** Filename for the [Entity] catalogue.  */
+        /** Filename for the [DefaultEntity] catalogue.  */
         const val ENTITY_MAX_FIELD = "cdb_entity_maxtid"
 
         /** Entity wide LOGGER instance. */
-        private val LOGGER = LoggerFactory.getLogger(Entity::class.java)
+        private val LOGGER = LoggerFactory.getLogger(DefaultEntity::class.java)
     }
 
-    /** Internal reference to the [StoreWAL] underpinning this [Entity]. */
+    /** Internal reference to the [StoreWAL] underpinning this [DefaultEntity]. */
     private val store: DB = try {
         this.parent.parent.config.mapdb.db(this.path.resolve(CATALOGUE_FILE))
     } catch (e: DBException) {
         throw DatabaseException("Failed to open entity at $path: ${e.message}'.")
     }
 
-    /** The [EntityHeader] of this [Entity]. */
+    /** The [EntityHeader] of this [DefaultEntity]. */
     private val header =
         this.store.atomicVar(ENTITY_HEADER_FIELD, EntityHeader.Serializer).createOrOpen()
 
-    /** The number of entries in this [Entity]. */
+    /** The number of entries in this [DefaultEntity]. */
     private val countField = this.store.atomicLong(ENTITY_COUNT_FIELD).createOrOpen()
 
-    /** The maximum [TupleId] in this [Entity]. */
+    /** The maximum [TupleId] in this [DefaultEntity]. */
     private val maxTupleIdField = this.store.atomicLong(ENTITY_MAX_FIELD).createOrOpen()
 
-    /** The [Name.EntityName] of this [Entity]. */
+    /** The [Name.EntityName] of this [DefaultEntity]. */
     override val name: Name.EntityName = this.parent.name.entity(this.header.get().name)
 
-    /** An internal lock that is used to synchronize access to this [Entity] and [Entity.Tx] and it being closed or dropped. */
+    /** An internal lock that is used to synchronize access to this [DefaultEntity] and [DefaultEntity.Tx] and it being closed or dropped. */
     private val closeLock = StampedLock()
 
-    /** List of all the [Column]s associated with this [Entity]; Iteration order of entries as defined in schema! */
+    /** List of all the [Column]s associated with this [DefaultEntity]; Iteration order of entries as defined in schema! */
     private val columns: MutableMap<Name.ColumnName, Column<*>> = Object2ObjectLinkedOpenHashMap()
 
-    /** List of all the [Index]es associated with this [Entity]. */
+    /** List of all the [Index]es associated with this [DefaultEntity]. */
     private val indexes: MutableMap<Name.IndexName, Index> = Object2ObjectOpenHashMap()
 
     init {
@@ -112,35 +111,35 @@ class Entity(override val path: Path, override val parent: Schema) : DBO {
         }
     }
 
-    /** Number of [Column]s in this [Entity]. */
-    val numberOfColumns: Int
+    /** Number of [Column]s in this [DefaultEntity]. */
+    override val numberOfColumns: Int
         get() = this.columns.size
 
-    /** Number of entries in this [Entity]. This is a snapshot and may change immediately. */
-    val numberOfRows: Long
+    /** Number of entries in this [DefaultEntity]. This is a snapshot and may change immediately. */
+    override val numberOfRows: Long
         get() = this.countField.get()
 
-    /** Estimated maximum [TupleId]s for this [Entity].  This is a snapshot and may change immediately. */
-    val maxTupleId: TupleId
+    /** Estimated maximum [TupleId]s for this [DefaultEntity].  This is a snapshot and may change immediately. */
+    override val maxTupleId: TupleId
         get() = this.maxTupleIdField.get()
 
     /**
-     * Status indicating whether this [Entity] is open or closed.
+     * Status indicating whether this [DefaultEntity] is open or closed.
      */
     @Volatile
     override var closed: Boolean = false
         private set
 
     /**
-     * Creates and returns a new [Entity.Tx] for the given [TransactionContext].
+     * Creates and returns a new [DefaultEntity.Tx] for the given [TransactionContext].
      *
-     * @param context The [TransactionContext] to create the [Entity.Tx] for.
-     * @return New [Entity.Tx]
+     * @param context The [TransactionContext] to create the [DefaultEntity.Tx] for.
+     * @return New [DefaultEntity.Tx]
      */
     override fun newTx(context: TransactionContext) = this.Tx(context)
 
     /**
-     * Returns all [ColumnDef]s for this [Entity].
+     * Returns all [ColumnDef]s for this [DefaultEntity].
      *
      * This operation takes place outside of any transaction context, hence, no isolation guarantees
      * can be given for the results returned.
@@ -153,7 +152,7 @@ class Entity(override val path: Path, override val parent: Schema) : DBO {
     }
 
     /**
-     * Returns all [Index]s for this [Entity].
+     * Returns all [Index]s for this [DefaultEntity].
      *
      * This operation takes place outside of any transaction context, hence, no isolation guarantees
      * can be given for the results returned.
@@ -166,8 +165,11 @@ class Entity(override val path: Path, override val parent: Schema) : DBO {
     }
 
     /**
-     * Closes the [Entity]. Closing an [Entity] is a delicate matter since ongoing [Entity.Tx] objects as well as all involved [Column]s are involved.
-     * Therefore, access to the method is mediated by an global [Entity] wide lock.
+     * Closes the [DefaultEntity].
+     *
+     * Closing an [DefaultEntity] is a delicate matter since ongoing [DefaultEntity.Tx] objects as well
+     * as all involved [Column]s are involved.Therefore, access to the method is mediated by an
+     * global [DefaultEntity] wide lock.
      */
     override fun close() = this.closeLock.write {
         if (!this.closed) {
@@ -178,7 +180,7 @@ class Entity(override val path: Path, override val parent: Schema) : DBO {
     }
 
     /**
-     * Handles finalization, in case the Garbage Collector reaps a cached [Entity] soft-reference.
+     * Handles finalization, in case the Garbage Collector reaps a cached [DefaultEntity] soft-reference.
      */
     @Synchronized
     protected fun finalize() {
@@ -188,16 +190,16 @@ class Entity(override val path: Path, override val parent: Schema) : DBO {
     }
 
     /**
-     * A [Tx] that affects this [Entity]. Opening a [Entity.Tx] will automatically spawn [ColumnTx]
-     * and [IndexTx] for every [Column] and [IndexTx] associated with this [Entity].
+     * A [Tx] that affects this [DefaultEntity]. Opening a [DefaultEntity.Tx] will automatically spawn [ColumnTx]
+     * and [IndexTx] for every [Column] and [IndexTx] associated with this [DefaultEntity].
      *
      * @author Ralph Gasser
      * @version 1.1.0
      */
     inner class Tx(context: TransactionContext) : AbstractTx(context), EntityTx {
 
-        /** Obtains a global (non-exclusive) read-lock on [Entity]. Prevents enclosing [Entity] from being closed. */
-        private val closeStamp = this@Entity.closeLock.readLock()
+        /** Obtains a global (non-exclusive) read-lock on [DefaultEntity]. Prevents enclosing [DefaultEntity] from being closed. */
+        private val closeStamp = this@DefaultEntity.closeLock.readLock()
 
         /** Actions that should be executed after committing this [Tx]. */
         private val postCommitAction = mutableListOf<Runnable>()
@@ -205,13 +207,13 @@ class Entity(override val path: Path, override val parent: Schema) : DBO {
         /** Actions that should be executed after rolling back this [Tx]. */
         private val postRollbackAction = mutableListOf<Runnable>()
 
-        /** Reference to the surrounding [Entity]. */
-        override val dbo: Entity
-            get() = this@Entity
+        /** Reference to the surrounding [DefaultEntity]. */
+        override val dbo: DefaultEntity
+            get() = this@DefaultEntity
 
         /** Tries to acquire a global read-lock on this entity. */
         init {
-            if (this@Entity.closed) {
+            if (this@DefaultEntity.closed) {
                 throw TxException.TxDBOClosedException(this.context.txId)
             }
         }
@@ -228,8 +230,8 @@ class Entity(override val path: Path, override val parent: Schema) : DBO {
         override fun read(tupleId: TupleId, columns: Array<ColumnDef<*>>): Record = this.withReadLock {
             /* Read values from underlying columns. */
             val values = columns.map {
-                val column = this@Entity.columns[it.name]
-                        ?: throw IllegalArgumentException("Column $it does not exist on entity ${this@Entity.name}.")
+                val column = this@DefaultEntity.columns[it.name]
+                        ?: throw IllegalArgumentException("Column $it does not exist on entity ${this@DefaultEntity.name}.")
                 (this.context.getTx(column) as ColumnTx<*>).read(tupleId)
             }.toTypedArray()
 
@@ -238,30 +240,30 @@ class Entity(override val path: Path, override val parent: Schema) : DBO {
         }
 
         /**
-         * Returns the number of entries in this [Entity].
+         * Returns the number of entries in this [DefaultEntity].
          *
-         * @return The number of entries in this [Entity].
+         * @return The number of entries in this [DefaultEntity].
          */
         override fun count(): Long = this.withReadLock {
-            return this@Entity.countField.get()
+            return this@DefaultEntity.countField.get()
         }
 
         /**
-         * Returns the maximum tuple ID occupied by entries in this [Entity].
+         * Returns the maximum tuple ID occupied by entries in this [DefaultEntity].
          *
-         * @return The maximum tuple ID occupied by entries in this [Entity].
+         * @return The maximum tuple ID occupied by entries in this [DefaultEntity].
          */
         override fun maxTupleId(): TupleId = this.withReadLock {
-            return this@Entity.maxTupleIdField.get()
+            return this@DefaultEntity.maxTupleIdField.get()
         }
 
         /**
-         * Lists all [Column]s for the [Entity] associated with this [EntityTx].
+         * Lists all [Column]s for the [DefaultEntity] associated with this [EntityTx].
          *
          * @return List of all [Column]s.
          */
         override fun listColumns(): List<Column<*>> = this.withReadLock {
-            return this@Entity.columns.values.toList()
+            return this@DefaultEntity.columns.values.toList()
         }
 
         /**
@@ -272,12 +274,12 @@ class Entity(override val path: Path, override val parent: Schema) : DBO {
          */
         override fun columnForName(name: Name.ColumnName): Column<*> = this.withReadLock {
             if (!name.wildcard) {
-                this@Entity.columns[name] ?: throw DatabaseException.ColumnDoesNotExistException(
+                this@DefaultEntity.columns[name] ?: throw DatabaseException.ColumnDoesNotExistException(
                     name
                 )
             } else {
-                val fqn = this@Entity.name.column(name.simple)
-                this@Entity.columns[fqn] ?: throw DatabaseException.ColumnDoesNotExistException(fqn)
+                val fqn = this@DefaultEntity.name.column(name.simple)
+                this@DefaultEntity.columns[fqn] ?: throw DatabaseException.ColumnDoesNotExistException(fqn)
             }
         }
 
@@ -287,7 +289,7 @@ class Entity(override val path: Path, override val parent: Schema) : DBO {
          * @return List of [Name.IndexName] managed by this [EntityTx]
          */
         override fun listIndexes(): List<Index> = this.withReadLock {
-            return this@Entity.indexes.values.toList()
+            return this@DefaultEntity.indexes.values.toList()
         }
 
         /**
@@ -296,7 +298,7 @@ class Entity(override val path: Path, override val parent: Schema) : DBO {
          * @return List of [Name.IndexName] managed by this [EntityTx]
          */
         override fun indexForName(name: Name.IndexName): Index = this.withReadLock {
-            this@Entity.indexes[name] ?: throw DatabaseException.IndexDoesNotExistException(name)
+            this@DefaultEntity.indexes[name] ?: throw DatabaseException.IndexDoesNotExistException(name)
         }
 
         /**
@@ -307,13 +309,13 @@ class Entity(override val path: Path, override val parent: Schema) : DBO {
          * @param columns The list of [columns] to [Index].
          */
         override fun createIndex(name: Name.IndexName, type: IndexType, columns: Array<ColumnDef<*>>, params: Map<String, String>): Index = this.withWriteLock {
-            if (this@Entity.indexes.containsKey(name)) {
+            if (this@DefaultEntity.indexes.containsKey(name)) {
                 throw DatabaseException.IndexAlreadyExistsException(name)
             }
 
             /* Creates and opens the index and schedules a ROLLBACK action in case of failure. */
             val newIndex = type.create(
-                this@Entity.path.resolve("${name.simple}.db"),
+                this@DefaultEntity.path.resolve("${name.simple}.db"),
                 this.dbo,
                 name,
                 columns,
@@ -322,7 +324,7 @@ class Entity(override val path: Path, override val parent: Schema) : DBO {
 
             /* ON COMMIT: Make index available. */
             this.postCommitAction.add {
-                this@Entity.indexes[name] = newIndex
+                this@DefaultEntity.indexes[name] = newIndex
             }
 
             /* ON ROLLBACK: Remove index data. */
@@ -334,7 +336,7 @@ class Entity(override val path: Path, override val parent: Schema) : DBO {
 
             /* Update catalogue + header. */
             try {
-                val oldHeader = this@Entity.header.get()
+                val oldHeader = this@DefaultEntity.header.get()
                 val newHeader = oldHeader.copy(
                     indexes = (oldHeader.indexes + EntityHeader.IndexRef(
                         newIndex.name.simple,
@@ -342,7 +344,7 @@ class Entity(override val path: Path, override val parent: Schema) : DBO {
                         newIndex.path
                     ))
                 )
-                this@Entity.header.compareAndSet(oldHeader, newHeader)
+                this@DefaultEntity.header.compareAndSet(oldHeader, newHeader)
                 return newIndex
             } catch (e: DBException) {
                 this.status = TxStatus.ERROR
@@ -364,13 +366,13 @@ class Entity(override val path: Path, override val parent: Schema) : DBO {
 
             /* Close index and remove it from registry. */
             index.close()
-            this@Entity.indexes.remove(name)
+            this@DefaultEntity.indexes.remove(name)
 
             /* ON ROLLBACK: Move back index and re-open it. */
             this.postRollbackAction.add {
-                val indexRef = this@Entity.header.get().indexes.find { it.name == name.simple }
+                val indexRef = this@DefaultEntity.header.get().indexes.find { it.name == name.simple }
                     ?: throw DatabaseException.DataCorruptionException("Failed to re-open index '$name': Could not read index definition from header!")
-                this@Entity.indexes[name] = indexRef.type.open(indexRef.path, this.dbo)
+                this@DefaultEntity.indexes[name] = indexRef.type.open(indexRef.path, this.dbo)
             }
 
             try {
@@ -401,8 +403,8 @@ class Entity(override val path: Path, override val parent: Schema) : DBO {
                 }
 
                 /* Update header. */
-                val oldHeader = this@Entity.header.get()
-                this@Entity.header.set(oldHeader.copy(indexes = oldHeader.indexes.filter { it.name != index.name.simple }))
+                val oldHeader = this@DefaultEntity.header.get()
+                this@DefaultEntity.header.set(oldHeader.copy(indexes = oldHeader.indexes.filter { it.name != index.name.simple }))
             } catch (e: DBException) {
                 this.status = TxStatus.ERROR
                 throw DatabaseException("Failed to drop index '$name' due to a storage exception: ${e.message}")
@@ -414,8 +416,8 @@ class Entity(override val path: Path, override val parent: Schema) : DBO {
 
 
         /**
-         * Creates and returns a new [CloseableIterator] for this [Entity.Tx] that returns
-         * all [TupleId]s contained within the surrounding [Entity].
+         * Creates and returns a new [CloseableIterator] for this [DefaultEntity.Tx] that returns
+         * all [TupleId]s contained within the surrounding [DefaultEntity].
          *
          * <strong>Important:</strong> It remains to the caller to close the [CloseableIterator]
          *
@@ -426,8 +428,8 @@ class Entity(override val path: Path, override val parent: Schema) : DBO {
         override fun scan(columns: Array<ColumnDef<*>>): CloseableIterator<Record> = scan(columns, 1L..this.maxTupleId())
 
         /**
-         * Creates and returns a new [CloseableIterator] for this [Entity.Tx] that returns all [TupleId]s
-         * contained within the surrounding [Entity] and a certain range.
+         * Creates and returns a new [CloseableIterator] for this [DefaultEntity.Tx] that returns all [TupleId]s
+         * contained within the surrounding [DefaultEntity] and a certain range.
          *
          * <strong>Important:</strong> It remains to the caller to close the [CloseableIterator]
          *
@@ -442,7 +444,7 @@ class Entity(override val path: Path, override val parent: Schema) : DBO {
             }
 
             /** The wrapped [CloseableIterator] of the first (primary) column. */
-            private val wrapped = (this@Tx.context.getTx(this@Entity.columns.values.first()) as ColumnTx<*>).scan(range)
+            private val wrapped = (this@Tx.context.getTx(this@DefaultEntity.columns.values.first()) as ColumnTx<*>).scan(range)
 
             /** Flag indicating whether this [CloseableIterator] has been closed. */
             @Volatile
@@ -457,8 +459,8 @@ class Entity(override val path: Path, override val parent: Schema) : DBO {
                 /* Read values from underlying columns. */
                 val tupleId = this.wrapped.next()
                 val values = columns.map {
-                    val column = this@Entity.columns[it.name]
-                            ?: throw IllegalArgumentException("Column $it does not exist on entity ${this@Entity.name}.")
+                    val column = this@DefaultEntity.columns[it.name]
+                            ?: throw IllegalArgumentException("Column $it does not exist on entity ${this@DefaultEntity.name}.")
                     (this@Tx.context.getTx(column) as ColumnTx<*>).read(tupleId)
                 }.toTypedArray()
 
@@ -486,7 +488,7 @@ class Entity(override val path: Path, override val parent: Schema) : DBO {
         }
 
         /**
-         * Insert the provided [Record]. This will set this [Entity.Tx] to [TxStatus.DIRTY].
+         * Insert the provided [Record]. This will set this [DefaultEntity.Tx] to [TxStatus.DIRTY].
          *
          * @param record The [Record] that should be inserted.
          * @return The ID of the record or null, if nothing was inserted.
@@ -497,13 +499,13 @@ class Entity(override val path: Path, override val parent: Schema) : DBO {
         override fun insert(record: Record): TupleId? = this.withWriteLock {
             try {
                 var lastTupleId: TupleId? = null
-                val inserts = Object2ObjectArrayMap<ColumnDef<*>, Value>(this@Entity.columns.size)
-                this@Entity.columns.values.forEach {
+                val inserts = Object2ObjectArrayMap<ColumnDef<*>, Value>(this@DefaultEntity.columns.size)
+                this@DefaultEntity.columns.values.forEach {
                     val tx = this.context.getTx(it) as ColumnTx<Value>
                     val value = record[it.columnDef]
                     val tupleId = tx.insert(value)
                     if (lastTupleId != tupleId && lastTupleId != null) {
-                        throw DatabaseException.DataCorruptionException("Entity '${this@Entity.name}' is corrupt. Insert did not yield same record ID for all columns involved!")
+                        throw DatabaseException.DataCorruptionException("Entity '${this@DefaultEntity.name}' is corrupt. Insert did not yield same record ID for all columns involved!")
                     }
                     lastTupleId = tupleId
                     inserts[it.columnDef] = value
@@ -511,12 +513,12 @@ class Entity(override val path: Path, override val parent: Schema) : DBO {
 
                 if (lastTupleId != null) {
                     /* Update header (don't persist). */
-                    this@Entity.countField.andIncrement
+                    this@DefaultEntity.countField.andIncrement
 
                     /* Issue DataChangeEvent.InsertDataChange event & update indexes. */
                     /* ToDo: System wide event bus for [DataChangeEvent]. */
-                    val event = DataChangeEvent.InsertDataChangeEvent(this@Entity.name, lastTupleId!!, inserts)
-                    this@Entity.indexes.values.forEach {
+                    val event = DataChangeEvent.InsertDataChangeEvent(this@DefaultEntity.name, lastTupleId!!, inserts)
+                    this@DefaultEntity.indexes.values.forEach {
                         (this.context.getTx(it) as IndexTx).update(event)
                     }
                 }
@@ -533,7 +535,7 @@ class Entity(override val path: Path, override val parent: Schema) : DBO {
 
         /**
          * Updates the provided [Record] (identified based on its [TupleId]). Columns specified in the [Record] that are not part
-         * of the [Entity] will cause an error! This will set this [Entity.Tx] to [TxStatus.DIRTY].
+         * of the [DefaultEntity] will cause an error! This will set this [DefaultEntity.Tx] to [TxStatus.DIRTY].
          *
          * @param record The [Record] that should be updated
          *
@@ -543,7 +545,7 @@ class Entity(override val path: Path, override val parent: Schema) : DBO {
             try {
                 val updates = Object2ObjectArrayMap<ColumnDef<*>, Pair<Value?,Value?>>(record.columns.size)
                 record.columns.forEach { def ->
-                    val column = this@Entity.columns[def.name] ?: throw IllegalArgumentException("Column $def does not exist on entity ${this@Entity.name}.")
+                    val column = this@DefaultEntity.columns[def.name] ?: throw IllegalArgumentException("Column $def does not exist on entity ${this@DefaultEntity.name}.")
                     val value = record[def]
                     val columnTx = (this.context.getTx(column) as ColumnTx<Value>)
                     updates[def] = Pair(columnTx.update(record.tupleId, value), value) /* Map: ColumnDef -> Pair[Old, New]. */
@@ -551,8 +553,8 @@ class Entity(override val path: Path, override val parent: Schema) : DBO {
 
                 /* Issue DataChangeEvent.UpdateDataChangeEvent event & update indexes. */
                 /* ToDo: System wide event bus for [DataChangeEvent]. */
-                val event = DataChangeEvent.UpdateDataChangeEvent(this@Entity.name, record.tupleId, updates)
-                this@Entity.indexes.values.forEach {
+                val event = DataChangeEvent.UpdateDataChangeEvent(this@DefaultEntity.name, record.tupleId, updates)
+                this@DefaultEntity.indexes.values.forEach {
                     (this.context.getTx(it) as IndexTx).update(event)
                 }
             } catch (e: DatabaseException) {
@@ -565,7 +567,7 @@ class Entity(override val path: Path, override val parent: Schema) : DBO {
         }
 
         /**
-         * Deletes the entry with the provided [TupleId]. This will set this [Entity.Tx] to [TxStatus.DIRTY]
+         * Deletes the entry with the provided [TupleId]. This will set this [DefaultEntity.Tx] to [TxStatus.DIRTY]
          *
          * @param tupleId The [TupleId] of the entry that should be deleted.
          *
@@ -574,18 +576,18 @@ class Entity(override val path: Path, override val parent: Schema) : DBO {
         override fun delete(tupleId: TupleId) = this.withWriteLock {
             try {
                 /* Perform delete on each column. */
-                val deleted = Object2ObjectArrayMap<ColumnDef<*>, Value?>(this@Entity.columns.size)
-                this@Entity.columns.values.map {
+                val deleted = Object2ObjectArrayMap<ColumnDef<*>, Value?>(this@DefaultEntity.columns.size)
+                this@DefaultEntity.columns.values.map {
                     deleted[it.columnDef] = (this.context.getTx(it) as ColumnTx<*>).delete(tupleId)
                 }
 
                 /* Update header (don't persist). */
-                this@Entity.countField.andDecrement
+                this@DefaultEntity.countField.andDecrement
 
                 /* Issue DataChangeEvent.DeleteDataChangeEvent event & update indexes. */
                 /* ToDo: System wide event bus for [DataChangeEvent]. */
-                val event = DataChangeEvent.DeleteDataChangeEvent(this@Entity.name, tupleId, deleted)
-                this@Entity.indexes.values.forEach {
+                val event = DataChangeEvent.DeleteDataChangeEvent(this@DefaultEntity.name, tupleId, deleted)
+                this@DefaultEntity.indexes.values.forEach {
                     (this.context.getTx(it) as IndexTx).update(event)
                 }
             } catch (e: DBException) {
@@ -595,17 +597,17 @@ class Entity(override val path: Path, override val parent: Schema) : DBO {
         }
 
         /**
-         * Performs a COMMIT of all changes made through this [Entity.Tx].
+         * Performs a COMMIT of all changes made through this [DefaultEntity.Tx].
          */
         override fun performCommit() {
             /** Update and persist header + commit store. */
-            val oldHeader = this@Entity.header.get()
-            this@Entity.header.compareAndSet(
+            val oldHeader = this@DefaultEntity.header.get()
+            this@DefaultEntity.header.compareAndSet(
                 oldHeader,
                 oldHeader.copy(modified = System.currentTimeMillis())
             )
-            this@Entity.maxTupleIdField.set(this@Entity.columns.values.first().maxTupleId)
-            this@Entity.store.commit()
+            this@DefaultEntity.maxTupleIdField.set(this@DefaultEntity.columns.values.first().maxTupleId)
+            this@DefaultEntity.store.commit()
 
             /* Execute post-commit actions. */
             this.postCommitAction.forEach { it.run() }
@@ -614,10 +616,10 @@ class Entity(override val path: Path, override val parent: Schema) : DBO {
         }
 
         /**
-         * Performs a ROLLBACK of all changes made through this [Entity.Tx].
+         * Performs a ROLLBACK of all changes made through this [DefaultEntity.Tx].
          */
         override fun performRollback() {
-            this@Entity.store.rollback()
+            this@DefaultEntity.store.rollback()
 
             /* Execute post-rollback actions. */
             this.postRollbackAction.forEach { it.run() }
@@ -626,10 +628,10 @@ class Entity(override val path: Path, override val parent: Schema) : DBO {
         }
 
         /**
-         * Closes all the [ColumnTx] and [IndexTx] and releases the [closeLock] on the [Entity].
+         * Closes all the [ColumnTx] and [IndexTx] and releases the [closeLock] on the [DefaultEntity].
          */
         override fun cleanup() {
-            this@Entity.closeLock.unlockRead(this.closeStamp)
+            this@DefaultEntity.closeLock.unlockRead(this.closeStamp)
         }
     }
 }

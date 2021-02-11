@@ -2,8 +2,8 @@ package org.vitrivr.cottontail.execution.operators.definition
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import org.vitrivr.cottontail.database.catalogue.Catalogue
 import org.vitrivr.cottontail.database.catalogue.CatalogueTx
+import org.vitrivr.cottontail.database.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.index.IndexTx
 import org.vitrivr.cottontail.database.schema.SchemaTx
@@ -21,7 +21,7 @@ import kotlin.time.measureTimedValue
  * @version 1.0.0
  */
 @ExperimentalTime
-class OptimizeEntityOperator(private val catalogue: Catalogue, private val name: Name.EntityName) : AbstractDataDefinitionOperator(name, "OPTIMIZE ENTITY") {
+class OptimizeEntityOperator(private val catalogue: DefaultCatalogue, private val name: Name.EntityName) : AbstractDataDefinitionOperator(name, "OPTIMIZE ENTITY") {
 
     override fun toFlow(context: TransactionContext): Flow<Record> {
         val catTxn = context.getTx(this.catalogue) as CatalogueTx

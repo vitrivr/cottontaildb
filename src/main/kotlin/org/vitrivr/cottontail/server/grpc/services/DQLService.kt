@@ -4,7 +4,7 @@ import com.google.protobuf.Empty
 import io.grpc.Status
 import io.grpc.stub.StreamObserver
 import org.slf4j.LoggerFactory
-import org.vitrivr.cottontail.database.catalogue.Catalogue
+import org.vitrivr.cottontail.database.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.binding.GrpcQueryBinder
 import org.vitrivr.cottontail.database.queries.planning.CottontailQueryPlanner
@@ -36,7 +36,7 @@ import kotlin.time.measureTimedValue
  * @version 1.4.1
  */
 @ExperimentalTime
-class DQLService(val catalogue: Catalogue, override val manager: TransactionManager) : DQLGrpc.DQLImplBase(), TransactionService {
+class DQLService(val catalogue: DefaultCatalogue, override val manager: TransactionManager) : DQLGrpc.DQLImplBase(), TransactionService {
 
     /** Logger used for logging the output. */
     companion object {
@@ -75,7 +75,7 @@ class DQLService(val catalogue: Catalogue, override val manager: TransactionMana
         this.withTransactionContext(request.txId) { tx, q ->
             try {
                 /* Start query execution. */
-                val ctx = QueryContext()
+                val ctx = QueryContext(tx)
                 val totalDuration = measureTime {
                     /* Bind query and create logical plan. */
                     val bindTime = measureTime{
@@ -136,7 +136,7 @@ class DQLService(val catalogue: Catalogue, override val manager: TransactionMana
         this.withTransactionContext(request.txId) { tx, q ->
             try {
                 /* Start query execution. */
-                val ctx = QueryContext()
+                val ctx = QueryContext(tx)
                 val totalDuration = measureTime {
                     /* Bind query and create logical plan. */
                     val bindTimed = measureTime {
@@ -147,7 +147,7 @@ class DQLService(val catalogue: Catalogue, override val manager: TransactionMana
 
                     /* Plan query and create execution plan. */
                     val planTimedValue = measureTimedValue {
-                        val candidates = this.planner.plan(ctx.logical!!)
+                        val candidates = this.planner.plan(ctx.logical!!, ctx)
                         SpoolerSinkOperator(ExplainQueryOperator(candidates), q, 0, responseObserver)
                     }
                     LOGGER.debug(formatMessage(tx, q, "Planning query took ${planTimedValue.duration}."))

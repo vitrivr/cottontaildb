@@ -1,13 +1,13 @@
 package org.vitrivr.cottontail.database.events
 
 import org.vitrivr.cottontail.database.column.ColumnDef
-import org.vitrivr.cottontail.database.entity.Entity
+import org.vitrivr.cottontail.database.entity.DefaultEntity
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.TupleId
 import org.vitrivr.cottontail.model.values.types.Value
 
 /**
- * An internal [DataChangeEvent] to signal changes made to an [Entity].
+ * An internal [DataChangeEvent] to signal changes made to an [DefaultEntity].
  *
  * @version 1.0.1
  * @author Ralph Gasser
@@ -18,7 +18,7 @@ sealed class DataChangeEvent(
 ) {
 
     /**
-     * A [DataChangeEvent] that signals a INSERT into an [Entity]
+     * A [DataChangeEvent] that signals a INSERT into an [DefaultEntity]
      */
     class InsertDataChangeEvent(
         name: Name.EntityName,
@@ -27,7 +27,7 @@ sealed class DataChangeEvent(
     ) : DataChangeEvent(name, tupleId)
 
     /**
-     * A [DataChangeEvent] that signals n UPDATE in an [Entity]
+     * A [DataChangeEvent] that signals n UPDATE in an [DefaultEntity]
      */
     class UpdateDataChangeEvent(
         name: Name.EntityName,
@@ -36,7 +36,7 @@ sealed class DataChangeEvent(
     ) : DataChangeEvent(name, tupleId)
 
     /**
-     * A [DataChangeEvent] that signals a DELETE from an [Entity]
+     * A [DataChangeEvent] that signals a DELETE from an [DefaultEntity]
      */
     class DeleteDataChangeEvent(
         name: Name.EntityName,

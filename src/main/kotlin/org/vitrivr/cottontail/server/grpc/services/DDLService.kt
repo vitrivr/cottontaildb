@@ -3,7 +3,7 @@ package org.vitrivr.cottontail.server.grpc.services
 import io.grpc.Status
 import io.grpc.stub.StreamObserver
 import org.slf4j.LoggerFactory
-import org.vitrivr.cottontail.database.catalogue.Catalogue
+import org.vitrivr.cottontail.database.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.index.IndexType
 import org.vitrivr.cottontail.database.queries.binding.extensions.fqn
@@ -25,14 +25,14 @@ import kotlin.time.ExperimentalTime
  * @version 1.3.1
  */
 @ExperimentalTime
-class DDLService(val catalogue: Catalogue, override val manager: TransactionManager) : DDLGrpc.DDLImplBase(), TransactionService {
+class DDLService(val catalogue: DefaultCatalogue, override val manager: TransactionManager) : DDLGrpc.DDLImplBase(), TransactionService {
     /** Logger used for logging the output. */
     companion object {
         private val LOGGER = LoggerFactory.getLogger(DDLService::class.java)
     }
 
     /**
-     * gRPC endpoint listing the available [org.vitrivr.cottontail.database.schema.Schema]s.
+     * gRPC endpoint listing the available [org.vitrivr.cottontail.database.schema.DefaultSchema]s.
      */
     override fun listSchemas(request: CottontailGrpc.ListSchemaMessage, responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) = try {
         this.withTransactionContext(request.txId) { tx, q ->
@@ -64,7 +64,7 @@ class DDLService(val catalogue: Catalogue, override val manager: TransactionMana
     }
 
     /**
-     * gRPC endpoint for creating a new [org.vitrivr.cottontail.database.schema.Schema]
+     * gRPC endpoint for creating a new [org.vitrivr.cottontail.database.schema.DefaultSchema]
      */
     override fun createSchema(request: CottontailGrpc.CreateSchemaMessage, responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) = try {
         this.withTransactionContext(request.txId) function@{ tx, q ->
@@ -124,7 +124,7 @@ class DDLService(val catalogue: Catalogue, override val manager: TransactionMana
     }
 
     /**
-     * gRPC endpoint for dropping a [org.vitrivr.cottontail.database.schema.Schema]
+     * gRPC endpoint for dropping a [org.vitrivr.cottontail.database.schema.DefaultSchema]
      */
     override fun dropSchema(request: CottontailGrpc.DropSchemaMessage, responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) = try {
         this.withTransactionContext(request.txId) { tx, q ->
@@ -165,7 +165,7 @@ class DDLService(val catalogue: Catalogue, override val manager: TransactionMana
     }
 
     /**
-     * gRPC endpoint for requesting details about a specific [org.vitrivr.cottontail.database.entity.Entity].
+     * gRPC endpoint for requesting details about a specific [org.vitrivr.cottontail.database.entity.DefaultEntity].
      */
     override fun entityDetails(request: CottontailGrpc.EntityDetailsMessage, responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) = try {
         this.withTransactionContext(request.txId) { tx, q ->
@@ -213,7 +213,7 @@ class DDLService(val catalogue: Catalogue, override val manager: TransactionMana
     }
 
     /**
-     * gRPC endpoint for creating a new [org.vitrivr.cottontail.database.entity.Entity]
+     * gRPC endpoint for creating a new [org.vitrivr.cottontail.database.entity.DefaultEntity]
      */
     override fun createEntity(request: CottontailGrpc.CreateEntityMessage, responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) = try {
         this.withTransactionContext(request.txId) { tx, q ->
@@ -264,7 +264,7 @@ class DDLService(val catalogue: Catalogue, override val manager: TransactionMana
     }
 
     /**
-     * gRPC endpoint for dropping a specific [org.vitrivr.cottontail.database.entity.Entity].
+     * gRPC endpoint for dropping a specific [org.vitrivr.cottontail.database.entity.DefaultEntity].
      */
     override fun dropEntity(request: CottontailGrpc.DropEntityMessage, responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) = try {
         this.withTransactionContext(request.txId) { tx, q ->
@@ -312,7 +312,7 @@ class DDLService(val catalogue: Catalogue, override val manager: TransactionMana
     }
 
     /**
-     * gRPC endpoint for truncating a specific [org.vitrivr.cottontail.database.entity.Entity].
+     * gRPC endpoint for truncating a specific [org.vitrivr.cottontail.database.entity.DefaultEntity].
      */
     override fun truncateEntity(request: CottontailGrpc.TruncateEntityMessage, responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) = try {
         this.withTransactionContext(request.txId) { tx, q ->
@@ -400,7 +400,7 @@ class DDLService(val catalogue: Catalogue, override val manager: TransactionMana
     }
 
     /**
-     * gRPC endpoint listing the available [org.vitrivr.cottontail.database.entity.Entity]s for the provided [org.vitrivr.cottontail.database.schema.Schema].
+     * gRPC endpoint listing the available [org.vitrivr.cottontail.database.entity.DefaultEntity]s for the provided [org.vitrivr.cottontail.database.schema.DefaultSchema].
      */
     override fun listEntities(request: CottontailGrpc.ListEntityMessage, responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) = try {
         this.withTransactionContext(request.txId) function@{ tx, q ->
@@ -447,7 +447,7 @@ class DDLService(val catalogue: Catalogue, override val manager: TransactionMana
     }
 
     /**
-     * gRPC endpoint for creating a particular [org.vitrivr.cottontail.database.index.Index]
+     * gRPC endpoint for creating a particular [org.vitrivr.cottontail.database.index.AbstractIndex]
      */
     override fun createIndex(request: CottontailGrpc.CreateIndexMessage, responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) = try {
         this.withTransactionContext(request.txId) function@{ tx, q ->
@@ -510,7 +510,7 @@ class DDLService(val catalogue: Catalogue, override val manager: TransactionMana
     }
 
     /**
-     * gRPC endpoint for dropping a particular [org.vitrivr.cottontail.database.index.Index]
+     * gRPC endpoint for dropping a particular [org.vitrivr.cottontail.database.index.AbstractIndex]
      */
     override fun dropIndex(request: CottontailGrpc.DropIndexMessage, responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) = try {
         this.withTransactionContext(request.txId) function@{ tx, q ->
@@ -555,7 +555,7 @@ class DDLService(val catalogue: Catalogue, override val manager: TransactionMana
     }
 
     /**
-     * gRPC endpoint for rebuilding a particular [org.vitrivr.cottontail.database.index.Index]
+     * gRPC endpoint for rebuilding a particular [org.vitrivr.cottontail.database.index.AbstractIndex]
      */
     override fun rebuildIndex(request: CottontailGrpc.RebuildIndexMessage, responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>) = try {
         this.withTransactionContext(request.txId) function@{ tx, q ->

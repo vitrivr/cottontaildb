@@ -3,7 +3,7 @@ package org.vitrivr.cottontail
 import kotlinx.serialization.json.Json
 import org.vitrivr.cottontail.cli.Cli
 import org.vitrivr.cottontail.config.Config
-import org.vitrivr.cottontail.database.catalogue.Catalogue
+import org.vitrivr.cottontail.database.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.server.grpc.CottontailGrpcServer
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -64,7 +64,7 @@ fun standalone(config: Config) {
     }
 
     /* Instantiate Catalogue, execution engine and gRPC server. */
-    val catalogue = Catalogue(config)
+    val catalogue = DefaultCatalogue(config)
     val server = CottontailGrpcServer(config, catalogue)
 
     /* Start gRPC Server and print message. */
@@ -103,7 +103,7 @@ fun standalone(config: Config) {
 @ExperimentalTime
 fun embedded(config: Config): CottontailGrpcServer {
     /* Instantiate Catalogue, execution engine and gRPC server. */
-    val catalogue = Catalogue(config)
+    val catalogue = DefaultCatalogue(config)
     val server = CottontailGrpcServer(config, catalogue)
 
     /* Start gRPC Server and return object. */

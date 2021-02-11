@@ -17,10 +17,10 @@ import java.util.concurrent.locks.StampedLock
  * A [Recordset] as returned and processed by Cottontail DB. [Recordset]s are tables. A [Recordset]'s columns are defined by the [ColumnDef]'s
  * it contains ([Recordset.columns] and it contains an arbitrary number of [Record] entries as rows.
  *
- * [Recordset]s are the unit of data retrieval and processing in Cottontail DB. Whenever information is accessed through an [Entity][org.vitrivr.cottontail.database.entity.Entity],
+ * [Recordset]s are the unit of data retrieval and processing in Cottontail DB. Whenever information is accessed through an [Entity][org.vitrivr.cottontail.database.entity.DefaultEntity],
  * a [Recordset] is being generated. Furthermore, the entire query execution pipeline processes, transforms and produces [Recordset]s.
  *
- * @see org.vitrivr.cottontail.database.entity.Entity
+ * @see org.vitrivr.cottontail.database.entity.DefaultEntity
  *
  * @author Ralph Gasser
  * @version 1.5.1

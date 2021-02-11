@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.database.queries.planning.nodes.physical.sources
 
 import org.vitrivr.cottontail.database.column.ColumnDef
+import org.vitrivr.cottontail.database.index.AbstractIndex
 import org.vitrivr.cottontail.database.index.Index
 import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.QueryContext
@@ -12,7 +13,7 @@ import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.sources.EntityIndexScanOperator
 
 /**
- * A [IndexScanPhysicalOperatorNode] that represents a predicated lookup using an [Index].
+ * A [IndexScanPhysicalOperatorNode] that represents a predicated lookup using an [AbstractIndex].
  *
  * @author Ralph Gasser
  * @version 1.2.1

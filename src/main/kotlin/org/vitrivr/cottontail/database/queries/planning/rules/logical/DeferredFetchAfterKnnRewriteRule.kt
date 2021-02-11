@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.database.queries.planning.rules.logical
 
 import org.vitrivr.cottontail.database.queries.OperatorNode
+import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.predicates.KnnLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.projection.FetchLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.sources.EntityScanLogicalOperatorNode
@@ -11,13 +12,13 @@ import org.vitrivr.cottontail.database.queries.planning.rules.RewriteRule
  * until after that [KnnLogicalOperatorNode] has been executed.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
 object DeferredFetchAfterKnnRewriteRule : RewriteRule {
     override fun canBeApplied(node: OperatorNode): Boolean =
         (node is KnnLogicalOperatorNode && node.output !is FetchLogicalOperatorNode)
 
-    override fun apply(node: OperatorNode): OperatorNode? {
+    override fun apply(node: OperatorNode, ctx: QueryContext): OperatorNode? {
         if (node is KnnLogicalOperatorNode && node.output !is FetchLogicalOperatorNode) {
             val parent = node.input
             when (parent) { /* ToDo: Chain application in case of multiple filtering steps. */

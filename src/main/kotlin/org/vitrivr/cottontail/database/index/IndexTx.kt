@@ -8,40 +8,40 @@ import org.vitrivr.cottontail.model.basics.*
 import org.vitrivr.cottontail.model.exceptions.TxException
 
 /**
- * A [Tx] that operates on a single [Index]. [Tx]s are a unit of isolation for data operations (read/write).
+ * A [Tx] that operates on a single [AbstractIndex]. [Tx]s are a unit of isolation for data operations (read/write).
  *
  * @author Ralph Gasser
  * @version 1.5.0
  */
 interface IndexTx : Tx, Filterable, Countable {
 
-    /** The simple [Name]s of the [Index] that underpins this [IndexTx] */
+    /** The simple [Name]s of the [AbstractIndex] that underpins this [IndexTx] */
     val name: Name
 
-    /** The [ColumnDef]s covered by the [Index] that underpins this [IndexTx]. */
+    /** The [ColumnDef]s covered by the [AbstractIndex] that underpins this [IndexTx]. */
     val columns: Array<ColumnDef<*>>
 
-    /** The [ColumnDef]s produced by the [Index] that underpins this [IndexTx]. */
+    /** The [ColumnDef]s produced by the [AbstractIndex] that underpins this [IndexTx]. */
     val produces: Array<ColumnDef<*>>
 
-    /** The [IndexType] of the [Index] that underpins this [IndexTx]. */
+    /** The [IndexType] of the [AbstractIndex] that underpins this [IndexTx]. */
     val type: IndexType
 
     /**
-     * (Re-)builds the underlying [Index] completely.
+     * (Re-)builds the underlying [AbstractIndex] completely.
      *
-     * @throws [TxException.TxValidationException] If rebuild of [Index] fails for some reason.
+     * @throws [TxException.TxValidationException] If rebuild of [AbstractIndex] fails for some reason.
      */
     @Throws(TxException.TxValidationException::class)
     fun rebuild()
 
     /**
-     * Updates the [Index] underlying this [IndexTx] based on the provided [DataChangeEvent].
+     * Updates the [AbstractIndex] underlying this [IndexTx] based on the provided [DataChangeEvent].
      *
-     * Not all [Index] implementations support incremental updates. Should be indicated by [IndexTransaction#supportsIncrementalUpdate()]
+     * Not all [AbstractIndex] implementations support incremental updates. Should be indicated by [IndexTransaction#supportsIncrementalUpdate()]
      *
      * @param update [DataChangeEvent] that should be processed.
-     * @throws [TxException.TxValidationException] If update of [Index] fails for some reason.
+     * @throws [TxException.TxValidationException] If update of [AbstractIndex] fails for some reason.
      */
     @Throws(TxException.TxValidationException::class)
     fun update(event: DataChangeEvent)
@@ -60,7 +60,7 @@ interface IndexTx : Tx, Filterable, Countable {
      * all the [Record]s that match the [Predicate] and fall within the specified data
      * [LongRange], which must lie in 0..[count].
      *
-     * Not all [Index] implementations support range filtering.
+     * Not all [AbstractIndex] implementations support range filtering.
      *
      * @param predicate The [Predicate] to perform the lookup.
      * @param range The [LongRange] to consider.

@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.database.column
 
+import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.general.DBO
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.model.basics.Name
@@ -12,9 +13,12 @@ import org.vitrivr.cottontail.model.values.types.Value
  * of a given type, as specified by the [ColumnDef].
  *
  * @author Ralph Gasser
- * @version 1.0.1
+ * @version 1.1.0
  */
 interface Column<T: Value> : DBO {
+
+    /** The [Entity] this [Column] belongs to. */
+    override val parent: Entity
 
     /** The maximum [TupleId] used by this [Column]. */
     val maxTupleId: TupleId

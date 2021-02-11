@@ -14,9 +14,9 @@ import org.vitrivr.cottontail.model.values.types.Value
  * enables late binding of [Binding]s to [Node]s
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.0.1
  */
-class QueryContext {
+class QueryContext(val txn: TransactionContext) {
 
     /** List of bound [Value]s for this [QueryContext]. */
     private var bindings = Object2ObjectOpenHashMap<ValueBinding, Value?>()

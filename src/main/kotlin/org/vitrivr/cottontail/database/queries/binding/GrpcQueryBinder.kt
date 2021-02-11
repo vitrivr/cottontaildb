@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.database.queries.binding
 
-import org.vitrivr.cottontail.database.catalogue.Catalogue
 import org.vitrivr.cottontail.database.catalogue.CatalogueTx
+import org.vitrivr.cottontail.database.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.entity.EntityTx
@@ -46,7 +46,7 @@ import org.vitrivr.cottontail.model.values.pattern.LucenePatternValue
  * @author Ralph Gasser
  * @version 1.3.0
  */
-class GrpcQueryBinder constructor(val catalogue: Catalogue) {
+class GrpcQueryBinder constructor(val catalogue: DefaultCatalogue) {
 
     companion object {
         private val DEFAULT_PROJECTION = CottontailGrpc.Projection.newBuilder()

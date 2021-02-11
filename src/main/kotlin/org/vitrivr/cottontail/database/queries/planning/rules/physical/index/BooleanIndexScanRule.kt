@@ -1,6 +1,8 @@
 package org.vitrivr.cottontail.database.queries.planning.rules.physical.index
 
+import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.queries.OperatorNode
+import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.planning.exceptions.NodeExpressionTreeException
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.predicates.FilterLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.sources.EntityScanLogicalOperatorNode
@@ -19,7 +21,7 @@ object BooleanIndexScanRule : RewriteRule {
     override fun canBeApplied(node: OperatorNode): Boolean = node is FilterLogicalOperatorNode
             && node.input is EntityScanLogicalOperatorNode
 
-    override fun apply(node: OperatorNode): OperatorNode? {
+    override fun apply(node: OperatorNode, ctx: QueryContext): OperatorNode? {
         if (node is FilterLogicalOperatorNode) {
             val parent = node.input
                 ?: throw NodeExpressionTreeException.IncompleteNodeExpressionTreeException(
@@ -27,7 +29,8 @@ object BooleanIndexScanRule : RewriteRule {
                     "Expected parent but none was found."
                 )
             if (parent is EntityScanLogicalOperatorNode) {
-                val candidate = parent.entity.allIndexes().find { it.canProcess(node.predicate) }
+                val indexes = (ctx.txn.getTx(parent.entity) as EntityTx).listIndexes()
+                val candidate = indexes.find { it.canProcess(node.predicate) }
                 if (candidate != null) {
                     val p = IndexScanPhysicalOperatorNode(candidate, node.predicate)
                     val delta = parent.columns.filter { !candidate.produces.contains(it) }

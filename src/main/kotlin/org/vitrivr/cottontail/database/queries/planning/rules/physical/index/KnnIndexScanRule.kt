@@ -1,6 +1,8 @@
 package org.vitrivr.cottontail.database.queries.planning.rules.physical.index
 
+import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.queries.OperatorNode
+import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.planning.exceptions.NodeExpressionTreeException
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.predicates.KnnLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.sources.EntityScanLogicalOperatorNode
@@ -22,7 +24,7 @@ object KnnIndexScanRule : RewriteRule {
     override fun canBeApplied(node: OperatorNode): Boolean =
         node is KnnLogicalOperatorNode && node.input is EntityScanLogicalOperatorNode
 
-    override fun apply(node: OperatorNode): OperatorNode? {
+    override fun apply(node: OperatorNode, ctx: QueryContext): OperatorNode? {
         if (node is KnnLogicalOperatorNode) {
             val parent = node.input
                 ?: throw NodeExpressionTreeException.IncompleteNodeExpressionTreeException(
@@ -32,11 +34,11 @@ object KnnIndexScanRule : RewriteRule {
             if (parent is EntityScanLogicalOperatorNode) {
                 /* Produce a candidate given the index hints. */
                 val hints = node.predicate.hint
+                val entityTx = (ctx.txn.getTx(parent.entity) as EntityTx)
                 val candidate = if (hints != null) {
-                    parent.entity.allIndexes()
-                        .find { it.canProcess(node.predicate) && hints.satisfies(it) }
+                    entityTx.listIndexes().find { it.canProcess(node.predicate) && hints.satisfies(it) }
                 } else {
-                    parent.entity.allIndexes().find { it.canProcess(node.predicate) }
+                    entityTx.listIndexes().find { it.canProcess(node.predicate) }
                 }
 
                 /* Column produced by the kNN. */

@@ -9,9 +9,9 @@ import java.nio.file.Path
 import java.nio.file.Paths
 
 /**
- * The header section of the [Entity] data structure.
+ * The header section of the [DefaultEntity] data structure.
  *
- * @see Entity
+ * @see DefaultEntity
  *
  * @author Ralph Gasser
  * @version 2.0.0
@@ -24,7 +24,7 @@ data class EntityHeader(
     var indexes: List<IndexRef> = emptyList()
 ) {
     companion object Serializer : org.mapdb.Serializer<EntityHeader> {
-        /** The version of the Cottontail DB [Entity]  file. */
+        /** The version of the Cottontail DB [DefaultEntity]  file. */
         const val VERSION: Short = 2
 
         override fun serialize(out: DataOutput2, value: EntityHeader) {
