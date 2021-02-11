@@ -74,7 +74,10 @@ class LuceneIndex(path: Path, parent: DefaultEntity, config: LuceneIndexConfig? 
         private set
 
     /** The [Directory] containing the data for this [LuceneIndex]. */
-    private val directory: Directory = FSDirectory.open(this.path, NativeFSLockFactory.getDefault())
+    private val directory: Directory = FSDirectory.open(
+        this.path.parent.resolve("${this.name.simple}.lucene"),
+        NativeFSLockFactory.getDefault()
+    )
 
     init {
         /** Tries to obtain config from disk. */
