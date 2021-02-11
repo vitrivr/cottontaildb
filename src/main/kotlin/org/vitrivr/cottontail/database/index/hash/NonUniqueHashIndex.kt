@@ -51,7 +51,7 @@ class NonUniqueHashIndex(path: Path, parent: Entity) : Index(path, parent) {
     private val map: NavigableSet<Array<Any>> =
         this.db.treeSet(
             NUQ_INDEX_MAP,
-            SerializerArrayTuple(this.columns[0].type.serializer(), Serializer.LONG_DELTA)
+            SerializerArrayTuple(this.columns[0].type.serializer(), Serializer.LONG)
         )
             .createOrOpen()
 
@@ -109,36 +109,41 @@ class NonUniqueHashIndex(path: Path, parent: Entity) : Index(path, parent) {
     }
 
     /**
-     * Adds a mapping from the given [Value] to the given [TupleId].
-     *
-     * @param key The [Value] key to add a mapping for.
-     * @param tupleId The [TupleId] for the mapping.
-     *
-     * This is an internal function and can be used safely with values o
-     */
-    private fun addMapping(key: Value, tupleId: TupleId): Boolean {
-        if (!this.columns[0].validate(key)) return false
-        this.map.add(arrayOf(key, tupleId))
-        return true
-    }
-
-    /**
-     * Removes a mapping from the given [Value] to the given [TupleId].
-     *
-     * @param key The [Value] key to remove a mapping for.
-     * @param tupleId The [TupleId] to remove.
-     *
-     * This is an internal function and can be used safely with values o
-     */
-    private fun removeMapping(key: Value, tupleId: TupleId): Boolean {
-        if (!this.columns[0].validate(key)) return false
-        return this.map.remove(arrayOf(key, tupleId))
-    }
-
-    /**
      * An [IndexTx] that affects this [NonUniqueHashIndex].
      */
     private inner class Tx(context: TransactionContext) : Index.Tx(context) {
+
+        /** A per-[Tx] buffer for (de-)serializing values into the set.*/
+        private val buffer: Array<Any> = Array(2) { Any() }
+
+        /**
+         * Adds a mapping from the given [Value] to the given [TupleId].
+         *
+         * @param key The [Value] key to add a mapping for.
+         * @param tupleId The [TupleId] for the mapping.
+         *
+         * This is an internal function and can be used safely with values o
+         */
+        private fun addMapping(key: Value, tupleId: TupleId): Boolean {
+            this.buffer[0] = key
+            this.buffer[1] = tupleId
+            this@NonUniqueHashIndex.map.add(this.buffer)
+            return true
+        }
+
+        /**
+         * Removes a mapping from the given [Value] to the given [TupleId].
+         *
+         * @param key The [Value] key to remove a mapping for.
+         * @param tupleId The [TupleId] to remove.
+         *
+         * This is an internal function and can be used safely with values o
+         */
+        private fun removeMapping(key: Value, tupleId: TupleId): Boolean {
+            this.buffer[0] = key
+            this.buffer[1] = tupleId
+            return this@NonUniqueHashIndex.map.add(this.buffer)
+        }
 
         /**
          * Returns the number of entries in this [NonUniqueHashIndex.map] which DOES NOT directly
@@ -165,7 +170,7 @@ class NonUniqueHashIndex(path: Path, parent: Entity) : Index(path, parent) {
                         this.context.txId,
                         "A value cannot be null for instances of NonUniqueHashIndex ${this@NonUniqueHashIndex.name} but given value is (value = null, tupleId = ${record.tupleId})."
                     )
-                    this@NonUniqueHashIndex.addMapping(value, record.tupleId)
+                    this.addMapping(value, record.tupleId)
                 }
             }
         }
@@ -181,23 +186,23 @@ class NonUniqueHashIndex(path: Path, parent: Entity) : Index(path, parent) {
                 is DataChangeEvent.InsertDataChangeEvent -> {
                     val value = event.inserts[this.columns[0]]
                     if (value != null) {
-                        this@NonUniqueHashIndex.addMapping(value, event.tupleId)
+                        this.addMapping(value, event.tupleId)
                     }
                 }
                 is DataChangeEvent.UpdateDataChangeEvent -> {
                     val old = event.updates[this.columns[0]]?.first
                     if (old != null) {
-                        this@NonUniqueHashIndex.removeMapping(old, event.tupleId)
+                        this.removeMapping(old, event.tupleId)
                     }
                     val new = event.updates[this.columns[0]]?.second
                     if (new != null) {
-                        this@NonUniqueHashIndex.addMapping(new, event.tupleId)
+                        this.addMapping(new, event.tupleId)
                     }
                 }
                 is DataChangeEvent.DeleteDataChangeEvent -> {
                     val old = event.deleted[this.columns[0]]
                     if (old != null) {
-                        this@NonUniqueHashIndex.removeMapping(old, event.tupleId)
+                        this.removeMapping(old, event.tupleId)
                     }
                 }
             }

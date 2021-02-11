@@ -104,38 +104,38 @@ class UniqueHashIndex(path: Path, parent: Entity) : Index(path, parent) {
         }
     }
 
-    /**
-     * Adds a mapping from the given [Value] to the given [TupleId].
-     *
-     * @param key The [Value] key to add a mapping for.
-     * @param tupleId The [TupleId] for the mapping.
-     *
-     * This is an internal function and can be used safely with values o
-     */
-    private fun addMapping(key: Value, tupleId: TupleId): Boolean {
-        if (!this.columns[0].validate(key)) return false
-        return this.map.putIfAbsentBoolean(key, tupleId)
-    }
-
-    /**
-     * Removes a mapping from the given [Value] to the given [TupleId].
-     *
-     * @param key The [Value] key to remove a mapping for.
-     *
-     * This is an internal function and can be used safely with values o
-     */
-    private fun removeMapping(key: Value): Boolean {
-        if (!this.columns[0].validate(key)) return false
-        return this.map.remove(key) != null
-    }
 
     /**
      * An [IndexTx] that affects this [UniqueHashIndex].
      */
     private inner class Tx(context: TransactionContext) : Index.Tx(context) {
+
+        /**
+         * Adds a mapping from the given [Value] to the given [TupleId].
+         *
+         * @param key The [Value] key to add a mapping for.
+         * @param tupleId The [TupleId] for the mapping.
+         *
+         * This is an internal function and can be used safely with values o
+         */
+        private fun addMapping(key: Value, tupleId: TupleId): Boolean {
+            return this@UniqueHashIndex.map.putIfAbsentBoolean(key, tupleId)
+        }
+
+        /**
+         * Removes a mapping from the given [Value] to the given [TupleId].
+         *
+         * @param key The [Value] key to remove a mapping for.
+         *
+         * This is an internal function and can be used safely with values o
+         */
+        private fun removeMapping(key: Value): Boolean {
+            return this@UniqueHashIndex.map.remove(key) != null
+        }
+
         /**
          * Returns the number of entries in this [UniqueHashIndex.map] which should correspond
-         * to the number of [TupleId]s it encods.
+         * to the number of [TupleId]s it encodes.
          *
          * @return Number of [TupleId]s in this [UniqueHashIndex]
          */
@@ -159,7 +159,7 @@ class UniqueHashIndex(path: Path, parent: Entity) : Index(path, parent) {
                             this.context.txId,
                             "Value cannot be null for UniqueHashIndex ${this@UniqueHashIndex.name} given value is (value = null, tupleId = ${record.tupleId})."
                         )
-                    if (!this@UniqueHashIndex.addMapping(value, record.tupleId)) {
+                    if (!this.addMapping(value, record.tupleId)) {
                         throw TxException.TxValidationException(
                             this.context.txId,
                             "Value must be unique for UniqueHashIndex ${this@UniqueHashIndex.name} but is not (value = $value, tupleId = ${record.tupleId})."
@@ -180,23 +180,23 @@ class UniqueHashIndex(path: Path, parent: Entity) : Index(path, parent) {
                 is DataChangeEvent.InsertDataChangeEvent -> {
                     val value = event.inserts[this.columns[0]]
                     if (value != null) {
-                        this@UniqueHashIndex.addMapping(value, event.tupleId)
+                        this.addMapping(value, event.tupleId)
                     }
                 }
                 is DataChangeEvent.UpdateDataChangeEvent -> {
                     val old = event.updates[this.columns[0]]?.first
                     if (old != null) {
-                        this@UniqueHashIndex.removeMapping(old)
+                        this.removeMapping(old)
                     }
                     val new = event.updates[this.columns[0]]?.second
                     if (new != null) {
-                        this@UniqueHashIndex.addMapping(new, event.tupleId)
+                        this.addMapping(new, event.tupleId)
                     }
                 }
                 is DataChangeEvent.DeleteDataChangeEvent -> {
                     val old = event.deleted[this.columns[0]]
                     if (old != null) {
-                        this@UniqueHashIndex.removeMapping(old)
+                        this.removeMapping(old)
                     }
                 }
             }
