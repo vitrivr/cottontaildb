@@ -22,6 +22,7 @@ import org.vitrivr.cottontail.legacy.v1.schema.SchemaV1
 import org.vitrivr.cottontail.model.basics.*
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import org.vitrivr.cottontail.model.exceptions.TxException
+import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.types.Value
 import org.vitrivr.cottontail.utilities.extensions.write
 import java.nio.file.Path
@@ -227,8 +228,8 @@ class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1
             this@EntityV1.indexes[name] ?: throw DatabaseException.IndexDoesNotExistException(name)
         }
 
-        override fun maxTupleId(): TupleId {
-            throw UnsupportedOperationException("Operation not supported on legacy DBO.")
+        override fun maxTupleId(): TupleId = this.withReadLock {
+            return this@EntityV1.columns.values.first().maxTupleId
         }
 
 
@@ -249,19 +250,67 @@ class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
         }
 
-        override fun scan(columns: Array<ColumnDef<*>>): CloseableIterator<Record> {
-            throw UnsupportedOperationException("Operation not supported on legacy DBO.")
-        }
+        override fun scan(columns: Array<ColumnDef<*>>): CloseableIterator<Record> =
+            scan(columns, 1L..this.maxTupleId())
+
 
         override fun scan(
             columns: Array<ColumnDef<*>>,
             range: LongRange
-        ): CloseableIterator<Record> {
-            throw UnsupportedOperationException("Operation not supported on legacy DBO.")
+        ): CloseableIterator<Record> = object : CloseableIterator<Record> {
+            init {
+                this@Tx.withReadLock { /* No op. */ }
+            }
+
+            /** The wrapped [CloseableIterator] of the first (primary) column. */
+            private val wrapped =
+                (this@Tx.context.getTx(this@EntityV1.columns.values.first()) as ColumnTx<*>).scan(
+                    range
+                )
+
+            /** Flag indicating whether this [CloseableIterator] has been closed. */
+            @Volatile
+            private var closed = false
+
+            /**
+             * Returns the next element in the iteration.
+             */
+            override fun next(): Record {
+                check(!this.closed) { "Illegal invocation of next(): This CloseableIterator has been closed." }
+
+                /* Read values from underlying columns. */
+                val tupleId = this.wrapped.next()
+                val values = columns.map {
+                    val column = this@EntityV1.columns[it.name]
+                        ?: throw IllegalArgumentException("Column $it does not exist on entity ${this@EntityV1.name}.")
+                    (this@Tx.context.getTx(column) as ColumnTx<*>).read(tupleId)
+                }.toTypedArray()
+
+                /* Return value of all the desired columns. */
+                return StandaloneRecord(tupleId, columns, values)
+            }
+
+            /**
+             * Returns `true` if the iteration has more elements.
+             */
+            override fun hasNext(): Boolean {
+                check(!this.closed) { "Illegal invocation of hasNext(): This CloseableIterator has been closed." }
+                return this.wrapped.hasNext()
+            }
+
+            /**
+             * Closes this [CloseableIterator] and releases all locks and resources associated with it.
+             */
+            override fun close() {
+                if (!this.closed) {
+                    this.wrapped.close()
+                    this.closed = true
+                }
+            }
         }
 
         override fun count(): Long {
-            throw UnsupportedOperationException("Operation not supported on legacy DBO.")
+            return this@EntityV1.header.size
         }
 
         override fun insert(record: Record): TupleId? {
