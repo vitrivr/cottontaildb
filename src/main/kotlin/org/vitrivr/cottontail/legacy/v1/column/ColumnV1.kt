@@ -4,8 +4,10 @@ import org.mapdb.CottontailStoreWAL
 import org.mapdb.DBException
 import org.vitrivr.cottontail.database.column.Column
 import org.vitrivr.cottontail.database.column.ColumnDef
+import org.vitrivr.cottontail.database.column.ColumnEngine
 import org.vitrivr.cottontail.database.column.ColumnTx
 import org.vitrivr.cottontail.database.entity.Entity
+import org.vitrivr.cottontail.database.general.DBOVersion
 import org.vitrivr.cottontail.database.general.TxStatus
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.model.basics.CloseableIterator
@@ -30,10 +32,12 @@ import java.util.concurrent.locks.StampedLock
  * @param <T> Type of the value held by this [ColumnV1].
  *
  * @author Ralph Gasser
- * @version 1.3.1
+ * @version 1.4.0
  */
-class ColumnV1<T : Value>(override val name: Name.ColumnName, override val parent: Entity) :
-    Column<T> {
+class ColumnV1<T : Value>(
+    override val name: Name.ColumnName,
+    override val parent: Entity
+) : Column<T> {
 
     /**
      * Companion object with some important constants.
@@ -66,6 +70,14 @@ class ColumnV1<T : Value>(override val name: Name.ColumnName, override val paren
     @Suppress("UNCHECKED_CAST")
     override val columnDef: ColumnDef<T> =
         this.header.let { ColumnDef(this.name, it.type as Type<T>, it.nullable) }
+
+    /** The [DBOVersion] of this [ColumnV1]. */
+    override val version: DBOVersion
+        get() = DBOVersion.V1_0
+
+    /** The [ColumnEngine] of this [ColumnV1]. */
+    override val engine: ColumnEngine
+        get() = ColumnEngine.MAPDB
 
     /**
      * The maximum tuple ID used by this [Column].

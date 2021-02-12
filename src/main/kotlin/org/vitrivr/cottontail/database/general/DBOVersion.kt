@@ -7,6 +7,9 @@ package org.vitrivr.cottontail.database.general
  * @version 1.0.0
  */
 enum class DBOVersion {
+    /** Undefined [DBOVersion]. Used as placeholder in certain areas. */
+    UNDEFINED,
+
     /** The first, legacy version of the Cottontail DB file organisation. */
     V1_0,
 

@@ -6,11 +6,13 @@ import org.mapdb.DBException
 import org.mapdb.Serializer
 import org.mapdb.Store
 import org.vitrivr.cottontail.database.column.ColumnDef
+import org.vitrivr.cottontail.database.column.ColumnEngine
 import org.vitrivr.cottontail.database.column.mapdb.MapDBColumn
 import org.vitrivr.cottontail.database.entity.DefaultEntity
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.general.AbstractTx
 import org.vitrivr.cottontail.database.general.DBO
+import org.vitrivr.cottontail.database.general.DBOVersion
 import org.vitrivr.cottontail.database.general.TxSnapshot
 import org.vitrivr.cottontail.database.schema.Schema
 import org.vitrivr.cottontail.database.schema.SchemaTx
@@ -63,6 +65,10 @@ class SchemaV1(override val name: Name.SchemaName, override val parent: Catalogu
     /** A map of loaded [EntityV1] references. */
     private val registry: MutableMap<Name.EntityName, EntityV1> =
         Collections.synchronizedMap(Object2ObjectOpenHashMap())
+
+    /** The [DBOVersion] of this [SchemaV1]. */
+    override val version: DBOVersion
+        get() = DBOVersion.V1_0
 
     /** Flag indicating whether or not this [Schema] has been closed. */
     @Volatile
@@ -153,7 +159,7 @@ class SchemaV1(override val name: Name.SchemaName, override val parent: Catalogu
 
         override fun createEntity(
             name: Name.EntityName,
-            vararg columns: ColumnDef<*>
+            vararg columns: Pair<ColumnDef<*>, ColumnEngine>
         ): DefaultEntity {
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
         }

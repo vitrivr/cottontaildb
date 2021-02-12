@@ -12,6 +12,7 @@ import org.vitrivr.cottontail.database.column.ColumnTx
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.general.AbstractTx
+import org.vitrivr.cottontail.database.general.DBOVersion
 import org.vitrivr.cottontail.database.general.TxSnapshot
 import org.vitrivr.cottontail.database.index.Index
 import org.vitrivr.cottontail.database.index.IndexTx
@@ -112,6 +113,10 @@ class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1
             )
         }
     }
+
+    /** The [DBOVersion] of this [EntityV1]. */
+    override val version: DBOVersion
+        get() = DBOVersion.V1_0
 
     override val numberOfColumns: Int
         get() = this.header.columns.size

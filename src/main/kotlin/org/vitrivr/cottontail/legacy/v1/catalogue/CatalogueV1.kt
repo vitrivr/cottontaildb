@@ -8,6 +8,7 @@ import org.vitrivr.cottontail.database.catalogue.CatalogueTx
 import org.vitrivr.cottontail.database.entity.DefaultEntity
 import org.vitrivr.cottontail.database.general.AbstractTx
 import org.vitrivr.cottontail.database.general.DBO
+import org.vitrivr.cottontail.database.general.DBOVersion
 import org.vitrivr.cottontail.database.general.TxSnapshot
 import org.vitrivr.cottontail.database.schema.Schema
 import org.vitrivr.cottontail.database.schema.SchemaTx
@@ -73,6 +74,10 @@ class CatalogueV1(override val config: Config) : Catalogue {
     override val size: Int
         get() = this.closeLock.read { this.header.schemas.size }
 
+    /** The [DBOVersion] of this [CatalogueV1]. */
+    override val version: DBOVersion
+        get() = DBOVersion.V1_0
+
     /** Status indicating whether this [CatalogueV1] is open or closed. */
     @Volatile
     override var closed: Boolean = false
@@ -91,18 +96,6 @@ class CatalogueV1(override val config: Config) : Catalogue {
             val s = SchemaV1(Name.SchemaName(schema.name), this)
             this.registry[s.name] = s
         }
-    }
-
-    /**
-     * Opens the data store underlying this Cottontail DB [CatalogueV1]
-     *
-     * @param path The path to the data store file.
-     * @return [StoreWAL] object.
-     */
-    private fun openStore(path: Path): CottontailStoreWAL = try {
-        this.config.mapdb.store(path)
-    } catch (e: DBException) {
-        throw DatabaseException("Failed to open Cottontail DB catalogue: ${e.message}'.")
     }
 
     /**

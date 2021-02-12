@@ -7,6 +7,7 @@ import kotlinx.coroutines.Dispatchers
 import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.database.catalogue.Catalogue
 import org.vitrivr.cottontail.database.catalogue.CatalogueTx
+import org.vitrivr.cottontail.database.column.ColumnEngine
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.general.DBO
@@ -166,14 +167,15 @@ abstract class AbstractMigrationManager(val batchSize: Int, logFile: Path) : Mig
     protected open fun migrateEntity(srcEntity: Entity, destSchemaTx: SchemaTx) {
         val creationContext = MigrationContext()
         var srcEntityTx = creationContext.getTx(srcEntity) as EntityTx
-        val columnDefs = srcEntityTx.listColumns().map { it.columnDef }.toTypedArray()
+        val columnDefs =
+            srcEntityTx.listColumns().map { it.columnDef to ColumnEngine.MAPDB }.toTypedArray()
         val destEntity = destSchemaTx.createEntity(srcEntity.name, *columnDefs)
         var destEntityTx = creationContext.getTx(destEntity) as EntityTx
 
         /* Migrate indexes. */
         for (index in srcEntityTx.listIndexes()) {
             this.log("---- Migrating index ${index.name}...\n")
-            destEntityTx.createIndex(index.name, index.type, index.columns, emptyMap())
+            destEntityTx.createIndex(index.name, index.type, index.columns, index.config.toMap())
         }
 
         val count = srcEntityTx.count()
