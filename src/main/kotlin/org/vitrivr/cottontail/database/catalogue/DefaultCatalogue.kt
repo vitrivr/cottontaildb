@@ -52,7 +52,12 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
     override val path: Path = config.root
 
     /** Constant name of the [DefaultCatalogue] object. */
-    override val name: Name.RootName = Name.RootName
+    override val name: Name.RootName
+        get() = Name.RootName
+
+    /** The [DBOVersion] of this [DefaultCatalogue]. */
+    override val version: DBOVersion
+        get() = DBOVersion.V2_0
 
     /** Constant parent [DBO], which is null in case of the [DefaultCatalogue]. */
     override val parent: DBO? = null
@@ -67,17 +72,13 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
     private val headerField =
         this.store.atomicVar(CATALOGUE_HEADER_FIELD, CatalogueHeader.Serializer).createOrOpen()
 
-    /** A in-memory registry of all the [Schema]s contained in this [DefaultCatalogue]. When a [DefaultCatalogue] is opened, all the [Schema]s will be loaded. */
+    /** A in-memory registry of all the [Schema]s contained in this [DefaultCatalogue]. When a [Catalogue] is opened, all the [Schema]s will be loaded. */
     private val registry: MutableMap<Name.SchemaName, Schema> =
         Collections.synchronizedMap(Object2ObjectOpenHashMap())
 
-    /** Size of this [DefaultCatalogue] in terms of [Schema]s it contains. */
+    /** Size of this [DefaultCatalogue] in terms of [Schema]s it contains. This is a snapshot and may change anytime! */
     override val size: Int
         get() = this.closeLock.read { this.headerField.get().schemas.size }
-
-    /** The [DBOVersion] of this [DefaultCatalogue]. */
-    override val version: DBOVersion
-        get() = DBOVersion.V2_0
 
     /** Status indicating whether this [DefaultCatalogue] is open or closed. */
     @Volatile

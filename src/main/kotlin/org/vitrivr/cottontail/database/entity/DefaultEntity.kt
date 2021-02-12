@@ -82,8 +82,7 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
     /** The [Name.EntityName] of this [DefaultEntity]. */
     override val name: Name.EntityName = this.parent.name.entity(this.header.get().name)
 
-
-    /** An internal lock that is used to synchronize access to this [DefaultEntity] and [DefaultEntity.Tx] and it being closed or dropped. */
+    /** An internal lock that is used to synchronize access to this [DefaultEntity] in presence of ongoing [Tx]. */
     private val closeLock = StampedLock()
 
     /** List of all the [Column]s associated with this [DefaultEntity]; Iteration order of entries as defined in schema! */
@@ -186,7 +185,7 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
                 Object2ObjectOpenHashMap<Name.IndexName, Index>(this@DefaultEntity.indexes)
 
             /**
-             * Commits the [EntityTx] and integrates all changes made throug it into the [DefaultEntity].
+             * Commits the [EntityTx] and integrates all changes made through it into the [DefaultEntity].
              */
             override fun commit() {
                 /* Materialize created indexes. */

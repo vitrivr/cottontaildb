@@ -178,30 +178,34 @@ abstract class AbstractMigrationManager(val batchSize: Int, logFile: Path) : Mig
             destEntityTx.createIndex(index.name, index.type, index.columns, index.config.toMap())
         }
 
+        /* Gather some statistics. */
         val count = srcEntityTx.count()
         val maxTupleId = srcEntityTx.maxTupleId()
         val columns = srcEntityTx.listColumns().map { it.columnDef }.toTypedArray()
         creationContext.commit()
 
         /* Start migrating column data. */
-        var i = 0L
-        val p = Math.floorDiv(maxTupleId, this.batchSize) + 1
-        for (j in 0 until p) {
-            val range = (j * this.batchSize) until min((j + 1) * this.batchSize, maxTupleId)
-            val context = MigrationContext()
-            srcEntityTx = context.getTx(srcEntity) as EntityTx
-            destEntityTx = context.getTx(destEntity) as EntityTx
-            srcEntityTx.scan(columns, range).use {
-                it.forEach { r ->
-                    this.logStdout("---- Migrating data for ${srcEntity.name}... (${++i} / $count)\r")
-                    destEntityTx.insert(r)
+        if (count > 0) {
+            var i = 0L
+            val p = Math.floorDiv(maxTupleId, this.batchSize) + 1
+            for (j in 0 until p) {
+                val range = (j * this.batchSize) until min((j + 1) * this.batchSize, maxTupleId)
+                val context = MigrationContext()
+                srcEntityTx = context.getTx(srcEntity) as EntityTx
+                destEntityTx = context.getTx(destEntity) as EntityTx
+                srcEntityTx.scan(columns, range).use {
+                    it.forEach { r ->
+                        this.logStdout("---- Migrating data for ${srcEntity.name}... (${++i} / $count)\r")
+                        destEntityTx.insert(r)
+                    }
                 }
+                this.log("---- Migrating data for ${srcEntity.name}; committing... (${i} / $count)\r")
+                context.commit()
             }
-            this.log("---- Migrating data for ${srcEntity.name}; committing... (${i} / $count)\r")
-            context.commit()
+            this.log("---- Data migration for ${srcEntity.name} completed (${i} / $count).\n")
+        } else {
+            this.log("---- Data migration for ${srcEntity.name} skipped (not data).\n")
         }
-
-        this.log("---- Data migration for ${srcEntity.name} completed (${i} / $count).\n")
     }
 
     /**
