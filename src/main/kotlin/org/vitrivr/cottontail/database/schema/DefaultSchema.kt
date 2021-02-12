@@ -8,6 +8,7 @@ import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.column.ColumnDriver
 import org.vitrivr.cottontail.database.column.mapdb.MapDBColumn
 import org.vitrivr.cottontail.database.entity.DefaultEntity
+import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.entity.EntityHeader
 import org.vitrivr.cottontail.database.general.AbstractTx
 import org.vitrivr.cottontail.database.general.DBO
@@ -17,14 +18,13 @@ import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import org.vitrivr.cottontail.utilities.extensions.read
+import org.vitrivr.cottontail.utilities.io.FileUtilities
 
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
-import java.nio.file.StandardCopyOption
 import java.util.*
 import java.util.concurrent.locks.StampedLock
-import java.util.stream.Collectors
 
 /**
  * Default [Schema] implementation in Cottontail DB based on Map DB.
@@ -59,7 +59,7 @@ class DefaultSchema(override val path: Path, override val parent: DefaultCatalog
     private val closeLock = StampedLock()
 
     /** A map of loaded [DefaultEntity] references. */
-    private val registry: MutableMap<Name.EntityName, DefaultEntity> =
+    private val registry: MutableMap<Name.EntityName, Entity> =
         Collections.synchronizedMap(Object2ObjectOpenHashMap())
 
     /** The [Name.SchemaName] of this [DefaultSchema]. */
@@ -107,7 +107,7 @@ class DefaultSchema(override val path: Path, override val parent: DefaultCatalog
      * A [Tx] that affects this [DefaultSchema].
      *
      * @author Ralph Gasser
-     * @version 1.0.0
+     * @version 2.0.0
      */
     inner class Tx(context: TransactionContext) : AbstractTx(context), SchemaTx {
 
@@ -118,11 +118,34 @@ class DefaultSchema(override val path: Path, override val parent: DefaultCatalog
         override val dbo: DBO
             get() = this@DefaultSchema
 
-        /** Actions that should be executed after committing this [Tx]. */
-        private val postCommitAction = mutableListOf<Runnable>()
+        /** The [SchemaTxSnapshot] of this [SchemaTx]. */
+        override val snapshot = object : SchemaTxSnapshot {
+            override val created: MutableList<Entity> = LinkedList()
+            override val dropped: MutableList<Entity> = LinkedList()
 
-        /** Actions that should be executed after rolling back this [Tx]. */
-        private val postRollbackAction = mutableListOf<Runnable>()
+            /* Make changes to indexes available to entity and persist them. */
+            override fun commit() {
+                /* Integrated newly created entities into schema. */
+                this.created.forEach { this@DefaultSchema.registry[it.name] = it }
+                this.dropped.forEach {
+                    val entity = this@DefaultSchema.registry.remove(it.name)
+                    if (entity != null) {
+                        entity.close()
+                        FileUtilities.deleteRecursively(entity.path)
+                    }
+                }
+                this@DefaultSchema.store.commit()
+            }
+
+            /** Update and persist header and commit store. */
+            override fun rollback() {
+                this.created.forEach {
+                    it.close()
+                    FileUtilities.deleteRecursively(it.path)
+                }
+                this@DefaultSchema.store.rollback()
+            }
+        }
 
         /**
          * Returns a list of [DefaultEntity] held by this [DefaultSchema].
@@ -140,7 +163,7 @@ class DefaultSchema(override val path: Path, override val parent: DefaultCatalog
          * @param name Name of the [DefaultEntity] to access.
          * @return [DefaultEntity] or null.
          */
-        override fun entityForName(name: Name.EntityName): DefaultEntity = this.withReadLock {
+        override fun entityForName(name: Name.EntityName): Entity = this.withReadLock {
             return this@DefaultSchema.registry[name]
                 ?: throw DatabaseException.EntityDoesNotExistException(name)
         }
@@ -151,24 +174,23 @@ class DefaultSchema(override val path: Path, override val parent: DefaultCatalog
          * @param name The name of the [DefaultEntity] that should be created.
          * @param columns The [ColumnDef] of the columns the new [DefaultEntity] should have
          */
-        override fun createEntity(name: Name.EntityName, vararg columns: ColumnDef<*>): DefaultEntity = this.withWriteLock {
-            if (columns.map { it.name }.distinct().size != columns.size) throw DatabaseException.DuplicateColumnException(name, columns.map { it.name })
-            if (this.listEntities().contains(name)) throw DatabaseException.EntityAlreadyExistsException(name)
+        override fun createEntity(name: Name.EntityName, vararg columns: ColumnDef<*>): Entity =
+            this.withWriteLock {
+                if (columns.map { it.name }
+                        .distinct().size != columns.size) throw DatabaseException.DuplicateColumnException(
+                    name,
+                    columns.map { it.name })
+                if (this.listEntities()
+                        .contains(name)
+                ) throw DatabaseException.EntityAlreadyExistsException(name)
 
-            try {
-                /* Create empty folder for entity. */
-                val data = this@DefaultSchema.path.resolve("entity_${name.simple}")
-                if (!Files.exists(data)) {
-                    Files.createDirectories(data)
-                } else {
-                    throw DatabaseException("Failed to create entity '$name'. Data directory '$data' seems to be occupied.")
-                }
-
-                /* ON ROLLBACK: Delete unused entity folder. */
-                this.postRollbackAction.add {
-                    val pathsToDelete = Files.walk(data).sorted(Comparator.reverseOrder())
-                        .collect(Collectors.toList())
-                    pathsToDelete.forEach { Files.delete(it) }
+                try {
+                    /* Create empty folder for entity. */
+                    val data = this@DefaultSchema.path.resolve("entity_${name.simple}")
+                    if (!Files.exists(data)) {
+                        Files.createDirectories(data)
+                    } else {
+                        throw DatabaseException("Failed to create entity '$name'. Data directory '$data' seems to be occupied.")
                 }
 
                 /* Generate the entity and initialize the new entities header. */
@@ -179,9 +201,9 @@ class DefaultSchema(override val path: Path, override val parent: DefaultCatalog
                     EntityHeader.ColumnRef(it.name.simple, ColumnDriver.MAPDB, path)
                 }
                 val entityHeader = EntityHeader(name = name.simple, columns = columnsRefs)
-                store.atomicVar(DefaultEntity.ENTITY_HEADER_FIELD, EntityHeader.Serializer).create()
-                    .set(entityHeader)
-                store.commit()
+                    store.atomicVar(DefaultEntity.ENTITY_HEADER_FIELD, EntityHeader.Serializer)
+                        .create().set(entityHeader)
+                    store.commit()
                 store.close()
 
                 /* Update this schema's header. */
@@ -192,15 +214,7 @@ class DefaultSchema(override val path: Path, override val parent: DefaultCatalog
 
                 /* ON COMMIT: Make entity available. */
                 val entity = DefaultEntity(data, this@DefaultSchema)
-                this.postCommitAction.add {
-                    this@DefaultSchema.registry[name] = entity
-                }
-
-                /* ON ROLLBACK: Close entity. */
-                this.postRollbackAction.add(0) {
-                    entity.close()
-                }
-
+                    this.snapshot.created.add(entity)
                 return entity
             } catch (e: DBException) {
                 this.status = TxStatus.ERROR
@@ -231,24 +245,6 @@ class DefaultSchema(override val path: Path, override val parent: DefaultCatalog
             this@DefaultSchema.registry.remove(name)
 
             try {
-                /* Rename folder and of entity it for deletion. */
-                val shadowEntity = entity.path.resolveSibling(entity.path.fileName.toString() + "~dropped")
-                Files.move(entity.path, shadowEntity, StandardCopyOption.ATOMIC_MOVE)
-
-                /* ON COMMIT: Remove schema from registry and delete files. */
-                this.postCommitAction.add {
-                    val pathsToDelete = Files.walk(shadowEntity).sorted(Comparator.reverseOrder()).collect(Collectors.toList())
-                    pathsToDelete.forEach { Files.deleteIfExists(it) }
-                    this.context.releaseLock(entity)
-                }
-
-                /* ON ROLLBACK: Re-map entity and move back files. */
-                this.postRollbackAction.add {
-                    Files.move(shadowEntity, entity.path, StandardCopyOption.ATOMIC_MOVE)
-                    this@DefaultSchema.registry[name] = DefaultEntity(entity.path, this@DefaultSchema)
-                    this.context.releaseLock(entity)
-                }
-
                 /* Update this schema's header. */
                 val oldHeader = this@DefaultSchema.headerField.get()
                 val newHeader = oldHeader.copy(modified = System.currentTimeMillis())
@@ -259,32 +255,6 @@ class DefaultSchema(override val path: Path, override val parent: DefaultCatalog
                 this.status = TxStatus.ERROR
                 throw DatabaseException("Entity '$name' could not be dropped, because of an error in the underlying data store: ${e.message}!")
             }
-        }
-
-        /**
-         * Performs a COMMIT of all changes made through this [DefaultSchema.Tx].
-         */
-        override fun performCommit() {
-            /* Perform commit. */
-            this@DefaultSchema.store.commit()
-
-            /* Execute post-commit actions. */
-            this.postCommitAction.forEach { it.run() }
-            this.postRollbackAction.clear()
-            this.postCommitAction.clear()
-        }
-
-        /**
-         * Performs a ROLLBACK of all changes made through this [DefaultSchema.Tx].
-         */
-        override fun performRollback() {
-            /* Perform rollback. */
-            this@DefaultSchema.store.rollback()
-
-            /* Execute post-rollback actions. */
-            this.postRollbackAction.forEach { it.run() }
-            this.postRollbackAction.clear()
-            this.postCommitAction.clear()
         }
 
         /**

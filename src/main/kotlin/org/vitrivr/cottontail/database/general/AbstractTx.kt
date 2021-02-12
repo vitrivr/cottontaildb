@@ -11,7 +11,7 @@ import org.vitrivr.cottontail.model.recordset.Recordset
  * An abstract [Tx] implementation that provides some basic functionality.
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.2.0
  */
 @Suppress("OVERRIDE_BY_INLINE")
 abstract class AbstractTx(override val context: TransactionContext) : Tx {
@@ -20,15 +20,19 @@ abstract class AbstractTx(override val context: TransactionContext) : Tx {
     final override var status: TxStatus = TxStatus.CLEAN
         protected set
 
+    /** The [TxSnapshot] that captures changes made through this [AbstractIndex] not visible to the surrounding [DBO]. */
+    protected abstract val snapshot: TxSnapshot
+
     /**
      * Commits all changes made through this [AbstractTx] and releases all locks obtained.
      *
-     * This implementation only makes structural changes to the [AbstractTx]. Implementing
-     * classes need to implement [performCommit] to execute the actual commit.
+     * This implementation only makes structural changes to the [AbstractTx] (updates status,
+     * sanity checks etc). Implementing classes need to implement [TxSnapshot] to execute the
+     * actual commit.
      */
     final override fun commit() {
         if (this.status == TxStatus.DIRTY) {
-            this.performCommit()
+            this.snapshot.commit()
             this.status = TxStatus.CLEAN
         }
         this.context.releaseLock(this.dbo)
@@ -37,12 +41,13 @@ abstract class AbstractTx(override val context: TransactionContext) : Tx {
     /**
      * Makes a rollback on all made through this [AbstractTx] and releases all locks obtained.
      *
-     *  This implementation only makes structural changes to the [AbstractTx]. Implementing
-     * classes need to implement [performRollback] to execute the actual commit.
+     * This implementation only makes structural changes to the [AbstractTx] (updates status,
+     * sanity checks etc). Implementing classes need to implement [TxSnapshot] to execute the actual
+     * commit.
      */
     final override fun rollback() {
         if (this.status == TxStatus.DIRTY || this.status == TxStatus.ERROR) {
-            this.performRollback()
+            this.snapshot.commit()
             this.status = TxStatus.CLEAN
         }
         this.context.releaseLock(this.dbo)
@@ -59,24 +64,6 @@ abstract class AbstractTx(override val context: TransactionContext) : Tx {
             this.cleanup()
         }
     }
-
-    /**
-     * Performs the actual COMMIT operation.
-     *
-     * Implementers of this method may safely assume that upon reaching this method, all necessary
-     * locks on Cottontail DB's data structures have been obtained to safely perform the COMMIT operation.
-     * Furthermore, this operation will only be called if the [status] is equal to [TxStatus.DIRTY]
-     */
-    protected abstract fun performCommit()
-
-    /**
-     * Performs the actual ROLLBACK operation.
-     *
-     * Implementers of this method may safely assume that upon reaching this method, all necessary
-     * locks on Cottontail DB's data structures have been obtained to safely perform the ROLLBACK operation.
-     * Furthermore, this operation will only be called if the [status] is equal to [TxStatus.DIRTY] or [TxStatus.ERROR]
-     */
-    protected abstract fun performRollback()
 
     /**
      * Cleans all local resources obtained by this [AbstractTx] implementation. Called as part of and

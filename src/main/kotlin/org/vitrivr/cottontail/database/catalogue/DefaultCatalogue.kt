@@ -8,21 +8,19 @@ import org.vitrivr.cottontail.database.general.AbstractTx
 import org.vitrivr.cottontail.database.general.DBO
 import org.vitrivr.cottontail.database.general.TxStatus
 import org.vitrivr.cottontail.database.locking.LockMode
-import org.vitrivr.cottontail.database.schema.DefaultSchema
-import org.vitrivr.cottontail.database.schema.Schema
-import org.vitrivr.cottontail.database.schema.SchemaHeader
+import org.vitrivr.cottontail.database.schema.*
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import org.vitrivr.cottontail.utilities.extensions.read
 import org.vitrivr.cottontail.utilities.extensions.write
+import org.vitrivr.cottontail.utilities.io.FileUtilities
+
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
-import java.nio.file.StandardCopyOption
 import java.util.*
 import java.util.concurrent.locks.StampedLock
-import java.util.stream.Collectors
 
 /**
  * The default [Catalogue] implementation based on Map DB.
@@ -42,7 +40,7 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
         internal const val FILE_CATALOGUE = "catalogue.db"
     }
 
-    /** For the [DefaultCatalogue], missing folders are being created. */
+    /** For the catalogue, missing folders are being created. */
     init {
         if (!Files.exists(this.config.root)) {
             Files.createDirectories(this.config.root)
@@ -128,11 +126,31 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
         /** Obtains a global (non-exclusive) read-lock on [DefaultCatalogue]. Prevents enclosing [Schema] from being closed. */
         private val closeStamp = this@DefaultCatalogue.closeLock.readLock()
 
-        /** Actions that should be executed after committing this [Tx]. */
-        private val postCommitAction = mutableListOf<Runnable>()
+        /** The [CatalogueTxSnapshot] of this [CatalogueTx]. */
+        override val snapshot = object : CatalogueTxSnapshot {
+            override val created: MutableList<Schema> = LinkedList()
+            override val dropped: MutableList<Schema> = LinkedList()
 
-        /** Actions that should be executed after rolling back this [Tx]. */
-        private val postRollbackAction = mutableListOf<Runnable>()
+            override fun commit() {
+                this.created.forEach { this@DefaultCatalogue.registry[it.name] = it }
+                this.dropped.forEach {
+                    val schema = this@DefaultCatalogue.registry.remove(it.name)
+                    if (schema != null) {
+                        schema.close()
+                        FileUtilities.deleteRecursively(schema.path)
+                    }
+                }
+                this@DefaultCatalogue.store.commit()
+            }
+
+            override fun rollback() {
+                this.created.forEach {
+                    it.close()
+                    FileUtilities.deleteRecursively(it.path)
+                }
+                this@DefaultCatalogue.store.rollback()
+            }
+        }
 
         /**
          * Returns a list of [Name.SchemaName] held by this [DefaultCatalogue].
@@ -171,9 +189,11 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
                 }
 
                 /* Generate the store for the new schema. */
-                val store = this@DefaultCatalogue.config.mapdb.db(data.resolve(DefaultSchema.FILE_CATALOGUE))
+                val store =
+                    this@DefaultCatalogue.config.mapdb.db(data.resolve(DefaultSchema.FILE_CATALOGUE))
                 val schemaHeader =
-                    store.atomicVar(DefaultSchema.SCHEMA_HEADER_FIELD, SchemaHeader.Serializer).create()
+                    store.atomicVar(DefaultSchema.SCHEMA_HEADER_FIELD, SchemaHeader.Serializer)
+                        .create()
                 schemaHeader.set(SchemaHeader(name.simple))
                 store.commit()
                 store.close()
@@ -184,20 +204,9 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
                 newHeader.addSchemaRef(CatalogueHeader.SchemaRef(name.simple, data))
                 this@DefaultCatalogue.headerField.compareAndSet(oldHeader, newHeader)
 
-                /* ON COMMIT: Make schema available. */
+                /* Add schema to snapshot. */
                 val schema = DefaultSchema(data, this@DefaultCatalogue)
-                this.postCommitAction.add {
-                    this@DefaultCatalogue.registry[name] = schema
-                }
-
-                /* ON ROLLBACK: Remove schema folder. */
-                this.postRollbackAction.add {
-                    schema.close()
-                    val pathsToDelete = Files.walk(data).sorted(Comparator.reverseOrder())
-                        .collect(Collectors.toList())
-                    pathsToDelete.forEach { Files.delete(it) }
-                }
-
+                this.snapshot.created.add(schema)
                 return schema
             } catch (e: DBException) {
                 this.status = TxStatus.ERROR
@@ -219,31 +228,11 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
                 this.context.requestLock(schema, LockMode.EXCLUSIVE)
             }
 
-            /* Close schema and remove from registry. This is a reversible operation! */
-            schema.close()
-            this@DefaultCatalogue.registry.remove(name)
+            /* Add dropped schema to snapshot. */
+            this.snapshot.dropped.add(schema)
 
             /* Remove catalogue entry + update header. */
             try {
-                /* Rename folder and mark it for deletion. */
-                val shadowSchema = schema.path.resolveSibling(schema.path.fileName.toString() + "~dropped")
-                Files.move(schema.path, shadowSchema, StandardCopyOption.ATOMIC_MOVE)
-
-                /* ON ROLLBACK: Move back schema data and re-open it. */
-                this.postRollbackAction.add {
-                    Files.move(shadowSchema, schema.path)
-                    this@DefaultCatalogue.registry[name] = DefaultSchema(schema.path, this@DefaultCatalogue)
-                    this.context.releaseLock(schema)
-                }
-
-                /* ON COMMIT: Remove schema from registry and delete files. */
-                this.postCommitAction.add {
-                    val pathsToDelete = Files.walk(shadowSchema).sorted(Comparator.reverseOrder())
-                        .collect(Collectors.toList())
-                    pathsToDelete.forEach { Files.deleteIfExists(it) }
-                    this.context.releaseLock(schema)
-                }
-
                 /* Update this catalogue's header. */
                 val oldHeader = this@DefaultCatalogue.headerField.get()
                 val newHeader = oldHeader.copy(modified = System.currentTimeMillis())
@@ -257,32 +246,6 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
                 this.status = TxStatus.ERROR
                 throw DatabaseException("Failed to drop schema '$name' due to a IO exception: ${e.message}")
             }
-        }
-
-        /**
-         * Performs a commit of all changes made through this [DefaultCatalogue.Tx].
-         */
-        override fun performCommit() {
-            /* Perform commit. */
-            this@DefaultCatalogue.store.commit()
-
-            /* Execute post-commit actions. */
-            this.postCommitAction.forEach { it.run() }
-            this.postRollbackAction.clear()
-            this.postCommitAction.clear()
-        }
-
-        /**
-         * Performs a rollback of all changes made through this [DefaultCatalogue.Tx].
-         */
-        override fun performRollback() {
-            /* Perform rollback. */
-            this@DefaultCatalogue.store.rollback()
-
-            /* Execute post-rollback actions. */
-            this.postRollbackAction.forEach { it.run() }
-            this.postRollbackAction.clear()
-            this.postCommitAction.clear()
         }
 
         /**

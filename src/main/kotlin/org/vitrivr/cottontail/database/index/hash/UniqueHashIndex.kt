@@ -282,15 +282,5 @@ class UniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path, p
         ): CloseableIterator<Record> {
             throw UnsupportedOperationException("The UniqueHashIndex does not support ranged filtering!")
         }
-
-        /** Performs the actual COMMIT operation by rolling back the [IndexTx]. */
-        override fun performCommit() {
-            this@UniqueHashIndex.db.commit()
-        }
-
-        /** Performs the actual ROLLBACK operation by rolling back the [IndexTx]. */
-        override fun performRollback() {
-            this@UniqueHashIndex.db.rollback()
-        }
     }
 }

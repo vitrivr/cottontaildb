@@ -5,9 +5,11 @@ import org.vitrivr.cottontail.config.MapDBConfig
 import org.vitrivr.cottontail.database.column.Column
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.column.ColumnTx
+import org.vitrivr.cottontail.database.column.ColumnTxSnapshot
 import org.vitrivr.cottontail.database.entity.DefaultEntity
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.general.AbstractTx
+import org.vitrivr.cottontail.database.general.TxSnapshot
 import org.vitrivr.cottontail.database.general.TxStatus
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.model.basics.*
@@ -131,8 +133,26 @@ class MapDBColumn<T : Value>(override val path: Path, override val parent: Entit
         /** Obtains a global (non-exclusive) read-lock on [MapDBColumn]. Prevents enclosing [MapDBColumn] from being closed while this [MapDBColumn.Tx] is still in use. */
         private val globalStamp = this@MapDBColumn.globalLock.readLock()
 
-        /** In-memory snapshot of the [MapDBColumn]'s header (evaluated lazily, since not always needed). */
-        private val header: ColumnHeader by lazy { this@MapDBColumn.header }
+        /** [TxSnapshot] of this [ColumnTx]. */
+        override val snapshot = object : ColumnTxSnapshot {
+            @Volatile
+            override var delta = 0L
+
+            /** Commits the [ColumnTx] and integrates all changes made through it into the [MapDBColumn]. */
+            override fun commit() {
+                val header = this@MapDBColumn.header.copy(
+                    modified = System.currentTimeMillis(),
+                    count = (this@MapDBColumn.header.count + this.delta)
+                )
+                this@MapDBColumn.store.update(HEADER_RECORD_ID, header, ColumnHeader.Serializer)
+                this@MapDBColumn.store.commit()
+            }
+
+            /** Commits the [ColumnTx] and integrates all changes made through it into the [MapDBColumn]. */
+            override fun rollback() {
+                this@MapDBColumn.store.rollback()
+            }
+        }
 
         /**
          * Gets and returns an entry from this [MapDBColumn].
@@ -152,7 +172,7 @@ class MapDBColumn<T : Value>(override val path: Path, override val parent: Entit
          * @return The number of entries in this [MapDBColumn].
          */
         override fun count(): Long = this.withReadLock {
-            return this.header.count
+            return (this@MapDBColumn.header.count + this.snapshot.delta)
         }
 
         /**
@@ -227,8 +247,8 @@ class MapDBColumn<T : Value>(override val path: Path, override val parent: Entit
                     throw IllegalArgumentException("Column $columnDef does not allow for NULL values.")
                 }
 
-                /* Update header. */
-                this.header.count += 1
+                /* Increment delta. */
+                this.snapshot.delta += 1
                 return tupleId
             } catch (e: DBException) {
                 this.status = TxStatus.ERROR
@@ -300,8 +320,8 @@ class MapDBColumn<T : Value>(override val path: Path, override val parent: Entit
                 val ret = this@MapDBColumn.store.get(tupleId, this.serializer)
                 this@MapDBColumn.store.delete(tupleId, this.serializer)
 
-                /* Update header. */
-                this.header.count -= 1
+                /* Decrement delta. */
+                this.snapshot.delta -= 1
                 this@MapDBColumn.store.update(HEADER_RECORD_ID, header, ColumnHeader.Serializer)
 
                 return ret
@@ -309,23 +329,6 @@ class MapDBColumn<T : Value>(override val path: Path, override val parent: Entit
                 this.status = TxStatus.ERROR
                 throw TxException.TxStorageException(this.context.txId, e.message ?: "Unknown")
             }
-        }
-
-        /**
-         * Performs a COMMIT of all changes made through this [MapDBColumn.Tx].
-         */
-        override fun performCommit() {
-            /** Update and persist header + commit store. */
-            this.header.modified = System.currentTimeMillis()
-            this@MapDBColumn.store.update(HEADER_RECORD_ID, this.header, ColumnHeader.Serializer)
-            this@MapDBColumn.store.commit()
-        }
-
-        /**
-         * Performs a ROLLBACK of all changes made through this [MapDBColumn.Tx].
-         */
-        override fun performRollback() {
-            this@MapDBColumn.store.rollback()
         }
 
         /**

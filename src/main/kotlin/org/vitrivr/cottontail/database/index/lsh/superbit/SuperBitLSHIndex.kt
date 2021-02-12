@@ -286,16 +286,6 @@ class SuperBitLSHIndex<T : VectorValue<*>>(
             throw UnsupportedOperationException("The SuperBitLSHIndex does not support ranged filtering!")
         }
 
-        /** Performs the actual COMMIT operation by rolling back the [IndexTx]. */
-        override fun performCommit() {
-            this@SuperBitLSHIndex.db.commit()
-        }
-
-        /** Performs the actual ROLLBACK operation by rolling back the [IndexTx]. */
-        override fun performRollback() {
-            this@SuperBitLSHIndex.db.rollback()
-        }
-
         /**
          * Tries to find a specimen of the [VectorValue] in the [DefaultEntity] underpinning this [SuperBitLSHIndex]
          *

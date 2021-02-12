@@ -302,15 +302,5 @@ class NonUniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path
         ): CloseableIterator<Record> {
             throw UnsupportedOperationException("The NonUniqueHashIndex does not support ranged filtering!")
         }
-
-        /** Performs the actual COMMIT operation by rolling back the [IndexTx]. */
-        override fun performCommit() {
-            this@NonUniqueHashIndex.db.commit()
-        }
-
-        /** Performs the actual ROLLBACK operation by rolling back the [IndexTx]. */
-        override fun performRollback() {
-            this@NonUniqueHashIndex.db.rollback()
-        }
     }
 }

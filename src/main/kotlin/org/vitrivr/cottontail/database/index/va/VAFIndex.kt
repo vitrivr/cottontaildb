@@ -353,19 +353,5 @@ class VAFIndex(path: Path, parent: DefaultEntity, config: VAFIndexConfig? = null
                 return queue
             }
         }
-
-        /**
-         * Commits changes and update signature cache.
-         */
-        override fun performCommit() {
-            this@VAFIndex.db.commit()
-        }
-
-        /**
-         * Makes a rollback on all changes to the index.
-         */
-        override fun performRollback() {
-            this@VAFIndex.db.rollback()
-        }
     }
 }

@@ -4,12 +4,12 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectArrayMap
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
 import org.mapdb.*
-import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.database.column.Column
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.column.ColumnTx
 import org.vitrivr.cottontail.database.events.DataChangeEvent
 import org.vitrivr.cottontail.database.general.AbstractTx
+import org.vitrivr.cottontail.database.general.TxSnapshot
 import org.vitrivr.cottontail.database.general.TxStatus
 import org.vitrivr.cottontail.database.index.Index
 import org.vitrivr.cottontail.database.index.IndexTx
@@ -25,9 +25,7 @@ import org.vitrivr.cottontail.model.values.types.Value
 import org.vitrivr.cottontail.utilities.extensions.write
 import java.io.IOException
 import java.nio.file.Files
-import java.nio.file.NoSuchFileException
 import java.nio.file.Path
-import java.nio.file.StandardCopyOption
 import java.util.*
 import java.util.concurrent.locks.StampedLock
 import java.util.stream.Collectors
@@ -62,9 +60,6 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
 
         /** Filename for the [DefaultEntity] catalogue.  */
         const val ENTITY_MAX_FIELD = "cdb_entity_maxtid"
-
-        /** Entity wide LOGGER instance. */
-        private val LOGGER = LoggerFactory.getLogger(DefaultEntity::class.java)
     }
 
     /** Internal reference to the [StoreWAL] underpinning this [DefaultEntity]. */
@@ -97,14 +92,14 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
     private val indexes: MutableMap<Name.IndexName, Index> = Object2ObjectOpenHashMap()
 
     init {
-        /** Load and initialize the [Column]s. */
+        /** Load and initialize the columns. */
         val header = this.header.get()
         header.columns.map {
             val columnName = this.name.column(it.name)
             this.columns[columnName] = it.type.open(it.path, this)
         }
 
-        /** Load and initialize the [Index]es. */
+        /** Load and initialize the indexes. */
         header.indexes.forEach {
             val indexName = this.name.index(it.name)
             indexes[indexName] = it.type.open(it.path, this)
@@ -137,32 +132,6 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
      * @return New [DefaultEntity.Tx]
      */
     override fun newTx(context: TransactionContext) = this.Tx(context)
-
-    /**
-     * Returns all [ColumnDef]s for this [DefaultEntity].
-     *
-     * This operation takes place outside of any transaction context, hence, no isolation guarantees
-     * can be given for the results returned.
-     *
-     * @return List of all [ColumnDef]s.
-     */
-    @Deprecated("Use Entity.Tx.listAllColumns() instead.")
-    fun allColumns(): List<ColumnDef<*>> {
-        return this.columns.values.map { it.columnDef }
-    }
-
-    /**
-     * Returns all [Index]s for this [DefaultEntity].
-     *
-     * This operation takes place outside of any transaction context, hence, no isolation guarantees
-     * can be given for the results returned.
-     *
-     * @return List of all [Column]s.
-     */
-    @Deprecated("Use Entity.Tx.listAllIndexes() instead.")
-    fun allIndexes(): List<Index> {
-        return this.indexes.values.toList()
-    }
 
     /**
      * Closes the [DefaultEntity].
@@ -201,15 +170,57 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
         /** Obtains a global (non-exclusive) read-lock on [DefaultEntity]. Prevents enclosing [DefaultEntity] from being closed. */
         private val closeStamp = this@DefaultEntity.closeLock.readLock()
 
-        /** Actions that should be executed after committing this [Tx]. */
-        private val postCommitAction = mutableListOf<Runnable>()
-
-        /** Actions that should be executed after rolling back this [Tx]. */
-        private val postRollbackAction = mutableListOf<Runnable>()
-
         /** Reference to the surrounding [DefaultEntity]. */
         override val dbo: DefaultEntity
             get() = this@DefaultEntity
+
+        /** [TxSnapshot] of this [EntityTx] */
+        override val snapshot = object : EntityTxSnapshot {
+            override var delta: Long = 0L
+            override val createdIndexes = LinkedList<Index>()
+            override val droppedIndexes = LinkedList<Index>()
+
+            /**
+             * Commits the [EntityTx] and integrates all changes made throug it into the [DefaultEntity].
+             */
+            override fun commit() {
+                /* Make changes to indexes available to entity and persist them. */
+                this.createdIndexes.forEach { this@DefaultEntity.indexes[it.name] = it }
+                this.droppedIndexes.forEach {
+                    val index = this@DefaultEntity.indexes.remove(it.name)
+                    if (index != null) {
+                        index.close()
+                        val pathsToDelete = Files.walk(index.path).sorted(Comparator.reverseOrder())
+                            .collect(Collectors.toList())
+                        pathsToDelete.forEach { Files.delete(it) }
+                    }
+                }
+
+                /** Update and persist header + commit store. */
+                val oldHeader = this@DefaultEntity.header.get()
+                this@DefaultEntity.header.compareAndSet(
+                    oldHeader,
+                    oldHeader.copy(modified = System.currentTimeMillis())
+                )
+                this@DefaultEntity.countField.addAndGet(this.delta)
+                this@DefaultEntity.maxTupleIdField.set(this@DefaultEntity.columns.values.first().maxTupleId)
+                this@DefaultEntity.store.commit()
+            }
+
+            /**
+             * Rolls back the [EntityTx] and integrates all changes made throug it into the [DefaultEntity].
+             */
+            override fun rollback() {
+                /* Make changes to indexes available to entity and persist them. */
+                this.createdIndexes.forEach {
+                    it.close()
+                    val pathsToDelete = Files.walk(it.path).sorted(Comparator.reverseOrder())
+                        .collect(Collectors.toList())
+                    pathsToDelete.forEach { Files.delete(it) }
+                }
+                this@DefaultEntity.store.rollback()
+            }
+        }
 
         /** Tries to acquire a global read-lock on this entity. */
         init {
@@ -313,7 +324,7 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
                 throw DatabaseException.IndexAlreadyExistsException(name)
             }
 
-            /* Creates and opens the index and schedules a ROLLBACK action in case of failure. */
+            /* Creates and opens the index and adds it to snapshot. */
             val newIndex = type.create(
                 this@DefaultEntity.path.resolve("${name.simple}.db"),
                 this.dbo,
@@ -321,21 +332,10 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
                 columns,
                 params
             )
+            this.snapshot.createdIndexes.add(newIndex)
 
-            /* ON COMMIT: Make index available. */
-            this.postCommitAction.add {
-                this@DefaultEntity.indexes[name] = newIndex
-            }
-
-            /* ON ROLLBACK: Remove index data. */
-            this.postRollbackAction.add {
-                newIndex.close()
-                val pathsToDelete = Files.walk(newIndex.path).sorted(Comparator.reverseOrder()).collect(Collectors.toList())
-                pathsToDelete.forEach { Files.delete(it) }
-            }
-
-            /* Update catalogue + header. */
             try {
+                /* Update header. */
                 val oldHeader = this@DefaultEntity.header.get()
                 val newHeader = oldHeader.copy(
                     indexes = (oldHeader.indexes + EntityHeader.IndexRef(
@@ -364,44 +364,10 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
                 this.context.requestLock(index, LockMode.EXCLUSIVE)
             }
 
-            /* Close index and remove it from registry. */
-            index.close()
-            this@DefaultEntity.indexes.remove(name)
-
-            /* ON ROLLBACK: Move back index and re-open it. */
-            this.postRollbackAction.add {
-                val indexRef = this@DefaultEntity.header.get().indexes.find { it.name == name.simple }
-                    ?: throw DatabaseException.DataCorruptionException("Failed to re-open index '$name': Could not read index definition from header!")
-                this@DefaultEntity.indexes[name] = indexRef.type.open(indexRef.path, this.dbo)
-            }
+            /* Close index and add it to snapshot. */
+            this.snapshot.droppedIndexes.add(index)
 
             try {
-                /*
-                 * Rename index file / folder: If these have been removed already (sometimes
-                 *  necessary for manual recovery), this is not a failure scenario.
-                 */
-                try {
-                    val shadowIndex =
-                        index.path.resolveSibling(index.path.fileName.toString() + "~dropped")
-                    Files.move(index.path, shadowIndex, StandardCopyOption.ATOMIC_MOVE)
-
-                    /* ON COMMIT: Remove index files. */
-                    this.postCommitAction.add {
-                        val pathsToDelete =
-                            Files.walk(shadowIndex).sorted(Comparator.reverseOrder())
-                                .collect(Collectors.toList())
-                        pathsToDelete.forEach { Files.delete(it) }
-                        this.context.releaseLock(index)
-                    }
-
-                    /* ON ROLLBACK: Move back index and re-open it. */
-                    this.postRollbackAction.add {
-                        Files.move(shadowIndex, index.path, StandardCopyOption.ATOMIC_MOVE)
-                    }
-                } catch (e: NoSuchFileException) {
-                    LOGGER.warn("Files for index '$name' are missing; dropping continues anyways.")
-                }
-
                 /* Update header. */
                 val oldHeader = this@DefaultEntity.header.get()
                 this@DefaultEntity.header.set(oldHeader.copy(indexes = oldHeader.indexes.filter { it.name != index.name.simple }))
@@ -512,12 +478,16 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
                 }
 
                 if (lastTupleId != null) {
-                    /* Update header (don't persist). */
-                    this@DefaultEntity.countField.andIncrement
+                    /* Increment delta. */
+                    this.snapshot.delta += 1
 
                     /* Issue DataChangeEvent.InsertDataChange event & update indexes. */
                     /* ToDo: System wide event bus for [DataChangeEvent]. */
-                    val event = DataChangeEvent.InsertDataChangeEvent(this@DefaultEntity.name, lastTupleId!!, inserts)
+                    val event = DataChangeEvent.InsertDataChangeEvent(
+                        this@DefaultEntity.name,
+                        lastTupleId!!,
+                        inserts
+                    )
                     this@DefaultEntity.indexes.values.forEach {
                         (this.context.getTx(it) as IndexTx).update(event)
                     }
@@ -576,17 +546,19 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
         override fun delete(tupleId: TupleId) = this.withWriteLock {
             try {
                 /* Perform delete on each column. */
-                val deleted = Object2ObjectArrayMap<ColumnDef<*>, Value?>(this@DefaultEntity.columns.size)
+                val deleted =
+                    Object2ObjectArrayMap<ColumnDef<*>, Value?>(this@DefaultEntity.columns.size)
                 this@DefaultEntity.columns.values.map {
                     deleted[it.columnDef] = (this.context.getTx(it) as ColumnTx<*>).delete(tupleId)
                 }
 
-                /* Update header (don't persist). */
-                this@DefaultEntity.countField.andDecrement
+                /* Decrement delta. */
+                this.snapshot.delta -= 1
 
                 /* Issue DataChangeEvent.DeleteDataChangeEvent event & update indexes. */
                 /* ToDo: System wide event bus for [DataChangeEvent]. */
-                val event = DataChangeEvent.DeleteDataChangeEvent(this@DefaultEntity.name, tupleId, deleted)
+                val event =
+                    DataChangeEvent.DeleteDataChangeEvent(this@DefaultEntity.name, tupleId, deleted)
                 this@DefaultEntity.indexes.values.forEach {
                     (this.context.getTx(it) as IndexTx).update(event)
                 }
@@ -597,38 +569,7 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
         }
 
         /**
-         * Performs a COMMIT of all changes made through this [DefaultEntity.Tx].
-         */
-        override fun performCommit() {
-            /** Update and persist header + commit store. */
-            val oldHeader = this@DefaultEntity.header.get()
-            this@DefaultEntity.header.compareAndSet(
-                oldHeader,
-                oldHeader.copy(modified = System.currentTimeMillis())
-            )
-            this@DefaultEntity.maxTupleIdField.set(this@DefaultEntity.columns.values.first().maxTupleId)
-            this@DefaultEntity.store.commit()
-
-            /* Execute post-commit actions. */
-            this.postCommitAction.forEach { it.run() }
-            this.postRollbackAction.clear()
-            this.postCommitAction.clear()
-        }
-
-        /**
-         * Performs a ROLLBACK of all changes made through this [DefaultEntity.Tx].
-         */
-        override fun performRollback() {
-            this@DefaultEntity.store.rollback()
-
-            /* Execute post-rollback actions. */
-            this.postRollbackAction.forEach { it.run() }
-            this.postCommitAction.clear()
-            this.postRollbackAction.clear()
-        }
-
-        /**
-         * Closes all the [ColumnTx] and [IndexTx] and releases the [closeLock] on the [DefaultEntity].
+         * Releases the [closeLock] on the [DefaultEntity].
          */
         override fun cleanup() {
             this@DefaultEntity.closeLock.unlockRead(this.closeStamp)

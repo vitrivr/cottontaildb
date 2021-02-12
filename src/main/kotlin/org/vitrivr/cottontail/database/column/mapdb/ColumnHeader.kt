@@ -12,11 +12,11 @@ import org.vitrivr.cottontail.model.exceptions.DatabaseException
  * @author Ralph Gasser
  * @version 2.0.0
  */
-class ColumnHeader(
+data class ColumnHeader(
     val columnDef: ColumnDef<*>,
-    var count: Long = 0L,
-    var created: Long = System.currentTimeMillis(),
-    var modified: Long = System.currentTimeMillis()
+    val count: Long = 0L,
+    val created: Long = System.currentTimeMillis(),
+    val modified: Long = System.currentTimeMillis()
 ) {
     companion object Serializer : org.mapdb.Serializer<ColumnHeader> {
         /** The version of the Cottontail DB [MapDBColumn] file. */

@@ -360,19 +360,5 @@ class GGIndex(path: Path, parent: DefaultEntity, config: GGIndexConfig? = null) 
         ): CloseableIterator<Record> {
             throw UnsupportedOperationException("The UniqueHashIndex does not support ranged filtering!")
         }
-
-        /**
-         * Commits changes to the [GGIndex].
-         */
-        override fun performCommit() {
-            this@GGIndex.db.commit()
-        }
-
-        /**
-         * Makes a rollback on all changes to the [GGIndex].
-         */
-        override fun performRollback() {
-            this@GGIndex.db.rollback()
-        }
     }
 }

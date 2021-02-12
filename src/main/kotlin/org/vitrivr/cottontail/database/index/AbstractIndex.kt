@@ -6,6 +6,7 @@ import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.DefaultEntity
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.general.AbstractTx
+import org.vitrivr.cottontail.database.general.TxSnapshot
 import org.vitrivr.cottontail.database.queries.predicates.Predicate
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.model.basics.Name
@@ -130,13 +131,20 @@ abstract class AbstractIndex(final override val path: Path, final override val p
         override val type: IndexType
             get() = this@AbstractIndex.type
 
+        /** The default [TxSnapshot] of this [IndexTx]. Can be overriden! */
+        override val snapshot = object : TxSnapshot {
+            override fun commit() = this@AbstractIndex.db.commit()
+            override fun rollback() = this@AbstractIndex.db.rollback()
+        }
+
         /**
          * Checks if this [IndexTx] can process the provided [Predicate].
          *
          * @param predicate [Predicate] to check.
          * @return True if [Predicate] can be processed, false otherwise.
          */
-        override fun canProcess(predicate: Predicate): Boolean = this@AbstractIndex.canProcess(predicate)
+        override fun canProcess(predicate: Predicate): Boolean =
+            this@AbstractIndex.canProcess(predicate)
 
         /**
          * Releases the [closeLock] in the [AbstractIndex].

@@ -371,20 +371,6 @@ class PQIndex(path: Path, parent: DefaultEntity, config: PQIndexConfig? = null) 
         }
 
         /**
-         * Commits changes to the [PQIndex].
-         */
-        override fun performCommit() {
-            this@PQIndex.db.commit()
-        }
-
-        /**
-         * Makes a rollback on all changes to the [PQIndex].
-         */
-        override fun performRollback() {
-            this@PQIndex.db.rollback()
-        }
-
-        /**
          * Collects and returns a subset of the available data for learning and training.
          *
          * @param txn The [EntityTx] used to obtain the learning data.

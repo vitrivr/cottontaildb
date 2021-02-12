@@ -12,6 +12,7 @@ import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.DefaultEntity
 import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.events.DataChangeEvent
+import org.vitrivr.cottontail.database.general.TxSnapshot
 import org.vitrivr.cottontail.database.index.AbstractIndex
 import org.vitrivr.cottontail.database.index.IndexTx
 import org.vitrivr.cottontail.database.index.IndexType
@@ -258,9 +259,29 @@ class LuceneIndex(path: Path, parent: DefaultEntity, config: LuceneIndexConfig? 
         /** The [IndexWriter] instance used to access this [LuceneIndex]. */
         private val writer = IndexWriter(
             this@LuceneIndex.directory,
-            IndexWriterConfig(this@LuceneIndex.config.getAnalyzer()).setOpenMode(IndexWriterConfig.OpenMode.APPEND)
-                .setMaxBufferedDocs(100_000).setCommitOnClose(false)
+            IndexWriterConfig(this@LuceneIndex.config.getAnalyzer())
+                .setOpenMode(IndexWriterConfig.OpenMode.APPEND)
+                .setMaxBufferedDocs(10000)
+                .setCommitOnClose(false)
         )
+
+        /** The default [TxSnapshot] of this [IndexTx].  */
+        override val snapshot = object : TxSnapshot {
+            /** Commits DB and Lucene writer and updates lucene reader. */
+            override fun commit() {
+                this@Tx.writer.commit()
+                this@LuceneIndex.db.commit()
+                val oldReader = this@LuceneIndex.indexReader
+                this@LuceneIndex.indexReader = DirectoryReader.open(this@LuceneIndex.directory)
+                oldReader.close()
+            }
+
+            /** Rolls back DB and Lucene writer . */
+            override fun rollback() {
+                this@Tx.writer.rollback()
+                this@LuceneIndex.db.rollback()
+            }
+        }
 
         /**
          * Returns the number of [Document] in this [LuceneIndex], which should roughly correspond
@@ -400,22 +421,6 @@ class LuceneIndex(path: Path, parent: DefaultEntity, config: LuceneIndexConfig? 
             range: LongRange
         ): CloseableIterator<Record> {
             throw UnsupportedOperationException("The LuceneIndex does not support ranged filtering!")
-        }
-
-        /** Performs the actual COMMIT operation by committing the [IndexWriter] and updating the [IndexReader]. */
-        override fun performCommit() {
-            /* Commits changes made through the LuceneWriter. */
-            this.writer.commit()
-
-            /* Opens new IndexReader and close new one. */
-            val oldReader = this@LuceneIndex.indexReader
-            this@LuceneIndex.indexReader = DirectoryReader.open(this@LuceneIndex.directory)
-            oldReader.close()
-        }
-
-        /** Performs the actual ROLLBACK operation by rolling back the [IndexWriter]. */
-        override fun performRollback() {
-            this.writer.rollback()
         }
 
         /** Makes the necessary cleanup by closing the [IndexWriter]. */
