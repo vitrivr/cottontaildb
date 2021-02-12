@@ -120,28 +120,36 @@ class DefaultSchema(override val path: Path, override val parent: DefaultCatalog
 
         /** The [SchemaTxSnapshot] of this [SchemaTx]. */
         override val snapshot = object : SchemaTxSnapshot {
-            override val created: MutableList<Entity> = LinkedList()
-            override val dropped: MutableList<Entity> = LinkedList()
+            override val entites = Object2ObjectOpenHashMap(this@DefaultSchema.registry)
 
             /* Make changes to indexes available to entity and persist them. */
             override fun commit() {
-                /* Integrated newly created entities into schema. */
-                this.created.forEach { this@DefaultSchema.registry[it.name] = it }
-                this.dropped.forEach {
-                    val entity = this@DefaultSchema.registry.remove(it.name)
-                    if (entity != null) {
-                        entity.close()
-                        FileUtilities.deleteRecursively(entity.path)
+                /* Materialize created entities. */
+                this.entites.forEach {
+                    if (!this@DefaultSchema.registry.contains(it.key)) {
+                        this@DefaultSchema.registry[it.key] = it.value
                     }
                 }
+
+                /* Materialize dropped entities. */
+                this@DefaultSchema.registry.forEach { (k, v) ->
+                    if (!this.entites.contains(k)) {
+                        v.close()
+                        FileUtilities.deleteRecursively(v.path)
+                    }
+                }
+
+                /* Commit changes. */
                 this@DefaultSchema.store.commit()
             }
 
-            /** Update and persist header and commit store. */
+            /* Delete newly created entities and commit store. */
             override fun rollback() {
-                this.created.forEach {
-                    it.close()
-                    FileUtilities.deleteRecursively(it.path)
+                this.entites.forEach {
+                    if (!this@DefaultSchema.registry.contains(it.key)) {
+                        it.value.close()
+                        FileUtilities.deleteRecursively(it.value.path)
+                    }
                 }
                 this@DefaultSchema.store.rollback()
             }
@@ -152,10 +160,8 @@ class DefaultSchema(override val path: Path, override val parent: DefaultCatalog
          *
          * @return [List] of all [Name.EntityName].
          */
-        override fun listEntities(): List<Name.EntityName> = this.withReadLock {
-            val outer = this@DefaultSchema.registry.values
-            val inner = this.snapshot.created
-            return (outer + inner).filter { !this.snapshot.dropped.contains(it) }.map { it.name }
+        override fun listEntities(): List<Entity> = this.withReadLock {
+            this.snapshot.entites.values.toList()
         }
 
         /**
@@ -166,15 +172,7 @@ class DefaultSchema(override val path: Path, override val parent: DefaultCatalog
          * @return [DefaultEntity] or null.
          */
         override fun entityForName(name: Name.EntityName): Entity = this.withReadLock {
-            var entity = this@DefaultSchema.registry[name]
-            if (entity == null) { /* Make lookup in list of created entities. */
-                entity = this.snapshot.created.find { it.name == name }
-            }
-            if (entity == null) throw DatabaseException.EntityDoesNotExistException(name)
-            if (this.snapshot.dropped.any { it.name == name }) throw DatabaseException.EntityDoesNotExistException(
-                name
-            )
-            entity
+            this.snapshot.entites[name] ?: throw DatabaseException.EntityDoesNotExistException(name)
         }
 
         /**
@@ -185,13 +183,14 @@ class DefaultSchema(override val path: Path, override val parent: DefaultCatalog
          */
         override fun createEntity(name: Name.EntityName, vararg columns: ColumnDef<*>): Entity =
             this.withWriteLock {
+                /* Perform some sanity checks. */
+                if (this.snapshot.entites.contains(name)) throw DatabaseException.EntityAlreadyExistsException(
+                    name
+                )
                 if (columns.map { it.name }
                         .distinct().size != columns.size) throw DatabaseException.DuplicateColumnException(
                     name,
                     columns.map { it.name })
-                if (this.listEntities()
-                        .contains(name)
-                ) throw DatabaseException.EntityAlreadyExistsException(name)
 
                 try {
                     /* Create empty folder for entity. */
@@ -223,7 +222,7 @@ class DefaultSchema(override val path: Path, override val parent: DefaultCatalog
 
                 /* ON COMMIT: Make entity available. */
                 val entity = DefaultEntity(data, this@DefaultSchema)
-                    this.snapshot.created.add(entity)
+                    this.snapshot.entites.put(name, entity)
                 return entity
             } catch (e: DBException) {
                 this.status = TxStatus.ERROR

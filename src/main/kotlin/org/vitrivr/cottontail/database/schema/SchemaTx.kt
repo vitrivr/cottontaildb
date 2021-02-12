@@ -15,11 +15,11 @@ import org.vitrivr.cottontail.model.basics.Name
  */
 interface SchemaTx : Tx {
     /**
-     * Returns a list of [Entity] held by this [DefaultSchema].
+     * Returns a list of [Entity] held by this [Schema].
      *
-     * @return [List] of all [Name.EntityName].
+     * @return [List] of all [Entity].
      */
-    fun listEntities(): List<Name.EntityName>
+    fun listEntities(): List<Entity>
 
     /**
      * Returns an instance of [Entity] if such an instance exists. If the [Entity] has been loaded before,

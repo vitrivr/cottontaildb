@@ -2,11 +2,13 @@ package org.vitrivr.cottontail.database.entity
 
 import org.vitrivr.cottontail.database.general.TxSnapshot
 import org.vitrivr.cottontail.database.index.Index
+import org.vitrivr.cottontail.model.basics.Name
 
 /**
+ * This is a [TxSnapshot] implementation for [EntityTx]
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.0.0
  */
 interface EntityTxSnapshot : TxSnapshot {
     /**
@@ -16,15 +18,6 @@ interface EntityTxSnapshot : TxSnapshot {
      */
     var delta: Long
 
-    /**
-     * List of [Index]es created during this [EntityTxState].
-     *
-     * Such [Index]es are only available to the [EntityTx] that created them.
-     */
-    val createdIndexes: MutableList<Index>
-
-    /**
-     * List of [Index]es dropped during this [EntityTxState]. Tracked for
-     */
-    val droppedIndexes: MutableList<Index>
+    /** A map of all [Index] structures available to the enclosing [EntityTx]. */
+    val indexes: MutableMap<Name.IndexName, Index>
 }

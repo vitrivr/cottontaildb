@@ -36,13 +36,13 @@ class ListEntityOperator(val catalogue: DefaultCatalogue, val schema: Name.Schem
     override fun toFlow(context: TransactionContext): Flow<Record> {
         val txn = context.getTx(this.catalogue) as CatalogueTx
         val schemas = if (this.schema != null) {
-            listOf(this.schema)
+            listOf(txn.schemaForName(this.schema))
         } else {
             txn.listSchemas()
         }
         return flow {
             for (schema in schemas) {
-                val schemaTxn = context.getTx(txn.schemaForName(schema)) as SchemaTx
+                val schemaTxn = context.getTx(schema) as SchemaTx
                 for (entity in schemaTxn.listEntities()) {
                     emit(StandaloneRecord(0L, this@ListEntityOperator.columns, arrayOf(StringValue(entity.toString()), StringValue("ENTITY"))))
                 }

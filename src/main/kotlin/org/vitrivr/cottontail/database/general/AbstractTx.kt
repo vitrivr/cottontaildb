@@ -60,8 +60,8 @@ abstract class AbstractTx(override val context: TransactionContext) : Tx {
     final override fun close() {
         if (this.status != TxStatus.CLOSED) {
             this.rollback()
-            this.status = TxStatus.CLOSED
             this.cleanup()
+            this.status = TxStatus.CLOSED
         }
     }
 

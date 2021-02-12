@@ -128,26 +128,39 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
 
         /** The [CatalogueTxSnapshot] of this [CatalogueTx]. */
         override val snapshot = object : CatalogueTxSnapshot {
-            override val created: MutableList<Schema> = LinkedList()
-            override val dropped: MutableList<Schema> = LinkedList()
+            override val schemas = Object2ObjectOpenHashMap(this@DefaultCatalogue.registry)
 
+            /* Make changes to indexes available to entity and persist them. */
             override fun commit() {
-                this.created.forEach { this@DefaultCatalogue.registry[it.name] = it }
-                this.dropped.forEach {
-                    val schema = this@DefaultCatalogue.registry.remove(it.name)
-                    if (schema != null) {
-                        schema.close()
-                        FileUtilities.deleteRecursively(schema.path)
+                /* Materialize created schemas. */
+                this.schemas.forEach {
+                    if (!this@DefaultCatalogue.registry.contains(it.key)) {
+                        this@DefaultCatalogue.registry[it.key] = it.value
                     }
                 }
+
+                /* Materialize dropped schemas. */
+                this@DefaultCatalogue.registry.forEach { (k, v) ->
+                    if (!this.schemas.contains(k)) {
+                        v.close()
+                        FileUtilities.deleteRecursively(v.path)
+                    }
+                }
+
+                /* Commit changes to store. */
                 this@DefaultCatalogue.store.commit()
             }
 
+            /* Delete newly created entities and commit store. */
             override fun rollback() {
-                this.created.forEach {
-                    it.close()
-                    FileUtilities.deleteRecursively(it.path)
+                this.schemas.forEach {
+                    if (!this@DefaultCatalogue.registry.contains(it.key)) {
+                        it.value.close()
+                        FileUtilities.deleteRecursively(it.value.path)
+                    }
                 }
+
+                /* Rolback changes. */
                 this@DefaultCatalogue.store.rollback()
             }
         }
@@ -157,10 +170,8 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
          *
          * @return [List] of all [Name.SchemaName].
          */
-        override fun listSchemas(): List<Name.SchemaName> = this.withReadLock {
-            val outer = this@DefaultCatalogue.registry.values
-            val inner = this.snapshot.created
-            (outer + inner).filter { !this.snapshot.dropped.contains(it) }.map { it.name }
+        override fun listSchemas(): List<Schema> = this.withReadLock {
+            this.snapshot.schemas.values.toList()
         }
 
         /**
@@ -169,15 +180,7 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
          * @param name [Name.SchemaName] to obtain the [Schema] for.
          */
         override fun schemaForName(name: Name.SchemaName): Schema = this.withReadLock {
-            var schema = this@DefaultCatalogue.registry[name]
-            if (schema == null) { /* Make lookup in list of created entities. */
-                schema = this.snapshot.created.find { it.name == name }
-            }
-            if (schema == null) throw DatabaseException.SchemaDoesNotExistException(name)
-            if (this.snapshot.dropped.any { it.name == name }) throw DatabaseException.SchemaDoesNotExistException(
-                name
-            )
-            schema
+            this.snapshot.schemas[name] ?: throw DatabaseException.SchemaDoesNotExistException(name)
         }
 
         /**
@@ -187,7 +190,9 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
          */
         override fun createSchema(name: Name.SchemaName): Schema = this.withWriteLock {
             /* Check if schema with that name exists. */
-            if (this.listSchemas().contains(name)) throw DatabaseException.SchemaAlreadyExistsException(name)
+            if (this.snapshot.schemas.contains(name)) throw DatabaseException.SchemaAlreadyExistsException(
+                name
+            )
 
             try {
                 /* Create empty folder for entity. */
@@ -216,7 +221,7 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
 
                 /* Add schema to snapshot. */
                 val schema = DefaultSchema(data, this@DefaultCatalogue)
-                this.snapshot.created.add(schema)
+                this.snapshot.schemas[name] = schema
                 return schema
             } catch (e: DBException) {
                 this.status = TxStatus.ERROR
@@ -233,13 +238,16 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
          */
         override fun dropSchema(name: Name.SchemaName) = this.withWriteLock {
             /* Obtain schema and acquire exclusive lock on it. */
-            val schema = this.schemaForName(name)
+            val schema =
+                this.snapshot.schemas[name] ?: throw DatabaseException.SchemaDoesNotExistException(
+                    name
+                )
             if (this.context.lockOn(schema) == LockMode.NO_LOCK) {
                 this.context.requestLock(schema, LockMode.EXCLUSIVE)
             }
 
             /* Add dropped schema to snapshot. */
-            this.snapshot.dropped.add(schema)
+            this.snapshot.schemas.remove(name)
 
             /* Remove catalogue entry + update header. */
             try {

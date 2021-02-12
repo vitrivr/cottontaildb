@@ -23,12 +23,12 @@ import org.vitrivr.cottontail.model.exceptions.TxException
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.types.Value
 import org.vitrivr.cottontail.utilities.extensions.write
+import org.vitrivr.cottontail.utilities.io.FileUtilities
+
 import java.io.IOException
-import java.nio.file.Files
 import java.nio.file.Path
 import java.util.*
 import java.util.concurrent.locks.StampedLock
-import java.util.stream.Collectors
 
 /**
  * Represents a single entity in the Cottontail DB data model. An [DefaultEntity] has name that must remain unique within a [DefaultSchema].
@@ -167,7 +167,7 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
      */
     inner class Tx(context: TransactionContext) : AbstractTx(context), EntityTx {
 
-        /** Obtains a global (non-exclusive) read-lock on [DefaultEntity]. Prevents enclosing [DefaultEntity] from being closed. */
+        /** Obtains a global non-exclusive lock on [DefaultEntity]. Prevents [DefaultEntity] from being closed. */
         private val closeStamp = this@DefaultEntity.closeLock.readLock()
 
         /** Reference to the surrounding [DefaultEntity]. */
@@ -177,26 +177,29 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
         /** [TxSnapshot] of this [EntityTx] */
         override val snapshot = object : EntityTxSnapshot {
             override var delta: Long = 0L
-            override val createdIndexes = LinkedList<Index>()
-            override val droppedIndexes = LinkedList<Index>()
+            override val indexes =
+                Object2ObjectOpenHashMap<Name.IndexName, Index>(this@DefaultEntity.indexes)
 
             /**
              * Commits the [EntityTx] and integrates all changes made throug it into the [DefaultEntity].
              */
             override fun commit() {
-                /* Make changes to indexes available to entity and persist them. */
-                this.createdIndexes.forEach { this@DefaultEntity.indexes[it.name] = it }
-                this.droppedIndexes.forEach {
-                    val index = this@DefaultEntity.indexes.remove(it.name)
-                    if (index != null) {
-                        index.close()
-                        val pathsToDelete = Files.walk(index.path).sorted(Comparator.reverseOrder())
-                            .collect(Collectors.toList())
-                        pathsToDelete.forEach { Files.delete(it) }
+                /* Materialize created indexes. */
+                this.indexes.forEach {
+                    if (!this@DefaultEntity.indexes.contains(it.key)) {
+                        this@DefaultEntity.indexes[it.key] = it.value
                     }
                 }
 
-                /** Update and persist header + commit store. */
+                /* Materialize dropped indexes. */
+                this@DefaultEntity.indexes.forEach { (k, v) ->
+                    if (!this.indexes.contains(k)) {
+                        v.close()
+                        FileUtilities.deleteRecursively(v.path)
+                    }
+                }
+
+                /* Update and persist header + commit store. */
                 val oldHeader = this@DefaultEntity.header.get()
                 this@DefaultEntity.header.compareAndSet(
                     oldHeader,
@@ -208,15 +211,15 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
             }
 
             /**
-             * Rolls back the [EntityTx] and integrates all changes made throug it into the [DefaultEntity].
+             * Rolls back the [EntityTx] and integrates all changes made through it into the [DefaultEntity].
              */
             override fun rollback() {
-                /* Make changes to indexes available to entity and persist them. */
-                this.createdIndexes.forEach {
-                    it.close()
-                    val pathsToDelete = Files.walk(it.path).sorted(Comparator.reverseOrder())
-                        .collect(Collectors.toList())
-                    pathsToDelete.forEach { Files.delete(it) }
+                /* Delete newly created indexes. */
+                this.indexes.forEach {
+                    if (!this@DefaultEntity.indexes.contains(it.key)) {
+                        it.value.close()
+                        FileUtilities.deleteRecursively(it.value.path)
+                    }
                 }
                 this@DefaultEntity.store.rollback()
             }
@@ -300,9 +303,7 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
          * @return List of [Name.IndexName] managed by this [EntityTx]
          */
         override fun listIndexes(): List<Index> = this.withReadLock {
-            val outer = this@DefaultEntity.indexes.values
-            val inner = this.snapshot.createdIndexes
-            (outer + inner).filter { !this.snapshot.droppedIndexes.contains(it) }
+            this.snapshot.indexes.values.toList()
         }
 
         /**
@@ -311,15 +312,7 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
          * @return List of [Name.IndexName] managed by this [EntityTx]
          */
         override fun indexForName(name: Name.IndexName): Index = this.withReadLock {
-            var index = this@DefaultEntity.indexes[name]
-            if (index == null) { /* Make lookup in list of created entities. */
-                index = this.snapshot.createdIndexes.find { it.name == name }
-            }
-            if (index == null) throw DatabaseException.IndexDoesNotExistException(name)
-            if (this.snapshot.droppedIndexes.any { it.name == name }) throw DatabaseException.IndexDoesNotExistException(
-                name
-            )
-            index
+            this.snapshot.indexes[name] ?: throw DatabaseException.IndexDoesNotExistException(name)
         }
 
         /**
@@ -330,7 +323,7 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
          * @param columns The list of [columns] to [Index].
          */
         override fun createIndex(name: Name.IndexName, type: IndexType, columns: Array<ColumnDef<*>>, params: Map<String, String>): Index = this.withWriteLock {
-            if (this@DefaultEntity.indexes.containsKey(name)) {
+            if (this.snapshot.indexes.containsKey(name)) {
                 throw DatabaseException.IndexAlreadyExistsException(name)
             }
 
@@ -342,7 +335,7 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
                 columns,
                 params
             )
-            this.snapshot.createdIndexes.add(newIndex)
+            this.snapshot.indexes[newIndex.name] = newIndex
 
             try {
                 /* Update header. */
@@ -369,13 +362,11 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
          */
         override fun dropIndex(name: Name.IndexName) = this.withWriteLock {
             /* Obtain index and acquire exclusive lock on it. */
-            val index = this.indexForName(name)
+            val index = this.snapshot.indexes.remove(name)
+                ?: throw DatabaseException.IndexDoesNotExistException(name)
             if (this.context.lockOn(index) == LockMode.NO_LOCK) {
                 this.context.requestLock(index, LockMode.EXCLUSIVE)
             }
-
-            /* Close index and add it to snapshot. */
-            this.snapshot.droppedIndexes.add(index)
 
             try {
                 /* Update header. */
