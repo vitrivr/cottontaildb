@@ -300,7 +300,9 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
          * @return List of [Name.IndexName] managed by this [EntityTx]
          */
         override fun listIndexes(): List<Index> = this.withReadLock {
-            return this@DefaultEntity.indexes.values.toList()
+            val outer = this@DefaultEntity.indexes.values
+            val inner = this.snapshot.createdIndexes
+            (outer + inner).filter { !this.snapshot.droppedIndexes.contains(it) }
         }
 
         /**
@@ -309,7 +311,15 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
          * @return List of [Name.IndexName] managed by this [EntityTx]
          */
         override fun indexForName(name: Name.IndexName): Index = this.withReadLock {
-            this@DefaultEntity.indexes[name] ?: throw DatabaseException.IndexDoesNotExistException(name)
+            var index = this@DefaultEntity.indexes[name]
+            if (index == null) { /* Make lookup in list of created entities. */
+                index = this.snapshot.createdIndexes.find { it.name == name }
+            }
+            if (index == null) throw DatabaseException.IndexDoesNotExistException(name)
+            if (this.snapshot.droppedIndexes.any { it.name == name }) throw DatabaseException.IndexDoesNotExistException(
+                name
+            )
+            index
         }
 
         /**

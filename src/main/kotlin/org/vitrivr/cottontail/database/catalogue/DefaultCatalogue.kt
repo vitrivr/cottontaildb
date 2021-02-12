@@ -158,7 +158,9 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
          * @return [List] of all [Name.SchemaName].
          */
         override fun listSchemas(): List<Name.SchemaName> = this.withReadLock {
-            this@DefaultCatalogue.headerField.get().schemas.map { this.dbo.name.schema(it.name) }
+            val outer = this@DefaultCatalogue.registry.values
+            val inner = this.snapshot.created
+            (outer + inner).filter { !this.snapshot.dropped.contains(it) }.map { it.name }
         }
 
         /**
@@ -167,7 +169,15 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
          * @param name [Name.SchemaName] to obtain the [Schema] for.
          */
         override fun schemaForName(name: Name.SchemaName): Schema = this.withReadLock {
-            this@DefaultCatalogue.registry[name] ?: throw DatabaseException.SchemaDoesNotExistException(name)
+            var schema = this@DefaultCatalogue.registry[name]
+            if (schema == null) { /* Make lookup in list of created entities. */
+                schema = this.snapshot.created.find { it.name == name }
+            }
+            if (schema == null) throw DatabaseException.SchemaDoesNotExistException(name)
+            if (this.snapshot.dropped.any { it.name == name }) throw DatabaseException.SchemaDoesNotExistException(
+                name
+            )
+            schema
         }
 
         /**

@@ -153,7 +153,9 @@ class DefaultSchema(override val path: Path, override val parent: DefaultCatalog
          * @return [List] of all [Name.EntityName].
          */
         override fun listEntities(): List<Name.EntityName> = this.withReadLock {
-            return this@DefaultSchema.headerField.get().entities.map { this@DefaultSchema.name.entity(it.name) }
+            val outer = this@DefaultSchema.registry.values
+            val inner = this.snapshot.created
+            return (outer + inner).filter { !this.snapshot.dropped.contains(it) }.map { it.name }
         }
 
         /**
@@ -164,8 +166,15 @@ class DefaultSchema(override val path: Path, override val parent: DefaultCatalog
          * @return [DefaultEntity] or null.
          */
         override fun entityForName(name: Name.EntityName): Entity = this.withReadLock {
-            return this@DefaultSchema.registry[name]
-                ?: throw DatabaseException.EntityDoesNotExistException(name)
+            var entity = this@DefaultSchema.registry[name]
+            if (entity == null) { /* Make lookup in list of created entities. */
+                entity = this.snapshot.created.find { it.name == name }
+            }
+            if (entity == null) throw DatabaseException.EntityDoesNotExistException(name)
+            if (this.snapshot.dropped.any { it.name == name }) throw DatabaseException.EntityDoesNotExistException(
+                name
+            )
+            entity
         }
 
         /**
@@ -191,7 +200,7 @@ class DefaultSchema(override val path: Path, override val parent: DefaultCatalog
                         Files.createDirectories(data)
                     } else {
                         throw DatabaseException("Failed to create entity '$name'. Data directory '$data' seems to be occupied.")
-                }
+                    }
 
                 /* Generate the entity and initialize the new entities header. */
                 val store = this@DefaultSchema.parent.config.mapdb.db(data.resolve(DefaultEntity.CATALOGUE_FILE))
