@@ -73,7 +73,7 @@ class TransactionManager(private val executor: ThreadPoolExecutor) {
 
         /** The [TransactionStatus] of this [Transaction]. */
         @Volatile
-        var state: TransactionStatus = TransactionStatus.READY
+        override var state: TransactionStatus = TransactionStatus.READY
             private set
 
         /** Map of all [Tx] that have been created as part of this [Transaction]. */
@@ -186,10 +186,10 @@ class TransactionManager(private val executor: ThreadPoolExecutor) {
         /**
          * Commits this [Transaction] thus finalizing and persisting all operations executed so far.
          */
-        fun commit() = this.lock.withLock {
+        override fun commit() = this.lock.withLock {
             check(this.state === TransactionStatus.READY) { "Cannot commit transaction ${this.txId} because it is in wrong state (s = ${this.state})." }
             this.state = TransactionStatus.FINALIZING
-            this@Transaction.txns.values.forEach { txn ->
+            this.txns.values.forEach { txn ->
                 txn.commit()
                 txn.close()
             }
@@ -197,15 +197,16 @@ class TransactionManager(private val executor: ThreadPoolExecutor) {
             this.ended = System.currentTimeMillis()
             this.state = TransactionStatus.COMMIT
             this@TransactionManager.transactions.remove(this.txId)
+            Unit
         }
 
         /**
          * Rolls back this [Transaction] thus reverting all operations executed so far.
          */
-        fun rollback() = this.lock.withLock {
+        override fun rollback() = this.lock.withLock {
             check(this.state === TransactionStatus.READY || this.state === TransactionStatus.ERROR) { "Cannot rollback transaction ${this.txId} because it is in wrong state (s = ${this.state})." }
             this.state = TransactionStatus.FINALIZING
-            this@Transaction.txns.values.forEach { txn ->
+            this.txns.values.forEach { txn ->
                 txn.rollback()
                 txn.close()
             }
@@ -213,6 +214,7 @@ class TransactionManager(private val executor: ThreadPoolExecutor) {
             this.ended = System.currentTimeMillis()
             this.state = TransactionStatus.ROLLBACK
             this@TransactionManager.transactions.remove(this.txId)
+            Unit
         }
     }
 }

@@ -13,15 +13,18 @@ import org.vitrivr.cottontail.model.basics.TransactionId
  * A [TransactionContext] used by operators and their [Txn]s to execute and obtain necessary locks
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.2.0
  */
 interface TransactionContext {
 
-    /** The [TransactionId] for this [TransactionContext]. */
+    /** The [TransactionId] of this [TransactionContext]. */
     val txId: TransactionId
 
-    /** The [TransactionType] for this [TransactionContext]. */
+    /** The [TransactionType] of this [TransactionContext]. */
     val type: TransactionType
+
+    /** The [TransactionContext] of this [TransactionContext]. */
+    val state: TransactionStatus
 
     /** Reference to the [TransactionManager]s [CoroutineDispatcher].*/
     val dispatcher: CoroutineDispatcher
@@ -61,4 +64,8 @@ interface TransactionContext {
      * @return [LockMode]
      */
     fun lockOn(dbo: DBO): LockMode
+
+    fun commit()
+
+    fun rollback()
 }
