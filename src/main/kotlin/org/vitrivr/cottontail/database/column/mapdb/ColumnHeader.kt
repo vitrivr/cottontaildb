@@ -3,6 +3,7 @@ package org.vitrivr.cottontail.database.column.mapdb
 import org.mapdb.DataInput2
 import org.mapdb.DataOutput2
 import org.vitrivr.cottontail.database.column.ColumnDef
+import org.vitrivr.cottontail.database.general.DBOVersion
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
 
 /**
@@ -19,11 +20,8 @@ data class ColumnHeader(
     val modified: Long = System.currentTimeMillis()
 ) {
     companion object Serializer : org.mapdb.Serializer<ColumnHeader> {
-        /** The version of the Cottontail DB [MapDBColumn] file. */
-        const val VERSION: Short = 2
-
         override fun serialize(out: DataOutput2, value: ColumnHeader) {
-            out.writeShort(VERSION.toInt())
+            out.packInt(DBOVersion.V2_0.ordinal)
             ColumnDef.serialize(out, value.columnDef)
             out.writeLong(value.count)
             out.writeLong(value.created)
@@ -31,11 +29,9 @@ data class ColumnHeader(
         }
 
         override fun deserialize(input: DataInput2, available: Int): ColumnHeader {
-            val version = input.readShort()
-            if (version != VERSION) throw DatabaseException.VersionMismatchException(
-                version,
-                VERSION
-            )
+            val version = DBOVersion.values()[input.unpackInt()]
+            if (version != DBOVersion.V2_0)
+                throw DatabaseException.VersionMismatchException(version, DBOVersion.V2_0)
             val def = ColumnDef.deserialize(input, available)
             return ColumnHeader(def, input.readLong(), input.readLong(), input.readLong())
         }

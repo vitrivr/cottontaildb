@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.database.catalogue
 
 import org.mapdb.DataInput2
 import org.mapdb.DataOutput2
+import org.vitrivr.cottontail.database.general.DBOVersion
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -25,11 +26,8 @@ internal data class CatalogueHeader(
     val schemas: List<SchemaRef> = LinkedList()
 
     companion object Serializer : org.mapdb.Serializer<CatalogueHeader> {
-        /** The version of the Cottontail DB [DefaultCatalogue]  file. */
-        internal const val VERSION: Short = 2
-
         override fun serialize(out: DataOutput2, value: CatalogueHeader) {
-            out.writeShort(VERSION.toInt())
+            out.packInt(DBOVersion.V2_0.ordinal)
             out.writeUTF(value.uid)
             out.writeLong(value.created)
             out.writeLong(value.modified)
@@ -38,11 +36,9 @@ internal data class CatalogueHeader(
         }
 
         override fun deserialize(input: DataInput2, available: Int): CatalogueHeader {
-            val version = input.readShort()
-            if (version != VERSION) throw DatabaseException.VersionMismatchException(
-                version,
-                VERSION
-            )
+            val version = DBOVersion.values()[input.unpackInt()]
+            if (version != DBOVersion.V2_0)
+                throw DatabaseException.VersionMismatchException(version, DBOVersion.V2_0)
             val header = CatalogueHeader(input.readUTF(), input.readLong(), input.readLong())
             repeat(input.unpackInt()) {
                 header.addSchemaRef(SchemaRef.deserialize(input, available))

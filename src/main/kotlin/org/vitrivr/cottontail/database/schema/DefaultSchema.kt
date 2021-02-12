@@ -5,13 +5,14 @@ import org.mapdb.*
 
 import org.vitrivr.cottontail.database.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.database.column.ColumnDef
-import org.vitrivr.cottontail.database.column.ColumnDriver
+import org.vitrivr.cottontail.database.column.ColumnEngine
 import org.vitrivr.cottontail.database.column.mapdb.MapDBColumn
 import org.vitrivr.cottontail.database.entity.DefaultEntity
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.entity.EntityHeader
 import org.vitrivr.cottontail.database.general.AbstractTx
 import org.vitrivr.cottontail.database.general.DBO
+import org.vitrivr.cottontail.database.general.DBOVersion
 import org.vitrivr.cottontail.database.general.TxStatus
 import org.vitrivr.cottontail.database.locking.LockMode
 import org.vitrivr.cottontail.execution.TransactionContext
@@ -64,6 +65,10 @@ class DefaultSchema(override val path: Path, override val parent: DefaultCatalog
 
     /** The [Name.SchemaName] of this [DefaultSchema]. */
     override val name: Name.SchemaName = Name.SchemaName(this.headerField.get().name)
+
+    /** The [DBOVersion] of this [DefaultSchema]. */
+    override val version: DBOVersion
+        get() = DBOVersion.V2_0
 
     /** Flag indicating whether or not this [DefaultSchema] has been closed. */
     @Volatile
@@ -181,16 +186,19 @@ class DefaultSchema(override val path: Path, override val parent: DefaultCatalog
          * @param name The name of the [DefaultEntity] that should be created.
          * @param columns The [ColumnDef] of the columns the new [DefaultEntity] should have
          */
-        override fun createEntity(name: Name.EntityName, vararg columns: ColumnDef<*>): Entity =
+        override fun createEntity(
+            name: Name.EntityName,
+            vararg columns: Pair<ColumnDef<*>, ColumnEngine>
+        ): Entity =
             this.withWriteLock {
                 /* Perform some sanity checks. */
                 if (this.snapshot.entites.contains(name)) throw DatabaseException.EntityAlreadyExistsException(
                     name
                 )
-                if (columns.map { it.name }
-                        .distinct().size != columns.size) throw DatabaseException.DuplicateColumnException(
+                val distinctSize = columns.map { it.first.name }.distinct().size
+                if (distinctSize != columns.size) throw DatabaseException.DuplicateColumnException(
                     name,
-                    columns.map { it.name })
+                    columns.map { it.first.name })
 
                 try {
                     /* Create empty folder for entity. */
@@ -204,9 +212,18 @@ class DefaultSchema(override val path: Path, override val parent: DefaultCatalog
                 /* Generate the entity and initialize the new entities header. */
                 val store = this@DefaultSchema.parent.config.mapdb.db(data.resolve(DefaultEntity.CATALOGUE_FILE))
                 val columnsRefs = columns.map {
-                    val path = data.resolve("col_${it.name.simple}.db")
-                    MapDBColumn.initialize(path, it, this@DefaultSchema.parent.config.mapdb)
-                    EntityHeader.ColumnRef(it.name.simple, ColumnDriver.MAPDB, path)
+                    val path = data.resolve("${it.first.name.simple}.col")
+                    when (it.second) {
+                        ColumnEngine.MAPDB -> {
+                            MapDBColumn.initialize(
+                                path,
+                                it.first,
+                                this@DefaultSchema.parent.config.mapdb
+                            )
+                        }
+                        ColumnEngine.HARE -> throw UnsupportedOperationException("The column driver ${it.second} is currently not supported.")
+                    }
+                    EntityHeader.ColumnRef(it.first.name.simple, it.second, path)
                 }
                 val entityHeader = EntityHeader(name = name.simple, columns = columnsRefs)
                     store.atomicVar(DefaultEntity.ENTITY_HEADER_FIELD, EntityHeader.Serializer)

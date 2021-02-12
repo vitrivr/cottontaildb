@@ -2,7 +2,8 @@ package org.vitrivr.cottontail.database.entity
 
 import org.mapdb.DataInput2
 import org.mapdb.DataOutput2
-import org.vitrivr.cottontail.database.column.ColumnDriver
+import org.vitrivr.cottontail.database.column.ColumnEngine
+import org.vitrivr.cottontail.database.general.DBOVersion
 import org.vitrivr.cottontail.database.index.IndexType
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import java.nio.file.Path
@@ -24,11 +25,8 @@ data class EntityHeader(
     var indexes: List<IndexRef> = emptyList()
 ) {
     companion object Serializer : org.mapdb.Serializer<EntityHeader> {
-        /** The version of the Cottontail DB [DefaultEntity]  file. */
-        const val VERSION: Short = 2
-
         override fun serialize(out: DataOutput2, value: EntityHeader) {
-            out.writeShort(VERSION.toInt())
+            out.packInt(DBOVersion.V2_0.ordinal)
             out.writeUTF(value.name)
             out.writeLong(value.created)
             out.writeLong(value.modified)
@@ -39,11 +37,9 @@ data class EntityHeader(
         }
 
         override fun deserialize(input: DataInput2, available: Int): EntityHeader {
-            val version = input.readShort()
-            if (version != VERSION) throw DatabaseException.VersionMismatchException(
-                version,
-                VERSION
-            )
+            val version = DBOVersion.values()[input.unpackInt()]
+            if (version != DBOVersion.V2_0)
+                throw DatabaseException.VersionMismatchException(version, DBOVersion.V2_0)
             return EntityHeader(
                 input.readUTF(),
                 input.readLong(),
@@ -57,7 +53,7 @@ data class EntityHeader(
     /**
      * Reference pointing to a column.
      */
-    data class ColumnRef(val name: String, val type: ColumnDriver, val path: Path) {
+    data class ColumnRef(val name: String, val type: ColumnEngine, val path: Path) {
         companion object Serializer : org.mapdb.Serializer<ColumnRef> {
             override fun serialize(out: DataOutput2, value: ColumnRef) {
                 out.writeUTF(value.name)
@@ -67,7 +63,7 @@ data class EntityHeader(
 
             override fun deserialize(input: DataInput2, available: Int): ColumnRef = ColumnRef(
                 input.readUTF(),
-                ColumnDriver.values()[input.unpackInt()],
+                ColumnEngine.values()[input.unpackInt()],
                 Paths.get(input.readUTF())
             )
         }

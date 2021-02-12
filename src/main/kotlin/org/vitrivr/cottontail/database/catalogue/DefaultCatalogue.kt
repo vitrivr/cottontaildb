@@ -6,6 +6,7 @@ import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.database.entity.DefaultEntity
 import org.vitrivr.cottontail.database.general.AbstractTx
 import org.vitrivr.cottontail.database.general.DBO
+import org.vitrivr.cottontail.database.general.DBOVersion
 import org.vitrivr.cottontail.database.general.TxStatus
 import org.vitrivr.cottontail.database.locking.LockMode
 import org.vitrivr.cottontail.database.schema.*
@@ -67,11 +68,16 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
         this.store.atomicVar(CATALOGUE_HEADER_FIELD, CatalogueHeader.Serializer).createOrOpen()
 
     /** A in-memory registry of all the [Schema]s contained in this [DefaultCatalogue]. When a [DefaultCatalogue] is opened, all the [Schema]s will be loaded. */
-    private val registry: MutableMap<Name.SchemaName, Schema> = Collections.synchronizedMap(Object2ObjectOpenHashMap())
+    private val registry: MutableMap<Name.SchemaName, Schema> =
+        Collections.synchronizedMap(Object2ObjectOpenHashMap())
 
     /** Size of this [DefaultCatalogue] in terms of [Schema]s it contains. */
     override val size: Int
         get() = this.closeLock.read { this.headerField.get().schemas.size }
+
+    /** The [DBOVersion] of this [DefaultCatalogue]. */
+    override val version: DBOVersion
+        get() = DBOVersion.V2_0
 
     /** Status indicating whether this [DefaultCatalogue] is open or closed. */
     @Volatile

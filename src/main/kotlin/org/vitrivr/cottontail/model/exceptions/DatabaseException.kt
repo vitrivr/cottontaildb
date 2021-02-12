@@ -1,17 +1,18 @@
 package org.vitrivr.cottontail.model.exceptions
 
+import org.vitrivr.cottontail.database.general.DBOVersion
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Type
 
 open class DatabaseException(message: String) : Throwable(message) {
 
     /**
-     * Thrown when trying to create a [DBO] with an older, unsupported version.
+     * Thrown when trying to access a [DBO] with an older, unsupported [DBOVersion].
      *
-     * @param found: Int Found version of [DBO]
-     * @param expected: Int Expected version of [DBO]
+     * @param found: Int Found [DBOVersion] of [DBO]
+     * @param expected: Int Expected [DBOVersion] of [DBO]
      */
-    class VersionMismatchException(found: Short, expected: Short) :
+    class VersionMismatchException(found: DBOVersion, expected: DBOVersion) :
         DatabaseException("Version mismatch for DBO: Expected $expected but found $found.")
 
     /**

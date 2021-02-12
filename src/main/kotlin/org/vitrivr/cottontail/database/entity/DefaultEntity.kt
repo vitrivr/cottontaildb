@@ -9,6 +9,7 @@ import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.column.ColumnTx
 import org.vitrivr.cottontail.database.events.DataChangeEvent
 import org.vitrivr.cottontail.database.general.AbstractTx
+import org.vitrivr.cottontail.database.general.DBOVersion
 import org.vitrivr.cottontail.database.general.TxSnapshot
 import org.vitrivr.cottontail.database.general.TxStatus
 import org.vitrivr.cottontail.database.index.Index
@@ -24,7 +25,6 @@ import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.types.Value
 import org.vitrivr.cottontail.utilities.extensions.write
 import org.vitrivr.cottontail.utilities.io.FileUtilities
-
 import java.io.IOException
 import java.nio.file.Path
 import java.util.*
@@ -82,6 +82,7 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
     /** The [Name.EntityName] of this [DefaultEntity]. */
     override val name: Name.EntityName = this.parent.name.entity(this.header.get().name)
 
+
     /** An internal lock that is used to synchronize access to this [DefaultEntity] and [DefaultEntity.Tx] and it being closed or dropped. */
     private val closeLock = StampedLock()
 
@@ -91,20 +92,9 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
     /** List of all the [Index]es associated with this [DefaultEntity]. */
     private val indexes: MutableMap<Name.IndexName, Index> = Object2ObjectOpenHashMap()
 
-    init {
-        /** Load and initialize the columns. */
-        val header = this.header.get()
-        header.columns.map {
-            val columnName = this.name.column(it.name)
-            this.columns[columnName] = it.type.open(it.path, this)
-        }
-
-        /** Load and initialize the indexes. */
-        header.indexes.forEach {
-            val indexName = this.name.index(it.name)
-            indexes[indexName] = it.type.open(it.path, this)
-        }
-    }
+    /** The [DBOVersion] of this [DefaultEntity]. */
+    override val version: DBOVersion
+        get() = DBOVersion.V2_0
 
     /** Number of [Column]s in this [DefaultEntity]. */
     override val numberOfColumns: Int
@@ -124,6 +114,21 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
     @Volatile
     override var closed: Boolean = false
         private set
+
+    init {
+        /** Load and initialize the columns. */
+        val header = this.header.get()
+        header.columns.map {
+            val columnName = this.name.column(it.name)
+            this.columns[columnName] = it.type.open(it.path, this)
+        }
+
+        /** Load and initialize the indexes. */
+        header.indexes.forEach {
+            val indexName = this.name.index(it.name)
+            indexes[indexName] = it.type.open(it.path, this)
+        }
+    }
 
     /**
      * Creates and returns a new [DefaultEntity.Tx] for the given [TransactionContext].

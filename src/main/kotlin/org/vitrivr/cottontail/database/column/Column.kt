@@ -33,6 +33,9 @@ interface Column<T: Value> : DBO {
      */
     val columnDef: ColumnDef<T>
 
+    /** The [ColumnEngine] that powers this [Column]. */
+    val engine: ColumnEngine
+
     /**
      * This [Column]'s type.
      *

@@ -2,21 +2,21 @@ package org.vitrivr.cottontail.database.column.mapdb
 
 import org.mapdb.*
 import org.vitrivr.cottontail.config.MapDBConfig
-import org.vitrivr.cottontail.database.column.Column
-import org.vitrivr.cottontail.database.column.ColumnDef
-import org.vitrivr.cottontail.database.column.ColumnTx
-import org.vitrivr.cottontail.database.column.ColumnTxSnapshot
+import org.vitrivr.cottontail.database.column.*
 import org.vitrivr.cottontail.database.entity.DefaultEntity
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.general.AbstractTx
+import org.vitrivr.cottontail.database.general.DBOVersion
 import org.vitrivr.cottontail.database.general.TxSnapshot
 import org.vitrivr.cottontail.database.general.TxStatus
 import org.vitrivr.cottontail.execution.TransactionContext
+
 import org.vitrivr.cottontail.model.basics.*
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import org.vitrivr.cottontail.model.exceptions.TxException
 import org.vitrivr.cottontail.model.values.types.Value
 import org.vitrivr.cottontail.utilities.extensions.write
+
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.*
@@ -76,6 +76,14 @@ class MapDBColumn<T : Value>(override val path: Path, override val parent: Entit
     /** The [Name.ColumnName] of this [MapDBColumn]. Can be stored since [MapDBColumn]s [ColumnDef] is immutable. */
     override val name: Name.ColumnName
         get() = this.columnDef.name
+
+    /** The [DBOVersion] of this [MapDBColumn]. */
+    override val version: DBOVersion
+        get() = DBOVersion.V2_0
+
+    /** The [ColumnEngine] for [MapDBColumn]. */
+    override val engine: ColumnEngine
+        get() = ColumnEngine.MAPDB
 
     /** The maximum tuple ID used by this [Column]. */
     override val maxTupleId: Long

@@ -5,6 +5,7 @@ import io.grpc.stub.StreamObserver
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.database.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.database.column.ColumnDef
+import org.vitrivr.cottontail.database.column.ColumnEngine
 import org.vitrivr.cottontail.database.index.IndexType
 import org.vitrivr.cottontail.database.queries.binding.extensions.fqn
 import org.vitrivr.cottontail.execution.TransactionManager
@@ -225,7 +226,7 @@ class DDLService(val catalogue: DefaultCatalogue, override val manager: Transact
                 val columns = request.definition.columnsList.map {
                     val type = Type.forName(it.type.name, it.length)
                     val name = entityName.column(it.name)
-                    ColumnDef(name, type, it.nullable)
+                    ColumnDef(name, type, it.nullable) to ColumnEngine.valueOf(it.engine.toString())
                 }.toTypedArray()
 
                 /* Execution operation. */

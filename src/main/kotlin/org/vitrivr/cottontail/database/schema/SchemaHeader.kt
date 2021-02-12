@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.database.schema
 
 import org.mapdb.DataInput2
 import org.mapdb.DataOutput2
-import org.vitrivr.cottontail.database.entity.EntityHeader
+import org.vitrivr.cottontail.database.general.DBOVersion
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -26,12 +26,8 @@ data class SchemaHeader(
     val entities: List<EntityRef> = LinkedList()
 
     companion object Serializer : org.mapdb.Serializer<SchemaHeader> {
-
-        /** The version of the Cottontail DB [DefaultSchema] file. */
-        const val VERSION: Short = 2
-
         override fun serialize(out: DataOutput2, value: SchemaHeader) {
-            out.writeShort(VERSION.toInt())
+            out.packInt(DBOVersion.V2_0.ordinal)
             out.writeUTF(value.name)
             out.writeLong(value.created)
             out.writeLong(value.modified)
@@ -40,11 +36,9 @@ data class SchemaHeader(
         }
 
         override fun deserialize(input: DataInput2, available: Int): SchemaHeader {
-            val version = input.readShort()
-            if (version != EntityHeader.VERSION) throw DatabaseException.VersionMismatchException(
-                version,
-                EntityHeader.VERSION
-            )
+            val version = DBOVersion.values()[input.unpackInt()]
+            if (version != DBOVersion.V2_0)
+                throw DatabaseException.VersionMismatchException(version, DBOVersion.V2_0)
             val header = SchemaHeader(input.readUTF(), input.readLong(), input.readLong())
             repeat(input.unpackInt()) {
                 header.addEntityRef(

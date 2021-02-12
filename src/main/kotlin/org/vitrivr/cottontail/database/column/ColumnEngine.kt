@@ -7,12 +7,12 @@ import org.vitrivr.cottontail.model.values.types.Value
 import java.nio.file.Path
 
 /**
- * The driver of [Column], i.e., the type of engine that is used underneath.
+ * The driver or engine of [Column], i.e., the type of data storage that is used underneath.
  *
  * @author Ralph Gasser
  * @version 1.0.0
  */
-enum class ColumnDriver {
+enum class ColumnEngine {
     /** A MapDB based column. */
     MAPDB,
 
@@ -20,7 +20,7 @@ enum class ColumnDriver {
     HARE;
 
     /**
-     * Opens a [Column] of this [ColumnDriver].
+     * Opens a [Column] of this [ColumnEngine].
      *
      * @param path The [Path] to the [Column] file.
      * @param parent The parent [DefaultEntity].
@@ -31,7 +31,7 @@ enum class ColumnDriver {
     }
 
     /**
-     * Creates a [Column] of this [ColumnDriver]
+     * Creates a [Column] of this [ColumnEngine]
      *
      * @param path The location at which to create the [Column].
      * @param columnDef [ColumnDef] describing the [Column].
