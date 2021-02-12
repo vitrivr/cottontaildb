@@ -59,7 +59,7 @@ class SuperBitLSHIndex<T : VectorValue<*>>(
     override val type = IndexType.LSH_SB
 
     /** The [SuperBitLSHIndexConfig] used by this [SuperBitLSHIndex] instance. */
-    private val config: SuperBitLSHIndexConfig
+    override val config: SuperBitLSHIndexConfig
 
     /** The [SuperBitLSHIndexConfig] used by this [SuperBitLSHIndex] instance. */
     private val maps: List<HTreeMap<Int, LongArray>>

@@ -67,7 +67,7 @@ class LuceneIndex(path: Path, parent: DefaultEntity, config: LuceneIndexConfig? 
     override val type: IndexType = IndexType.LUCENE
 
     /** The [LuceneIndexConfig] used by this [LuceneIndex] instance. */
-    private val config: LuceneIndexConfig
+    override val config: LuceneIndexConfig
 
     /** Flag indicating whether or not this [LuceneIndex] is open and usable. */
     @Volatile

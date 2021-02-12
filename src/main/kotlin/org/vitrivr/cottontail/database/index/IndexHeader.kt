@@ -2,8 +2,9 @@ package org.vitrivr.cottontail.database.index
 
 import org.mapdb.DataInput2
 import org.mapdb.DataOutput2
+
 import org.vitrivr.cottontail.database.column.ColumnDef
-import org.vitrivr.cottontail.database.entity.DefaultEntity
+import org.vitrivr.cottontail.database.general.DBOVersion
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
 
 /**
@@ -22,11 +23,8 @@ data class IndexHeader(
 ) {
 
     companion object Serializer : org.mapdb.Serializer<IndexHeader> {
-        /** The version of the Cottontail DB [DefaultEntity]  file. */
-        const val VERSION: Short = 2
-
         override fun serialize(out: DataOutput2, value: IndexHeader) {
-            out.writeShort(VERSION.toInt())
+            out.packInt(DBOVersion.V2_0.ordinal)
             out.writeUTF(value.name)
             out.packInt(value.type.ordinal)
             out.packInt(value.columns.size)
@@ -34,11 +32,9 @@ data class IndexHeader(
         }
 
         override fun deserialize(input: DataInput2, available: Int): IndexHeader {
-            val version = input.readShort()
-            if (version != VERSION) throw DatabaseException.VersionMismatchException(
-                version,
-                VERSION
-            )
+            val version = DBOVersion.values()[input.unpackInt()]
+            if (version != DBOVersion.V2_0)
+                throw DatabaseException.VersionMismatchException(version, DBOVersion.V2_0)
             return IndexHeader(
                 input.readUTF(),
                 IndexType.values()[input.unpackInt()],

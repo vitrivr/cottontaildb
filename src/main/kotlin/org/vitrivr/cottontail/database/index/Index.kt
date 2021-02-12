@@ -53,6 +53,9 @@ interface Index : DBO {
     /** Flag indicating, if this [AbstractIndex] reflects all changes done to the [DefaultEntity]it belongs to. */
     val dirty: Boolean
 
+    /** The configuration map used for the [Index]. */
+    val config: IndexConfig
+
     /**
      * Checks if this [AbstractIndex] can process the provided [Predicate] and returns true if so and false otherwise.
      *

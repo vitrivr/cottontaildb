@@ -86,7 +86,7 @@ class PQIndex(path: Path, parent: DefaultEntity, config: PQIndexConfig? = null) 
     override val type = IndexType.PQ
 
     /** The [PQIndexConfig] used by this [PQIndex] instance. */
-    private val config: PQIndexConfig
+    override val config: PQIndexConfig
 
     /** The [PQ] instance used for real vector components. */
     private val pqStore = this.db.atomicVar(PQ_INDEX_FIELD, PQ.Serializer).createOrOpen()

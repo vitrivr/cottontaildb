@@ -6,6 +6,7 @@ import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.DefaultEntity
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.general.AbstractTx
+import org.vitrivr.cottontail.database.general.DBOVersion
 import org.vitrivr.cottontail.database.general.TxSnapshot
 import org.vitrivr.cottontail.database.queries.predicates.Predicate
 import org.vitrivr.cottontail.execution.TransactionContext
@@ -84,6 +85,12 @@ abstract class AbstractIndex(final override val path: Path, final override val p
 
     /** The [ColumnDef] that are covered (i.e. indexed) by this [AbstractIndex]. */
     override val columns: Array<ColumnDef<*>> = this.headerField.get().columns
+
+    /** The [DBOVersion] of this [AbstractIndex]. */
+    override val version: DBOVersion = DBOVersion.V2_0
+
+    /** The [IndexConfig] for this [AbstractIndex]. Defaults to [NoIndexConfig]. */
+    override val config: IndexConfig = NoIndexConfig
 
     /** Flag indicating, if this [AbstractIndex] reflects all changes done to the [DefaultEntity]it belongs to. */
     override val dirty: Boolean

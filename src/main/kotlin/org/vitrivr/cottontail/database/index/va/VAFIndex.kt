@@ -69,7 +69,7 @@ class VAFIndex(path: Path, parent: DefaultEntity, config: VAFIndexConfig? = null
     override val type = IndexType.VAF
 
     /** The [VAFIndexConfig] used by this [VAFIndex] instance. */
-    private val config: VAFIndexConfig
+    override val config: VAFIndexConfig
 
     /** Store for the [Marks]. */
     private val marksStore: Atomic.Var<Marks> =

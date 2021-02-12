@@ -60,8 +60,8 @@ class GGIndex(path: Path, parent: DefaultEntity, config: GGIndexConfig? = null) 
     /** The type of [AbstractIndex]. */
     override val type = IndexType.GG
 
-    /** The [GGIndexConfig] used by this [PQIndex] instance. */
-    private val config: GGIndexConfig
+    /** The [GGIndexConfig] used by this [GGIndex] instance. */
+    override val config: GGIndexConfig
 
     /** Store of the groups mean vector and the associated [TupleId]s. */
     private val groupsStore: HTreeMap<VectorValue<*>, LongArray> = this.db.hashMap(
