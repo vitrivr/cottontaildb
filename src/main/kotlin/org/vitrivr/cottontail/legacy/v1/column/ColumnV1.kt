@@ -15,7 +15,6 @@ import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.TupleId
 import org.vitrivr.cottontail.model.basics.Type
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
-import org.vitrivr.cottontail.model.recordset.Recordset
 import org.vitrivr.cottontail.model.values.types.Value
 import org.vitrivr.cottontail.utilities.extensions.read
 import org.vitrivr.cottontail.utilities.extensions.write
@@ -284,14 +283,6 @@ class ColumnV1<T : Value>(
             }
 
         override fun delete(tupleId: Long) = this.localLock.read {
-            throw UnsupportedOperationException("Operation not supported on legacy DBO.")
-        }
-
-        override fun begin(block: (tx: org.vitrivr.cottontail.database.general.Tx) -> Boolean) {
-            throw UnsupportedOperationException("Operation not supported on legacy DBO.")
-        }
-
-        override fun query(block: (tx: org.vitrivr.cottontail.database.general.Tx) -> Recordset): Recordset? {
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
         }
 

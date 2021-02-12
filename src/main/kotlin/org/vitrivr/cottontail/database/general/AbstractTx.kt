@@ -5,7 +5,6 @@ import org.vitrivr.cottontail.database.index.IndexTx
 import org.vitrivr.cottontail.database.locking.LockMode
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.model.exceptions.TxException
-import org.vitrivr.cottontail.model.recordset.Recordset
 
 /**
  * An abstract [Tx] implementation that provides some basic functionality.
@@ -13,7 +12,6 @@ import org.vitrivr.cottontail.model.recordset.Recordset
  * @author Ralph Gasser
  * @version 1.2.0
  */
-@Suppress("OVERRIDE_BY_INLINE")
 abstract class AbstractTx(override val context: TransactionContext) : Tx {
     /** Flag indicating whether or not this [IndexTx] was closed */
     @Volatile
@@ -100,51 +98,5 @@ abstract class AbstractTx(override val context: TransactionContext) : Tx {
             this.context.requestLock(this.dbo, LockMode.SHARED)
         }
         return block()
-    }
-
-    /**
-     * An inline function that can be used to create a transactional context from a [Tx].
-     *
-     * The provided block will be executed as a [Tx] and any exception thrown in the block will result
-     * in a rollback. Once the block has been executed successfully, the [Tx] is committed.
-     *
-     * In both cases, the [Tx] that has been used will be closed.
-     *
-     * @param block The block that should be executed in a [Tx] context.
-     */
-    final override inline fun begin(block: (tx: Tx) -> Boolean) = try {
-        if (block(this)) {
-            commit()
-        } else {
-            rollback()
-        }
-    } catch (e: Throwable) {
-        rollback()
-        throw e
-    } finally {
-        close()
-    }
-
-    /**
-     * An inline function that can be used to create a transactional context from a [Tx].
-     *
-     * The provided block will be executed as a [Tx] and any exception thrown in the block will result
-     * in a rollback. Once the block has been executed successfully, the [Tx] is committed and a [Recordset]
-     * will be returned.
-     *
-     * In both cases, the [Tx] that has been used will be closed.
-     *
-     * @param block The block that should be executed in a [Tx] context.
-     * @return The [Recordset] that resulted from the [Tx].
-     */
-    final override inline fun query(block: (tx: Tx) -> Recordset): Recordset? = try {
-        val result = block(this)
-        commit()
-        result
-    } catch (e: Throwable) {
-        rollback()
-        throw e
-    } finally {
-        close()
     }
 }
