@@ -21,10 +21,10 @@ class ColumnV1Header(
 ) {
     companion object Serializer : org.mapdb.Serializer<ColumnV1Header> {
         /** The identifier that is used to identify a Cottontail DB [MapDBColumn] file. */
-        internal const val IDENTIFIER: String = "COTTONT_COL"
+        private const val IDENTIFIER: String = "COTTONT_COL"
 
         /** The version of the Cottontail DB [MapDBColumn] file. */
-        internal const val VERSION: Short = 1
+        private const val VERSION: Short = 1
 
         override fun serialize(out: DataOutput2, value: ColumnV1Header) {
             out.writeUTF(IDENTIFIER)

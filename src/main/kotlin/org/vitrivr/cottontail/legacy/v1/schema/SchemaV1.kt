@@ -8,8 +8,10 @@ import org.mapdb.Store
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.column.mapdb.MapDBColumn
 import org.vitrivr.cottontail.database.entity.DefaultEntity
+import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.general.AbstractTx
 import org.vitrivr.cottontail.database.general.DBO
+import org.vitrivr.cottontail.database.general.TxSnapshot
 import org.vitrivr.cottontail.database.schema.Schema
 import org.vitrivr.cottontail.database.schema.SchemaTx
 import org.vitrivr.cottontail.execution.TransactionContext
@@ -115,6 +117,15 @@ class SchemaV1(override val name: Name.SchemaName, override val parent: Catalogu
         /** Obtains a global (non-exclusive) read-lock on [Schema]. Prevents enclosing [Schema] from being closed. */
         private val closeStamp = this@SchemaV1.closeLock.readLock()
 
+        /** The [TxSnapshot] of this [SchemaTx]. */
+        override val snapshot = object : TxSnapshot {
+            override fun commit() =
+                throw UnsupportedOperationException("Operation not supported on legacy DBO.")
+
+            override fun rollback() =
+                throw UnsupportedOperationException("Operation not supported on legacy DBO.")
+        }
+
         /** Reference to the surrounding [Schema]. */
         override val dbo: DBO
             get() = this@SchemaV1
@@ -124,13 +135,8 @@ class SchemaV1(override val name: Name.SchemaName, override val parent: Catalogu
          *
          * @return [List] of all [Name.EntityName].
          */
-        override fun listEntities(): List<Name.EntityName> = this.withReadLock {
-            return this@SchemaV1.header.entities.map {
-                this@SchemaV1.name.entity(
-                    this@SchemaV1.store.get(it, Serializer.STRING)
-                        ?: throw DatabaseException.DataCorruptionException("Failed to read schema $name ($path): Could not find entity name of ID $it.")
-                )
-            }
+        override fun listEntities(): List<Entity> = this.withReadLock {
+            return this@SchemaV1.registry.values.toList()
         }
 
         /**
@@ -153,14 +159,6 @@ class SchemaV1(override val name: Name.SchemaName, override val parent: Catalogu
         }
 
         override fun dropEntity(name: Name.EntityName) {
-            throw UnsupportedOperationException("Operation not supported on legacy DBO.")
-        }
-
-        override fun performCommit() {
-            throw UnsupportedOperationException("Operation not supported on legacy DBO.")
-        }
-
-        override fun performRollback() {
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
         }
 

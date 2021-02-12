@@ -21,10 +21,10 @@ data class CatalogueHeader(
 ) {
     companion object Serializer : org.mapdb.Serializer<CatalogueHeader> {
         /** The identifier that is used to identify a Cottontail DB [CatalogueV1] file. */
-        const val IDENTIFIER: String = "COTTONT_CAT"
+        private const val IDENTIFIER: String = "COTTONT_CAT"
 
         /** The version of the Cottontail DB [CatalogueV1]  file. */
-        const val VERSION: Short = 1
+        private const val VERSION: Short = 1
 
         override fun serialize(out: DataOutput2, value: CatalogueHeader) {
             out.writeUTF(IDENTIFIER)

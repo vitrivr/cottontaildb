@@ -22,12 +22,12 @@ import java.util.*
 import java.util.concurrent.locks.StampedLock
 
 /**
- * Represents a single column in the Cottontail DB model. A [MapDBColumn] record is identified by a tuple ID (long)
- * and can hold an arbitrary value. Usually, multiple [MapDBColumn]s make up an [Entity].
+ * Represents a single column in the Cottontail DB model. A [ColumnV1] record is identified by a tuple ID (long)
+ * and can hold an arbitrary value. Usually, multiple [ColumnV1]s make up an [Entity].
  *
  * @see Entity
  *
- * @param <T> Type of the value held by this [MapDBColumn].
+ * @param <T> Type of the value held by this [ColumnV1].
  *
  * @author Ralph Gasser
  * @version 1.3.1
@@ -46,22 +46,22 @@ class ColumnV1<T : Value>(override val name: Name.ColumnName, override val paren
     /** The [Path] to the [Entity]'s main folder. */
     override val path: Path = parent.path.resolve("col_${name.simple}.db")
 
-    /** Internal reference to the [Store] underpinning this [MapDBColumn]. */
+    /** Internal reference to the [Store] underpinning this [ColumnV1]. */
     private var store: CottontailStoreWAL = try {
         this.parent.parent.parent.config.mapdb.store(this.path)
     } catch (e: DBException) {
         throw DatabaseException("Failed to open column at '$path': ${e.message}'")
     }
 
-    /** Internal reference to the [Header] of this [MapDBColumn]. */
+    /** Internal reference to the [Header] of this [ColumnV1]. */
     private val header
         get() = this.store.get(HEADER_RECORD_ID, ColumnV1Header.Serializer)
             ?: throw DatabaseException.DataCorruptionException("Failed to open header of column '$name'!'")
 
     /**
-     * Getter for this [MapDBColumn]'s [ColumnDef]. Can be stored since [MapDBColumn]s [ColumnDef] is immutable.
+     * Getter for this [ColumnV1]'s [ColumnDef]. Can be stored since [ColumnV1]s [ColumnDef] is immutable.
      *
-     * @return [ColumnDef] for this [MapDBColumn]
+     * @return [ColumnDef] for this [ColumnV1]
      */
     @Suppress("UNCHECKED_CAST")
     override val columnDef: ColumnDef<T> =
@@ -74,39 +74,36 @@ class ColumnV1<T : Value>(override val name: Name.ColumnName, override val paren
         get() = this.store.maxRecid
 
     /**
-     * Status indicating whether this [MapDBColumn] is open or closed.
+     * Status indicating whether this [ColumnV1] is open or closed.
      */
     @Volatile
     override var closed: Boolean = false
         private set
 
-    /** An internal lock that is used to synchronize concurrent read & write access to this [MapDBColumn] by different [MapDBColumn.Tx]. */
-    private val txLock = StampedLock()
-
-    /** An internal lock that is used to synchronize structural changes to an [MapDBColumn] (e.g. closing or deleting) with running [MapDBColumn.Tx]. */
-    private val globalLock = StampedLock()
+    /** An internal lock that is used to synchronize structural changes to an [ColumnV1] (e.g. closing or deleting) with running [ColumnV1.Tx]. */
+    private val closeLock = StampedLock()
 
     /**
-     * Closes the [MapDBColumn]. Closing an [MapDBColumn] is a delicate matter since ongoing [MapDBColumn.Tx]
-     * are involved. Therefore, access to the method is mediated by an global [MapDBColumn] wide lock.
+     * Closes the [ColumnV1]. Closing an [ColumnV1] is a delicate matter since ongoing [ColumnV1.Tx]
+     * are involved. Therefore, access to the method is mediated by an global [ColumnV1] wide lock.
      */
-    override fun close() = this.globalLock.write {
+    override fun close() = this.closeLock.write {
         this.store.close()
         this.closed = true
     }
 
     /**
-     * Creates a new [MapDBColumn.Tx] and returns it.
+     * Creates a new [ColumnV1.Tx] and returns it.
      *
-     * @param readonly True, if the resulting [MapDBColumn.Tx] should be a read-only transaction.
-     * @param tid The ID for the new [MapDBColumn.Tx]
+     * @param readonly True, if the resulting [ColumnV1.Tx] should be a read-only transaction.
+     * @param tid The ID for the new [ColumnV1.Tx]
      *
      * @return A new [ColumnTransaction] object.
      */
     override fun newTx(context: TransactionContext): ColumnTx<T> = Tx(context)
 
     /**
-     * A [Transaction] that affects this [MapDBColumn].
+     * A [Transaction] that affects this [ColumnV1].
      */
     inner class Tx constructor(override val context: TransactionContext) : ColumnTx<T> {
 
@@ -126,22 +123,18 @@ class ColumnV1<T : Value>(override val name: Name.ColumnName, override val paren
         override val dbo: Column<T>
             get() = this@ColumnV1
 
-        /** Tries to acquire a global read-lock on the [MapDBColumn]. */
+        /** Tries to acquire a global read-lock on the [ColumnV1]. */
         init {
             if (this@ColumnV1.closed) {
                 throw java.lang.IllegalStateException("")
             }
         }
 
-        /** The [Serializer] used for de-/serialization of [MapDBColumn] entries. */
+        /** The [Serializer] used for de-/serialization of [ColumnV1] entries. */
         private val serializer = this@ColumnV1.type.serializer()
 
-        /** Obtains a global (non-exclusive) read-lock on [MapDBColumn]. Prevents enclosing [MapDBColumn] from being closed while this [MapDBColumn.Tx] is still in use. */
-        private val globalStamp = this@ColumnV1.globalLock.readLock()
-
-        /** Obtains transaction lock on [MapDBColumn]. Prevents concurrent read & write access to the enclosing [MapDBColumn]. */
-        private val txStamp = this@ColumnV1.txLock.readLock()
-
+        /** Obtains a global (non-exclusive) read-lock on [ColumnV1]. Prevents enclosing [ColumnV1] from being closed while this [ColumnV1.Tx] is still in use. */
+        private val globalStamp = this@ColumnV1.closeLock.readLock()
 
         /** A [ReentrantReadWriteLock] local to this [Entity.Tx]. It makes sure, that this [Entity] cannot be committed, closed or rolled back while it is being used. */
         private val localLock = StampedLock()
@@ -179,13 +172,12 @@ class ColumnV1<T : Value>(override val name: Name.ColumnName, override val paren
                     this.rollback()
                 }
                 this.status = TxStatus.CLOSED
-                this@ColumnV1.txLock.unlock(this.txStamp)
-                this@ColumnV1.globalLock.unlockRead(this.globalStamp)
+                this@ColumnV1.closeLock.unlockRead(this.globalStamp)
             }
         }
 
         /**
-         * Gets and returns an entry from this [MapDBColumn].
+         * Gets and returns an entry from this [ColumnV1].
          *
          * @param tupleId The ID of the desired entry
          * @return The desired entry.
@@ -199,9 +191,9 @@ class ColumnV1<T : Value>(override val name: Name.ColumnName, override val paren
         }
 
         /**
-         * Returns the number of entries in this [MapDBColumn]. Action acquires a global read dataLock for the [MapDBColumn].
+         * Returns the number of entries in this [ColumnV1]. Action acquires a global read dataLock for the [ColumnV1].
          *
-         * @return The number of entries in this [MapDBColumn].
+         * @return The number of entries in this [ColumnV1].
          */
         override fun count(): Long = this.localLock.read {
             checkValidForRead()
@@ -209,16 +201,16 @@ class ColumnV1<T : Value>(override val name: Name.ColumnName, override val paren
         }
 
         /**
-         * Creates and returns a new [CloseableIterator] for this [MapDBColumn.Tx] that returns
-         * all [TupleId]s contained within the surrounding [MapDBColumn].
+         * Creates and returns a new [CloseableIterator] for this [ColumnV1.Tx] that returns
+         * all [TupleId]s contained within the surrounding [ColumnV1].
          *
          * @return [CloseableIterator]
          */
         override fun scan() = this.scan(1L..this@ColumnV1.maxTupleId)
 
         /**
-         * Creates and returns a new [CloseableIterator] for this [MapDBColumn.Tx] that returns
-         * all [TupleId]s contained within the surrounding [MapDBColumn] and a certain range.
+         * Creates and returns a new [CloseableIterator] for this [ColumnV1.Tx] that returns
+         * all [TupleId]s contained within the surrounding [ColumnV1] and a certain range.
          *
          * @param range The [LongRange] that should be scanned.
          * @return [CloseableIterator]
@@ -229,10 +221,10 @@ class ColumnV1<T : Value>(override val name: Name.ColumnName, override val paren
                 checkValidForRead()
             }
 
-            /** Acquires a read lock on the surrounding [MapDBColumn.Tx]*/
+            /** Acquires a read lock on the surrounding [ColumnV1.Tx]*/
             private val lock = this@Tx.localLock.readLock()
 
-            /** Wraps a [RecordIdIterator] from the [MapDBColumn]. */
+            /** Wraps a [RecordIdIterator] from the [ColumnV1]. */
             private val wrapped = this@ColumnV1.store.RecordIdIterator(range)
 
             /** Flag indicating whether this [CloseableIterator] has been closed. */
@@ -301,7 +293,7 @@ class ColumnV1<T : Value>(override val name: Name.ColumnName, override val paren
         }
 
         /**
-         * Checks if this [MapDBColumn.Tx] is still open. Otherwise, an exception will be thrown.
+         * Checks if this [ColumnV1.Tx] is still open. Otherwise, an exception will be thrown.
          */
         @Synchronized
         private fun checkValidForRead() {

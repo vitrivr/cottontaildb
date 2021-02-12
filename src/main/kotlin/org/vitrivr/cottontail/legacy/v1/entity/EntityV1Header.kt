@@ -21,10 +21,10 @@ data class EntityV1Header(
 ) {
     companion object Serializer : org.mapdb.Serializer<EntityV1Header> {
         /** The identifier that is used to identify a Cottontail DB [EntityV1] file. */
-        const val IDENTIFIER: String = "COTTONT_ENT"
+        private const val IDENTIFIER: String = "COTTONT_ENT"
 
         /** The version of the Cottontail DB [EntityV1]  file. */
-        const val VERSION: Short = 1
+        private const val VERSION: Short = 1
 
         override fun serialize(out: DataOutput2, value: EntityV1Header) {
             out.writeUTF(IDENTIFIER)

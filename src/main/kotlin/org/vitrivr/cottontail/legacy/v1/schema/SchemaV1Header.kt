@@ -19,10 +19,10 @@ class SchemaV1Header(
 ) {
     companion object Serializer : org.mapdb.Serializer<SchemaV1Header> {
         /** The identifier that is used to identify a Cottontail DB [SchemaV1] file. */
-        const val IDENTIFIER: String = "COTTONT_SCM"
+        private const val IDENTIFIER: String = "COTTONT_SCM"
 
         /** The version of the Cottontail DB [SchemaV1]  file. */
-        const val VERSION: Short = 1
+        private const val VERSION: Short = 1
 
         override fun serialize(out: DataOutput2, value: SchemaV1Header) {
             out.writeUTF(IDENTIFIER)
@@ -30,8 +30,8 @@ class SchemaV1Header(
             out.writeLong(value.created)
             out.writeLong(value.modified)
             out.writeInt(value.entities.size)
-            for (i in 0 until value.entities.size) {
-                out.writeLong(value.entities[i])
+            for (element in value.entities) {
+                out.writeLong(element)
             }
         }
 

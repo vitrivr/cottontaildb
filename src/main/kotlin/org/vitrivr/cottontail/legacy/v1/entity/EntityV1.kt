@@ -12,9 +12,11 @@ import org.vitrivr.cottontail.database.column.ColumnTx
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.general.AbstractTx
+import org.vitrivr.cottontail.database.general.TxSnapshot
 import org.vitrivr.cottontail.database.index.Index
 import org.vitrivr.cottontail.database.index.IndexTx
 import org.vitrivr.cottontail.database.index.IndexType
+import org.vitrivr.cottontail.database.schema.SchemaTx
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.legacy.BrokenIndex
 import org.vitrivr.cottontail.legacy.v1.column.ColumnV1
@@ -175,6 +177,15 @@ class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1
         override val dbo: Entity
             get() = this@EntityV1
 
+        /** The [TxSnapshot] of this [SchemaTx]. */
+        override val snapshot = object : TxSnapshot {
+            override fun commit() =
+                throw UnsupportedOperationException("Operation not supported on legacy DBO.")
+
+            override fun rollback() =
+                throw UnsupportedOperationException("Operation not supported on legacy DBO.")
+        }
+
         /** Tries to acquire a global read-lock on this entity. */
         init {
             if (this@EntityV1.closed) {
@@ -326,24 +337,13 @@ class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1
         }
 
         /**
-         * Performs a COMMIT of all changes made through this [EntityTx].
-         */
-        override fun performCommit() {
-            throw UnsupportedOperationException("Operation not supported on legacy DBO.")
-        }
-
-        /**
-         * Performs a ROLLBACK of all changes made through this [EntityTx].
-         */
-        override fun performRollback() {
-            throw UnsupportedOperationException("Operation not supported on legacy DBO.")
-        }
-
-        /**
          * Closes all the [ColumnTx] and [IndexTx] and releases the [closeLock] on the [Entity].
          */
         override fun cleanup() {
             this@EntityV1.closeLock.unlockRead(this.closeStamp)
+            this@EntityV1.columns.values.forEach {
+                this.context.getTx(it).close()
+            }
         }
     }
 }

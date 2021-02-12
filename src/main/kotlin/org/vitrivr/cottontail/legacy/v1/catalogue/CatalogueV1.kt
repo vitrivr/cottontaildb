@@ -8,7 +8,9 @@ import org.vitrivr.cottontail.database.catalogue.CatalogueTx
 import org.vitrivr.cottontail.database.entity.DefaultEntity
 import org.vitrivr.cottontail.database.general.AbstractTx
 import org.vitrivr.cottontail.database.general.DBO
+import org.vitrivr.cottontail.database.general.TxSnapshot
 import org.vitrivr.cottontail.database.schema.Schema
+import org.vitrivr.cottontail.database.schema.SchemaTx
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.legacy.v1.schema.SchemaV1
 import org.vitrivr.cottontail.model.basics.Name
@@ -132,6 +134,15 @@ class CatalogueV1(override val config: Config) : Catalogue {
         override val dbo: Catalogue
             get() = this@CatalogueV1
 
+        /** The [TxSnapshot] of this [SchemaTx]. */
+        override val snapshot = object : TxSnapshot {
+            override fun commit() =
+                throw UnsupportedOperationException("Operation not supported on legacy DBO.")
+
+            override fun rollback() =
+                throw UnsupportedOperationException("Operation not supported on legacy DBO.")
+        }
+
         /** Obtains a global (non-exclusive) read-lock on [CatalogueV1]. Prevents enclosing [SchemaV1] from being closed. */
         private val closeStamp = this@CatalogueV1.closeLock.readLock()
 
@@ -140,13 +151,8 @@ class CatalogueV1(override val config: Config) : Catalogue {
          *
          * @return [List] of all [Name.SchemaName].
          */
-        override fun listSchemas(): List<Name.SchemaName> = this.withReadLock {
-            this@CatalogueV1.header.schemas.map {
-                Name.SchemaName(
-                    this@CatalogueV1.store.get(it, Serializer.STRING)
-                        ?: throw DatabaseException.DataCorruptionException("Failed to read catalogue ($path): Could not find schema name of RecId $it.")
-                )
-            }
+        override fun listSchemas(): List<Schema> = this.withReadLock {
+            return this@CatalogueV1.registry.values.toList()
         }
 
         /**
@@ -165,14 +171,6 @@ class CatalogueV1(override val config: Config) : Catalogue {
         }
 
         override fun dropSchema(name: Name.SchemaName) {
-            throw UnsupportedOperationException("Operation not supported on legacy DBO.")
-        }
-
-        override fun performCommit() {
-            throw UnsupportedOperationException("Operation not supported on legacy DBO.")
-        }
-
-        override fun performRollback() {
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
         }
 
