@@ -45,10 +45,13 @@ sealed class Name {
 
         /** Normalized [Name] components of this [SchemaName]. */
         override val components = when {
-            components.size == 1 -> arrayOf(NAME_COMPONENT_ROOT, components[0])
-            components.size == 2 && components[0] == NAME_COMPONENT_ROOT -> arrayOf(
+            components.size == 1 -> arrayOf(
                 NAME_COMPONENT_ROOT,
-                components[1]
+                components[0].toLowerCase()
+            )
+            components.size == 2 && components[0].toLowerCase() == NAME_COMPONENT_ROOT -> arrayOf(
+                NAME_COMPONENT_ROOT,
+                components[1].toLowerCase()
             )
             else -> throw IllegalStateException("${components.joinToString(".")} is not a valid schema name.")
         }
@@ -84,11 +87,15 @@ sealed class Name {
 
         /** Normalized [Name] components of this [EntityName]. */
         override val components = when {
-            components.size == 2 -> arrayOf(NAME_COMPONENT_ROOT, components[0], components[1])
-            components.size == 3 && components[0] == NAME_COMPONENT_ROOT -> arrayOf(
-                components[0],
-                components[1],
-                components[2]
+            components.size == 2 -> arrayOf(
+                NAME_COMPONENT_ROOT,
+                components[0].toLowerCase(),
+                components[1].toLowerCase()
+            )
+            components.size == 3 && components[0].toLowerCase() == NAME_COMPONENT_ROOT -> arrayOf(
+                components[0].toLowerCase(),
+                components[1].toLowerCase(),
+                components[2].toLowerCase()
             )
             else -> throw IllegalStateException("${components.joinToString(".")} is not a valid entity name.")
         }
@@ -141,15 +148,15 @@ sealed class Name {
         override val components = when {
             components.size == 3 -> arrayOf(
                 NAME_COMPONENT_ROOT,
-                components[0],
-                components[1],
-                components[2]
+                components[0].toLowerCase(),
+                components[1].toLowerCase(),
+                components[2].toLowerCase()
             )
-            components.size == 4 && components[0] == NAME_COMPONENT_ROOT -> arrayOf(
-                components[0],
-                components[1],
-                components[2],
-                components[3]
+            components.size == 4 && components[0].toLowerCase() == NAME_COMPONENT_ROOT -> arrayOf(
+                components[0].toLowerCase(),
+                components[1].toLowerCase(),
+                components[2].toLowerCase(),
+                components[3].toLowerCase()
             )
             else -> throw IllegalStateException("${components.joinToString(".")} is not a valid index name.")
         }
@@ -191,19 +198,29 @@ sealed class Name {
 
         /** Normalized [Name] components of this [IndexName]. */
         override val components: Array<String> = when {
-            components.size == 1 -> arrayOf(NAME_COMPONENT_ROOT, "*", "*", components[0])
-            components.size == 2 -> arrayOf(NAME_COMPONENT_ROOT, "*", components[0], components[1])
+            components.size == 1 -> arrayOf(
+                NAME_COMPONENT_ROOT,
+                "*",
+                "*",
+                components[0].toLowerCase()
+            )
+            components.size == 2 -> arrayOf(
+                NAME_COMPONENT_ROOT,
+                "*",
+                components[0].toLowerCase(),
+                components[1].toLowerCase()
+            )
             components.size == 3 -> arrayOf(
                 NAME_COMPONENT_ROOT,
-                components[0],
-                components[1],
-                components[2]
+                components[0].toLowerCase(),
+                components[1].toLowerCase(),
+                components[2].toLowerCase()
             )
-            components.size == 4 && components[0] == NAME_COMPONENT_ROOT -> arrayOf(
-                components[0],
-                components[1],
-                components[2],
-                components[3]
+            components.size == 4 && components[0].toLowerCase() == NAME_COMPONENT_ROOT -> arrayOf(
+                components[0].toLowerCase(),
+                components[1].toLowerCase(),
+                components[2].toLowerCase(),
+                components[3].toLowerCase()
             )
             else -> throw IllegalStateException("${components.joinToString(".")} is not a valid column name.")
         }
@@ -250,8 +267,8 @@ sealed class Name {
             if (other !is ColumnName) return false
             if (!this.wildcard) return (this == other)
             for ((i, c) in this.components.withIndex()) {
-                if (c == NAME_COMPONENT_WILDCARD || c == other.components[i]) {
-                    return true
+                if (c != NAME_COMPONENT_WILDCARD && c != other.components[i]) {
+                    return false
                 }
             }
             return true
