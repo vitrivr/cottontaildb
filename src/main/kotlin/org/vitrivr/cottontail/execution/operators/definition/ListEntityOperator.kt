@@ -44,7 +44,13 @@ class ListEntityOperator(val catalogue: DefaultCatalogue, val schema: Name.Schem
             for (schema in schemas) {
                 val schemaTxn = context.getTx(schema) as SchemaTx
                 for (entity in schemaTxn.listEntities()) {
-                    emit(StandaloneRecord(0L, this@ListEntityOperator.columns, arrayOf(StringValue(entity.toString()), StringValue("ENTITY"))))
+                    emit(
+                        StandaloneRecord(
+                            0L,
+                            this@ListEntityOperator.columns,
+                            arrayOf(StringValue(entity.name.toString()), StringValue("ENTITY"))
+                        )
+                    )
                 }
             }
         }

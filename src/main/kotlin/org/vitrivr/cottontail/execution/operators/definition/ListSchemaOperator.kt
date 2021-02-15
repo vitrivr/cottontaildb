@@ -36,7 +36,13 @@ class ListSchemaOperator(val catalogue: DefaultCatalogue) : Operator.SourceOpera
         val txn = context.getTx(this.catalogue) as CatalogueTx
         return flow {
             for (schema in txn.listSchemas()) {
-                emit(StandaloneRecord(0L, this@ListSchemaOperator.columns, arrayOf(StringValue(schema.toString()), StringValue("SCHEMA"))))
+                emit(
+                    StandaloneRecord(
+                        0L,
+                        this@ListSchemaOperator.columns,
+                        arrayOf(StringValue(schema.name.toString()), StringValue("SCHEMA"))
+                    )
+                )
             }
         }
     }
