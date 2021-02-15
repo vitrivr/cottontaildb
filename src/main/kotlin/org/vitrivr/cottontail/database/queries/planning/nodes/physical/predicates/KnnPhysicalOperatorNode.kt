@@ -38,7 +38,7 @@ class KnnPhysicalOperatorNode(val predicate: KnnPredicate) : UnaryPhysicalOperat
     /** The [Cost] of a [KnnPhysicalOperatorNode]. */
     override val cost: Cost
         get() = Cost(
-            cpu = this.input.outputSize * this.predicate.distance.costForDimension(this.predicate.query.first().type.logicalSize) * (this.predicate.query.size + this.predicate.weights.size),
+            cpu = this.input.outputSize * this.predicate.distance.costForDimension(this.predicate.column.type.logicalSize) * (this.predicate.query.size + this.predicate.weights.size),
             memory = (this.outputSize * this.columns.map { it.type.physicalSize }.sum()).toFloat()
         )
 

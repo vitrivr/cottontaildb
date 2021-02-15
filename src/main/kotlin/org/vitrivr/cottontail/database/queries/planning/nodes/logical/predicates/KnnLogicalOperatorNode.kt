@@ -15,10 +15,11 @@ import org.vitrivr.cottontail.utilities.math.KnnUtilities
 class KnnLogicalOperatorNode(val predicate: KnnPredicate) : UnaryLogicalOperatorNode() {
 
     /** The [KnnLogicalOperatorNode] returns the [ColumnDef] of its input + a distance column. */
-    override val columns: Array<ColumnDef<*>> = arrayOf(
-        *(this.input?.columns ?: emptyArray()),
-        KnnUtilities.distanceColumnDef(this.predicate.column.name.entity())
-    )
+    override val columns: Array<ColumnDef<*>>
+        get() = arrayOf(
+            *(this.input?.columns ?: emptyArray()),
+            KnnUtilities.distanceColumnDef(this.predicate.column.name.entity())
+        )
 
     /**
      * Returns a copy of this [KnnLogicalOperatorNode]

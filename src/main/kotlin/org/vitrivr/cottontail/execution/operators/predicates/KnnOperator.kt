@@ -54,12 +54,17 @@ class KnnOperator(parent: Operator, val knn: KnnPredicate) : Operator.PipelineOp
         } else {
             knn.query.map { MinHeapSelection(this.knn.k) }
         }
-        val action: (Record) -> Unit = if (this.knn.weights != null) {
+        val action: (Record) -> Unit = if (!this.knn.weights.isEmpty()) {
             {
                 val value = it[this.knn.column]
                 if (value is VectorValue<*>) {
                     this.knn.query.forEachIndexed { i, query ->
-                        knnSet[i].offer(ComparablePair(it, this.knn.distance(query, value, this.knn.weights[i])))
+                        knnSet[i].offer(
+                            ComparablePair(
+                                it,
+                                this.knn.distance(query, value, this.knn.weights[i])
+                            )
+                        )
                     }
                 }
             }
