@@ -25,7 +25,6 @@ import org.vitrivr.cottontail.math.knn.metrics.SquaredEuclidianDistance
 import org.vitrivr.cottontail.math.knn.selection.ComparablePair
 import org.vitrivr.cottontail.math.knn.selection.MinHeapSelection
 import org.vitrivr.cottontail.math.knn.selection.MinSingleSelection
-import org.vitrivr.cottontail.model.basics.CloseableIterator
 import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
@@ -212,42 +211,39 @@ class VAFIndex(path: Path, parent: DefaultEntity, config: VAFIndexConfig? = null
         }
 
         /**
-         * Performs a lookup through this [VAFIndex.Tx] and returns a [CloseableIterator] of all [Record]s
+         * Performs a lookup through this [VAFIndex.Tx] and returns a [Iterator] of all [Record]s
          * that match the [Predicate]. Only supports [KnnPredicate]s.
          *
-         * <strong>Important:</strong> The [CloseableIterator] is not thread safe! It remains to the
-         * caller to close the [CloseableIterator]
+         * <strong>Important:</strong> The [Iterator] is not thread safe! It remains to the
+         * caller to close the [Iterator]
          *
          * @param predicate The [Predicate] for the lookup
-         * @return The resulting [CloseableIterator]
+         * @return The resulting [Iterator]
          */
         override fun filter(predicate: Predicate) = filterRange(predicate, 0L until this.count())
 
         /**
-         * Performs a lookup through this [VAFIndex.Tx] and returns a [CloseableIterator] of all [Record]s
+         * Performs a lookup through this [VAFIndex.Tx] and returns a [Iterator] of all [Record]s
          * that match the [Predicate] within the given [LongRange]. Only supports [KnnPredicate]s.
          *
-         * <strong>Important:</strong> The [CloseableIterator] is not thread safe! It remains to the
-         * caller to close the [CloseableIterator]
+         * <strong>Important:</strong> The [Iterator] is not thread safe!
          *
          * @param predicate The [Predicate] for the lookup
          * @param range The [LongRange] of [VAFSignature]s to consider.
-         * @return The resulting [CloseableIterator]
+         * @return The resulting [Iterator]
          */
-        override fun filterRange(
-            predicate: Predicate,
-            range: LongRange
-        ): CloseableIterator<Record> = object : CloseableIterator<Record> {
+        override fun filterRange(predicate: Predicate, range: LongRange) =
+            object : Iterator<Record> {
 
-            /** Cast  to [KnnPredicate] (if such a cast is possible).  */
-            private val predicate = if (predicate is KnnPredicate) {
-                predicate
-            } else {
-                throw QueryException.UnsupportedPredicateException("Index '${this@VAFIndex.name}' (VAF Index) does not support predicates of type '${predicate::class.simpleName}'.")
-            }
+                /** Cast  to [KnnPredicate] (if such a cast is possible).  */
+                private val predicate = if (predicate is KnnPredicate) {
+                    predicate
+                } else {
+                    throw QueryException.UnsupportedPredicateException("Index '${this@VAFIndex.name}' (VAF Index) does not support predicates of type '${predicate::class.simpleName}'.")
+                }
 
-            /** The [Marks] used by this [CloseableIterator]. */
-            private val marks = this@VAFIndex.marksStore.get()
+                /** The [Marks] used by this [Iterator]. */
+                private val marks = this@VAFIndex.marksStore.get()
 
             /** The [Bounds] objects used for filtering. */
             private val bounds: List<Bounds> = this.predicate.query.map {
@@ -266,10 +262,6 @@ class VAFIndex(path: Path, parent: DefaultEntity, config: VAFIndexConfig? = null
                 prepareResults()
             }
 
-            /** Flag indicating whether this [CloseableIterator] has been closed. */
-            @Volatile
-            private var closed = false
-
             init {
                 this@Tx.withReadLock { }
             }
@@ -278,15 +270,8 @@ class VAFIndex(path: Path, parent: DefaultEntity, config: VAFIndexConfig? = null
 
             override fun next(): Record = this.resultsQueue.removeFirst()
 
-            override fun close() {
-                if (!this.closed) {
-                    this.resultsQueue.clear()
-                    this.closed = true
-                }
-            }
-
             /**
-             * Executes the kNN and prepares the results to return by this [CloseableIterator].
+             * Executes the kNN and prepares the results to return by this [Iterator].
              */
             private fun prepareResults(): ArrayDeque<StandaloneRecord> {
 

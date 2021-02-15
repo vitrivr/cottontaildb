@@ -193,11 +193,9 @@ abstract class AbstractMigrationManager(val batchSize: Int, logFile: Path) : Mig
                 val context = MigrationContext()
                 srcEntityTx = context.getTx(srcEntity) as EntityTx
                 destEntityTx = context.getTx(destEntity) as EntityTx
-                srcEntityTx.scan(columns, range).use {
-                    it.forEach { r ->
-                        this.logStdout("---- Migrating data for ${srcEntity.name}... (${++i} / $count)\r")
-                        destEntityTx.insert(r)
-                    }
+                srcEntityTx.scan(columns, range).forEach { r ->
+                    this.logStdout("---- Migrating data for ${srcEntity.name}... (${++i} / $count)\r")
+                    destEntityTx.insert(r)
                 }
                 this.log("---- Migrating data for ${srcEntity.name}; committing... (${i} / $count)\r")
                 context.commit()

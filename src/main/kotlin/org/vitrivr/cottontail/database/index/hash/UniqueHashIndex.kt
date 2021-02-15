@@ -152,19 +152,17 @@ class UniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path, p
 
             /* Recreate entries. */
             this@UniqueHashIndex.map.clear()
-            entityTx.scan(this@UniqueHashIndex.columns).use { s ->
-                s.forEach { record ->
-                    val value = record[this.columns[0]]
-                        ?: throw TxException.TxValidationException(
-                            this.context.txId,
-                            "Value cannot be null for UniqueHashIndex ${this@UniqueHashIndex.name} given value is (value = null, tupleId = ${record.tupleId})."
-                        )
-                    if (!this.addMapping(value, record.tupleId)) {
-                        throw TxException.TxValidationException(
-                            this.context.txId,
-                            "Value must be unique for UniqueHashIndex ${this@UniqueHashIndex.name} but is not (value = $value, tupleId = ${record.tupleId})."
-                        )
-                    }
+            entityTx.scan(this@UniqueHashIndex.columns).forEach { record ->
+                val value = record[this.columns[0]]
+                    ?: throw TxException.TxValidationException(
+                        this.context.txId,
+                        "Value cannot be null for UniqueHashIndex ${this@UniqueHashIndex.name} given value is (value = null, tupleId = ${record.tupleId})."
+                    )
+                if (!this.addMapping(value, record.tupleId)) {
+                    throw TxException.TxValidationException(
+                        this.context.txId,
+                        "Value must be unique for UniqueHashIndex ${this@UniqueHashIndex.name} but is not (value = $value, tupleId = ${record.tupleId})."
+                    )
                 }
             }
         }
@@ -203,18 +201,15 @@ class UniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path, p
         }
 
         /**
-         * Performs a lookup through this [UniqueHashIndex.Tx] and returns a [CloseableIterator] of
+         * Performs a lookup through this [UniqueHashIndex.Tx] and returns a [Iterator] of
          * all [Record]s that match the [Predicate]. Only supports [BooleanPredicate.Atomic]s.
          *
-         * The [CloseableIterator] is not thread safe!
-         *
-         * <strong>Important:</strong> It remains to the caller to close the [CloseableIterator]
-         *
+         * The [Iterator] is not thread safe!
+         **
          * @param predicate The [Predicate] for the lookup
-         *
-         * @return The resulting [CloseableIterator]
+         * @return The resulting [Iterator]
          */
-        override fun filter(predicate: Predicate) = object : CloseableIterator<Record> {
+        override fun filter(predicate: Predicate) = object : Iterator<Record> {
 
             /** Local [BooleanPredicate.Atomic] instance. */
             private val predicate: BooleanPredicate.Atomic
@@ -227,10 +222,6 @@ class UniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path, p
                 this.predicate = predicate
             }
 
-            /** Flag indicating whether this [CloseableIterator] has been closed. */
-            @Volatile
-            private var closed = false
-
             /** Pre-fetched [Record]s that match the [Predicate]. */
             private val elements = LinkedList(this.predicate.values)
 
@@ -238,7 +229,6 @@ class UniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path, p
              * Returns `true` if the iteration has more elements.
              */
             override fun hasNext(): Boolean {
-                check(!this.closed) { "Illegal invocation of hasNext(): This CloseableIterator has been closed." }
                 while (this.elements.isNotEmpty()) {
                     if (this@UniqueHashIndex.map.contains(this.elements.peek())) {
                         return true
@@ -253,19 +243,9 @@ class UniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path, p
              * Returns the next element in the iteration.
              */
             override fun next(): Record {
-                check(!this.closed) { "Illegal invocation of next(): This CloseableIterator has been closed." }
                 val value = this.elements.poll()
                 val tid = this@UniqueHashIndex.map[value]!!
                 return StandaloneRecord(tid, this@UniqueHashIndex.produces, arrayOf(value))
-            }
-
-            /**
-             * Closes this [CloseableIterator] and releases all locks and resources associated with it.
-             */
-            override fun close() {
-                if (!this.closed) {
-                    this.closed = true
-                }
             }
         }
 
@@ -274,12 +254,12 @@ class UniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path, p
          *
          * @param predicate The [Predicate] to perform the lookup.
          * @param range The [LongRange] to consider.
-         * @return The resulting [CloseableIterator].
+         * @return The resulting [Iterator].
          */
         override fun filterRange(
             predicate: Predicate,
             range: LongRange
-        ): CloseableIterator<Record> {
+        ): Iterator<Record> {
             throw UnsupportedOperationException("The UniqueHashIndex does not support ranged filtering!")
         }
     }

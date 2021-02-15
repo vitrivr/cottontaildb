@@ -387,50 +387,45 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
 
 
         /**
-         * Creates and returns a new [CloseableIterator] for this [DefaultEntity.Tx] that returns
+         * Creates and returns a new [Iterator] for this [DefaultEntity.Tx] that returns
          * all [TupleId]s contained within the surrounding [DefaultEntity].
          *
-         * <strong>Important:</strong> It remains to the caller to close the [CloseableIterator]
+         * <strong>Important:</strong> It remains to the caller to close the [Iterator]
          *
          * @param columns The [ColumnDef]s that should be scanned.
          *
-         * @return [CloseableIterator]
+         * @return [Iterator]
          */
-        override fun scan(columns: Array<ColumnDef<*>>): CloseableIterator<Record> = scan(columns, 1L..this.maxTupleId())
+        override fun scan(columns: Array<ColumnDef<*>>): Iterator<Record> =
+            scan(columns, 1L..this.maxTupleId())
 
         /**
-         * Creates and returns a new [CloseableIterator] for this [DefaultEntity.Tx] that returns all [TupleId]s
+         * Creates and returns a new [Iterator] for this [DefaultEntity.Tx] that returns all [TupleId]s
          * contained within the surrounding [DefaultEntity] and a certain range.
-         *
-         * <strong>Important:</strong> It remains to the caller to close the [CloseableIterator]
          *
          * @param columns The [ColumnDef]s that should be scanned.
          * @param range The [LongRange] that should be scanned.
          *
-         * @return [CloseableIterator]
+         * @return [Iterator]
          */
-        override fun scan(columns: Array<ColumnDef<*>>, range: LongRange) = object : CloseableIterator<Record> {
-            init {
-                this@Tx.withReadLock { /* No op. */ }
-            }
+        override fun scan(columns: Array<ColumnDef<*>>, range: LongRange) =
+            object : Iterator<Record> {
 
-            /** The wrapped [CloseableIterator] of the first (primary) column. */
-            private val wrapped = (this@Tx.context.getTx(this@DefaultEntity.columns.values.first()) as ColumnTx<*>).scan(range)
+                /** The wrapped [Iterator] of the first (primary) column. */
+                private val wrapped = this@Tx.withReadLock {
+                    (this@Tx.context.getTx(this@DefaultEntity.columns.values.first()) as ColumnTx<*>).scan(
+                        range
+                    )
+                }
 
-            /** Flag indicating whether this [CloseableIterator] has been closed. */
-            @Volatile
-            private var closed = false
-
-            /**
-             * Returns the next element in the iteration.
-             */
-            override fun next(): Record {
-                check(!this.closed) { "Illegal invocation of next(): This CloseableIterator has been closed." }
-
-                /* Read values from underlying columns. */
-                val tupleId = this.wrapped.next()
-                val values = columns.map {
-                    val column = this@DefaultEntity.columns[it.name]
+                /**
+                 * Returns the next element in the iteration.
+                 */
+                override fun next(): Record {
+                    /* Read values from underlying columns. */
+                    val tupleId = this.wrapped.next()
+                    val values = columns.map {
+                        val column = this@DefaultEntity.columns[it.name]
                             ?: throw IllegalArgumentException("Column $it does not exist on entity ${this@DefaultEntity.name}.")
                     (this@Tx.context.getTx(column) as ColumnTx<*>).read(tupleId)
                 }.toTypedArray()
@@ -439,23 +434,10 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
                 return StandaloneRecord(tupleId, columns, values)
             }
 
-            /**
-             * Returns `true` if the iteration has more elements.
-             */
-            override fun hasNext(): Boolean {
-                check(!this.closed) { "Illegal invocation of hasNext(): This CloseableIterator has been closed." }
-                return this.wrapped.hasNext()
-            }
-
-            /**
-             * Closes this [CloseableIterator] and releases all locks and resources associated with it.
-             */
-            override fun close() {
-                if (!this.closed) {
-                    this.wrapped.close()
-                    this.closed = true
-                }
-            }
+                /**
+                 * Returns `true` if the iteration has more elements.
+                 */
+                override fun hasNext(): Boolean = this.wrapped.hasNext()
         }
 
         /**

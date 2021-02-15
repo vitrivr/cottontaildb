@@ -302,10 +302,8 @@ class LuceneIndex(path: Path, parent: DefaultEntity, config: LuceneIndexConfig? 
 
             /* Recreate entries. */
             this.writer.deleteAll()
-            entityTx.scan(this@LuceneIndex.columns).use { s ->
-                s.forEach { record ->
-                    this.writer.addDocument(documentFromRecord(record))
-                }
+            entityTx.scan(this@LuceneIndex.columns).forEach { record ->
+                this.writer.addDocument(documentFromRecord(record))
             }
         }
 
@@ -338,17 +336,15 @@ class LuceneIndex(path: Path, parent: DefaultEntity, config: LuceneIndexConfig? 
 
 
         /**
-         * Performs a lookup through this [LuceneIndex.Tx] and returns a [CloseableIterator] of
+         * Performs a lookup through this [LuceneIndex.Tx] and returns a [Iterator] of
          * all [TupleId]s that match the [Predicate]. Only supports [BooleanPredicate]s.
          *
-         * The [CloseableIterator] is not thread safe!
-         *
-         * <strong>Important:</strong> It remains to the caller to close the [CloseableIterator]
+         * The [Iterator] is not thread safe!
          *
          * @param predicate The [Predicate] for the lookup*
-         * @return The resulting [CloseableIterator]
+         * @return The resulting [Iterator]
          */
-        override fun filter(predicate: Predicate) = object : CloseableIterator<Record> {
+        override fun filter(predicate: Predicate) = object : Iterator<Record> {
             /** Cast [BooleanPredicate] (if such a cast is possible). */
             private val predicate = if (predicate !is BooleanPredicate) {
                 throw QueryException.UnsupportedPredicateException("Index '${this@LuceneIndex.name}' (lucene index) does not support predicates of type '${predicate::class.simpleName}'.")
@@ -364,13 +360,9 @@ class LuceneIndex(path: Path, parent: DefaultEntity, config: LuceneIndexConfig? 
                 this@Tx.withReadLock { }
             }
 
-            /** Number of [TupleId]s returned by this [CloseableIterator]. */
+            /** Number of [TupleId]s returned by this [Iterator]. */
             @Volatile
             private var returned = 0
-
-            /** Flag indicating whether this [CloseableIterator] has been closed. */
-            @Volatile
-            private var closed = false
 
             /** Lucene [Query] representation of [BooleanPredicate] . */
             private val query: Query = this.predicate.toLuceneQuery()
@@ -385,7 +377,6 @@ class LuceneIndex(path: Path, parent: DefaultEntity, config: LuceneIndexConfig? 
              * Returns `true` if the iteration has more elements.
              */
             override fun hasNext(): Boolean {
-                check(!this.closed) { "Illegal invocation of next(): This CloseableIterator has been closed." }
                 return this.returned < this.results.totalHits
             }
 
@@ -393,19 +384,9 @@ class LuceneIndex(path: Path, parent: DefaultEntity, config: LuceneIndexConfig? 
              * Returns the next element in the iteration.
              */
             override fun next(): Record {
-                check(!this.closed) { "Illegal invocation of next(): This CloseableIterator has been closed." }
                 val scores = this.results.scoreDocs[this.returned++]
                 val doc = this.searcher.doc(scores.doc)
                 return StandaloneRecord(doc[TID_COLUMN].toLong(), this@LuceneIndex.produces, arrayOf(FloatValue(scores.score)))
-            }
-
-            /**
-             * Closes this [CloseableIterator] and releases all locks and resources associated with it.
-             */
-            override fun close() {
-                if (!this.closed) {
-                    this.closed = true
-                }
             }
         }
 
@@ -414,12 +395,12 @@ class LuceneIndex(path: Path, parent: DefaultEntity, config: LuceneIndexConfig? 
          *
          * @param predicate The [Predicate] to perform the lookup.
          * @param range The [LongRange] to consider.
-         * @return The resulting [CloseableIterator].
+         * @return The resulting [Iterator].
          */
         override fun filterRange(
             predicate: Predicate,
             range: LongRange
-        ): CloseableIterator<Record> {
+        ): Iterator<Record> {
             throw UnsupportedOperationException("The LuceneIndex does not support ranged filtering!")
         }
 

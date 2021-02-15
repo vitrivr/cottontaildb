@@ -11,7 +11,7 @@ import org.vitrivr.cottontail.model.exceptions.TxException
  * A [Tx] that operates on a single [AbstractIndex]. [Tx]s are a unit of isolation for data operations (read/write).
  *
  * @author Ralph Gasser
- * @version 1.5.0
+ * @version 1.6.0
  */
 interface IndexTx : Tx, Filterable, Countable {
 
@@ -47,16 +47,16 @@ interface IndexTx : Tx, Filterable, Countable {
     fun update(event: DataChangeEvent)
 
     /**
-     * Performs a lookup through this [IndexTx] and returns a [CloseableIterator] of
+     * Performs a lookup through this [IndexTx] and returns a [Iterator] of
      * all the [Record]s that match the [Predicate].
      *
      * @param predicate The [Predicate] to perform the lookup.
-     * @return The resulting [CloseableIterator].
+     * @return The resulting [Iterator].
      */
-    override fun filter(predicate: Predicate): CloseableIterator<Record>
+    override fun filter(predicate: Predicate): Iterator<Record>
 
     /**
-     * Performs a lookup through this [IndexTx] and returns a [CloseableIterator] of
+     * Performs a lookup through this [IndexTx] and returns a [Iterator] of
      * all the [Record]s that match the [Predicate] and fall within the specified data
      * [LongRange], which must lie in 0..[count].
      *
@@ -64,7 +64,7 @@ interface IndexTx : Tx, Filterable, Countable {
      *
      * @param predicate The [Predicate] to perform the lookup.
      * @param range The [LongRange] to consider.
-     * @return The resulting [CloseableIterator].
+     * @return The resulting [Iterator].
      */
-    fun filterRange(predicate: Predicate, range: LongRange): CloseableIterator<Record>
+    fun filterRange(predicate: Predicate, range: LongRange): Iterator<Record>
 }

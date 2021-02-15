@@ -184,57 +184,22 @@ class MapDBColumn<T : Value>(override val path: Path, override val parent: Entit
         }
 
         /**
-         * Creates and returns a new [CloseableIterator] for this [MapDBColumn.Tx] that returns
+         * Creates and returns a new [Iterator] for this [MapDBColumn.Tx] that returns
          * all [TupleId]s contained within the surrounding [MapDBColumn].
          *
-         * @return [CloseableIterator]
+         * @return [Iterator]
          */
         override fun scan() = this.scan(1L..this@MapDBColumn.maxTupleId)
 
         /**
-         * Creates and returns a new [CloseableIterator] for this [MapDBColumn.Tx] that returns
+         * Creates and returns a new [Iterator] for this [MapDBColumn.Tx] that returns
          * all [TupleId]s contained within the surrounding [MapDBColumn] and a certain range.
          *
          * @param range The [LongRange] that should be scanned.
-         * @return [CloseableIterator]
+         * @return [Iterator]
          */
-        override fun scan(range: LongRange) = object : CloseableIterator<TupleId> {
-
-            init {
-                this@Tx.withReadLock { /* No op. */ }
-            }
-
-            /** Wraps a [CottontailStoreWAL.RecordIdIterator] from the [MapDBColumn]. */
-            private val wrapped = this@MapDBColumn.store.RecordIdIterator(range)
-
-            /** Flag indicating whether this [CloseableIterator] has been closed. */
-            @Volatile
-            private var closed = false
-
-            /**
-             * Returns the next element in the iteration.
-             */
-            override fun next(): TupleId {
-                check(!this.closed) { "Illegal invocation of next(): This CloseableIterator has been closed." }
-                return this.wrapped.next()
-            }
-
-            /**
-             * Returns `true` if the iteration has more elements.
-             */
-            override fun hasNext(): Boolean {
-                check(!this.closed) { "Illegal invocation of hasNext(): This CloseableIterator has been closed." }
-                return this.wrapped.hasNext()
-            }
-
-            /**
-             * Closes this [CloseableIterator] and releases all locks associated with it.
-             */
-            override fun close() {
-                if (!this.closed) {
-                    this.closed = true
-                }
-            }
+        override fun scan(range: LongRange) = this@Tx.withReadLock {
+            this@MapDBColumn.store.RecordIdIterator(range)
         }
 
         /**

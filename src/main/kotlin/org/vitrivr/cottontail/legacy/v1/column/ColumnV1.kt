@@ -10,7 +10,6 @@ import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.general.DBOVersion
 import org.vitrivr.cottontail.database.general.TxStatus
 import org.vitrivr.cottontail.execution.TransactionContext
-import org.vitrivr.cottontail.model.basics.CloseableIterator
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.TupleId
 import org.vitrivr.cottontail.model.basics.Type
@@ -212,41 +211,33 @@ class ColumnV1<T : Value>(
         }
 
         /**
-         * Creates and returns a new [CloseableIterator] for this [ColumnV1.Tx] that returns
+         * Creates and returns a new [Iterator] for this [ColumnV1.Tx] that returns
          * all [TupleId]s contained within the surrounding [ColumnV1].
          *
-         * @return [CloseableIterator]
+         * @return [Iterator]
          */
         override fun scan() = this.scan(1L..this@ColumnV1.maxTupleId)
 
         /**
-         * Creates and returns a new [CloseableIterator] for this [ColumnV1.Tx] that returns
+         * Creates and returns a new [Iterator] for this [ColumnV1.Tx] that returns
          * all [TupleId]s contained within the surrounding [ColumnV1] and a certain range.
          *
          * @param range The [LongRange] that should be scanned.
-         * @return [CloseableIterator]
+         * @return [Iterator]
          */
-        override fun scan(range: LongRange) = object : CloseableIterator<TupleId> {
+        override fun scan(range: LongRange) = object : Iterator<TupleId> {
 
             init {
                 checkValidForRead()
             }
 
-            /** Acquires a read lock on the surrounding [ColumnV1.Tx]*/
-            private val lock = this@Tx.localLock.readLock()
-
             /** Wraps a [RecordIdIterator] from the [ColumnV1]. */
             private val wrapped = this@ColumnV1.store.RecordIdIterator(range)
-
-            /** Flag indicating whether this [CloseableIterator] has been closed. */
-            @Volatile
-            private var closed = false
 
             /**
              * Returns the next element in the iteration.
              */
             override fun next(): TupleId {
-                check(!this.closed) { "Illegal invocation of next(): This CloseableIterator has been closed." }
                 return this.wrapped.next()
             }
 
@@ -254,18 +245,7 @@ class ColumnV1<T : Value>(
              * Returns `true` if the iteration has more elements.
              */
             override fun hasNext(): Boolean {
-                check(!this.closed) { "Illegal invocation of hasNext(): This CloseableIterator has been closed." }
                 return this.wrapped.hasNext()
-            }
-
-            /**
-             * Closes this [CloseableIterator] and releases all locks associated with it.
-             */
-            override fun close() {
-                if (!this.closed) {
-                    this@Tx.localLock.unlock(this.lock)
-                    this.closed = true
-                }
             }
         }
 

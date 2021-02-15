@@ -30,10 +30,11 @@ class EntityScanOperator(
     override fun toFlow(context: TransactionContext): Flow<Record> {
         val tx = context.getTx(this.entity) as EntityTx
         return flow {
-            tx.scan(this@EntityScanOperator.columns, this@EntityScanOperator.range).use { iterator ->
-                for (record in iterator) {
-                    emit(record)
-                }
+            for (record in tx.scan(
+                this@EntityScanOperator.columns,
+                this@EntityScanOperator.range
+            )) {
+                emit(record)
             }
         }
     }

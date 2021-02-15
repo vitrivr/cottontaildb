@@ -26,10 +26,8 @@ class EntityIndexScanOperator(val index: Index, private val predicate: Predicate
         val tx = context.getTx(this.entity) as EntityTx
         val indexTx = context.getTx(tx.indexForName(this.index.name)) as IndexTx
         return flow {
-            indexTx.filter(this@EntityIndexScanOperator.predicate).use { iterator ->
-                for (record in iterator) {
-                    emit(record)
-                }
+            for (record in indexTx.filter(this@EntityIndexScanOperator.predicate)) {
+                emit(record)
             }
         }
     }

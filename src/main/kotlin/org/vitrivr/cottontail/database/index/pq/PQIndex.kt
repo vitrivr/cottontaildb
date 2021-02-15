@@ -247,43 +247,40 @@ class PQIndex(path: Path, parent: DefaultEntity, config: PQIndexConfig? = null) 
         }
 
         /**
-         * Performs a lookup through this [PQIndex.Tx] and returns a [CloseableIterator] of all [Record]s
+         * Performs a lookup through this [PQIndex.Tx] and returns a [Iterator] of all [Record]s
          * that match the [Predicate]. Only supports [KnnPredicate]s.
          *
-         * <strong>Important:</strong> The [CloseableIterator] is not thread safe! It remains to the
-         * caller to close the [CloseableIterator]
+         * <strong>Important:</strong> The [Iterator] is not thread safe! It remains to the
+         * caller to close the [Iterator]
          *
          * @param predicate The [Predicate] for the lookup
-         * @return The resulting [CloseableIterator]
+         * @return The resulting [Iterator]
          */
-        override fun filter(predicate: Predicate): CloseableIterator<Record> =
+        override fun filter(predicate: Predicate): Iterator<Record> =
             filterRange(predicate, 0L until this.count())
 
         /**
-         * Performs a lookup through this [PQIndex.Tx] and returns a [CloseableIterator] of all [Record]s
+         * Performs a lookup through this [PQIndex.Tx] and returns a [Iterator] of all [Record]s
          * that match the [Predicate] in the given [LongRange]. Only supports [KnnPredicate]s.
          *
-         * <strong>Important:</strong> The [CloseableIterator] is not thread safe! It remains to the
-         * caller to close the [CloseableIterator]
+         * <strong>Important:</strong> The [Iterator] is not thread safe!
          *
          * @param predicate The [Predicate] for the lookup
          * @param range The [LongRange] of [PQIndexEntry] to consider.
-         * @return The resulting [CloseableIterator]
+         * @return The resulting [Iterator]
          */
-        override fun filterRange(
-            predicate: Predicate,
-            range: LongRange
-        ): CloseableIterator<Record> = object : CloseableIterator<Record> {
+        override fun filterRange(predicate: Predicate, range: LongRange) =
+            object : Iterator<Record> {
 
-            /** Cast [KnnPredicate] (if such a cast is possible).  */
-            private val predicate = if (predicate is KnnPredicate) {
-                predicate
-            } else {
-                throw QueryException.UnsupportedPredicateException("Index '${this@PQIndex.name}' (PQ Index) does not support predicates of type '${predicate::class.simpleName}'.")
-            }
+                /** Cast [KnnPredicate] (if such a cast is possible).  */
+                private val predicate = if (predicate is KnnPredicate) {
+                    predicate
+                } else {
+                    throw QueryException.UnsupportedPredicateException("Index '${this@PQIndex.name}' (PQ Index) does not support predicates of type '${predicate::class.simpleName}'.")
+                }
 
-            /** The [PQ] instance used for this [CloseableIterator]. */
-            private val pq = this@PQIndex.pqStore.get()
+                /** The [PQ] instance used for this [Iterator]. */
+                private val pq = this@PQIndex.pqStore.get()
 
             /** Prepares [PQLookupTable]s for the given query vector(s). */
             private val lookupTables = this.predicate.query.map {
@@ -295,10 +292,6 @@ class PQIndex(path: Path, parent: DefaultEntity, config: PQIndexConfig? = null) 
                 prepareResults()
             }
 
-            /** Flag indicating whether this [CloseableIterator] has been closed. */
-            @Volatile
-            private var closed = false
-
             init {
                 this@Tx.withReadLock { }
             }
@@ -307,15 +300,8 @@ class PQIndex(path: Path, parent: DefaultEntity, config: PQIndexConfig? = null) 
 
             override fun next(): Record = this.resultsQueue.removeFirst()
 
-            override fun close() {
-                if (!this.closed) {
-                    this.resultsQueue.clear()
-                    this.closed = true
-                }
-            }
-
             /**
-             * Executes the kNN and prepares the results to return by this [CloseableIterator].
+             * Executes the kNN and prepares the results to return by this [Iterator].
              */
             private fun prepareResults(): ArrayDeque<StandaloneRecord> {
                 /* Prepare data structures for NNS. */

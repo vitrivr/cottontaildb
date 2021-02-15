@@ -196,17 +196,15 @@ class SuperBitLSHIndex<T : VectorValue<*>>(
         }
 
         /**
-         * Performs a lookup through this [SuperBitLSHIndex] and returns a [CloseableIterator] of
+         * Performs a lookup through this [SuperBitLSHIndex] and returns a [Iterator] of
          * all [TupleId]s that match the [Predicate]. Only supports [KnnPredicate]s.
          *
-         * The [CloseableIterator] is not thread safe!
-         *
-         * <strong>Important:</strong> It remains to the caller to close the [CloseableIterator]
+         * The [Iterator] is not thread safe!
          *
          * @param predicate The [Predicate] for the lookup*
-         * @return The resulting [CloseableIterator]
+         * @return The resulting [Iterator]
          */
-        override fun filter(predicate: Predicate) = object : CloseableIterator<Record> {
+        override fun filter(predicate: Predicate) = object : Iterator<Record> {
 
             /** Cast [KnnPredicate] (if such a cast is possible).  */
             val predicate = if (predicate is KnnPredicate) {
@@ -216,16 +214,19 @@ class SuperBitLSHIndex<T : VectorValue<*>>(
             }
 
             /** Prepare new [SuperBitLSH] data structure to calculate the bucket index. */
-            private val lsh = SuperBitLSH(this@SuperBitLSHIndex.config.stages, this@SuperBitLSHIndex.config.buckets, this@SuperBitLSHIndex.config.seed, this.predicate.query.first(), this@SuperBitLSHIndex.config.considerImaginary, this@SuperBitLSHIndex.config.samplingMethod)
-
-            /** Flag indicating whether this [CloseableIterator] has been closed. */
-            @Volatile
-            private var closed = false
+            private val lsh = SuperBitLSH(
+                this@SuperBitLSHIndex.config.stages,
+                this@SuperBitLSHIndex.config.buckets,
+                this@SuperBitLSHIndex.config.seed,
+                this.predicate.query.first(),
+                this@SuperBitLSHIndex.config.considerImaginary,
+                this@SuperBitLSHIndex.config.samplingMethod
+            )
 
             /** The index of the current query vector. */
             private var queryIndex = -1
 
-            /** List of [TupleId]s returned by this [CloseableIterator]. */
+            /** List of [TupleId]s returned by this [Iterator]. */
             private val tupleIds = LinkedList<TupleId>()
 
             /* Performs some sanity checks. */
@@ -233,28 +234,21 @@ class SuperBitLSHIndex<T : VectorValue<*>>(
                 if (this.predicate.columns.first() != this@SuperBitLSHIndex.columns[0] || !(this.predicate.distance is CosineDistance || this.predicate.distance is AbsoluteInnerProductDistance)) {
                     throw QueryException.UnsupportedPredicateException("Index '${this@SuperBitLSHIndex.name}' (lsh-index) does not support the provided predicate.")
                 }
-                this@Tx.withReadLock { /* No op. */ }
-                this.prepareMatchesForNextQueryVector()
+                this@Tx.withReadLock {
+                    this.prepareMatchesForNextQueryVector()
+                }
             }
 
             override fun hasNext(): Boolean {
-                check(!this.closed) { "Illegal invocation of hasNext(): This CloseableIterator has been closed." }
                 return this.tupleIds.isNotEmpty() || (this.queryIndex < this.predicate.query.size)
             }
 
             override fun next(): Record {
-                check(!this.closed) { "Illegal invocation of next(): This CloseableIterator has been closed." }
                 val ret = StandaloneRecord(this.tupleIds.removeFirst(), this@SuperBitLSHIndex.produces, arrayOf(IntValue(this.queryIndex)))
                 if (this.tupleIds.isEmpty()) {
                     this.prepareMatchesForNextQueryVector()
                 }
                 return ret
-            }
-
-            override fun close() {
-                if (!this.closed) {
-                    this.closed = true
-                }
             }
 
             /**
@@ -277,12 +271,12 @@ class SuperBitLSHIndex<T : VectorValue<*>>(
          *
          * @param predicate The [Predicate] to perform the lookup.
          * @param range The [LongRange] to consider.
-         * @return The resulting [CloseableIterator].
+         * @return The resulting [Iterator].
          */
         override fun filterRange(
             predicate: Predicate,
             range: LongRange
-        ): CloseableIterator<Record> {
+        ): Iterator<Record> {
             throw UnsupportedOperationException("The SuperBitLSHIndex does not support ranged filtering!")
         }
 

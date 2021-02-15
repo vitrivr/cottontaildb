@@ -230,34 +230,29 @@ class GGIndex(path: Path, parent: DefaultEntity, config: GGIndexConfig? = null) 
         }
 
         /**
-         * Performs a lookup through this [PQIndex.Tx] and returns a [CloseableIterator] of all [Record]s
+         * Performs a lookup through this [PQIndex.Tx] and returns a [Iterator] of all [Record]s
          * that match the [Predicate]. Only supports [KnnPredicate]s.
          *
-         * <strong>Important:</strong> The [CloseableIterator] is not thread safe! It remains to the
-         * caller to close the [CloseableIterator]
+         * <strong>Important:</strong> The [Iterator] is not thread safe! It remains to the
+         * caller to close the [Iterator]
          *
          * @param predicate The [Predicate] for the lookup
-         * @return The resulting [CloseableIterator]
+         * @return The resulting [Iterator]
          */
-        override fun filter(predicate: Predicate): CloseableIterator<Record> =
-            object : CloseableIterator<Record> {
+        override fun filter(predicate: Predicate): Iterator<Record> = object : Iterator<Record> {
 
-                /** Cast [KnnPredicate] (if such a cast is possible).  */
-                private val predicate =
-                    if (predicate is KnnPredicate && predicate.distance == this@GGIndex.config.distance.kernel) {
-                        predicate
-                    } else {
-                        throw QueryException.UnsupportedPredicateException("Index '${this@GGIndex.name}' (GGIndex) does not support predicates of type '${predicate::class.simpleName}'.")
-                    }
+            /** Cast [KnnPredicate] (if such a cast is possible).  */
+            private val predicate =
+                if (predicate is KnnPredicate && predicate.distance == this@GGIndex.config.distance.kernel) {
+                    predicate
+                } else {
+                    throw QueryException.UnsupportedPredicateException("Index '${this@GGIndex.name}' (GGIndex) does not support predicates of type '${predicate::class.simpleName}'.")
+                }
 
-                /** The [ArrayDeque] of [StandaloneRecord] produced by this [VAFIndex]. Evaluated lazily! */
+            /** The [ArrayDeque] of [StandaloneRecord] produced by this [VAFIndex]. Evaluated lazily! */
                 private val resultsQueue: ArrayDeque<StandaloneRecord> by lazy {
                     prepareResults()
                 }
-
-                /** Flag indicating whether this [CloseableIterator] has been closed. */
-                @Volatile
-                private var closed = false
 
                 init {
                     this@Tx.withReadLock { }
@@ -267,15 +262,8 @@ class GGIndex(path: Path, parent: DefaultEntity, config: GGIndexConfig? = null) 
 
                 override fun next(): Record = this.resultsQueue.removeFirst()
 
-                override fun close() {
-                    if (!this.closed) {
-                        this.resultsQueue.clear()
-                        this.closed = true
-                    }
-                }
-
                 /**
-                 * Executes the kNN and prepares the results to return by this [CloseableIterator].
+                 * Executes the kNN and prepares the results to return by this [Iterator].
                  */
                 private fun prepareResults(): ArrayDeque<StandaloneRecord> {
                     /* Scan >= 10% of entries by default */
@@ -352,12 +340,12 @@ class GGIndex(path: Path, parent: DefaultEntity, config: GGIndexConfig? = null) 
          *
          * @param predicate The [Predicate] for the lookup
          * @param range The [LongRange] of [GGIndex] to consider.
-         * @return The resulting [CloseableIterator]
+         * @return The resulting [Iterator]
          */
         override fun filterRange(
             predicate: Predicate,
             range: LongRange
-        ): CloseableIterator<Record> {
+        ): Iterator<Record> {
             throw UnsupportedOperationException("The UniqueHashIndex does not support ranged filtering!")
         }
     }

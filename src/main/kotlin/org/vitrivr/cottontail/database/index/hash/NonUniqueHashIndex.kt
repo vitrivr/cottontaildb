@@ -163,14 +163,12 @@ class NonUniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path
 
             /* Recreate entries. */
             this@NonUniqueHashIndex.map.clear()
-            entityTx.scan(this.columns).use { s ->
-                s.forEach { record ->
-                    val value = record[this.columns[0]] ?: throw TxException.TxValidationException(
-                        this.context.txId,
-                        "A value cannot be null for instances of NonUniqueHashIndex ${this@NonUniqueHashIndex.name} but given value is (value = null, tupleId = ${record.tupleId})."
-                    )
-                    this.addMapping(value, record.tupleId)
-                }
+            entityTx.scan(this.columns).forEach { record ->
+                val value = record[this.columns[0]] ?: throw TxException.TxValidationException(
+                    this.context.txId,
+                    "A value cannot be null for instances of NonUniqueHashIndex ${this@NonUniqueHashIndex.name} but given value is (value = null, tupleId = ${record.tupleId})."
+                )
+                this.addMapping(value, record.tupleId)
             }
         }
 
@@ -208,33 +206,26 @@ class NonUniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path
         }
 
         /**
-         * Performs a lookup through this [NonUniqueHashIndex.Tx] and returns a [CloseableIterator] of
+         * Performs a lookup through this [NonUniqueHashIndex.Tx] and returns a [Iterator] of
          * all [Record]s that match the [Predicate]. Only supports [ BooleanPredicate.AtomicBooleanPredicate]s.
          *
-         * The [CloseableIterator] is not thread safe!
-         *
-         * <strong>Important:</strong> It remains to the caller to close the [CloseableIterator]
+         * The [Iterator] is not thread safe!
          *
          * @param predicate The [Predicate] for the lookup
-         *
-         * @return The resulting [CloseableIterator]
+         * @return The resulting [Iterator]
          */
-        override fun filter(predicate: Predicate): CloseableIterator<Record> = object : CloseableIterator<Record> {
+        override fun filter(predicate: Predicate) = object : Iterator<Record> {
 
             /** Local [ BooleanPredicate.AtomicBooleanPredicate] instance. */
             private val predicate: BooleanPredicate.Atomic
 
             /* Perform initial sanity checks. */
             init {
-                require(predicate is  BooleanPredicate.Atomic) { "NonUniqueHashIndex.filter() does only support AtomicBooleanPredicates." }
+                require(predicate is BooleanPredicate.Atomic) { "NonUniqueHashIndex.filter() does only support AtomicBooleanPredicates." }
                 require(!predicate.not) { "NonUniqueHashIndex.filter() does not support negated statements (i.e. NOT EQUALS or NOT IN)." }
                 this@Tx.withReadLock { /* No op. */ }
                 this.predicate = predicate
             }
-
-            /** Flag indicating whether this [CloseableIterator] has been closed. */
-            @Volatile
-            private var closed = false
 
             /** Pre-fetched entries that match the [Predicate]. */
             private val elements = LinkedList<Array<Any>>()
@@ -262,7 +253,6 @@ class NonUniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path
              * Returns `true` if the iteration has more elements.
              */
             override fun hasNext(): Boolean {
-                check(!this.closed) { "Illegal invocation of hasNext(): This CloseableIterator has been closed." }
                 return this.elements.isNotEmpty()
             }
 
@@ -270,22 +260,12 @@ class NonUniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path
              * Returns the next element in the iteration.
              */
             override fun next(): Record {
-                check(!this.closed) { "Illegal invocation of next(): This CloseableIterator has been closed." }
                 val next = this.elements.poll()
                 return StandaloneRecord(
                     next[1] as TupleId,
                     this@Tx.columns,
                     arrayOf(next[0] as Value)
                 )
-            }
-
-            /**
-             * Closes this [CloseableIterator] and releases all locks and resources associated with it.
-             */
-            override fun close() {
-                if (!this.closed) {
-                    this.closed = true
-                }
             }
         }
 
@@ -294,12 +274,12 @@ class NonUniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path
          *
          * @param predicate The [Predicate] to perform the lookup.
          * @param range The [LongRange] to consider.
-         * @return The resulting [CloseableIterator].
+         * @return The resulting [Iterator].
          */
         override fun filterRange(
             predicate: Predicate,
             range: LongRange
-        ): CloseableIterator<Record> {
+        ): Iterator<Record> {
             throw UnsupportedOperationException("The NonUniqueHashIndex does not support ranged filtering!")
         }
     }

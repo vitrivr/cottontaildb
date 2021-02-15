@@ -266,39 +266,29 @@ class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
         }
 
-        override fun scan(columns: Array<ColumnDef<*>>): CloseableIterator<Record> =
+        override fun scan(columns: Array<ColumnDef<*>>): Iterator<Record> =
             scan(columns, 1L..this.maxTupleId())
 
 
-        override fun scan(
-            columns: Array<ColumnDef<*>>,
-            range: LongRange
-        ): CloseableIterator<Record> = object : CloseableIterator<Record> {
-            init {
-                this@Tx.withReadLock { /* No op. */ }
-            }
+        override fun scan(columns: Array<ColumnDef<*>>, range: LongRange): Iterator<Record> =
+            object : Iterator<Record> {
 
-            /** The wrapped [CloseableIterator] of the first (primary) column. */
-            private val wrapped =
-                (this@Tx.context.getTx(this@EntityV1.columns.values.first()) as ColumnTx<*>).scan(
-                    range
-                )
+                /** The wrapped [Iterator] of the first (primary) column. */
+                private val wrapped = this@Tx.withReadLock {
+                    (this@Tx.context.getTx(this@EntityV1.columns.values.first()) as ColumnTx<*>).scan(
+                        range
+                    )
+                }
 
-            /** Flag indicating whether this [CloseableIterator] has been closed. */
-            @Volatile
-            private var closed = false
-
-            /**
-             * Returns the next element in the iteration.
-             */
-            override fun next(): Record {
-                check(!this.closed) { "Illegal invocation of next(): This CloseableIterator has been closed." }
-
-                /* Read values from underlying columns. */
-                val tupleId = this.wrapped.next()
-                val values = columns.map {
-                    val column = this@EntityV1.columns[it.name]
-                        ?: throw IllegalArgumentException("Column $it does not exist on entity ${this@EntityV1.name}.")
+                /**
+                 * Returns the next element in the iteration.
+                 */
+                override fun next(): Record {
+                    /* Read values from underlying columns. */
+                    val tupleId = this.wrapped.next()
+                    val values = columns.map {
+                        val column = this@EntityV1.columns[it.name]
+                            ?: throw IllegalArgumentException("Column $it does not exist on entity ${this@EntityV1.name}.")
                     (this@Tx.context.getTx(column) as ColumnTx<*>).read(tupleId)
                 }.toTypedArray()
 
@@ -310,18 +300,7 @@ class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1
              * Returns `true` if the iteration has more elements.
              */
             override fun hasNext(): Boolean {
-                check(!this.closed) { "Illegal invocation of hasNext(): This CloseableIterator has been closed." }
                 return this.wrapped.hasNext()
-            }
-
-            /**
-             * Closes this [CloseableIterator] and releases all locks and resources associated with it.
-             */
-            override fun close() {
-                if (!this.closed) {
-                    this.wrapped.close()
-                    this.closed = true
-                }
             }
         }
 
