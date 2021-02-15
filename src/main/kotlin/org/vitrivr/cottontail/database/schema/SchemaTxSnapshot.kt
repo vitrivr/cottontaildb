@@ -12,5 +12,5 @@ import org.vitrivr.cottontail.model.basics.Name
  */
 interface SchemaTxSnapshot : TxSnapshot {
     /** A map of all [Entity] structures available to the enclosing [SchemaTx]. */
-    val entites: MutableMap<Name.EntityName, Entity>
+    val entities: MutableMap<Name.EntityName, Entity>
 }

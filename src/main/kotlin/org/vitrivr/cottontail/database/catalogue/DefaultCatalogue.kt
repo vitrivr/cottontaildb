@@ -93,10 +93,15 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
 
         /* Initialize. */
         for (schemaRef in this.headerField.get().schemas) {
-            if (!Files.exists(schemaRef.path)) {
-                throw DatabaseException.DataCorruptionException("Broken catalogue entry for schema '${schemaRef.name}'. Path ${schemaRef.path} does not exist!")
+            if (schemaRef.path != null && Files.exists(schemaRef.path)) {
+                this.registry[Name.SchemaName(schemaRef.name)] = DefaultSchema(path, this)
+            } else {
+                val path = this.path.resolve("schema_${schemaRef.name}")
+                if (!Files.exists(path)) {
+                    throw DatabaseException.DataCorruptionException("Broken catalogue entry for schema '${schemaRef.name}'. Path ${schemaRef.path} does not exist!")
+                }
+                this.registry[Name.SchemaName(schemaRef.name)] = DefaultSchema(path, this)
             }
-            this.registry[Name.SchemaName(schemaRef.name)] = DefaultSchema(schemaRef.path, this)
         }
     }
 
@@ -148,23 +153,45 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
 
             /* Make changes to indexes available to entity and persist them. */
             override fun commit() {
-                /* Materialize created schemas. */
+                /* Update update header and commit changes. */
+                try {
+                    val oldHeader = this@DefaultCatalogue.headerField.get()
+                    val newHeader = oldHeader.copy(
+                        modified = System.currentTimeMillis(),
+                        schemas = this.schemas.values.map {
+                            CatalogueHeader.SchemaRef(
+                                it.name.simple,
+                                null
+                            )
+                        }
+                    )
+                    this@DefaultCatalogue.headerField.compareAndSet(oldHeader, newHeader)
+                    this@DefaultCatalogue.store.commit()
+                } catch (e: DBException) {
+                    this@Tx.status = TxStatus.ERROR
+                    this@DefaultCatalogue.store.rollback()
+                    throw DatabaseException("Failed to commit catalogue due to a storage exception: ${e.message}")
+                }
+
+                /* Materialize created schemas in enclosing Catalogue. */
                 this.schemas.forEach {
                     if (!this@DefaultCatalogue.registry.contains(it.key)) {
                         this@DefaultCatalogue.registry[it.key] = it.value
                     }
                 }
 
-                /* Materialize dropped schemas. */
-                this@DefaultCatalogue.registry.forEach { (k, v) ->
-                    if (!this.schemas.contains(k)) {
-                        v.close()
-                        FileUtilities.deleteRecursively(v.path)
+                /* Materialize dropped schemas in enclosing Catalogue. */
+                val remove = this@DefaultCatalogue.registry.values.filter {
+                    !this.schemas.containsKey(it.name)
+                }
+                remove.forEach {
+                    try {
+                        it.close()
+                        FileUtilities.deleteRecursively(it.path)
+                    } finally {
+                        this@DefaultCatalogue.registry.remove(it.name)
                     }
                 }
-
-                /* Commit changes to store. */
-                this@DefaultCatalogue.store.commit()
             }
 
             /* Delete newly created entities and commit store. */
@@ -175,9 +202,6 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
                         FileUtilities.deleteRecursively(it.value.path)
                     }
                 }
-
-                /* Rolback changes. */
-                this@DefaultCatalogue.store.rollback()
             }
         }
 
@@ -206,9 +230,8 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
          */
         override fun createSchema(name: Name.SchemaName): Schema = this.withWriteLock {
             /* Check if schema with that name exists. */
-            if (this.snapshot.schemas.contains(name)) throw DatabaseException.SchemaAlreadyExistsException(
-                name
-            )
+            if (this.snapshot.schemas.contains(name))
+                throw DatabaseException.SchemaAlreadyExistsException(name)
 
             try {
                 /* Create empty folder for entity. */
@@ -229,13 +252,7 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
                 store.commit()
                 store.close()
 
-                /* Update this catalogue's header. */
-                val oldHeader = this@DefaultCatalogue.headerField.get()
-                val newHeader = oldHeader.copy(modified = System.currentTimeMillis())
-                newHeader.addSchemaRef(CatalogueHeader.SchemaRef(name.simple, data))
-                this@DefaultCatalogue.headerField.compareAndSet(oldHeader, newHeader)
-
-                /* Add schema to snapshot. */
+                /* Add created schema to local snapshot. */
                 val schema = DefaultSchema(data, this@DefaultCatalogue)
                 this.snapshot.schemas[name] = schema
                 return schema
@@ -254,32 +271,16 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
          */
         override fun dropSchema(name: Name.SchemaName) = this.withWriteLock {
             /* Obtain schema and acquire exclusive lock on it. */
-            val schema =
-                this.snapshot.schemas[name] ?: throw DatabaseException.SchemaDoesNotExistException(
-                    name
-                )
+            val schema = this.snapshot.schemas[name]
+                ?: throw DatabaseException.SchemaDoesNotExistException(name)
+
             if (this.context.lockOn(schema) == LockMode.NO_LOCK) {
                 this.context.requestLock(schema, LockMode.EXCLUSIVE)
             }
 
-            /* Add dropped schema to snapshot. */
+            /* Remove dropped schema from local snapshot. */
             this.snapshot.schemas.remove(name)
-
-            /* Remove catalogue entry + update header. */
-            try {
-                /* Update this catalogue's header. */
-                val oldHeader = this@DefaultCatalogue.headerField.get()
-                val newHeader = oldHeader.copy(modified = System.currentTimeMillis())
-                newHeader.removeSchemaRef(name.simple)
-                this@DefaultCatalogue.headerField.compareAndSet(oldHeader, newHeader)
-                Unit
-            } catch (e: DBException) {
-                this.status = TxStatus.ERROR
-                throw DatabaseException("Failed to drop schema '$name' due to a storage exception: ${e.message}")
-            } catch (e: IOException) {
-                this.status = TxStatus.ERROR
-                throw DatabaseException("Failed to drop schema '$name' due to a IO exception: ${e.message}")
-            }
+            Unit
         }
 
         /**

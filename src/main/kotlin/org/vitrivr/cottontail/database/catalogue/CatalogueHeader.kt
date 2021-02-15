@@ -19,11 +19,9 @@ import java.util.*
 internal data class CatalogueHeader(
     val uid: String = UUID.randomUUID().toString(),
     val created: Long = System.currentTimeMillis(),
-    val modified: Long = System.currentTimeMillis()
+    val modified: Long = System.currentTimeMillis(),
+    val schemas: List<SchemaRef> = emptyList()
 ) {
-
-    /** Internal list of [SchemaRef]s. */
-    val schemas: List<SchemaRef> = LinkedList()
 
     companion object Serializer : org.mapdb.Serializer<CatalogueHeader> {
         override fun serialize(out: DataOutput2, value: CatalogueHeader) {
@@ -39,47 +37,36 @@ internal data class CatalogueHeader(
             val version = DBOVersion.values()[input.unpackInt()]
             if (version != DBOVersion.V2_0)
                 throw DatabaseException.VersionMismatchException(version, DBOVersion.V2_0)
-            val header = CatalogueHeader(input.readUTF(), input.readLong(), input.readLong())
-            repeat(input.unpackInt()) {
-                header.addSchemaRef(SchemaRef.deserialize(input, available))
-            }
-            return header
+            return CatalogueHeader(
+                input.readUTF(),
+                input.readLong(),
+                input.readLong(),
+                (0 until input.unpackInt()).map { SchemaRef.deserialize(input, available) }
+            )
         }
-    }
-
-    /**
-     * Adds an [SchemaRef] to this [CatalogueHeader].
-     *
-     * @param ref The [SchemaRef] to add (must be unique).
-     */
-    fun addSchemaRef(ref: SchemaRef) {
-        require(this.schemas.count { it.name == ref.name } == 0) { "Schema reference with ${ref.name} already exists." }
-        (this.schemas as LinkedList).add(ref)
-    }
-
-    /**
-     * Remove [SchemaRef] from this [CatalogueHeader].
-     *
-     * @param name The name of the [SchemaRef] to remove (must be unique).
-     */
-    fun removeSchemaRef(name: String) {
-        val ref = this.schemas.find { it.name == name }
-            ?: IllegalArgumentException("No schema reference for entity $name found in header.")
-        (this.schemas as LinkedList).remove(ref)
     }
 
     /**
      * A reference to a schema.
      */
-    data class SchemaRef(val name: String, val path: Path) {
+    data class SchemaRef(val name: String, val path: Path? = null) {
         companion object Serializer : org.mapdb.Serializer<SchemaRef> {
             override fun serialize(out: DataOutput2, value: SchemaRef) {
                 out.writeUTF(value.name)
-                out.writeUTF(value.path.toString())
+                out.writeBoolean(value.path != null)
+                if (value.path != null) {
+                    out.writeUTF(value.path.toString())
+                }
             }
 
             override fun deserialize(input: DataInput2, available: Int): SchemaRef {
-                return SchemaRef(input.readUTF(), Paths.get(input.readUTF()))
+                return SchemaRef(
+                    input.readUTF(), if (input.readBoolean()) {
+                        Paths.get(input.readUTF())
+                    } else {
+                        null
+                    }
+                )
             }
         }
     }

@@ -6,8 +6,6 @@ import org.vitrivr.cottontail.database.column.ColumnEngine
 import org.vitrivr.cottontail.database.general.DBOVersion
 import org.vitrivr.cottontail.database.index.IndexType
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
-import java.nio.file.Path
-import java.nio.file.Paths
 
 /**
  * The header section of the [DefaultEntity] data structure.
@@ -53,18 +51,16 @@ data class EntityHeader(
     /**
      * Reference pointing to a column.
      */
-    data class ColumnRef(val name: String, val type: ColumnEngine, val path: Path) {
+    data class ColumnRef(val name: String, val type: ColumnEngine) {
         companion object Serializer : org.mapdb.Serializer<ColumnRef> {
             override fun serialize(out: DataOutput2, value: ColumnRef) {
                 out.writeUTF(value.name)
                 out.packInt(value.type.ordinal)
-                out.writeUTF(value.path.toString())
             }
 
             override fun deserialize(input: DataInput2, available: Int): ColumnRef = ColumnRef(
                 input.readUTF(),
-                ColumnEngine.values()[input.unpackInt()],
-                Paths.get(input.readUTF())
+                ColumnEngine.values()[input.unpackInt()]
             )
         }
     }
@@ -72,18 +68,16 @@ data class EntityHeader(
     /**
      * Reference pointing to an index.
      */
-    data class IndexRef(val name: String, val type: IndexType, val path: Path) {
+    data class IndexRef(val name: String, val type: IndexType) {
         companion object Serializer : org.mapdb.Serializer<IndexRef> {
             override fun serialize(out: DataOutput2, value: IndexRef) {
                 out.writeUTF(value.name)
                 out.packInt(value.type.ordinal)
-                out.writeUTF(value.path.toString())
             }
 
             override fun deserialize(input: DataInput2, available: Int): IndexRef = IndexRef(
                 input.readUTF(),
-                IndexType.values()[input.unpackInt()],
-                Paths.get(input.readUTF())
+                IndexType.values()[input.unpackInt()]
             )
         }
     }

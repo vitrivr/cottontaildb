@@ -76,7 +76,8 @@ class DefaultSchema(override val path: Path, override val parent: DefaultCatalog
     init {
         /* Initialize all entities. */
         this.headerField.get().entities.map {
-            this.registry[this.name.entity(it.name)] = DefaultEntity(it.path, this)
+            val path = this.path.resolve("entity_${it.name}")
+            this.registry[this.name.entity(it.name)] = DefaultEntity(path, this)
         }
     }
 
@@ -133,38 +134,56 @@ class DefaultSchema(override val path: Path, override val parent: DefaultCatalog
 
         /** The [SchemaTxSnapshot] of this [SchemaTx]. */
         override val snapshot = object : SchemaTxSnapshot {
-            override val entites = Object2ObjectOpenHashMap(this@DefaultSchema.registry)
+            /** List of entities available to this [Tx]. */
+            override val entities = Object2ObjectOpenHashMap(this@DefaultSchema.registry)
 
-            /* Make changes to indexes available to entity and persist them. */
+            /**
+             * Commits the [SchemaTx] and integrates all changes made through it into the [DefaultSchema].
+             */
             override fun commit() {
+                /* Update update header and commit changes. */
+                try {
+                    val newHeader = this@DefaultSchema.headerField.get().copy(
+                        modified = System.currentTimeMillis(),
+                        entities = this.entities.map { SchemaHeader.EntityRef(it.value.name.simple) }
+                    )
+                    this@DefaultSchema.headerField.set(newHeader)
+                    this@DefaultSchema.store.commit()
+                } catch (e: DBException) {
+                    this@Tx.status = TxStatus.ERROR
+                    this@DefaultSchema.store.rollback()
+                    throw DatabaseException("Failed to commit schema ${this@DefaultSchema.name} due to a storage exception: ${e.message}")
+                }
+
                 /* Materialize created entities. */
-                this.entites.forEach {
+                this.entities.forEach {
                     if (!this@DefaultSchema.registry.contains(it.key)) {
                         this@DefaultSchema.registry[it.key] = it.value
                     }
                 }
 
                 /* Materialize dropped entities. */
-                this@DefaultSchema.registry.forEach { (k, v) ->
-                    if (!this.entites.contains(k)) {
-                        v.close()
-                        FileUtilities.deleteRecursively(v.path)
+                val remove = this@DefaultSchema.registry.values.filter {
+                    !this.entities.containsKey(it.name)
+                }
+                remove.forEach {
+                    try {
+                        it.close()
+                        FileUtilities.deleteRecursively(it.path)
+                    } finally {
+                        this@DefaultSchema.registry.remove(it.name)
                     }
                 }
-
-                /* Commit changes. */
-                this@DefaultSchema.store.commit()
             }
 
             /* Delete newly created entities and commit store. */
             override fun rollback() {
-                this.entites.forEach {
+                this.entities.forEach {
                     if (!this@DefaultSchema.registry.contains(it.key)) {
                         it.value.close()
                         FileUtilities.deleteRecursively(it.value.path)
                     }
                 }
-                this@DefaultSchema.store.rollback()
             }
         }
 
@@ -174,7 +193,7 @@ class DefaultSchema(override val path: Path, override val parent: DefaultCatalog
          * @return [List] of all [Name.EntityName].
          */
         override fun listEntities(): List<Entity> = this.withReadLock {
-            this.snapshot.entites.values.toList()
+            this.snapshot.entities.values.toList()
         }
 
         /**
@@ -185,7 +204,8 @@ class DefaultSchema(override val path: Path, override val parent: DefaultCatalog
          * @return [DefaultEntity] or null.
          */
         override fun entityForName(name: Name.EntityName): Entity = this.withReadLock {
-            this.snapshot.entites[name] ?: throw DatabaseException.EntityDoesNotExistException(name)
+            this.snapshot.entities[name]
+                ?: throw DatabaseException.EntityDoesNotExistException(name)
         }
 
         /**
@@ -200,13 +220,14 @@ class DefaultSchema(override val path: Path, override val parent: DefaultCatalog
         ): Entity =
             this.withWriteLock {
                 /* Perform some sanity checks. */
-                if (this.snapshot.entites.contains(name)) throw DatabaseException.EntityAlreadyExistsException(
+                if (this.snapshot.entities.contains(name)) throw DatabaseException.EntityAlreadyExistsException(
                     name
                 )
                 val distinctSize = columns.map { it.first.name }.distinct().size
-                if (distinctSize != columns.size) throw DatabaseException.DuplicateColumnException(
-                    name,
-                    columns.map { it.first.name })
+                if (distinctSize != columns.size) {
+                    val cols = columns.map { it.first.name }
+                    throw DatabaseException.DuplicateColumnException(name, cols)
+                }
 
                 try {
                     /* Create empty folder for entity. */
@@ -217,46 +238,41 @@ class DefaultSchema(override val path: Path, override val parent: DefaultCatalog
                         throw DatabaseException("Failed to create entity '$name'. Data directory '$data' seems to be occupied.")
                     }
 
-                /* Generate the entity and initialize the new entities header. */
-                val store = this@DefaultSchema.parent.config.mapdb.db(data.resolve(DefaultEntity.CATALOGUE_FILE))
-                val columnsRefs = columns.map {
-                    val path = data.resolve("${it.first.name.simple}.col")
-                    when (it.second) {
-                        ColumnEngine.MAPDB -> {
-                            MapDBColumn.initialize(
-                                path,
-                                it.first,
-                                this@DefaultSchema.parent.config.mapdb
-                            )
+                    /* Generate the entity and initialize the new entities header. */
+                    val store =
+                        this@DefaultSchema.parent.config.mapdb.db(data.resolve(DefaultEntity.CATALOGUE_FILE))
+                    val columnsRefs = columns.map {
+                        val path = data.resolve("${it.first.name.simple}.col")
+                        when (it.second) {
+                            ColumnEngine.MAPDB -> {
+                                MapDBColumn.initialize(
+                                    path,
+                                    it.first,
+                                    this@DefaultSchema.parent.config.mapdb
+                                )
+                            }
+                            ColumnEngine.HARE -> throw UnsupportedOperationException("The column driver ${it.second} is currently not supported.")
                         }
-                        ColumnEngine.HARE -> throw UnsupportedOperationException("The column driver ${it.second} is currently not supported.")
+                        EntityHeader.ColumnRef(it.first.name.simple, it.second)
                     }
-                    EntityHeader.ColumnRef(it.first.name.simple, it.second, path)
-                }
-                val entityHeader = EntityHeader(name = name.simple, columns = columnsRefs)
+                    val entityHeader = EntityHeader(name = name.simple, columns = columnsRefs)
                     store.atomicVar(DefaultEntity.ENTITY_HEADER_FIELD, EntityHeader.Serializer)
                         .create().set(entityHeader)
                     store.commit()
-                store.close()
+                    store.close()
 
-                /* Update this schema's header. */
-                val oldHeader = this@DefaultSchema.headerField.get()
-                val newHeader = oldHeader.copy(modified = System.currentTimeMillis())
-                newHeader.addEntityRef(SchemaHeader.EntityRef(name.simple, data))
-                this@DefaultSchema.headerField.compareAndSet(oldHeader, newHeader)
-
-                /* ON COMMIT: Make entity available. */
-                val entity = DefaultEntity(data, this@DefaultSchema)
-                    this.snapshot.entites.put(name, entity)
-                return entity
-            } catch (e: DBException) {
-                this.status = TxStatus.ERROR
-                throw DatabaseException("Failed to create entity '$name' due to error in the underlying data store: {${e.message}")
-            } catch (e: IOException) {
-                this.status = TxStatus.ERROR
-                throw DatabaseException("Failed to create entity '$name' due to an IO exception: {${e.message}")
+                    /* Make entity available to Tx. */
+                    val entity = DefaultEntity(data, this@DefaultSchema)
+                    this.snapshot.entities[name] = entity
+                    return entity
+                } catch (e: DBException) {
+                    this.status = TxStatus.ERROR
+                    throw DatabaseException("Failed to create entity '$name' due to error in the underlying data store: {${e.message}")
+                } catch (e: IOException) {
+                    this.status = TxStatus.ERROR
+                    throw DatabaseException("Failed to create entity '$name' due to an IO exception: {${e.message}")
+                }
             }
-        }
 
         /**
          * Drops an [DefaultEntity] from this [DefaultSchema].
@@ -265,29 +281,15 @@ class DefaultSchema(override val path: Path, override val parent: DefaultCatalog
          */
         override fun dropEntity(name: Name.EntityName) = this.withWriteLock {
             /* Get entity and try to obtain lock. */
-            val entity =
-                this@DefaultSchema.registry[name] ?: throw DatabaseException.EntityDoesNotExistException(
-                    name
-                )
+            val entity = this@DefaultSchema.registry[name]
+                ?: throw DatabaseException.EntityDoesNotExistException(name)
             if (this.context.lockOn(entity) == LockMode.NO_LOCK) {
                 this.context.requestLock(entity, LockMode.EXCLUSIVE)
             }
 
-            /* Close entity and remove it from registry. */
-            entity.close()
-            this@DefaultSchema.registry.remove(name)
-
-            try {
-                /* Update this schema's header. */
-                val oldHeader = this@DefaultSchema.headerField.get()
-                val newHeader = oldHeader.copy(modified = System.currentTimeMillis())
-                newHeader.removeEntityRef(name.simple)
-                this@DefaultSchema.headerField.compareAndSet(oldHeader, newHeader)
-                Unit
-            } catch (e: DBException) {
-                this.status = TxStatus.ERROR
-                throw DatabaseException("Entity '$name' could not be dropped, because of an error in the underlying data store: ${e.message}!")
-            }
+            /* Close entity and remove it from local. */
+            this.snapshot.entities.remove(name)
+            Unit
         }
 
         /**

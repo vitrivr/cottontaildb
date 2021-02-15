@@ -4,8 +4,6 @@ import org.mapdb.DataInput2
 import org.mapdb.DataOutput2
 import org.vitrivr.cottontail.database.general.DBOVersion
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
-import java.nio.file.Path
-import java.nio.file.Paths
 import java.util.*
 
 /**
@@ -19,11 +17,9 @@ import java.util.*
 data class SchemaHeader(
     val name: String,
     val created: Long = System.currentTimeMillis(),
-    var modified: Long = System.currentTimeMillis()
-) {
-
-    /** Internal list of [EntityRef]s. */
+    val modified: Long = System.currentTimeMillis(),
     val entities: List<EntityRef> = LinkedList()
+) {
 
     companion object Serializer : org.mapdb.Serializer<SchemaHeader> {
         override fun serialize(out: DataOutput2, value: SchemaHeader) {
@@ -39,53 +35,26 @@ data class SchemaHeader(
             val version = DBOVersion.values()[input.unpackInt()]
             if (version != DBOVersion.V2_0)
                 throw DatabaseException.VersionMismatchException(version, DBOVersion.V2_0)
-            val header = SchemaHeader(input.readUTF(), input.readLong(), input.readLong())
-            repeat(input.unpackInt()) {
-                header.addEntityRef(
-                    EntityRef.deserialize(
-                        input,
-                        available
-                    )
-                )
-            }
-            return header
+            return SchemaHeader(
+                input.readUTF(),
+                input.readLong(),
+                input.readLong(),
+                (0 until input.unpackInt()).map { EntityRef.deserialize(input, available) }
+            )
         }
     }
 
     /**
-     * Adds an [EntityRef] to this [SchemaHeader].
-     *
-     * @param ref The [EntityRef] to add (must be unique).
+     * Reference pointing to an entity.
      */
-    fun addEntityRef(ref: EntityRef) {
-        require(this.entities.count { it.name == ref.name } == 0) { "No entity reference with $name already exists." }
-        (this.entities as LinkedList).add(ref)
-    }
-
-    /**
-     * Remove [EntityRef] from this [SchemaHeader].
-     *
-     * @param ref The [EntityRef] to remove (must be unique).
-     */
-    fun removeEntityRef(name: String) {
-        val ref = this.entities.find { it.name == name }
-            ?: IllegalArgumentException("No entity reference for entity $name found in header.")
-        (this.entities as LinkedList).remove(ref)
-    }
-
-    /**
-     * Reference pointing to an entity..
-     */
-    data class EntityRef(val name: String, val path: Path) {
+    data class EntityRef(val name: String) {
         companion object Serializer : org.mapdb.Serializer<EntityRef> {
             override fun serialize(out: DataOutput2, value: EntityRef) {
                 out.writeUTF(value.name)
-                out.writeUTF(value.path.toString())
             }
 
             override fun deserialize(input: DataInput2, available: Int): EntityRef = EntityRef(
-                input.readUTF(),
-                Paths.get(input.readUTF())
+                input.readUTF()
             )
         }
     }
