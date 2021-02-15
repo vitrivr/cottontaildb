@@ -64,7 +64,7 @@ open class KnnPredicate(
      * @return this
      */
     fun query(value: ValueBinding): KnnPredicate {
-        require(value.type != this.column.type) { "The provided query vector does not match the kNN column ${column.name} (type = ${column.type})." }
+        require(value.type == this.column.type) { "The provided query vector does not match the kNN column ${column.name} (type = ${column.type})." }
         this._queryBindings.add(value)
         return this
     }
@@ -76,7 +76,7 @@ open class KnnPredicate(
      * @return this
      */
     fun query(value: VectorValue<*>): KnnPredicate {
-        require(value.type != this.column.type) { "The provided query vector does not match the kNN column ${column.name} (type = ${column.type})." }
+        require(value.type == this.column.type) { "The provided query vector does not match the kNN column ${column.name} (type = ${column.type})." }
         this._query.add(value)
         return this
     }
@@ -88,7 +88,7 @@ open class KnnPredicate(
      * @return this
      */
     fun weight(value: ValueBinding): KnnPredicate {
-        require(value.type != this.column.type) { "The provided weight vector does not match the kNN column ${column.name} (type = ${column.type})." }
+        require(value.type == this.column.type) { "The provided weight vector does not match the kNN column ${column.name} (type = ${column.type})." }
         this._weightsBindings.add(value)
         return this
     }
@@ -100,7 +100,7 @@ open class KnnPredicate(
      * @return this
      */
     fun weight(value: VectorValue<*>): KnnPredicate {
-        require(value.type != this.column.type) { "The provided weight vector does not match the kNN column ${column.name} (type = ${column.type})." }
+        require(value.type == this.column.type) { "The provided weight vector does not match the kNN column ${column.name} (type = ${column.type})." }
         this._weights.add(value)
         return this
     }
