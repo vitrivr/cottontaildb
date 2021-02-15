@@ -15,11 +15,11 @@ import org.vitrivr.cottontail.model.basics.*
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import org.vitrivr.cottontail.model.exceptions.TxException
 import org.vitrivr.cottontail.model.values.types.Value
-import org.vitrivr.cottontail.utilities.extensions.write
 
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.*
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.StampedLock
 
 /**
@@ -96,16 +96,28 @@ class MapDBColumn<T : Value>(override val path: Path, override val parent: Entit
     override var closed: Boolean = false
         private set
 
-    /** An internal lock that is used to synchronize structural changes to an [MapDBColumn] (e.g. closing or deleting) with running [MapDBColumn.Tx]. */
-    private val globalLock = StampedLock()
+    /** An internal lock that is used to synchronize closing of the[MapDBColumn] in presence of ongoing [MapDBColumn.Tx]. */
+    private val closeLock = StampedLock()
 
     /**
      * Closes the [MapDBColumn]. Closing an [MapDBColumn] is a delicate matter since ongoing [MapDBColumn.Tx]  are involved.
      * Therefore, access to the method is mediated by an global [MapDBColumn] wide lock.
      */
-    override fun close() = this.globalLock.write {
-        this.store.close()
-        this.closed = true
+    override fun close() {
+        if (!this.closed) {
+            try {
+                val stamp = this.closeLock.tryWriteLock(1000, TimeUnit.MILLISECONDS)
+                try {
+                    this.store.close()
+                    this.closed = true
+                } catch (e: Throwable) {
+                    this.closeLock.unlockWrite(stamp)
+                    throw e
+                }
+            } catch (e: InterruptedException) {
+                throw IllegalStateException("Could not close column ${this.name}. Failed to acquire exclusive lock which indicates, that transaction wasn't closed properly.")
+            }
+        }
     }
 
     /**
@@ -139,7 +151,7 @@ class MapDBColumn<T : Value>(override val path: Path, override val parent: Entit
         private val serializer = this@MapDBColumn.type.serializer()
 
         /** Obtains a global (non-exclusive) read-lock on [MapDBColumn]. Prevents enclosing [MapDBColumn] from being closed while this [MapDBColumn.Tx] is still in use. */
-        private val globalStamp = this@MapDBColumn.globalLock.readLock()
+        private val globalStamp = this@MapDBColumn.closeLock.readLock()
 
         /** [TxSnapshot] of this [ColumnTx]. */
         override val snapshot = object : ColumnTxSnapshot {
@@ -305,10 +317,10 @@ class MapDBColumn<T : Value>(override val path: Path, override val parent: Entit
         }
 
         /**
-         * Releases the [globalLock] on the [MapDBColumn].
+         * Releases the [closeLock] on the [MapDBColumn].
          */
         override fun cleanup() {
-            this@MapDBColumn.globalLock.unlockRead(this.globalStamp)
+            this@MapDBColumn.closeLock.unlockRead(this.globalStamp)
         }
     }
 }

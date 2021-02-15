@@ -23,7 +23,6 @@ import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.DoubleValue
 import org.vitrivr.cottontail.model.values.IntValue
 import org.vitrivr.cottontail.model.values.types.VectorValue
-import org.vitrivr.cottontail.utilities.extensions.write
 import org.vitrivr.cottontail.utilities.math.KnnUtilities
 import java.nio.file.Path
 import java.util.*
@@ -89,17 +88,17 @@ class PQIndex(path: Path, parent: DefaultEntity, config: PQIndexConfig? = null) 
     override val config: PQIndexConfig
 
     /** The [PQ] instance used for real vector components. */
-    private val pqStore = this.db.atomicVar(PQ_INDEX_FIELD, PQ.Serializer).createOrOpen()
+    private val pqStore = this.store.atomicVar(PQ_INDEX_FIELD, PQ.Serializer).createOrOpen()
 
     /** The store of [PQIndexEntry]. */
     private val signaturesStore =
-        this.db.indexTreeList(PQ_INDEX_SIGNATURES_FIELD, PQIndexEntry.Serializer).createOrOpen()
+        this.store.indexTreeList(PQ_INDEX_SIGNATURES_FIELD, PQIndexEntry.Serializer).createOrOpen()
 
     init {
         /* Load or create config. */
         require(this.columns.size == 1) { "PQIndex only supports indexing a single column." }
         val configOnDisk =
-            this.db.atomicVar(INDEX_CONFIG_FIELD, PQIndexConfig.Serializer).createOrOpen()
+            this.store.atomicVar(INDEX_CONFIG_FIELD, PQIndexConfig.Serializer).createOrOpen()
         if (configOnDisk.get() == null) {
             if (config != null) {
                 if (config.numSubspaces == PQIndexConfig.AUTO_VALUE || (config.numSubspaces % this.columns[0].type.logicalSize) != 0) {
@@ -115,7 +114,7 @@ class PQIndex(path: Path, parent: DefaultEntity, config: PQIndexConfig? = null) 
         } else {
             this.config = configOnDisk.get()
         }
-        this.db.commit()
+        this.store.commit()
 
         /** Some assumptions and sanity checks. Some are for documentation, some are cheap enough to actually keep and check. */
         require(this.config.numCentroids > 0) { "PQIndex supports a maximum number of ${this.config.numCentroids} centroids." }
@@ -124,12 +123,6 @@ class PQIndex(path: Path, parent: DefaultEntity, config: PQIndexConfig? = null) 
         require(this.columns[0].type.logicalSize >= this.config.numSubspaces) { "Logical size of the column must be greater or equal than the number of subspaces." }
         require(this.columns[0].type.logicalSize % this.config.numSubspaces == 0) { "Logical size of the column modulo the number of subspaces must be zero." }
     }
-
-
-    /** Flag indicating if this [PQIndex] has been closed. */
-    @Volatile
-    override var closed: Boolean = false
-        private set
 
     /** False since [PQIndex] currently doesn't support incremental updates. */
     override val supportsIncrementalUpdate: Boolean = false
@@ -170,16 +163,6 @@ class PQIndex(path: Path, parent: DefaultEntity, config: PQIndexConfig? = null) 
      * @param context The [TransactionContext] to create this [IndexTx] for.
      */
     override fun newTx(context: TransactionContext): IndexTx = Tx(context)
-
-    /**
-     * Closes this [PQIndex] and the associated data structures.
-     */
-    override fun close() = this.closeLock.write {
-        if (!this.closed) {
-            this.db.close()
-            this.closed = true
-        }
-    }
 
     /**
      * A [IndexTx] that affects this [AbstractIndex].

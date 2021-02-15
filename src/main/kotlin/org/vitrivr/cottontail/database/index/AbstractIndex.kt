@@ -16,6 +16,7 @@ import org.vitrivr.cottontail.model.exceptions.TxException
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.*
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.StampedLock
 
 /**
@@ -71,14 +72,14 @@ abstract class AbstractIndex(final override val path: Path, final override val p
     protected val closeLock = StampedLock()
 
     /** The internal [DB] reference for this [AbstractIndex]. */
-    protected val db: DB = this.parent.parent.parent.config.mapdb.db(this.path)
+    protected val store: DB = this.parent.parent.parent.config.mapdb.db(this.path)
 
     /** The [IndexHeader] for this [AbstractIndex]. */
     protected val headerField =
-        this.db.atomicVar(INDEX_HEADER_FIELD, IndexHeader.Serializer).createOrOpen()
+        this.store.atomicVar(INDEX_HEADER_FIELD, IndexHeader.Serializer).createOrOpen()
 
     /** Internal storage variable for the dirty flag. */
-    protected val dirtyField = this.db.atomicBoolean(INDEX_DIRTY_FIELD).createOrOpen()
+    protected val dirtyField = this.store.atomicBoolean(INDEX_DIRTY_FIELD).createOrOpen()
 
     /** The [Name.IndexName] of this [AbstractIndex]. */
     override val name: Name.IndexName = this.parent.name.index(this.headerField.get().name)
@@ -96,12 +97,27 @@ abstract class AbstractIndex(final override val path: Path, final override val p
     override val dirty: Boolean
         get() = this.dirtyField.get()
 
-    /**
-     * Handles finalization, in case the Garbage Collector reaps a cached [AbstractIndex].
-     */
-    @Synchronized
-    protected fun finalize() {
-        this.close()
+    /** Flag indicating if this [AbstractIndex] has been closed. */
+    @Volatile
+    override var closed: Boolean = false
+        protected set
+
+    /** Closes this [AbstractIndex] and the associated data structures. */
+    override fun close() {
+        if (!this.closed) {
+            try {
+                val stamp = this.closeLock.tryWriteLock(1000, TimeUnit.MILLISECONDS)
+                try {
+                    this.store.close()
+                    this.closed = true
+                } catch (e: Throwable) {
+                    this.closeLock.unlockWrite(stamp)
+                    throw e
+                }
+            } catch (e: InterruptedException) {
+                throw IllegalStateException("Could not close index ${this.name}. Failed to acquire exclusive lock which indicates, that some Tx wasn't closed properly.")
+            }
+        }
     }
 
     /**
@@ -140,8 +156,8 @@ abstract class AbstractIndex(final override val path: Path, final override val p
 
         /** The default [TxSnapshot] of this [IndexTx]. Can be overriden! */
         override val snapshot = object : TxSnapshot {
-            override fun commit() = this@AbstractIndex.db.commit()
-            override fun rollback() = this@AbstractIndex.db.rollback()
+            override fun commit() = this@AbstractIndex.store.commit()
+            override fun rollback() = this@AbstractIndex.store.rollback()
         }
 
         /**

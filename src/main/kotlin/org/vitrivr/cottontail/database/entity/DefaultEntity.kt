@@ -23,11 +23,11 @@ import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import org.vitrivr.cottontail.model.exceptions.TxException
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.types.Value
-import org.vitrivr.cottontail.utilities.extensions.write
 import org.vitrivr.cottontail.utilities.io.FileUtilities
 import java.io.IOException
 import java.nio.file.Path
 import java.util.*
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.StampedLock
 
 /**
@@ -144,21 +144,21 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
      * as all involved [Column]s are involved.Therefore, access to the method is mediated by an
      * global [DefaultEntity] wide lock.
      */
-    override fun close() = this.closeLock.write {
+    override fun close() {
         if (!this.closed) {
-            this.columns.values.forEach { it.close() }
-            this.store.close()
-            this.closed = true
-        }
-    }
-
-    /**
-     * Handles finalization, in case the Garbage Collector reaps a cached [DefaultEntity] soft-reference.
-     */
-    @Synchronized
-    protected fun finalize() {
-        if (!this.closed) {
-            this.close()
+            try {
+                val stamp = this.closeLock.tryWriteLock(1000, TimeUnit.MILLISECONDS)
+                try {
+                    this.columns.values.forEach { it.close() }
+                    this.store.close()
+                    this.closed = true
+                } catch (e: Throwable) {
+                    this.closeLock.unlockWrite(stamp)
+                    throw e
+                }
+            } catch (e: InterruptedException) {
+                throw IllegalStateException("Could not close entity ${this.name}. Failed to acquire exclusive lock which indicates, that transaction wasn't closed properly.")
+            }
         }
     }
 

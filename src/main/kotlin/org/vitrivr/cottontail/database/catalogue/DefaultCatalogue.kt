@@ -14,13 +14,12 @@ import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import org.vitrivr.cottontail.utilities.extensions.read
-import org.vitrivr.cottontail.utilities.extensions.write
 import org.vitrivr.cottontail.utilities.io.FileUtilities
-
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.*
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.StampedLock
 
 /**
@@ -112,10 +111,20 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
     /**
      * Closes the [DefaultCatalogue] and all objects contained within.
      */
-    override fun close() = this.closeLock.write {
-        this.registry.forEach { (_, v) -> v.close() }
-        this.store.close()
-        this.closed = true
+    override fun close() {
+        try {
+            val stamp = this.closeLock.tryWriteLock(1000, TimeUnit.MILLISECONDS)
+            try {
+                this.registry.forEach { (_, v) -> v.close() }
+                this.store.close()
+                this.closed = true
+            } catch (e: Throwable) {
+                this.closeLock.unlockWrite(stamp)
+                throw e
+            }
+        } catch (e: InterruptedException) {
+            throw IllegalStateException("Could not close schema ${this.name}. Failed to acquire exclusive lock which indicates, that transaction wasn't closed properly.")
+        }
     }
 
     /**

@@ -2,7 +2,6 @@ package org.vitrivr.cottontail.database.schema
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
 import org.mapdb.*
-
 import org.vitrivr.cottontail.database.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.column.ColumnEngine
@@ -18,13 +17,12 @@ import org.vitrivr.cottontail.database.locking.LockMode
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
-import org.vitrivr.cottontail.utilities.extensions.read
 import org.vitrivr.cottontail.utilities.io.FileUtilities
-
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.*
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.StampedLock
 
 /**
@@ -97,14 +95,24 @@ class DefaultSchema(override val path: Path, override val parent: DefaultCatalog
      * objects may be held by other threads, it can take a
      * while for this method to complete.
      */
-    override fun close() = this.closeLock.read {
+    override fun close() {
         if (!this.closed) {
-            this.registry.entries.removeIf {
-                it.value.close()
-                true
+            try {
+                val stamp = this.closeLock.tryWriteLock(1000, TimeUnit.MILLISECONDS)
+                try {
+                    this.registry.entries.removeIf {
+                        it.value.close()
+                        true
+                    }
+                    this.store.close()
+                    this.closed = true
+                } catch (e: Throwable) {
+                    this.closeLock.unlockWrite(stamp)
+                    throw e
+                }
+            } catch (e: InterruptedException) {
+                throw IllegalStateException("Could not close schema ${this.name}. Failed to acquire exclusive lock which indicates, that transaction wasn't closed properly.")
             }
-            this.store.close()
-            this.closed = true
         }
     }
 

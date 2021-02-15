@@ -26,7 +26,6 @@ import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.DoubleValue
 import org.vitrivr.cottontail.model.values.IntValue
 import org.vitrivr.cottontail.model.values.types.VectorValue
-import org.vitrivr.cottontail.utilities.extensions.write
 import org.vitrivr.cottontail.utilities.math.KnnUtilities
 import java.nio.file.Path
 import java.util.*
@@ -64,18 +63,11 @@ class GGIndex(path: Path, parent: DefaultEntity, config: GGIndexConfig? = null) 
     override val config: GGIndexConfig
 
     /** Store of the groups mean vector and the associated [TupleId]s. */
-    private val groupsStore: HTreeMap<VectorValue<*>, LongArray> = this.db.hashMap(
+    private val groupsStore: HTreeMap<VectorValue<*>, LongArray> = this.store.hashMap(
         GG_INDEX_NAME,
         this.columns[0].type.serializer() as Serializer<VectorValue<*>>,
         Serializer.LONG_ARRAY
     ).counterEnable().createOrOpen()
-
-    /**
-     * Flag indicating if this [PQIndex] has been closed.
-     */
-    @Volatile
-    override var closed: Boolean = false
-        private set
 
     /** False since [GGIndex] currently doesn't support incremental updates. */
     override val supportsIncrementalUpdate: Boolean = false
@@ -87,7 +79,8 @@ class GGIndex(path: Path, parent: DefaultEntity, config: GGIndexConfig? = null) 
         require(this.columns.size == 1) { "GGIndex only supports indexing a single column." }
 
         /* Load or create config. */
-        val configOnDisk = this.db.atomicVar(GG_INDEX_NAME, GGIndexConfig.Serializer).createOrOpen()
+        val configOnDisk =
+            this.store.atomicVar(GG_INDEX_NAME, GGIndexConfig.Serializer).createOrOpen()
         if (configOnDisk.get() == null) {
             if (config != null) {
                 this.config = config
@@ -98,7 +91,7 @@ class GGIndex(path: Path, parent: DefaultEntity, config: GGIndexConfig? = null) 
         } else {
             this.config = configOnDisk.get()
         }
-        this.db.commit()
+        this.store.commit()
     }
 
     /**
@@ -125,16 +118,6 @@ class GGIndex(path: Path, parent: DefaultEntity, config: GGIndexConfig? = null) 
      * @param context The [TransactionContext] to create this [IndexTx] for.
      */
     override fun newTx(context: TransactionContext): IndexTx = Tx(context)
-
-    /**
-     * Closes this [GGIndex] and the associated data structures.
-     */
-    override fun close() = this.closeLock.write {
-        if (!this.closed) {
-            this.db.close()
-            this.closed = true
-        }
-    }
 
     /**
      * A [IndexTx] that affects this [AbstractIndex].

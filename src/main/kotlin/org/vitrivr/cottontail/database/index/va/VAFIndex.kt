@@ -32,7 +32,6 @@ import org.vitrivr.cottontail.model.values.DoubleValue
 import org.vitrivr.cottontail.model.values.IntValue
 import org.vitrivr.cottontail.model.values.types.RealVectorValue
 import org.vitrivr.cottontail.model.values.types.VectorValue
-import org.vitrivr.cottontail.utilities.extensions.write
 import org.vitrivr.cottontail.utilities.math.KnnUtilities
 import java.nio.file.Path
 import java.util.*
@@ -72,18 +71,18 @@ class VAFIndex(path: Path, parent: DefaultEntity, config: VAFIndexConfig? = null
 
     /** Store for the [Marks]. */
     private val marksStore: Atomic.Var<Marks> =
-        this.db.atomicVar(VAF_INDEX_MARKS_FIELD, Marks.Serializer).createOrOpen()
+        this.store.atomicVar(VAF_INDEX_MARKS_FIELD, Marks.Serializer).createOrOpen()
 
     /** Store for the signatures. */
     private val signatures =
-        this.db.indexTreeList(VAF_INDEX_SIGNATURES_FIELD, VAFSignature.Serializer).createOrOpen()
+        this.store.indexTreeList(VAF_INDEX_SIGNATURES_FIELD, VAFSignature.Serializer).createOrOpen()
 
     init {
         require(this.columns.size == 1) { "$VAFIndex only supports indexing a single column." }
 
         /* Load or create config. */
         val configOnDisk =
-            this.db.atomicVar(INDEX_CONFIG_FIELD, VAFIndexConfig.Serializer).createOrOpen()
+            this.store.atomicVar(INDEX_CONFIG_FIELD, VAFIndexConfig.Serializer).createOrOpen()
         if (configOnDisk.get() == null) {
             if (config != null) {
                 this.config = config
@@ -94,29 +93,14 @@ class VAFIndex(path: Path, parent: DefaultEntity, config: VAFIndexConfig? = null
         } else {
             this.config = configOnDisk.get()
         }
-        this.db.commit()
+        this.store.commit()
     }
-
-    /** Flag indicating if this [VAFIndex] has been closed. */
-    @Volatile
-    override var closed: Boolean = false
-        private set
 
     /** False since [VAFIndex] currently doesn't support incremental updates. */
     override val supportsIncrementalUpdate: Boolean = false
 
     /** True since [VAFIndex] supports partitioning. */
     override val supportsPartitioning: Boolean = true
-
-    /**
-     * Closes this [VAFIndex] and the associated data structures.
-     */
-    override fun close() = this.closeLock.write {
-        if (!this.closed) {
-            this.db.close()
-            this.closed = true
-        }
-    }
 
     /**
      * Calculates the cost estimate if this [VAFIndex] processing the provided [Predicate].

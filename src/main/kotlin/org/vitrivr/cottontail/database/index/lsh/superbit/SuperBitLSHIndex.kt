@@ -72,7 +72,8 @@ class SuperBitLSHIndex<T : VectorValue<*>>(
             )
         }
         val configOnDisk =
-            this.db.atomicVar(INDEX_CONFIG_FIELD, SuperBitLSHIndexConfig.Serializer).createOrOpen()
+            this.store.atomicVar(INDEX_CONFIG_FIELD, SuperBitLSHIndexConfig.Serializer)
+                .createOrOpen()
         if (configOnDisk.get() == null) {
             if (config != null) {
                 this.config = config
@@ -85,12 +86,16 @@ class SuperBitLSHIndex<T : VectorValue<*>>(
             this.config = configOnDisk.get()
         }
         this.maps = List(this.config.stages) {
-            this.db.hashMap(LSH_MAP_FIELD + "_stage$it", Serializer.INTEGER, Serializer.LONG_ARRAY)
+            this.store.hashMap(
+                LSH_MAP_FIELD + "_stage$it",
+                Serializer.INTEGER,
+                Serializer.LONG_ARRAY
+            )
                 .counterEnable().createOrOpen()
         }
 
         /* Initial commit to underlying DB. */
-        this.db.commit()
+        this.store.commit()
     }
 
     /**

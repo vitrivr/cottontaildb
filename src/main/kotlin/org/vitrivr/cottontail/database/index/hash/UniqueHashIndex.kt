@@ -16,7 +16,6 @@ import org.vitrivr.cottontail.model.basics.*
 import org.vitrivr.cottontail.model.exceptions.TxException
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.types.Value
-import org.vitrivr.cottontail.utilities.extensions.write
 import java.nio.file.Path
 import java.util.*
 
@@ -42,15 +41,8 @@ class UniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path, p
 
     /** Map structure used for [UniqueHashIndex]. */
     private val map: HTreeMap<Value, TupleId> =
-        this.db.hashMap(UQ_INDEX_MAP, this.columns[0].type.serializer(), Serializer.LONG_DELTA)
+        this.store.hashMap(UQ_INDEX_MAP, this.columns[0].type.serializer(), Serializer.LONG_DELTA)
             .createOrOpen() as HTreeMap<Value, TupleId>
-
-    /**
-     * Flag indicating if this [UniqueHashIndex] has been closed.
-     */
-    @Volatile
-    override var closed: Boolean = false
-        private set
 
     /** True since [UniqueHashIndex] supports incremental updates. */
     override val supportsIncrementalUpdate: Boolean = true
@@ -59,7 +51,7 @@ class UniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path, p
     override val supportsPartitioning: Boolean = false
 
     init {
-        this.db.commit() /* Initial commit. */
+        this.store.commit() /* Initial commit. */
     }
 
     /**
@@ -93,17 +85,6 @@ class UniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path, p
      * @param context [TransactionContext] to open the [AbstractIndex.Tx] for.
      */
     override fun newTx(context: TransactionContext): IndexTx = Tx(context)
-
-    /**
-     * Closes this [UniqueHashIndex] and the associated data structures.
-     */
-    override fun close() = this.closeLock.write {
-        if (!this.closed) {
-            this.db.close()
-            this.closed = true
-        }
-    }
-
 
     /**
      * An [IndexTx] that affects this [UniqueHashIndex].

@@ -32,7 +32,6 @@ import org.vitrivr.cottontail.model.values.FloatValue
 import org.vitrivr.cottontail.model.values.StringValue
 import org.vitrivr.cottontail.model.values.pattern.LikePatternValue
 import org.vitrivr.cottontail.model.values.pattern.LucenePatternValue
-import org.vitrivr.cottontail.utilities.extensions.write
 import java.nio.file.Path
 
 /**
@@ -69,11 +68,6 @@ class LuceneIndex(path: Path, parent: DefaultEntity, config: LuceneIndexConfig? 
     /** The [LuceneIndexConfig] used by this [LuceneIndex] instance. */
     override val config: LuceneIndexConfig
 
-    /** Flag indicating whether or not this [LuceneIndex] is open and usable. */
-    @Volatile
-    override var closed: Boolean = false
-        private set
-
     /** The [Directory] containing the data for this [LuceneIndex]. */
     private val directory: Directory = FSDirectory.open(
         this.path.parent.resolve("${this.name.simple}.lucene"),
@@ -83,7 +77,7 @@ class LuceneIndex(path: Path, parent: DefaultEntity, config: LuceneIndexConfig? 
     init {
         /** Tries to obtain config from disk. */
         val configOnDisk =
-            this.db.atomicVar(INDEX_CONFIG_FIELD, LuceneIndexConfig.Serializer).createOrOpen()
+            this.store.atomicVar(INDEX_CONFIG_FIELD, LuceneIndexConfig.Serializer).createOrOpen()
         if (configOnDisk.get() == null) {
             if (config != null) {
                 this.config = config
@@ -142,11 +136,12 @@ class LuceneIndex(path: Path, parent: DefaultEntity, config: LuceneIndexConfig? 
     /**
      * Closes this [LuceneIndex] and the associated data structures.
      */
-    override fun close() = this.closeLock.write {
-        if (!this.closed) {
+    override fun close() {
+        try {
+            super.close()
+        } finally {
             this.indexReader.close()
             this.directory.close()
-            this.closed = true
         }
     }
 
@@ -270,7 +265,7 @@ class LuceneIndex(path: Path, parent: DefaultEntity, config: LuceneIndexConfig? 
             /** Commits DB and Lucene writer and updates lucene reader. */
             override fun commit() {
                 this@Tx.writer.commit()
-                this@LuceneIndex.db.commit()
+                this@LuceneIndex.store.commit()
                 val oldReader = this@LuceneIndex.indexReader
                 this@LuceneIndex.indexReader = DirectoryReader.open(this@LuceneIndex.directory)
                 oldReader.close()
@@ -279,7 +274,7 @@ class LuceneIndex(path: Path, parent: DefaultEntity, config: LuceneIndexConfig? 
             /** Rolls back DB and Lucene writer . */
             override fun rollback() {
                 this@Tx.writer.rollback()
-                this@LuceneIndex.db.rollback()
+                this@LuceneIndex.store.rollback()
             }
         }
 

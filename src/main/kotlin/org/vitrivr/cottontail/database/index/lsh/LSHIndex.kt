@@ -5,7 +5,6 @@ import org.vitrivr.cottontail.database.entity.DefaultEntity
 import org.vitrivr.cottontail.database.index.AbstractIndex
 import org.vitrivr.cottontail.database.index.IndexType
 import org.vitrivr.cottontail.model.values.types.VectorValue
-import org.vitrivr.cottontail.utilities.extensions.write
 import org.vitrivr.cottontail.utilities.math.KnnUtilities
 import java.nio.file.Path
 
@@ -22,19 +21,4 @@ abstract class LSHIndex<T : VectorValue<*>>(path: Path, parent: DefaultEntity) :
 
     /** The type of [AbstractIndex] */
     override val type: IndexType = IndexType.LSH
-
-    /** Flag indicating if this [LSHIndex] has been closed. */
-    @Volatile
-    final override var closed: Boolean = false
-        private set
-
-    /**
-     * Closes this [SuperBitLSHIndex] and the associated data structures.
-     */
-    final override fun close() = this.closeLock.write {
-        if (!this.closed) {
-            this.db.close()
-            this.closed = true
-        }
-    }
 }

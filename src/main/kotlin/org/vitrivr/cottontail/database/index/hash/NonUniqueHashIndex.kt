@@ -16,7 +16,6 @@ import org.vitrivr.cottontail.model.basics.*
 import org.vitrivr.cottontail.model.exceptions.TxException
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.types.Value
-import org.vitrivr.cottontail.utilities.extensions.write
 import java.nio.file.Path
 import java.util.*
 
@@ -49,20 +48,13 @@ class NonUniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path
 
     /** Map structure used for [NonUniqueHashIndex]. */
     private val map: NavigableSet<Array<Any>> =
-        this.db.treeSet(
+        this.store.treeSet(
             NUQ_INDEX_MAP,
             SerializerArrayTuple(this.columns[0].type.serializer(), Serializer.LONG_DELTA)
         ).createOrOpen()
 
-    /**
-     * Flag indicating if this [NonUniqueHashIndex] has been closed.
-     */
-    @Volatile
-    override var closed: Boolean = false
-        private set
-
     init {
-        this.db.commit() /* Initial commit. */
+        this.store.commit() /* Initial commit. */
     }
 
     /**
@@ -96,16 +88,6 @@ class NonUniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path
      * @param context If the [TransactionContext] to create the [IndexTx] for..
      */
     override fun newTx(context: TransactionContext): IndexTx = Tx(context)
-
-    /**
-     * Closes this [NonUniqueHashIndex] and the associated data structures.
-     */
-    override fun close() = this.closeLock.write {
-        if (!this.closed) {
-            this.db.close()
-            this.closed = true
-        }
-    }
 
     /**
      * An [IndexTx] that affects this [NonUniqueHashIndex].

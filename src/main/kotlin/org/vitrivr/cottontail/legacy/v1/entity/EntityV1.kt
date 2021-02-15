@@ -157,16 +157,6 @@ class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1
     }
 
     /**
-     * Handles finalization, in case the Garbage Collector reaps a cached [Entity] soft-reference.
-     */
-    @Synchronized
-    protected fun finalize() {
-        if (!this.closed) {
-            this.close()
-        }
-    }
-
-    /**
      * A [Tx] that affects this [Entity]. Opening a [EntityTx] will automatically spawn [ColumnTx]
      * and [IndexTx] for every [Column] and [IndexTx] associated with this [Entity].
      *
