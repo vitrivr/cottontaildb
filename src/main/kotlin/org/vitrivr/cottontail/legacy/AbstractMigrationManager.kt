@@ -102,8 +102,8 @@ abstract class AbstractMigrationManager(val batchSize: Int, logFile: Path) : Mig
                 context.commit()
 
                 /* Close catalogues. */
-                dstCatalogue.close()
                 srcCatalogue.close()
+                dstCatalogue.close()
 
                 /* Swap folders. */
                 Files.move(
@@ -202,8 +202,9 @@ abstract class AbstractMigrationManager(val batchSize: Int, logFile: Path) : Mig
             }
             this.log("---- Data migration for ${srcEntity.name} completed (${i} / $count).\n")
         } else {
-            this.log("---- Data migration for ${srcEntity.name} skipped (not data).\n")
+            this.log("---- Data migration for ${srcEntity.name} skipped (no data).\n")
         }
+        destEntity.close()
     }
 
     /**
@@ -223,6 +224,7 @@ abstract class AbstractMigrationManager(val batchSize: Int, logFile: Path) : Mig
     protected fun log(message: String) {
         print(message)
         this.writer.append(message)
+        this.writer.flush()
     }
 
     /**
@@ -267,10 +269,8 @@ abstract class AbstractMigrationManager(val batchSize: Int, logFile: Path) : Mig
          * @param dbo [DBO] to return the [Tx] for.
          * @return entity [Tx]
          */
-        override fun getTx(dbo: DBO): Tx {
-            return this.txns.computeIfAbsent(dbo) {
-                dbo.newTx(this)
-            }
+        override fun getTx(dbo: DBO): Tx = this.txns.computeIfAbsent(dbo) {
+            dbo.newTx(this)
         }
 
         override fun requestLock(dbo: DBO, mode: LockMode) {
@@ -293,11 +293,11 @@ abstract class AbstractMigrationManager(val batchSize: Int, logFile: Path) : Mig
         override fun commit() {
             check(this.state === TransactionStatus.READY) { "Cannot commit transaction ${this.txId} because it is in wrong state (s = ${this.state})." }
             this.state = TransactionStatus.FINALIZING
-            this.txns.values.forEach { txn ->
+            this.txns.values.removeIf { txn ->
                 txn.commit()
                 txn.close()
+                true
             }
-            this.txns.clear()
             this.state = TransactionStatus.COMMIT
         }
 
