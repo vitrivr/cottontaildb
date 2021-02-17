@@ -20,7 +20,7 @@ import java.util.*
  * @see Record
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.1.1
  */
 sealed class BooleanPredicate : Predicate {
     /** The [Atomic]s that make up this [BooleanPredicate]. */
@@ -34,11 +34,19 @@ sealed class BooleanPredicate : Predicate {
     abstract fun matches(record: Record): Boolean
 
     /**
+     * Returns the matching score, if the provided [Record]. Score of 0.0 equates to a non-match,
+     * while 1.0 equates to a full match.
+     *
+     * @param record The [Record] that should be checked against the predicate.
+     */
+    abstract fun score(record: Record): Double
+
+    /**
      * Executes late [Value] binding using the given [QueryContext].
      *
-     * @param context [QueryContext]  used to resolve [ValueBinding]s.
+     * @param ctx [QueryContext]  used to resolve [ValueBinding]s.
      */
-    abstract override fun bindValues(context: QueryContext): BooleanPredicate
+    abstract override fun bindValues(ctx: QueryContext): BooleanPredicate
 
     /**
      * Calculates and returns the digest of this [BooleanPredicate].
@@ -141,6 +149,18 @@ sealed class BooleanPredicate : Predicate {
         }
 
         /**
+         * Checks if the provided [Record] matches this [Atomic] and returns true or false respectively.
+         *
+         * @param record The [Record] to check.
+         * @return true if [Record] matches this [Atomic], false otherwise.
+         */
+        override fun score(record: Record): Double = when {
+            this.not && !this.operator.match(record[this.column], this.values) -> 1.0
+            !this.not && this.operator.match(record[this.column], this.values) -> 1.0
+            else -> 0.0
+        }
+
+        /**
          * Prepares this [BooleanPredicate] for use in query execution, e.g., by executing late value binding.
          *
          * @param context [QueryContext] to use to resolve [ValueBinding]s.
@@ -224,12 +244,24 @@ sealed class BooleanPredicate : Predicate {
             ConnectionOperator.OR -> this.p1.matches(record) || this.p2.matches(record)
         }
 
+        /**
+         * Checks if the provided [Record] matches this [Compound] and returns a score.
+         *
+         * @param record The [Record] to check.
+         * @return true if [Record] matches this [Atomic], false otherwise.
+         */
+        override fun score(record: Record): Double = when {
+            this.connector == ConnectionOperator.AND && p1.matches(record) && p2.matches(record) -> 1.0
+            this.connector == ConnectionOperator.OR -> ((p1.score(record) + p2.score(record)) / 2.0)
+            else -> 0.0
+        }
+
         override fun toString(): String = "$p1 $connector $p2"
 
         /**
          * Binds [Value] from the [QueryContext] to this [BooleanPredicate.Compound].
          *
-         * @param context [QueryContext] to use to resolve this [Binding].
+         * @param context [QueryContext] to use to resolve this [ValueBinding]s.
          * @return This [BooleanPredicate.Compound]
          */
         override fun bindValues(context: QueryContext): Compound {
