@@ -20,34 +20,46 @@ import org.vitrivr.cottontail.model.values.types.Value
  * An [Operator.PipelineOperator] used during query execution. It calculates the MEAN of all values
  * it has encountered and returns it as a [Record].
  *
- * Only produces a single [Record] and converts the respective column to a [DoubleColumnType].
+ * Only produces a single [Record] and converts the projected columns to a [Type.Double] column.
  * Acts as pipeline breaker.
  *
  * @author Ralph Gasser
  * @version 1.2.0
  */
-class MeanProjectionOperator(parent: Operator, fields: List<Pair<ColumnDef<*>, Name.ColumnName?>>) : Operator.PipelineOperator(parent) {
+class MeanProjectionOperator(
+    parent: Operator,
+    fields: List<Pair<Name.ColumnName, Name.ColumnName?>>
+) : Operator.PipelineOperator(parent) {
 
     /** [MaxProjectionOperator] does act as a pipeline breaker. */
     override val breaker: Boolean = true
 
     /** Columns produced by [MeanProjectionOperator]. */
-    override val columns: Array<ColumnDef<*>> = fields.map {
-        if (!it.first.type.numeric) {
-            throw OperatorSetupException(this, "The provided column ${it.first} cannot be used for a ${Projection.MEAN} projection. It either doesn't exist or has the wrong type.")
-        }
-        val alias = it.second
-        if (alias != null) {
-            ColumnDef(alias, Type.Double)
+    override val columns: Array<ColumnDef<*>> = this.parent.columns.mapNotNull { c ->
+        val match = fields.find { f -> f.first.matches(c.name) }
+        if (match != null) {
+            if (!c.type.numeric) throw OperatorSetupException(
+                this,
+                "The provided column $match cannot be used for a ${Projection.MEAN} projection because it has the wrong type."
+            )
+            val alias = match.second
+            if (alias != null) {
+                ColumnDef(alias, Type.Double)
+            } else {
+                val columnNameStr = "${Projection.MEAN.label()}_${c.name.simple})"
+                val columnName =
+                    c.name.entity()?.column(columnNameStr) ?: Name.ColumnName(columnNameStr)
+                ColumnDef(columnName, Type.Double)
+            }
         } else {
-            val columnNameStr = "${Projection.MEAN.label()}_${it.first.name.simple})"
-            val columnName = it.first.name.entity()?.column(columnNameStr) ?: Name.ColumnName(columnNameStr)
-            ColumnDef(columnName, Type.Double)
+            null
         }
     }.toTypedArray()
 
     /** Parent [ColumnDef] to access and aggregate. */
-    private val parentColumns = fields.map { it.first }
+    private val parentColumns = this.parent.columns.filter { c ->
+        fields.any { f -> f.first.matches(c.name) }
+    }
 
     /**
      * Converts this [MeanProjectionOperator] to a [Flow] and returns it.

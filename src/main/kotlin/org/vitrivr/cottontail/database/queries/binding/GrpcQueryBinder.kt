@@ -544,13 +544,11 @@ class GrpcQueryBinder constructor(val catalogue: DefaultCatalogue) {
         projection: CottontailGrpc.Projection,
         context: QueryContext
     ): LogicalOperatorNode {
-        val fields = projection.columnsList.flatMap { p ->
-            input.findColumnsForName(p.column.fqn()).map {
-                if (p.hasAlias()) {
-                    it to p.alias.fqn()
-                } else {
-                    it to null
-                }
+        val fields = projection.columnsList.map { p ->
+            if (p.hasAlias()) {
+                p.column.fqn() to p.alias.fqn()
+            } else {
+                p.column.fqn() to null
             }
         }
         val type = try {

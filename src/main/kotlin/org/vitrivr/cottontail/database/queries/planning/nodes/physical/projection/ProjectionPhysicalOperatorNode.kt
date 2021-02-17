@@ -20,7 +20,7 @@ import org.vitrivr.cottontail.model.exceptions.QueryException
  */
 class ProjectionPhysicalOperatorNode(
     val type: Projection,
-    val fields: List<Pair<ColumnDef<*>, Name.ColumnName?>>
+    val fields: List<Pair<Name.ColumnName, Name.ColumnName?>>
 ) : UnaryPhysicalOperatorNode() {
     init {
         /* Sanity check. */
@@ -36,7 +36,8 @@ class ProjectionPhysicalOperatorNode(
                 Projection.SELECT,
                 Projection.SELECT_DISTINCT -> {
                     return this.fields.map { f ->
-                        val column = this.input.columns.find { c -> c == f.first } ?: throw QueryException.QueryBindException("Column with name $f could not be found on input.")
+                        val column = this.input.columns.find { c -> c.name == f.first }
+                            ?: throw QueryException.QueryBindException("Column with name $f could not be found on input.")
                         column.copy(name = f.second ?: column.name)
                     }.toTypedArray()
                 }
@@ -62,7 +63,8 @@ class ProjectionPhysicalOperatorNode(
                 Projection.SUM,
                 Projection.MEAN -> {
                     return this.fields.map { f ->
-                        val column = this.input.columns.find { c -> c == f.first } ?: throw QueryException.QueryBindException("Column with name $f could not be found on input.")
+                        val column = this.input.columns.find { c -> c.name == f.first }
+                            ?: throw QueryException.QueryBindException("Column with name $f could not be found on input.")
                         if (!column.type.numeric) throw QueryException.QueryBindException("Projection of type $type can only be applied to numeric column, which $column isn't.")
                         column.copy(name = f.second ?: column.name)
                     }.toTypedArray()
