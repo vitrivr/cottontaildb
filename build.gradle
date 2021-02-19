@@ -53,6 +53,14 @@ java {
     withSourcesJar()
 }
 
+javadoc {
+    options.addStringOption("Xdoclint:none", "-quiet")
+    options.memberLevel = JavadocMemberLevel.PRIVATE
+    if (JavaVersion.current().isJava9Compatible()) {
+        options.addBooleanOption("html5", true)
+    }
+}
+
 publishing {
     publications {
         mavenJava(MavenPublication) {
