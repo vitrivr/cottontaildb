@@ -1,13 +1,10 @@
 package org.vitrivr.cottontail
 
-import kotlinx.serialization.json.Json
 import org.vitrivr.cottontail.cli.Cli
 import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.database.catalogue.Catalogue
 import org.vitrivr.cottontail.execution.ExecutionEngine
 import org.vitrivr.cottontail.server.grpc.CottontailGrpcServer
-import java.nio.file.Files
-import java.nio.file.Path
 import java.nio.file.Paths
 import kotlin.system.exitProcess
 import kotlin.time.ExperimentalTime
@@ -39,10 +36,7 @@ fun main(args: Array<String>) {
     }
 
     /* Load config file and start Cottontail DB. */
-    Files.newBufferedReader(configPath).use { reader ->
-        val config = Json.decodeFromString(Config.serializer(), reader.readText())
-        standalone(config)
-    }
+    standalone(Config.load(configPath))
 }
 
 /**

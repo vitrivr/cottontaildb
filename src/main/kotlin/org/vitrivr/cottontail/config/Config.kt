@@ -1,7 +1,9 @@
 package org.vitrivr.cottontail.config
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import org.vitrivr.cottontail.utilities.serializers.PathSerializer
+import java.nio.file.Files
 import java.nio.file.Path
 
 /**
@@ -27,4 +29,17 @@ data class Config(
 
         /** Reference to [ExecutionConfig], which contains configuration regarding query execution in Cottontail DB. */
         val execution: ExecutionConfig = ExecutionConfig()
-)
+) {
+        companion object {
+
+                /**
+                 * Loads and returns a [Config] from a file [Path].
+                 *
+                 * @param path The [Path] to read the [Config] from.
+                 * @return [Config]
+                 */
+                fun load(path: Path) = Files.newBufferedReader(path).use {
+                        Json.decodeFromString(serializer(), it.readText())
+                }
+        }
+}
