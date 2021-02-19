@@ -372,7 +372,7 @@ class LuceneIndex(path: Path, parent: DefaultEntity, config: LuceneIndexConfig? 
              * Returns `true` if the iteration has more elements.
              */
             override fun hasNext(): Boolean {
-                return this.returned < this.results.totalHits
+                return this.returned < this.results.totalHits.value
             }
 
             /**
