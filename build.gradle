@@ -1,5 +1,5 @@
 group 'org.vitrivr'
-version '0.10.1'
+version '0.10.3'
 
 buildscript {
     ext.luceneVersion = '7.7.1'
@@ -114,7 +114,7 @@ signing {
 
 dependencies {
     ///// Cottontail DB Driver
-    compile group: 'org.vitrivr', name: 'cottontaildb-proto', version: '0.10.0'
+    compile group: 'org.vitrivr', name: 'cottontaildb-proto', version: '0.10.3'
 
     ///// MapDB dependency
     compile group: 'org.mapdb', name: 'mapdb', version: '3.0.8'
