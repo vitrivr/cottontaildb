@@ -4,6 +4,7 @@ import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.binding.ValueBinding
+import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.predicates.Predicate
 import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.values.pattern.LikePatternValue
@@ -74,19 +75,19 @@ sealed class BooleanPredicate : Predicate {
         private val bindings = LinkedList<ValueBinding>()
 
         /** The number of operations required by this [Atomic]. */
-        override val cost: Float
+        override val atomicCpuCost: Float
             get() = when (this.operator) {
                 ComparisonOperator.ISNULL,
-                ComparisonOperator.ISNOTNULL -> 1.0f
+                ComparisonOperator.ISNOTNULL -> Cost.COST_MEMORY_ACCESS
                 ComparisonOperator.EQUAL,
                 ComparisonOperator.GREATER,
                 ComparisonOperator.LESS,
                 ComparisonOperator.GEQUAL,
-                ComparisonOperator.LEQUAL -> 2.0f
-                ComparisonOperator.BETWEEN -> 4.0f
-                ComparisonOperator.IN -> this.values.size + 1.0f
-                ComparisonOperator.LIKE -> 10.0f /* ToDo: Make more explicit. */
-                ComparisonOperator.MATCH -> 10.0f
+                ComparisonOperator.LEQUAL -> 2 * Cost.COST_MEMORY_ACCESS
+                ComparisonOperator.BETWEEN -> 4 * Cost.COST_MEMORY_ACCESS
+                ComparisonOperator.IN -> (this.values.size + 1) * Cost.COST_MEMORY_ACCESS
+                ComparisonOperator.LIKE,
+                ComparisonOperator.MATCH -> 10.0f * Cost.COST_MEMORY_ACCESS /* ToDo: Determine. */
             }
 
         /** Set of [ColumnDef] that are affected by this [Atomic]. */
@@ -222,8 +223,8 @@ sealed class BooleanPredicate : Predicate {
     data class Compound(val connector: ConnectionOperator, val p1: BooleanPredicate, val p2: BooleanPredicate) : BooleanPredicate() {
 
         /** The total number of operations required by this [Compound]. */
-        override val cost
-            get() = this.p1.cost + this.p2.cost
+        override val atomicCpuCost
+            get() = this.p1.atomicCpuCost + this.p2.atomicCpuCost
 
         /** The [Atomic]s that make up this [Compound]. */
         override val atomics

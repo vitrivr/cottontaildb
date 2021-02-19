@@ -53,9 +53,13 @@ open class KnnPredicate(
     override val columns: Set<ColumnDef<*>>
         get() = setOf(this.column)
 
-    /** Cost required for applying this [KnnPredicate] to a single record. */
-    override val cost: Float
-        get() = this.distance.costForDimension(this.query.first().logicalSize) * (this.query.size + this.weights.size)
+    /**
+     * CPU cost required for applying this [KnnPredicate] to a single record.
+     *
+     * Costs are calculated based on [ValueBinding]s for [_queryBindings] and [_weightsBindings]
+     */
+    override val atomicCpuCost: Float
+        get() = this.distance.costForDimension(this._queryBindings.first().type.logicalSize) * (this._queryBindings.size + this._weightsBindings.size)
 
     /**
      * Adds a [ValueBinding] to this [KnnPredicate],

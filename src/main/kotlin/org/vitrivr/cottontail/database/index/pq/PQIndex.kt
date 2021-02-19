@@ -150,8 +150,9 @@ class PQIndex(path: Path, parent: DefaultEntity, config: PQIndexConfig? = null) 
         if (predicate is KnnPredicate && predicate.column == this.columns[0]) {
             Cost(
                 this.signaturesStore.size * this.config.numSubspaces * Cost.COST_DISK_ACCESS_READ + predicate.query.size * predicate.k * predicate.column.type.logicalSize * Cost.COST_DISK_ACCESS_READ,
-                predicate.query.size * (this.signaturesStore.size * (4 * Cost.COST_MEMORY_ACCESS + Cost.COST_FLOP) + predicate.k * predicate.cost),
-                (predicate.query.size * predicate.k * this.produces.map { it.type.physicalSize }.sum()).toFloat()
+                predicate.query.size * (this.signaturesStore.size * (4 * Cost.COST_MEMORY_ACCESS + Cost.COST_FLOP) + predicate.k * predicate.atomicCpuCost),
+                (predicate.query.size * predicate.k * this.produces.map { it.type.physicalSize }
+                    .sum()).toFloat()
             )
         } else {
             Cost.INVALID

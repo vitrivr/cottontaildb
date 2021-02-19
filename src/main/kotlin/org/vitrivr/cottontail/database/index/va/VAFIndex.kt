@@ -112,8 +112,9 @@ class VAFIndex(path: Path, parent: DefaultEntity, config: VAFIndexConfig? = null
         if (predicate is KnnPredicate && predicate.column == this.columns[0] && (predicate.distance is MinkowskiDistance || predicate.distance is SquaredEuclidianDistance)) {
             Cost(
                 this.signatures.size * this.columns[0].type.logicalSize * Cost.COST_DISK_ACCESS_READ + 0.1f * (this.signatures.size * predicate.query.size * this.columns[0].type.logicalSize * Cost.COST_DISK_ACCESS_READ),
-                predicate.query.size * this.signatures.size * this.columns[0].type.logicalSize * (2*Cost.COST_DISK_ACCESS_READ + Cost.COST_FLOP) +  0.1f * this.signatures.size * predicate.query.size * predicate.cost,
-                (predicate.query.size * predicate.k * this.produces.map { it.type.physicalSize }.sum()).toFloat()
+                predicate.query.size * this.signatures.size * this.columns[0].type.logicalSize * (2 * Cost.COST_DISK_ACCESS_READ + Cost.COST_FLOP) + 0.1f * this.signatures.size * predicate.query.size * predicate.atomicCpuCost,
+                (predicate.query.size * predicate.k * this.produces.map { it.type.physicalSize }
+                    .sum()).toFloat()
             )
         } else {
             Cost.INVALID

@@ -28,7 +28,7 @@ data class VAFIndexConfig(val marksPerDimension: Int) : IndexConfig {
          * @return VAFIndexConfig
          */
         fun fromParamMap(params: Map<String, String>) =
-            VAFIndexConfig(params[MARKS_PER_DIMENSION_KEY]!!.toInt())
+            VAFIndexConfig(params[MARKS_PER_DIMENSION_KEY]?.toIntOrNull() ?: 10)
     }
 
     /**

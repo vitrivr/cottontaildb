@@ -34,7 +34,7 @@ class FilterPhysicalOperatorNode(val predicate: BooleanPredicate) :
         get() = (this.input.outputSize * this.selectivity).toLong()
 
     override val cost: Cost
-        get() = Cost(cpu = this.input.outputSize * this.predicate.cost * Cost.COST_MEMORY_ACCESS)
+        get() = Cost(cpu = this.input.outputSize * this.predicate.atomicCpuCost)
 
     override fun copy() = FilterPhysicalOperatorNode(this.predicate)
 

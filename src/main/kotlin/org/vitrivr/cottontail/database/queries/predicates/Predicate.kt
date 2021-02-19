@@ -14,7 +14,7 @@ import org.vitrivr.cottontail.model.basics.Record
  */
 interface Predicate : Node {
     /** An estimation of the CPU [Cost] required to apply this [Predicate] to a single [Record]. */
-    val cost: Float
+    val atomicCpuCost: Float
 
     /** Set of [ColumnDef] that are affected by this [Predicate]. */
     val columns: Set<ColumnDef<*>>
