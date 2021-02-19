@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.execution
 
 import it.unimi.dsi.fastutil.Hash.VERY_FAST_LOAD_FACTOR
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
+import it.unimi.dsi.fastutil.objects.Object2ObjectMaps
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collect
@@ -19,8 +20,10 @@ import java.util.*
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.locks.ReentrantLock
+import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.collections.ArrayList
-import kotlin.concurrent.withLock
+import kotlin.concurrent.read
+import kotlin.concurrent.write
 
 /**
  * The default [TransactionManager] for Cottontail DB. It hosts all the necessary facilities to
@@ -77,11 +80,11 @@ class TransactionManager(private val executor: ThreadPoolExecutor) {
             private set
 
         /** Map of all [Tx] that have been created as part of this [Transaction]. */
-        private val txns: MutableMap<DBO, Tx>
-            = Collections.synchronizedMap(Object2ObjectOpenHashMap())
+        private val txns: MutableMap<DBO, Tx> =
+            Object2ObjectMaps.synchronize(Object2ObjectOpenHashMap())
 
         /** A [ReentrantLock] that mediates access to primitives that govern this [Transaction]. */
-        private val lock = ReentrantLock()
+        private val lock = ReentrantReadWriteLock()
 
         /** Number of [Tx] held by this [Transaction]. */
         val numberOfTxs: Int = this.txns.size
@@ -117,9 +120,12 @@ class TransactionManager(private val executor: ThreadPoolExecutor) {
          * @param dbo [DBO] to return the [Tx] for.
          * @return entity [Tx]
          */
-        override fun getTx(dbo: DBO): Tx = this.txns.computeIfAbsent(dbo) {
-            dbo.newTx(this)
+        override fun getTx(dbo: DBO): Tx = this.lock.read {
+            this.txns.computeIfAbsent(dbo) {
+                dbo.newTx(this)
+            }
         }
+
 
         /**
          * Acquires a [Lock] on a [DBO] for the given [LockMode]. This call is delegated to the
@@ -128,7 +134,9 @@ class TransactionManager(private val executor: ThreadPoolExecutor) {
          * @param dbo [DBO] The [DBO] to request the lock for.
          * @param mode The desired [LockMode]
          */
-        override fun requestLock(dbo: DBO, mode: LockMode) = this@TransactionManager.lockManager.lock(this, dbo, mode)
+        override fun requestLock(dbo: DBO, mode: LockMode) = this.lock.read {
+            this@TransactionManager.lockManager.lock(this, dbo, mode)
+        }
 
         /**
          * Releases a [Lock] on a [DBO]. This call is delegated to the [LockManager] and really just
@@ -136,7 +144,9 @@ class TransactionManager(private val executor: ThreadPoolExecutor) {
          *
          * @param dbo [DBO] The [DBO] to release the lock for.
          */
-        override fun releaseLock(dbo: DBO) = this@TransactionManager.lockManager.unlock(this, dbo)
+        override fun releaseLock(dbo: DBO) = this.lock.read {
+            this@TransactionManager.lockManager.unlock(this, dbo)
+        }
 
         /**
          * Returns the [LockMode] this [Transaction] has on the given [DBO].
@@ -144,7 +154,9 @@ class TransactionManager(private val executor: ThreadPoolExecutor) {
          * @param dbo [DBO] The [DBO] to query the [LockMode] for.
          * @return [LockMode]
          */
-        override fun lockOn(dbo: DBO) = this@TransactionManager.lockManager.lockOn(this, dbo)
+        override fun lockOn(dbo: DBO) = this.lock.read {
+            this@TransactionManager.lockManager.lockOn(this, dbo)
+        }
 
         /**
          * Schedules an [Operator.SinkOperator] for execution in this [Transaction] and blocks,
@@ -152,7 +164,7 @@ class TransactionManager(private val executor: ThreadPoolExecutor) {
          *
          * @param operator The [Operator.SinkOperator] that should be executed.
          */
-        fun execute(operator: Operator.SinkOperator) {
+        fun execute(operator: Operator.SinkOperator) = this.lock.read {
             check(this.state === TransactionStatus.READY) { "Could not schedule operator for transaction ${this.txId} because it is in wrong state (s = ${this.state})." }
             runBlocking(this.dispatcher) {
                 try {
@@ -160,7 +172,10 @@ class TransactionManager(private val executor: ThreadPoolExecutor) {
                     operator.toFlow(this@Transaction).collect()
                     this@Transaction.state = TransactionStatus.READY
                 } catch (e: DeadlockException) {
-                    LOGGER.debug("Deadlock encountered during execution of transaction ${this@Transaction.txId}.", e)
+                    LOGGER.debug(
+                        "Deadlock encountered during execution of transaction ${this@Transaction.txId}.",
+                        e
+                    )
                     this@Transaction.state = TransactionStatus.ERROR
                     this@Transaction.rollback()
                     throw TransactionException.DeadlockException(this@Transaction.txId, e)
@@ -186,7 +201,7 @@ class TransactionManager(private val executor: ThreadPoolExecutor) {
         /**
          * Commits this [Transaction] thus finalizing and persisting all operations executed so far.
          */
-        override fun commit() = this.lock.withLock {
+        override fun commit() = this.lock.write {
             check(this.state === TransactionStatus.READY) { "Cannot commit transaction ${this.txId} because it is in wrong state (s = ${this.state})." }
             this.state = TransactionStatus.FINALIZING
             this.txns.values.forEach { txn ->
@@ -203,7 +218,7 @@ class TransactionManager(private val executor: ThreadPoolExecutor) {
         /**
          * Rolls back this [Transaction] thus reverting all operations executed so far.
          */
-        override fun rollback() = this.lock.withLock {
+        override fun rollback() = this.lock.write {
             check(this.state === TransactionStatus.READY || this.state === TransactionStatus.ERROR) { "Cannot rollback transaction ${this.txId} because it is in wrong state (s = ${this.state})." }
             this.state = TransactionStatus.FINALIZING
             this.txns.values.forEach { txn ->
