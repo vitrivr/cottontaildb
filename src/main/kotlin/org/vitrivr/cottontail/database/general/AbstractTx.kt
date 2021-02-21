@@ -45,7 +45,7 @@ abstract class AbstractTx(override val context: TransactionContext) : Tx {
      */
     final override fun rollback() {
         if (this.status == TxStatus.DIRTY || this.status == TxStatus.ERROR) {
-            this.snapshot.commit()
+            this.snapshot.rollback()
             this.status = TxStatus.CLEAN
         }
         this.context.releaseLock(this.dbo)
