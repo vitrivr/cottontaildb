@@ -8,6 +8,7 @@ import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.queries.sort.SortOrder
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
+import org.vitrivr.cottontail.execution.operators.basics.drop
 import org.vitrivr.cottontail.math.knn.selection.HeapSelection
 import org.vitrivr.cottontail.model.basics.Record
 
@@ -20,12 +21,7 @@ import org.vitrivr.cottontail.model.basics.Record
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class LimitingHeapSortOperator(
-    parent: Operator,
-    sortOn: Array<ColumnDef<*>>,
-    order: SortOrder,
-    limit: Int
-) : AbstractSortOperator(parent, sortOn, order) {
+class LimitingHeapSortOperator(parent: Operator, sortOn: Array<Pair<ColumnDef<*>, SortOrder>>, limit: Long, private val skip: Long) : AbstractSortOperator(parent, sortOn) {
 
     /** The [HeapSortOperator] retains the [ColumnDef] of the input. */
     override val columns: Array<ColumnDef<*>> = this.parent.columns
@@ -43,7 +39,11 @@ class LimitingHeapSortOperator(
      * @return [Flow] representing this [LimitingHeapSortOperator]
      */
     override fun toFlow(context: TransactionContext): Flow<Record> {
-        val parentFlow = this.parent.toFlow(context)
+        val parentFlow = if (this.skip > 0) {
+            this.parent.toFlow(context).drop(this.skip)
+        } else {
+            this.parent.toFlow(context)
+        }
         return flow {
             parentFlow.collect {
                 this@LimitingHeapSortOperator.selection.offer(it)

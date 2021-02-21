@@ -17,7 +17,7 @@ import org.vitrivr.cottontail.model.basics.Record
  * @author Ralph Gasser
  * @version 1.0.0
  */
-open class HeapSortOperator(parent: Operator, sortOn: Array<ColumnDef<*>>, order: SortOrder, queueSize: Int) : AbstractSortOperator(parent, sortOn, order) {
+open class HeapSortOperator(parent: Operator, sortOn: Array<Pair<ColumnDef<*>, SortOrder>>, queueSize: Int) : AbstractSortOperator(parent, sortOn) {
 
     /** The internal [ObjectHeapPriorityQueue] used for sorting. */
     protected open val queue = ObjectHeapPriorityQueue(queueSize, this.comparator)
