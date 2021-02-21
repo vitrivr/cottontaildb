@@ -110,8 +110,10 @@ signing {
 }
 
 dependencies {
-    ///// Cottontail DB Driver
+    ///// Cottontail DB Driver + gRPC dependencies
     implementation group: 'org.vitrivr', name: 'cottontaildb-proto', version: version_cottontaildb_driver
+    implementation group: 'io.grpc', name: 'grpc-all', version: version_grpc
+    implementation group: 'com.google.protobuf', name: 'protobuf-java', version: version_protobuf
 
     ///// MapDB dependency
     implementation group: 'org.mapdb', name: 'mapdb', version: version_mapdb
@@ -143,7 +145,7 @@ dependencies {
     implementation group: 'org.jetbrains.kotlinx', name: 'kotlinx-serialization-json-jvm', version: version_kotlinx_json_jvm
 
     ///// Apache Commons Math » 3.6
-    compile group: 'org.apache.commons', name: 'commons-math3', version: version_commons_math3
+    implementation group: 'org.apache.commons', name: 'commons-math3', version: version_commons_math3
 
     ///// JUnit 5
     testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-api', version: version_junit
