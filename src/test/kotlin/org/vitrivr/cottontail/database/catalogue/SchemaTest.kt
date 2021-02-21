@@ -8,6 +8,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.vitrivr.cottontail.TestConstants
 import org.vitrivr.cottontail.database.column.ColumnDef
+import org.vitrivr.cottontail.database.column.ColumnEngine
 import org.vitrivr.cottontail.database.entity.DefaultEntity
 import org.vitrivr.cottontail.database.schema.Schema
 import org.vitrivr.cottontail.database.schema.SchemaTx
@@ -81,7 +82,7 @@ class SchemaTest {
         try {
             val schemaTx1 = txn1.getTx(this.schema!!) as SchemaTx
             for (name in entityNames) {
-                schemaTx1.createEntity(name, ColumnDef(name.column("id"), Type.String))
+                schemaTx1.createEntity(name, ColumnDef(name.column("id"), Type.String) to ColumnEngine.MAPDB)
             }
             txn1.commit()
         } catch (t: Throwable) {
@@ -100,11 +101,9 @@ class SchemaTest {
             }
 
             /* Check size and content of schema. */
-            val fetchedEntityNames = schemaTx2.listEntities()
-            assertEquals(entityNames.size, fetchedEntityNames.size)
-            entityNames.zip(fetchedEntityNames) { a, b ->
-                assertEquals(a, b)
-            }
+            val fetchedEntities = schemaTx2.listEntities()
+            assertEquals(entityNames.size, fetchedEntities.size)
+            assertTrue(fetchedEntities.all { entityNames.contains(it.name) })
         } finally {
             txn2.rollback()
         }
@@ -120,7 +119,7 @@ class SchemaTest {
         try {
             val schemaTx1 = txn1.getTx(this.schema!!) as SchemaTx
             for (name in entityNames) {
-                schemaTx1.createEntity(name, ColumnDef(name.column("id"), Type.String))
+                schemaTx1.createEntity(name, ColumnDef(name.column("id"), Type.String) to ColumnEngine.MAPDB)
             }
         } finally {
             txn1.rollback()

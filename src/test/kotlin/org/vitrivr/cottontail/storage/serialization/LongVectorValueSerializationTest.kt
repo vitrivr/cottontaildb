@@ -6,6 +6,7 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import org.vitrivr.cottontail.TestConstants
 import org.vitrivr.cottontail.database.column.ColumnDef
+import org.vitrivr.cottontail.database.column.ColumnEngine
 import org.vitrivr.cottontail.execution.TransactionType
 import org.vitrivr.cottontail.model.basics.Type
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
@@ -40,7 +41,7 @@ class LongVectorValueSerializationTest : AbstractSerializationTest() {
         val columns = arrayOf(idCol, vectorCol)
         val txn = this.manager.Transaction(TransactionType.USER)
         val schemaTx = this.schema.newTx(txn)
-        schemaTx.createEntity(nameEntity, *columns)
+        schemaTx.createEntity(nameEntity, *columns.map { it to ColumnEngine.MAPDB }.toTypedArray())
         schemaTx.commit()
 
         /* Load entity. */

@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.RepeatedTest
 import org.vitrivr.cottontail.TestConstants
 import org.vitrivr.cottontail.database.column.ColumnDef
+import org.vitrivr.cottontail.database.column.ColumnEngine
 import org.vitrivr.cottontail.execution.TransactionType
 import org.vitrivr.cottontail.model.basics.Type
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
@@ -43,7 +44,7 @@ class ScalarValueSerializationTest : AbstractSerializationTest() {
             arrayOf(idCol, intCol, longCol, doubleCol, floatCol, byteCol, shortCol)
         val txn = this.manager.Transaction(TransactionType.USER)
         val schemaTx = this.schema.newTx(txn)
-        schemaTx.createEntity(nameEntity, *columns)
+        schemaTx.createEntity(nameEntity, *columns.map { it to ColumnEngine.MAPDB }.toTypedArray())
         schemaTx.commit()
 
         /* Load entity. */

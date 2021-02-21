@@ -84,15 +84,13 @@ class UniqueHashIndexTest : AbstractIndexTest() {
                 false
             )
             predicate.value(entry.key)
-            indexTx.filter(predicate).use {
-                it.forEach { r ->
-                    val rec = entityTx.read(r.tupleId, this.columns)
-                    assertEquals(entry.key, rec[this.columns[0]])
-                    assertArrayEquals(
-                        entry.value.data,
-                        (rec[this.columns[1]] as FloatVectorValue).data
-                    )
-                }
+            indexTx.filter(predicate).forEach { r ->
+                val rec = entityTx.read(r.tupleId, this.columns)
+                assertEquals(entry.key, rec[this.columns[0]])
+                assertArrayEquals(
+                    entry.value.data,
+                    (rec[this.columns[1]] as FloatVectorValue).data
+                )
             }
         }
         txn.commit()
@@ -112,7 +110,7 @@ class UniqueHashIndexTest : AbstractIndexTest() {
             false
         )
         predicate.value(StringValue(UUID.randomUUID().toString()))
-        indexTx.filter(predicate).use { it.forEach { count += 1 } }
+        indexTx.filter(predicate).forEach { count += 1 }
         assertEquals(0, count)
         txn.commit()
     }

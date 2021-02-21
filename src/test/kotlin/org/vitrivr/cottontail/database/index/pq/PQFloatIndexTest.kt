@@ -99,23 +99,21 @@ class PQFloatIndexTest : AbstractIndexTest() {
         /* Fetch results through index. */
         val indexResults = ArrayList<Record>(k)
         val indexDuration = measureTime {
-            indexTx.filter(predicate).use { it.forEach { indexResults.add(it) } }
+            indexTx.filter(predicate).forEach { indexResults.add(it) }
         }
 
         /* Fetch results through full table scan. */
         val bruteForceResults = MinHeapSelection<ComparablePair<TupleId, DoubleValue>>(k)
         val bruteForceDuration = measureTime {
-            entityTx.scan(arrayOf(this.indexColumn)).use {
-                it.forEach {
-                    val vector = it[this.indexColumn]
-                    if (vector is FloatVectorValue) {
-                        bruteForceResults.offer(
-                            ComparablePair(
-                                it.tupleId,
-                                predicate.distance.invoke(query, vector)
-                            )
+            entityTx.scan(arrayOf(this.indexColumn)).forEach {
+                val vector = it[this.indexColumn]
+                if (vector is FloatVectorValue) {
+                    bruteForceResults.offer(
+                        ComparablePair(
+                            it.tupleId,
+                            predicate.distance.invoke(query, vector)
                         )
-                    }
+                    )
                 }
             }
         }

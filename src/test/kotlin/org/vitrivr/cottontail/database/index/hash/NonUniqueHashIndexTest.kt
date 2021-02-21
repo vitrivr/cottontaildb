@@ -84,18 +84,16 @@ class NonUniqueHashIndexTest : AbstractIndexTest() {
                 false,
             )
             predicate.value(entry.key)
-            indexTx.filter(predicate).use {
-                var found = false
-                it.forEach { r ->
-                    val rec = entityTx.read(r.tupleId, this.columns)
-                    val id = rec[this.columns[0]] as StringValue
-                    Assertions.assertEquals(entry.key, id)
-                    if (entry.value.contains(rec[this.columns[1]])) {
-                        found = true
-                    }
+            var found = false
+            indexTx.filter(predicate).forEach { r ->
+                val rec = entityTx.read(r.tupleId, this.columns)
+                val id = rec[this.columns[0]] as StringValue
+                Assertions.assertEquals(entry.key, id)
+                if (entry.value.contains(rec[this.columns[1]])) {
+                    found = true
                 }
-                Assertions.assertTrue(found)
             }
+            Assertions.assertTrue(found)
         }
         txn.commit()
     }
@@ -114,7 +112,7 @@ class NonUniqueHashIndexTest : AbstractIndexTest() {
             false
         )
         predicate.value(StringValue(UUID.randomUUID().toString()))
-        indexTx.filter(predicate).use { it.forEach { count += 1 } }
+        indexTx.filter(predicate).forEach { count += 1 }
         Assertions.assertEquals(0, count)
         txn.commit()
     }

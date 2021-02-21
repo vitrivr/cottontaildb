@@ -7,6 +7,7 @@ import org.vitrivr.cottontail.database.catalogue.CatalogueTest
 import org.vitrivr.cottontail.database.catalogue.CatalogueTx
 import org.vitrivr.cottontail.database.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.database.column.ColumnDef
+import org.vitrivr.cottontail.database.column.ColumnEngine
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.schema.Schema
@@ -114,7 +115,7 @@ abstract class AbstractIndexTest {
         log("Creating schema ${this.entityName}.")
         val txn = this.manager.Transaction(TransactionType.SYSTEM)
         val schemaTx = txn.getTx(this.schema!!) as SchemaTx
-        val ret = schemaTx.createEntity(this.entityName, *this.columns)
+        val ret = schemaTx.createEntity(this.entityName, *this.columns.map { it to ColumnEngine.MAPDB }.toTypedArray())
         txn.commit()
         Assertions.assertTrue(Files.exists(ret.path))
         return ret
