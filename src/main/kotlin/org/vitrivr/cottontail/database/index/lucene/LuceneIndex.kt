@@ -119,7 +119,7 @@ class LuceneIndex(path: Path, parent: DefaultEntity, config: LuceneIndexConfig? 
             val searcher = IndexSearcher(this.indexReader)
             var cost = Cost.ZERO
             predicate.columns.forEach {
-                cost += Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_DISK_ACCESS_READ, it.type.physicalSize.toFloat()) * searcher.collectionStatistics(it.name.simple).sumTotalTermFreq()
+                cost += Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_DISK_ACCESS_READ, it.type.physicalSize.toFloat()) * searcher.indexReader.numDocs()
             }
             cost
         }
