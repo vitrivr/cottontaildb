@@ -127,11 +127,7 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
         header.indexes.forEach {
             val indexName = this.name.index(it.name)
             val path = this.path.resolve("${it.name}.idx")
-            try {
-                indexes[indexName] = it.type.open(path, this)
-            } catch (e: Throwable) {
-
-            }
+            indexes[indexName] = it.type.open(path, this)
         }
     }
 
