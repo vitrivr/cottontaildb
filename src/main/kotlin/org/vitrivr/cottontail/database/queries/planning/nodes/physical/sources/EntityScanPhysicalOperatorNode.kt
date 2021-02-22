@@ -20,11 +20,13 @@ class EntityScanPhysicalOperatorNode(
     override val columns: Array<ColumnDef<*>>
 ) : NullaryPhysicalOperatorNode() {
     override val outputSize = this.entity.numberOfRows
+    override val executable: Boolean = true
     override val canBePartitioned: Boolean = true
     override val cost = Cost(
-        this.outputSize * this.columns.size * Cost.COST_DISK_ACCESS_READ,
-        this.outputSize * this.columns.size * Cost.COST_MEMORY_ACCESS
+        this.columns.map { this.outputSize * it.type.physicalSize * Cost.COST_DISK_ACCESS_READ }.sum(),
+        this.columns.map { this.outputSize * it.type.physicalSize * Cost.COST_MEMORY_ACCESS }.sum()
     )
+
 
     override fun copy() = EntityScanPhysicalOperatorNode(this.entity, this.columns)
     override fun toOperator(tx: TransactionContext, ctx: QueryContext) =
@@ -35,7 +37,7 @@ class EntityScanPhysicalOperatorNode(
         return (0 until p).map {
             val start = (it * partitionSize)
             val end = ((it + 1) * partitionSize) - 1
-            RangedEntityScanPhysicalOperatorNode(this.entity, this.columns, start until end)
+            RangedEntityScanPhysicalOperatorNode(this.entity, this.columns, start..end)
         }
     }
 

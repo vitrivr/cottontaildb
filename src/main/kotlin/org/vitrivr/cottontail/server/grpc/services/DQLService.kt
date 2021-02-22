@@ -8,13 +8,12 @@ import org.vitrivr.cottontail.database.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.binding.GrpcQueryBinder
 import org.vitrivr.cottontail.database.queries.planning.CottontailQueryPlanner
-import org.vitrivr.cottontail.database.queries.planning.rules.logical.DeferredFetchAfterFilterRewriteRule
-import org.vitrivr.cottontail.database.queries.planning.rules.logical.DeferredFetchAfterKnnRewriteRule
+import org.vitrivr.cottontail.database.queries.planning.rules.logical.DeferredFetchRewriteRule
 import org.vitrivr.cottontail.database.queries.planning.rules.logical.LeftConjunctionRewriteRule
 import org.vitrivr.cottontail.database.queries.planning.rules.logical.RightConjunctionRewriteRule
-import org.vitrivr.cottontail.database.queries.planning.rules.physical.implementation.*
 import org.vitrivr.cottontail.database.queries.planning.rules.physical.index.BooleanIndexScanRule
 import org.vitrivr.cottontail.database.queries.planning.rules.physical.index.KnnIndexScanRule
+import org.vitrivr.cottontail.database.queries.planning.rules.physical.merge.LimitingSortMergeRule
 import org.vitrivr.cottontail.database.queries.planning.rules.physical.pushdown.CountPushdownRule
 import org.vitrivr.cottontail.execution.TransactionManager
 import org.vitrivr.cottontail.execution.operators.system.ExplainQueryOperator
@@ -43,28 +42,13 @@ class DQLService(val catalogue: DefaultCatalogue, override val manager: Transact
         private val LOGGER = LoggerFactory.getLogger(DQLService::class.java)
     }
 
-    /** [GrpcQueryBinder] used to generate [org.vitrivr.cottontail.database.queries.planning.nodes.logical.LogicalOperatorNode] tree from a gRPC query. */
+    /** [GrpcQueryBinder] used to generate [org.vitrivr.cottontail.database.queries.planning.OperatorNode.Logical] tree from a gRPC query. */
     private val binder = GrpcQueryBinder(catalogue = this@DQLService.catalogue)
 
     /** [CottontailQueryPlanner] used to generate execution plans from query definitions. */
     private val planner = CottontailQueryPlanner(
-        logicalRewriteRules = listOf(
-                LeftConjunctionRewriteRule,
-                RightConjunctionRewriteRule,
-                DeferredFetchAfterFilterRewriteRule,
-                DeferredFetchAfterKnnRewriteRule
-        ),
-        physicalRewriteRules = listOf(
-                KnnIndexScanRule,
-                BooleanIndexScanRule,
-                CountPushdownRule,
-                EntityScanImplementationRule,
-                FilterImplementationRule,
-                KnnImplementationRule,
-                LimitImplementationRule,
-                ProjectionImplementationRule,
-                FetchImplementationRule
-        ),
+        logicalRules = listOf(LeftConjunctionRewriteRule, RightConjunctionRewriteRule, DeferredFetchRewriteRule),
+        physicalRules = listOf(BooleanIndexScanRule, KnnIndexScanRule, CountPushdownRule, LimitingSortMergeRule),
         this.catalogue.config.cache.planCacheSize
     )
 

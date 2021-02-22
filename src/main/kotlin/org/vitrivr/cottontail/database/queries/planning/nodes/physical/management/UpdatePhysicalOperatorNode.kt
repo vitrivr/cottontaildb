@@ -5,7 +5,6 @@ import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.binding.ValueBinding
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
-import org.vitrivr.cottontail.database.queries.planning.nodes.physical.PhysicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalOperatorNode
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
@@ -31,7 +30,7 @@ class UpdatePhysicalOperatorNode(
     override val cost: Cost
         get() = Cost(io = this.values.size * this.input.outputSize * Cost.COST_DISK_ACCESS_WRITE)
 
-    override fun copy(): PhysicalOperatorNode = UpdatePhysicalOperatorNode(this.entity, this.values)
+    override fun copy() = UpdatePhysicalOperatorNode(this.entity, this.values)
 
     override fun toOperator(tx: TransactionContext, ctx: QueryContext): Operator {
         val entries = this.values.map { it.first to it.second.bind(ctx) } /* Late binding. */

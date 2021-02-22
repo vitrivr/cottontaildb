@@ -3,7 +3,7 @@ package org.vitrivr.cottontail.execution.operators.system
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import org.vitrivr.cottontail.database.column.ColumnDef
-import org.vitrivr.cottontail.database.queries.planning.nodes.physical.PhysicalOperatorNode
+import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.predicates.FilterPhysicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.projection.LimitPhysicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.sources.EntityCountPhysicalOperatorNode
@@ -27,7 +27,7 @@ import org.vitrivr.cottontail.model.values.types.Value
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class ExplainQueryOperator(val candidates: Collection<PhysicalOperatorNode>) :
+class ExplainQueryOperator(val candidates: Collection<OperatorNode.Physical>) :
     Operator.SourceOperator() {
 
     companion object {
@@ -78,15 +78,12 @@ class ExplainQueryOperator(val candidates: Collection<PhysicalOperatorNode>) :
     /**
      * Enumerates a query plan and returns a sorted list of [PhysicalOperatorNode] with their exact path.
      */
-    fun enumerate(
-        path: Array<Int> = emptyArray(),
-        nodes: List<PhysicalOperatorNode>
-    ): List<Pair<String, PhysicalOperatorNode>> {
-        val list = mutableListOf<Pair<String, PhysicalOperatorNode>>()
+    fun enumerate(path: Array<Int> = emptyArray(), nodes: List<OperatorNode.Physical>): List<Pair<String, OperatorNode.Physical>> {
+        val list = mutableListOf<Pair<String, OperatorNode.Physical>>()
         for ((index, node) in nodes.withIndex()) {
             val newPath = (path + index)
             if (node.inputs.size > 0) {
-                list += this.enumerate(newPath, node.inputs as List<PhysicalOperatorNode>)
+                list += this.enumerate(newPath, node.inputs as List<OperatorNode.Physical>)
             }
             list.add(Pair(newPath.joinToString("."), node))
         }

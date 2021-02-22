@@ -2,42 +2,35 @@ package org.vitrivr.cottontail.database.queries.planning
 
 import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.QueryContext
-import org.vitrivr.cottontail.database.queries.planning.nodes.logical.LogicalOperatorNode
-import org.vitrivr.cottontail.database.queries.planning.nodes.physical.PhysicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.rules.RewriteRule
 import org.vitrivr.cottontail.model.exceptions.QueryException
+import java.util.*
+import kotlin.collections.LinkedHashMap
 
 /**
- * This is a rather simple query planner that optimizes a [OperatorNode] by recursively applying
- * a set of [RewriteRule]s to get more sophisticated yet equivalent [OperatorNode]s.
+ * This is a rather simple query planner that optimizes a [OperatorNode] by recursively applying a set of [RewriteRule]s to get more
+ * sophisticated yet equivalent [OperatorNode]s. Query planning & optimization takes place in three stages:
  *
- * Query optimization takes place in two stages:
+ * 1. The logical tree is rewritten by means of other [OperatorNode.Logical]s, to generate several, equivalent representations of the query.
+ * 2. The candidate trees are "implemented", i.e., a physical tree is created for each logical tree .
+ * 3. The physical tree is rewritten by replacing [OperatorNode.Physical]s by [OperatorNode.Physical] to arrive at an executable query plan.
  *
- * During the first stage, the logical tree is rewritten by means of other [LogicalOperatorNode]s,
- * to generate several, equivalent representations of the query.
- *
- * During the second stage, the logical tree is rewritten by replacing [LogicalOperatorNode]s by
- * [PhysicalOperatorNode] to arrive at an executable query plan. Optimization during the second
- * stage is done based on estimated costs.
+ * Finally, the best plan in terms of [Cost] is selected.
  *
  * @author Ralph Gasser
- * @version 1.3.0
+ * @version 1.6.0
  */
-class CottontailQueryPlanner(logicalRewriteRules: Collection<RewriteRule>, physicalRewriteRules: Collection<RewriteRule>, val planCacheSize: Int = 100) {
+class CottontailQueryPlanner(
+    private val logicalRules: Collection<RewriteRule>,
+    private val physicalRules: Collection<RewriteRule>,
+    val planCacheSize: Int = 100
+) {
 
     /** Internal cache used to store query plans for known queries. */
-    private val planCache = LinkedHashMap<Long, PhysicalOperatorNode>()
-
-    /** The [RuleGroup] for the logical rewrite phase. */
-    private val logicalRules = RuleGroup(logicalRewriteRules)
-
-    /** The [RuleGroup] for the physical rewrite phase. */
-    private val physicalRules = RuleGroup(physicalRewriteRules)
+    private val planCache = LinkedHashMap<Long, OperatorNode.Physical>()
 
     /**
-     * Generates a [PhysicalOperatorNode]s for the given [LogicalOperatorNode] by recursively
-     * applying [RewriteRule] to the seed [LogicalOperatorNode] and selecting the best candidate
-     * in terms of cost.
+     * Executes query planning for a given [QueryContext] and generates a [OperatorNode.Physical] for it.
      *
      * @param context The [QueryContext] to plan for.
      * @param bypassCache If the plan cache should be bypassed (forces new planning).
@@ -47,7 +40,7 @@ class CottontailQueryPlanner(logicalRewriteRules: Collection<RewriteRule>, physi
     fun planAndSelect(context: QueryContext, bypassCache: Boolean = false, cache: Boolean = false) {
         /* Try to obtain PhysicalNodeExpression from plan cache, unless bypassCache has been set to true. */
         val logical = context.logical
-        require(logical != null) { "Cannot plan for a QueryContext that doesn't have a valid logical query represntation." }
+        require(logical != null) { "Cannot plan for a QueryContext that doesn't have a valid logical query representation." }
         val digest = logical.deepDigest()
         if (!bypassCache) {
             if (this.planCache.containsKey(digest)) {
@@ -70,26 +63,20 @@ class CottontailQueryPlanner(logicalRewriteRules: Collection<RewriteRule>, physi
     }
 
     /**
-     * Generates a list of equivalent [PhysicalOperatorNode]s by recursively applying [RewriteRule]s
-     * on the seed [LogicalOperatorNode] and derived [OperatorNode]s.
+     * Generates a list of equivalent [OperatorNode.Physical]s by recursively applying [RewriteRule]s
+     * on the seed [OperatorNode.Logical] and derived [OperatorNode]s.
      *
-     * @param node The [LogicalOperatorNode] to plan.
+     * @param node The [OperatorNode.Logical] to plan.
      * @param ctx The [QueryContext] in which optimization takes place.
      *
-     * @return List of [PhysicalOperatorNode] that execute the [LogicalOperatorNode]
+     * @return List of [OperatorNode.Physical] that implement the [OperatorNode.Logical]
      */
-    fun plan(node: LogicalOperatorNode, ctx: QueryContext): Collection<PhysicalOperatorNode> {
-        /** Generate stage 1 candidates by logical optimization. */
-        val stage1 = (this.optimize(node, this.logicalRules, ctx) + node)
-
-        /** Generate stage 2 candidates by physical optimization. */
-        val stage2 = stage1.flatMap {
-            this.optimize(it, this.physicalRules, ctx)
-        }.filterIsInstance<PhysicalOperatorNode>()
-            .filter {
-                it.root.executable
-            }
-        return stage2
+    fun plan(node: OperatorNode.Logical, ctx: QueryContext): Collection<OperatorNode.Physical> = (this.optimizeLogical(node, ctx) + node).map {
+        it.deepImplement()
+    }.flatMap {
+        this.optimizePhysical(it, ctx)
+    }.filter {
+        it.executable
     }
 
     /**
@@ -98,39 +85,76 @@ class CottontailQueryPlanner(logicalRewriteRules: Collection<RewriteRule>, physi
     fun clearCache() = this.planCache.clear()
 
     /**
-     * Performs optimization of a [LogicalOperatorNode] tree, by applying plan rewrite rules that
-     * manipulate that tree and return equivalent [LogicalOperatorNode] trees.
+     * Performs logical optimization, i.e., by replacing parts in the logical execution plan.
      *
-     * @param operator The [OperatorNode] that should be optimized.
-     * @param group The [RuleGroup] that should be applied.
-     * @param ctx The [QueryContext] in which optimization takes place.
+     * @param operator The [OperatorNode.Logical] that should be optimized. Optimization starts from the given node, regardless of whether it is root or not.
+     * @param ctx The [QueryContext] used for optimization.
      */
-    private fun optimize(operator: OperatorNode, group: RuleGroup, ctx: QueryContext): Collection<OperatorNode> {
-        val candidates = mutableListOf<OperatorNode>()
-        val explore = mutableListOf<OperatorNode>()
-        var pointer: OperatorNode? = operator
+    private fun optimizeLogical(operator: OperatorNode.Logical, ctx: QueryContext): List<OperatorNode.Logical> {
+        /* List of candidates, objects to explore and digests */
+        val candidates = MemoizingOperatorList(operator.root as OperatorNode.Logical)
+        val explore = MemoizingOperatorList(operator.root as OperatorNode.Logical)
+
+        /* Now start exploring... */
+        var pointer = explore.dequeue()
         while (pointer != null) {
-
             /* Apply rules to node and add results to list for exploration. */
-            val results = group.apply(pointer, ctx)
-            if (results.isEmpty()) {
-                if (pointer.inputs.size > 0) {
-                    explore.addAll(pointer.inputs)
-                } else {
-                    candidates.add(pointer.root)
-                }
-            }
-            for (r in results) {
-                if (r.inputs.size > 0) {
-                    explore.addAll(r.inputs)
-                } else {
-                    candidates.add(r.root)
+            for (rule in this.logicalRules) {
+                val result = rule.apply(pointer, ctx)?.root
+                if (result is OperatorNode.Logical) {
+                    explore.enqueue(result)
+                    candidates.enqueue(result)
                 }
             }
 
-            /* Move pointer up in the tree. */
-            pointer = explore.removeLastOrNull()
+            /* Add all inputs to operators that need further exploration. */
+            pointer.inputs.forEach {
+                when (it) {
+                    is OperatorNode.Logical -> explore.enqueue(it)
+                    is OperatorNode.Physical -> throw IllegalStateException("Encountered physical operator node in logical operator node tree. This is a programmer's error!")
+                }
+            }
+
+            /* Get next in line. */
+            pointer = explore.dequeue()
         }
-        return candidates
+        return candidates.toList()
+    }
+
+    /**
+     * Performs physical optimization, i.e., by replacing parts in the physical execution plan.
+     *
+     * @param operator The [OperatorNode.Physical] that should be optimized. Optimization starts from the given node, regardless of whether it is root or not.
+     * @param ctx The [QueryContext] used for optimization.
+     */
+    private fun optimizePhysical(operator: OperatorNode.Physical, ctx: QueryContext): List<OperatorNode.Physical> {
+        /* List of candidates, objects to explore and digests */
+        val candidates = MemoizingOperatorList(operator.root as OperatorNode.Physical)
+        val explore = MemoizingOperatorList(operator.root as OperatorNode.Physical)
+
+        /* Now start exploring... */
+        var pointer = explore.dequeue()
+        while (pointer != null) {
+            /* Apply rules to node and add results to list for exploration. */
+            for (rule in this.physicalRules) {
+                val result = rule.apply(pointer, ctx)?.root
+                if (result is OperatorNode.Physical) {
+                    explore.enqueue(result)
+                    candidates.enqueue(result)
+                }
+            }
+
+            /* Add all inputs to operators that need further exploration. */
+            pointer.inputs.forEach {
+                when (it) {
+                    is OperatorNode.Physical -> explore.enqueue(it)
+                    is OperatorNode.Logical -> throw IllegalStateException("Encountered logical operator node in physical operator node tree. This is a programmer's error!")
+                }
+            }
+
+            /* Get next in line. */
+            pointer = explore.dequeue()
+        }
+        return candidates.toList()
     }
 }

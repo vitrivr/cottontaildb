@@ -2,12 +2,13 @@ package org.vitrivr.cottontail.database.queries.planning.nodes.logical.sources
 
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.Entity
+import org.vitrivr.cottontail.database.queries.planning.nodes.physical.sources.EntitySamplePhysicalOperatorNode
 
 /**
  * A [EntitySourceLogicalOperatorNode] that formalizes the sampling of a physical [Entity] in Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 1.1.2
+ * @version 1.2.0
  */
 class EntitySampleLogicalOperatorNode(
     entity: Entity,
@@ -20,8 +21,14 @@ class EntitySampleLogicalOperatorNode(
      *
      * @return Copy of this [EntitySampleLogicalOperatorNode]
      */
-    override fun copy(): EntitySampleLogicalOperatorNode =
-        EntitySampleLogicalOperatorNode(this.entity, this.columns, this.size, this.seed)
+    override fun copy(): EntitySampleLogicalOperatorNode = EntitySampleLogicalOperatorNode(this.entity, this.columns, this.size, this.seed)
+
+    /**
+     * Returns a [EntitySamplePhysicalOperatorNode] representation of this [EntitySampleLogicalOperatorNode]
+     *
+     * @return [EntitySamplePhysicalOperatorNode]
+     */
+    override fun implement(): Physical = EntitySamplePhysicalOperatorNode(this.entity, this.columns, this.size, this.seed)
 
     /**
      * Calculates and returns the digest for this [EntitySampleLogicalOperatorNode].

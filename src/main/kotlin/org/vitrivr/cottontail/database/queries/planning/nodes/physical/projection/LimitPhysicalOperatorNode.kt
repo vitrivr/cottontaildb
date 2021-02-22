@@ -14,23 +14,16 @@ import kotlin.math.min
  * @author Ralph Gasser
  * @version 1.1.0
  */
-class LimitPhysicalOperatorNode(limit: Long, skip: Long) : UnaryPhysicalOperatorNode() {
+class LimitPhysicalOperatorNode(val limit: Long, val skip: Long) : UnaryPhysicalOperatorNode() {
+
+    init {
+        require(this.limit > 0) { "Limit must be greater than zero but isn't (limit = $limit)." }
+        require(this.limit >= 0) { "Skip must be greater or equal to zero but isn't (limit = $skip)." }
+    }
 
     /** The [LimitPhysicalOperatorNode] returns the [ColumnDef] of its input, or no column at all. */
     override val columns: Array<ColumnDef<*>>
         get() = this.input.columns
-
-    val limit = if (limit.coerceAtLeast(0) == 0L) {
-        Long.MAX_VALUE
-    } else {
-        limit
-    }
-
-    val skip = if (limit.coerceAtLeast(0) == 0L) {
-        0L
-    } else {
-        skip
-    }
 
     override val outputSize: Long
         get() = min((this.input.outputSize - this.skip), this.limit)

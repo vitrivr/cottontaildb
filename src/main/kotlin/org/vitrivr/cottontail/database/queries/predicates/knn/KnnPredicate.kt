@@ -49,6 +49,14 @@ open class KnnPredicate(
     /** List of [ValueBinding] for [weights] vectors. */
     private val _weightsBindings = LinkedList<ValueBinding>()
 
+    /** Returns the number of query vectors in this [KnnPredicate] according to [_queryBindings]. */
+    val numberOfQueries: Int
+        get() = this._queryBindings.size
+
+    /** Returns the number of weight vectors in this [KnnPredicate] according to [_weightsBindings]. */
+    val numberOfWeights: Int
+        get() = this._weightsBindings.size
+
     /** Columns affected by this [KnnPredicate]. */
     override val columns: Set<ColumnDef<*>>
         get() = setOf(this.column)
@@ -59,7 +67,7 @@ open class KnnPredicate(
      * Costs are calculated based on [ValueBinding]s for [_queryBindings] and [_weightsBindings]
      */
     override val atomicCpuCost: Float
-        get() = this.distance.costForDimension(this._queryBindings.first().type.logicalSize) * (this._queryBindings.size + this._weightsBindings.size)
+        get() = this.distance.costForDimension(this.column.type.logicalSize) * (this.numberOfQueries + this.numberOfWeights)
 
     /**
      * Adds a [ValueBinding] to this [KnnPredicate],
@@ -125,14 +133,14 @@ open class KnnPredicate(
     /**
      * Prepares this [KnnPredicate] for use in query execution, e.g., by executing late value binding.
      *
-     * @param context [QueryContext] to use to resolve [ValueBinding]s.
+     * @param ctx [QueryContext] to use to resolve [ValueBinding]s.
      * @return this [KnnPredicate]
      */
-    override fun bindValues(context: QueryContext): KnnPredicate {
+    override fun bindValues(ctx: QueryContext): KnnPredicate {
         if (!this._queryBindings.isEmpty()) {
             this._query.clear()
             this._queryBindings.forEach {
-                val value = it.bind(context)
+                val value = it.bind(ctx)
                 if (value is VectorValue<*>) {
                     this._query.add(value)
                 } else {
@@ -143,7 +151,7 @@ open class KnnPredicate(
         if (!this._weightsBindings.isEmpty()) {
             this._weightsBindings.clear()
             this._weightsBindings.forEach {
-                val value = it.bind(context)
+                val value = it.bind(ctx)
                 if (value is VectorValue<*>) {
                     this._weights.add(value)
                 } else {

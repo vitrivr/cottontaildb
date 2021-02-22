@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.database.queries.planning.nodes.logical.projectio
 
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.UnaryLogicalOperatorNode
+import org.vitrivr.cottontail.database.queries.planning.nodes.physical.projection.ProjectionPhysicalOperatorNode
 import org.vitrivr.cottontail.database.queries.projection.Projection
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Type
@@ -11,12 +12,9 @@ import org.vitrivr.cottontail.model.exceptions.QueryException
  * A [UnaryLogicalOperatorNode] that represents a projection operation on a [org.vitrivr.cottontail.model.recordset.Recordset].
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.2.0
  */
-class ProjectionLogicalOperatorNode(
-    val type: Projection = Projection.SELECT,
-    val fields: List<Pair<Name.ColumnName, Name.ColumnName?>>
-) : UnaryLogicalOperatorNode() {
+class ProjectionLogicalOperatorNode(val type: Projection = Projection.SELECT, val fields: List<Pair<Name.ColumnName, Name.ColumnName?>>) : UnaryLogicalOperatorNode() {
 
     init {
         /* Sanity check. */
@@ -28,7 +26,7 @@ class ProjectionLogicalOperatorNode(
     /** The [ProjectionLogicalOperatorNode] maps the [ColumnDef] of its input to the output specified by [fields]. */
     override val columns: Array<ColumnDef<*>>
         get() {
-            val input = this.input ?: return emptyArray()
+            val input = this.input
             return when (type) {
                 Projection.SELECT,
                 Projection.SELECT_DISTINCT -> {
@@ -70,6 +68,13 @@ class ProjectionLogicalOperatorNode(
      */
     override fun copy(): ProjectionLogicalOperatorNode =
         ProjectionLogicalOperatorNode(this.type, this.fields)
+
+    /**
+     * Returns a [ProjectionPhysicalOperatorNode] representation of this [ProjectionLogicalOperatorNode]
+     *
+     * @return [ProjectionPhysicalOperatorNode]
+     */
+    override fun implement(): Physical = ProjectionPhysicalOperatorNode(this.type, this.fields)
 
     /**
      * Calculates and returns the digest for this [ProjectionLogicalOperatorNode].

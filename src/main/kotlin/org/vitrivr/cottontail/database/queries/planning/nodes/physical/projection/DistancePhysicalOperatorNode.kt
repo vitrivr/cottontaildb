@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail.database.queries.planning.nodes.physical.predicates
+package org.vitrivr.cottontail.database.queries.planning.nodes.physical.projection
 
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.queries.OperatorNode
@@ -9,40 +9,35 @@ import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicate
 import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicateHint
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
-import org.vitrivr.cottontail.execution.operators.predicates.KnnOperator
-import org.vitrivr.cottontail.execution.operators.predicates.ParallelKnnOperator
+import org.vitrivr.cottontail.execution.operators.projection.DistanceProjectionOperator
+import org.vitrivr.cottontail.execution.operators.transform.MergeOperator
 import org.vitrivr.cottontail.utilities.math.KnnUtilities
-import java.lang.Integer.max
-import java.lang.Integer.min
 
 /**
  * A [UnaryPhysicalOperatorNode] that represents the application of a [KnnPredicate] on some intermediate result.
  *
  * @author Ralph Gasser
- * @version 1.3.0
+ * @version 1.0.0
  */
-class KnnPhysicalOperatorNode(val predicate: KnnPredicate) : UnaryPhysicalOperatorNode() {
+class DistancePhysicalOperatorNode(val predicate: KnnPredicate) : UnaryPhysicalOperatorNode() {
 
-    /** The [KnnPhysicalOperatorNode] returns the [ColumnDef] of its input + a distance column. */
+    /** The [DistancePhysicalOperatorNode] returns the [ColumnDef] of its input + a distance column. */
     override val columns: Array<ColumnDef<*>>
-        get() = arrayOf(
-            *this.input.columns,
-            KnnUtilities.distanceColumnDef(this.predicate.column.name.entity())
-        )
+        get() = this.input.columns + KnnUtilities.distanceColumnDef(this.predicate.column.name.entity())
 
+    /** The [DistancePhysicalOperatorNode] requires all [ColumnDef]s used in the [KnnPredicate]. */
+    override val requires: Array<ColumnDef<*>>
+        get() = this.predicate.columns.toTypedArray()
 
-    /** The output size of a [KnnPhysicalOperatorNode] is k times the number of queries. */
+    /** The output size of a [DistancePhysicalOperatorNode] always equal to the . */
     override val outputSize: Long
-        get() = (this.predicate.k * this.predicate.query.size).toLong()
+        get() = this.input.outputSize
 
-    /** The [Cost] of a [KnnPhysicalOperatorNode]. */
+    /** The [Cost] of a [DistancePhysicalOperatorNode]. */
     override val cost: Cost
-        get() = Cost(
-            cpu = this.input.outputSize * this.predicate.distance.costForDimension(this.predicate.column.type.logicalSize) * (this.predicate.query.size + this.predicate.weights.size),
-            memory = (this.outputSize * this.columns.map { it.type.physicalSize }.sum()).toFloat()
-        )
+        get() = Cost(cpu = this.input.outputSize * this.predicate.atomicCpuCost)
 
-    override fun copy() = KnnPhysicalOperatorNode(this.predicate)
+    override fun copy() = DistancePhysicalOperatorNode(this.predicate)
 
     override fun bindValues(ctx: QueryContext): OperatorNode {
         this.predicate.bindValues(ctx)
@@ -53,19 +48,17 @@ class KnnPhysicalOperatorNode(val predicate: KnnPredicate) : UnaryPhysicalOperat
         val hint = this.predicate.hint
         val pMax = tx.availableThreads / 4
         val p = if (hint is KnnPredicateHint.ParallelKnnHint) {
-            max(hint.min, min(pMax, hint.max))
+            Integer.max(hint.min, Integer.min(pMax, hint.max))
         } else {
-            min(this.cost.parallelisation(), pMax)
+            Integer.min(this.totalCost.parallelisation(), pMax)
         }
-
+        this.predicate.bindValues(ctx)
         return if (p > 1 && this.input.canBePartitioned) {
             val partitions = this.input.partition(p)
-            val operators = partitions.map {
-                it.toOperator(tx, ctx)
-            }
-            ParallelKnnOperator(operators, this.predicate.bindValues(ctx))
+            val operators = partitions.map { DistanceProjectionOperator(it.toOperator(tx, ctx), this.predicate) }
+            MergeOperator(operators)
         } else {
-            KnnOperator(this.input.toOperator(tx, ctx), this.predicate.bindValues(ctx))
+            DistanceProjectionOperator(this.input.toOperator(tx, ctx), this.predicate)
         }
     }
 
@@ -76,4 +69,3 @@ class KnnPhysicalOperatorNode(val predicate: KnnPredicate) : UnaryPhysicalOperat
      */
     override fun digest(): Long = 31L * super.digest() + this.predicate.digest()
 }
-

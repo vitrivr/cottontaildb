@@ -12,7 +12,6 @@ import org.vitrivr.cottontail.database.queries.planning.CottontailQueryPlanner
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.management.InsertPhysicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.rules.logical.LeftConjunctionRewriteRule
 import org.vitrivr.cottontail.database.queries.planning.rules.logical.RightConjunctionRewriteRule
-import org.vitrivr.cottontail.database.queries.planning.rules.physical.implementation.*
 import org.vitrivr.cottontail.database.queries.planning.rules.physical.index.BooleanIndexScanRule
 import org.vitrivr.cottontail.execution.TransactionManager
 import org.vitrivr.cottontail.execution.TransactionType
@@ -46,18 +45,8 @@ class DMLService(val catalogue: DefaultCatalogue, override val manager: Transact
 
     /** [CottontailQueryPlanner] instance used to generate execution plans from query definitions. */
     private val planner = CottontailQueryPlanner(
-        logicalRewriteRules = listOf(
-            LeftConjunctionRewriteRule,
-            RightConjunctionRewriteRule
-        ),
-        physicalRewriteRules = listOf(
-            BooleanIndexScanRule,
-            EntityScanImplementationRule,
-            FilterImplementationRule,
-            DeleteImplementationRule,
-            UpdateImplementationRule,
-            InsertImplementationRule
-        ),
+        logicalRules = listOf(LeftConjunctionRewriteRule, RightConjunctionRewriteRule),
+        physicalRules = listOf(BooleanIndexScanRule),
         this.catalogue.config.cache.planCacheSize
     )
 

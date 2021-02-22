@@ -21,6 +21,7 @@ class EntityCountPhysicalOperatorNode(val entity: Entity) : NullaryPhysicalOpera
         ColumnDef(this.entity.name.column(Projection.COUNT.label()), Type.Long, true)
     )
 
+    override val executable: Boolean = true
     override val outputSize = 1L
     override val canBePartitioned: Boolean = false
     override val cost = Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_MEMORY_ACCESS)
@@ -31,6 +32,7 @@ class EntityCountPhysicalOperatorNode(val entity: Entity) : NullaryPhysicalOpera
     override fun partition(p: Int): List<NullaryPhysicalOperatorNode> {
         throw IllegalStateException("EntityCountPhysicalNodeExpression cannot be partitioned.")
     }
+
 
     /**
      * Calculates and returns the digest for this [EntityCountPhysicalOperatorNode].

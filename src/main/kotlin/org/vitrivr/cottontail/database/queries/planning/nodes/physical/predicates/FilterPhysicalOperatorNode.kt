@@ -6,6 +6,8 @@ import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalOperatorNode
 import org.vitrivr.cottontail.database.queries.predicates.bool.BooleanPredicate
+import org.vitrivr.cottontail.database.queries.predicates.bool.ComparisonOperator
+import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicate
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.predicates.FilterOperator
@@ -15,10 +17,9 @@ import org.vitrivr.cottontail.execution.operators.predicates.ParallelFilterOpera
  * A [UnaryPhysicalOperatorNode] that represents application of a [BooleanPredicate] on some intermediate result.
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.3.0
  */
-class FilterPhysicalOperatorNode(val predicate: BooleanPredicate) :
-    UnaryPhysicalOperatorNode() {
+class FilterPhysicalOperatorNode(val predicate: BooleanPredicate) : UnaryPhysicalOperatorNode() {
 
     companion object {
         const val MAX_PARALLELISM = 4
@@ -26,9 +27,17 @@ class FilterPhysicalOperatorNode(val predicate: BooleanPredicate) :
 
     private val selectivity: Float = Cost.COST_DEFAULT_SELECTIVITY
 
+    /** The [FilterPhysicalOperatorNode] can only be executed if it doesn't contain any [ComparisonOperator.MATCH]. */
+    override val executable: Boolean
+        get() = this.predicate.atomics.none { it.operator == ComparisonOperator.MATCH } && this.input.executable
+
     /** The [FilterPhysicalOperatorNode] returns the [ColumnDef] of its input. */
     override val columns: Array<ColumnDef<*>>
         get() = this.input.columns
+
+    /** The [FilterPhysicalOperatorNode] requires all [ColumnDef]s used in the [KnnPredicate]. */
+    override val requires: Array<ColumnDef<*>>
+        get() = this.predicate.columns.toTypedArray()
 
     override val outputSize: Long
         get() = (this.input.outputSize * this.selectivity).toLong()

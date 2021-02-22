@@ -13,21 +13,34 @@ import org.vitrivr.cottontail.model.basics.Record
  * An [AbstractEntityOperator] that scans an [Index] and streams all [Record]s found within.
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.3.0
  */
-class EntityIndexScanOperator(val index: Index, private val predicate: Predicate) : AbstractEntityOperator(index.parent, index.produces) {
+class EntityIndexScanOperator(
+    private val index: Index,
+    private val predicate: Predicate,
+    private val range: LongRange? = null
+) : AbstractEntityOperator(index.parent, index.produces) {
+
     /**
      * Converts this [EntityIndexScanOperator] to a [Flow] and returns it.
      *
-     * @param context The [TODO] used for execution.
+     * @param context The [TransactionContext] used for execution.
      * @return [Flow] representing this [EntityIndexScanOperator]
      */
     override fun toFlow(context: TransactionContext): Flow<Record> {
         val tx = context.getTx(this.entity) as EntityTx
         val indexTx = context.getTx(tx.indexForName(this.index.name)) as IndexTx
-        return flow {
-            for (record in indexTx.filter(this@EntityIndexScanOperator.predicate)) {
-                emit(record)
+        return if (this.range == null) {
+            flow {
+                indexTx.filter(this@EntityIndexScanOperator.predicate).forEach {
+                    emit(it)
+                }
+            }
+        } else {
+            flow {
+                indexTx.filterRange(this@EntityIndexScanOperator.predicate, this@EntityIndexScanOperator.range).forEach {
+                    emit(it)
+                }
             }
         }
     }

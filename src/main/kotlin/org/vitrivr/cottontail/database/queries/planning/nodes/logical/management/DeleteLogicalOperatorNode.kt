@@ -3,6 +3,7 @@ package org.vitrivr.cottontail.database.queries.planning.nodes.logical.managemen
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.UnaryLogicalOperatorNode
+import org.vitrivr.cottontail.database.queries.planning.nodes.physical.management.DeletePhysicalOperatorNode
 import org.vitrivr.cottontail.execution.operators.management.DeleteOperator
 
 /**
@@ -21,6 +22,13 @@ class DeleteLogicalOperatorNode(val entity: Entity) : UnaryLogicalOperatorNode()
      * @return Copy of this [DeleteLogicalOperatorNode]
      */
     override fun copy(): DeleteLogicalOperatorNode = DeleteLogicalOperatorNode(this.entity)
+
+    /**
+     * Returns a [DeletePhysicalOperatorNode] representation of this [DeleteLogicalOperatorNode]
+     *
+     * @return [DeletePhysicalOperatorNode]
+     */
+    override fun implement() = DeletePhysicalOperatorNode(this.entity)
 
     /**
      * Calculates and returns the digest for this [DeleteLogicalOperatorNode].

@@ -18,31 +18,30 @@ import kotlin.math.min
 class EntitySamplePhysicalOperatorNode(
     val entity: Entity,
     override val columns: Array<ColumnDef<*>>,
-    val size: Long,
+    override val outputSize: Long,
     val seed: Long = System.currentTimeMillis()
 ) : NullaryPhysicalOperatorNode() {
     init {
-        require(size > 0) { "Sample size must be greater than zero for sampling an entity." }
+        require(this.outputSize > 0) { "Sample size must be greater than zero for sampling an entity." }
     }
 
-    override val outputSize = this.size
+    override val executable: Boolean = true
     override val canBePartitioned: Boolean = true
     override val cost = Cost(
-        this.outputSize * this.columns.size * Cost.COST_DISK_ACCESS_READ,
-        this.size * Cost.COST_MEMORY_ACCESS
+        this.columns.map { this.outputSize * it.type.physicalSize * Cost.COST_DISK_ACCESS_READ }.sum(),
+        this.outputSize * Cost.COST_MEMORY_ACCESS
     )
-
     override fun copy() =
-        EntitySamplePhysicalOperatorNode(this.entity, this.columns, this.size, this.seed)
+        EntitySamplePhysicalOperatorNode(this.entity, this.columns, this.outputSize, this.seed)
 
     override fun toOperator(tx: TransactionContext, ctx: QueryContext) =
-        EntitySampleOperator(this.entity, this.columns, this.size, this.seed)
+        EntitySampleOperator(this.entity, this.columns, this.outputSize, this.seed)
 
     override fun partition(p: Int): List<NullaryPhysicalOperatorNode> {
-        val partitionSize: Long = Math.floorDiv(this.size, p.toLong()) + 1L
+        val partitionSize: Long = Math.floorDiv(this.outputSize, p.toLong()) + 1L
         return (0 until p).map {
             val start = it * partitionSize
-            val end = min((it + 1L) * partitionSize, this.size)
+            val end = min((it + 1L) * partitionSize, this.outputSize)
             EntitySamplePhysicalOperatorNode(this.entity, this.columns, end - start + 1)
         }
     }
@@ -56,7 +55,7 @@ class EntitySamplePhysicalOperatorNode(
         var result = super.digest()
         result = 31L * result + this.entity.hashCode()
         result = 31L * result + this.columns.contentHashCode()
-        result = 31L * result + this.size.hashCode()
+        result = 31L * result + this.outputSize.hashCode()
         result = 31L * result + this.seed.hashCode()
         return result
     }

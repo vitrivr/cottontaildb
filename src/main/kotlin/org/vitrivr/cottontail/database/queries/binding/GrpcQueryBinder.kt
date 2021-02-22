@@ -5,25 +5,27 @@ import org.vitrivr.cottontail.database.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.entity.EntityTx
+import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.binding.extensions.*
-import org.vitrivr.cottontail.database.queries.planning.nodes.logical.LogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.management.DeleteLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.management.InsertLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.management.UpdateLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.predicates.FilterLogicalOperatorNode
-import org.vitrivr.cottontail.database.queries.planning.nodes.logical.predicates.KnnLogicalOperatorNode
-import org.vitrivr.cottontail.database.queries.planning.nodes.logical.projection.LimitLogicalOperatorNode
+import org.vitrivr.cottontail.database.queries.planning.nodes.logical.projection.DistanceLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.projection.ProjectionLogicalOperatorNode
+import org.vitrivr.cottontail.database.queries.planning.nodes.logical.sort.SortLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.sources.EntitySampleLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.sources.EntityScanLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.sources.EntitySourceLogicalOperatorNode
+import org.vitrivr.cottontail.database.queries.planning.nodes.logical.transform.LimitLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.projection.ProjectionPhysicalOperatorNode
 import org.vitrivr.cottontail.database.queries.predicates.bool.BooleanPredicate
 import org.vitrivr.cottontail.database.queries.predicates.bool.ComparisonOperator
 import org.vitrivr.cottontail.database.queries.predicates.bool.ConnectionOperator
 import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicate
 import org.vitrivr.cottontail.database.queries.projection.Projection
+import org.vitrivr.cottontail.database.queries.sort.SortOrder
 import org.vitrivr.cottontail.database.schema.SchemaTx
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.grpc.CottontailGrpc
@@ -35,16 +37,17 @@ import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.values.StringValue
 import org.vitrivr.cottontail.model.values.pattern.LikePatternValue
 import org.vitrivr.cottontail.model.values.pattern.LucenePatternValue
+import org.vitrivr.cottontail.utilities.math.KnnUtilities
 
 /**
  * This helper class parses and binds queries issued through the gRPC endpoint. The process encompasses three steps:
  *
  * 1) The [CottontailGrpc.Query] is decomposed into its components.
  * 2) The gRPC query components are bound to Cottontail DB objects and internal query objects are constructed. This step includes some basic validation.
- * 3) A [LogicalOperatorNode] tree is constructed from the internal query objects.
+ * 3) A [OperatorNode.Logical] tree is constructed from the internal query objects.
  *
  * @author Ralph Gasser
- * @version 1.3.0
+ * @version 1.5.0
  */
 class GrpcQueryBinder constructor(val catalogue: DefaultCatalogue) {
 
@@ -56,13 +59,13 @@ class GrpcQueryBinder constructor(val catalogue: DefaultCatalogue) {
     }
 
     /**
-     * Binds the given [CottontailGrpc.Query] to the database objects and thereby creates a tree of [LogicalOperatorNode]s.
+     * Binds the given [CottontailGrpc.Query] to the database objects and thereby creates a tree of [OperatorNode.Logical]s.
      *
      * @param query The [CottontailGrpc.Query] that should be bound.
      * @param context The [QueryContext] used for binding.
      * @param transaction The [TransactionContext] used for binding.
      *
-     * @return [LogicalOperatorNode]
+     * @return [OperatorNode.Logical]
      *
      * @throws QueryException.QuerySyntaxException If [CottontailGrpc.Query] is structurally incorrect.
      */
@@ -70,9 +73,9 @@ class GrpcQueryBinder constructor(val catalogue: DefaultCatalogue) {
         query: CottontailGrpc.Query,
         context: QueryContext,
         transaction: TransactionContext
-    ): LogicalOperatorNode {
+    ): OperatorNode.Logical {
         /* Create FROM clause. */
-        var root: LogicalOperatorNode = parseAndBindFrom(query.from, context, transaction)
+        var root: OperatorNode.Logical = parseAndBindFrom(query.from, context, transaction)
 
         /* Create WHERE-clause. */
         root = if (query.hasWhere()) {
@@ -83,7 +86,7 @@ class GrpcQueryBinder constructor(val catalogue: DefaultCatalogue) {
 
         /* Create kNN-clause . */
         root = if (query.hasKnn()) {
-            parseAndBindKnnPredicate(root, query.knn, context)
+            parseAndBindKnn(root, query.knn, context)
         } else {
             root
         }
@@ -107,21 +110,17 @@ class GrpcQueryBinder constructor(val catalogue: DefaultCatalogue) {
 
     /**
      * Binds the given [CottontailGrpc.InsertMessage] to the database objects and thereby creates
-     * a tree of [LogicalOperatorNode]s.
+     * a tree of [OperatorNode.Logical]s.
      *
      * @param insert The [ CottontailGrpc.InsertMessage] that should be bound.
      * @param context The [QueryContext] used for binding.
      * @param transaction The [TransactionContext] used for binding.
      *
-     * @return [LogicalOperatorNode]
+     * @return [OperatorNode.Logical]
      *
      * @throws QueryException.QuerySyntaxException If [CottontailGrpc.Query] is structurally incorrect.
      */
-    fun bind(
-        insert: CottontailGrpc.InsertMessage,
-        context: QueryContext,
-        transaction: TransactionContext
-    ): LogicalOperatorNode {
+    fun bind(insert: CottontailGrpc.InsertMessage, context: QueryContext, transaction: TransactionContext): OperatorNode.Logical {
         try {
             /* Parse entity for INSERT. */
             val entity = parseAndBindEntity(insert.from.scan.entity, context, transaction)
@@ -190,13 +189,13 @@ class GrpcQueryBinder constructor(val catalogue: DefaultCatalogue) {
 
     /**
      * Binds the given [CottontailGrpc.UpdateMessage] to the database objects and thereby creates
-     * a tree of [LogicalOperatorNode]s.
+     * a tree of [OperatorNode.Logical]s.
      *
      * @param update The [CottontailGrpc.UpdateMessage] that should be bound.
      * @param context The [QueryContext] used for binding.
      * @param transaction The [TransactionContext] used for binding.
      *
-     * @return [LogicalOperatorNode]
+     * @return [OperatorNode.Logical]
      * @throws QueryException.QuerySyntaxException If [CottontailGrpc.Query] is structurally incorrect.
      */
     fun bind(update: CottontailGrpc.UpdateMessage, context: QueryContext, transaction: TransactionContext) {
@@ -237,13 +236,13 @@ class GrpcQueryBinder constructor(val catalogue: DefaultCatalogue) {
 
     /**
      * Binds the given [CottontailGrpc.DeleteMessage] to the database objects and thereby creates
-     * a tree of [LogicalOperatorNode]s.
+     * a tree of [OperatorNode.Logical]s.
      *
      * @param delete The [CottontailGrpc.DeleteMessage] that should be bound.
      * @param context The [QueryContext] used for binding.
      * @param transaction The [TransactionContext] used for binding.
      *
-     * @return [LogicalOperatorNode]
+     * @return [OperatorNode.Logical]
      * @throws QueryException.QuerySyntaxException If [CottontailGrpc.Query] is structurally incorrect.
      */
     fun bind(delete: CottontailGrpc.DeleteMessage, context: QueryContext, transaction: TransactionContext) {
@@ -253,7 +252,7 @@ class GrpcQueryBinder constructor(val catalogue: DefaultCatalogue) {
             throw QueryException.QueryBindException("Failed to bind query. UPDATES only support entity sources as FROM-clause.")
         }
         val entity: Entity = from.entity
-        var root: LogicalOperatorNode = from
+        var root: OperatorNode.Logical = from
 
         /* Create WHERE-clause. */
         root = if (delete.hasWhere()) {
@@ -275,13 +274,9 @@ class GrpcQueryBinder constructor(val catalogue: DefaultCatalogue) {
      * @param context The [QueryContext] used for binding.
      * @param transaction The [TransactionContext] used for binding.
      *
-     * @return The resulting [LogicalOperatorNode].
+     * @return The resulting [OperatorNode.Logical].
      */
-    private fun parseAndBindFrom(
-        from: CottontailGrpc.From,
-        context: QueryContext,
-        transaction: TransactionContext
-    ): LogicalOperatorNode = try {
+    private fun parseAndBindFrom(from: CottontailGrpc.From, context: QueryContext, transaction: TransactionContext): OperatorNode.Logical = try {
         when (from.fromCase) {
             CottontailGrpc.From.FromCase.SCAN -> {
                 val entity = parseAndBindEntity(from.scan.entity, context, transaction)
@@ -331,17 +326,13 @@ class GrpcQueryBinder constructor(val catalogue: DefaultCatalogue) {
     /**
      * Parses and binds a [CottontailGrpc.Where] clause.
      *
-     * @param input The [LogicalOperatorNode] which to filter
+     * @param input The [OperatorNode.Logical] which to filter
      * @param where The [CottontailGrpc.Where] object.
      * @param context The [QueryContext] used for query binding.
      *
      * @return The resulting [BooleanPredicate].
      */
-    private fun parseAndBindBooleanPredicate(
-        input: LogicalOperatorNode,
-        where: CottontailGrpc.Where,
-        context: QueryContext
-    ): LogicalOperatorNode {
+    private fun parseAndBindBooleanPredicate(input: OperatorNode.Logical, where: CottontailGrpc.Where, context: QueryContext): OperatorNode.Logical {
         val predicate = when (where.predicateCase) {
             CottontailGrpc.Where.PredicateCase.ATOMIC -> parseAndBindAtomicBooleanPredicate(
                 input,
@@ -369,17 +360,13 @@ class GrpcQueryBinder constructor(val catalogue: DefaultCatalogue) {
     /**
      * Parses and binds an atomic boolean predicate
      *
-     * @param input The [LogicalOperatorNode] which to filter
+     * @param input The [OperatorNode.Logical] which to filter
      * @param compound The [CottontailGrpc.CompoundBooleanPredicate] object.
      * @param context The [QueryContext] used for query binding.
 
      * @return The resulting [BooleanPredicate.Compound].
      */
-    private fun parseAndBindCompoundBooleanPredicate(
-        input: LogicalOperatorNode,
-        compound: CottontailGrpc.CompoundBooleanPredicate,
-        context: QueryContext
-    ): BooleanPredicate.Compound {
+    private fun parseAndBindCompoundBooleanPredicate(input: OperatorNode.Logical, compound: CottontailGrpc.CompoundBooleanPredicate, context: QueryContext): BooleanPredicate.Compound {
         val left = when (compound.leftCase) {
             CottontailGrpc.CompoundBooleanPredicate.LeftCase.ALEFT -> parseAndBindAtomicBooleanPredicate(
                 input,
@@ -422,17 +409,13 @@ class GrpcQueryBinder constructor(val catalogue: DefaultCatalogue) {
     /**
      * Parses and binds an atomic boolean predicate
      *
-     * @param input The [LogicalOperatorNode] which to filter
+     * @param input The [OperatorNode.Logical] which to filter
      * @param atomic The [CottontailGrpc.AtomicLiteralBooleanPredicate] object.
      * @param context The [QueryContext] used for query binding.
      *
      * @return The resulting [BooleanPredicate.Atomic].
      */
-    private fun parseAndBindAtomicBooleanPredicate(
-        input: LogicalOperatorNode,
-        atomic: CottontailGrpc.AtomicLiteralBooleanPredicate,
-        context: QueryContext
-    ): BooleanPredicate.Atomic {
+    private fun parseAndBindAtomicBooleanPredicate(input: OperatorNode.Logical, atomic: CottontailGrpc.AtomicLiteralBooleanPredicate, context: QueryContext): BooleanPredicate.Atomic {
         /* Parse and bind column name to input */
         val columnName = atomic.left.fqn()
         val column = input.findUniqueColumnForName(columnName)
@@ -474,18 +457,14 @@ class GrpcQueryBinder constructor(val catalogue: DefaultCatalogue) {
     /**
      * Parses and binds the kNN-lookup part of a GRPC [CottontailGrpc.Query]
      *
-     * @param input The [LogicalOperatorNode] which to perform the kNN
+     * @param input The [OperatorNode.Logical] on which to perform the kNN
      * @param knn The [CottontailGrpc.Knn] object.
      * @param context The [QueryContext] used for query binding.
 
      * @return The resulting [KnnPredicate].
      */
     @Suppress("UNCHECKED_CAST")
-    private fun parseAndBindKnnPredicate(
-        input: LogicalOperatorNode,
-        knn: CottontailGrpc.Knn,
-        context: QueryContext
-    ): LogicalOperatorNode {
+    private fun parseAndBindKnn(input: OperatorNode.Logical, knn: CottontailGrpc.Knn, context: QueryContext): OperatorNode.Logical {
         val columnName = knn.attribute.fqn()
         val column = input.findUniqueColumnForName(columnName)
         val distance = Distances.valueOf(knn.distance.name).kernel
@@ -524,26 +503,28 @@ class GrpcQueryBinder constructor(val catalogue: DefaultCatalogue) {
             else -> throw QueryException.QuerySyntaxException("A kNN predicate does not contain a valid query vector!")
         }
 
-        /* Generate KnnLogicalNodeExpression and return it. */
-        val ret = KnnLogicalOperatorNode(predicate)
-        ret.addInput(input)
-        return ret
+        /* Generate DistanceLogicalOperatorNode and return it. */
+        val dist = DistanceLogicalOperatorNode(predicate)
+        val sort = SortLogicalOperatorNode(arrayOf(KnnUtilities.distanceColumnDef(predicate.column.name.entity()) to SortOrder.ASCENDING))
+        val limit = LimitLogicalOperatorNode(predicate.k.toLong(), 0L)
+
+        /* Connect operators. */
+        dist.addInput(input)
+        sort.addInput(dist)
+        limit.addInput(sort)
+        return limit
     }
 
     /**
      * Parses and binds the projection part of a gRPC [CottontailGrpc.Query]
      *
-     * @param input The [LogicalOperatorNode] on which to perform projection.
+     * @param input The [OperatorNode.Logical] on which to perform projection.
      * @param projection The [CottontailGrpc.Projection] object.
      * @param context The [QueryContext] used for query binding.
      *
      * @return The resulting [ProjectionPhysicalOperatorNode].
      */
-    private fun parseAndBindProjection(
-        input: LogicalOperatorNode,
-        projection: CottontailGrpc.Projection,
-        context: QueryContext
-    ): LogicalOperatorNode {
+    private fun parseAndBindProjection(input: OperatorNode.Logical, projection: CottontailGrpc.Projection, context: QueryContext): OperatorNode.Logical {
         val fields = projection.columnsList.map { p ->
             if (p.hasAlias()) {
                 p.column.fqn() to p.alias.fqn()
@@ -565,12 +546,12 @@ class GrpcQueryBinder constructor(val catalogue: DefaultCatalogue) {
 
     /**
      * Tries to find and return a [ColumnDef] that matches the given [Name.ColumnName] in
-     * this [LogicalOperatorNode]. The match must be unique!
+     * this [OperatorNode.Logical]. The match must be unique!
      *
      * @param name [Name.ColumnName] to look for.
      * @return [ColumnDef] that uniquely matches the [Name.ColumnName]
      */
-    private fun LogicalOperatorNode.findUniqueColumnForName(name: Name.ColumnName): ColumnDef<*> {
+    private fun OperatorNode.Logical.findUniqueColumnForName(name: Name.ColumnName): ColumnDef<*> {
         val candidates = this.findColumnsForName(name)
         if (candidates.isEmpty()) throw QueryException.QueryBindException("Could not find column '$name' in input.")
         if (candidates.size > 1) throw QueryException.QueryBindException("Multiple candidates for column '$name' in input.")
@@ -578,11 +559,11 @@ class GrpcQueryBinder constructor(val catalogue: DefaultCatalogue) {
     }
 
     /**
-     * Tries to find and return all [ColumnDef]s that matches the given [Name.ColumnName] in this [LogicalOperatorNode].
+     * Tries to find and return all [ColumnDef]s that matches the given [Name.ColumnName] in this [OperatorNode.Logical].
      *
      * @param name [Name.ColumnName] to look for.
      * @return List of [ColumnDef] that  match the [Name.ColumnName]
      */
-    private fun LogicalOperatorNode.findColumnsForName(name: Name.ColumnName): List<ColumnDef<*>> =
+    private fun OperatorNode.Logical.findColumnsForName(name: Name.ColumnName): List<ColumnDef<*>> =
         this.columns.filter { name.matches(it.name) }
 }

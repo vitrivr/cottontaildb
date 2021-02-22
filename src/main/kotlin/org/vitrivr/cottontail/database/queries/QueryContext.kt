@@ -2,8 +2,6 @@ package org.vitrivr.cottontail.database.queries
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
 import org.vitrivr.cottontail.database.queries.binding.ValueBinding
-import org.vitrivr.cottontail.database.queries.planning.nodes.logical.LogicalOperatorNode
-import org.vitrivr.cottontail.database.queries.planning.nodes.physical.PhysicalOperatorNode
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.model.basics.Type
@@ -26,11 +24,11 @@ class QueryContext(val txn: TransactionContext) {
         get() = this.bindings.size
 
     /** The [LogicalOperatorNode] representing the query held by this [QueryContext]. */
-    var logical: LogicalOperatorNode? = null
+    var logical: OperatorNode.Logical? = null
         internal set
 
     /** The [PhysicalOperatorNode] representing the query held by this [QueryContext]. */
-    var physical: PhysicalOperatorNode? = null
+    var physical: OperatorNode.Physical? = null
         internal set
 
     /**

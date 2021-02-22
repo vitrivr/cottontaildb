@@ -1,7 +1,6 @@
 package org.vitrivr.cottontail.database.queries.planning.cost
 
 import java.util.*
-import kotlin.math.max
 import kotlin.system.measureNanoTime
 
 /**
@@ -104,11 +103,11 @@ data class Cost constructor(val io: Float = 0.0f, val cpu: Float = 0.0f, val mem
     }
 
     /**
-     * Estimates, how much parallelisation makes sense given this [Cost]s CPU cost.
+     * Estimates, how much parallelization makes sense given this [Cost]s CPU cost.
      *
-     * @return Parallelisation estimation for this [Cost].
+     * @return parallelization estimation for this [Cost].
      */
-    fun parallelisation() = max(((this.cpu - this.io) / PARALLELISATION_CONSTANT).toInt(), 1)
+    fun parallelisation() = this.cpu.toInt()
 
 
     operator fun plus(other: Cost): Cost = Cost(this.io + other.io, this.cpu + other.cpu, this.memory + other.memory)
