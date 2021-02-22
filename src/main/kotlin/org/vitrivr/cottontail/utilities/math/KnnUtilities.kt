@@ -33,7 +33,7 @@ object KnnUtilities {
      * @param name The [Name.EntityName] to generate the [ColumnDef] for.
      * @return [ColumnDef]
      */
-    fun distanceColumnDef(name: Name.EntityName? = null) = ColumnDef(name?.column("distance") ?: Name.ColumnName("distance"), Type.Double)
+    fun distanceColumnDef(name: Name.EntityName? = null) = ColumnDef(name?.column("distance") ?: Name.ColumnName("distance"), Type.Double, false)
 
     /**
      * Transforms a [Selection] data structure into a [Recordset].
