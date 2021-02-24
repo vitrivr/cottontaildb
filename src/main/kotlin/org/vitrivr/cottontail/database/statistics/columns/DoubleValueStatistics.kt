@@ -45,7 +45,7 @@ class DoubleValueStatistics : ValueStatistics<DoubleValue>(Type.Double) {
     var sum: Double = 0.0
 
     /** The arithmetic for the values seen by this [DoubleValueStatistics]. */
-    val mean: Double
+    val avg: Double
         get() = (this.sum / this.numberOfEntries)
 
     /**

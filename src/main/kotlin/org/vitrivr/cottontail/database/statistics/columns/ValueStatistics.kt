@@ -91,8 +91,8 @@ open class ValueStatistics<T : Value>(val type: Type<T>) {
         get() = this.type.logicalSize
 
     /** Mean [Value] in terms of space requirement (logical size) known to this [ValueStatistics] */
-    val meanWidth: Int
-        get() = floorDiv(minWidth, maxWidth)
+    val avgWidth: Int
+        get() = floorDiv(this.minWidth + this.maxWidth, 2)
 
     /**
      * Updates this [ValueStatistics] with an inserted [Value]
