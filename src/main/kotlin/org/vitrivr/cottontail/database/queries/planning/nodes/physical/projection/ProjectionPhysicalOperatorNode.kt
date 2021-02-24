@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.database.queries.planning.nodes.physical.projection
 
 import org.vitrivr.cottontail.database.column.ColumnDef
+import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.projection.ProjectionLogicalOperatorNode
@@ -8,6 +9,7 @@ import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhys
 import org.vitrivr.cottontail.database.queries.projection.Projection
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.projection.*
+import org.vitrivr.cottontail.execution.operators.transform.LimitOperator
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Type
 import org.vitrivr.cottontail.model.exceptions.QueryException
@@ -16,12 +18,9 @@ import org.vitrivr.cottontail.model.exceptions.QueryException
  * Formalizes a [UnaryPhysicalOperatorNode] operation in the Cottontail DB query execution engine.
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 2.0.0
  */
-class ProjectionPhysicalOperatorNode(
-    val type: Projection,
-    val fields: List<Pair<Name.ColumnName, Name.ColumnName?>>
-) : UnaryPhysicalOperatorNode() {
+class ProjectionPhysicalOperatorNode(input: OperatorNode.Physical, val type: Projection, val fields: List<Pair<Name.ColumnName, Name.ColumnName?>>) : UnaryPhysicalOperatorNode(input) {
     init {
         /* Sanity check. */
         if (this.fields.isEmpty()) {
@@ -72,13 +71,46 @@ class ProjectionPhysicalOperatorNode(
             }
         }
 
+    /** The output size of this [ProjectionPhysicalOperatorNode], which equals its input's output size. */
     override val outputSize: Long
         get() = this.input.outputSize
 
-    override val cost: Cost
-        get() = Cost(cpu = this.outputSize * this.fields.size * Cost.COST_MEMORY_ACCESS)
+    /** The [Cost] of a [ProjectionPhysicalOperatorNode]. */
+    override val cost: Cost = Cost(cpu = this.outputSize * this.fields.size * Cost.COST_MEMORY_ACCESS)
 
-    override fun copy() = ProjectionPhysicalOperatorNode(this.type, this.fields)
+    /**
+     * Returns a copy of this [ProjectionPhysicalOperatorNode] and its input.
+     *
+     * @return Copy of this [ProjectionPhysicalOperatorNode] and its input.
+     */
+    override fun copyWithInputs() = ProjectionPhysicalOperatorNode(this.input.copyWithInputs(), this.type, this.fields)
+
+    /**
+     * Returns a copy of this [ProjectionPhysicalOperatorNode] and its output.
+     *
+     * @param inputs The [OperatorNode] that should act as inputs.
+     * @return Copy of this [ProjectionPhysicalOperatorNode] and its output.
+     */
+    override fun copyWithOutput(vararg inputs: OperatorNode.Physical): OperatorNode.Physical {
+        require(inputs.size == 1) { "Only one input is allowed for unary operators." }
+        val projection = ProjectionPhysicalOperatorNode(inputs[0], this.type, this.fields)
+        return (this.output?.copyWithOutput(projection) ?: projection)
+    }
+
+    /**
+     * Partitions this [ProjectionPhysicalOperatorNode].
+     *
+     * @param p The number of partitions to create.
+     * @return List of [OperatorNode.Physical], each representing a partition of the original tree.
+     */
+    override fun partition(p: Int): List<Physical> = this.input.partition(p).map { ProjectionPhysicalOperatorNode(it, this.type, this.fields) }
+
+    /**
+     * Converts this [ProjectionPhysicalOperatorNode] to a [LimitOperator].
+     *
+     * @param tx The [TransactionContext] used for execution.
+     * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
+     */
     override fun toOperator(tx: TransactionContext, ctx: QueryContext) = when (this.type) {
         Projection.SELECT -> SelectProjectionOperator(this.input.toOperator(tx, ctx), this.fields)
         Projection.SELECT_DISTINCT -> TODO()
@@ -91,15 +123,19 @@ class ProjectionPhysicalOperatorNode(
         Projection.MEAN -> MeanProjectionOperator(this.input.toOperator(tx, ctx), this.fields)
     }
 
-    /**
-     * Calculates and returns the digest for this [ProjectionPhysicalOperatorNode].
-     *
-     * @return Digest for this [ProjectionPhysicalOperatorNode]e
-     */
-    override fun digest(): Long {
-        var result = super.digest()
-        result = 31L * result + this.type.hashCode()
-        result = 31L * result + this.fields.hashCode()
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is ProjectionPhysicalOperatorNode) return false
+
+        if (type != other.type) return false
+        if (fields != other.fields) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = type.hashCode()
+        result = 31 * result + fields.hashCode()
         return result
     }
 }

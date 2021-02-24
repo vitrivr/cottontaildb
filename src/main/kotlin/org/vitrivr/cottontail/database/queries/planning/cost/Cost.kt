@@ -19,7 +19,7 @@ data class Cost constructor(val io: Float = 0.0f, val cpu: Float = 0.0f, val mem
         private const val ESTIMATION_REPETITION = 1_000_000
 
         /** Constant used to estimate, how much parallelization makes sense given CPU [Cost]s. This is a magic number :-) */
-        private const val PARALLELISATION_CONSTANT = 10.0f
+        private const val MAX_PARALLELISATION = 4
 
         /** Cost read access to disk. TODO: Estimate based on local hardware. */
         const val COST_DISK_ACCESS_READ = 1e-4f
@@ -103,12 +103,12 @@ data class Cost constructor(val io: Float = 0.0f, val cpu: Float = 0.0f, val mem
     }
 
     /**
-     * Estimates, how much parallelization makes sense given this [Cost]s CPU cost.
+     * Estimates, how much parallelization makes sense given this [Cost].
      *
+     * @param max The maximum parallelization to allow.
      * @return parallelization estimation for this [Cost].
      */
-    fun parallelisation() = this.cpu.toInt()
-
+    fun parallelisation(max: Int = MAX_PARALLELISATION) = Integer.max(Integer.min(max, this.cpu.toInt()), max)
 
     operator fun plus(other: Cost): Cost = Cost(this.io + other.io, this.cpu + other.cpu, this.memory + other.memory)
     operator fun minus(other: Cost): Cost = Cost(this.io - other.io, this.cpu - other.cpu, this.memory - other.memory)

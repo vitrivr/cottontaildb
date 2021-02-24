@@ -93,18 +93,17 @@ class GrpcQueryBinder constructor(val catalogue: DefaultCatalogue) {
 
         /* Process SELECT-clause (projection). */
         root = if (query.hasProjection()) {
-             parseAndBindProjection(root, query.projection, context)
+            parseAndBindProjection(root, query.projection, context)
         } else {
-             parseAndBindProjection(root, DEFAULT_PROJECTION, context)
+            parseAndBindProjection(root, DEFAULT_PROJECTION, context)
         }
 
         /* Process LIMIT and SKIP. */
-        if (query.limit > 0L || query.skip > 0L) {
-            val limit = LimitLogicalOperatorNode(query.limit, query.skip)
-            limit.addInput(root)
-            root = limit
+        context.logical = if (query.limit > 0L || query.skip > 0L) {
+            LimitLogicalOperatorNode(root, query.limit, query.skip)
+        } else {
+            root
         }
-        context.logical = root
         return context.logical!!
     }
 
@@ -143,8 +142,7 @@ class GrpcQueryBinder constructor(val catalogue: DefaultCatalogue) {
             if (logical is InsertLogicalOperatorNode) {
                 logical.records.add(RecordBinding(logical.records.size.toLong(), values))
             } else {
-                context.logical =
-                    InsertLogicalOperatorNode(entity, mutableListOf(RecordBinding(0L, values)))
+                context.logical = InsertLogicalOperatorNode(entity, mutableListOf(RecordBinding(0L, values)))
             }
             return context.logical!!
         } catch (e: DatabaseException.ColumnDoesNotExistException) {
@@ -226,9 +224,7 @@ class GrpcQueryBinder constructor(val catalogue: DefaultCatalogue) {
             }
 
             /* Create and return UPDATE-clause. */
-            val upd = UpdateLogicalOperatorNode(entity, values)
-            upd.addInput(root)
-            context.logical = upd
+            context.logical = UpdateLogicalOperatorNode(root, entity, values)
         } catch (e: DatabaseException.ColumnDoesNotExistException) {
             throw QueryException.QueryBindException("Failed to bind '${e.column}'. Column does not exist!")
         }
@@ -262,9 +258,7 @@ class GrpcQueryBinder constructor(val catalogue: DefaultCatalogue) {
         }
 
         /* Create and return DELETE-clause. */
-        val del = DeleteLogicalOperatorNode(entity)
-        del.addInput(root)
-        context.logical = del
+        context.logical = DeleteLogicalOperatorNode(root, entity)
     }
 
     /**
@@ -351,9 +345,7 @@ class GrpcQueryBinder constructor(val catalogue: DefaultCatalogue) {
         }
 
         /* Generate FilterLogicalNodeExpression and return it. */
-        val ret = FilterLogicalOperatorNode(predicate)
-        ret.addInput(input)
-        return ret
+        return FilterLogicalOperatorNode(input, predicate)
     }
 
 
@@ -435,7 +427,7 @@ class GrpcQueryBinder constructor(val catalogue: DefaultCatalogue) {
             val binding = when (operator) {
                 ComparisonOperator.LIKE -> {
                     if (v is StringValue) {
-                        context.bind(LikePatternValue(v.value))
+                        context.bind(LikePatternValue.forValue(v.value))
                     } else {
                         throw QueryException.QuerySyntaxException("LIKE operator requires a parsable string value as second operand.")
                     }
@@ -504,15 +496,9 @@ class GrpcQueryBinder constructor(val catalogue: DefaultCatalogue) {
         }
 
         /* Generate DistanceLogicalOperatorNode and return it. */
-        val dist = DistanceLogicalOperatorNode(predicate)
-        val sort = SortLogicalOperatorNode(arrayOf(KnnUtilities.distanceColumnDef(predicate.column.name.entity()) to SortOrder.ASCENDING))
-        val limit = LimitLogicalOperatorNode(predicate.k.toLong(), 0L)
-
-        /* Connect operators. */
-        dist.addInput(input)
-        sort.addInput(dist)
-        limit.addInput(sort)
-        return limit
+        val dist = DistanceLogicalOperatorNode(input, predicate)
+        val sort = SortLogicalOperatorNode(dist, arrayOf(KnnUtilities.distanceColumnDef(predicate.column.name.entity()) to SortOrder.ASCENDING))
+        return LimitLogicalOperatorNode(sort, predicate.k.toLong(), 0L)
     }
 
     /**
@@ -539,9 +525,7 @@ class GrpcQueryBinder constructor(val catalogue: DefaultCatalogue) {
         }
 
         /* Generate KnnLogicalNodeExpression and return it. */
-        val ret = ProjectionLogicalOperatorNode(type, fields)
-        ret.addInput(input)
-        return ret
+        return ProjectionLogicalOperatorNode(input, type, fields)
     }
 
     /**

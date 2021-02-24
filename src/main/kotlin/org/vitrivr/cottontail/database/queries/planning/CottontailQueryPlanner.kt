@@ -2,6 +2,8 @@ package org.vitrivr.cottontail.database.queries.planning
 
 import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.QueryContext
+import org.vitrivr.cottontail.database.queries.planning.nodes.logical.UnaryLogicalOperatorNode
+import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.rules.RewriteRule
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import java.util.*
@@ -18,13 +20,9 @@ import kotlin.collections.LinkedHashMap
  * Finally, the best plan in terms of [Cost] is selected.
  *
  * @author Ralph Gasser
- * @version 1.6.0
+ * @version 2.0.0
  */
-class CottontailQueryPlanner(
-    private val logicalRules: Collection<RewriteRule>,
-    private val physicalRules: Collection<RewriteRule>,
-    val planCacheSize: Int = 100
-) {
+class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, private val physicalRules: Collection<RewriteRule>, val planCacheSize: Int = 100) {
 
     /** Internal cache used to store query plans for known queries. */
     private val planCache = LinkedHashMap<Long, OperatorNode.Physical>()
@@ -41,7 +39,7 @@ class CottontailQueryPlanner(
         /* Try to obtain PhysicalNodeExpression from plan cache, unless bypassCache has been set to true. */
         val logical = context.logical
         require(logical != null) { "Cannot plan for a QueryContext that doesn't have a valid logical query representation." }
-        val digest = logical.deepDigest()
+        val digest = logical.digest()
         if (!bypassCache) {
             if (this.planCache.containsKey(digest)) {
                 context.physical = this.planCache[digest]
@@ -71,8 +69,8 @@ class CottontailQueryPlanner(
      *
      * @return List of [OperatorNode.Physical] that implement the [OperatorNode.Logical]
      */
-    fun plan(node: OperatorNode.Logical, ctx: QueryContext): Collection<OperatorNode.Physical> = (this.optimizeLogical(node, ctx) + node).map {
-        it.deepImplement()
+    fun plan(node: OperatorNode.Logical, ctx: QueryContext): Collection<OperatorNode.Physical> = this.optimizeLogical(node, ctx).map {
+        it.implement()
     }.flatMap {
         this.optimizePhysical(it, ctx)
     }.filter {
@@ -92,15 +90,15 @@ class CottontailQueryPlanner(
      */
     private fun optimizeLogical(operator: OperatorNode.Logical, ctx: QueryContext): List<OperatorNode.Logical> {
         /* List of candidates, objects to explore and digests */
-        val candidates = MemoizingOperatorList(operator.root as OperatorNode.Logical)
-        val explore = MemoizingOperatorList(operator.root as OperatorNode.Logical)
+        val candidates = MemoizingOperatorList(operator)
+        val explore = MemoizingOperatorList(operator)
 
         /* Now start exploring... */
         var pointer = explore.dequeue()
         while (pointer != null) {
             /* Apply rules to node and add results to list for exploration. */
             for (rule in this.logicalRules) {
-                val result = rule.apply(pointer, ctx)?.root
+                val result = rule.apply(pointer, ctx)
                 if (result is OperatorNode.Logical) {
                     explore.enqueue(result)
                     candidates.enqueue(result)
@@ -108,11 +106,9 @@ class CottontailQueryPlanner(
             }
 
             /* Add all inputs to operators that need further exploration. */
-            pointer.inputs.forEach {
-                when (it) {
-                    is OperatorNode.Logical -> explore.enqueue(it)
-                    is OperatorNode.Physical -> throw IllegalStateException("Encountered physical operator node in logical operator node tree. This is a programmer's error!")
-                }
+            when (pointer) {
+                is UnaryLogicalOperatorNode -> explore.enqueue(pointer.input)
+                is OperatorNode.Physical -> throw IllegalStateException("Encountered physical operator node in logical operator node tree. This is a programmer's error!")
             }
 
             /* Get next in line. */
@@ -129,15 +125,15 @@ class CottontailQueryPlanner(
      */
     private fun optimizePhysical(operator: OperatorNode.Physical, ctx: QueryContext): List<OperatorNode.Physical> {
         /* List of candidates, objects to explore and digests */
-        val candidates = MemoizingOperatorList(operator.root as OperatorNode.Physical)
-        val explore = MemoizingOperatorList(operator.root as OperatorNode.Physical)
+        val candidates = MemoizingOperatorList(operator.root)
+        val explore = MemoizingOperatorList(operator.root)
 
         /* Now start exploring... */
         var pointer = explore.dequeue()
         while (pointer != null) {
             /* Apply rules to node and add results to list for exploration. */
             for (rule in this.physicalRules) {
-                val result = rule.apply(pointer, ctx)?.root
+                val result = rule.apply(pointer, ctx)
                 if (result is OperatorNode.Physical) {
                     explore.enqueue(result)
                     candidates.enqueue(result)
@@ -145,11 +141,9 @@ class CottontailQueryPlanner(
             }
 
             /* Add all inputs to operators that need further exploration. */
-            pointer.inputs.forEach {
-                when (it) {
-                    is OperatorNode.Physical -> explore.enqueue(it)
-                    is OperatorNode.Logical -> throw IllegalStateException("Encountered logical operator node in physical operator node tree. This is a programmer's error!")
-                }
+            when (pointer) {
+                is UnaryPhysicalOperatorNode -> explore.enqueue(pointer.input)
+                is OperatorNode.Logical -> throw IllegalStateException("Encountered logical operator node in physical operator node tree. This is a programmer's error!")
             }
 
             /* Get next in line. */

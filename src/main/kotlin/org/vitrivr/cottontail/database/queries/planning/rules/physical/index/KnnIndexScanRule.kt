@@ -3,7 +3,6 @@ package org.vitrivr.cottontail.database.queries.planning.rules.physical.index
 import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.QueryContext
-import org.vitrivr.cottontail.database.queries.planning.nodes.logical.projection.DistanceLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.projection.DistancePhysicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.projection.FetchPhysicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.projection.LimitPhysicalOperatorNode
@@ -17,7 +16,7 @@ import org.vitrivr.cottontail.utilities.math.KnnUtilities
  * A [RewriteRule] that implements a NNS operator constellation (scan -> distance -> sort -> limit) by an index scan.
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.2.0
  */
 object KnnIndexScanRule : RewriteRule {
     override fun canBeApplied(node: OperatorNode): Boolean = node is DistancePhysicalOperatorNode
@@ -45,37 +44,31 @@ object KnnIndexScanRule : RewriteRule {
                             when {
                                 /* Case 1: Index produces distance, hence no distance calculation required! */
                                 candidate.produces.contains(column) -> {
-                                    val index = IndexScanPhysicalOperatorNode(candidate, node.predicate)
+                                    var p: OperatorNode.Physical = IndexScanPhysicalOperatorNode(candidate, node.predicate)
                                     val delta = scan.columns.filter { !candidate.produces.contains(it) && it != node.predicate.column }
-                                    return if (delta.isNotEmpty()) {
-                                        val fetch = FetchPhysicalOperatorNode(candidate.parent, delta.toTypedArray())
-                                        node.copyOutput()?.addInput(fetch)?.addInput(index)
-                                    } else {
-                                        node.copyOutput()?.addInput(index)
+                                    if (delta.isNotEmpty()) {
+                                        p = FetchPhysicalOperatorNode(p, candidate.parent, delta.toTypedArray())
                                     }
+                                    return sort.output?.copyWithOutput(p) ?: p /* TODO: Index should indicate if results are sorted. */
                                 }
 
                                 /* Case 2: Index produces the columns needed for the NNS operation. */
                                 candidate.produces.contains(node.predicate.column) -> {
-                                    val distance = DistanceLogicalOperatorNode(node.predicate)
                                     val index = IndexScanPhysicalOperatorNode(candidate, node.predicate)
-                                    distance.addInput(index)
+                                    var p: OperatorNode.Physical = DistancePhysicalOperatorNode(index, node.predicate)
                                     val delta = scan.columns.filter { !candidate.produces.contains(it) }
-                                    return if (delta.isNotEmpty()) {
-                                        val fetch = FetchPhysicalOperatorNode(candidate.parent, delta.toTypedArray())
-                                        node.copyOutput()?.addInput(fetch)?.addInput(distance)
-                                    } else {
-                                        node.copyOutput()?.addInput(distance)
+                                    if (delta.isNotEmpty()) {
+                                        p = FetchPhysicalOperatorNode(p, candidate.parent, delta.toTypedArray())
                                     }
+                                    return node.output?.copyWithOutput(p) ?: p
                                 }
 
                                 /* Case 3: Index only produces TupleIds. Column for NSS needs to be fetched in an extra step. */
                                 else -> {
-                                    val distance = DistanceLogicalOperatorNode(node.predicate)
-                                    val fetch = FetchPhysicalOperatorNode(scan.entity, scan.columns.filter { !candidate.produces.contains(it) }.toTypedArray())
                                     val index = IndexScanPhysicalOperatorNode(candidate, node.predicate)
-                                    distance.addInput(fetch).addInput(index)
-                                    node.copyOutput()?.addInput(distance)
+                                    val distance = DistancePhysicalOperatorNode(index, node.predicate)
+                                    val p = FetchPhysicalOperatorNode(distance, scan.entity, scan.columns.filter { !candidate.produces.contains(it) }.toTypedArray())
+                                    return node.output?.copyWithOutput(p) ?: p
                                 }
                             }
                         }

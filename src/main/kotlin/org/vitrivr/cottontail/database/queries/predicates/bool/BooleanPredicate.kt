@@ -21,7 +21,7 @@ import java.util.*
  * @see Record
  *
  * @author Ralph Gasser
- * @version 1.1.1
+ * @version 2.0.0
  */
 sealed class BooleanPredicate : Predicate {
     /** The [Atomic]s that make up this [BooleanPredicate]. */
@@ -50,23 +50,12 @@ sealed class BooleanPredicate : Predicate {
     abstract override fun bindValues(ctx: QueryContext): BooleanPredicate
 
     /**
-     * Calculates and returns the digest of this [BooleanPredicate].
-     *
-     * @return Digest of this [BooleanPredicate] as [Long]
-     */
-    override fun digest(): Long = this.javaClass.hashCode().toLong()
-
-    /**
      * An atomic [BooleanPredicate] that compares the column of a [Record] to a provided value (or a set of provided values).
      *
      * @author Ralph Gasser
      * @version 1.1.0
      */
-    data class Atomic(
-        val column: ColumnDef<*>,
-        val operator: ComparisonOperator,
-        val not: Boolean
-    ) : BooleanPredicate() {
+    class Atomic(val column: ColumnDef<*>, val operator: ComparisonOperator, val not: Boolean) : BooleanPredicate() {
         /** [ValueBinding]s associated with this [BooleanPredicate.Atomic]. */
         var values: MutableCollection<Value> = ObjectLinkedOpenHashSet()
             private set
@@ -164,21 +153,32 @@ sealed class BooleanPredicate : Predicate {
         /**
          * Prepares this [BooleanPredicate] for use in query execution, e.g., by executing late value binding.
          *
-         * @param context [QueryContext] to use to resolve [ValueBinding]s.
+         * @param ctx [QueryContext] to use to resolve [ValueBinding]s.
          * @return This [BooleanPredicate.Atomic]
          */
-        override fun bindValues(context: QueryContext): BooleanPredicate {
+        override fun bindValues(ctx: QueryContext): BooleanPredicate {
             if (!this.bindings.isEmpty()) {
                 this.values.clear()
                 this.bindings.forEach {
-                    val value = it.bind(context)
-                        ?: throw IllegalStateException("Failed to bind value for value binding $it.")
+                    val value = it.bind(ctx) ?: throw IllegalStateException("Failed to bind value for value binding $it.")
                     this.value(value)
                 }
             }
             return this
         }
 
+        /**
+         * Calculates and returns the digest for this [BooleanPredicate.Atomic]
+         *
+         * @return Digest as [Long]
+         */
+        override fun digest(): Long = 33L * this.hashCode()
+
+        /**
+         * Generates a [String] representation of this [BooleanPredicate].
+         *
+         * @return [String]
+         */
         override fun toString(): String {
             val builder = StringBuilder()
             if (this.not) builder.append("!(")
@@ -198,17 +198,23 @@ sealed class BooleanPredicate : Predicate {
             return builder.toString()
         }
 
-        /**
-         * Calculates and returns the digest for this [BooleanPredicate.Atomic]
-         *
-         * @return Digest as [Long]
-         */
-        override fun digest(): Long {
-            var result = super.digest()
-            result = 31L * result + this.column.hashCode()
-            result = 31L * result + this.operator.hashCode()
-            result = 31L * result + this.not.hashCode()
-            result = 31L * result + this.bindings.hashCode()
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (other !is Atomic) return false
+
+            if (column != other.column) return false
+            if (operator != other.operator) return false
+            if (not != other.not) return false
+            if (bindings != other.bindings) return false
+
+            return true
+        }
+
+        override fun hashCode(): Int {
+            var result = column.hashCode()
+            result = 31 * result + operator.hashCode()
+            result = 31 * result + not.hashCode()
+            result = 31 * result + bindings.hashCode()
             return result
         }
     }
@@ -220,7 +226,7 @@ sealed class BooleanPredicate : Predicate {
      * @author Ralph Gasser
      * @version 1.1.0
      */
-    data class Compound(val connector: ConnectionOperator, val p1: BooleanPredicate, val p2: BooleanPredicate) : BooleanPredicate() {
+    class Compound(val connector: ConnectionOperator, val p1: BooleanPredicate, val p2: BooleanPredicate) : BooleanPredicate() {
 
         /** The total number of operations required by this [Compound]. */
         override val atomicCpuCost
@@ -276,11 +282,23 @@ sealed class BooleanPredicate : Predicate {
          *
          * @return Digest as [Long]
          */
-        override fun digest(): Long {
-            var result = super.digest()
-            result = 31L * result + this.p1.digest()
-            result = 31L * result + this.p2.digest()
-            result = 31L * result + this.connector.hashCode()
+        override fun digest(): Long = 33L * this.hashCode()
+
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (other !is Compound) return false
+
+            if (connector != other.connector) return false
+            if (p1 != other.p1) return false
+            if (p2 != other.p2) return false
+
+            return true
+        }
+
+        override fun hashCode(): Int {
+            var result = connector.hashCode()
+            result = 31 * result + p1.hashCode()
+            result = 31 * result + p2.hashCode()
             return result
         }
     }

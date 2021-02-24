@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.database.queries.planning.nodes.logical.projection
 
 import org.vitrivr.cottontail.database.column.ColumnDef
+import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.UnaryLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.projection.ProjectionPhysicalOperatorNode
 import org.vitrivr.cottontail.database.queries.projection.Projection
@@ -12,9 +13,9 @@ import org.vitrivr.cottontail.model.exceptions.QueryException
  * A [UnaryLogicalOperatorNode] that represents a projection operation on a [org.vitrivr.cottontail.model.recordset.Recordset].
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 2.0.0
  */
-class ProjectionLogicalOperatorNode(val type: Projection = Projection.SELECT, val fields: List<Pair<Name.ColumnName, Name.ColumnName?>>) : UnaryLogicalOperatorNode() {
+class ProjectionLogicalOperatorNode(input: OperatorNode.Logical, val type: Projection = Projection.SELECT, val fields: List<Pair<Name.ColumnName, Name.ColumnName?>>) : UnaryLogicalOperatorNode(input) {
 
     init {
         /* Sanity check. */
@@ -62,29 +63,44 @@ class ProjectionLogicalOperatorNode(val type: Projection = Projection.SELECT, va
         }
 
     /**
-     * Returns a copy of this [ProjectionLogicalOperatorNode]
+     * Returns a copy of this [ProjectionLogicalOperatorNode] and its input.
      *
-     * @return Copy of this [ProjectionLogicalOperatorNode]
+     * @return Copy of this [ProjectionLogicalOperatorNode] and its input.
      */
-    override fun copy(): ProjectionLogicalOperatorNode =
-        ProjectionLogicalOperatorNode(this.type, this.fields)
+    override fun copyWithInputs(): ProjectionLogicalOperatorNode = ProjectionLogicalOperatorNode(this.input.copyWithInputs(), this.type, this.fields)
+
+    /**
+     * Returns a copy of this [ProjectionLogicalOperatorNode] and its output.
+     *
+     * @param inputs The [OperatorNode.Logical] that should act as inputs.
+     * @return Copy of this [ProjectionLogicalOperatorNode] and its output.
+     */
+    override fun copyWithOutput(vararg inputs: OperatorNode.Logical): OperatorNode.Logical {
+        require(inputs.size == 1) { "Only one input is allowed for unary operators." }
+        val distance = ProjectionLogicalOperatorNode(inputs[0], this.type, this.fields)
+        return (this.output?.copyWithOutput(distance) ?: distance)
+    }
 
     /**
      * Returns a [ProjectionPhysicalOperatorNode] representation of this [ProjectionLogicalOperatorNode]
      *
      * @return [ProjectionPhysicalOperatorNode]
      */
-    override fun implement(): Physical = ProjectionPhysicalOperatorNode(this.type, this.fields)
+    override fun implement(): Physical = ProjectionPhysicalOperatorNode(this.input.implement(), this.type, this.fields)
 
-    /**
-     * Calculates and returns the digest for this [ProjectionLogicalOperatorNode].
-     *
-     * @return Digest for this [ProjectionLogicalOperatorNode]
-     */
-    override fun digest(): Long {
-        var result = super.digest()
-        result = 31L * result + this.type.hashCode()
-        result = 31L * result + this.fields.hashCode()
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is ProjectionLogicalOperatorNode) return false
+
+        if (type != other.type) return false
+        if (fields != other.fields) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = type.hashCode()
+        result = 31 * result + fields.hashCode()
         return result
     }
 }

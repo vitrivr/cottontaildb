@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.database.queries.planning.nodes.physical.projecti
 
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.Entity
+import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalOperatorNode
@@ -15,37 +16,69 @@ import org.vitrivr.cottontail.execution.operators.transform.FetchOperator
  * This can be used for late population, which can lead to optimized performance for kNN queries
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 2.0.0
  */
-class FetchPhysicalOperatorNode(private val entity: Entity, private val fetch: Array<ColumnDef<*>>) : UnaryPhysicalOperatorNode() {
+class FetchPhysicalOperatorNode(input: OperatorNode.Physical, val entity: Entity, val fetch: Array<ColumnDef<*>>) : UnaryPhysicalOperatorNode(input) {
 
     /** The [FetchPhysicalOperatorNode] returns the [ColumnDef] of its input + the columns to be fetched. */
     override val columns: Array<ColumnDef<*>>
         get() = this.input.columns + this.fetch
 
+    /** The output size of this [FetchPhysicalOperatorNode], which equals its input's output size. */
     override val outputSize: Long
         get() = this.input.outputSize
 
-    override val cost: Cost
-        get() = Cost(
-            this.input.outputSize * this.fetch.map { it.type.physicalSize }.sum() * Cost.COST_DISK_ACCESS_READ,
-            this.input.outputSize * Cost.COST_MEMORY_ACCESS,
-            0.0f
-        )
-
-    override fun copy() = FetchPhysicalOperatorNode(this.entity, this.fetch)
-
-    override fun toOperator(tx: TransactionContext, ctx: QueryContext) = FetchOperator(this.input.toOperator(tx, ctx), this.entity, this.fetch)
+    /** The [Cost] of a [FetchPhysicalOperatorNode]. */
+    override val cost: Cost = Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_MEMORY_ACCESS) * this.input.outputSize * this.fetch.map { it.type.physicalSize }.sum()
 
     /**
-     * Calculates and returns the digest for this [FetchPhysicalOperatorNode].
+     * Returns a copy of this [FetchPhysicalOperatorNode] and its input.
      *
-     * @return Digest for this [FetchPhysicalOperatorNode]e
+     * @return Copy of this [FetchPhysicalOperatorNode] and its input.
      */
-    override fun digest(): Long {
-        var result = super.digest()
-        result = 31L * result + this.entity.hashCode()
-        result = 31L * result + this.fetch.contentHashCode()
+    override fun copyWithInputs() = FetchPhysicalOperatorNode(this.input.copyWithInputs(), this.entity, this.fetch)
+
+    /**
+     * Returns a copy of this [FetchPhysicalOperatorNode] and its output.
+     *
+     * @param inputs The [OperatorNode] that should act as inputs.
+     * @return Copy of this [FetchPhysicalOperatorNode] and its output.
+     */
+    override fun copyWithOutput(vararg inputs: OperatorNode.Physical): OperatorNode.Physical {
+        require(inputs.size == 1) { "Only one input is allowed for unary operators." }
+        val fetch = FetchPhysicalOperatorNode(inputs[0], this.entity, this.fetch)
+        return (this.output?.copyWithOutput(fetch) ?: fetch)
+    }
+
+    /**
+     * Partitions this [FetchPhysicalOperatorNode].
+     *
+     * @param p The number of partitions to create.
+     * @return List of [OperatorNode.Physical], each representing a partition of the original tree.
+     */
+    override fun partition(p: Int): List<Physical> = this.input.partition(p).map { FetchPhysicalOperatorNode(it, this.entity, this.fetch) }
+
+    /**
+     * Converts this [FetchPhysicalOperatorNode] to a [FetchOperator].
+     *
+     * @param tx The [TransactionContext] used for execution.
+     * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
+     */
+    override fun toOperator(tx: TransactionContext, ctx: QueryContext) = FetchOperator(this.input.toOperator(tx, ctx), this.entity, this.fetch)
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is FetchPhysicalOperatorNode) return false
+
+        if (entity != other.entity) return false
+        if (!fetch.contentEquals(other.fetch)) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = entity.hashCode()
+        result = 31 * result + fetch.contentHashCode()
         return result
     }
 }

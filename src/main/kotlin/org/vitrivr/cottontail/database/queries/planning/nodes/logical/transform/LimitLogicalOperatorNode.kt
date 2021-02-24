@@ -1,5 +1,7 @@
 package org.vitrivr.cottontail.database.queries.planning.nodes.logical.transform
+
 import org.vitrivr.cottontail.database.column.ColumnDef
+import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.UnaryLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.projection.LimitPhysicalOperatorNode
 
@@ -8,13 +10,13 @@ import org.vitrivr.cottontail.database.queries.planning.nodes.physical.projectio
  * final result [org.vitrivr.cottontail.model.recordset.Recordset].
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 2.0.0
  */
-class LimitLogicalOperatorNode(val limit: Long, val skip: Long) : UnaryLogicalOperatorNode() {
+class LimitLogicalOperatorNode(input: OperatorNode.Logical, val limit: Long, val skip: Long) : UnaryLogicalOperatorNode(input) {
 
     init {
         require(this.limit > 0) { "Limit must be greater than zero but isn't (limit = $limit)." }
-        require(this.limit >= 0) { "Skip must be greater or equal to zero but isn't (limit = $skip)." }
+        require(this.skip >= 0) { "Skip must be greater or equal to zero but isn't (limit = $skip)." }
     }
 
     /** The [LimitLogicalOperatorNode] returns the [ColumnDef] of its input, or no column at all. */
@@ -22,28 +24,44 @@ class LimitLogicalOperatorNode(val limit: Long, val skip: Long) : UnaryLogicalOp
         get() = this.input.columns
 
     /**
-     * Returns a copy of this [LimitLogicalOperatorNode]
+     * Returns a copy of this [LimitLogicalOperatorNode] and its input.
      *
-     * @return Copy of this [LimitLogicalOperatorNode]
+     * @return Copy of this [LimitLogicalOperatorNode] and its input.
      */
-    override fun copy(): LimitLogicalOperatorNode = LimitLogicalOperatorNode(this.limit, this.skip)
+    override fun copyWithInputs(): LimitLogicalOperatorNode = LimitLogicalOperatorNode(this.input.copyWithInputs(), this.limit, this.skip)
+
+    /**
+     * Returns a copy of this [LimitLogicalOperatorNode] and its output.
+     *
+     * @param inputs The [OperatorNode.Logical] that should act as inputs.
+     * @return Copy of this [LimitLogicalOperatorNode] and its output.
+     */
+    override fun copyWithOutput(vararg inputs: OperatorNode.Logical): OperatorNode.Logical {
+        require(inputs.size == 1) { "Only one input is allowed for unary operators." }
+        val limit = LimitLogicalOperatorNode(inputs[0], this.limit, this.skip)
+        return (this.output?.copyWithOutput(limit) ?: limit)
+    }
 
     /**
      * Returns a [LimitPhysicalOperatorNode] representation of this [LimitLogicalOperatorNode]
      *
      * @return [LimitPhysicalOperatorNode]
      */
-    override fun implement(): Physical = LimitPhysicalOperatorNode(this.limit, this.skip)
+    override fun implement(): Physical = LimitPhysicalOperatorNode(this.input.implement(), this.limit, this.skip)
 
-    /**
-     * Calculates and returns the digest for this [LimitLogicalOperatorNode].
-     *
-     * @return Digest for this [LimitLogicalOperatorNode]
-     */
-    override fun digest(): Long {
-        var result = super.digest()
-        result = 31L * result + this.limit.hashCode()
-        result = 31L * result + this.skip.hashCode()
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is LimitLogicalOperatorNode) return false
+
+        if (limit != other.limit) return false
+        if (skip != other.skip) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = limit.hashCode()
+        result = 27 * result + skip.hashCode()
         return result
     }
 }

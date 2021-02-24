@@ -16,7 +16,7 @@ import org.vitrivr.cottontail.database.queries.planning.rules.RewriteRule
  * [EntityScanLogicalOperatorNode] through a single [IndexScanPhysicalOperatorNode].
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.2.0
  */
 object BooleanIndexScanRule : RewriteRule {
     override fun canBeApplied(node: OperatorNode): Boolean =
@@ -29,14 +29,12 @@ object BooleanIndexScanRule : RewriteRule {
                 val indexes = (ctx.txn.getTx(parent.entity) as EntityTx).listIndexes()
                 val candidate = indexes.find { it.canProcess(node.predicate) }
                 if (candidate != null) {
-                    val p = IndexScanPhysicalOperatorNode(candidate, node.predicate)
+                    var p: OperatorNode.Physical = IndexScanPhysicalOperatorNode(candidate, node.predicate)
                     val delta = parent.columns.filter { !candidate.produces.contains(it) }
-                    return if (delta.isNotEmpty()) {
-                        val fetch = FetchPhysicalOperatorNode(candidate.parent, delta.toTypedArray())
-                        node.copyOutput()?.addInput(fetch)?.addInput(p.root)
-                    } else {
-                        node.copyOutput()?.addInput(p.root)
+                    if (delta.isNotEmpty()) {
+                        p = FetchPhysicalOperatorNode(p, candidate.parent, delta.toTypedArray())
                     }
+                    return node.output?.copyWithOutput(p) ?: p
                 }
             }
         }

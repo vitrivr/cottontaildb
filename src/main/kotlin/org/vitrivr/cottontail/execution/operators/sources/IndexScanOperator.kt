@@ -15,30 +15,26 @@ import org.vitrivr.cottontail.model.basics.Record
  * @author Ralph Gasser
  * @version 1.3.0
  */
-class EntityIndexScanOperator(
-    private val index: Index,
-    private val predicate: Predicate,
-    private val range: LongRange? = null
-) : AbstractEntityOperator(index.parent, index.produces) {
+class IndexScanOperator(private val index: Index, private val predicate: Predicate, private val range: LongRange? = null) : AbstractEntityOperator(index.parent, index.produces) {
 
     /**
-     * Converts this [EntityIndexScanOperator] to a [Flow] and returns it.
+     * Converts this [IndexScanOperator] to a [Flow] and returns it.
      *
      * @param context The [TransactionContext] used for execution.
-     * @return [Flow] representing this [EntityIndexScanOperator]
+     * @return [Flow] representing this [IndexScanOperator]
      */
     override fun toFlow(context: TransactionContext): Flow<Record> {
         val tx = context.getTx(this.entity) as EntityTx
         val indexTx = context.getTx(tx.indexForName(this.index.name)) as IndexTx
         return if (this.range == null) {
             flow {
-                indexTx.filter(this@EntityIndexScanOperator.predicate).forEach {
+                indexTx.filter(this@IndexScanOperator.predicate).forEach {
                     emit(it)
                 }
             }
         } else {
             flow {
-                indexTx.filterRange(this@EntityIndexScanOperator.predicate, this@EntityIndexScanOperator.range).forEach {
+                indexTx.filterRange(this@IndexScanOperator.predicate, this@IndexScanOperator.range).forEach {
                     emit(it)
                 }
             }

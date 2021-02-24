@@ -11,7 +11,7 @@ import java.util.*
  * Used during query planning.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.0.1
  */
 class MemoizingOperatorList<T : OperatorNode>(vararg elements: T) {
 
@@ -22,11 +22,11 @@ class MemoizingOperatorList<T : OperatorNode>(vararg elements: T) {
     private val digests = LongOpenHashSet()
 
     /** The number if elements in this [MemoizingOperatorList]. */
-    val size
+    val size: Int
         get() = this.list.size
 
     /** Whether this [MemoizingOperatorList] is currently empty. */
-    val isEmpty
+    val isEmpty: Boolean
         get() = this.list.isEmpty()
 
     init {
@@ -43,7 +43,7 @@ class MemoizingOperatorList<T : OperatorNode>(vararg elements: T) {
      * @return True on success, false if [OperatorNode] is already known.
      */
     fun enqueue(node: T, force: Boolean = false): Boolean {
-        val digest = node.deepDigest()
+        val digest = node.digest()
         if (force || !this.digests.contains(digest)) {
             this.list.add(node)
             this.digests.add(digest)

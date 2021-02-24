@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.database.queries.planning.nodes.physical.projection
 
 import org.vitrivr.cottontail.database.column.ColumnDef
+import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalOperatorNode
@@ -12,9 +13,9 @@ import kotlin.math.min
  * A [UnaryPhysicalOperatorNode] that represents the application of a LIMIT or SKIP clause on the result.
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 2.0.0
  */
-class LimitPhysicalOperatorNode(val limit: Long, val skip: Long) : UnaryPhysicalOperatorNode() {
+class LimitPhysicalOperatorNode(input: OperatorNode.Physical, val limit: Long, val skip: Long) : UnaryPhysicalOperatorNode(input) {
 
     init {
         require(this.limit > 0) { "Limit must be greater than zero but isn't (limit = $limit)." }
@@ -25,25 +26,60 @@ class LimitPhysicalOperatorNode(val limit: Long, val skip: Long) : UnaryPhysical
     override val columns: Array<ColumnDef<*>>
         get() = this.input.columns
 
-    override val outputSize: Long
-        get() = min((this.input.outputSize - this.skip), this.limit)
+    /** The output size of this [LimitPhysicalOperatorNode], which depends on skip and limit. */
+    override val outputSize: Long = min((this.input.outputSize - this.skip), this.limit)
 
-    override val cost: Cost
-        get() = Cost(cpu = this.outputSize * Cost.COST_MEMORY_ACCESS)
-
-    override fun copy() = LimitPhysicalOperatorNode(this.limit, this.skip)
-
-    override fun toOperator(tx: TransactionContext, ctx: QueryContext) = LimitOperator(this.input.toOperator(tx, ctx), this.skip, this.limit)
+    /** The [Cost] of a [LimitPhysicalOperatorNode]. */
+    override val cost: Cost = Cost(cpu = this.outputSize * Cost.COST_MEMORY_ACCESS)
 
     /**
-     * Calculates and returns the digest for this [LimitPhysicalOperatorNode].
+     * Returns a copy of this [LimitPhysicalOperatorNode] and its input.
      *
-     * @return Digest for this [LimitPhysicalOperatorNode]e
+     * @return Copy of this [LimitPhysicalOperatorNode] and its input.
      */
-    override fun digest(): Long {
-        var result = super.digest()
-        result = 31L * result + this.limit.hashCode()
-        result = 31L * result + this.skip.hashCode()
+    override fun copyWithInputs() = LimitPhysicalOperatorNode(this.input.copyWithInputs(), this.limit, this.skip)
+
+    /**
+     * Returns a copy of this [LimitPhysicalOperatorNode] and its output.
+     *
+     * @param inputs The [OperatorNode] that should act as inputs.
+     * @return Copy of this [LimitPhysicalOperatorNode] and its output.
+     */
+    override fun copyWithOutput(vararg inputs: OperatorNode.Physical): OperatorNode.Physical {
+        require(inputs.size == 1) { "Only one input is allowed for unary operators." }
+        val limit = LimitPhysicalOperatorNode(inputs[0], this.limit, this.skip)
+        return (this.output?.copyWithOutput(limit) ?: limit)
+    }
+
+    /**
+     * Partitions this [LimitPhysicalOperatorNode].
+     *
+     * @param p The number of partitions to create.
+     * @return List of [OperatorNode.Physical], each representing a partition of the original tree.
+     */
+    override fun partition(p: Int): List<Physical> = this.input.partition(p).map { LimitPhysicalOperatorNode(it, this.limit, this.skip) }
+
+    /**
+     * Converts this [LimitPhysicalOperatorNode] to a [LimitOperator].
+     *
+     * @param tx The [TransactionContext] used for execution.
+     * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
+     */
+    override fun toOperator(tx: TransactionContext, ctx: QueryContext) = LimitOperator(this.input.toOperator(tx, ctx), this.skip, this.limit)
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is LimitPhysicalOperatorNode) return false
+
+        if (limit != other.limit) return false
+        if (skip != other.skip) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = limit.hashCode()
+        result = 31 * result + skip.hashCode()
         return result
     }
 }

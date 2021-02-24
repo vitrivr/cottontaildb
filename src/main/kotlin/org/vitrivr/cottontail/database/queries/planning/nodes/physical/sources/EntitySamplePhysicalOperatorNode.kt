@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.database.queries.planning.nodes.physical.sources
 
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.Entity
+import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.NullaryPhysicalOperatorNode
@@ -13,30 +14,42 @@ import kotlin.math.min
  * A [NullaryPhysicalOperatorNode] that formalizes the random sampling of a physical [Entity] in Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 2.0.0
  */
-class EntitySamplePhysicalOperatorNode(
-    val entity: Entity,
-    override val columns: Array<ColumnDef<*>>,
-    override val outputSize: Long,
-    val seed: Long = System.currentTimeMillis()
-) : NullaryPhysicalOperatorNode() {
+class EntitySamplePhysicalOperatorNode(val entity: Entity, override val columns: Array<ColumnDef<*>>, override val outputSize: Long, val seed: Long = System.currentTimeMillis()) : NullaryPhysicalOperatorNode() {
     init {
-        require(this.outputSize > 0) { "Sample size must be greater than zero for sampling an entity." }
+        require(this.outputSize > 0) { "Sample size must be greater than zero for sampling an entity but is $outputSize." }
     }
 
     override val executable: Boolean = true
     override val canBePartitioned: Boolean = true
-    override val cost = Cost(
-        this.columns.map { this.outputSize * it.type.physicalSize * Cost.COST_DISK_ACCESS_READ }.sum(),
-        this.outputSize * Cost.COST_MEMORY_ACCESS
-    )
-    override fun copy() =
-        EntitySamplePhysicalOperatorNode(this.entity, this.columns, this.outputSize, this.seed)
+    override val cost = Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_MEMORY_ACCESS) * this.outputSize * this.columns.map { it.type.physicalSize }.sum()
 
-    override fun toOperator(tx: TransactionContext, ctx: QueryContext) =
-        EntitySampleOperator(this.entity, this.columns, this.outputSize, this.seed)
+    /**
+     * Returns a copy of this [EntitySamplePhysicalOperatorNode].
+     *
+     * @return Copy of this [EntitySamplePhysicalOperatorNode].
+     */
+    override fun copyWithInputs() = EntitySamplePhysicalOperatorNode(this.entity, this.columns, this.outputSize, this.seed)
 
+    /**
+     * Returns a copy of this [EntitySamplePhysicalOperatorNode] and its output.
+     *
+     * @param inputs The [OperatorNode.Logical] that should act as inputs.
+     * @return Copy of this [EntitySamplePhysicalOperatorNode] and its output.
+     */
+    override fun copyWithOutput(vararg inputs: OperatorNode.Physical): OperatorNode.Physical {
+        require(inputs.isEmpty()) { "No input is allowed for nullary operators." }
+        val sample = EntitySamplePhysicalOperatorNode(this.entity, this.columns, this.outputSize, this.seed)
+        return (this.output?.copyWithOutput(sample) ?: sample)
+    }
+
+    /**
+     * Partitions this [EntitySamplePhysicalOperatorNode].
+     *
+     * @param p The number of partitions to create.
+     * @return List of [OperatorNode.Physical], each representing a partition of the original tree.
+     */
     override fun partition(p: Int): List<NullaryPhysicalOperatorNode> {
         val partitionSize: Long = Math.floorDiv(this.outputSize, p.toLong()) + 1L
         return (0 until p).map {
@@ -47,16 +60,31 @@ class EntitySamplePhysicalOperatorNode(
     }
 
     /**
-     * Calculates and returns the digest for this [EntitySamplePhysicalOperatorNode].
+     * Converts this [EntitySamplePhysicalOperatorNode] to a [EntitySampleOperator].
      *
-     * @return Digest for this [EntitySamplePhysicalOperatorNode]e
+     * @param tx The [TransactionContext] used for execution.
+     * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun digest(): Long {
-        var result = super.digest()
-        result = 31L * result + this.entity.hashCode()
-        result = 31L * result + this.columns.contentHashCode()
-        result = 31L * result + this.outputSize.hashCode()
-        result = 31L * result + this.seed.hashCode()
+    override fun toOperator(tx: TransactionContext, ctx: QueryContext) = EntitySampleOperator(this.entity, this.columns, this.outputSize, this.seed)
+
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is EntitySamplePhysicalOperatorNode) return false
+
+        if (entity != other.entity) return false
+        if (!columns.contentEquals(other.columns)) return false
+        if (outputSize != other.outputSize) return false
+        if (seed != other.seed) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = entity.hashCode()
+        result = 31 * result + columns.contentHashCode()
+        result = 31 * result + outputSize.hashCode()
+        result = 31 * result + seed.hashCode()
         return result
     }
 }

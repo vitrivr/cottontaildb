@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.database.queries.planning.nodes.logical.predicates
 
 import org.vitrivr.cottontail.database.column.ColumnDef
+import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.UnaryLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.predicates.FilterPhysicalOperatorNode
 import org.vitrivr.cottontail.database.queries.predicates.bool.BooleanPredicate
@@ -9,9 +10,9 @@ import org.vitrivr.cottontail.database.queries.predicates.bool.BooleanPredicate
  * A [UnaryLogicalOperatorNode] that formalizes filtering using some [BooleanPredicate].
  *
  * @author Ralph Gasser
- * @version 1.3.0
+ * @version 2.0.0
  */
-class FilterLogicalOperatorNode(val predicate: BooleanPredicate) : UnaryLogicalOperatorNode() {
+class FilterLogicalOperatorNode(input: OperatorNode.Logical, val predicate: BooleanPredicate) : UnaryLogicalOperatorNode(input) {
 
     /** The [FilterLogicalOperatorNode] returns the [ColumnDef] of its input, or no column at all. */
     override val columns: Array<ColumnDef<*>>
@@ -22,23 +23,38 @@ class FilterLogicalOperatorNode(val predicate: BooleanPredicate) : UnaryLogicalO
         get() = this.predicate.columns.toTypedArray()
 
     /**
-     * Returns a copy of this [FilterLogicalOperatorNode]
+     * Returns a copy of this [FilterLogicalOperatorNode] and its input.
      *
-     * @return Copy of this [FilterLogicalOperatorNode]
+     * @return Copy of this [FilterLogicalOperatorNode] and its input.
      */
-    override fun copy(): FilterLogicalOperatorNode = FilterLogicalOperatorNode(this.predicate)
+    override fun copyWithInputs(): FilterLogicalOperatorNode = FilterLogicalOperatorNode(this.input.copyWithInputs(), this.predicate)
+
+
+    /**
+     * Returns a copy of this [FilterLogicalOperatorNode] and its output.
+     *
+     * @param inputs The [OperatorNode.Logical] that should act as inputs.
+     * @return Copy of this [FilterLogicalOperatorNode] and its output.
+     */
+    override fun copyWithOutput(vararg inputs: OperatorNode.Logical): OperatorNode.Logical {
+        require(inputs.size == 1) { "Only one input is allowed for unary operators." }
+        val filter = FilterLogicalOperatorNode(inputs[0], this.predicate)
+        return (this.output?.copyWithOutput(filter) ?: filter)
+    }
 
     /**
      * Returns a [FilterPhysicalOperatorNode] representation of this [FilterLogicalOperatorNode]
      *
      * @return [FilterPhysicalOperatorNode]
      */
-    override fun implement(): Physical = FilterPhysicalOperatorNode(this.predicate)
+    override fun implement(): Physical = FilterPhysicalOperatorNode(this.input.implement(), this.predicate)
 
-    /**
-     * Calculates and returns the digest for this [FilterLogicalOperatorNode].
-     *
-     * @return Digest for this [FilterLogicalOperatorNode]
-     */
-    override fun digest(): Long = 31L * super.digest() + this.predicate.digest()
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is FilterLogicalOperatorNode) return false
+        if (predicate != other.predicate) return false
+        return true
+    }
+
+    override fun hashCode(): Int = this.predicate.hashCode()
 }

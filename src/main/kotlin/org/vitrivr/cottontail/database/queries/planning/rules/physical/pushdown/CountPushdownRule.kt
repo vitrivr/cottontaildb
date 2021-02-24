@@ -12,7 +12,7 @@ import org.vitrivr.cottontail.database.queries.projection.Projection
  * Pushes the simple counting of entries in an [Entity] down.
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.3.0
  */
 object CountPushdownRule : RewriteRule {
     override fun canBeApplied(node: OperatorNode): Boolean =
@@ -23,8 +23,7 @@ object CountPushdownRule : RewriteRule {
             val input = node.input
             if (input is EntityScanPhysicalOperatorNode) {
                 val p = EntityCountPhysicalOperatorNode(input.entity)
-                node.copyOutput()?.addInput(p)
-                return p
+                return node.output?.copyWithOutput(p) ?: p
             }
         }
         return null

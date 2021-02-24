@@ -4,6 +4,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.queries.OperatorNode
+import org.vitrivr.cottontail.database.queries.planning.nodes.logical.NullaryLogicalOperatorNode
+import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.predicates.FilterPhysicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.projection.LimitPhysicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.sources.EntityCountPhysicalOperatorNode
@@ -46,12 +48,11 @@ class ExplainQueryOperator(val candidates: Collection<OperatorNode.Physical>) :
     override val columns: Array<ColumnDef<*>> = COLUMNS
 
     override fun toFlow(context: TransactionContext): Flow<Record> {
-        val candidate = this.candidates.sortedBy { it.totalCost }.first()
+        val candidate = this.candidates.minByOrNull { it.totalCost }!!
         return flow {
-            val plan = enumerate(nodes = listOf(candidate))
+            val plan = enumerate(emptyArray(), candidate)
             var row = 0L
             val array = Array<Value?>(this@ExplainQueryOperator.columns.size) { null }
-
             for (p in plan) {
                 val node = p.second
                 array[0] = StringValue(p.first)
@@ -78,14 +79,14 @@ class ExplainQueryOperator(val candidates: Collection<OperatorNode.Physical>) :
     /**
      * Enumerates a query plan and returns a sorted list of [PhysicalOperatorNode] with their exact path.
      */
-    fun enumerate(path: Array<Int> = emptyArray(), nodes: List<OperatorNode.Physical>): List<Pair<String, OperatorNode.Physical>> {
+    fun enumerate(path: Array<Int> = emptyArray(), vararg nodes: OperatorNode.Physical): List<Pair<String, OperatorNode.Physical>> {
         val list = mutableListOf<Pair<String, OperatorNode.Physical>>()
         for ((index, node) in nodes.withIndex()) {
             val newPath = (path + index)
-            if (node.inputs.size > 0) {
-                list += this.enumerate(newPath, node.inputs as List<OperatorNode.Physical>)
+            when (node) {
+                is NullaryLogicalOperatorNode -> list += Pair(newPath.joinToString("."), node)
+                is UnaryPhysicalOperatorNode -> list += this.enumerate(newPath, node.input)
             }
-            list.add(Pair(newPath.joinToString("."), node))
         }
         return list
     }

@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.database.queries.planning.nodes.logical.projectio
 
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.Entity
+import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.UnaryLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.projection.FetchPhysicalOperatorNode
 
@@ -13,32 +14,52 @@ import org.vitrivr.cottontail.database.queries.planning.nodes.physical.projectio
  * that involve pruning the result set (e.g. filters or nearest neighbour search).
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 2.0.0
  */
-class FetchLogicalOperatorNode(val entity: Entity, val fetch: Array<ColumnDef<*>>) : UnaryLogicalOperatorNode() {
+class FetchLogicalOperatorNode(input: OperatorNode.Logical, val entity: Entity, val fetch: Array<ColumnDef<*>>) : UnaryLogicalOperatorNode(input) {
 
     /** The [FetchLogicalOperatorNode] returns the [ColumnDef] of its input + the columns to be fetched. */
-    override val columns: Array<ColumnDef<*>>
-        get() = this.input.columns + this.fetch
+    override val columns: Array<ColumnDef<*>> = this.input.columns + this.fetch
 
-    override fun copy() = FetchLogicalOperatorNode(this.entity, this.fetch)
+    /**
+     * Copies this [FetchLogicalOperatorNode] and its input.
+     *
+     * @return Copy of this [FetchLogicalOperatorNode] and its input.
+     */
+    override fun copyWithInputs() = FetchLogicalOperatorNode(this.input.copyWithInputs(), this.entity, this.fetch)
+
+    /**
+     * Returns a copy of this [FetchLogicalOperatorNode] and its output.
+     *
+     * @param inputs The [OperatorNode.Logical] that should act as inputs.
+     * @return Copy of this [FetchLogicalOperatorNode] and its output.
+     */
+    override fun copyWithOutput(vararg inputs: OperatorNode.Logical): OperatorNode.Logical {
+        require(inputs.size == 1) { "Only one input is allowed for unary operators." }
+        val distance = FetchLogicalOperatorNode(inputs[0], this.entity, this.fetch)
+        return (this.output?.copyWithOutput(distance) ?: distance)
+    }
 
     /**
      * Returns a [FetchPhysicalOperatorNode] representation of this [FetchLogicalOperatorNode]
      *
      * @return [FetchPhysicalOperatorNode]
      */
-    override fun implement(): Physical = FetchPhysicalOperatorNode(this.entity, this.fetch)
+    override fun implement(): Physical = FetchPhysicalOperatorNode(this.input.implement(), this.entity, this.fetch)
 
-    /**
-     * Calculates and returns the digest for this [FetchLogicalOperatorNode].
-     *
-     * @return Digest for this [FetchLogicalOperatorNode]
-     */
-    override fun digest(): Long {
-        var result = super.digest()
-        result = 31L * result + this.entity.hashCode()
-        result = 31L * result + this.fetch.contentHashCode()
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is FetchLogicalOperatorNode) return false
+
+        if (entity != other.entity) return false
+        if (!fetch.contentEquals(other.fetch)) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = this.entity.hashCode()
+        result = 31 * result + fetch.contentHashCode()
         return result
     }
 }

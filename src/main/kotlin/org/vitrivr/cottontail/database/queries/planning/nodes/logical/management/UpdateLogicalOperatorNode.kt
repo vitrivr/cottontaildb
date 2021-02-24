@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.database.queries.planning.nodes.logical.managemen
 
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.Entity
+import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.binding.ValueBinding
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.UnaryLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.management.UpdatePhysicalOperatorNode
@@ -11,9 +12,9 @@ import org.vitrivr.cottontail.execution.operators.management.UpdateOperator
  * A [DeleteLogicalOperatorNode] that formalizes an UPDATE operation on an [Entity].
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 2.0.0
  */
-class UpdateLogicalOperatorNode(val entity: Entity, val values: List<Pair<ColumnDef<*>, ValueBinding>>) : UnaryLogicalOperatorNode() {
+class UpdateLogicalOperatorNode(input: OperatorNode.Logical, val entity: Entity, val values: List<Pair<ColumnDef<*>, ValueBinding>>) : UnaryLogicalOperatorNode(input) {
     /** The [UpdateLogicalOperatorNode] does produce the columns defined in the [UpdateOperator]. */
     override val columns: Array<ColumnDef<*>> = UpdateOperator.COLUMNS
 
@@ -22,25 +23,40 @@ class UpdateLogicalOperatorNode(val entity: Entity, val values: List<Pair<Column
      *
      * @return Copy of this [UpdateLogicalOperatorNode]
      */
-    override fun copy(): UpdateLogicalOperatorNode =
-        UpdateLogicalOperatorNode(this.entity, this.values)
+    override fun copyWithInputs(): UpdateLogicalOperatorNode = UpdateLogicalOperatorNode(this.input.copyWithInputs(), this.entity, this.values)
+
+    /**
+     * Returns a copy of this [InsertUpdateLogicalOperatorNodeLogicalOperatorNode] and its output.
+     *
+     * @param inputs The [OperatorNode.Logical] that should act as inputs.
+     * @return Copy of this [UpdateLogicalOperatorNode] and its output.
+     */
+    override fun copyWithOutput(vararg inputs: OperatorNode.Logical): OperatorNode.Logical {
+        require(inputs.size == 1) { "Only one input is allowed for unary operators." }
+        val update = UpdateLogicalOperatorNode(inputs[0], this.entity, this.values)
+        return (this.output?.copyWithOutput(update) ?: update)
+    }
 
     /**
      * Returns a [UpdatePhysicalOperatorNode] representation of this [UpdateLogicalOperatorNode]
      *
      * @return [UpdatePhysicalOperatorNode]
      */
-    override fun implement() = UpdatePhysicalOperatorNode(this.entity, this.values)
+    override fun implement() = UpdatePhysicalOperatorNode(this.input.implement(), this.entity, this.values)
 
-    /**
-     * Calculates and returns the digest for this [UpdateLogicalOperatorNode].
-     *
-     * @return Digest for this [UpdateLogicalOperatorNode]
-     */
-    override fun digest(): Long {
-        var result = 31L * super.digest()
-        result = 31 * result + this.entity.hashCode()
-        result = 31 * result + this.values.hashCode()
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is UpdateLogicalOperatorNode) return false
+
+        if (entity != other.entity) return false
+        if (values != other.values) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = entity.hashCode()
+        result = 31 * result + values.hashCode()
         return result
     }
 }

@@ -2,21 +2,34 @@ package org.vitrivr.cottontail.database.queries.planning.nodes.logical.sources
 
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.Entity
+import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.sources.EntityScanPhysicalOperatorNode
 
 /**
  * A [EntitySourceLogicalOperatorNode] that formalizes the scan of a physical [Entity] in Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 2.0.0
  */
 class EntityScanLogicalOperatorNode(entity: Entity, columns: Array<ColumnDef<*>>) : EntitySourceLogicalOperatorNode(entity, columns) {
     /**
-     * Returns a copy of this [EntityScanLogicalOperatorNode]
+     * Returns a copy of this [EntityScanLogicalOperatorNode] and its input.
      *
-     * @return Copy of this [EntityScanLogicalOperatorNode]
+     * @return Copy of this [EntityScanLogicalOperatorNode] and its input.
      */
-    override fun copy(): EntityScanLogicalOperatorNode = EntityScanLogicalOperatorNode(this.entity, this.columns)
+    override fun copyWithInputs(): EntityScanLogicalOperatorNode = EntityScanLogicalOperatorNode(this.entity, this.columns)
+
+    /**
+     * Returns a copy of this [EntityScanLogicalOperatorNode] and its output.
+     *
+     * @param inputs The [OperatorNode] that should act as inputs.
+     * @return Copy of this [EntityScanLogicalOperatorNode] and its output.
+     */
+    override fun copyWithOutput(vararg inputs: OperatorNode.Logical): OperatorNode.Logical {
+        require(inputs.isEmpty()) { "No input is allowed for nullary operators." }
+        val scan = EntityScanLogicalOperatorNode(this.entity, this.columns)
+        return (this.output?.copyWithOutput(scan) ?: scan)
+    }
 
     /**
      * Returns a [EntityScanPhysicalOperatorNode] representation of this [EntityScanLogicalOperatorNode]
@@ -24,16 +37,4 @@ class EntityScanLogicalOperatorNode(entity: Entity, columns: Array<ColumnDef<*>>
      * @return [EntityScanPhysicalOperatorNode]
      */
     override fun implement(): Physical = EntityScanPhysicalOperatorNode(this.entity, this.columns)
-
-    /**
-     * Calculates and returns the digest for this [EntitySourceLogicalOperatorNode].
-     *
-     * @return Digest for this [EntitySourceLogicalOperatorNode]
-     */
-    override fun digest(): Long {
-        var result = super.digest()
-        result = 31L * result + this.entity.hashCode()
-        result = 31L * result + this.columns.contentHashCode()
-        return result
-    }
 }

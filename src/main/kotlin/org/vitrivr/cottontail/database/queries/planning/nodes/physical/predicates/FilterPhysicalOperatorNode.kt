@@ -17,43 +17,61 @@ import org.vitrivr.cottontail.execution.operators.predicates.ParallelFilterOpera
  * A [UnaryPhysicalOperatorNode] that represents application of a [BooleanPredicate] on some intermediate result.
  *
  * @author Ralph Gasser
- * @version 1.3.0
+ * @version 2.0.0
  */
-class FilterPhysicalOperatorNode(val predicate: BooleanPredicate) : UnaryPhysicalOperatorNode() {
-
-    companion object {
-        const val MAX_PARALLELISM = 4
-    }
-
-    private val selectivity: Float = Cost.COST_DEFAULT_SELECTIVITY
-
-    /** The [FilterPhysicalOperatorNode] can only be executed if it doesn't contain any [ComparisonOperator.MATCH]. */
-    override val executable: Boolean
-        get() = this.predicate.atomics.none { it.operator == ComparisonOperator.MATCH } && this.input.executable
+class FilterPhysicalOperatorNode(input: OperatorNode.Physical, val predicate: BooleanPredicate) : UnaryPhysicalOperatorNode(input) {
 
     /** The [FilterPhysicalOperatorNode] returns the [ColumnDef] of its input. */
     override val columns: Array<ColumnDef<*>>
         get() = this.input.columns
 
     /** The [FilterPhysicalOperatorNode] requires all [ColumnDef]s used in the [KnnPredicate]. */
-    override val requires: Array<ColumnDef<*>>
-        get() = this.predicate.columns.toTypedArray()
+    override val requires: Array<ColumnDef<*>> = this.predicate.columns.toTypedArray()
 
-    override val outputSize: Long
-        get() = (this.input.outputSize * this.selectivity).toLong()
+    /** The [FilterPhysicalOperatorNode] can only be executed if it doesn't contain any [ComparisonOperator.MATCH]. */
+    override val executable: Boolean = this.predicate.atomics.none { it.operator == ComparisonOperator.MATCH } && this.input.executable
 
-    override val cost: Cost
-        get() = Cost(cpu = this.input.outputSize * this.predicate.atomicCpuCost)
+    /** The output size of this [FilterPhysicalOperatorNode]. TODO: Estimate selectivity of predicate. */
+    override val outputSize: Long = this.input.outputSize
 
-    override fun copy() = FilterPhysicalOperatorNode(this.predicate)
+    /** The [Cost] of this [FilterPhysicalOperatorNode]. */
+    override val cost: Cost = Cost(cpu = this.input.outputSize * this.predicate.atomicCpuCost)
 
-    override fun bindValues(ctx: QueryContext): OperatorNode {
-        this.predicate.bindValues(ctx)
-        return super.bindValues(ctx)
+    /**
+     * Returns a copy of this [FilterPhysicalOperatorNode] and its input.
+     *
+     * @return Copy of this [FilterPhysicalOperatorNode] and its input.
+     */
+    override fun copyWithInputs() = FilterPhysicalOperatorNode(this.input.copyWithInputs(), this.predicate)
+
+    /**
+     * Returns a copy of this [FilterPhysicalOperatorNode] and its output.
+     *
+     * @param inputs The [OperatorNode] that should act as inputs.
+     * @return Copy of this [FilterPhysicalOperatorNode] and its output.
+     */
+    override fun copyWithOutput(vararg inputs: OperatorNode.Physical): OperatorNode.Physical {
+        require(inputs.size == 1) { "Only one input is allowed for unary operators." }
+        val update = FilterPhysicalOperatorNode(inputs[0], this.predicate)
+        return (this.output?.copyWithOutput(update) ?: update)
     }
 
+    /**
+     * Partitions this [FilterPhysicalOperatorNode].
+     *
+     * @param p The number of partitions to create.
+     * @return List of [OperatorNode.Physical], each representing a partition of the original tree.
+     */
+    override fun partition(p: Int): List<Physical> = input.partition(p).map { FilterPhysicalOperatorNode(it, this.predicate) }
+
+    /**
+     * Converts this [FilterPhysicalOperatorNode] to a [FilterOperator].
+     *
+     * @param tx The [TransactionContext] used for execution.
+     * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
+     */
     override fun toOperator(tx: TransactionContext, ctx: QueryContext): Operator {
-        val parallelisation = Integer.min(this.cost.parallelisation(), MAX_PARALLELISM)
+        val parallelisation = this.cost.parallelisation()
         return if (this.canBePartitioned && parallelisation > 1) {
             val operators = this.input.partition(parallelisation).map { it.toOperator(tx, ctx) }
             ParallelFilterOperator(operators, this.predicate.bindValues(ctx))
@@ -63,9 +81,21 @@ class FilterPhysicalOperatorNode(val predicate: BooleanPredicate) : UnaryPhysica
     }
 
     /**
-     * Calculates and returns the digest for this [FilterPhysicalOperatorNode].
+     * Binds values from the provided [QueryContext] to this [FilterPhysicalOperatorNode]'s [BooleanPredicate].
      *
-     * @return Digest for this [FilterPhysicalOperatorNode]e
+     * @param ctx The [QueryContext] used for value binding.
      */
-    override fun digest(): Long = 31L * super.digest() + this.predicate.digest()
+    override fun bindValues(ctx: QueryContext): OperatorNode {
+        this.predicate.bindValues(ctx)
+        return super.bindValues(ctx) /* Important! */
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is FilterPhysicalOperatorNode) return false
+        if (predicate != other.predicate) return false
+        return true
+    }
+
+    override fun hashCode(): Int = this.predicate.hashCode()
 }

@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.database.queries.planning.nodes.logical.managemen
 
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.Entity
+import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.UnaryLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.management.DeletePhysicalOperatorNode
 import org.vitrivr.cottontail.execution.operators.management.DeleteOperator
@@ -10,31 +11,51 @@ import org.vitrivr.cottontail.execution.operators.management.DeleteOperator
  * A [DeleteLogicalOperatorNode] that formalizes a DELETE operation on an [Entity].
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 2.0.0
  */
-class DeleteLogicalOperatorNode(val entity: Entity) : UnaryLogicalOperatorNode() {
+class DeleteLogicalOperatorNode(input: OperatorNode.Logical, val entity: Entity) : UnaryLogicalOperatorNode(input) {
     /** The [DeleteLogicalOperatorNode] produces the columns defined in the [DeleteOperator] */
     override val columns: Array<ColumnDef<*>> = DeleteOperator.COLUMNS
 
     /**
-     * Returns a copy of this [DeleteLogicalOperatorNode]
+     * Returns a copy of this [DeleteLogicalOperatorNode] and its input.
      *
-     * @return Copy of this [DeleteLogicalOperatorNode]
+     * @return Copy of this [DeleteLogicalOperatorNode] and its input.
      */
-    override fun copy(): DeleteLogicalOperatorNode = DeleteLogicalOperatorNode(this.entity)
+    override fun copyWithInputs(): DeleteLogicalOperatorNode = DeleteLogicalOperatorNode(this.input.copyWithInputs(), this.entity)
+
+    /**
+     * Returns a copy of this [DeleteLogicalOperatorNode] and its output.
+     *
+     * @param inputs The [OperatorNode] that should act as inputs.
+     * @return Copy of this [DeleteLogicalOperatorNode] and its output.
+     */
+    override fun copyWithOutput(vararg inputs: OperatorNode.Logical): OperatorNode.Logical {
+        require(inputs.size == 1) { "Only one input is allowed for unary operators." }
+        val delete = DeleteLogicalOperatorNode(inputs[0], this.entity)
+        return (this.output?.copyWithOutput(delete) ?: delete)
+    }
 
     /**
      * Returns a [DeletePhysicalOperatorNode] representation of this [DeleteLogicalOperatorNode]
      *
      * @return [DeletePhysicalOperatorNode]
      */
-    override fun implement() = DeletePhysicalOperatorNode(this.entity)
+    override fun implement() = DeletePhysicalOperatorNode(this.input.implement(), this.entity)
 
-    /**
-     * Calculates and returns the digest for this [DeleteLogicalOperatorNode].
-     *
-     * @return Digest for this [DeleteLogicalOperatorNode]
-     */
-    override fun digest(): Long = 31L * super.digest() + this.entity.hashCode()
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is DeleteLogicalOperatorNode) return false
 
+        if (entity != other.entity) return false
+        if (!columns.contentEquals(other.columns)) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = entity.hashCode()
+        result = 31 * result + columns.contentHashCode()
+        return result
+    }
 }

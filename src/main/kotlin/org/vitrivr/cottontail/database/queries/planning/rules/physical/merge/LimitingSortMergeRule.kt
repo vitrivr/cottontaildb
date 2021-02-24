@@ -12,7 +12,7 @@ import org.vitrivr.cottontail.database.queries.planning.rules.RewriteRule
  * into a [LimitingSortPhysicalOperatorNode]
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
 object LimitingSortMergeRule : RewriteRule {
     override fun canBeApplied(node: OperatorNode): Boolean = node is LimitPhysicalOperatorNode && node.input is SortPhysicalOperatorNode
@@ -21,12 +21,9 @@ object LimitingSortMergeRule : RewriteRule {
         if (node is LimitPhysicalOperatorNode) {
             val sort = node.input
             if (sort is SortPhysicalOperatorNode) {
-                val input = sort.input.deepCopy()
-                val output = node.copyOutput()
-                val p = LimitingSortPhysicalOperatorNode(sort.order, node.limit, node.skip)
-                p.addInput(input)
-                output?.addInput(p)
-                return p
+                val input = sort.input.copyWithInputs()
+                val p = LimitingSortPhysicalOperatorNode(input, sort.order, node.limit, node.skip)
+                return node.output?.copyWithOutput(p) ?: p
             }
         }
         return null

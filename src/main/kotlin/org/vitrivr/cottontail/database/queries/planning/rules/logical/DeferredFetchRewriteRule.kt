@@ -1,12 +1,9 @@
 package org.vitrivr.cottontail.database.queries.planning.rules.logical
 
-import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.QueryContext
-import org.vitrivr.cottontail.database.queries.planning.nodes.logical.predicates.FilterLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.projection.FetchLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.sources.EntityScanLogicalOperatorNode
-import org.vitrivr.cottontail.database.queries.planning.nodes.logical.transform.LimitLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.rules.RewriteRule
 
 /**
@@ -23,7 +20,7 @@ object DeferredFetchRewriteRule : RewriteRule {
         if (node is EntityScanLogicalOperatorNode) {
             var next = node.output
             while (next != null) {
-                when (next) {
+                /* when (next) {
                     is FilterLogicalOperatorNode,
                     is LimitLogicalOperatorNode -> {
                         val fetch = mutableListOf<ColumnDef<*>>()
@@ -39,11 +36,10 @@ object DeferredFetchRewriteRule : RewriteRule {
                         /* Rewrite tree up and until this node. */
                         if (defer.size > 0) {
                             var scan = node.output!!
-                            val base = scan.copy()
+                            val base = scan.copyWithInputs()
                             var copy = base
                             while (scan != next) {
                                 scan = scan.output!!
-                                val localCopy = scan.copy()
                                 localCopy.addInput(copy)
                                 copy = localCopy
                             }
@@ -55,7 +51,7 @@ object DeferredFetchRewriteRule : RewriteRule {
                             return root
                         }
                     }
-                }
+                }*/
                 next = next.output
             }
         }
