@@ -27,9 +27,7 @@ import java.util.*
  * @version 2.0.0
  */
 class NonUniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path, parent) {
-    /**
-     * Index-wide constants.
-     */
+    /** Index-wide constants. */
     companion object {
         const val NUQ_INDEX_MAP = "cdb_nuq_map"
     }
@@ -47,11 +45,10 @@ class NonUniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path
     override val produces: Array<ColumnDef<*>> = this.columns
 
     /** Map structure used for [NonUniqueHashIndex]. */
-    private val map: NavigableSet<Array<Any>> =
-        this.store.treeSet(
-            NUQ_INDEX_MAP,
-            SerializerArrayTuple(this.columns[0].type.serializer(), Serializer.LONG_DELTA)
-        ).createOrOpen()
+    private val map: NavigableSet<Array<Any>> = this.store.treeSet(
+        NUQ_INDEX_MAP,
+        SerializerArrayTuple(this.columns[0].type.serializer(), Serializer.LONG_DELTA)
+    ).createOrOpen()
 
     init {
         this.store.commit() /* Initial commit. */
@@ -201,33 +198,31 @@ class NonUniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path
             /** Local [ BooleanPredicate.AtomicBooleanPredicate] instance. */
             private val predicate: BooleanPredicate.Atomic
 
-            /* Perform initial sanity checks. */
-            init {
-                require(predicate is BooleanPredicate.Atomic) { "NonUniqueHashIndex.filter() does only support AtomicBooleanPredicates." }
-                require(!predicate.not) { "NonUniqueHashIndex.filter() does not support negated statements (i.e. NOT EQUALS or NOT IN)." }
-                this@Tx.withReadLock { /* No op. */ }
-                this.predicate = predicate
-            }
-
             /** Pre-fetched entries that match the [Predicate]. */
             private val elements = LinkedList<Array<Any>>()
 
             init {
-                if (this.predicate.operator == ComparisonOperator.IN) {
-                    this.predicate.values.forEach { v ->
+                require(predicate is BooleanPredicate.Atomic) { "NonUniqueHashIndex.filter() does only support AtomicBooleanPredicates." }
+                require(!predicate.not) { "NonUniqueHashIndex.filter() does not support negated statements (i.e. NOT EQUALS or NOT IN)." }
+                this.predicate = predicate
+
+                this@Tx.withReadLock {
+                    if (this.predicate.operator == ComparisonOperator.IN) {
+                        this.predicate.values.forEach { v ->
+                            val subset = this@NonUniqueHashIndex.map.subSet(
+                                arrayOf(v),
+                                arrayOf(v, (null as Any?)) as Array<Any> /* Safe! */
+                            )
+                            this.elements.addAll(subset)
+                        }
+                    } else if (this.predicate.operator == ComparisonOperator.EQUAL) {
+                        val v = this.predicate.values.first()
                         val subset = this@NonUniqueHashIndex.map.subSet(
                             arrayOf(v),
                             arrayOf(v, (null as Any?)) as Array<Any> /* Safe! */
                         )
                         this.elements.addAll(subset)
                     }
-                } else if (this.predicate.operator == ComparisonOperator.EQUAL) {
-                    val v = this.predicate.values.first()
-                    val subset = this@NonUniqueHashIndex.map.subSet(
-                        arrayOf(v),
-                        arrayOf(v, (null as Any?)) as Array<Any> /* Safe! */
-                    )
-                    this.elements.addAll(subset)
                 }
             }
 
