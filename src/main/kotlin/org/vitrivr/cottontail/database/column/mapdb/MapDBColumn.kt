@@ -33,7 +33,6 @@ import java.util.concurrent.locks.StampedLock
  * @version 2.0.0
  */
 class MapDBColumn<T : Value>(override val path: Path, override val parent: Entity) : Column<T> {
-
     /**
      * Companion object with some important constants.
      */
@@ -89,15 +88,21 @@ class MapDBColumn<T : Value>(override val path: Path, override val parent: Entit
     override val maxTupleId: Long
         get() = this.store.maxRecid
 
-    /**
-     * Status indicating whether this [MapDBColumn] is open or closed.
-     */
+    /** Status indicating whether this [MapDBColumn] is open or closed. */
     @Volatile
     override var closed: Boolean = false
         private set
 
     /** An internal lock that is used to synchronize closing of the[MapDBColumn] in presence of ongoing [MapDBColumn.Tx]. */
     private val closeLock = StampedLock()
+
+    /**
+     * Creates and returns a new [MapDBColumn.Tx] for the given [TransactionContext].
+     *
+     * @param context The [TransactionContext] to create the [MapDBColumn.Tx] for.
+     * @return New [MapDBColumn.Tx]
+     */
+    override fun newTx(context: TransactionContext) = Tx(context)
 
     /**
      * Closes the [MapDBColumn]. Closing an [MapDBColumn] is a delicate matter since ongoing [MapDBColumn.Tx]  are involved.
@@ -119,14 +124,6 @@ class MapDBColumn<T : Value>(override val path: Path, override val parent: Entit
             }
         }
     }
-
-    /**
-     * Creates and returns a new [MapDBColumn.Tx] for the given [TransactionContext].
-     *
-     * @param context The [TransactionContext] to create the [MapDBColumn.Tx] for.
-     * @return New [MapDBColumn.Tx]
-     */
-    override fun newTx(context: TransactionContext) = Tx(context)
 
     /**
      * A [Tx] that affects this [MapDBColumn].
@@ -160,10 +157,7 @@ class MapDBColumn<T : Value>(override val path: Path, override val parent: Entit
 
             /** Commits the [ColumnTx] and integrates all changes made through it into the [MapDBColumn]. */
             override fun commit() {
-                val header = this@MapDBColumn.header.copy(
-                    modified = System.currentTimeMillis(),
-                    count = (this@MapDBColumn.header.count + this.delta)
-                )
+                val header = this@MapDBColumn.header.copy(modified = System.currentTimeMillis(), count = (this@MapDBColumn.header.count + this.delta))
                 this@MapDBColumn.store.update(HEADER_RECORD_ID, header, ColumnHeader.Serializer)
                 this@MapDBColumn.store.commit()
             }
@@ -258,10 +252,7 @@ class MapDBColumn<T : Value>(override val path: Path, override val parent: Entit
                 return ret
             } catch (e: DBException) {
                 this.status = TxStatus.ERROR
-                throw TxException.TxStorageException(
-                    this.context.txId,
-                    e.message ?: "Unknown exception during data storage"
-                )
+                throw TxException.TxStorageException(this.context.txId, e.message ?: "Unknown exception during data storage")
             }
         }
 
@@ -276,20 +267,15 @@ class MapDBColumn<T : Value>(override val path: Path, override val parent: Entit
          * @param expected The [Value] expected to be there.
          * @return True upon success, false otherwise.
          */
-        override fun compareAndUpdate(tupleId: TupleId, value: T?, expected: T?): Boolean =
-            this.withWriteLock {
-                try {
-                    return this@MapDBColumn.store.compareAndSwap(
-                        tupleId,
-                        expected,
-                        value,
-                        this.serializer
-                    )
-                } catch (e: DBException) {
-                    this.status = TxStatus.ERROR
-                    throw TxException.TxStorageException(this.context.txId, e.message ?: "Unknown")
-                }
+        override fun compareAndUpdate(tupleId: TupleId, value: T?, expected: T?): Boolean = this.withWriteLock {
+            try {
+                val ret = this@MapDBColumn.store.compareAndSwap(tupleId, expected, value, this.serializer)
+                return ret
+            } catch (e: DBException) {
+                this.status = TxStatus.ERROR
+                throw TxException.TxStorageException(this.context.txId, e.message ?: "Unknown")
             }
+        }
 
         /**
          * Deletes a record from this [MapDBColumn].
