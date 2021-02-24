@@ -1,15 +1,13 @@
 package org.vitrivr.cottontail.legacy
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
-
-import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.Dispatchers
 import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.database.catalogue.Catalogue
 import org.vitrivr.cottontail.database.catalogue.CatalogueTx
 import org.vitrivr.cottontail.database.column.ColumnEngine
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.entity.EntityTx
+import org.vitrivr.cottontail.database.events.DataChangeEvent
 import org.vitrivr.cottontail.database.general.DBO
 import org.vitrivr.cottontail.database.general.Tx
 import org.vitrivr.cottontail.database.locking.LockMode
@@ -22,7 +20,6 @@ import org.vitrivr.cottontail.model.basics.TransactionId
 import org.vitrivr.cottontail.utilities.io.FileUtilities
 import java.io.BufferedWriter
 import java.nio.file.*
-
 import java.util.*
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.math.min
@@ -252,12 +249,6 @@ abstract class AbstractMigrationManager(val batchSize: Int, logFile: Path) : Mig
         override var state: TransactionStatus = TransactionStatus.READY
             private set
 
-        /** [MigrationManager]s always run on the main thread. */
-        override val dispatcher: CoroutineDispatcher = Dispatchers.Main
-
-        /** [MigrationManager]s always run single threaded. */
-        override val availableThreads: Int = 1
-
         /** Map of all [Tx] that have been created as part of this [MigrationManager]. Used for final COMMIT or ROLLBACK. */
         protected val txns: MutableMap<DBO, Tx> =
             Collections.synchronizedMap(Object2ObjectOpenHashMap())
@@ -288,9 +279,15 @@ abstract class AbstractMigrationManager(val batchSize: Int, logFile: Path) : Mig
         override fun lockOn(dbo: DBO): LockMode = LockMode.EXCLUSIVE
 
         /**
+         *
+         */
+        override fun signalEvent(event: DataChangeEvent) {/* NoOp */
+        }
+
+        /**
          * Commits this [Transaction] thus finalizing and persisting all operations executed so far.
          */
-        override fun commit() {
+        fun commit() {
             check(this.state === TransactionStatus.READY) { "Cannot commit transaction ${this.txId} because it is in wrong state (s = ${this.state})." }
             this.state = TransactionStatus.FINALIZING
             this.txns.values.removeIf { txn ->
@@ -304,7 +301,7 @@ abstract class AbstractMigrationManager(val batchSize: Int, logFile: Path) : Mig
         /**
          * Rolls back this [Transaction] thus reverting all operations executed so far.
          */
-        override fun rollback() {
+        fun rollback() {
             check(this.state === TransactionStatus.READY || this.state === TransactionStatus.ERROR) { "Cannot rollback transaction ${this.txId} because it is in wrong state (s = ${this.state})." }
             this.state = TransactionStatus.FINALIZING
             this.txns.values.forEach { txn ->

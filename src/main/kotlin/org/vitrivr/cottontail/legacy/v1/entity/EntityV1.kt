@@ -18,6 +18,7 @@ import org.vitrivr.cottontail.database.index.Index
 import org.vitrivr.cottontail.database.index.IndexTx
 import org.vitrivr.cottontail.database.index.IndexType
 import org.vitrivr.cottontail.database.schema.SchemaTx
+import org.vitrivr.cottontail.database.statistics.entity.EntityStatistics
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.legacy.BrokenIndex
 import org.vitrivr.cottontail.legacy.v1.column.ColumnV1
@@ -123,6 +124,11 @@ class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1
 
     override val numberOfRows: Long
         get() = this.header.size
+
+    override val statistics: EntityStatistics
+        get() {
+            throw UnsupportedOperationException("Operation not supported on legacy DBO.")
+        }
 
     override val maxTupleId: TupleId
         get() {

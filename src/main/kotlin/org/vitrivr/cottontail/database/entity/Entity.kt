@@ -4,6 +4,7 @@ import org.vitrivr.cottontail.database.column.Column
 import org.vitrivr.cottontail.database.general.DBO
 import org.vitrivr.cottontail.database.schema.DefaultSchema
 import org.vitrivr.cottontail.database.schema.Schema
+import org.vitrivr.cottontail.database.statistics.entity.EntityStatistics
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.TupleId
@@ -27,6 +28,9 @@ interface Entity : DBO {
 
     /** The [DefaultSchema] this [Entity] belongs to. */
     override val parent: Schema
+
+    /** The [EntityStatistics] in this [Entity]. This is a snapshot and may change immediately. */
+    val statistics: EntityStatistics
 
     /** Number of [Column]s in this [Entity]. */
     val numberOfColumns: Int

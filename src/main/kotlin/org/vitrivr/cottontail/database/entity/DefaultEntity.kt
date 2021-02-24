@@ -17,6 +17,8 @@ import org.vitrivr.cottontail.database.index.IndexTx
 import org.vitrivr.cottontail.database.index.IndexType
 import org.vitrivr.cottontail.database.locking.LockMode
 import org.vitrivr.cottontail.database.schema.DefaultSchema
+import org.vitrivr.cottontail.database.statistics.columns.*
+import org.vitrivr.cottontail.database.statistics.entity.EntityStatistics
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.model.basics.*
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
@@ -52,14 +54,11 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
         /** Filename for the [DefaultEntity] catalogue.  */
         const val CATALOGUE_FILE = "index.db"
 
-        /** Filename for the [DefaultEntity] catalogue.  */
+        /** Field name for the [DefaultEntity] header field.  */
         const val ENTITY_HEADER_FIELD = "cdb_entity_header"
 
-        /** Filename for the [DefaultEntity] catalogue.  */
-        const val ENTITY_COUNT_FIELD = "cdb_entity_count"
-
-        /** Filename for the [DefaultEntity] catalogue.  */
-        const val ENTITY_MAX_FIELD = "cdb_entity_maxtid"
+        /** Field name for the [DefaultEntity]'s statistics.  */
+        const val ENTITY_STATISTICS_FIELD = "cdb_entity_statistics"
     }
 
     /** Internal reference to the [StoreWAL] underpinning this [DefaultEntity]. */
@@ -70,17 +69,13 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
     }
 
     /** The [EntityHeader] of this [DefaultEntity]. */
-    private val header =
-        this.store.atomicVar(ENTITY_HEADER_FIELD, EntityHeader.Serializer).createOrOpen()
-
-    /** The number of entries in this [DefaultEntity]. */
-    private val countField = this.store.atomicLong(ENTITY_COUNT_FIELD).createOrOpen()
+    private val headerField = this.store.atomicVar(ENTITY_HEADER_FIELD, EntityHeader.Serializer).createOrOpen()
 
     /** The maximum [TupleId] in this [DefaultEntity]. */
-    private val maxTupleIdField = this.store.atomicLong(ENTITY_MAX_FIELD).createOrOpen()
+    private val statisticsField = this.store.atomicVar(ENTITY_STATISTICS_FIELD, EntityStatistics.Serializer).createOrOpen()
 
     /** The [Name.EntityName] of this [DefaultEntity]. */
-    override val name: Name.EntityName = this.parent.name.entity(this.header.get().name)
+    override val name: Name.EntityName = this.parent.name.entity(this.headerField.get().name)
 
     /** An internal lock that is used to synchronize access to this [DefaultEntity] in presence of ongoing [Tx]. */
     private val closeLock = StampedLock()
@@ -99,13 +94,17 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
     override val numberOfColumns: Int
         get() = this.columns.size
 
+    /** The [EntityStatistics] in this [DefaultEntity]. This is a snapshot and may change immediately. */
+    override val statistics: EntityStatistics
+        get() = this.statisticsField.get()
+
     /** Number of entries in this [DefaultEntity]. This is a snapshot and may change immediately. */
     override val numberOfRows: Long
-        get() = this.countField.get()
+        get() = this.statistics.count
 
-    /** Estimated maximum [TupleId]s for this [DefaultEntity].  This is a snapshot and may change immediately. */
+    /** Estimated maximum [TupleId]s for this [DefaultEntity]. This is a snapshot and may change immediately. */
     override val maxTupleId: TupleId
-        get() = this.maxTupleIdField.get()
+        get() = this.statistics.maximumTupleId
 
     /**
      * Status indicating whether this [DefaultEntity] is open or closed.
@@ -116,7 +115,7 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
 
     init {
         /** Load and initialize the columns. */
-        val header = this.header.get()
+        val header = this.headerField.get()
         header.columns.map {
             val columnName = this.name.column(it.name)
             val path = this.path.resolve("${it.name}.col")
@@ -128,6 +127,13 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
             val indexName = this.name.index(it.name)
             val path = this.path.resolve("${it.name}.idx")
             indexes[indexName] = it.type.open(path, this)
+        }
+
+        /** Create entity statistics entries. */
+        if (this.statisticsField.get() == null) {
+            val map = Object2ObjectOpenHashMap<String, ValueStatistics<Value>>()
+            this.columns.values.forEach { map[it.name.simple] = it.type.statistics() as ValueStatistics<Value> }
+            this.statisticsField.set(EntityStatistics(columns = map))
         }
     }
 
@@ -169,7 +175,7 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
      * and [IndexTx] for every [Column] and [IndexTx] associated with this [DefaultEntity].
      *
      * @author Ralph Gasser
-     * @version 1.1.0
+     * @version 1.2.0
      */
     inner class Tx(context: TransactionContext) : AbstractTx(context), EntityTx {
 
@@ -182,7 +188,11 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
 
         /** [TxSnapshot] of this [EntityTx] */
         override val snapshot = object : EntityTxSnapshot {
-            override var delta: Long = 0L
+
+            /** Local snapshot of the surrounding [Entity]'s [EntityStatistics]. */
+            override val statistics: EntityStatistics = this@DefaultEntity.statisticsField.get()
+
+            /** Local snapshot of the surrounding [Entity]'s [Index]es. */
             override val indexes = Object2ObjectOpenHashMap(this@DefaultEntity.indexes)
 
             /**
@@ -191,19 +201,12 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
             override fun commit() {
                 try {
                     /* Update update header and commit changes. */
-                    val oldHeader = this@DefaultEntity.header.get()
-                    val newHeader = oldHeader.copy(
-                        modified = System.currentTimeMillis(),
-                        indexes = this.indexes.values.map {
-                            EntityHeader.IndexRef(
-                                it.name.simple,
-                                it.type
-                            )
-                        }
-                    )
-                    this@DefaultEntity.header.compareAndSet(oldHeader, newHeader)
-                    this@DefaultEntity.countField.addAndGet(this.delta)
-                    this@DefaultEntity.maxTupleIdField.set(this@DefaultEntity.columns.values.first().maxTupleId)
+                    val oldHeader = this@DefaultEntity.headerField.get()
+                    val newHeader = oldHeader.copy(modified = System.currentTimeMillis(), indexes = this.indexes.values.map { EntityHeader.IndexRef(it.name.simple, it.type) })
+
+                    /* Write header + statistics and commit. */
+                    this@DefaultEntity.headerField.compareAndSet(oldHeader, newHeader)
+                    this@DefaultEntity.statisticsField.set(this.statistics)
                     this@DefaultEntity.store.commit()
                 } catch (e: DBException) {
                     this@Tx.status = TxStatus.ERROR
@@ -262,11 +265,11 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
          *
          * @throws DatabaseException If tuple with the desired ID doesn't exist OR is invalid.
          */
-        override fun read(tupleId: TupleId, columns: Array<ColumnDef<*>>): Record = this.withReadLock {
+        override fun read(tupleId: TupleId, columns: Array<ColumnDef<*>>): Record {
             /* Read values from underlying columns. */
             val values = columns.map {
                 val column = this@DefaultEntity.columns[it.name]
-                        ?: throw IllegalArgumentException("Column $it does not exist on entity ${this@DefaultEntity.name}.")
+                    ?: throw IllegalArgumentException("Column $it does not exist on entity ${this@DefaultEntity.name}.")
                 (this.context.getTx(column) as ColumnTx<*>).read(tupleId)
             }.toTypedArray()
 
@@ -280,7 +283,7 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
          * @return The number of entries in this [DefaultEntity].
          */
         override fun count(): Long = this.withReadLock {
-            return this@DefaultEntity.countField.get()
+            return this.snapshot.statistics.count
         }
 
         /**
@@ -289,7 +292,7 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
          * @return The maximum tuple ID occupied by entries in this [DefaultEntity].
          */
         override fun maxTupleId(): TupleId = this.withReadLock {
-            return this@DefaultEntity.maxTupleIdField.get()
+            return this.snapshot.statistics.maximumTupleId
         }
 
         /**
@@ -309,9 +312,7 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
          */
         override fun columnForName(name: Name.ColumnName): Column<*> = this.withReadLock {
             if (!name.wildcard) {
-                this@DefaultEntity.columns[name] ?: throw DatabaseException.ColumnDoesNotExistException(
-                    name
-                )
+                this@DefaultEntity.columns[name] ?: throw DatabaseException.ColumnDoesNotExistException(name)
             } else {
                 val fqn = this@DefaultEntity.name.column(name.simple)
                 this@DefaultEntity.columns[fqn] ?: throw DatabaseException.ColumnDoesNotExistException(fqn)
@@ -370,8 +371,8 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
 
             try {
                 /* Update header. */
-                val oldHeader = this@DefaultEntity.header.get()
-                this@DefaultEntity.header.set(oldHeader.copy(indexes = oldHeader.indexes.filter { it.name != index.name.simple }))
+                val oldHeader = this@DefaultEntity.headerField.get()
+                this@DefaultEntity.headerField.set(oldHeader.copy(indexes = oldHeader.indexes.filter { it.name != index.name.simple }))
             } catch (e: DBException) {
                 this.status = TxStatus.ERROR
                 throw DatabaseException("Failed to drop index '$name' due to a storage exception: ${e.message}")
@@ -409,9 +410,7 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
 
                 /** The wrapped [Iterator] of the first (primary) column. */
                 private val wrapped = this@Tx.withReadLock {
-                    (this@Tx.context.getTx(this@DefaultEntity.columns.values.first()) as ColumnTx<*>).scan(
-                        range
-                    )
+                    (this@Tx.context.getTx(this@DefaultEntity.columns.values.first()) as ColumnTx<*>).scan(range)
                 }
 
                 /**
@@ -460,20 +459,12 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
                     inserts[it.columnDef] = value
                 }
 
+                /* Issue DataChangeEvent.InsertDataChange event and update indexes + statistics. */
                 if (lastTupleId != null) {
-                    /* Increment delta. */
-                    this.snapshot.delta += 1
-
-                    /* Issue DataChangeEvent.InsertDataChange event & update indexes. */
-                    /* ToDo: System wide event bus for [DataChangeEvent]. */
-                    val event = DataChangeEvent.InsertDataChangeEvent(
-                        this@DefaultEntity.name,
-                        lastTupleId!!,
-                        inserts
-                    )
-                    this@DefaultEntity.indexes.values.forEach {
-                        (this.context.getTx(it) as IndexTx).update(event)
-                    }
+                    val event = DataChangeEvent.InsertDataChangeEvent(this@DefaultEntity, lastTupleId!!, inserts)
+                    this.snapshot.indexes.values.forEach { (this.context.getTx(it) as IndexTx).update(event) }
+                    this.snapshot.statistics.consume(event)
+                    this.context.signalEvent(event)
                 }
 
                 return lastTupleId
@@ -496,7 +487,7 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
          */
         override fun update(record: Record) = this.withWriteLock {
             try {
-                val updates = Object2ObjectArrayMap<ColumnDef<*>, Pair<Value?,Value?>>(record.columns.size)
+                val updates = Object2ObjectArrayMap<ColumnDef<*>, Pair<Value?, Value?>>(record.columns.size)
                 record.columns.forEach { def ->
                     val column = this@DefaultEntity.columns[def.name] ?: throw IllegalArgumentException("Column $def does not exist on entity ${this@DefaultEntity.name}.")
                     val value = record[def]
@@ -504,12 +495,12 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
                     updates[def] = Pair(columnTx.update(record.tupleId, value), value) /* Map: ColumnDef -> Pair[Old, New]. */
                 }
 
-                /* Issue DataChangeEvent.UpdateDataChangeEvent event & update indexes. */
-                /* ToDo: System wide event bus for [DataChangeEvent]. */
-                val event = DataChangeEvent.UpdateDataChangeEvent(this@DefaultEntity.name, record.tupleId, updates)
-                this@DefaultEntity.indexes.values.forEach {
-                    (this.context.getTx(it) as IndexTx).update(event)
-                }
+                /* Issue DataChangeEvent.UpdateDataChangeEvent and update indexes + statistics. */
+                val event = DataChangeEvent.UpdateDataChangeEvent(this@DefaultEntity, record.tupleId, updates)
+                this.snapshot.indexes.values.forEach { (this.context.getTx(it) as IndexTx).update(event) }
+                this.snapshot.statistics.consume(event)
+                this.context.signalEvent(event)
+
             } catch (e: DatabaseException) {
                 this.status = TxStatus.ERROR
                 throw e
@@ -529,22 +520,16 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
         override fun delete(tupleId: TupleId) = this.withWriteLock {
             try {
                 /* Perform delete on each column. */
-                val deleted =
-                    Object2ObjectArrayMap<ColumnDef<*>, Value?>(this@DefaultEntity.columns.size)
+                val deleted = Object2ObjectArrayMap<ColumnDef<*>, Value?>(this@DefaultEntity.columns.size)
                 this@DefaultEntity.columns.values.map {
                     deleted[it.columnDef] = (this.context.getTx(it) as ColumnTx<*>).delete(tupleId)
                 }
 
-                /* Decrement delta. */
-                this.snapshot.delta -= 1
-
-                /* Issue DataChangeEvent.DeleteDataChangeEvent event & update indexes. */
-                /* ToDo: System wide event bus for [DataChangeEvent]. */
-                val event =
-                    DataChangeEvent.DeleteDataChangeEvent(this@DefaultEntity.name, tupleId, deleted)
-                this@DefaultEntity.indexes.values.forEach {
-                    (this.context.getTx(it) as IndexTx).update(event)
-                }
+                /* Issue DataChangeEvent.DeleteDataChangeEvent and update indexes + statistics. */
+                val event = DataChangeEvent.DeleteDataChangeEvent(this@DefaultEntity, tupleId, deleted)
+                this.snapshot.indexes.values.forEach { (this.context.getTx(it) as IndexTx).update(event) }
+                this.snapshot.statistics.consume(event)
+                this.context.signalEvent(event)
             } catch (e: DBException) {
                 this.status = TxStatus.ERROR
                 throw DatabaseException("Deleting record $tupleId failed due to an error in the underlying storage: ${e.message}.")
