@@ -21,23 +21,25 @@ class StringValueStatistics : ValueStatistics<StringValue>(Type.String) {
      */
     companion object Serializer : org.mapdb.Serializer<StringValueStatistics> {
         override fun serialize(out: DataOutput2, value: StringValueStatistics) {
-            out.packInt(value.minLength)
-            out.packInt(value.maxLength)
+            out.packInt(value.minWidth)
+            out.packInt(value.maxWidth)
         }
 
         override fun deserialize(input: DataInput2, available: Int): StringValueStatistics {
             val stat = StringValueStatistics()
-            stat.minLength = input.unpackInt()
-            stat.maxLength = input.unpackInt()
+            stat.minWidth = input.unpackInt()
+            stat.maxWidth = input.unpackInt()
             return stat
         }
     }
 
     /** Smallest [StringValue] seen by this [ValueStatistics] */
-    var minLength: Int = Int.MAX_VALUE
+    override var minWidth: Int = Int.MAX_VALUE
+        private set
 
-    /** Number of null entries contained in this [ValueStatistics]. */
-    var maxLength: Int = Int.MIN_VALUE
+    /** Largest [StringValue] seen by this [ValueStatistics] */
+    override var maxWidth: Int = Int.MIN_VALUE
+        private set
 
     /**
      * Updates this [StringValueStatistics] with an inserted [StringValue].
@@ -47,8 +49,8 @@ class StringValueStatistics : ValueStatistics<StringValue>(Type.String) {
     override fun insert(inserted: StringValue?) {
         super.insert(inserted)
         if (inserted != null) {
-            this.minLength = min(inserted.logicalSize, this.minLength)
-            this.maxLength = max(inserted.logicalSize, this.maxLength)
+            this.minWidth = min(inserted.logicalSize, this.minWidth)
+            this.maxWidth = max(inserted.logicalSize, this.maxWidth)
         }
     }
 
@@ -62,7 +64,7 @@ class StringValueStatistics : ValueStatistics<StringValue>(Type.String) {
 
         /* We cannot create a sensible estimate if a value is deleted. */
         if (deleted != null) {
-            if (this.minLength == deleted.logicalSize || this.maxLength == deleted.logicalSize) {
+            if (this.minWidth == deleted.logicalSize || this.maxWidth == deleted.logicalSize) {
                 this.dirty = true
             }
         }

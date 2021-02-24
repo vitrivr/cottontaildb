@@ -6,9 +6,13 @@ import org.mapdb.Serializer
 
 import org.vitrivr.cottontail.model.basics.Type
 import org.vitrivr.cottontail.model.values.types.Value
+import java.lang.Math.floorDiv
 
 /**
- * A basic implementation of a [ValueStatistics] object, which is used by Cottontail DB to maintain summary statistics about [Value]s
+ * A basic implementation of a [ValueStatistics] object, which is used by Cottontail DB to collect and summary statistics about
+ * [Value]s it encounters.
+ *
+ * These classes are used to collect statistics about columns, which can then be leveraged by the query planner.
  *
  * @author Ralph Gasser
  * @version 1.0.0
@@ -66,17 +70,29 @@ open class ValueStatistics<T : Value>(val type: Type<T>) {
     var dirty: Boolean = true
         protected set
 
-    /** Number of null entries for this [ValueStatistics]. */
+    /** Number of null entries known to this [ValueStatistics]. */
     var numberOfNullEntries: Long = 0L
         protected set
 
-    /** Number of non-null entries for this [ValueStatistics]. */
+    /** Number of non-null entries known to this [ValueStatistics]. */
     var numberOfNonNullEntries: Long = 0L
         protected set
 
-    /** Total number of entries for this [ValueStatistics]. */
+    /** Total number of entries known to this [ValueStatistics]. */
     val numberOfEntries
         get() = this.numberOfNullEntries + this.numberOfNonNullEntries
+
+    /** Smallest [Value] seen in terms of space requirement (logical size) known to this [ValueStatistics]. */
+    open val minWidth: Int
+        get() = this.type.logicalSize
+
+    /** Largest [Value] in terms of space requirement (logical size) known to this [ValueStatistics] */
+    open val maxWidth: Int
+        get() = this.type.logicalSize
+
+    /** Mean [Value] in terms of space requirement (logical size) known to this [ValueStatistics] */
+    val meanWidth: Int
+        get() = floorDiv(minWidth, maxWidth)
 
     /**
      * Updates this [ValueStatistics] with an inserted [Value]
