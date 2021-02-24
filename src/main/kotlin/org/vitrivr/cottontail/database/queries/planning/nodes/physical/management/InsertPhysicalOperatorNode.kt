@@ -29,8 +29,11 @@ class InsertPhysicalOperatorNode(val entity: Entity, val records: MutableList<Re
     /** The [Cost] of this [InsertPhysicalOperatorNode]. */
     override val cost: Cost = Cost(this.records.size * this.records.first().size * Cost.COST_DISK_ACCESS_WRITE)
 
-    /** The [InsertPhysicalOperatorNode]s cannot be partitioned. */
+    /** The [InsertPhysicalOperatorNode] cannot be partitioned. */
     override val canBePartitioned: Boolean = false
+
+    /** The [InsertPhysicalOperatorNode] is always executable. */
+    override val executable: Boolean = true
 
     /**
      * Returns a copy of this [InsertPhysicalOperatorNode] and its input.
