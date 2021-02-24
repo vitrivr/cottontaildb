@@ -11,7 +11,7 @@ import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicate
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.predicates.FilterOperator
-import org.vitrivr.cottontail.execution.operators.predicates.ParallelFilterOperator
+import org.vitrivr.cottontail.execution.operators.transform.MergeOperator
 
 /**
  * A [UnaryPhysicalOperatorNode] that represents application of a [BooleanPredicate] on some intermediate result.
@@ -73,8 +73,8 @@ class FilterPhysicalOperatorNode(input: OperatorNode.Physical, val predicate: Bo
     override fun toOperator(tx: TransactionContext, ctx: QueryContext): Operator {
         val parallelisation = this.cost.parallelisation()
         return if (this.canBePartitioned && parallelisation > 1) {
-            val operators = this.input.partition(parallelisation).map { it.toOperator(tx, ctx) }
-            ParallelFilterOperator(operators, this.predicate.bindValues(ctx))
+            val operators = this.input.partition(parallelisation).map { FilterOperator(this.input.toOperator(tx, ctx), this.predicate.bindValues(ctx)) }
+            MergeOperator(operators)
         } else {
             FilterOperator(this.input.toOperator(tx, ctx), this.predicate.bindValues(ctx))
         }
