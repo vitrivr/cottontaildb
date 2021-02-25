@@ -6,6 +6,7 @@ import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.sort.SortOrder
+import org.vitrivr.cottontail.database.statistics.entity.RecordStatistics
 
 /**
  * An abstract [PhysicalOperatorNode] implementation that has a single [OperatorNode] as input.
@@ -40,6 +41,10 @@ abstract class UnaryPhysicalOperatorNode(val input: OperatorNode.Physical) : Ope
     /** By default, a [UnaryPhysicalOperatorNode]'s order is retained. */
     override val order: Array<Pair<ColumnDef<*>, SortOrder>>
         get() = this.input.order
+
+    /** By default, a [UnaryPhysicalOperatorNode]'s [RecordStatistics] is retained. */
+    override val statistics: RecordStatistics
+        get() = this.input.statistics
 
     init {
         this.input.output = this

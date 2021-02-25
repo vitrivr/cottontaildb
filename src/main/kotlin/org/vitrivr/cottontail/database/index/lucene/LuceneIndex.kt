@@ -5,6 +5,7 @@ import org.apache.lucene.document.*
 import org.apache.lucene.index.*
 import org.apache.lucene.queryparser.flexible.standard.QueryParserUtil
 import org.apache.lucene.search.*
+import org.apache.lucene.search.similarities.SimilarityBase.log2
 import org.apache.lucene.store.Directory
 import org.apache.lucene.store.FSDirectory
 import org.apache.lucene.store.NativeFSLockFactory
@@ -118,8 +119,8 @@ class LuceneIndex(path: Path, parent: DefaultEntity, config: LuceneIndexConfig? 
         canProcess(predicate) -> {
             val searcher = IndexSearcher(this.indexReader)
             var cost = Cost.ZERO
-            predicate.columns.forEach {
-                cost += Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_DISK_ACCESS_READ, it.type.physicalSize.toFloat()) * searcher.indexReader.numDocs()
+            repeat(predicate.columns.size) {
+                cost += Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_MEMORY_ACCESS) * log2(searcher.indexReader.numDocs().toDouble()) /* TODO: This is an assumption. */
             }
             cost
         }

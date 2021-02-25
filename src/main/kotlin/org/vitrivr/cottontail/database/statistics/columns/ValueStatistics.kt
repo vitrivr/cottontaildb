@@ -67,7 +67,7 @@ open class ValueStatistics<T : Value>(val type: Type<T>) {
     }
 
     /** Flag indicating that this [ValueStatistics] needs updating. */
-    var dirty: Boolean = true
+    var dirty: Boolean = false
         protected set
 
     /** Number of null entries known to this [ValueStatistics]. */

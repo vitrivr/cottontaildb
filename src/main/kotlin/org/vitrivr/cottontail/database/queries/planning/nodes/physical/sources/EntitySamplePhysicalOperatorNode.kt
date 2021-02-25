@@ -6,6 +6,7 @@ import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.NullaryPhysicalOperatorNode
+import org.vitrivr.cottontail.database.statistics.entity.RecordStatistics
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.sources.EntitySampleOperator
 import kotlin.math.min
@@ -21,9 +22,12 @@ class EntitySamplePhysicalOperatorNode(val entity: Entity, override val columns:
         require(this.outputSize > 0) { "Sample size must be greater than zero for sampling an entity but is $outputSize." }
     }
 
+    override val statistics: RecordStatistics = this.entity.statistics
     override val executable: Boolean = true
     override val canBePartitioned: Boolean = true
-    override val cost = Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_MEMORY_ACCESS) * this.outputSize * this.columns.map { it.type.physicalSize }.sum()
+    override val cost = Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_MEMORY_ACCESS) * this.outputSize * this.columns.map {
+        this.statistics[it].avgWidth
+    }.sum()
 
     /**
      * Returns a copy of this [EntitySamplePhysicalOperatorNode].

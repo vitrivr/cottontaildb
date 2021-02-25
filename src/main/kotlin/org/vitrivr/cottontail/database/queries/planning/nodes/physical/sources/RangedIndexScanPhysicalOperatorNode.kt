@@ -6,6 +6,7 @@ import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.NullaryPhysicalOperatorNode
 import org.vitrivr.cottontail.database.queries.predicates.Predicate
+import org.vitrivr.cottontail.database.statistics.entity.RecordStatistics
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.sources.IndexScanOperator
@@ -22,8 +23,9 @@ class RangedIndexScanPhysicalOperatorNode(val index: Index, val predicate: Predi
         require(this.range.first >= 0L) { "Start of a ranged index scan must be greater than zero." }
     }
 
-    override val columns: Array<ColumnDef<*>> = this.index.produces
     override val outputSize = (this.range.last - this.range.first)
+    override val statistics: RecordStatistics = this.index.parent.statistics
+    override val columns: Array<ColumnDef<*>> = this.index.produces
     override val executable: Boolean = true
     override val canBePartitioned: Boolean = false
     override val cost = this.index.cost(this.predicate)

@@ -106,9 +106,7 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
     override val maxTupleId: TupleId
         get() = this.statistics.maximumTupleId
 
-    /**
-     * Status indicating whether this [DefaultEntity] is open or closed.
-     */
+    /** Status indicating whether this [DefaultEntity] is open or closed. */
     @Volatile
     override var closed: Boolean = false
         private set
@@ -129,11 +127,11 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
             indexes[indexName] = it.type.open(path, this)
         }
 
-        /** Create entity statistics entries. */
+        /** Create entity statistics object, if none exists. */
         if (this.statisticsField.get() == null) {
-            val map = Object2ObjectOpenHashMap<String, ValueStatistics<Value>>()
-            this.columns.values.forEach { map[it.name.simple] = it.type.statistics() as ValueStatistics<Value> }
-            this.statisticsField.set(EntityStatistics(columns = map))
+            val statistics = EntityStatistics()
+            this.columns.values.forEach { statistics[it.columnDef] = it.type.statistics() as ValueStatistics<Value> }
+            this.statisticsField.set(statistics)
         }
     }
 

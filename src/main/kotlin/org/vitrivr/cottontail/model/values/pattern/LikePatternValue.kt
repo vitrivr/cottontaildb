@@ -70,9 +70,8 @@ sealed class LikePatternValue(value: String) : PatternValue(value) {
     class StartsWith(value: String) : LikePatternValue(value) {
 
         init {
-            require(this.value[1] == ZERO_ONE_MULTIPLE_WILDCARD && this.value.count {
-                it == ZERO_ONE_MULTIPLE_WILDCARD || it == SINGLE_WILDCARD
-            } == 1) {
+            val wildcardCount = this.value.count { it == ZERO_ONE_MULTIPLE_WILDCARD || it == SINGLE_WILDCARD }
+            require(this.value[this.value.length - 1] == ZERO_ONE_MULTIPLE_WILDCARD && wildcardCount == 1) {
                 "StartsWith LIKE patterns must only contain a single wildcard % at the end."
             }
         }
@@ -97,9 +96,8 @@ sealed class LikePatternValue(value: String) : PatternValue(value) {
     class EndsWith(value: String) : LikePatternValue(value) {
 
         init {
-            require(this.value[0] == ZERO_ONE_MULTIPLE_WILDCARD && this.value.count {
-                it == ZERO_ONE_MULTIPLE_WILDCARD || it == SINGLE_WILDCARD
-            } == 1) { "EndsWith LIKE patterns must only contain a single wildcard % at the beginning." }
+            val wildcardCount = this.value.count { it == ZERO_ONE_MULTIPLE_WILDCARD || it == SINGLE_WILDCARD }
+            require(this.value[0] == ZERO_ONE_MULTIPLE_WILDCARD && wildcardCount == 1) { "EndsWith LIKE patterns must only contain a single wildcard % at the beginning." }
         }
 
         /** String used for comparison. */

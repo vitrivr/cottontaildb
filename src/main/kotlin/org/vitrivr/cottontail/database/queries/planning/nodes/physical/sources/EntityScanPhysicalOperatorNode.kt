@@ -7,6 +7,7 @@ import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.NullaryPhysicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalOperatorNode
+import org.vitrivr.cottontail.database.statistics.entity.RecordStatistics
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.sources.EntityScanOperator
 
@@ -17,10 +18,13 @@ import org.vitrivr.cottontail.execution.operators.sources.EntityScanOperator
  * @version 2.0.0
  */
 class EntityScanPhysicalOperatorNode(val entity: Entity, override val columns: Array<ColumnDef<*>>) : NullaryPhysicalOperatorNode() {
+    override val statistics: RecordStatistics = this.entity.statistics
     override val outputSize = this.entity.numberOfRows
     override val executable: Boolean = true
     override val canBePartitioned: Boolean = true
-    override val cost = Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_MEMORY_ACCESS) * this.outputSize * this.columns.map { it.type.physicalSize }.sum()
+    override val cost = Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_MEMORY_ACCESS) * this.outputSize * this.columns.map {
+        this.statistics[it].avgWidth
+    }.sum()
 
     /**
      * Returns a copy of this [EntityScanPhysicalOperatorNode].

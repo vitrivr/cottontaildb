@@ -11,6 +11,7 @@ import org.vitrivr.cottontail.database.queries.predicates.Predicate
 import org.vitrivr.cottontail.database.queries.predicates.bool.BooleanPredicate
 import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicate
 import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicateHint
+import org.vitrivr.cottontail.database.statistics.entity.RecordStatistics
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.sources.IndexScanOperator
@@ -23,10 +24,11 @@ import org.vitrivr.cottontail.execution.operators.transform.MergeOperator
  * @version 2.0.0
  */
 class IndexScanPhysicalOperatorNode(val index: Index, val predicate: Predicate) : NullaryPhysicalOperatorNode() {
+    override val outputSize: Long = this.index.parent.numberOfRows
+    override val statistics: RecordStatistics = this.index.parent.statistics
     override val columns: Array<ColumnDef<*>> = this.index.produces
     override val executable: Boolean = true
     override val canBePartitioned: Boolean = this.index.supportsPartitioning
-    override val outputSize: Long = this.index.parent.numberOfRows
     override val cost: Cost = this.index.cost(this.predicate)
 
     /**

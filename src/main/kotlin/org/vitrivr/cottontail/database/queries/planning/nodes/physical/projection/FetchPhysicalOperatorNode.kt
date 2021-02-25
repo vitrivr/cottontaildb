@@ -29,7 +29,10 @@ class FetchPhysicalOperatorNode(input: OperatorNode.Physical, val entity: Entity
         get() = this.input.outputSize
 
     /** The [Cost] of a [FetchPhysicalOperatorNode]. */
-    override val cost: Cost = Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_MEMORY_ACCESS) * this.input.outputSize * this.fetch.map { it.type.physicalSize }.sum()
+    override val cost: Cost = Cost(
+        Cost.COST_DISK_ACCESS_READ,
+        Cost.COST_MEMORY_ACCESS
+    ) * this.input.outputSize * this.fetch.map { this.statistics[it].avgWidth }.sum()
 
     /**
      * Returns a copy of this [FetchPhysicalOperatorNode] and its input.

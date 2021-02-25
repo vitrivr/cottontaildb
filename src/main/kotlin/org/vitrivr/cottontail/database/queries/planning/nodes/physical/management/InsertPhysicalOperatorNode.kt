@@ -7,6 +7,7 @@ import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.binding.RecordBinding
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.NullaryPhysicalOperatorNode
+import org.vitrivr.cottontail.database.statistics.entity.RecordStatistics
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.management.InsertOperator
@@ -22,6 +23,9 @@ class InsertPhysicalOperatorNode(val entity: Entity, val records: MutableList<Re
 
     /** The [InsertPhysicalOperatorNode] produces the [ColumnDef]s defined in the [UpdateOperator]. */
     override val columns: Array<ColumnDef<*>> = InsertOperator.COLUMNS
+
+    /** The [RecordStatistics] for this [InsertPhysicalOperatorNode]. */
+    override val statistics: RecordStatistics = this.entity.statistics
 
     /** The [InsertPhysicalOperatorNode] produces a single record. */
     override val outputSize: Long = 1L

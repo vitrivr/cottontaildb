@@ -37,7 +37,7 @@ class SortPhysicalOperatorNode(input: OperatorNode.Physical, sortOn: Array<Pair<
     /** The [Cost] incurred by this [SortPhysicalOperatorNode]. */
     override val cost: Cost = Cost(
         cpu = 2 * sortOn.size * Cost.COST_MEMORY_ACCESS,
-        memory = this.columns.map { it.type.physicalSize }.sum().toFloat()
+        memory = this.columns.map { this.statistics[it].avgWidth }.sum().toFloat()
     ) * this.outputSize
 
     /** A [SortPhysicalOperatorNode] orders the input in by the specified [ColumnDef]s. */

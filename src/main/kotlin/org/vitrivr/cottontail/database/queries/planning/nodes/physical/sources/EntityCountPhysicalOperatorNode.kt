@@ -7,6 +7,7 @@ import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.NullaryPhysicalOperatorNode
 import org.vitrivr.cottontail.database.queries.projection.Projection
+import org.vitrivr.cottontail.database.statistics.entity.RecordStatistics
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.sources.EntityCountOperator
 import org.vitrivr.cottontail.model.basics.Type
@@ -18,9 +19,10 @@ import org.vitrivr.cottontail.model.basics.Type
  * @version 2.0.0
  */
 class EntityCountPhysicalOperatorNode(val entity: Entity) : NullaryPhysicalOperatorNode() {
+    override val outputSize = 1L
+    override val statistics: RecordStatistics = this.entity.statistics
     override val columns: Array<ColumnDef<*>> = arrayOf(ColumnDef(this.entity.name.column(Projection.COUNT.label()), Type.Long, false))
     override val executable: Boolean = true
-    override val outputSize = 1L
     override val canBePartitioned: Boolean = false
     override val cost = Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_MEMORY_ACCESS)
 

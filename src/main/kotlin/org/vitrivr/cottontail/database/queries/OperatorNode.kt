@@ -3,6 +3,7 @@ package org.vitrivr.cottontail.database.queries
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.sort.SortOrder
+import org.vitrivr.cottontail.database.statistics.entity.RecordStatistics
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 
@@ -111,8 +112,8 @@ sealed class OperatorNode : Node {
         /** The base of this [OperatorNode], i.e., the starting point(s) in terms of operation. Depending on the tree structure, multiple bases may exist. */
         abstract val base: Collection<OperatorNode.Physical>
 
-        /** [OperatorNode.Logical]s are never executable. */
-        override val executable: Boolean = false
+        /** [RecordStatistics] about the [ColumnDef]s contained in this [OperatorNode.Physical]. */
+        abstract val statistics: RecordStatistics
 
         /** The estimated number of rows this [OperatorNode.Physical] generates. */
         abstract val outputSize: Long
@@ -122,6 +123,9 @@ sealed class OperatorNode : Node {
 
         /** An estimation of the [Cost] incurred by the tree up and until this [OperatorNode.Physical]. */
         abstract val totalCost: Cost
+
+        /** Most [OperatorNode.Physical]s are executable by default. */
+        override val executable: Boolean = true
 
         /** True, if this [OperatorNode.Physical] can be partitioned, false otherwise. */
         abstract val canBePartitioned: Boolean
