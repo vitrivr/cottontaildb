@@ -1,12 +1,11 @@
 package org.vitrivr.cottontail.execution
 
-import kotlinx.coroutines.CoroutineDispatcher
+import org.vitrivr.cottontail.database.events.DataChangeEvent
 import org.vitrivr.cottontail.database.general.DBO
 import org.vitrivr.cottontail.database.general.Tx
 import org.vitrivr.cottontail.database.locking.Lock
 import org.vitrivr.cottontail.database.locking.LockManager
 import org.vitrivr.cottontail.database.locking.LockMode
-import org.vitrivr.cottontail.execution.TransactionManager.Transaction
 import org.vitrivr.cottontail.model.basics.TransactionId
 
 /**
@@ -25,12 +24,6 @@ interface TransactionContext {
 
     /** The [TransactionContext] of this [TransactionContext]. */
     val state: TransactionStatus
-
-    /** Reference to the [TransactionManager]s [CoroutineDispatcher].*/
-    val dispatcher: CoroutineDispatcher
-
-    /** The number of threads available for execution. */
-    val availableThreads: Int
 
     /**
      * Obtains a [Tx] for the given [DBO]. This method should make sure, that only one [Tx] per [DBO] is created.
@@ -58,14 +51,20 @@ interface TransactionContext {
     fun releaseLock(dbo: DBO)
 
     /**
-     * Returns the [LockMode] this [Transaction] has on the given [DBO].
+     * Returns the [LockMode] this [TransactionContext] has on the given [DBO].
      *
      * @param dbo [DBO] The [DBO] to query the [LockMode] for.
      * @return [LockMode]
      */
     fun lockOn(dbo: DBO): LockMode
 
-    fun commit()
-
-    fun rollback()
+    /**
+     * Signals a [DataChangeEvent] to this [TransactionContext].
+     *
+     * Implementing methods must process these [DataChangeEvent]s quickly, since they are usually
+     * triggered during an ongoing transaction.
+     *
+     * @param event The [DataChangeEvent] that has been reported.
+     */
+    fun signalEvent(event: DataChangeEvent)
 }

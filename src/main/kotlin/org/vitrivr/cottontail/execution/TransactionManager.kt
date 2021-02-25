@@ -7,6 +7,7 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collect
 import org.slf4j.LoggerFactory
+import org.vitrivr.cottontail.database.events.DataChangeEvent
 import org.vitrivr.cottontail.database.general.DBO
 import org.vitrivr.cottontail.database.general.Tx
 import org.vitrivr.cottontail.database.locking.*
@@ -19,11 +20,7 @@ import org.vitrivr.cottontail.model.exceptions.TransactionException
 import java.util.*
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.atomic.AtomicLong
-import java.util.concurrent.locks.ReentrantLock
-import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.collections.ArrayList
-import kotlin.concurrent.read
-import kotlin.concurrent.write
 
 /**
  * The default [TransactionManager] for Cottontail DB. It hosts all the necessary facilities to
@@ -46,11 +43,11 @@ class TransactionManager(private val executor: ThreadPoolExecutor) {
     /** Map of [Transaction]s that are currently PENDING or RUNNING. */
     private val transactions = Collections.synchronizedMap(Long2ObjectOpenHashMap<Transaction>(TRANSACTION_TABLE_SIZE, VERY_FAST_LOAD_FACTOR))
 
-    /** List of ongoing or past transactions (limited to [TRANSACTION_HISTORY] entries). */
-    val transactionHistory = Collections.synchronizedList(ArrayList<Transaction>(TRANSACTION_HISTORY))
-
     /** Internal counter to generate [TransactionId]s. */
     private val tidCounter = AtomicLong()
+
+    /** List of ongoing or past transactions (limited to [TRANSACTION_HISTORY] entries). */
+    val transactionHistory = Collections.synchronizedList(ArrayList<Transaction>(TRANSACTION_HISTORY))
 
     /** The [LockManager] instance used by this [TransactionManager]. */
     val lockManager = LockManager()
@@ -80,11 +77,7 @@ class TransactionManager(private val executor: ThreadPoolExecutor) {
             private set
 
         /** Map of all [Tx] that have been created as part of this [Transaction]. */
-        private val txns: MutableMap<DBO, Tx> =
-            Object2ObjectMaps.synchronize(Object2ObjectOpenHashMap())
-
-        /** A [ReentrantLock] that mediates access to primitives that govern this [Transaction]. */
-        private val lock = ReentrantReadWriteLock()
+        private val txns: MutableMap<DBO, Tx> = Object2ObjectMaps.synchronize(Object2ObjectOpenHashMap())
 
         /** Number of [Tx] held by this [Transaction]. */
         val numberOfTxs: Int = this.txns.size
@@ -95,14 +88,6 @@ class TransactionManager(private val executor: ThreadPoolExecutor) {
         /** Timestamp of when this [Transaction] was either COMMITTED or ABORTED. */
         var ended: Long? = null
             private set
-
-        /** The number of [Thread]s currently available. This is an estimate and may change very quickly. */
-        override val availableThreads
-            get() = this@TransactionManager.executor.maximumPoolSize - this@TransactionManager.executor.activeCount
-
-        /** Reference to the [TransactionManager]s [ExecutorCoroutineDispatcher].*/
-        override val dispatcher
-            get() = this@TransactionManager.dispatcher
 
         init {
             /** Add this to transaction history and transaction table. */
@@ -120,8 +105,8 @@ class TransactionManager(private val executor: ThreadPoolExecutor) {
          * @param dbo [DBO] to return the [Tx] for.
          * @return entity [Tx]
          */
-        override fun getTx(dbo: DBO): Tx = this.lock.read {
-            this.txns.computeIfAbsent(dbo) {
+        override fun getTx(dbo: DBO): Tx {
+            return this.txns.computeIfAbsent(dbo) {
                 dbo.newTx(this)
             }
         }
@@ -134,7 +119,7 @@ class TransactionManager(private val executor: ThreadPoolExecutor) {
          * @param dbo [DBO] The [DBO] to request the lock for.
          * @param mode The desired [LockMode]
          */
-        override fun requestLock(dbo: DBO, mode: LockMode) = this.lock.read {
+        override fun requestLock(dbo: DBO, mode: LockMode) {
             this@TransactionManager.lockManager.lock(this, dbo, mode)
         }
 
@@ -144,7 +129,7 @@ class TransactionManager(private val executor: ThreadPoolExecutor) {
          *
          * @param dbo [DBO] The [DBO] to release the lock for.
          */
-        override fun releaseLock(dbo: DBO) = this.lock.read {
+        override fun releaseLock(dbo: DBO) {
             this@TransactionManager.lockManager.unlock(this, dbo)
         }
 
@@ -154,8 +139,20 @@ class TransactionManager(private val executor: ThreadPoolExecutor) {
          * @param dbo [DBO] The [DBO] to query the [LockMode] for.
          * @return [LockMode]
          */
-        override fun lockOn(dbo: DBO) = this.lock.read {
-            this@TransactionManager.lockManager.lockOn(this, dbo)
+        override fun lockOn(dbo: DBO): LockMode {
+            return this@TransactionManager.lockManager.lockOn(this, dbo)
+        }
+
+        /**
+         * Signals a [DataChangeEvent] to this [Transaction].
+         *
+         * Implementing methods must process these [DataChangeEvent]s quickly, since they are usually
+         * triggered during an ongoing transaction.
+         *
+         * @param event The [DataChangeEvent] that has been reported.
+         */
+        override fun signalEvent(event: DataChangeEvent) {
+            /* ToDo: Do something with the events. */
         }
 
         /**
@@ -164,14 +161,13 @@ class TransactionManager(private val executor: ThreadPoolExecutor) {
          *
          * @param operator The [Operator.SinkOperator] that should be executed.
          */
+        @Synchronized
         fun execute(operator: Operator.SinkOperator) {
-            runBlocking(this.dispatcher) {
+            runBlocking(this@TransactionManager.dispatcher) {
                 try {
-                    this@Transaction.lock.read {
-                        this@Transaction.state = TransactionStatus.RUNNING
-                        operator.toFlow(this@Transaction).collect()
-                        this@Transaction.state = TransactionStatus.READY
-                    }
+                    this@Transaction.state = TransactionStatus.RUNNING
+                    operator.toFlow(this@Transaction).collect()
+                    this@Transaction.state = TransactionStatus.READY
                 } catch (e: DeadlockException) {
                     LOGGER.debug("Deadlock encountered during execution of transaction ${this@Transaction.txId}.", e)
                     this@Transaction.state = TransactionStatus.ERROR
@@ -195,7 +191,8 @@ class TransactionManager(private val executor: ThreadPoolExecutor) {
         /**
          * Commits this [Transaction] thus finalizing and persisting all operations executed so far.
          */
-        override fun commit() = this.lock.write {
+        @Synchronized
+        fun commit() {
             check(this.state === TransactionStatus.READY) { "Cannot commit transaction ${this.txId} because it is in wrong state (s = ${this.state})." }
             this.state = TransactionStatus.FINALIZING
             this.txns.values.forEach { txn ->
@@ -206,13 +203,13 @@ class TransactionManager(private val executor: ThreadPoolExecutor) {
             this.ended = System.currentTimeMillis()
             this.state = TransactionStatus.COMMIT
             this@TransactionManager.transactions.remove(this.txId)
-            Unit
         }
 
         /**
          * Rolls back this [Transaction] thus reverting all operations executed so far.
          */
-        override fun rollback() = this.lock.write {
+        @Synchronized
+        fun rollback() {
             check(this.state === TransactionStatus.READY || this.state === TransactionStatus.ERROR) { "Cannot rollback transaction ${this.txId} because it is in wrong state (s = ${this.state})." }
             this.state = TransactionStatus.FINALIZING
             this.txns.values.forEach { txn ->
