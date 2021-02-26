@@ -1,9 +1,10 @@
-package org.vitrivr.cottontail.server.grpc.operators
+package org.vitrivr.cottontail.execution.operators.sinks
 
 import io.grpc.stub.StreamObserver
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.onEach
 import org.vitrivr.cottontail.database.queries.binding.extensions.toLiteral
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
@@ -24,7 +25,7 @@ import org.vitrivr.cottontail.model.recordset.StandaloneRecord
  * @author Ralph Gasser
  * @version 1.1.0
  */
-class SpoolerSinkOperator(parent: Operator, val queryId: String, val index: Int, val responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>? = null) : Operator.SinkOperator(parent) {
+class SpoolerSinkOperator(parent: Operator, private val queryId: String, private val index: Int, private val responseObserver: StreamObserver<CottontailGrpc.QueryResponseMessage>? = null) : Operator.SinkOperator(parent) {
 
     companion object {
         private const val MAX_PAGE_SIZE_BYTES = 4_000_000
@@ -38,29 +39,32 @@ class SpoolerSinkOperator(parent: Operator, val queryId: String, val index: Int,
      */
     override fun toFlow(context: TransactionContext): Flow<Record> {
         val parent = this.parent.toFlow(context)
-        return flow {
-            val columns = this@SpoolerSinkOperator.parent.columns.map {
-                val name = CottontailGrpc.ColumnName.newBuilder().setName(it.name.simple)
-                val entityName = it.name.entity()
-                if (entityName != null) {
-                    name.setEntity(CottontailGrpc.EntityName.newBuilder().setName(entityName.simple).setSchema(CottontailGrpc.SchemaName.newBuilder().setName(entityName.schema().simple)))
-                }
-                name.build()
+
+        val columns = this@SpoolerSinkOperator.parent.columns.map {
+            val name = CottontailGrpc.ColumnName.newBuilder().setName(it.name.simple)
+            val entityName = it.name.entity()
+            if (entityName != null) {
+                name.setEntity(CottontailGrpc.EntityName.newBuilder().setName(entityName.simple).setSchema(CottontailGrpc.SchemaName.newBuilder().setName(entityName.schema().simple)))
             }
-            var responseBuilder = CottontailGrpc.QueryResponseMessage.newBuilder().setTid(CottontailGrpc.TransactionId.newBuilder().setQueryId(this@SpoolerSinkOperator.queryId).setValue(context.txId)).addAllColumns(columns)
+            name.build()
+        }
+
+        return flow {
+
+            val responseBuilder = CottontailGrpc.QueryResponseMessage.newBuilder().setTid(CottontailGrpc.TransactionId.newBuilder().setQueryId(this@SpoolerSinkOperator.queryId).setValue(context.txId)).addAllColumns(columns)
             var accumulatedSize = 0L
-            parent.collect {
+            parent.onEach {
                 val tuple = it.toTuple()
                 if (accumulatedSize + tuple.serializedSize >= MAX_PAGE_SIZE_BYTES) {
                     this@SpoolerSinkOperator.responseObserver?.onNext(responseBuilder.build())
-                    responseBuilder = CottontailGrpc.QueryResponseMessage.newBuilder().setTid(CottontailGrpc.TransactionId.newBuilder().setQueryId(this@SpoolerSinkOperator.queryId).setValue(context.txId)).addAllColumns(columns)
+                    responseBuilder.clearTuples()
                     accumulatedSize = 0L
                 }
 
                 /* Add entry to page and increment counter. */
                 responseBuilder.addTuples(tuple)
                 accumulatedSize += tuple.serializedSize
-            }
+            }.collect()
 
             /* Flush remaining tuples. */
             this@SpoolerSinkOperator.responseObserver?.onNext(responseBuilder.build())
