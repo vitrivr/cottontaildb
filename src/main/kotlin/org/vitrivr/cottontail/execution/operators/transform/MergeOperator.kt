@@ -1,6 +1,8 @@
 package org.vitrivr.cottontail.execution.operators.transform
 
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flattenMerge
+import kotlinx.coroutines.flow.flowOf
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
@@ -27,7 +29,7 @@ class MergeOperator(parents: List<Operator>) : Operator.MergingPipelineOperator(
      * Converts this [MergeOperator] to a [Flow] and returns it.
      *
      * @param context The [TransactionContext] used for execution
-     * @return [Flow] representing this [ParallelKnnOperator]
+     * @return [Flow] representing this [MergeOperator]
      */
     override fun toFlow(context: TransactionContext): Flow<Record> {
         /* Obtain parent flows amd compose new flow. */

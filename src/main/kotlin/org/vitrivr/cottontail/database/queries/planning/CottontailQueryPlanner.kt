@@ -2,7 +2,11 @@ package org.vitrivr.cottontail.database.queries.planning
 
 import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.QueryContext
+import org.vitrivr.cottontail.database.queries.planning.nodes.logical.BinaryLogicalOperatorNode
+import org.vitrivr.cottontail.database.queries.planning.nodes.logical.NAryLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.UnaryLogicalOperatorNode
+import org.vitrivr.cottontail.database.queries.planning.nodes.physical.BinaryPhysicalOperatorNode
+import org.vitrivr.cottontail.database.queries.planning.nodes.physical.NAryPhysicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.rules.RewriteRule
 import org.vitrivr.cottontail.model.exceptions.QueryException
@@ -48,7 +52,7 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
         }
 
         /* Execute actual query planning and select candidate with lowest cost. */
-        val candidates = this.plan(logical, context)
+        val candidates = this.plan(context)
         context.physical = candidates.minByOrNull { it.totalCost } ?: throw QueryException.QueryPlannerException("Failed to generate a physical execution plan for expression: $logical.")
 
         /* Update plan cache. */
@@ -64,17 +68,23 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
      * Generates a list of equivalent [OperatorNode.Physical]s by recursively applying [RewriteRule]s
      * on the seed [OperatorNode.Logical] and derived [OperatorNode]s.
      *
-     * @param node The [OperatorNode.Logical] to plan.
-     * @param ctx The [QueryContext] in which optimization takes place.
+     * @param context The [QueryContext] to plan for.
      *
      * @return List of [OperatorNode.Physical] that implement the [OperatorNode.Logical]
      */
-    fun plan(node: OperatorNode.Logical, ctx: QueryContext): Collection<OperatorNode.Physical> = this.optimizeLogical(node, ctx).map {
-        it.implement()
-    }.flatMap {
-        this.optimizePhysical(it, ctx)
-    }.filter {
-        it.executable
+    fun plan(context: QueryContext): Collection<OperatorNode.Physical> {
+        val logical = context.logical
+        require(logical != null) { QueryException.QueryPlannerException("Cannot perform query planning for a QueryContext that doesn't have a logical query plan.") }
+
+        /** Stage 1: Logical execution plans, i.e. plan alternatives for the input plan. */
+        val stage1 = this.optimizeLogical(logical, context)
+
+        /** Stage 2: Physical execution plans. */
+        val stage2 = stage1.map { it.implement() }.filter { it.executable }
+
+        /** Stage 3: Optimized, physical execution plans that are executable. */
+        val stage3 = stage2.flatMap { this.optimizePhysical(it, context) }.filter { it.executable }
+        return stage3
     }
 
     /**
@@ -107,7 +117,16 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
 
             /* Add all inputs to operators that need further exploration. */
             when (pointer) {
-                is UnaryLogicalOperatorNode -> explore.enqueue(pointer.input)
+                is NAryLogicalOperatorNode -> {
+                    pointer.inputs.forEach { explore.enqueue(it) }
+                }
+                is BinaryLogicalOperatorNode -> {
+                    explore.enqueue(pointer.left)
+                    explore.enqueue(pointer.right)
+                }
+                is UnaryLogicalOperatorNode -> {
+                    explore.enqueue(pointer.input)
+                }
                 is OperatorNode.Physical -> throw IllegalStateException("Encountered physical operator node in logical operator node tree. This is a programmer's error!")
             }
 
@@ -142,7 +161,16 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
 
             /* Add all inputs to operators that need further exploration. */
             when (pointer) {
-                is UnaryPhysicalOperatorNode -> explore.enqueue(pointer.input)
+                is NAryPhysicalOperatorNode -> {
+                    pointer.inputs.forEach { explore.enqueue(it) }
+                }
+                is BinaryPhysicalOperatorNode -> {
+                    explore.enqueue(pointer.left)
+                    explore.enqueue(pointer.right)
+                }
+                is UnaryPhysicalOperatorNode -> {
+                    explore.enqueue(pointer.input)
+                }
                 is OperatorNode.Logical -> throw IllegalStateException("Encountered logical operator node in physical operator node tree. This is a programmer's error!")
             }
 

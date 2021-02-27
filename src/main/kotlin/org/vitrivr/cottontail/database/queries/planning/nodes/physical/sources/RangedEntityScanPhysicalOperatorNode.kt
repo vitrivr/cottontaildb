@@ -16,7 +16,7 @@ import org.vitrivr.cottontail.execution.operators.sources.EntityScanOperator
  * @author Ralph Gasser
  * @version 2.0.0
  */
-class RangedEntityScanPhysicalOperatorNode(val entity: Entity, override val columns: Array<ColumnDef<*>>, val range: LongRange) : NullaryPhysicalOperatorNode() {
+class RangedEntityScanPhysicalOperatorNode(override val groupId: Int, val entity: Entity, override val columns: Array<ColumnDef<*>>, val range: LongRange) : NullaryPhysicalOperatorNode() {
     init {
         require(this.range.first >= 0L) { "Start of a ranged entity scan must be greater than zero." }
     }
@@ -34,7 +34,7 @@ class RangedEntityScanPhysicalOperatorNode(val entity: Entity, override val colu
      *
      * @return Copy of this [RangedEntityScanPhysicalOperatorNode].
      */
-    override fun copyWithInputs() = RangedEntityScanPhysicalOperatorNode(this.entity, this.columns, this.range)
+    override fun copyWithInputs() = RangedEntityScanPhysicalOperatorNode(this.groupId, this.entity, this.columns, this.range)
 
     /**
      * Returns a copy of this [RangedEntityScanPhysicalOperatorNode] and its output.
@@ -44,7 +44,7 @@ class RangedEntityScanPhysicalOperatorNode(val entity: Entity, override val colu
      */
     override fun copyWithOutput(vararg inputs: OperatorNode.Physical): OperatorNode.Physical {
         require(inputs.isEmpty()) { "No input is allowed for nullary operators." }
-        val scan = RangedEntityScanPhysicalOperatorNode(this.entity, this.columns, this.range)
+        val scan = RangedEntityScanPhysicalOperatorNode(this.groupId, this.entity, this.columns, this.range)
         return (this.output?.copyWithOutput(scan) ?: scan)
     }
 
@@ -61,7 +61,7 @@ class RangedEntityScanPhysicalOperatorNode(val entity: Entity, override val colu
      * @param tx The [TransactionContext] used for execution.
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(tx: TransactionContext, ctx: QueryContext) = EntityScanOperator(this.entity, this.columns, this.range)
+    override fun toOperator(tx: TransactionContext, ctx: QueryContext) = EntityScanOperator(this.groupId, this.entity, this.columns, this.range)
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

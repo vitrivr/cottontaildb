@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.flow
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.entity.EntityTx
+import org.vitrivr.cottontail.database.queries.GroupId
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.model.basics.Name
@@ -24,7 +25,7 @@ import kotlin.time.measureTimedValue
  * @author Ralph Gasser
  * @version 1.1.0
  */
-class InsertOperator(val entity: Entity, val records: List<Record>) : Operator.SourceOperator() {
+class InsertOperator(groupId: GroupId, val entity: Entity, val records: List<Record>) : Operator.SourceOperator(groupId) {
 
     companion object {
         /** The columns produced by the [InsertOperator]. */

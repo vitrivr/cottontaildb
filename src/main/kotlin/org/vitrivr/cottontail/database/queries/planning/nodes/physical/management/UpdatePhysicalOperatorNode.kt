@@ -4,13 +4,14 @@ import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.QueryContext
-import org.vitrivr.cottontail.database.queries.binding.ValueBinding
+import org.vitrivr.cottontail.database.queries.binding.Binding
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalOperatorNode
 import org.vitrivr.cottontail.execution.TransactionContext
 
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.management.UpdateOperator
+import org.vitrivr.cottontail.model.values.types.Value
 
 /**
  * A [UpdatePhysicalOperatorNode] that formalizes a UPDATE operation on an [Entity].
@@ -18,7 +19,7 @@ import org.vitrivr.cottontail.execution.operators.management.UpdateOperator
  * @author Ralph Gasser
  * @version 2.0.0
  */
-class UpdatePhysicalOperatorNode(input: OperatorNode.Physical, val entity: Entity, val values: List<Pair<ColumnDef<*>, ValueBinding>>) : UnaryPhysicalOperatorNode(input) {
+class UpdatePhysicalOperatorNode(input: OperatorNode.Physical, val entity: Entity, val values: List<Pair<ColumnDef<*>, Binding<Value>>>) : UnaryPhysicalOperatorNode(input) {
 
     /** The [UpdatePhysicalOperatorNode] produces the [ColumnDef]s defined in the [UpdateOperator]. */
     override val columns: Array<ColumnDef<*>> = UpdateOperator.COLUMNS
@@ -61,7 +62,7 @@ class UpdatePhysicalOperatorNode(input: OperatorNode.Physical, val entity: Entit
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
     override fun toOperator(tx: TransactionContext, ctx: QueryContext): Operator {
-        val entries = this.values.map { it.first to it.second.bind(ctx) } /* Late binding. */
+        val entries = this.values.map { it.first to ctx.values[it.second] } /* Late binding. */
         return UpdateOperator(this.input.toOperator(tx, ctx), this.entity, entries)
     }
 

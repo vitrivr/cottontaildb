@@ -4,25 +4,23 @@ import com.google.protobuf.Empty
 import io.grpc.Status
 import io.grpc.stub.StreamObserver
 import org.slf4j.LoggerFactory
-import org.vitrivr.cottontail.database.catalogue.DefaultCatalogue
+import org.vitrivr.cottontail.database.catalogue.Catalogue
 import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.binding.GrpcQueryBinder
 import org.vitrivr.cottontail.database.queries.planning.CottontailQueryPlanner
-import org.vitrivr.cottontail.database.queries.planning.rules.logical.DeferredFetchRewriteRule
-import org.vitrivr.cottontail.database.queries.planning.rules.logical.LeftConjunctionRewriteRule
-import org.vitrivr.cottontail.database.queries.planning.rules.logical.RightConjunctionRewriteRule
+import org.vitrivr.cottontail.database.queries.planning.rules.logical.*
 import org.vitrivr.cottontail.database.queries.planning.rules.physical.index.BooleanIndexScanRule
 import org.vitrivr.cottontail.database.queries.planning.rules.physical.index.KnnIndexScanRule
 import org.vitrivr.cottontail.database.queries.planning.rules.physical.merge.LimitingSortMergeRule
 import org.vitrivr.cottontail.database.queries.planning.rules.physical.pushdown.CountPushdownRule
 import org.vitrivr.cottontail.execution.TransactionManager
+import org.vitrivr.cottontail.execution.operators.sinks.SpoolerSinkOperator
 import org.vitrivr.cottontail.execution.operators.system.ExplainQueryOperator
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.grpc.DQLGrpc
 import org.vitrivr.cottontail.model.exceptions.ExecutionException
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.exceptions.TransactionException
-import org.vitrivr.cottontail.server.grpc.operators.SpoolerSinkOperator
 import java.util.*
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTime
@@ -32,10 +30,10 @@ import kotlin.time.measureTimedValue
  * Implementation of [DQLGrpc.DQLImplBase], the gRPC endpoint for querying data in Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 1.4.1
+ * @version 1.5.0
  */
 @ExperimentalTime
-class DQLService(val catalogue: DefaultCatalogue, override val manager: TransactionManager) : DQLGrpc.DQLImplBase(), TransactionService {
+class DQLService(val catalogue: Catalogue, override val manager: TransactionManager) : DQLGrpc.DQLImplBase(), TransactionService {
 
     /** Logger used for logging the output. */
     companion object {
@@ -47,7 +45,13 @@ class DQLService(val catalogue: DefaultCatalogue, override val manager: Transact
 
     /** [CottontailQueryPlanner] used to generate execution plans from query definitions. */
     private val planner = CottontailQueryPlanner(
-        logicalRules = listOf(LeftConjunctionRewriteRule, RightConjunctionRewriteRule, DeferredFetchRewriteRule),
+        logicalRules = listOf(
+            LeftConjunctionRewriteRule,
+            RightConjunctionRewriteRule,
+            LeftConjunctionOnSubselectRewriteRule,
+            RightConjunctionOnSubselectRewriteRule,
+            DeferredFetchRewriteRule
+        ),
         physicalRules = listOf(BooleanIndexScanRule, KnnIndexScanRule, CountPushdownRule, LimitingSortMergeRule),
         this.catalogue.config.cache.planCacheSize
     )
@@ -63,7 +67,7 @@ class DQLService(val catalogue: DefaultCatalogue, override val manager: Transact
                 val totalDuration = measureTime {
                     /* Bind query and create logical plan. */
                     val bindTime = measureTime{
-                        this.binder.bind(request.query, ctx, tx)
+                        this.binder.bind(request.query, ctx)
                     }
 
                     LOGGER.debug(formatMessage(tx, q, "Parsing & binding query took $bindTime."))
@@ -124,14 +128,14 @@ class DQLService(val catalogue: DefaultCatalogue, override val manager: Transact
                 val totalDuration = measureTime {
                     /* Bind query and create logical plan. */
                     val bindTimed = measureTime {
-                        this.binder.bind(request.query, ctx, tx)
+                        this.binder.bind(request.query, ctx)
                     }
 
                     LOGGER.debug(formatMessage(tx, q, "Parsing & binding query took $bindTimed."))
 
                     /* Plan query and create execution plan. */
                     val planTimedValue = measureTimedValue {
-                        val candidates = this.planner.plan(ctx.logical!!, ctx)
+                        val candidates = this.planner.plan(ctx)
                         SpoolerSinkOperator(ExplainQueryOperator(candidates), q, 0, responseObserver)
                     }
                     LOGGER.debug(formatMessage(tx, q, "Planning query took ${planTimedValue.duration}."))

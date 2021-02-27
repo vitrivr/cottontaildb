@@ -1,12 +1,13 @@
 package org.vitrivr.cottontail.database.queries.planning.nodes.physical
 
 import org.vitrivr.cottontail.database.column.ColumnDef
-import org.vitrivr.cottontail.database.queries.Binding
 import org.vitrivr.cottontail.database.queries.OperatorNode
-import org.vitrivr.cottontail.database.queries.QueryContext
+import org.vitrivr.cottontail.database.queries.binding.Binding
+import org.vitrivr.cottontail.database.queries.binding.BindingContext
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.sort.SortOrder
 import org.vitrivr.cottontail.database.statistics.entity.RecordStatistics
+import org.vitrivr.cottontail.model.values.types.Value
 
 /**
  * An abstract [PhysicalOperatorNode] implementation that has a single [OperatorNode] as input.
@@ -18,6 +19,10 @@ abstract class UnaryPhysicalOperatorNode(val input: OperatorNode.Physical) : Ope
 
     /** The arity of the [UnaryPhysicalOperatorNode] is always on. */
     final override val inputArity = 1
+
+    /** The group Id of a [UnaryPhysicalOperatorNode] is always the one of its parent.*/
+    final override val groupId: Int
+        get() = this.input.groupId
 
     /** The [base] of a [UnaryPhysicalOperatorNode] is always its parent's base. */
     final override val base: Collection<OperatorNode.Physical>
@@ -51,16 +56,17 @@ abstract class UnaryPhysicalOperatorNode(val input: OperatorNode.Physical) : Ope
     }
 
     /**
-     * Performs late value binding using the given [QueryContext].
+     * Performs value binding using the given [BindingContext].
      *
-     * [OperatorNode] are required to propagate calls to [bindValues] up the tree in addition
-     * to executing the binding locally. Consequently, the call is propagated to all input [OperatorNode]
-     * of this [OperatorNode].
+     * [UnaryPhysicalOperatorNode] are required to propagate calls to [bindValues] up the tree in addition
+     * to executing the binding locally. Consequently, the call is propagated to all the [input] [OperatorNode].
      *
-     * @param ctx [QueryContext] to use to resolve this [Binding].
+     * By default, this operation has no further effect. Override to implement operator specific binding but don't forget to call super.bindValues()
+     *
+     * @param ctx [BindingContext] to use to resolve [Binding]s.
      * @return This [OperatorNode].
      */
-    override fun bindValues(ctx: QueryContext): OperatorNode {
+    override fun bindValues(ctx: BindingContext<Value>): OperatorNode {
         this.input.bindValues(ctx)
         return this
     }

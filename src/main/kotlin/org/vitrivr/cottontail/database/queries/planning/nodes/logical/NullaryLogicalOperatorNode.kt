@@ -1,10 +1,12 @@
 package org.vitrivr.cottontail.database.queries.planning.nodes.logical
 
 import org.vitrivr.cottontail.database.column.ColumnDef
-import org.vitrivr.cottontail.database.queries.Binding
 import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.QueryContext
+import org.vitrivr.cottontail.database.queries.binding.Binding
+import org.vitrivr.cottontail.database.queries.binding.BindingContext
 import org.vitrivr.cottontail.database.queries.sort.SortOrder
+import org.vitrivr.cottontail.model.values.types.Value
 
 /**
  * An abstract [OperatorNode.Logical] implementation that has no input.
@@ -27,16 +29,14 @@ abstract class NullaryLogicalOperatorNode : OperatorNode.Logical() {
     override val requires: Array<ColumnDef<*>> = emptyArray()
 
     /**
-     * Performs late value binding using the given [QueryContext].
+     * Performs value binding using the given [BindingContext].
      *
-     * [OperatorNode] are required to propagate calls to [bindValues] up the tree in addition
-     * to executing the binding locally. Consequently, the call is propagated to all input [OperatorNode]
-     * of this [OperatorNode].
+     * By default, this operation has no effect. Override to implement operator specific binding.
      *
      * @param ctx [QueryContext] to use to resolve this [Binding].
      * @return This [OperatorNode].
      */
-    override fun bindValues(ctx: QueryContext): OperatorNode = this
+    override fun bindValues(ctx: BindingContext<Value>): OperatorNode = this
 
     /**
      * Calculates and returns the digest for this [NullaryLogicalOperatorNode].

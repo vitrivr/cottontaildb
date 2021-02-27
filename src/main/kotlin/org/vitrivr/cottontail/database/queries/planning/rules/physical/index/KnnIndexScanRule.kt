@@ -44,7 +44,7 @@ object KnnIndexScanRule : RewriteRule {
                             when {
                                 /* Case 1: Index produces distance, hence no distance calculation required! */
                                 candidate.produces.contains(column) -> {
-                                    var p: OperatorNode.Physical = IndexScanPhysicalOperatorNode(candidate, node.predicate)
+                                    var p: OperatorNode.Physical = IndexScanPhysicalOperatorNode(node.groupId, candidate, node.predicate)
                                     val delta = scan.columns.filter { !candidate.produces.contains(it) && it != node.predicate.column }
                                     if (delta.isNotEmpty()) {
                                         p = FetchPhysicalOperatorNode(p, candidate.parent, delta.toTypedArray())
@@ -54,7 +54,7 @@ object KnnIndexScanRule : RewriteRule {
 
                                 /* Case 2: Index produces the columns needed for the NNS operation. */
                                 candidate.produces.contains(node.predicate.column) -> {
-                                    val index = IndexScanPhysicalOperatorNode(candidate, node.predicate)
+                                    val index = IndexScanPhysicalOperatorNode(node.groupId, candidate, node.predicate)
                                     var p: OperatorNode.Physical = DistancePhysicalOperatorNode(index, node.predicate)
                                     val delta = scan.columns.filter { !candidate.produces.contains(it) }
                                     if (delta.isNotEmpty()) {
@@ -65,7 +65,7 @@ object KnnIndexScanRule : RewriteRule {
 
                                 /* Case 3: Index only produces TupleIds. Column for NSS needs to be fetched in an extra step. */
                                 else -> {
-                                    val index = IndexScanPhysicalOperatorNode(candidate, node.predicate)
+                                    val index = IndexScanPhysicalOperatorNode(node.groupId, candidate, node.predicate)
                                     val distance = DistancePhysicalOperatorNode(index, node.predicate)
                                     val p = FetchPhysicalOperatorNode(distance, scan.entity, scan.columns.filter { !candidate.produces.contains(it) }.toTypedArray())
                                     return node.output?.copyWithOutput(p) ?: p

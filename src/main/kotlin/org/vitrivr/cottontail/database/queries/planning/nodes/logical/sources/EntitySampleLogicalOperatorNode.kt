@@ -11,13 +11,13 @@ import org.vitrivr.cottontail.database.queries.planning.nodes.physical.sources.E
  * @author Ralph Gasser
  * @version 2.0.0
  */
-class EntitySampleLogicalOperatorNode(entity: Entity, columns: Array<ColumnDef<*>>, val size: Long, val seed: Long = System.currentTimeMillis()) : EntitySourceLogicalOperatorNode(entity, columns) {
+class EntitySampleLogicalOperatorNode(groupId: Int, entity: Entity, columns: Array<ColumnDef<*>>, val size: Long, val seed: Long = System.currentTimeMillis()) : EntitySourceLogicalOperatorNode(groupId, entity, columns) {
     /**
      * Returns a copy of this [EntitySampleLogicalOperatorNode] and its input.
      *
      * @return Copy of this [EntitySampleLogicalOperatorNode] and its input.
      */
-    override fun copyWithInputs(): EntitySampleLogicalOperatorNode = EntitySampleLogicalOperatorNode(this.entity, this.columns, this.size, this.seed)
+    override fun copyWithInputs(): EntitySampleLogicalOperatorNode = EntitySampleLogicalOperatorNode(this.groupId, this.entity, this.columns, this.size, this.seed)
 
     /**
      * Returns a copy of this [EntitySampleLogicalOperatorNode] and its output.
@@ -27,7 +27,7 @@ class EntitySampleLogicalOperatorNode(entity: Entity, columns: Array<ColumnDef<*
      */
     override fun copyWithOutput(vararg inputs: OperatorNode.Logical): OperatorNode.Logical {
         require(inputs.isEmpty()) { "No input is allowed for nullary operators." }
-        val sample = EntitySampleLogicalOperatorNode(this.entity, this.columns, this.size, this.seed)
+        val sample = EntitySampleLogicalOperatorNode(this.groupId, this.entity, this.columns, this.size, this.seed)
         return (this.output?.copyWithOutput(sample) ?: sample)
     }
 
@@ -36,7 +36,7 @@ class EntitySampleLogicalOperatorNode(entity: Entity, columns: Array<ColumnDef<*
      *
      * @return [EntitySamplePhysicalOperatorNode]
      */
-    override fun implement(): Physical = EntitySamplePhysicalOperatorNode(this.entity, this.columns, this.size, this.seed)
+    override fun implement(): Physical = EntitySamplePhysicalOperatorNode(this.groupId, this.entity, this.columns, this.size, this.seed)
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

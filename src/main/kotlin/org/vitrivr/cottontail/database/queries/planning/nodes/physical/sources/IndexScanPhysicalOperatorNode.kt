@@ -5,6 +5,7 @@ import org.vitrivr.cottontail.database.index.AbstractIndex
 import org.vitrivr.cottontail.database.index.Index
 import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.QueryContext
+import org.vitrivr.cottontail.database.queries.binding.BindingContext
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.NullaryPhysicalOperatorNode
 import org.vitrivr.cottontail.database.queries.predicates.Predicate
@@ -16,6 +17,7 @@ import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.sources.IndexScanOperator
 import org.vitrivr.cottontail.execution.operators.transform.MergeOperator
+import org.vitrivr.cottontail.model.values.types.Value
 
 /**
  * A [IndexScanPhysicalOperatorNode] that represents a predicated lookup using an [AbstractIndex].
@@ -23,7 +25,7 @@ import org.vitrivr.cottontail.execution.operators.transform.MergeOperator
  * @author Ralph Gasser
  * @version 2.0.0
  */
-class IndexScanPhysicalOperatorNode(val index: Index, val predicate: Predicate) : NullaryPhysicalOperatorNode() {
+class IndexScanPhysicalOperatorNode(override val groupId: Int, val index: Index, val predicate: Predicate) : NullaryPhysicalOperatorNode() {
     override val outputSize: Long = this.index.parent.numberOfRows
     override val statistics: RecordStatistics = this.index.parent.statistics
     override val columns: Array<ColumnDef<*>> = this.index.produces
@@ -36,7 +38,7 @@ class IndexScanPhysicalOperatorNode(val index: Index, val predicate: Predicate) 
      *
      * @return Copy of this [IndexScanPhysicalOperatorNode].
      */
-    override fun copyWithInputs() = IndexScanPhysicalOperatorNode(this.index, this.predicate)
+    override fun copyWithInputs() = IndexScanPhysicalOperatorNode(this.groupId, this.index, this.predicate)
 
     /**
      * Returns a copy of this [IndexScanPhysicalOperatorNode] and its output.
@@ -46,7 +48,7 @@ class IndexScanPhysicalOperatorNode(val index: Index, val predicate: Predicate) 
      */
     override fun copyWithOutput(vararg inputs: OperatorNode.Physical): OperatorNode.Physical {
         require(inputs.isEmpty()) { "No input is allowed for nullary operators." }
-        val scan = IndexScanPhysicalOperatorNode(this.index, this.predicate)
+        val scan = IndexScanPhysicalOperatorNode(this.groupId, this.index, this.predicate)
         return (this.output?.copyWithOutput(scan) ?: scan)
     }
 
@@ -62,7 +64,7 @@ class IndexScanPhysicalOperatorNode(val index: Index, val predicate: Predicate) 
         return (0 until p).map {
             val start = (it * partitionSize)
             val end = ((it + 1) * partitionSize) - 1
-            RangedIndexScanPhysicalOperatorNode(this.index, this.predicate, start until end)
+            RangedIndexScanPhysicalOperatorNode(this.groupId, this.index, this.predicate, start until end)
         }
     }
 
@@ -86,19 +88,19 @@ class IndexScanPhysicalOperatorNode(val index: Index, val predicate: Predicate) 
                 val operators = partitions.map { it.toOperator(tx, ctx) }
                 MergeOperator(operators)
             } else {
-                IndexScanOperator(this.index, this.predicate.bindValues(ctx))
+                IndexScanOperator(this.groupId, this.index, this.predicate)
             }
         }
-        is BooleanPredicate -> IndexScanOperator(this.index, this.predicate.bindValues(ctx))
+        is BooleanPredicate -> IndexScanOperator(this.groupId, this.index, this.predicate)
         else -> throw UnsupportedOperationException("Unknown type of predicate ${this.predicate} cannot be converted to operator.")
     }
 
     /**
-     * Binds values from the provided [QueryContext] to this [IndexScanPhysicalOperatorNode]'s [Predicate].
+     * Binds values from the provided [BindingContext] to this [IndexScanPhysicalOperatorNode]'s [Predicate].
      *
-     * @param ctx The [QueryContext] used for value binding.
+     * @param ctx The [BindingContext] used for value binding.
      */
-    override fun bindValues(ctx: QueryContext): OperatorNode {
+    override fun bindValues(ctx: BindingContext<Value>): OperatorNode {
         this.predicate.bindValues(ctx)
         return super.bindValues(ctx)
     }

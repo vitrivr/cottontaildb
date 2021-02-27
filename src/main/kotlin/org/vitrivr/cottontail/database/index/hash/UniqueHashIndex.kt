@@ -61,10 +61,10 @@ class UniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path, p
      * @param predicate The [Predicate] to check.
      * @return True if [Predicate] can be processed, false otherwise.
      */
-    override fun canProcess(predicate: Predicate): Boolean = predicate is BooleanPredicate.Atomic
+    override fun canProcess(predicate: Predicate): Boolean = predicate is BooleanPredicate.Atomic.Literal
             && !predicate.not
             && predicate.columns.first() == this.columns[0]
-            && (predicate.operator == ComparisonOperator.IN || predicate.operator == ComparisonOperator.EQUAL)
+            && (predicate.operator is ComparisonOperator.In || predicate.operator is ComparisonOperator.Binary.Equal)
 
     /**
      * Calculates the cost estimate of this [UniqueHashIndex] processing the provided [Predicate].
@@ -73,9 +73,9 @@ class UniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path, p
      * @return Cost estimate for the [Predicate]
      */
     override fun cost(predicate: Predicate): Cost = when {
-        predicate !is BooleanPredicate.Atomic || predicate.columns.first() != this.columns[0] || predicate.not -> Cost.INVALID
-        predicate.operator == ComparisonOperator.EQUAL -> Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_MEMORY_ACCESS, predicate.columns.map { it.type.physicalSize }.sum().toFloat())
-        predicate.operator == ComparisonOperator.IN -> Cost(Cost.COST_DISK_ACCESS_READ * predicate.values.size, Cost.COST_MEMORY_ACCESS * predicate.values.size, predicate.columns.map { it.type.physicalSize }.sum().toFloat())
+        predicate !is BooleanPredicate.Atomic.Literal || predicate.columns.first() != this.columns[0] || predicate.not -> Cost.INVALID
+        predicate.operator is ComparisonOperator.Binary.Equal -> Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_MEMORY_ACCESS, predicate.columns.map { it.type.physicalSize }.sum().toFloat())
+        predicate.operator is ComparisonOperator.In -> Cost(Cost.COST_DISK_ACCESS_READ * predicate.operator.right.size, Cost.COST_MEMORY_ACCESS * predicate.operator.right.size, predicate.columns.map { it.type.physicalSize }.sum().toFloat())
         else -> Cost.INVALID
     }
 
@@ -134,16 +134,9 @@ class UniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path, p
             /* Recreate entries. */
             this@UniqueHashIndex.map.clear()
             entityTx.scan(this@UniqueHashIndex.columns).forEach { record ->
-                val value = record[this.columns[0]]
-                    ?: throw TxException.TxValidationException(
-                        this.context.txId,
-                        "Value cannot be null for UniqueHashIndex ${this@UniqueHashIndex.name} given value is (value = null, tupleId = ${record.tupleId})."
-                    )
+                val value = record[this.columns[0]] ?: throw TxException.TxValidationException(this.context.txId, "Value cannot be null for UniqueHashIndex ${this@UniqueHashIndex.name} given value is (value = null, tupleId = ${record.tupleId}).")
                 if (!this.addMapping(value, record.tupleId)) {
-                    throw TxException.TxValidationException(
-                        this.context.txId,
-                        "Value must be unique for UniqueHashIndex ${this@UniqueHashIndex.name} but is not (value = $value, tupleId = ${record.tupleId})."
-                    )
+                    throw TxException.TxValidationException(this.context.txId, "Value must be unique for UniqueHashIndex ${this@UniqueHashIndex.name} but is not (value = $value, tupleId = ${record.tupleId}).")
                 }
             }
         }
@@ -193,18 +186,22 @@ class UniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path, p
         override fun filter(predicate: Predicate) = object : Iterator<Record> {
 
             /** Local [BooleanPredicate.Atomic] instance. */
-            private val predicate: BooleanPredicate.Atomic
+            private val predicate: BooleanPredicate.Atomic.Literal
+
+            /** Pre-fetched [Record]s that match the [Predicate]. */
+            private val elements = LinkedList<Value>()
 
             /* Perform initial sanity checks. */
             init {
-                require(predicate is BooleanPredicate.Atomic) { "UniqueHashIndex.filter() does only support AtomicBooleanPredicates." }
+                require(predicate is BooleanPredicate.Atomic.Literal) { "UniqueHashIndex.filter() does only support Atomic.Literal boolean predicates." }
                 require(!predicate.not) { "UniqueHashIndex.filter() does not support negated statements (i.e. NOT EQUALS or NOT IN)." }
                 this@Tx.withReadLock { /* No op. */ }
                 this.predicate = predicate
+                when (predicate.operator) {
+                    is ComparisonOperator.In -> this.elements.addAll(predicate.operator.right.map { it.value })
+                    is ComparisonOperator.Binary.Equal -> this.elements.add(predicate.operator.right.value)
+                }
             }
-
-            /** Pre-fetched [Record]s that match the [Predicate]. */
-            private val elements = LinkedList(this.predicate.values)
 
             /**
              * Returns `true` if the iteration has more elements.

@@ -27,7 +27,7 @@ class FilterLogicalOperatorNode(input: OperatorNode.Logical, val predicate: Bool
      *
      * @return Copy of this [FilterLogicalOperatorNode] and its input.
      */
-    override fun copyWithInputs(): FilterLogicalOperatorNode = FilterLogicalOperatorNode(this.input.copyWithInputs(), this.predicate)
+    override fun copyWithInputs() = FilterLogicalOperatorNode(this.input.copyWithInputs(), this.predicate)
 
 
     /**

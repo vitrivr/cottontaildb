@@ -15,13 +15,13 @@ import org.vitrivr.cottontail.database.queries.planning.rules.logical.RightConju
 import org.vitrivr.cottontail.database.queries.planning.rules.physical.index.BooleanIndexScanRule
 import org.vitrivr.cottontail.execution.TransactionManager
 import org.vitrivr.cottontail.execution.TransactionType
+import org.vitrivr.cottontail.execution.operators.sinks.SpoolerSinkOperator
 import org.vitrivr.cottontail.execution.operators.utility.NoOpSinkOperator
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.grpc.DMLGrpc
 import org.vitrivr.cottontail.model.exceptions.ExecutionException
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.exceptions.TransactionException
-import org.vitrivr.cottontail.server.grpc.operators.SpoolerSinkOperator
 import java.util.*
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTime
@@ -60,7 +60,7 @@ class DMLService(val catalogue: DefaultCatalogue, override val manager: Transact
                 val totalDuration = measureTime {
                     /* Bind query and create logical plan. */
                     val bindTime = measureTime {
-                        this.binder.bind(request, ctx, tx)
+                        this.binder.bind(request, ctx)
                     }
                     LOGGER.debug(formatMessage(tx, q, "Parsing & binding UPDATE took $bindTime."))
 
@@ -119,7 +119,7 @@ class DMLService(val catalogue: DefaultCatalogue, override val manager: Transact
                 val totalDuration = measureTime {
                     /* Bind query and create logical plan. */
                     val bindTime = measureTime {
-                        this.binder.bind(request, ctx, tx)
+                        this.binder.bind(request, ctx)
                     }
                     LOGGER.debug(formatMessage(tx, q, "Parsing & binding DELETE took $bindTime."))
 
@@ -178,7 +178,7 @@ class DMLService(val catalogue: DefaultCatalogue, override val manager: Transact
                 val totalDuration = measureTime {
                     /* Bind query and create logical plan. */
                     val bindTime = measureTime {
-                        this.binder.bind(request, ctx, tx)
+                        this.binder.bind(request, ctx)
                     }
                     LOGGER.debug(formatMessage(tx, q, "Parsing & binding INSERT took $bindTime."))
 
@@ -249,7 +249,7 @@ class DMLService(val catalogue: DefaultCatalogue, override val manager: Transact
                 if (localContext == null) {
                     val newQueryContext = QueryContext(this.transaction)
                     val bindTime = measureTime {
-                        this@DMLService.binder.bind(value, newQueryContext, this.transaction)
+                        this@DMLService.binder.bind(value, newQueryContext)
                     }
                     LOGGER.debug(formatMessage(this.transaction, this.queryId, "Parsing & binding INSERT took $bindTime."))
 
@@ -261,7 +261,7 @@ class DMLService(val catalogue: DefaultCatalogue, override val manager: Transact
                     this.queryContext = newQueryContext
                 } else {
                     val bindTime = measureTime {
-                        val binding = this@DMLService.binder.bindValues(value, localContext, this.transaction)
+                        val binding = this@DMLService.binder.bindValues(value, localContext)
                         (localContext.physical as InsertPhysicalOperatorNode).records.add(binding)
                     }
                     LOGGER.debug(formatMessage(this.transaction, this.queryId, "Parsing & binding INSERT took $bindTime."))

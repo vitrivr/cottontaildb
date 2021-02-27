@@ -22,7 +22,7 @@ object CountPushdownRule : RewriteRule {
         if (node is ProjectionPhysicalOperatorNode && node.type == Projection.COUNT) {
             val input = node.input
             if (input is EntityScanPhysicalOperatorNode) {
-                val p = EntityCountPhysicalOperatorNode(input.entity)
+                val p = EntityCountPhysicalOperatorNode(input.groupId, input.entity)
                 return node.output?.copyWithOutput(p) ?: p
             }
         }

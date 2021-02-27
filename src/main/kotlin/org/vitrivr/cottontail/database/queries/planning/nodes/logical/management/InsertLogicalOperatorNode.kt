@@ -2,11 +2,13 @@ package org.vitrivr.cottontail.database.queries.planning.nodes.logical.managemen
 
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.Entity
+import org.vitrivr.cottontail.database.queries.GroupId
 import org.vitrivr.cottontail.database.queries.OperatorNode
-import org.vitrivr.cottontail.database.queries.binding.RecordBinding
+import org.vitrivr.cottontail.database.queries.binding.Binding
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.NullaryLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.management.InsertPhysicalOperatorNode
 import org.vitrivr.cottontail.execution.operators.management.InsertOperator
+import org.vitrivr.cottontail.model.basics.Record
 
 /**
  * A [InsertLogicalOperatorNode] that formalizes a INSERT operation on an [Entity].
@@ -14,7 +16,7 @@ import org.vitrivr.cottontail.execution.operators.management.InsertOperator
  * @author Ralph Gasser
  * @version 2.0.0
  */
-class InsertLogicalOperatorNode(val entity: Entity, val records: MutableList<RecordBinding>) : NullaryLogicalOperatorNode() {
+class InsertLogicalOperatorNode(override val groupId: GroupId, val entity: Entity, val records: MutableList<Binding<Record>>) : NullaryLogicalOperatorNode() {
     /** The [InsertLogicalOperatorNode] produces the columns defined in the [InsertOperator] */
     override val columns: Array<ColumnDef<*>> = InsertOperator.COLUMNS
 
@@ -23,7 +25,7 @@ class InsertLogicalOperatorNode(val entity: Entity, val records: MutableList<Rec
      *
      * @return Copy of this [DeleteLogicalOperatorNode]
      */
-    override fun copyWithInputs(): InsertLogicalOperatorNode = InsertLogicalOperatorNode(this.entity, this.records)
+    override fun copyWithInputs(): InsertLogicalOperatorNode = InsertLogicalOperatorNode(this.groupId, this.entity, this.records)
 
     /**
      * Returns a copy of this [InsertLogicalOperatorNode] and its output.
@@ -33,7 +35,7 @@ class InsertLogicalOperatorNode(val entity: Entity, val records: MutableList<Rec
      */
     override fun copyWithOutput(vararg inputs: OperatorNode.Logical): OperatorNode.Logical {
         require(inputs.isEmpty()) { "No input is allowed for nullary operators." }
-        val insert = InsertLogicalOperatorNode(this.entity, this.records)
+        val insert = InsertLogicalOperatorNode(this.groupId, this.entity, this.records)
         return (this.output?.copyWithOutput(insert) ?: insert)
     }
 
@@ -42,7 +44,7 @@ class InsertLogicalOperatorNode(val entity: Entity, val records: MutableList<Rec
      *
      * @return [InsertPhysicalOperatorNode]
      */
-    override fun implement() = InsertPhysicalOperatorNode(this.entity, this.records)
+    override fun implement() = InsertPhysicalOperatorNode(this.groupId, this.entity, this.records)
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

@@ -48,10 +48,6 @@ class LuceneIndex(path: Path, parent: DefaultEntity, config: LuceneIndexConfig? 
     companion object {
         /** [ColumnDef] of the _tid column. */
         const val TID_COLUMN = "_tid"
-
-        /** The [ComparisonOperator]s supported by this [LuceneIndex]. */
-        private val SUPPORTS =
-            arrayOf(ComparisonOperator.LIKE, ComparisonOperator.EQUAL, ComparisonOperator.MATCH)
     }
 
     /** The [LuceneIndex] implementation produces an additional score column. */
@@ -105,9 +101,9 @@ class LuceneIndex(path: Path, parent: DefaultEntity, config: LuceneIndexConfig? 
      * @return True if [Predicate] can be processed, false otherwise.
      */
     override fun canProcess(predicate: Predicate): Boolean =
-            predicate is BooleanPredicate &&
-                    predicate.columns.all { it in this.columns } &&
-                    predicate.atomics.all { it.operator in SUPPORTS }
+        predicate is BooleanPredicate &&
+                predicate.columns.all { it in this.columns } &&
+                predicate.atomics.all { it.operator is ComparisonOperator.Binary.Like || it.operator is ComparisonOperator.Binary.Equal || it.operator is ComparisonOperator.Binary.Match }
 
     /**
      * Calculates the cost estimate of this [UniqueHashIndex] processing the provided [Predicate].
@@ -183,8 +179,9 @@ class LuceneIndex(path: Path, parent: DefaultEntity, config: LuceneIndexConfig? 
      * @return [Query]
      */
     private fun BooleanPredicate.toLuceneQuery(): Query = when (this) {
-        is BooleanPredicate.Atomic -> this.toLuceneQuery()
+        is BooleanPredicate.Atomic.Literal -> this.toLuceneQuery()
         is BooleanPredicate.Compound -> this.toLuceneQuery()
+        is BooleanPredicate.Atomic.Reference -> throw IllegalStateException("An Atomic.Reference boolean predicate cannot be converted to a lucene query.")
     }
 
     /**
@@ -193,19 +190,19 @@ class LuceneIndex(path: Path, parent: DefaultEntity, config: LuceneIndexConfig? 
      *
      * @return [Query]
      */
-    private fun BooleanPredicate.Atomic.toLuceneQuery(): Query = when (this.operator) {
-        ComparisonOperator.EQUAL -> {
+    private fun BooleanPredicate.Atomic.Literal.toLuceneQuery(): Query = when (this.operator) {
+        is ComparisonOperator.Binary.Equal -> {
             val column = this.columns.first()
-            val string = this.values.first()
+            val string = this.operator.right.value
             if (string is StringValue) {
                 TermQuery(Term("${column.name}_str", string.value))
             } else {
                 throw throw QueryException("Conversion to Lucene query failed: EQUAL queries strictly require a StringValue as second operand!")
             }
         }
-        ComparisonOperator.LIKE -> {
+        is ComparisonOperator.Binary.Like -> {
             val column = this.columns.first()
-            when (val pattern = this.values.first()) {
+            when (val pattern = this.operator.right.value) {
                 is LucenePatternValue -> QueryParserUtil.parse(
                     arrayOf(pattern.value),
                     arrayOf("${column.name}_txt"),
@@ -219,9 +216,9 @@ class LuceneIndex(path: Path, parent: DefaultEntity, config: LuceneIndexConfig? 
                 else -> throw throw QueryException("Conversion to Lucene query failed: LIKE queries require a LucenePatternValue OR LikePatternValue as second operand!")
             }
         }
-        ComparisonOperator.MATCH -> {
+        is ComparisonOperator.Binary.Match -> {
             val column = this.columns.first()
-            val pattern = this.values.first()
+            val pattern = this.operator.right.value
             if (pattern is LucenePatternValue) {
                 QueryParserUtil.parse(arrayOf(pattern.value), arrayOf("${column.name}_txt"), StandardAnalyzer())
             } else {

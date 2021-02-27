@@ -11,13 +11,13 @@ import org.vitrivr.cottontail.database.queries.planning.nodes.physical.sources.E
  * @author Ralph Gasser
  * @version 2.0.0
  */
-class EntityScanLogicalOperatorNode(entity: Entity, columns: Array<ColumnDef<*>>) : EntitySourceLogicalOperatorNode(entity, columns) {
+class EntityScanLogicalOperatorNode(groupId: Int, entity: Entity, columns: Array<ColumnDef<*>>) : EntitySourceLogicalOperatorNode(groupId, entity, columns) {
     /**
      * Returns a copy of this [EntityScanLogicalOperatorNode] and its input.
      *
      * @return Copy of this [EntityScanLogicalOperatorNode] and its input.
      */
-    override fun copyWithInputs(): EntityScanLogicalOperatorNode = EntityScanLogicalOperatorNode(this.entity, this.columns)
+    override fun copyWithInputs(): EntityScanLogicalOperatorNode = EntityScanLogicalOperatorNode(this.groupId, this.entity, this.columns)
 
     /**
      * Returns a copy of this [EntityScanLogicalOperatorNode] and its output.
@@ -27,7 +27,7 @@ class EntityScanLogicalOperatorNode(entity: Entity, columns: Array<ColumnDef<*>>
      */
     override fun copyWithOutput(vararg inputs: OperatorNode.Logical): OperatorNode.Logical {
         require(inputs.isEmpty()) { "No input is allowed for nullary operators." }
-        val scan = EntityScanLogicalOperatorNode(this.entity, this.columns)
+        val scan = EntityScanLogicalOperatorNode(this.groupId, this.entity, this.columns)
         return (this.output?.copyWithOutput(scan) ?: scan)
     }
 
@@ -36,5 +36,5 @@ class EntityScanLogicalOperatorNode(entity: Entity, columns: Array<ColumnDef<*>>
      *
      * @return [EntityScanPhysicalOperatorNode]
      */
-    override fun implement(): Physical = EntityScanPhysicalOperatorNode(this.entity, this.columns)
+    override fun implement(): Physical = EntityScanPhysicalOperatorNode(this.groupId, this.entity, this.columns)
 }

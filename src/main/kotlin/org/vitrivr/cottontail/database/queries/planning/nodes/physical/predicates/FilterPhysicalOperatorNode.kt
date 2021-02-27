@@ -3,6 +3,7 @@ package org.vitrivr.cottontail.database.queries.planning.nodes.physical.predicat
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.QueryContext
+import org.vitrivr.cottontail.database.queries.binding.BindingContext
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalOperatorNode
 import org.vitrivr.cottontail.database.queries.predicates.bool.BooleanPredicate
@@ -12,6 +13,7 @@ import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.predicates.FilterOperator
 import org.vitrivr.cottontail.execution.operators.transform.MergeOperator
+import org.vitrivr.cottontail.model.values.types.Value
 
 /**
  * A [UnaryPhysicalOperatorNode] that represents application of a [BooleanPredicate] on some intermediate result.
@@ -28,8 +30,8 @@ class FilterPhysicalOperatorNode(input: OperatorNode.Physical, val predicate: Bo
     /** The [FilterPhysicalOperatorNode] requires all [ColumnDef]s used in the [KnnPredicate]. */
     override val requires: Array<ColumnDef<*>> = this.predicate.columns.toTypedArray()
 
-    /** The [FilterPhysicalOperatorNode] can only be executed if it doesn't contain any [ComparisonOperator.MATCH]. */
-    override val executable: Boolean = this.predicate.atomics.none { it.operator == ComparisonOperator.MATCH } && this.input.executable
+    /** The [FilterPhysicalOperatorNode] can only be executed if it doesn't contain any [ComparisonOperator.Binary.Match]. */
+    override val executable: Boolean = this.predicate.atomics.none { it.operator is ComparisonOperator.Binary.Match } && this.input.executable
 
     /** The output size of this [FilterPhysicalOperatorNode]. TODO: Estimate selectivity of predicate. */
     override val outputSize: Long = this.input.outputSize
@@ -73,19 +75,19 @@ class FilterPhysicalOperatorNode(input: OperatorNode.Physical, val predicate: Bo
     override fun toOperator(tx: TransactionContext, ctx: QueryContext): Operator {
         val parallelisation = this.cost.parallelisation()
         return if (this.canBePartitioned && parallelisation > 1) {
-            val operators = this.input.partition(parallelisation).map { FilterOperator(this.input.toOperator(tx, ctx), this.predicate.bindValues(ctx)) }
+            val operators = this.input.partition(parallelisation).map { FilterOperator(it.toOperator(tx, ctx), this.predicate) }
             MergeOperator(operators)
         } else {
-            FilterOperator(this.input.toOperator(tx, ctx), this.predicate.bindValues(ctx))
+            FilterOperator(this.input.toOperator(tx, ctx), this.predicate)
         }
     }
 
     /**
-     * Binds values from the provided [QueryContext] to this [FilterPhysicalOperatorNode]'s [BooleanPredicate].
+     * Binds values from the provided [BindingContext] to this [FilterPhysicalOperatorNode]'s [BooleanPredicate].
      *
-     * @param ctx The [QueryContext] used for value binding.
+     * @param ctx The [BindingContext] used for value binding.
      */
-    override fun bindValues(ctx: QueryContext): OperatorNode {
+    override fun bindValues(ctx: BindingContext<Value>): OperatorNode {
         this.predicate.bindValues(ctx)
         return super.bindValues(ctx) /* Important! */
     }

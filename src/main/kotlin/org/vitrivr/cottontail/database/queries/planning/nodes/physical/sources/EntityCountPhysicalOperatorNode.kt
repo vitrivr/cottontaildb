@@ -18,7 +18,7 @@ import org.vitrivr.cottontail.model.basics.Type
  * @author Ralph Gasser
  * @version 2.0.0
  */
-class EntityCountPhysicalOperatorNode(val entity: Entity) : NullaryPhysicalOperatorNode() {
+class EntityCountPhysicalOperatorNode(override val groupId: Int, val entity: Entity) : NullaryPhysicalOperatorNode() {
     override val outputSize = 1L
     override val statistics: RecordStatistics = this.entity.statistics
     override val columns: Array<ColumnDef<*>> = arrayOf(ColumnDef(this.entity.name.column(Projection.COUNT.label()), Type.Long, false))
@@ -31,7 +31,7 @@ class EntityCountPhysicalOperatorNode(val entity: Entity) : NullaryPhysicalOpera
      *
      * @return Copy of this [EntityCountPhysicalOperatorNode].
      */
-    override fun copyWithInputs() = EntityCountPhysicalOperatorNode(this.entity)
+    override fun copyWithInputs() = EntityCountPhysicalOperatorNode(this.groupId, this.entity)
 
     /**
      * Returns a copy of this [EntityCountPhysicalOperatorNode] and its output.
@@ -41,7 +41,7 @@ class EntityCountPhysicalOperatorNode(val entity: Entity) : NullaryPhysicalOpera
      */
     override fun copyWithOutput(vararg inputs: OperatorNode.Physical): OperatorNode.Physical {
         require(inputs.isEmpty()) { "No input is allowed for nullary operators." }
-        val count = EntityCountPhysicalOperatorNode(this.entity)
+        val count = EntityCountPhysicalOperatorNode(this.groupId, this.entity)
         return (this.output?.copyWithOutput(count) ?: count)
     }
 
@@ -58,7 +58,7 @@ class EntityCountPhysicalOperatorNode(val entity: Entity) : NullaryPhysicalOpera
      * @param tx The [TransactionContext] used for execution.
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(tx: TransactionContext, ctx: QueryContext) = EntityCountOperator(this.entity)
+    override fun toOperator(tx: TransactionContext, ctx: QueryContext) = EntityCountOperator(this.groupId, this.entity)
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

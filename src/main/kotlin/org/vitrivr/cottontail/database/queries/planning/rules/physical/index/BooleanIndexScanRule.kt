@@ -29,7 +29,7 @@ object BooleanIndexScanRule : RewriteRule {
                 val indexes = (ctx.txn.getTx(parent.entity) as EntityTx).listIndexes()
                 val candidate = indexes.find { it.canProcess(node.predicate) }
                 if (candidate != null) {
-                    var p: OperatorNode.Physical = IndexScanPhysicalOperatorNode(candidate, node.predicate)
+                    var p: OperatorNode.Physical = IndexScanPhysicalOperatorNode(node.groupId, candidate, node.predicate)
                     val delta = parent.columns.filter { !candidate.produces.contains(it) }
                     if (delta.isNotEmpty()) {
                         p = FetchPhysicalOperatorNode(p, candidate.parent, delta.toTypedArray())

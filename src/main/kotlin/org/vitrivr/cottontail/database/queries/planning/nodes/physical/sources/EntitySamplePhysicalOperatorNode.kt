@@ -17,7 +17,14 @@ import kotlin.math.min
  * @author Ralph Gasser
  * @version 2.0.0
  */
-class EntitySamplePhysicalOperatorNode(val entity: Entity, override val columns: Array<ColumnDef<*>>, override val outputSize: Long, val seed: Long = System.currentTimeMillis()) : NullaryPhysicalOperatorNode() {
+class EntitySamplePhysicalOperatorNode(
+    override val groupId: Int,
+    val entity: Entity,
+    override val columns: Array<ColumnDef<*>>,
+    override val outputSize: Long,
+    val seed: Long = System.currentTimeMillis()
+) : NullaryPhysicalOperatorNode() {
+
     init {
         require(this.outputSize > 0) { "Sample size must be greater than zero for sampling an entity but is $outputSize." }
     }
@@ -34,7 +41,7 @@ class EntitySamplePhysicalOperatorNode(val entity: Entity, override val columns:
      *
      * @return Copy of this [EntitySamplePhysicalOperatorNode].
      */
-    override fun copyWithInputs() = EntitySamplePhysicalOperatorNode(this.entity, this.columns, this.outputSize, this.seed)
+    override fun copyWithInputs() = EntitySamplePhysicalOperatorNode(this.groupId, this.entity, this.columns, this.outputSize, this.seed)
 
     /**
      * Returns a copy of this [EntitySamplePhysicalOperatorNode] and its output.
@@ -44,7 +51,7 @@ class EntitySamplePhysicalOperatorNode(val entity: Entity, override val columns:
      */
     override fun copyWithOutput(vararg inputs: OperatorNode.Physical): OperatorNode.Physical {
         require(inputs.isEmpty()) { "No input is allowed for nullary operators." }
-        val sample = EntitySamplePhysicalOperatorNode(this.entity, this.columns, this.outputSize, this.seed)
+        val sample = EntitySamplePhysicalOperatorNode(this.groupId, this.entity, this.columns, this.outputSize, this.seed)
         return (this.output?.copyWithOutput(sample) ?: sample)
     }
 
@@ -59,7 +66,7 @@ class EntitySamplePhysicalOperatorNode(val entity: Entity, override val columns:
         return (0 until p).map {
             val start = it * partitionSize
             val end = min((it + 1L) * partitionSize, this.outputSize)
-            EntitySamplePhysicalOperatorNode(this.entity, this.columns, end - start + 1)
+            EntitySamplePhysicalOperatorNode(this.groupId, this.entity, this.columns, end - start + 1)
         }
     }
 
@@ -69,7 +76,7 @@ class EntitySamplePhysicalOperatorNode(val entity: Entity, override val columns:
      * @param tx The [TransactionContext] used for execution.
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(tx: TransactionContext, ctx: QueryContext) = EntitySampleOperator(this.entity, this.columns, this.outputSize, this.seed)
+    override fun toOperator(tx: TransactionContext, ctx: QueryContext) = EntitySampleOperator(this.groupId, this.entity, this.columns, this.outputSize, this.seed)
 
 
     override fun equals(other: Any?): Boolean {

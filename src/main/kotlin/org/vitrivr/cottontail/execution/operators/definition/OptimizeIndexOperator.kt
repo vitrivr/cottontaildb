@@ -29,7 +29,6 @@ class OptimizeIndexOperator(private val catalogue: DefaultCatalogue, private val
         val schemaTxn = context.getTx(catTxn.schemaForName(this.name.schema())) as SchemaTx
         val entityTxn = context.getTx(schemaTxn.entityForName(this.name.entity())) as EntityTx
         val indexTxn = context.getTx(entityTxn.indexForName(this.name)) as IndexTx
-        val indexes = entityTxn.listIndexes()
         return flow {
             val timedTupleId = measureTimedValue {
                 indexTxn.rebuild()

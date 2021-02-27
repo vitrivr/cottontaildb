@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.flow
 import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.index.Index
 import org.vitrivr.cottontail.database.index.IndexTx
+import org.vitrivr.cottontail.database.queries.GroupId
 import org.vitrivr.cottontail.database.queries.predicates.Predicate
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.model.basics.Record
@@ -15,7 +16,7 @@ import org.vitrivr.cottontail.model.basics.Record
  * @author Ralph Gasser
  * @version 1.3.0
  */
-class IndexScanOperator(private val index: Index, private val predicate: Predicate, private val range: LongRange? = null) : AbstractEntityOperator(index.parent, index.produces) {
+class IndexScanOperator(groupId: GroupId, private val index: Index, private val predicate: Predicate, private val range: LongRange? = null) : AbstractEntityOperator(groupId, index.parent, index.produces) {
 
     /**
      * Converts this [IndexScanOperator] to a [Flow] and returns it.

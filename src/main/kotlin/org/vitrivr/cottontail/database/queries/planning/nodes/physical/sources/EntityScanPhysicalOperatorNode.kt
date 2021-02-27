@@ -17,7 +17,7 @@ import org.vitrivr.cottontail.execution.operators.sources.EntityScanOperator
  * @author Ralph Gasser
  * @version 2.0.0
  */
-class EntityScanPhysicalOperatorNode(val entity: Entity, override val columns: Array<ColumnDef<*>>) : NullaryPhysicalOperatorNode() {
+class EntityScanPhysicalOperatorNode(override val groupId: Int, val entity: Entity, override val columns: Array<ColumnDef<*>>) : NullaryPhysicalOperatorNode() {
     override val statistics: RecordStatistics = this.entity.statistics
     override val outputSize = this.entity.numberOfRows
     override val executable: Boolean = true
@@ -31,7 +31,7 @@ class EntityScanPhysicalOperatorNode(val entity: Entity, override val columns: A
      *
      * @return Copy of this [EntityScanPhysicalOperatorNode].
      */
-    override fun copyWithInputs() = EntityScanPhysicalOperatorNode(this.entity, this.columns)
+    override fun copyWithInputs() = EntityScanPhysicalOperatorNode(this.groupId, this.entity, this.columns)
 
     /**
      * Returns a copy of this [EntityScanPhysicalOperatorNode] and its output.
@@ -41,7 +41,7 @@ class EntityScanPhysicalOperatorNode(val entity: Entity, override val columns: A
      */
     override fun copyWithOutput(vararg inputs: OperatorNode.Physical): OperatorNode.Physical {
         require(inputs.isEmpty()) { "No input is allowed for nullary operators." }
-        val scan = EntityScanPhysicalOperatorNode(this.entity, this.columns)
+        val scan = EntityScanPhysicalOperatorNode(this.groupId, this.entity, this.columns)
         return (this.output?.copyWithOutput(scan) ?: scan)
     }
 
@@ -56,7 +56,7 @@ class EntityScanPhysicalOperatorNode(val entity: Entity, override val columns: A
         return (0 until p).map {
             val start = (it * partitionSize)
             val end = ((it + 1) * partitionSize) - 1
-            RangedEntityScanPhysicalOperatorNode(this.entity, this.columns, start..end)
+            RangedEntityScanPhysicalOperatorNode(this.groupId, this.entity, this.columns, start..end)
         }
     }
 
@@ -66,7 +66,7 @@ class EntityScanPhysicalOperatorNode(val entity: Entity, override val columns: A
      * @param tx The [TransactionContext] used for execution.
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(tx: TransactionContext, ctx: QueryContext) = EntityScanOperator(this.entity, this.columns, 0L..this.entity.maxTupleId)
+    override fun toOperator(tx: TransactionContext, ctx: QueryContext) = EntityScanOperator(this.groupId, this.entity, this.columns, 0L..this.entity.maxTupleId)
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

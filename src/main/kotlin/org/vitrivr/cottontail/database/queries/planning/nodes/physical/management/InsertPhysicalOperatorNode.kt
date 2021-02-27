@@ -2,9 +2,10 @@ package org.vitrivr.cottontail.database.queries.planning.nodes.physical.manageme
 
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.Entity
+import org.vitrivr.cottontail.database.queries.GroupId
 import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.QueryContext
-import org.vitrivr.cottontail.database.queries.binding.RecordBinding
+import org.vitrivr.cottontail.database.queries.binding.Binding
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.NullaryPhysicalOperatorNode
 import org.vitrivr.cottontail.database.statistics.entity.RecordStatistics
@@ -12,6 +13,8 @@ import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.management.InsertOperator
 import org.vitrivr.cottontail.execution.operators.management.UpdateOperator
+import org.vitrivr.cottontail.model.basics.Record
+import org.vitrivr.cottontail.model.exceptions.QueryException
 
 /**
  * A [InsertPhysicalOperatorNode] that formalizes a INSERT operation on an [Entity].
@@ -19,7 +22,7 @@ import org.vitrivr.cottontail.execution.operators.management.UpdateOperator
  * @author Ralph Gasser
  * @version 2.0.0
  */
-class InsertPhysicalOperatorNode(val entity: Entity, val records: MutableList<RecordBinding>) : NullaryPhysicalOperatorNode() {
+class InsertPhysicalOperatorNode(override val groupId: GroupId, val entity: Entity, val records: MutableList<Binding<Record>>) : NullaryPhysicalOperatorNode() {
 
     /** The [InsertPhysicalOperatorNode] produces the [ColumnDef]s defined in the [UpdateOperator]. */
     override val columns: Array<ColumnDef<*>> = InsertOperator.COLUMNS
@@ -31,7 +34,7 @@ class InsertPhysicalOperatorNode(val entity: Entity, val records: MutableList<Re
     override val outputSize: Long = 1L
 
     /** The [Cost] of this [InsertPhysicalOperatorNode]. */
-    override val cost: Cost = Cost(this.records.size * this.records.first().size * Cost.COST_DISK_ACCESS_WRITE)
+    override val cost: Cost = Cost(Cost.COST_DISK_ACCESS_WRITE, Cost.COST_MEMORY_ACCESS) * this.records.size * this.statistics.all().map { it.key.type.physicalSize }.sum()
 
     /** The [InsertPhysicalOperatorNode] cannot be partitioned. */
     override val canBePartitioned: Boolean = false
@@ -44,7 +47,7 @@ class InsertPhysicalOperatorNode(val entity: Entity, val records: MutableList<Re
      *
      * @return Copy of this [InsertPhysicalOperatorNode] and its input.
      */
-    override fun copyWithInputs(): InsertPhysicalOperatorNode = InsertPhysicalOperatorNode(this.entity, this.records)
+    override fun copyWithInputs(): InsertPhysicalOperatorNode = InsertPhysicalOperatorNode(this.groupId, this.entity, this.records)
 
     /**
      * Returns a copy of this [InsertPhysicalOperatorNode] and its output.
@@ -53,8 +56,8 @@ class InsertPhysicalOperatorNode(val entity: Entity, val records: MutableList<Re
      * @return Copy of this [InsertPhysicalOperatorNode] and its output.
      */
     override fun copyWithOutput(vararg inputs: OperatorNode.Physical): OperatorNode.Physical {
-        require(inputs.size == 0) { "No input is allowed for nullary operators." }
-        val insert = InsertPhysicalOperatorNode(this.entity, this.records)
+        require(inputs.isEmpty()) { "No input is allowed for nullary operators." }
+        val insert = InsertPhysicalOperatorNode(this.groupId, this.entity, this.records)
         return (this.output?.copyWithOutput(insert) ?: insert)
     }
 
@@ -64,7 +67,10 @@ class InsertPhysicalOperatorNode(val entity: Entity, val records: MutableList<Re
      * @param tx The [TransactionContext] used for execution.
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(tx: TransactionContext, ctx: QueryContext): Operator = InsertOperator(this.entity, this.records.map { it.bind(ctx) })
+    override fun toOperator(tx: TransactionContext, ctx: QueryContext): Operator {
+        val records = this.records.map { ctx.records[it] ?: throw QueryException.QueryBindException("Cannot bound null value to record for InsertOperator.") }
+        return InsertOperator(this.groupId, this.entity, records)
+    }
 
     /**
      * [InsertPhysicalOperatorNode] cannot be partitioned.

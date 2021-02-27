@@ -61,10 +61,10 @@ class NonUniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path
      * @param predicate The [Predicate] to check.
      * @return True if [Predicate] can be processed, false otherwise.
      */
-    override fun canProcess(predicate: Predicate): Boolean = predicate is BooleanPredicate.Atomic
+    override fun canProcess(predicate: Predicate): Boolean = predicate is BooleanPredicate.Atomic.Literal
             && !predicate.not
             && predicate.columns.first() == this.columns[0]
-            && (predicate.operator == ComparisonOperator.IN || predicate.operator == ComparisonOperator.EQUAL)
+            && (predicate.operator is ComparisonOperator.Binary.Equal || predicate.operator is ComparisonOperator.In)
 
     /**
      * Calculates the cost estimate of this [NonUniqueHashIndex] processing the provided [Predicate].
@@ -73,9 +73,9 @@ class NonUniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path
      * @return Cost estimate for the [Predicate]
      */
     override fun cost(predicate: Predicate): Cost = when {
-        predicate !is BooleanPredicate.Atomic || predicate.columns.first() != this.columns[0] || predicate.not -> Cost.INVALID
-        predicate.operator == ComparisonOperator.EQUAL -> Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_MEMORY_ACCESS, predicate.columns.map { it.type.physicalSize }.sum().toFloat())
-        predicate.operator == ComparisonOperator.IN -> Cost(Cost.COST_DISK_ACCESS_READ * predicate.values.size, Cost.COST_MEMORY_ACCESS * predicate.values.size, predicate.columns.map { it.type.physicalSize }.sum().toFloat())
+        predicate !is BooleanPredicate.Atomic.Literal || predicate.columns.first() != this.columns[0] || predicate.not -> Cost.INVALID
+        predicate.operator is ComparisonOperator.Binary.Equal -> Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_MEMORY_ACCESS, predicate.columns.map { it.type.physicalSize }.sum().toFloat())
+        predicate.operator is ComparisonOperator.In -> Cost(Cost.COST_DISK_ACCESS_READ * predicate.operator.right.size, Cost.COST_MEMORY_ACCESS * predicate.operator.right.size, predicate.columns.map { it.type.physicalSize }.sum().toFloat())
         else -> Cost.INVALID
     }
 
@@ -202,25 +202,22 @@ class NonUniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path
             private val elements = LinkedList<Array<Any>>()
 
             init {
-                require(predicate is BooleanPredicate.Atomic) { "NonUniqueHashIndex.filter() does only support AtomicBooleanPredicates." }
+                require(predicate is BooleanPredicate.Atomic.Literal) { "NonUniqueHashIndex.filter() does only support Atomic.Literal boolean predicates." }
                 require(!predicate.not) { "NonUniqueHashIndex.filter() does not support negated statements (i.e. NOT EQUALS or NOT IN)." }
                 this.predicate = predicate
 
                 this@Tx.withReadLock {
-                    if (this.predicate.operator == ComparisonOperator.IN) {
-                        this.predicate.values.forEach { v ->
+                    if (this.predicate.operator is ComparisonOperator.In) {
+                        this.predicate.operator.right.forEach { v ->
                             val subset = this@NonUniqueHashIndex.map.subSet(
-                                arrayOf(v),
-                                arrayOf(v, (null as Any?)) as Array<Any> /* Safe! */
+                                arrayOf(v.value),
+                                arrayOf(v.value, (null as Any?)) as Array<Any> /* Safe! */
                             )
                             this.elements.addAll(subset)
                         }
-                    } else if (this.predicate.operator == ComparisonOperator.EQUAL) {
-                        val v = this.predicate.values.first()
-                        val subset = this@NonUniqueHashIndex.map.subSet(
-                            arrayOf(v),
-                            arrayOf(v, (null as Any?)) as Array<Any> /* Safe! */
-                        )
+                    } else if (this.predicate.operator is ComparisonOperator.Binary.Equal) {
+                        val v = this.predicate.operator.right.value
+                        val subset = this@NonUniqueHashIndex.map.subSet(arrayOf(v), arrayOf(v, (null as Any?)) as Array<Any> /* Safe! */)
                         this.elements.addAll(subset)
                     }
                 }

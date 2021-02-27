@@ -1,8 +1,8 @@
 package org.vitrivr.cottontail.database.queries.predicates.knn
 
 import org.vitrivr.cottontail.database.column.ColumnDef
-import org.vitrivr.cottontail.database.queries.QueryContext
-import org.vitrivr.cottontail.database.queries.binding.ValueBinding
+import org.vitrivr.cottontail.database.queries.binding.Binding
+import org.vitrivr.cottontail.database.queries.binding.BindingContext
 import org.vitrivr.cottontail.database.queries.predicates.Predicate
 import org.vitrivr.cottontail.math.knn.metrics.DistanceKernel
 import org.vitrivr.cottontail.model.basics.Record
@@ -43,11 +43,11 @@ open class KnnPredicate(
     val query: List<VectorValue<*>>
         get() = Collections.unmodifiableList(this._query)
 
-    /** List of [ValueBinding] for [query] vectors. */
-    private val _queryBindings = LinkedList<ValueBinding>()
+    /** List of [Binding<Value>] for [query] vectors. */
+    private val _queryBindings = LinkedList<Binding<Value>>()
 
-    /** List of [ValueBinding] for [weights] vectors. */
-    private val _weightsBindings = LinkedList<ValueBinding>()
+    /** List of [Binding<Value>] for [weights] vectors. */
+    private val _weightsBindings = LinkedList<Binding<Value>>()
 
     /** Returns the number of query vectors in this [KnnPredicate] according to [_queryBindings]. */
     val numberOfQueries: Int
@@ -70,13 +70,12 @@ open class KnnPredicate(
         get() = this.distance.costForDimension(this.column.type.logicalSize) * (this.numberOfQueries + this.numberOfWeights)
 
     /**
-     * Adds a [ValueBinding] to this [KnnPredicate],
+     * Adds a [Binding] to this [KnnPredicate].
      *
-     * @param value The [ValueBinding] to add.
+     * @param value The [Binding] to add.
      * @return this
      */
-    fun query(value: ValueBinding): KnnPredicate {
-        require(value.type == this.column.type) { "The provided query vector does not match the kNN column ${column.name} (type = ${column.type})." }
+    fun query(value: Binding<Value>): KnnPredicate {
         this._queryBindings.add(value)
         return this
     }
@@ -94,13 +93,12 @@ open class KnnPredicate(
     }
 
     /**
-     * Adds a [ValueBinding] to this [KnnPredicate],
+     * Adds a [Binding] to this [KnnPredicate],
      *
-     * @param value The [ValueBinding] to add.
+     * @param value The [Binding] to add.
      * @return this
      */
-    fun weight(value: ValueBinding): KnnPredicate {
-        require(value.type == this.column.type) { "The provided weight vector does not match the kNN column ${column.name} (type = ${column.type})." }
+    fun weight(value: Binding<Value>): KnnPredicate {
         this._weightsBindings.add(value)
         return this
     }
@@ -133,14 +131,14 @@ open class KnnPredicate(
     /**
      * Prepares this [KnnPredicate] for use in query execution, e.g., by executing late value binding.
      *
-     * @param ctx [QueryContext] to use to resolve [ValueBinding]s.
+     * @param ctx [BindingContext] to use to resolve [Binding]s.
      * @return this [KnnPredicate]
      */
-    override fun bindValues(ctx: QueryContext): KnnPredicate {
+    override fun bindValues(ctx: BindingContext<Value>): KnnPredicate {
         if (!this._queryBindings.isEmpty()) {
             this._query.clear()
             this._queryBindings.forEach {
-                val value = it.bind(ctx)
+                val value = ctx[it]
                 if (value is VectorValue<*>) {
                     this._query.add(value)
                 } else {
@@ -151,7 +149,7 @@ open class KnnPredicate(
         if (!this._weightsBindings.isEmpty()) {
             this._weightsBindings.clear()
             this._weightsBindings.forEach {
-                val value = it.bind(ctx)
+                val value = ctx[it]
                 if (value is VectorValue<*>) {
                     this._weights.add(value)
                 } else {

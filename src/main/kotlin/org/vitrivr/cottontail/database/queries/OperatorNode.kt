@@ -24,6 +24,9 @@ sealed class OperatorNode : Node {
     /** The arity of this [OperatorNode], i.e., the number of parents or inputs allowed. */
     abstract val inputArity: Int
 
+    /** Internal group identifier used for plan enumeration. */
+    abstract val groupId: Int
+
     /** Whether or not this [OperatorNode] is executable. */
     abstract val executable: Boolean
 

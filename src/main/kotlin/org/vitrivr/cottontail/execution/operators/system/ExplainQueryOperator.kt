@@ -29,8 +29,7 @@ import org.vitrivr.cottontail.model.values.types.Value
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class ExplainQueryOperator(val candidates: Collection<OperatorNode.Physical>) :
-    Operator.SourceOperator() {
+class ExplainQueryOperator(val candidates: Collection<OperatorNode.Physical>) : Operator.SourceOperator() {
 
     companion object {
         val COLUMNS: Array<ColumnDef<*>> = arrayOf(

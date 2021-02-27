@@ -4,12 +4,14 @@ import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.index.Index
 import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.QueryContext
+import org.vitrivr.cottontail.database.queries.binding.BindingContext
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.NullaryPhysicalOperatorNode
 import org.vitrivr.cottontail.database.queries.predicates.Predicate
 import org.vitrivr.cottontail.database.statistics.entity.RecordStatistics
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.sources.IndexScanOperator
+import org.vitrivr.cottontail.model.values.types.Value
 
 /**
  * A [NullaryPhysicalOperatorNode] that formalizes a scan of a physical [Index] in Cottontail DB on a given range.
@@ -17,7 +19,7 @@ import org.vitrivr.cottontail.execution.operators.sources.IndexScanOperator
  * @author Ralph Gasser
  * @version 2.0.0
  */
-class RangedIndexScanPhysicalOperatorNode(val index: Index, val predicate: Predicate, val range: LongRange) : NullaryPhysicalOperatorNode() {
+class RangedIndexScanPhysicalOperatorNode(override val groupId: Int, val index: Index, val predicate: Predicate, val range: LongRange) : NullaryPhysicalOperatorNode() {
 
     init {
         require(this.range.first >= 0L) { "Start of a ranged index scan must be greater than zero." }
@@ -35,7 +37,7 @@ class RangedIndexScanPhysicalOperatorNode(val index: Index, val predicate: Predi
      *
      * @return Copy of this [RangedIndexScanPhysicalOperatorNode].
      */
-    override fun copyWithInputs() = RangedIndexScanPhysicalOperatorNode(this.index, this.predicate, this.range)
+    override fun copyWithInputs() = RangedIndexScanPhysicalOperatorNode(this.groupId, this.index, this.predicate, this.range)
 
     /**
      * Returns a copy of this [RangedIndexScanPhysicalOperatorNode] and its output.
@@ -45,7 +47,7 @@ class RangedIndexScanPhysicalOperatorNode(val index: Index, val predicate: Predi
      */
     override fun copyWithOutput(vararg inputs: OperatorNode.Physical): OperatorNode.Physical {
         require(inputs.isEmpty()) { "No input is allowed for nullary operators." }
-        val scan = RangedIndexScanPhysicalOperatorNode(this.index, this.predicate, this.range)
+        val scan = RangedIndexScanPhysicalOperatorNode(this.groupId, this.index, this.predicate, this.range)
         return (this.output?.copyWithOutput(scan) ?: scan)
     }
 
@@ -55,7 +57,7 @@ class RangedIndexScanPhysicalOperatorNode(val index: Index, val predicate: Predi
      * @param tx The [TransactionContext] used for execution.
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(tx: TransactionContext, ctx: QueryContext): Operator = IndexScanOperator(this.index, this.predicate.bindValues(ctx), this.range)
+    override fun toOperator(tx: TransactionContext, ctx: QueryContext): Operator = IndexScanOperator(this.groupId, this.index, this.predicate, this.range)
 
     /**
      * [RangedIndexScanPhysicalOperatorNode] cannot be partitioned.
@@ -65,11 +67,11 @@ class RangedIndexScanPhysicalOperatorNode(val index: Index, val predicate: Predi
     }
 
     /**
-     * Binds values from the provided [QueryContext] to this [RangedIndexScanPhysicalOperatorNode]'s [Predicate].
+     * Binds values from the provided [BindingContext] to this [RangedIndexScanPhysicalOperatorNode]'s [Predicate].
      *
-     * @param ctx The [QueryContext] used for value binding.
+     * @param ctx The [BindingContext] used for value binding.
      */
-    override fun bindValues(ctx: QueryContext): OperatorNode {
+    override fun bindValues(ctx: BindingContext<Value>): OperatorNode {
         this.predicate.bindValues(ctx)
         return super.bindValues(ctx)
     }

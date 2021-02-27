@@ -10,7 +10,7 @@ import org.vitrivr.cottontail.database.queries.planning.nodes.logical.NullaryLog
  * @author Ralph Gasser
  * @version 2.0.0
  */
-abstract class EntitySourceLogicalOperatorNode(val entity: Entity, override val columns: Array<ColumnDef<*>>) : NullaryLogicalOperatorNode() {
+abstract class EntitySourceLogicalOperatorNode(override val groupId: Int, val entity: Entity, override val columns: Array<ColumnDef<*>>) : NullaryLogicalOperatorNode() {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is EntitySourceLogicalOperatorNode) return false
