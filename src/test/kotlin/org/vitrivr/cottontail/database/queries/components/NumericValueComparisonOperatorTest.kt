@@ -53,14 +53,14 @@ class NumericValueComparisonOperatorTest {
         val referenceNull = null
 
         /** Assert ISNULL. */
-        Assertions.assertTrue(ComparisonOperator.ISNOTNULL.match(referenceBoolean, emptyList()))
-        Assertions.assertTrue(ComparisonOperator.ISNOTNULL.match(referenceByte, emptyList()))
-        Assertions.assertTrue(ComparisonOperator.ISNOTNULL.match(referenceShort, emptyList()))
-        Assertions.assertTrue(ComparisonOperator.ISNOTNULL.match(referenceInt, emptyList()))
-        Assertions.assertTrue(ComparisonOperator.ISNOTNULL.match(referenceLong, emptyList()))
-        Assertions.assertTrue(ComparisonOperator.ISNOTNULL.match(referenceFloat, emptyList()))
-        Assertions.assertTrue(ComparisonOperator.ISNOTNULL.match(referenceDouble, emptyList()))
-        Assertions.assertFalse(ComparisonOperator.ISNOTNULL.match(referenceNull, emptyList()))
+        Assertions.assertTrue(ComparisonOperator.IsNull().match(referenceBoolean))
+        Assertions.assertTrue(ComparisonOperator.IsNull().match(referenceByte))
+        Assertions.assertTrue(ComparisonOperator.IsNull().match(referenceShort))
+        Assertions.assertTrue(ComparisonOperator.IsNull().match(referenceInt))
+        Assertions.assertTrue(ComparisonOperator.IsNull().match(referenceLong))
+        Assertions.assertTrue(ComparisonOperator.IsNull().match(referenceFloat))
+        Assertions.assertTrue(ComparisonOperator.IsNull().match(referenceDouble))
+        Assertions.assertFalse(ComparisonOperator.IsNull().match(referenceNull))
     }
 
     /**
@@ -94,54 +94,54 @@ class NumericValueComparisonOperatorTest {
 
         /** Assert equality .*/
         Assertions.assertEquals(referenceBoolean, positiveComparisonBoolean)
-        Assertions.assertTrue(ComparisonOperator.EQUAL.match(referenceBoolean, listOf(positiveComparisonBoolean)))
+        Assertions.assertTrue(ComparisonOperator.Binary.Equal().match(referenceBoolean, listOf(positiveComparisonBoolean)))
 
         Assertions.assertEquals(referenceByte, positiveComparisonByte)
-        Assertions.assertTrue(ComparisonOperator.EQUAL.match(referenceByte, listOf(positiveComparisonByte)))
+        Assertions.assertTrue(ComparisonOperator.Binary.Equal().match(referenceByte, listOf(positiveComparisonByte)))
 
         Assertions.assertEquals(referenceShort, positiveComparisonShort)
-        Assertions.assertTrue(ComparisonOperator.EQUAL.match(referenceShort, listOf(positiveComparisonShort)))
+        Assertions.assertTrue(ComparisonOperator.Binary.Equal().match(referenceShort, listOf(positiveComparisonShort)))
 
         Assertions.assertEquals(referenceInt, positiveComparisonInt)
-        Assertions.assertTrue(ComparisonOperator.EQUAL.match(referenceInt, listOf(positiveComparisonInt)))
+        Assertions.assertTrue(ComparisonOperator.Binary.Equal().match(referenceInt, listOf(positiveComparisonInt)))
 
         Assertions.assertEquals(referenceLong, positiveComparisonLong)
-        Assertions.assertTrue(ComparisonOperator.EQUAL.match(referenceLong, listOf(positiveComparisonLong)))
+        Assertions.assertTrue(ComparisonOperator.Binary.Equal().match(referenceLong, listOf(positiveComparisonLong)))
 
         Assertions.assertEquals(referenceFloat, positiveComparisonFloat)
-        Assertions.assertTrue(ComparisonOperator.EQUAL.match(referenceFloat, listOf(positiveComparisonFloat)))
+        Assertions.assertTrue(ComparisonOperator.Binary.Equal().match(referenceFloat, listOf(positiveComparisonFloat)))
 
         Assertions.assertEquals(referenceDouble, positiveComparisonDouble)
-        Assertions.assertTrue(ComparisonOperator.EQUAL.match(referenceDouble, listOf(positiveComparisonDouble)))
+        Assertions.assertTrue(ComparisonOperator.Binary.Equal().match(referenceDouble, listOf(positiveComparisonDouble)))
 
         /** Assert inequality .*/
         if (referenceBoolean.value != negativeComparisonBoolean.value) {
             Assertions.assertNotEquals(referenceBoolean, negativeComparisonBoolean)
-            Assertions.assertFalse(ComparisonOperator.EQUAL.match(referenceBoolean, listOf(negativeComparisonBoolean)))
+            Assertions.assertFalse(ComparisonOperator.Binary.Equal().match(referenceBoolean, listOf(negativeComparisonBoolean)))
         }
         if (referenceByte.value != negativeComparisonByte.value) {
             Assertions.assertNotEquals(referenceByte, negativeComparisonByte)
-            Assertions.assertFalse(ComparisonOperator.EQUAL.match(referenceByte, listOf(negativeComparisonByte)))
+            Assertions.assertFalse(ComparisonOperator.Binary.Equal().match(referenceByte, listOf(negativeComparisonByte)))
         }
         if (referenceShort.value != negativeComparisonShort.value) {
             Assertions.assertNotEquals(referenceShort, negativeComparisonShort)
-            Assertions.assertFalse(ComparisonOperator.EQUAL.match(referenceShort, listOf(negativeComparisonShort)))
+            Assertions.assertFalse(ComparisonOperator.Binary.Equal().match(referenceShort, listOf(negativeComparisonShort)))
         }
         if (referenceInt.value != negativeComparisonInt.value) {
             Assertions.assertNotEquals(referenceInt, negativeComparisonInt)
-            Assertions.assertFalse(ComparisonOperator.EQUAL.match(referenceInt, listOf(negativeComparisonInt)))
+            Assertions.assertFalse(ComparisonOperator.Binary.Equal().match(referenceInt, listOf(negativeComparisonInt)))
         }
         if (referenceLong.value != negativeComparisonLong.value) {
             Assertions.assertNotEquals(referenceLong, negativeComparisonLong)
-            Assertions.assertFalse(ComparisonOperator.EQUAL.match(referenceLong, listOf(negativeComparisonLong)))
+            Assertions.assertFalse(ComparisonOperator.Binary.Equal().match(referenceLong, listOf(negativeComparisonLong)))
         }
         if (referenceFloat.value != negativeComparisonFloat.value) {
             Assertions.assertNotEquals(referenceFloat, negativeComparisonFloat)
-            Assertions.assertFalse(ComparisonOperator.EQUAL.match(referenceFloat, listOf(negativeComparisonFloat)))
+            Assertions.assertFalse(ComparisonOperator.Binary.Equal().match(referenceFloat, listOf(negativeComparisonFloat)))
         }
         if (referenceDouble.value != negativeComparisonDouble.value) {
             Assertions.assertNotEquals(referenceDouble, negativeComparisonDouble)
-            Assertions.assertFalse(ComparisonOperator.EQUAL.match(referenceDouble, listOf(negativeComparisonDouble)))
+            Assertions.assertFalse(ComparisonOperator.Binary.Equal().match(referenceDouble, listOf(negativeComparisonDouble)))
         }
     }
 

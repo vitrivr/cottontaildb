@@ -77,7 +77,7 @@ sealed class LikePatternValue(value: String) : PatternValue(value) {
         }
 
         /** String used for comparison. */
-        private val startsWith = this.value.subSequence(0, value.length - 1)
+        val startsWith = this.value.subSequence(0, value.length - 1)
 
         /**
          * Checks if the given [StringValue] matches this [LikePatternValue].
