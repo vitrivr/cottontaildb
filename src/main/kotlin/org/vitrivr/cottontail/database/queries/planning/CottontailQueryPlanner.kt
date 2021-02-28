@@ -162,14 +162,14 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
             /* Add all inputs to operators that need further exploration. */
             when (pointer) {
                 is NAryPhysicalOperatorNode -> {
-                    pointer.inputs.forEach { explore.enqueue(it) }
+                    pointer.inputs.forEach { explore.enqueue(it, force = true) }
                 }
                 is BinaryPhysicalOperatorNode -> {
-                    explore.enqueue(pointer.left)
-                    explore.enqueue(pointer.right)
+                    explore.enqueue(pointer.left, force = true)
+                    explore.enqueue(pointer.right, force = true)
                 }
                 is UnaryPhysicalOperatorNode -> {
-                    explore.enqueue(pointer.input)
+                    explore.enqueue(pointer.input, force = true)
                 }
                 is OperatorNode.Logical -> throw IllegalStateException("Encountered logical operator node in physical operator node tree. This is a programmer's error!")
             }

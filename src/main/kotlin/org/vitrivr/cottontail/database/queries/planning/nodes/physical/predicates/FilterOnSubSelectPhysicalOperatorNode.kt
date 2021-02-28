@@ -47,17 +47,25 @@ class FilterOnSubSelectPhysicalOperatorNode(val predicate: BooleanPredicate, var
      *
      * @return Copy of this [FilterOnSubSelectPhysicalOperatorNode] and its input.
      */
-    override fun copyWithInputs() = FilterOnSubSelectPhysicalOperatorNode(this.predicate, *this.inputs)
+    override fun copyWithInputs() = FilterOnSubSelectPhysicalOperatorNode(this.predicate, *this.inputs.map { it.copyWithInputs() }.toTypedArray())
 
     /**
      * Returns a copy of this [FilterOnSubSelectPhysicalOperatorNode] and its output.
      *
-     * @param inputs The [OperatorNode] that should act as inputs.
+     * @param input The [OperatorNode] that should act as inputs.
      * @return Copy of this [FilterOnSubSelectPhysicalOperatorNode] and its output.
      */
-    override fun copyWithOutput(vararg inputs: OperatorNode.Physical): OperatorNode.Physical {
-        val update = FilterOnSubSelectPhysicalOperatorNode(this.predicate, *inputs, *this.inputs.drop(inputs.size).map { it.copyWithInputs() }.toTypedArray())
-        return (this.output?.copyWithOutput(update) ?: update)
+    override fun copyWithOutput(input: OperatorNode.Physical?): OperatorNode.Physical {
+        require(input != null) { "Input is required for copyWithOutput() on unary physical operator node." }
+        val newInputs = this.inputs.map {
+            if (it.groupId == input.groupId) {
+                input
+            } else {
+                it.copyWithInputs()
+            }
+        }.toTypedArray()
+        val filter = FilterOnSubSelectPhysicalOperatorNode(this.predicate, *newInputs)
+        return (this.output?.copyWithOutput(filter) ?: filter)
     }
 
     /**

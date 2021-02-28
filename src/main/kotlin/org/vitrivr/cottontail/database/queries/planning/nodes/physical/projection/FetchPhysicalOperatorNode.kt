@@ -44,12 +44,12 @@ class FetchPhysicalOperatorNode(input: OperatorNode.Physical, val entity: Entity
     /**
      * Returns a copy of this [FetchPhysicalOperatorNode] and its output.
      *
-     * @param inputs The [OperatorNode] that should act as inputs.
+     * @param input The [OperatorNode] that should act as inputs.
      * @return Copy of this [FetchPhysicalOperatorNode] and its output.
      */
-    override fun copyWithOutput(vararg inputs: OperatorNode.Physical): OperatorNode.Physical {
-        require(inputs.size == 1) { "Only one input is allowed for unary operators." }
-        val fetch = FetchPhysicalOperatorNode(inputs[0], this.entity, this.fetch)
+    override fun copyWithOutput(input: OperatorNode.Physical?): OperatorNode.Physical {
+        require(input != null) { "Input is required for copyWithOutput() on unary physical operator node." }
+        val fetch = FetchPhysicalOperatorNode(input, this.entity, this.fetch)
         return (this.output?.copyWithOutput(fetch) ?: fetch)
     }
 

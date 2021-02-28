@@ -6,8 +6,7 @@ import org.vitrivr.cottontail.database.queries.planning.nodes.logical.UnaryLogic
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.projection.LimitPhysicalOperatorNode
 
 /**
- * A [UnaryLogicalOperatorNode] that represents the application of a LIMIT and/or SKIP clause on the
- * final result [org.vitrivr.cottontail.model.recordset.Recordset].
+ * A [UnaryLogicalOperatorNode] that represents the application of a LIMIT and/or SKIP clause on the final result.
  *
  * @author Ralph Gasser
  * @version 2.0.0
@@ -33,12 +32,12 @@ class LimitLogicalOperatorNode(input: OperatorNode.Logical, val limit: Long, val
     /**
      * Returns a copy of this [LimitLogicalOperatorNode] and its output.
      *
-     * @param inputs The [OperatorNode.Logical] that should act as inputs.
+     * @param input The [OperatorNode.Logical] that should act as inputs.
      * @return Copy of this [LimitLogicalOperatorNode] and its output.
      */
-    override fun copyWithOutput(vararg inputs: OperatorNode.Logical): OperatorNode.Logical {
-        require(inputs.size == 1) { "Only one input is allowed for unary operators." }
-        val limit = LimitLogicalOperatorNode(inputs[0], this.limit, this.skip)
+    override fun copyWithOutput(input: OperatorNode.Logical?): OperatorNode.Logical {
+        require(input != null) { "Input is required for unary logical operator node." }
+        val limit = LimitLogicalOperatorNode(input, this.limit, this.skip)
         return (this.output?.copyWithOutput(limit) ?: limit)
     }
 

@@ -42,12 +42,12 @@ class LimitPhysicalOperatorNode(input: OperatorNode.Physical, val limit: Long, v
     /**
      * Returns a copy of this [LimitPhysicalOperatorNode] and its output.
      *
-     * @param inputs The [OperatorNode] that should act as inputs.
+     * @param input The [OperatorNode] that should act as inputs.
      * @return Copy of this [LimitPhysicalOperatorNode] and its output.
      */
-    override fun copyWithOutput(vararg inputs: OperatorNode.Physical): OperatorNode.Physical {
-        require(inputs.size == 1) { "Only one input is allowed for unary operators." }
-        val limit = LimitPhysicalOperatorNode(inputs[0], this.limit, this.skip)
+    override fun copyWithOutput(input: OperatorNode.Physical?): OperatorNode.Physical {
+        require(input != null) { "Input is required for copyWithOutput() on unary physical operator node." }
+        val limit = LimitPhysicalOperatorNode(input, this.limit, this.skip)
         return (this.output?.copyWithOutput(limit) ?: limit)
     }
 

@@ -86,9 +86,9 @@ abstract class NAryPhysicalOperatorNode(vararg val inputs: OperatorNode.Physical
      * @return Digest for this [BinaryPhysicalOperatorNode]
      */
     override fun digest(): Long {
-        var result = 27L * hashCode()
+        var result = this.hashCode().toLong()
         for (i in this.inputs) {
-            result += 27L * i.digest()
+            result += 27L * result + i.digest()
         }
         return result
     }

@@ -26,17 +26,24 @@ class FilterOnSubSelectLogicalOperatorNode(val predicate: BooleanPredicate, vara
      *
      * @return Copy of this [FilterOnSubSelectLogicalOperatorNode] and its input.
      */
-    override fun copyWithInputs() = FilterOnSubSelectLogicalOperatorNode(this.predicate, *this.inputs)
+    override fun copyWithInputs() = FilterOnSubSelectLogicalOperatorNode(this.predicate, *this.inputs.map { it.copyWithInputs() }.toTypedArray())
 
     /**
      * Returns a copy of this [FilterOnSubSelectLogicalOperatorNode] and its output.
      *
-     * @param inputs The [OperatorNode.Logical] that should act as inputs.
+     * @param input The [OperatorNode.Logical] that should act as inputs.
      * @return Copy of this [FilterOnSubSelectLogicalOperatorNode] and its output.
      */
-    override fun copyWithOutput(vararg inputs: OperatorNode.Logical): OperatorNode.Logical {
-        require(inputs.size == 2) { "Two inputs are required for binary operators." }
-        val filter = FilterOnSubSelectLogicalOperatorNode(this.predicate, *inputs)
+    override fun copyWithOutput(input: OperatorNode.Logical?): OperatorNode.Logical {
+        require(input != null) { "Input is required for unary logical operator node." }
+        val newInputs = this.inputs.map {
+            if (it.groupId == input.groupId) {
+                input
+            } else {
+                it.copyWithInputs()
+            }
+        }.toTypedArray()
+        val filter = FilterOnSubSelectLogicalOperatorNode(this.predicate, *newInputs)
         return (this.output?.copyWithOutput(filter) ?: filter)
     }
 

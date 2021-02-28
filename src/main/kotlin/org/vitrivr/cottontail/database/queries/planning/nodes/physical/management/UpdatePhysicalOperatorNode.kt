@@ -46,12 +46,12 @@ class UpdatePhysicalOperatorNode(input: OperatorNode.Physical, val entity: Entit
     /**
      * Returns a copy of this [UpdatePhysicalOperatorNode] and its output.
      *
-     * @param inputs The [OperatorNode] that should act as inputs.
+     * @param input The [OperatorNode] that should act as inputs.
      * @return Copy of this [UpdatePhysicalOperatorNode] and its output.
      */
-    override fun copyWithOutput(vararg inputs: OperatorNode.Physical): OperatorNode.Physical {
-        require(inputs.size == 1) { "Only one input is allowed for unary operators." }
-        val update = UpdatePhysicalOperatorNode(inputs[0], this.entity, this.values)
+    override fun copyWithOutput(input: OperatorNode.Physical?): OperatorNode.Physical {
+        require(input != null) { "Input is required for copyWithOutput() on unary physical operator node." }
+        val update = UpdatePhysicalOperatorNode(input, this.entity, this.values)
         return (this.output?.copyWithOutput(update) ?: update)
     }
 

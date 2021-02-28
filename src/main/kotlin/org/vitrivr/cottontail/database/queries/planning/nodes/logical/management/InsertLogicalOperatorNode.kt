@@ -30,11 +30,11 @@ class InsertLogicalOperatorNode(override val groupId: GroupId, val entity: Entit
     /**
      * Returns a copy of this [InsertLogicalOperatorNode] and its output.
      *
-     * @param inputs The [OperatorNode.Logical] that should act as inputs.
+     * @param input The [OperatorNode.Logical] that should act as inputs.
      * @return Copy of this [InsertLogicalOperatorNode] and its output.
      */
-    override fun copyWithOutput(vararg inputs: OperatorNode.Logical): OperatorNode.Logical {
-        require(inputs.isEmpty()) { "No input is allowed for nullary operators." }
+    override fun copyWithOutput(input: OperatorNode.Logical?): OperatorNode.Logical {
+        require(input == null) { "No input is allowed for nullary logical operators." }
         val insert = InsertLogicalOperatorNode(this.groupId, this.entity, this.records)
         return (this.output?.copyWithOutput(insert) ?: insert)
     }

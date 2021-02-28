@@ -52,11 +52,11 @@ class InsertPhysicalOperatorNode(override val groupId: GroupId, val entity: Enti
     /**
      * Returns a copy of this [InsertPhysicalOperatorNode] and its output.
      *
-     * @param inputs The [OperatorNode] that should act as inputs.
+     * @param input The [OperatorNode] that should act as inputs.
      * @return Copy of this [InsertPhysicalOperatorNode] and its output.
      */
-    override fun copyWithOutput(vararg inputs: OperatorNode.Physical): OperatorNode.Physical {
-        require(inputs.isEmpty()) { "No input is allowed for nullary operators." }
+    override fun copyWithOutput(input: OperatorNode.Physical?): OperatorNode.Physical {
+        require(input == null) { "No input is allowed for copyWithOutput() on nullary physical operator node." }
         val insert = InsertPhysicalOperatorNode(this.groupId, this.entity, this.records)
         return (this.output?.copyWithOutput(insert) ?: insert)
     }

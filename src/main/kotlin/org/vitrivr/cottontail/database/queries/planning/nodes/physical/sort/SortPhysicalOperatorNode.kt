@@ -53,12 +53,12 @@ class SortPhysicalOperatorNode(input: OperatorNode.Physical, sortOn: Array<Pair<
     /**
      * Returns a copy of this [SortPhysicalOperatorNode] and its output.
      *
-     * @param inputs The [OperatorNode] that should act as inputs.
+     * @param input The [OperatorNode] that should act as inputs.
      * @return Copy of this [SortPhysicalOperatorNode] and its output.
      */
-    override fun copyWithOutput(vararg inputs: OperatorNode.Physical): OperatorNode.Physical {
-        require(inputs.size == 1) { "Only one input is allowed for unary operators." }
-        val sort = SortPhysicalOperatorNode(inputs[0], this.order)
+    override fun copyWithOutput(input: OperatorNode.Physical?): OperatorNode.Physical {
+        require(input != null) { "Input is required for copyWithOutput() on unary physical operator node." }
+        val sort = SortPhysicalOperatorNode(input, this.order)
         return (this.output?.copyWithOutput(sort) ?: sort)
     }
 

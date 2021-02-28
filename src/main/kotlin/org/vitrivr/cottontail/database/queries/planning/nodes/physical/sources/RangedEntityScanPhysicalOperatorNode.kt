@@ -39,11 +39,11 @@ class RangedEntityScanPhysicalOperatorNode(override val groupId: Int, val entity
     /**
      * Returns a copy of this [RangedEntityScanPhysicalOperatorNode] and its output.
      *
-     * @param inputs The [OperatorNode.Logical] that should act as inputs.
+     * @param input The [OperatorNode.Logical] that should act as inputs.
      * @return Copy of this [RangedEntityScanPhysicalOperatorNode] and its output.
      */
-    override fun copyWithOutput(vararg inputs: OperatorNode.Physical): OperatorNode.Physical {
-        require(inputs.isEmpty()) { "No input is allowed for nullary operators." }
+    override fun copyWithOutput(input: OperatorNode.Physical?): OperatorNode.Physical {
+        require(input == null) { "No input is allowed for copyWithOutput() on nullary physical operator node." }
         val scan = RangedEntityScanPhysicalOperatorNode(this.groupId, this.entity, this.columns, this.range)
         return (this.output?.copyWithOutput(scan) ?: scan)
     }

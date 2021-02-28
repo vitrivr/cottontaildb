@@ -39,12 +39,12 @@ class DeletePhysicalOperatorNode(input: OperatorNode.Physical, val entity: Entit
     /**
      * Returns a copy of this [DeletePhysicalOperatorNode] and its output.
      *
-     * @param inputs The [OperatorNode] that should act as inputs.
+     * @param input The [OperatorNode] that should act as inputs.
      * @return Copy of this [DeletePhysicalOperatorNode] and its output.
      */
-    override fun copyWithOutput(vararg inputs: OperatorNode.Physical): OperatorNode.Physical {
-        require(inputs.size == 1) { "Only one input is allowed for unary operators." }
-        val delete = DeletePhysicalOperatorNode(inputs[0], this.entity)
+    override fun copyWithOutput(input: OperatorNode.Physical?): OperatorNode.Physical {
+        require(input != null) { "Input is required for copyWithOutput() on unary physical operator node." }
+        val delete = DeletePhysicalOperatorNode(input, this.entity)
         return (this.output?.copyWithOutput(delete) ?: delete)
     }
 

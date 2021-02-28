@@ -46,12 +46,12 @@ class DistancePhysicalOperatorNode(input: OperatorNode.Physical, val predicate: 
     /**
      * Returns a copy of this [DistancePhysicalOperatorNode] and its output.
      *
-     * @param inputs The [OperatorNode] that should act as inputs.
+     * @param input The [OperatorNode] that should act as inputs.
      * @return Copy of this [DistancePhysicalOperatorNode] and its output.
      */
-    override fun copyWithOutput(vararg inputs: OperatorNode.Physical): OperatorNode.Physical {
-        require(inputs.size == 1) { "Only one input is allowed for unary operators." }
-        val distance = DistancePhysicalOperatorNode(inputs[0], this.predicate)
+    override fun copyWithOutput(input: OperatorNode.Physical?): OperatorNode.Physical {
+        require(input != null) { "Input is required for copyWithOutput() on unary physical operator node." }
+        val distance = DistancePhysicalOperatorNode(input, this.predicate)
         return (this.output?.copyWithOutput(distance) ?: distance)
     }
 

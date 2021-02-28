@@ -72,13 +72,13 @@ class ProjectionLogicalOperatorNode(input: OperatorNode.Logical, val type: Proje
     /**
      * Returns a copy of this [ProjectionLogicalOperatorNode] and its output.
      *
-     * @param inputs The [OperatorNode.Logical] that should act as inputs.
+     * @param input The [OperatorNode.Logical] that should act as inputs.
      * @return Copy of this [ProjectionLogicalOperatorNode] and its output.
      */
-    override fun copyWithOutput(vararg inputs: OperatorNode.Logical): OperatorNode.Logical {
-        require(inputs.size == 1) { "Only one input is allowed for unary operators." }
-        val distance = ProjectionLogicalOperatorNode(inputs[0], this.type, this.fields)
-        return (this.output?.copyWithOutput(distance) ?: distance)
+    override fun copyWithOutput(input: OperatorNode.Logical?): OperatorNode.Logical {
+        require(input != null) { "Input is required for unary logical operator node." }
+        val projection = ProjectionLogicalOperatorNode(input, this.type, this.fields)
+        return (this.output?.copyWithOutput(projection) ?: projection)
     }
 
     /**

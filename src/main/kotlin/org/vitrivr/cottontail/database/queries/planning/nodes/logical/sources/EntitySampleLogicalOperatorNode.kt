@@ -25,8 +25,8 @@ class EntitySampleLogicalOperatorNode(groupId: Int, entity: Entity, columns: Arr
      * @param inputs The [OperatorNode] that should act as inputs.
      * @return Copy of this [EntitySampleLogicalOperatorNode] and its output.
      */
-    override fun copyWithOutput(vararg inputs: OperatorNode.Logical): OperatorNode.Logical {
-        require(inputs.isEmpty()) { "No input is allowed for nullary operators." }
+    override fun copyWithOutput(input: OperatorNode.Logical?): OperatorNode.Logical {
+        require(input == null) { "No input is allowed for copyWithOutput() on nullary logical operator node." }
         val sample = EntitySampleLogicalOperatorNode(this.groupId, this.entity, this.columns, this.size, this.seed)
         return (this.output?.copyWithOutput(sample) ?: sample)
     }

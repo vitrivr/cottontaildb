@@ -29,12 +29,12 @@ class UpdateLogicalOperatorNode(input: OperatorNode.Logical, val entity: Entity,
     /**
      * Returns a copy of this [InsertUpdateLogicalOperatorNodeLogicalOperatorNode] and its output.
      *
-     * @param inputs The [OperatorNode.Logical] that should act as inputs.
+     * @param input The [OperatorNode.Logical] that should act as inputs.
      * @return Copy of this [UpdateLogicalOperatorNode] and its output.
      */
-    override fun copyWithOutput(vararg inputs: OperatorNode.Logical): OperatorNode.Logical {
-        require(inputs.size == 1) { "Only one input is allowed for unary operators." }
-        val update = UpdateLogicalOperatorNode(inputs[0], this.entity, this.values)
+    override fun copyWithOutput(input: OperatorNode.Logical?): OperatorNode.Logical {
+        require(input != null) { "Input is required for unary logical operator node." }
+        val update = UpdateLogicalOperatorNode(input, this.entity, this.values)
         return (this.output?.copyWithOutput(update) ?: update)
     }
 

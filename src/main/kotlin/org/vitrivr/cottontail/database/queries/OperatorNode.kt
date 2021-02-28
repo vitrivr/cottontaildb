@@ -56,7 +56,11 @@ sealed class OperatorNode : Node {
 
         /** The root of this [OperatorNode.Logical], i.e., the final [ OperatorNode.Logical] in terms of operation that usually produces the output. */
         val root: OperatorNode.Logical
-            get() = this.output?.root ?: this
+            get() = if (this.output?.groupId == this.groupId) {
+                this
+            } else {
+                this.output!!.root
+            }
 
         /** The base of this [OperatorNode], i.e., the starting point(s) in terms of operation. Depending on the tree structure, multiple bases may exist. */
         abstract val base: Collection<OperatorNode.Logical>
@@ -73,12 +77,12 @@ sealed class OperatorNode : Node {
 
         /**
          * Creates and returns a copy of this [OperatorNode.Logical] with its output reaching down to the [root] of the tree.
-         * Furthermore connects the provided [inputs] to the copied [OperatorNode.Logical]s.
+         * Furthermore connects the provided [input] to the copied [OperatorNode.Logical]s.
          *
-         * @param inputs The [Logical]s that act as input. The number of input [OperatorNode.Logical]s must correspond to the inputArity of this [OperatorNode.Logical].
+         * @param input The [Logical]s that act as input. Replacement takes place based on the [GroupId]
          * @return Copy of this [OperatorNode.Logical] with its output.
          */
-        abstract fun copyWithOutput(vararg inputs: Logical): Logical
+        abstract fun copyWithOutput(input: Logical? = null): Logical
 
         /**
          * Creates and returns an implementation of this [OperatorNode.Logical]
@@ -141,13 +145,13 @@ sealed class OperatorNode : Node {
         abstract fun copyWithInputs(): Physical
 
         /**
-         * Creates and returns a copy of this [OperatorNode.Physical] with its output reaching down to the [root] of the tree.
-         * Furthermore connects the provided [inputs] to the copied [OperatorNode.Physical]s.
+         * Creates and returns a copy of this [OperatorNode.Physical] together with its output reaching down to the [root] of the tree.
+         * Furthermore connects the provided [input] to the copied [OperatorNode.Physical]s.
          *
-         * @param inputs The [Physical]s that act as input. The number of input [OperatorNode.Physical]s must correspond to the inputArity of this [OperatorNode.Physical].
+         * @param input The [Physical]s that act as input. Replacement takes place based on the [GroupId]
          * @return Copy of this [OperatorNode.Physical] with its output.
          */
-        abstract fun copyWithOutput(vararg inputs: Physical): Physical
+        abstract fun copyWithOutput(input: Physical? = null): Physical
 
         /**
          * Converts this [OperatorNode.Physical] to the corresponding [Operator].

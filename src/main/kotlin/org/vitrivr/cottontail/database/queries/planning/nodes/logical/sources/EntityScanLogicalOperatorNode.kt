@@ -22,11 +22,11 @@ class EntityScanLogicalOperatorNode(groupId: Int, entity: Entity, columns: Array
     /**
      * Returns a copy of this [EntityScanLogicalOperatorNode] and its output.
      *
-     * @param inputs The [OperatorNode] that should act as inputs.
+     * @param input The [OperatorNode] that should act as inputs.
      * @return Copy of this [EntityScanLogicalOperatorNode] and its output.
      */
-    override fun copyWithOutput(vararg inputs: OperatorNode.Logical): OperatorNode.Logical {
-        require(inputs.isEmpty()) { "No input is allowed for nullary operators." }
+    override fun copyWithOutput(input: OperatorNode.Logical?): OperatorNode.Logical {
+        require(input == null) { "No input is allowed for copyWithOutput() on nullary logical operator node." }
         val scan = EntityScanLogicalOperatorNode(this.groupId, this.entity, this.columns)
         return (this.output?.copyWithOutput(scan) ?: scan)
     }

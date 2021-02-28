@@ -67,9 +67,9 @@ abstract class NAryLogicalOperatorNode(vararg val inputs: OperatorNode.Logical) 
      * @return Digest for this [NAryLogicalOperatorNode]
      */
     override fun digest(): Long {
-        var result = 33L * hashCode()
+        var result = this.hashCode().toLong()
         for (i in this.inputs) {
-            result += 33L * i.digest()
+            result = 33L * result + i.digest()
         }
         return result
     }

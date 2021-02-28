@@ -36,11 +36,11 @@ class EntityScanPhysicalOperatorNode(override val groupId: Int, val entity: Enti
     /**
      * Returns a copy of this [EntityScanPhysicalOperatorNode] and its output.
      *
-     * @param inputs The [OperatorNode.Logical] that should act as inputs.
+     * @param input The [OperatorNode.Logical] that should act as inputs.
      * @return Copy of this [EntityScanPhysicalOperatorNode] and its output.
      */
-    override fun copyWithOutput(vararg inputs: OperatorNode.Physical): OperatorNode.Physical {
-        require(inputs.isEmpty()) { "No input is allowed for nullary operators." }
+    override fun copyWithOutput(input: OperatorNode.Physical?): OperatorNode.Physical {
+        require(input == null) { "No input is allowed for copyWithOutput() on nullary physical operator node." }
         val scan = EntityScanPhysicalOperatorNode(this.groupId, this.entity, this.columns)
         return (this.output?.copyWithOutput(scan) ?: scan)
     }
