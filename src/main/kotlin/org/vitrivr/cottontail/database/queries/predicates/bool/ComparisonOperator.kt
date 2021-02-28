@@ -144,5 +144,7 @@ sealed class ComparisonOperator {
                 this.rightValues.add(it.value)
             }
         }
+
+        override fun toString(): String = "IN [${this.right.joinToString(",")}]"
     }
 }
