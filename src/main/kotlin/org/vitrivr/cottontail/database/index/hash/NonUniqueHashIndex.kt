@@ -1,11 +1,14 @@
 package org.vitrivr.cottontail.database.index.hash
 
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
 import org.mapdb.Serializer
-import org.mapdb.serializer.SerializerArrayTuple
+import org.mapdb.serializer.GroupSerializer
+
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.DefaultEntity
 import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.events.DataChangeEvent
+import org.vitrivr.cottontail.database.general.TxSnapshot
 import org.vitrivr.cottontail.database.index.*
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.predicates.Predicate
@@ -15,6 +18,8 @@ import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.model.basics.*
 import org.vitrivr.cottontail.model.exceptions.TxException
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
+import org.vitrivr.cottontail.model.values.StringValue
+import org.vitrivr.cottontail.model.values.pattern.LikePatternValue
 import org.vitrivr.cottontail.model.values.types.Value
 import java.nio.file.Path
 import java.util.*
@@ -29,7 +34,7 @@ import java.util.*
 class NonUniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path, parent) {
     /** Index-wide constants. */
     companion object {
-        const val NUQ_INDEX_MAP = "cdb_nuq_map"
+        const val NUQ_INDEX_MAP = "cdb_nuq_tree_map"
     }
 
     /** The type of [AbstractIndex] */
@@ -44,27 +49,39 @@ class NonUniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path
     /** The [NonUniqueHashIndex] implementation returns exactly the columns that is indexed. */
     override val produces: Array<ColumnDef<*>> = this.columns
 
+    /** Check if [Serializer] is compatible with this [NonUniqueHashIndex]. */
+    private val serializer: GroupSerializer<Value> = if (this.columns[0].type.serializer() is GroupSerializer) {
+        this.columns[0].type.serializer() as GroupSerializer<Value>
+    } else {
+        throw IllegalArgumentException("NonUniqueHashIndex only supports value types with group serializers.")
+    }
+
     /** Map structure used for [NonUniqueHashIndex]. */
-    private val map: NavigableSet<Array<Any>> = this.store.treeSet(
-        NUQ_INDEX_MAP,
-        SerializerArrayTuple(this.columns[0].type.serializer(), Serializer.LONG_DELTA)
-    ).createOrOpen()
+    private val map = this.store.treeMap(NUQ_INDEX_MAP, this.serializer, Serializer.LONG_ARRAY).createOrOpen()
 
     init {
         this.store.commit() /* Initial commit. */
     }
 
     /**
-     * Checks if the provided [Predicate] can be processed by this instance of [NonUniqueHashIndex]. [NonUniqueHashIndex] can be used to process IN and EQUALS
-     * comparison operations on the specified column
+     * Checks if the provided [Predicate] can be processed by this instance of [NonUniqueHashIndex].
+     *
+     * [NonUniqueHashIndex] can be used to process EQUALS, IN AND LIKE comparison operations on the specified column
      *
      * @param predicate The [Predicate] to check.
      * @return True if [Predicate] can be processed, false otherwise.
      */
-    override fun canProcess(predicate: Predicate): Boolean = predicate is BooleanPredicate.Atomic.Literal
-            && !predicate.not
-            && predicate.columns.first() == this.columns[0]
-            && (predicate.operator is ComparisonOperator.Binary.Equal || predicate.operator is ComparisonOperator.In)
+    override fun canProcess(predicate: Predicate): Boolean {
+        if (predicate !is BooleanPredicate.Atomic.Literal) return false
+        if (predicate.not) return false
+        if (predicate.left != this.columns[0]) return false
+        return when (predicate.operator) {
+            is ComparisonOperator.Binary.Equal,
+            is ComparisonOperator.In -> true
+            is ComparisonOperator.Binary.Like -> (predicate.operator.right.value is LikePatternValue.StartsWith)
+            else -> false
+        }
+    }
 
     /**
      * Calculates the cost estimate of this [NonUniqueHashIndex] processing the provided [Predicate].
@@ -75,6 +92,7 @@ class NonUniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path
     override fun cost(predicate: Predicate): Cost = when {
         predicate !is BooleanPredicate.Atomic.Literal || predicate.columns.first() != this.columns[0] || predicate.not -> Cost.INVALID
         predicate.operator is ComparisonOperator.Binary.Equal -> Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_MEMORY_ACCESS, predicate.columns.map { it.type.physicalSize }.sum().toFloat())
+        predicate.operator is ComparisonOperator.Binary.Like -> Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_MEMORY_ACCESS, predicate.columns.map { it.type.physicalSize }.sum().toFloat())
         predicate.operator is ComparisonOperator.In -> Cost(Cost.COST_DISK_ACCESS_READ * predicate.operator.right.size, Cost.COST_MEMORY_ACCESS * predicate.operator.right.size, predicate.columns.map { it.type.physicalSize }.sum().toFloat())
         else -> Cost.INVALID
     }
@@ -91,22 +109,42 @@ class NonUniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path
      */
     private inner class Tx(context: TransactionContext) : AbstractIndex.Tx(context) {
 
-        /** A per-[Tx] buffer for (de-)serializing values into the set.*/
-        private val buffer: Array<Any> = Array(2) { Any() }
+        /** The default [TxSnapshot] of this [IndexTx]. Can be overriden! */
+        override val snapshot = object : TxSnapshot {
+            override fun commit() {
+                for (c in this@Tx.mappingsCache) {
+                    this@NonUniqueHashIndex.map.compute(c.key) { _, v ->
+                        if (v == null) {
+                            c.value.toLongArray()
+                        } else {
+                            v + c.value.toLongArray()
+                        }
+                    }
+                }
+                this@NonUniqueHashIndex.store.commit()
+            }
+
+            override fun rollback() {
+                mappingsCache.clear()
+                this@NonUniqueHashIndex.store.rollback()
+            }
+        }
+
+        /** Internal cache that keeps Value to TupleId mappings in memory until commit. */
+        private val mappingsCache = Object2ObjectOpenHashMap<Value, LinkedList<Long>>()
 
         /**
          * Adds a mapping from the given [Value] to the given [TupleId].
          *
          * @param key The [Value] key to add a mapping for.
          * @param tupleId The [TupleId] for the mapping.
-         *
-         * This is an internal function and can be used safely with values o
          */
-        private fun addMapping(key: Value, tupleId: TupleId): Boolean {
-            this.buffer[0] = key
-            this.buffer[1] = tupleId
-            this@NonUniqueHashIndex.map.add(this.buffer)
-            return true
+        private fun addMapping(key: Value, tupleId: TupleId) {
+            this.mappingsCache.compute(key) { _, v ->
+                val l = v ?: LinkedList<TupleId>()
+                l.add(tupleId)
+                l
+            }
         }
 
         /**
@@ -117,10 +155,10 @@ class NonUniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path
          *
          * This is an internal function and can be used safely with values o
          */
-        private fun removeMapping(key: Value, tupleId: TupleId): Boolean {
-            this.buffer[0] = key
-            this.buffer[1] = tupleId
-            return this@NonUniqueHashIndex.map.add(this.buffer)
+        private fun removeMapping(key: Value, tupleId: TupleId) {
+            this@NonUniqueHashIndex.map.compute(key) { _, v ->
+                v?.filter { it != tupleId }?.toLongArray() ?: v
+            }
         }
 
         /**
@@ -199,26 +237,36 @@ class NonUniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path
             private val predicate: BooleanPredicate.Atomic
 
             /** Pre-fetched entries that match the [Predicate]. */
-            private val elements = LinkedList<Array<Any>>()
+            private val elements = LinkedList<Pair<TupleId, Value>>()
 
             init {
                 require(predicate is BooleanPredicate.Atomic.Literal) { "NonUniqueHashIndex.filter() does only support Atomic.Literal boolean predicates." }
                 require(!predicate.not) { "NonUniqueHashIndex.filter() does not support negated statements (i.e. NOT EQUALS or NOT IN)." }
                 this.predicate = predicate
-
                 this@Tx.withReadLock {
-                    if (this.predicate.operator is ComparisonOperator.In) {
-                        this.predicate.operator.right.forEach { v ->
-                            val subset = this@NonUniqueHashIndex.map.subSet(
-                                arrayOf(v.value),
-                                arrayOf(v.value, (null as Any?)) as Array<Any> /* Safe! */
-                            )
-                            this.elements.addAll(subset)
+                    when (this.predicate.operator) {
+                        is ComparisonOperator.In -> {
+                            this.predicate.operator.right.forEach { v ->
+                                val value = v.value
+                                val subset = this@NonUniqueHashIndex.map[value]
+                                subset?.forEach { this.elements.add(Pair(it, value)) }
+                            }
                         }
-                    } else if (this.predicate.operator is ComparisonOperator.Binary.Equal) {
-                        val v = this.predicate.operator.right.value
-                        val subset = this@NonUniqueHashIndex.map.subSet(arrayOf(v), arrayOf(v, (null as Any?)) as Array<Any> /* Safe! */)
-                        this.elements.addAll(subset)
+                        is ComparisonOperator.Binary.Equal -> {
+                            val value = this.predicate.operator.right.value
+                            val subset = this@NonUniqueHashIndex.map[value]
+                            subset?.forEach { this.elements.add(Pair(it, value)) }
+                        }
+                        is ComparisonOperator.Binary.Like -> {
+                            val operand = this.predicate.operator.right.value
+                            if (operand is LikePatternValue.StartsWith) {
+                                val prefix = this@NonUniqueHashIndex.map.prefixSubMap(StringValue(operand.startsWith.toString()))
+                                prefix.forEach { k, v -> v.forEach { l -> elements.add(Pair(l, k)) } }
+                            } else {
+                                throw IllegalArgumentException("NonUniqueHashIndex.filter() does only support LIKE operators with prefix matching (i.e. LIKE XYZ%).")
+                            }
+                        }
+                        else -> throw IllegalArgumentException("NonUniqueHashIndex.filter() does only support EQUAL, IN and LIKE operators.")
                     }
                 }
             }
@@ -235,11 +283,7 @@ class NonUniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path
              */
             override fun next(): Record {
                 val next = this.elements.poll()
-                return StandaloneRecord(
-                    next[1] as TupleId,
-                    this@Tx.columns,
-                    arrayOf(next[0] as Value)
-                )
+                return StandaloneRecord(next.first, this@Tx.columns, arrayOf(next.second))
             }
         }
 
