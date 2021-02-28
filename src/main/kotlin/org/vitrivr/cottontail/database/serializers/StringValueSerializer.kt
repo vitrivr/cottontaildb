@@ -95,17 +95,11 @@ object StringValueSerializer : GroupSerializer<StringValue> {
         return vals2
     }
 
-    override fun valueArrayFromArray(objects: Array<Any>): Array<CharArray?> {
-        val ret = arrayOfNulls<CharArray>(objects.size)
-        for (i in ret.indices) {
-            ret[i] = (objects[i] as String).toCharArray()
-        }
-        return ret
+    override fun valueArrayFromArray(objects: Array<Any>): Array<CharArray?> = Array(objects.size) {
+        (objects[it] as StringValue).value.toCharArray()
     }
 
-    override fun valueArrayCopyOfRange(vals: Any, from: Int, to: Int): Array<CharArray> {
-        return Arrays.copyOfRange(vals as Array<CharArray>, from, to)
-    }
+    override fun valueArrayCopyOfRange(vals: Any, from: Int, to: Int): Array<CharArray> = (vals as Array<CharArray>).copyOfRange(from, to)
 
     override fun valueArrayDeleteValue(vals: Any, pos: Int): Array<CharArray?> {
         val vals2 = arrayOfNulls<CharArray>((vals as Array<CharArray?>).size - 1)
