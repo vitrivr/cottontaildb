@@ -45,21 +45,19 @@ class FilterOnSubselectOperator(val parent: Operator, val subSelects: List<Opera
             }
         }
 
-
-
         return flow {
-            val context = BindingContext<Value>()
+            val localBindingContext = BindingContext<Value>()
             subSelects.forEach { select ->
                 when (val op = atomics[select.first]) {
-                    is ComparisonOperator.Binary.Equal -> select.second.take(1).onEach { context.register(op.right, it[it.columns[0]]) }
-                    is ComparisonOperator.Binary.Greater -> select.second.take(1).onEach { context.register(op.right, it[it.columns[0]]) }
-                    is ComparisonOperator.Binary.GreaterEqual -> select.second.take(1).onEach { context.register(op.right, it[it.columns[0]]) }
-                    is ComparisonOperator.Binary.Less -> select.second.take(1).onEach { context.register(op.right, it[it.columns[0]]) }
-                    is ComparisonOperator.Binary.LessEqual -> select.second.take(1).onEach { context.register(op.right, it[it.columns[0]]) }
-                    is ComparisonOperator.Binary.Like -> select.second.take(1).onEach { context.register(op.right, it[it.columns[0]]) }
+                    is ComparisonOperator.Binary.Equal -> select.second.take(1).onEach { localBindingContext.register(op.right, it[it.columns[0]]) }
+                    is ComparisonOperator.Binary.Greater -> select.second.take(1).onEach { localBindingContext.register(op.right, it[it.columns[0]]) }
+                    is ComparisonOperator.Binary.GreaterEqual -> select.second.take(1).onEach { localBindingContext.register(op.right, it[it.columns[0]]) }
+                    is ComparisonOperator.Binary.Less -> select.second.take(1).onEach { localBindingContext.register(op.right, it[it.columns[0]]) }
+                    is ComparisonOperator.Binary.LessEqual -> select.second.take(1).onEach { localBindingContext.register(op.right, it[it.columns[0]]) }
+                    is ComparisonOperator.Binary.Like -> select.second.take(1).onEach { localBindingContext.register(op.right, it[it.columns[0]]) }
                     is ComparisonOperator.In -> select.second.onEach {
                         op.right.clear()
-                        op.right.add(context.bind(it[it.columns[0]]))
+                        op.right.add(localBindingContext.bind(it[it.columns[0]]))
                     }
                     else -> throw ExecutionException.OperatorExecutionException(this@FilterOnSubselectOperator, "Operator of type $op does not support integration of sub-selects.")
                 }.collect()
