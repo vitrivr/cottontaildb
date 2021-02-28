@@ -1,10 +1,9 @@
 package org.vitrivr.cottontail.model.basics
 
-import org.mapdb.Serializer
-import org.vitrivr.cottontail.database.serializers.*
 import org.vitrivr.cottontail.database.statistics.columns.*
 import org.vitrivr.cottontail.model.values.*
 import org.vitrivr.cottontail.model.values.types.Value
+import org.vitrivr.cottontail.storage.serializers.*
 
 /**
  * Specifies the [Type] of a Cottontail DB column or value. This construct is a centerpiece of
@@ -14,7 +13,7 @@ import org.vitrivr.cottontail.model.values.types.Value
  * Upon serialization, [Type]s can be stored as strings and mapped to the respective class using [Type.forName].
  *
  * @author Ralph Gasser
- * @version 1.4.0
+ * @version 1.5.0
  */
 sealed class Type<T : Value> {
 
@@ -93,8 +92,8 @@ sealed class Type<T : Value> {
     /** Returns the default value for this [Type]. */
     abstract fun defaultValue(): T
 
-    /** Creates and returns a [Serializer] for this [Type]. */
-    abstract fun serializer(): Serializer<T>
+    /** Returns a [ValueSerializerFactory] for this [Type]. */
+    abstract fun serializerFactory(): ValueSerializerFactory<T>
 
     /** Creates and returns a [ValueStatistics] object for this [Type]. */
     abstract fun statistics(): ValueStatistics<T>
@@ -123,7 +122,7 @@ sealed class Type<T : Value> {
         override val logicalSize = 1
         override val physicalSize= kotlin.Byte.SIZE_BYTES
         override fun defaultValue(): BooleanValue = BooleanValue.FALSE
-        override fun serializer(): Serializer<BooleanValue> = BooleanValueSerializer
+        override fun serializerFactory(): ValueSerializerFactory<BooleanValue> = BooleanValueSerializerFactory
         override fun statistics(): ValueStatistics<BooleanValue> = BooleanValueStatistics()
     }
 
@@ -137,7 +136,7 @@ sealed class Type<T : Value> {
         override val logicalSize = 1
         override val physicalSize = kotlin.Byte.SIZE_BYTES
         override fun defaultValue(): ByteValue = ByteValue.ZERO
-        override fun serializer(): Serializer<ByteValue> = ByteValueSerializer
+        override fun serializerFactory(): ValueSerializerFactory<ByteValue> = ByteValueSerializerFactory
         override fun statistics(): ValueStatistics<ByteValue> = ByteValueStatistics()
     }
 
@@ -151,7 +150,7 @@ sealed class Type<T : Value> {
         override val logicalSize = 1
         override val physicalSize = kotlin.Short.SIZE_BYTES
         override fun defaultValue(): ShortValue = ShortValue.ZERO
-        override fun serializer(): Serializer<ShortValue> = ShortValueSerializer
+        override fun serializerFactory(): ValueSerializerFactory<ShortValue> = ShortValueSerializerFactory
         override fun statistics(): ValueStatistics<ShortValue> = ShortValueStatistics()
     }
 
@@ -165,7 +164,7 @@ sealed class Type<T : Value> {
         override val logicalSize = 1
         override val physicalSize = kotlin.Int.SIZE_BYTES
         override fun defaultValue(): IntValue = IntValue.ZERO
-        override fun serializer(): Serializer<IntValue> = IntValueSerializer
+        override fun serializerFactory(): ValueSerializerFactory<IntValue> = IntValueSerializerFactory
         override fun statistics(): ValueStatistics<IntValue> = IntValueStatistics()
     }
 
@@ -179,7 +178,7 @@ sealed class Type<T : Value> {
         override val logicalSize = 1
         override val physicalSize = kotlin.Long.SIZE_BYTES
         override fun defaultValue(): LongValue = LongValue.ZERO
-        override fun serializer(): Serializer<LongValue> = LongValueSerializer
+        override fun serializerFactory(): ValueSerializerFactory<LongValue> = LongValueSerializerFactory
         override fun statistics(): ValueStatistics<LongValue> = LongValueStatistics()
     }
 
@@ -193,7 +192,7 @@ sealed class Type<T : Value> {
         override val logicalSize = 1
         override val physicalSize = kotlin.Long.SIZE_BYTES
         override fun defaultValue(): DateValue = DateValue(System.currentTimeMillis())
-        override fun serializer(): Serializer<DateValue> = DateValueSerializer
+        override fun serializerFactory(): ValueSerializerFactory<DateValue> = DateValueSerializerFactory
         override fun statistics(): ValueStatistics<DateValue> = DateValueStatistics()
     }
 
@@ -207,7 +206,7 @@ sealed class Type<T : Value> {
         override val logicalSize = 1
         override val physicalSize = kotlin.Int.SIZE_BYTES
         override fun defaultValue(): FloatValue = FloatValue.ZERO
-        override fun serializer(): Serializer<FloatValue> = FloatValueSerializer
+        override fun serializerFactory(): ValueSerializerFactory<FloatValue> = FloatValueSerializerFactory
         override fun statistics(): ValueStatistics<FloatValue> = FloatValueStatistics()
     }
 
@@ -221,7 +220,7 @@ sealed class Type<T : Value> {
         override val logicalSize = 1
         override val physicalSize = kotlin.Long.SIZE_BYTES
         override fun defaultValue(): DoubleValue = DoubleValue.ZERO
-        override fun serializer(): Serializer<DoubleValue> = DoubleValueSerializer
+        override fun serializerFactory(): ValueSerializerFactory<DoubleValue> = DoubleValueSerializerFactory
         override fun statistics(): ValueStatistics<DoubleValue> = DoubleValueStatistics()
     }
 
@@ -235,7 +234,7 @@ sealed class Type<T : Value> {
         override val logicalSize = LOGICAL_SIZE_UNKNOWN
         override val physicalSize = LOGICAL_SIZE_UNKNOWN * Char.SIZE_BYTES
         override fun defaultValue(): StringValue = StringValue.EMPTY
-        override fun serializer(): Serializer<StringValue> = StringValueSerializer
+        override fun serializerFactory(): ValueSerializerFactory<StringValue> = StringValueSerializerFactory
         override fun statistics(): ValueStatistics<StringValue> = StringValueStatistics()
     }
 
@@ -249,7 +248,7 @@ sealed class Type<T : Value> {
         override val logicalSize = 1
         override val physicalSize = 2 * kotlin.Int.SIZE_BYTES
         override fun defaultValue(): Complex32Value = Complex32Value.ZERO
-        override fun serializer(): Serializer<Complex32Value> = Complex32ValueSerializer
+        override fun serializerFactory(): ValueSerializerFactory<Complex32Value> = Complex32ValueSerializerFactory
         override fun statistics(): ValueStatistics<Complex32Value> = ValueStatistics(this)
     }
 
@@ -263,7 +262,7 @@ sealed class Type<T : Value> {
         override val logicalSize = 1
         override val physicalSize = 2 * kotlin.Long.SIZE_BYTES
         override fun defaultValue(): Complex64Value = Complex64Value.ZERO
-        override fun serializer(): Serializer<Complex64Value> = Complex64ValueSerializer
+        override fun serializerFactory(): ValueSerializerFactory<Complex64Value> = Complex64ValueSerializerFactory
         override fun statistics(): ValueStatistics<Complex64Value> = ValueStatistics(this)
     }
 
@@ -276,7 +275,7 @@ sealed class Type<T : Value> {
         override val vector = true
         override val physicalSize = this.logicalSize * kotlin.Int.SIZE_BYTES
         override fun defaultValue(): IntVectorValue = IntVectorValue.zero(this.logicalSize)
-        override fun serializer(): Serializer<IntVectorValue> = FixedIntVectorSerializer(this.logicalSize)
+        override fun serializerFactory(): ValueSerializerFactory<IntVectorValue> = IntVectorValueSerializerFactory
         override fun statistics(): ValueStatistics<IntVectorValue> = ValueStatistics(this)
     }
 
@@ -289,7 +288,7 @@ sealed class Type<T : Value> {
         override val vector = true
         override val physicalSize = this.logicalSize * kotlin.Long.SIZE_BYTES
         override fun defaultValue(): LongVectorValue = LongVectorValue.zero(this.logicalSize)
-        override fun serializer(): Serializer<LongVectorValue> = FixedLongVectorSerializer(this.logicalSize)
+        override fun serializerFactory(): ValueSerializerFactory<LongVectorValue> = LongVectorValueSerializerFactory
         override fun statistics(): ValueStatistics<LongVectorValue> = ValueStatistics(this)
     }
 
@@ -302,7 +301,7 @@ sealed class Type<T : Value> {
         override val vector = true
         override val physicalSize = this.logicalSize * kotlin.Int.SIZE_BYTES
         override fun defaultValue(): FloatVectorValue = FloatVectorValue.zero(this.logicalSize)
-        override fun serializer(): Serializer<FloatVectorValue> = FixedFloatVectorSerializer(this.logicalSize)
+        override fun serializerFactory(): ValueSerializerFactory<FloatVectorValue> = FloatVectorValueSerializerFactory
         override fun statistics(): ValueStatistics<FloatVectorValue> = ValueStatistics(this)
     }
 
@@ -315,7 +314,7 @@ sealed class Type<T : Value> {
         override val vector = true
         override val physicalSize = this.logicalSize * kotlin.Long.SIZE_BYTES
         override fun defaultValue(): DoubleVectorValue = DoubleVectorValue.zero(this.logicalSize)
-        override fun serializer(): Serializer<DoubleVectorValue> = FixedDoubleVectorSerializer(this.logicalSize)
+        override fun serializerFactory(): ValueSerializerFactory<DoubleVectorValue> = DoubleVectorValueSerializerFactory
         override fun statistics(): ValueStatistics<DoubleVectorValue> = ValueStatistics(this)
     }
 
@@ -328,7 +327,7 @@ sealed class Type<T : Value> {
         override val vector = true
         override val physicalSize = this.logicalSize * kotlin.Byte.SIZE_BYTES
         override fun defaultValue(): BooleanVectorValue = BooleanVectorValue.zero(this.logicalSize)
-        override fun serializer(): Serializer<BooleanVectorValue> = FixedBooleanVectorSerializer(this.logicalSize)
+        override fun serializerFactory(): ValueSerializerFactory<BooleanVectorValue> = BooleanVectorValueSerializerFactory
         override fun statistics(): ValueStatistics<BooleanVectorValue> = ValueStatistics(this)
     }
 
@@ -341,7 +340,7 @@ sealed class Type<T : Value> {
         override val vector = true
         override val physicalSize = this.logicalSize * 2 * kotlin.Int.SIZE_BYTES
         override fun defaultValue(): Complex32VectorValue = Complex32VectorValue.zero(this.logicalSize)
-        override fun serializer(): Serializer<Complex32VectorValue> = FixedComplex32VectorSerializer(this.logicalSize)
+        override fun serializerFactory(): ValueSerializerFactory<Complex32VectorValue> = Complex32VectorValueSerializerFactory
         override fun statistics(): ValueStatistics<Complex32VectorValue> = ValueStatistics(this)
     }
 
@@ -354,7 +353,7 @@ sealed class Type<T : Value> {
         override val vector = true
         override val physicalSize = this.logicalSize * 2 * kotlin.Long.SIZE_BYTES
         override fun defaultValue(): Complex64VectorValue = Complex64VectorValue.zero(this.logicalSize)
-        override fun serializer(): Serializer<Complex64VectorValue> = FixedComplex64VectorSerializer(this.logicalSize)
+        override fun serializerFactory(): ValueSerializerFactory<Complex64VectorValue> = Complex64VectorValueSerializerFactory
         override fun statistics(): ValueStatistics<Complex64VectorValue> = ValueStatistics(this)
     }
 }

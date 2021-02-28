@@ -65,7 +65,7 @@ class GGIndex(path: Path, parent: DefaultEntity, config: GGIndexConfig? = null) 
     /** Store of the groups mean vector and the associated [TupleId]s. */
     private val groupsStore: HTreeMap<VectorValue<*>, LongArray> = this.store.hashMap(
         GG_INDEX_NAME,
-        this.columns[0].type.serializer() as Serializer<VectorValue<*>>,
+        this.columns[0].type.serializerFactory() as Serializer<VectorValue<*>>,
         Serializer.LONG_ARRAY
     ).counterEnable().createOrOpen()
 

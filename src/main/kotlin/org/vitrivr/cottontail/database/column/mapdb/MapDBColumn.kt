@@ -145,7 +145,7 @@ class MapDBColumn<T : Value>(override val path: Path, override val parent: Entit
         }
 
         /** The [Serializer] used for de-/serialization of [MapDBColumn] entries. */
-        private val serializer = this@MapDBColumn.type.serializer()
+        private val serializer = this@MapDBColumn.type.serializerFactory().mapdb(this@MapDBColumn.type.logicalSize)
 
         /** Obtains a global (non-exclusive) read-lock on [MapDBColumn]. Prevents enclosing [MapDBColumn] from being closed while this [MapDBColumn.Tx] is still in use. */
         private val globalStamp = this@MapDBColumn.closeLock.readLock()

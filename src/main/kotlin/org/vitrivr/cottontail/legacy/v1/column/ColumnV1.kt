@@ -141,7 +141,7 @@ class ColumnV1<T : Value>(
         }
 
         /** The [Serializer] used for de-/serialization of [ColumnV1] entries. */
-        private val serializer = this@ColumnV1.type.serializer()
+        private val serializer = this@ColumnV1.type.serializerFactory().mapdb(this@ColumnV1.type.logicalSize)
 
         /** Obtains a global (non-exclusive) read-lock on [ColumnV1]. Prevents enclosing [ColumnV1] from being closed while this [ColumnV1.Tx] is still in use. */
         private val globalStamp = this@ColumnV1.closeLock.readLock()

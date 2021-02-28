@@ -50,10 +50,9 @@ class NonUniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path
     override val produces: Array<ColumnDef<*>> = this.columns
 
     /** Check if [Serializer] is compatible with this [NonUniqueHashIndex]. */
-    private val serializer: GroupSerializer<Value> = if (this.columns[0].type.serializer() is GroupSerializer) {
-        this.columns[0].type.serializer() as GroupSerializer<Value>
-    } else {
-        throw IllegalArgumentException("NonUniqueHashIndex only supports value types with group serializers.")
+    private val serializer: GroupSerializer<Value> = this.columns[0].type.serializerFactory().mapdb(this.columns[0].type.logicalSize).let {
+        require(it is GroupSerializer<*>) { "NonUniqueHashIndex only supports value types with group serializers." }
+        it as GroupSerializer<Value>
     }
 
     /** Map structure used for [NonUniqueHashIndex]. */

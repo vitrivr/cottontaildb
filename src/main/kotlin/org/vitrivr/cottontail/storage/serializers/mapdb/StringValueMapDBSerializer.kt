@@ -1,18 +1,23 @@
-package org.vitrivr.cottontail.database.serializers
+package org.vitrivr.cottontail.storage.serializers.mapdb
 
 import org.mapdb.DataInput2
 import org.mapdb.DataOutput2
 import org.mapdb.Serializer
 import org.mapdb.serializer.GroupSerializer
+import org.vitrivr.cottontail.model.values.ShortValue
 import org.vitrivr.cottontail.model.values.StringValue
 import java.io.IOException
 import java.util.*
 
-
 /**
- * A [Serializer] for [StringValue]. Wraps Map DB's [Serializer.STRING]
+ * A [MapDBSerializer] for MapDB based [ShortValue] serialization and deserialization.
+ *
+ * Acts as a [GroupSerializer].
+ *
+ * @author Ralph Gasser
+ * @version 1.0.0
  */
-object StringValueSerializer : GroupSerializer<StringValue> {
+object StringValueMapDBSerializer: MapDBSerializer<StringValue>, GroupSerializer<StringValue> {
     @Throws(IOException::class)
     override fun serialize(out: DataOutput2, value: StringValue) {
         out.writeUTF(value.value)

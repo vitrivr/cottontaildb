@@ -40,9 +40,7 @@ class UniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path, p
     override val produces: Array<ColumnDef<*>> = this.columns
 
     /** Map structure used for [UniqueHashIndex]. */
-    private val map: HTreeMap<Value, TupleId> =
-        this.store.hashMap(UQ_INDEX_MAP, this.columns[0].type.serializer(), Serializer.LONG_DELTA)
-            .createOrOpen() as HTreeMap<Value, TupleId>
+    private val map: HTreeMap<Value, TupleId> = this.store.hashMap(UQ_INDEX_MAP, this.columns[0].type.serializerFactory().mapdb(this.columns[0].type.logicalSize), Serializer.LONG_DELTA).createOrOpen() as HTreeMap<Value, TupleId>
 
     /** True since [UniqueHashIndex] supports incremental updates. */
     override val supportsIncrementalUpdate: Boolean = true

@@ -1,24 +1,18 @@
-package org.vitrivr.cottontail.database.serializers
+package org.vitrivr.cottontail.storage.serializers.mapdb
 
 import org.mapdb.DataInput2
 import org.mapdb.DataOutput2
-import org.mapdb.Serializer
 import org.vitrivr.cottontail.model.values.BooleanVectorValue
 import kotlin.math.min
 
 /**
- * A [Serializer] for [BooleanVectorValue]s that a fixed in length.
+ * A [MapDBSerializer] for MapDB based [BooleanVectorValue] serialization and deserialization.
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.0.0
  */
-class FixedBooleanVectorSerializer(val size: Int): Serializer<BooleanVectorValue> {
-
-    /** Size of the array used to store the values. */
-    private val arraySize = bitToWordIndex(this.size - 1) + 1
-
+class BooleanVectorValueMapDBSerializer(val size: Int): MapDBSerializer<BooleanVectorValue> {
     companion object {
-
         /** */
         private const val LONG_BIT_SHIFT = 6
 
@@ -28,6 +22,13 @@ class FixedBooleanVectorSerializer(val size: Int): Serializer<BooleanVectorValue
          * @param bitIndex The bit index to calculate the word index for.
          */
         private fun bitToWordIndex(bitIndex: Int): Int = bitIndex shr LONG_BIT_SHIFT
+    }
+
+    /** Size of the array used to store the values. */
+    private val arraySize = bitToWordIndex(this.size - 1) + 1
+
+    init {
+        require(this.size > 0) { "Cannot initialize vector value serializer with size value of $size." }
     }
 
     override fun serialize(out: DataOutput2, value: BooleanVectorValue) {
@@ -52,6 +53,4 @@ class FixedBooleanVectorSerializer(val size: Int): Serializer<BooleanVectorValue
             (long and check) == check
         })
     }
-
-    override fun isTrusted(): Boolean = true
 }
