@@ -136,9 +136,7 @@ sealed class ComparisonOperator {
     class In(val right: MutableList<Binding<Value>>) : ComparisonOperator() {
         private val rightValues = ObjectOpenHashSet<Value>()
         override val atomicCpuCost: Float = 4.0f * Cost.COST_MEMORY_ACCESS
-        override fun match(left: Value?): Boolean {
-            return left in this.rightValues
-        }
+        override fun match(left: Value?): Boolean = left in this.rightValues
 
         override fun bindValues(ctx: BindingContext<Value>) {
             this.rightValues.clear()
