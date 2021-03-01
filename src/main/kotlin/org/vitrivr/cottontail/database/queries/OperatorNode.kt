@@ -6,6 +6,7 @@ import org.vitrivr.cottontail.database.queries.sort.SortOrder
 import org.vitrivr.cottontail.database.statistics.entity.RecordStatistics
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
+import java.io.PrintStream
 
 /**
  * [OperatorNode]s are [Node]s in a Cottontail DB query execution plan and represent flow of  information.
@@ -38,6 +39,18 @@ sealed class OperatorNode : Node {
 
     /** List of [ColumnDef]s required by this [OperatorNode] in order to be able to function. */
     abstract val requires: Array<ColumnDef<*>>
+
+    /**
+     * Prints this [OperatorNode] tree to the given [PrintStream].
+     *
+     * @param p The [PrintStream] to print this [OperatorNode] to. Defaults to [System.out]
+     */
+    open fun printTo(p: PrintStream = System.out) {
+        repeat(this.groupId) { p.print("|\t") }
+        p.println(this.toString())
+        repeat(this.groupId) { p.print("|\t") }
+        p.print("|\n")
+    }
 
     /**
      * A logical [OperatorNode] in the Cottontail DB query execution plan.
@@ -90,6 +103,9 @@ sealed class OperatorNode : Node {
          * @return [OperatorNode.Physical] representing this [OperatorNode.Logical].
          */
         abstract fun implement(): Physical
+
+        /** Generates and returns a [String] representation of this [OperatorNode.Logical]. */
+        override fun toString() = "${this.javaClass.simpleName}[${this.groupId}]"
     }
 
     /**
@@ -177,5 +193,8 @@ sealed class OperatorNode : Node {
          * @throws IllegalStateException If this [OperatorNode.Physical] cannot be partitioned.
          */
         abstract fun partition(p: Int): List<Physical>
+
+        /** Generates and returns a [String] representation of this [OperatorNode.Physical]. */
+        override fun toString() = "${this.javaClass.simpleName}[${this.groupId}, io = ${cost.io}, cpu = ${cost.cpu}, memory = ${cost.memory}]"
     }
 }

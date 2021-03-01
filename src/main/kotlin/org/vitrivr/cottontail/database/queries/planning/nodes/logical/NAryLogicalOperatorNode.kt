@@ -7,6 +7,7 @@ import org.vitrivr.cottontail.database.queries.binding.BindingContext
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.BinaryPhysicalOperatorNode
 import org.vitrivr.cottontail.database.queries.sort.SortOrder
 import org.vitrivr.cottontail.model.values.types.Value
+import java.io.PrintStream
 
 /**
  * An abstract [NAryLogicalOperatorNode] implementation that has multiple [OperatorNode.Logical]s as input.
@@ -72,5 +73,15 @@ abstract class NAryLogicalOperatorNode(vararg val inputs: OperatorNode.Logical) 
             result = 33L * result + i.digest()
         }
         return result
+    }
+
+    /**
+     * Prints this [OperatorNode] tree to the given [PrintStream].
+     *
+     * @param p The [PrintStream] to print this [OperatorNode] to. Defaults to [System.out]
+     */
+    override fun printTo(p: PrintStream) {
+        this.inputs.forEach { it.printTo(p) }
+        super.printTo(p)
     }
 }

@@ -8,6 +8,7 @@ import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.sort.SortOrder
 import org.vitrivr.cottontail.database.statistics.entity.RecordStatistics
 import org.vitrivr.cottontail.model.values.types.Value
+import java.io.PrintStream
 
 /**
  * An abstract [NaryPhysicalOperatorNode] implementation that has multiple [OperatorNode.Physical]s as input.
@@ -91,5 +92,15 @@ abstract class NAryPhysicalOperatorNode(vararg val inputs: OperatorNode.Physical
             result += 27L * result + i.digest()
         }
         return result
+    }
+
+    /**
+     * Prints this [OperatorNode] tree to the given [PrintStream].
+     *
+     * @param p The [PrintStream] to print this [OperatorNode] to. Defaults to [System.out]
+     */
+    override fun printTo(p: PrintStream) {
+        this.inputs.forEach { it.printTo(p) }
+        super.printTo(p)
     }
 }

@@ -8,6 +8,7 @@ import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.sort.SortOrder
 import org.vitrivr.cottontail.database.statistics.entity.RecordStatistics
 import org.vitrivr.cottontail.model.values.types.Value
+import java.io.PrintStream
 
 /**
  * An abstract [BinaryPhysicalOperatorNode] implementation that has exactly two [OperatorNode.Physical]s as input.
@@ -79,5 +80,16 @@ abstract class BinaryPhysicalOperatorNode(val left: OperatorNode.Physical, val r
     override fun digest(): Long {
         val result = 27L * hashCode() + this.left.digest()
         return 27L * result + this.right.digest()
+    }
+
+    /**
+     * Prints this [OperatorNode] tree to the given [PrintStream].
+     *
+     * @param p The [PrintStream] to print this [OperatorNode] to. Defaults to [System.out]
+     */
+    override fun printTo(p: PrintStream) {
+        this.left.printTo(p)
+        this.right.printTo(p)
+        super.printTo(p)
     }
 }

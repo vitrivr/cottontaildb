@@ -8,6 +8,7 @@ import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.sort.SortOrder
 import org.vitrivr.cottontail.database.statistics.entity.RecordStatistics
 import org.vitrivr.cottontail.model.values.types.Value
+import java.io.PrintStream
 
 /**
  * An abstract [PhysicalOperatorNode] implementation that has a single [OperatorNode] as input.
@@ -77,4 +78,15 @@ abstract class UnaryPhysicalOperatorNode(val input: OperatorNode.Physical) : Ope
      * @return Digest for this [UnaryPhysicalOperatorNode]
      */
     final override fun digest(): Long = 27L * this.hashCode() + this.input.digest()
+
+    /**
+     * Prints this [OperatorNode] tree to the given [PrintStream].
+     *
+     * @param p The [PrintStream] to print this [OperatorNode] to. Defaults to [System.out]
+     */
+    override fun printTo(p: PrintStream) {
+        this.input.printTo(p)
+        super.printTo(p)
+    }
 }
+

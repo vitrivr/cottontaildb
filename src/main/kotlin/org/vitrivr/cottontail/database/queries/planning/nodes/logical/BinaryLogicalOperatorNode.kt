@@ -6,6 +6,7 @@ import org.vitrivr.cottontail.database.queries.binding.Binding
 import org.vitrivr.cottontail.database.queries.binding.BindingContext
 import org.vitrivr.cottontail.database.queries.sort.SortOrder
 import org.vitrivr.cottontail.model.values.types.Value
+import java.io.PrintStream
 
 /**
  * An abstract [BinaryLogicalOperatorNode] implementation that has exactly two [OperatorNode.Logical]s as input.
@@ -65,5 +66,16 @@ abstract class BinaryLogicalOperatorNode(val left: OperatorNode.Logical, val rig
     override fun digest(): Long {
         val result = 33L * hashCode() + this.left.digest()
         return 33L * result + this.right.digest()
+    }
+
+    /**
+     * Prints this [OperatorNode] tree to the given [PrintStream].
+     *
+     * @param p The [PrintStream] to print this [OperatorNode] to. Defaults to [System.out]
+     */
+    override fun printTo(p: PrintStream) {
+        this.left.printTo(p)
+        this.right.printTo(p)
+        super.printTo(p)
     }
 }

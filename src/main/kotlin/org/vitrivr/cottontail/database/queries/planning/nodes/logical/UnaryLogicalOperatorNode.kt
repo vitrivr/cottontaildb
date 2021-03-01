@@ -7,6 +7,7 @@ import org.vitrivr.cottontail.database.queries.binding.Binding
 import org.vitrivr.cottontail.database.queries.binding.BindingContext
 import org.vitrivr.cottontail.database.queries.sort.SortOrder
 import org.vitrivr.cottontail.model.values.types.Value
+import java.io.PrintStream
 
 /**
  * An abstract [OperatorNode.Logical] implementation that has a single [OperatorNode] as input.
@@ -58,4 +59,14 @@ abstract class UnaryLogicalOperatorNode(val input: OperatorNode.Logical) : Opera
      * @return Digest for this [UnaryLogicalOperatorNode]
      */
     final override fun digest(): Long = 33L * this.hashCode() + this.input.digest()
+
+    /**
+     * Prints this [OperatorNode] tree to the given [PrintStream].
+     *
+     * @param p The [PrintStream] to print this [OperatorNode] to. Defaults to [System.out]
+     */
+    override fun printTo(p: PrintStream) {
+        this.input.printTo(p)
+        super.printTo(p)
+    }
 }
