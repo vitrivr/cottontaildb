@@ -38,7 +38,7 @@ import kotlin.collections.ArrayDeque
  * [1] Guo, Ruiqi, et al. "Quantization based fast inner product search." Artificial Intelligence and Statistics. 2016.
  *
  * @author Gabriel Zihlmann & Ralph Gasser
- * @version 2.0.0
+ * @version 2.0.1
  */
 class PQIndex(path: Path, parent: DefaultEntity, config: PQIndexConfig? = null) : AbstractIndex(path, parent) {
 
@@ -194,8 +194,7 @@ class PQIndex(path: Path, parent: DefaultEntity, config: PQIndexConfig? = null) 
             val pq = PQ.fromData(this@PQIndex.config, this@PQIndex.columns[0], data)
 
             /* ... and generate signatures. */
-            val signatureMap =
-                Object2ObjectOpenHashMap<PQSignature, LinkedList<TupleId>>(txn.count().toInt())
+            val signatureMap = Object2ObjectOpenHashMap<PQSignature, LinkedList<TupleId>>(txn.count().toInt())
             txn.scan(this.columns).forEach { rec ->
                 val value = rec[this@PQIndex.columns[0]]
                 if (value is VectorValue<*>) {
@@ -228,6 +227,14 @@ class PQIndex(path: Path, parent: DefaultEntity, config: PQIndexConfig? = null) 
         override fun update(event: DataChangeEvent) = this.withWriteLock {
             this@PQIndex.dirtyField.compareAndSet(false, true)
             Unit
+        }
+
+        /**
+         * Clears the [PQIndex] underlying this [Tx] and removes all entries it contains.
+         */
+        override fun clear() = this.withWriteLock {
+            this@PQIndex.dirtyField.compareAndSet(false, true)
+            this@PQIndex.signaturesStore.clear()
         }
 
         /**

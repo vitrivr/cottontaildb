@@ -24,7 +24,7 @@ import java.util.*
  * unique [Value] to a [TupleId]. Well suited for equality based lookups of [Value]s.
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.0.1
  */
 class UniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path, parent) {
 
@@ -163,13 +163,21 @@ class UniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path, p
                         this.addMapping(new, event.tupleId)
                     }
                 }
-                is DataChangeEvent.DeleteDataChangeEvent -> {
-                    val old = event.deleted[this.columns[0]]
-                    if (old != null) {
-                        this.removeMapping(old)
-                    }
-                }
-            }
+               is DataChangeEvent.DeleteDataChangeEvent -> {
+                   val old = event.deleted[this.columns[0]]
+                   if (old != null) {
+                       this.removeMapping(old)
+                   }
+               }
+           }
+        }
+
+        /**
+         * Clears the [UniqueHashIndex] underlying this [Tx] and removes all entries it contains.
+         */
+        override fun clear() = this.withWriteLock {
+            this@UniqueHashIndex.dirtyField.compareAndSet(false, true)
+            this@UniqueHashIndex.map.clear()
         }
 
         /**
@@ -198,6 +206,7 @@ class UniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path, p
                 when (predicate.operator) {
                     is ComparisonOperator.In -> this.elements.addAll(predicate.operator.right.map { it.value })
                     is ComparisonOperator.Binary.Equal -> this.elements.add(predicate.operator.right.value)
+                    else -> throw IllegalArgumentException("UniqueHashIndex.filter() does only support EQUAL and IN operators.")
                 }
             }
 

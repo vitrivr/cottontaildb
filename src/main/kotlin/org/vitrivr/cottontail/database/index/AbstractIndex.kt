@@ -9,10 +9,10 @@ import org.vitrivr.cottontail.database.general.AbstractTx
 import org.vitrivr.cottontail.database.general.DBOVersion
 import org.vitrivr.cottontail.database.general.TxSnapshot
 import org.vitrivr.cottontail.database.queries.predicates.Predicate
+import org.vitrivr.cottontail.database.queries.sort.SortOrder
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
-import org.vitrivr.cottontail.model.exceptions.TxException
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.*
@@ -75,8 +75,7 @@ abstract class AbstractIndex(final override val path: Path, final override val p
     protected val store: DB = this.parent.parent.parent.config.mapdb.db(this.path)
 
     /** The [IndexHeader] for this [AbstractIndex]. */
-    protected val headerField =
-        this.store.atomicVar(INDEX_HEADER_FIELD, IndexHeader.Serializer).createOrOpen()
+    private val headerField = this.store.atomicVar(INDEX_HEADER_FIELD, IndexHeader.Serializer).createOrOpen()
 
     /** Internal storage variable for the dirty flag. */
     protected val dirtyField = this.store.atomicBoolean(INDEX_DIRTY_FIELD).createOrOpen()
@@ -86,6 +85,9 @@ abstract class AbstractIndex(final override val path: Path, final override val p
 
     /** The [ColumnDef] that are covered (i.e. indexed) by this [AbstractIndex]. */
     override val columns: Array<ColumnDef<*>> = this.headerField.get().columns
+
+    /** The order in which results of this [Index] appear. Defaults to an empty array, which indicates no particular order. */
+    override val order: Array<Pair<ColumnDef<*>, SortOrder>> = emptyArray()
 
     /** The [DBOVersion] of this [AbstractIndex]. */
     override val version: DBOVersion = DBOVersion.V2_0
@@ -125,12 +127,6 @@ abstract class AbstractIndex(final override val path: Path, final override val p
      */
     protected abstract inner class Tx(context: TransactionContext) : AbstractTx(context), IndexTx {
 
-        init {
-            if (this@AbstractIndex.closed) {
-                throw TxException.TxDBOClosedException(this.context.txId)
-            }
-        }
-
         /** Obtains a global (non-exclusive) read-lock on [AbstractIndex]. Prevents enclosing [AbstractIndex] from being closed. */
         private val closeStamp = this@AbstractIndex.closeLock.readLock()
 
@@ -150,11 +146,15 @@ abstract class AbstractIndex(final override val path: Path, final override val p
         override val produces: Array<ColumnDef<*>>
             get() = this@AbstractIndex.produces
 
+        /** The order in which results of this [IndexTx] appear. Empty array that there is no particular order. */
+        override val order: Array<Pair<ColumnDef<*>, SortOrder>>
+            get() = this@AbstractIndex.order
+
         /** The [IndexType] of the [AbstractIndex] that underpins this [IndexTx]. */
         override val type: IndexType
             get() = this@AbstractIndex.type
 
-        /** The default [TxSnapshot] of this [IndexTx]. Can be overriden! */
+        /** The default [TxSnapshot] of this [IndexTx]. Can be overridden! */
         override val snapshot = object : TxSnapshot {
             override fun commit() = this@AbstractIndex.store.commit()
             override fun rollback() = this@AbstractIndex.store.rollback()
@@ -166,8 +166,7 @@ abstract class AbstractIndex(final override val path: Path, final override val p
          * @param predicate [Predicate] to check.
          * @return True if [Predicate] can be processed, false otherwise.
          */
-        override fun canProcess(predicate: Predicate): Boolean =
-            this@AbstractIndex.canProcess(predicate)
+        override fun canProcess(predicate: Predicate): Boolean = this@AbstractIndex.canProcess(predicate)
 
         /**
          * Releases the [closeLock] in the [AbstractIndex].

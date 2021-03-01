@@ -37,7 +37,7 @@ import java.util.*
  * [Recordset]s.
  *
  * @author Manuel Huerbin, Gabriel Zihlmann & Ralph Gasser
- * @version 2.0.0
+ * @version 2.0.1
  */
 class SuperBitLSHIndex<T : VectorValue<*>>(
     path: Path,
@@ -198,6 +198,16 @@ class SuperBitLSHIndex<T : VectorValue<*>>(
         override fun update(event: DataChangeEvent) = this.withWriteLock {
             this@SuperBitLSHIndex.dirtyField.compareAndSet(false, true)
             Unit
+        }
+
+        /**
+         * Clears the [SuperBitLSHIndex] underlying this [Tx] and removes all entries it contains.
+         */
+        override fun clear() = this.withWriteLock {
+            this@SuperBitLSHIndex.dirtyField.compareAndSet(false, true)
+            (this@SuperBitLSHIndex.maps).forEach { map ->
+                map.clear()
+            }
         }
 
         /**

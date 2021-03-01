@@ -195,6 +195,14 @@ class VAFIndex(path: Path, parent: DefaultEntity, config: VAFIndexConfig? = null
         }
 
         /**
+         * Clears the [VAFIndex] underlying this [Tx] and removes all entries it contains.
+         */
+        override fun clear() = this.withWriteLock {
+            this@VAFIndex.dirtyField.compareAndSet(false, true)
+            this@VAFIndex.signatures.clear()
+        }
+
+        /**
          * Performs a lookup through this [VAFIndex.Tx] and returns a [Iterator] of all [Record]s
          * that match the [Predicate]. Only supports [KnnPredicate]s.
          *

@@ -29,7 +29,7 @@ import java.util.*
  * to map a [Value] to a [TupleId]. Well suited for equality based lookups of [Value]s.
  *
  * @author Luca Rossetto & Ralph Gasser
- * @version 2.0.0
+ * @version 2.0.1
  */
 class NonUniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path, parent) {
     /** Index-wide constants. */
@@ -222,6 +222,14 @@ class NonUniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path
         }
 
         /**
+         * Clears the [NonUniqueHashIndex] underlying this [Tx] and removes all entries it contains.
+         */
+        override fun clear() = this.withWriteLock {
+            this@NonUniqueHashIndex.dirtyField.compareAndSet(false, true)
+            this@NonUniqueHashIndex.map.clear()
+        }
+
+        /**
          * Performs a lookup through this [NonUniqueHashIndex.Tx] and returns a [Iterator] of
          * all [Record]s that match the [Predicate]. Only supports [ BooleanPredicate.AtomicBooleanPredicate]s.
          *
@@ -260,7 +268,11 @@ class NonUniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path
                             val operand = this.predicate.operator.right.value
                             if (operand is LikePatternValue.StartsWith) {
                                 val prefix = this@NonUniqueHashIndex.map.prefixSubMap(StringValue(operand.startsWith.toString()))
-                                prefix.forEach { k, v -> v.forEach { l -> elements.add(Pair(l, k)) } }
+                                for ((k, v) in prefix) {
+                                    for (l in v) {
+                                        this.elements.add(Pair(l, k))
+                                    }
+                                }
                             } else {
                                 throw IllegalArgumentException("NonUniqueHashIndex.filter() does only support LIKE operators with prefix matching (i.e. LIKE XYZ%).")
                             }

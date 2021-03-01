@@ -42,7 +42,7 @@ import kotlin.collections.ArrayDeque
  * [1] Cauley, Stephen F., et al. "Fast group matching for MR fingerprinting reconstruction." Magnetic resonance in medicine 74.2 (2015): 523-528.
  *
  * @author Gabriel Zihlmann & Ralph Gasser
- * @version 2.0.0
+ * @version 2.0.1
  */
 class GGIndex(path: Path, parent: DefaultEntity, config: GGIndexConfig? = null) : AbstractIndex(path, parent) {
     companion object {
@@ -210,6 +210,14 @@ class GGIndex(path: Path, parent: DefaultEntity, config: GGIndexConfig? = null) 
         override fun update(event: DataChangeEvent) = this.withWriteLock {
             this@GGIndex.dirtyField.compareAndSet(false, true)
             Unit
+        }
+
+        /**
+         * Clears the [GGIndex] underlying this [Tx] and removes all entries it contains.
+         */
+        override fun clear() = this.withWriteLock {
+            this@GGIndex.dirtyField.compareAndSet(false, true)
+            this@GGIndex.groupsStore.clear()
         }
 
         /**

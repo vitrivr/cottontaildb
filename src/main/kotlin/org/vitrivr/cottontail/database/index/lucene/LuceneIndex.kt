@@ -40,7 +40,7 @@ import java.nio.file.Path
  * or LIKE operator.
  *
  * @author Luca Rossetto & Ralph Gasser
- * @version 2.0.0
+ * @version 2.0.1
  */
 class LuceneIndex(path: Path, parent: DefaultEntity, config: LuceneIndexConfig? = null) :
     AbstractIndex(path, parent) {
@@ -327,6 +327,14 @@ class LuceneIndex(path: Path, parent: DefaultEntity, config: LuceneIndexConfig? 
             Unit
         }
 
+        /**
+         * Clears the [LuceneIndex] underlying this [Tx] and removes all entries it contains.
+         */
+        override fun clear() = this.withWriteLock {
+            this.writer.deleteAll()
+            this@LuceneIndex.dirtyField.compareAndSet(false, true)
+            Unit
+        }
 
         /**
          * Performs a lookup through this [LuceneIndex.Tx] and returns a [Iterator] of

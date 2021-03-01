@@ -7,6 +7,7 @@ import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.general.DBO
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.predicates.Predicate
+import org.vitrivr.cottontail.database.queries.sort.SortOrder
 import org.vitrivr.cottontail.database.schema.DefaultSchema
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.model.basics.Name
@@ -22,7 +23,7 @@ import java.nio.file.Path
  * @see IndexTx
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.1.0
  */
 interface Index : DBO {
 
@@ -40,6 +41,9 @@ interface Index : DBO {
 
     /** The [ColumnDef] that are produced by this [AbstractIndex]. They often differ from the indexed columns. */
     val produces: Array<ColumnDef<*>>
+
+    /** The order in which results of this [Index] appear. Empty array that there is no particular order. */
+    val order: Array<Pair<ColumnDef<*>, SortOrder>>
 
     /** The type of [AbstractIndex]. */
     val type: IndexType

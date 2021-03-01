@@ -4,14 +4,18 @@ import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.events.DataChangeEvent
 import org.vitrivr.cottontail.database.general.Tx
 import org.vitrivr.cottontail.database.queries.predicates.Predicate
-import org.vitrivr.cottontail.model.basics.*
+import org.vitrivr.cottontail.database.queries.sort.SortOrder
+import org.vitrivr.cottontail.model.basics.Countable
+import org.vitrivr.cottontail.model.basics.Filterable
+import org.vitrivr.cottontail.model.basics.Name
+import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.exceptions.TxException
 
 /**
  * A [Tx] that operates on a single [AbstractIndex]. [Tx]s are a unit of isolation for data operations (read/write).
  *
  * @author Ralph Gasser
- * @version 1.6.0
+ * @version 1.7.0
  */
 interface IndexTx : Tx, Filterable, Countable {
 
@@ -23,6 +27,9 @@ interface IndexTx : Tx, Filterable, Countable {
 
     /** The [ColumnDef]s produced by the [AbstractIndex] that underpins this [IndexTx]. */
     val produces: Array<ColumnDef<*>>
+
+    /** The order in which results of this [IndexTx] appear. Empty array that there is no particular order. */
+    val order: Array<Pair<ColumnDef<*>, SortOrder>>
 
     /** The [IndexType] of the [AbstractIndex] that underpins this [IndexTx]. */
     val type: IndexType
@@ -40,11 +47,19 @@ interface IndexTx : Tx, Filterable, Countable {
      *
      * Not all [AbstractIndex] implementations support incremental updates. Should be indicated by [IndexTransaction#supportsIncrementalUpdate()]
      *
-     * @param update [DataChangeEvent] that should be processed.
+     * @param event [DataChangeEvent] that should be processed.
      * @throws [TxException.TxValidationException] If update of [AbstractIndex] fails for some reason.
      */
     @Throws(TxException.TxValidationException::class)
     fun update(event: DataChangeEvent)
+
+    /**
+     * Clears the [AbstractIndex] underlying this [IndexTx] and removes all entries it contains.
+     *
+     * @throws [TxException.TxValidationException] If update of [AbstractIndex] fails for some reason.
+     */
+    @Throws(TxException.TxValidationException::class)
+    fun clear()
 
     /**
      * Performs a lookup through this [IndexTx] and returns a [Iterator] of
