@@ -85,7 +85,7 @@ sealed class LikePatternValue(value: String) : PatternValue(value) {
          * @param value [StringValue] to match.
          * @return True on match, false otherwise.
          */
-        override fun matches(value: StringValue) = this.value.startsWith(this.startsWith)
+        override fun matches(value: StringValue): Boolean = value.value.startsWith(this.startsWith)
     }
 
     /**
