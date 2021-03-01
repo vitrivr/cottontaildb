@@ -75,10 +75,10 @@ class FilterPhysicalOperatorNode(input: OperatorNode.Physical, val predicate: Bo
     override fun toOperator(tx: TransactionContext, ctx: QueryContext): Operator {
         val parallelisation = this.cost.parallelisation()
         return if (this.canBePartitioned && parallelisation > 1) {
-            val operators = this.input.partition(parallelisation).map { FilterOperator(it.toOperator(tx, ctx), this.predicate) }
+            val operators = this.input.partition(parallelisation).map { FilterOperator(it.toOperator(tx, ctx), this.predicate.bindValues(ctx.values)) }
             MergeOperator(operators)
         } else {
-            FilterOperator(this.input.toOperator(tx, ctx), this.predicate)
+            FilterOperator(this.input.toOperator(tx, ctx), this.predicate.bindValues(ctx.values))
         }
     }
 

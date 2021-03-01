@@ -81,7 +81,7 @@ class FilterOnSubSelectPhysicalOperatorNode(val predicate: BooleanPredicate, var
      * @param tx The [TransactionContext] used for execution.
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(tx: TransactionContext, ctx: QueryContext): Operator = FilterOnSubselectOperator(this.inputs[0].toOperator(tx, ctx), this.inputs.drop(1).map { it.toOperator(tx, ctx) }, this.predicate)
+    override fun toOperator(tx: TransactionContext, ctx: QueryContext): Operator = FilterOnSubselectOperator(this.inputs[0].toOperator(tx, ctx), this.inputs.drop(1).map { it.toOperator(tx, ctx) }, this.predicate.bindValues(ctx.values))
 
 
     /**
