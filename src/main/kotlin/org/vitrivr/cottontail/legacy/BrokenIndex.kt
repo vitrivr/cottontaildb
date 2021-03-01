@@ -6,6 +6,7 @@ import org.vitrivr.cottontail.database.general.DBOVersion
 import org.vitrivr.cottontail.database.index.*
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.predicates.Predicate
+import org.vitrivr.cottontail.database.queries.sort.SortOrder
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.model.basics.Name
 import java.nio.file.Path
@@ -22,13 +23,14 @@ class BrokenIndex(
     override val parent: Entity,
     override val path: Path,
     override val type: IndexType,
-    override val columns: Array<ColumnDef<*>>
-    )
+    override val columns: Array<ColumnDef<*>>,
+)
 : Index {
     override val closed: Boolean = true
     override val version: DBOVersion = DBOVersion.UNDEFINED
     override fun close() { /* No Op. */ }
     override val produces: Array<ColumnDef<*>> = emptyArray()
+    override val order: Array<Pair<ColumnDef<*>, SortOrder>> = emptyArray()
     override val supportsIncrementalUpdate: Boolean = false
     override val supportsPartitioning: Boolean = false
     override val dirty: Boolean = false
