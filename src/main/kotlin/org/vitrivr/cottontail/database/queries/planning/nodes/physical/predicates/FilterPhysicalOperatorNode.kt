@@ -104,5 +104,5 @@ class FilterPhysicalOperatorNode(input: OperatorNode.Physical, val predicate: Bo
     override fun hashCode(): Int = this.predicate.hashCode()
 
     /** Generates and returns a [String] representation of this [FilterPhysicalOperatorNode]. */
-    override fun toString() = "${super.toString()}(${this.predicate})"
+    override fun toString() = "${this.groupId}:Filter[${this.predicate}]"
 }

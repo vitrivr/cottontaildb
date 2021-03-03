@@ -102,4 +102,7 @@ class SelectProjectionLogicalOperatorNode(input: OperatorNode.Logical, val field
         result = 31 * result + this.fields.hashCode()
         return result
     }
+
+    /** Generates and returns a [String] representation of this [SelectProjectionLogicalOperatorNode]. */
+    override fun toString() = "${this.groupId}:Select[${this.columns.joinToString(",") { it.name.toString() }}]"
 }

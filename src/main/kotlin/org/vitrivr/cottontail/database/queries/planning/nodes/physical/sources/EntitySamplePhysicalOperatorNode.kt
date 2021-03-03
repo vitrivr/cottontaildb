@@ -98,4 +98,7 @@ class EntitySamplePhysicalOperatorNode(
         result = 31 * result + seed.hashCode()
         return result
     }
+
+    /** Generates and returns a [String] representation of this [EntitySamplePhysicalOperatorNode]. */
+    override fun toString() = "${this.groupId}:SampleEntity[${this.columns.joinToString(",") { it.name.toString() }}]"
 }

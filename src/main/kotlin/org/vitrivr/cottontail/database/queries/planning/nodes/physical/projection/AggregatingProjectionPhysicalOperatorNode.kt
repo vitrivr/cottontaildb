@@ -121,5 +121,5 @@ class AggregatingProjectionPhysicalOperatorNode(input: OperatorNode.Physical, va
     }
 
     /** Generates and returns a [String] representation of this [AggregatingProjectionPhysicalOperatorNode]. */
-    override fun toString() = "${this.groupId}:${this.type.label()}(${this.columns.joinToString(",") { it.name.toString() }})"
+    override fun toString() = "${this.groupId}:${this.type.label()}[${this.columns.joinToString(",") { it.name.toString() }}]"
 }

@@ -105,5 +105,5 @@ class CountProjectionPhysicalOperatorNode(input: OperatorNode.Physical, val fiel
     }
 
     /** Generates and returns a [String] representation of this [CountProjectionPhysicalOperatorNode]. */
-    override fun toString() = "${this.groupId}:Count(${this.columns.joinToString(",") { it.name.toString() }})"
+    override fun toString() = "${this.groupId}:Count[${this.columns.joinToString(",") { it.name.toString() }}]"
 }

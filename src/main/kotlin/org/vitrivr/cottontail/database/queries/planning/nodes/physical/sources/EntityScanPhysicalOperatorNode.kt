@@ -83,4 +83,7 @@ class EntityScanPhysicalOperatorNode(override val groupId: Int, val entity: Enti
         result = 31 * result + columns.contentHashCode()
         return result
     }
+
+    /** Generates and returns a [String] representation of this [EntityScanPhysicalOperatorNode]. */
+    override fun toString() = "${this.groupId}:ScanEntity[${this.columns.joinToString(",") { it.name.toString() }}]"
 }

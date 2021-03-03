@@ -82,4 +82,7 @@ class LimitPhysicalOperatorNode(input: OperatorNode.Physical, val limit: Long, v
         result = 31 * result + skip.hashCode()
         return result
     }
+
+    /** Generates and returns a [String] representation of this [LimitPhysicalOperatorNode]. */
+    override fun toString() = "${this.groupId}:Limit[${this.skip},${this.limit}]"
 }

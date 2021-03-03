@@ -84,4 +84,7 @@ class FetchPhysicalOperatorNode(input: OperatorNode.Physical, val entity: Entity
         result = 31 * result + fetch.contentHashCode()
         return result
     }
+
+    /** Generates and returns a [String] representation of this [FetchPhysicalOperatorNode]. */
+    override fun toString() = "${this.groupId}:Fetch[${this.fetch.joinToString(",") { it.name.toString() }}]"
 }

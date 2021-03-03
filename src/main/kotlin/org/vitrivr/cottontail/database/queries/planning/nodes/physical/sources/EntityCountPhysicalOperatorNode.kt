@@ -68,4 +68,7 @@ class EntityCountPhysicalOperatorNode(override val groupId: Int, val entity: Ent
     }
 
     override fun hashCode(): Int = this.entity.hashCode()
+
+    /** Generates and returns a [String] representation of this [EntitySamplePhysicalOperatorNode]. */
+    override fun toString() = "${this.groupId}:Count[${this.columns.joinToString(",") { it.name.toString() }}]"
 }

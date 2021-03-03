@@ -105,5 +105,5 @@ class ExistsProjectionPhysicalOperatorNode(input: OperatorNode.Physical, val fie
     }
 
     /** Generates and returns a [String] representation of this [ExistsProjectionPhysicalOperatorNode]. */
-    override fun toString() = "${this.groupId}:Exists(${this.columns.joinToString(",") { it.name.toString() }})"
+    override fun toString() = "${this.groupId}:Exists[${this.columns.joinToString(",") { it.name.toString() }}]"
 }

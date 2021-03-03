@@ -95,4 +95,7 @@ class LimitingSortPhysicalOperatorNode(input: OperatorNode.Physical, sortOn: Arr
         result = 31 * result + order.contentHashCode()
         return result
     }
+
+    /** Generates and returns a [String] representation of this [SortPhysicalOperatorNode]. */
+    override fun toString() = "${this.groupId}:OrderWithLimit[${this.order.joinToString(",") { "${it.first.name} ${it.second}" }}][${this.skip},${this.limit}]"
 }

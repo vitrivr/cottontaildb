@@ -106,5 +106,5 @@ class FilterOnSubSelectPhysicalOperatorNode(val predicate: BooleanPredicate, var
     override fun hashCode(): Int = this.predicate.hashCode()
 
     /** Generates and returns a [String] representation of this [FilterOnSubSelectPhysicalOperatorNode]. */
-    override fun toString() = "${super.toString()}(${this.predicate})"
+    override fun toString() = "${this.groupId}:Filter[${this.predicate}]"
 }

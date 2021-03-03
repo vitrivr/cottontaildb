@@ -126,6 +126,6 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int, val index: Index,
         return result
     }
 
-    /** Generates and returns a [String] representation of this [IndexScanPhysicalOperatorNode]. */
-    override fun toString() = "${super.toString()}(${this.index.type}, ${this.predicate})"
+    /** Generates and returns a [String] representation of this [EntityScanPhysicalOperatorNode]. */
+    override fun toString() = "${this.groupId}:ScanIndex[${this.index.type}, ${this.predicate}]"
 }

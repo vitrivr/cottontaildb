@@ -120,5 +120,5 @@ class SelectProjectionPhysicalOperatorNode(input: OperatorNode.Physical, val typ
     }
 
     /** Generates and returns a [String] representation of this [SelectProjectionPhysicalOperatorNode]. */
-    override fun toString() = "${this.groupId}:Select(${this.columns.joinToString(",") { it.name.toString() }})"
+    override fun toString() = "${this.groupId}:Select[${this.columns.joinToString(",") { it.name.toString() }}]"
 }

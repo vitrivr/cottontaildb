@@ -99,4 +99,7 @@ class SortPhysicalOperatorNode(input: OperatorNode.Physical, sortOn: Array<Pair<
     override fun hashCode(): Int {
         return order.contentHashCode()
     }
+
+    /** Generates and returns a [String] representation of this [SortPhysicalOperatorNode]. */
+    override fun toString() = "${this.groupId}:Order[${this.order.joinToString(",") { "${it.first.name} ${it.second}" }}]"
 }
