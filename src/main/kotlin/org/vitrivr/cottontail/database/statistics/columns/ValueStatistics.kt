@@ -3,7 +3,8 @@ package org.vitrivr.cottontail.database.statistics.columns
 import org.mapdb.DataInput2
 import org.mapdb.DataOutput2
 import org.mapdb.Serializer
-
+import org.vitrivr.cottontail.database.queries.predicates.bool.BooleanPredicate
+import org.vitrivr.cottontail.database.statistics.selectivity.Selectivity
 import org.vitrivr.cottontail.model.basics.Type
 import org.vitrivr.cottontail.model.values.types.Value
 import java.lang.Math.floorDiv
@@ -15,7 +16,7 @@ import java.lang.Math.floorDiv
  * These classes are used to collect statistics about columns, which can then be leveraged by the query planner.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
 open class ValueStatistics<T : Value>(val type: Type<T>) {
 
@@ -132,4 +133,13 @@ open class ValueStatistics<T : Value>(val type: Type<T>) {
         this.delete(old)
         this.insert(new)
     }
+
+    /**
+     * Estimates [Selectivity] of the given [BooleanPredicate.Atomic], i.e., the percentage of [Record]s that match it.
+     * Defaults to [Selectivity.DEFAULT_SELECTIVITY] but can be overridden by concrete implementations.
+     *
+     * @param predicate [BooleanPredicate.Atomic] To estimate [Selectivity] for.
+     * @return [Selectivity] estimate.
+     */
+    open fun estimateSelectivity(predicate: BooleanPredicate.Atomic): Selectivity = Selectivity.DEFAULT_SELECTIVITY
 }
