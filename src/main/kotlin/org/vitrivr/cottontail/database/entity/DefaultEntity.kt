@@ -173,7 +173,7 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
      * and [IndexTx] for every [Column] and [IndexTx] associated with this [DefaultEntity].
      *
      * @author Ralph Gasser
-     * @version 1.2.0
+     * @version 1.3.0
      */
     inner class Tx(context: TransactionContext) : AbstractTx(context), EntityTx {
 
@@ -361,8 +361,7 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
          */
         override fun dropIndex(name: Name.IndexName) = this.withWriteLock {
             /* Obtain index and acquire exclusive lock on it. */
-            val index = this.snapshot.indexes.remove(name)
-                ?: throw DatabaseException.IndexDoesNotExistException(name)
+            val index = this.snapshot.indexes.remove(name) ?: throw DatabaseException.IndexDoesNotExistException(name)
             if (this.context.lockOn(index) == LockMode.NO_LOCK) {
                 this.context.requestLock(index, LockMode.EXCLUSIVE)
             }
@@ -380,6 +379,29 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
             }
         }
 
+        /**
+         * Optimizes the [DefaultEntity] underlying this [Tx]. Optimization involves rebuilding of [Index]es and statistics.
+         */
+        override fun optimize() = this.withWriteLock {
+            /* Stage 1a: Rebuild incremental indexes and statistics. */
+            val incremental = this.listIndexes().filter { it.supportsIncrementalUpdate }.map { context.getTx(it) as IndexTx }
+            val columns = this.listColumns().map { it.columnDef }.toTypedArray()
+            val map = Object2ObjectOpenHashMap<ColumnDef<*>, Value>(columns.size)
+            val statistics = EntityStatistics()
+            this.scan(columns).forEach { r ->
+                r.forEach { columnDef, value -> map[columnDef] = value }
+                val event = DataChangeEvent.InsertDataChangeEvent(this@DefaultEntity, r.tupleId, map) /* Fake data change event for update. */
+                statistics.consume(event)
+                incremental.forEach { it.update(event) }
+            }
+
+            /* Stage 1b: Combines statistics. */
+            this.snapshot.statistics.clear()
+            this.snapshot.statistics.combine(statistics)
+
+            /* Stage 2: Rebuild remaining indexes. */
+            this.listIndexes().filter { it.supportsIncrementalUpdate }.forEach { (context.getTx(it) as IndexTx).rebuild() }
+        }
 
         /**
          * Creates and returns a new [Iterator] for this [DefaultEntity.Tx] that returns
@@ -391,8 +413,7 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
          *
          * @return [Iterator]
          */
-        override fun scan(columns: Array<ColumnDef<*>>): Iterator<Record> =
-            scan(columns, 1L..this.maxTupleId())
+        override fun scan(columns: Array<ColumnDef<*>>): Iterator<Record> = scan(columns, 1L..this.maxTupleId())
 
         /**
          * Creates and returns a new [Iterator] for this [DefaultEntity.Tx] that returns all [TupleId]s
@@ -403,18 +424,17 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
          *
          * @return [Iterator]
          */
-        override fun scan(columns: Array<ColumnDef<*>>, range: LongRange) =
-            object : Iterator<Record> {
+        override fun scan(columns: Array<ColumnDef<*>>, range: LongRange) = object : Iterator<Record> {
 
-                /** The wrapped [Iterator] of the first (primary) column. */
-                private val wrapped = this@Tx.withReadLock {
-                    (this@Tx.context.getTx(this@DefaultEntity.columns.values.first()) as ColumnTx<*>).scan(range)
-                }
+            /** The wrapped [Iterator] of the first (primary) column. */
+            private val wrapped = this@Tx.withReadLock {
+                (this@Tx.context.getTx(this@DefaultEntity.columns.values.first()) as ColumnTx<*>).scan(range)
+            }
 
-                /**
-                 * Returns the next element in the iteration.
-                 */
-                override fun next(): Record {
+            /**
+             * Returns the next element in the iteration.
+             */
+            override fun next(): Record {
                     /* Read values from underlying columns. */
                     val tupleId = this.wrapped.next()
                     val values = columns.map {

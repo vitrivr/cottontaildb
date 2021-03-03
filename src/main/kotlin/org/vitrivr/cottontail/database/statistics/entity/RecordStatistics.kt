@@ -44,6 +44,11 @@ open class RecordStatistics {
     fun remove(key: ColumnDef<*>) = this.columns.remove(key)
 
     /**
+     * Clears all [ValueStatistics] for this [RecordStatistics].
+     */
+    fun clear() = this.columns.clear()
+
+    /**
      * Dumps all [ValueStatistics] to [ColumnDef] mappings contained in this [RecordStatistics].
      *
      * @return Unmodifiable [Map] of [ColumnDef] to [ValueStatistics] mappings.
@@ -51,14 +56,13 @@ open class RecordStatistics {
     fun all(): Map<ColumnDef<*>, ValueStatistics<Value>> = Collections.unmodifiableMap(this.columns)
 
     /**
-     * Combines two [RecordStatistics] into one, merging the [ColumnDef]s they contain.
+     * Merges the other [RecordStatistics] into this [RecordStatistics], merging the [ColumnDef]s they contain.
      *
      * @param other [RecordStatistics] to merge with.
+     * @return This [RecordStatistics]
      */
     fun combine(other: RecordStatistics): RecordStatistics {
-        val new = RecordStatistics()
-        new.columns.putAll(this.columns)
-        other.columns.putAll(this.columns)
-        return new
+        other.columns.forEach { (t, u) -> this[t] = u }
+        return this
     }
 }

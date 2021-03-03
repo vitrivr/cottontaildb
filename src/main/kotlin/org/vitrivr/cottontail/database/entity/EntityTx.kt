@@ -12,7 +12,7 @@ import org.vitrivr.cottontail.model.basics.*
  * A [Tx] that operates on a single [Entity]. [Tx]s are a unit of isolation for data operations (read/write).
  *
  * @author Ralph Gasser
- * @version 1.2.1
+ * @version 1.3.0
  */
 interface EntityTx : Tx, Scanable, Countable, Modifiable {
 
@@ -74,6 +74,11 @@ interface EntityTx : Tx, Scanable, Countable, Modifiable {
      * @param name [Name.IndexName] of the [Index] to drop.
      */
     fun dropIndex(name: Name.IndexName)
+
+    /**
+     * Optimizes the [Entity] underlying this [EntityTx]. Optimization involves rebuilding of [Index]es and statistics.
+     */
+    fun optimize()
 
     /**
      * Reads the specified [TupleId] and the specified [ColumnDef] through this [EntityTx].
