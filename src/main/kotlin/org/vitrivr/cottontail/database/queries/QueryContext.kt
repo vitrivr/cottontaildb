@@ -1,9 +1,11 @@
 package org.vitrivr.cottontail.database.queries
 
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap
+import org.vitrivr.cottontail.database.column.ColumnDef
 
 import org.vitrivr.cottontail.database.queries.binding.Binding
 import org.vitrivr.cottontail.database.queries.binding.BindingContext
+import org.vitrivr.cottontail.database.queries.sort.SortOrder
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.model.basics.Record
@@ -35,6 +37,14 @@ class QueryContext(val txn: TransactionContext) {
     /** The [OperatorNode.Physical] representing the query and the sub-queries held by this [QueryContext]. */
     var physical: OperatorNode.Physical? = null
         internal set
+
+    /** Output [ColumnDef] for the query held by this [QueryContext] (as per canonical plan). */
+    val output: Array<ColumnDef<*>>?
+        get() = this.nodes[0]?.columns
+
+    /** Output order for the query held by this [QueryContext] (as per canonical plan). */
+    val order: Array<Pair<ColumnDef<*>, SortOrder>>?
+        get() = this.nodes[0]?.order
 
     @Volatile
     private var groupIdCounter: GroupId = 0
