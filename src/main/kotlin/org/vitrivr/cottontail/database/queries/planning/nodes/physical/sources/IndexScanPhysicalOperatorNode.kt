@@ -13,6 +13,7 @@ import org.vitrivr.cottontail.database.queries.predicates.bool.BooleanPredicate
 import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicate
 import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicateHint
 import org.vitrivr.cottontail.database.statistics.entity.RecordStatistics
+import org.vitrivr.cottontail.database.statistics.selectivity.NaiveSelectivityCalculator
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.sources.IndexScanOperator
@@ -26,12 +27,16 @@ import org.vitrivr.cottontail.model.values.types.Value
  * @version 2.0.0
  */
 class IndexScanPhysicalOperatorNode(override val groupId: Int, val index: Index, val predicate: Predicate) : NullaryPhysicalOperatorNode() {
-    override val outputSize: Long = this.index.parent.numberOfRows
     override val statistics: RecordStatistics = this.index.parent.statistics
     override val columns: Array<ColumnDef<*>> = this.index.produces
     override val executable: Boolean = true
     override val canBePartitioned: Boolean = this.index.supportsPartitioning
     override val cost: Cost = this.index.cost(this.predicate)
+    override val outputSize: Long = when (this.predicate) {
+        is BooleanPredicate -> NaiveSelectivityCalculator.estimate(this.predicate, this.statistics)(this.index.parent.numberOfRows)
+        is KnnPredicate -> this.predicate.k.toLong()
+        else -> this.index.parent.numberOfRows
+    }
 
     /**
      * Returns a copy of this [IndexScanPhysicalOperatorNode].
