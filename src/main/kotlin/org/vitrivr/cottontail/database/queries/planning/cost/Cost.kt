@@ -33,9 +33,6 @@ data class Cost constructor(val io: Float = 0.0f, val cpu: Float = 0.0f, val mem
         /** Estimated cost of a floating point operation. */
         val COST_FLOP = estimateFlopCost()
 
-        /* Default selectivity for boolean predicates. */
-        const val COST_DEFAULT_SELECTIVITY = 0.5f
-
         /**
          * Estimates the cost of memory access  based on a series of measurements.
          */
@@ -118,5 +115,16 @@ data class Cost constructor(val io: Float = 0.0f, val cpu: Float = 0.0f, val mem
     operator fun minus(other: Number): Cost = Cost(this.io - other.toFloat(), this.cpu - other.toFloat(), this.memory - other.toFloat())
     operator fun times(other: Number): Cost = Cost(this.io * other.toFloat(), this.cpu * other.toFloat(), this.memory * other.toFloat())
     operator fun div(other: Number): Cost = Cost(this.io / other.toFloat(), this.cpu / other.toFloat(), this.memory / other.toFloat())
-    override fun compareTo(other: Cost): Int = (2.0f * (this.cpu - other.cpu) + 1.25f * (this.io - other.io) + (this.memory - other.memory)).toInt()
+
+    /**
+     * Calculates a combines [Cost] score, which is a weighted sum of the individual [Cost] components.
+     *
+     * @return For this [Cost]
+     */
+    fun toScore(): Float = 0.8f * this.cpu + 0.15f * this.io + 0.05f * this.memory
+
+    /**
+     * Compares to [Cost]s based on their score.
+     */
+    override fun compareTo(other: Cost): Int = this.toScore().compareTo(other.toScore())
 }
