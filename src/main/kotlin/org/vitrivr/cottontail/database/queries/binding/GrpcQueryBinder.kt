@@ -13,8 +13,7 @@ import org.vitrivr.cottontail.database.queries.planning.nodes.logical.management
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.management.UpdateLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.predicates.FilterLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.predicates.FilterOnSubSelectLogicalOperatorNode
-import org.vitrivr.cottontail.database.queries.planning.nodes.logical.projection.DistanceLogicalOperatorNode
-import org.vitrivr.cottontail.database.queries.planning.nodes.logical.projection.ProjectionLogicalOperatorNode
+import org.vitrivr.cottontail.database.queries.planning.nodes.logical.projection.*
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.sort.SortLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.sources.EntitySampleLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.sources.EntityScanLogicalOperatorNode
@@ -49,7 +48,7 @@ import org.vitrivr.cottontail.utilities.math.KnnUtilities
  * 3) A [OperatorNode.Logical] tree is constructed from the internal query objects.
  *
  * @author Ralph Gasser
- * @version 1.6.0
+ * @version 1.6.1
  */
 class GrpcQueryBinder constructor(val catalogue: Catalogue) {
 
@@ -511,7 +510,7 @@ class GrpcQueryBinder constructor(val catalogue: Catalogue) {
      * @param projection The [CottontailGrpc.Projection] object.
      * @param context The [QueryContext] used for query binding.
      *
-     * @return The resulting [ProjectionLogicalOperatorNode].
+     * @return The resulting [SelectProjectionLogicalOperatorNode].
      */
     private fun parseAndBindProjection(input: OperatorNode.Logical, projection: CottontailGrpc.Projection, context: QueryContext): OperatorNode.Logical {
         val fields = projection.columnsList.map { p ->
@@ -527,8 +526,17 @@ class GrpcQueryBinder constructor(val catalogue: Catalogue) {
             throw QueryException.QuerySyntaxException("The query lacks a valid SELECT-clause (projection): ${projection.op} is not supported.")
         }
 
-        /* Generate KnnLogicalNodeExpression and return it. */
-        return ProjectionLogicalOperatorNode(input, type, fields)
+        /* Return logical node expression for projection. */
+        return when (type) {
+            Projection.SELECT -> SelectProjectionLogicalOperatorNode(input, fields)
+            Projection.COUNT -> CountProjectionLogicalOperatorNode(input, fields)
+            Projection.EXISTS -> ExistsProjectionLogicalOperatorNode(input, fields)
+            Projection.SUM,
+            Projection.MAX,
+            Projection.MIN,
+            Projection.MEAN -> AggregatingProjectionLogicalOperatorNode(input, type, fields)
+            else -> throw QueryException.QuerySyntaxException("Project of type $type is currently not supported.")
+        }
     }
 
     /**
