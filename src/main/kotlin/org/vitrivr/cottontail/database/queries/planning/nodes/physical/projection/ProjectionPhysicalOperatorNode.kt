@@ -6,6 +6,7 @@ import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.projection.ProjectionLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalOperatorNode
+import org.vitrivr.cottontail.database.queries.planning.nodes.physical.predicates.FilterPhysicalOperatorNode
 import org.vitrivr.cottontail.database.queries.projection.Projection
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.projection.*
@@ -34,10 +35,13 @@ class ProjectionPhysicalOperatorNode(input: OperatorNode.Physical, val type: Pro
             return when (type) {
                 Projection.SELECT,
                 Projection.SELECT_DISTINCT -> {
-                    return this.fields.map { f ->
-                        val column = this.input.columns.find { c -> c.name == f.first }
-                            ?: throw QueryException.QueryBindException("Column with name $f could not be found on input.")
-                        column.copy(name = f.second ?: column.name)
+                    this.input.columns.mapNotNull { c ->
+                        val find = this.fields.find { f -> f.first.matches(c.name) }
+                        if (find != null) {
+                            c
+                        } else {
+                            null
+                        }
                     }.toTypedArray()
                 }
                 Projection.EXISTS -> {
@@ -138,4 +142,7 @@ class ProjectionPhysicalOperatorNode(input: OperatorNode.Physical, val type: Pro
         result = 31 * result + fields.hashCode()
         return result
     }
+
+    /** Generates and returns a [String] representation of this [FilterPhysicalOperatorNode]. */
+    override fun toString() = "${super.toString()}(${this.columns.joinToString(",") { it.name.toString() }})"
 }

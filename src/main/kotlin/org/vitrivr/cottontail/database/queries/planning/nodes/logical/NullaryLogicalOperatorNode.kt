@@ -44,4 +44,7 @@ abstract class NullaryLogicalOperatorNode : OperatorNode.Logical() {
      * @return Digest for this [NullaryLogicalOperatorNode]
      */
     final override fun digest(): Long = this.hashCode().toLong()
+
+    /** Generates and returns a [String] representation of this [OperatorNode]. */
+    override fun toString() = "${this.javaClass.simpleName}[*${this.groupId}]"
 }

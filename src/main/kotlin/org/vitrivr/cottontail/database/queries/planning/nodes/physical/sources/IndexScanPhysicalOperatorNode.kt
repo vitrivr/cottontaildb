@@ -120,4 +120,7 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int, val index: Index,
         result = 31 * result + predicate.hashCode()
         return result
     }
+
+    /** Generates and returns a [String] representation of this [IndexScanPhysicalOperatorNode]. */
+    override fun toString() = "${super.toString()}(${this.index.type}, ${this.predicate})"
 }

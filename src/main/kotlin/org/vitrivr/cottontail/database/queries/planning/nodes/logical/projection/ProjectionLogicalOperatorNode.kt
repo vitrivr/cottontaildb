@@ -32,7 +32,7 @@ class ProjectionLogicalOperatorNode(input: OperatorNode.Logical, val type: Proje
                 Projection.SELECT,
                 Projection.SELECT_DISTINCT -> {
                     return this.fields.map { f ->
-                        val column = input.columns.find { c -> c.name == f.first }
+                        val column = input.columns.find { c -> f.first.matches(c.name) }
                             ?: throw QueryException.QueryBindException("Column with name $f could not be found on input.")
                         column.copy(name = f.second ?: column.name)
                     }.toTypedArray()

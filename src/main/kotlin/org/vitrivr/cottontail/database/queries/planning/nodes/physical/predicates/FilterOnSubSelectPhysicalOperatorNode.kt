@@ -10,6 +10,8 @@ import org.vitrivr.cottontail.database.queries.planning.nodes.physical.NAryPhysi
 import org.vitrivr.cottontail.database.queries.predicates.bool.BooleanPredicate
 import org.vitrivr.cottontail.database.queries.predicates.bool.ComparisonOperator
 import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicate
+import org.vitrivr.cottontail.database.statistics.selectivity.NaiveSelectivityCalculator
+import org.vitrivr.cottontail.database.statistics.selectivity.Selectivity
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.predicates.FilterOnSubselectOperator
@@ -22,7 +24,7 @@ import org.vitrivr.cottontail.model.values.types.Value
  * the execution of one or many sub-queries.
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.1.0
  */
 class FilterOnSubSelectPhysicalOperatorNode(val predicate: BooleanPredicate, vararg inputs: OperatorNode.Physical) : NAryPhysicalOperatorNode(*inputs) {
 
@@ -36,8 +38,8 @@ class FilterOnSubSelectPhysicalOperatorNode(val predicate: BooleanPredicate, var
     /** The [FilterOnSubSelectPhysicalOperatorNode] can only be executed if it doesn't contain any [ComparisonOperator.Binary.Match]. */
     override val executable: Boolean = this.predicate.atomics.none { it.operator is ComparisonOperator.Binary.Match } && this.inputs.all { it.executable }
 
-    /** The output size of this [FilterOnSubSelectPhysicalOperatorNode]. TODO: Estimate selectivity of predicate. */
-    override val outputSize: Long = this.inputs[0].outputSize
+    /** The estimated output size of this [FilterOnSubSelectPhysicalOperatorNode]. Calculated based on [Selectivity] estimates. */
+    override val outputSize: Long = NaiveSelectivityCalculator.estimate(this.predicate, this.statistics).invoke(this.inputs[0].outputSize)
 
     /** The [Cost] of this [FilterOnSubSelectPhysicalOperatorNode]. */
     override val cost: Cost = Cost(cpu = this.inputs[0].outputSize * this.predicate.atomicCpuCost)
@@ -102,4 +104,7 @@ class FilterOnSubSelectPhysicalOperatorNode(val predicate: BooleanPredicate, var
     }
 
     override fun hashCode(): Int = this.predicate.hashCode()
+
+    /** Generates and returns a [String] representation of this [FilterOnSubSelectPhysicalOperatorNode]. */
+    override fun toString() = "${super.toString()}(${this.predicate})"
 }

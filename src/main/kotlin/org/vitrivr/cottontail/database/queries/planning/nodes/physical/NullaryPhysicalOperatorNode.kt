@@ -49,4 +49,7 @@ abstract class NullaryPhysicalOperatorNode : OperatorNode.Physical() {
      * @return Digest for this [NullaryPhysicalOperatorNode]
      */
     final override fun digest(): Long = this.hashCode().toLong()
+
+    /** Generates and returns a [String] representation of this [OperatorNode]. */
+    override fun toString() = "${this.javaClass.simpleName}[*${this.groupId}]"
 }

@@ -3,6 +3,7 @@ package org.vitrivr.cottontail.database.queries.planning.nodes.logical.sources
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.NullaryLogicalOperatorNode
+import org.vitrivr.cottontail.database.queries.planning.nodes.logical.predicates.FilterLogicalOperatorNode
 
 /**
  * A [NullaryLogicalOperatorNode] that formalizes accessing data from an [Entity].
@@ -26,4 +27,7 @@ abstract class EntitySourceLogicalOperatorNode(override val groupId: Int, val en
         result = 31 * result + columns.contentHashCode()
         return result
     }
+
+    /** Generates and returns a [String] representation of this [FilterLogicalOperatorNode]. */
+    override fun toString() = "${super.toString()}(${this.columns.joinToString(",") { it.name.toString() }})"
 }

@@ -52,6 +52,9 @@ sealed class OperatorNode : Node {
         p.print("|\n")
     }
 
+    /** Generates and returns a [String] representation of this [OperatorNode]. */
+    override fun toString() = "${this.javaClass.simpleName}[${this.groupId}]"
+
     /**
      * A logical [OperatorNode] in the Cottontail DB query execution plan.
      *
@@ -67,13 +70,9 @@ sealed class OperatorNode : Node {
         /** The [OperatorNode.Logical] that receives the results produced by this [OperatorNode.Logical] as input. May be null, which makes this [OperatorNode.Logical] the root of the tree. */
         var output: OperatorNode.Logical? = null
 
-        /** The root of this [OperatorNode.Logical], i.e., the final [ OperatorNode.Logical] in terms of operation that usually produces the output. */
+        /** The root of this [OperatorNode.Logical], i.e., the final [OperatorNode.Logical] in terms of operation that usually produces the output. */
         val root: OperatorNode.Logical
-            get() = if (this.output?.groupId == this.groupId) {
-                this
-            } else {
-                this.output!!.root
-            }
+            get() = this.output?.root ?: this
 
         /** The base of this [OperatorNode], i.e., the starting point(s) in terms of operation. Depending on the tree structure, multiple bases may exist. */
         abstract val base: Collection<OperatorNode.Logical>
@@ -103,9 +102,6 @@ sealed class OperatorNode : Node {
          * @return [OperatorNode.Physical] representing this [OperatorNode.Logical].
          */
         abstract fun implement(): Physical
-
-        /** Generates and returns a [String] representation of this [OperatorNode.Logical]. */
-        override fun toString() = "${this.javaClass.simpleName}[${this.groupId}]"
     }
 
     /**
@@ -193,8 +189,5 @@ sealed class OperatorNode : Node {
          * @throws IllegalStateException If this [OperatorNode.Physical] cannot be partitioned.
          */
         abstract fun partition(p: Int): List<Physical>
-
-        /** Generates and returns a [String] representation of this [OperatorNode.Physical]. */
-        override fun toString() = "${this.javaClass.simpleName}[${this.groupId}, io = ${cost.io}, cpu = ${cost.cpu}, memory = ${cost.memory}]"
     }
 }

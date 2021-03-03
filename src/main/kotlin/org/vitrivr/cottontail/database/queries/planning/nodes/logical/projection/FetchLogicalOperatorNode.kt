@@ -4,6 +4,7 @@ import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.UnaryLogicalOperatorNode
+import org.vitrivr.cottontail.database.queries.planning.nodes.logical.predicates.FilterLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.projection.FetchPhysicalOperatorNode
 
 /**
@@ -62,4 +63,7 @@ class FetchLogicalOperatorNode(input: OperatorNode.Logical, val entity: Entity, 
         result = 31 * result + fetch.contentHashCode()
         return result
     }
+
+    /** Generates and returns a [String] representation of this [FilterLogicalOperatorNode]. */
+    override fun toString() = "${super.toString()}(${this.fetch.joinToString(",") { it.name.toString() }})"
 }

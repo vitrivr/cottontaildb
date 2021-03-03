@@ -56,4 +56,7 @@ class FilterLogicalOperatorNode(input: OperatorNode.Logical, val predicate: Bool
     }
 
     override fun hashCode(): Int = this.predicate.hashCode()
+
+    /** Generates and returns a [String] representation of this [FilterLogicalOperatorNode]. */
+    override fun toString() = "${super.toString()}(${this.predicate})"
 }

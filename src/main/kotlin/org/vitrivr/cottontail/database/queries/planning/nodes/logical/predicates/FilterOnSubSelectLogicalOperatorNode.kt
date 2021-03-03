@@ -21,6 +21,10 @@ class FilterOnSubSelectLogicalOperatorNode(val predicate: BooleanPredicate, vara
     /** [ColumnDef] produced by [FilterOnSubSelectLogicalOperatorNode] are determined by the left [OperatorNode.Logical]. */
     override val columns: Array<ColumnDef<*>> = this.inputs[0].columns
 
+    /** The [FilterOnSubSelectLogicalOperatorNode] requires all [ColumnDef]s used in the [BooleanPredicate]. */
+    override val requires: Array<ColumnDef<*>>
+        get() = this.predicate.columns.toTypedArray()
+
     /**
      * Returns a copy of this [FilterOnSubSelectLogicalOperatorNode] and its input.
      *
@@ -53,4 +57,7 @@ class FilterOnSubSelectLogicalOperatorNode(val predicate: BooleanPredicate, vara
      * @return [FilterOnSubSelectPhysicalOperatorNode]
      */
     override fun implement() = FilterOnSubSelectPhysicalOperatorNode(this.predicate, *this.inputs.map { it.implement() }.toTypedArray())
+
+    /** Generates and returns a [String] representation of this [FilterLogicalOperatorNode]. */
+    override fun toString() = "${super.toString()}(${this.predicate})"
 }
