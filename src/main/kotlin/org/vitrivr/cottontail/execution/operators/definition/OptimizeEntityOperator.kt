@@ -5,7 +5,6 @@ import kotlinx.coroutines.flow.flow
 import org.vitrivr.cottontail.database.catalogue.CatalogueTx
 import org.vitrivr.cottontail.database.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.database.entity.EntityTx
-import org.vitrivr.cottontail.database.index.IndexTx
 import org.vitrivr.cottontail.database.schema.SchemaTx
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
@@ -27,14 +26,8 @@ class OptimizeEntityOperator(private val catalogue: DefaultCatalogue, private va
         val catTxn = context.getTx(this.catalogue) as CatalogueTx
         val schemaTxn = context.getTx(catTxn.schemaForName(this.name.schema())) as SchemaTx
         val entityTxn = context.getTx(schemaTxn.entityForName(this.name)) as EntityTx
-        val indexes = entityTxn.listIndexes()
         return flow {
-            val timedTupleId = measureTimedValue {
-                for (index in indexes) {
-                    val txn = context.getTx(index) as IndexTx
-                    txn.rebuild()
-                }
-            }
+            val timedTupleId = measureTimedValue { entityTxn.optimize() }
             emit(this@OptimizeEntityOperator.statusRecord(timedTupleId.duration))
         }
     }

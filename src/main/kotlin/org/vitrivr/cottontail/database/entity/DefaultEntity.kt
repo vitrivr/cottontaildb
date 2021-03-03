@@ -129,9 +129,7 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
 
         /** Create entity statistics object, if none exists. */
         if (this.statisticsField.get() == null) {
-            val statistics = EntityStatistics()
-            this.columns.values.forEach { statistics[it.columnDef] = it.type.statistics() as ValueStatistics<Value> }
-            this.statisticsField.set(statistics)
+            this.statisticsField.set(this.newStatistics())
         }
     }
 
@@ -166,6 +164,17 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
                 throw IllegalStateException("Could not close entity ${this.name}. Failed to acquire exclusive lock which indicates, that transaction wasn't closed properly.")
             }
         }
+    }
+
+    /**
+     * Creates a new, empty [EntityStatistics] object for this [DefaultEntity].
+     *
+     * @return [EntityStatistics] object for this [DefaultEntity].
+     */
+    private fun newStatistics(): EntityStatistics {
+        val statistics = EntityStatistics()
+        this.columns.values.forEach { statistics[it.columnDef] = it.type.statistics() as ValueStatistics<Value> }
+        return statistics
     }
 
     /**
@@ -384,10 +393,10 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
          */
         override fun optimize() = this.withWriteLock {
             /* Stage 1a: Rebuild incremental indexes and statistics. */
-            val incremental = this.listIndexes().filter { it.supportsIncrementalUpdate }.map { context.getTx(it) as IndexTx }
+            val incremental = this.listIndexes().filter { it.supportsIncrementalUpdate }.map { this.context.getTx(it) as IndexTx }
             val columns = this.listColumns().map { it.columnDef }.toTypedArray()
             val map = Object2ObjectOpenHashMap<ColumnDef<*>, Value>(columns.size)
-            val statistics = EntityStatistics()
+            val statistics = this@DefaultEntity.newStatistics()
             this.scan(columns).forEach { r ->
                 r.forEach { columnDef, value -> map[columnDef] = value }
                 val event = DataChangeEvent.InsertDataChangeEvent(this@DefaultEntity, r.tupleId, map) /* Fake data change event for update. */
@@ -400,7 +409,7 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
             this.snapshot.statistics.combine(statistics)
 
             /* Stage 2: Rebuild remaining indexes. */
-            this.listIndexes().filter { it.supportsIncrementalUpdate }.forEach { (context.getTx(it) as IndexTx).rebuild() }
+            this.listIndexes().filter { !it.supportsIncrementalUpdate }.forEach { (this.context.getTx(it) as IndexTx).rebuild() }
         }
 
         /**
