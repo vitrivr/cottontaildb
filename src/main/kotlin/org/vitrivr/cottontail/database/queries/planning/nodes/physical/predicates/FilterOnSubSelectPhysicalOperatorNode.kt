@@ -37,7 +37,7 @@ class FilterOnSubSelectPhysicalOperatorNode(val predicate: BooleanPredicate, var
         get() = NODE_NAME
 
     /** The [inputArity] of a [FilterOnSubSelectPhysicalOperatorNode] depends on the [BooleanPredicate]. */
-    override val inputArity: Int = this.predicate.atomics.count { it is BooleanPredicate.Atomic.Literal && it.dependsOn != -1 }
+    override val inputArity: Int = this.predicate.atomics.count { it is BooleanPredicate.Atomic.Literal && it.dependsOn != -1 } + 1
 
     /** The [FilterOnSubSelectPhysicalOperatorNode] returns the [ColumnDef] of its input. */
     override val columns: Array<ColumnDef<*>>

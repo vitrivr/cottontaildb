@@ -26,7 +26,10 @@ sealed class OperatorNode : Node {
     abstract val inputArity: Int
 
     /** Internal group identifier used for plan enumeration. Can be null for disconnected [OperatorNode]s. */
-    abstract val groupId: Int
+    abstract val groupId: GroupId
+
+    /** Internal [depth] index of this [OperatorNode] in the [OperatorNode] tree. Counting starts from [root], which is 0. */
+    abstract val depth: Int
 
     /** The name of this [OperatorNode]. */
     abstract val name: String

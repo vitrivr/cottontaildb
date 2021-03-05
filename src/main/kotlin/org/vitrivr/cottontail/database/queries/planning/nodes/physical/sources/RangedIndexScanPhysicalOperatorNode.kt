@@ -79,7 +79,7 @@ class RangedIndexScanPhysicalOperatorNode(override val groupId: Int, val index: 
         if (this === other) return true
         if (other !is RangedIndexScanPhysicalOperatorNode) return false
 
-        if (index != other.index) return false
+        if (depth != other.depth) return false
         if (predicate != other.predicate) return false
         if (range != other.range) return false
 
@@ -87,7 +87,7 @@ class RangedIndexScanPhysicalOperatorNode(override val groupId: Int, val index: 
     }
 
     override fun hashCode(): Int {
-        var result = index.hashCode()
+        var result = depth.hashCode()
         result = 31 * result + predicate.hashCode()
         result = 31 * result + range.hashCode()
         return result

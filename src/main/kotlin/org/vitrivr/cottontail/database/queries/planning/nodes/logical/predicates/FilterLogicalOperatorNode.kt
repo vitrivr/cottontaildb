@@ -1,7 +1,6 @@
 package org.vitrivr.cottontail.database.queries.planning.nodes.logical.predicates
 
 import org.vitrivr.cottontail.database.column.ColumnDef
-import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.UnaryLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.predicates.FilterPhysicalOperatorNode
 import org.vitrivr.cottontail.database.queries.predicates.bool.BooleanPredicate
@@ -12,7 +11,7 @@ import org.vitrivr.cottontail.database.queries.predicates.bool.BooleanPredicate
  * @author Ralph Gasser
  * @version 2.1.0
  */
-class FilterLogicalOperatorNode(input: OperatorNode.Logical? = null, val predicate: BooleanPredicate) : UnaryLogicalOperatorNode(input) {
+class FilterLogicalOperatorNode(input: Logical? = null, val predicate: BooleanPredicate) : UnaryLogicalOperatorNode(input) {
 
     companion object {
         private const val NODE_NAME = "Filter"

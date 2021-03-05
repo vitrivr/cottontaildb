@@ -24,6 +24,10 @@ abstract class NAryLogicalOperatorNode(vararg inputs: Logical) : OperatorNode.Lo
     val inputs: List<Logical>
         get() = Collections.unmodifiableList(this._inputs)
 
+    /** A [BinaryLogicalOperatorNode]'s index is always the [depth] of its [left] input + 1. */
+    final override var depth: Int = 0
+        private set
+
     /**
      * The group ID of a [NAryLogicalOperatorNode] is always the one of its left parent.
      *
@@ -57,6 +61,9 @@ abstract class NAryLogicalOperatorNode(vararg inputs: Logical) : OperatorNode.Lo
      */
     fun addInput(input: Logical) {
         require(input.output == null) { "Cannot connect $input to $this: Output is already occupied!" }
+        if (this._inputs.size == 0) {
+            this.depth = input.depth + 1
+        }
         this._inputs.add(input)
         input.output = this
     }
@@ -133,6 +140,7 @@ abstract class NAryLogicalOperatorNode(vararg inputs: Logical) : OperatorNode.Lo
         for (i in this._inputs) {
             result = 33L * result + i.digest()
         }
+        result += 33L * result + this.depth.hashCode()
         return result
     }
 

@@ -26,9 +26,7 @@ class FilterOnSubSelectLogicalOperatorNode(val predicate: BooleanPredicate, vara
         get() = NODE_NAME
 
     /** The [inputArity] of a [FilterOnSubSelectLogicalOperatorNode] depends on the [BooleanPredicate]. */
-    override val inputArity: Int = this.predicate.atomics.count {
-        it is BooleanPredicate.Atomic.Literal && it.dependsOn != -1
-    }
+    override val inputArity: Int = this.predicate.atomics.count { it is BooleanPredicate.Atomic.Literal && it.dependsOn != -1 } + 1
 
     /** The [FilterOnSubSelectLogicalOperatorNode] requires all [ColumnDef]s used in the [BooleanPredicate]. */
     override val requires: Array<ColumnDef<*>>

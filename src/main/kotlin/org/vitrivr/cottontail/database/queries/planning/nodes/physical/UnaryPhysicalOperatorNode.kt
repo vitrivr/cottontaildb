@@ -6,6 +6,7 @@ import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.binding.Binding
 import org.vitrivr.cottontail.database.queries.binding.BindingContext
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
+import org.vitrivr.cottontail.database.queries.planning.nodes.logical.UnaryLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.sort.SortOrder
 import org.vitrivr.cottontail.database.statistics.entity.RecordStatistics
 import org.vitrivr.cottontail.model.values.types.Value
@@ -22,6 +23,10 @@ abstract class UnaryPhysicalOperatorNode(input: Physical? = null) : OperatorNode
     /** The arity of the [UnaryPhysicalOperatorNode] is always on. */
     final override val inputArity = 1
 
+    /** A [UnaryLogicalOperatorNode]'s index is always the [depth] of its [input] + 1. This is set in the [input]'s setter. */
+    final override var depth: Int = 0
+        private set
+
     /** The group Id of a [UnaryPhysicalOperatorNode] is always the one of its parent.*/
     final override val groupId: GroupId
         get() = this.input?.groupId ?: 0
@@ -32,6 +37,7 @@ abstract class UnaryPhysicalOperatorNode(input: Physical? = null) : OperatorNode
             require(value?.output == null) { "Cannot connect $value to $this: Output is already occupied!" }
             field?.output = null
             value?.output = this
+            this.depth = value?.depth?.plus(1) ?: 0
             field = value
         }
 
@@ -136,7 +142,10 @@ abstract class UnaryPhysicalOperatorNode(input: Physical? = null) : OperatorNode
      *
      * @return Digest for this [UnaryPhysicalOperatorNode]
      */
-    final override fun digest(): Long = 27L * this.hashCode() + (this.input?.digest() ?: -1L)
+    final override fun digest(): Long {
+        val result = 27L * this.hashCode() + (this.input?.digest() ?: -1L)
+        return 27L * result + this.depth.hashCode()
+    }
 
     /**
      * Prints this [OperatorNode] tree to the given [PrintStream].

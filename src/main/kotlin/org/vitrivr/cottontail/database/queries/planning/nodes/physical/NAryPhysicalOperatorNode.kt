@@ -26,6 +26,10 @@ abstract class NAryPhysicalOperatorNode(vararg inputs: Physical) : OperatorNode.
     val inputs: List<Physical>
         get() = Collections.unmodifiableList(this._inputs)
 
+    /** A [NAryPhysicalOperatorNode]'s index is always the [depth] of its first input + 1. */
+    final override var depth: Int = 0
+        private set
+
     /**
      * The group ID of a [NAryPhysicalOperatorNode] is always the one of its left parent.
      *
@@ -80,6 +84,9 @@ abstract class NAryPhysicalOperatorNode(vararg inputs: Physical) : OperatorNode.
      */
     fun addInput(input: Physical) {
         require(input.output == null) { "Cannot connect $input to $this: Output is already occupied!" }
+        if (this._inputs.size == 0) {
+            this.depth = input.depth + 1
+        }
         this._inputs.add(input)
         input.output = this
     }
@@ -156,6 +163,7 @@ abstract class NAryPhysicalOperatorNode(vararg inputs: Physical) : OperatorNode.
         for (i in this.inputs) {
             result += 27L * result + i.digest()
         }
+        result += 27L * result + this.depth.hashCode()
         return result
     }
 

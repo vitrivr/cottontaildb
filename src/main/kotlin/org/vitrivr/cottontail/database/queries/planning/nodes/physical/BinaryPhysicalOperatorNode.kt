@@ -22,6 +22,10 @@ abstract class BinaryPhysicalOperatorNode(left: Physical? = null, right: Physica
     /** Input arity of [BinaryPhysicalOperatorNode] is always two. */
     final override val inputArity: Int = 2
 
+    /** A [BinaryPhysicalOperatorNode]'s index is always the [depth] of its [left] input + 1. This is set in the [left]'s setter. */
+    final override var depth: Int = 0
+        private set
+
     /**
      * The group ID of a [BinaryPhysicalOperatorNode] is always the one of its left parent.
      *
@@ -30,13 +34,13 @@ abstract class BinaryPhysicalOperatorNode(left: Physical? = null, right: Physica
     final override val groupId: GroupId
         get() = this.left?.groupId ?: 0
 
-
     /** The left branch of the input; belongs to the same group! */
     var left: Physical? = null
         set(value) {
             require(value?.output == null) { "Cannot connect $value to $this: Output is already occupied!" }
             field?.output = null
             value?.output = this
+            this.depth = value?.depth?.plus(1) ?: 0
             field = value
         }
 
@@ -159,8 +163,9 @@ abstract class BinaryPhysicalOperatorNode(left: Physical? = null, right: Physica
      * @return Digest for this [BinaryPhysicalOperatorNode]
      */
     override fun digest(): Long {
-        val result = 27L * hashCode() + (this.left?.digest() ?: -1L)
-        return 27L * result + (this.right?.digest() ?: -3L)
+        var result = 27L * hashCode() + (this.left?.digest() ?: -1L)
+        result = 27L * result + (this.right?.digest() ?: -1L)
+        return 27L * result + this.depth.hashCode()
     }
 
     /**

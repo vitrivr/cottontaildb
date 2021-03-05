@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.database.queries.planning
 
 import it.unimi.dsi.fastutil.ints.Int2ObjectLinkedOpenHashMap
+import org.vitrivr.cottontail.database.queries.GroupId
 import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.BinaryLogicalOperatorNode
@@ -9,6 +10,7 @@ import org.vitrivr.cottontail.database.queries.planning.nodes.logical.NullaryLog
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.UnaryLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.BinaryPhysicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.NAryPhysicalOperatorNode
+import org.vitrivr.cottontail.database.queries.planning.nodes.physical.NullaryPhysicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.rules.RewriteRule
 import org.vitrivr.cottontail.model.exceptions.QueryException
@@ -81,12 +83,12 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
         val decomposition = this.decompose(logical)
         val candidates = Int2ObjectLinkedOpenHashMap<OperatorNode.Physical>()
         for (d in decomposition) {
-            val stage1 = this.optimizeLogical(d.value, context).map { it.implement() }.filter { it.executable }
-            val stage2 = stage1.flatMap { this.optimizePhysical(it, context) }.filter { it.executable }
+            val stage1 = this.optimizeLogical(d.value, context).map { it.implement() }
+            val stage2 = stage1.flatMap { this.optimizePhysical(it, context) }
             val candidate = stage2.minByOrNull { it.totalCost } ?: throw QueryException.QueryPlannerException("Failed to generate a physical execution plan for expression: $logical.")
             candidates[d.key] = candidate
         }
-        return emptyList()
+        return listOf(this.compose(0, candidates))
     }
 
     /**
@@ -95,7 +97,7 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
     fun clearCache() = this.planCache.clear()
 
     /**
-     * Decomposes the given [OperatorNode.Logical], i.e., splits the tree in a single sub-tree per group.
+     * Decomposes the given [OperatorNode.Logical], i.e., splits the tree into a sub-tree per group.
      * This is a preparation for query optimisation.
      *
      * @param operator [OperatorNode.Logical] That should be decomposed.
@@ -123,6 +125,38 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
             }
         }
         throw IllegalStateException("Tree decomposition failed. Encountered null node while scanning tree (node = $prev). This is a programmer's error!")
+    }
+
+    /**
+     * Composes a decomposition [Map] into a [OperatorNode.Physical], i.e., splits the tree into a sub-tree per group.
+     * This is a preparation for query optimisation.
+     *
+     * @param decomposition The decomposition [Map] that should be recomposed.
+     */
+    private fun compose(startGroupId: GroupId = 0, decomposition: Map<Int, OperatorNode.Physical>): OperatorNode.Physical {
+        val main = decomposition[startGroupId] ?: throw IllegalStateException("Tree composition failed. No entry for desired groupId $startGroupId.")
+        var next: OperatorNode.Physical? = main
+        var prev: OperatorNode.Physical? = null
+        while (next != null) {
+            prev = next
+            when (next) {
+                is NullaryPhysicalOperatorNode -> return main
+                is UnaryPhysicalOperatorNode -> {
+                    next = next.input
+                }
+                is BinaryPhysicalOperatorNode -> {
+                    next.right = this.compose(startGroupId + 1, decomposition)
+                    next = next.left
+                }
+                is NAryPhysicalOperatorNode -> {
+                    repeat(next.inputArity - 1) {
+                        (next as NAryPhysicalOperatorNode).addInput(this.compose(startGroupId + it + 1, decomposition))
+                    }
+                    next = next.inputs.first()
+                }
+            }
+        }
+        throw IllegalStateException("Tree composition failed. Encountered null node while scanning tree (node = $prev). This is a programmer's error!")
     }
 
     /**

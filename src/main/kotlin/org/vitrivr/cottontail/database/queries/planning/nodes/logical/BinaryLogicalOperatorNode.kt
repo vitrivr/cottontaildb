@@ -20,12 +20,17 @@ abstract class BinaryLogicalOperatorNode(left: Logical? = null, right: Logical? 
     /** Input arity of [UnaryLogicalOperatorNode] is always two. */
     final override val inputArity: Int = 2
 
+    /** A [BinaryLogicalOperatorNode]'s index is always the [depth] of its [left] input + 1. */
+    final override var depth: Int = 0
+        private set
+
     /** The left branch of the input; belongs to the same group! */
     var left: Logical? = null
         set(value) {
             require(value?.output == null) { "Cannot connect $value to $this: Output is already occupied!" }
             field?.output = null
             value?.output = this
+            this.depth = value?.depth?.plus(1) ?: 0
             field = value
         }
 
@@ -128,8 +133,9 @@ abstract class BinaryLogicalOperatorNode(left: Logical? = null, right: Logical? 
      * @return Digest for this [BinaryLogicalOperatorNode]
      */
     override fun digest(): Long {
-        val result = 33L * hashCode() + (this.left?.digest() ?: -1L)
-        return 33L * result + (this.right?.digest() ?: -1L)
+        var result = 33L * hashCode() + (this.left?.digest() ?: -1L)
+        result = 33L * result + (this.right?.digest() ?: -1L)
+        return 33L * result + this.depth.hashCode()
     }
 
     /**

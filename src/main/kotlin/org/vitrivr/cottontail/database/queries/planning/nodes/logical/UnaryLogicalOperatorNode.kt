@@ -20,6 +20,10 @@ abstract class UnaryLogicalOperatorNode(input: Logical? = null) : OperatorNode.L
     /** Input arity of [UnaryLogicalOperatorNode] is always one. */
     final override val inputArity: Int = 1
 
+    /** A [UnaryLogicalOperatorNode]'s index is always the [depth] of its [input] + 1. */
+    final override var depth: Int = 0
+        private set
+
     /** The group Id of a [UnaryLogicalOperatorNode] is always the one of its parent.*/
     final override val groupId: GroupId
         get() = this.input?.groupId ?: 0
@@ -29,11 +33,12 @@ abstract class UnaryLogicalOperatorNode(input: Logical? = null) : OperatorNode.L
         get() = this.input?.base ?: emptyList()
 
     /** The input [OperatorNode.Logical]. */
-    open var input: Logical? = null
+    var input: Logical? = null
         set(value) {
             require(value?.output == null) { "Cannot connect $value to $this: Output is already occupied!" }
             field?.output = null
             value?.output = this
+            this.depth = value?.depth?.plus(1) ?: 0
             field = value
         }
 
@@ -110,7 +115,10 @@ abstract class UnaryLogicalOperatorNode(input: Logical? = null) : OperatorNode.L
      *
      * @return Digest for this [UnaryLogicalOperatorNode]
      */
-    final override fun digest(): Long = 33L * this.hashCode() + (this.input?.digest() ?: -1L)
+    final override fun digest(): Long {
+        val result = 33L * this.hashCode() + (this.input?.digest() ?: -1L)
+        return 33L * result + this.depth.hashCode()
+    }
 
     /**
      * Prints this [OperatorNode] tree to the given [PrintStream].

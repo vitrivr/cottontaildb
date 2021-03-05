@@ -125,14 +125,14 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int, val index: Index,
         if (this === other) return true
         if (other !is IndexScanPhysicalOperatorNode) return false
 
-        if (index != other.index) return false
+        if (depth != other.depth) return false
         if (predicate != other.predicate) return false
 
         return true
     }
 
     override fun hashCode(): Int {
-        var result = index.hashCode()
+        var result = depth.hashCode()
         result = 31 * result + predicate.hashCode()
         return result
     }

@@ -20,6 +20,9 @@ abstract class NullaryPhysicalOperatorNode : OperatorNode.Physical() {
     /** The arity of the [NullaryPhysicalOperatorNode] is always on. */
     final override val inputArity = 0
 
+    /** A [NullaryPhysicalOperatorNode] is always the root of a tree and thus has the index 0. */
+    final override val depth: Int = 0
+
     /** The [base] of a [NullaryPhysicalOperatorNode] is always itself. */
     final override val base: Collection<Physical>
         get() = listOf(this)

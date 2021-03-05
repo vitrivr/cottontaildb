@@ -18,6 +18,9 @@ abstract class NullaryLogicalOperatorNode : OperatorNode.Logical() {
     /** Input arity of [NullaryLogicalOperatorNode] is always zero. */
     final override val inputArity: Int = 0
 
+    /** A [NullaryLogicalOperatorNode] is always the root of a tree and thus has the index 0. */
+    final override val depth: Int = 0
+
     /** The [base] of a [NullaryLogicalOperatorNode] is always itself. */
     final override val base: Collection<OperatorNode.Logical>
         get() = listOf(this)
