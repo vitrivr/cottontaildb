@@ -17,13 +17,17 @@ import org.vitrivr.cottontail.model.values.types.Value
  * A [NullaryPhysicalOperatorNode] that formalizes a scan of a physical [Index] in Cottontail DB on a given range.
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.1.0
  */
 class RangedIndexScanPhysicalOperatorNode(override val groupId: Int, val index: Index, val predicate: Predicate, val range: LongRange) : NullaryPhysicalOperatorNode() {
-
-    init {
-        require(this.range.first >= 0L) { "Start of a ranged index scan must be greater than zero." }
+    companion object {
+        private const val NODE_NAME = "ScanIndex"
     }
+
+    /** The name of this [RangedIndexScanPhysicalOperatorNode]. */
+    override val name: String
+        get() = NODE_NAME
+
 
     override val outputSize = (this.range.last - this.range.first)
     override val statistics: RecordStatistics = this.index.parent.statistics
@@ -32,24 +36,16 @@ class RangedIndexScanPhysicalOperatorNode(override val groupId: Int, val index: 
     override val canBePartitioned: Boolean = false
     override val cost = this.index.cost(this.predicate)
 
+    init {
+        require(this.range.first >= 0L) { "Start of a ranged index scan must be greater than zero." }
+    }
+
     /**
-     * Returns a copy of this [RangedIndexScanPhysicalOperatorNode].
+     * Creates and returns a copy of this [RangedIndexScanPhysicalOperatorNode] without any children or parents.
      *
      * @return Copy of this [RangedIndexScanPhysicalOperatorNode].
      */
-    override fun copyWithInputs() = RangedIndexScanPhysicalOperatorNode(this.groupId, this.index, this.predicate, this.range)
-
-    /**
-     * Returns a copy of this [RangedIndexScanPhysicalOperatorNode] and its output.
-     *
-     * @param input The [OperatorNode.Logical] that should act as inputs.
-     * @return Copy of this [RangedIndexScanPhysicalOperatorNode] and its output.
-     */
-    override fun copyWithOutput(input: OperatorNode.Physical?): OperatorNode.Physical {
-        require(input == null) { "No input is allowed for copyWithOutput() on nullary physical operator node." }
-        val scan = RangedIndexScanPhysicalOperatorNode(this.groupId, this.index, this.predicate, this.range)
-        return (this.output?.copyWithOutput(scan) ?: scan)
-    }
+    override fun copy() = RangedIndexScanPhysicalOperatorNode(this.groupId, this.index, this.predicate, this.range)
 
     /**
      * Converts this [RangedIndexScanPhysicalOperatorNode] to a [IndexScanOperator].
@@ -62,7 +58,7 @@ class RangedIndexScanPhysicalOperatorNode(override val groupId: Int, val index: 
     /**
      * [RangedIndexScanPhysicalOperatorNode] cannot be partitioned.
      */
-    override fun partition(p: Int): List<OperatorNode.Physical> {
+    override fun partition(p: Int): List<Physical> {
         throw UnsupportedOperationException("RangedIndexScanPhysicalOperatorNode cannot be further partitioned.")
     }
 
@@ -75,6 +71,9 @@ class RangedIndexScanPhysicalOperatorNode(override val groupId: Int, val index: 
         this.predicate.bindValues(ctx)
         return super.bindValues(ctx)
     }
+
+    /** Generates and returns a [String] representation of this [RangedIndexScanPhysicalOperatorNode]. */
+    override fun toString() = "${super.toString()}[${this.index.type},${this.predicate},${this.range}]"
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

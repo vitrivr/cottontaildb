@@ -14,12 +14,19 @@ import org.vitrivr.cottontail.execution.operators.sources.EntityScanOperator
  * A [NullaryPhysicalOperatorNode] that formalizes a scan of a physical [Entity] in Cottontail DB on a given range.
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.1.0
  */
 class RangedEntityScanPhysicalOperatorNode(override val groupId: Int, val entity: Entity, override val columns: Array<ColumnDef<*>>, val range: LongRange) : NullaryPhysicalOperatorNode() {
-    init {
-        require(this.range.first >= 0L) { "Start of a ranged entity scan must be greater than zero." }
+
+
+    companion object {
+        private const val NODE_NAME = "ScanEntity"
     }
+
+    /** The name of this [RangedEntityScanPhysicalOperatorNode]. */
+    override val name: String
+        get() = NODE_NAME
+
 
     override val outputSize = (this.range.last - this.range.first)
     override val statistics: RecordStatistics = this.entity.statistics
@@ -29,24 +36,16 @@ class RangedEntityScanPhysicalOperatorNode(override val groupId: Int, val entity
         this.statistics[it].avgWidth
     }.sum()
 
+    init {
+        require(this.range.first >= 0L) { "Start of a ranged entity scan must be greater than zero." }
+    }
+
     /**
-     * Returns a copy of this [RangedEntityScanPhysicalOperatorNode].
+     * Creates and returns a copy of this [RangedEntityScanPhysicalOperatorNode] without any children or parents.
      *
      * @return Copy of this [RangedEntityScanPhysicalOperatorNode].
      */
-    override fun copyWithInputs() = RangedEntityScanPhysicalOperatorNode(this.groupId, this.entity, this.columns, this.range)
-
-    /**
-     * Returns a copy of this [RangedEntityScanPhysicalOperatorNode] and its output.
-     *
-     * @param input The [OperatorNode.Logical] that should act as inputs.
-     * @return Copy of this [RangedEntityScanPhysicalOperatorNode] and its output.
-     */
-    override fun copyWithOutput(input: OperatorNode.Physical?): OperatorNode.Physical {
-        require(input == null) { "No input is allowed for copyWithOutput() on nullary physical operator node." }
-        val scan = RangedEntityScanPhysicalOperatorNode(this.groupId, this.entity, this.columns, this.range)
-        return (this.output?.copyWithOutput(scan) ?: scan)
-    }
+    override fun copy() = RangedEntityScanPhysicalOperatorNode(this.groupId, this.entity, this.columns, this.range)
 
     /**
      * [RangedIndexScanPhysicalOperatorNode] cannot be partitioned.
@@ -62,6 +61,9 @@ class RangedEntityScanPhysicalOperatorNode(override val groupId: Int, val entity
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
     override fun toOperator(tx: TransactionContext, ctx: QueryContext) = EntityScanOperator(this.groupId, this.entity, this.columns, this.range)
+
+    /** Generates and returns a [String] representation of this [RangedEntityScanPhysicalOperatorNode]. */
+    override fun toString() = "${super.toString()}[${this.columns.joinToString(",") { it.name.toString() }},${this.range}]"
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

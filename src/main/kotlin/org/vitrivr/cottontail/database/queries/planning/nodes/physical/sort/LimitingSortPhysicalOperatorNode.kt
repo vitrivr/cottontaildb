@@ -17,50 +17,43 @@ import kotlin.math.min
  * top K entries. This is semantically equivalent to a ORDER BY XY LIMIT Z. Internally, a heap sort algorithm is employed for sorting.
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.1.0
  */
-class LimitingSortPhysicalOperatorNode(input: OperatorNode.Physical, sortOn: Array<Pair<ColumnDef<*>, SortOrder>>, val limit: Long, val skip: Long) : UnaryPhysicalOperatorNode(input) {
-    init {
-        if (sortOn.isEmpty()) throw QueryException.QuerySyntaxException("At least one column must be specified for sorting.")
+class LimitingSortPhysicalOperatorNode(input: Physical? = null, sortOn: Array<Pair<ColumnDef<*>, SortOrder>>, val limit: Long, val skip: Long) : UnaryPhysicalOperatorNode(input) {
+    companion object {
+        private const val NODE_NAME = "OrderAndLimit"
     }
 
-    /** The [SortPhysicalOperatorNode] returns the [ColumnDef] of its input. */
-    override val columns: Array<ColumnDef<*>>
-        get() = this.input.columns
+    /** The name of this [SortPhysicalOperatorNode]. */
+    override val name: String
+        get() = NODE_NAME
 
     /** The [LimitingSortPhysicalOperatorNode] requires all [ColumnDef]s used on the ORDER BY clause. */
     override val requires: Array<ColumnDef<*>> = sortOn.map { it.first }.toTypedArray()
 
     /** The size of the output produced by this [SortPhysicalOperatorNode]. */
-    override val outputSize: Long = min((this.input.outputSize - this.skip), this.limit)
+    override val outputSize: Long = min((super.outputSize - this.skip), this.limit)
 
     /** The [Cost] incurred by this [SortPhysicalOperatorNode]. */
-    override val cost: Cost = Cost(
-        cpu = 2 * this.input.outputSize * sortOn.size * Cost.COST_MEMORY_ACCESS,
-        memory = (this.columns.map { this.statistics[it].avgWidth }.sum() * this.outputSize).toFloat()
-    )
+    override val cost: Cost
+        get() = Cost(
+            cpu = 2 * (this.input?.outputSize ?: 0) * this.order.size * Cost.COST_MEMORY_ACCESS,
+            memory = (this.columns.map { this.statistics[it].avgWidth }.sum() * this.outputSize).toFloat()
+        )
 
     /** A [SortPhysicalOperatorNode] orders the input in by the specified [ColumnDef]s. */
     override val order = sortOn
 
-    /**
-     * Returns a copy of this [LimitingSortPhysicalOperatorNode] and its input.
-     *
-     * @return Copy of this [LimitingSortPhysicalOperatorNode] and its input.
-     */
-    override fun copyWithInputs(): LimitingSortPhysicalOperatorNode = LimitingSortPhysicalOperatorNode(this.input.copyWithInputs(), this.order, this.outputSize, this.skip)
+    init {
+        if (this.order.isEmpty()) throw QueryException.QuerySyntaxException("At least one column must be specified for sorting.")
+    }
 
     /**
-     * Returns a copy of this [LimitingSortPhysicalOperatorNode] and its output.
+     * Creates and returns a copy of this [LimitingSortPhysicalOperatorNode] without any children or parents.
      *
-     * @param input The [OperatorNode] that should act as inputs.
-     * @return Copy of this [LimitingSortPhysicalOperatorNode] and its output.
+     * @return Copy of this [LimitingSortPhysicalOperatorNode].
      */
-    override fun copyWithOutput(input: OperatorNode.Physical?): OperatorNode.Physical {
-        require(input != null) { "Input is required for copyWithOutput() on unary physical operator node." }
-        val sort = LimitingSortPhysicalOperatorNode(input, this.order, this.limit, this.skip)
-        return (this.output?.copyWithOutput(sort) ?: sort)
-    }
+    override fun copy() = LimitingSortPhysicalOperatorNode(sortOn = this.order, limit = this.limit, skip = this.skip)
 
     /**
      * Partitions this [LimitingSortPhysicalOperatorNode].
@@ -68,7 +61,8 @@ class LimitingSortPhysicalOperatorNode(input: OperatorNode.Physical, sortOn: Arr
      * @param p The number of partitions to create.
      * @return List of [OperatorNode.Physical], each representing a partition of the original tree.
      */
-    override fun partition(p: Int): List<Physical> = input.partition(p).map { LimitingSortPhysicalOperatorNode(it, this.order, this.limit, this.skip) }
+    override fun partition(p: Int): List<Physical> =
+        this.input?.partition(p)?.map { LimitingSortPhysicalOperatorNode(it, this.order, this.limit, this.skip) } ?: throw IllegalStateException("Cannot partition disconnected OperatorNode (node = $this)")
 
     /**
      * Converts this [LimitingSortPhysicalOperatorNode] to a [LimitingHeapSortOperator].
@@ -76,7 +70,15 @@ class LimitingSortPhysicalOperatorNode(input: OperatorNode.Physical, sortOn: Arr
      * @param tx The [TransactionContext] used for execution.
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(tx: TransactionContext, ctx: QueryContext): Operator = LimitingHeapSortOperator(this.input.toOperator(tx, ctx), this.order, this.limit, this.skip)
+    override fun toOperator(tx: TransactionContext, ctx: QueryContext): Operator = LimitingHeapSortOperator(
+        this.input?.toOperator(tx, ctx) ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)"),
+        this.order,
+        this.limit,
+        this.skip
+    )
+
+    /** Generates and returns a [String] representation of this [SortPhysicalOperatorNode]. */
+    override fun toString() = "${super.toString()}[${this.order.joinToString(",") { "${it.first.name} ${it.second}" }},${this.skip},${this.limit}]"
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -95,7 +97,4 @@ class LimitingSortPhysicalOperatorNode(input: OperatorNode.Physical, sortOn: Arr
         result = 31 * result + order.contentHashCode()
         return result
     }
-
-    /** Generates and returns a [String] representation of this [SortPhysicalOperatorNode]. */
-    override fun toString() = "${this.groupId}:OrderWithLimit[${this.order.joinToString(",") { "${it.first.name} ${it.second}" }}][${this.skip},${this.limit}]"
 }

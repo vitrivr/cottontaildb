@@ -15,35 +15,41 @@ import org.vitrivr.cottontail.execution.operators.sources.EntityScanOperator
  * A [UnaryPhysicalOperatorNode] that formalizes a scan of a physical [Entity] in Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.1.0
  */
 class EntityScanPhysicalOperatorNode(override val groupId: Int, val entity: Entity, override val columns: Array<ColumnDef<*>>) : NullaryPhysicalOperatorNode() {
-    override val statistics: RecordStatistics = this.entity.statistics
+
+    companion object {
+        private const val NODE_NAME = "ScanEntity"
+    }
+
+    /** The name of this [EntityScanPhysicalOperatorNode]. */
+    override val name: String
+        get() = NODE_NAME
+
+    /** The number of rows returned by this [EntityScanPhysicalOperatorNode] equals to the number of rows in the [Entity]. */
     override val outputSize = this.entity.numberOfRows
+
+    /** [EntityScanPhysicalOperatorNode] is always executable. */
     override val executable: Boolean = true
+
+    /** [EntityScanPhysicalOperatorNode] can always be partitioned. */
     override val canBePartitioned: Boolean = true
+
+    /** The [RecordStatistics] is taken from the underlying [Entity]. [RecordStatistics] are used by the query planning for [Cost] estimation. */
+    override val statistics: RecordStatistics = this.entity.statistics
+
+    /** The estimated [Cost] of scanning the [Entity]. */
     override val cost = Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_MEMORY_ACCESS) * this.outputSize * this.columns.map {
         this.statistics[it].avgWidth
     }.sum()
 
     /**
-     * Returns a copy of this [EntityScanPhysicalOperatorNode].
+     * Creates and returns a copy of this [EntityScanPhysicalOperatorNode] without any children or parents.
      *
      * @return Copy of this [EntityScanPhysicalOperatorNode].
      */
-    override fun copyWithInputs() = EntityScanPhysicalOperatorNode(this.groupId, this.entity, this.columns)
-
-    /**
-     * Returns a copy of this [EntityScanPhysicalOperatorNode] and its output.
-     *
-     * @param input The [OperatorNode.Logical] that should act as inputs.
-     * @return Copy of this [EntityScanPhysicalOperatorNode] and its output.
-     */
-    override fun copyWithOutput(input: OperatorNode.Physical?): OperatorNode.Physical {
-        require(input == null) { "No input is allowed for copyWithOutput() on nullary physical operator node." }
-        val scan = EntityScanPhysicalOperatorNode(this.groupId, this.entity, this.columns)
-        return (this.output?.copyWithOutput(scan) ?: scan)
-    }
+    override fun copy() = EntityScanPhysicalOperatorNode(this.groupId, this.entity, this.columns)
 
     /**
      * Partitions this [EntityScanPhysicalOperatorNode].
@@ -68,6 +74,9 @@ class EntityScanPhysicalOperatorNode(override val groupId: Int, val entity: Enti
      */
     override fun toOperator(tx: TransactionContext, ctx: QueryContext) = EntityScanOperator(this.groupId, this.entity, this.columns, 0L..this.entity.maxTupleId)
 
+    /** Generates and returns a [String] representation of this [EntityScanPhysicalOperatorNode]. */
+    override fun toString() = "${super.toString()}[${this.columns.joinToString(",") { it.name.toString() }}]"
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is EntityScanPhysicalOperatorNode) return false
@@ -83,7 +92,4 @@ class EntityScanPhysicalOperatorNode(override val groupId: Int, val entity: Enti
         result = 31 * result + columns.contentHashCode()
         return result
     }
-
-    /** Generates and returns a [String] representation of this [EntityScanPhysicalOperatorNode]. */
-    override fun toString() = "${this.groupId}:ScanEntity[${this.columns.joinToString(",") { it.name.toString() }}]"
 }

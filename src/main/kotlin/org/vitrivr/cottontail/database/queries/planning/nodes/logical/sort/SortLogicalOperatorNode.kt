@@ -12,16 +12,21 @@ import org.vitrivr.cottontail.model.exceptions.QueryException
  * A [UnaryLogicalOperatorNode] that represents sorting the input by a set of specified [ColumnDef]s.
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.1.0
  */
-class SortLogicalOperatorNode(input: OperatorNode.Logical, sortOn: Array<Pair<ColumnDef<*>, SortOrder>>) : UnaryLogicalOperatorNode(input) {
-    init {
-        /* Sanity check. */
-        if (sortOn.isEmpty()) throw QueryException.QuerySyntaxException("At least one column must be specified for sorting.")
+class SortLogicalOperatorNode(input: OperatorNode.Logical? = null, sortOn: Array<Pair<ColumnDef<*>, SortOrder>>) : UnaryLogicalOperatorNode(input) {
+
+    companion object {
+        private const val NODE_NAME = "Order"
     }
 
+    /** The name of this [SortLogicalOperatorNode]. */
+    override val name: String
+        get() = NODE_NAME
+
     /** The [SortLogicalOperatorNode] returns the [ColumnDef] of its input. */
-    override val columns: Array<ColumnDef<*>> = this.input.columns
+    override val columns: Array<ColumnDef<*>>
+        get() = this.input?.columns ?: emptyArray()
 
     /** A [SortLogicalOperatorNode] orders the input in by the specified [ColumnDef]s. */
     override val order = sortOn
@@ -29,31 +34,24 @@ class SortLogicalOperatorNode(input: OperatorNode.Logical, sortOn: Array<Pair<Co
     /** The [SortLogicalOperatorNode] requires all [ColumnDef]s used in the [KnnPredicate]. */
     override val requires: Array<ColumnDef<*>> = this.order.map { it.first }.toTypedArray()
 
-    /**
-     * Copies this [SortLogicalOperatorNode] and its input.
-     *
-     * @return Copy of this [SortLogicalOperatorNode] and its input.
-     */
-    override fun copyWithInputs() = SortLogicalOperatorNode(input.copyWithInputs(), this.order)
+    init {
+        /* Sanity check. */
+        if (sortOn.isEmpty()) throw QueryException.QuerySyntaxException("At least one column must be specified for sorting.")
+    }
 
     /**
-     * Returns a copy of this [SortLogicalOperatorNode] and its output.
+     * Creates and returns a copy of this [SortLogicalOperatorNode] without any children or parents.
      *
-     * @param input The [OperatorNode.Logical] that should act as inputs.
-     * @return Copy of this [SortLogicalOperatorNode] and its output.
+     * @return Copy of this [SortLogicalOperatorNode].
      */
-    override fun copyWithOutput(input: OperatorNode.Logical?): OperatorNode.Logical {
-        require(input != null) { "Input is required for unary logical operator node." }
-        val sort = SortLogicalOperatorNode(input, this.order)
-        return (this.output?.copyWithOutput(sort) ?: sort)
-    }
+    override fun copy() = SortLogicalOperatorNode(sortOn = this.order)
 
     /**
      * Returns a [SortPhysicalOperatorNode] representation of this [SortLogicalOperatorNode]
      *
      * @return [SortPhysicalOperatorNode]
      */
-    override fun implement(): Physical = SortPhysicalOperatorNode(this.input.implement(), this.order)
+    override fun implement(): Physical = SortPhysicalOperatorNode(this.input?.implement(), this.order)
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -64,5 +62,9 @@ class SortLogicalOperatorNode(input: OperatorNode.Logical, sortOn: Array<Pair<Co
         return true
     }
 
+    /** Generates and returns a hash code for this [SortLogicalOperatorNode]. */
     override fun hashCode(): Int = this.order.contentHashCode()
+
+    /** Generates and returns a [String] representation of this [SortLogicalOperatorNode]. */
+    override fun toString() = "${super.toString()}[${this.order.joinToString(",") { "${it.first.name} ${it.second}" }}]"
 }

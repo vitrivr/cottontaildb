@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail.database.queries.planning.nodes.physical.projection
+package org.vitrivr.cottontail.database.queries.planning.nodes.physical.transform
 
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.queries.OperatorNode
@@ -19,41 +19,34 @@ import org.vitrivr.cottontail.utilities.math.KnnUtilities
  * A [UnaryPhysicalOperatorNode] that represents the application of a [KnnPredicate] on some intermediate result.
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.1.0
  */
-class DistancePhysicalOperatorNode(input: OperatorNode.Physical, val predicate: KnnPredicate) : UnaryPhysicalOperatorNode(input) {
+class DistancePhysicalOperatorNode(input: Physical? = null, val predicate: KnnPredicate) : UnaryPhysicalOperatorNode(input) {
+    companion object {
+        private const val NODE_NAME = "Distance"
+    }
+
+    /** The name of this [DistancePhysicalOperatorNode]. */
+    override val name: String
+        get() = NODE_NAME
 
     /** The [DistancePhysicalOperatorNode] returns the [ColumnDef] of its input + a distance column. */
-    override val columns: Array<ColumnDef<*>> = this.input.columns + KnnUtilities.distanceColumnDef(this.predicate.column.name.entity())
+    override val columns: Array<ColumnDef<*>>
+        get() = super.columns + KnnUtilities.distanceColumnDef(this.predicate.column.name.entity())
 
     /** The [DistancePhysicalOperatorNode] requires all [ColumnDef]s used in the [KnnPredicate]. */
     override val requires: Array<ColumnDef<*>> = this.predicate.columns.toTypedArray()
 
-    /** The output size of a [DistancePhysicalOperatorNode] always equal to the . */
-    override val outputSize: Long
-        get() = this.input.outputSize
-
     /** The [Cost] of a [DistancePhysicalOperatorNode]. */
-    override val cost: Cost = Cost(cpu = this.input.outputSize * this.predicate.atomicCpuCost)
+    override val cost: Cost
+        get() = Cost(cpu = this.outputSize * this.predicate.atomicCpuCost)
 
     /**
-     * Returns a copy of this [DistancePhysicalOperatorNode] and its input.
+     * Creates and returns a copy of this [DistancePhysicalOperatorNode] without any children or parents.
      *
-     * @return Copy of this [DistancePhysicalOperatorNode] and its input.
+     * @return Copy of this [DistancePhysicalOperatorNode].
      */
-    override fun copyWithInputs() = DistancePhysicalOperatorNode(this.input.copyWithInputs(), this.predicate)
-
-    /**
-     * Returns a copy of this [DistancePhysicalOperatorNode] and its output.
-     *
-     * @param input The [OperatorNode] that should act as inputs.
-     * @return Copy of this [DistancePhysicalOperatorNode] and its output.
-     */
-    override fun copyWithOutput(input: OperatorNode.Physical?): OperatorNode.Physical {
-        require(input != null) { "Input is required for copyWithOutput() on unary physical operator node." }
-        val distance = DistancePhysicalOperatorNode(input, this.predicate)
-        return (this.output?.copyWithOutput(distance) ?: distance)
-    }
+    override fun copy() = DistancePhysicalOperatorNode(predicate = this.predicate)
 
     /**
      * Partitions this [DistancePhysicalOperatorNode].
@@ -61,7 +54,8 @@ class DistancePhysicalOperatorNode(input: OperatorNode.Physical, val predicate: 
      * @param p The number of partitions to create.
      * @return List of [OperatorNode.Physical], each representing a partition of the original tree.
      */
-    override fun partition(p: Int): List<Physical> = this.input.partition(p).map { DistancePhysicalOperatorNode(it, this.predicate) }
+    override fun partition(p: Int): List<Physical> =
+        this.input?.partition(p)?.map { DistancePhysicalOperatorNode(it, this.predicate) } ?: throw IllegalStateException("Cannot partition disconnected OperatorNode (node = $this)")
 
     /**
      * Converts this [DistancePhysicalOperatorNode] to a [DistanceProjectionOperator].
@@ -77,12 +71,15 @@ class DistancePhysicalOperatorNode(input: OperatorNode.Physical, val predicate: 
             this.totalCost.parallelisation()
         }
         this.predicate
-        return if (p > 1 && this.input.canBePartitioned) {
-            val partitions = this.input.partition(p)
+        return if (p > 1) {
+            val partitions = this.input?.partition(p) ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)")
             val operators = partitions.map { DistanceProjectionOperator(it.toOperator(tx, ctx), this.predicate) }
             MergeOperator(operators)
         } else {
-            DistanceProjectionOperator(this.input.toOperator(tx, ctx), this.predicate)
+            DistanceProjectionOperator(
+                this.input?.toOperator(tx, ctx) ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)"),
+                this.predicate
+            )
         }
     }
 

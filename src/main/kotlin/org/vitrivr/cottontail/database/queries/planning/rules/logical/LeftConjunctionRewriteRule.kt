@@ -40,7 +40,7 @@ object LeftConjunctionRewriteRule : RewriteRule {
      */
     override fun apply(node: OperatorNode, ctx: QueryContext): OperatorNode? {
         if (node is FilterLogicalOperatorNode && node.predicate is BooleanPredicate.Compound && node.predicate.connector == ConnectionOperator.AND) {
-            val parent = node.input.copyWithInputs()
+            val parent = node.input?.copyWithInputs() ?: throw IllegalStateException("Encountered null node in logical operator node tree (node = $node). This is a programmer's error!")
             val ret = FilterLogicalOperatorNode(FilterLogicalOperatorNode(parent, node.predicate.p1), node.predicate.p2)
             return node.output?.copyWithOutput(ret) ?: ret
         }

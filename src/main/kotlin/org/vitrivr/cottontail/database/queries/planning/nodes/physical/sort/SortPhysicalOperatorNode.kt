@@ -16,51 +16,38 @@ import org.vitrivr.cottontail.model.exceptions.QueryException
  * a heap sort algorithm is applied for sorting.
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.1.0
  */
-class SortPhysicalOperatorNode(input: OperatorNode.Physical, sortOn: Array<Pair<ColumnDef<*>, SortOrder>>) : UnaryPhysicalOperatorNode(input) {
-    init {
-        if (sortOn.isEmpty()) throw QueryException.QuerySyntaxException("At least one column must be specified for sorting.")
+class SortPhysicalOperatorNode(input: Physical? = null, sortOn: Array<Pair<ColumnDef<*>, SortOrder>>) : UnaryPhysicalOperatorNode(input) {
+
+    companion object {
+        private const val NODE_NAME = "Order"
     }
 
-    /** The [SortPhysicalOperatorNode] returns the [ColumnDef] of its input. */
-    override val columns: Array<ColumnDef<*>>
-        get() = this.input.columns
+    /** The name of this [SortPhysicalOperatorNode]. */
+    override val name: String
+        get() = NODE_NAME
 
     /** The [SortPhysicalOperatorNode] requires all [ColumnDef]s used on the ORDER BY clause. */
     override val requires: Array<ColumnDef<*>> = sortOn.map { it.first }.toTypedArray()
 
-    /** The size of the output produced by this [SortPhysicalOperatorNode]. */
-    override val outputSize: Long
-        get() = this.input.outputSize
-
     /** The [Cost] incurred by this [SortPhysicalOperatorNode]. */
-    override val cost: Cost = Cost(
-        cpu = 2 * sortOn.size * Cost.COST_MEMORY_ACCESS,
-        memory = this.columns.map { this.statistics[it].avgWidth }.sum().toFloat()
-    ) * this.outputSize
+    override val cost: Cost
+        get() = Cost(cpu = 2 * this.order.size * Cost.COST_MEMORY_ACCESS, memory = this.columns.map { this.statistics[it].avgWidth }.sum().toFloat()) * this.outputSize
 
     /** A [SortPhysicalOperatorNode] orders the input in by the specified [ColumnDef]s. */
     override val order = sortOn
 
-    /**
-     * Returns a copy of this [SortPhysicalOperatorNode] and its input.
-     *
-     * @return Copy of this [SortPhysicalOperatorNode] and its input.
-     */
-    override fun copyWithInputs(): SortPhysicalOperatorNode = SortPhysicalOperatorNode(this.input.copyWithInputs(), this.order)
+    init {
+        if (this.order.isEmpty()) throw QueryException.QuerySyntaxException("At least one column must be specified for sorting.")
+    }
 
     /**
-     * Returns a copy of this [SortPhysicalOperatorNode] and its output.
+     * Creates and returns a copy of this [SortPhysicalOperatorNode] without any children or parents.
      *
-     * @param input The [OperatorNode] that should act as inputs.
-     * @return Copy of this [SortPhysicalOperatorNode] and its output.
+     * @return Copy of this [SortPhysicalOperatorNode].
      */
-    override fun copyWithOutput(input: OperatorNode.Physical?): OperatorNode.Physical {
-        require(input != null) { "Input is required for copyWithOutput() on unary physical operator node." }
-        val sort = SortPhysicalOperatorNode(input, this.order)
-        return (this.output?.copyWithOutput(sort) ?: sort)
-    }
+    override fun copy() = SortPhysicalOperatorNode(sortOn = this.order)
 
     /**
      * Partitions this [SortPhysicalOperatorNode].
@@ -68,7 +55,8 @@ class SortPhysicalOperatorNode(input: OperatorNode.Physical, sortOn: Array<Pair<
      * @param p The number of partitions to create.
      * @return List of [OperatorNode.Physical], each representing a partition of the original tree.
      */
-    override fun partition(p: Int): List<Physical> = this.input.partition(p).map { SortPhysicalOperatorNode(it, this.order) }
+    override fun partition(p: Int): List<Physical> =
+        this.input?.partition(p)?.map { SortPhysicalOperatorNode(it, this.order) } ?: throw IllegalStateException("Cannot partition disconnected OperatorNode (node = $this)")
 
     /**
      * Converts this [SortPhysicalOperatorNode] to a [HeapSortOperator].
@@ -77,7 +65,7 @@ class SortPhysicalOperatorNode(input: OperatorNode.Physical, sortOn: Array<Pair<
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
     override fun toOperator(tx: TransactionContext, ctx: QueryContext): Operator = HeapSortOperator(
-        this.input.toOperator(tx, ctx),
+        this.input?.toOperator(tx, ctx) ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)"),
         this.order,
         if (this.outputSize > Integer.MAX_VALUE) {
             Integer.MAX_VALUE
@@ -86,6 +74,9 @@ class SortPhysicalOperatorNode(input: OperatorNode.Physical, sortOn: Array<Pair<
             this.outputSize.toInt()
         }
     )
+
+    /** Generates and returns a [String] representation of this [SortPhysicalOperatorNode]. */
+    override fun toString() = "${super.toString()}[${this.order.joinToString(",") { "${it.first.name} ${it.second}" }}]"
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -99,7 +90,4 @@ class SortPhysicalOperatorNode(input: OperatorNode.Physical, sortOn: Array<Pair<
     override fun hashCode(): Int {
         return order.contentHashCode()
     }
-
-    /** Generates and returns a [String] representation of this [SortPhysicalOperatorNode]. */
-    override fun toString() = "${this.groupId}:Order[${this.order.joinToString(",") { "${it.first.name} ${it.second}" }}]"
 }

@@ -3,10 +3,10 @@ package org.vitrivr.cottontail.database.queries.planning.nodes.physical.manageme
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.queries.GroupId
-import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.binding.Binding
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
+import org.vitrivr.cottontail.database.queries.planning.nodes.logical.management.InsertLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.NullaryPhysicalOperatorNode
 import org.vitrivr.cottontail.database.statistics.entity.RecordStatistics
 import org.vitrivr.cottontail.execution.TransactionContext
@@ -20,9 +20,16 @@ import org.vitrivr.cottontail.model.exceptions.QueryException
  * A [InsertPhysicalOperatorNode] that formalizes a INSERT operation on an [Entity].
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.1.0
  */
 class InsertPhysicalOperatorNode(override val groupId: GroupId, val entity: Entity, val records: MutableList<Binding<Record>>) : NullaryPhysicalOperatorNode() {
+    companion object {
+        private const val NODE_NAME = "Insert"
+    }
+
+    /** The name of this [InsertPhysicalOperatorNode]. */
+    override val name: String
+        get() = NODE_NAME
 
     /** The [InsertPhysicalOperatorNode] produces the [ColumnDef]s defined in the [UpdateOperator]. */
     override val columns: Array<ColumnDef<*>> = InsertOperator.COLUMNS
@@ -43,23 +50,11 @@ class InsertPhysicalOperatorNode(override val groupId: GroupId, val entity: Enti
     override val executable: Boolean = true
 
     /**
-     * Returns a copy of this [InsertPhysicalOperatorNode] and its input.
+     * Creates and returns a copy of this [InsertLogicalOperatorNode] without any children or parents.
      *
-     * @return Copy of this [InsertPhysicalOperatorNode] and its input.
+     * @return Copy of this [InsertLogicalOperatorNode].
      */
-    override fun copyWithInputs(): InsertPhysicalOperatorNode = InsertPhysicalOperatorNode(this.groupId, this.entity, this.records)
-
-    /**
-     * Returns a copy of this [InsertPhysicalOperatorNode] and its output.
-     *
-     * @param input The [OperatorNode] that should act as inputs.
-     * @return Copy of this [InsertPhysicalOperatorNode] and its output.
-     */
-    override fun copyWithOutput(input: OperatorNode.Physical?): OperatorNode.Physical {
-        require(input == null) { "No input is allowed for copyWithOutput() on nullary physical operator node." }
-        val insert = InsertPhysicalOperatorNode(this.groupId, this.entity, this.records)
-        return (this.output?.copyWithOutput(insert) ?: insert)
-    }
+    override fun copy() = InsertPhysicalOperatorNode(this.groupId, this.entity, this.records)
 
     /**
      * Converts this [InsertPhysicalOperatorNode] to a [InsertOperator].

@@ -1,44 +1,44 @@
 package org.vitrivr.cottontail.database.queries.planning.nodes.physical
 
 import org.vitrivr.cottontail.database.column.ColumnDef
+import org.vitrivr.cottontail.database.queries.GroupId
 import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.binding.Binding
 import org.vitrivr.cottontail.database.queries.binding.BindingContext
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
+import org.vitrivr.cottontail.database.queries.planning.nodes.logical.NAryLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.sort.SortOrder
 import org.vitrivr.cottontail.database.statistics.entity.RecordStatistics
 import org.vitrivr.cottontail.model.values.types.Value
 import java.io.PrintStream
+import java.util.*
 
 /**
- * An abstract [NaryPhysicalOperatorNode] implementation that has multiple [OperatorNode.Physical]s as input.
+ * An abstract [OperatorNode.Physical] implementation that has multiple [OperatorNode.Physical]s as input.
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.1.0
  */
-abstract class NAryPhysicalOperatorNode(vararg val inputs: OperatorNode.Physical) : OperatorNode.Physical() {
+abstract class NAryPhysicalOperatorNode(vararg inputs: Physical) : OperatorNode.Physical() {
 
-    init {
-        require(inputs.size > 1) { "The use of an NAryPhysicalOperatorNode requires at least two inputs." }
-    }
-
-    /** Input arity of [BinaryPhysicalOperatorNode] is always two. */
-    final override val inputArity: Int
-        get() = this.inputs.size
+    /** The inputs to this [NAryLogicalOperatorNode]. The first input belongs to the same group. */
+    private val _inputs: MutableList<Physical> = LinkedList<Physical>()
+    val inputs: List<Physical>
+        get() = Collections.unmodifiableList(this._inputs)
 
     /**
-     * The group ID of a [BinaryPhysicalOperatorNode] is always the one of its left parent.
+     * The group ID of a [NAryPhysicalOperatorNode] is always the one of its left parent.
      *
      * This is an (arbitrary) definition but very relevant when implementing [BinaryPhysicalOperatorNode]s.
      */
-    final override val groupId: Int
-        get() = this.inputs[0].groupId
+    final override val groupId: GroupId
+        get() = this.inputs.firstOrNull()?.groupId ?: 0
 
-    /** The [base] of a [BinaryPhysicalOperatorNode] is the sum of its input's bases. */
-    final override val base: Collection<OperatorNode.Physical>
+    /** The [base] of a [NAryPhysicalOperatorNode] is the sum of its input's bases. */
+    final override val base: Collection<Physical>
         get() = this.inputs.flatMap { it.base }
 
-    /** The [totalCost] of a [BinaryPhysicalOperatorNode] is always the sum of its own and its input cost. */
+    /** The [totalCost] of a [NAryPhysicalOperatorNode] is the sum of its own and its input cost. */
     final override val totalCost: Cost
         get() {
             var cost = this.cost
@@ -48,21 +48,86 @@ abstract class NAryPhysicalOperatorNode(vararg val inputs: OperatorNode.Physical
             return cost
         }
 
-    /** By default, a [BinaryPhysicalOperatorNode]'s order is unspecified. */
+    /** By default, a [NAryPhysicalOperatorNode]'s order is unspecified. */
     override val order: Array<Pair<ColumnDef<*>, SortOrder>> = emptyArray()
 
-    /** By default, a [BinaryPhysicalOperatorNode]'s requirements are empty. */
+    /** By default, a [NAryPhysicalOperatorNode]'s requirements are empty. */
     override val requires: Array<ColumnDef<*>> = emptyArray()
 
-    /** [UnaryPhysicalOperatorNode] can be partitioned, if its parent can be partitioned. */
+    /** [NAryPhysicalOperatorNode]s are executable if all their inputs are executable. */
+    override val executable: Boolean
+        get() = (this.inputs.size == this.inputArity) && this.inputs.all { it.executable }
+
+    /** [NAryPhysicalOperatorNode] usually cannot be partitioned. */
     override val canBePartitioned: Boolean = false
+
+    /** By default, the [NAryPhysicalOperatorNode] outputs the [ColumnDef] of its input. */
+    override val columns: Array<ColumnDef<*>>
+        get() = (this.inputs.firstOrNull()?.columns ?: emptyArray())
 
     /** By default, a [UnaryPhysicalOperatorNode]'s [RecordStatistics] is retained. */
     override val statistics: RecordStatistics
-        get() = this.inputs[0].statistics
+        get() = this.inputs.firstOrNull()?.statistics ?: RecordStatistics.EMPTY
 
     init {
-        this.inputs.forEach { it.output = this }
+        inputs.forEach { this.addInput(it) }
+    }
+
+    /**
+     * Adds a [OperatorNode.Physical] to the list of inputs.
+     *
+     * @param input [OperatorNode.Physical] that should be added as input.
+     */
+    fun addInput(input: Physical) {
+        require(input.output == null) { "Cannot connect $input to $this: Output is already occupied!" }
+        this._inputs.add(input)
+        input.output = this
+    }
+
+    /**
+     * Creates and returns a copy of this [NAryPhysicalOperatorNode] without any children or parents.
+     *
+     * @return Copy of this [NAryPhysicalOperatorNode].
+     */
+    abstract override fun copy(): NAryPhysicalOperatorNode
+
+    /**
+     * Creates and returns a copy of this [NAryPhysicalOperatorNode] and all its inputs that belong to the same [GroupId],
+     * up and until the base of the tree.
+     *
+     * @return Copy of this [NAryPhysicalOperatorNode].
+     */
+    final override fun copyWithGroupInputs(): NAryPhysicalOperatorNode {
+        val copy = this.copy()
+        val input = this.inputs.firstOrNull()?.copyWithGroupInputs()
+        if (input != null) {
+            copy.addInput(input)
+        }
+        return copy
+    }
+
+    /**
+     * Creates and returns a copy of this [NAryPhysicalOperatorNode] and all its inputs up and until the base of the tree.
+     *
+     * @return Copy of this [NAryPhysicalOperatorNode].
+     */
+    final override fun copyWithInputs(): NAryPhysicalOperatorNode {
+        val copy = this.copy()
+        this.inputs.forEach { copy.addInput(it.copyWithInputs()) }
+        return copy
+    }
+
+    /**
+     * Creates and returns a copy of this [NAryPhysicalOperatorNode] with its output reaching down to the [root] of the tree.
+     * Furthermore connects the provided [input] to the copied [OperatorNode.Physical]s.
+     *
+     * @param input The [OperatorNode.Physical]s that act as input.
+     * @return Copy of this [NAryPhysicalOperatorNode] with its output.
+     */
+    override fun copyWithOutput(vararg input: Physical): Physical {
+        val copy = this.copy()
+        input.forEach { copy.addInput(it) }
+        return (this.output?.copyWithOutput(copy) ?: copy).root
     }
 
     /**

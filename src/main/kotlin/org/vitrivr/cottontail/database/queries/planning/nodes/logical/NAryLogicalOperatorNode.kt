@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.database.queries.planning.nodes.logical
 
 import org.vitrivr.cottontail.database.column.ColumnDef
+import org.vitrivr.cottontail.database.queries.GroupId
 import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.binding.Binding
 import org.vitrivr.cottontail.database.queries.binding.BindingContext
@@ -8,33 +9,36 @@ import org.vitrivr.cottontail.database.queries.planning.nodes.physical.BinaryPhy
 import org.vitrivr.cottontail.database.queries.sort.SortOrder
 import org.vitrivr.cottontail.model.values.types.Value
 import java.io.PrintStream
+import java.util.*
 
 /**
- * An abstract [NAryLogicalOperatorNode] implementation that has multiple [OperatorNode.Logical]s as input.
+ * An abstract [OperatorNode.Logical] implementation that has multiple [OperatorNode.Logical]s as input.
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.1.0
  */
-abstract class NAryLogicalOperatorNode(vararg val inputs: OperatorNode.Logical) : OperatorNode.Logical() {
+abstract class NAryLogicalOperatorNode(vararg inputs: Logical) : OperatorNode.Logical() {
 
-    init {
-        require(inputs.size > 1) { "The use of an NAryLogicalOperatorNode requires at least two inputs." }
-    }
-
-    /** Input arity of [NAryLogicalOperatorNode] depends on the number of inputs. */
-    final override val inputArity: Int = inputs.size
+    /** The inputs to this [NAryLogicalOperatorNode]. The first input belongs to the same group. */
+    private val _inputs: MutableList<Logical> = LinkedList<Logical>()
+    val inputs: List<Logical>
+        get() = Collections.unmodifiableList(this._inputs)
 
     /**
      * The group ID of a [NAryLogicalOperatorNode] is always the one of its left parent.
      *
      * This is an (arbitrary) definition but very relevant when implementing [BinaryPhysicalOperatorNode]s.
      */
-    final override val groupId: Int
-        get() = this.inputs[0].groupId
+    final override val groupId: GroupId
+        get() = this._inputs.firstOrNull()?.groupId ?: 0
 
     /** The [base] of a [NAryLogicalOperatorNode] is always itself. */
     final override val base: Collection<OperatorNode.Logical>
-        get() = this.inputs.flatMap { it.base }
+        get() = this._inputs.flatMap { it.base }
+
+    /** By default, the [NAryLogicalOperatorNode] outputs the [ColumnDef] of its input. */
+    override val columns: Array<ColumnDef<*>>
+        get() = (this.inputs.firstOrNull()?.columns ?: emptyArray())
 
     /** By default, a [NAryLogicalOperatorNode]'s output is unordered. */
     override val order: Array<Pair<ColumnDef<*>, SortOrder>> = emptyArray()
@@ -43,7 +47,64 @@ abstract class NAryLogicalOperatorNode(vararg val inputs: OperatorNode.Logical) 
     override val requires: Array<ColumnDef<*>> = emptyArray()
 
     init {
-        this.inputs.forEach { it.output = this }
+        inputs.forEach { this.addInput(it) }
+    }
+
+    /**
+     * Adds a [OperatorNode.Logical] to the list of inputs.
+     *
+     * @param input [OperatorNode.Logical] that should be added as input.
+     */
+    fun addInput(input: Logical) {
+        require(input.output == null) { "Cannot connect $input to $this: Output is already occupied!" }
+        this._inputs.add(input)
+        input.output = this
+    }
+
+    /**
+     * Creates and returns a copy of this [NAryLogicalOperatorNode] without any children or parents.
+     *
+     * @return Copy of this [NAryLogicalOperatorNode].
+     */
+    abstract override fun copy(): NAryLogicalOperatorNode
+
+    /**
+     * Creates and returns a copy of this [NAryLogicalOperatorNode] and all its inputs that belong to the same [GroupId],
+     * up and until the base of the tree.
+     *
+     * @return Copy of this [NAryLogicalOperatorNode].
+     */
+    final override fun copyWithGroupInputs(): NAryLogicalOperatorNode {
+        val copy = this.copy()
+        val input = this.inputs.firstOrNull()?.copyWithGroupInputs()
+        if (input != null) {
+            copy.addInput(input)
+        }
+        return copy
+    }
+
+    /**
+     * Creates and returns a copy of this [NAryLogicalOperatorNode] and all its inputs up and until the base of the tree.
+     *
+     * @return Copy of this [NAryLogicalOperatorNode].
+     */
+    final override fun copyWithInputs(): NAryLogicalOperatorNode {
+        val copy = this.copy()
+        this.inputs.forEach { copy.addInput(it.copyWithInputs()) }
+        return copy
+    }
+
+    /**
+     * Creates and returns a copy of this [NAryLogicalOperatorNode] with its output reaching down to the [root] of the tree.
+     * Furthermore connects the provided [input] to the copied [OperatorNode.Logical]s.
+     *
+     * @param input The [OperatorNode.Logical]s that act as input.
+     * @return Copy of this [NAryLogicalOperatorNode] with its output.
+     */
+    override fun copyWithOutput(vararg input: OperatorNode.Logical): Logical {
+        val copy = this.copy()
+        input.forEach { copy.addInput(it) }
+        return (this.output?.copyWithOutput(copy) ?: copy).root
     }
 
     /**
@@ -58,7 +119,7 @@ abstract class NAryLogicalOperatorNode(vararg val inputs: OperatorNode.Logical) 
      * @return This [NAryLogicalOperatorNode].
      */
     override fun bindValues(ctx: BindingContext<Value>): NAryLogicalOperatorNode {
-        this.inputs.forEach { it.bindValues(ctx) }
+        this._inputs.forEach { it.bindValues(ctx) }
         return this
     }
 
@@ -69,7 +130,7 @@ abstract class NAryLogicalOperatorNode(vararg val inputs: OperatorNode.Logical) 
      */
     override fun digest(): Long {
         var result = this.hashCode().toLong()
-        for (i in this.inputs) {
+        for (i in this._inputs) {
             result = 33L * result + i.digest()
         }
         return result
@@ -81,7 +142,7 @@ abstract class NAryLogicalOperatorNode(vararg val inputs: OperatorNode.Logical) 
      * @param p The [PrintStream] to print this [OperatorNode] to. Defaults to [System.out]
      */
     override fun printTo(p: PrintStream) {
-        this.inputs.forEach { it.printTo(p) }
+        this._inputs.forEach { it.printTo(p) }
         super.printTo(p)
     }
 }

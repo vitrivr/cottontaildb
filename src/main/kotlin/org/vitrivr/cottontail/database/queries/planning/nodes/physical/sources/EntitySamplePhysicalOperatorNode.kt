@@ -15,7 +15,7 @@ import kotlin.math.min
  * A [NullaryPhysicalOperatorNode] that formalizes the random sampling of a physical [Entity] in Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.1.0
  */
 class EntitySamplePhysicalOperatorNode(
     override val groupId: Int,
@@ -25,35 +25,38 @@ class EntitySamplePhysicalOperatorNode(
     val seed: Long = System.currentTimeMillis()
 ) : NullaryPhysicalOperatorNode() {
 
-    init {
-        require(this.outputSize > 0) { "Sample size must be greater than zero for sampling an entity but is $outputSize." }
+    companion object {
+        private const val NODE_NAME = "SampleEntity"
     }
 
-    override val statistics: RecordStatistics = this.entity.statistics
+    /** The name of this [EntityScanPhysicalOperatorNode]. */
+    override val name: String
+        get() = NODE_NAME
+
+    /** [EntitySamplePhysicalOperatorNode] is always executable. */
     override val executable: Boolean = true
+
+    /** [EntitySamplePhysicalOperatorNode] can always be partitioned. */
     override val canBePartitioned: Boolean = true
+
+    /** The estimated [Cost] of sampling the [Entity]. */
     override val cost = Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_MEMORY_ACCESS) * this.outputSize * this.columns.map {
         this.statistics[it].avgWidth
     }.sum()
 
-    /**
-     * Returns a copy of this [EntitySamplePhysicalOperatorNode].
-     *
-     * @return Copy of this [EntitySamplePhysicalOperatorNode].
-     */
-    override fun copyWithInputs() = EntitySamplePhysicalOperatorNode(this.groupId, this.entity, this.columns, this.outputSize, this.seed)
+    /** The [RecordStatistics] is taken from the underlying [Entity]. [RecordStatistics] are used by the query planning for [Cost] estimation. */
+    override val statistics: RecordStatistics = this.entity.statistics
+
+    init {
+        require(this.outputSize > 0) { "Sample size must be greater than zero for sampling an entity but is $outputSize." }
+    }
 
     /**
-     * Returns a copy of this [EntitySamplePhysicalOperatorNode] and its output.
+     * Creates and returns a copy of this [EntityScanPhysicalOperatorNode] without any children or parents.
      *
-     * @param input The [OperatorNode.Logical] that should act as inputs.
-     * @return Copy of this [EntitySamplePhysicalOperatorNode] and its output.
+     * @return Copy of this [EntityScanPhysicalOperatorNode].
      */
-    override fun copyWithOutput(input: OperatorNode.Physical?): OperatorNode.Physical {
-        require(input == null) { "No input is allowed for copyWithOutput() on nullary physical operator node." }
-        val sample = EntitySamplePhysicalOperatorNode(this.groupId, this.entity, this.columns, this.outputSize, this.seed)
-        return (this.output?.copyWithOutput(sample) ?: sample)
-    }
+    override fun copy() = EntitySamplePhysicalOperatorNode(this.groupId, this.entity, this.columns, this.outputSize, this.seed)
 
     /**
      * Partitions this [EntitySamplePhysicalOperatorNode].
@@ -78,6 +81,8 @@ class EntitySamplePhysicalOperatorNode(
      */
     override fun toOperator(tx: TransactionContext, ctx: QueryContext) = EntitySampleOperator(this.groupId, this.entity, this.columns, this.outputSize, this.seed)
 
+    /** Generates and returns a [String] representation of this [EntitySamplePhysicalOperatorNode]. */
+    override fun toString() = "${super.toString()}[${this.columns.joinToString(",") { it.name.toString() }}]"
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -98,7 +103,4 @@ class EntitySamplePhysicalOperatorNode(
         result = 31 * result + seed.hashCode()
         return result
     }
-
-    /** Generates and returns a [String] representation of this [EntitySamplePhysicalOperatorNode]. */
-    override fun toString() = "${this.groupId}:SampleEntity[${this.columns.joinToString(",") { it.name.toString() }}]"
 }

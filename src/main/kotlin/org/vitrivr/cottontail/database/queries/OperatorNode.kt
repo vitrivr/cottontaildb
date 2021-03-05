@@ -12,21 +12,24 @@ import java.io.PrintStream
  * [OperatorNode]s are [Node]s in a Cottontail DB query execution plan and represent flow of  information.
  *
  * [OperatorNode]s take [org.vitrivr.cottontail.model.basics.Record]s as input and transform them into
- * [org.vitrivr.cottontail.model.basics.Record] output.  The relationship of input to output can be m to n.
+ * [org.vitrivr.cottontail.model.basics.Record] output. The relationship of input to output can be m to n.
  *
  * [OperatorNode]s allow for about reasoning and transformation of the execution plan during query optimization
  * and are manipulated by the query planner.
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.1.0
  */
 sealed class OperatorNode : Node {
 
     /** The arity of this [OperatorNode], i.e., the number of parents or inputs allowed. */
     abstract val inputArity: Int
 
-    /** Internal group identifier used for plan enumeration. */
+    /** Internal group identifier used for plan enumeration. Can be null for disconnected [OperatorNode]s. */
     abstract val groupId: Int
+
+    /** The name of this [OperatorNode]. */
+    abstract val name: String
 
     /** Whether or not this [OperatorNode] is executable. */
     abstract val executable: Boolean
@@ -41,6 +44,13 @@ sealed class OperatorNode : Node {
     abstract val requires: Array<ColumnDef<*>>
 
     /**
+     * Creates and returns a copy of this [OperatorNode] without any children or parents.
+     *
+     * @return Copy of this [OperatorNode].
+     */
+    abstract fun copy(): OperatorNode
+
+    /**
      * Prints this [OperatorNode] tree to the given [PrintStream].
      *
      * @param p The [PrintStream] to print this [OperatorNode] to. Defaults to [System.out]
@@ -53,7 +63,7 @@ sealed class OperatorNode : Node {
     }
 
     /** Generates and returns a [String] representation of this [OperatorNode]. */
-    override fun toString() = "${this.javaClass.simpleName}[${this.groupId}]"
+    override fun toString() = "${this.groupId}:${this.name}"
 
     /**
      * A logical [OperatorNode] in the Cottontail DB query execution plan.
@@ -63,7 +73,7 @@ sealed class OperatorNode : Node {
      * are transformed into equivalent representations of [OperatorNode.Logical]s.
      *
      * @author Ralph Gasser
-     * @version 2.0.0
+     * @version 2.1.0
      */
     abstract class Logical : OperatorNode() {
 
@@ -85,16 +95,32 @@ sealed class OperatorNode : Node {
          *
          * @return Copy of this [OperatorNode.Logical].
          */
+        abstract override fun copy(): Logical
+
+        /**
+         * Creates and returns a copy of this [OperatorNode.Logical] and all its inputs that belong to the same [GroupId],
+         * up and until the base of the tree.
+         *
+         * @return Copy of this [OperatorNode.Logical].
+         */
+        abstract fun copyWithGroupInputs(): Logical
+
+        /**
+         * Creates and returns a copy of this [OperatorNode.Logical] and all its inputs up and until the base of the tree,
+         * regardless of which [GroupId] they belong to.
+         *
+         * @return Copy of this [OperatorNode.Logical].
+         */
         abstract fun copyWithInputs(): Logical
 
         /**
          * Creates and returns a copy of this [OperatorNode.Logical] with its output reaching down to the [root] of the tree.
          * Furthermore connects the provided [input] to the copied [OperatorNode.Logical]s.
          *
-         * @param input The [Logical]s that act as input. Replacement takes place based on the [GroupId]
+         * @param input The [Logical]s that act as input.
          * @return Copy of this [OperatorNode.Logical] with its output.
          */
-        abstract fun copyWithOutput(input: Logical? = null): Logical
+        abstract fun copyWithOutput(vararg input: Logical): Logical
 
         /**
          * Creates and returns an implementation of this [OperatorNode.Logical]
@@ -115,7 +141,7 @@ sealed class OperatorNode : Node {
      * and a cost model that allows  the query planner to select the optimal plan.
      *
      * @author Ralph Gasser
-     * @version 2.0.0
+     * @version 2.1.0
      *
      * @see OperatorNode
      */
@@ -157,13 +183,21 @@ sealed class OperatorNode : Node {
         abstract fun copyWithInputs(): Physical
 
         /**
+         * Creates and returns a copy of this [OperatorNode.Physical] and all its inputs that belong to the same [GroupId],
+         * up and until the base of the tree.
+         *
+         * @return Copy of this [OperatorNode.Physical].
+         */
+        abstract fun copyWithGroupInputs(): Physical
+
+        /**
          * Creates and returns a copy of this [OperatorNode.Physical] together with its output reaching down to the [root] of the tree.
          * Furthermore connects the provided [input] to the copied [OperatorNode.Physical]s.
          *
          * @param input The [Physical]s that act as input. Replacement takes place based on the [GroupId]
          * @return Copy of this [OperatorNode.Physical] with its output.
          */
-        abstract fun copyWithOutput(input: Physical? = null): Physical
+        abstract fun copyWithOutput(vararg input: Physical): Physical
 
         /**
          * Converts this [OperatorNode.Physical] to the corresponding [Operator].

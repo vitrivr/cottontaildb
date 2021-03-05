@@ -3,7 +3,6 @@ package org.vitrivr.cottontail.database.queries.planning.nodes.logical.managemen
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.queries.GroupId
-import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.binding.Binding
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.NullaryLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.management.InsertPhysicalOperatorNode
@@ -14,30 +13,27 @@ import org.vitrivr.cottontail.model.basics.Record
  * A [InsertLogicalOperatorNode] that formalizes a INSERT operation on an [Entity].
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.1.0
  */
 class InsertLogicalOperatorNode(override val groupId: GroupId, val entity: Entity, val records: MutableList<Binding<Record>>) : NullaryLogicalOperatorNode() {
+
+    companion object {
+        private const val NODE_NAME = "Insert"
+    }
+
+    /** The name of this [InsertLogicalOperatorNode]. */
+    override val name: String
+        get() = NODE_NAME
+
     /** The [InsertLogicalOperatorNode] produces the columns defined in the [InsertOperator] */
     override val columns: Array<ColumnDef<*>> = InsertOperator.COLUMNS
 
     /**
-     * Returns a copy of this [DeleteLogicalOperatorNode]
+     * Creates and returns a copy of this [InsertLogicalOperatorNode] without any children or parents.
      *
-     * @return Copy of this [DeleteLogicalOperatorNode]
+     * @return Copy of this [InsertLogicalOperatorNode].
      */
-    override fun copyWithInputs(): InsertLogicalOperatorNode = InsertLogicalOperatorNode(this.groupId, this.entity, this.records)
-
-    /**
-     * Returns a copy of this [InsertLogicalOperatorNode] and its output.
-     *
-     * @param input The [OperatorNode.Logical] that should act as inputs.
-     * @return Copy of this [InsertLogicalOperatorNode] and its output.
-     */
-    override fun copyWithOutput(input: OperatorNode.Logical?): OperatorNode.Logical {
-        require(input == null) { "No input is allowed for nullary logical operators." }
-        val insert = InsertLogicalOperatorNode(this.groupId, this.entity, this.records)
-        return (this.output?.copyWithOutput(insert) ?: insert)
-    }
+    override fun copy() = InsertLogicalOperatorNode(this.groupId, this.entity, this.records)
 
     /**
      * Returns a [InsertPhysicalOperatorNode] representation of this [InsertLogicalOperatorNode]

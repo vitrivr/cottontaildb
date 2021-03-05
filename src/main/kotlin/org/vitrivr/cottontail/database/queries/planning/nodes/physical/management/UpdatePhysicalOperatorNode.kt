@@ -2,13 +2,11 @@ package org.vitrivr.cottontail.database.queries.planning.nodes.physical.manageme
 
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.Entity
-import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.binding.Binding
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalOperatorNode
 import org.vitrivr.cottontail.execution.TransactionContext
-
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.management.UpdateOperator
 import org.vitrivr.cottontail.model.values.types.Value
@@ -17,9 +15,16 @@ import org.vitrivr.cottontail.model.values.types.Value
  * A [UpdatePhysicalOperatorNode] that formalizes a UPDATE operation on an [Entity].
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.1.0
  */
-class UpdatePhysicalOperatorNode(input: OperatorNode.Physical, val entity: Entity, val values: List<Pair<ColumnDef<*>, Binding<Value>>>) : UnaryPhysicalOperatorNode(input) {
+class UpdatePhysicalOperatorNode(input: Physical? = null, val entity: Entity, val values: List<Pair<ColumnDef<*>, Binding<Value>>>) : UnaryPhysicalOperatorNode(input) {
+    companion object {
+        private const val NODE_NAME = "Update"
+    }
+
+    /** The name of this [UpdatePhysicalOperatorNode]. */
+    override val name: String
+        get() = NODE_NAME
 
     /** The [UpdatePhysicalOperatorNode] produces the [ColumnDef]s defined in the [UpdateOperator]. */
     override val columns: Array<ColumnDef<*>> = UpdateOperator.COLUMNS
@@ -28,32 +33,19 @@ class UpdatePhysicalOperatorNode(input: OperatorNode.Physical, val entity: Entit
     override val outputSize: Long = 1L
 
     /** The [Cost] of this [UpdatePhysicalOperatorNode]. */
-    override val cost: Cost = Cost(
-        Cost.COST_DISK_ACCESS_WRITE,
-        Cost.COST_MEMORY_ACCESS
-    ) * this.values.map { this.statistics[it.first].avgWidth }.sum() * this.input.outputSize
+    override val cost: Cost
+        get() = Cost(Cost.COST_DISK_ACCESS_WRITE, Cost.COST_MEMORY_ACCESS) * this.values.map { this.statistics[it.first].avgWidth }.sum() * (this.input?.outputSize ?: 0)
 
     /** The [UpdatePhysicalOperatorNode]s cannot be partitioned. */
     override val canBePartitioned: Boolean = false
 
-    /**
-     * Returns a copy of this [UpdatePhysicalOperatorNode] and its input.
-     *
-     * @return Copy of this [UpdatePhysicalOperatorNode] and its input.
-     */
-    override fun copyWithInputs() = UpdatePhysicalOperatorNode(this.input.copyWithInputs(), this.entity, this.values)
 
     /**
-     * Returns a copy of this [UpdatePhysicalOperatorNode] and its output.
+     * Creates and returns a copy of this [UpdatePhysicalOperatorNode] without any children or parents.
      *
-     * @param input The [OperatorNode] that should act as inputs.
-     * @return Copy of this [UpdatePhysicalOperatorNode] and its output.
+     * @return Copy of this [UpdatePhysicalOperatorNode].
      */
-    override fun copyWithOutput(input: OperatorNode.Physical?): OperatorNode.Physical {
-        require(input != null) { "Input is required for copyWithOutput() on unary physical operator node." }
-        val update = UpdatePhysicalOperatorNode(input, this.entity, this.values)
-        return (this.output?.copyWithOutput(update) ?: update)
-    }
+    override fun copy() = UpdatePhysicalOperatorNode(entity = this.entity, values = this.values)
 
     /**
      * Converts this [UpdatePhysicalOperatorNode] to a [UpdateOperator].
@@ -63,7 +55,11 @@ class UpdatePhysicalOperatorNode(input: OperatorNode.Physical, val entity: Entit
      */
     override fun toOperator(tx: TransactionContext, ctx: QueryContext): Operator {
         val entries = this.values.map { it.first to ctx.values[it.second] } /* Late binding. */
-        return UpdateOperator(this.input.toOperator(tx, ctx), this.entity, entries)
+        return UpdateOperator(
+            this.input?.toOperator(tx, ctx) ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)"),
+            this.entity,
+            entries
+        )
     }
 
     /**

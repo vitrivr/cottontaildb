@@ -2,7 +2,6 @@ package org.vitrivr.cottontail.database.queries.planning.nodes.physical.sources
 
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.Entity
-import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.NullaryPhysicalOperatorNode
@@ -16,34 +15,42 @@ import org.vitrivr.cottontail.model.basics.Type
  * A [NullaryPhysicalOperatorNode] that formalizes the counting entries in a physical [Entity].
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.1.0
  */
 class EntityCountPhysicalOperatorNode(override val groupId: Int, val entity: Entity) : NullaryPhysicalOperatorNode() {
+
+    companion object {
+        private const val NODE_NAME = "CountEntity"
+    }
+
+    /** The name of this [EntityCountPhysicalOperatorNode]. */
+    override val name: String
+        get() = NODE_NAME
+
+    /** The output size of an [EntityCountPhysicalOperatorNode] is always one. */
     override val outputSize = 1L
-    override val statistics: RecordStatistics = this.entity.statistics
+
+    /** */
     override val columns: Array<ColumnDef<*>> = arrayOf(ColumnDef(this.entity.name.column(Projection.COUNT.label()), Type.Long, false))
+
+    /** [EntityCountPhysicalOperatorNode] is always executable. */
     override val executable: Boolean = true
+
+    /** [EntityCountPhysicalOperatorNode] cannot be partitioned. */
     override val canBePartitioned: Boolean = false
+
+    /** The estimated [Cost] of sampling the [Entity]. */
     override val cost = Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_MEMORY_ACCESS)
 
+    /** The [RecordStatistics] is taken from the underlying [Entity]. [RecordStatistics] are used by the query planning for [Cost] estimation. */
+    override val statistics: RecordStatistics = this.entity.statistics
+
     /**
-     * Returns a copy of this [EntityCountPhysicalOperatorNode].
+     * Creates and returns a copy of this [EntityCountPhysicalOperatorNode] without any children or parents.
      *
      * @return Copy of this [EntityCountPhysicalOperatorNode].
      */
-    override fun copyWithInputs() = EntityCountPhysicalOperatorNode(this.groupId, this.entity)
-
-    /**
-     * Returns a copy of this [EntityCountPhysicalOperatorNode] and its output.
-     *
-     * @param input The [OperatorNode.Logical] that should act as inputs.
-     * @return Copy of this [EntityCountPhysicalOperatorNode] and its output.
-     */
-    override fun copyWithOutput(input: OperatorNode.Physical?): OperatorNode.Physical {
-        require(input == null) { "No input is allowed for copyWithOutput() on nullary physical operator node." }
-        val count = EntityCountPhysicalOperatorNode(this.groupId, this.entity)
-        return (this.output?.copyWithOutput(count) ?: count)
-    }
+    override fun copy() = EntityCountPhysicalOperatorNode(this.groupId, this.entity)
 
     /**
      * [EntityCountPhysicalOperatorNode] cannot be partitioned.
@@ -60,6 +67,9 @@ class EntityCountPhysicalOperatorNode(override val groupId: Int, val entity: Ent
      */
     override fun toOperator(tx: TransactionContext, ctx: QueryContext) = EntityCountOperator(this.groupId, this.entity)
 
+    /** Generates and returns a [String] representation of this [EntityCountPhysicalOperatorNode]. */
+    override fun toString() = "${super.toString()}[${this.columns.joinToString(",") { it.name.toString() }}]"
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is EntityCountPhysicalOperatorNode) return false
@@ -68,7 +78,4 @@ class EntityCountPhysicalOperatorNode(override val groupId: Int, val entity: Ent
     }
 
     override fun hashCode(): Int = this.entity.hashCode()
-
-    /** Generates and returns a [String] representation of this [EntitySamplePhysicalOperatorNode]. */
-    override fun toString() = "${this.groupId}:Count[${this.columns.joinToString(",") { it.name.toString() }}]"
 }

@@ -12,7 +12,7 @@ import org.vitrivr.cottontail.model.values.types.Value
  * An abstract [OperatorNode.Logical] implementation that has no input.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 2.1.0
  */
 abstract class NullaryLogicalOperatorNode : OperatorNode.Logical() {
     /** Input arity of [NullaryLogicalOperatorNode] is always zero. */
@@ -27,6 +27,40 @@ abstract class NullaryLogicalOperatorNode : OperatorNode.Logical() {
 
     /** By default, a [NullaryLogicalOperatorNode] doesn't have any requirement. */
     override val requires: Array<ColumnDef<*>> = emptyArray()
+
+    /**
+     * Creates and returns a copy of this [NullaryLogicalOperatorNode] without any children or parents.
+     *
+     * @return Copy of this [NullaryLogicalOperatorNode].
+     */
+    abstract override fun copy(): NullaryLogicalOperatorNode
+
+    /**
+     * Creates and returns a copy of this [NullaryLogicalOperatorNode].
+     *
+     * @return Copy of this [OperatorNode.Logical].
+     */
+    final override fun copyWithGroupInputs(): NullaryLogicalOperatorNode = this.copy()
+
+    /**
+     * Creates and returns a copy of this [NullaryLogicalOperatorNode].
+     *
+     * @return Copy of this [OperatorNode.Logical].
+     */
+    final override fun copyWithInputs(): NullaryLogicalOperatorNode = this.copy()
+
+    /**
+     * Creates and returns a copy of this [NullaryLogicalOperatorNode] with its output reaching down to the [root] of the tree.
+     * Furthermore connects the provided [input] to the copied [NullaryLogicalOperatorNode]s.
+     *
+     * @param input The [OperatorNode.Logical]s that act as input. Must be empty!
+     * @return Copy of this [NullaryLogicalOperatorNode] with its output.
+     */
+    override fun copyWithOutput(vararg input: OperatorNode.Logical): Logical {
+        require(input.isEmpty()) { "Cannot provide input for NullaryLogicalOperatorNode." }
+        val copy = this.copy()
+        return (this.output?.copyWithOutput(copy) ?: copy).root
+    }
 
     /**
      * Performs value binding using the given [BindingContext].
@@ -44,7 +78,4 @@ abstract class NullaryLogicalOperatorNode : OperatorNode.Logical() {
      * @return Digest for this [NullaryLogicalOperatorNode]
      */
     final override fun digest(): Long = this.hashCode().toLong()
-
-    /** Generates and returns a [String] representation of this [OperatorNode]. */
-    override fun toString() = "${this.javaClass.simpleName}[*${this.groupId}]"
 }

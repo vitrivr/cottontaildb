@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.database.queries.planning.nodes.physical
 
 import org.vitrivr.cottontail.database.column.ColumnDef
+import org.vitrivr.cottontail.database.queries.GroupId
 import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.binding.Binding
 import org.vitrivr.cottontail.database.queries.binding.BindingContext
@@ -11,12 +12,12 @@ import org.vitrivr.cottontail.model.values.types.Value
 import java.io.PrintStream
 
 /**
- * An abstract [BinaryPhysicalOperatorNode] implementation that has exactly two [OperatorNode.Physical]s as input.
+ * An abstract [OperatorNode.Physical] implementation that has exactly two [OperatorNode.Physical]s as input.
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.1.0
  */
-abstract class BinaryPhysicalOperatorNode(val left: OperatorNode.Physical, val right: OperatorNode.Physical) : OperatorNode.Physical() {
+abstract class BinaryPhysicalOperatorNode(left: Physical? = null, right: Physical? = null) : OperatorNode.Physical() {
 
     /** Input arity of [BinaryPhysicalOperatorNode] is always two. */
     final override val inputArity: Int = 2
@@ -26,33 +27,113 @@ abstract class BinaryPhysicalOperatorNode(val left: OperatorNode.Physical, val r
      *
      * This is an (arbitrary) definition but very relevant when implementing [BinaryPhysicalOperatorNode]s.
      */
-    final override val groupId: Int
-        get() = this.left.groupId
+    final override val groupId: GroupId
+        get() = this.left?.groupId ?: 0
+
+
+    /** The left branch of the input; belongs to the same group! */
+    var left: Physical? = null
+        set(value) {
+            require(value?.output == null) { "Cannot connect $value to $this: Output is already occupied!" }
+            field?.output = null
+            value?.output = this
+            field = value
+        }
+
+    /** The right branch of the input; constitutes a new group! */
+    var right: Physical? = null
+        set(value) {
+            require(value?.output == null) { "Cannot connect $value to $this: Output is already occupied!" }
+            field?.output = null
+            value?.output = this
+            field = value
+        }
 
     /** The [base] of a [BinaryPhysicalOperatorNode] is the sum of its input's bases. */
-    final override val base: Collection<OperatorNode.Physical>
-        get() = this.left.base + this.right.base
+    final override val base: Collection<Physical>
+        get() = (this.left?.base ?: emptyList()) +
+                (this.right?.base ?: emptyList())
 
     /** The [totalCost] of a [BinaryPhysicalOperatorNode] is always the sum of its own and its input cost. */
     final override val totalCost: Cost
-        get() = this.left.totalCost + this.right.totalCost + this.cost
+        get() = (this.left?.totalCost ?: Cost.ZERO) +
+                (this.right?.totalCost ?: Cost.ZERO) +
+                this.cost
 
-    /** By default, a [BinaryPhysicalOperatorNode]'s order is unspecified. */
-    override val order: Array<Pair<ColumnDef<*>, SortOrder>> = emptyArray()
+    /** By default, [BinaryPhysicalOperatorNode]s are executable if both their inputs are executable. */
+    override val executable: Boolean
+        get() = (this.left?.executable ?: false) && (this.right?.executable ?: false)
 
-    /** By default, a [BinaryPhysicalOperatorNode]'s requirements are empty. */
-    override val requires: Array<ColumnDef<*>> = emptyArray()
-
-    /** [UnaryPhysicalOperatorNode] can be partitioned, if its parent can be partitioned. */
+    /** By default, [BinaryPhysicalOperatorNode]s cannot be partitioned. */
     override val canBePartitioned: Boolean = false
 
-    /** By default, a [UnaryPhysicalOperatorNode]'s [RecordStatistics] is retained. */
+    /** By default, the [BinaryPhysicalOperatorNode] outputs the [ColumnDef] of its left input. */
+    override val columns: Array<ColumnDef<*>>
+        get() = (this.left?.columns ?: emptyArray())
+
+    /** By default, the output size of a [UnaryPhysicalOperatorNode] is the same as its left input's output size. */
+    override val outputSize: Long
+        get() = (this.left?.outputSize ?: 0)
+
+    /** By default, a [BinaryPhysicalOperatorNode]'s order is inherited from the left branch of of the tree. */
+    override val order: Array<Pair<ColumnDef<*>, SortOrder>>
+        get() = this.left?.order ?: emptyArray()
+
+    /** By default, a [BinaryPhysicalOperatorNode]'s has no specific requirements. */
+    override val requires: Array<ColumnDef<*>> = emptyArray()
+
+    /** By default, a [BinaryPhysicalOperatorNode]'s [RecordStatistics] is retained from its left inpu. */
     override val statistics: RecordStatistics
-        get() = this.left.statistics
+        get() = this.left?.statistics ?: RecordStatistics.EMPTY
 
     init {
-        this.left.output = this
-        this.right.output = this
+        this.left = left
+        this.right = right
+    }
+
+    /**
+     * Creates and returns a copy of this [BinaryPhysicalOperatorNode] without any children or parents.
+     *
+     * @return Copy of this [BinaryPhysicalOperatorNode].
+     */
+    abstract override fun copy(): BinaryPhysicalOperatorNode
+
+    /**
+     * Creates and returns a copy of this [BinaryPhysicalOperatorNode] and all its inputs that belong to the same [GroupId],
+     * up and until the base of the tree.
+     *
+     * @return Copy of this [BinaryPhysicalOperatorNode].
+     */
+    final override fun copyWithGroupInputs(): BinaryPhysicalOperatorNode {
+        val copy = this.copy()
+        copy.left = this.left?.copyWithGroupInputs()
+        return copy
+    }
+
+    /**
+     * Creates and returns a copy of this [BinaryPhysicalOperatorNode] and all its inputs up and until the base of the tree.
+     *
+     * @return Copy of this [BinaryPhysicalOperatorNode].
+     */
+    final override fun copyWithInputs(): BinaryPhysicalOperatorNode {
+        val copy = this.copyWithGroupInputs()
+        copy.right = this.right?.copyWithInputs()
+        return copy
+    }
+
+    /**
+     * Creates and returns a copy of this [BinaryPhysicalOperatorNode] with its output reaching down to the [root] of the tree.
+     * Furthermore connects the provided [input] to the copied [OperatorNode.Physical]s.
+     *
+     * @param input The [OperatorNode.Logical]s that act as input.
+     * @return Copy of this [OperatorNode.Logical] with its output.
+     */
+    override fun copyWithOutput(vararg input: Physical): Physical {
+        require(input.size <= this.inputArity) { "Cannot provide more than ${this.inputArity} inputs for ${this.javaClass.simpleName}." }
+        val copy = this.copy()
+        copy.left = input.getOrNull(0)
+        copy.right = input.getOrNull(1)
+        return (this.output?.copyWithOutput(copy) ?: copy).root
     }
 
     /**
@@ -67,8 +148,8 @@ abstract class BinaryPhysicalOperatorNode(val left: OperatorNode.Physical, val r
      * @return This [OperatorNode].
      */
     override fun bindValues(ctx: BindingContext<Value>): OperatorNode {
-        this.left.bindValues(ctx)
-        this.right.bindValues(ctx)
+        this.left?.bindValues(ctx)
+        this.right?.bindValues(ctx)
         return this
     }
 
@@ -78,8 +159,8 @@ abstract class BinaryPhysicalOperatorNode(val left: OperatorNode.Physical, val r
      * @return Digest for this [BinaryPhysicalOperatorNode]
      */
     override fun digest(): Long {
-        val result = 27L * hashCode() + this.left.digest()
-        return 27L * result + this.right.digest()
+        val result = 27L * hashCode() + (this.left?.digest() ?: -1L)
+        return 27L * result + (this.right?.digest() ?: -3L)
     }
 
     /**
@@ -88,8 +169,8 @@ abstract class BinaryPhysicalOperatorNode(val left: OperatorNode.Physical, val r
      * @param p The [PrintStream] to print this [OperatorNode] to. Defaults to [System.out]
      */
     override fun printTo(p: PrintStream) {
-        this.left.printTo(p)
-        this.right.printTo(p)
+        this.left?.printTo(p)
+        this.right?.printTo(p)
         super.printTo(p)
     }
 }

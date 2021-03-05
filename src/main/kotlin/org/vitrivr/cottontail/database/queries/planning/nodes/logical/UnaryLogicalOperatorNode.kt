@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.database.queries.planning.nodes.logical
 
 import org.vitrivr.cottontail.database.column.ColumnDef
+import org.vitrivr.cottontail.database.queries.GroupId
 import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.binding.Binding
@@ -13,28 +14,79 @@ import java.io.PrintStream
  * An abstract [OperatorNode.Logical] implementation that has a single [OperatorNode] as input.
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.1.0
  */
-abstract class UnaryLogicalOperatorNode(val input: OperatorNode.Logical) : OperatorNode.Logical() {
+abstract class UnaryLogicalOperatorNode(input: Logical? = null) : OperatorNode.Logical() {
     /** Input arity of [UnaryLogicalOperatorNode] is always one. */
     final override val inputArity: Int = 1
 
     /** The group Id of a [UnaryLogicalOperatorNode] is always the one of its parent.*/
-    final override val groupId: Int
-        get() = this.input.groupId
+    final override val groupId: GroupId
+        get() = this.input?.groupId ?: 0
 
     /** The [base] of a [UnaryLogicalOperatorNode] is always its [input]'s base. */
-    final override val base: Collection<OperatorNode.Logical>
-        get() = this.input.base
+    final override val base: Collection<Logical>
+        get() = this.input?.base ?: emptyList()
+
+    /** The input [OperatorNode.Logical]. */
+    open var input: Logical? = null
+        set(value) {
+            require(value?.output == null) { "Cannot connect $value to $this: Output is already occupied!" }
+            field?.output = null
+            value?.output = this
+            field = value
+        }
 
     /** By default, a [UnaryLogicalOperatorNode]'s order is retained. */
-    override val order: Array<Pair<ColumnDef<*>, SortOrder>> = this.input.order
+    override val order: Array<Pair<ColumnDef<*>, SortOrder>>
+        get() = this.input?.order ?: emptyArray()
 
     /** By default, a [UnaryLogicalOperatorNode]'s requirements are unspecified. */
     override val requires: Array<ColumnDef<*>> = emptyArray()
 
     init {
-        this.input.output = this
+        this.input = input
+    }
+
+    /**
+     * Creates and returns a copy of this [UnaryLogicalOperatorNode] without any children or parents.
+     *
+     * @return Copy of this [UnaryLogicalOperatorNode].
+     */
+    abstract override fun copy(): UnaryLogicalOperatorNode
+
+    /**
+     * Creates and returns a copy of this [UnaryLogicalOperatorNode] and all its inputs that belong to the same [GroupId],
+     * up and until the base of the tree.
+     *
+     * @return Copy of this [OperatorNode.Logical].
+     */
+    final override fun copyWithGroupInputs(): Logical {
+        val copy = this.copy()
+        copy.input = this.input?.copyWithGroupInputs()
+        return copy
+    }
+
+    /**
+     * Creates and returns a copy of this [UnaryLogicalOperatorNode] and all its inputs that belong to the same [GroupId],
+     * up and until the base of the tree.
+     *
+     * @return Copy of this [OperatorNode.Logical].
+     */
+    final override fun copyWithInputs(): Logical = this.copyWithGroupInputs()
+
+    /**
+     * Creates and returns a copy of this [UnaryLogicalOperatorNode] with its output reaching down to the [root] of the tree.
+     * Furthermore connects the provided [input] to the copied [UnaryLogicalOperatorNode]s.
+     *
+     * @param input The [OperatorNode.Logical]s that act as input.
+     * @return Copy of this [UnaryLogicalOperatorNode] with its output.
+     */
+    override fun copyWithOutput(vararg input: Logical): Logical {
+        require(input.size <= this.inputArity) { "Cannot provide more than ${this.inputArity} inputs for ${this.javaClass.simpleName}." }
+        val copy = this.copy()
+        copy.input = input.getOrNull(0)
+        return (this.output?.copyWithOutput(copy) ?: copy).root
     }
 
     /**
@@ -49,7 +101,7 @@ abstract class UnaryLogicalOperatorNode(val input: OperatorNode.Logical) : Opera
      * @return This [OperatorNode].
      */
     override fun bindValues(ctx: BindingContext<Value>): OperatorNode {
-        this.input.bindValues(ctx)
+        this.input?.bindValues(ctx)
         return this
     }
 
@@ -58,7 +110,7 @@ abstract class UnaryLogicalOperatorNode(val input: OperatorNode.Logical) : Opera
      *
      * @return Digest for this [UnaryLogicalOperatorNode]
      */
-    final override fun digest(): Long = 33L * this.hashCode() + this.input.digest()
+    final override fun digest(): Long = 33L * this.hashCode() + (this.input?.digest() ?: -1L)
 
     /**
      * Prints this [OperatorNode] tree to the given [PrintStream].
@@ -66,7 +118,7 @@ abstract class UnaryLogicalOperatorNode(val input: OperatorNode.Logical) : Opera
      * @param p The [PrintStream] to print this [OperatorNode] to. Defaults to [System.out]
      */
     override fun printTo(p: PrintStream) {
-        this.input.printTo(p)
+        this.input?.printTo(p)
         super.printTo(p)
     }
 }

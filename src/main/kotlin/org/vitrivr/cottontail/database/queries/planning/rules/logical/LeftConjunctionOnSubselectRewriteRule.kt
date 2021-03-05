@@ -49,13 +49,13 @@ object LeftConjunctionOnSubselectRewriteRule : RewriteRule {
             val p2DependsOn = node.predicate.p2.atomics.filterIsInstance<BooleanPredicate.Atomic.Literal>().filter { it.dependsOn > -1 }
 
             val p1Filter = if (p1DependsOn.isNotEmpty()) {
-                FilterOnSubSelectLogicalOperatorNode(node.predicate.p1, parent, *p1DependsOn.map { ctx[it.dependsOn] }.toTypedArray())
+                FilterOnSubSelectLogicalOperatorNode(node.predicate.p1, parent)
             } else {
                 FilterLogicalOperatorNode(parent, node.predicate.p1)
             }
 
             val p2Filter = if (p2DependsOn.isNotEmpty()) {
-                FilterOnSubSelectLogicalOperatorNode(node.predicate.p2, p1Filter, *p2DependsOn.map { ctx[it.dependsOn] }.toTypedArray())
+                FilterOnSubSelectLogicalOperatorNode(node.predicate.p2, p1Filter)
             } else {
                 FilterLogicalOperatorNode(p1Filter, node.predicate.p2)
             }

@@ -17,7 +17,7 @@ import org.vitrivr.cottontail.database.queries.planning.nodes.logical.projection
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.sort.SortLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.sources.EntitySampleLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.sources.EntityScanLogicalOperatorNode
-import org.vitrivr.cottontail.database.queries.planning.nodes.logical.sources.EntitySourceLogicalOperatorNode
+import org.vitrivr.cottontail.database.queries.planning.nodes.logical.transform.DistanceLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.transform.LimitLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.predicates.bool.BooleanPredicate
 import org.vitrivr.cottontail.database.queries.predicates.bool.ComparisonOperator
@@ -178,7 +178,7 @@ class GrpcQueryBinder constructor(val catalogue: Catalogue) {
         try {
             /* Parse FROM-clause. */
             var root = parseAndBindFrom(update.from, context)
-            if (root !is EntitySourceLogicalOperatorNode) {
+            if (root !is EntityScanLogicalOperatorNode) {
                 throw QueryException.QueryBindException("Failed to bind query. UPDATES only support entity sources as FROM-clause.")
             }
             val entity: Entity = root.entity
@@ -217,7 +217,7 @@ class GrpcQueryBinder constructor(val catalogue: Catalogue) {
     fun bind(delete: CottontailGrpc.DeleteMessage, context: QueryContext) {
         /* Parse FROM-clause. */
         val from = parseAndBindFrom(delete.from, context)
-        if (from !is EntitySourceLogicalOperatorNode) {
+        if (from !is EntityScanLogicalOperatorNode) {
             throw QueryException.QueryBindException("Failed to bind query. UPDATES only support entity sources as FROM-clause.")
         }
         val entity: Entity = from.entity
