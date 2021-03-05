@@ -3,6 +3,7 @@ package org.vitrivr.cottontail.execution.operators.projection
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.onEach
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.queries.projection.Projection
 import org.vitrivr.cottontail.execution.TransactionContext
@@ -73,7 +74,7 @@ class MeanProjectionOperator(
             /* Prepare holder of type double. */
             val count = this@MeanProjectionOperator.parentColumns.map { 0L }.toTypedArray()
             val sum = this@MeanProjectionOperator.parentColumns.map { 0.0 }.toTypedArray()
-            parentFlow.collect {
+            parentFlow.onEach {
                 this@MeanProjectionOperator.parentColumns.forEachIndexed { i, c ->
                     val value = it[c]
                     if (value != null) {
@@ -90,7 +91,7 @@ class MeanProjectionOperator(
                         }
                     }
                 }
-            }
+            }.collect()
 
             /** Emit record. */
             val results = Array<Value?>(sum.size) { DoubleValue(sum[it] / count[it]) }

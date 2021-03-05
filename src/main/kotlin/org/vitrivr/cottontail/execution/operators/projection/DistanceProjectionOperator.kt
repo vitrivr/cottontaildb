@@ -3,6 +3,7 @@ package org.vitrivr.cottontail.execution.operators.projection
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.onEach
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicate
 import org.vitrivr.cottontail.execution.TransactionContext
@@ -47,7 +48,7 @@ class DistanceProjectionOperator(parent: Operator, val knn: KnnPredicate) : Oper
             flow {
                 val values = Array<Value?>(this@DistanceProjectionOperator.columns.size) { null }
                 val knn = this@DistanceProjectionOperator.knn
-                parentFlow.collect {
+                parentFlow.onEach {
                     var i = 0
                     val value = it[knn.column]
                     val distance = if (value is VectorValue<*>) {
@@ -58,13 +59,13 @@ class DistanceProjectionOperator(parent: Operator, val knn: KnnPredicate) : Oper
                     it.forEach { _, v -> values[i++] = v }
                     values[i] = distance
                     emit(StandaloneRecord(it.tupleId, this@DistanceProjectionOperator.columns, values))
-                }
+                }.collect()
             }
         } else {
             flow {
                 val values = Array<Value?>(this@DistanceProjectionOperator.columns.size) { null }
                 val knn = this@DistanceProjectionOperator.knn
-                parentFlow.collect {
+                parentFlow.onEach {
                     var i = 0
                     val value = it[knn.column]
                     val distance = if (value is VectorValue<*>) {
@@ -75,7 +76,7 @@ class DistanceProjectionOperator(parent: Operator, val knn: KnnPredicate) : Oper
                     it.forEach { _, v -> values[i++] = v }
                     values[i] = distance
                     emit(StandaloneRecord(it.tupleId, this@DistanceProjectionOperator.columns, values))
-                }
+                }.collect()
             }
         }
     }

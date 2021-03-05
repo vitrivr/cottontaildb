@@ -3,6 +3,7 @@ package org.vitrivr.cottontail.execution.operators.sinks
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.onEach
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.exceptions.OperatorSetupException
@@ -33,10 +34,10 @@ class ValueCollectorSink(parent: Operator, val column: ColumnDef<*>, val into: M
         val parentFlow = this.parent.toFlow(context)
         return flow {
             this@ValueCollectorSink.into.clear()
-            parentFlow.collect {
+            parentFlow.onEach {
                 val value = it[this@ValueCollectorSink.column]
                 this@ValueCollectorSink.into.add(value)
-            }
+            }.collect()
         }
     }
 }

@@ -3,6 +3,7 @@ package org.vitrivr.cottontail.execution.operators.sinks
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.onEach
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.model.basics.Record
@@ -21,7 +22,7 @@ class RecordCollectorSink(parent: Operator, val into: MutableList<Record>) : Ope
         val parentFlow = this.parent.toFlow(context)
         return flow {
             this@RecordCollectorSink.into.clear()
-            parentFlow.collect { this@RecordCollectorSink.into.add(it) }
+            parentFlow.onEach { this@RecordCollectorSink.into.add(it) }.collect()
         }
     }
 }

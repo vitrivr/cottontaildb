@@ -3,6 +3,7 @@ package org.vitrivr.cottontail.execution.operators.sort
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.onEach
 
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.queries.sort.SortOrder
@@ -45,9 +46,7 @@ class LimitingHeapSortOperator(parent: Operator, sortOn: Array<Pair<ColumnDef<*>
             this.parent.toFlow(context)
         }
         return flow {
-            parentFlow.collect {
-                this@LimitingHeapSortOperator.selection.offer(it)
-            }
+            parentFlow.onEach { this@LimitingHeapSortOperator.selection.offer(it) }.collect()
             for (i in 0 until this@LimitingHeapSortOperator.selection.size) {
                 emit(this@LimitingHeapSortOperator.selection[i])
             }

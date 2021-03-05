@@ -4,6 +4,7 @@ import it.unimi.dsi.fastutil.objects.ObjectHeapPriorityQueue
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.onEach
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.queries.sort.SortOrder
 import org.vitrivr.cottontail.execution.TransactionContext
@@ -31,9 +32,7 @@ open class HeapSortOperator(parent: Operator, sortOn: Array<Pair<ColumnDef<*>, S
     override fun toFlow(context: TransactionContext): Flow<Record> {
         val parentFlow = this.parent.toFlow(context)
         return flow {
-            parentFlow.collect {
-                this@HeapSortOperator.queue.enqueue(it)
-            }
+            parentFlow.onEach { this@HeapSortOperator.queue.enqueue(it) }.collect()
             while (!this@HeapSortOperator.queue.isEmpty) {
                 emit(this@HeapSortOperator.queue.dequeue())
             }

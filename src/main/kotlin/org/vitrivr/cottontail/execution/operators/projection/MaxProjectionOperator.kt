@@ -3,6 +3,7 @@ package org.vitrivr.cottontail.execution.operators.projection
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.onEach
 import org.vitrivr.cottontail.database.column.*
 import org.vitrivr.cottontail.database.queries.projection.Projection
 import org.vitrivr.cottontail.execution.TransactionContext
@@ -73,7 +74,7 @@ class MaxProjectionOperator(
         return flow {
             /* Prepare holder of type double, which can hold all types of values and collect incoming flow */
             val max = this@MaxProjectionOperator.parentColumns.map { Double.MIN_VALUE }.toTypedArray()
-            parentFlow.collect {
+            parentFlow.onEach {
                 this@MaxProjectionOperator.parentColumns.forEachIndexed { i, c ->
                     max[i] = when (val value = it[c]) {
                         is ByteValue -> max(max[i], value.value.toDouble())
@@ -86,7 +87,7 @@ class MaxProjectionOperator(
                         else -> throw ExecutionException.OperatorExecutionException(this@MaxProjectionOperator, "The provided column $c cannot be used for a MAX projection. ")
                     }
                 }
-            }
+            }.collect()
 
             /* Convert to original value type. */
             val results = Array<Value?>(max.size) {

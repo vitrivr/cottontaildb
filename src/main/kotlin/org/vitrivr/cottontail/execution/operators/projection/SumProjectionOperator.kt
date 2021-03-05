@@ -3,6 +3,7 @@ package org.vitrivr.cottontail.execution.operators.projection
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.onEach
 import org.vitrivr.cottontail.database.column.*
 import org.vitrivr.cottontail.database.queries.projection.Projection
 import org.vitrivr.cottontail.execution.TransactionContext
@@ -71,7 +72,7 @@ class SumProjectionOperator(
         return flow {
             /* Prepare holder of type double. */
             val sum = this@SumProjectionOperator.parentColumns.map { 0.0 }.toTypedArray()
-            parentFlow.collect {
+            parentFlow.onEach {
                 this@SumProjectionOperator.parentColumns.forEachIndexed { i, c ->
                     sum[i] += when (val value = it[c]) {
                         is ByteValue -> value.value.toDouble()
@@ -84,7 +85,7 @@ class SumProjectionOperator(
                         else -> throw ExecutionException.OperatorExecutionException(this@SumProjectionOperator, "The provided column $c cannot be used for a ${Projection.SUM} projection. ")
                     }
                 }
-            }
+            }.collect()
 
             /** Emit record. */
             val results = Array<Value?>(sum.size) { DoubleValue(sum[it]) }

@@ -6,11 +6,6 @@ import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.NullaryLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalOperatorNode
-import org.vitrivr.cottontail.database.queries.planning.nodes.physical.predicates.FilterPhysicalOperatorNode
-import org.vitrivr.cottontail.database.queries.planning.nodes.physical.projection.LimitPhysicalOperatorNode
-import org.vitrivr.cottontail.database.queries.planning.nodes.physical.sources.EntityCountPhysicalOperatorNode
-import org.vitrivr.cottontail.database.queries.planning.nodes.physical.sources.EntityScanPhysicalOperatorNode
-import org.vitrivr.cottontail.database.queries.planning.nodes.physical.sources.IndexScanPhysicalOperatorNode
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.model.basics.Name
@@ -61,14 +56,7 @@ class ExplainQueryOperator(val candidates: Collection<OperatorNode.Physical>) : 
                 array[4] = FloatValue(node.cost.io)
                 array[5] = FloatValue(node.cost.memory)
                 array[6] = BooleanValue(node.canBePartitioned)
-                array[7] = when (node) {
-                    is EntityCountPhysicalOperatorNode -> StringValue("${node.entity.name}")
-                    is EntityScanPhysicalOperatorNode -> StringValue("${node.entity.name}")
-                    is IndexScanPhysicalOperatorNode -> StringValue("${node.index.name}")
-                    is FilterPhysicalOperatorNode -> StringValue("${node.predicate}")
-                    is LimitPhysicalOperatorNode -> StringValue("SKIP ${node.skip} LIMIT ${node.limit}")
-                    else -> null
-                }
+                array[7] = StringValue(node.toString())
                 emit(StandaloneRecord(row++, this@ExplainQueryOperator.columns, array))
             }
         }
@@ -76,15 +64,18 @@ class ExplainQueryOperator(val candidates: Collection<OperatorNode.Physical>) : 
 
 
     /**
-     * Enumerates a query plan and returns a sorted list of [PhysicalOperatorNode] with their exact path.
+     * Enumerates a query plan and returns a sorted list of [OperatorNode.Physical] with their exact path.
+     *
+     * @param path An [Array] tracking the current depth of the execution plan.
+     * @param nodes The [OperatorNode.Physical] to explain.
      */
-    fun enumerate(path: Array<Int> = emptyArray(), vararg nodes: OperatorNode.Physical): List<Pair<String, OperatorNode.Physical>> {
+    private fun enumerate(path: Array<Int> = emptyArray(), vararg nodes: OperatorNode.Physical): List<Pair<String, OperatorNode.Physical>> {
         val list = mutableListOf<Pair<String, OperatorNode.Physical>>()
         for ((index, node) in nodes.withIndex()) {
             val newPath = (path + index)
             when (node) {
                 is NullaryLogicalOperatorNode -> list += Pair(newPath.joinToString("."), node)
-                is UnaryPhysicalOperatorNode -> list += this.enumerate(newPath, node.input)
+                is UnaryPhysicalOperatorNode -> list += this.enumerate(newPath, node.input ?: throw IllegalStateException("Encountered null node in physical operator node tree (node = $node). This is a programmer's error!"))
             }
         }
         return list

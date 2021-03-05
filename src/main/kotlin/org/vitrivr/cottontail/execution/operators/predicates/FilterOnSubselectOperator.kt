@@ -66,11 +66,7 @@ class FilterOnSubselectOperator(val parent: Operator, val subSelects: List<Opera
             }
 
             /* Stage 2: Make comparison */
-            query.filter {
-                this@FilterOnSubselectOperator.predicate.matches(it)
-            }.onEach {
-                emit(it)
-            }.collect()
+            emitAll(query.filter { this@FilterOnSubselectOperator.predicate.matches(it) })
         }
     }
 }

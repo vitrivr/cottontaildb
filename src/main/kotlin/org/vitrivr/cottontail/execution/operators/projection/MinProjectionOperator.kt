@@ -3,6 +3,7 @@ package org.vitrivr.cottontail.execution.operators.projection
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.onEach
 import org.vitrivr.cottontail.database.column.*
 import org.vitrivr.cottontail.database.queries.projection.Projection
 import org.vitrivr.cottontail.execution.TransactionContext
@@ -73,7 +74,7 @@ class MinProjectionOperator(
         return flow {
             /* Prepare holder of type double, which can hold all types of values and collect incoming flow */
             val min = this@MinProjectionOperator.parentColumns.map { Double.MAX_VALUE }.toTypedArray()
-            parentFlow.collect {
+            parentFlow.onEach {
                 this@MinProjectionOperator.parentColumns.forEachIndexed { i, c ->
                     min[i] = when (val value = it[c]) {
                         is ByteValue -> min(min[i], value.value.toDouble())
@@ -86,7 +87,7 @@ class MinProjectionOperator(
                         else -> throw ExecutionException.OperatorExecutionException(this@MinProjectionOperator, "The provided column $c cannot be used for a MIN projection. ")
                     }
                 }
-            }
+            }.collect()
 
             /* Convert to original value type. */
             val results = Array<Value?>(min.size) {

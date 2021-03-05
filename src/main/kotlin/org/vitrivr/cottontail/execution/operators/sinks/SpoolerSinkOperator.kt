@@ -50,7 +50,6 @@ class SpoolerSinkOperator(parent: Operator, private val queryId: String, private
         }
 
         return flow {
-
             val responseBuilder = CottontailGrpc.QueryResponseMessage.newBuilder().setTid(CottontailGrpc.TransactionId.newBuilder().setQueryId(this@SpoolerSinkOperator.queryId).setValue(context.txId)).addAllColumns(columns)
             var accumulatedSize = 0L
             parent.onEach {
