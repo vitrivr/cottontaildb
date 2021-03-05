@@ -14,6 +14,11 @@ import java.util.*
  * @version 1.0.0
  */
 open class RecordStatistics {
+
+    companion object {
+        val EMPTY = RecordStatistics()
+    }
+
     /** The map of [ColumnDef] to [ValueStatistics] mappings held by this [RecordStatistics]. */
     protected val columns = Object2ObjectOpenHashMap<ColumnDef<*>, ValueStatistics<Value>>()
 
