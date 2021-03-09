@@ -11,11 +11,11 @@ import io.grpc.StatusException
 import io.grpc.StatusRuntimeException
 import org.jline.reader.EndOfFileException
 import org.jline.reader.LineReaderBuilder
+import org.jline.reader.UserInterruptException
 import org.jline.reader.impl.completer.AggregateCompleter
 import org.jline.reader.impl.completer.ArgumentCompleter
 import org.jline.reader.impl.completer.NullCompleter
 import org.jline.reader.impl.completer.StringsCompleter
-import org.jline.terminal.Terminal
 import org.jline.terminal.TerminalBuilder
 import org.vitrivr.cottontail.cli.entity.*
 import org.vitrivr.cottontail.cli.query.CountEntityCommand
@@ -30,8 +30,6 @@ import org.vitrivr.cottontail.cli.system.ListLocksCommand
 import org.vitrivr.cottontail.cli.system.ListTransactionsCommand
 import org.vitrivr.cottontail.cli.system.MigrationCommand
 import org.vitrivr.cottontail.grpc.*
-import org.vitrivr.cottontail.server.grpc.services.DMLService
-import org.vitrivr.cottontail.server.grpc.services.TXNService
 import java.io.IOException
 import java.util.*
 import java.util.regex.Pattern
@@ -109,13 +107,11 @@ class Cli(val host: String = "localhost", val port: Int = 1865) {
      * Blocking REPL of the CLI
      */
     fun loop() {
-        val terminal: Terminal?
-        try {
-            terminal = TerminalBuilder.terminal()
+        val terminal = try {
+            TerminalBuilder.builder().jansi(true).build()
         } catch (e: IOException) {
-            error("Could not init terminal for reason:\n" +
-                    "${e.message}\n" +
-                    "Exiting...")
+            System.err.println("Could not initialize terminal: ${e.message}. Aborting...")
+            return
         }
 
         /* Initialize auto complete. */
@@ -128,8 +124,13 @@ class Cli(val host: String = "localhost", val port: Int = 1865) {
             val line = try {
                 lineReader.readLine(PROMPT).trim()
             } catch (e: EndOfFileException) {
-                "stop"
+                System.err.println("Could not read from terminal. If you're running Cottontail DB in Docker, then either run Docker in interactive mode (-it) or switch off the Cottontail DB CLI via the config.")
+                break
+            } catch (e: UserInterruptException) {
+                System.err.println("Cottontail DB was interrupted by the user (Ctrl-C).")
+                break
             }
+
             if (line.toLowerCase() == "help") {
                 println(clikt.getFormattedHelp())
                 continue
@@ -213,10 +214,10 @@ class Cli(val host: String = "localhost", val port: Int = 1865) {
         /** The [DDLGrpc.DDLBlockingStub] used for changing Cottontail DB DBOs. */
         private val ddlService = DDLGrpc.newBlockingStub(this.channel)
 
-        /** The [DMLService.DMLBlockingStub] used for changing Cottontail DB data. */
+        /** The [DMLGrpc.DMLBlockingStub] used for changing Cottontail DB data. */
         private val dmlService = DMLGrpc.newBlockingStub(this.channel)
 
-        /** The [TXNService.TXNBlockingStub] used for changing Cottontail DB data. */
+        /** The [TXNGrpc.TXNBlockingStub] used for changing Cottontail DB data. */
         private val txnService = TXNGrpc.newBlockingStub(this.channel)
 
         /** A list of aliases: mapping of alias name to commands */

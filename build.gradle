@@ -135,6 +135,7 @@ dependencies {
 
     ////// CLI & Terminal
     implementation group: 'org.jline', name: 'jline', version: version_jline
+    implementation group: 'org.jline', name: 'jline-terminal-jansi', version: version_jline
     implementation group: 'com.github.ajalt.clikt', name: 'clikt', version: version_clikt
     implementation group: 'com.jakewharton.picnic', name: 'picnic', version: version_picnic
 
