@@ -121,6 +121,9 @@ dependencies {
     ///// FastUtil
     implementation group: 'it.unimi.dsi', name: 'fastutil', version: version_fastutil
 
+    ///// Google Guava
+    implementation group: 'com.google.guava', name: 'guava', version: '30.1-jre'
+
     ////// Log4j2 & SLF4j
     implementation group: 'org.apache.logging.log4j', name: 'log4j-api', version: version_log4j2
     implementation group: 'org.apache.logging.log4j', name: 'log4j-core', version: version_log4j2

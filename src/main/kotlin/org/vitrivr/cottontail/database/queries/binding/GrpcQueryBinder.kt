@@ -528,7 +528,8 @@ class GrpcQueryBinder constructor(val catalogue: Catalogue) {
 
         /* Return logical node expression for projection. */
         return when (type) {
-            Projection.SELECT -> SelectProjectionLogicalOperatorNode(input, fields)
+            Projection.SELECT,
+            Projection.SELECT_DISTINCT -> SelectProjectionLogicalOperatorNode(input, type, fields)
             Projection.COUNT -> CountProjectionLogicalOperatorNode(input, fields)
             Projection.EXISTS -> ExistsProjectionLogicalOperatorNode(input, fields)
             Projection.SUM,
