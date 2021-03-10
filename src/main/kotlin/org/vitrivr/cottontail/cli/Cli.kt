@@ -3,11 +3,11 @@ package org.vitrivr.cottontail.cli
 import com.github.ajalt.clikt.core.CliktCommand
 import org.jline.reader.EndOfFileException
 import org.jline.reader.LineReaderBuilder
+import org.jline.reader.UserInterruptException
 import org.jline.reader.impl.completer.AggregateCompleter
 import org.jline.reader.impl.completer.ArgumentCompleter
 import org.jline.reader.impl.completer.NullCompleter
 import org.jline.reader.impl.completer.StringsCompleter
-import org.jline.terminal.Terminal
 import org.jline.terminal.TerminalBuilder
 import org.vitrivr.cottontail.server.grpc.CottontailGrpcServer
 import java.io.IOException
@@ -95,13 +95,11 @@ object Cli {
     fun loop(host: String = "localhost", port: Int = 1865) {
         clikt = CottontailCommand(host, port)
 
-        val terminal: Terminal?
-        try {
-            terminal = TerminalBuilder.terminal()
+        val terminal = try {
+            TerminalBuilder.builder().jansi(true).build()
         } catch (e: IOException) {
-            error("Could not init terminal for reason:\n" +
-                    "${e.message}\n" +
-                    "Exiting...")
+            System.err.println("Could not initialize terminal: ${e.message}. Aborting...")
+            return
         }
 
         (clikt as CottontailCommand).initCompletion()
@@ -109,12 +107,17 @@ object Cli {
         val lineReader = LineReaderBuilder.builder().terminal(terminal).completer(completer).build()
 
         while (true) {
-            /* Catch ^D end of file as exit method */
+            /* Catch ^D and ^C end of file as exit method */
             val line = try {
                 lineReader.readLine(PROMPT).trim()
             } catch (e: EndOfFileException) {
-                "stop"
+                System.err.println("Could not read from terminal. If you're running Cottontail DB in Docker, then either run Docker in interactive mode (-it) or switch off the Cottontail DB CLI via the config.")
+                break
+            } catch (e: UserInterruptException) {
+                System.err.println("Cottontail DB was interrupted by the user (Ctrl-C).")
+                break
             }
+
             if (line.toLowerCase() == "help") {
                 println(clikt.getFormattedHelp())
                 continue
