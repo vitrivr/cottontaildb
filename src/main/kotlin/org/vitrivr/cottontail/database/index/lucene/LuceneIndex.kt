@@ -89,6 +89,9 @@ class LuceneIndex(path: Path, parent: DefaultEntity, config: LuceneIndexConfig? 
         /** Initial commit of write in case writer was created freshly. */
         val writer = IndexWriter(this.directory, IndexWriterConfig(this.config.getAnalyzer()).setOpenMode(IndexWriterConfig.OpenMode.CREATE_OR_APPEND).setCommitOnClose(true))
         writer.close()
+
+        /* Initial commit of store. */
+        this.store.commit()
     }
 
     /** The [IndexReader] instance used for accessing the [LuceneIndex]. */
