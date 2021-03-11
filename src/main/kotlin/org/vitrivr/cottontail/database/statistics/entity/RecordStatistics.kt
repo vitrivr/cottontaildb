@@ -70,4 +70,17 @@ open class RecordStatistics {
         other.columns.forEach { (t, u) -> this[t] = u }
         return this
     }
+
+    /**
+     * Creates an exact copy of this [RecordStatistics].
+     *
+     * @return Copy of this [RecordStatistics].
+     */
+    open fun copy(): RecordStatistics {
+        val copy = RecordStatistics()
+        for ((t, u) in this.columns) {
+            copy[t] = u
+        }
+        return copy
+    }
 }

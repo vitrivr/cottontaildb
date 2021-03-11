@@ -13,9 +13,9 @@ import kotlin.math.max
  * A data object that collects statistics for an entity.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.0.1
  */
-data class EntityStatistics(var count: Long = -1L, var maximumTupleId: TupleId = -1L) : RecordStatistics() {
+data class EntityStatistics(var count: Long = 0L, var maximumTupleId: TupleId = 0L) : RecordStatistics() {
 
     /**
      * Serializer for [EntityStatistics] object.
@@ -58,5 +58,18 @@ data class EntityStatistics(var count: Long = -1L, var maximumTupleId: TupleId =
         is DataChangeEvent.UpdateDataChangeEvent -> {
             event.updates.forEach { (t, u) -> this.columns[t]?.update(u.first, u.second) }
         }
+    }
+
+    /**
+     * Creates an exact copy of this [EntityStatistics].
+     *
+     * @return Copy of this [EntityStatistics].
+     */
+    override fun copy(): EntityStatistics {
+        val copy = EntityStatistics(this.count, this.maximumTupleId)
+        for ((t, u) in this.columns) {
+            copy[t] = u
+        }
+        return copy
     }
 }
