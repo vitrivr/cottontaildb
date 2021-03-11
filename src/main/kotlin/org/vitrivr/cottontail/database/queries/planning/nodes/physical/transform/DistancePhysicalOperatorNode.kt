@@ -81,15 +81,14 @@ class DistancePhysicalOperatorNode(input: Physical? = null, val predicate: KnnPr
         } else {
             this.totalCost.parallelisation()
         }
-        this.predicate
         return if (p > 1) {
             val partitions = this.input?.partition(p) ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)")
-            val operators = partitions.map { DistanceProjectionOperator(it.toOperator(tx, ctx), this.predicate) }
+            val operators = partitions.map { DistanceProjectionOperator(it.toOperator(tx, ctx), this.predicate.bindValues(ctx.values)) }
             MergeOperator(operators)
         } else {
             DistanceProjectionOperator(
                 this.input?.toOperator(tx, ctx) ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)"),
-                this.predicate
+                this.predicate.bindValues(ctx.values)
             )
         }
     }
