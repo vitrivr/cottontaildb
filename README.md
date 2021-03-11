@@ -15,7 +15,7 @@ Please clone this repository using
 The entire project is a Gradle project and comes with a Gradle Wrapper so things should work pretty much out of the box.
 
 ### Building and starting Cottontail DB
-You can simply build an executable JAR with the `./gradlew shadowJar` gradle task.
+You can simply build an executable JAR with the `./gradlew shadowJar` gradle task. This jar can then be started with `java -jar build/libs/...`
 Alternatively -- preferably -- an executable distribution of Cottontail DB can then be built from sources using the 
 Gradle tasks `distTar` or `distZip`. Distributions will be stored relative to the project root in `build/distributions` as either TAR or ZIP file.
 
