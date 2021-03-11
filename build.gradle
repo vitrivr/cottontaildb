@@ -29,7 +29,8 @@ apply plugin: 'signing'
 mainClassName = 'org.vitrivr.cottontail.CottontailKt'
 applicationDefaultJvmArgs = ["-Xms2G", "-Xmx4G"]
 
-sourceCompatibility = 1.11
+targetCompatibility = 1.8
+sourceCompatibility = 1.8
 
 repositories {
     mavenCentral()
