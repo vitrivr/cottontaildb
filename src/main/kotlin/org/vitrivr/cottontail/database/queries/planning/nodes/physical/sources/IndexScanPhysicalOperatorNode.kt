@@ -101,10 +101,10 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int, val index: Index,
                 val operators = partitions.map { it.toOperator(tx, ctx) }
                 MergeOperator(operators)
             } else {
-                IndexScanOperator(this.groupId, this.index, this.predicate)
+                IndexScanOperator(this.groupId, this.index, this.predicate.bindValues(ctx.values))
             }
         }
-        is BooleanPredicate -> IndexScanOperator(this.groupId, this.index, this.predicate)
+        is BooleanPredicate -> IndexScanOperator(this.groupId, this.index, this.predicate.bindValues(ctx.values))
         else -> throw UnsupportedOperationException("Unknown type of predicate ${this.predicate} cannot be converted to operator.")
     }
 

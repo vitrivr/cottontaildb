@@ -53,7 +53,7 @@ class RangedIndexScanPhysicalOperatorNode(override val groupId: Int, val index: 
      * @param tx The [TransactionContext] used for execution.
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(tx: TransactionContext, ctx: QueryContext): Operator = IndexScanOperator(this.groupId, this.index, this.predicate, this.range)
+    override fun toOperator(tx: TransactionContext, ctx: QueryContext): Operator = IndexScanOperator(this.groupId, this.index, this.predicate.bindValues(ctx.values), this.range)
 
     /**
      * [RangedIndexScanPhysicalOperatorNode] cannot be partitioned.
