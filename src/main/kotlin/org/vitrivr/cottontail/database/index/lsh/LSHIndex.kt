@@ -5,7 +5,6 @@ import org.vitrivr.cottontail.database.entity.DefaultEntity
 import org.vitrivr.cottontail.database.index.AbstractIndex
 import org.vitrivr.cottontail.database.index.IndexType
 import org.vitrivr.cottontail.model.values.types.VectorValue
-import org.vitrivr.cottontail.utilities.math.KnnUtilities
 import java.nio.file.Path
 
 abstract class LSHIndex<T : VectorValue<*>>(path: Path, parent: DefaultEntity) : AbstractIndex(path, parent) {
@@ -16,8 +15,7 @@ abstract class LSHIndex<T : VectorValue<*>>(path: Path, parent: DefaultEntity) :
     }
 
     /** The [LSHIndex] implementation returns exactly the columns that is indexed. */
-    final override val produces: Array<ColumnDef<*>> =
-        arrayOf(KnnUtilities.queryIndexColumnDef(this.name.entity()))
+    final override val produces: Array<ColumnDef<*>> = emptyArray()
 
     /** The type of [AbstractIndex] */
     override val type: IndexType = IndexType.LSH

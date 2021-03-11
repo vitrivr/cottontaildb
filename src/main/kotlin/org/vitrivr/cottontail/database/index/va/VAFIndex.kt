@@ -29,7 +29,6 @@ import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.DoubleValue
-import org.vitrivr.cottontail.model.values.IntValue
 import org.vitrivr.cottontail.model.values.types.RealVectorValue
 import org.vitrivr.cottontail.model.values.types.VectorValue
 import org.vitrivr.cottontail.utilities.math.KnnUtilities
@@ -47,7 +46,7 @@ import kotlin.math.min
  * [1] Weber, R. and Blott, S., 1997. An approximation based data structure for similarity search (No. 9141, p. 416). Technical Report 24, ESPRIT Project HERMES.
  *
  * @author Gabriel Zihlmann & Ralph Gasser
- * @version 2.0.0
+ * @version 2.1.0
  */
 class VAFIndex(path: Path, parent: DefaultEntity, config: VAFIndexConfig? = null) : AbstractIndex(path, parent) {
 
@@ -58,10 +57,7 @@ class VAFIndex(path: Path, parent: DefaultEntity, config: VAFIndexConfig? = null
     }
 
     /** The [VAFIndex] implementation returns exactly the columns that is indexed. */
-    override val produces: Array<ColumnDef<*>> = arrayOf(
-        KnnUtilities.queryIndexColumnDef(this.parent.name),
-        KnnUtilities.distanceColumnDef(this.parent.name)
-    )
+    override val produces: Array<ColumnDef<*>> = arrayOf(KnnUtilities.distanceColumnDef(this.parent.name))
 
     /** The type of [AbstractIndex]. */
     override val type = IndexType.VAF
@@ -70,19 +66,16 @@ class VAFIndex(path: Path, parent: DefaultEntity, config: VAFIndexConfig? = null
     override val config: VAFIndexConfig
 
     /** Store for the [Marks]. */
-    private val marksStore: Atomic.Var<Marks> =
-        this.store.atomicVar(VAF_INDEX_MARKS_FIELD, Marks.Serializer).createOrOpen()
+    private val marksStore: Atomic.Var<Marks> = this.store.atomicVar(VAF_INDEX_MARKS_FIELD, Marks.Serializer).createOrOpen()
 
     /** Store for the signatures. */
-    private val signatures =
-        this.store.indexTreeList(VAF_INDEX_SIGNATURES_FIELD, VAFSignature.Serializer).createOrOpen()
+    private val signatures = this.store.indexTreeList(VAF_INDEX_SIGNATURES_FIELD, VAFSignature.Serializer).createOrOpen()
 
     init {
         require(this.columns.size == 1) { "$VAFIndex only supports indexing a single column." }
 
         /* Load or create config. */
-        val configOnDisk =
-            this.store.atomicVar(INDEX_CONFIG_FIELD, VAFIndexConfig.Serializer).createOrOpen()
+        val configOnDisk = this.store.atomicVar(INDEX_CONFIG_FIELD, VAFIndexConfig.Serializer).createOrOpen()
         if (configOnDisk.get() == null) {
             if (config != null) {
                 this.config = config
@@ -233,28 +226,30 @@ class VAFIndex(path: Path, parent: DefaultEntity, config: VAFIndexConfig? = null
                 throw QueryException.UnsupportedPredicateException("Index '${this@VAFIndex.name}' (VAF Index) does not support predicates of type '${predicate::class.simpleName}'.")
             }
 
+            /** [VectorValue] used for query. Must be prepared before using the [Iterator]. */
+            private val query: RealVectorValue<*>
+
             /** The [Marks] used by this [Iterator]. */
             private val marks = this@VAFIndex.marksStore.get()
 
             /** The [Bounds] objects used for filtering. */
-            private val bounds: List<Bounds> = this.predicate.query.map {
-                require(it is RealVectorValue<*>) { }
-                when (this.predicate.distance) {
-                    is ManhattanDistance -> L1Bounds(it, this.marks)
-                    is EuclidianDistance -> L2Bounds(it, this.marks)
-                    is SquaredEuclidianDistance -> L2SBounds(it, this.marks)
-                    is MinkowskiDistance -> LpBounds(it, this.marks, this.predicate.distance.p)
-                    else -> throw IllegalArgumentException("The ${this.predicate.distance} distance kernel is not supported by VAFIndex.")
-                }
-            }
+            private val bounds: Bounds
 
             /** The [ArrayDeque] of [StandaloneRecord] produced by this [VAFIndex]. Evaluated lazily! */
-            private val resultsQueue: ArrayDeque<StandaloneRecord> by lazy {
-                prepareResults()
-            }
+            private val resultsQueue: ArrayDeque<StandaloneRecord> by lazy { prepareResults() }
 
             init {
                 this@Tx.withReadLock { }
+                val value = this.predicate.query.value
+                check(value is RealVectorValue<*>) { "Bound value for query vector has wrong type (found = ${value.type})." }
+                this.query = value
+                this.bounds = when (this.predicate.distance) {
+                    is ManhattanDistance -> L1Bounds(this.query, this.marks)
+                    is EuclidianDistance -> L2Bounds(this.query, this.marks)
+                    is SquaredEuclidianDistance -> L2SBounds(this.query, this.marks)
+                    is MinkowskiDistance -> LpBounds(this.query, this.marks, this.predicate.distance.p)
+                    else -> throw IllegalArgumentException("The ${this.predicate.distance} distance kernel is not supported by VAFIndex.")
+                }
             }
 
             override fun hasNext(): Boolean = this.resultsQueue.isNotEmpty()
@@ -268,14 +263,10 @@ class VAFIndex(path: Path, parent: DefaultEntity, config: VAFIndexConfig? = null
 
                 /* Prepare txn and kNN data structures. */
                 val txn = this@Tx.context.getTx(this@VAFIndex.parent) as EntityTx
-                val knns = if (this.predicate.k == 1) {
-                    this.predicate.query.map { MinSingleSelection<ComparablePair<Long, DoubleValue>>() }
+                val knn = if (this.predicate.k == 1) {
+                    MinSingleSelection<ComparablePair<Long, DoubleValue>>()
                 } else {
-                    this.predicate.query.map {
-                        MinHeapSelection<ComparablePair<Long, DoubleValue>>(
-                            this.predicate.k
-                        )
-                    }
+                    MinHeapSelection(this.predicate.k)
                 }
 
                 /* Iterate over all signatures. */
@@ -283,16 +274,12 @@ class VAFIndex(path: Path, parent: DefaultEntity, config: VAFIndexConfig? = null
                 for (sigIndex in range) {
                     val signature = this@VAFIndex.signatures[sigIndex.toInt()]
                     if (signature != null) {
-                        this.predicate.query.forEachIndexed { i, q ->
-                            if (q is RealVectorValue<*>) {
-                                if (knns[i].size < this.predicate.k || this.bounds[i].isVASSACandidate(signature, knns[i].peek()!!.second.value)) {
-                                    val value = txn.read(signature.tupleId, this@VAFIndex.columns)[this@VAFIndex.columns[0]]
-                                    if (value is VectorValue<*>) {
-                                        knns[i].offer(ComparablePair(signature.tupleId, this.predicate.distance(value, q)))
-                                    }
-                                    read += 1
-                                }
+                        if (knn.size < this.predicate.k || this.bounds.isVASSACandidate(signature, knn.peek()!!.second.value)) {
+                            val value = txn.read(signature.tupleId, this@VAFIndex.columns)[this@VAFIndex.columns[0]]
+                            if (value is VectorValue<*>) {
+                                knn.offer(ComparablePair(signature.tupleId, this.predicate.distance(value, this.query)))
                             }
+                            read += 1
                         }
                     }
                 }
@@ -301,11 +288,9 @@ class VAFIndex(path: Path, parent: DefaultEntity, config: VAFIndexConfig? = null
                 LOGGER.debug("VA-file scan: Skipped over $skipped% of entries.")
 
                 /* Prepare and return list of results. */
-                val queue = ArrayDeque<StandaloneRecord>(this.predicate.k * this.predicate.query.size)
-                for ((queryIndex, knn) in knns.withIndex()) {
-                    for (i in 0 until knn.size) {
-                        queue.add(StandaloneRecord(knn[i].first, this@VAFIndex.produces, arrayOf(IntValue(queryIndex), knn[i].second)))
-                    }
+                val queue = ArrayDeque<StandaloneRecord>(this.predicate.k)
+                for (i in 0 until knn.size) {
+                    queue.add(StandaloneRecord(knn[i].first, this@VAFIndex.produces, arrayOf(knn[i].second)))
                 }
                 return queue
             }

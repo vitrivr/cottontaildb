@@ -24,7 +24,6 @@ import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.recordset.Recordset
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
-import org.vitrivr.cottontail.model.values.IntValue
 import org.vitrivr.cottontail.model.values.types.ComplexVectorValue
 import org.vitrivr.cottontail.model.values.types.VectorValue
 import java.nio.file.Path
@@ -37,7 +36,7 @@ import java.util.*
  * [Recordset]s.
  *
  * @author Manuel Huerbin, Gabriel Zihlmann & Ralph Gasser
- * @version 2.0.1
+ * @version 2.1.0
  */
 class SuperBitLSHIndex<T : VectorValue<*>>(
     path: Path,
@@ -107,11 +106,11 @@ class SuperBitLSHIndex<T : VectorValue<*>>(
      */
     override fun canProcess(predicate: Predicate): Boolean =
         predicate is KnnPredicate
-        && predicate.columns.first() == this.columns[0]
-        && (predicate.distance is CosineDistance
-            || predicate.distance is RealInnerProductDistance
-            || predicate.distance is AbsoluteInnerProductDistance)
-        && (!this.config.considerImaginary || predicate.query.all { it is ComplexVectorValue<*> })
+                && predicate.columns.first() == this.columns[0]
+                && (predicate.distance is CosineDistance
+                || predicate.distance is RealInnerProductDistance
+                || predicate.distance is AbsoluteInnerProductDistance)
+                && (!this.config.considerImaginary || predicate.query is ComplexVectorValue<*>)
 
     /**
      * Calculates the cost estimate of this [SuperBitLSHIndex] processing the provided [Predicate].
@@ -222,63 +221,52 @@ class SuperBitLSHIndex<T : VectorValue<*>>(
         override fun filter(predicate: Predicate) = object : Iterator<Record> {
 
             /** Cast [KnnPredicate] (if such a cast is possible).  */
-            val predicate = if (predicate is KnnPredicate) {
+            private val predicate = if (predicate is KnnPredicate) {
                 predicate
             } else {
                 throw QueryException.UnsupportedPredicateException("Index '${this@SuperBitLSHIndex.name}' (LSH Index) does not support predicates of type '${predicate::class.simpleName}'.")
             }
 
-            /** Prepare new [SuperBitLSH] data structure to calculate the bucket index. */
-            private val lsh = SuperBitLSH(
-                this@SuperBitLSHIndex.config.stages,
-                this@SuperBitLSHIndex.config.buckets,
-                this@SuperBitLSHIndex.config.seed,
-                this.predicate.query.first(),
-                this@SuperBitLSHIndex.config.considerImaginary,
-                this@SuperBitLSHIndex.config.samplingMethod
-            )
-
-            /** The index of the current query vector. */
-            private var queryIndex = -1
-
             /** List of [TupleId]s returned by this [Iterator]. */
-            private val tupleIds = LinkedList<TupleId>()
+            private val tupleIds: LinkedList<TupleId>
 
             /* Performs some sanity checks. */
             init {
                 if (this.predicate.columns.first() != this@SuperBitLSHIndex.columns[0] || !(this.predicate.distance is CosineDistance || this.predicate.distance is AbsoluteInnerProductDistance)) {
                     throw QueryException.UnsupportedPredicateException("Index '${this@SuperBitLSHIndex.name}' (lsh-index) does not support the provided predicate.")
                 }
-                this@Tx.withReadLock {
-                    this.prepareMatchesForNextQueryVector()
-                }
-            }
 
-            override fun hasNext(): Boolean {
-                return this.tupleIds.isNotEmpty() || (this.queryIndex < this.predicate.query.size)
-            }
+                /* Assure correctness of query vector. */
+                val value = this.predicate.query.value
+                check(value is VectorValue<*>) { "Bound value for query vector has wrong type (found = ${value.type})." }
 
-            override fun next(): Record {
-                val ret = StandaloneRecord(this.tupleIds.removeFirst(), this@SuperBitLSHIndex.produces, arrayOf(IntValue(this.queryIndex)))
-                if (this.tupleIds.isEmpty()) {
-                    this.prepareMatchesForNextQueryVector()
-                }
-                return ret
-            }
+                /** Prepare SuperBitLSH data structure. */
+                this@Tx.withReadLock { }
+                val lsh = SuperBitLSH(
+                    this@SuperBitLSHIndex.config.stages,
+                    this@SuperBitLSHIndex.config.buckets,
+                    this@SuperBitLSHIndex.config.seed,
+                    value,
+                    this@SuperBitLSHIndex.config.considerImaginary,
+                    this@SuperBitLSHIndex.config.samplingMethod
+                )
 
-            /**
-             * Prepares the matches for the next query vector by adding all [TupleId]s to this [tupleIds] list.
-             */
-            private fun prepareMatchesForNextQueryVector() {
-                if ((++this.queryIndex) >= this.predicate.query.size) return
-                val query = this.predicate.query[this.queryIndex]
-                val signature = this.lsh.hash(query)
+                /** Prepare list of matches. */
+                this.tupleIds = LinkedList<TupleId>()
+                val signature = lsh.hash(value)
                 for (stage in signature.indices) {
                     for (tupleId in this@SuperBitLSHIndex.maps[stage].getValue(signature[stage])) {
                         this.tupleIds.offer(tupleId)
                     }
                 }
             }
+
+            override fun hasNext(): Boolean {
+                return this.tupleIds.isNotEmpty()
+            }
+
+            override fun next(): Record = StandaloneRecord(this.tupleIds.removeFirst(), this@SuperBitLSHIndex.produces, arrayOf())
+
         }
 
         /**

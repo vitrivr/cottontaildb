@@ -8,6 +8,9 @@ import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalOperatorNode
 import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicate
 import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicateHint
+import org.vitrivr.cottontail.database.statistics.columns.DoubleValueStatistics
+import org.vitrivr.cottontail.database.statistics.columns.ValueStatistics
+import org.vitrivr.cottontail.database.statistics.entity.RecordStatistics
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.projection.DistanceProjectionOperator
@@ -40,6 +43,14 @@ class DistancePhysicalOperatorNode(input: Physical? = null, val predicate: KnnPr
     /** The [Cost] of a [DistancePhysicalOperatorNode]. */
     override val cost: Cost
         get() = Cost(cpu = this.outputSize * this.predicate.atomicCpuCost)
+
+    /** */
+    override val statistics: RecordStatistics
+        get() {
+            val copy = this.input?.statistics?.copy() ?: RecordStatistics()
+            copy[this.columns.last()] = DoubleValueStatistics() as ValueStatistics<Value>
+            return copy
+        }
 
     /**
      * Creates and returns a copy of this [DistancePhysicalOperatorNode] without any children or parents.

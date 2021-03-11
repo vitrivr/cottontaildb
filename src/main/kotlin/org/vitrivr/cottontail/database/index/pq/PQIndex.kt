@@ -21,7 +21,6 @@ import org.vitrivr.cottontail.model.basics.*
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.DoubleValue
-import org.vitrivr.cottontail.model.values.IntValue
 import org.vitrivr.cottontail.model.values.types.VectorValue
 import org.vitrivr.cottontail.utilities.math.KnnUtilities
 import java.nio.file.Path
@@ -38,7 +37,7 @@ import kotlin.collections.ArrayDeque
  * [1] Guo, Ruiqi, et al. "Quantization based fast inner product search." Artificial Intelligence and Statistics. 2016.
  *
  * @author Gabriel Zihlmann & Ralph Gasser
- * @version 2.0.1
+ * @version 2.1.0
  */
 class PQIndex(path: Path, parent: DefaultEntity, config: PQIndexConfig? = null) : AbstractIndex(path, parent) {
 
@@ -76,10 +75,7 @@ class PQIndex(path: Path, parent: DefaultEntity, config: PQIndexConfig? = null) 
     }
 
     /** The [PQIndex] implementation returns exactly the columns that is indexed. */
-    override val produces: Array<ColumnDef<*>> = arrayOf(
-        KnnUtilities.queryIndexColumnDef(this.parent.name),
-        KnnUtilities.distanceColumnDef(this.parent.name)
-    )
+    override val produces: Array<ColumnDef<*>> = arrayOf(KnnUtilities.distanceColumnDef(this.parent.name))
 
     /** The type of [AbstractIndex]. */
     override val type = IndexType.PQ
@@ -149,10 +145,9 @@ class PQIndex(path: Path, parent: DefaultEntity, config: PQIndexConfig? = null) 
     override fun cost(predicate: Predicate) =
         if (predicate is KnnPredicate && predicate.column == this.columns[0]) {
             Cost(
-                this.signaturesStore.size * this.config.numSubspaces * Cost.COST_DISK_ACCESS_READ + predicate.query.size * predicate.k * predicate.column.type.logicalSize * Cost.COST_DISK_ACCESS_READ,
-                predicate.query.size * (this.signaturesStore.size * (4 * Cost.COST_MEMORY_ACCESS + Cost.COST_FLOP) + predicate.k * predicate.atomicCpuCost),
-                (predicate.query.size * predicate.k * this.produces.map { it.type.physicalSize }
-                    .sum()).toFloat()
+                this.signaturesStore.size * this.config.numSubspaces * Cost.COST_DISK_ACCESS_READ + predicate.k * predicate.column.type.logicalSize * Cost.COST_DISK_ACCESS_READ,
+                this.signaturesStore.size * (4 * Cost.COST_MEMORY_ACCESS + Cost.COST_FLOP) + predicate.k * predicate.atomicCpuCost,
+                (predicate.k * this.produces.map { it.type.physicalSize }.sum()).toFloat()
             )
         } else {
             Cost.INVALID
@@ -247,8 +242,7 @@ class PQIndex(path: Path, parent: DefaultEntity, config: PQIndexConfig? = null) 
          * @param predicate The [Predicate] for the lookup
          * @return The resulting [Iterator]
          */
-        override fun filter(predicate: Predicate): Iterator<Record> =
-            filterRange(predicate, 0L until this.count())
+        override fun filter(predicate: Predicate): Iterator<Record> = filterRange(predicate, 0L until this.count())
 
         /**
          * Performs a lookup through this [PQIndex.Tx] and returns a [Iterator] of all [Record]s
@@ -260,23 +254,23 @@ class PQIndex(path: Path, parent: DefaultEntity, config: PQIndexConfig? = null) 
          * @param range The [LongRange] of [PQIndexEntry] to consider.
          * @return The resulting [Iterator]
          */
-        override fun filterRange(predicate: Predicate, range: LongRange) =
-            object : Iterator<Record> {
+        override fun filterRange(predicate: Predicate, range: LongRange) = object : Iterator<Record> {
 
-                /** Cast [KnnPredicate] (if such a cast is possible).  */
-                private val predicate = if (predicate is KnnPredicate) {
-                    predicate
-                } else {
-                    throw QueryException.UnsupportedPredicateException("Index '${this@PQIndex.name}' (PQ Index) does not support predicates of type '${predicate::class.simpleName}'.")
-                }
+            /** Cast [KnnPredicate] (if such a cast is possible).  */
+            private val predicate = if (predicate is KnnPredicate) {
+                predicate
+            } else {
+                throw QueryException.UnsupportedPredicateException("Index '${this@PQIndex.name}' (PQ Index) does not support predicates of type '${predicate::class.simpleName}'.")
+            }
 
-                /** The [PQ] instance used for this [Iterator]. */
-                private val pq = this@PQIndex.pqStore.get()
+            /** [VectorValue] used for query. Must be prepared before using the [Iterator]. */
+            private val query: VectorValue<*>
+
+            /** The [PQ] instance used for this [Iterator]. */
+            private val pq = this@PQIndex.pqStore.get()
 
             /** Prepares [PQLookupTable]s for the given query vector(s). */
-            private val lookupTables = this.predicate.query.map {
-                this.pq.getLookupTable(it, this.predicate.distance)
-            }
+            private val lookupTable: PQLookupTable
 
             /** The [ArrayDeque] of [StandaloneRecord] produced by this [VAFIndex]. Evaluated lazily! */
             private val resultsQueue: ArrayDeque<StandaloneRecord> by lazy {
@@ -285,6 +279,10 @@ class PQIndex(path: Path, parent: DefaultEntity, config: PQIndexConfig? = null) 
 
             init {
                 this@Tx.withReadLock { }
+                val value = this.predicate.query.value
+                check(value is VectorValue<*>) { "Bound value for query vector has wrong type (found = ${value.type})." }
+                this.query = value
+                this.lookupTable = this.pq.getLookupTable(this.query, this.predicate.distance)
             }
 
             override fun hasNext(): Boolean = this.resultsQueue.isNotEmpty()
@@ -297,51 +295,42 @@ class PQIndex(path: Path, parent: DefaultEntity, config: PQIndexConfig? = null) 
             private fun prepareResults(): ArrayDeque<StandaloneRecord> {
                 /* Prepare data structures for NNS. */
                 val txn = this@Tx.context.getTx(this@PQIndex.parent) as EntityTx
-                val preKnnSize =
-                    (this.predicate.k * 1.15).toInt() /* Pre-kNN size is 15% larger than k. */
-                val preKnns = Array(this.predicate.query.size) {
-                    MinHeapSelection<ComparablePair<LongArray, Double>>(preKnnSize)
-                }
+                val preKnnSize = (this.predicate.k * 1.15).toInt() /* Pre-kNN size is 15% larger than k. */
+                val preKnn = MinHeapSelection<ComparablePair<LongArray, Double>>(preKnnSize)
 
                 /* Phase 1: Perform pre-kNN based on signatures. */
                 for (i in range) {
                     val entry = this@PQIndex.signaturesStore[i.toInt()]
-                    for (queryIndex in this.predicate.query.indices) {
-                        val approximation =
-                            this.lookupTables[queryIndex].approximateDistance(entry!!.signature)
-                        if (preKnns[queryIndex].size < this.predicate.k || preKnns[queryIndex].peek()!!.second > approximation) {
-                            preKnns[queryIndex].offer(ComparablePair(entry.tupleIds, approximation))
-                        }
+                    val approximation =
+                        this.lookupTable.approximateDistance(entry!!.signature)
+                    if (preKnn.size < this.predicate.k || preKnn.peek()!!.second > approximation) {
+                        preKnn.offer(ComparablePair(entry.tupleIds, approximation))
                     }
                 }
 
                 /* Phase 2: Perform exact kNN based on pre-kNN results. */
-                val knns = if (this.predicate.k == 1) {
-                    Array(this.predicate.query.size) { MinSingleSelection<ComparablePair<TupleId, DoubleValue>>() }
+                val knn = if (this.predicate.k == 1) {
+                    MinSingleSelection<ComparablePair<TupleId, DoubleValue>>()
                 } else {
-                    Array(this.predicate.query.size) { MinHeapSelection<ComparablePair<TupleId, DoubleValue>>(this.predicate.k) }
+                    MinHeapSelection<ComparablePair<TupleId, DoubleValue>>(this.predicate.k)
                 }
-                for ((queryIndex, query) in this.predicate.query.withIndex()) {
-                    for (j in 0 until preKnns[queryIndex].size) {
-                        val tupleIds = preKnns[queryIndex][j].first
-                        for (tupleId in tupleIds) {
-                            val exact = txn.read(tupleId, this@PQIndex.columns)[this@PQIndex.columns[0]]
-                            if (exact is VectorValue<*>) {
-                                val distance = this.predicate.distance(exact, query)
-                                if (knns[queryIndex].size < this.predicate.k || knns[queryIndex].peek()!!.second > distance) {
-                                    knns[queryIndex].offer(ComparablePair(tupleId, distance))
-                                }
+                for (j in 0 until preKnn.size) {
+                    val tupleIds = preKnn[j].first
+                    for (tupleId in tupleIds) {
+                        val exact = txn.read(tupleId, this@PQIndex.columns)[this@PQIndex.columns[0]]
+                        if (exact is VectorValue<*>) {
+                            val distance = this.predicate.distance(exact, this.query)
+                            if (knn.size < this.predicate.k || knn.peek()!!.second > distance) {
+                                knn.offer(ComparablePair(tupleId, distance))
                             }
                         }
                     }
                 }
 
                 /* Phase 3: Prepare and return list of results. */
-                val queue = ArrayDeque<StandaloneRecord>(this.predicate.k * this.predicate.query.size)
-                for ((queryIndex, knn) in knns.withIndex()) {
-                    for (i in 0 until knn.size) {
-                        queue.add(StandaloneRecord(knn[i].first, this@PQIndex.produces, arrayOf(IntValue(queryIndex), knn[i].second)))
-                    }
+                val queue = ArrayDeque<StandaloneRecord>(this.predicate.k)
+                for (i in 0 until knn.size) {
+                    queue.add(StandaloneRecord(knn[i].first, this@PQIndex.produces, arrayOf(knn[i].second)))
                 }
                 return queue
             }

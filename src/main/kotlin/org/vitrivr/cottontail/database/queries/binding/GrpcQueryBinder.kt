@@ -38,6 +38,7 @@ import org.vitrivr.cottontail.model.values.StringValue
 import org.vitrivr.cottontail.model.values.pattern.LikePatternValue
 import org.vitrivr.cottontail.model.values.pattern.LucenePatternValue
 import org.vitrivr.cottontail.model.values.types.Value
+import org.vitrivr.cottontail.model.values.types.VectorValue
 import org.vitrivr.cottontail.utilities.math.KnnUtilities
 
 /**
@@ -447,41 +448,61 @@ class GrpcQueryBinder constructor(val catalogue: Catalogue) {
         val column = input.findUniqueColumnForName(columnName)
         val distance = Distances.valueOf(knn.distance.name).kernel
         val hint = knn.hint.toHint()
-
-        val predicate = KnnPredicate(column = column, k = knn.k, distance = distance, hint = hint)
-        when (column.type) {
-            is Type.DoubleVector -> {
-                knn.queryList.forEach { q -> predicate.query(context.values.bind(q.toDoubleVectorValue())) }
-                knn.weightsList.forEach { w -> predicate.weight(context.values.bind(w.toDoubleVectorValue())) }
-            }
-            is Type.FloatVector -> {
-                knn.queryList.forEach { q -> predicate.query(context.values.bind(q.toFloatVectorValue())) }
-                knn.weightsList.forEach { w -> predicate.weight(context.values.bind(w.toFloatVectorValue())) }
-            }
-            is Type.LongVector -> {
-                knn.queryList.forEach { q -> predicate.query(context.values.bind(q.toLongVectorValue())) }
-                knn.weightsList.forEach { w -> predicate.weight(context.values.bind(w.toLongVectorValue())) }
-            }
-            is Type.IntVector -> {
-                knn.queryList.forEach { q -> predicate.query(context.values.bind(q.toIntVectorValue())) }
-                knn.weightsList.forEach { w -> predicate.weight(context.values.bind(w.toIntVectorValue())) }
-            }
-            is Type.BooleanVector -> {
-                knn.queryList.forEach { q -> predicate.query(context.values.bind(q.toBooleanVectorValue())) }
-                knn.weightsList.forEach { w -> predicate.weight(context.values.bind(w.toBooleanVectorValue())) }
-            }
-            is Type.Complex32Vector -> {
-                knn.queryList.forEach { q -> predicate.query(context.values.bind(q.toComplex32VectorValue())) }
-                knn.weightsList.forEach { w -> predicate.weight(context.values.bind(w.toComplex32VectorValue())) }
-            }
-            is Type.Complex64Vector -> {
-                knn.queryList.forEach { q -> predicate.query(context.values.bind(q.toComplex64VectorValue())) }
-                knn.weightsList.forEach { w -> predicate.weight(context.values.bind(w.toComplex64VectorValue())) }
-            }
+        val query: Pair<VectorValue<*>, VectorValue<*>?> = when (column.type) {
+            is Type.DoubleVector -> Pair(
+                knn.query.toDoubleVectorValue(), if (knn.hasWeight()) {
+                    knn.weight.toDoubleVectorValue()
+                } else {
+                    null
+                }
+            )
+            is Type.FloatVector -> Pair(
+                knn.query.toFloatVectorValue(), if (knn.hasWeight()) {
+                    knn.weight.toFloatVectorValue()
+                } else {
+                    null
+                }
+            )
+            is Type.LongVector -> Pair(
+                knn.query.toLongVectorValue(), if (knn.hasWeight()) {
+                    knn.weight.toLongVectorValue()
+                } else {
+                    null
+                }
+            )
+            is Type.IntVector -> Pair(
+                knn.query.toIntVectorValue(), if (knn.hasWeight()) {
+                    knn.weight.toIntVectorValue()
+                } else {
+                    null
+                }
+            )
+            is Type.BooleanVector -> Pair(
+                knn.query.toBooleanVectorValue(), if (knn.hasWeight()) {
+                    knn.weight.toBooleanVectorValue()
+                } else {
+                    null
+                }
+            )
+            is Type.Complex32Vector -> Pair(
+                knn.query.toComplex32VectorValue(), if (knn.hasWeight()) {
+                    knn.weight.toComplex32VectorValue()
+                } else {
+                    null
+                }
+            )
+            is Type.Complex64Vector -> Pair(
+                knn.query.toComplex64VectorValue(), if (knn.hasWeight()) {
+                    knn.weight.toComplex64VectorValue()
+                } else {
+                    null
+                }
+            )
             else -> throw QueryException.QuerySyntaxException("A kNN predicate does not contain a valid query vector!")
         }
 
         /* Generate DistanceLogicalOperatorNode and return it. */
+        val predicate = KnnPredicate(column = column, k = knn.k, distance = distance, hint = hint, query = context.values.bind(query.first), query.second?.let { context.values.bind(it) })
         val dist = DistanceLogicalOperatorNode(input, predicate)
         val sort = SortLogicalOperatorNode(dist, arrayOf(KnnUtilities.distanceColumnDef(predicate.column.name.entity()) to SortOrder.ASCENDING))
         return LimitLogicalOperatorNode(sort, predicate.k.toLong(), 0L)
