@@ -422,7 +422,7 @@ class GrpcQueryBinder constructor(val catalogue: Catalogue) {
             CottontailGrpc.ComparisonOperator.MATCH -> {
                 val v = literals.first()
                 if (v is StringValue) {
-                    ComparisonOperator.Binary.Like(context.values.bind(LucenePatternValue(v.value)))
+                    ComparisonOperator.Binary.Match(context.values.bind(LucenePatternValue(v.value)))
                 } else {
                     throw QueryException.QuerySyntaxException("MATCH operator expects a parsable string value as right operand.")
                 }
