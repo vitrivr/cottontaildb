@@ -12,6 +12,7 @@ import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.sources.IndexScanOperator
 import org.vitrivr.cottontail.model.values.types.Value
+import java.lang.Math.floorDiv
 
 /**
  * A [NullaryPhysicalOperatorNode] that formalizes a scan of a physical [Index] in Cottontail DB on a given range.
@@ -19,7 +20,7 @@ import org.vitrivr.cottontail.model.values.types.Value
  * @author Ralph Gasser
  * @version 2.1.0
  */
-class RangedIndexScanPhysicalOperatorNode(override val groupId: Int, val index: Index, val predicate: Predicate, val range: LongRange) : NullaryPhysicalOperatorNode() {
+class RangedIndexScanPhysicalOperatorNode(override val groupId: Int, val index: Index, val predicate: Predicate, val partitionIndex: Int, val partitions: Int) : NullaryPhysicalOperatorNode() {
     companion object {
         private const val NODE_NAME = "ScanIndex"
     }
@@ -29,7 +30,7 @@ class RangedIndexScanPhysicalOperatorNode(override val groupId: Int, val index: 
         get() = NODE_NAME
 
 
-    override val outputSize = (this.range.last - this.range.first)
+    override val outputSize = floorDiv(this.index.parent.statistics.count, this.partitions)
     override val statistics: RecordStatistics = this.index.parent.statistics
     override val columns: Array<ColumnDef<*>> = this.index.produces
     override val executable: Boolean = true
@@ -37,7 +38,8 @@ class RangedIndexScanPhysicalOperatorNode(override val groupId: Int, val index: 
     override val cost = this.index.cost(this.predicate)
 
     init {
-        require(this.range.first >= 0L) { "Start of a ranged index scan must be greater than zero." }
+        require(this.partitionIndex >= 0) { "The partitionIndex of a ranged index scan must be greater than zero." }
+        require(this.partitions > 0) { "The number of partitions for a ranged index scan must be greater than zero." }
     }
 
     /**
@@ -45,7 +47,7 @@ class RangedIndexScanPhysicalOperatorNode(override val groupId: Int, val index: 
      *
      * @return Copy of this [RangedIndexScanPhysicalOperatorNode].
      */
-    override fun copy() = RangedIndexScanPhysicalOperatorNode(this.groupId, this.index, this.predicate, this.range)
+    override fun copy() = RangedIndexScanPhysicalOperatorNode(this.groupId, this.index, this.predicate, this.partitionIndex, this.partitions)
 
     /**
      * Converts this [RangedIndexScanPhysicalOperatorNode] to a [IndexScanOperator].
@@ -53,7 +55,7 @@ class RangedIndexScanPhysicalOperatorNode(override val groupId: Int, val index: 
      * @param tx The [TransactionContext] used for execution.
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(tx: TransactionContext, ctx: QueryContext): Operator = IndexScanOperator(this.groupId, this.index, this.predicate.bindValues(ctx.values), this.range)
+    override fun toOperator(tx: TransactionContext, ctx: QueryContext): Operator = IndexScanOperator(this.groupId, this.index, this.predicate.bindValues(ctx.values), this.partitionIndex, this.partitions)
 
     /**
      * [RangedIndexScanPhysicalOperatorNode] cannot be partitioned.
@@ -73,7 +75,7 @@ class RangedIndexScanPhysicalOperatorNode(override val groupId: Int, val index: 
     }
 
     /** Generates and returns a [String] representation of this [RangedIndexScanPhysicalOperatorNode]. */
-    override fun toString() = "${super.toString()}[${this.index.type},${this.predicate},${this.range}]"
+    override fun toString() = "${super.toString()}[${this.index.type},${this.predicate},${this.partitionIndex}/${this.partitions}/]"
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -81,7 +83,8 @@ class RangedIndexScanPhysicalOperatorNode(override val groupId: Int, val index: 
 
         if (depth != other.depth) return false
         if (predicate != other.predicate) return false
-        if (range != other.range) return false
+        if (partitionIndex != other.partitionIndex) return false
+        if (partitions != other.partitions) return false
 
         return true
     }
@@ -89,7 +92,8 @@ class RangedIndexScanPhysicalOperatorNode(override val groupId: Int, val index: 
     override fun hashCode(): Int {
         var result = depth.hashCode()
         result = 31 * result + predicate.hashCode()
-        result = 31 * result + range.hashCode()
+        result = 31 * result + partitionIndex.hashCode()
+        result = 31 * result + partitions.hashCode()
         return result
     }
 }

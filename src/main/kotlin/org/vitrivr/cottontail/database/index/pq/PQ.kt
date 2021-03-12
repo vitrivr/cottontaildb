@@ -75,8 +75,8 @@ class PQ(val type: Type<*>, val codebooks: List<PQCodebook<VectorValue<*>>>) {
             for (i in 0 until size) {
                 codebooks.add(
                     when (type) {
-                        is Type.Float -> SinglePrecisionPQCodebook.Serializer.deserialize(input, available)
-                        is Type.Double -> DoublePrecisionPQCodebook.Serializer.deserialize(input, available)
+                        is Type.FloatVector -> SinglePrecisionPQCodebook.Serializer.deserialize(input, available)
+                        is Type.DoubleVector -> DoublePrecisionPQCodebook.Serializer.deserialize(input, available)
                         is Type.Complex32Vector -> SinglePrecisionPQCodebook.Serializer.deserialize(input, available)
                         is Type.Complex64Vector -> DoublePrecisionPQCodebook.Serializer.deserialize(input, available)
                         else -> throw IllegalStateException("")

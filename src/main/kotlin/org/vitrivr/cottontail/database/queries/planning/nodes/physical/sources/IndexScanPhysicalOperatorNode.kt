@@ -13,12 +13,13 @@ import org.vitrivr.cottontail.database.queries.predicates.Predicate
 import org.vitrivr.cottontail.database.queries.predicates.bool.BooleanPredicate
 import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicate
 import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicateHint
+import org.vitrivr.cottontail.database.queries.sort.SortOrder
 import org.vitrivr.cottontail.database.statistics.entity.RecordStatistics
 import org.vitrivr.cottontail.database.statistics.selectivity.NaiveSelectivityCalculator
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.sources.IndexScanOperator
-import org.vitrivr.cottontail.execution.operators.transform.MergeOperator
+import org.vitrivr.cottontail.execution.operators.transform.MergeLimitingHeapSortOperator
 import org.vitrivr.cottontail.model.values.types.Value
 
 /**
@@ -73,11 +74,8 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int, val index: Index,
      */
     override fun partition(p: Int): List<NullaryPhysicalOperatorNode> {
         check(this.index.supportsPartitioning) { "Index ${index.name} does not support partitioning!" }
-        val partitionSize = Math.floorDiv(this.index.parent.numberOfRows, p.toLong())
         return (0 until p).map {
-            val start = (it * partitionSize)
-            val end = ((it + 1) * partitionSize) - 1
-            RangedIndexScanPhysicalOperatorNode(this.groupId, this.index, this.predicate, start until end)
+            RangedIndexScanPhysicalOperatorNode(this.groupId, this.index, this.predicate, it, p)
         }
     }
 
@@ -99,7 +97,7 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int, val index: Index,
             if (p > 1 && this.canBePartitioned) {
                 val partitions = this.partition(p)
                 val operators = partitions.map { it.toOperator(tx, ctx) }
-                MergeOperator(operators)
+                MergeLimitingHeapSortOperator(operators, arrayOf(Pair(this.predicate.produces, SortOrder.ASCENDING)), this.predicate.k.toLong())
             } else {
                 IndexScanOperator(this.groupId, this.index, this.predicate.bindValues(ctx.values))
             }

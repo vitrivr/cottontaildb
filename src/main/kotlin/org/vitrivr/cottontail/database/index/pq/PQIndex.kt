@@ -26,6 +26,7 @@ import org.vitrivr.cottontail.utilities.math.KnnUtilities
 import java.nio.file.Path
 import java.util.*
 import kotlin.collections.ArrayDeque
+import kotlin.math.min
 
 /**
  * An [AbstractIndex] structure for nearest neighbor search (NNS) that uses a product quantization (PQ). Can
@@ -37,7 +38,7 @@ import kotlin.collections.ArrayDeque
  * [1] Guo, Ruiqi, et al. "Quantization based fast inner product search." Artificial Intelligence and Statistics. 2016.
  *
  * @author Gabriel Zihlmann & Ralph Gasser
- * @version 2.1.0
+ * @version 2.1.1
  */
 class PQIndex(path: Path, parent: DefaultEntity, config: PQIndexConfig? = null) : AbstractIndex(path, parent) {
 
@@ -242,7 +243,7 @@ class PQIndex(path: Path, parent: DefaultEntity, config: PQIndexConfig? = null) 
          * @param predicate The [Predicate] for the lookup
          * @return The resulting [Iterator]
          */
-        override fun filter(predicate: Predicate): Iterator<Record> = filterRange(predicate, 0L until this.count())
+        override fun filter(predicate: Predicate): Iterator<Record> = filterRange(predicate, 0, 1)
 
         /**
          * Performs a lookup through this [PQIndex.Tx] and returns a [Iterator] of all [Record]s
@@ -251,10 +252,11 @@ class PQIndex(path: Path, parent: DefaultEntity, config: PQIndexConfig? = null) 
          * <strong>Important:</strong> The [Iterator] is not thread safe!
          *
          * @param predicate The [Predicate] for the lookup
-         * @param range The [LongRange] of [PQIndexEntry] to consider.
+         * @param partitionIndex The [partitionIndex] for this [filterRange] call.
+         * @param partitions The total number of partitions for this [filterRange] call.
          * @return The resulting [Iterator]
          */
-        override fun filterRange(predicate: Predicate, range: LongRange) = object : Iterator<Record> {
+        override fun filterRange(predicate: Predicate, partitionIndex: Int, partitions: Int) = object : Iterator<Record> {
 
             /** Cast [KnnPredicate] (if such a cast is possible).  */
             private val predicate = if (predicate is KnnPredicate) {
@@ -277,12 +279,19 @@ class PQIndex(path: Path, parent: DefaultEntity, config: PQIndexConfig? = null) 
                 prepareResults()
             }
 
+            /** The [IntRange] that should be scanned by this [VAFIndex]. */
+            private val range: IntRange
+
             init {
                 this@Tx.withReadLock { }
                 val value = this.predicate.query.value
                 check(value is VectorValue<*>) { "Bound value for query vector has wrong type (found = ${value.type})." }
                 this.query = value
                 this.lookupTable = this.pq.getLookupTable(this.query, this.predicate.distance)
+
+                /* Calculate partition size. */
+                val pSize = Math.floorDiv(this@PQIndex.signaturesStore.size, partitions) + 1
+                this.range = pSize * partitionIndex until min(pSize * (partitionIndex + 1), this@PQIndex.signaturesStore.size)
             }
 
             override fun hasNext(): Boolean = this.resultsQueue.isNotEmpty()

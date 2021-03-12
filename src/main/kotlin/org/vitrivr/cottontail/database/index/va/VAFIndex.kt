@@ -32,6 +32,7 @@ import org.vitrivr.cottontail.model.values.DoubleValue
 import org.vitrivr.cottontail.model.values.types.RealVectorValue
 import org.vitrivr.cottontail.model.values.types.VectorValue
 import org.vitrivr.cottontail.utilities.math.KnnUtilities
+import java.lang.Math.floorDiv
 import java.nio.file.Path
 import java.util.*
 import kotlin.collections.ArrayDeque
@@ -46,7 +47,7 @@ import kotlin.math.min
  * [1] Weber, R. and Blott, S., 1997. An approximation based data structure for similarity search (No. 9141, p. 416). Technical Report 24, ESPRIT Project HERMES.
  *
  * @author Gabriel Zihlmann & Ralph Gasser
- * @version 2.1.0
+ * @version 2.1.1
  */
 class VAFIndex(path: Path, parent: DefaultEntity, config: VAFIndexConfig? = null) : AbstractIndex(path, parent) {
 
@@ -205,7 +206,7 @@ class VAFIndex(path: Path, parent: DefaultEntity, config: VAFIndexConfig? = null
          * @param predicate The [Predicate] for the lookup
          * @return The resulting [Iterator]
          */
-        override fun filter(predicate: Predicate) = filterRange(predicate, 0L until this.count())
+        override fun filter(predicate: Predicate) = filterRange(predicate, 0, 1)
 
         /**
          * Performs a lookup through this [VAFIndex.Tx] and returns a [Iterator] of all [Record]s
@@ -213,11 +214,12 @@ class VAFIndex(path: Path, parent: DefaultEntity, config: VAFIndexConfig? = null
          *
          * <strong>Important:</strong> The [Iterator] is not thread safe!
          *
-         * @param predicate The [Predicate] for the lookup
-         * @param range The [LongRange] of [VAFSignature]s to consider.
-         * @return The resulting [Iterator]
+         * @param predicate The [Predicate] for the lookup.
+         * @param partitionIndex The [partitionIndex] for this [filterRange] call.
+         * @param partitions The total number of partitions for this [filterRange] call.
+         * @return The resulting [Iterator].
          */
-        override fun filterRange(predicate: Predicate, range: LongRange) = object : Iterator<Record> {
+        override fun filterRange(predicate: Predicate, partitionIndex: Int, partitions: Int) = object : Iterator<Record> {
 
             /** Cast  to [KnnPredicate] (if such a cast is possible).  */
             private val predicate = if (predicate is KnnPredicate) {
@@ -238,6 +240,9 @@ class VAFIndex(path: Path, parent: DefaultEntity, config: VAFIndexConfig? = null
             /** The [ArrayDeque] of [StandaloneRecord] produced by this [VAFIndex]. Evaluated lazily! */
             private val resultsQueue: ArrayDeque<StandaloneRecord> by lazy { prepareResults() }
 
+            /** The [IntRange] that should be scanned by this [VAFIndex]. */
+            private val range: IntRange
+
             init {
                 this@Tx.withReadLock { }
                 val value = this.predicate.query.value
@@ -250,6 +255,10 @@ class VAFIndex(path: Path, parent: DefaultEntity, config: VAFIndexConfig? = null
                     is MinkowskiDistance -> LpBounds(this.query, this.marks, this.predicate.distance.p)
                     else -> throw IllegalArgumentException("The ${this.predicate.distance} distance kernel is not supported by VAFIndex.")
                 }
+
+                /* Calculate partition size. */
+                val pSize = floorDiv(this@VAFIndex.signatures.size, partitions) + 1
+                this.range = pSize * partitionIndex until min(pSize * (partitionIndex + 1), this@VAFIndex.signatures.size)
             }
 
             override fun hasNext(): Boolean = this.resultsQueue.isNotEmpty()
@@ -271,7 +280,7 @@ class VAFIndex(path: Path, parent: DefaultEntity, config: VAFIndexConfig? = null
 
                 /* Iterate over all signatures. */
                 var read = 0L
-                for (sigIndex in range) {
+                for (sigIndex in this.range) {
                     val signature = this@VAFIndex.signatures[sigIndex.toInt()]
                     if (signature != null) {
                         if (knn.size < this.predicate.k || this.bounds.isVASSACandidate(signature, knn.peek()!!.second.value)) {

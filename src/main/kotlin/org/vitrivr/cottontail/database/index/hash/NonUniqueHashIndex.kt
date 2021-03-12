@@ -301,14 +301,12 @@ class NonUniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path
         /**
          * The [NonUniqueHashIndex] does not support ranged filtering!
          *
-         * @param predicate The [Predicate] to perform the lookup.
-         * @param range The [LongRange] to consider.
+         * @param predicate The [Predicate] for the lookup.
+         * @param partitionIndex The [partitionIndex] for this [filterRange] call.
+         * @param partitions The total number of partitions for this [filterRange] call.
          * @return The resulting [Iterator].
          */
-        override fun filterRange(
-            predicate: Predicate,
-            range: LongRange
-        ): Iterator<Record> {
+        override fun filterRange(predicate: Predicate, partitionIndex: Int, partitions: Int): Iterator<Record> {
             throw UnsupportedOperationException("The NonUniqueHashIndex does not support ranged filtering!")
         }
     }

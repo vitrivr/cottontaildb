@@ -15,7 +15,7 @@ import org.vitrivr.cottontail.model.exceptions.TxException
  * A [Tx] that operates on a single [AbstractIndex]. [Tx]s are a unit of isolation for data operations (read/write).
  *
  * @author Ralph Gasser
- * @version 1.7.0
+ * @version 1.8.0
  */
 interface IndexTx : Tx, Filterable, Countable {
 
@@ -78,8 +78,9 @@ interface IndexTx : Tx, Filterable, Countable {
      * Not all [AbstractIndex] implementations support range filtering.
      *
      * @param predicate The [Predicate] to perform the lookup.
-     * @param range The [LongRange] to consider.
+     * @param partitionIndex The [partitionIndex] for this [filterRange] call.
+     * @param partitions The total number of partitions for this [filterRange] call.
      * @return The resulting [Iterator].
      */
-    fun filterRange(predicate: Predicate, range: LongRange): Iterator<Record>
+    fun filterRange(predicate: Predicate, partitionIndex: Int, partitions: Int): Iterator<Record>
 }
