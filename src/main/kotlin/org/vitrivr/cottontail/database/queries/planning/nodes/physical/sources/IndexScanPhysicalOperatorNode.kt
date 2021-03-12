@@ -73,7 +73,7 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int, val index: Index,
      */
     override fun partition(p: Int): List<NullaryPhysicalOperatorNode> {
         check(this.index.supportsPartitioning) { "Index ${index.name} does not support partitioning!" }
-        val partitionSize = Math.floorDiv(this.outputSize, p.toLong())
+        val partitionSize = Math.floorDiv(this.index.parent.numberOfRows, p.toLong())
         return (0 until p).map {
             val start = (it * partitionSize)
             val end = ((it + 1) * partitionSize) - 1
