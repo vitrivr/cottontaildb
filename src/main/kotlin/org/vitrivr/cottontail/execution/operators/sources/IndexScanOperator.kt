@@ -16,7 +16,7 @@ import org.vitrivr.cottontail.model.basics.Record
  * @author Ralph Gasser
  * @version 1.3.0
  */
-class IndexScanOperator(groupId: GroupId, private val index: Index, private val predicate: Predicate, private val range: LongRange? = null) : AbstractEntityOperator(groupId, index.parent, index.produces) {
+class IndexScanOperator(groupId: GroupId, private val index: Index, private val predicate: Predicate, private val partitionIndex: Int = 0, private val partitions: Int = 1) : AbstractEntityOperator(groupId, index.parent, index.produces) {
 
     /**
      * Converts this [IndexScanOperator] to a [Flow] and returns it.
@@ -27,7 +27,7 @@ class IndexScanOperator(groupId: GroupId, private val index: Index, private val 
     override fun toFlow(context: TransactionContext): Flow<Record> {
         val tx = context.getTx(this.entity) as EntityTx
         val indexTx = context.getTx(tx.indexForName(this.index.name)) as IndexTx
-        return if (this.range == null) {
+        return if (this.partitions == 1) {
             flow {
                 indexTx.filter(this@IndexScanOperator.predicate).forEach {
                     emit(it)
@@ -35,7 +35,7 @@ class IndexScanOperator(groupId: GroupId, private val index: Index, private val 
             }
         } else {
             flow {
-                indexTx.filterRange(this@IndexScanOperator.predicate, this@IndexScanOperator.range).forEach {
+                indexTx.filterRange(this@IndexScanOperator.predicate, this@IndexScanOperator.partitionIndex, this@IndexScanOperator.partitions).forEach {
                     emit(it)
                 }
             }
