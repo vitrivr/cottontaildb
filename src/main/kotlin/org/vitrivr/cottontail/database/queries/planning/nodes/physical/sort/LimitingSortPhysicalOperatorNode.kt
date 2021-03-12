@@ -9,6 +9,7 @@ import org.vitrivr.cottontail.database.queries.sort.SortOrder
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.sort.LimitingHeapSortOperator
+import org.vitrivr.cottontail.execution.operators.transform.MergeLimitingHeapSortOperator
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import kotlin.math.min
 
@@ -70,12 +71,16 @@ class LimitingSortPhysicalOperatorNode(input: Physical? = null, sortOn: Array<Pa
      * @param tx The [TransactionContext] used for execution.
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(tx: TransactionContext, ctx: QueryContext): Operator = LimitingHeapSortOperator(
-        this.input?.toOperator(tx, ctx) ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)"),
-        this.order,
-        this.limit,
-        this.skip
-    )
+    override fun toOperator(tx: TransactionContext, ctx: QueryContext): Operator {
+        val p = this.totalCost.parallelisation()
+        val input = this.input ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)")
+        return if (p > 1) {
+            val partitions = input.partition(p).map { it.toOperator(tx, ctx) }
+            MergeLimitingHeapSortOperator(partitions, this.order, this.limit)
+        } else {
+            LimitingHeapSortOperator(input.toOperator(tx, ctx), this.order, this.limit, this.skip)
+        }
+    }
 
     /** Generates and returns a [String] representation of this [SortPhysicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.order.joinToString(",") { "${it.first.name} ${it.second}" }},${this.skip},${this.limit}]"

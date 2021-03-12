@@ -14,7 +14,6 @@ import org.vitrivr.cottontail.database.statistics.entity.RecordStatistics
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.projection.DistanceProjectionOperator
-import org.vitrivr.cottontail.execution.operators.transform.MergeOperator
 import org.vitrivr.cottontail.model.values.types.Value
 import org.vitrivr.cottontail.utilities.math.KnnUtilities
 
@@ -44,12 +43,21 @@ class DistancePhysicalOperatorNode(input: Physical? = null, val predicate: KnnPr
     override val cost: Cost
         get() = Cost(cpu = this.outputSize * this.predicate.atomicCpuCost)
 
-    /** */
+    /** The [RecordStatistics] for this [DistanceProjectionOperator]. Contains an empty [DoubleValueStatistics] for the distance column. */
     override val statistics: RecordStatistics
         get() {
             val copy = this.input?.statistics?.copy() ?: RecordStatistics()
-            copy[this.columns.last()] = DoubleValueStatistics() as ValueStatistics<Value>
+            copy[this.predicate.produces] = DoubleValueStatistics() as ValueStatistics<Value>
             return copy
+        }
+
+    /** Whether the [DistanceProjectionOperator] can be partitioned is determined by the [KnnPredicateHint]. */
+    override val canBePartitioned: Boolean
+        get() {
+            if (this.predicate.hint is KnnPredicateHint.ParallelKnnHint) {
+                if (this.predicate.hint.max <= 1) return false
+            }
+            return super.canBePartitioned
         }
 
     /**
@@ -60,13 +68,20 @@ class DistancePhysicalOperatorNode(input: Physical? = null, val predicate: KnnPr
     override fun copy() = DistancePhysicalOperatorNode(predicate = this.predicate)
 
     /**
-     * Partitions this [DistancePhysicalOperatorNode].
+     * Partitions this [DistancePhysicalOperatorNode]. The number of partitions can be override by a [KnnPredicateHint.ParallelKnnHint]
      *
      * @param p The number of partitions to create.
      * @return List of [OperatorNode.Physical], each representing a partition of the original tree.
      */
-    override fun partition(p: Int): List<Physical> =
-        this.input?.partition(p)?.map { DistancePhysicalOperatorNode(it, this.predicate) } ?: throw IllegalStateException("Cannot partition disconnected OperatorNode (node = $this)")
+    override fun partition(p: Int): List<Physical> {
+        val input = this.input ?: throw IllegalStateException("Cannot partition disconnected OperatorNode (node = $this)")
+        return if (this.predicate.hint is KnnPredicateHint.ParallelKnnHint) {
+            val actual = p.coerceAtLeast(this.predicate.hint.min).coerceAtMost(this.predicate.hint.max)
+            input.partition(actual).map { DistancePhysicalOperatorNode(it, this.predicate) }
+        } else {
+            input.partition(p).map { DistancePhysicalOperatorNode(it, this.predicate) }
+        }
+    }
 
     /**
      * Converts this [DistancePhysicalOperatorNode] to a [DistanceProjectionOperator].
@@ -74,24 +89,10 @@ class DistancePhysicalOperatorNode(input: Physical? = null, val predicate: KnnPr
      * @param tx The [TransactionContext] used for execution.
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(tx: TransactionContext, ctx: QueryContext): Operator {
-        val hint = this.predicate.hint
-        val p = if (hint is KnnPredicateHint.ParallelKnnHint) {
-            Integer.max(hint.min, this.totalCost.parallelisation(hint.max))
-        } else {
-            this.totalCost.parallelisation()
-        }
-        return if (p > 1) {
-            val partitions = this.input?.partition(p) ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)")
-            val operators = partitions.map { DistanceProjectionOperator(it.toOperator(tx, ctx), this.predicate.bindValues(ctx.values)) }
-            MergeOperator(operators)
-        } else {
-            DistanceProjectionOperator(
-                this.input?.toOperator(tx, ctx) ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)"),
-                this.predicate.bindValues(ctx.values)
-            )
-        }
-    }
+    override fun toOperator(tx: TransactionContext, ctx: QueryContext): Operator = DistanceProjectionOperator(
+        this.input?.toOperator(tx, ctx) ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)"),
+        this.predicate.bindValues(ctx.values)
+    )
 
     /**
      * Binds values from the provided [BindingContext] to this [DistancePhysicalOperatorNode]'s [KnnPredicate].
