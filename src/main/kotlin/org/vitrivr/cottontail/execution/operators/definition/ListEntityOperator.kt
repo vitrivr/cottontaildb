@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.execution.operators.definition
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import org.vitrivr.cottontail.client.language.basics.Constants
 import org.vitrivr.cottontail.database.catalogue.CatalogueTx
 import org.vitrivr.cottontail.database.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.database.column.ColumnDef
@@ -25,8 +26,8 @@ class ListEntityOperator(val catalogue: DefaultCatalogue, val schema: Name.Schem
 
     companion object {
         val COLUMNS: Array<ColumnDef<*>> = arrayOf(
-            ColumnDef(Name.ColumnName("dbo"), Type.String, false),
-            ColumnDef(Name.ColumnName("class"), Type.String, false)
+            ColumnDef(Name.ColumnName(Constants.COLUMN_NAME_DBO), Type.String, false),
+            ColumnDef(Name.ColumnName(Constants.COLUMN_NAME_CLASS), Type.String, false)
         )
     }
 

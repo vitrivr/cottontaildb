@@ -8,9 +8,11 @@ import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.column.ColumnEngine
 import org.vitrivr.cottontail.database.index.IndexType
 import org.vitrivr.cottontail.database.queries.binding.extensions.fqn
+import org.vitrivr.cottontail.database.queries.sort.SortOrder
 import org.vitrivr.cottontail.execution.TransactionManager
 import org.vitrivr.cottontail.execution.operators.definition.*
 import org.vitrivr.cottontail.execution.operators.sinks.SpoolerSinkOperator
+import org.vitrivr.cottontail.execution.operators.sort.HeapSortOperator
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.grpc.DDLGrpc
 import org.vitrivr.cottontail.model.basics.Type
@@ -39,7 +41,13 @@ class DDLService(val catalogue: DefaultCatalogue, override val manager: Transact
         this.withTransactionContext(request.txId) { tx, q ->
             try {
                 /* Prepare and execute transaction. */
-                val op = SpoolerSinkOperator(ListSchemaOperator(this.catalogue), q, 0, responseObserver)
+                val op = SpoolerSinkOperator(
+                    HeapSortOperator(
+                        ListSchemaOperator(this.catalogue),
+                        arrayOf(Pair(ListSchemaOperator.COLUMNS[0], SortOrder.ASCENDING)),
+                        100
+                    ), q, 0, responseObserver
+                )
                 tx.execute(op)
 
                 responseObserver.onCompleted()
@@ -395,7 +403,14 @@ class DDLService(val catalogue: DefaultCatalogue, override val manager: Transact
 
             try {
                 /* Execution operation. */
-                val op = SpoolerSinkOperator(ListEntityOperator(this.catalogue, schemaName), q, 0, responseObserver)
+                val op = SpoolerSinkOperator(
+                    HeapSortOperator(
+                        ListEntityOperator(this.catalogue, schemaName),
+                        arrayOf(Pair(ListSchemaOperator.COLUMNS[0], SortOrder.ASCENDING)),
+                        100
+                    ), q, 0, responseObserver
+                )
+
                 tx.execute(op)
 
                 /* Finalize invocation. */
