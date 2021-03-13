@@ -276,7 +276,7 @@ sealed class Type<T : Value> {
         override val physicalSize = this.logicalSize * kotlin.Int.SIZE_BYTES
         override fun defaultValue(): IntVectorValue = IntVectorValue.zero(this.logicalSize)
         override fun serializerFactory(): ValueSerializerFactory<IntVectorValue> = IntVectorValueSerializerFactory
-        override fun statistics(): ValueStatistics<IntVectorValue> = ValueStatistics(this)
+        override fun statistics(): ValueStatistics<IntVectorValue> = IntVectorValueStatistics(this)
     }
 
     @Suppress("UNCHECKED_CAST")
@@ -289,7 +289,7 @@ sealed class Type<T : Value> {
         override val physicalSize = this.logicalSize * kotlin.Long.SIZE_BYTES
         override fun defaultValue(): LongVectorValue = LongVectorValue.zero(this.logicalSize)
         override fun serializerFactory(): ValueSerializerFactory<LongVectorValue> = LongVectorValueSerializerFactory
-        override fun statistics(): ValueStatistics<LongVectorValue> = ValueStatistics(this)
+        override fun statistics(): ValueStatistics<LongVectorValue> = LongVectorValueStatistics(this)
     }
 
     @Suppress("UNCHECKED_CAST")
@@ -302,7 +302,7 @@ sealed class Type<T : Value> {
         override val physicalSize = this.logicalSize * kotlin.Int.SIZE_BYTES
         override fun defaultValue(): FloatVectorValue = FloatVectorValue.zero(this.logicalSize)
         override fun serializerFactory(): ValueSerializerFactory<FloatVectorValue> = FloatVectorValueSerializerFactory
-        override fun statistics(): ValueStatistics<FloatVectorValue> = ValueStatistics(this)
+        override fun statistics(): ValueStatistics<FloatVectorValue> = FloatVectorValueStatistics(this)
     }
 
     @Suppress("UNCHECKED_CAST")
@@ -315,7 +315,7 @@ sealed class Type<T : Value> {
         override val physicalSize = this.logicalSize * kotlin.Long.SIZE_BYTES
         override fun defaultValue(): DoubleVectorValue = DoubleVectorValue.zero(this.logicalSize)
         override fun serializerFactory(): ValueSerializerFactory<DoubleVectorValue> = DoubleVectorValueSerializerFactory
-        override fun statistics(): ValueStatistics<DoubleVectorValue> = ValueStatistics(this)
+        override fun statistics(): ValueStatistics<DoubleVectorValue> = DoubleVectorValueStatistics(this)
     }
 
     @Suppress("UNCHECKED_CAST")
@@ -328,7 +328,7 @@ sealed class Type<T : Value> {
         override val physicalSize = this.logicalSize * kotlin.Byte.SIZE_BYTES
         override fun defaultValue(): BooleanVectorValue = BooleanVectorValue.zero(this.logicalSize)
         override fun serializerFactory(): ValueSerializerFactory<BooleanVectorValue> = BooleanVectorValueSerializerFactory
-        override fun statistics(): ValueStatistics<BooleanVectorValue> = ValueStatistics(this)
+        override fun statistics(): ValueStatistics<BooleanVectorValue> = BooleanVectorValueStatistics(this)
     }
 
     @Suppress("UNCHECKED_CAST")

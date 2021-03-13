@@ -44,9 +44,9 @@ class FloatValueStatistics : ValueStatistics<FloatValue>(Type.Float) {
     /** Sum of all floats values in this [FloatValueStatistics]. */
     var sum: Float = 0.0f
 
-    /** The arithmetic for the values seen by this [FloatValueStatistics]. */
+    /** The arithmetic mean for the values seen by this [FloatValueStatistics]. */
     val mean: Float
-        get() = (this.sum / this.numberOfEntries)
+        get() = (this.sum / this.numberOfNonNullEntries)
 
     /**
      * Updates this [FloatValueStatistics] with an inserted [FloatValue]
