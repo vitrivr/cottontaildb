@@ -17,6 +17,7 @@ import org.vitrivr.cottontail.database.index.va.signature.VAFSignature
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.predicates.Predicate
 import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicate
+import org.vitrivr.cottontail.database.statistics.columns.*
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.math.knn.metrics.EuclidianDistance
 import org.vitrivr.cottontail.math.knn.metrics.ManhattanDistance
@@ -147,15 +148,39 @@ class VAFIndex(path: Path, parent: DefaultEntity, config: VAFIndexConfig? = null
         override fun rebuild() = this.withWriteLock {
             LOGGER.debug("Rebuilding VAF index {}", this@VAFIndex.name)
 
-            /* Obtain transaction and calculate maximum per dimension.. */
+            /* Prepare transaction for entity. */
             val txn = this.context.getTx(this@VAFIndex.parent) as EntityTx
+
+            /* Obtain minimum and maximum per dimension. */
+            val stat = this.dbo.parent.statistics[this@VAFIndex.columns[0]]
             val min = DoubleArray(this@VAFIndex.columns[0].type.logicalSize)
             val max = DoubleArray(this@VAFIndex.columns[0].type.logicalSize)
-            txn.scan(this@VAFIndex.columns).forEach { r ->
-                val value = r[this@VAFIndex.columns[0]] as VectorValue<*>
-                for (i in 0 until value.logicalSize) {
-                    min[i] = min(min[i], value[i].asDouble().value)
-                    max[i] = max(max[i], value[i].asDouble().value)
+            when (stat) {
+                is FloatVectorValueStatistics -> repeat(min.size) {
+                    min[it] = stat.min.data[it].toDouble()
+                    max[it] = stat.max.data[it].toDouble()
+                }
+                is DoubleVectorValueStatistics -> repeat(min.size) {
+                    min[it] = stat.min.data[it]
+                    max[it] = stat.max.data[it]
+                }
+                is IntVectorValueStatistics -> repeat(min.size) {
+                    min[it] = stat.min.data[it].toDouble()
+                    max[it] = stat.max.data[it].toDouble()
+                }
+                is LongVectorValueStatistics -> repeat(min.size) {
+                    min[it] = stat.min.data[it].toDouble()
+                    max[it] = stat.max.data[it].toDouble()
+                }
+                else -> {
+                    /* Brute force :-( This may take a while. */
+                    txn.scan(this@VAFIndex.columns).forEach { r ->
+                        val value = r[this@VAFIndex.columns[0]] as VectorValue<*>
+                        for (i in 0 until value.logicalSize) {
+                            min[i] = min(min[i], value[i].asDouble().value)
+                            max[i] = max(max[i], value[i].asDouble().value)
+                        }
+                    }
                 }
             }
 
@@ -281,7 +306,7 @@ class VAFIndex(path: Path, parent: DefaultEntity, config: VAFIndexConfig? = null
                 /* Iterate over all signatures. */
                 var read = 0L
                 for (sigIndex in this.range) {
-                    val signature = this@VAFIndex.signatures[sigIndex.toInt()]
+                    val signature = this@VAFIndex.signatures[sigIndex]
                     if (signature != null) {
                         if (knn.size < this.predicate.k || this.bounds.isVASSACandidate(signature, knn.peek()!!.second.value)) {
                             val value = txn.read(signature.tupleId, this@VAFIndex.columns)[this@VAFIndex.columns[0]]
