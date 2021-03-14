@@ -49,9 +49,6 @@ class FilterOnSubselectOperator(val parent: Operator, val subSelects: List<Opera
             val localBindingContext = BindingContext<Value>()
             subSelects.forEach { select ->
                 val op = atomics[select.first]
-                if (op is ComparisonOperator.In) {
-                    op.right.clear()
-                }
                 when (op) {
                     is ComparisonOperator.Binary.Equal -> select.second.take(1).onEach { localBindingContext.register(op.right, it[it.columns[0]]) }
                     is ComparisonOperator.Binary.Greater -> select.second.take(1).onEach { localBindingContext.register(op.right, it[it.columns[0]]) }
@@ -59,10 +56,12 @@ class FilterOnSubselectOperator(val parent: Operator, val subSelects: List<Opera
                     is ComparisonOperator.Binary.Less -> select.second.take(1).onEach { localBindingContext.register(op.right, it[it.columns[0]]) }
                     is ComparisonOperator.Binary.LessEqual -> select.second.take(1).onEach { localBindingContext.register(op.right, it[it.columns[0]]) }
                     is ComparisonOperator.Binary.Like -> select.second.take(1).onEach { localBindingContext.register(op.right, it[it.columns[0]]) }
-                    is ComparisonOperator.In -> select.second.onEach { op.right.add(localBindingContext.bind(it[it.columns[0]])) }
+                    is ComparisonOperator.In -> {
+                        op.clear()
+                        select.second.onEach { op.addBinding(localBindingContext.bind(it[it.columns[0]])) }
+                    }
                     else -> throw ExecutionException.OperatorExecutionException(this@FilterOnSubselectOperator, "Operator of type $op does not support integration of sub-selects.")
                 }.collect()
-                op.bindValues(localBindingContext)
             }
 
             /* Stage 2: Make comparison */

@@ -7,6 +7,7 @@ import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.model.values.StringValue
 import org.vitrivr.cottontail.model.values.pattern.LikePatternValue
 import org.vitrivr.cottontail.model.values.types.Value
+import java.util.*
 
 
 /**
@@ -70,7 +71,10 @@ sealed class ComparisonOperator {
          * A [ComparisonOperator] that expresses greater (>) comparison.
          */
         class Greater(right: Binding<Value>) : Binary(right) {
-            override fun match(left: Value?) = (left != null) && left > this.right.value
+            override fun match(left: Value?): Boolean {
+                return (left != null) && left > this.right.value
+            }
+
             override fun toString(): String = "> $right"
 
         }
@@ -133,19 +137,53 @@ sealed class ComparisonOperator {
     /**
      * A [ComparisonOperator] that expresses a IN comparison (i.e. left IN right).
      */
-    class In(val right: MutableList<Binding<Value>>) : ComparisonOperator() {
+    class In(right: MutableList<Binding<Value>>) : ComparisonOperator() {
+        private val rightBindings = LinkedList<Binding<Value>>()
         private val rightValues = ObjectOpenHashSet<Value>()
+        val right: List<Binding<Value>> = Collections.unmodifiableList(this.rightBindings)
         override val atomicCpuCost: Float = 4.0f * Cost.COST_MEMORY_ACCESS
         override fun match(left: Value?): Boolean = left in this.rightValues
 
+        init {
+            right.forEach { this.addBinding(it) }
+        }
+
+        /**
+         * Adds a [Binding] to this [In] operator.
+         *
+         * @param binding [Binding] to add.
+         */
+        fun addBinding(binding: Binding<Value>) {
+            this.rightBindings.add(binding)
+            try {
+                this.rightValues.add(binding.value)
+            } catch (e: IllegalStateException) {
+                /* Ignore. */
+            }
+        }
+
+        /**
+         * Removes all [Binding]s from this [In] operator.
+         */
+        fun clear() {
+            this.rightBindings.clear()
+            this.rightValues.clear()
+        }
+
+        /**
+         * Binds the [Binding]s in this [In] operator to the given [BindingContext].
+         * Updates all [Value]s accordingly.
+         *
+         * @param ctx The [BindingContext]
+         */
         override fun bindValues(ctx: BindingContext<Value>) {
             this.rightValues.clear()
-            this.right.forEach {
+            this.rightBindings.forEach {
                 it.context = ctx
                 this.rightValues.add(it.value)
             }
         }
 
-        override fun toString(): String = "IN [${this.right.joinToString(",")}]"
+        override fun toString(): String = "IN [${this.rightBindings.joinToString(",")}]"
     }
 }
