@@ -25,6 +25,7 @@ fun main(args: Array<String>) {
         if (args.size < 3) {
             println("Starting CLI on default setup")
             Cli().loop()
+            return
         }
         Cli(args[1], args[2].toInt()).loop()
         return
