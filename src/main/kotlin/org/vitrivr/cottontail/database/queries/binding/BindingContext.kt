@@ -26,7 +26,6 @@ class BindingContext<T : Any> {
      * @return The bound [Value].
      */
     operator fun get(binding: Binding<T>): T? {
-        require(binding.context == this) { "Binding $binding does not belong to this binding context." }
         require(this.bound.contains(binding)) { "Binding $binding is not known to this binding context." }
         return this.bound[binding]
     }
