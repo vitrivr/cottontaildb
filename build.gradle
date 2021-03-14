@@ -21,7 +21,10 @@ version '0.11-SNAPSHOT'
 /* General application attributes. */
 mainClassName = 'org.vitrivr.cottontail.CottontailKt'
 applicationDefaultJvmArgs = ["-Xms2G", "-Xmx4G"]
-sourceCompatibility = 1.11
+
+/* Source and target compatibility are set to Java 8. */
+targetCompatibility = 1.8
+sourceCompatibility = 1.8
 
 repositories {
     mavenCentral()
