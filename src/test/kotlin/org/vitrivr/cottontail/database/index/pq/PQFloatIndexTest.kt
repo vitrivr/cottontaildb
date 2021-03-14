@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.database.index.pq
 
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import org.vitrivr.cottontail.database.column.ColumnDef
@@ -9,6 +10,7 @@ import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.index.AbstractIndexTest
 import org.vitrivr.cottontail.database.index.IndexTx
 import org.vitrivr.cottontail.database.index.IndexType
+import org.vitrivr.cottontail.database.queries.binding.BindingContext
 import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicate
 import org.vitrivr.cottontail.execution.TransactionType
 import org.vitrivr.cottontail.math.knn.metrics.*
@@ -22,6 +24,7 @@ import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.DoubleValue
 import org.vitrivr.cottontail.model.values.FloatVectorValue
 import org.vitrivr.cottontail.model.values.LongValue
+import org.vitrivr.cottontail.model.values.types.Value
 import java.util.*
 import java.util.stream.Stream
 import kotlin.collections.ArrayList
@@ -34,6 +37,7 @@ import kotlin.time.measureTime
  * @author Ralph Gasser
  * @param 1.2.0
  */
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class PQFloatIndexTest : AbstractIndexTest() {
 
     companion object {
@@ -86,12 +90,13 @@ class PQFloatIndexTest : AbstractIndexTest() {
         val txn = this.manager.Transaction(TransactionType.SYSTEM)
         val k = 5000
         val query = FloatVectorValue.random(this.indexColumn.type.logicalSize, this.random)
+        val context = BindingContext<Value>()
         val predicate = KnnPredicate(
             column = this.indexColumn,
             k = k,
-            distance = distance
+            distance = distance,
+            query = context.bind(query)
         )
-        predicate.query(query)
 
         val indexTx = txn.getTx(this.index!!) as IndexTx
         val entityTx = txn.getTx(this.entity!!) as EntityTx

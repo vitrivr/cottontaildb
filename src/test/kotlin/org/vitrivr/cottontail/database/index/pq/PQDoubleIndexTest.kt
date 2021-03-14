@@ -10,6 +10,7 @@ import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.index.AbstractIndexTest
 import org.vitrivr.cottontail.database.index.IndexTx
 import org.vitrivr.cottontail.database.index.IndexType
+import org.vitrivr.cottontail.database.queries.binding.BindingContext
 import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicate
 import org.vitrivr.cottontail.execution.TransactionType
 import org.vitrivr.cottontail.math.knn.metrics.*
@@ -23,6 +24,7 @@ import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.DoubleValue
 import org.vitrivr.cottontail.model.values.DoubleVectorValue
 import org.vitrivr.cottontail.model.values.LongValue
+import org.vitrivr.cottontail.model.values.types.Value
 import java.util.*
 import java.util.stream.Stream
 import kotlin.collections.ArrayList
@@ -88,12 +90,13 @@ class PQDoubleIndexTest : AbstractIndexTest() {
         val txn = this.manager.Transaction(TransactionType.SYSTEM)
         val k = 5000
         val query = DoubleVectorValue.random(this.indexColumn.type.logicalSize, this.random)
+        val context = BindingContext<Value>()
         val predicate = KnnPredicate(
             column = this.indexColumn,
             k = k,
-            distance = distance
+            distance = distance,
+            query = context.bind(query)
         )
-        predicate.query(query)
 
         val indexTx = txn.getTx(this.index!!) as IndexTx
         val entityTx = txn.getTx(this.entity!!) as EntityTx

@@ -3,6 +3,7 @@ package org.vitrivr.cottontail.database.index.lucene
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestInstance
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.index.AbstractIndexTest
 import org.vitrivr.cottontail.database.index.IndexType
@@ -19,6 +20,7 @@ import java.util.*
  * @author Ralph Gasser & Silvan Heller
  * @version 1.2.0
  */
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LuceneIndexText : AbstractIndexTest() {
     override val columns: Array<ColumnDef<*>> = arrayOf(
         ColumnDef(this.entityName.column("id"), Type.Long),
