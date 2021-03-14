@@ -1,38 +1,40 @@
 package org.vitrivr.cottontail.database.queries.planning.rules.physical.index
 
-import org.vitrivr.cottontail.database.queries.planning.exceptions.NodeExpressionTreeException
-import org.vitrivr.cottontail.database.queries.planning.nodes.interfaces.NodeExpression
-import org.vitrivr.cottontail.database.queries.planning.nodes.interfaces.RewriteRule
-import org.vitrivr.cottontail.database.queries.planning.nodes.logical.predicates.FilterLogicalNodeExpression
-import org.vitrivr.cottontail.database.queries.planning.nodes.logical.sources.EntityScanLogicalNodeExpression
-import org.vitrivr.cottontail.database.queries.planning.nodes.physical.projection.FetchPhysicalNodeExpression
-import org.vitrivr.cottontail.database.queries.planning.nodes.physical.sources.IndexScanPhysicalNodeExpression
+import org.vitrivr.cottontail.database.entity.EntityTx
+import org.vitrivr.cottontail.database.queries.OperatorNode
+import org.vitrivr.cottontail.database.queries.QueryContext
+import org.vitrivr.cottontail.database.queries.planning.nodes.logical.predicates.FilterLogicalOperatorNode
+import org.vitrivr.cottontail.database.queries.planning.nodes.logical.sources.EntityScanLogicalOperatorNode
+import org.vitrivr.cottontail.database.queries.planning.nodes.physical.predicates.FilterPhysicalOperatorNode
+import org.vitrivr.cottontail.database.queries.planning.nodes.physical.sources.EntityScanPhysicalOperatorNode
+import org.vitrivr.cottontail.database.queries.planning.nodes.physical.sources.IndexScanPhysicalOperatorNode
+import org.vitrivr.cottontail.database.queries.planning.nodes.physical.transform.FetchPhysicalOperatorNode
+import org.vitrivr.cottontail.database.queries.planning.rules.RewriteRule
 
 /**
- * A [RewriteRule] that implements a [FilterLogicalNodeExpression] preceded by a
- * [EntityScanLogicalNodeExpression] through a single [IndexScanPhysicalNodeExpression].
+ * A [RewriteRule] that implements a [FilterLogicalOperatorNode] preceded by a
+ * [EntityScanLogicalOperatorNode] through a single [IndexScanPhysicalOperatorNode].
  *
  * @author Ralph Gasser
- * @version 1.0.2
+ * @version 1.2.0
  */
 object BooleanIndexScanRule : RewriteRule {
-    override fun canBeApplied(node: NodeExpression): Boolean = node is FilterLogicalNodeExpression
-            && node.input is EntityScanLogicalNodeExpression
+    override fun canBeApplied(node: OperatorNode): Boolean =
+        node is FilterPhysicalOperatorNode && node.input is EntityScanPhysicalOperatorNode
 
-    override fun apply(node: NodeExpression): NodeExpression? {
-        if (node is FilterLogicalNodeExpression) {
-            val parent = node.input ?: throw NodeExpressionTreeException.IncompleteNodeExpressionTreeException(node, "Expected parent but none was found.")
-            if (parent is EntityScanLogicalNodeExpression) {
-                val candidate = parent.entity.allIndexes().find { it.canProcess(node.predicate) }
+    override fun apply(node: OperatorNode, ctx: QueryContext): OperatorNode? {
+        if (node is FilterPhysicalOperatorNode) {
+            val parent = node.input
+            if (parent is EntityScanPhysicalOperatorNode) {
+                val indexes = (ctx.txn.getTx(parent.entity) as EntityTx).listIndexes()
+                val candidate = indexes.find { it.canProcess(node.predicate) }
                 if (candidate != null) {
-                    val p = IndexScanPhysicalNodeExpression(candidate, node.predicate)
+                    var p: OperatorNode.Physical = IndexScanPhysicalOperatorNode(node.groupId, candidate, node.predicate)
                     val delta = parent.columns.filter { !candidate.produces.contains(it) }
-                    return if (delta.isNotEmpty()) {
-                        val fetch = FetchPhysicalNodeExpression(candidate.parent, delta.toTypedArray())
-                        node.copyOutput()?.addInput(fetch)?.addInput(p.root)
-                    } else {
-                        node.copyOutput()?.addInput(p.root)
+                    if (delta.isNotEmpty()) {
+                        p = FetchPhysicalOperatorNode(p, candidate.parent, delta.toTypedArray())
                     }
+                    return node.output?.copyWithOutput(p) ?: p
                 }
             }
         }

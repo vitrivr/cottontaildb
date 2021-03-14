@@ -1,26 +1,29 @@
 package org.vitrivr.cottontail.model.recordset
 
 import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
 import it.unimi.dsi.fastutil.objects.ObjectBigArrayBigList
-import org.vitrivr.cottontail.database.queries.components.BooleanPredicate
-import org.vitrivr.cottontail.database.queries.components.Predicate
+import org.vitrivr.cottontail.database.column.ColumnDef
+import org.vitrivr.cottontail.database.queries.predicates.Predicate
+import org.vitrivr.cottontail.database.queries.predicates.bool.BooleanPredicate
 import org.vitrivr.cottontail.model.basics.*
 import org.vitrivr.cottontail.model.values.types.Value
 import org.vitrivr.cottontail.utilities.extensions.read
 import org.vitrivr.cottontail.utilities.extensions.write
+import java.util.*
 import java.util.concurrent.locks.StampedLock
 
 /**
- * A [Recordset] as returned and processed by Cottontail DB. [Recordset]s are tables. A [Recordset]'s columns are defined by the [ColumnDef]'s
- * it contains ([Recordset.columns] and it contains an arbitrary number of [Record] entries as rows.
+ * A [Recordset] as returned and processed by Cottontail DB. [Recordset]s are tables. A [Recordset]'s
+ * columns are defined by the [ColumnDef]'s it contains ([Recordset.columns] and may contain an arbitrary
+ * number of [Record] entries as rows.
  *
- * [Recordset]s are the unit of data retrieval and processing in Cottontail DB. Whenever information is accessed through an [Entity][org.vitrivr.cottontail.database.entity.Entity],
- * a [Recordset] is being generated. Furthermore, the entire query execution pipeline processes, transforms and produces [Recordset]s.
+ * [Recordset]s are the unit of in-memory data storage and processing in Cottontail DB.
  *
- * @see org.vitrivr.cottontail.database.entity.Entity
+ * @see org.vitrivr.cottontail.database.entity.DefaultEntity
  *
  * @author Ralph Gasser
- * @version 1.5.1
+ * @version 1.6.0
  */
 class Recordset(val columns: Array<ColumnDef<*>>, capacity: Long = 250L) : Scanable, Filterable {
     /** List of all the [Record]s contained in this [Recordset] (TupleId -> Record). */
@@ -75,7 +78,7 @@ class Recordset(val columns: Array<ColumnDef<*>>, capacity: Long = 250L) : Scana
      *
      * @param record The record to add to this [Recordset].
      */
-    fun addRow(record: Record) = this.addRow(record.tupleId, record.values)
+    fun addRow(record: Record) = this.addRow(record.tupleId, record.columns.map { record[it] }.toTypedArray())
 
     /**
      * Retrieves the value for the specified tuple ID from this [Recordset].
@@ -151,26 +154,19 @@ class Recordset(val columns: Array<ColumnDef<*>>, capacity: Long = 250L) : Scana
     fun first(): Record? = this.list.first()
 
     /**
-     * Applies the provided action to each [Record] in this [Recordset].
-     *
-     * @param action The action that should be applied.
-     */
-    fun forEachIndexed(action: (Int, Record) -> Unit) = this.lock.read {
-        this.list.forEachIndexed(action)
-    }
-
-    /**
      * Checks if this [Filterable] can process the provided [Predicate].
      *
      * @param predicate [Predicate] to check.
      * @return True if [Predicate] can be processed, false otherwise.
      */
-    override fun canProcess(predicate: Predicate): Boolean = predicate is BooleanPredicate && predicate.columns.all { this.columns.contains(it) }
+    override fun canProcess(predicate: Predicate): Boolean =
+        predicate is BooleanPredicate &&
+                predicate.columns.all { this.columns.contains(it) }
 
     /**
      *
      */
-    override fun filter(predicate: Predicate): CloseableIterator<Record> {
+    override fun filter(predicate: Predicate): Iterator<Record> {
         TODO("Not yet implemented")
     }
 
@@ -199,61 +195,53 @@ class Recordset(val columns: Array<ColumnDef<*>>, capacity: Long = 250L) : Scana
     fun toList(): List<Record> = this.list.toList()
 
     /**
-     * Returns an [Iterator] for this [Recordset]. As long as this [Iterator] exists it will retain a read lock on this [Recordset].
-     * <strong>Important:</strong> The implementation of this [CloseableIterator] is NOT thread safe.
+     * Returns an [Iterator] for this [Recordset]. The [Iterator] is NOT thread safe.
      *
      * @return [Iterator] of this [Recordset].
      */
-    fun iterator(): CloseableIterator<Record> = object: CloseableIterator<Record> {
+    fun iterator() = this.scan(this.columns)
 
-        /** Obtains a stamped read lock from the surrounding [Recordset]. */
-        private val stamp = this@Recordset.lock.readLock()
+    /**
+     * Returns an [Iterator] for this [Recordset] for the given [columns]. The [Iterator] is NOT thread safe.
+     *
+     * @param columns The [ColumnDef] to include in the iteration.
+     * @return [Iterator] of this [Recordset].
+     */
+    override fun scan(columns: Array<ColumnDef<*>>): Iterator<Record> =
+        this.scan(columns, 0L until this.rowCount)
 
-        /** Flag indicating whether this [CloseableIterator] has been closed.*/
-        @Volatile
-        private var closed = false
+    /**
+     * Returns an [Iterator] for this [Recordset] for the given [columns] and the given [range].
+     * The [Iterator] is NOT thread safe.
+     *
+     * @param columns The [ColumnDef] to include in the iteration.
+     * @param range The range to iterate over.
+     * @return [Iterator] of this [Recordset].
+     */
+    override fun scan(columns: Array<ColumnDef<*>>, range: LongRange) = object : Iterator<Record> {
 
         /** Internal pointer kept as reference to the next [Record]. */
         @Volatile
-        private var pointer = 0L
+        private var pointer = range.first
 
         /**
-         * Returns true if the next invocation of [CloseableIterator#next()] returns a value and false otherwise.
+         * Returns true if the next invocation of [Iterator#next()] returns a value and false otherwise.
          *
-         * @return Boolean indicating, whether this [CloseableIterator] will return a value.
+         * @return Boolean indicating, whether this [Iterator] will return a value.
          */
         override fun hasNext(): Boolean {
-            if (this.closed) throw IllegalStateException("Illegal invocation of hasNext(): This CloseableIterator has been closed.")
             return this.pointer < this@Recordset.list.size64()
         }
 
         /**
-         * Returns the next value of this [CloseableIterator].
+         * Returns the next value of this [Iterator].
          *
-         * @return Next [Record] of this [CloseableIterator].
+         * @return Next [Record] of this [Iterator].
          */
         override fun next(): Record {
-            if (this.closed) throw IllegalStateException("Illegal invocation of next(): This CloseableIterator has been closed.")
             val record = this@Recordset.list[this.pointer]
             this.pointer += 1
             return record
-        }
-
-        /**
-         * Closes this [CloseableIterator].
-         */
-        override fun close() {
-            if (!this.closed) {
-                this.closed = true
-                this@Recordset.lock.unlockRead(this.stamp)
-            }
-        }
-
-        /**
-         * Closes this [CloseableIterator] upon finalization.
-         */
-        protected fun finalize() {
-            this.close()
         }
     }
 
@@ -261,38 +249,90 @@ class Recordset(val columns: Array<ColumnDef<*>>, capacity: Long = 250L) : Scana
      * A [Record] implementation that depends on the existence of the enclosing [Recordset].
      *
      * @author Ralph Gasser
-     * @version 1.0
+     * @version 1.0.1
      */
-    inner class RecordsetRecord(override val tupleId: Long, override val values: Array<Value?>) : Record {
+    inner class RecordsetRecord(override var tupleId: Long, values: Array<Value?> = Array(this@Recordset.columns.size) { null }) : Record {
+        init {
+            /** Sanity check. */
+            require(values.size == this.columns.size) { "The number of values must be equal to the number of columns held by the StandaloneRecord (v = ${values.size}, c = ${this.columns.size})" }
+            this.columns.forEachIndexed { index, columnDef ->
+                if (!columnDef.validate(values[index])) {
+                    throw IllegalArgumentException("Provided value ${values[index]} is incompatible with column ${columnDef}.")
+                }
+            }
+        }
 
         /** Array of [ColumnDef]s that describes the [Column][org.vitrivr.cottontail.database.column.Column] of this [Record]. */
         override val columns: Array<ColumnDef<*>>
             get() = this@Recordset.columns
 
-        init {
-            /** Sanity check. */
-            require(this.values.size == this.columns.size) { "The number of values must be equal to the number of columns held by the StandaloneRecord (v = ${this.values.size}, c = ${this.columns.size})" }
-            this.columns.forEachIndexed { index, columnDef ->
-                columnDef.validateOrThrow(this.values[index])
-            }
+        /** Initialize internal [Object2ObjectOpenHashMap] used to map columns to values. */
+        private val map = Object2ObjectOpenHashMap(this.columns, values)
+
+        /**
+         * Copies this [RecordsetRecord] and returns the copy as [StandaloneRecord].
+         *
+         * @return Copy of this [RecordsetRecord] as [StandaloneRecord].
+         */
+        override fun copy(): Record = StandaloneRecord(this.tupleId, this.columns, this.columns.map { this.map[it] }.toTypedArray())
+
+        /**
+         * Iterates over the [ColumnDef] and [Value] pairs in this [Record] in the order specified by [columns].
+         *
+         * @param action The action to apply to each [ColumnDef], [Value] pair.
+         */
+        override fun forEach(action: (ColumnDef<*>, Value?) -> Unit) {
+            for (c in this.columns) action(c, this.map[c])
         }
 
         /**
-         * Copies this [Record] and returns the copy.
+         * Returns true, if this [StandaloneRecord] contains the specified [ColumnDef] and false otherwise.
          *
-         * @return Copy of this [Record]
+         * @param column The [ColumnDef] specifying the column
+         * @return True if record contains the [ColumnDef], false otherwise.
          */
-        override fun copy(): Record = StandaloneRecord(tupleId, columns = this.columns, this.values.copyOf())
+        override fun has(column: ColumnDef<*>): Boolean = this.map.containsKey(column)
+
+        /**
+         * Returns an unmodifiable [Map] of the data contained in this [StandaloneRecord].
+         *
+         * @return Unmodifiable [Map] of the data in this [StandaloneRecord].
+         */
+        override fun toMap(): Map<ColumnDef<*>, Value?> = Collections.unmodifiableMap(this.map)
+
+        /**
+         * Retrieves the value for the specified [ColumnDef] from this [StandaloneRecord].
+         *
+         * @param column The [ColumnDef] for which to retrieve the value.
+         * @return The value for the [ColumnDef]
+         */
+        override fun get(column: ColumnDef<*>): Value? {
+            require(this.map.contains(column)) { "The specified column ${column.name}  (type=${column.type.name}) is not contained in this record." }
+            return this.map[column]
+        }
+
+        /**
+         * Sets the value for the specified [ColumnDef] in this [StandaloneRecord].
+         *
+         * @param column The [ColumnDef] for which to set the value.
+         * @param value The new value for the [ColumnDef]
+         */
+        override fun set(column: ColumnDef<*>, value: Value?) {
+            require(this.map.contains(column)) { "The specified column ${column.name}  (type=${column.type.name}) is not contained in this record." }
+            if (!column.validate(value)) {
+                throw IllegalArgumentException("Provided value $value is incompatible with column $column.")
+            }
+            this.map[column] = value
+        }
 
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
             if (javaClass != other?.javaClass) return false
 
-            other as Record
+            other as RecordsetRecord
 
             if (tupleId != other.tupleId) return false
-            if (!columns.contentEquals(other.columns)) return false
-            if (!values.contentEquals(other.values)) return false
+            if (map != other.map) return false
 
             return true
         }
@@ -300,17 +340,9 @@ class Recordset(val columns: Array<ColumnDef<*>>, capacity: Long = 250L) : Scana
         override fun hashCode(): Int {
             var result = tupleId.hashCode()
             result = 31 * result + columns.hashCode()
-            result = 31 * result + values.contentHashCode()
+            result = 31 * result + map.hashCode()
             return result
         }
-    }
-
-    override fun scan(columns: Array<ColumnDef<*>>): CloseableIterator<Record> {
-        TODO("Not yet implemented")
-    }
-
-    override fun scan(columns: Array<ColumnDef<*>>, range: LongRange): CloseableIterator<Record> {
-        TODO("Not yet implemented")
     }
 
 

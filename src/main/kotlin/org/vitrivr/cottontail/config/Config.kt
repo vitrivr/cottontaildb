@@ -1,16 +1,14 @@
 package org.vitrivr.cottontail.config
 
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 import org.vitrivr.cottontail.utilities.serializers.PathSerializer
-import java.nio.file.Files
 import java.nio.file.Path
 
 /**
- * Cottntail DB configuration class.
+ * Cottontail DB configuration class.
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.4.0
  */
 @Serializable
 data class Config(
@@ -21,25 +19,21 @@ data class Config(
         /** Flag indicating whether to start the CLI upon starting Cottontail DB.*/
         val cli: Boolean = true,
 
-        /** Reference to [ServerConfig], which contains configuration regarding the gRPC server. */
-        val server: ServerConfig = ServerConfig(),
+        /** Flag indicating whether Cottontail DB should be allowed to start even in the presence of broken indexes.*/
+        val allowBrokenIndex: Boolean = true,
+
+        /** Path to a custom Log4j2 config file (XML). Defaults to null! */
+        val logConfig: Path? = null,
 
         /** Reference to [MapDBConfig], which contains configuration regarding the memory usage of Cottontail DB. */
         val mapdb: MapDBConfig = MapDBConfig(),
 
-        /** Reference to [ExecutionConfig], which contains configuration regarding query execution in Cottontail DB. */
-        val execution: ExecutionConfig = ExecutionConfig()
-) {
-        companion object {
+        /** Reference to [ServerConfig], which contains configuration regarding the gRPC server. */
+        val server: ServerConfig = ServerConfig(),
 
-                /**
-                 * Loads and returns a [Config] from a file [Path].
-                 *
-                 * @param path The [Path] to read the [Config] from.
-                 * @return [Config]
-                 */
-                fun load(path: Path) = Files.newBufferedReader(path).use {
-                        Json.decodeFromString(serializer(), it.readText())
-                }
-        }
-}
+        /** Reference to [ExecutionConfig], which contains configuration regarding execution in Cottontail DB. */
+        val execution: ExecutionConfig = ExecutionConfig(),
+
+        /** Reference to [CacheConfig], which contains configuration regarding caches in Cottontail DB. */
+        val cache: CacheConfig = CacheConfig()
+)

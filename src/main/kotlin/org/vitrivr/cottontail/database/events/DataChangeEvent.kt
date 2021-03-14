@@ -1,27 +1,43 @@
 package org.vitrivr.cottontail.database.events
 
+import org.vitrivr.cottontail.database.column.ColumnDef
+import org.vitrivr.cottontail.database.entity.DefaultEntity
 import org.vitrivr.cottontail.database.entity.Entity
-import org.vitrivr.cottontail.model.basics.Record
+import org.vitrivr.cottontail.model.basics.TupleId
+import org.vitrivr.cottontail.model.values.types.Value
 
 /**
- * An internal [DataChangeEvent] to signal changes made to an [Entity].
+ * An internal [DataChangeEvent] to signal changes made to an [DefaultEntity].
  *
- * @version 1.0
+ * @version 1.0.1
  * @author Ralph Gasser
  */
-data class DataChangeEvent(val entity: Entity, val old: Record?, val new: Record?) {
-    init {
-        if (this.old != null && this.new != null) {
-            assert(this.old.tupleId == this.new.tupleId)
-        }
-    }
+sealed class DataChangeEvent(val entity: Entity, val tupleId: TupleId) {
 
-    /** The [DataChangeEventType] of this [DataChangeEvent]. */
-    val type: DataChangeEventType
-        get() = when {
-            old != null && new == null -> DataChangeEventType.DELETE
-            old == null && new != null -> DataChangeEventType.INSERT
-            old != null && new != null -> DataChangeEventType.UPDATE
-            else -> DataChangeEventType.EMPTY
-        }
+    /**
+     * A [DataChangeEvent] that signals a INSERT into an [DefaultEntity]
+     */
+    class InsertDataChangeEvent(
+        entity: Entity,
+        tupleId: TupleId,
+        val inserts: Map<ColumnDef<*>, Value?>
+    ) : DataChangeEvent(entity, tupleId)
+
+    /**
+     * A [DataChangeEvent] that signals an UPDATE in an [DefaultEntity]
+     */
+    class UpdateDataChangeEvent(
+        entity: Entity,
+        tupleId: TupleId,
+        val updates: Map<ColumnDef<*>, Pair<Value?, Value?>>,
+    ) : DataChangeEvent(entity, tupleId)
+
+    /**
+     * A [DataChangeEvent] that signals a DELETE from an [DefaultEntity]
+     */
+    class DeleteDataChangeEvent(
+        entity: Entity,
+        tupleId: TupleId,
+        val deleted: Map<ColumnDef<*>, Value?>
+    ) : DataChangeEvent(entity, tupleId)
 }

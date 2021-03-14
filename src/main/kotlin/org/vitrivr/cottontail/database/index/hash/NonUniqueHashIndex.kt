@@ -1,94 +1,85 @@
 package org.vitrivr.cottontail.database.index.hash
 
-import org.mapdb.DB
-import org.mapdb.HTreeMap
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
 import org.mapdb.Serializer
-import org.slf4j.LoggerFactory
-import org.vitrivr.cottontail.database.column.Column
-import org.vitrivr.cottontail.database.entity.Entity
+import org.mapdb.serializer.GroupSerializer
+
+import org.vitrivr.cottontail.database.column.ColumnDef
+import org.vitrivr.cottontail.database.entity.DefaultEntity
+import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.events.DataChangeEvent
-import org.vitrivr.cottontail.database.events.DataChangeEventType
-import org.vitrivr.cottontail.database.index.Index
-import org.vitrivr.cottontail.database.index.IndexTransaction
-import org.vitrivr.cottontail.database.index.IndexType
-import org.vitrivr.cottontail.database.queries.components.AtomicBooleanPredicate
-import org.vitrivr.cottontail.database.queries.components.ComparisonOperator
-import org.vitrivr.cottontail.database.queries.components.Predicate
+import org.vitrivr.cottontail.database.general.TxSnapshot
+import org.vitrivr.cottontail.database.index.*
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
-import org.vitrivr.cottontail.database.schema.Schema
-import org.vitrivr.cottontail.model.basics.CloseableIterator
-import org.vitrivr.cottontail.model.basics.ColumnDef
-import org.vitrivr.cottontail.model.basics.Name
-import org.vitrivr.cottontail.model.basics.Record
-import org.vitrivr.cottontail.model.exceptions.QueryException
-import org.vitrivr.cottontail.model.exceptions.ValidationException
-import org.vitrivr.cottontail.model.recordset.Recordset
+import org.vitrivr.cottontail.database.queries.predicates.Predicate
+import org.vitrivr.cottontail.database.queries.predicates.bool.BooleanPredicate
+import org.vitrivr.cottontail.database.queries.predicates.bool.ComparisonOperator
+import org.vitrivr.cottontail.execution.TransactionContext
+import org.vitrivr.cottontail.model.basics.*
+import org.vitrivr.cottontail.model.exceptions.TxException
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
+import org.vitrivr.cottontail.model.values.StringValue
+import org.vitrivr.cottontail.model.values.pattern.LikePatternValue
 import org.vitrivr.cottontail.model.values.types.Value
-import org.vitrivr.cottontail.utilities.extensions.read
-import org.vitrivr.cottontail.utilities.extensions.write
 import java.nio.file.Path
+import java.util.*
 
 /**
- * Represents an index in the Cottontail DB data model. An [Index] belongs to an [Entity] and can be used to index one to many
- * [Column]s. Usually, [Index]es allow for faster data access. They process [Predicate]s and return [Recordset]s.
- *
- * @see Schema
- * @see Column
- * @see Entity.Tx
+ * Represents an [AbstractIndex] in the Cottontail DB data model, that uses a persistent [HashMap]
+ * to map a [Value] to a [TupleId]. Well suited for equality based lookups of [Value]s.
  *
  * @author Luca Rossetto & Ralph Gasser
- * @version 1.2.2
+ * @version 2.0.1
  */
-class NonUniqueHashIndex(override val name: Name.IndexName, override val parent: Entity, override val columns: Array<ColumnDef<*>>) : Index() {
-    /**
-     * Index-wide constants.
-     */
+class NonUniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path, parent) {
+    /** Index-wide constants. */
     companion object {
-        const val MAP_FIELD_NAME = "nu_map"
-        private val LOGGER = LoggerFactory.getLogger(NonUniqueHashIndex::class.java)
+        const val NUQ_INDEX_MAP = "cdb_nuq_tree_map"
     }
 
-    /** Path to the [NonUniqueHashIndex] file. */
-    override val path: Path = this.parent.path.resolve("idx_nu_${name.simple}.db")
-
-    /** The type of [Index] */
-    override val type: IndexType = IndexType.HASH_UQ
+    /** The type of [AbstractIndex] */
+    override val type: IndexType = IndexType.HASH
 
     /** True since [NonUniqueHashIndex] supports incremental updates. */
     override val supportsIncrementalUpdate: Boolean = true
 
+    /** False, since [NonUniqueHashIndex] does not support partitioning. */
+    override val supportsPartitioning: Boolean = false
+
     /** The [NonUniqueHashIndex] implementation returns exactly the columns that is indexed. */
     override val produces: Array<ColumnDef<*>> = this.columns
 
-    /** The internal [DB] reference. */
-    private val db: DB = this.parent.parent.parent.config.mapdb.db(this.path)
+    /** Check if [Serializer] is compatible with this [NonUniqueHashIndex]. */
+    private val serializer: GroupSerializer<Value> = this.columns[0].type.serializerFactory().mapdb(this.columns[0].type.logicalSize).let {
+        require(it is GroupSerializer<*>) { "NonUniqueHashIndex only supports value types with group serializers." }
+        it as GroupSerializer<Value>
+    }
 
     /** Map structure used for [NonUniqueHashIndex]. */
-    private val map: HTreeMap<out Value, LongArray> = this.db.hashMap(MAP_FIELD_NAME, this.columns.first().type.serializer(this.columns.size), Serializer.LONG_ARRAY).counterEnable().createOrOpen()
-
-    /**
-     * Flag indicating if this [NonUniqueHashIndex] has been closed.
-     */
-    @Volatile
-    override var closed: Boolean = false
-        private set
+    private val map = this.store.treeMap(NUQ_INDEX_MAP, this.serializer, Serializer.LONG_ARRAY).createOrOpen()
 
     init {
-        this.db.commit() /* Initial commit. */
+        this.store.commit() /* Initial commit. */
     }
 
     /**
-     * Checks if the provided [Predicate] can be processed by this instance of [NonUniqueHashIndex]. [NonUniqueHashIndex] can be used to process IN and EQUALS
-     * comparison operations on the specified column
+     * Checks if the provided [Predicate] can be processed by this instance of [NonUniqueHashIndex].
+     *
+     * [NonUniqueHashIndex] can be used to process EQUALS, IN AND LIKE comparison operations on the specified column
      *
      * @param predicate The [Predicate] to check.
      * @return True if [Predicate] can be processed, false otherwise.
      */
-    override fun canProcess(predicate: Predicate): Boolean = if (predicate is AtomicBooleanPredicate<*>) {
-        predicate.columns.first() == this.columns[0] && (predicate.operator == ComparisonOperator.IN || predicate.operator == ComparisonOperator.EQUAL)
-    } else {
-        false
+    override fun canProcess(predicate: Predicate): Boolean {
+        if (predicate !is BooleanPredicate.Atomic.Literal) return false
+        if (predicate.not) return false
+        if (predicate.left != this.columns[0]) return false
+        return when (predicate.operator) {
+            is ComparisonOperator.Binary.Equal,
+            is ComparisonOperator.In -> true
+            is ComparisonOperator.Binary.Like -> (predicate.operator.right.value is LikePatternValue.StartsWith)
+            else -> false
+        }
     }
 
     /**
@@ -98,225 +89,225 @@ class NonUniqueHashIndex(override val name: Name.IndexName, override val parent:
      * @return Cost estimate for the [Predicate]
      */
     override fun cost(predicate: Predicate): Cost = when {
-        predicate !is AtomicBooleanPredicate<*> || predicate.columns.first() != this.columns[0] -> Cost.INVALID
-        predicate.operator == ComparisonOperator.EQUAL -> Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_MEMORY_ACCESS, predicate.columns.map { it.physicalSize }.sum().toFloat())
-        predicate.operator == ComparisonOperator.IN -> Cost(Cost.COST_DISK_ACCESS_READ * predicate.values.size, Cost.COST_MEMORY_ACCESS * predicate.values.size, predicate.columns.map { it.physicalSize }.sum().toFloat())
+        predicate !is BooleanPredicate.Atomic.Literal || predicate.columns.first() != this.columns[0] || predicate.not -> Cost.INVALID
+        predicate.operator is ComparisonOperator.Binary.Equal -> Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_MEMORY_ACCESS, predicate.columns.map { it.type.physicalSize }.sum().toFloat())
+        predicate.operator is ComparisonOperator.Binary.Like -> Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_MEMORY_ACCESS, predicate.columns.map { it.type.physicalSize }.sum().toFloat())
+        predicate.operator is ComparisonOperator.In -> Cost(Cost.COST_DISK_ACCESS_READ * predicate.operator.right.size, Cost.COST_MEMORY_ACCESS * predicate.operator.right.size, predicate.columns.map { it.type.physicalSize }.sum().toFloat())
         else -> Cost.INVALID
     }
 
     /**
-     * Opens and returns a new [IndexTransaction] object that can be used to interact with this [Index].
+     * Opens and returns a new [IndexTx] object that can be used to interact with this [AbstractIndex].
      *
-     * @param parent If the [Entity.Tx] that requested the [IndexTransaction].
+     * @param context If the [TransactionContext] to create the [IndexTx] for..
      */
-    override fun begin(parent: Entity.Tx): IndexTransaction = Tx(parent)
+    override fun newTx(context: TransactionContext): IndexTx = Tx(context)
 
     /**
-     * Closes this [NonUniqueHashIndex] and the associated data structures.
+     * An [IndexTx] that affects this [NonUniqueHashIndex].
      */
-    override fun close() = this.globalLock.write {
-        if (!this.closed) {
-            this.db.close()
-            this.closed = true
+    private inner class Tx(context: TransactionContext) : AbstractIndex.Tx(context) {
+
+        /** The default [TxSnapshot] of this [IndexTx]. Can be overriden! */
+        override val snapshot = object : TxSnapshot {
+            override fun commit() {
+                for (c in this@Tx.mappingsCache) {
+                    this@NonUniqueHashIndex.map.compute(c.key) { _, v ->
+                        if (v == null) {
+                            c.value.toLongArray()
+                        } else {
+                            v + c.value.toLongArray()
+                        }
+                    }
+                }
+                this@NonUniqueHashIndex.store.commit()
+            }
+
+            override fun rollback() {
+                mappingsCache.clear()
+                this@NonUniqueHashIndex.store.rollback()
+            }
         }
-    }
 
-    /**
-     * A [IndexTransaction] that affects this [Index].
-     */
-    private inner class Tx(parent: Entity.Tx) : Index.Tx(parent) {
+        /** Internal cache that keeps Value to TupleId mappings in memory until commit. */
+        private val mappingsCache = Object2ObjectOpenHashMap<Value, LinkedList<Long>>()
+
+        /**
+         * Adds a mapping from the given [Value] to the given [TupleId].
+         *
+         * @param key The [Value] key to add a mapping for.
+         * @param tupleId The [TupleId] for the mapping.
+         */
+        private fun addMapping(key: Value, tupleId: TupleId) {
+            this.mappingsCache.compute(key) { _, v ->
+                val l = v ?: LinkedList<TupleId>()
+                l.add(tupleId)
+                l
+            }
+        }
+
+        /**
+         * Removes a mapping from the given [Value] to the given [TupleId].
+         *
+         * @param key The [Value] key to remove a mapping for.
+         * @param tupleId The [TupleId] to remove.
+         *
+         * This is an internal function and can be used safely with values o
+         */
+        private fun removeMapping(key: Value, tupleId: TupleId) {
+            this@NonUniqueHashIndex.map.compute(key) { _, v ->
+                v?.filter { it != tupleId }?.toLongArray() ?: v
+            }
+        }
+
+        /**
+         * Returns the number of entries in this [NonUniqueHashIndex.map] which DOES NOT directly
+         * correspond to the number of [TupleId]s it encodes.
+         *
+         * @return Number of [TupleId]s in this [NonUniqueHashIndex]
+         */
+        override fun count(): Long = this.withReadLock {
+            this@NonUniqueHashIndex.map.size.toLong()
+        }
+
         /**
          * (Re-)builds the [NonUniqueHashIndex].
          */
-        override fun rebuild() = this.localLock.read {
-            /* Check if this [Tx] allows for writing. */
-            checkValidForWrite()
+        override fun rebuild() = this.withWriteLock {
+            /* Obtain Tx for parent [Entity. */
+            val entityTx = this.context.getTx(this.dbo.parent) as EntityTx
 
-            LOGGER.trace("Rebuilding non-unique hash index {}", this@NonUniqueHashIndex.name)
-
-            /* Clear existing map. */
+            /* Recreate entries. */
             this@NonUniqueHashIndex.map.clear()
-
-            /* (Re-)create index entries. */
-            val localMap = mutableMapOf<Value, MutableList<Long>>()
-            this.parent.scan(this.columns).use { s ->
-                s.forEach { record ->
-                    val value = record[this.columns[0]]
-                            ?: throw ValidationException.IndexUpdateException(this.name, "A value cannot be null for instances of non-unique hash-index but tid=$tid is")
-                    if (!localMap.containsKey(value)) {
-                        localMap[value] = mutableListOf(record.tupleId)
-                    } else {
-                        localMap[value]!!.add(record.tupleId)
-                    }
-                }
+            entityTx.scan(this.columns).forEach { record ->
+                val value = record[this.columns[0]] ?: throw TxException.TxValidationException(
+                    this.context.txId,
+                    "A value cannot be null for instances of NonUniqueHashIndex ${this@NonUniqueHashIndex.name} but given value is (value = null, tupleId = ${record.tupleId})."
+                )
+                this.addMapping(value, record.tupleId)
             }
-            val castMap = this@NonUniqueHashIndex.map as HTreeMap<Value, LongArray>
-            localMap.forEach { (value, l) -> castMap[value] = l.toLongArray() }
-
-            LOGGER.trace("Rebuilding non-unique hash complete!")
         }
 
         /**
          * Updates the [NonUniqueHashIndex] with the provided [Record]. This method determines, whether
          * the [Record] affected by the [DataChangeEvent] should be added or updated
          *
-         * @param update Collection of [DataChangeEvent]s to process.
+         * @param event [DataChangeEvent] to process.
          */
-        override fun update(update: Collection<DataChangeEvent>) = this.localLock.read {
-            /* Check if this [Tx] allows for writing. */
-            checkValidForWrite()
-
-            val localMap = this@NonUniqueHashIndex.map as HTreeMap<Value, LongArray>
-
-            /* Inner function for inserting an entry based on a DataChangeEvent. */
-            fun atomicInsert(event: DataChangeEvent) {
-                val newValue = event.new?.get(this.columns[0])
-                        ?: throw ValidationException.IndexUpdateException(this.name, "Values cannot be null for instances of UniqueHashIndex but tid=${event.new?.tupleId} is.")
-                if (localMap.containsKey(newValue)) {
-                    val oldArray = localMap[newValue]!!
-                    if (!oldArray.contains(event.new.tupleId)) {
-                        val newArray = oldArray.copyOf(oldArray.size + 1)
-                        newArray[oldArray.size] = event.new.tupleId
-                        localMap[newValue] = newArray
-                    }
-                } else {
-                    localMap[newValue] = longArrayOf(event.new.tupleId)
-                }
-            }
-
-            /* Inner function for deleting an entry based on a DataChangeEvent. */
-            fun atomicDelete(event: DataChangeEvent) {
-                val oldValue = event.old?.get(this.columns[0])
-                        ?: throw ValidationException.IndexUpdateException(this.name, "Values cannot be null for instances of UniqueHashIndex but tid=${event.new?.tupleId} is.")
-                if (localMap.containsKey(oldValue)) {
-                    val oldArray = localMap[oldValue]!!
-                    if (oldArray.contains(event.old.tupleId)) {
-                        localMap[oldValue] = oldArray.filter { it != event.old.tupleId }.toLongArray()
+        override fun update(event: DataChangeEvent) = this.withWriteLock {
+            when (event) {
+                is DataChangeEvent.InsertDataChangeEvent -> {
+                    val value = event.inserts[this.columns[0]]
+                    if (value != null) {
+                        this.addMapping(value, event.tupleId)
                     }
                 }
-            }
-
-            /* Process the DataChangeEvents. */
-            loop@ for (event in update) {
-                when (event.type) {
-                    DataChangeEventType.INSERT -> atomicInsert(event)
-                    DataChangeEventType.UPDATE -> {
-                        if (event.new?.get(this.columns[0]) != event.old?.get(this.columns[0])) {
-                            atomicDelete(event)
-                            atomicInsert(event)
-                        }
+                is DataChangeEvent.UpdateDataChangeEvent -> {
+                    val old = event.updates[this.columns[0]]?.first
+                    if (old != null) {
+                        this.removeMapping(old, event.tupleId)
                     }
-                    DataChangeEventType.DELETE -> atomicDelete(event)
-                    else -> continue@loop
+                    val new = event.updates[this.columns[0]]?.second
+                    if (new != null) {
+                        this.addMapping(new, event.tupleId)
+                    }
+                }
+                is DataChangeEvent.DeleteDataChangeEvent -> {
+                    val old = event.deleted[this.columns[0]]
+                    if (old != null) {
+                        this.removeMapping(old, event.tupleId)
+                    }
                 }
             }
         }
 
         /**
-         * Performs a lookup through this [NonUniqueHashIndex.Tx] and returns a [CloseableIterator] of
-         * all [Record]s that match the [Predicate]. Only supports [AtomicBooleanPredicate]s.
+         * Clears the [NonUniqueHashIndex] underlying this [Tx] and removes all entries it contains.
+         */
+        override fun clear() = this.withWriteLock {
+            this@NonUniqueHashIndex.dirtyField.compareAndSet(false, true)
+            this@NonUniqueHashIndex.map.clear()
+        }
+
+        /**
+         * Performs a lookup through this [NonUniqueHashIndex.Tx] and returns a [Iterator] of
+         * all [Record]s that match the [Predicate]. Only supports [ BooleanPredicate.AtomicBooleanPredicate]s.
          *
-         * The [CloseableIterator] is not thread safe!
-         *
-         * <strong>Important:</strong> It remains to the caller to close the [CloseableIterator]
+         * The [Iterator] is not thread safe!
          *
          * @param predicate The [Predicate] for the lookup
-         *
-         * @return The resulting [CloseableIterator]
+         * @return The resulting [Iterator]
          */
-        override fun filter(predicate: Predicate): CloseableIterator<Record> = object : CloseableIterator<Record> {
+        override fun filter(predicate: Predicate) = object : Iterator<Record> {
 
-            /** Cast [AtomicBooleanPredicate] (if such a cast is possible).  */
-            private val predicate = if (predicate !is AtomicBooleanPredicate<*>) {
-                throw QueryException.UnsupportedPredicateException("Index '${this@NonUniqueHashIndex.name}' (non-unique hash-index) does not support predicates of type '${predicate::class.simpleName}'.")
-            } else {
-                predicate
-            }
+            /** Local [ BooleanPredicate.AtomicBooleanPredicate] instance. */
+            private val predicate: BooleanPredicate.Atomic
 
-            /* Perform some sanity checks. */
+            /** Pre-fetched entries that match the [Predicate]. */
+            private val elements = LinkedList<Pair<TupleId, Value>>()
+
             init {
-                checkValidForRead()
+                require(predicate is BooleanPredicate.Atomic.Literal) { "NonUniqueHashIndex.filter() does only support Atomic.Literal boolean predicates." }
+                require(!predicate.not) { "NonUniqueHashIndex.filter() does not support negated statements (i.e. NOT EQUALS or NOT IN)." }
+                this.predicate = predicate
+                this@Tx.withReadLock {
+                    when (this.predicate.operator) {
+                        is ComparisonOperator.In -> {
+                            this.predicate.operator.right.forEach { v ->
+                                val value = v.value
+                                val subset = this@NonUniqueHashIndex.map[value]
+                                subset?.forEach { this.elements.add(Pair(it, value)) }
+                            }
+                        }
+                        is ComparisonOperator.Binary.Equal -> {
+                            val value = this.predicate.operator.right.value
+                            val subset = this@NonUniqueHashIndex.map[value]
+                            subset?.forEach { this.elements.add(Pair(it, value)) }
+                        }
+                        is ComparisonOperator.Binary.Like -> {
+                            val operand = this.predicate.operator.right.value
+                            if (operand is LikePatternValue.StartsWith) {
+                                val prefix = this@NonUniqueHashIndex.map.prefixSubMap(StringValue(operand.startsWith.toString()))
+                                for ((k, v) in prefix) {
+                                    for (l in v) {
+                                        this.elements.add(Pair(l, k))
+                                    }
+                                }
+                            } else {
+                                throw IllegalArgumentException("NonUniqueHashIndex.filter() does only support LIKE operators with prefix matching (i.e. LIKE XYZ%).")
+                            }
+                        }
+                        else -> throw IllegalArgumentException("NonUniqueHashIndex.filter() does only support EQUAL, IN and LIKE operators.")
+                    }
+                }
             }
-
-            /** Generates a shared lock on the enclosing [Tx]. This lock is kept until the [CloseableIterator] is closed. */
-            private val lock = this@Tx.localLock.readLock()
-
-            /** Flag indicating whether this [CloseableIterator] has been closed. */
-            @Volatile
-            private var closed = false
-
-            /** Pre-fetched [Record]s that match the [Predicate]. */
-            private val results = this.prepare()
 
             /**
              * Returns `true` if the iteration has more elements.
              */
             override fun hasNext(): Boolean {
-                check(!this.closed) { "Illegal invocation of hasNext(): This CloseableIterator has been closed." }
-                return this.results.isNotEmpty()
+                return this.elements.isNotEmpty()
             }
 
             /**
              * Returns the next element in the iteration.
              */
             override fun next(): Record {
-                check(!this.closed) { "Illegal invocation of next(): This CloseableIterator has been closed." }
-                return this.results.removeFirst()
-            }
-
-            /**
-             * Closes this [CloseableIterator] and releases all locks and resources associated with it.
-             */
-            override fun close() {
-                if (!this.closed) {
-                    this@Tx.localLock.unlock(this.lock)
-                    this.closed = true
-                }
-            }
-
-            /**
-             * Prepares the list of matching [Record]s and returns it.
-             */
-            private fun prepare(): MutableList<Record> {
-                val n = when (this.predicate.operator) {
-                    ComparisonOperator.EQUAL -> 1
-                    ComparisonOperator.IN -> this.predicate.values.size
-                    else -> throw QueryException.UnsupportedPredicateException("Instance of unique hash-index does not support ${this.predicate.operator} comparison operators.")
-                }
-                return if (this.predicate.not) {
-                    val blackList = this.predicate.values.take(n).flatMap {
-                        this@NonUniqueHashIndex.map[it]?.asList() ?: emptyList()
-                    }.toHashSet()
-                    this@NonUniqueHashIndex.map.flatMap { entry ->
-                        val value = arrayOf(entry.key)
-                        entry.value.filter {
-                            !blackList.contains(it)
-                        }.map {
-                            StandaloneRecord(it, this@NonUniqueHashIndex.produces, value)
-                        }
-                    }.toMutableList()
-                } else {
-                    this.predicate.values.take(n).flatMap { v ->
-                        this@NonUniqueHashIndex.map[v]?.map { tupleId ->
-                            StandaloneRecord(tupleId, this@NonUniqueHashIndex.produces, arrayOf(v))
-                        } ?: emptyList()
-                    }.toMutableList()
-                }
+                val next = this.elements.poll()
+                return StandaloneRecord(next.first, this@Tx.columns, arrayOf(next.second))
             }
         }
 
-        /** Performs the actual COMMIT operation by rolling back the [IndexTransaction]. */
-        override fun performCommit() {
-            this@NonUniqueHashIndex.db.commit()
-        }
-
-        /** Performs the actual ROLLBACK operation by rolling back the [IndexTransaction]. */
-        override fun performRollback() {
-            this@NonUniqueHashIndex.db.rollback()
-        }
-
-        override fun cleanup() {
-            /* No Op. */
+        /**
+         * The [NonUniqueHashIndex] does not support ranged filtering!
+         *
+         * @param predicate The [Predicate] for the lookup.
+         * @param partitionIndex The [partitionIndex] for this [filterRange] call.
+         * @param partitions The total number of partitions for this [filterRange] call.
+         * @return The resulting [Iterator].
+         */
+        override fun filterRange(predicate: Predicate, partitionIndex: Int, partitions: Int): Iterator<Record> {
+            throw UnsupportedOperationException("The NonUniqueHashIndex does not support ranged filtering!")
         }
     }
 }

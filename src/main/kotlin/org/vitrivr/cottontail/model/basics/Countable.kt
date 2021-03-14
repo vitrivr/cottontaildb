@@ -7,7 +7,7 @@ package org.vitrivr.cottontail.model.basics
  * @see Record
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.0.0
  */
 interface Countable {
     /**
