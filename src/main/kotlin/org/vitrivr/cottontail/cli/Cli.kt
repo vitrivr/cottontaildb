@@ -42,7 +42,7 @@ import kotlin.time.ExperimentalTime
  * This is basically a port of https://github.com/lucaro/DRES 's CLI
  *
  * @author Loris Sauter
- * @version 1.0
+ * @version 1.0.2
  */
 @ExperimentalTime
 class Cli(val host: String = "localhost", val port: Int = 1865) {
@@ -115,7 +115,11 @@ class Cli(val host: String = "localhost", val port: Int = 1865) {
         }
 
         /* Initialize auto complete. */
-        this.clikt.initCompletion()
+        try {
+            this.clikt.initCompletion()
+        } catch (e: StatusRuntimeException) {
+            System.err.println("Failed to fetch schema from Cottontail DB instance; some commands may be unavailable!")
+        }
 
         /* Start CLI loop. */
         val lineReader = LineReaderBuilder.builder().terminal(terminal).completer(completer).build()
