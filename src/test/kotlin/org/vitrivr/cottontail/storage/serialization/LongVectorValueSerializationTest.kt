@@ -35,7 +35,7 @@ class LongVectorValueSerializationTest : AbstractSerializationTest() {
         val nameEntity = this.schema.name.entity("longvector-test")
 
         val idCol = ColumnDef(nameEntity.column("id"), Type.Int)
-        val vectorCol = ColumnDef(nameEntity.column("vector"), Type.IntVector(dimension))
+        val vectorCol = ColumnDef(nameEntity.column("vector"), Type.LongVector(dimension))
 
         /* Prepare entity. */
         val columns = arrayOf(idCol, vectorCol)
