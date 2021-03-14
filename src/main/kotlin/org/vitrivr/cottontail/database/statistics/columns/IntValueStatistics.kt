@@ -21,15 +21,14 @@ class IntValueStatistics : ValueStatistics<IntValue>(Type.Int) {
      */
     companion object Serializer : org.mapdb.Serializer<IntValueStatistics> {
         override fun serialize(out: DataOutput2, value: IntValueStatistics) {
-            out.writeBoolean(value.dirty)
-            out.packInt(value.min)
-            out.packInt(value.max)
+            out.writeInt(value.min)
+            out.writeInt(value.max)
         }
 
         override fun deserialize(input: DataInput2, available: Int): IntValueStatistics {
             val stat = IntValueStatistics()
-            stat.min = input.unpackInt()
-            stat.max = input.unpackInt()
+            stat.min = input.readInt()
+            stat.max = input.readInt()
             return stat
         }
     }

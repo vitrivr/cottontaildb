@@ -21,17 +21,14 @@ class LongValueStatistics : ValueStatistics<LongValue>(Type.Long) {
      */
     companion object Serializer : org.mapdb.Serializer<LongValueStatistics> {
         override fun serialize(out: DataOutput2, value: LongValueStatistics) {
-            out.writeBoolean(value.dirty)
-            out.packLong(value.min)
-            out.packLong(value.max)
-            out.packLong(value.numberOfNullEntries)
-            out.packLong(value.numberOfNonNullEntries)
+            out.writeLong(value.min)
+            out.writeLong(value.max)
         }
 
         override fun deserialize(input: DataInput2, available: Int): LongValueStatistics {
             val stat = LongValueStatistics()
-            stat.min = input.unpackLong()
-            stat.max = input.unpackLong()
+            stat.min = input.readLong()
+            stat.max = input.readLong()
             return stat
         }
     }

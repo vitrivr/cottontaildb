@@ -22,11 +22,8 @@ class ShortValueStatistics : ValueStatistics<ShortValue>(Type.Short) {
      */
     companion object Serializer : org.mapdb.Serializer<ShortValueStatistics> {
         override fun serialize(out: DataOutput2, value: ShortValueStatistics) {
-            out.writeBoolean(value.dirty)
             out.writeShort(value.min.toInt())
             out.writeShort(value.max.toInt())
-            out.packLong(value.numberOfNullEntries)
-            out.packLong(value.numberOfNonNullEntries)
         }
 
         override fun deserialize(input: DataInput2, available: Int): ShortValueStatistics {

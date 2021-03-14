@@ -22,11 +22,8 @@ class DateValueStatistics : ValueStatistics<DateValue>(Type.Date) {
      */
     companion object Serializer : org.mapdb.Serializer<DateValueStatistics> {
         override fun serialize(out: DataOutput2, value: DateValueStatistics) {
-            out.writeBoolean(value.dirty)
             out.packLong(value.min)
             out.packLong(value.max)
-            out.packLong(value.numberOfNullEntries)
-            out.packLong(value.numberOfNonNullEntries)
         }
 
         override fun deserialize(input: DataInput2, available: Int): DateValueStatistics {
