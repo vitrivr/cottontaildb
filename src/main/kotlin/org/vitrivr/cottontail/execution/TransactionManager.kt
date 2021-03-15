@@ -179,7 +179,7 @@ class TransactionManager(private val executor: ThreadPoolExecutor) {
                     throw e
                 } catch (e: Throwable) {
                     this@Transaction.state = TransactionStatus.ERROR
-                    throw ExecutionException("Unhandled exception during execution of transaction ${this@Transaction.txId}: ${e.message}.")
+                    throw ExecutionException("Unhandled exception during execution of transaction ${this@Transaction.txId}: ${e.message}")
                 }
             }
         }
