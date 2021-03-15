@@ -61,9 +61,9 @@ class CatalogueV1(override val config: Config) : Catalogue {
     private val store: CottontailStoreWAL =
         this.config.mapdb.store(this.path.resolve(FILE_CATALOGUE))
 
-    /** Reference to the [CatalogueHeader] of the [CatalogueV1]. Accessing it will read right from the underlying store. */
-    private val header: CatalogueHeader
-        get() = this.store.get(HEADER_RECORD_ID, CatalogueHeader.Serializer)
+    /** Reference to the [CatalogueV1Header] of the [CatalogueV1]. Accessing it will read right from the underlying store. */
+    private val header: CatalogueV1Header
+        get() = this.store.get(HEADER_RECORD_ID, CatalogueV1Header.Serializer)
             ?: throw DatabaseException.DataCorruptionException("Failed to open Cottontail DB catalogue header!")
 
     /** A in-memory registry of all the [SchemaV1]s contained in this [CatalogueV1]. When a [CatalogueV1] is opened, all the [SchemaV1]s will be loaded. */
@@ -87,7 +87,7 @@ class CatalogueV1(override val config: Config) : Catalogue {
     init {
         val header = this.header
         for (sid in header.schemas) {
-            val schema = this.store.get(sid, CatalogueHeader.CatalogueEntry.Serializer)
+            val schema = this.store.get(sid, CatalogueV1Header.CatalogueEntry.Serializer)
                 ?: throw DatabaseException.DataCorruptionException("Failed to open Cottontail DB catalogue entry!")
             val path = this.path.resolve("schema_${schema.name}")
             if (!Files.exists(path)) {

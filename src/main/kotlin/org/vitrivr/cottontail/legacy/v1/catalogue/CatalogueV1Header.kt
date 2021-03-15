@@ -13,20 +13,20 @@ import org.vitrivr.cottontail.model.exceptions.DatabaseException
  * @author Ralph Gasser
  * @version 1.0
  */
-data class CatalogueHeader(
+data class CatalogueV1Header(
     val size: Long = 0,
     val created: Long = System.currentTimeMillis(),
     val modified: Long = System.currentTimeMillis(),
     val schemas: LongArray = LongArray(0)
 ) {
-    companion object Serializer : org.mapdb.Serializer<CatalogueHeader> {
+    companion object Serializer : org.mapdb.Serializer<CatalogueV1Header> {
         /** The identifier that is used to identify a Cottontail DB [CatalogueV1] file. */
         private const val IDENTIFIER: String = "COTTONT_CAT"
 
         /** The version of the Cottontail DB [CatalogueV1]  file. */
         private const val VERSION: Short = 1
 
-        override fun serialize(out: DataOutput2, value: CatalogueHeader) {
+        override fun serialize(out: DataOutput2, value: CatalogueV1Header) {
             out.writeUTF(IDENTIFIER)
             out.writeShort(VERSION.toInt())
             out.packLong(value.size)
@@ -38,7 +38,7 @@ data class CatalogueHeader(
             }
         }
 
-        override fun deserialize(input: DataInput2, available: Int): CatalogueHeader {
+        override fun deserialize(input: DataInput2, available: Int): CatalogueV1Header {
             if (!validate(input)) {
                 throw DatabaseException.InvalidFileException("Cottontail DB Entity")
             }
@@ -50,11 +50,11 @@ data class CatalogueHeader(
             for (i in 0 until schema_count) {
                 schemas[i] = input.readLong()
             }
-            return CatalogueHeader(size, created, modified, schemas)
+            return CatalogueV1Header(size, created, modified, schemas)
         }
 
         /**
-         * Validates the [CatalogueHeader]. Must be executed before deserialization
+         * Validates the [CatalogueV1Header]. Must be executed before deserialization
          *
          * @return True if validation was successful, false otherwise.
          */
