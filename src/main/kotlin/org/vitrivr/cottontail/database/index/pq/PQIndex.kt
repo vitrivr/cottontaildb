@@ -119,7 +119,6 @@ class PQIndex(path: Path, parent: DefaultEntity, config: PQIndexConfig? = null) 
         require(this.config.numCentroids <= Short.MAX_VALUE)
         require(this.config.numSubspaces > 0) { "PQIndex requires at least one centroid." }
         require(this.columns[0].type.logicalSize >= this.config.numSubspaces) { "Logical size of the column must be greater or equal than the number of subspaces." }
-        require(this.columns[0].type.logicalSize % this.config.numSubspaces == 0) { "Logical size of the column modulo the number of subspaces must be zero." }
     }
 
     /** False since [PQIndex] currently doesn't support incremental updates. */
