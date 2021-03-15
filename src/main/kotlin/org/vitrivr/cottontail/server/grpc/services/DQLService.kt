@@ -182,6 +182,7 @@ class DQLService(val catalogue: Catalogue, override val manager: TransactionMana
      * gRPC endpoint for handling PING requests.
      */
     override fun ping(request: Empty, responseObserver: StreamObserver<Empty>) {
+        responseObserver.onNext(Empty.getDefaultInstance())
         responseObserver.onCompleted()
     }
 }
