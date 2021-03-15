@@ -105,7 +105,7 @@ data class Cost constructor(val io: Float = 0.0f, val cpu: Float = 0.0f, val mem
      * @param max The maximum parallelization to allow.
      * @return parallelization estimation for this [Cost].
      */
-    fun parallelisation(max: Int = MAX_PARALLELISATION) = Integer.max(Integer.min(max, this.cpu.toInt()), max)
+    fun parallelisation(max: Int = MAX_PARALLELISATION) = this.cpu.toInt().coerceAtMost(max).coerceAtLeast(1)
 
     operator fun plus(other: Cost): Cost = Cost(this.io + other.io, this.cpu + other.cpu, this.memory + other.memory)
     operator fun minus(other: Cost): Cost = Cost(this.io - other.io, this.cpu - other.cpu, this.memory - other.memory)
