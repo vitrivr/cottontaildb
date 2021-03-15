@@ -253,29 +253,27 @@ class LuceneIndex(path: Path, parent: DefaultEntity, config: LuceneIndexConfig? 
     private inner class Tx(context: TransactionContext) : AbstractIndex.Tx(context) {
 
         /** The [IndexWriter] instance used to access this [LuceneIndex]. */
-        private val writer = IndexWriter(
-            this@LuceneIndex.directory,
-            IndexWriterConfig(this@LuceneIndex.config.getAnalyzer())
-                .setOpenMode(IndexWriterConfig.OpenMode.APPEND)
-                .setMaxBufferedDocs(10000)
-                .setCommitOnClose(false)
-        )
+        private var writer: IndexWriter? = null
 
         /** The default [TxSnapshot] of this [IndexTx].  */
         override val snapshot = object : TxSnapshot {
             /** Commits DB and Lucene writer and updates lucene reader. */
             override fun commit() {
-                this@Tx.writer.commit()
                 this@LuceneIndex.store.commit()
-                val oldReader = this@LuceneIndex.indexReader
-                this@LuceneIndex.indexReader = DirectoryReader.open(this@LuceneIndex.directory)
-                oldReader.close()
+                if (this@Tx.writer?.hasUncommittedChanges() == true) {
+                    this@Tx.writer?.commit()
+                    val oldReader = this@LuceneIndex.indexReader
+                    this@LuceneIndex.indexReader = DirectoryReader.open(this@LuceneIndex.directory)
+                    oldReader.close()
+                }
             }
 
             /** Rolls back DB and Lucene writer . */
             override fun rollback() {
-                this@Tx.writer.rollback()
                 this@LuceneIndex.store.rollback()
+                if (this@Tx.writer?.hasUncommittedChanges() == true) {
+                    this@Tx.writer?.rollback()
+                }
             }
         }
 
@@ -293,13 +291,14 @@ class LuceneIndex(path: Path, parent: DefaultEntity, config: LuceneIndexConfig? 
          * (Re-)builds the [LuceneIndex].
          */
         override fun rebuild() = this.withWriteLock {
+            this.ensureWriterAvailable()
+
             /* Obtain Tx for parent [Entity. */
             val entityTx = this.context.getTx(this.dbo.parent) as EntityTx
-
             /* Recreate entries. */
-            this.writer.deleteAll()
+            this.writer?.deleteAll()
             entityTx.scan(this@LuceneIndex.columns).forEach { record ->
-                this.writer.addDocument(documentFromRecord(record))
+                this.writer?.addDocument(documentFromRecord(record))
             }
         }
 
@@ -309,22 +308,23 @@ class LuceneIndex(path: Path, parent: DefaultEntity, config: LuceneIndexConfig? 
          * @param event [DataChangeEvent] to process.
          */
         override fun update(event: DataChangeEvent) = this.withWriteLock {
+            this.ensureWriterAvailable()
             when (event) {
                 is DataChangeEvent.InsertDataChangeEvent -> {
                     val new = event.inserts[this.columns[0]]
                     if (new is StringValue) {
-                        this.writer.addDocument(this@LuceneIndex.documentFromValue(new, event.tupleId))
+                        this.writer?.addDocument(this@LuceneIndex.documentFromValue(new, event.tupleId))
                     }
                 }
                 is DataChangeEvent.UpdateDataChangeEvent -> {
-                    this.writer.deleteDocuments(Term(TID_COLUMN, event.tupleId.toString()))
+                    this.writer?.deleteDocuments(Term(TID_COLUMN, event.tupleId.toString()))
                     val new = event.updates[this.columns[0]]?.second
                     if (new is StringValue) {
-                        this.writer.addDocument(this@LuceneIndex.documentFromValue(new, event.tupleId))
+                        this.writer?.addDocument(this@LuceneIndex.documentFromValue(new, event.tupleId))
                     }
                 }
                 is DataChangeEvent.DeleteDataChangeEvent -> {
-                    this.writer.deleteDocuments(Term(TID_COLUMN, event.tupleId.toString()))
+                    this.writer?.deleteDocuments(Term(TID_COLUMN, event.tupleId.toString()))
                 }
             }
             Unit
@@ -334,7 +334,8 @@ class LuceneIndex(path: Path, parent: DefaultEntity, config: LuceneIndexConfig? 
          * Clears the [LuceneIndex] underlying this [Tx] and removes all entries it contains.
          */
         override fun clear() = this.withWriteLock {
-            this.writer.deleteAll()
+            this.ensureWriterAvailable()
+            this.writer?.deleteAll()
             this@LuceneIndex.dirtyField.compareAndSet(false, true)
             Unit
         }
@@ -408,8 +409,16 @@ class LuceneIndex(path: Path, parent: DefaultEntity, config: LuceneIndexConfig? 
 
         /** Makes the necessary cleanup by closing the [IndexWriter]. */
         override fun cleanup() {
-            this.writer.close()
+            this.writer?.close()
             super.cleanup()
+        }
+
+        /** Makes sure that an [IndexWriter] instance is available. */
+        private fun ensureWriterAvailable() {
+            if (this.writer == null) {
+                val config = IndexWriterConfig(this@LuceneIndex.config.getAnalyzer()).setOpenMode(IndexWriterConfig.OpenMode.APPEND).setMaxBufferedDocs(10000).setCommitOnClose(false)
+                this.writer = IndexWriter(this@LuceneIndex.directory, config)
+            }
         }
     }
 }
