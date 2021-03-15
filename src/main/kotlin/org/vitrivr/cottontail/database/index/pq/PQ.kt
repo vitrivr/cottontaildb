@@ -108,7 +108,6 @@ class PQ(val type: Type<*>, val codebooks: List<PQCodebook<VectorValue<*>>>) {
             require(config.numSubspaces > 0) { "Number of subspaces must be greater than zero for PQIndex." }
             require(config.numCentroids > 0) { "Number of centroids must be greater than zero for PQIndex." }
             require(column.type.logicalSize >= config.numSubspaces) { "Logical size of column must be greater or equal to number of subspaces." }
-            require(column.type.logicalSize % config.numSubspaces == 0) { "Logical size of column modulo number of subspaces must be zero." }
 
             /* Calculate some important metrics. */
             val dimensionsPerSubspace = column.type.logicalSize / config.numSubspaces
