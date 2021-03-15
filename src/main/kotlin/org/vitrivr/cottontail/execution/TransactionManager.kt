@@ -2,8 +2,8 @@ package org.vitrivr.cottontail.execution
 
 import it.unimi.dsi.fastutil.Hash.VERY_FAST_LOAD_FACTOR
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2ObjectMaps
-import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collect
 import org.slf4j.LoggerFactory
@@ -77,7 +77,7 @@ class TransactionManager(private val executor: ThreadPoolExecutor) {
             private set
 
         /** Map of all [Tx] that have been created as part of this [Transaction]. */
-        private val txns: MutableMap<DBO, Tx> = Object2ObjectMaps.synchronize(Object2ObjectOpenHashMap())
+        private val txns: MutableMap<DBO, Tx> = Object2ObjectMaps.synchronize(Object2ObjectLinkedOpenHashMap())
 
         /** Number of [Tx] held by this [Transaction]. */
         val numberOfTxs: Int = this.txns.size
@@ -169,19 +169,15 @@ class TransactionManager(private val executor: ThreadPoolExecutor) {
                     operator.toFlow(this@Transaction).collect()
                     this@Transaction.state = TransactionStatus.READY
                 } catch (e: DeadlockException) {
-                    LOGGER.debug("Deadlock encountered during execution of transaction ${this@Transaction.txId}.", e)
                     this@Transaction.state = TransactionStatus.ERROR
                     throw TransactionException.DeadlockException(this@Transaction.txId, e)
                 } catch (e: ExecutionException.OperatorExecutionException) {
-                    LOGGER.debug("Unhandled exception during operator execution in transaction ${this@Transaction.txId}.", e)
                     this@Transaction.state = TransactionStatus.ERROR
                     throw e
                 } catch (e: DatabaseException) {
-                    LOGGER.warn("Unhandled database exception during execution of transaction ${this@Transaction.txId}.", e)
                     this@Transaction.state = TransactionStatus.ERROR
                     throw e
                 } catch (e: Throwable) {
-                    LOGGER.error("Unhandled exception during query execution of transaction ${this@Transaction.txId}.", e)
                     this@Transaction.state = TransactionStatus.ERROR
                     throw ExecutionException("Unhandled exception during execution of transaction ${this@Transaction.txId}: ${e.message}.")
                 }
@@ -195,14 +191,20 @@ class TransactionManager(private val executor: ThreadPoolExecutor) {
         fun commit() {
             check(this.state === TransactionStatus.READY) { "Cannot commit transaction ${this.txId} because it is in wrong state (s = ${this.state})." }
             this.state = TransactionStatus.FINALIZING
-            this.txns.values.forEach { txn ->
-                txn.commit()
-                txn.close()
+            try {
+                this.txns.values.forEach { txn ->
+                    txn.commit()
+                    txn.close()
+                }
+            } catch (e: Throwable) {
+                LOGGER.error("An error occurred while committing transaction ${this.txId}. This is probably serious!", e)
+            } finally {
+                this.txns.clear()
+                this.ended = System.currentTimeMillis()
+                this.state = TransactionStatus.ROLLBACK
+                this@TransactionManager.transactions.remove(this.txId)
+                Unit
             }
-            this.txns.clear()
-            this.ended = System.currentTimeMillis()
-            this.state = TransactionStatus.COMMIT
-            this@TransactionManager.transactions.remove(this.txId)
         }
 
         /**
@@ -212,15 +214,20 @@ class TransactionManager(private val executor: ThreadPoolExecutor) {
         fun rollback() {
             check(this.state === TransactionStatus.READY || this.state === TransactionStatus.ERROR) { "Cannot rollback transaction ${this.txId} because it is in wrong state (s = ${this.state})." }
             this.state = TransactionStatus.FINALIZING
-            this.txns.values.forEach { txn ->
-                txn.rollback()
-                txn.close()
+            try {
+                this.txns.values.forEach { txn ->
+                    txn.rollback()
+                    txn.close()
+                }
+            } catch (e: Throwable) {
+                LOGGER.error("An error occurred while rolling back transaction ${this.txId}. This is probably serious!", e)
+            } finally {
+                this.txns.clear()
+                this.ended = System.currentTimeMillis()
+                this.state = TransactionStatus.ROLLBACK
+                this@TransactionManager.transactions.remove(this.txId)
+                Unit
             }
-            this.txns.clear()
-            this.ended = System.currentTimeMillis()
-            this.state = TransactionStatus.ROLLBACK
-            this@TransactionManager.transactions.remove(this.txId)
-            Unit
         }
     }
 }
