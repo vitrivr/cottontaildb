@@ -55,7 +55,7 @@ class PQIndex(path: Path, parent: DefaultEntity, config: PQIndexConfig? = null) 
          * @return Number of subspaces to use.
          */
         fun defaultNumberOfSubspaces(d: Int): Int {
-            var subspaces: Int = when {
+            val start: Int = when {
                 d == 1 -> 1
                 d == 2 -> 2
                 d <= 8 -> 4
@@ -65,13 +65,14 @@ class PQIndex(path: Path, parent: DefaultEntity, config: PQIndexConfig? = null) 
                 d <= 4096 -> 32
                 else -> 64
             }
+            var subspaces = start
             while (subspaces < d && subspaces < Byte.MAX_VALUE) {
                 if (d % subspaces == 0) {
                     return subspaces
                 }
                 subspaces++
             }
-            throw IllegalArgumentException("")
+            return start
         }
     }
 
