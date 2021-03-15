@@ -393,7 +393,11 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
          */
         override fun optimize() = this.withWriteLock {
             /* Stage 1a: Rebuild incremental indexes and statistics. */
-            val incremental = this.listIndexes().filter { it.supportsIncrementalUpdate }.map { this.context.getTx(it) as IndexTx }
+            val incremental = this.listIndexes().filter { it.supportsIncrementalUpdate }.map {
+                val tx = this.context.getTx(it) as IndexTx
+                tx.clear() /* Important: Clear indexes. */
+                tx
+            }
             val columns = this.listColumns().map { it.columnDef }.toTypedArray()
             val map = Object2ObjectOpenHashMap<ColumnDef<*>, Value>(columns.size)
             val statistics = this@DefaultEntity.newStatistics()

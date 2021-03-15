@@ -295,6 +295,7 @@ class LuceneIndex(path: Path, parent: DefaultEntity, config: LuceneIndexConfig? 
 
             /* Obtain Tx for parent [Entity. */
             val entityTx = this.context.getTx(this.dbo.parent) as EntityTx
+
             /* Recreate entries. */
             this.writer?.deleteAll()
             entityTx.scan(this@LuceneIndex.columns).forEach { record ->
