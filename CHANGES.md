@@ -1,6 +1,6 @@
 # Change log for Cottontail DB
 
-## Version 0.12.3
+## Version 0.12.2
 
 ### Bugfixes
 
