@@ -41,6 +41,13 @@ abstract class AbstractSerializationTest {
         )
     }
 
+    init {
+        /* Assure existence of root directory. */
+        if (!Files.exists(TestConstants.config.root)) {
+            Files.createDirectories(TestConstants.config.root)
+        }
+    }
+
     /** The [DefaultCatalogue] instance used for the [AbstractSerializationTest]. */
     protected val catalogue: DefaultCatalogue = DefaultCatalogue(TestConstants.config)
 
