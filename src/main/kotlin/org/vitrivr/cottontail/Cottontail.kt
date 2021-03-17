@@ -6,6 +6,7 @@ import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.database.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.database.general.DBOVersion
 import org.vitrivr.cottontail.legacy.VersionProber
+import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import org.vitrivr.cottontail.server.grpc.CottontailGrpcServer
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -50,9 +51,6 @@ fun main(args: Array<String>) {
     /* Load config file and start Cottontail DB. */
     Files.newBufferedReader(configPath).use { reader ->
         val config = Json.decodeFromString(Config.serializer(), reader.readText())
-        if (!Files.exists(config.root)) {
-            Files.createDirectories(config.root)
-        }
         try {
             standalone(config)
         } catch (e: Throwable) {
@@ -73,6 +71,11 @@ fun standalone(config: Config) {
     /* Prepare Log4j logging facilities. */
     if (config.logConfig != null && Files.isRegularFile(config.logConfig)) {
         System.getProperties().setProperty("log4j.configurationFile", config.logConfig.toString())
+    }
+
+    /* Create root-folder, if it doesn't exist yet. */
+    if (!Files.exists(config.root)) {
+        Files.createDirectories(config.root)
     }
 
     /* Check catalogue version. */
@@ -117,6 +120,17 @@ fun standalone(config: Config) {
  */
 @ExperimentalTime
 fun embedded(config: Config): CottontailGrpcServer {
+    /* Create root-folder, if it doesn't exist yet. */
+    if (!Files.exists(config.root)) {
+        Files.createDirectories(config.root)
+    }
+
+    /* Check catalogue version. */
+    val detected = VersionProber(config).probe(config.root)
+    if (detected != VersionProber.EXPECTED && detected != DBOVersion.UNDEFINED) {
+        throw DatabaseException.VersionMismatchException(VersionProber.EXPECTED, detected)
+    }
+
     /* Instantiate Catalogue, execution engine and gRPC server. */
     val catalogue = DefaultCatalogue(config)
     val server = CottontailGrpcServer(config, catalogue)
