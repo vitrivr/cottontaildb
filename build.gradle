@@ -172,6 +172,11 @@ idea {
     }
 }
 
+// used to pass flags such as windows to test-runner
+test {
+    systemProperties(System.getProperties())
+}
+
 tasks.withType(Test) {
     useJUnitPlatform()
     jvmArgs '--enable-preview'

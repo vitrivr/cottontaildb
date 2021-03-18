@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail
 
 import org.vitrivr.cottontail.config.Config
+import org.vitrivr.cottontail.config.MapDBConfig
 import java.nio.file.Paths
 
 /**
@@ -11,8 +12,12 @@ import java.nio.file.Paths
  */
 object TestConstants {
 
+    init {
+        println((System.getProperty("enableMmap") ?: "true").toBoolean())
+    }
+
     /** Location of the Cottontail DB data folder used for testing. */
-    val config = Config(root = Paths.get("./cottontaildb-test"), cli = false)
+    val config = Config(root = Paths.get("./cottontaildb-test"), cli = false, mapdb = MapDBConfig(enableMmap = (System.getProperty("enableMmap") ?: "true").toBoolean()))
 
     /** General size of collections used for testing. */
     const val collectionSize: Int = 100_000
