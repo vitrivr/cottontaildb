@@ -437,33 +437,32 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
          *
          * @return [Iterator]
          */
-        override fun scan(columns: Array<ColumnDef<*>>, range: LongRange) = object : Iterator<Record> {
+        override fun scan(columns: Array<ColumnDef<*>>, range: LongRange) = this@Tx.withReadLock {
+            object : Iterator<Record> {
 
-            /** The wrapped [Iterator] of the first (primary) column. */
-            private val wrapped = this@Tx.withReadLock {
-                (this@Tx.context.getTx(this@DefaultEntity.columns.values.first()) as ColumnTx<*>).scan(range)
+                /** List of [ColumnTx]s used by  this [Iterator]. */
+                private val txs = columns.map {
+                    val column = this@DefaultEntity.columns[it.name] ?: throw IllegalArgumentException("Column $it does not exist on entity ${this@DefaultEntity.name}.")
+                    (this@Tx.context.getTx(column) as ColumnTx<*>)
+                }
+
+                /** The wrapped [Iterator] of the first column. */
+                private val wrapped = this.txs.first().scan()
+
+                /**
+                 * Returns the next element in the iteration.
+                 */
+                override fun next(): Record {
+                    val tupleId = this.wrapped.next()
+                    val values = this.txs.map { it.read(tupleId) }.toTypedArray()
+                    return StandaloneRecord(tupleId, columns, values)
+                }
+
+                /**
+                 * Returns `true` if the iteration has more elements.
+                 */
+                override fun hasNext(): Boolean = this.wrapped.hasNext()
             }
-
-            /**
-             * Returns the next element in the iteration.
-             */
-            override fun next(): Record {
-                /* Read values from underlying columns. */
-                val tupleId = this.wrapped.next()
-                val values = columns.map {
-                    val column = this@DefaultEntity.columns[it.name]
-                        ?: throw IllegalArgumentException("Column $it does not exist on entity ${this@DefaultEntity.name}.")
-                    (this@Tx.context.getTx(column) as ColumnTx<*>).read(tupleId)
-                }.toTypedArray()
-
-                /* Return value of all the desired columns. */
-                return StandaloneRecord(tupleId, columns, values)
-            }
-
-            /**
-             * Returns `true` if the iteration has more elements.
-             */
-            override fun hasNext(): Boolean = this.wrapped.hasNext()
         }
 
         /**
