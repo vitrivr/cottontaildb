@@ -48,7 +48,11 @@ class SchemaTest {
     }
 
     /** The [TransactionManager] used for this [CatalogueTest] instance. */
-    private val manager = TransactionManager(Executors.newFixedThreadPool(1) as ThreadPoolExecutor)
+    private val manager = TransactionManager(
+        Executors.newFixedThreadPool(1) as ThreadPoolExecutor,
+        TestConstants.config.execution.transactionTableSize,
+        TestConstants.config.execution.transactionHistorySize
+    )
 
     /** The [DefaultCatalogue] object to run the test with. */
     private val catalogue: DefaultCatalogue = DefaultCatalogue(TestConstants.config)
