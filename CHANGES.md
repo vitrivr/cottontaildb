@@ -1,5 +1,16 @@
 # Change log for Cottontail DB
 
+## Version 0.12.4
+
+* Cleaned-up some slight issue in legacy DBO implementation.
+* Unified the pattern used to create and drop schemas, entities and indexes.
+
+### Bugfixes
+
+* Fixed inconsistencies in logging and error handling during query execution.
+* Fixed a bug that caused locks to be released while other DBOs were still in the process of finalizing a transaction.
+* Fixed a bug that caused gRPC methods to return for USER_IMPLICIT transactions before COMMIT or ROLLBACK was executed.
+
 ## Version 0.12.3
 
 * Slight optimization as to how DefaultEntity.scan() handles sub-transactions.
