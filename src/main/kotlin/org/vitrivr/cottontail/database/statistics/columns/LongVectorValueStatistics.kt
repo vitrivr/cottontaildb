@@ -47,7 +47,7 @@ class LongVectorValueStatistics(type: Type<LongVectorValue>) : ValueStatistics<L
         if (deleted != null) {
             for ((i, d) in deleted.data.withIndex()) {
                 if (this.min.data[i] == d || this.max.data[i] == d) {
-                    this.dirty = true
+                    this.fresh = false
                 }
             }
         }
@@ -91,7 +91,7 @@ class LongVectorValueStatistics(type: Type<LongVectorValue>) : ValueStatistics<L
      */
     override fun copy(): LongVectorValueStatistics {
         val copy = LongVectorValueStatistics(this.type)
-        copy.dirty = this.dirty
+        copy.fresh = this.fresh
         copy.numberOfNullEntries = this.numberOfNullEntries
         copy.numberOfNonNullEntries = this.numberOfNonNullEntries
         for (i in 0 until this.type.logicalSize) {

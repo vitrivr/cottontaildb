@@ -93,7 +93,7 @@ class BooleanValueStatistics : ValueStatistics<BooleanValue>(Type.Boolean) {
      */
     override fun copy(): BooleanValueStatistics {
         val copy = BooleanValueStatistics()
-        copy.dirty = this.dirty
+        copy.fresh = this.fresh
         copy.numberOfNullEntries = this.numberOfNullEntries
         copy.numberOfNonNullEntries = this.numberOfNonNullEntries
         copy.numberOfTrueEntries = this.numberOfTrueEntries

@@ -46,7 +46,7 @@ class IntVectorValueStatistics(type: Type<IntVectorValue>) : ValueStatistics<Int
         if (deleted != null) {
             for ((i, d) in deleted.data.withIndex()) {
                 if (this.min.data[i] == d || this.max.data[i] == d) {
-                    this.dirty = true
+                    this.fresh = false
                 }
             }
         }
@@ -90,7 +90,7 @@ class IntVectorValueStatistics(type: Type<IntVectorValue>) : ValueStatistics<Int
      */
     override fun copy(): IntVectorValueStatistics {
         val copy = IntVectorValueStatistics(this.type)
-        copy.dirty = this.dirty
+        copy.fresh = this.fresh
         copy.numberOfNullEntries = this.numberOfNullEntries
         copy.numberOfNonNullEntries = this.numberOfNonNullEntries
         for (i in 0 until this.type.logicalSize) {

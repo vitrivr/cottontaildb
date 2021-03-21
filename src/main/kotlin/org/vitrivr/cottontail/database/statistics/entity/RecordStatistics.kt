@@ -19,6 +19,10 @@ open class RecordStatistics {
         val EMPTY = RecordStatistics()
     }
 
+    /** Returns true if this [RecordStatistics] is considered fresh. */
+    val fresh: Boolean
+        get() = this.columns.values.all { it.fresh }
+
     /** The map of [ColumnDef] to [ValueStatistics] mappings held by this [RecordStatistics]. */
     protected val columns = Object2ObjectOpenHashMap<ColumnDef<*>, ValueStatistics<Value>>()
 

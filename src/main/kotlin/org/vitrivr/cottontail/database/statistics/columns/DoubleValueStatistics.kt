@@ -74,7 +74,7 @@ class DoubleValueStatistics : ValueStatistics<DoubleValue>(Type.Double) {
 
             /* We cannot create a sensible estimate if a value is deleted. */
             if (this.min == deleted.value || this.max == deleted.value) {
-                this.dirty = true
+                this.fresh = false
             }
         }
     }
@@ -96,7 +96,7 @@ class DoubleValueStatistics : ValueStatistics<DoubleValue>(Type.Double) {
      */
     override fun copy(): DoubleValueStatistics {
         val copy = DoubleValueStatistics()
-        copy.dirty = this.dirty
+        copy.fresh = this.fresh
         copy.numberOfNullEntries = this.numberOfNullEntries
         copy.numberOfNonNullEntries = this.numberOfNonNullEntries
         copy.min = this.min

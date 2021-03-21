@@ -65,7 +65,7 @@ class StringValueStatistics : ValueStatistics<StringValue>(Type.String) {
         /* We cannot create a sensible estimate if a value is deleted. */
         if (deleted != null) {
             if (this.minWidth == deleted.logicalSize || this.maxWidth == deleted.logicalSize) {
-                this.dirty = true
+                this.fresh = false
             }
         }
     }
@@ -86,7 +86,7 @@ class StringValueStatistics : ValueStatistics<StringValue>(Type.String) {
      */
     override fun copy(): StringValueStatistics {
         val copy = StringValueStatistics()
-        copy.dirty = this.dirty
+        copy.fresh = this.fresh
         copy.numberOfNullEntries = this.numberOfNullEntries
         copy.numberOfNonNullEntries = this.numberOfNonNullEntries
         copy.minWidth = this.minWidth

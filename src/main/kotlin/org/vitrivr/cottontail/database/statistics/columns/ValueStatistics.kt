@@ -21,7 +21,7 @@ import java.lang.Math.floorDiv
 open class ValueStatistics<T : Value>(val type: Type<T>) {
 
     /** Flag indicating that this [ValueStatistics] needs updating. */
-    var dirty: Boolean = false
+    var fresh: Boolean = true
         protected set
 
     /** Number of null entries known to this [ValueStatistics]. */
@@ -51,7 +51,7 @@ open class ValueStatistics<T : Value>(val type: Type<T>) {
                 is LongVectorValueStatistics -> LongVectorValueStatistics.Serializer(value.type).serialize(out, value)
                 is IntVectorValueStatistics -> IntVectorValueStatistics.Serializer(value.type).serialize(out, value)
             }
-            out.writeBoolean(value.dirty)
+            out.writeBoolean(value.fresh)
             out.packLong(value.numberOfNullEntries)
             out.packLong(value.numberOfNonNullEntries)
         }
@@ -77,7 +77,7 @@ open class ValueStatistics<T : Value>(val type: Type<T>) {
                 is Type.IntVector -> IntVectorValueStatistics.Serializer(type).deserialize(input, available)
                 is Type.LongVector -> LongVectorValueStatistics.Serializer(type).deserialize(input, available)
             }
-            stat.dirty = input.readBoolean()
+            stat.fresh = input.readBoolean()
             stat.numberOfNullEntries = input.unpackLong()
             stat.numberOfNonNullEntries = input.unpackLong()
             return stat
@@ -143,7 +143,7 @@ open class ValueStatistics<T : Value>(val type: Type<T>) {
      * Resets this [ValueStatistics] and sets all its values to to the default value.
      */
     open fun reset() {
-        this.dirty = false
+        this.fresh = true
         this.numberOfNullEntries = 0L
         this.numberOfNonNullEntries = 0L
     }
@@ -155,7 +155,7 @@ open class ValueStatistics<T : Value>(val type: Type<T>) {
      */
     open fun copy(): ValueStatistics<T> {
         val copy = ValueStatistics(this.type)
-        copy.dirty = this.dirty
+        copy.fresh = this.fresh
         copy.numberOfNullEntries = this.numberOfNullEntries
         copy.numberOfNonNullEntries = this.numberOfNonNullEntries
         return copy
