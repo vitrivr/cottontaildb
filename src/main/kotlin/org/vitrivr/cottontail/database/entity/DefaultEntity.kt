@@ -85,10 +85,7 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
             /* Prepare column references and column statistics. */
             val entityHeader = EntityHeader(name = name.simple, columns = columns.map {
                 val colPath = dataPath.resolve("${it.first.name.simple}.col")
-                when (it.second) {
-                    ColumnEngine.MAPDB -> MapDBColumn.initialize(colPath, it.first, config.mapdb)
-                    ColumnEngine.HARE -> throw UnsupportedOperationException("The column driver ${it.second} is currently not supported.") //HareColumn.initialize(colPath, it.first, config.hare)
-                }
+                MapDBColumn.initialize(colPath, it.first, config.mapdb)
                 EntityHeader.ColumnRef(it.first.name.simple, it.second)
             })
             val entityStatistics = EntityStatistics()
