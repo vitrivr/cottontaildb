@@ -88,4 +88,20 @@ class DoubleValueStatistics : ValueStatistics<DoubleValue>(Type.Double) {
         this.max = Double.MIN_VALUE
         this.sum = 0.0
     }
+
+    /**
+     * Copies this [DoubleValueStatistics] and returns it.
+     *
+     * @return Copy of this [DoubleValueStatistics].
+     */
+    override fun copy(): DoubleValueStatistics {
+        val copy = DoubleValueStatistics()
+        copy.dirty = this.dirty
+        copy.numberOfNullEntries = this.numberOfNullEntries
+        copy.numberOfNonNullEntries = this.numberOfNonNullEntries
+        copy.min = this.min
+        copy.max = this.max
+        copy.sum = this.sum
+        return copy
+    }
 }

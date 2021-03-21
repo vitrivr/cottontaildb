@@ -20,6 +20,18 @@ import java.lang.Math.floorDiv
  */
 open class ValueStatistics<T : Value>(val type: Type<T>) {
 
+    /** Flag indicating that this [ValueStatistics] needs updating. */
+    var dirty: Boolean = false
+        protected set
+
+    /** Number of null entries known to this [ValueStatistics]. */
+    var numberOfNullEntries: Long = 0L
+        protected set
+
+    /** Number of non-null entries known to this [ValueStatistics]. */
+    var numberOfNonNullEntries: Long = 0L
+        protected set
+
     companion object : Serializer<ValueStatistics<*>> {
         override fun serialize(out: DataOutput2, value: ValueStatistics<*>) {
             out.packInt(value.type.ordinal)
@@ -71,18 +83,6 @@ open class ValueStatistics<T : Value>(val type: Type<T>) {
             return stat
         }
     }
-
-    /** Flag indicating that this [ValueStatistics] needs updating. */
-    var dirty: Boolean = false
-        protected set
-
-    /** Number of null entries known to this [ValueStatistics]. */
-    var numberOfNullEntries: Long = 0L
-        protected set
-
-    /** Number of non-null entries known to this [ValueStatistics]. */
-    var numberOfNonNullEntries: Long = 0L
-        protected set
 
     /** Total number of entries known to this [ValueStatistics]. */
     val numberOfEntries
@@ -146,6 +146,19 @@ open class ValueStatistics<T : Value>(val type: Type<T>) {
         this.dirty = false
         this.numberOfNullEntries = 0L
         this.numberOfNonNullEntries = 0L
+    }
+
+    /**
+     * Copies this [ValueStatistics] and returns it.
+     *
+     * @return Copy of this [ValueStatistics].
+     */
+    open fun copy(): ValueStatistics<T> {
+        val copy = ValueStatistics(this.type)
+        copy.dirty = this.dirty
+        copy.numberOfNullEntries = this.numberOfNullEntries
+        copy.numberOfNonNullEntries = this.numberOfNonNullEntries
+        return copy
     }
 
     /**

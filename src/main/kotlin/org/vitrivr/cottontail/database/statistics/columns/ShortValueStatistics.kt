@@ -75,4 +75,19 @@ class ShortValueStatistics : ValueStatistics<ShortValue>(Type.Short) {
         this.min = Short.MAX_VALUE
         this.max = Short.MIN_VALUE
     }
+
+    /**
+     * Copies this [ShortValueStatistics] and returns it.
+     *
+     * @return Copy of this [ShortValueStatistics].
+     */
+    override fun copy(): ShortValueStatistics {
+        val copy = ShortValueStatistics()
+        copy.dirty = this.dirty
+        copy.numberOfNullEntries = this.numberOfNullEntries
+        copy.numberOfNonNullEntries = this.numberOfNonNullEntries
+        copy.min = this.min
+        copy.max = this.max
+        return copy
+    }
 }

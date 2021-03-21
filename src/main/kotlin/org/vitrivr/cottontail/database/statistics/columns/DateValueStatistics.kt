@@ -75,4 +75,19 @@ class DateValueStatistics : ValueStatistics<DateValue>(Type.Date) {
         this.min = Long.MAX_VALUE
         this.max = Long.MIN_VALUE
     }
+
+    /**
+     * Copies this [DateValueStatistics] and returns it.
+     *
+     * @return Copy of this [DateValueStatistics].
+     */
+    override fun copy(): DateValueStatistics {
+        val copy = DateValueStatistics()
+        copy.dirty = this.dirty
+        copy.numberOfNullEntries = this.numberOfNullEntries
+        copy.numberOfNonNullEntries = this.numberOfNonNullEntries
+        copy.min = this.min
+        copy.max = this.max
+        return copy
+    }
 }

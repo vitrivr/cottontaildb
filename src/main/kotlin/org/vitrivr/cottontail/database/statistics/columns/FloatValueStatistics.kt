@@ -88,4 +88,20 @@ class FloatValueStatistics : ValueStatistics<FloatValue>(Type.Float) {
         this.max = Float.MIN_VALUE
         this.sum = 0.0f
     }
+
+    /**
+     * Copies this [FloatValueStatistics] and returns it.
+     *
+     * @return Copy of this [FloatValueStatistics].
+     */
+    override fun copy(): FloatValueStatistics {
+        val copy = FloatValueStatistics()
+        copy.dirty = this.dirty
+        copy.numberOfNullEntries = this.numberOfNullEntries
+        copy.numberOfNonNullEntries = this.numberOfNonNullEntries
+        copy.min = this.min
+        copy.max = this.max
+        copy.sum = this.sum
+        return copy
+    }
 }

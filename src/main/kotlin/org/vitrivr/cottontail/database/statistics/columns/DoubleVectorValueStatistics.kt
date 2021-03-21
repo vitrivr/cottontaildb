@@ -95,4 +95,22 @@ class DoubleVectorValueStatistics(type: Type<DoubleVectorValue>) : ValueStatisti
             this.sum.data[i] = 0.0
         }
     }
+
+    /**
+     * Copies this [DoubleVectorValueStatistics] and returns it.
+     *
+     * @return Copy of this [DoubleVectorValueStatistics].
+     */
+    override fun copy(): DoubleVectorValueStatistics {
+        val copy = DoubleVectorValueStatistics(this.type)
+        copy.dirty = this.dirty
+        copy.numberOfNullEntries = this.numberOfNullEntries
+        copy.numberOfNonNullEntries = this.numberOfNonNullEntries
+        for (i in 0 until this.type.logicalSize) {
+            copy.min.data[i] = this.min.data[i]
+            copy.max.data[i] = this.max.data[i]
+            copy.sum.data[i] = this.sum.data[i]
+        }
+        return copy
+    }
 }

@@ -74,4 +74,19 @@ class IntValueStatistics : ValueStatistics<IntValue>(Type.Int) {
         this.min = Int.MAX_VALUE
         this.max = Int.MIN_VALUE
     }
+
+    /**
+     * Copies this [IntValueStatistics] and returns it.
+     *
+     * @return Copy of this [IntValueStatistics].
+     */
+    override fun copy(): IntValueStatistics {
+        val copy = IntValueStatistics()
+        copy.dirty = this.dirty
+        copy.numberOfNullEntries = this.numberOfNullEntries
+        copy.numberOfNonNullEntries = this.numberOfNonNullEntries
+        copy.min = this.min
+        copy.max = this.max
+        return copy
+    }
 }

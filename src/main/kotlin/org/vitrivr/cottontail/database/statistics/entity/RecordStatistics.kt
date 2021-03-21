@@ -70,7 +70,7 @@ open class RecordStatistics {
     open fun copy(): RecordStatistics {
         val copy = RecordStatistics()
         for ((t, u) in this.columns) {
-            copy[t] = u
+            copy[t] = u.copy()
         }
         return copy
     }

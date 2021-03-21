@@ -97,4 +97,22 @@ class FloatVectorValueStatistics(type: Type<FloatVectorValue>) : ValueStatistics
             this.sum.data[i] = 0.0f
         }
     }
+
+    /**
+     * Copies this [FloatVectorValueStatistics] and returns it.
+     *
+     * @return Copy of this [FloatVectorValueStatistics].
+     */
+    override fun copy(): FloatVectorValueStatistics {
+        val copy = FloatVectorValueStatistics(this.type)
+        copy.dirty = this.dirty
+        copy.numberOfNullEntries = this.numberOfNullEntries
+        copy.numberOfNonNullEntries = this.numberOfNonNullEntries
+        for (i in 0 until this.type.logicalSize) {
+            copy.min.data[i] = this.min.data[i]
+            copy.max.data[i] = this.max.data[i]
+            copy.sum.data[i] = this.sum.data[i]
+        }
+        return copy
+    }
 }

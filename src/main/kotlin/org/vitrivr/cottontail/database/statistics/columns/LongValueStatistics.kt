@@ -74,4 +74,19 @@ class LongValueStatistics : ValueStatistics<LongValue>(Type.Long) {
         this.min = Long.MAX_VALUE
         this.max = Long.MIN_VALUE
     }
+
+    /**
+     * Copies this [LongValueStatistics] and returns it.
+     *
+     * @return Copy of this [LongValueStatistics].
+     */
+    override fun copy(): LongValueStatistics {
+        val copy = LongValueStatistics()
+        copy.dirty = this.dirty
+        copy.numberOfNullEntries = this.numberOfNullEntries
+        copy.numberOfNonNullEntries = this.numberOfNonNullEntries
+        copy.min = this.min
+        copy.max = this.max
+        return copy
+    }
 }

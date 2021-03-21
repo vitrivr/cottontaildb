@@ -78,7 +78,7 @@ data class EntityStatistics(var count: Long = 0L, var maximumTupleId: TupleId = 
     override fun copy(): EntityStatistics {
         val copy = EntityStatistics(this.count, this.maximumTupleId)
         for ((t, u) in this.columns) {
-            copy[t] = u
+            copy[t] = u.copy()
         }
         return copy
     }

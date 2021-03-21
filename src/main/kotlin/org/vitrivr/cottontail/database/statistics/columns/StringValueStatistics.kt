@@ -78,4 +78,19 @@ class StringValueStatistics : ValueStatistics<StringValue>(Type.String) {
         this.minWidth = Int.MAX_VALUE
         this.maxWidth = Int.MIN_VALUE
     }
+
+    /**
+     * Copies this [StringValueStatistics] and returns it.
+     *
+     * @return Copy of this [StringValueStatistics].
+     */
+    override fun copy(): StringValueStatistics {
+        val copy = StringValueStatistics()
+        copy.dirty = this.dirty
+        copy.numberOfNullEntries = this.numberOfNullEntries
+        copy.numberOfNonNullEntries = this.numberOfNonNullEntries
+        copy.minWidth = this.minWidth
+        copy.maxWidth = this.maxWidth
+        return copy
+    }
 }

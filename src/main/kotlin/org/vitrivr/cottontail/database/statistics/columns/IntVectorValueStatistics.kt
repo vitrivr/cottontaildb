@@ -82,4 +82,21 @@ class IntVectorValueStatistics(type: Type<IntVectorValue>) : ValueStatistics<Int
             this.max.data[i] = Int.MIN_VALUE
         }
     }
+
+    /**
+     * Copies this [IntVectorValueStatistics] and returns it.
+     *
+     * @return Copy of this [IntVectorValueStatistics].
+     */
+    override fun copy(): IntVectorValueStatistics {
+        val copy = IntVectorValueStatistics(this.type)
+        copy.dirty = this.dirty
+        copy.numberOfNullEntries = this.numberOfNullEntries
+        copy.numberOfNonNullEntries = this.numberOfNonNullEntries
+        for (i in 0 until this.type.logicalSize) {
+            copy.min.data[i] = this.min.data[i]
+            copy.max.data[i] = this.max.data[i]
+        }
+        return copy
+    }
 }

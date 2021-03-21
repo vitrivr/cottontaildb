@@ -83,4 +83,21 @@ class LongVectorValueStatistics(type: Type<LongVectorValue>) : ValueStatistics<L
             this.max.data[i] = Long.MIN_VALUE
         }
     }
+
+    /**
+     * Copies this [LongVectorValueStatistics] and returns it.
+     *
+     * @return Copy of this [LongVectorValueStatistics].
+     */
+    override fun copy(): LongVectorValueStatistics {
+        val copy = LongVectorValueStatistics(this.type)
+        copy.dirty = this.dirty
+        copy.numberOfNullEntries = this.numberOfNullEntries
+        copy.numberOfNonNullEntries = this.numberOfNonNullEntries
+        for (i in 0 until this.type.logicalSize) {
+            copy.min.data[i] = this.min.data[i]
+            copy.max.data[i] = this.max.data[i]
+        }
+        return copy
+    }
 }

@@ -77,4 +77,19 @@ class ByteValueStatistics : ValueStatistics<ByteValue>(Type.Byte) {
         this.min = Byte.MAX_VALUE
         this.max = Byte.MIN_VALUE
     }
+
+    /**
+     * Copies this [ByteValueStatistics] and returns it.
+     *
+     * @return Copy of this [ByteValueStatistics].
+     */
+    override fun copy(): ByteValueStatistics {
+        val copy = ByteValueStatistics()
+        copy.dirty = this.dirty
+        copy.numberOfNullEntries = this.numberOfNullEntries
+        copy.numberOfNonNullEntries = this.numberOfNonNullEntries
+        copy.min = this.min
+        copy.max = this.max
+        return copy
+    }
 }
