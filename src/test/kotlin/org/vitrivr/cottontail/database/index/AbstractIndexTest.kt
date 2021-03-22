@@ -48,7 +48,7 @@ abstract class AbstractIndexTest {
     protected val schemaName = Name.SchemaName("test")
 
     /** [Name.EntityName] of the test schema. */
-    protected val entityName = schemaName.entity("entity")
+    protected val entityName = schemaName.entity("index")
 
     /** The [ColumnDef]s of the columns in the test [Entity]. */
     protected abstract val columns: Array<ColumnDef<*>>
@@ -108,7 +108,6 @@ abstract class AbstractIndexTest {
     @AfterAll
     protected fun teardown() {
         this.catalogue.close()
-        Thread.sleep(250) /* Wait for lock to be released; can take a while on Windows. */
         FileUtilities.deleteRecursively(TestConstants.config.root)
     }
 
