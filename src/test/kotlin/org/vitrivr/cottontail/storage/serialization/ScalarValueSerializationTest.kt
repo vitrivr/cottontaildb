@@ -1,6 +1,5 @@
 package org.vitrivr.cottontail.storage.serialization
 
-import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.RepeatedTest
 import org.vitrivr.cottontail.TestConstants
@@ -20,9 +19,6 @@ import java.util.*
  * @version 1.1.0
  */
 class ScalarValueSerializationTest : AbstractSerializationTest() {
-
-    @AfterEach
-    fun teardown() = this.cleanup()
 
     /**
      * Executes the test.
