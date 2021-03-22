@@ -25,7 +25,7 @@ class ScalarValueSerializationTest : AbstractSerializationTest() {
      */
     @RepeatedTest(3)
     fun test() {
-        val nameEntity = this.schema.name.entity("longvector-test")
+        val nameEntity = this.schema.name.entity("scalar-test")
         val idCol = ColumnDef(nameEntity.column("id"), Type.Int)
         val intCol = ColumnDef(nameEntity.column("intCol"), Type.Int)
         val longCol = ColumnDef(nameEntity.column("longCol"), Type.Long)

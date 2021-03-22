@@ -28,7 +28,7 @@ class BooleanVectorValueSerializationTest : AbstractSerializationTest() {
     @ParameterizedTest
     @MethodSource("dimensions")
     fun test(dimension: Int) {
-        val nameEntity = this.schema.name.entity("boolean-test")
+        val nameEntity = this.schema.name.entity("booleanvector-test")
 
         val idCol = ColumnDef(nameEntity.column("id"), Type.Int)
         val vectorCol = ColumnDef(nameEntity.column("vector"), Type.BooleanVector(dimension))
