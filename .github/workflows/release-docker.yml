@@ -1,12 +1,8 @@
 name: Publish Cottontail DB Docker Image
-
 on:
   push:
     tags:
     - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
-
-env:
-  IMAGE_NAME: cottontaildb
 
 jobs:
   build:
@@ -61,8 +57,8 @@ jobs:
       with:
         push: true
         registry: docker.pkg.github.com
-        repository: vitrivr/cottontaildb/${{ env.IMAGE_NAME }}
-        tags: vitrivr/cottontaildb/${{ env.IMAGE_NAME }}:${{ env.VERSION }}
+        repository: vitrivr/cottontaildb/cottontaildb
+        tags: vitrivr/cottontaildb/cottontaildb:${{ env.VERSION }}
     - name: Login to DockerHub
       uses: docker/login-action@v1
       with:
