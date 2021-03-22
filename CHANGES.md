@@ -1,5 +1,14 @@
 # Change log for Cottontail DB
 
+## Version 0.12.5
+
+* There is now also a Docker container on DockerHub
+* Cleaned-up some unit tests.
+
+### Bugfixes
+
+* Fixed a bug that prevented indexes from being closed properly when closing an entity.
+
 ## Version 0.12.4
 
 * Cleaned-up some slight issue in legacy DBO implementation.
