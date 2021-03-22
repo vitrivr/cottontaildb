@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.storage.serialization
 
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.params.provider.Arguments
 import org.vitrivr.cottontail.TestConstants
 import org.vitrivr.cottontail.database.catalogue.CatalogueTest
@@ -8,18 +9,18 @@ import org.vitrivr.cottontail.database.schema.Schema
 import org.vitrivr.cottontail.execution.TransactionManager
 import org.vitrivr.cottontail.execution.TransactionType
 import org.vitrivr.cottontail.model.basics.Name
+import org.vitrivr.cottontail.utilities.io.FileUtilities
 import java.nio.file.Files
 import java.util.*
 import java.util.concurrent.Executors
 import java.util.concurrent.ThreadPoolExecutor
-import java.util.stream.Collectors
 import java.util.stream.Stream
 
 /**
  * An abstract class for test cases that test for correctness of [Value] serialization
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.1.1
  */
 abstract class AbstractSerializationTest {
     companion object {
@@ -42,10 +43,11 @@ abstract class AbstractSerializationTest {
     }
 
     init {
-        /* Assure existence of root directory. */
-        if (!Files.exists(TestConstants.config.root)) {
-            Files.createDirectories(TestConstants.config.root)
+        /* Assure that root folder is empty! */
+        if (Files.exists(TestConstants.config.root)) {
+            FileUtilities.deleteRecursively(TestConstants.config.root)
         }
+        Files.createDirectories(TestConstants.config.root)
     }
 
     /** The [DefaultCatalogue] instance used for the [AbstractSerializationTest]. */
@@ -72,9 +74,10 @@ abstract class AbstractSerializationTest {
     /**
      * Closes the [DefaultCatalogue] and deletes all the files.
      */
-    protected fun cleanup() {
+    @AfterEach
+    fun cleanup() {
         this.catalogue.close()
-        val pathsToDelete = Files.walk(TestConstants.config.root).sorted(Comparator.reverseOrder()).collect(Collectors.toList())
-        pathsToDelete.forEach { Files.delete(it) }
+        Thread.sleep(250) /* Wait for lock to be released; can take a while on Windows. */
+        FileUtilities.deleteRecursively(TestConstants.config.root)
     }
 }

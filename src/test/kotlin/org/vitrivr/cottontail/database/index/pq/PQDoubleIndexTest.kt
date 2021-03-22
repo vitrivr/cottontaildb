@@ -1,8 +1,5 @@
 package org.vitrivr.cottontail.database.index.pq
 
-import org.junit.jupiter.api.AfterAll
-import org.junit.jupiter.api.BeforeAll
-import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import org.vitrivr.cottontail.database.column.ColumnDef
@@ -35,9 +32,8 @@ import kotlin.time.measureTime
  * This is a collection of test cases to test the correct behaviour of [PQIndex] for [DoubleVectorValue]s.
  *
  * @author Ralph Gasser
- * @param 1.2.0
+ * @param 1.2.1
  */
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class PQDoubleIndexTest : AbstractIndexTest() {
 
     companion object {
@@ -72,16 +68,6 @@ class PQDoubleIndexTest : AbstractIndexTest() {
 
     /** Random number generator. */
     private var counter: Long = 0L
-
-    @BeforeAll
-    override fun initialize() {
-        super.initialize()
-    }
-
-    @AfterAll
-    override fun teardown() {
-        super.teardown()
-    }
 
     @ParameterizedTest
     @MethodSource("kernels")

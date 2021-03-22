@@ -1,6 +1,5 @@
 package org.vitrivr.cottontail.storage.serialization
 
-import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
@@ -19,12 +18,9 @@ import java.util.*
  * Test case that tests for correctness of [LongVectorValue] serialization and deserialization.
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.1.1
  */
 class LongVectorValueSerializationTest : AbstractSerializationTest() {
-
-    @AfterEach
-    fun teardown() = this.cleanup()
 
     /**
      * Executes the test.

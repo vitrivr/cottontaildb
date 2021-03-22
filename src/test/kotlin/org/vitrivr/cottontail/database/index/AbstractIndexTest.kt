@@ -1,6 +1,9 @@
 package org.vitrivr.cottontail.database.index
 
+import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions
+import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.TestInstance
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.TestConstants
 import org.vitrivr.cottontail.database.catalogue.CatalogueTest
@@ -16,17 +19,17 @@ import org.vitrivr.cottontail.execution.TransactionManager
 import org.vitrivr.cottontail.execution.TransactionType
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
+import org.vitrivr.cottontail.utilities.io.FileUtilities
 import java.nio.file.Files
-import java.util.*
 import java.util.concurrent.Executors
 import java.util.concurrent.ThreadPoolExecutor
-import java.util.stream.Collectors
 
 /**
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.1.0
  */
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 abstract class AbstractIndexTest {
 
     companion object {
@@ -34,10 +37,11 @@ abstract class AbstractIndexTest {
     }
 
     init {
-        /* Assure existence of root directory. */
-        if (!Files.exists(TestConstants.config.root)) {
-            Files.createDirectories(TestConstants.config.root)
+        /* Assure that root folder is empty! */
+        if (Files.exists(TestConstants.config.root)) {
+            FileUtilities.deleteRecursively(TestConstants.config.root)
         }
+        Files.createDirectories(TestConstants.config.root)
     }
 
     /** [Name.SchemaName] of the test schema. */
@@ -81,9 +85,10 @@ abstract class AbstractIndexTest {
     )
 
     /**
-     * Initializes this [IndexTest] and prepares required [Entity] and [Index].
+     * Initializes this [AbstractIndexTest] and prepares required [Entity] and [Index].
      */
-    open fun initialize() {
+    @BeforeAll
+    protected fun initialize() {
         /* Prepare data structures. */
         this.schema = prepareSchema()
         this.entity = prepareEntity()
@@ -98,11 +103,13 @@ abstract class AbstractIndexTest {
     }
 
     /**
-     * Tears down this [IndexTest].
+     * Tears down this [AbstractIndexTest].
      */
-    open fun teardown() {
-        val pathsToDelete = Files.walk(TestConstants.config.root).sorted(Comparator.reverseOrder()).collect(Collectors.toList())
-        pathsToDelete.forEach { Files.delete(it) }
+    @AfterAll
+    protected fun teardown() {
+        this.catalogue.close()
+        Thread.sleep(250) /* Wait for lock to be released; can take a while on Windows. */
+        FileUtilities.deleteRecursively(TestConstants.config.root)
     }
 
     /**
