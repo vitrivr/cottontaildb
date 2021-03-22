@@ -197,6 +197,7 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
                 val stamp = this.closeLock.tryWriteLock(1000, TimeUnit.MILLISECONDS)
                 try {
                     this.columns.values.forEach { it.close() }
+                    this.indexes.values.forEach { it.close() }
                     this.store.close()
                     this.closed = true
                 } catch (e: Throwable) {

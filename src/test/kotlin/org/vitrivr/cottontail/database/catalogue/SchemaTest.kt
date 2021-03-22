@@ -17,6 +17,7 @@ import org.vitrivr.cottontail.execution.TransactionType
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Type
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
+import org.vitrivr.cottontail.utilities.io.FileUtilities
 import java.nio.file.Files
 import java.util.*
 import java.util.concurrent.Executors
@@ -41,10 +42,11 @@ class SchemaTest {
     )
 
     init {
-        /* Assure existence of root directory. */
-        if (!Files.exists(TestConstants.config.root)) {
-            Files.createDirectories(TestConstants.config.root)
+        /* Assure that root folder is empty! */
+        if (Files.exists(TestConstants.config.root)) {
+            FileUtilities.deleteRecursively(TestConstants.config.root)
         }
+        Files.createDirectories(TestConstants.config.root)
     }
 
     /** The [TransactionManager] used for this [CatalogueTest] instance. */
@@ -74,10 +76,8 @@ class SchemaTest {
 
     @AfterEach
     fun teardown() {
-        this.schema?.close()
         this.catalogue.close()
-        val pathsToDelete = Files.walk(TestConstants.config.root).sorted(Comparator.reverseOrder()).collect(Collectors.toList())
-        pathsToDelete.forEach { Files.delete(it) }
+        FileUtilities.deleteRecursively(TestConstants.config.root)
     }
 
     /**

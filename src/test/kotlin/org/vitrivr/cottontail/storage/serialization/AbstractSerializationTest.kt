@@ -77,7 +77,6 @@ abstract class AbstractSerializationTest {
     @AfterEach
     fun cleanup() {
         this.catalogue.close()
-        Thread.sleep(250) /* Wait for lock to be released; can take a while on Windows. */
         FileUtilities.deleteRecursively(TestConstants.config.root)
     }
 }
