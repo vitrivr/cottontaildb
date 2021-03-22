@@ -48,18 +48,6 @@ jobs:
         asset_content_type: application/tar
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v1
-    - name: Login to GitHub Packages
-      uses: docker/login-action@v1
-      with:
-        registry: docker.pkg.github.com
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-    - name: Push Docker Image to GitHub Packages
-      uses: docker/build-push-action@v2
-      with:
-        context: .
-        push: true
-        tags: vitrivr/cottontaildb/cottontaildb:${{ env.VERSION }}
     - name: Login to DockerHub
       uses: docker/login-action@v1
       with:
