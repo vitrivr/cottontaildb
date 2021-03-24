@@ -13,7 +13,7 @@ import org.vitrivr.cottontail.model.values.types.Value
  * A [ValueStatistics] implementation for [ShortValue]s.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
 class ShortValueStatistics : ValueStatistics<ShortValue>(Type.Short) {
 
@@ -63,7 +63,31 @@ class ShortValueStatistics : ValueStatistics<ShortValue>(Type.Short) {
 
         /* We cannot create a sensible estimate if a value is deleted. */
         if (this.min == deleted?.value || this.max == deleted?.value) {
-            this.dirty = true
+            this.fresh = false
         }
+    }
+
+    /**
+     * Resets this [ShortValueStatistics] and sets all its values to to the default value.
+     */
+    override fun reset() {
+        super.reset()
+        this.min = Short.MAX_VALUE
+        this.max = Short.MIN_VALUE
+    }
+
+    /**
+     * Copies this [ShortValueStatistics] and returns it.
+     *
+     * @return Copy of this [ShortValueStatistics].
+     */
+    override fun copy(): ShortValueStatistics {
+        val copy = ShortValueStatistics()
+        copy.fresh = this.fresh
+        copy.numberOfNullEntries = this.numberOfNullEntries
+        copy.numberOfNonNullEntries = this.numberOfNonNullEntries
+        copy.min = this.min
+        copy.max = this.max
+        return copy
     }
 }

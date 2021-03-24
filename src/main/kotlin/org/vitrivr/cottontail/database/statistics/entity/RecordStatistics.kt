@@ -11,13 +11,17 @@ import java.util.*
  * A collection of [ValueStatistics] for a record as used by the query planner.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
 open class RecordStatistics {
 
     companion object {
         val EMPTY = RecordStatistics()
     }
+
+    /** Returns true if this [RecordStatistics] is considered fresh. */
+    val fresh: Boolean
+        get() = this.columns.values.all { it.fresh }
 
     /** The map of [ColumnDef] to [ValueStatistics] mappings held by this [RecordStatistics]. */
     protected val columns = Object2ObjectOpenHashMap<ColumnDef<*>, ValueStatistics<Value>>()
@@ -49,9 +53,11 @@ open class RecordStatistics {
     fun remove(key: ColumnDef<*>) = this.columns.remove(key)
 
     /**
-     * Clears all [ValueStatistics] for this [RecordStatistics].
+     * Resets this [RecordStatistics] and sets all its values to to the default value.
      */
-    fun clear() = this.columns.clear()
+    open fun reset() {
+        this.columns.forEach { it.value.reset() }
+    }
 
     /**
      * Dumps all [ValueStatistics] to [ColumnDef] mappings contained in this [RecordStatistics].
@@ -61,17 +67,6 @@ open class RecordStatistics {
     fun all(): Map<ColumnDef<*>, ValueStatistics<Value>> = Collections.unmodifiableMap(this.columns)
 
     /**
-     * Merges the other [RecordStatistics] into this [RecordStatistics], merging the [ColumnDef]s they contain.
-     *
-     * @param other [RecordStatistics] to merge with.
-     * @return This [RecordStatistics]
-     */
-    fun combine(other: RecordStatistics): RecordStatistics {
-        other.columns.forEach { (t, u) -> this[t] = u }
-        return this
-    }
-
-    /**
      * Creates an exact copy of this [RecordStatistics].
      *
      * @return Copy of this [RecordStatistics].
@@ -79,7 +74,7 @@ open class RecordStatistics {
     open fun copy(): RecordStatistics {
         val copy = RecordStatistics()
         for ((t, u) in this.columns) {
-            copy[t] = u
+            copy[t] = u.copy()
         }
         return copy
     }

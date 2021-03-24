@@ -1,7 +1,8 @@
 package org.vitrivr.cottontail.database.index.hash
 
-import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.RepeatedTest
+import org.junit.jupiter.api.Test
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.index.AbstractIndexTest
@@ -26,7 +27,6 @@ import kotlin.collections.HashMap
  * @author Ralph Gasser
  * @param 1.2.0
  */
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class UniqueHashIndexTest : AbstractIndexTest() {
 
     /** List of columns for this [NonUniqueHashIndexTest]. */
@@ -48,17 +48,6 @@ class UniqueHashIndexTest : AbstractIndexTest() {
 
     /** Random number generator. */
     private val random = SplittableRandom()
-
-    @BeforeAll
-    override fun initialize() {
-        super.initialize()
-    }
-
-    @AfterAll
-    override fun teardown() {
-        super.teardown()
-        this.list.clear()
-    }
 
     /**
      * Tests basic metadata information regarding the [UniqueHashIndex]

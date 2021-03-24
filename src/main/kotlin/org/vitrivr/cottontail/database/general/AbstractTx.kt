@@ -10,16 +10,13 @@ import org.vitrivr.cottontail.model.exceptions.TxException
  * An abstract [Tx] implementation that provides some basic functionality.
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.3.0
  */
 abstract class AbstractTx(override val context: TransactionContext) : Tx {
     /** Flag indicating whether or not this [IndexTx] was closed */
     @Volatile
     final override var status: TxStatus = TxStatus.CLEAN
         protected set
-
-    /** The [TxSnapshot] that captures changes made through this [AbstractIndex] not visible to the surrounding [DBO]. */
-    protected abstract val snapshot: TxSnapshot
 
     /**
      * Commits all changes made through this [AbstractTx] and releases all locks obtained.
@@ -33,7 +30,6 @@ abstract class AbstractTx(override val context: TransactionContext) : Tx {
             this.snapshot.commit()
             this.status = TxStatus.CLEAN
         }
-        this.context.releaseLock(this.dbo)
     }
 
     /**
@@ -48,7 +44,6 @@ abstract class AbstractTx(override val context: TransactionContext) : Tx {
             this.snapshot.rollback()
             this.status = TxStatus.CLEAN
         }
-        this.context.releaseLock(this.dbo)
     }
 
     /**

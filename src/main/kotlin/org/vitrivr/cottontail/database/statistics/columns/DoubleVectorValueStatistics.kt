@@ -10,7 +10,7 @@ import org.vitrivr.cottontail.model.values.types.Value
  * A [ValueStatistics] implementation for [DoubleVectorValue]s.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
 class DoubleVectorValueStatistics(type: Type<DoubleVectorValue>) : ValueStatistics<DoubleVectorValue>(type) {
     /** Minimum value in this [DoubleVectorValueStatistics]. */
@@ -55,7 +55,7 @@ class DoubleVectorValueStatistics(type: Type<DoubleVectorValue>) : ValueStatisti
             for ((i, d) in deleted.data.withIndex()) {
                 /* We cannot create a sensible estimate if a value is deleted. */
                 if (this.min.data[i] == d || this.max.data[i] == d) {
-                    this.dirty = true
+                    this.fresh = false
                 }
                 this.sum.data[i] -= d
             }
@@ -82,5 +82,35 @@ class DoubleVectorValueStatistics(type: Type<DoubleVectorValue>) : ValueStatisti
             repeat(this.type.logicalSize) { stat.sum.data[it] = input.readDouble() }
             return stat
         }
+    }
+
+    /**
+     * Resets this [DoubleVectorValueStatistics] and sets all its values to to the default value.
+     */
+    override fun reset() {
+        super.reset()
+        for (i in 0 until this.type.logicalSize) {
+            this.min.data[i] = Double.MAX_VALUE
+            this.max.data[i] = Double.MIN_VALUE
+            this.sum.data[i] = 0.0
+        }
+    }
+
+    /**
+     * Copies this [DoubleVectorValueStatistics] and returns it.
+     *
+     * @return Copy of this [DoubleVectorValueStatistics].
+     */
+    override fun copy(): DoubleVectorValueStatistics {
+        val copy = DoubleVectorValueStatistics(this.type)
+        copy.fresh = this.fresh
+        copy.numberOfNullEntries = this.numberOfNullEntries
+        copy.numberOfNonNullEntries = this.numberOfNonNullEntries
+        for (i in 0 until this.type.logicalSize) {
+            copy.min.data[i] = this.min.data[i]
+            copy.max.data[i] = this.max.data[i]
+            copy.sum.data[i] = this.sum.data[i]
+        }
+        return copy
     }
 }

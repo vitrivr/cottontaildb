@@ -12,7 +12,7 @@ import java.lang.Float.min
  * A [ValueStatistics] implementation for [FloatValue]s.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
 class FloatValueStatistics : ValueStatistics<FloatValue>(Type.Float) {
 
@@ -74,8 +74,34 @@ class FloatValueStatistics : ValueStatistics<FloatValue>(Type.Float) {
 
             /* We cannot create a sensible estimate if a value is deleted. */
             if (this.min == deleted.value || this.max == deleted.value) {
-                this.dirty = true
+                this.fresh = false
             }
         }
+    }
+
+    /**
+     * Resets this [FloatValueStatistics] and sets all its values to to the default value.
+     */
+    override fun reset() {
+        super.reset()
+        this.min = Float.MAX_VALUE
+        this.max = Float.MIN_VALUE
+        this.sum = 0.0f
+    }
+
+    /**
+     * Copies this [FloatValueStatistics] and returns it.
+     *
+     * @return Copy of this [FloatValueStatistics].
+     */
+    override fun copy(): FloatValueStatistics {
+        val copy = FloatValueStatistics()
+        copy.fresh = this.fresh
+        copy.numberOfNullEntries = this.numberOfNullEntries
+        copy.numberOfNonNullEntries = this.numberOfNonNullEntries
+        copy.min = this.min
+        copy.max = this.max
+        copy.sum = this.sum
+        return copy
     }
 }

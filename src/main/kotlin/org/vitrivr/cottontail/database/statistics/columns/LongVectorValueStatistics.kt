@@ -13,7 +13,7 @@ import java.lang.Long.min
  * A [ValueStatistics] implementation for [LongVectorValue]s.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
 class LongVectorValueStatistics(type: Type<LongVectorValue>) : ValueStatistics<LongVectorValue>(type) {
     /** Minimum value in this [LongVectorValueStatistics]. */
@@ -47,7 +47,7 @@ class LongVectorValueStatistics(type: Type<LongVectorValue>) : ValueStatistics<L
         if (deleted != null) {
             for ((i, d) in deleted.data.withIndex()) {
                 if (this.min.data[i] == d || this.max.data[i] == d) {
-                    this.dirty = true
+                    this.fresh = false
                 }
             }
         }
@@ -71,5 +71,33 @@ class LongVectorValueStatistics(type: Type<LongVectorValue>) : ValueStatistics<L
             repeat(this.type.logicalSize) { stat.max.data[it] = input.readLong() }
             return stat
         }
+    }
+
+    /**
+     * Resets this [LongVectorValueStatistics] and sets all its values to to the default value.
+     */
+    override fun reset() {
+        super.reset()
+        for (i in 0 until this.type.logicalSize) {
+            this.min.data[i] = Long.MAX_VALUE
+            this.max.data[i] = Long.MIN_VALUE
+        }
+    }
+
+    /**
+     * Copies this [LongVectorValueStatistics] and returns it.
+     *
+     * @return Copy of this [LongVectorValueStatistics].
+     */
+    override fun copy(): LongVectorValueStatistics {
+        val copy = LongVectorValueStatistics(this.type)
+        copy.fresh = this.fresh
+        copy.numberOfNullEntries = this.numberOfNullEntries
+        copy.numberOfNonNullEntries = this.numberOfNonNullEntries
+        for (i in 0 until this.type.logicalSize) {
+            copy.min.data[i] = this.min.data[i]
+            copy.max.data[i] = this.max.data[i]
+        }
+        return copy
     }
 }

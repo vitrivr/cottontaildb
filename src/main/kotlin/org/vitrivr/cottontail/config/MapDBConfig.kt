@@ -11,8 +11,8 @@ import java.nio.file.Path
 
 @Serializable
 data class MapDBConfig(
-        val enableMmap: Boolean = true, /* Option to to use memory mapped files for Map DB based entities. */
-        val forceUnmap: Boolean = true, /* Option to force unmap memory mapped files for Map DB based entities. */
+        val enableMmap: Boolean = !System.getProperty("os.name").toLowerCase().contains("win"), /* Option to to use memory mapped files for Map DB based entities. Can cause issues in Windows! */
+        val forceUnmap: Boolean = !System.getProperty("os.name").toLowerCase().contains("win"), /* Option to force unmap memory mapped files for Map DB based entities. Can cause issues in Windows! */
         val pageShift: Int = 22, /* Size of a page (size = 2^dataPageShift) for data pages; influences the allocation increment as well as number of mmap handles for memory mapped files. */
         val lockTimeout: Long = 1000L
 ) {

@@ -1,5 +1,34 @@
 # Change log for Cottontail DB
 
+## Version 0.12.5
+
+* There is now also a Docker container on DockerHub
+* Cleaned-up some unit tests.
+
+### Bugfixes
+
+* Fixed a bug that prevented indexes from being closed properly when closing an entity.
+
+## Version 0.12.4
+
+* Cleaned-up some slight issue in legacy DBO implementation.
+* Unified the pattern used to create and drop schemas, entities and indexes.
+
+### Bugfixes
+
+* Fixed inconsistencies in logging and error handling during query execution.
+* Fixed a bug that caused locks to be released while other DBOs were still in the process of finalizing a transaction.
+* Fixed a bug that caused gRPC methods to return for USER_IMPLICIT transactions before COMMIT or ROLLBACK was executed.
+
+## Version 0.12.3
+
+* Slight optimization as to how DefaultEntity.scan() handles sub-transactions.
+* Weight vectors that contain only ones are now removed during query binding.
+
+### Bugfixes
+
+* Fixed the deferred fetching rule for the query planner.
+
 ## Version 0.12.2
 
 ### Bugfixes

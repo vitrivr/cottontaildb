@@ -74,8 +74,34 @@ class DoubleValueStatistics : ValueStatistics<DoubleValue>(Type.Double) {
 
             /* We cannot create a sensible estimate if a value is deleted. */
             if (this.min == deleted.value || this.max == deleted.value) {
-                this.dirty = true
+                this.fresh = false
             }
         }
+    }
+
+    /**
+     * Resets this [DoubleValueStatistics] and sets all its values to to the default value.
+     */
+    override fun reset() {
+        super.reset()
+        this.min = Double.MAX_VALUE
+        this.max = Double.MIN_VALUE
+        this.sum = 0.0
+    }
+
+    /**
+     * Copies this [DoubleValueStatistics] and returns it.
+     *
+     * @return Copy of this [DoubleValueStatistics].
+     */
+    override fun copy(): DoubleValueStatistics {
+        val copy = DoubleValueStatistics()
+        copy.fresh = this.fresh
+        copy.numberOfNullEntries = this.numberOfNullEntries
+        copy.numberOfNonNullEntries = this.numberOfNonNullEntries
+        copy.min = this.min
+        copy.max = this.max
+        copy.sum = this.sum
+        return copy
     }
 }
