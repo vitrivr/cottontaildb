@@ -29,7 +29,7 @@ import kotlin.collections.HashMap
  */
 class UniqueHashIndexTest : AbstractIndexTest() {
 
-    /** List of columns for this [NonUniqueHashIndexTest]. */
+    /** List of columns for this [UniqueHashIndexTest]. */
     override val columns = arrayOf(
         ColumnDef(this.entityName.column("id"), Type.String),
         ColumnDef(this.entityName.column("feature"), Type.FloatVector(128))
