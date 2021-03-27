@@ -15,37 +15,38 @@ import org.vitrivr.cottontail.execution.TransactionType
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Type
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
+import org.vitrivr.cottontail.model.values.DoubleValue
 import org.vitrivr.cottontail.model.values.LongValue
-import org.vitrivr.cottontail.model.values.StringValue
 import org.vitrivr.cottontail.model.values.types.Value
 import java.util.*
 import kotlin.collections.HashMap
 
 /**
- * This is a collection of test cases to test the correct behaviour of [UniqueHashIndex].
+ * This is a collection of test cases to test the correct behaviour of [UniqueHashIndex] with a [LongValue] keys.
  *
  * @author Ralph Gasser
- * @param 1.2.0
+ * @param 1.0.0
+ * @param 1.0.0
  */
-class NonUniqueHashIndexTest : AbstractIndexTest() {
+class NonUniqueLongHashIndexTest : AbstractIndexTest() {
 
-    /** List of columns for this [NonUniqueHashIndexTest]. */
+    /** List of columns for this [NonUniqueStringHashIndexTest]. */
     override val columns: Array<ColumnDef<*>> = arrayOf(
-        ColumnDef(this.entityName.column("id"), Type.String),
-        ColumnDef(this.entityName.column("feature"), Type.Long)
+        ColumnDef(this.entityName.column("id"), Type.Long),
+        ColumnDef(this.entityName.column("feature"), Type.Double)
     )
 
     override val indexColumn: ColumnDef<*>
         get() = this.columns.first()
 
     override val indexName: Name.IndexName
-        get() = this.entityName.index("idx_id_non-unique")
+        get() = this.entityName.index("non_unique_long")
 
     override val indexType: IndexType
         get() = IndexType.HASH
 
     /** List of values stored in this [UniqueHashIndexTest]. */
-    private var list = HashMap<StringValue, MutableList<LongValue>>(100)
+    private var list = HashMap<LongValue, MutableList<DoubleValue>>(100)
 
     /** Random number generator. */
     private val random = SplittableRandom()
@@ -72,14 +73,14 @@ class NonUniqueHashIndexTest : AbstractIndexTest() {
         val context = BindingContext<Value>()
         for (entry in this.list.entries) {
             val predicate = BooleanPredicate.Atomic.Literal(
-                this.columns[0] as ColumnDef<StringValue>,
+                this.columns[0] as ColumnDef<LongValue>,
                 ComparisonOperator.Binary.Equal(context.bind(entry.key)),
                 false,
             )
             var found = false
             indexTx.filter(predicate).forEach { r ->
                 val rec = entityTx.read(r.tupleId, this.columns)
-                val id = rec[this.columns[0]] as StringValue
+                val id = rec[this.columns[0]] as LongValue
                 Assertions.assertEquals(entry.key, id)
                 if (entry.value.contains(rec[this.columns[1]])) {
                     found = true
@@ -100,8 +101,8 @@ class NonUniqueHashIndexTest : AbstractIndexTest() {
         var count = 0
         val context = BindingContext<Value>()
         val predicate = BooleanPredicate.Atomic.Literal(
-            this.columns[0] as ColumnDef<StringValue>,
-            ComparisonOperator.Binary.Equal(context.bind(StringValue(UUID.randomUUID().toString()))),
+            this.columns[0] as ColumnDef<LongValue>,
+            ComparisonOperator.Binary.Equal(context.bind(LongValue(this.random.nextLong(100L, Long.MAX_VALUE)))),
             false
         )
         indexTx.filter(predicate).forEach { count += 1 }
@@ -113,10 +114,10 @@ class NonUniqueHashIndexTest : AbstractIndexTest() {
      * Generates and returns a new, random [StandaloneRecord] for inserting into the database.
      */
     override fun nextRecord(): StandaloneRecord {
-        val id = StringValue.random(3)
-        val value = LongValue(random.nextLong())
+        val id = LongValue(this.random.nextLong(0L, 100L))
+        val value = DoubleValue(this.random.nextDouble())
         if (this.random.nextBoolean() && this.list.size <= 1000) {
-            this.list.compute(id) { k, v ->
+            this.list.compute(id) { _, v ->
                 val list = v ?: LinkedList()
                 list.add(value)
                 list
