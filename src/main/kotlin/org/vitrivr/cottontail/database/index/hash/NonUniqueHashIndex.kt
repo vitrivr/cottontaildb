@@ -8,6 +8,7 @@ import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.DefaultEntity
 import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.events.DataChangeEvent
+import org.vitrivr.cottontail.database.general.TxAction
 import org.vitrivr.cottontail.database.general.TxSnapshot
 import org.vitrivr.cottontail.database.index.*
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
@@ -110,6 +111,8 @@ class NonUniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path
 
         /** The default [TxSnapshot] of this [IndexTx]. Can be overriden! */
         override val snapshot = object : TxSnapshot {
+            override val actions: List<TxAction> = emptyList()
+
             override fun commit() {
                 for (c in this@Tx.mappingsCache) {
                     this@NonUniqueHashIndex.map.compute(c.key) { _, v ->
@@ -127,6 +130,8 @@ class NonUniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path
                 mappingsCache.clear()
                 this@NonUniqueHashIndex.store.rollback()
             }
+
+            override fun record(action: TxAction): Boolean = false
         }
 
         /** Internal cache that keeps Value to TupleId mappings in memory until commit. */
