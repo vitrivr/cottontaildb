@@ -64,8 +64,7 @@ class TransactionManager(private val executor: ThreadPoolExecutor, transactionTa
     /**
      * A concrete [Transaction] used for executing a query.
      *
-     * A [Transaction] can be of different [TransactionType]s. Their execution semantic may slightly
-     * differ depending on that type.
+     * A [Transaction] can be of different [TransactionType]s. Their execution semantics may differ slightly.
      *
      * @author Ralph Gasser
      * @version 1.2.0
@@ -193,7 +192,7 @@ class TransactionManager(private val executor: ThreadPoolExecutor, transactionTa
             check(this.state === TransactionStatus.READY) { "Cannot commit transaction ${this.txId} because it is in wrong state (s = ${this.state})." }
             this.state = TransactionStatus.FINALIZING
             try {
-                this.txns.values.forEach { txn ->
+                this.txns.values.reversed().forEach { txn ->
                     txn.commit()
                     txn.close()
                 }
@@ -217,7 +216,7 @@ class TransactionManager(private val executor: ThreadPoolExecutor, transactionTa
             check(this.state === TransactionStatus.READY || this.state === TransactionStatus.ERROR) { "Cannot rollback transaction ${this.txId} because it is in wrong state (s = ${this.state})." }
             this.state = TransactionStatus.FINALIZING
             try {
-                this.txns.values.forEach { txn ->
+                this.txns.values.reversed().forEach { txn ->
                     txn.rollback()
                     txn.close()
                 }
