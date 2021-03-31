@@ -5,7 +5,6 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.vitrivr.cottontail.TestConstants
 import org.vitrivr.cottontail.database.column.ColumnDef
@@ -58,18 +57,6 @@ class SchemaTest {
     /** The [DefaultCatalogue] object to run the test with. */
     private val catalogue: DefaultCatalogue = DefaultCatalogue(TestConstants.config)
 
-    @BeforeEach
-    fun initialize() {
-        val txn = this.manager.Transaction(TransactionType.SYSTEM)
-        try {
-            val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
-            catalogueTx.createSchema(this.schemaName)
-        } finally {
-            txn.commit()
-        }
-    }
-
-
     @AfterEach
     fun teardown() {
         this.catalogue.close()
@@ -89,7 +76,7 @@ class SchemaTest {
 
         try {
             val catalogueTx1 = txn1.getTx(this.catalogue) as CatalogueTx
-            val schema = catalogueTx1.schemaForName(this.schemaName)
+            val schema = catalogueTx1.createSchema(this.schemaName)
             val schemaTx1 = txn1.getTx(schema) as SchemaTx
             for (name in entityNames) {
                 schemaTx1.createEntity(name, ColumnDef(name.column("id"), Type.String) to ColumnEngine.MAPDB)
@@ -133,7 +120,7 @@ class SchemaTest {
         val txn1 = this.manager.Transaction(TransactionType.SYSTEM)
         try {
             val catalogueTx1 = txn1.getTx(this.catalogue) as CatalogueTx
-            val schema = catalogueTx1.schemaForName(this.schemaName)
+            val schema = catalogueTx1.createSchema(this.schemaName)
             val schemaTx1 = txn1.getTx(schema) as SchemaTx
             for (name in entityNames) {
                 schemaTx1.createEntity(name, ColumnDef(name.column("id"), Type.String) to ColumnEngine.MAPDB)
@@ -179,6 +166,16 @@ class SchemaTest {
      */
     @Test
     fun createEntityWithRollbackTest() {
+        /* Transaction 0: Create schema (as preparation). */
+        val txn0 = this.manager.Transaction(TransactionType.SYSTEM)
+        try {
+            val catalogueTx0 = txn0.getTx(this.catalogue) as CatalogueTx
+            val schema = catalogueTx0.createSchema(this.schemaName)
+            val schemaTx1 = txn0.getTx(schema) as SchemaTx
+        } finally {
+            txn0.commit()
+        }
+
         /* Transaction 1: Create entity. */
         val txn1 = this.manager.Transaction(TransactionType.SYSTEM)
         try {
@@ -217,7 +214,7 @@ class SchemaTest {
         val txn1 = this.manager.Transaction(TransactionType.SYSTEM)
         try {
             val catalogueTx1 = txn1.getTx(this.catalogue) as CatalogueTx
-            val schema = catalogueTx1.schemaForName(this.schemaName)
+            val schema = catalogueTx1.createSchema(this.schemaName)
             val schemaTx1 = txn1.getTx(schema) as SchemaTx
             for (name in this.entityNames) {
                 schemaTx1.createEntity(name, ColumnDef(name.column("id"), Type.String) to ColumnEngine.MAPDB)
