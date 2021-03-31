@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.database.catalogue
 
+import org.junit.Assert
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -204,6 +205,59 @@ class SchemaTest {
             }
         } finally {
             txn2.rollback()
+        }
+    }
+
+    /**
+     * Creates a new [Schema] and runs some basic tests on the existence of the required files and initialization of the correct attributes.
+     */
+    @Test
+    fun replaceEntityWithCommitTest() {
+        /* Transaction 1: Create entity. */
+        val txn1 = this.manager.Transaction(TransactionType.SYSTEM)
+        try {
+            val catalogueTx1 = txn1.getTx(this.catalogue) as CatalogueTx
+            val schema = catalogueTx1.schemaForName(this.schemaName)
+            val schemaTx1 = txn1.getTx(schema) as SchemaTx
+            for (name in this.entityNames) {
+                schemaTx1.createEntity(name, ColumnDef(name.column("id"), Type.String) to ColumnEngine.MAPDB)
+            }
+        } finally {
+            txn1.commit()
+        }
+
+        /* Transaction 2: Truncate. */
+        val txn2 = this.manager.Transaction(TransactionType.SYSTEM)
+        try {
+            val catalogueTx2 = txn2.getTx(this.catalogue) as CatalogueTx
+            val schema = catalogueTx2.schemaForName(this.schemaName)
+            val schemaTx2 = txn2.getTx(schema) as SchemaTx
+            for (name in this.entityNames) {
+                val entity = schemaTx2.entityForName(name)
+                Assert.assertEquals(1, entity.numberOfColumns)
+                schemaTx2.dropEntity(name)
+                schemaTx2.createEntity(
+                        name,
+                        ColumnDef(name.column("id"), Type.String) to ColumnEngine.MAPDB,
+                        ColumnDef(name.column("value"), Type.String) to ColumnEngine.MAPDB
+                )
+            }
+        } finally {
+            txn2.commit()
+        }
+
+        /* Transaction 2: Truncate. */
+        val txn3 = this.manager.Transaction(TransactionType.SYSTEM)
+        try {
+            val catalogueTx3 = txn3.getTx(this.catalogue) as CatalogueTx
+            val schema = catalogueTx3.schemaForName(this.schemaName)
+            val schemaTx3 = txn3.getTx(schema) as SchemaTx
+            for (name in this.entityNames) {
+                val entity = schemaTx3.entityForName(name)
+                Assert.assertEquals(2, entity.numberOfColumns)
+            }
+        } finally {
+            txn3.commit()
         }
     }
 }
