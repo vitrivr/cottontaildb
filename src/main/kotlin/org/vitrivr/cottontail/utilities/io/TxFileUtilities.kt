@@ -5,7 +5,6 @@ import org.slf4j.LoggerFactory
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
-import java.nio.file.StandardCopyOption
 import java.util.*
 
 /**
@@ -53,14 +52,6 @@ object TxFileUtilities {
     fun createPath(path: Path): Path = path.parent.resolve("${path.fileName}${TX_CREATED}${UUID.randomUUID()}")
 
     /**
-     * Generates and returns a DELETE path for the given path.
-     *
-     * @param path [Path] the [Path] to generate DELETE path for.
-     * @return DELETE path.
-     */
-    fun deletePath(path: Path): Path = path.parent.resolve("${path.fileName}${TX_DELETED}${UUID.randomUUID()}")
-
-    /**
      * Deletes the given file or folder and all files and folders it contains.
      *
      * @param path [Path] the [Path] to delete.
@@ -68,14 +59,9 @@ object TxFileUtilities {
     fun delete(path: Path) {
         if (Files.exists(path)) {
             try {
-                val move = Files.move(path, deletePath(path), StandardCopyOption.ATOMIC_MOVE)
-                try {
-                    Files.walk(move).sorted(Comparator.reverseOrder()).forEach { Files.delete(it) }
-                } catch (e: IOException) {
-                    this.logger.warn("Failed to delete $move: ${e.message}.")
-                }
+                Files.walk(path).sorted(Comparator.reverseOrder()).forEach { Files.delete(it) }
             } catch (e: IOException) {
-                this.logger.warn("Failed to move $path: ${e.message}.")
+                this.logger.warn("Failed to delete $path: ${e.message}.")
             }
         } else {
             this.logger.warn("Noting to delete at $path.")
