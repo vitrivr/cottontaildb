@@ -18,7 +18,7 @@ import org.vitrivr.cottontail.execution.TransactionManager
 import org.vitrivr.cottontail.execution.TransactionType
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
-import org.vitrivr.cottontail.utilities.io.FileUtilities
+import org.vitrivr.cottontail.utilities.io.TxFileUtilities
 
 import java.nio.file.Files
 import java.util.*
@@ -39,7 +39,7 @@ abstract class AbstractSerializationTest {
     init {
         /* Assure that root folder is empty! */
         if (Files.exists(TestConstants.config.root)) {
-            FileUtilities.deleteRecursively(TestConstants.config.root)
+            TxFileUtilities.delete(TestConstants.config.root)
         }
         Files.createDirectories(TestConstants.config.root)
     }
@@ -55,12 +55,6 @@ abstract class AbstractSerializationTest {
 
     /** The [DefaultCatalogue] instance used for the [AbstractSerializationTest]. */
     private val catalogue: DefaultCatalogue = DefaultCatalogue(TestConstants.config)
-
-    /** [Schema] used for testing. */
-    private var schema: Schema? = null
-
-    /** [Entity] used for testing. */
-    private var entity: Entity? = null
 
     /** Random seed used by this [AbstractSerializationTest]. */
     protected var random = SplittableRandom(this.seed)
@@ -84,8 +78,8 @@ abstract class AbstractSerializationTest {
     @BeforeEach
     fun initialize() {
         /* Prepare data structures. */
-        this.schema = prepareSchema()
-        this.entity = prepareEntity()
+        prepareSchema()
+        prepareEntity()
 
         /* Generate random data. */
         this.populateDatabase()
@@ -100,7 +94,7 @@ abstract class AbstractSerializationTest {
     @AfterEach
     fun cleanup() {
         this.catalogue.close()
-        FileUtilities.deleteRecursively(TestConstants.config.root)
+        TxFileUtilities.delete(TestConstants.config.root)
     }
 
 
@@ -112,7 +106,11 @@ abstract class AbstractSerializationTest {
     fun test() {
         log("Starting serialization test on (${TestConstants.collectionSize} items).")
         val txn = this.manager.Transaction(TransactionType.SYSTEM)
-        val entityTx = txn.getTx(this.entity!!) as EntityTx
+        val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
+        val schema = catalogueTx.schemaForName(this.schemaName)
+        val schemaTx = txn.getTx(schema) as SchemaTx
+        val entity = schemaTx.entityForName(this.entityName)
+        val entityTx = txn.getTx(entity) as EntityTx
         val columns = this.columns.map { it.first }.toTypedArray()
         repeat(TestConstants.collectionSize) {
             val reference = this.nextRecord(it)
@@ -121,6 +119,7 @@ abstract class AbstractSerializationTest {
                 Assertions.assertTrue(reference[c]!!.isEqual(v!!))
             }
         }
+        txn.rollback()
     }
 
     /**
@@ -139,7 +138,6 @@ abstract class AbstractSerializationTest {
         val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
         val ret = catalogueTx.createSchema(this.schemaName)
         txn.commit()
-        Assertions.assertTrue(Files.exists(ret.path))
         return ret
     }
 
@@ -149,10 +147,11 @@ abstract class AbstractSerializationTest {
     private fun prepareEntity(): Entity {
         log("Creating schema ${this.entityName}.")
         val txn = this.manager.Transaction(TransactionType.SYSTEM)
-        val schemaTx = txn.getTx(this.schema!!) as SchemaTx
+        val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
+        val schema = catalogueTx.schemaForName(this.schemaName)
+        val schemaTx = txn.getTx(schema) as SchemaTx
         val ret = schemaTx.createEntity(this.entityName, *this.columns)
         txn.commit()
-        Assertions.assertTrue(Files.exists(ret.path))
         return ret
     }
 
@@ -162,7 +161,11 @@ abstract class AbstractSerializationTest {
     private fun populateDatabase() {
         log("Inserting data (${TestConstants.collectionSize} items).")
         val txn = this.manager.Transaction(TransactionType.SYSTEM)
-        val entityTx = txn.getTx(this.entity!!) as EntityTx
+        val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
+        val schema = catalogueTx.schemaForName(this.schemaName)
+        val schemaTx = txn.getTx(schema) as SchemaTx
+        val entity = schemaTx.entityForName(this.entityName)
+        val entityTx = txn.getTx(entity) as EntityTx
 
         /* Insert data and track how many entries have been stored for the test later. */
         repeat(TestConstants.collectionSize) {

@@ -1,7 +1,6 @@
 package org.vitrivr.cottontail.database.index
 
 import org.junit.jupiter.api.AfterAll
-import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.TestInstance
 import org.slf4j.LoggerFactory
@@ -19,7 +18,7 @@ import org.vitrivr.cottontail.execution.TransactionManager
 import org.vitrivr.cottontail.execution.TransactionType
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
-import org.vitrivr.cottontail.utilities.io.FileUtilities
+import org.vitrivr.cottontail.utilities.io.TxFileUtilities
 import java.nio.file.Files
 import java.util.concurrent.Executors
 import java.util.concurrent.ThreadPoolExecutor
@@ -39,7 +38,7 @@ abstract class AbstractIndexTest {
     init {
         /* Assure that root folder is empty! */
         if (Files.exists(TestConstants.config.root)) {
-            FileUtilities.deleteRecursively(TestConstants.config.root)
+            TxFileUtilities.delete(TestConstants.config.root)
         }
         Files.createDirectories(TestConstants.config.root)
     }
@@ -66,16 +65,7 @@ abstract class AbstractIndexTest {
     protected val indexParams: Map<String, String> = emptyMap()
 
     /** Catalogue used for testing. */
-    private var catalogue: DefaultCatalogue = DefaultCatalogue(TestConstants.config)
-
-    /** [Schema] used for testing. */
-    protected var schema: Schema? = null
-
-    /** [Entity] used for testing. */
-    protected var entity: Entity? = null
-
-    /** [Index] used for testing. */
-    protected var index: Index? = null
+    protected var catalogue: DefaultCatalogue = DefaultCatalogue(TestConstants.config)
 
     /** The [TransactionManager] used for this [CatalogueTest] instance. */
     protected val manager = TransactionManager(
@@ -90,9 +80,9 @@ abstract class AbstractIndexTest {
     @BeforeAll
     protected fun initialize() {
         /* Prepare data structures. */
-        this.schema = prepareSchema()
-        this.entity = prepareEntity()
-        this.index = prepareIndex()
+        prepareSchema()
+        prepareEntity()
+        prepareIndex()
 
         /* Populate database with data. */
         this.populateDatabase()
@@ -108,7 +98,7 @@ abstract class AbstractIndexTest {
     @AfterAll
     protected fun teardown() {
         this.catalogue.close()
-        FileUtilities.deleteRecursively(TestConstants.config.root)
+        TxFileUtilities.delete(TestConstants.config.root)
     }
 
     /**
@@ -120,34 +110,35 @@ abstract class AbstractIndexTest {
         val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
         val ret = catalogueTx.createSchema(this.schemaName)
         txn.commit()
-        Assertions.assertTrue(Files.exists(ret.path))
         return ret
     }
 
     /**
      * Prepares and returns an empty test [Entity].
      */
-    protected fun prepareEntity(): Entity {
+    protected fun prepareEntity() {
         log("Creating schema ${this.entityName}.")
         val txn = this.manager.Transaction(TransactionType.SYSTEM)
-        val schemaTx = txn.getTx(this.schema!!) as SchemaTx
-        val ret = schemaTx.createEntity(this.entityName, *this.columns.map { it to ColumnEngine.MAPDB }.toTypedArray())
+        val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
+        val schema = catalogueTx.schemaForName(this.schemaName)
+        val schemaTx = txn.getTx(schema) as SchemaTx
+        schemaTx.createEntity(this.entityName, *this.columns.map { it to ColumnEngine.MAPDB }.toTypedArray())
         txn.commit()
-        Assertions.assertTrue(Files.exists(ret.path))
-        return ret
     }
 
     /**
      * Prepares and returns an empty test [Index].
      */
-    protected fun prepareIndex(): Index {
+    protected fun prepareIndex() {
         log("Creating index ${this.indexName}.")
         val txn = this.manager.Transaction(TransactionType.SYSTEM)
-        val entityTx = txn.getTx(this.entity!!) as EntityTx
-        val ret = entityTx.createIndex(this.indexName, this.indexType, arrayOf(this.indexColumn), this.indexParams)
+        val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
+        val schema = catalogueTx.schemaForName(this.schemaName)
+        val schemaTx = txn.getTx(schema) as SchemaTx
+        val entity = schemaTx.entityForName(this.entityName)
+        val entityTx = txn.getTx(entity) as EntityTx
+        entityTx.createIndex(this.indexName, this.indexType, arrayOf(this.indexColumn), this.indexParams)
         txn.commit()
-        Assertions.assertTrue(Files.exists(ret.path))
-        return ret
     }
 
     /**
@@ -156,7 +147,13 @@ abstract class AbstractIndexTest {
     protected fun updateIndex() {
         log("Updating index ${this.indexName}.")
         val txn = this.manager.Transaction(TransactionType.SYSTEM)
-        val indexTx = txn.getTx(this.index!!) as IndexTx
+        val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
+        val schema = catalogueTx.schemaForName(this.schemaName)
+        val schemaTx = txn.getTx(schema) as SchemaTx
+        val entity = schemaTx.entityForName(this.entityName)
+        val entityTx = txn.getTx(entity) as EntityTx
+        val index = entityTx.indexForName(this.indexName)
+        val indexTx = txn.getTx(index) as IndexTx
         indexTx.rebuild()
         txn.commit()
     }
@@ -168,7 +165,11 @@ abstract class AbstractIndexTest {
     protected fun populateDatabase() {
         log("Inserting data (${TestConstants.collectionSize} items).")
         val txn = this.manager.Transaction(TransactionType.SYSTEM)
-        val entityTx = txn.getTx(this.entity!!) as EntityTx
+        val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
+        val schema = catalogueTx.schemaForName(this.schemaName)
+        val schemaTx = txn.getTx(schema) as SchemaTx
+        val entity = schemaTx.entityForName(this.entityName)
+        val entityTx = txn.getTx(entity) as EntityTx
 
         /* Insert data and track how many entries have been stored for the test later. */
         for (i in 0..TestConstants.collectionSize) {

@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.database.index.hash
 
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.RepeatedTest
-import org.junit.jupiter.api.Test
+import org.vitrivr.cottontail.database.catalogue.CatalogueTx
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.index.AbstractIndexTest
@@ -11,6 +11,7 @@ import org.vitrivr.cottontail.database.index.IndexType
 import org.vitrivr.cottontail.database.queries.binding.BindingContext
 import org.vitrivr.cottontail.database.queries.predicates.bool.BooleanPredicate
 import org.vitrivr.cottontail.database.queries.predicates.bool.ComparisonOperator
+import org.vitrivr.cottontail.database.schema.SchemaTx
 import org.vitrivr.cottontail.execution.TransactionType
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Type
@@ -52,30 +53,26 @@ class NonUniqueIntHashIndexTest : AbstractIndexTest() {
     private val random = SplittableRandom()
 
     /**
-     * Tests basic metadata information regarding the [UniqueHashIndex]
-     */
-    @Test
-    fun testMetadata() {
-        Assertions.assertNotNull(this.index)
-        Assertions.assertArrayEquals(arrayOf(this.columns[0]), this.index?.columns)
-        Assertions.assertArrayEquals(arrayOf(this.columns[0]), this.index?.produces)
-        Assertions.assertEquals(this.indexName, this.index?.name)
-    }
-
-    /**
      * Tests if Index#filter() returns the values that have been stored.
      */
     @RepeatedTest(3)
     fun testFilterEqualPositive() {
+        /* Obtain necessary transactions. */
         val txn = this.manager.Transaction(TransactionType.SYSTEM)
-        val indexTx = txn.getTx(this.index!!) as IndexTx
-        val entityTx = txn.getTx(this.entity!!) as EntityTx
+        val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
+        val schema = catalogueTx.schemaForName(this.schemaName)
+        val schemaTx = txn.getTx(schema) as SchemaTx
+        val entity = schemaTx.entityForName(this.entityName)
+        val entityTx = txn.getTx(entity) as EntityTx
+        val index = entityTx.indexForName(this.indexName)
+        val indexTx = txn.getTx(index) as IndexTx
+
         val context = BindingContext<Value>()
         for (entry in this.list.entries) {
             val predicate = BooleanPredicate.Atomic.Literal(
-                this.columns[0] as ColumnDef<IntValue>,
-                ComparisonOperator.Binary.Equal(context.bind(entry.key)),
-                false,
+                    this.columns[0] as ColumnDef<IntValue>,
+                    ComparisonOperator.Binary.Equal(context.bind(entry.key)),
+                    false,
             )
             var found = false
             indexTx.filter(predicate).forEach { r ->
@@ -96,14 +93,22 @@ class NonUniqueIntHashIndexTest : AbstractIndexTest() {
      */
     @RepeatedTest(3)
     fun testFilterEqualNegative() {
+        /* Obtain necessary transactions. */
         val txn = this.manager.Transaction(TransactionType.SYSTEM)
-        val indexTx = txn.getTx(this.index!!) as IndexTx
+        val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
+        val schema = catalogueTx.schemaForName(this.schemaName)
+        val schemaTx = txn.getTx(schema) as SchemaTx
+        val entity = schemaTx.entityForName(this.entityName)
+        val entityTx = txn.getTx(entity) as EntityTx
+        val index = entityTx.indexForName(this.indexName)
+        val indexTx = txn.getTx(index) as IndexTx
+
         var count = 0
         val context = BindingContext<Value>()
         val predicate = BooleanPredicate.Atomic.Literal(
-            this.columns[0] as ColumnDef<IntValue>,
-            ComparisonOperator.Binary.Equal(context.bind(IntValue(this.random.nextInt(100, Int.MAX_VALUE)))),
-            false
+                this.columns[0] as ColumnDef<IntValue>,
+                ComparisonOperator.Binary.Equal(context.bind(IntValue(this.random.nextInt(100, Int.MAX_VALUE)))),
+                false
         )
         indexTx.filter(predicate).forEach { count += 1 }
         Assertions.assertEquals(0, count)

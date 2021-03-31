@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.database.index.pq
 
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
+import org.vitrivr.cottontail.database.catalogue.CatalogueTx
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.index.AbstractIndexTest
@@ -9,6 +10,7 @@ import org.vitrivr.cottontail.database.index.IndexTx
 import org.vitrivr.cottontail.database.index.IndexType
 import org.vitrivr.cottontail.database.queries.binding.BindingContext
 import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicate
+import org.vitrivr.cottontail.database.schema.SchemaTx
 import org.vitrivr.cottontail.execution.TransactionType
 import org.vitrivr.cottontail.math.knn.metrics.*
 import org.vitrivr.cottontail.math.knn.selection.ComparablePair
@@ -78,14 +80,20 @@ class PQDoubleIndexTest : AbstractIndexTest() {
         val query = DoubleVectorValue.random(this.indexColumn.type.logicalSize, this.random)
         val context = BindingContext<Value>()
         val predicate = KnnPredicate(
-            column = this.indexColumn,
-            k = k,
-            distance = distance,
-            query = context.bind(query)
+                column = this.indexColumn,
+                k = k,
+                distance = distance,
+                query = context.bind(query)
         )
 
-        val indexTx = txn.getTx(this.index!!) as IndexTx
-        val entityTx = txn.getTx(this.entity!!) as EntityTx
+        /* Obtain necessary transactions. */
+        val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
+        val schema = catalogueTx.schemaForName(this.schemaName)
+        val schemaTx = txn.getTx(schema) as SchemaTx
+        val entity = schemaTx.entityForName(this.entityName)
+        val entityTx = txn.getTx(entity) as EntityTx
+        val index = entityTx.indexForName(this.indexName)
+        val indexTx = txn.getTx(index) as IndexTx
 
         /* Fetch results through index. */
         val indexResults = ArrayList<Record>(k)
@@ -123,6 +131,7 @@ class PQDoubleIndexTest : AbstractIndexTest() {
         }
         val foundRatio = (found / k)
         log("Test done for ${distance::class.java.simpleName} and d=${this.indexColumn.type.logicalSize}! PQ took $indexDuration, brute-force took $bruteForceDuration. Found ratio: $foundRatio")
+        txn.commit()
     }
 
     override fun nextRecord(): StandaloneRecord {

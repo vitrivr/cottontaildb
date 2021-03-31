@@ -11,12 +11,10 @@ import org.vitrivr.cottontail.execution.TransactionManager
 import org.vitrivr.cottontail.execution.TransactionType
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
-import org.vitrivr.cottontail.utilities.io.FileUtilities
+import org.vitrivr.cottontail.utilities.io.TxFileUtilities
 import java.nio.file.Files
-import java.util.*
 import java.util.concurrent.Executors
 import java.util.concurrent.ThreadPoolExecutor
-import java.util.stream.Collectors
 
 /**
  * A set of unit tests to test basic [DefaultCatalogue] functionality.
@@ -31,7 +29,7 @@ class CatalogueTest {
     init {
         /* Assure that root folder is empty! */
         if (Files.exists(TestConstants.config.root)) {
-            FileUtilities.deleteRecursively(TestConstants.config.root)
+            TxFileUtilities.delete(TestConstants.config.root)
         }
         Files.createDirectories(TestConstants.config.root)
     }
@@ -49,7 +47,7 @@ class CatalogueTest {
     @AfterEach
     fun teardown() {
         this.catalogue.close()
-        FileUtilities.deleteRecursively(TestConstants.config.root)
+        TxFileUtilities.delete(TestConstants.config.root)
     }
 
     /**
