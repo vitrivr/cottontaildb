@@ -17,7 +17,7 @@ import org.vitrivr.cottontail.execution.TransactionManager.Transaction
 import org.vitrivr.cottontail.execution.TransactionStatus
 import org.vitrivr.cottontail.execution.TransactionType
 import org.vitrivr.cottontail.model.basics.TransactionId
-import org.vitrivr.cottontail.utilities.io.FileUtilities
+import org.vitrivr.cottontail.utilities.io.TxFileUtilities
 import java.io.BufferedWriter
 import java.nio.file.*
 import java.util.*
@@ -101,18 +101,14 @@ abstract class AbstractMigrationManager(val batchSize: Int, logFile: Path) : Mig
                 context.commit()
 
                 /* Swap folders. */
-                Files.move(
-                    config.root,
-                    config.root.parent.resolve("${config.root.fileName}~old"),
-                    StandardCopyOption.ATOMIC_MOVE
-                )
+                Files.move(config.root, config.root.parent.resolve("${config.root.fileName}~old"), StandardCopyOption.ATOMIC_MOVE)
                 Files.move(migratedDatabaseRoot, config.root, StandardCopyOption.ATOMIC_MOVE)
             } catch (e: Throwable) {
                 this.log("Error during data migration: ${e.message}\n")
                 context.rollback()
 
                 /* Delete destination (Cleanup). */
-                FileUtilities.deleteRecursively(dstCatalogue.path)
+                TxFileUtilities.delete(dstCatalogue.path)
             } finally {
                 /* Close catalogues. */
                 srcCatalogue.close()

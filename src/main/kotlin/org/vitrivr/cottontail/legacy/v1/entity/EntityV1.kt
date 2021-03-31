@@ -13,6 +13,7 @@ import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.general.AbstractTx
 import org.vitrivr.cottontail.database.general.DBOVersion
+import org.vitrivr.cottontail.database.general.TxAction
 import org.vitrivr.cottontail.database.general.TxSnapshot
 import org.vitrivr.cottontail.database.index.Index
 import org.vitrivr.cottontail.database.index.IndexTx
@@ -180,17 +181,17 @@ class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1
 
         /** The [TxSnapshot] of this [SchemaTx]. */
         override val snapshot = object : TxSnapshot {
-            override fun commit() =
-                throw UnsupportedOperationException("Operation not supported on legacy DBO.")
-
-            override fun rollback() =
-                throw UnsupportedOperationException("Operation not supported on legacy DBO.")
+            override val actions: List<TxAction> = emptyList()
+            override fun commit() = throw UnsupportedOperationException("Operation not supported on legacy DBO.")
+            override fun rollback() = throw UnsupportedOperationException("Operation not supported on legacy DBO.")
+            override fun record(action: TxAction): Boolean = throw UnsupportedOperationException("Operation not supported on legacy DBO.")
         }
 
         /** Tries to acquire a global read-lock on this entity. */
         init {
             if (this@EntityV1.closed) {
-                throw TxException.TxDBOClosedException(this.context.txId)
+                this@EntityV1.closeLock.unlockRead(this.closeStamp)
+                throw TxException.TxDBOClosedException(this.context.txId, this@EntityV1)
             }
         }
 

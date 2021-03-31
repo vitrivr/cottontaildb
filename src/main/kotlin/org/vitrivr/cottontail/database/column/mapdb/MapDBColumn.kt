@@ -5,10 +5,7 @@ import org.vitrivr.cottontail.config.MapDBConfig
 import org.vitrivr.cottontail.database.column.*
 import org.vitrivr.cottontail.database.entity.DefaultEntity
 import org.vitrivr.cottontail.database.entity.Entity
-import org.vitrivr.cottontail.database.general.AbstractTx
-import org.vitrivr.cottontail.database.general.DBOVersion
-import org.vitrivr.cottontail.database.general.TxSnapshot
-import org.vitrivr.cottontail.database.general.TxStatus
+import org.vitrivr.cottontail.database.general.*
 import org.vitrivr.cottontail.execution.TransactionContext
 
 import org.vitrivr.cottontail.model.basics.*
@@ -110,17 +107,16 @@ class MapDBColumn<T : Value>(override val path: Path, override val parent: Entit
      */
     override fun close() {
         if (!this.closed) {
-            try {
-                val stamp = this.closeLock.tryWriteLock(1000, TimeUnit.MILLISECONDS)
+            val stamp = this.closeLock.tryWriteLock(1000, TimeUnit.MILLISECONDS)
+            if (stamp != 0L) {
                 try {
                     this.store.close()
                     this.closed = true
-                } catch (e: Throwable) {
+                } finally {
                     this.closeLock.unlockWrite(stamp)
-                    throw e
                 }
-            } catch (e: InterruptedException) {
-                throw IllegalStateException("Could not close column ${this.name}. Failed to acquire exclusive lock which indicates, that transaction wasn't closed properly.")
+            } else {
+                throw IllegalStateException("Could not close column ${this.name}. Failed to acquire exclusive lock which indicates, that transaction wasn't properly closed.")
             }
         }
     }
@@ -137,23 +133,26 @@ class MapDBColumn<T : Value>(override val path: Path, override val parent: Entit
         override val dbo: Column<T>
             get() = this@MapDBColumn
 
-        /** Tries to acquire a global read-lock on the surrounding column. */
-        init {
-            if (this@MapDBColumn.closed) {
-                throw TxException.TxDBOClosedException(this.context.txId)
-            }
-        }
-
         /** The [Serializer] used for de-/serialization of [MapDBColumn] entries. */
         private val serializer = this@MapDBColumn.type.serializerFactory().mapdb(this@MapDBColumn.type.logicalSize)
 
         /** Obtains a global (non-exclusive) read-lock on [MapDBColumn]. Prevents enclosing [MapDBColumn] from being closed while this [MapDBColumn.Tx] is still in use. */
-        private val globalStamp = this@MapDBColumn.closeLock.readLock()
+        private val closeStamp = this@MapDBColumn.closeLock.readLock()
+
+        /** Tries to acquire a global read-lock on the surrounding column. */
+        init {
+            if (this@MapDBColumn.closed) {
+                this@MapDBColumn.closeLock.unlockRead(this.closeStamp)
+                throw TxException.TxDBOClosedException(this.context.txId, this@MapDBColumn)
+            }
+        }
 
         /** [TxSnapshot] of this [ColumnTx]. */
         override val snapshot = object : ColumnTxSnapshot {
             @Volatile
             override var delta = 0L
+
+            override val actions: List<TxAction> = emptyList()
 
             /** Commits the [ColumnTx] and integrates all changes made through it into the [MapDBColumn]. */
             override fun commit() {
@@ -166,6 +165,8 @@ class MapDBColumn<T : Value>(override val path: Path, override val parent: Entit
             override fun rollback() {
                 this@MapDBColumn.store.rollback()
             }
+
+            override fun record(action: TxAction): Boolean = false
         }
 
         /**
@@ -306,7 +307,7 @@ class MapDBColumn<T : Value>(override val path: Path, override val parent: Entit
          * Releases the [closeLock] on the [MapDBColumn].
          */
         override fun cleanup() {
-            this@MapDBColumn.closeLock.unlockRead(this.globalStamp)
+            this@MapDBColumn.closeLock.unlockRead(this.closeStamp)
         }
     }
 }

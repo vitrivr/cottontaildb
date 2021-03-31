@@ -10,15 +10,13 @@ import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.column.ColumnEngine
 import org.vitrivr.cottontail.database.column.ColumnTx
 import org.vitrivr.cottontail.database.events.DataChangeEvent
-import org.vitrivr.cottontail.database.general.AbstractTx
-import org.vitrivr.cottontail.database.general.DBOVersion
-import org.vitrivr.cottontail.database.general.TxSnapshot
-import org.vitrivr.cottontail.database.general.TxStatus
+import org.vitrivr.cottontail.database.general.*
 import org.vitrivr.cottontail.database.index.Index
 import org.vitrivr.cottontail.database.index.IndexTx
 import org.vitrivr.cottontail.database.index.IndexType
 import org.vitrivr.cottontail.database.locking.LockMode
 import org.vitrivr.cottontail.database.schema.DefaultSchema
+import org.vitrivr.cottontail.database.schema.Schema
 import org.vitrivr.cottontail.database.statistics.columns.*
 import org.vitrivr.cottontail.database.statistics.entity.EntityStatistics
 import org.vitrivr.cottontail.execution.TransactionContext
@@ -27,10 +25,11 @@ import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import org.vitrivr.cottontail.model.exceptions.TxException
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.types.Value
-import org.vitrivr.cottontail.utilities.io.FileUtilities
+import org.vitrivr.cottontail.utilities.io.TxFileUtilities
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.StandardCopyOption
 import java.util.*
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.StampedLock
@@ -47,9 +46,9 @@ import java.util.concurrent.locks.StampedLock
  * @see EntityTx
  *
  * @author Ralph Gasser
- * @version 2.0.1
+ * @version 2.1.0
  */
-class DefaultEntity(override val path: Path, override val parent: DefaultSchema) : Entity {
+class DefaultEntity(override val path: Path, override val parent: Schema) : Entity {
     /**
      * Companion object of the [DefaultEntity]
      */
@@ -73,7 +72,7 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
          */
         fun initialize(name: Name.EntityName, path: Path, config: Config, columns: List<Pair<ColumnDef<*>, ColumnEngine>>): Path {
             /* Prepare empty catalogue. */
-            val dataPath = path.resolve("entity_${name.simple}")
+            val dataPath = TxFileUtilities.createPath(path.resolve("entity_${name.simple}"))
             if (Files.exists(dataPath)) throw DatabaseException.InvalidFileException("Failed to create entity '$name'. Data directory '$dataPath' seems to be occupied.")
             Files.createDirectories(dataPath)
 
@@ -95,13 +94,13 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
                     it.close()
                 }
             } catch (e: DBException) {
-                FileUtilities.deleteRecursively(dataPath) /* Cleanup. */
+                TxFileUtilities.delete(dataPath) /* Cleanup. */
                 throw DatabaseException("Failed to create entity '$name' due to error in the underlying data store: {${e.message}")
             } catch (e: IOException) {
-                FileUtilities.deleteRecursively(dataPath) /* Cleanup. */
+                TxFileUtilities.delete(dataPath) /* Cleanup. */
                 throw DatabaseException("Failed to create entity '$name' due to an IO exception: {${e.message}")
             } catch (e: Throwable) {
-                FileUtilities.deleteRecursively(dataPath) /* Cleanup. */
+                TxFileUtilities.delete(dataPath) /* Cleanup. */
                 throw DatabaseException("Failed to create entity '$name' due to an unexpected error: {${e.message}")
             }
 
@@ -193,19 +192,18 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
      */
     override fun close() {
         if (!this.closed) {
-            try {
-                val stamp = this.closeLock.tryWriteLock(1000, TimeUnit.MILLISECONDS)
+            val stamp = this.closeLock.tryWriteLock(1000, TimeUnit.MILLISECONDS)
+            if (stamp != 0L) {
                 try {
                     this.columns.values.forEach { it.close() }
                     this.indexes.values.forEach { it.close() }
                     this.store.close()
                     this.closed = true
-                } catch (e: Throwable) {
+                } finally {
                     this.closeLock.unlockWrite(stamp)
-                    throw e
                 }
-            } catch (e: InterruptedException) {
-                throw IllegalStateException("Could not close entity ${this.name}. Failed to acquire exclusive lock which indicates, that transaction wasn't closed properly.")
+            } else {
+                throw IllegalStateException("Could not close entity ${this.name}. Failed to acquire exclusive lock which indicates, that transaction wasn't properly closed.")
             }
         }
     }
@@ -240,17 +238,17 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
                 /** Local snapshot of the surrounding [Entity]'s [Index]es. */
                 override val indexes = Object2ObjectOpenHashMap(this@DefaultEntity.indexes)
 
-                /** A map of all [Index] structures created by the enclosing [EntityTx]. */
-                override val created = Object2ObjectOpenHashMap<Name.IndexName, Index>()
-
-                /** A map of all [Index] structures dropped by the enclosing [EntityTx]. */
-                override val dropped = Object2ObjectOpenHashMap<Name.IndexName, Index>()
+                /** A map of all [TxAction] executed by this [EntityTx]. Can be seen as an in-memory WAL. */
+                override val actions = LinkedList<TxAction>()
 
                 /**
                  * Commits the [EntityTx] and integrates all changes made through it into the [DefaultEntity].
                  */
                 override fun commit() {
                     try {
+                        /* Materialize changes in surrounding schema (in-memory). */
+                        this.actions.forEach { it.commit() }
+
                         /* Update update header and commit changes. */
                         val oldHeader = this@DefaultEntity.headerField.get()
                         val newHeader = oldHeader.copy(modified = System.currentTimeMillis(), indexes = this.indexes.values.map { EntityHeader.IndexRef(it.name.simple, it.type) })
@@ -259,17 +257,9 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
                         this@DefaultEntity.headerField.compareAndSet(oldHeader, newHeader)
                         this@DefaultEntity.statisticsField.set(this.statistics)
                         this@DefaultEntity.store.commit()
-                    } catch (e: DBException) {
+                    } catch (e: Throwable) {
                         this@Tx.status = TxStatus.ERROR
                         throw DatabaseException("Failed to create index '$name' due to a storage exception: ${e.message}")
-                    }
-
-                    /* Materialize changes in surrounding schema (in-memory). */
-                    this.created.forEach { this@DefaultEntity.indexes[it.key] = it.value }
-                    this.dropped.forEach {
-                        val index = this@DefaultEntity.indexes.remove(it.key)
-                        index?.close()
-                        FileUtilities.deleteRecursively(it.value.path)
                     }
                 }
 
@@ -277,19 +267,32 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
                  * Rolls back the [EntityTx] and reverts all changes.
                  */
                 override fun rollback() {
-                    this.created.forEach { (_, v) ->
-                        v.close()
-                        FileUtilities.deleteRecursively(v.path)
-                    }
+                    this.actions.forEach { it.rollback() }
                     this@DefaultEntity.store.rollback()
+                }
+
+                /**
+                 * Records a [TxAction] with this [EntityTxSnapshot].
+                 *
+                 * @param action The [TxAction] to record.
+                 * @return True on success, false otherwise.
+                 */
+                override fun record(action: TxAction): Boolean = when (action) {
+                    is CreateIndexTxAction,
+                    is DropIndexTxAction -> {
+                        this.actions.add(action)
+                        true
+                    }
+                    else -> false
                 }
             }
         }
 
-        /** Tries to acquire a global read-lock on this entity. */
+        /** Checks if DBO is still open. */
         init {
             if (this@DefaultEntity.closed) {
-                throw TxException.TxDBOClosedException(this.context.txId)
+                this@DefaultEntity.closeLock.unlockRead(this.closeStamp)
+                throw TxException.TxDBOClosedException(this.context.txId, this@DefaultEntity)
             }
         }
 
@@ -389,20 +392,16 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
             /* Creates and opens the index and adds it to snapshot. */
             try {
                 val data = this@DefaultEntity.path.resolve("${name.simple}.idx")
-                val newIndex = type.create(data, this.dbo, name, columns, params)
+                val index = type.create(data, this.dbo, name, columns, params)
 
                 /* Update snapshot. */
-                this.snapshot.created[name] = newIndex
-                this.snapshot.indexes[name] = newIndex
-                this.snapshot.dropped.remove(name)
+                this.snapshot.indexes[name] = index
+                this.snapshot.record(CreateIndexTxAction(index))
 
-                return newIndex
-            } catch (e: DBException) {
+                return index
+            } catch (e: DatabaseException) {
                 this.status = TxStatus.ERROR
-                throw DatabaseException("Failed to create index '$name' due to a storage exception: ${e.message}")
-            } catch (e: IOException) {
-                this.status = TxStatus.ERROR
-                throw DatabaseException("Failed to create index '$name' due to an IO exception: ${e.message}")
+                throw e
             }
         }
 
@@ -418,22 +417,10 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
                 this.context.requestLock(index, LockMode.EXCLUSIVE)
             }
 
-            try {
-                /* Update header. */
-                val oldHeader = this@DefaultEntity.headerField.get()
-                this@DefaultEntity.headerField.set(oldHeader.copy(indexes = oldHeader.indexes.filter { it.name != index.name.simple }))
-
-                /* Remove entity from local snapshot. */
-                this.snapshot.indexes.remove(name)
-                this.snapshot.created.remove(name)
-                this.snapshot.dropped[name] = index
-            } catch (e: DBException) {
-                this.status = TxStatus.ERROR
-                throw DatabaseException("Failed to drop index '$name' due to a storage exception: ${e.message}")
-            } catch (e: IOException) {
-                this.status = TxStatus.ERROR
-                throw DatabaseException("Failed to drop index '$name' due to an IO exception: ${e.message}")
-            }
+            /* Remove entity from local snapshot. */
+            this.snapshot.indexes.remove(name)
+            this.snapshot.record(DropIndexTxAction(index))
+            Unit
         }
 
         /**
@@ -615,6 +602,45 @@ class DefaultEntity(override val path: Path, override val parent: DefaultSchema)
          */
         override fun cleanup() {
             this@DefaultEntity.closeLock.unlockRead(this.closeStamp)
+        }
+
+        /**
+         * A [TxAction] for creating a new [Index].
+         *
+         * @param index [Index] that has been created.
+         */
+        inner class CreateIndexTxAction(private val index: Index) : TxAction {
+            override fun commit() {
+                this.index.close()
+                val move = Files.move(this.index.path, TxFileUtilities.plainPath(this.index.path), StandardCopyOption.ATOMIC_MOVE)
+                this@DefaultEntity.indexes[this.index.name] = this.index.type.open(move, this@DefaultEntity)
+            }
+
+            override fun rollback() {
+                this.index.close()
+                TxFileUtilities.delete(this.index.path)
+            }
+        }
+
+        /**
+         * A [TxAction] implementation for dropping an [Index].
+         *
+         * @param index [Index] that has been dropped.
+         */
+        inner class DropIndexTxAction(private val index: Index) : TxAction {
+            override fun commit() {
+                this.index.close()
+                this@DefaultEntity.indexes.remove(this.index.name)
+                if (Files.exists(this.index.path)) {
+                    /* Case 1: Pre-existing index. */
+                    TxFileUtilities.delete(this.index.path)
+                } else if (Files.exists(TxFileUtilities.plainPath(this.index.path))) {
+                    /* Case 2: Index that was created as part of this Tx. */
+                    TxFileUtilities.delete(TxFileUtilities.plainPath(this.index.path))
+                }
+            }
+
+            override fun rollback() {}
         }
     }
 }

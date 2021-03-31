@@ -114,6 +114,9 @@ class TransactionManager(private val executor: ThreadPoolExecutor, transactionTa
          * @return entity [Tx]
          */
         override fun getTx(dbo: DBO): Tx = this.finalizationLock.read {
+            check(this.state === TransactionStatus.READY || this.state === TransactionStatus.RUNNING) {
+                "Cannot obtain Tx for DBO '${dbo.name}' for ${this.txId} because it is in wrong state (s = ${this.state})."
+            }
             this.txns.computeIfAbsent(dbo) { dbo.newTx(this) }
         }
 
@@ -125,6 +128,9 @@ class TransactionManager(private val executor: ThreadPoolExecutor, transactionTa
          * @param mode The desired [LockMode]
          */
         override fun requestLock(dbo: DBO, mode: LockMode) = this.finalizationLock.read {
+            check(this.state === TransactionStatus.READY || this.state === TransactionStatus.RUNNING) {
+                "Cannot obtain lock on DBO '${dbo.name}' for ${this.txId} because it is in wrong state (s = ${this.state})."
+            }
             this@TransactionManager.lockManager.lock(this, dbo, mode)
             this.lockedDBOs.add(dbo)
             Unit
