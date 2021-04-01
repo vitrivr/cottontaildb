@@ -13,10 +13,8 @@ import org.vitrivr.cottontail.database.queries.binding.BindingContext
 import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicate
 import org.vitrivr.cottontail.database.schema.SchemaTx
 import org.vitrivr.cottontail.execution.TransactionType
-import org.vitrivr.cottontail.math.knn.metrics.DistanceKernel
-import org.vitrivr.cottontail.math.knn.metrics.EuclidianDistance
-import org.vitrivr.cottontail.math.knn.metrics.ManhattanDistance
-import org.vitrivr.cottontail.math.knn.metrics.SquaredEuclidianDistance
+import org.vitrivr.cottontail.math.knn.basics.DistanceKernel
+import org.vitrivr.cottontail.math.knn.kernels.Distances
 import org.vitrivr.cottontail.math.knn.selection.ComparablePair
 import org.vitrivr.cottontail.math.knn.selection.MinHeapSelection
 import org.vitrivr.cottontail.model.basics.Name
@@ -28,6 +26,7 @@ import org.vitrivr.cottontail.model.values.DoubleValue
 import org.vitrivr.cottontail.model.values.FloatVectorValue
 import org.vitrivr.cottontail.model.values.LongValue
 import org.vitrivr.cottontail.model.values.types.Value
+import org.vitrivr.cottontail.model.values.types.VectorValue
 import org.vitrivr.cottontail.utilities.math.KnnUtilities
 import java.util.*
 import java.util.stream.Stream
@@ -45,8 +44,7 @@ class VAFFloatIndexTest : AbstractIndexTest() {
 
     companion object {
         @JvmStatic
-        fun kernels(): Stream<DistanceKernel> =
-            Stream.of(ManhattanDistance, EuclidianDistance, SquaredEuclidianDistance)
+        fun kernels(): Stream<Distances> = Stream.of(Distances.L1, Distances.L2, Distances.L2SQUARED)
     }
 
     /** Random number generator. */
@@ -75,16 +73,17 @@ class VAFFloatIndexTest : AbstractIndexTest() {
     @ParameterizedTest
     @MethodSource("kernels")
     @ExperimentalTime
-    fun test(distance: DistanceKernel) {
+    fun test(distance: Distances) {
         val txn = this.manager.Transaction(TransactionType.SYSTEM)
         val k = 100
         val query = FloatVectorValue.random(this.indexColumn.type.logicalSize, this.random)
+        val kernel = distance.kernelForQuery(query) as DistanceKernel<VectorValue<*>>
         val context = BindingContext<Value>()
         val predicate = KnnPredicate(
-                column = this.indexColumn,
-                k = k,
-                distance = distance,
-                query = context.bind(query)
+            column = this.indexColumn,
+            k = k,
+            distance = distance,
+            query = context.bind(query)
         )
 
         /* Obtain necessary transactions. */
@@ -111,7 +110,7 @@ class VAFFloatIndexTest : AbstractIndexTest() {
                     bruteForceResults.offer(
                         ComparablePair(
                             it.tupleId,
-                            predicate.distance.invoke(query, vector)
+                            kernel(vector)
                         )
                     )
                 }

@@ -27,7 +27,7 @@ import org.vitrivr.cottontail.database.queries.projection.Projection
 import org.vitrivr.cottontail.database.queries.sort.SortOrder
 import org.vitrivr.cottontail.database.schema.SchemaTx
 import org.vitrivr.cottontail.grpc.CottontailGrpc
-import org.vitrivr.cottontail.math.knn.metrics.Distances
+import org.vitrivr.cottontail.math.knn.kernels.Distances
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.basics.Type
@@ -446,7 +446,7 @@ class GrpcQueryBinder constructor(val catalogue: Catalogue) {
     private fun parseAndBindKnn(input: OperatorNode.Logical, knn: CottontailGrpc.Knn, context: QueryContext): OperatorNode.Logical {
         val columnName = knn.attribute.fqn()
         val column = input.findUniqueColumnForName(columnName)
-        val distance = Distances.valueOf(knn.distance.name).kernel
+        val distance = Distances.valueOf(knn.distance.name)
         val hint = knn.hint.toHint()
         val query: Pair<VectorValue<*>, VectorValue<*>?> = when (column.type) {
             is Type.DoubleVector -> Pair(

@@ -16,9 +16,7 @@ import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.predicates.Predicate
 import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicate
 import org.vitrivr.cottontail.execution.TransactionContext
-import org.vitrivr.cottontail.math.knn.metrics.AbsoluteInnerProductDistance
-import org.vitrivr.cottontail.math.knn.metrics.CosineDistance
-import org.vitrivr.cottontail.math.knn.metrics.RealInnerProductDistance
+import org.vitrivr.cottontail.math.knn.kernels.Distances
 import org.vitrivr.cottontail.model.basics.*
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import org.vitrivr.cottontail.model.exceptions.QueryException
@@ -46,6 +44,7 @@ class SuperBitLSHIndex<T : VectorValue<*>>(
 
     companion object {
         private val LOGGER = LoggerFactory.getLogger(SuperBitLSHIndex::class.java)
+        private val SUPPORTED_DISTANCES = arrayOf(Distances.COSINE, Distances.INNERPRODUCT)
     }
 
     /** False since [SuperBitLSHIndex] doesn't supports incremental updates. */
@@ -107,9 +106,7 @@ class SuperBitLSHIndex<T : VectorValue<*>>(
     override fun canProcess(predicate: Predicate): Boolean =
         predicate is KnnPredicate
                 && predicate.columns.first() == this.columns[0]
-                && (predicate.distance is CosineDistance
-                || predicate.distance is RealInnerProductDistance
-                || predicate.distance is AbsoluteInnerProductDistance)
+                && predicate.distance in SUPPORTED_DISTANCES
                 && (!this.config.considerImaginary || predicate.query is ComplexVectorValue<*>)
 
     /**
@@ -232,7 +229,7 @@ class SuperBitLSHIndex<T : VectorValue<*>>(
 
             /* Performs some sanity checks. */
             init {
-                if (this.predicate.columns.first() != this@SuperBitLSHIndex.columns[0] || !(this.predicate.distance is CosineDistance || this.predicate.distance is AbsoluteInnerProductDistance)) {
+                if (this.predicate.columns.first() != this@SuperBitLSHIndex.columns[0] || !(this.predicate.distance in SUPPORTED_DISTANCES)) {
                     throw QueryException.UnsupportedPredicateException("Index '${this@SuperBitLSHIndex.name}' (lsh-index) does not support the provided predicate.")
                 }
 
