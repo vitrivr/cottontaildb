@@ -260,7 +260,7 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
             }
 
             /* Remove dropped schema from local snapshot. */
-            this.snapshot.record(DropSchemaTxAction(schema))
+            this.snapshot.record(DropSchemaTxAction(name))
             this.snapshot.schemas.remove(name)
             Unit
         }
@@ -295,16 +295,12 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
          *
          * @param schema [Schema] that has been dropped.
          */
-        inner class DropSchemaTxAction(private val schema: Schema) : TxAction {
+        inner class DropSchemaTxAction(private val schema: Name.SchemaName) : TxAction {
             override fun commit() {
-                this.schema.close()
-                this@DefaultCatalogue.registry.remove(this.schema.name)
-                if (Files.exists(this.schema.path)) {
-                    /* Case 1: Pre-existing schema. */
-                    TxFileUtilities.delete(this.schema.path)
-                } else if (Files.exists(TxFileUtilities.plainPath(this.schema.path))) {
-                    /* Case 2: Schema that was created as part of this Tx. */
-                    TxFileUtilities.delete(TxFileUtilities.plainPath(this.schema.path))
+                val schema = this@DefaultCatalogue.registry.remove(this.schema) ?: throw IllegalStateException("Failed to drop schema $schema because it is unknown to catalogue. This is a programmer's error!")
+                schema.close()
+                if (Files.exists(schema.path)) {
+                    TxFileUtilities.delete(schema.path)
                 }
             }
 
