@@ -86,9 +86,8 @@ class MapDBColumn<T : Value>(override val path: Path, override val parent: Entit
         get() = this.store.maxRecid
 
     /** Status indicating whether this [MapDBColumn] is open or closed. */
-    @Volatile
-    override var closed: Boolean = false
-        private set
+    override val closed: Boolean
+        get() = this.store.isClosed
 
     /** An internal lock that is used to synchronize closing of the[MapDBColumn] in presence of ongoing [MapDBColumn.Tx]. */
     private val closeLock = StampedLock()
@@ -107,17 +106,7 @@ class MapDBColumn<T : Value>(override val path: Path, override val parent: Entit
      */
     override fun close() {
         if (!this.closed) {
-            val stamp = this.closeLock.tryWriteLock(1000, TimeUnit.MILLISECONDS)
-            if (stamp != 0L) {
-                try {
-                    this.store.close()
-                    this.closed = true
-                } finally {
-                    this.closeLock.unlockWrite(stamp)
-                }
-            } else {
-                throw IllegalStateException("Could not close column ${this.name}. Failed to acquire exclusive lock which indicates, that transaction wasn't properly closed.")
-            }
+            this.store.close()
         }
     }
 

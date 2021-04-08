@@ -101,7 +101,6 @@ abstract class AbstractSerializationTest {
     /**
      * Executes the serialization test.
      */
-    @Test
     @RepeatedTest(3)
     fun test() {
         log("Starting serialization test on (${TestConstants.collectionSize} items).")

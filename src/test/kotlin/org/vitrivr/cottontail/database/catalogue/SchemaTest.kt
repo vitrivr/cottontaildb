@@ -30,7 +30,7 @@ import java.util.concurrent.ThreadPoolExecutor
  */
 class SchemaTest {
     /** [Name.SchemaName] of the test schema. */
-    private val schemaName = Name.SchemaName("test")
+    private val schemaName = Name.SchemaName("schema-test")
 
     /** List of [DefaultEntity] to create. */
     private val entityNames = arrayOf(
@@ -170,8 +170,7 @@ class SchemaTest {
         val txn0 = this.manager.Transaction(TransactionType.SYSTEM)
         try {
             val catalogueTx0 = txn0.getTx(this.catalogue) as CatalogueTx
-            val schema = catalogueTx0.createSchema(this.schemaName)
-            val schemaTx1 = txn0.getTx(schema) as SchemaTx
+            catalogueTx0.createSchema(this.schemaName)
         } finally {
             txn0.commit()
         }

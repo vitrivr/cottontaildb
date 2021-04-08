@@ -22,7 +22,7 @@ import java.util.concurrent.ThreadPoolExecutor
  * @version 1.1.0
  */
 class CatalogueTest {
-    private val schemaName = Name.SchemaName("schema-test")
+    private val schemaName = Name.SchemaName("catalogue-test")
 
 
     init {

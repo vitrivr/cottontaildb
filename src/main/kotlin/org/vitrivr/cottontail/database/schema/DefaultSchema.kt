@@ -15,6 +15,7 @@ import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import org.vitrivr.cottontail.model.exceptions.TxException
+import org.vitrivr.cottontail.utilities.extensions.write
 import org.vitrivr.cottontail.utilities.io.TxFileUtilities
 import java.io.IOException
 import java.nio.file.Files
@@ -54,13 +55,11 @@ class DefaultSchema(override val path: Path, override val parent: Catalogue) : S
 
             /* Generate the store for the new schema. */
             try {
-                val store = config.mapdb.db(dataPath.resolve(FILE_CATALOGUE))
-                val schemaHeader = store.atomicVar(SCHEMA_HEADER_FIELD, SchemaHeader.Serializer).create()
-                schemaHeader.set(SchemaHeader(name.simple))
-                store.commit()
-                store.close()
-
-                /* Return data path. */
+                config.mapdb.db(dataPath.resolve(FILE_CATALOGUE)).use { store ->
+                    val schemaHeader = store.atomicVar(SCHEMA_HEADER_FIELD, SchemaHeader.Serializer).create()
+                    schemaHeader.set(SchemaHeader(name.simple))
+                    store.commit()
+                }
                 return dataPath
             } catch (e: DBException) {
                 TxFileUtilities.delete(dataPath) /* Cleanup. */
@@ -83,15 +82,13 @@ class DefaultSchema(override val path: Path, override val parent: Catalogue) : S
     }
 
     /** The [SchemaHeader] of this [DefaultSchema]. */
-    private val headerField =
-        this.store.atomicVar(SCHEMA_HEADER_FIELD, SchemaHeader.Serializer).createOrOpen()
+    private val headerField = this.store.atomicVar(SCHEMA_HEADER_FIELD, SchemaHeader.Serializer).createOrOpen()
 
     /** A lock used to mediate access the closed state of this [DefaultSchema]. */
     private val closeLock = StampedLock()
 
     /** A map of loaded [DefaultEntity] references. */
-    private val registry: MutableMap<Name.EntityName, Entity> =
-        Collections.synchronizedMap(Object2ObjectOpenHashMap())
+    private val registry: MutableMap<Name.EntityName, Entity> = Collections.synchronizedMap(Object2ObjectOpenHashMap())
 
     /** The [Name.SchemaName] of this [DefaultSchema]. */
     override val name: Name.SchemaName = Name.SchemaName(this.headerField.get().name)
@@ -101,9 +98,8 @@ class DefaultSchema(override val path: Path, override val parent: Catalogue) : S
         get() = DBOVersion.V2_0
 
     /** Flag indicating whether or not this [DefaultSchema] has been closed. */
-    @Volatile
-    override var closed: Boolean = false
-        private set
+    override val closed: Boolean
+        get() = this.store.isClosed()
 
     init {
         /* Initialize all entities. */
@@ -128,22 +124,12 @@ class DefaultSchema(override val path: Path, override val parent: Catalogue) : S
      * objects may be held by other threads, it can take a
      * while for this method to complete.
      */
-    override fun close() {
+    override fun close() = this.closeLock.write {
         if (!this.closed) {
-            val stamp = this.closeLock.writeLock()
-            if (stamp != 0L) {
-                try {
-                    this.registry.entries.removeIf {
-                        it.value.close()
-                        true
-                    }
-                    this.store.close()
-                    this.closed = true
-                } finally {
-                    this.closeLock.unlockWrite(stamp)
-                }
-            } else {
-                throw IllegalStateException("Could not close schema ${this.name}. Failed to acquire exclusive lock which indicates, that a transaction wasn't properly closed.")
+            this.store.close()
+            this.registry.entries.removeIf {
+                it.value.close()
+                true
             }
         }
     }
@@ -293,7 +279,7 @@ class DefaultSchema(override val path: Path, override val parent: Catalogue) : S
             }
 
             /* Remove entity from local snapshot. */
-            this.snapshot.record(DropEntityTxAction(entity))
+            this.snapshot.record(DropEntityTxAction(name))
             this.snapshot.entities.remove(name)
             Unit
         }
@@ -328,16 +314,11 @@ class DefaultSchema(override val path: Path, override val parent: Catalogue) : S
          *
          * @param entity [Entity] that has been dropped.
          */
-        inner class DropEntityTxAction(private val entity: Entity) : TxAction {
+        inner class DropEntityTxAction(private val entity: Name.EntityName) : TxAction {
             override fun commit() {
-                this.entity.close()
-                this@DefaultSchema.registry.remove(this.entity.name)
-                if (Files.exists(this.entity.path)) {
-                    /* Case 1: Pre-existing entity. */
-                    TxFileUtilities.delete(this.entity.path)
-                } else if (Files.exists(TxFileUtilities.plainPath(this.entity.path))) {
-                    /* Case 2: Entity that was created as part of this Tx. */
-                    TxFileUtilities.delete(TxFileUtilities.plainPath(this.entity.path))
+                val entity = this@DefaultSchema.registry.remove(this.entity) ?: throw IllegalStateException("Failed to drop schema $entity because it is unknown to the schema. This is a programmer's error!")
+                if (Files.exists(entity.path)) {
+                    TxFileUtilities.delete(entity.path)
                 }
             }
 

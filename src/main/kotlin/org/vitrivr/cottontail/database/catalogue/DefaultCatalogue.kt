@@ -12,6 +12,7 @@ import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import org.vitrivr.cottontail.model.exceptions.TxException
 import org.vitrivr.cottontail.utilities.extensions.read
+import org.vitrivr.cottontail.utilities.extensions.write
 import org.vitrivr.cottontail.utilities.io.TxFileUtilities
 
 import java.nio.file.Files
@@ -64,17 +65,15 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
         this.store.atomicVar(CATALOGUE_HEADER_FIELD, CatalogueHeader.Serializer).createOrOpen()
 
     /** A in-memory registry of all the [Schema]s contained in this [DefaultCatalogue]. When a [Catalogue] is opened, all the [Schema]s will be loaded. */
-    private val registry: MutableMap<Name.SchemaName, Schema> =
-        Collections.synchronizedMap(Object2ObjectOpenHashMap())
+    private val registry: MutableMap<Name.SchemaName, Schema> = Collections.synchronizedMap(Object2ObjectOpenHashMap())
 
     /** Size of this [DefaultCatalogue] in terms of [Schema]s it contains. This is a snapshot and may change anytime! */
     override val size: Int
         get() = this.closeLock.read { this.headerField.get().schemas.size }
 
     /** Status indicating whether this [DefaultCatalogue] is open or closed. */
-    @Volatile
-    override var closed: Boolean = false
-        private set
+    override val closed: Boolean
+        get() = this.store.isClosed()
 
     init {
         /* Initialize empty catalogue */
@@ -108,21 +107,9 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
     /**
      * Closes the [DefaultCatalogue] and all objects contained within.
      */
-    override fun close() {
-        if (!this.closed) {
-            val stamp = this.closeLock.tryWriteLock(1000, TimeUnit.MILLISECONDS)
-            if (stamp != 0L) {
-                try {
-                    this.registry.forEach { (_, v) -> v.close() }
-                    this.store.close()
-                    this.closed = true
-                } finally {
-                    this.closeLock.unlockWrite(stamp)
-                }
-            } else {
-                throw IllegalStateException("Could not close catalogue. Failed to acquire exclusive lock which indicates, that transaction wasn't properly closed.")
-            }
-        }
+    override fun close() = this.closeLock.write {
+        this.store.close()
+        this.registry.forEach { (_, v) -> v.close() }
     }
 
     /**
@@ -259,7 +246,7 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
             }
 
             /* Remove dropped schema from local snapshot. */
-            this.snapshot.record(DropSchemaTxAction(schema))
+            this.snapshot.record(DropSchemaTxAction(name))
             this.snapshot.schemas.remove(name)
             Unit
         }
@@ -294,16 +281,12 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
          *
          * @param schema [Schema] that has been dropped.
          */
-        inner class DropSchemaTxAction(private val schema: Schema) : TxAction {
+        inner class DropSchemaTxAction(private val schema: Name.SchemaName) : TxAction {
             override fun commit() {
-                this.schema.close()
-                this@DefaultCatalogue.registry.remove(this.schema.name)
-                if (Files.exists(this.schema.path)) {
-                    /* Case 1: Pre-existing schema. */
-                    TxFileUtilities.delete(this.schema.path)
-                } else if (Files.exists(TxFileUtilities.plainPath(this.schema.path))) {
-                    /* Case 2: Schema that was created as part of this Tx. */
-                    TxFileUtilities.delete(TxFileUtilities.plainPath(this.schema.path))
+                val schema = this@DefaultCatalogue.registry.remove(this.schema) ?: throw IllegalStateException("Failed to drop schema $schema because it is unknown to catalogue. This is a programmer's error!")
+                schema.close()
+                if (Files.exists(schema.path)) {
+                    TxFileUtilities.delete(schema.path)
                 }
             }
 
