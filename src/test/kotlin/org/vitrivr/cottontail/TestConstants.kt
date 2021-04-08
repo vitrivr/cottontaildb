@@ -13,11 +13,18 @@ import java.nio.file.Paths
 object TestConstants {
 
     init {
-        println((System.getProperty("enableMmap") ?: "true").toBoolean())
     }
 
     /** Location of the Cottontail DB data folder used for testing. */
-    val config = Config(root = Paths.get("./cottontaildb-test"), cli = false, mapdb = MapDBConfig(enableMmap = (System.getProperty("enableMmap") ?: "true").toBoolean()))
+    val config = Config(
+        root = Paths.get("./cottontaildb-test"),
+        cli = false,
+        mapdb = if (System.getProperty("os.name").toLowerCase().contains("win")) {
+            MapDBConfig(enableMmap = false, false)
+        } else {
+            MapDBConfig(enableMmap = true, false)
+        }
+    )
 
     /** General size of collections used for testing. */
     const val collectionSize: Int = 100_000
