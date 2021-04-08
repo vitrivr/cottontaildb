@@ -32,7 +32,6 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 import java.util.*
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.StampedLock
 
 /**
@@ -408,7 +407,7 @@ class DefaultEntity(override val path: Path, override val parent: Schema) : Enti
 
             /* Remove entity from local snapshot. */
             this.snapshot.indexes.remove(name)
-            this.snapshot.record(DropIndexTxAction(index))
+            this.snapshot.record(DropIndexTxAction(name))
             Unit
         }
 
@@ -616,16 +615,12 @@ class DefaultEntity(override val path: Path, override val parent: Schema) : Enti
          *
          * @param index [Index] that has been dropped.
          */
-        inner class DropIndexTxAction(private val index: Index) : TxAction {
+        inner class DropIndexTxAction(private val index: Name.IndexName) : TxAction {
             override fun commit() {
-                this.index.close()
-                this@DefaultEntity.indexes.remove(this.index.name)
-                if (Files.exists(this.index.path)) {
-                    /* Case 1: Pre-existing index. */
-                    TxFileUtilities.delete(this.index.path)
-                } else if (Files.exists(TxFileUtilities.plainPath(this.index.path))) {
-                    /* Case 2: Index that was created as part of this Tx. */
-                    TxFileUtilities.delete(TxFileUtilities.plainPath(this.index.path))
+                val index = this@DefaultEntity.indexes.remove(this.index) ?: throw IllegalStateException("Failed to drop index $index because it is unknown to the enclosing entity. This is a programmer's error!")
+                index.close()
+                if (Files.exists(index.path)) {
+                    TxFileUtilities.delete(index.path)
                 }
             }
 
