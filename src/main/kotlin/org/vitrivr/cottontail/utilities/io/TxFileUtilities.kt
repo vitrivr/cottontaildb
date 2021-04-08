@@ -58,11 +58,7 @@ object TxFileUtilities {
      */
     fun delete(path: Path) {
         if (Files.exists(path)) {
-            try {
-                Files.walk(path).sorted(Comparator.reverseOrder()).forEach { Files.delete(it) }
-            } catch (e: IOException) {
-                this.logger.warn("Failed to delete $path: ${e.message}.")
-            }
+            Files.walk(path).sorted(Comparator.reverseOrder()).forEach { Files.delete(it) }
         } else {
             this.logger.warn("Noting to delete at $path.")
         }
