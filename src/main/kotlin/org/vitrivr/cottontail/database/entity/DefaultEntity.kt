@@ -91,7 +91,6 @@ class DefaultEntity(override val path: Path, override val parent: Schema) : Enti
                     it.atomicVar(ENTITY_HEADER_FIELD, EntityHeader.Serializer).create().set(entityHeader)
                     it.atomicVar(ENTITY_STATISTICS_FIELD, EntityStatistics.Serializer).create().set(entityStatistics)
                     it.commit()
-                    it.close()
                 }
             } catch (e: DBException) {
                 TxFileUtilities.delete(dataPath) /* Cleanup. */

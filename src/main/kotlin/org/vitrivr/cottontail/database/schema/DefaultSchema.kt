@@ -54,13 +54,11 @@ class DefaultSchema(override val path: Path, override val parent: Catalogue) : S
 
             /* Generate the store for the new schema. */
             try {
-                val store = config.mapdb.db(dataPath.resolve(FILE_CATALOGUE))
-                val schemaHeader = store.atomicVar(SCHEMA_HEADER_FIELD, SchemaHeader.Serializer).create()
-                schemaHeader.set(SchemaHeader(name.simple))
-                store.commit()
-                store.close()
-
-                /* Return data path. */
+                config.mapdb.db(dataPath.resolve(FILE_CATALOGUE)).use { store ->
+                    val schemaHeader = store.atomicVar(SCHEMA_HEADER_FIELD, SchemaHeader.Serializer).create()
+                    schemaHeader.set(SchemaHeader(name.simple))
+                    store.commit()
+                }
                 return dataPath
             } catch (e: DBException) {
                 TxFileUtilities.delete(dataPath) /* Cleanup. */
@@ -293,7 +291,7 @@ class DefaultSchema(override val path: Path, override val parent: Catalogue) : S
             }
 
             /* Remove entity from local snapshot. */
-            this.snapshot.record(DropEntityTxAction(entity))
+            this.snapshot.record(DropEntityTxAction(name))
             this.snapshot.entities.remove(name)
             Unit
         }
@@ -328,16 +326,11 @@ class DefaultSchema(override val path: Path, override val parent: Catalogue) : S
          *
          * @param entity [Entity] that has been dropped.
          */
-        inner class DropEntityTxAction(private val entity: Entity) : TxAction {
+        inner class DropEntityTxAction(private val entity: Name.EntityName) : TxAction {
             override fun commit() {
-                this.entity.close()
-                this@DefaultSchema.registry.remove(this.entity.name)
-                if (Files.exists(this.entity.path)) {
-                    /* Case 1: Pre-existing entity. */
-                    TxFileUtilities.delete(this.entity.path)
-                } else if (Files.exists(TxFileUtilities.plainPath(this.entity.path))) {
-                    /* Case 2: Entity that was created as part of this Tx. */
-                    TxFileUtilities.delete(TxFileUtilities.plainPath(this.entity.path))
+                val entity = this@DefaultSchema.registry.remove(this.entity) ?: throw IllegalStateException("Failed to drop schema $entity because it is unknown to the schema. This is a programmer's error!")
+                if (Files.exists(entity.path)) {
+                    TxFileUtilities.delete(entity.path)
                 }
             }
 
