@@ -25,6 +25,7 @@ import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import org.vitrivr.cottontail.model.exceptions.TxException
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.types.Value
+import org.vitrivr.cottontail.utilities.extensions.write
 import org.vitrivr.cottontail.utilities.io.TxFileUtilities
 import java.io.IOException
 import java.nio.file.Files
@@ -153,9 +154,8 @@ class DefaultEntity(override val path: Path, override val parent: Schema) : Enti
         get() = this.statistics.maximumTupleId
 
     /** Status indicating whether this [DefaultEntity] is open or closed. */
-    @Volatile
-    override var closed: Boolean = false
-        private set
+    override val closed: Boolean
+        get() = this.store.isClosed()
 
     init {
         /** Load and initialize the columns. */
@@ -189,21 +189,11 @@ class DefaultEntity(override val path: Path, override val parent: Schema) : Enti
      * as all involved [Column]s are involved.Therefore, access to the method is mediated by an
      * global [DefaultEntity] wide lock.
      */
-    override fun close() {
+    override fun close() = this.closeLock.write {
         if (!this.closed) {
-            val stamp = this.closeLock.tryWriteLock(1000, TimeUnit.MILLISECONDS)
-            if (stamp != 0L) {
-                try {
-                    this.columns.values.forEach { it.close() }
-                    this.indexes.values.forEach { it.close() }
-                    this.store.close()
-                    this.closed = true
-                } finally {
-                    this.closeLock.unlockWrite(stamp)
-                }
-            } else {
-                throw IllegalStateException("Could not close entity ${this.name}. Failed to acquire exclusive lock which indicates, that transaction wasn't properly closed.")
-            }
+            this.store.close()
+            this.columns.values.forEach { it.close() }
+            this.indexes.values.forEach { it.close() }
         }
     }
 

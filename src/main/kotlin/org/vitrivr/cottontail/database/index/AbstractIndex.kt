@@ -15,6 +15,7 @@ import org.vitrivr.cottontail.database.queries.sort.SortOrder
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
+import org.vitrivr.cottontail.utilities.extensions.write
 import org.vitrivr.cottontail.utilities.io.TxFileUtilities
 import java.io.IOException
 import java.nio.file.Files
@@ -110,25 +111,13 @@ abstract class AbstractIndex(final override val path: Path, final override val p
         get() = this.dirtyField.get()
 
     /** Flag indicating if this [AbstractIndex] has been closed. */
-    @Volatile
-    override var closed: Boolean = false
-        protected set
+    override val closed: Boolean
+        get() = this.store.isClosed()
 
     /** Closes this [AbstractIndex] and the associated data structures. */
-    override fun close() {
+    override fun close() = this.closeLock.write {
         if (!this.closed) {
-            val stamp = this.closeLock.tryWriteLock(1000, TimeUnit.MILLISECONDS)
-            if (stamp != 0L) {
-                try {
-                    this.store.close()
-                    this.closed = true
-                } catch (e: Throwable) {
-                    this.closeLock.unlockWrite(stamp)
-                    throw e
-                }
-            } else {
-                throw IllegalStateException("Could not close index ${this.name}. Failed to acquire exclusive lock which indicates, that some Tx wasn't properly closed.")
-            }
+            this.store.close()
         }
     }
 
