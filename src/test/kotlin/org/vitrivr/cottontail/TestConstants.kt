@@ -8,22 +8,18 @@ import java.nio.file.Paths
  * Some constants used during execution of unit tests.
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.1.0
  */
 object TestConstants {
 
     init {
     }
 
-    /** Location of the Cottontail DB data folder used for testing. */
+    /** [Config] used for executing tests. */
     val config = Config(
         root = Paths.get("./cottontaildb-test"),
         cli = false,
-        mapdb = if (System.getProperty("os.name").toLowerCase().contains("win")) {
-            MapDBConfig(enableMmap = false, false)
-        } else {
-            MapDBConfig(enableMmap = true, false)
-        }
+        mapdb = MapDBConfig(enableMmap = false, false)
     )
 
     /** General size of collections used for testing. */
