@@ -58,7 +58,22 @@ object TxFileUtilities {
      */
     fun delete(path: Path) {
         if (Files.exists(path)) {
-            Files.walk(path).sorted(Comparator.reverseOrder()).forEach { Files.delete(it) }
+            Files.walk(path).sorted(Comparator.reverseOrder()).forEach {
+                if (Files.exists(it)) {
+                    var attempt = 0
+                    while (attempt < 3) {
+                        try {
+                            Files.delete(it)
+                            return@forEach
+                        } catch (e: IOException) {
+                            System.gc() /* Can help to release locks on Windows. */
+                            Thread.sleep(250)
+                            attempt++
+                        }
+                    }
+                    this.logger.warn("Failed to delete $path.")
+                }
+            }
         } else {
             this.logger.warn("Noting to delete at $path.")
         }
