@@ -164,6 +164,7 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
                  */
                 override fun rollback() {
                     this.actions.forEach { it.rollback() }
+                    this@DefaultCatalogue.store.rollback()
                 }
 
                 /**

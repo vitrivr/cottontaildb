@@ -2,7 +2,6 @@ package org.vitrivr.cottontail.utilities.io
 
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.*
@@ -59,20 +58,7 @@ object TxFileUtilities {
     fun delete(path: Path) {
         if (Files.exists(path)) {
             Files.walk(path).sorted(Comparator.reverseOrder()).forEach {
-                if (Files.exists(it)) {
-                    var attempt = 0
-                    while (attempt < 3) {
-                        try {
-                            Files.delete(it)
-                            return@forEach
-                        } catch (e: IOException) {
-                            System.gc() /* Can help to release locks on Windows. */
-                            Thread.sleep(50)
-                            attempt++
-                        }
-                    }
-                    this.logger.warn("Failed to delete $path.")
-                }
+                Files.delete(it)
             }
         } else {
             this.logger.warn("Noting to delete at $path.")

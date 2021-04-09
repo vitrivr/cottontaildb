@@ -3,10 +3,10 @@ package org.vitrivr.cottontail.config
 import kotlinx.serialization.Serializable
 import org.mapdb.CottontailStoreWAL
 import org.mapdb.DB
-import org.mapdb.DBMaker
 import org.mapdb.volume.FileChannelVol
 import org.mapdb.volume.MappedFileVol
 import org.mapdb.volume.VolumeFactory
+import java.nio.file.Files
 import java.nio.file.Path
 
 @Serializable
@@ -45,15 +45,7 @@ data class MapDBConfig(
      * @return The resulting [DB].
      */
     fun db(path: Path): DB {
-        val maker = DBMaker.fileDB(path.toFile()).transactionEnable().allocateIncrement(1L shl this.pageShift)
-        if (this.enableMmap) {
-            maker.fileMmapEnableIfSupported()
-            if (this.forceUnmap) {
-                maker.cleanerHackEnable()
-            }
-        } else {
-            maker.fileChannelEnable()
-        }
-        return maker.make()
+        val exists = Files.exists(path)
+        return DB(store = this.store(path), storeOpened = exists, isThreadSafe = true)
     }
 }
