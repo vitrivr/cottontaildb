@@ -67,7 +67,7 @@ object TxFileUtilities {
                             return@forEach
                         } catch (e: IOException) {
                             System.gc() /* Can help to release locks on Windows. */
-                            Thread.sleep(250)
+                            Thread.sleep(50)
                             attempt++
                         }
                     }
