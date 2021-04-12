@@ -58,12 +58,7 @@ class EntityScanPhysicalOperatorNode(override val groupId: Int, val entity: Enti
      * @return List of [OperatorNode.Physical], each representing a partition of the original tree.
      */
     override fun partition(p: Int): List<NullaryPhysicalOperatorNode> {
-        val partitionSize = Math.floorDiv(this.outputSize, p.toLong())
-        return (0 until p).map {
-            val start = (it * partitionSize)
-            val end = ((it + 1) * partitionSize) - 1
-            RangedEntityScanPhysicalOperatorNode(this.groupId, this.entity, this.columns, start..end)
-        }
+        return (0 until p).map { RangedEntityScanPhysicalOperatorNode(this.groupId, this.entity, this.columns, it, p) }
     }
 
     /**
@@ -72,7 +67,7 @@ class EntityScanPhysicalOperatorNode(override val groupId: Int, val entity: Enti
      * @param tx The [TransactionContext] used for execution.
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(tx: TransactionContext, ctx: QueryContext) = EntityScanOperator(this.groupId, this.entity, this.columns, 0L..this.entity.maxTupleId)
+    override fun toOperator(tx: TransactionContext, ctx: QueryContext) = EntityScanOperator(this.groupId, this.entity, this.columns, 0, 1)
 
     /** Generates and returns a [String] representation of this [EntityScanPhysicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.columns.joinToString(",") { it.name.toString() }}]"

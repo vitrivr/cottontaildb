@@ -33,6 +33,7 @@ import org.vitrivr.cottontail.utilities.extensions.write
 import java.nio.file.Path
 import java.util.*
 import java.util.concurrent.locks.StampedLock
+import kotlin.math.min
 
 /**
  * Represents a single entity in the Cottontail DB data model. An [Entity] has name that must remain
@@ -47,7 +48,7 @@ import java.util.concurrent.locks.StampedLock
  * @see EntityTx
  *
  * @author Ralph Gasser
- * @version 1.6.0
+ * @version 1.7.0
  */
 class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1) : Entity {
     /**
@@ -267,9 +268,21 @@ class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
         }
 
-        override fun scan(columns: Array<ColumnDef<*>>): Iterator<Record> = scan(columns, 1L..this.maxTupleId())
+        override fun scan(columns: Array<ColumnDef<*>>): Iterator<Record> = scan(columns, 0, 1)
 
-        override fun scan(columns: Array<ColumnDef<*>>, range: LongRange): Iterator<Record> = object : Iterator<Record> {
+        override fun scan(columns: Array<ColumnDef<*>>, partitionIndex: Int, partitions: Int): Iterator<Record> = object : Iterator<Record> {
+
+            /** The [LongRange] to iterate over. */
+            private val range: LongRange
+
+            init {
+                val maximum: Long = this@Tx.maxTupleId()
+                val partitionSize: Long = Math.floorDiv(maximum, partitions.toLong()) + 1L
+                val start: Long = partitionIndex * partitionSize
+                val end = min(((partitionIndex + 1) * partitionSize), maximum)
+                this.range = start until end
+            }
+
             /** The wrapped [Iterator] of the first (primary) column. */
             private val wrapped = this@Tx.withReadLock {
                 (this@Tx.context.getTx(this@EntityV1.columns.values.first()) as ColumnTx<*>).scan(
