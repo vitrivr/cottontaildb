@@ -137,13 +137,13 @@ class DefaultEntity(override val path: Path, override val parent: Schema) : Enti
     override val version: DBOVersion
         get() = DBOVersion.V2_0
 
-    /** Number of [Column]s in this [DefaultEntity]. */
-    override val numberOfColumns: Int
-        get() = this.columns.size
-
     /** The [EntityStatistics] in this [DefaultEntity]. This is a snapshot and may change immediately. */
     override val statistics: EntityStatistics
         get() = this.statisticsField.get()
+
+    /** Number of [Column]s in this [DefaultEntity]. */
+    override val numberOfColumns: Int
+        get() = this.columns.size
 
     /** Number of entries in this [DefaultEntity]. This is a snapshot and may change immediately. */
     override val numberOfRows: Long

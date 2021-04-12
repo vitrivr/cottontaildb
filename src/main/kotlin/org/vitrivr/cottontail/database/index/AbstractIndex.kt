@@ -17,11 +17,11 @@ import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import org.vitrivr.cottontail.utilities.extensions.write
 import org.vitrivr.cottontail.utilities.io.TxFileUtilities
+
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.*
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.StampedLock
 
 /**
@@ -132,18 +132,6 @@ abstract class AbstractIndex(final override val path: Path, final override val p
         /** Reference to the [AbstractIndex] */
         override val dbo: AbstractIndex
             get() = this@AbstractIndex
-
-        /** The simple [Name]s of the [AbstractIndex] that underpins this [IndexTx] */
-        override val name: Name
-            get() = this@AbstractIndex.name
-
-        /** The [ColumnDef]s covered by the [AbstractIndex] that underpins this [IndexTx]. */
-        override val columns: Array<ColumnDef<*>>
-            get() = this@AbstractIndex.columns
-
-        /** The [ColumnDef]s returned by the [AbstractIndex] that underpins this [IndexTx]. */
-        override val produces: Array<ColumnDef<*>>
-            get() = this@AbstractIndex.produces
 
         /** The order in which results of this [IndexTx] appear. Empty array that there is no particular order. */
         override val order: Array<Pair<ColumnDef<*>, SortOrder>>

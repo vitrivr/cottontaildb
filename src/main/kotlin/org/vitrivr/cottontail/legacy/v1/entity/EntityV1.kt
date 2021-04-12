@@ -11,6 +11,7 @@ import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.column.ColumnTx
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.entity.EntityTx
+import org.vitrivr.cottontail.database.entity.EntityTxSnapshot
 import org.vitrivr.cottontail.database.general.AbstractTx
 import org.vitrivr.cottontail.database.general.DBOVersion
 import org.vitrivr.cottontail.database.general.TxAction
@@ -181,7 +182,10 @@ class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1
             get() = this@EntityV1
 
         /** The [TxSnapshot] of this [SchemaTx]. */
-        override val snapshot = object : TxSnapshot {
+        override val snapshot = object : EntityTxSnapshot {
+            override val statistics: EntityStatistics
+                get() = throw UnsupportedOperationException("Operation not supported on legacy DBO.")
+            override val indexes: MutableMap<Name.IndexName, Index> = mutableMapOf()
             override val actions: List<TxAction> = emptyList()
             override fun commit() = throw UnsupportedOperationException("Operation not supported on legacy DBO.")
             override fun rollback() = throw UnsupportedOperationException("Operation not supported on legacy DBO.")

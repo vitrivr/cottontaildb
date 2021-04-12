@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.database.queries.planning.nodes.physical.sources
 
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.Entity
+import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
@@ -15,9 +16,9 @@ import java.lang.Math.floorDiv
  * A [NullaryPhysicalOperatorNode] that formalizes a scan of a physical [Entity] in Cottontail DB on a given range.
  *
  * @author Ralph Gasser
- * @version 2.1.0
+ * @version 2.1.1
  */
-class RangedEntityScanPhysicalOperatorNode(override val groupId: Int, val entity: Entity, override val columns: Array<ColumnDef<*>>, val partitionIndex: Int, val partitions: Int) : NullaryPhysicalOperatorNode() {
+class RangedEntityScanPhysicalOperatorNode(override val groupId: Int, val entity: EntityTx, override val columns: Array<ColumnDef<*>>, val partitionIndex: Int, val partitions: Int) : NullaryPhysicalOperatorNode() {
 
 
     companion object {
@@ -29,8 +30,8 @@ class RangedEntityScanPhysicalOperatorNode(override val groupId: Int, val entity
         get() = NODE_NAME
 
 
-    override val outputSize: Long = floorDiv(this.entity.numberOfRows, this.partitions.toLong())
-    override val statistics: RecordStatistics = this.entity.statistics
+    override val outputSize: Long = floorDiv(this.entity.count(), this.partitions.toLong())
+    override val statistics: RecordStatistics = this.entity.snapshot.statistics
     override val executable: Boolean = true
     override val canBePartitioned: Boolean = false
     override val cost = Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_MEMORY_ACCESS) * this.outputSize * this.columns.map {

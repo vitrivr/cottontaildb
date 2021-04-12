@@ -182,7 +182,7 @@ class GrpcQueryBinder constructor(val catalogue: Catalogue) {
             if (root !is EntityScanLogicalOperatorNode) {
                 throw QueryException.QueryBindException("Failed to bind query. UPDATES only support entity sources as FROM-clause.")
             }
-            val entity: Entity = root.entity
+            val entity: EntityTx = root.entity
 
             /* Parse values to update. */
             val values = update.updatesList.map {
@@ -221,7 +221,7 @@ class GrpcQueryBinder constructor(val catalogue: Catalogue) {
         if (from !is EntityScanLogicalOperatorNode) {
             throw QueryException.QueryBindException("Failed to bind query. UPDATES only support entity sources as FROM-clause.")
         }
-        val entity: Entity = from.entity
+        val entity: EntityTx = from.entity
         var root: OperatorNode.Logical = from
 
         /* Create WHERE-clause. */
@@ -249,13 +249,13 @@ class GrpcQueryBinder constructor(val catalogue: Catalogue) {
                 val entity = parseAndBindEntity(from.scan.entity, context)
                 val entityTx = context.txn.getTx(entity) as EntityTx
                 val columns = entityTx.listColumns().map { it.columnDef }.toTypedArray()
-                EntityScanLogicalOperatorNode(context.nextGroupId(), entity = entity, columns = columns)
+                EntityScanLogicalOperatorNode(context.nextGroupId(), entity = entityTx, columns = columns)
             }
             CottontailGrpc.From.FromCase.SAMPLE -> {
                 val entity = parseAndBindEntity(from.scan.entity, context)
                 val entityTx = context.txn.getTx(entity) as EntityTx
                 val columns = entityTx.listColumns().map { it.columnDef }.toTypedArray()
-                EntitySampleLogicalOperatorNode(context.nextGroupId(), entity = entity, columns = columns, size = from.sample.size, seed = from.sample.seed)
+                EntitySampleLogicalOperatorNode(context.nextGroupId(), entity = entityTx, columns = columns, size = from.sample.size, seed = from.sample.seed)
             }
             CottontailGrpc.From.FromCase.SUBSELECT -> bind(from.subSelect, context) /* Sub-select. */
             else -> throw QueryException.QuerySyntaxException("Invalid or missing FROM-clause in query.")

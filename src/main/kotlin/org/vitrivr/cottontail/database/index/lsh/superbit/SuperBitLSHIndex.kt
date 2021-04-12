@@ -161,7 +161,7 @@ class SuperBitLSHIndex<T : VectorValue<*>>(
 
             /* for every record get bucket-signature, then iterate over stages and add tid to the list of that bucket of that stage */
             tx.scan(this@SuperBitLSHIndex.columns).forEach {
-                val value = it[this.columns[0]] ?: throw DatabaseException("Could not find column for entry in index $this") // todo: what if more columns? This should never happen -> need to change type and sort this out on index creation
+                val value = it[this.dbo.columns[0]] ?: throw DatabaseException("Could not find column for entry in index $this") // todo: what if more columns? This should never happen -> need to change type and sort this out on index creation
                 if (value is VectorValue<*>) {
                     val buckets = lsh.hash(value)
                     (buckets zip local).forEach { (bucket, map) ->
@@ -286,7 +286,7 @@ class SuperBitLSHIndex<T : VectorValue<*>>(
          */
         private fun acquireSpecimen(tx: EntityTx): VectorValue<*>? {
             for (index in 0L until tx.maxTupleId()) {
-                val read = tx.read(index, this@SuperBitLSHIndex.columns)[this.columns[0]]
+                val read = tx.read(index, this@SuperBitLSHIndex.columns)[this.dbo.columns[0]]
                 if (read is VectorValue<*>) {
                     return read
                 }
