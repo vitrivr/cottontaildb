@@ -469,7 +469,7 @@ class DefaultEntity(override val path: Path, override val parent: Schema) : Enti
                     val partitionSize: Long = Math.floorDiv(maximum, partitions.toLong()) + 1L
                     val start: Long = partitionIndex * partitionSize
                     val end = min(((partitionIndex + 1) * partitionSize), maximum)
-                    this.range = start until end
+                    this.range = start..end
                 }
 
                 /** List of [ColumnTx]s used by  this [Iterator]. */
