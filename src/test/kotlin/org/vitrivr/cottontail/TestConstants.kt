@@ -1,7 +1,6 @@
 package org.vitrivr.cottontail
 
 import org.vitrivr.cottontail.config.Config
-import org.vitrivr.cottontail.config.MapDBConfig
 import java.nio.file.Paths
 
 /**
@@ -18,12 +17,11 @@ object TestConstants {
     /** [Config] used for executing tests. */
     val config = Config(
         root = Paths.get("./cottontaildb-test"),
-        cli = false,
-        mapdb = MapDBConfig(enableMmap = false, false)
+        cli = false
     )
 
     /** General size of collections used for testing. */
-    const val collectionSize: Int = 100_000
+    const val collectionSize: Int = 50_000
 
     /** Maximum dimension used for vector generation. */
     const val smallVectorMaxDimension: Int = 128
