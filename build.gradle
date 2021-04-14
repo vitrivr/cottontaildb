@@ -16,7 +16,7 @@ apply plugin: 'com.github.johnrengelman.shadow'
 
 /* Group and SNAPSHOT version. Update version for each major and minor release. */
 group 'org.vitrivr'
-version '0.12.5'
+version '0.12.6-SNAPSHOT'
 
 /* General application attributes. */
 mainClassName = 'org.vitrivr.cottontail.CottontailKt'
@@ -170,6 +170,11 @@ idea {
         downloadJavadoc = true
         excludeDirs += file('cottontaildb-data')
     }
+}
+
+// used to pass flags such as windows to test-runner
+test {
+    systemProperties(System.getProperties())
 }
 
 tasks.withType(Test) {

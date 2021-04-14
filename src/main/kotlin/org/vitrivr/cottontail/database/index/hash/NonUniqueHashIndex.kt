@@ -8,6 +8,7 @@ import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.DefaultEntity
 import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.events.DataChangeEvent
+import org.vitrivr.cottontail.database.general.TxAction
 import org.vitrivr.cottontail.database.general.TxSnapshot
 import org.vitrivr.cottontail.database.index.*
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
@@ -110,6 +111,8 @@ class NonUniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path
 
         /** The default [TxSnapshot] of this [IndexTx]. Can be overriden! */
         override val snapshot = object : TxSnapshot {
+            override val actions: List<TxAction> = emptyList()
+
             override fun commit() {
                 for (c in this@Tx.mappingsCache) {
                     this@NonUniqueHashIndex.map.compute(c.key) { _, v ->
@@ -127,6 +130,8 @@ class NonUniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path
                 mappingsCache.clear()
                 this@NonUniqueHashIndex.store.rollback()
             }
+
+            override fun record(action: TxAction): Boolean = false
         }
 
         /** Internal cache that keeps Value to TupleId mappings in memory until commit. */
@@ -179,8 +184,8 @@ class NonUniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path
 
             /* Recreate entries. */
             this@NonUniqueHashIndex.map.clear()
-            entityTx.scan(this.columns).forEach { record ->
-                val value = record[this.columns[0]] ?: throw TxException.TxValidationException(
+            entityTx.scan(this.dbo.columns).forEach { record ->
+                val value = record[this.dbo.columns[0]] ?: throw TxException.TxValidationException(
                     this.context.txId,
                     "A value cannot be null for instances of NonUniqueHashIndex ${this@NonUniqueHashIndex.name} but given value is (value = null, tupleId = ${record.tupleId})."
                 )
@@ -197,23 +202,23 @@ class NonUniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path
         override fun update(event: DataChangeEvent) = this.withWriteLock {
             when (event) {
                 is DataChangeEvent.InsertDataChangeEvent -> {
-                    val value = event.inserts[this.columns[0]]
+                    val value = event.inserts[this.dbo.columns[0]]
                     if (value != null) {
                         this.addMapping(value, event.tupleId)
                     }
                 }
                 is DataChangeEvent.UpdateDataChangeEvent -> {
-                    val old = event.updates[this.columns[0]]?.first
+                    val old = event.updates[this.dbo.columns[0]]?.first
                     if (old != null) {
                         this.removeMapping(old, event.tupleId)
                     }
-                    val new = event.updates[this.columns[0]]?.second
+                    val new = event.updates[this.dbo.columns[0]]?.second
                     if (new != null) {
                         this.addMapping(new, event.tupleId)
                     }
                 }
                 is DataChangeEvent.DeleteDataChangeEvent -> {
-                    val old = event.deleted[this.columns[0]]
+                    val old = event.deleted[this.dbo.columns[0]]
                     if (old != null) {
                         this.removeMapping(old, event.tupleId)
                     }
@@ -294,7 +299,7 @@ class NonUniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path
              */
             override fun next(): Record {
                 val next = this.elements.poll()
-                return StandaloneRecord(next.first, this@Tx.columns, arrayOf(next.second))
+                return StandaloneRecord(next.first, this@Tx.dbo.columns, arrayOf(next.second))
             }
         }
 

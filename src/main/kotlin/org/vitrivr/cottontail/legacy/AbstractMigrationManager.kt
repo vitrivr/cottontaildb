@@ -17,12 +17,11 @@ import org.vitrivr.cottontail.execution.TransactionManager.Transaction
 import org.vitrivr.cottontail.execution.TransactionStatus
 import org.vitrivr.cottontail.execution.TransactionType
 import org.vitrivr.cottontail.model.basics.TransactionId
-import org.vitrivr.cottontail.utilities.io.FileUtilities
+import org.vitrivr.cottontail.utilities.io.TxFileUtilities
 import java.io.BufferedWriter
 import java.nio.file.*
 import java.util.*
 import java.util.concurrent.atomic.AtomicLong
-import kotlin.math.min
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTime
 
@@ -101,18 +100,14 @@ abstract class AbstractMigrationManager(val batchSize: Int, logFile: Path) : Mig
                 context.commit()
 
                 /* Swap folders. */
-                Files.move(
-                    config.root,
-                    config.root.parent.resolve("${config.root.fileName}~old"),
-                    StandardCopyOption.ATOMIC_MOVE
-                )
+                Files.move(config.root, config.root.parent.resolve("${config.root.fileName}~old"), StandardCopyOption.ATOMIC_MOVE)
                 Files.move(migratedDatabaseRoot, config.root, StandardCopyOption.ATOMIC_MOVE)
             } catch (e: Throwable) {
                 this.log("Error during data migration: ${e.message}\n")
                 context.rollback()
 
                 /* Delete destination (Cleanup). */
-                FileUtilities.deleteRecursively(dstCatalogue.path)
+                TxFileUtilities.delete(dstCatalogue.path)
             } finally {
                 /* Close catalogues. */
                 srcCatalogue.close()
@@ -186,13 +181,12 @@ abstract class AbstractMigrationManager(val batchSize: Int, logFile: Path) : Mig
         /* Start migrating column data. */
         if (count > 0) {
             var i = 0L
-            val p = Math.floorDiv(maxTupleId, this.batchSize) + 1
+            val p = Math.floorDiv(maxTupleId, this.batchSize).toInt()
             for (j in 0 until p) {
-                val range = (j * this.batchSize) until min((j + 1) * this.batchSize, maxTupleId)
                 val context = MigrationContext()
                 srcEntityTx = context.getTx(srcEntity) as EntityTx
                 destEntityTx = context.getTx(destEntity) as EntityTx
-                srcEntityTx.scan(columns, range).forEach { r ->
+                srcEntityTx.scan(columns, j, p).forEach { r ->
                     this.logStdout("---- Migrating data for ${srcEntity.name}... (${++i} / $count)\r")
                     destEntityTx.insert(r)
                 }
