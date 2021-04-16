@@ -192,7 +192,7 @@ class PQIndex(path: Path, parent: DefaultEntity, config: PQIndexConfig? = null) 
 
             /* ... and generate signatures. */
             val signatureMap = Object2ObjectOpenHashMap<PQSignature, LinkedList<TupleId>>(txn.count().toInt())
-            txn.scan(this.columns).forEach { rec ->
+            txn.scan(this.dbo.columns).forEach { rec ->
                 val value = rec[this@PQIndex.columns[0]]
                 if (value is VectorValue<*>) {
                     val sig = pq.getSignature(value)
@@ -357,7 +357,7 @@ class PQIndex(path: Path, parent: DefaultEntity, config: PQIndexConfig? = null) 
             val learningData = LinkedList<VectorValue<*>>()
             val rng = SplittableRandom(this@PQIndex.config.seed)
             val learningDataFraction = this@PQIndex.config.sampleSize.toDouble() / txn.count()
-            txn.scan(this.columns).forEach {
+            txn.scan(this.dbo.columns).forEach {
                 if (rng.nextDouble() <= learningDataFraction) {
                     val value = it[this@PQIndex.columns[0]]
                     if (value is VectorValue<*>) {

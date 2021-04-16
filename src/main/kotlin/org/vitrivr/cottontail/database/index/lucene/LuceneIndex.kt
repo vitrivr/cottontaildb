@@ -317,14 +317,14 @@ class LuceneIndex(path: Path, parent: DefaultEntity, config: LuceneIndexConfig? 
             this.ensureWriterAvailable()
             when (event) {
                 is DataChangeEvent.InsertDataChangeEvent -> {
-                    val new = event.inserts[this.columns[0]]
+                    val new = event.inserts[this.dbo.columns[0]]
                     if (new is StringValue) {
                         this.writer?.addDocument(this@LuceneIndex.documentFromValue(new, event.tupleId))
                     }
                 }
                 is DataChangeEvent.UpdateDataChangeEvent -> {
                     this.writer?.deleteDocuments(Term(TID_COLUMN, event.tupleId.toString()))
-                    val new = event.updates[this.columns[0]]?.second
+                    val new = event.updates[this.dbo.columns[0]]?.second
                     if (new is StringValue) {
                         this.writer?.addDocument(this@LuceneIndex.documentFromValue(new, event.tupleId))
                     }

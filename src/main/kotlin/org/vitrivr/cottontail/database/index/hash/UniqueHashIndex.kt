@@ -132,7 +132,7 @@ class UniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path, p
             /* Recreate entries. */
             this@UniqueHashIndex.map.clear()
             entityTx.scan(this@UniqueHashIndex.columns).forEach { record ->
-                val value = record[this.columns[0]] ?: throw TxException.TxValidationException(this.context.txId, "Value cannot be null for UniqueHashIndex ${this@UniqueHashIndex.name} given value is (value = null, tupleId = ${record.tupleId}).")
+                val value = record[this.dbo.columns[0]] ?: throw TxException.TxValidationException(this.context.txId, "Value cannot be null for UniqueHashIndex ${this@UniqueHashIndex.name} given value is (value = null, tupleId = ${record.tupleId}).")
                 if (!this.addMapping(value, record.tupleId)) {
                     throw TxException.TxValidationException(this.context.txId, "Value must be unique for UniqueHashIndex ${this@UniqueHashIndex.name} but is not (value = $value, tupleId = ${record.tupleId}).")
                 }
@@ -148,23 +148,23 @@ class UniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path, p
         override fun update(event: DataChangeEvent) = this.withWriteLock {
             when (event) {
                 is DataChangeEvent.InsertDataChangeEvent -> {
-                    val value = event.inserts[this.columns[0]]
+                    val value = event.inserts[this.dbo.columns[0]]
                     if (value != null) {
                         this.addMapping(value, event.tupleId)
                     }
                 }
                 is DataChangeEvent.UpdateDataChangeEvent -> {
-                    val old = event.updates[this.columns[0]]?.first
+                    val old = event.updates[this.dbo.columns[0]]?.first
                     if (old != null) {
                         this.removeMapping(old)
                     }
-                    val new = event.updates[this.columns[0]]?.second
+                    val new = event.updates[this.dbo.columns[0]]?.second
                     if (new != null) {
                         this.addMapping(new, event.tupleId)
                     }
                 }
                 is DataChangeEvent.DeleteDataChangeEvent -> {
-                    val old = event.deleted[this.columns[0]]
+                    val old = event.deleted[this.dbo.columns[0]]
                     if (old != null) {
                         this.removeMapping(old)
                     }

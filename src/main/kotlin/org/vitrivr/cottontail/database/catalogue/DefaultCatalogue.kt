@@ -14,12 +14,10 @@ import org.vitrivr.cottontail.model.exceptions.TxException
 import org.vitrivr.cottontail.utilities.extensions.read
 import org.vitrivr.cottontail.utilities.extensions.write
 import org.vitrivr.cottontail.utilities.io.TxFileUtilities
-
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 import java.util.*
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.StampedLock
 
 /**

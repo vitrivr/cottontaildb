@@ -22,7 +22,6 @@ import java.io.BufferedWriter
 import java.nio.file.*
 import java.util.*
 import java.util.concurrent.atomic.AtomicLong
-import kotlin.math.min
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTime
 
@@ -182,13 +181,12 @@ abstract class AbstractMigrationManager(val batchSize: Int, logFile: Path) : Mig
         /* Start migrating column data. */
         if (count > 0) {
             var i = 0L
-            val p = Math.floorDiv(maxTupleId, this.batchSize) + 1
+            val p = Math.floorDiv(maxTupleId, this.batchSize).toInt()
             for (j in 0 until p) {
-                val range = (j * this.batchSize) until min((j + 1) * this.batchSize, maxTupleId)
                 val context = MigrationContext()
                 srcEntityTx = context.getTx(srcEntity) as EntityTx
                 destEntityTx = context.getTx(destEntity) as EntityTx
-                srcEntityTx.scan(columns, range).forEach { r ->
+                srcEntityTx.scan(columns, j, p).forEach { r ->
                     this.logStdout("---- Migrating data for ${srcEntity.name}... (${++i} / $count)\r")
                     destEntityTx.insert(r)
                 }

@@ -2,7 +2,6 @@ package org.vitrivr.cottontail.utilities.io
 
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.*
@@ -58,7 +57,9 @@ object TxFileUtilities {
      */
     fun delete(path: Path) {
         if (Files.exists(path)) {
-            Files.walk(path).sorted(Comparator.reverseOrder()).forEach { Files.delete(it) }
+            Files.walk(path).sorted(Comparator.reverseOrder()).forEach {
+                Files.delete(it)
+            }
         } else {
             this.logger.warn("Noting to delete at $path.")
         }

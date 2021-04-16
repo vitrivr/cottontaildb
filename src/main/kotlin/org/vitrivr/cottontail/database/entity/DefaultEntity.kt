@@ -32,8 +32,8 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 import java.util.*
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.StampedLock
+import kotlin.math.min
 
 /**
  * Represents a single entity in the Cottontail DB data model. An [DefaultEntity] has name that must remain unique within a [DefaultSchema].
@@ -137,13 +137,13 @@ class DefaultEntity(override val path: Path, override val parent: Schema) : Enti
     override val version: DBOVersion
         get() = DBOVersion.V2_0
 
-    /** Number of [Column]s in this [DefaultEntity]. */
-    override val numberOfColumns: Int
-        get() = this.columns.size
-
     /** The [EntityStatistics] in this [DefaultEntity]. This is a snapshot and may change immediately. */
     override val statistics: EntityStatistics
         get() = this.statisticsField.get()
+
+    /** Number of [Column]s in this [DefaultEntity]. */
+    override val numberOfColumns: Int
+        get() = this.columns.size
 
     /** Number of entries in this [DefaultEntity]. This is a snapshot and may change immediately. */
     override val numberOfRows: Long
@@ -408,7 +408,7 @@ class DefaultEntity(override val path: Path, override val parent: Schema) : Enti
 
             /* Remove entity from local snapshot. */
             this.snapshot.indexes.remove(name)
-            this.snapshot.record(DropIndexTxAction(index))
+            this.snapshot.record(DropIndexTxAction(name))
             Unit
         }
 
@@ -424,9 +424,8 @@ class DefaultEntity(override val path: Path, override val parent: Schema) : Enti
             }
             val columns = this.listColumns().map { it.columnDef }.toTypedArray()
             val map = Object2ObjectOpenHashMap<ColumnDef<*>, Value>(columns.size)
-            val range = 0L..this.maxTupleId()
             this.snapshot.statistics.reset()
-            this.scan(columns, range).forEach { r ->
+            this.scan(columns).forEach { r ->
                 r.forEach { columnDef, value -> map[columnDef] = value }
                 val event = DataChangeEvent.InsertDataChangeEvent(this@DefaultEntity, r.tupleId, map) /* Fake data change event for update. */
                 this.snapshot.statistics.consume(event)
@@ -447,19 +446,31 @@ class DefaultEntity(override val path: Path, override val parent: Schema) : Enti
          *
          * @return [Iterator]
          */
-        override fun scan(columns: Array<ColumnDef<*>>): Iterator<Record> = scan(columns, 1L..this.maxTupleId())
+        override fun scan(columns: Array<ColumnDef<*>>): Iterator<Record> = scan(columns, 0, 1)
 
         /**
          * Creates and returns a new [Iterator] for this [DefaultEntity.Tx] that returns all [TupleId]s
          * contained within the surrounding [DefaultEntity] and a certain range.
          *
          * @param columns The [ColumnDef]s that should be scanned.
-         * @param range The [LongRange] that should be scanned.
+         * @param partitionIndex The [partitionIndex] for this [scan] call.
+         * @param partitions The total number of partitions for this [scan] call.
          *
          * @return [Iterator]
          */
-        override fun scan(columns: Array<ColumnDef<*>>, range: LongRange) = this@Tx.withReadLock {
+        override fun scan(columns: Array<ColumnDef<*>>, partitionIndex: Int, partitions: Int) = this@Tx.withReadLock {
             object : Iterator<Record> {
+
+                /** The [LongRange] to iterate over. */
+                private val range: LongRange
+
+                init {
+                    val maximum: Long = this@Tx.maxTupleId()
+                    val partitionSize: Long = Math.floorDiv(maximum, partitions.toLong()) + 1L
+                    val start: Long = partitionIndex * partitionSize
+                    val end = min(((partitionIndex + 1) * partitionSize), maximum)
+                    this.range = start..end
+                }
 
                 /** List of [ColumnTx]s used by  this [Iterator]. */
                 private val txs = columns.map {
@@ -468,7 +479,7 @@ class DefaultEntity(override val path: Path, override val parent: Schema) : Enti
                 }
 
                 /** The wrapped [Iterator] of the first column. */
-                private val wrapped = this.txs.first().scan(range)
+                private val wrapped = this.txs.first().scan(this.range)
 
                 /**
                  * Returns the next element in the iteration.
@@ -616,16 +627,12 @@ class DefaultEntity(override val path: Path, override val parent: Schema) : Enti
          *
          * @param index [Index] that has been dropped.
          */
-        inner class DropIndexTxAction(private val index: Index) : TxAction {
+        inner class DropIndexTxAction(private val index: Name.IndexName) : TxAction {
             override fun commit() {
-                this.index.close()
-                this@DefaultEntity.indexes.remove(this.index.name)
-                if (Files.exists(this.index.path)) {
-                    /* Case 1: Pre-existing index. */
-                    TxFileUtilities.delete(this.index.path)
-                } else if (Files.exists(TxFileUtilities.plainPath(this.index.path))) {
-                    /* Case 2: Index that was created as part of this Tx. */
-                    TxFileUtilities.delete(TxFileUtilities.plainPath(this.index.path))
+                val index = this@DefaultEntity.indexes.remove(this.index) ?: throw IllegalStateException("Failed to drop index $index because it is unknown to the enclosing entity. This is a programmer's error!")
+                index.close()
+                if (Files.exists(index.path)) {
+                    TxFileUtilities.delete(index.path)
                 }
             }
 
