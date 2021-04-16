@@ -181,7 +181,7 @@ class DefaultSchema(override val path: Path, override val parent: Catalogue) : S
                     } catch (e: Throwable) {
                         this@Tx.status = TxStatus.ERROR
                         this@DefaultSchema.store.rollback()
-                        throw DatabaseException("Failed to commit schema ${this@DefaultSchema.name} due to a storage exception: ${e.message}")
+                        throw DatabaseException("Failed to commit schema ${this@DefaultSchema.name} due to an exception: ${e.message}", e)
                     }
                 }
 
