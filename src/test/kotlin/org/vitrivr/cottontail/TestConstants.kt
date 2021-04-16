@@ -2,6 +2,7 @@ package org.vitrivr.cottontail
 
 import org.vitrivr.cottontail.config.Config
 import java.nio.file.Paths
+import java.util.*
 
 /**
  * Some constants used during execution of unit tests.
@@ -10,16 +11,6 @@ import java.nio.file.Paths
  * @version 1.1.0
  */
 object TestConstants {
-
-    init {
-    }
-
-    /** [Config] used for executing tests. */
-    val config = Config(
-        root = Paths.get("./cottontaildb-test"),
-        cli = false
-    )
-
     /** General size of collections used for testing. */
     const val collectionSize: Int = 50_000
 
@@ -31,4 +22,14 @@ object TestConstants {
 
     /** Maximum dimension used for vector generation. */
     const val largeVectorMaxDimension: Int = 2048
+
+    /**
+     * Creates a new test configuration.
+     *
+     * @return [Config]
+     */
+    fun testConfig() = Config(
+        root = Paths.get("./cottontaildb-test/${UUID.randomUUID()}"),
+        cli = false
+    )
 }

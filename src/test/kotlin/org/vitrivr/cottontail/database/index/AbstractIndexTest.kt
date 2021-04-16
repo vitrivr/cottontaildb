@@ -5,6 +5,7 @@ import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.TestInstance
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.TestConstants
+import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.database.catalogue.CatalogueTest
 import org.vitrivr.cottontail.database.catalogue.CatalogueTx
 import org.vitrivr.cottontail.database.catalogue.DefaultCatalogue
@@ -26,7 +27,7 @@ import java.util.concurrent.ThreadPoolExecutor
 /**
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.1.1
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 abstract class AbstractIndexTest {
@@ -35,12 +36,15 @@ abstract class AbstractIndexTest {
         private val LOGGER = LoggerFactory.getLogger(AbstractIndexTest::class.java)
     }
 
+    /** [Config] used for this [AbstractIndexTest]. */
+    private val config: Config = TestConstants.testConfig()
+
     init {
         /* Assure that root folder is empty! */
-        if (Files.exists(TestConstants.config.root)) {
-            TxFileUtilities.delete(TestConstants.config.root)
+        if (Files.exists(this.config.root)) {
+            TxFileUtilities.delete(this.config.root)
         }
-        Files.createDirectories(TestConstants.config.root)
+        Files.createDirectories(this.config.root)
     }
 
     /** [Name.SchemaName] of the test schema. */
@@ -65,13 +69,13 @@ abstract class AbstractIndexTest {
     protected val indexParams: Map<String, String> = emptyMap()
 
     /** Catalogue used for testing. */
-    protected var catalogue: DefaultCatalogue = DefaultCatalogue(TestConstants.config)
+    protected var catalogue: DefaultCatalogue = DefaultCatalogue(this.config)
 
     /** The [TransactionManager] used for this [CatalogueTest] instance. */
     protected val manager = TransactionManager(
         Executors.newFixedThreadPool(1) as ThreadPoolExecutor,
-        TestConstants.config.execution.transactionTableSize,
-        TestConstants.config.execution.transactionHistorySize
+        this.config.execution.transactionTableSize,
+        this.config.execution.transactionHistorySize
     )
 
     /**
@@ -98,7 +102,7 @@ abstract class AbstractIndexTest {
     @AfterAll
     protected fun teardown() {
         this.catalogue.close()
-        TxFileUtilities.delete(TestConstants.config.root)
+        TxFileUtilities.delete(this.config.root)
     }
 
     /**

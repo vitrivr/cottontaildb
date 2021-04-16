@@ -3,6 +3,7 @@ package org.vitrivr.cottontail.storage.serialization
 import org.junit.jupiter.api.*
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.TestConstants
+import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.database.catalogue.CatalogueTest
 import org.vitrivr.cottontail.database.catalogue.CatalogueTx
 import org.vitrivr.cottontail.database.catalogue.DefaultCatalogue
@@ -29,19 +30,22 @@ import java.util.concurrent.ThreadPoolExecutor
  * An abstract class for test cases that test for correctness of [Value] serialization
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.2.1
  */
 abstract class AbstractSerializationTest {
     companion object {
         protected val LOGGER = LoggerFactory.getLogger(AbstractSerializationTest::class.java)
     }
 
+    /** [Config] used for this [AbstractSerializationTest]. */
+    private val config: Config = TestConstants.testConfig()
+
     init {
         /* Assure that root folder is empty! */
-        if (Files.exists(TestConstants.config.root)) {
-            TxFileUtilities.delete(TestConstants.config.root)
+        if (Files.exists(this.config.root)) {
+            TxFileUtilities.delete(this.config.root)
         }
-        Files.createDirectories(TestConstants.config.root)
+        Files.createDirectories(this.config.root)
     }
 
     /** Random seed used by this [AbstractSerializationTest]. */
@@ -54,7 +58,7 @@ abstract class AbstractSerializationTest {
     protected val entityName = this.schemaName.entity("serialization")
 
     /** The [DefaultCatalogue] instance used for the [AbstractSerializationTest]. */
-    private val catalogue: DefaultCatalogue = DefaultCatalogue(TestConstants.config)
+    private val catalogue: DefaultCatalogue = DefaultCatalogue(this.config)
 
     /** Random seed used by this [AbstractSerializationTest]. */
     protected var random = SplittableRandom(this.seed)
@@ -62,8 +66,8 @@ abstract class AbstractSerializationTest {
     /** The [TransactionManager] used for this [CatalogueTest] instance. */
     protected val manager = TransactionManager(
         Executors.newFixedThreadPool(1) as ThreadPoolExecutor,
-        TestConstants.config.execution.transactionTableSize,
-        TestConstants.config.execution.transactionHistorySize
+        this.config.execution.transactionTableSize,
+        this.config.execution.transactionHistorySize
     )
 
     /** The [ColumnDef]s used for the [AbstractSerializationTest]. */
@@ -94,7 +98,7 @@ abstract class AbstractSerializationTest {
     @AfterEach
     fun cleanup() {
         this.catalogue.close()
-        TxFileUtilities.delete(TestConstants.config.root)
+        TxFileUtilities.delete(this.config.root)
     }
 
 

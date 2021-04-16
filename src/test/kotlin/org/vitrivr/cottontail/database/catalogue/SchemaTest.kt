@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.vitrivr.cottontail.TestConstants
+import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.column.ColumnEngine
 import org.vitrivr.cottontail.database.entity.DefaultEntity
@@ -26,7 +27,7 @@ import java.util.concurrent.ThreadPoolExecutor
  * A set of unit tests to test basic [Schema] functionality.
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.1.1
  */
 class SchemaTest {
     /** [Name.SchemaName] of the test schema. */
@@ -39,28 +40,31 @@ class SchemaTest {
         this.schemaName.entity("three")
     )
 
+    /** [Config] used for this [SchemaTest]. */
+    private val config: Config = TestConstants.testConfig()
+
     init {
         /* Assure that root folder is empty! */
-        if (Files.exists(TestConstants.config.root)) {
-            TxFileUtilities.delete(TestConstants.config.root)
+        if (Files.exists(this.config.root)) {
+            TxFileUtilities.delete(this.config.root)
         }
-        Files.createDirectories(TestConstants.config.root)
+        Files.createDirectories(this.config.root)
     }
 
     /** The [TransactionManager] used for this [CatalogueTest] instance. */
     private val manager = TransactionManager(
         Executors.newFixedThreadPool(1) as ThreadPoolExecutor,
-        TestConstants.config.execution.transactionTableSize,
-        TestConstants.config.execution.transactionHistorySize
+        this.config.execution.transactionTableSize,
+        this.config.execution.transactionHistorySize
     )
 
     /** The [DefaultCatalogue] object to run the test with. */
-    private val catalogue: DefaultCatalogue = DefaultCatalogue(TestConstants.config)
+    private val catalogue: DefaultCatalogue = DefaultCatalogue(this.config)
 
     @AfterEach
     fun teardown() {
         this.catalogue.close()
-        TxFileUtilities.delete(TestConstants.config.root)
+        TxFileUtilities.delete(this.config.root)
     }
 
     /**
@@ -130,9 +134,10 @@ class SchemaTest {
             schemaTx1.dropEntity(entityNames[1])
 
             /* Create new entity with the same name. */
-            schemaTx1.createEntity(entityNames[1],
-                    ColumnDef(entityNames[1].column("id1"), Type.Long) to ColumnEngine.MAPDB,
-                    ColumnDef(entityNames[1].column("id2"), Type.Int) to ColumnEngine.MAPDB
+            schemaTx1.createEntity(
+                entityNames[1],
+                ColumnDef(entityNames[1].column("id1"), Type.Long) to ColumnEngine.MAPDB,
+                ColumnDef(entityNames[1].column("id2"), Type.Int) to ColumnEngine.MAPDB
             )
             txn1.commit()
         } catch (t: Throwable) {
