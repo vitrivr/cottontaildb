@@ -19,7 +19,7 @@ class Complex32ValueTest {
 
 
     companion object {
-        private const val DELTA = 5e-4f
+        private const val DELTA = 1e-3f
         fun isCorrect(expected: Complex, actual: Complex32Value) {
             if (actual.real.value == 0.0f) {
                 assertEquals(expected.real.toFloat(), actual.real.value)
