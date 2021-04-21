@@ -109,21 +109,25 @@ abstract class AbstractSerializationTest {
     fun test() {
         log("Starting serialization test on (${TestConstants.collectionSize} items).")
         val txn = this.manager.Transaction(TransactionType.SYSTEM)
-        val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
-        val schema = catalogueTx.schemaForName(this.schemaName)
-        val schemaTx = txn.getTx(schema) as SchemaTx
-        val entity = schemaTx.entityForName(this.entityName)
-        val entityTx = txn.getTx(entity) as EntityTx
-        val columns = this.columns.map { it.first }.toTypedArray()
-        repeat(TestConstants.collectionSize) {
-            val reference = this.nextRecord(it)
-            val retrieved = entityTx.read(it + 2L, columns) /* Map DB shift. */
-            retrieved.forEach { c, v ->
-                Assertions.assertTrue(reference[c]!!.isEqual(v!!))
+        try {
+            val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
+            val schema = catalogueTx.schemaForName(this.schemaName)
+            val schemaTx = txn.getTx(schema) as SchemaTx
+            val entity = schemaTx.entityForName(this.entityName)
+            val entityTx = txn.getTx(entity) as EntityTx
+            val columns = this.columns.map { it.first }.toTypedArray()
+            repeat(TestConstants.collectionSize) {
+                val reference = this.nextRecord(it)
+                val retrieved = entityTx.read(it.toLong(), columns) /* Map DB shift. */
+                retrieved.forEach { c, v ->
+                    Assertions.assertTrue(reference[c]!!.isEqual(v!!))
+                }
             }
+        } finally {
+            txn.rollback()
         }
-        txn.rollback()
     }
+
 
     /**
      * Resets the [SplittableRandom] for this [AbstractSerializationTest].
