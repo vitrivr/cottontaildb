@@ -1,7 +1,9 @@
 package org.vitrivr.cottontail.database.index
 
+import junit.framework.Assert.fail
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.TestConstants
@@ -186,6 +188,34 @@ abstract class AbstractIndexTest {
      * Logs an information message regarding this [AbstractIndexTest].
      */
     fun log(message: String) = LOGGER.info("Index test (${this.indexType}): $message")
+
+    /**
+     * Tests for correct optimization of index.
+     */
+    @Test
+    fun optimizationCountTest() {
+        log("Optimizing entity ${this.entityName}.")
+
+        /* Create entry. */
+        val tx1 = this.manager.Transaction(TransactionType.SYSTEM)
+        val catalogueTx = tx1.getTx(this.catalogue) as CatalogueTx
+        val schema = catalogueTx.schemaForName(this.schemaName)
+        val schemaTx = tx1.getTx(schema) as SchemaTx
+        val entity = schemaTx.entityForName(this.entityName)
+        val entityTx = tx1.getTx(entity) as EntityTx
+        val preCount = entityTx.count()
+        entityTx.optimize()
+        tx1.commit()
+
+        /* Test count. */
+        val tx2 = this.manager.Transaction(TransactionType.SYSTEM)
+        val countTx = tx2.getTx(entity) as EntityTx
+        val postCount = countTx.count()
+        if (postCount != preCount) {
+            fail("optimizing caused elements to disappear")
+        }
+        countTx.commit()
+    }
 
     /**
      * Generates and returns a new [StandaloneRecord] for inserting into the database. Usually
