@@ -284,7 +284,6 @@ abstract class AbstractMigrationManager(val batchSize: Int, logFile: Path) : Mig
             this.state = TransactionStatus.FINALIZING
             this.txns.values.removeIf { txn ->
                 txn.commit()
-                txn.close()
                 true
             }
             this.state = TransactionStatus.COMMIT
@@ -298,7 +297,6 @@ abstract class AbstractMigrationManager(val batchSize: Int, logFile: Path) : Mig
             this.state = TransactionStatus.FINALIZING
             this.txns.values.forEach { txn ->
                 txn.rollback()
-                txn.close()
             }
             this.txns.clear()
             this.state = TransactionStatus.ROLLBACK

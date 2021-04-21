@@ -5,8 +5,10 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2ObjectMaps
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet
-import kotlinx.coroutines.*
+import kotlinx.coroutines.ExecutorCoroutineDispatcher
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.runBlocking
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.database.events.DataChangeEvent
 import org.vitrivr.cottontail.database.general.DBO
@@ -192,10 +194,7 @@ class TransactionManager(private val executor: ThreadPoolExecutor, transactionTa
             check(this.state === TransactionStatus.READY) { "Cannot commit transaction ${this.txId} because it is in wrong state (s = ${this.state})." }
             this.state = TransactionStatus.FINALIZING
             try {
-                this.txns.values.reversed().forEach { txn ->
-                    txn.commit()
-                    txn.close()
-                }
+                this.txns.values.reversed().forEach { txn -> txn.commit() }
             } catch (e: Throwable) {
                 LOGGER.error("An error occurred while committing transaction ${this.txId}. This is probably serious!", e)
             } finally {
@@ -216,10 +215,7 @@ class TransactionManager(private val executor: ThreadPoolExecutor, transactionTa
             check(this.state === TransactionStatus.READY || this.state === TransactionStatus.ERROR) { "Cannot rollback transaction ${this.txId} because it is in wrong state (s = ${this.state})." }
             this.state = TransactionStatus.FINALIZING
             try {
-                this.txns.values.reversed().forEach { txn ->
-                    txn.rollback()
-                    txn.close()
-                }
+                this.txns.values.reversed().forEach { txn -> txn.rollback() }
             } catch (e: Throwable) {
                 LOGGER.error("An error occurred while rolling back transaction ${this.txId}. This is probably serious!", e)
             } finally {

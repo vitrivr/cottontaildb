@@ -10,7 +10,7 @@ import org.vitrivr.cottontail.model.exceptions.TxException
  * An abstract [Tx] implementation that provides some basic functionality.
  *
  * @author Ralph Gasser
- * @version 1.3.0
+ * @version 1.4.0
  */
 abstract class AbstractTx(override val context: TransactionContext) : Tx {
     /** Flag indicating whether or not this [IndexTx] was closed */
@@ -28,8 +28,9 @@ abstract class AbstractTx(override val context: TransactionContext) : Tx {
     final override fun commit() {
         if (this.status == TxStatus.DIRTY) {
             this.snapshot.commit()
-            this.status = TxStatus.CLEAN
         }
+        this.status = TxStatus.CLOSED
+        this.cleanup()
     }
 
     /**
@@ -42,20 +43,9 @@ abstract class AbstractTx(override val context: TransactionContext) : Tx {
     final override fun rollback() {
         if (this.status == TxStatus.DIRTY || this.status == TxStatus.ERROR) {
             this.snapshot.rollback()
-            this.status = TxStatus.CLEAN
         }
-    }
-
-    /**
-     * Closes this [AbstractTx]. If there are uncommitted changes, these changes will be rolled back.
-     * Closed [AbstractTx] cannot be used anymore!
-     */
-    final override fun close() {
-        if (this.status != TxStatus.CLOSED) {
-            this.rollback()
-            this.cleanup()
-            this.status = TxStatus.CLOSED
-        }
+        this.status = TxStatus.CLOSED
+        this.cleanup()
     }
 
     /**
