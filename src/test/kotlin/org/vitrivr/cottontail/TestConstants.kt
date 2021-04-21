@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail
 
 import org.vitrivr.cottontail.config.Config
-import java.nio.file.Paths
+import java.nio.file.Files
 import java.util.*
 
 /**
@@ -29,7 +29,7 @@ object TestConstants {
      * @return [Config]
      */
     fun testConfig() = Config(
-        root = Paths.get("./cottontaildb-test/${UUID.randomUUID()}"),
+        root = Files.createTempDirectory("cottontaildb-test-${UUID.randomUUID()}"),
         cli = false
     )
 }
