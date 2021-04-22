@@ -26,11 +26,16 @@ abstract class AbstractTx(override val context: TransactionContext) : Tx {
      * actual commit.
      */
     final override fun commit() {
-        if (this.status == TxStatus.DIRTY) {
-            this.snapshot.commit()
+        try {
+            if (this.status == TxStatus.DIRTY) {
+                this.snapshot.commit()
+            } else if (this.status == TxStatus.ERROR) {
+                throw IllegalArgumentException("Transaction ${this.context.txId} cannot be committed, because it is is an error state.")
+            }
+        } finally {
+            this.status = TxStatus.CLOSED
+            this.cleanup()
         }
-        this.status = TxStatus.CLOSED
-        this.cleanup()
     }
 
     /**
@@ -41,11 +46,14 @@ abstract class AbstractTx(override val context: TransactionContext) : Tx {
      * commit.
      */
     final override fun rollback() {
-        if (this.status == TxStatus.DIRTY || this.status == TxStatus.ERROR) {
-            this.snapshot.rollback()
+        try {
+            if (this.status == TxStatus.DIRTY || this.status == TxStatus.ERROR) {
+                this.snapshot.rollback()
+            }
+        } finally {
+            this.status = TxStatus.CLOSED
+            this.cleanup()
         }
-        this.status = TxStatus.CLOSED
-        this.cleanup()
     }
 
     /**
