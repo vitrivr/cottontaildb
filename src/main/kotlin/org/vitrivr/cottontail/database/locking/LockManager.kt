@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.database.locking
 
+import it.unimi.dsi.fastutil.objects.Object2ObjectMaps
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
 import org.vitrivr.cottontail.database.general.DBO
 import org.vitrivr.cottontail.model.basics.Name
@@ -15,7 +16,7 @@ import org.vitrivr.cottontail.model.basics.Name
 class LockManager {
 
     /** List of all [Lock]s managed by this [LockManager]. */
-    private val locks = Object2ObjectOpenHashMap<DBO, Lock>()
+    private val locks = Object2ObjectMaps.synchronize(Object2ObjectOpenHashMap<DBO, Lock>())
 
     /** The [WaitForGraph] data structure used to detect deadlock situations. */
     private val waitForGraph: WaitForGraph = WaitForGraph()
