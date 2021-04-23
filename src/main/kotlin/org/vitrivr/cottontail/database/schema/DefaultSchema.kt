@@ -321,6 +321,7 @@ class DefaultSchema(override val path: Path, override val parent: Catalogue) : S
         inner class DropEntityTxAction(private val entity: Name.EntityName) : TxAction {
             override fun commit() {
                 val entity = this@DefaultSchema.registry.remove(this.entity) ?: throw IllegalStateException("Failed to drop schema $entity because it is unknown to the schema. This is a programmer's error!")
+                entity.close()
                 if (Files.exists(entity.path)) {
                     TxFileUtilities.delete(entity.path)
                 }
