@@ -340,9 +340,6 @@ class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1
          */
         override fun cleanup() {
             this@EntityV1.closeLock.unlockRead(this.closeStamp)
-            this@EntityV1.columns.values.forEach {
-                this.context.getTx(it)
-            }
         }
     }
 }
