@@ -173,10 +173,13 @@ abstract class AbstractMigrationManager(val batchSize: Int, logFile: Path) : Mig
         val sourceContext = MigrationContext()
         val srcCatalogueTx = sourceContext.getTx(source) as CatalogueTx
         val schemas = srcCatalogueTx.listSchemas()
+
         for ((s, srcSchema) in schemas.withIndex()) {
             val srcSchemaTx = sourceContext.getTx(srcSchema) as SchemaTx
             val entities = srcSchemaTx.listEntities()
             for ((e, srcEntity) in entities.withIndex()) {
+                this.logStdout("+ Migrating data for schema ${srcSchema.name} (${s + 1} / ${schemas.size})...\n")
+
                 val srcEntityTx = sourceContext.getTx(srcEntity) as EntityTx
                 val count = srcEntityTx.count()
                 val maxTupleId = srcEntityTx.maxTupleId()
@@ -192,10 +195,10 @@ abstract class AbstractMigrationManager(val batchSize: Int, logFile: Path) : Mig
                         val destSchemaTx = context.getTx(destCatalogueTx.schemaForName(srcSchema.name)) as SchemaTx
                         val destEntityTx = context.getTx(destSchemaTx.entityForName(srcEntity.name)) as EntityTx
                         srcEntityTx.scan(columns, j, p).forEach { r ->
-                            this.logStdout("+ Migrating data for ${srcEntity.name}... (${++i} / $count)\r")
+                            this.logStdout("-- Migrating data for ${srcEntity.name}... (${++i} / $count)\r")
                             destEntityTx.insert(r)
                         }
-                        this.log("+ Migrating data for ${srcEntity.name}; committing... (${i} / $count)\r")
+                        this.log("-- Migrating data for ${srcEntity.name}; committing... (${i} / $count)\r")
                         context.commit()
                     }
                     this.log("-- Data migration for ${srcEntity.name} completed (${i} / $count).\n")
