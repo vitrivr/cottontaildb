@@ -183,5 +183,5 @@ tasks.withType(Test) {
 }
 
 ///// Default names for distributions
-distZip.archiveName('cottontaildb-bin.zip')
-distTar.archiveName('cottontaildb-bin.tar')
+distZip.archiveFileName = 'cottontaildb-bin.zip'
+distTar.archiveFileName = 'cottontaildb-bin.tar'
