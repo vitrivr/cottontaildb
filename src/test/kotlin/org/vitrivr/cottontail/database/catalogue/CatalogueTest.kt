@@ -4,6 +4,7 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import org.vitrivr.cottontail.TestConstants
+import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.database.schema.DefaultSchema
 import org.vitrivr.cottontail.database.schema.SchemaTx
 import org.vitrivr.cottontail.execution.TransactionManager
@@ -19,34 +20,38 @@ import java.util.concurrent.ThreadPoolExecutor
  * A set of unit tests to test basic [DefaultCatalogue] functionality.
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.1.1
  */
 class CatalogueTest {
+
+    /** [Name.SchemaName] used for this [CatalogueTest]. */
     private val schemaName = Name.SchemaName("catalogue-test")
 
+    /** [Config] used for this [CatalogueTest]. */
+    private val config: Config = TestConstants.testConfig()
 
     init {
         /* Assure that root folder is empty! */
-        if (Files.exists(TestConstants.config.root)) {
-            TxFileUtilities.delete(TestConstants.config.root)
+        if (Files.exists(this.config.root)) {
+            TxFileUtilities.delete(this.config.root)
         }
-        Files.createDirectories(TestConstants.config.root)
+        Files.createDirectories(this.config.root)
     }
 
     /** The [DefaultCatalogue] object to run the test with. */
-    private val catalogue: DefaultCatalogue = DefaultCatalogue(TestConstants.config)
+    private val catalogue: DefaultCatalogue = DefaultCatalogue(this.config)
 
     /** The [TransactionManager] used for this [CatalogueTest] instance. */
     private val manager = TransactionManager(
         Executors.newFixedThreadPool(1) as ThreadPoolExecutor,
-        TestConstants.config.execution.transactionTableSize,
-        TestConstants.config.execution.transactionHistorySize
+        this.config.execution.transactionTableSize,
+        this.config.execution.transactionHistorySize
     )
 
     @AfterEach
     fun teardown() {
         this.catalogue.close()
-        TxFileUtilities.delete(TestConstants.config.root)
+        TxFileUtilities.delete(this.config.root)
     }
 
     /**

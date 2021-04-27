@@ -5,12 +5,15 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2ObjectMaps
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet
-import kotlinx.coroutines.*
+import kotlinx.coroutines.ExecutorCoroutineDispatcher
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.runBlocking
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.database.events.DataChangeEvent
 import org.vitrivr.cottontail.database.general.DBO
 import org.vitrivr.cottontail.database.general.Tx
+import org.vitrivr.cottontail.database.general.TxStatus
 import org.vitrivr.cottontail.database.locking.*
 import org.vitrivr.cottontail.execution.TransactionManager.Transaction
 import org.vitrivr.cottontail.execution.operators.basics.Operator
@@ -190,14 +193,16 @@ class TransactionManager(private val executor: ThreadPoolExecutor, transactionTa
          */
         fun commit() = this.finalizationLock.write {
             check(this.state === TransactionStatus.READY) { "Cannot commit transaction ${this.txId} because it is in wrong state (s = ${this.state})." }
+            check(this.txns.values.none { it.status == TxStatus.ERROR }) { "Cannot commit transaction ${this.txId} because some of the participating Tx are in an error state." }
             this.state = TransactionStatus.FINALIZING
             try {
-                this.txns.values.reversed().forEach { txn ->
-                    txn.commit()
-                    txn.close()
+                this.txns.values.reversed().forEachIndexed { i, txn ->
+                    try {
+                        txn.commit()
+                    } catch (e: Throwable) {
+                        LOGGER.error("An error occurred while committing Tx $i (${txn.dbo.name}) of transaction ${this.txId}. This is serious!", e)
+                    }
                 }
-            } catch (e: Throwable) {
-                LOGGER.error("An error occurred while committing transaction ${this.txId}. This is probably serious!", e)
             } finally {
                 this.lockedDBOs.forEach { this@TransactionManager.lockManager.unlock(this, it) }
                 this.txns.clear()
@@ -216,12 +221,13 @@ class TransactionManager(private val executor: ThreadPoolExecutor, transactionTa
             check(this.state === TransactionStatus.READY || this.state === TransactionStatus.ERROR) { "Cannot rollback transaction ${this.txId} because it is in wrong state (s = ${this.state})." }
             this.state = TransactionStatus.FINALIZING
             try {
-                this.txns.values.reversed().forEach { txn ->
-                    txn.rollback()
-                    txn.close()
+                this.txns.values.reversed().forEachIndexed { i, txn ->
+                    try {
+                        txn.rollback()
+                    } catch (e: Throwable) {
+                        LOGGER.error("An error occurred while rolling back Tx $i (${txn.dbo.name}) of transaction ${this.txId}. This is serious!", e)
+                    }
                 }
-            } catch (e: Throwable) {
-                LOGGER.error("An error occurred while rolling back transaction ${this.txId}. This is probably serious!", e)
             } finally {
                 this.lockedDBOs.forEach { this@TransactionManager.lockManager.unlock(this, it) }
                 this.txns.clear()

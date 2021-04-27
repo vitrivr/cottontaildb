@@ -1,5 +1,20 @@
 # Change log for Cottontail DB
 
+## Version 0.12.7
+
+### Bugfixes
+
+* Refactored MigrationManager to fix several locking issues due to structuring of transactions.
+* Fixed race condition in query execution due to plan cache.
+
+## Version 0.12.6
+
+### Bugfixes
+
+* Fixed various bugs related to transaction management especially for DDL statements.
+* Fixed an issue that reset the entity statistics during optimization
+* Fixed a race condition in the LockManager
+
 ## Version 0.12.5
 
 * There is now also a Docker container on DockerHub

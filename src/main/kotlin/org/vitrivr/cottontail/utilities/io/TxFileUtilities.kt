@@ -2,9 +2,11 @@ package org.vitrivr.cottontail.utilities.io
 
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.*
+import kotlin.streams.toList
 
 /**
  * Some utility functions for handling files and folders.
@@ -58,7 +60,11 @@ object TxFileUtilities {
     fun delete(path: Path) {
         if (Files.exists(path)) {
             Files.walk(path).sorted(Comparator.reverseOrder()).forEach {
-                Files.delete(it)
+                try {
+                    Files.delete(it)
+                } catch (e: IOException) {
+                    this.logger.warn("Failed to delete $path (content: ${Files.list(path).toList().joinToString(",")}).")
+                }
             }
         } else {
             this.logger.warn("Noting to delete at $path.")

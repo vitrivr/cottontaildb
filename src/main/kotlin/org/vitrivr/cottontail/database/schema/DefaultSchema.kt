@@ -1,7 +1,9 @@
 package org.vitrivr.cottontail.database.schema
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
-import org.mapdb.*
+import org.mapdb.DB
+import org.mapdb.DBException
+import org.mapdb.Store
 import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.database.catalogue.Catalogue
 import org.vitrivr.cottontail.database.column.ColumnDef
@@ -169,19 +171,21 @@ class DefaultSchema(override val path: Path, override val parent: Catalogue) : S
                 override fun commit() {
                     try {
                         /* Materialize changes in surrounding schema (in-memory). */
-                        this.actions.forEach { it.commit() }
+                        this.actions.forEach {
+                            it.commit()
+                        }
 
                         /* Update update header and commit changes. */
                         val newHeader = this@DefaultSchema.headerField.get().copy(
-                                modified = System.currentTimeMillis(),
-                                entities = this.entities.map { SchemaHeader.EntityRef(it.value.name.simple) }
+                            modified = System.currentTimeMillis(),
+                            entities = this.entities.map { SchemaHeader.EntityRef(it.value.name.simple) }
                         )
                         this@DefaultSchema.headerField.set(newHeader)
                         this@DefaultSchema.store.commit()
                     } catch (e: Throwable) {
                         this@Tx.status = TxStatus.ERROR
                         this@DefaultSchema.store.rollback()
-                        throw DatabaseException("Failed to commit schema ${this@DefaultSchema.name} due to a storage exception: ${e.message}")
+                        throw DatabaseException("Failed to commit schema ${this@DefaultSchema.name} due to an exception: ${e.message}", e)
                     }
                 }
 
@@ -317,6 +321,7 @@ class DefaultSchema(override val path: Path, override val parent: Catalogue) : S
         inner class DropEntityTxAction(private val entity: Name.EntityName) : TxAction {
             override fun commit() {
                 val entity = this@DefaultSchema.registry.remove(this.entity) ?: throw IllegalStateException("Failed to drop schema $entity because it is unknown to the schema. This is a programmer's error!")
+                entity.close()
                 if (Files.exists(entity.path)) {
                     TxFileUtilities.delete(entity.path)
                 }

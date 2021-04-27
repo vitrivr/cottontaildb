@@ -3,7 +3,9 @@ package org.vitrivr.cottontail.database.entity
 import it.unimi.dsi.fastutil.objects.Object2ObjectArrayMap
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
-import org.mapdb.*
+import org.mapdb.DB
+import org.mapdb.DBException
+import org.mapdb.StoreWAL
 import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.database.column.Column
 import org.vitrivr.cottontail.database.column.ColumnDef
@@ -17,10 +19,12 @@ import org.vitrivr.cottontail.database.index.IndexType
 import org.vitrivr.cottontail.database.locking.LockMode
 import org.vitrivr.cottontail.database.schema.DefaultSchema
 import org.vitrivr.cottontail.database.schema.Schema
-import org.vitrivr.cottontail.database.statistics.columns.*
+import org.vitrivr.cottontail.database.statistics.columns.ValueStatistics
 import org.vitrivr.cottontail.database.statistics.entity.EntityStatistics
 import org.vitrivr.cottontail.execution.TransactionContext
-import org.vitrivr.cottontail.model.basics.*
+import org.vitrivr.cottontail.model.basics.Name
+import org.vitrivr.cottontail.model.basics.Record
+import org.vitrivr.cottontail.model.basics.TupleId
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import org.vitrivr.cottontail.model.exceptions.TxException
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
@@ -424,8 +428,9 @@ class DefaultEntity(override val path: Path, override val parent: Schema) : Enti
             }
             val columns = this.listColumns().map { it.columnDef }.toTypedArray()
             val map = Object2ObjectOpenHashMap<ColumnDef<*>, Value>(columns.size)
+            val iterator = this.scan(columns)
             this.snapshot.statistics.reset()
-            this.scan(columns).forEach { r ->
+            iterator.forEach { r ->
                 r.forEach { columnDef, value -> map[columnDef] = value }
                 val event = DataChangeEvent.InsertDataChangeEvent(this@DefaultEntity, r.tupleId, map) /* Fake data change event for update. */
                 this.snapshot.statistics.consume(event)

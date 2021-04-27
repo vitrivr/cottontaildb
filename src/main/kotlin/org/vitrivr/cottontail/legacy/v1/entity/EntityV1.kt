@@ -25,14 +25,15 @@ import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.legacy.BrokenIndex
 import org.vitrivr.cottontail.legacy.v1.column.ColumnV1
 import org.vitrivr.cottontail.legacy.v1.schema.SchemaV1
-import org.vitrivr.cottontail.model.basics.*
+import org.vitrivr.cottontail.model.basics.Name
+import org.vitrivr.cottontail.model.basics.Record
+import org.vitrivr.cottontail.model.basics.TupleId
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import org.vitrivr.cottontail.model.exceptions.TxException
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.types.Value
 import org.vitrivr.cottontail.utilities.extensions.write
 import java.nio.file.Path
-import java.util.*
 import java.util.concurrent.locks.StampedLock
 import kotlin.math.min
 
@@ -339,9 +340,6 @@ class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1
          */
         override fun cleanup() {
             this@EntityV1.closeLock.unlockRead(this.closeStamp)
-            this@EntityV1.columns.values.forEach {
-                this.context.getTx(it).close()
-            }
         }
     }
 }
