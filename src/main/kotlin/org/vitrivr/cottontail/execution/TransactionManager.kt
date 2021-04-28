@@ -21,12 +21,9 @@ import org.vitrivr.cottontail.model.basics.TransactionId
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import org.vitrivr.cottontail.model.exceptions.ExecutionException
 import org.vitrivr.cottontail.model.exceptions.TransactionException
-import org.vitrivr.cottontail.utilities.extensions.read
-import org.vitrivr.cottontail.utilities.extensions.write
 import java.util.*
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.atomic.AtomicLong
-import java.util.concurrent.locks.StampedLock
 
 /**
  * The default [TransactionManager] for Cottontail DB. It hosts all the necessary facilities to
@@ -70,7 +67,7 @@ class TransactionManager(private val executor: ThreadPoolExecutor, transactionTa
      * A [Transaction] can be of different [TransactionType]s. Their execution semantics may differ slightly.
      *
      * @author Ralph Gasser
-     * @version 1.2.0
+     * @version 1.2.1
      */
     inner class Transaction(override val type: TransactionType) : LockHolder(this@TransactionManager.tidCounter.getAndIncrement()), TransactionContext {
 
@@ -84,9 +81,6 @@ class TransactionManager(private val executor: ThreadPoolExecutor, transactionTa
 
         /** A set of all [DBO] that have been locked by this [Transaction]. */
         private val lockedDBOs = ObjectOpenHashSet<DBO>()
-
-        /** An internal lock which makes sure, that a [Transaction] that prevent concurrent access to COMMIT and ROLLBACK. */
-        private val finalizationLock = StampedLock()
 
         /** Number of [Tx] held by this [Transaction]. */
         val numberOfTxs: Int
@@ -115,11 +109,11 @@ class TransactionManager(private val executor: ThreadPoolExecutor, transactionTa
          * @param dbo [DBO] to return the [Tx] for.
          * @return entity [Tx]
          */
-        override fun getTx(dbo: DBO): Tx = this.finalizationLock.read {
+        override fun getTx(dbo: DBO): Tx {
             check(this.state === TransactionStatus.READY || this.state === TransactionStatus.RUNNING) {
                 "Cannot obtain Tx for DBO '${dbo.name}' for ${this.txId} because it is in wrong state (s = ${this.state})."
             }
-            this.txns.computeIfAbsent(dbo) { dbo.newTx(this) }
+            return this.txns.computeIfAbsent(dbo) { dbo.newTx(this) }
         }
 
         /**
@@ -129,13 +123,12 @@ class TransactionManager(private val executor: ThreadPoolExecutor, transactionTa
          * @param dbo [DBO] The [DBO] to request the lock for.
          * @param mode The desired [LockMode]
          */
-        override fun requestLock(dbo: DBO, mode: LockMode) = this.finalizationLock.read {
+        override fun requestLock(dbo: DBO, mode: LockMode) {
             check(this.state === TransactionStatus.READY || this.state === TransactionStatus.RUNNING) {
                 "Cannot obtain lock on DBO '${dbo.name}' for ${this.txId} because it is in wrong state (s = ${this.state})."
             }
             this@TransactionManager.lockManager.lock(this, dbo, mode)
             this.lockedDBOs.add(dbo)
-            Unit
         }
 
         /**
@@ -144,8 +137,8 @@ class TransactionManager(private val executor: ThreadPoolExecutor, transactionTa
          * @param dbo [DBO] The [DBO] to query the [LockMode] for.
          * @return [LockMode]
          */
-        override fun lockOn(dbo: DBO): LockMode = this.finalizationLock.read {
-            this@TransactionManager.lockManager.lockOn(this, dbo)
+        override fun lockOn(dbo: DBO): LockMode {
+            return this@TransactionManager.lockManager.lockOn(this, dbo)
         }
 
         /**
@@ -166,32 +159,35 @@ class TransactionManager(private val executor: ThreadPoolExecutor, transactionTa
          *
          * @param operator The [Operator.SinkOperator] that should be executed.
          */
-        fun execute(operator: Operator.SinkOperator) = this.finalizationLock.read {
-            runBlocking(this@TransactionManager.dispatcher) {
-                try {
-                    this@Transaction.state = TransactionStatus.RUNNING
+        @Synchronized
+        fun execute(operator: Operator.SinkOperator) {
+            try {
+                check(this.state === TransactionStatus.READY) { "Cannot start execution of transaction ${this.txId} because it is in wrong state (s = ${this.state})." }
+                this@Transaction.state = TransactionStatus.RUNNING
+                runBlocking(this@TransactionManager.dispatcher) {
                     operator.toFlow(this@Transaction).collect()
-                    this@Transaction.state = TransactionStatus.READY
-                } catch (e: DeadlockException) {
-                    this@Transaction.state = TransactionStatus.ERROR
-                    throw TransactionException.DeadlockException(this@Transaction.txId, e)
-                } catch (e: ExecutionException.OperatorExecutionException) {
-                    this@Transaction.state = TransactionStatus.ERROR
-                    throw e
-                } catch (e: DatabaseException) {
-                    this@Transaction.state = TransactionStatus.ERROR
-                    throw e
-                } catch (e: Throwable) {
-                    this@Transaction.state = TransactionStatus.ERROR
-                    throw e
                 }
+                this@Transaction.state = TransactionStatus.READY
+            } catch (e: DeadlockException) {
+                this@Transaction.state = TransactionStatus.ERROR
+                throw TransactionException.DeadlockException(this@Transaction.txId, e)
+            } catch (e: ExecutionException.OperatorExecutionException) {
+                this@Transaction.state = TransactionStatus.ERROR
+                throw e
+            } catch (e: DatabaseException) {
+                this@Transaction.state = TransactionStatus.ERROR
+                throw e
+            } catch (e: Throwable) {
+                this@Transaction.state = TransactionStatus.ERROR
+                throw e
             }
         }
 
         /**
          * Commits this [Transaction] thus finalizing and persisting all operations executed so far.
          */
-        fun commit() = this.finalizationLock.write {
+        @Synchronized
+        fun commit() {
             check(this.state === TransactionStatus.READY) { "Cannot commit transaction ${this.txId} because it is in wrong state (s = ${this.state})." }
             check(this.txns.values.none { it.status == TxStatus.ERROR }) { "Cannot commit transaction ${this.txId} because some of the participating Tx are in an error state." }
             this.state = TransactionStatus.FINALIZING
@@ -217,7 +213,8 @@ class TransactionManager(private val executor: ThreadPoolExecutor, transactionTa
         /**
          * Rolls back this [Transaction] thus reverting all operations executed so far.
          */
-        fun rollback() = this.finalizationLock.write {
+        @Synchronized
+        fun rollback() {
             check(this.state === TransactionStatus.READY || this.state === TransactionStatus.ERROR) { "Cannot rollback transaction ${this.txId} because it is in wrong state (s = ${this.state})." }
             this.state = TransactionStatus.FINALIZING
             try {
