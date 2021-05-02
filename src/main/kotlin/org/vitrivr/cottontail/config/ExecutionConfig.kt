@@ -28,7 +28,7 @@ data class ExecutionConfig(
      */
     fun newExecutor() = ThreadPoolExecutor(
         this.coreThreads.coerceAtLeast(1),
-        this.maxThreads.coerceAtLeast(20),
+        this.maxThreads.coerceAtLeast(4),
         this.keepAliveMs,
         TimeUnit.MILLISECONDS,
         ArrayBlockingQueue(this.queueSize)

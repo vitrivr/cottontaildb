@@ -125,17 +125,49 @@ class GrpcQueryBinder constructor(val catalogue: Catalogue) {
             val entityTx = context.txn.getTx(entity) as EntityTx
 
             /* Parse columns to INSERT. */
-            val columns = Array<ColumnDef<*>>(insert.insertsCount) {
-                val columnName = insert.insertsList[it].column.fqn()
+            val columns = Array<ColumnDef<*>>(insert.elementsCount) {
+                val columnName = insert.elementsList[it].column.fqn()
                 entityTx.columnForName(columnName).columnDef
             }
-            val values = Array<Value?>(insert.insertsCount) {
-                insert.insertsList[it].value.toValue(columns[it])
+            val values = Array<Value?>(insert.elementsCount) {
+                insert.elementsList[it].value.toValue(columns[it])
             }
 
             /* Create and return INSERT-clause. */
             val record = context.records.bind(StandaloneRecord(-1L, columns, values))
             context.register(InsertLogicalOperatorNode(context.nextGroupId(), entity, mutableListOf(record)))
+        } catch (e: DatabaseException.ColumnDoesNotExistException) {
+            throw QueryException.QueryBindException("Failed to bind '${e.column}'. Column does not exist!")
+        }
+    }
+
+    /**
+     * Binds the given [CottontailGrpc.InsertMessage] to the database objects and thereby creates
+     * a tree of [OperatorNode.Logical]s.
+     *
+     * @param insert The [ CottontailGrpc.InsertMessage] that should be bound.
+     * @param context The [QueryContext] used for binding.
+     * @throws QueryException.QuerySyntaxException If [CottontailGrpc.Query] is structurally incorrect.
+     */
+    fun bind(insert: CottontailGrpc.BatchInsertMessage, context: QueryContext) {
+        try {
+            /* Parse entity for BATCH INSERT. */
+            val entity = parseAndBindEntity(insert.from.scan.entity, context)
+            val entityTx = context.txn.getTx(entity) as EntityTx
+
+            /* Parse columns to BATCH INSERT. */
+            val columns = Array<ColumnDef<*>>(insert.columnsCount) {
+                val columnName = insert.columnsList[it].fqn()
+                entityTx.columnForName(columnName).columnDef
+            }
+
+            /* Parse records to BATCH INSERT. */
+            val records = insert.insertsList.map { i ->
+                context.records.bind(StandaloneRecord(-1L, columns, Array<Value?>(i.valuesCount) {
+                    i.valuesList[it].toValue(columns[it])
+                }))
+            }.toMutableList()
+            context.register(InsertLogicalOperatorNode(context.nextGroupId(), entity, records))
         } catch (e: DatabaseException.ColumnDoesNotExistException) {
             throw QueryException.QueryBindException("Failed to bind '${e.column}'. Column does not exist!")
         }
@@ -158,12 +190,12 @@ class GrpcQueryBinder constructor(val catalogue: Catalogue) {
             val entityTx = context.txn.getTx(entity) as EntityTx
 
             /* Parse columns to INSERT. */
-            val columns = Array<ColumnDef<*>>(insert.insertsCount) {
-                val columnName = insert.insertsList[it].column.fqn()
+            val columns = Array<ColumnDef<*>>(insert.elementsCount) {
+                val columnName = insert.elementsList[it].column.fqn()
                 entityTx.columnForName(columnName).columnDef
             }
-            val values = Array<Value?>(insert.insertsCount) {
-                insert.insertsList[it].value.toValue(columns[it])
+            val values = Array<Value?>(insert.elementsCount) {
+                insert.elementsList[it].value.toValue(columns[it])
             }
             return context.records.bind(StandaloneRecord(-1L, columns, values))
         } catch (e: DatabaseException.ColumnDoesNotExistException) {

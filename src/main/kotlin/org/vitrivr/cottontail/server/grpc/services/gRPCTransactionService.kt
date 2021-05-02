@@ -3,6 +3,7 @@ package org.vitrivr.cottontail.server.grpc.services
 import io.grpc.Status
 import kotlinx.coroutines.flow.*
 import org.slf4j.LoggerFactory
+import org.vitrivr.cottontail.client.language.basics.Constants
 import org.vitrivr.cottontail.database.locking.DeadlockException
 import org.vitrivr.cottontail.database.queries.binding.extensions.toLiteral
 import org.vitrivr.cottontail.execution.TransactionManager
@@ -27,8 +28,6 @@ import kotlin.time.TimeSource
 interface gRPCTransactionService {
 
     companion object {
-        const val MAX_PAGE_SIZE_BYTES = 4_000_000
-
         private val LOGGER = LoggerFactory.getLogger(gRPCTransactionService::class.java)
     }
 
@@ -113,7 +112,7 @@ interface gRPCTransactionService {
             var accumulatedSize = 0L
             tx.execute(operator).collect {
                 val tuple = it.toTuple()
-                if (accumulatedSize + tuple.serializedSize >= MAX_PAGE_SIZE_BYTES) {
+                if (accumulatedSize + tuple.serializedSize >= Constants.MAX_PAGE_SIZE_BYTES) {
                     emit(responseBuilder.build())
                     responseBuilder.clearTuples()
                     accumulatedSize = 0L

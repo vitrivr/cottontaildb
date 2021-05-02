@@ -1,10 +1,8 @@
 package org.vitrivr.cottontail.server.grpc.services
 
 import com.google.protobuf.Empty
-
 import io.grpc.Status
 import kotlinx.coroutines.flow.Flow
-
 import org.vitrivr.cottontail.execution.TransactionManager
 import org.vitrivr.cottontail.execution.TransactionType
 import org.vitrivr.cottontail.execution.operators.system.ListLocksOperator
@@ -12,7 +10,6 @@ import org.vitrivr.cottontail.execution.operators.system.ListTransactionsOperato
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.grpc.TXNGrpc
 import org.vitrivr.cottontail.grpc.TXNGrpcKt
-import org.vitrivr.cottontail.server.grpc.CottontailGrpcServer
 import java.util.*
 import kotlin.time.ExperimentalTime
 
@@ -23,7 +20,7 @@ import kotlin.time.ExperimentalTime
  * @version 2.0.0
  */
 @ExperimentalTime
-class TXNService constructor(val server: CottontailGrpcServer, override val manager: TransactionManager) : TXNGrpcKt.TXNCoroutineImplBase(), gRPCTransactionService {
+class TXNService constructor(override val manager: TransactionManager) : TXNGrpcKt.TXNCoroutineImplBase(), gRPCTransactionService {
 
     /**
      * gRPC endpoint for beginning an new [TransactionManager.Transaction].
