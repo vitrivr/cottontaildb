@@ -486,13 +486,18 @@ class DefaultEntity(override val path: Path, override val parent: Schema) : Enti
                 /** The wrapped [Iterator] of the first column. */
                 private val wrapped = this.txs.first().scan(this.range)
 
+                /** Array of [Value]s emitted by this [DefaultEntity]. */
+                private val values = arrayOfNulls<Value?>(columns.size)
+
                 /**
                  * Returns the next element in the iteration.
                  */
                 override fun next(): Record {
                     val tupleId = this.wrapped.next()
-                    val values = this.txs.map { it.read(tupleId) }.toTypedArray()
-                    return StandaloneRecord(tupleId, columns, values)
+                    for ((i, tx) in this.txs.withIndex()) {
+                        this.values[i] = tx.read(tupleId)
+                    }
+                    return StandaloneRecord(tupleId, columns, this.values)
                 }
 
                 /**
