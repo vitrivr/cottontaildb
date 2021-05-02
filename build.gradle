@@ -116,6 +116,7 @@ dependencies {
     ///// Cottontail DB Driver + gRPC dependencies
     implementation group: 'org.vitrivr', name: 'cottontaildb-proto', version: version_cottontaildb_driver
     implementation group: 'io.grpc', name: 'grpc-all', version: version_grpc
+    implementation group: 'io.grpc', name: 'grpc-kotlin-stub', version: version_grpc_kotlin
     implementation group: 'com.google.protobuf', name: 'protobuf-java', version: version_protobuf
 
     ///// MapDB dependency
