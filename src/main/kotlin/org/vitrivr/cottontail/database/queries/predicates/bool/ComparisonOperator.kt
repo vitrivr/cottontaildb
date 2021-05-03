@@ -53,6 +53,9 @@ sealed class ComparisonOperator {
 
         override val atomicCpuCost: Float = 2 * Cost.COST_MEMORY_ACCESS
 
+        /** The [Value] bound by this [ComparisonOperator.Binary]. Can be updated via [bindValues]*/
+        protected var rightValue: Value? = null
+
         /**
          * Binds the values in this [ComparisonOperator] to this [BindingContext].
          *
@@ -60,10 +63,11 @@ sealed class ComparisonOperator {
          */
         override fun bindValues(ctx: BindingContext<Value>) {
             this.right.context = ctx
+            this.rightValue = this.right.value
         }
 
         class Equal(right: Binding<Value>) : Binary(right) {
-            override fun match(left: Value?) = (left != null) && left.isEqual(this.right.value)
+            override fun match(left: Value?) = (left != null) && left.isEqual(this.rightValue!!)
             override fun toString(): String = "= $right"
         }
 
@@ -72,7 +76,7 @@ sealed class ComparisonOperator {
          */
         class Greater(right: Binding<Value>) : Binary(right) {
             override fun match(left: Value?): Boolean {
-                return (left != null) && left > this.right.value
+                return (left != null) && left > this.rightValue!!
             }
 
             override fun toString(): String = "> $right"
@@ -83,7 +87,7 @@ sealed class ComparisonOperator {
          * A [ComparisonOperator] that expresses less (<) comparison.
          */
         class Less(right: Binding<Value>) : Binary(right) {
-            override fun match(left: Value?) = (left != null) && left < this.right.value
+            override fun match(left: Value?) = (left != null) && left < this.rightValue!!
             override fun toString(): String = "< $right"
         }
 
@@ -91,7 +95,7 @@ sealed class ComparisonOperator {
          * A [ComparisonOperator] that expresses greater or equal (>=) comparison.
          */
         class GreaterEqual(right: Binding<Value>) : Binary(right) {
-            override fun match(left: Value?) = (left != null) && left >= this.right.value
+            override fun match(left: Value?) = (left != null) && left >= this.rightValue!!
             override fun toString(): String = ">= $right"
         }
 
@@ -99,7 +103,7 @@ sealed class ComparisonOperator {
          * A [ComparisonOperator] that expresses less or equal (<=) comparison.
          */
         class LessEqual(right: Binding<Value>) : Binary(right) {
-            override fun match(left: Value?) = (left != null) && left <= this.right.value
+            override fun match(left: Value?) = (left != null) && left <= this.rightValue!!
             override fun toString(): String = "<= $right"
         }
 
@@ -107,7 +111,7 @@ sealed class ComparisonOperator {
          * A [ComparisonOperator] that expresses a LIKE comparison. I.e. left LIKE right.
          */
         class Like(right: Binding<Value>) : Binary(right) {
-            override fun match(left: Value?) = (left is StringValue) && (this.right.value as LikePatternValue).matches(left)
+            override fun match(left: Value?) = (left is StringValue) && (this.rightValue as LikePatternValue).matches(left)
             override fun toString(): String = "LIKE $right"
         }
 
