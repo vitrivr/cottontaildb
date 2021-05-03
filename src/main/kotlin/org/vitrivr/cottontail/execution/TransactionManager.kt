@@ -4,7 +4,6 @@ import it.unimi.dsi.fastutil.Hash.VERY_FAST_LOAD_FACTOR
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2ObjectMaps
-import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onStart
@@ -47,7 +46,7 @@ class TransactionManager(transactionTableSize: Int, private val transactionHisto
     private val tidCounter = AtomicLong()
 
     /** The [LockManager] instance used by this [TransactionManager]. */
-    val lockManager = LockManager()
+    val lockManager = LockManager<DBO>()
 
     /** List of ongoing or past transactions (limited to [transactionHistorySize] entries). */
     val transactionHistory = Collections.synchronizedList(LinkedList<Transaction>())
@@ -68,7 +67,7 @@ class TransactionManager(transactionTableSize: Int, private val transactionHisto
      * @author Ralph Gasser
      * @version 1.2.1
      */
-    inner class Transaction(override val type: TransactionType) : LockHolder(this@TransactionManager.tidCounter.getAndIncrement()), TransactionContext {
+    inner class Transaction(override val type: TransactionType) : LockHolder<DBO>(this@TransactionManager.tidCounter.getAndIncrement()), TransactionContext {
 
         /** The [TransactionStatus] of this [Transaction]. */
         @Volatile
@@ -77,9 +76,6 @@ class TransactionManager(transactionTableSize: Int, private val transactionHisto
 
         /** Map of all [Tx] that have been created as part of this [Transaction]. */
         private val txns: MutableMap<DBO, Tx> = Object2ObjectMaps.synchronize(Object2ObjectLinkedOpenHashMap())
-
-        /** A set of all [DBO] that have been locked by this [Transaction]. */
-        private val lockedDBOs = ObjectOpenHashSet<DBO>()
 
         /** Number of [Tx] held by this [Transaction]. */
         val numberOfTxs: Int
@@ -130,17 +126,6 @@ class TransactionManager(transactionTableSize: Int, private val transactionHisto
                 "Cannot obtain lock on DBO '${dbo.name}' for ${this.txId} because it is in wrong state (s = ${this.state})."
             }
             this@TransactionManager.lockManager.lock(this, dbo, mode)
-            this.lockedDBOs.add(dbo)
-        }
-
-        /**
-         * Returns the [LockMode] this [Transaction] has on the given [DBO].
-         *
-         * @param dbo [DBO] The [DBO] to query the [LockMode] for.
-         * @return [LockMode]
-         */
-        override fun lockOn(dbo: DBO): LockMode {
-            return this@TransactionManager.lockManager.lockOn(this, dbo)
         }
 
         /**
@@ -191,9 +176,9 @@ class TransactionManager(transactionTableSize: Int, private val transactionHisto
                         }
                     }
                 } finally {
-                    this@Transaction.lockedDBOs.forEach { this@TransactionManager.lockManager.unlock(this@Transaction, it) }
+                    this@Transaction.locks.keys.forEach { this@TransactionManager.lockManager.unlock(this@Transaction, it) }
                     this@Transaction.txns.clear()
-                    this@Transaction.lockedDBOs.clear()
+                    this@Transaction.locks.keys.clear()
                     this@Transaction.ended = System.currentTimeMillis()
                     this@Transaction.state = TransactionStatus.COMMIT
                     this@TransactionManager.transactions.remove(this@Transaction.txId)
@@ -218,9 +203,9 @@ class TransactionManager(transactionTableSize: Int, private val transactionHisto
                         }
                     }
                 } finally {
-                    this@Transaction.lockedDBOs.forEach { this@TransactionManager.lockManager.unlock(this@Transaction, it) }
+                    this@Transaction.locks.keys.forEach { this@TransactionManager.lockManager.unlock(this@Transaction, it) }
                     this@Transaction.txns.clear()
-                    this@Transaction.lockedDBOs.clear()
+                    this@Transaction.locks.keys.clear()
                     this@Transaction.ended = System.currentTimeMillis()
                     this@Transaction.state = TransactionStatus.ROLLBACK
                     this@TransactionManager.transactions.remove(this@Transaction.txId)

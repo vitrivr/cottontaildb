@@ -15,12 +15,12 @@ import kotlin.concurrent.write
  * Inspired by: https://github.com/dstibrany/LockManager
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
-class Lock internal constructor(private val waitForGraph: WaitForGraph) {
+class Lock<T> internal constructor(private val waitForGraph: WaitForGraph) {
 
     /** List of [LockHolder]s that hold a lock on this [Lock]. */
-    private val owners = ObjectOpenHashSet<LockHolder>()
+    private val owners = ObjectOpenHashSet<LockHolder<T>>()
 
     /** Internal [ReentrantLock] used to mediate access to this [Lock] object. */
     private val lock = ReentrantReadWriteLock(true)
@@ -48,7 +48,7 @@ class Lock internal constructor(private val waitForGraph: WaitForGraph) {
      * @param txn [LockHolder] that tries to acquire the lock.
      * @param lockMode The [LockMode] the transaction tries to acquire.
      */
-    fun acquire(txn: LockHolder, lockMode: LockMode) {
+    fun acquire(txn: LockHolder<T>, lockMode: LockMode) {
         when (lockMode) {
             LockMode.SHARED -> acquireSharedLock(txn)
             LockMode.EXCLUSIVE -> acquireExclusiveLock(txn)
@@ -61,7 +61,7 @@ class Lock internal constructor(private val waitForGraph: WaitForGraph) {
      *
      * @param txn [LockHolder] that tries to release the lock.
      */
-    fun release(txn: LockHolder) = this.lock.write {
+    fun release(txn: LockHolder<T>) = this.lock.write {
         if (this.sharedLockCount > 0) {
             this.sharedLockCount--
         }
@@ -78,10 +78,10 @@ class Lock internal constructor(private val waitForGraph: WaitForGraph) {
      *
      * @param txn [LockHolder] that tries to upgrade the [Lock].
      */
-    fun upgrade(txn: LockHolder) = this.lock.write {
+    fun upgrade(txn: LockHolder<T>) = this.lock.write {
         if (this.owners.contains(txn) && isExclusivelyLocked) return
         while (this.isExclusivelyLocked || this.sharedLockCount > 1) {
-            val ownersWithSelfRemoved: Set<LockHolder> = ObjectOpenHashSet(this.owners.filter { it != txn })
+            val ownersWithSelfRemoved: Set<LockHolder<T>> = ObjectOpenHashSet(this.owners.filter { it != txn })
             this.waitForGraph.add(txn, ownersWithSelfRemoved)
             this.waitForGraph.detectDeadlock(txn)
             this.waiters.await()
@@ -93,7 +93,7 @@ class Lock internal constructor(private val waitForGraph: WaitForGraph) {
     /**
      * Returns an unmodifiable set of all [TransactionId]s that currently have a hold on this [Lock]
      */
-    fun getOwners(): Set<LockHolder> = Collections.unmodifiableSet(this.owners)
+    fun getOwners(): Set<LockHolder<T>> = Collections.unmodifiableSet(this.owners)
 
     /**
      * Returns the [LockMode] for this [Lock].
@@ -113,7 +113,7 @@ class Lock internal constructor(private val waitForGraph: WaitForGraph) {
      *
      * @param txn [LockHolder] that tries to acquire the lock.
      */
-    private fun acquireSharedLock(txn: LockHolder) = this.lock.write {
+    private fun acquireSharedLock(txn: LockHolder<T>) = this.lock.write {
         while (this.isExclusivelyLocked || this.lock.hasWaiters(waiters)) {
             this.waitForGraph.add(txn, this.owners)
             this.waitForGraph.detectDeadlock(txn)
@@ -128,7 +128,7 @@ class Lock internal constructor(private val waitForGraph: WaitForGraph) {
      *
      * @param txn [LockHolder] that tries to acquire the exclusive lock.
      */
-    private fun acquireExclusiveLock(txn: LockHolder) = this.lock.write {
+    private fun acquireExclusiveLock(txn: LockHolder<T>) = this.lock.write {
         while (this.isExclusivelyLocked || this.isSharedLocked) {
             this.waitForGraph.add(txn, this.owners)
             this.waitForGraph.detectDeadlock(txn)
