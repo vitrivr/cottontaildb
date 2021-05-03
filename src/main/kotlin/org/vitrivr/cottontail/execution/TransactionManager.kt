@@ -176,13 +176,7 @@ class TransactionManager(transactionTableSize: Int, private val transactionHisto
                         }
                     }
                 } finally {
-                    this@Transaction.locks.keys.forEach { this@TransactionManager.lockManager.unlock(this@Transaction, it) }
-                    this@Transaction.txns.clear()
-                    this@Transaction.locks.keys.clear()
-                    this@Transaction.ended = System.currentTimeMillis()
-                    this@Transaction.state = TransactionStatus.COMMIT
-                    this@TransactionManager.transactions.remove(this@Transaction.txId)
-                    Unit
+                    this@Transaction.finalize(true)
                 }
             }
         }
@@ -203,15 +197,27 @@ class TransactionManager(transactionTableSize: Int, private val transactionHisto
                         }
                     }
                 } finally {
-                    this@Transaction.locks.keys.forEach { this@TransactionManager.lockManager.unlock(this@Transaction, it) }
-                    this@Transaction.txns.clear()
-                    this@Transaction.locks.keys.clear()
-                    this@Transaction.ended = System.currentTimeMillis()
-                    this@Transaction.state = TransactionStatus.ROLLBACK
-                    this@TransactionManager.transactions.remove(this@Transaction.txId)
-                    Unit
+                    this@Transaction.finalize(false)
                 }
             }
+        }
+
+        /**
+         * Finalizes the state of this [Transaction].
+         *
+         * @param committed True if [Transaction] was committed, false otherwise.
+         */
+        private fun finalize(committed: Boolean) {
+            Object2ObjectMaps.fastForEach(this@Transaction.locks) { this@TransactionManager.lockManager.unlock(this@Transaction, it.key) }
+            this@Transaction.txns.clear()
+            this@Transaction.locks.clear()
+            this@Transaction.ended = System.currentTimeMillis()
+            this@Transaction.state = if (committed) {
+                TransactionStatus.COMMIT
+            } else {
+                TransactionStatus.ROLLBACK
+            }
+            this@TransactionManager.transactions.remove(this@Transaction.txId)
         }
     }
 }
