@@ -15,7 +15,7 @@ import org.vitrivr.cottontail.model.values.types.Value
  * large, as each [StandaloneRecord] has its own reference to the [ColumnDef]s it contains.
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.3.0
  */
 class StandaloneRecord(override var tupleId: TupleId, override val columns: Array<ColumnDef<*>>, private val values: Array<Value?> = arrayOfNulls(columns.size)) : Record {
 
@@ -60,6 +60,14 @@ class StandaloneRecord(override var tupleId: TupleId, override val columns: Arra
      * @return True if record contains the [ColumnDef], false otherwise.
      */
     override fun has(column: ColumnDef<*>): Boolean = this.columns.contains(column)
+
+    /**
+     * Returns column index of the given [ColumnDef] within this [Record]. Returns -1 if [ColumnDef] is not contained
+     *
+     * @param column The [ColumnDef] to check.
+     * @return The column index or -1. of [ColumnDef] is not part of this [Record].
+     */
+    override fun indexOf(column: ColumnDef<*>): Int = this.columns.indexOf(column)
 
     /**
      * Returns an unmodifiable [Map] of the data contained in this [StandaloneRecord].
