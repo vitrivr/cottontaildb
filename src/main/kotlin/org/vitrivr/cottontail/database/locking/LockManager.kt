@@ -23,15 +23,15 @@ class LockManager<T> {
     /** The [WaitForGraph] data structure used to detect deadlock situations. */
     private val waitForGraph: WaitForGraph = WaitForGraph()
 
-    /** */
-    private val stampedLock = StampedLock()
+    /** [StampedLock] used to mediate access to [LockManager]. */
+    private val accessLock = StampedLock()
 
     /**
      * Returns an list all [T] that are currently locked.
      *
      * @return List of all [T]s that are currently locked.
      */
-    fun allLocks(): List<Pair<T, Lock<T>>> = this.stampedLock.read {
+    fun allLocks(): List<Pair<T, Lock<T>>> = this.accessLock.read {
         this.locks.map { v -> v.key to v.value }
     }
 
@@ -42,8 +42,7 @@ class LockManager<T> {
      * @param obj Object [T] to acquire a lock on.
      * @param mode The [LockMode]
      */
-    @Synchronized
-    fun lock(txn: LockHolder<T>, obj: T, mode: LockMode) = this.stampedLock.write {
+    fun lock(txn: LockHolder<T>, obj: T, mode: LockMode) = this.accessLock.write {
         require(mode != LockMode.NO_LOCK) { "Cannot acquire a lock of mode $mode; try LockManager.release()." }
         val lockOn = txn.lockOn(obj)
         if (lockOn === mode) {
@@ -67,7 +66,7 @@ class LockManager<T> {
      * @param txn [LockHolder] to release the lock for.
      * @param obj Object [T] to release the lock on.
      */
-    fun unlock(txn: LockHolder<T>, obj: T) = this.stampedLock.write {
+    fun unlock(txn: LockHolder<T>, obj: T) = this.accessLock.write {
         this.locks.computeIfPresent(obj) { _, lock ->
             lock.release(txn)
             txn.removeLock(obj)
