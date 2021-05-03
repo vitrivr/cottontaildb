@@ -1,12 +1,14 @@
 package org.vitrivr.cottontail.database.catalogue
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
-import org.mapdb.*
+import org.mapdb.DB
+import org.mapdb.StoreWAL
 import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.database.entity.DefaultEntity
 import org.vitrivr.cottontail.database.general.*
 import org.vitrivr.cottontail.database.locking.LockMode
-import org.vitrivr.cottontail.database.schema.*
+import org.vitrivr.cottontail.database.schema.DefaultSchema
+import org.vitrivr.cottontail.database.schema.Schema
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
@@ -240,9 +242,8 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
         override fun dropSchema(name: Name.SchemaName) = this.withWriteLock {
             /* Obtain schema and acquire exclusive lock on it. */
             val schema = this.snapshot.schemas[name] ?: throw DatabaseException.SchemaDoesNotExistException(name)
-            if (this.context.lockOn(schema) !== LockMode.EXCLUSIVE) {
-                this.context.requestLock(schema, LockMode.EXCLUSIVE)
-            }
+            this.context.requestLock(schema, LockMode.EXCLUSIVE)
+
 
             /* Remove dropped schema from local snapshot. */
             this.snapshot.record(DropSchemaTxAction(name))

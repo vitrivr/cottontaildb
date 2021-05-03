@@ -208,9 +208,8 @@ class TransactionManager(transactionTableSize: Int, private val transactionHisto
          * @param committed True if [Transaction] was committed, false otherwise.
          */
         private fun finalize(committed: Boolean) {
-            Object2ObjectMaps.fastForEach(this@Transaction.locks) { this@TransactionManager.lockManager.unlock(this@Transaction, it.key) }
+            this@Transaction.allLocks().forEach { this@TransactionManager.lockManager.unlock(this@Transaction, it.obj) }
             this@Transaction.txns.clear()
-            this@Transaction.locks.clear()
             this@Transaction.ended = System.currentTimeMillis()
             this@Transaction.state = if (committed) {
                 TransactionStatus.COMMIT

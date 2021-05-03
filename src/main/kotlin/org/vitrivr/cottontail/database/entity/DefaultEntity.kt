@@ -406,9 +406,7 @@ class DefaultEntity(override val path: Path, override val parent: Schema) : Enti
         override fun dropIndex(name: Name.IndexName) = this.withWriteLock {
             /* Obtain index and acquire exclusive lock on it. */
             val index = this.snapshot.indexes.remove(name) ?: throw DatabaseException.IndexDoesNotExistException(name)
-            if (this.context.lockOn(index) != LockMode.EXCLUSIVE) {
-                this.context.requestLock(index, LockMode.EXCLUSIVE)
-            }
+            this.context.requestLock(index, LockMode.EXCLUSIVE)
 
             /* Remove entity from local snapshot. */
             this.snapshot.indexes.remove(name)

@@ -72,9 +72,8 @@ abstract class AbstractTx(override val context: TransactionContext) : Tx {
     protected inline fun <T> withWriteLock(block: () -> (T)): T {
         if (this.status == TxStatus.CLOSED) throw TxException.TxClosedException(this.context.txId)
         if (this.status == TxStatus.ERROR) throw TxException.TxInErrorException(this.context.txId)
-        if (this.context.lockOn(this.dbo) !== LockMode.EXCLUSIVE) {
-            this.context.requestLock(this.dbo, LockMode.EXCLUSIVE)
-        }
+        this.context.requestLock(this.dbo, LockMode.EXCLUSIVE)
+
         if (this.status != TxStatus.DIRTY) {
             this.status = TxStatus.DIRTY
         }
@@ -87,9 +86,7 @@ abstract class AbstractTx(override val context: TransactionContext) : Tx {
     protected inline fun <T> withReadLock(block: () -> (T)): T {
         if (this.status == TxStatus.CLOSED) throw TxException.TxClosedException(this.context.txId)
         if (this.status == TxStatus.ERROR) throw TxException.TxInErrorException(this.context.txId)
-        if (this.context.lockOn(this.dbo) === LockMode.NO_LOCK) {
-            this.context.requestLock(this.dbo, LockMode.SHARED)
-        }
+        this.context.requestLock(this.dbo, LockMode.SHARED)
         return block()
     }
 }

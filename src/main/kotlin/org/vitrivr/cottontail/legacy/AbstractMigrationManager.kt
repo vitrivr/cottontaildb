@@ -2,7 +2,6 @@ package org.vitrivr.cottontail.legacy
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2ObjectMaps
-import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
 import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.database.catalogue.Catalogue
 import org.vitrivr.cottontail.database.catalogue.CatalogueTx
@@ -13,10 +12,8 @@ import org.vitrivr.cottontail.database.events.DataChangeEvent
 import org.vitrivr.cottontail.database.general.DBO
 import org.vitrivr.cottontail.database.general.Tx
 import org.vitrivr.cottontail.database.locking.LockMode
-import org.vitrivr.cottontail.database.schema.Schema
 import org.vitrivr.cottontail.database.schema.SchemaTx
 import org.vitrivr.cottontail.execution.TransactionContext
-import org.vitrivr.cottontail.execution.TransactionManager
 import org.vitrivr.cottontail.execution.TransactionManager.Transaction
 import org.vitrivr.cottontail.execution.TransactionStatus
 import org.vitrivr.cottontail.execution.TransactionType
@@ -274,12 +271,6 @@ abstract class AbstractMigrationManager(val batchSize: Int, logFile: Path) : Mig
         override fun requestLock(dbo: DBO, mode: LockMode) {
             /* No op. */
         }
-
-        /**
-         * Since migrations cannot be executed on live-instances of Cottontail DB, the locks held on
-         * any DB object is always [LockMode.EXCLUSIVE].
-         */
-        override fun lockOn(dbo: DBO): LockMode = LockMode.EXCLUSIVE
 
         /**
          *

@@ -34,14 +34,6 @@ interface TransactionContext {
     fun getTx(dbo: DBO): Tx
 
     /**
-     * Returns the [LockMode] this [TransactionContext] has on the given [DBO].
-     *
-     * @param dbo [DBO] The [DBO] to query the [LockMode] for.
-     * @return [LockMode]
-     */
-    fun lockOn(dbo: DBO): LockMode
-
-    /**
      * Acquires a [Lock] on a [DBO] for the given [LockMode]. This call is delegated to the
      * [LockManager] and really just a convenient way for [Tx] objects to obtain locks.
      *
