@@ -14,6 +14,7 @@ import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import org.vitrivr.cottontail.model.exceptions.ExecutionException
+import org.vitrivr.cottontail.model.exceptions.QueryException
 import java.util.*
 import kotlin.time.ExperimentalTime
 import kotlin.time.TimeSource
@@ -68,10 +69,13 @@ interface gRPCTransactionService {
         val mark = TimeSource.Monotonic.markNow()
         return action(context, queryId).catch { e ->
             throw when (e) {
-                is DeadlockException -> Status.ABORTED.withDescription(formatMessage(context, queryId, "Failed to execute query because of a deadlock with another transaction.")).asException()
-                is DatabaseException -> Status.INTERNAL.withDescription(formatMessage(context, queryId, "Failed to execute query because of a database error.")).withCause(e).asException()
-                is ExecutionException -> Status.INTERNAL.withDescription(formatMessage(context, queryId, "Failed to execute query because of an execution error.")).withCause(e).asException()
-                else -> Status.UNKNOWN.withDescription(formatMessage(context, queryId, "Failed to execute query because because of an unhandled exception.")).withCause(e).asException()
+                is DeadlockException -> Status.ABORTED.withDescription(formatMessage(context, queryId, "$description failed because of a deadlock with another transaction. ${e.message}")).asException()
+                is DatabaseException -> Status.INTERNAL.withDescription(formatMessage(context, queryId, "$description failed because of a database error. ${e.message}")).withCause(e).asException()
+                is ExecutionException -> Status.INTERNAL.withDescription(formatMessage(context, queryId, "$description failed because of an execution error. ${e.message}")).withCause(e).asException()
+                is QueryException.QuerySyntaxException -> Status.INVALID_ARGUMENT.withDescription(formatMessage(context, queryId, "$description failed because of syntax error. ${e.message}")).withCause(e).asException()
+                is QueryException.QueryBindException -> Status.INVALID_ARGUMENT.withDescription(formatMessage(context, queryId, "$description failed because of binding error. ${e.message}")).withCause(e).asException()
+                is QueryException.QueryPlannerException -> Status.INTERNAL.withDescription(formatMessage(context, queryId, "$description failed because of planning error. ${e.message}")).withCause(e).asException()
+                else -> Status.UNKNOWN.withDescription(formatMessage(context, queryId, "$description failed because of an unhandled exception.")).withCause(e).asException()
             }
         }.onCompletion {
             if (context.type === TransactionType.USER_IMPLICIT) {
