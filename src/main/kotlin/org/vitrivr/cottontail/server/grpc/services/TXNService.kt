@@ -59,7 +59,7 @@ class TXNService constructor(override val manager: TransactionManager) : TXNGrpc
         }
         val queryId = request.queryId.ifEmpty { UUID.randomUUID().toString() }
         try {
-            txn.commit()
+            txn.rollback()
             return Empty.getDefaultInstance()
         } catch (e: Throwable) {
             throw Status.INTERNAL.withDescription(formatMessage(txn, queryId, "Failed to execute COMMIT due to unexpected error: ${e.message}")).asException()
