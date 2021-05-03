@@ -65,16 +65,29 @@ interface gRPCTransactionService {
             UUID.randomUUID().toString()
         }
 
-        /* Execute action with context; finalize implicit user transactions. */
+        /* Prepare flow for execution. If this fails, implicit transactions are automatically rolled back. */
         val mark = TimeSource.Monotonic.markNow()
-        return action(context, queryId).catch { e ->
+        val flow = try {
+            action(context, queryId)
+        } catch (e: Throwable) {
+            if (context.type === TransactionType.USER_IMPLICIT) {
+                context.rollback()
+            }
+            throw when (e) {
+                is QueryException.QuerySyntaxException -> Status.INVALID_ARGUMENT.withDescription(formatMessage(context, queryId, "$description failed because of syntax error. ${e.message}")).withCause(e).asException()
+                is QueryException.QueryBindException -> Status.INVALID_ARGUMENT.withDescription(formatMessage(context, queryId, "$description failed because of binding error. ${e.message}")).withCause(e).asException()
+                is QueryException.QueryPlannerException -> Status.INVALID_ARGUMENT.withDescription(formatMessage(context, queryId, "$description failed because of syntax error. ${e.message}")).withCause(e).asException()
+                is DatabaseException -> Status.INTERNAL.withDescription(formatMessage(context, queryId, "$description failed because of a database error. ${e.message}")).withCause(e).asException()
+                else -> Status.UNKNOWN.withDescription(formatMessage(context, queryId, "$description failed because of an unhandled exception.")).withCause(e).asException()
+            }
+        }
+
+        /* Return flow and execute it. */
+        return flow.catch { e ->
             throw when (e) {
                 is DeadlockException -> Status.ABORTED.withDescription(formatMessage(context, queryId, "$description failed because of a deadlock with another transaction. ${e.message}")).asException()
                 is DatabaseException -> Status.INTERNAL.withDescription(formatMessage(context, queryId, "$description failed because of a database error. ${e.message}")).withCause(e).asException()
                 is ExecutionException -> Status.INTERNAL.withDescription(formatMessage(context, queryId, "$description failed because of an execution error. ${e.message}")).withCause(e).asException()
-                is QueryException.QuerySyntaxException -> Status.INVALID_ARGUMENT.withDescription(formatMessage(context, queryId, "$description failed because of syntax error. ${e.message}")).withCause(e).asException()
-                is QueryException.QueryBindException -> Status.INVALID_ARGUMENT.withDescription(formatMessage(context, queryId, "$description failed because of binding error. ${e.message}")).withCause(e).asException()
-                is QueryException.QueryPlannerException -> Status.INTERNAL.withDescription(formatMessage(context, queryId, "$description failed because of planning error. ${e.message}")).withCause(e).asException()
                 else -> Status.UNKNOWN.withDescription(formatMessage(context, queryId, "$description failed because of an unhandled exception.")).withCause(e).asException()
             }
         }.onCompletion {
