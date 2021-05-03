@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.database.locking
 
+import it.unimi.dsi.fastutil.objects.Object2ObjectMaps
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
 import org.vitrivr.cottontail.execution.TransactionManager.Transaction
 import org.vitrivr.cottontail.model.basics.TransactionId
@@ -14,7 +15,7 @@ import org.vitrivr.cottontail.model.basics.TransactionId
  */
 open class LockHolder<T>(val txId: TransactionId) : Comparable<LockHolder<*>> {
     /** The [Lock]s held by this [Transaction]. */
-    protected val locks = Object2ObjectOpenHashMap<T, Lock<T>>()
+    protected val locks = Object2ObjectMaps.synchronize(Object2ObjectOpenHashMap<T, Lock<T>>())
 
     /** Returns the number of [Lock]s held by this [LockHolder]. */
     val numberOfLocks: Int
