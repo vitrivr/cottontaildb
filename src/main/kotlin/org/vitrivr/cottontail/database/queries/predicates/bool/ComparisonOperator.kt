@@ -56,6 +56,12 @@ sealed class ComparisonOperator {
         /** The [Value] bound by this [ComparisonOperator.Binary]. Can be updated via [bindValues]*/
         protected var rightValue: Value? = null
 
+        init {
+            if (this.right.context != null) {
+                this.rightValue = this.right.value
+            }
+        }
+
         /**
          * Binds the values in this [ComparisonOperator] to this [BindingContext].
          *
