@@ -1,5 +1,14 @@
 # Change log for Cottontail DB
 
+## Version 0.12.8
+
+* gRPC endpoint was migrated to Kotlin gRPC
+* Implemented various optimizations that should speed up query execution.
+
+### Bugfixes
+
+* Fixed issue in query execution that could cause Cottontail DB to hang itself up in a concurrent environment.
+
 ## Version 0.12.7
 
 ### Bugfixes
