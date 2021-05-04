@@ -1,6 +1,8 @@
 package org.vitrivr.cottontail.server.grpc.services
 
 import io.grpc.Status
+import io.grpc.StatusException
+import io.grpc.StatusRuntimeException
 import kotlinx.coroutines.flow.*
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.client.language.basics.Constants
@@ -88,6 +90,8 @@ interface gRPCTransactionService {
                 is DeadlockException -> Status.ABORTED.withDescription(formatMessage(context, queryId, "$description failed because of a deadlock with another transaction. ${e.message}")).asException()
                 is DatabaseException -> Status.INTERNAL.withDescription(formatMessage(context, queryId, "$description failed because of a database error. ${e.message}")).withCause(e).asException()
                 is ExecutionException -> Status.INTERNAL.withDescription(formatMessage(context, queryId, "$description failed because of an execution error. ${e.message}")).withCause(e).asException()
+                is StatusRuntimeException,
+                is StatusException -> e
                 else -> Status.UNKNOWN.withDescription(formatMessage(context, queryId, "$description failed because of an unhandled exception.")).withCause(e).asException()
             }
         }.onCompletion {
