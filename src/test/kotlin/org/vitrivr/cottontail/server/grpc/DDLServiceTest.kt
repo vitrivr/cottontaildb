@@ -7,7 +7,7 @@ import io.grpc.netty.NettyChannelBuilder
 import org.junit.jupiter.api.*
 import org.vitrivr.cottontail.TestConstants
 import org.vitrivr.cottontail.TestConstants.DBO_CONSTANT
-import org.vitrivr.cottontail.TestConstants.TEST_ENTITY_FULL
+import org.vitrivr.cottontail.TestConstants.TEST_ENTITY
 import org.vitrivr.cottontail.TestConstants.TEST_SCHEMA
 import org.vitrivr.cottontail.client.language.ddl.*
 import org.vitrivr.cottontail.client.stub.SimpleClient
@@ -23,7 +23,7 @@ class DDLServiceTest {
     @ExperimentalTime
     @BeforeAll
     fun startCottontail() {
-        embedded(TestConstants.testConfig());
+        embedded(TestConstants.testConfig())
     }
 
     @BeforeEach
@@ -64,37 +64,17 @@ class DDLServiceTest {
         try {
             client.drop(DropSchema(TEST_SCHEMA))
         } catch (e: StatusRuntimeException) {
-            if (e.status != Status.NOT_FOUND) {
+            if (e.status.code != Status.NOT_FOUND.code) {
                 fail("status was " + e.status + " instead of NOT_FOUND")
             }
         }
-    }
-
-    fun createTestSchema() {
-        client.create(CreateSchema(TEST_SCHEMA))
-    }
-
-    fun createTestEntity() {
-        client.create(CreateEntity(TEST_ENTITY_FULL))
-    }
-
-    fun schemaNames(): List<String> {
-        val names = mutableListOf<String>()
-        client.list(ListSchemas()).forEach { t -> names.add(t.asString(DBO_CONSTANT)!!) }
-        return names
-    }
-
-    fun entityNames(): List<String> {
-        val names = mutableListOf<String>()
-        client.list(ListEntities(TEST_SCHEMA)).forEach { t -> names.add(t.asString(DBO_CONSTANT)!!) }
-        return names
     }
 
     @Test
     fun createAndListSchema() {
         createTestSchema()
         val names = schemaNames()
-        assert(names.contains(TEST_SCHEMA)) { "returned schema names were $names instead of expected $TEST_SCHEMA" }
+        assert(names.contains("warren.$TEST_SCHEMA")) { "returned schema names were $names instead of expected $TEST_SCHEMA" }
     }
 
     @Test
@@ -108,9 +88,9 @@ class DDLServiceTest {
     fun dropNonExistingEntity() {
         createTestSchema()
         try {
-            client.drop(DropEntity(TEST_ENTITY_FULL))
+            client.drop(DropEntity("$TEST_SCHEMA.$TEST_ENTITY"))
         } catch (e: StatusRuntimeException) {
-            if (e.status != Status.NOT_FOUND) {
+            if (e.status.code != Status.NOT_FOUND.code) {
                 fail("status was " + e.status + " instead of NOT_FOUND")
             }
         }
@@ -121,16 +101,35 @@ class DDLServiceTest {
         createTestSchema()
         createTestEntity()
         val names = entityNames()
-        assert(names.contains(TEST_ENTITY_FULL)) { "returned schema names were $names instead of expected $TEST_ENTITY_FULL" }
+        assert(names.contains("warren.$TEST_SCHEMA.$TEST_ENTITY")) { "returned schema names were $names instead of expected $TEST_ENTITY" }
     }
 
     @Test
     fun createAndDropEntity() {
         createTestSchema()
         createTestEntity()
-        client.drop(DropEntity(TEST_ENTITY_FULL))
-        assert(!entityNames().contains(TEST_ENTITY_FULL)) { "entity $TEST_ENTITY_FULL was not dropped" }
+        client.drop(DropEntity("warren.$TEST_SCHEMA.$TEST_ENTITY"))
+        assert(!entityNames().contains("warren.$TEST_SCHEMA.$TEST_ENTITY")) { "entity $TEST_ENTITY was not dropped" }
     }
 
 
+    private fun createTestSchema() {
+        client.create(CreateSchema(TEST_SCHEMA))
+    }
+
+    private fun createTestEntity() {
+        client.create(CreateEntity("$TEST_SCHEMA.$TEST_ENTITY"))
+    }
+
+    private fun schemaNames(): List<String> {
+        val names = mutableListOf<String>()
+        client.list(ListSchemas()).forEach { t -> names.add(t.asString(DBO_CONSTANT)!!) }
+        return names
+    }
+
+    private fun entityNames(): List<String> {
+        val names = mutableListOf<String>()
+        client.list(ListEntities(TEST_SCHEMA)).forEach { t -> names.add(t.asString(DBO_CONSTANT)!!) }
+        return names
+    }
 }

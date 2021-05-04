@@ -29,8 +29,6 @@ object TestConstants {
     /** Entity used for grpc tests */
     const val TEST_ENTITY = "test-entity"
 
-    const val TEST_ENTITY_FULL = "$TEST_SCHEMA.$TEST_ENTITY"
-
     /** Datbase Object name from the grpc api */
     const val DBO_CONSTANT = "dbo"
 
