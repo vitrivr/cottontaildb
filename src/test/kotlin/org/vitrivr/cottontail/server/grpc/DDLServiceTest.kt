@@ -19,6 +19,8 @@ class DDLServiceTest {
 
     private lateinit var client: SimpleClient
     private lateinit var channel: ManagedChannel
+    private final var TEST_ENTITY_FQN_INPUT = "$TEST_SCHEMA.$TEST_ENTITY"
+    private final var TEST_ENTITY_FQN_OUTPUT = "warren.$TEST_SCHEMA.$TEST_ENTITY"
 
     @ExperimentalTime
     @BeforeAll
@@ -88,7 +90,7 @@ class DDLServiceTest {
     fun dropNonExistingEntity() {
         createTestSchema()
         try {
-            client.drop(DropEntity("$TEST_SCHEMA.$TEST_ENTITY"))
+            client.drop(DropEntity(TEST_ENTITY_FQN_INPUT))
         } catch (e: StatusRuntimeException) {
             if (e.status.code != Status.NOT_FOUND.code) {
                 fail("status was " + e.status + " instead of NOT_FOUND")
@@ -98,18 +100,41 @@ class DDLServiceTest {
 
     @Test
     fun createAndListEntity() {
+        createAndListEntity(TEST_ENTITY_FQN_INPUT)
+        dropTestSchema()
+        createAndListEntity(TEST_ENTITY_FQN_OUTPUT)
+    }
+
+    fun createAndListEntity(input: String) {
         createTestSchema()
-        createTestEntity()
+        createTestEntity(input)
         val names = entityNames()
-        assert(names.contains("warren.$TEST_SCHEMA.$TEST_ENTITY")) { "returned schema names were $names instead of expected $TEST_ENTITY" }
+        assert(names.contains(TEST_ENTITY_FQN_OUTPUT)) { "returned schema names were $names instead of expected $TEST_ENTITY_FQN_OUTPUT" }
     }
 
     @Test
-    fun createAndDropEntity() {
+    fun createAndVerifyAboutEntity() {
         createTestSchema()
         createTestEntity()
-        client.drop(DropEntity("warren.$TEST_SCHEMA.$TEST_ENTITY"))
-        assert(!entityNames().contains("warren.$TEST_SCHEMA.$TEST_ENTITY")) { "entity $TEST_ENTITY was not dropped" }
+        val about = client.about(AboutEntity(TEST_ENTITY_FQN_INPUT))
+        assert(about.hasNext()) { "could not verify existence with about message" }
+    }
+
+    /**
+     * drop entity api should accept both with and without warren qualifier
+     */
+    @Test
+    fun createAndDropEntity() {
+        createAndDropEntity(TEST_ENTITY_FQN_INPUT)
+        dropTestSchema()
+        createAndDropEntity(TEST_ENTITY_FQN_OUTPUT)
+    }
+
+    fun createAndDropEntity(input: String) {
+        createTestSchema()
+        createTestEntity()
+        client.drop(DropEntity(TEST_ENTITY_FQN_INPUT))
+        assert(!entityNames().contains(TEST_ENTITY_FQN_OUTPUT)) { "entity $TEST_ENTITY was not dropped" }
     }
 
 
@@ -117,8 +142,8 @@ class DDLServiceTest {
         client.create(CreateSchema(TEST_SCHEMA))
     }
 
-    private fun createTestEntity() {
-        client.create(CreateEntity("$TEST_SCHEMA.$TEST_ENTITY"))
+    private fun createTestEntity(input: String = TEST_ENTITY_FQN_INPUT) {
+        client.create(CreateEntity(input))
     }
 
     private fun schemaNames(): List<String> {
