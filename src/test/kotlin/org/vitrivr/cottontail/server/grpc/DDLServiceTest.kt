@@ -16,16 +16,22 @@ import org.vitrivr.cottontail.client.stub.SimpleClient
 import org.vitrivr.cottontail.embedded
 import kotlin.time.ExperimentalTime
 
+@ExperimentalTime
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class DDLServiceTest {
 
     private lateinit var client: SimpleClient
     private lateinit var channel: ManagedChannel
+    private lateinit var embedded: CottontailGrpcServer
 
-    @ExperimentalTime
     @BeforeAll
     fun startCottontail() {
-        embedded(TestConstants.testConfig())
+        this.embedded = embedded(TestConstants.testConfig())
+    }
+
+    @AfterAll
+    fun cleanup() {
+        this.embedded.stop()
     }
 
     @BeforeEach
@@ -43,7 +49,7 @@ class DDLServiceTest {
         dropTestSchema(client)
     }
 
-    
+
     @Test
     fun pingTest() {
         assert(client.ping()) { "ping unsuccessful" }

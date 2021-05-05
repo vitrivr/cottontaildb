@@ -1,29 +1,31 @@
-package org.vitrivr.cottontail.server.grpc;
+package org.vitrivr.cottontail.server.grpc
 
-import io.grpc.ManagedChannel;
-import io.grpc.netty.NettyChannelBuilder;
+import io.grpc.ManagedChannel
+import io.grpc.netty.NettyChannelBuilder
 import org.junit.jupiter.api.*
-import kotlin.time.ExperimentalTime;
-import org.vitrivr.cottontail.TestConstants;
+import org.vitrivr.cottontail.TestConstants
 import org.vitrivr.cottontail.TestConstants.STRING_COLUMN_NAME
 import org.vitrivr.cottontail.TestConstants.TEST_ENTITY_FQN_INPUT
 import org.vitrivr.cottontail.TestConstants.TEST_ENTITY_TUPLE_COUNT
 import org.vitrivr.cottontail.TestConstants.TEST_VECTOR_ENTITY_FQN_INPUT
 import org.vitrivr.cottontail.TestConstants.TWOD_COLUMN_NAME
 import org.vitrivr.cottontail.client.language.dql.Query
-import org.vitrivr.cottontail.client.stub.SimpleClient;
+import org.vitrivr.cottontail.client.stub.SimpleClient
 import org.vitrivr.cottontail.embedded
+import kotlin.time.ExperimentalTime
 
+@ExperimentalTime
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class DQLServiceTest {
 
     private lateinit var client: SimpleClient
     private lateinit var channel: ManagedChannel
+    private lateinit var embedded: CottontailGrpcServer
 
-    @ExperimentalTime
+
     @BeforeAll
     fun startCottontail() {
-        embedded(TestConstants.testConfig())
+        this.embedded = embedded(TestConstants.testConfig())
         val builder = NettyChannelBuilder.forAddress("localhost", 1865)
         builder.usePlaintext()
         this.channel = builder.build()
@@ -40,6 +42,7 @@ class DQLServiceTest {
     @AfterAll
     fun cleanup() {
         dropTestSchema(client)
+        this.embedded.stop()
     }
 
     @BeforeEach
