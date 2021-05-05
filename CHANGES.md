@@ -83,7 +83,7 @@
 * Added support for incremental updates to indexes upon INSERT, UPDATE or DELETE, if an indexes supports this (#10)
 * Added PQ and VA indexes for nearest neighbor search
 * Added column statistics that can be used for query planning
-* Re-added support for SELECT DISTINCT projectsion (#68)
+* Re-added support for SELECT DISTINCT projection (#68)
 * Re-structured query planner, which should now scale better to more complex query plans
 
 ### Bugfixes
