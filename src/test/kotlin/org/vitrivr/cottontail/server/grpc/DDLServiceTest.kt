@@ -8,6 +8,8 @@ import org.junit.jupiter.api.*
 import org.vitrivr.cottontail.TestConstants
 import org.vitrivr.cottontail.TestConstants.DBO_CONSTANT
 import org.vitrivr.cottontail.TestConstants.TEST_ENTITY
+import org.vitrivr.cottontail.TestConstants.TEST_ENTITY_FQN_INPUT
+import org.vitrivr.cottontail.TestConstants.TEST_ENTITY_FQN_OUTPUT
 import org.vitrivr.cottontail.TestConstants.TEST_SCHEMA
 import org.vitrivr.cottontail.client.language.ddl.*
 import org.vitrivr.cottontail.client.stub.SimpleClient
@@ -19,8 +21,6 @@ class DDLServiceTest {
 
     private lateinit var client: SimpleClient
     private lateinit var channel: ManagedChannel
-    private final var TEST_ENTITY_FQN_INPUT = "$TEST_SCHEMA.$TEST_ENTITY"
-    private final var TEST_ENTITY_FQN_OUTPUT = "warren.$TEST_SCHEMA.$TEST_ENTITY"
 
     @ExperimentalTime
     @BeforeAll
@@ -35,23 +35,15 @@ class DDLServiceTest {
         this.channel = builder.build()
         this.client = SimpleClient(this.channel)
         assert(client.ping())
-        dropTestSchema()
+        dropTestSchema(client)
     }
 
     @AfterEach
     fun tearDown() {
-        dropTestSchema()
+        dropTestSchema(client)
     }
 
-    fun dropTestSchema() {
-        /* Teardown */
-        try {
-            client.drop(DropSchema(TEST_SCHEMA))
-        } catch (e: Exception) {
-            //ignore
-        }
-    }
-
+    
     @Test
     fun pingTest() {
         assert(client.ping()) { "ping unsuccessful" }
@@ -74,21 +66,21 @@ class DDLServiceTest {
 
     @Test
     fun createAndListSchema() {
-        createTestSchema()
+        createTestSchema(client)
         val names = schemaNames()
         assert(names.contains("warren.$TEST_SCHEMA")) { "returned schema names were $names instead of expected $TEST_SCHEMA" }
     }
 
     @Test
     fun createAndDropSchema() {
-        createTestSchema()
+        createTestSchema(client)
         client.drop(DropSchema(TEST_SCHEMA))
         assert(!schemaNames().contains(TEST_SCHEMA)) { "schema $TEST_SCHEMA was not dropped" }
     }
 
     @Test
     fun dropNonExistingEntity() {
-        createTestSchema()
+        createTestSchema(client)
         try {
             client.drop(DropEntity(TEST_ENTITY_FQN_INPUT))
         } catch (e: StatusRuntimeException) {
@@ -101,12 +93,12 @@ class DDLServiceTest {
     @Test
     fun createAndListEntity() {
         createAndListEntity(TEST_ENTITY_FQN_INPUT)
-        dropTestSchema()
+        dropTestSchema(client)
         createAndListEntity(TEST_ENTITY_FQN_OUTPUT)
     }
 
     fun createAndListEntity(input: String) {
-        createTestSchema()
+        createTestSchema(client)
         createTestEntity(input)
         val names = entityNames()
         assert(names.contains(TEST_ENTITY_FQN_OUTPUT)) { "returned schema names were $names instead of expected $TEST_ENTITY_FQN_OUTPUT" }
@@ -114,7 +106,7 @@ class DDLServiceTest {
 
     @Test
     fun createAndVerifyAboutEntity() {
-        createTestSchema()
+        createTestSchema(client)
         createTestEntity()
         val about = client.about(AboutEntity(TEST_ENTITY_FQN_INPUT))
         assert(about.hasNext()) { "could not verify existence with about message" }
@@ -126,20 +118,15 @@ class DDLServiceTest {
     @Test
     fun createAndDropEntity() {
         createAndDropEntity(TEST_ENTITY_FQN_INPUT)
-        dropTestSchema()
+        dropTestSchema(client)
         createAndDropEntity(TEST_ENTITY_FQN_OUTPUT)
     }
 
     fun createAndDropEntity(input: String) {
-        createTestSchema()
+        createTestSchema(client)
         createTestEntity()
-        client.drop(DropEntity(TEST_ENTITY_FQN_INPUT))
+        client.drop(DropEntity(input))
         assert(!entityNames().contains(TEST_ENTITY_FQN_OUTPUT)) { "entity $TEST_ENTITY was not dropped" }
-    }
-
-
-    private fun createTestSchema() {
-        client.create(CreateSchema(TEST_SCHEMA))
     }
 
     private fun createTestEntity(input: String = TEST_ENTITY_FQN_INPUT) {
