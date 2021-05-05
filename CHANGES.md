@@ -1,5 +1,15 @@
 # Change log for Cottontail DB
 
+## Version 0.12.9
+
+* Added UnitTests for gRPC endpoint stability
+* Added latches to all `AbstractTx` to prevent concurrent access from same transaction.
+
+### Bugfixes
+
+* Fixed an error in `DeferFetchOnScanRewriteRule` that could case fetching of unnecessary columns.
+* Fixed an error in `Distances` that caused distance calculation without a weighted version to fail. Up
+
 ## Version 0.12.8
 
 * gRPC endpoint was migrated to Kotlin gRPC
