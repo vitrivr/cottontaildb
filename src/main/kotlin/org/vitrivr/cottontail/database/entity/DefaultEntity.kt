@@ -298,11 +298,10 @@ class DefaultEntity(override val path: Path, override val parent: Schema) : Enti
          *
          * @throws DatabaseException If tuple with the desired ID doesn't exist OR is invalid.
          */
-        override fun read(tupleId: TupleId, columns: Array<ColumnDef<*>>): Record {
+        override fun read(tupleId: TupleId, columns: Array<ColumnDef<*>>): Record = this.withReadLock {
             /* Read values from underlying columns. */
             val values = columns.map {
-                val column = this@DefaultEntity.columns[it.name]
-                    ?: throw IllegalArgumentException("Column $it does not exist on entity ${this@DefaultEntity.name}.")
+                val column = this@DefaultEntity.columns[it.name] ?: throw IllegalArgumentException("Column $it does not exist on entity ${this@DefaultEntity.name}.")
                 (this.context.getTx(column) as ColumnTx<*>).read(tupleId)
             }.toTypedArray()
 
@@ -518,6 +517,8 @@ class DefaultEntity(override val path: Path, override val parent: Schema) : Enti
             try {
                 var lastTupleId: TupleId? = null
                 val inserts = Object2ObjectArrayMap<ColumnDef<*>, Value>(this@DefaultEntity.columns.size)
+
+                /* This is a critical section and requires a latch. */
                 this@DefaultEntity.columns.values.forEach {
                     val tx = this.context.getTx(it) as ColumnTx<Value>
                     val value = record[it.columnDef]
@@ -530,12 +531,10 @@ class DefaultEntity(override val path: Path, override val parent: Schema) : Enti
                 }
 
                 /* Issue DataChangeEvent.InsertDataChange event and update indexes + statistics. */
-                if (lastTupleId != null) {
-                    val event = DataChangeEvent.InsertDataChangeEvent(this@DefaultEntity, lastTupleId!!, inserts)
-                    this.snapshot.indexes.values.forEach { (this.context.getTx(it) as IndexTx).update(event) }
-                    this.snapshot.statistics.consume(event)
-                    this.context.signalEvent(event)
-                }
+                val event = DataChangeEvent.InsertDataChangeEvent(this@DefaultEntity, lastTupleId!!, inserts)
+                this.snapshot.indexes.values.forEach { (this.context.getTx(it) as IndexTx).update(event) }
+                this.snapshot.statistics.consume(event)
+                this.context.signalEvent(event)
 
                 return lastTupleId
             } catch (e: DatabaseException) {
