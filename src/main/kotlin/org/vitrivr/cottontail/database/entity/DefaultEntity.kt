@@ -418,12 +418,14 @@ class DefaultEntity(override val path: Path, override val parent: Schema) : Enti
          */
         override fun optimize() = this.withWriteLock {
             /* Stage 1a: Rebuild incremental indexes and statistics. */
-            val incremental = this.listIndexes().filter { it.supportsIncrementalUpdate }.map {
+            val incremental = this.snapshot.indexes.values.filter {
+                it.supportsIncrementalUpdate
+            }.map {
                 val tx = this.context.getTx(it) as IndexTx
                 tx.clear() /* Important: Clear indexes. */
                 tx
             }
-            val columns = this.listColumns().map { it.columnDef }.toTypedArray()
+            val columns = this@DefaultEntity.columns.values.map { it.columnDef }.toTypedArray()
             val map = Object2ObjectOpenHashMap<ColumnDef<*>, Value>(columns.size)
             val iterator = this.scan(columns)
             this.snapshot.statistics.reset()
@@ -435,7 +437,11 @@ class DefaultEntity(override val path: Path, override val parent: Schema) : Enti
             }
 
             /* Stage 2: Rebuild remaining indexes. */
-            this.listIndexes().filter { !it.supportsIncrementalUpdate }.forEach { (this.context.getTx(it) as IndexTx).rebuild() }
+            this.snapshot.indexes.values.filter {
+                !it.supportsIncrementalUpdate
+            }.forEach {
+                (this.context.getTx(it) as IndexTx).rebuild()
+            }
         }
 
         /**
