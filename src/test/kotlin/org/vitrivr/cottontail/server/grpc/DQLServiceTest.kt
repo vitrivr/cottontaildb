@@ -1,18 +1,18 @@
 package org.vitrivr.cottontail.server.grpc;
 
-import io.grpc.ManagedChannel;
-import io.grpc.netty.NettyChannelBuilder;
+import io.grpc.ManagedChannel
+import io.grpc.netty.NettyChannelBuilder
 import org.junit.jupiter.api.*
-import kotlin.time.ExperimentalTime;
-import org.vitrivr.cottontail.TestConstants;
+import org.vitrivr.cottontail.TestConstants
 import org.vitrivr.cottontail.TestConstants.STRING_COLUMN_NAME
 import org.vitrivr.cottontail.TestConstants.TEST_ENTITY_FQN_INPUT
 import org.vitrivr.cottontail.TestConstants.TEST_ENTITY_TUPLE_COUNT
 import org.vitrivr.cottontail.TestConstants.TEST_VECTOR_ENTITY_FQN_INPUT
 import org.vitrivr.cottontail.TestConstants.TWOD_COLUMN_NAME
 import org.vitrivr.cottontail.client.language.dql.Query
-import org.vitrivr.cottontail.client.stub.SimpleClient;
+import org.vitrivr.cottontail.client.stub.SimpleClient
 import org.vitrivr.cottontail.embedded
+import kotlin.time.ExperimentalTime
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class DQLServiceTest {
@@ -87,6 +87,7 @@ class DQLServiceTest {
         val query = Query().from(TEST_VECTOR_ENTITY_FQN_INPUT).knn(TWOD_COLUMN_NAME, 2, "haversine", arrayOf(5f, 10f))
         val result = client.query(query)
         val el = result.next()
+        val distance = el.asDouble("distance")
+        assert(distance != null)
     }
-
 }
