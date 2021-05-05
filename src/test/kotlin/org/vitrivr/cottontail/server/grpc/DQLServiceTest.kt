@@ -90,6 +90,7 @@ class DQLServiceTest {
         val query = Query().from(TEST_VECTOR_ENTITY_FQN_INPUT).knn(TWOD_COLUMN_NAME, 2, "haversine", arrayOf(5f, 10f))
         val result = client.query(query)
         val el = result.next()
+        val distance = el.asDouble("distance")
+        assert(distance != null)
     }
-
 }
