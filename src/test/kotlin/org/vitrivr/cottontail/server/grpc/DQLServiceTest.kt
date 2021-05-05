@@ -23,7 +23,7 @@ class DQLServiceTest {
     @ExperimentalTime
     @BeforeAll
     fun startCottontail() {
-        //embedded(TestConstants.testConfig())
+        embedded(TestConstants.testConfig())
         val builder = NettyChannelBuilder.forAddress("localhost", 1865)
         builder.usePlaintext()
         this.channel = builder.build()
