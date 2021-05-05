@@ -80,7 +80,10 @@ interface gRPCTransactionService {
                 is QueryException.QueryBindException -> Status.INVALID_ARGUMENT.withDescription(formatMessage(context, queryId, "$description failed because of binding error. ${e.message}")).withCause(e).asException()
                 is QueryException.QueryPlannerException -> Status.INVALID_ARGUMENT.withDescription(formatMessage(context, queryId, "$description failed because of syntax error. ${e.message}")).withCause(e).asException()
                 is DatabaseException -> Status.INTERNAL.withDescription(formatMessage(context, queryId, "$description failed because of a database error. ${e.message}")).withCause(e).asException()
-                else -> Status.UNKNOWN.withDescription(formatMessage(context, queryId, "$description failed because of an unhandled exception.")).withCause(e).asException()
+                else -> {
+                    e.printStackTrace()
+                    Status.UNKNOWN.withDescription(formatMessage(context, queryId, "$description failed because of an unhandled exception.")).withCause(e).asException()
+                }
             }
         }
 
@@ -92,7 +95,10 @@ interface gRPCTransactionService {
                 is ExecutionException -> Status.INTERNAL.withDescription(formatMessage(context, queryId, "$description failed because of an execution error. ${e.message}")).withCause(e).asException()
                 is StatusRuntimeException,
                 is StatusException -> e
-                else -> Status.UNKNOWN.withDescription(formatMessage(context, queryId, "$description failed because of an unhandled exception.")).withCause(e).asException()
+                else -> {
+                    e.printStackTrace()
+                    Status.UNKNOWN.withDescription(formatMessage(context, queryId, "$description failed because of an unhandled exception.")).withCause(e).asException()
+                }
             }
         }.onCompletion {
             if (context.type === TransactionType.USER_IMPLICIT) {

@@ -30,8 +30,10 @@ object DeferFetchOnScanRewriteRule : RewriteRule {
                      * replace the (source) operator and introduce a FetchLogicalOperatorNode in between.
                      */
                     var p = next.copyWithInputs().base.first().output!!.copyWithOutput(EntityScanLogicalOperatorNode(originalGroupId, node.entity, required))
-                    p = FetchLogicalOperatorNode(p, node.entity, defer)
-                    p = next.output?.copyWithOutput(p) ?: p
+                    if (next.output != null) {
+                        p = FetchLogicalOperatorNode(p, node.entity, defer)
+                        p = next.output?.copyWithOutput(p) ?: p
+                    }
                     return p
                 }
 
