@@ -14,6 +14,7 @@ import org.vitrivr.cottontail.TestConstants.TEST_SCHEMA
 import org.vitrivr.cottontail.client.language.ddl.*
 import org.vitrivr.cottontail.client.stub.SimpleClient
 import org.vitrivr.cottontail.embedded
+import java.util.concurrent.TimeUnit
 import kotlin.time.ExperimentalTime
 
 @ExperimentalTime
@@ -32,6 +33,10 @@ class DDLServiceTest {
     @AfterAll
     fun cleanup() {
         this.embedded.stop()
+
+        /* Shutdown ManagedChannel. */
+        this.channel.shutdown()
+        this.channel.awaitTermination(5000, TimeUnit.MILLISECONDS)
     }
 
     @BeforeEach

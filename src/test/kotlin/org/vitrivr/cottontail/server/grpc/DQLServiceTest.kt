@@ -12,6 +12,7 @@ import org.vitrivr.cottontail.TestConstants.TWOD_COLUMN_NAME
 import org.vitrivr.cottontail.client.language.dql.Query
 import org.vitrivr.cottontail.client.stub.SimpleClient
 import org.vitrivr.cottontail.embedded
+import java.util.concurrent.TimeUnit
 import kotlin.time.ExperimentalTime
 
 @ExperimentalTime
@@ -43,6 +44,10 @@ class DQLServiceTest {
     fun cleanup() {
         dropTestSchema(client)
         this.embedded.stop()
+
+        /* Shutdown ManagedChannel. */
+        this.channel.shutdown()
+        this.channel.awaitTermination(5000, TimeUnit.MILLISECONDS)
     }
 
     @BeforeEach
