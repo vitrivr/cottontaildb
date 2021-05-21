@@ -1,5 +1,11 @@
 # Change log for Cottontail DB
 
+## Version 0.12.10
+
+### Bugfixes
+
+* Fixed an error in `DeferFetchOnScanRewriteRule` and `DeferFetchOnFetchRewriteRule`.
+
 ## Version 0.12.9
 
 * Added UnitTests for gRPC endpoint stability
@@ -8,7 +14,7 @@
 ### Bugfixes
 
 * Fixed an error in `DeferFetchOnScanRewriteRule` that could case fetching of unnecessary columns.
-* Fixed an error in `Distances` that caused distance calculation without a weighted version to fail. Up
+* Fixed an error in `Distances` that caused distance calculation without a weighted version to fail.
 
 ## Version 0.12.8
 
