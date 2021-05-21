@@ -47,7 +47,7 @@ object DeferFetchOnScanRewriteRule : RewriteRule {
             }
 
             /* This should not happen because essentially, this means that no useful output is produced by query and hence no columns need to be fetched. */
-            return node.output?.copyWithOutput(EntityScanLogicalOperatorNode(originalGroupId, node.entity, emptyArray()))
+            return node.output?.copyWithOutput(EntityScanLogicalOperatorNode(originalGroupId, node.entity, arrayOf(node.columns.first())))
         }
         return null
     }
