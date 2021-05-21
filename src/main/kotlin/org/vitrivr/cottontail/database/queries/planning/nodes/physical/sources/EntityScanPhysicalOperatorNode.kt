@@ -41,9 +41,7 @@ class EntityScanPhysicalOperatorNode(override val groupId: Int, val entity: Enti
     override val statistics: RecordStatistics = this.entity.snapshot.statistics
 
     /** The estimated [Cost] of scanning the [Entity]. */
-    override val cost = Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_MEMORY_ACCESS) * this.outputSize * this.columns.map {
-        this.statistics[it].avgWidth
-    }.sum()
+    override val cost = Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_MEMORY_ACCESS) * this.outputSize * (16 + this.columns.map { this.statistics[it].avgWidth }.sum())
 
     /**
      * Creates and returns a copy of this [EntityScanPhysicalOperatorNode] without any children or parents.
