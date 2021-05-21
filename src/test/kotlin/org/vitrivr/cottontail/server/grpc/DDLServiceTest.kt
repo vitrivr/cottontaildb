@@ -32,11 +32,13 @@ class DDLServiceTest {
 
     @AfterAll
     fun cleanup() {
-        this.embedded.stop()
-
         /* Shutdown ManagedChannel. */
         this.channel.shutdown()
         this.channel.awaitTermination(5000, TimeUnit.MILLISECONDS)
+
+        /* Stop embedded server. */
+        this.embedded.stop()
+        this.embedded.stop()
     }
 
     @BeforeEach

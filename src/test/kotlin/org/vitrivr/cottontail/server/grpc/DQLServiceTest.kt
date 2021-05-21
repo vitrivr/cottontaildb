@@ -43,11 +43,13 @@ class DQLServiceTest {
     @AfterAll
     fun cleanup() {
         dropTestSchema(client)
-        this.embedded.stop()
 
         /* Shutdown ManagedChannel. */
         this.channel.shutdown()
         this.channel.awaitTermination(5000, TimeUnit.MILLISECONDS)
+
+        /* Stop embedded server. */
+        this.embedded.stop()
     }
 
     @BeforeEach
