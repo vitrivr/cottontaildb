@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.config
 
+import kotlin.math.max
 import kotlinx.serialization.Serializable
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.ThreadPoolExecutor
@@ -28,7 +29,7 @@ data class ExecutionConfig(
      */
     fun newExecutor() = ThreadPoolExecutor(
         this.coreThreads.coerceAtLeast(1),
-        this.maxThreads.coerceAtLeast(4),
+        this.maxThreads.coerceAtLeast(max(4, this.coreThreads)),
         this.keepAliveMs,
         TimeUnit.MILLISECONDS,
         ArrayBlockingQueue(this.queueSize)
