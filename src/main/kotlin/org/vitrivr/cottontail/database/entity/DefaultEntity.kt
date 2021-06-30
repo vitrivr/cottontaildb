@@ -298,11 +298,10 @@ class DefaultEntity(override val path: Path, override val parent: Schema) : Enti
          *
          * @throws DatabaseException If tuple with the desired ID doesn't exist OR is invalid.
          */
-        override fun read(tupleId: TupleId, columns: Array<ColumnDef<*>>): Record {
+        override fun read(tupleId: TupleId, columns: Array<ColumnDef<*>>): Record = this.withReadLock {
             /* Read values from underlying columns. */
             val values = columns.map {
-                val column = this@DefaultEntity.columns[it.name]
-                    ?: throw IllegalArgumentException("Column $it does not exist on entity ${this@DefaultEntity.name}.")
+                val column = this@DefaultEntity.columns[it.name] ?: throw IllegalArgumentException("Column $it does not exist on entity ${this@DefaultEntity.name}.")
                 (this.context.getTx(column) as ColumnTx<*>).read(tupleId)
             }.toTypedArray()
 
@@ -406,9 +405,7 @@ class DefaultEntity(override val path: Path, override val parent: Schema) : Enti
         override fun dropIndex(name: Name.IndexName) = this.withWriteLock {
             /* Obtain index and acquire exclusive lock on it. */
             val index = this.snapshot.indexes.remove(name) ?: throw DatabaseException.IndexDoesNotExistException(name)
-            if (this.context.lockOn(index) != LockMode.EXCLUSIVE) {
-                this.context.requestLock(index, LockMode.EXCLUSIVE)
-            }
+            this.context.requestLock(index, LockMode.EXCLUSIVE)
 
             /* Remove entity from local snapshot. */
             this.snapshot.indexes.remove(name)
@@ -421,12 +418,14 @@ class DefaultEntity(override val path: Path, override val parent: Schema) : Enti
          */
         override fun optimize() = this.withWriteLock {
             /* Stage 1a: Rebuild incremental indexes and statistics. */
-            val incremental = this.listIndexes().filter { it.supportsIncrementalUpdate }.map {
+            val incremental = this.snapshot.indexes.values.filter {
+                it.supportsIncrementalUpdate
+            }.map {
                 val tx = this.context.getTx(it) as IndexTx
                 tx.clear() /* Important: Clear indexes. */
                 tx
             }
-            val columns = this.listColumns().map { it.columnDef }.toTypedArray()
+            val columns = this@DefaultEntity.columns.values.map { it.columnDef }.toTypedArray()
             val map = Object2ObjectOpenHashMap<ColumnDef<*>, Value>(columns.size)
             val iterator = this.scan(columns)
             this.snapshot.statistics.reset()
@@ -438,7 +437,11 @@ class DefaultEntity(override val path: Path, override val parent: Schema) : Enti
             }
 
             /* Stage 2: Rebuild remaining indexes. */
-            this.listIndexes().filter { !it.supportsIncrementalUpdate }.forEach { (this.context.getTx(it) as IndexTx).rebuild() }
+            this.snapshot.indexes.values.filter {
+                !it.supportsIncrementalUpdate
+            }.forEach {
+                (this.context.getTx(it) as IndexTx).rebuild()
+            }
         }
 
         /**
@@ -486,13 +489,18 @@ class DefaultEntity(override val path: Path, override val parent: Schema) : Enti
                 /** The wrapped [Iterator] of the first column. */
                 private val wrapped = this.txs.first().scan(this.range)
 
+                /** Array of [Value]s emitted by this [DefaultEntity]. */
+                private val values = arrayOfNulls<Value?>(columns.size)
+
                 /**
                  * Returns the next element in the iteration.
                  */
                 override fun next(): Record {
                     val tupleId = this.wrapped.next()
-                    val values = this.txs.map { it.read(tupleId) }.toTypedArray()
-                    return StandaloneRecord(tupleId, columns, values)
+                    for ((i, tx) in this.txs.withIndex()) {
+                        this.values[i] = tx.read(tupleId)
+                    }
+                    return StandaloneRecord(tupleId, columns, this.values)
                 }
 
                 /**
@@ -515,6 +523,8 @@ class DefaultEntity(override val path: Path, override val parent: Schema) : Enti
             try {
                 var lastTupleId: TupleId? = null
                 val inserts = Object2ObjectArrayMap<ColumnDef<*>, Value>(this@DefaultEntity.columns.size)
+
+                /* This is a critical section and requires a latch. */
                 this@DefaultEntity.columns.values.forEach {
                     val tx = this.context.getTx(it) as ColumnTx<Value>
                     val value = record[it.columnDef]
@@ -527,12 +537,10 @@ class DefaultEntity(override val path: Path, override val parent: Schema) : Enti
                 }
 
                 /* Issue DataChangeEvent.InsertDataChange event and update indexes + statistics. */
-                if (lastTupleId != null) {
-                    val event = DataChangeEvent.InsertDataChangeEvent(this@DefaultEntity, lastTupleId!!, inserts)
-                    this.snapshot.indexes.values.forEach { (this.context.getTx(it) as IndexTx).update(event) }
-                    this.snapshot.statistics.consume(event)
-                    this.context.signalEvent(event)
-                }
+                val event = DataChangeEvent.InsertDataChangeEvent(this@DefaultEntity, lastTupleId!!, inserts)
+                this.snapshot.indexes.values.forEach { (this.context.getTx(it) as IndexTx).update(event) }
+                this.snapshot.statistics.consume(event)
+                this.context.signalEvent(event)
 
                 return lastTupleId
             } catch (e: DatabaseException) {
