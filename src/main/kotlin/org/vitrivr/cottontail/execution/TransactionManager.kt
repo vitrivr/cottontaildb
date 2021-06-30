@@ -11,7 +11,6 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.slf4j.LoggerFactory
-import org.vitrivr.cottontail.database.events.DataChangeEvent
 import org.vitrivr.cottontail.database.general.DBO
 import org.vitrivr.cottontail.database.general.Tx
 import org.vitrivr.cottontail.database.general.TxStatus
@@ -19,6 +18,7 @@ import org.vitrivr.cottontail.database.locking.Lock
 import org.vitrivr.cottontail.database.locking.LockHolder
 import org.vitrivr.cottontail.database.locking.LockManager
 import org.vitrivr.cottontail.database.locking.LockMode
+import org.vitrivr.cottontail.database.logging.operations.Operation
 import org.vitrivr.cottontail.execution.TransactionManager.Transaction
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.model.basics.Record
@@ -129,14 +129,14 @@ class TransactionManager(transactionTableSize: Int, private val transactionHisto
         }
 
         /**
-         * Signals a [DataChangeEvent] to this [Transaction].
+         * Signals a [DataManagementOperation] to this [Transaction].
          *
-         * Implementing methods must process these [DataChangeEvent]s quickly, since they are usually
+         * Implementing methods must process these [DataManagementOperation]s quickly, since they are usually
          * triggered during an ongoing transaction.
          *
-         * @param event The [DataChangeEvent] that has been reported.
+         * @param action The [DataManagementOperation] that has been reported.
          */
-        override fun signalEvent(event: DataChangeEvent) {
+        override fun signalEvent(action: Operation.DataManagementOperation) {
             /* ToDo: Do something with the events. */
         }
 

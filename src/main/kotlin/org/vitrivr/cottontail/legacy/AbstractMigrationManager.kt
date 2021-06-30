@@ -8,10 +8,10 @@ import org.vitrivr.cottontail.database.catalogue.CatalogueTx
 import org.vitrivr.cottontail.database.column.ColumnEngine
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.entity.EntityTx
-import org.vitrivr.cottontail.database.events.DataChangeEvent
 import org.vitrivr.cottontail.database.general.DBO
 import org.vitrivr.cottontail.database.general.Tx
 import org.vitrivr.cottontail.database.locking.LockMode
+import org.vitrivr.cottontail.database.logging.operations.Operation
 import org.vitrivr.cottontail.database.schema.SchemaTx
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.TransactionManager.Transaction
@@ -275,7 +275,7 @@ abstract class AbstractMigrationManager(val batchSize: Int, logFile: Path) : Mig
         /**
          *
          */
-        override fun signalEvent(event: DataChangeEvent) {/* NoOp */
+        override fun signalEvent(event: Operation.DataManagementOperation) {/* NoOp */
         }
 
         /**
