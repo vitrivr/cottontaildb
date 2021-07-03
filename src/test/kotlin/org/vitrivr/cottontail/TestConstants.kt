@@ -30,20 +30,8 @@ object TestConstants {
     const val TEST_ENTITY = "test-entity"
     const val TEST_VECTOR_ENTITY = "test-vector-entity"
 
-    /** Datbase Object name from the grpc api */
+    /** Database Object name from the gRPC API */
     const val DBO_CONSTANT = "dbo"
-
-    const val TEST_ENTITY_FQN_INPUT = "$TEST_SCHEMA.$TEST_ENTITY"
-    const val TEST_VECTOR_ENTITY_FQN_INPUT = "$TEST_SCHEMA.$TEST_VECTOR_ENTITY"
-    const val TEST_ENTITY_FQN_OUTPUT = "warren.$TEST_SCHEMA.$TEST_ENTITY"
-
-    const val STRING_COLUMN_NAME = "string_col"
-
-    const val INT_COLUMN_NAME = "int_col"
-    const val TWOD_COLUMN_NAME = "twod_col"
-
-    const val TEST_ENTITY_TUPLE_COUNT = 100L
-
 
     /**
      * Creates a new test configuration.

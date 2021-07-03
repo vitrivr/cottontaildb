@@ -8,8 +8,6 @@ import org.junit.jupiter.api.*
 import org.vitrivr.cottontail.TestConstants
 import org.vitrivr.cottontail.TestConstants.DBO_CONSTANT
 import org.vitrivr.cottontail.TestConstants.TEST_ENTITY
-import org.vitrivr.cottontail.TestConstants.TEST_ENTITY_FQN_INPUT
-import org.vitrivr.cottontail.TestConstants.TEST_ENTITY_FQN_OUTPUT
 import org.vitrivr.cottontail.TestConstants.TEST_SCHEMA
 import org.vitrivr.cottontail.client.language.ddl.*
 import org.vitrivr.cottontail.client.stub.SimpleClient
@@ -41,12 +39,12 @@ class DDLServiceTest {
         this.channel = builder.build()
         this.client = SimpleClient(this.channel)
         assert(client.ping())
-        dropTestSchema(client)
+        GrpcTestUtils.dropTestSchema(client)
     }
 
     @AfterEach
     fun tearDown() {
-        dropTestSchema(client)
+        GrpcTestUtils.dropTestSchema(client)
     }
 
 
@@ -72,23 +70,23 @@ class DDLServiceTest {
 
     @Test
     fun createAndListSchema() {
-        createTestSchema(client)
+        GrpcTestUtils.createTestSchema(client)
         val names = schemaNames()
         assert(names.contains("warren.$TEST_SCHEMA")) { "returned schema names were $names instead of expected $TEST_SCHEMA" }
     }
 
     @Test
     fun createAndDropSchema() {
-        createTestSchema(client)
+        GrpcTestUtils.createTestSchema(client)
         client.drop(DropSchema(TEST_SCHEMA))
         assert(!schemaNames().contains(TEST_SCHEMA)) { "schema $TEST_SCHEMA was not dropped" }
     }
 
     @Test
     fun dropNonExistingEntity() {
-        createTestSchema(client)
+        GrpcTestUtils.createTestSchema(client)
         try {
-            client.drop(DropEntity(TEST_ENTITY_FQN_INPUT))
+            client.drop(DropEntity(GrpcTestUtils.TEST_ENTITY_FQN_INPUT))
         } catch (e: StatusRuntimeException) {
             if (e.status.code != Status.NOT_FOUND.code) {
                 fail("status was " + e.status + " instead of NOT_FOUND")
@@ -98,23 +96,23 @@ class DDLServiceTest {
 
     @Test
     fun createAndListEntity() {
-        createAndListEntity(TEST_ENTITY_FQN_INPUT)
-        dropTestSchema(client)
-        createAndListEntity(TEST_ENTITY_FQN_OUTPUT)
+        createAndListEntity(GrpcTestUtils.TEST_ENTITY_FQN_INPUT)
+        GrpcTestUtils.dropTestSchema(client)
+        createAndListEntity(GrpcTestUtils.TEST_ENTITY_FQN_OUTPUT)
     }
 
     fun createAndListEntity(input: String) {
-        createTestSchema(client)
+        GrpcTestUtils.createTestSchema(client)
         createTestEntity(input)
         val names = entityNames()
-        assert(names.contains(TEST_ENTITY_FQN_OUTPUT)) { "returned schema names were $names instead of expected $TEST_ENTITY_FQN_OUTPUT" }
+        assert(names.contains(GrpcTestUtils.TEST_ENTITY_FQN_OUTPUT)) { "returned schema names were $names instead of expected ${GrpcTestUtils.TEST_ENTITY_FQN_OUTPUT}" }
     }
 
     @Test
     fun createAndVerifyAboutEntity() {
-        createTestSchema(client)
+        GrpcTestUtils.createTestSchema(client)
         createTestEntity()
-        val about = client.about(AboutEntity(TEST_ENTITY_FQN_INPUT))
+        val about = client.about(AboutEntity(GrpcTestUtils.TEST_ENTITY_FQN_INPUT))
         assert(about.hasNext()) { "could not verify existence with about message" }
     }
 
@@ -123,19 +121,19 @@ class DDLServiceTest {
      */
     @Test
     fun createAndDropEntity() {
-        createAndDropEntity(TEST_ENTITY_FQN_INPUT)
-        dropTestSchema(client)
-        createAndDropEntity(TEST_ENTITY_FQN_OUTPUT)
+        createAndDropEntity(GrpcTestUtils.TEST_ENTITY_FQN_INPUT)
+        GrpcTestUtils.dropTestSchema(client)
+        createAndDropEntity(GrpcTestUtils.TEST_ENTITY_FQN_OUTPUT)
     }
 
     fun createAndDropEntity(input: String) {
-        createTestSchema(client)
+        GrpcTestUtils.createTestSchema(client)
         createTestEntity()
         client.drop(DropEntity(input))
-        assert(!entityNames().contains(TEST_ENTITY_FQN_OUTPUT)) { "entity $TEST_ENTITY was not dropped" }
+        assert(!entityNames().contains(GrpcTestUtils.TEST_ENTITY_FQN_OUTPUT)) { "entity $TEST_ENTITY was not dropped" }
     }
 
-    private fun createTestEntity(input: String = TEST_ENTITY_FQN_INPUT) {
+    private fun createTestEntity(input: String = GrpcTestUtils.TEST_ENTITY_FQN_INPUT) {
         client.create(CreateEntity(input))
     }
 
