@@ -10,9 +10,10 @@ import java.util.*
  * This is an abstraction over a [Long].
  *
  * @author Ralph Gasser
- * @version 1.5.0
+ * @version 1.6.0
  */
-inline class LongValue(override val value: Long): RealValue<Long> {
+@JvmInline
+value class LongValue(override val value: Long): RealValue<Long> {
 
     companion object {
         val ZERO = LongValue(0L)

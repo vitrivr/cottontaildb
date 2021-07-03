@@ -12,9 +12,10 @@ import kotlin.math.pow
  * This is an abstraction over a [Float].
  *
  * @author Ralph Gasser
- * @version 1.5.1
+ * @version 1.6.0
  */
-inline class FloatValue(override val value: Float): RealValue<Float> {
+@JvmInline
+value class FloatValue(override val value: Float): RealValue<Float> {
 
     companion object {
         val ZERO = FloatValue(0.0f)

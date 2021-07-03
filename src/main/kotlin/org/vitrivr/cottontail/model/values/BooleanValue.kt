@@ -10,9 +10,10 @@ import java.util.*
  * This is an abstraction over a [Boolean].
  *
  * @author Ralph Gasser
- * @version 1.5.0
+ * @version 1.6.0
  */
-inline class BooleanValue(override val value: Boolean): ScalarValue<Boolean> {
+@JvmInline
+value class BooleanValue(override val value: Boolean): ScalarValue<Boolean> {
 
     companion object {
         val TRUE = BooleanValue(true)

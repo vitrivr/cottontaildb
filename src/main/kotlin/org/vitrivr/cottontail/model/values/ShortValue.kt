@@ -11,9 +11,10 @@ import java.util.*
  * This is an abstraction over a [Short].
  *
  * @author Ralph Gasser
- * @version 1.5.0
+ * @version 1.6.0
  */
-inline class ShortValue(override val value: Short): RealValue<Short> {
+@JvmInline
+value class ShortValue(override val value: Short): RealValue<Short> {
     companion object {
         val ZERO = ShortValue(0.toShort())
         val ONE = ShortValue(1.toShort())

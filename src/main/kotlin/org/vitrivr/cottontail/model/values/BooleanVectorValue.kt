@@ -12,9 +12,10 @@ import java.util.*
  * This is an abstraction over a [BooleanArray] and it represents a vector of [Boolean]s.
  *
  * @author Ralph Gasser
- * @version 1.5.0
+ * @version 1.6.0
  */
-inline class BooleanVectorValue(val data: BooleanArray) : RealVectorValue<Int> {
+@JvmInline
+value class BooleanVectorValue(val data: BooleanArray) : RealVectorValue<Int> {
 
     companion object {
         /**
