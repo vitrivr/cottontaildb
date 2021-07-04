@@ -24,7 +24,7 @@ sealed interface Function<out R: Value> {
      * @param arguments Arguments of type [Value].
      * @return [R]
      */
-    fun invoke(vararg arguments: Value): R
+    operator fun invoke(vararg arguments: Value): R
 
     /**
      * [Function.Static] are [Function]s that are known ahead of time upon booting up Cottontail DB.
