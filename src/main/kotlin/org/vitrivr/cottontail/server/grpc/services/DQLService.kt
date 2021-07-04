@@ -27,9 +27,6 @@ import kotlin.time.ExperimentalTime
 @ExperimentalTime
 class DQLService(val catalogue: Catalogue, override val manager: TransactionManager) : DQLGrpcKt.DQLCoroutineImplBase(), gRPCTransactionService {
 
-    /** [GrpcQueryBinder] used to generate a logical query plan. */
-    private val binder = GrpcQueryBinder(catalogue = this@DQLService.catalogue)
-
     /** [CottontailQueryPlanner] used to generate execution plans from a logical query plan. */
     private val planner = CottontailQueryPlanner(
         logicalRules = listOf(
@@ -49,10 +46,10 @@ class DQLService(val catalogue: Catalogue, override val manager: TransactionMana
      */
     override fun query(request: CottontailGrpc.QueryMessage): Flow<CottontailGrpc.QueryResponseMessage> = this.withTransactionContext(request.txId, "EXECUTE QUERY") { tx, q ->
         /* Start query execution. */
-        val ctx = QueryContext(tx)
+        val ctx = QueryContext(this.catalogue, tx)
 
         /* Bind query and create logical plan. */
-        this.binder.bind(request.query, ctx)
+        GrpcQueryBinder.bind(request.query, ctx)
 
         /* Plan query and create execution plan. */
         this.planner.planAndSelect(ctx)
@@ -65,10 +62,10 @@ class DQLService(val catalogue: Catalogue, override val manager: TransactionMana
      * gRPC endpoint for explaining queries.
      */
     override fun explain(request: CottontailGrpc.QueryMessage): Flow<CottontailGrpc.QueryResponseMessage> = this.withTransactionContext(request.txId, "EXPLAIN QUERY") { tx, q ->
-        val ctx = QueryContext(tx)
+        val ctx = QueryContext(this.catalogue, tx)
 
         /* Bind query and create logical plan. */
-        this.binder.bind(request.query, ctx)
+        GrpcQueryBinder.bind(request.query, ctx)
 
         /* Plan query and create execution plan candidates. */
         val candidates = this.planner.plan(ctx)

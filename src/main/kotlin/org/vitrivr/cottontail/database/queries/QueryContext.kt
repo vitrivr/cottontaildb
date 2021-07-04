@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.database.queries
 
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap
+import org.vitrivr.cottontail.database.catalogue.Catalogue
 import org.vitrivr.cottontail.database.column.ColumnDef
 
 import org.vitrivr.cottontail.database.queries.binding.Binding
@@ -19,7 +20,7 @@ import org.vitrivr.cottontail.model.values.types.Value
  * @author Ralph Gasser
  * @version 1.1.0
  */
-class QueryContext(val txn: TransactionContext) {
+class QueryContext(val catalogue: Catalogue, val txn: TransactionContext) {
 
     /** List of bound [Value]s for this [QueryContext]. */
     val values = BindingContext<Value>()

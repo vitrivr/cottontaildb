@@ -49,16 +49,15 @@ import org.vitrivr.cottontail.utilities.math.KnnUtilities
  * 3) A [OperatorNode.Logical] tree is constructed from the internal query objects.
  *
  * @author Ralph Gasser
- * @version 1.6.1
+ * @version 1.7.0
  */
-class GrpcQueryBinder constructor(val catalogue: Catalogue) {
+object GrpcQueryBinder {
 
-    companion object {
-        private val DEFAULT_PROJECTION = CottontailGrpc.Projection.newBuilder()
-            .setOp(CottontailGrpc.Projection.ProjectionOperation.SELECT)
-            .addColumns(CottontailGrpc.Projection.ProjectionElement.newBuilder().setColumn(CottontailGrpc.ColumnName.newBuilder().setName("*")))
-            .build()
-    }
+    /** Default projection operator (star projection). */
+    private val DEFAULT_PROJECTION = CottontailGrpc.Projection.newBuilder()
+        .setOp(CottontailGrpc.Projection.ProjectionOperation.SELECT)
+        .addColumns(CottontailGrpc.Projection.ProjectionElement.newBuilder().setColumn(CottontailGrpc.ColumnName.newBuilder().setName("*")))
+        .build()
 
     /**
      * Binds the given [CottontailGrpc.Query] to the database objects and thereby creates a tree of [OperatorNode.Logical]s.
@@ -310,7 +309,7 @@ class GrpcQueryBinder constructor(val catalogue: Catalogue) {
      */
     private fun parseAndBindEntity(entity: CottontailGrpc.EntityName, context: QueryContext): Entity = try {
         val name = entity.fqn()
-        val catalogueTx = context.txn.getTx(this.catalogue) as CatalogueTx
+        val catalogueTx = context.txn.getTx(context.catalogue) as CatalogueTx
         val schemaTx = context.txn.getTx(catalogueTx.schemaForName(name.schema())) as SchemaTx
         schemaTx.entityForName(name)
     } catch (e: DatabaseException.SchemaDoesNotExistException) {
