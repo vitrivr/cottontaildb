@@ -4,6 +4,7 @@ import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.database.general.DBO
 import org.vitrivr.cottontail.database.schema.Schema
 import org.vitrivr.cottontail.execution.TransactionContext
+import org.vitrivr.cottontail.functions.FunctionRegistry
 import org.vitrivr.cottontail.model.basics.Name
 import java.nio.file.Path
 
@@ -14,11 +15,14 @@ import java.nio.file.Path
  * @see Schema
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.1.0
  */
 interface Catalogue : DBO {
     /** Reference to [Config] object. */
     val config: Config
+
+    /** The [FunctionRegistry] exposed by this [Catalogue]. */
+    val functions: FunctionRegistry
 
     /** Root to Cottontail DB root folder. */
     override val path: Path

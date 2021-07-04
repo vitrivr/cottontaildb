@@ -1,9 +1,12 @@
 package org.vitrivr.cottontail.functions
 
+import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.functions.basics.Function
 import org.vitrivr.cottontail.functions.basics.FunctionGenerator
 import org.vitrivr.cottontail.functions.basics.Signature
 import org.vitrivr.cottontail.functions.exception.FunctionNotFoundException
+import org.vitrivr.cottontail.functions.math.distance.VectorDistance
+import org.vitrivr.cottontail.functions.math.distance.binary.*
 
 /**
  * A [FunctionRegistry] manages all the [Function] instances generated and used by Cottontail DB. On a high level, there
@@ -15,7 +18,7 @@ import org.vitrivr.cottontail.functions.exception.FunctionNotFoundException
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class FunctionRegistry {
+class FunctionRegistry(config: Config) {
     /**
      * The internal data structure to organize [Function]s.
      *
@@ -32,6 +35,10 @@ class FunctionRegistry {
      */
     private val generators = mutableMapOf<Signature.Open<*>, FunctionGenerator<*>>()
 
+    init {
+        VectorDistance.register(this) /* Registers vectors distance functions for NNS. */
+    }
+
     /**
      * Registers a new [Function.Static] with this [FunctionRegistry].
      *
@@ -39,7 +46,7 @@ class FunctionRegistry {
      * @throws IllegalStateException If a [Function.Static] or a [FunctionGenerator] with a colliding [Signature] has been registered.
      */
     fun register(function: Function.Static<*>) {
-        check(this.registry.containsKey(function.signature)) { "Function ${function.signature} collides with existing function." }
+        check(!this.registry.containsKey(function.signature)) { "Function ${function.signature} collides with existing function." }
         val collision = this.generators.keys.find { it.collides(function.signature) }
         check(collision == null) {
             "Function generator $collision collides with function ${function.signature}."
@@ -54,7 +61,7 @@ class FunctionRegistry {
      * @throws IllegalStateException If a [Function.Static] or a [FunctionGenerator] with a colliding [Signature] has been registered.
      */
     fun register(generator: FunctionGenerator<*>) {
-        check(this.generators.containsKey(generator.signature)) { "Function generator for name ${generator.signature} collides with existing generator." }
+        check(!this.generators.containsKey(generator.signature)) { "Function generator for name ${generator.signature} collides with existing generator." }
         val collision = this.registry.keys.find { it.collides(generator.signature) }
         check(collision == null) {
             "Static function $collision collides with function generator ${generator.signature}"

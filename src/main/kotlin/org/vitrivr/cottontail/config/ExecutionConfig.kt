@@ -9,7 +9,7 @@ import java.util.concurrent.TimeUnit
  * Config for Cottontail DB's task execution engine.
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.3.0
  */
 @Serializable
 data class ExecutionConfig(
@@ -17,6 +17,7 @@ data class ExecutionConfig(
     val maxThreads: Int = 25,
     val keepAliveMs: Long = 1000L,
     val queueSize: Int = 100,
+    val simd: Boolean = false,
     val transactionTableSize: Int = 100,
     val transactionHistorySize: Int = 500
 ) {
