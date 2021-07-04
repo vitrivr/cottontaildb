@@ -8,8 +8,8 @@ import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.index.pq.codebook.DoublePrecisionPQCodebook
 import org.vitrivr.cottontail.database.index.pq.codebook.PQCodebook
 import org.vitrivr.cottontail.database.index.pq.codebook.SinglePrecisionPQCodebook
-import org.vitrivr.cottontail.math.knn.basics.DistanceKernel
-import org.vitrivr.cottontail.math.knn.kernels.Distances
+import org.vitrivr.cottontail.functions.math.distance.VectorDistance
+import org.vitrivr.cottontail.functions.math.distance.Distances
 import org.vitrivr.cottontail.model.basics.Type
 import org.vitrivr.cottontail.model.values.DoubleVectorValue
 import org.vitrivr.cottontail.model.values.FloatVectorValue
@@ -174,17 +174,16 @@ class PQ(val type: Type<*>, val codebooks: List<PQCodebook<VectorValue<*>>>) {
     }
 
     /**
-     * Generates and returns a [PQLookupTable] for the given [VectorValue] and the given [DistanceKernel].
+     * Generates and returns a [PQLookupTable] for the given [VectorValue] and the given [VectorDistance].
      *
      * @param v The [VectorValue] to obtain the [PQLookupTable] for.
      * @param distance The [Distances] to apply.
-     * @return The [PQLookupTable] for the given [VectorValue] and the [DistanceKernel]
+     * @return The [PQLookupTable] for the given [VectorValue] and the [VectorDistance]
      */
-    fun getLookupTable(v: VectorValue<*>, distance: Distances) = PQLookupTable(
+    fun getLookupTable(v: VectorValue<*>, distance: VectorDistance<*>) = PQLookupTable(
         Array(this.numberOfSubspaces) { k ->
-            val kernel = distance.kernelForQuery(v.subvector(k * this.dimensionsPerSubspace, dimensionsPerSubspace)) as DistanceKernel<VectorValue<*>>
             val codebook = this.codebooks[k]
-            DoubleArray(codebook.numberOfCentroids) { kernel.invoke(codebook[it]).value }
+            DoubleArray(codebook.numberOfCentroids) { distance(codebook[it]).value }
         }
     )
 }

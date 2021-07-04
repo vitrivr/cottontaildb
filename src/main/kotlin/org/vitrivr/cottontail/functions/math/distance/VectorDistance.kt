@@ -4,7 +4,6 @@ import org.vitrivr.cottontail.functions.FunctionRegistry
 import org.vitrivr.cottontail.functions.basics.Function
 import org.vitrivr.cottontail.functions.basics.Signature
 import org.vitrivr.cottontail.functions.math.distance.binary.*
-import org.vitrivr.cottontail.math.knn.basics.DistanceKernel
 import org.vitrivr.cottontail.model.basics.Type
 import org.vitrivr.cottontail.model.values.DoubleValue
 import org.vitrivr.cottontail.model.values.types.VectorValue
@@ -39,7 +38,7 @@ interface VectorDistance<T : VectorValue<*>>: Function.Dynamic<DoubleValue> {
     val name: String
 
     /** The query [VectorValue]. */
-    val query: T
+    var query: T
 
     /** The [Type] accepted by this [VectorDistance] [Function]. Must be a vector value type. */
     val type: Type<out T>
@@ -48,16 +47,25 @@ interface VectorDistance<T : VectorValue<*>>: Function.Dynamic<DoubleValue> {
     override val signature: Signature.Closed<out DoubleValue>
         get() = Signature.Closed(name, Type.Double, arrayOf(this.type))
 
-    /** The dimensionality of this [DistanceKernel]. */
+    /** The dimensionality of this [VectorDistance]. */
     val d: Int
         get() = this.query.logicalSize
 
-    /** For the sake of optimization, [DistanceKernel]s are not stateless! */
+    /** For the sake of optimization, [VectorDistance]s are not stateless! */
     override val stateless: Boolean
         get() = false
 
     /**
-     * A special type of [DistanceKernel] is the [MinkowskiDistance], e.g., the L1, L2 or Lp distance.
+     * Replaces the query in this [VectorDistance] by the given [VectorValue].
+     *
+     * @param query New query [VectorValue]
+     */
+    fun apply(query: VectorValue<*>) {
+        this.query = (query as T)
+    }
+
+    /**
+     * A special type of [VectorDistance] is the [MinkowskiDistance], e.g., the L1, L2 or Lp distance.
      */
     interface MinkowskiDistance<T : VectorValue<*>> : VectorDistance<T> {
         val p: Int

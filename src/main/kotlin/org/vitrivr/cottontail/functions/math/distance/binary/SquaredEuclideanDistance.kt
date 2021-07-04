@@ -25,7 +25,7 @@ sealed class SquaredEuclideanDistance<T : VectorValue<*>> : VectorDistance.Minko
      * The [FunctionGenerator] for the [SquaredEuclideanDistance].
      */
     object Generator: AbstractFunctionGenerator<DoubleValue>() {
-        const val FUNCTION_NAME = "euclidean"
+        const val FUNCTION_NAME = "squaredeuclidean"
 
         override val signature: Signature.Open<out DoubleValue>
             get() = Signature.Open(FUNCTION_NAME, Type.Double, arity = 1)

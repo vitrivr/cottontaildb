@@ -3,12 +3,9 @@ package org.vitrivr.cottontail.functions.math.distance.binary
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.functions.basics.AbstractFunctionGenerator
 import org.vitrivr.cottontail.functions.basics.Function
-import org.vitrivr.cottontail.functions.basics.FunctionGenerator
 import org.vitrivr.cottontail.functions.basics.Signature
 import org.vitrivr.cottontail.functions.exception.FunctionNotSupportedException
 import org.vitrivr.cottontail.functions.math.distance.VectorDistance
-import org.vitrivr.cottontail.math.knn.basics.DistanceKernel
-import org.vitrivr.cottontail.math.knn.kernels.binary.plain.HaversineKernel
 import org.vitrivr.cottontail.model.basics.Type
 import org.vitrivr.cottontail.model.values.*
 import org.vitrivr.cottontail.model.values.types.Value
@@ -16,7 +13,7 @@ import org.vitrivr.cottontail.model.values.types.VectorValue
 import kotlin.math.*
 
 /**
- * A [DistanceKernel] implementation to calculate the Haversine distance between two 2D points.
+ * A [VectorDistance] implementation to calculate the Haversine distance between two 2D points.
  *
  * @author Loris Sauter & Ralph Gasser
  * @version 1.0.0
@@ -26,8 +23,10 @@ sealed class HaversineDistance<T : VectorValue<*>>: VectorDistance<T> {
     object Generator: AbstractFunctionGenerator<DoubleValue>() {
         const val FUNCTION_NAME = "haversine"
 
+        const val RADIUS_EARTH = 6371000.0
+
         override val signature: Signature.Open<out DoubleValue>
-            get() = Signature.Open(CosineDistance.Generator.FUNCTION_NAME, Type.Double, arity = 1)
+            get() = Signature.Open(FUNCTION_NAME, Type.Double, arity = 1)
 
         override fun generateInternal(vararg arguments: Type<*>): Function.Dynamic<DoubleValue> = when {
             arguments[0] is Type.DoubleVector && arguments[0].logicalSize == 2 -> CosineDistance.DoubleVector(2)
@@ -60,7 +59,7 @@ sealed class HaversineDistance<T : VectorValue<*>>: VectorDistance<T> {
         val deltaLambda = StrictMath.toRadians(bLon - aLon)
         val c = sin(deltaPhi / 2.0) * sin(deltaPhi / 2.0) + cos(phi1) * cos(phi2) * sin(deltaLambda / 2.0) * sin(deltaLambda / 2.0)
         val d = 2.0 * atan2(sqrt(c), sqrt(1 - c))
-        return HaversineKernel.RADIUS_EARTH * d
+        return Generator.RADIUS_EARTH * d
     }
 
     /**

@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail.math.knn.selection
+package org.vitrivr.cottontail.utilities.selection
 
 import org.vitrivr.cottontail.utilities.extensions.read
 import org.vitrivr.cottontail.utilities.extensions.write

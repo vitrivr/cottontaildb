@@ -19,11 +19,12 @@ import org.vitrivr.cottontail.database.queries.predicates.Predicate
 import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicate
 import org.vitrivr.cottontail.database.statistics.columns.*
 import org.vitrivr.cottontail.execution.TransactionContext
-import org.vitrivr.cottontail.math.knn.basics.DistanceKernel
-import org.vitrivr.cottontail.math.knn.kernels.Distances
-import org.vitrivr.cottontail.math.knn.selection.ComparablePair
-import org.vitrivr.cottontail.math.knn.selection.MinHeapSelection
-import org.vitrivr.cottontail.math.knn.selection.MinSingleSelection
+import org.vitrivr.cottontail.functions.math.distance.binary.EuclideanDistance
+import org.vitrivr.cottontail.functions.math.distance.binary.ManhattanDistance
+import org.vitrivr.cottontail.functions.math.distance.binary.SquaredEuclideanDistance
+import org.vitrivr.cottontail.utilities.selection.ComparablePair
+import org.vitrivr.cottontail.utilities.selection.MinHeapSelection
+import org.vitrivr.cottontail.utilities.selection.MinSingleSelection
 import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
@@ -33,7 +34,6 @@ import org.vitrivr.cottontail.model.values.types.VectorValue
 import org.vitrivr.cottontail.utilities.math.KnnUtilities
 import java.lang.Math.floorDiv
 import java.nio.file.Path
-import java.util.*
 import kotlin.collections.ArrayDeque
 import kotlin.math.max
 import kotlin.math.min
@@ -53,7 +53,6 @@ class VAFIndex(path: Path, parent: DefaultEntity, config: VAFIndexConfig? = null
     companion object {
         private const val VAF_INDEX_SIGNATURES_FIELD = "vaf_signatures"
         private const val VAF_INDEX_MARKS_FIELD = "vaf_marks"
-        private val SUPPORTED_DISTANCES = arrayOf(Distances.L1, Distances.L2, Distances.L2SQUARED)
         val LOGGER: Logger = LoggerFactory.getLogger(VAFIndex::class.java)
     }
 
@@ -102,16 +101,16 @@ class VAFIndex(path: Path, parent: DefaultEntity, config: VAFIndexConfig? = null
      * @param predicate [Predicate] to check.
      * @return Cost estimate for the [Predicate]
      */
-    override fun cost(predicate: Predicate) =
-        if (predicate is KnnPredicate && predicate.column == this.columns[0] && (predicate.distance in SUPPORTED_DISTANCES)) {
-            Cost(
-                this.signatures.size * this.marksStore.get().d * Cost.COST_DISK_ACCESS_READ + 0.1f * (this.signatures.size * this.columns[0].type.physicalSize * Cost.COST_DISK_ACCESS_READ),
-                this.signatures.size * this.marksStore.get().d * (2 * Cost.COST_MEMORY_ACCESS + Cost.COST_FLOP) + 0.1f * this.signatures.size * predicate.atomicCpuCost,
-                predicate.k * this.produces.map { it.type.physicalSize }.sum().toFloat()
-            )
-        } else {
-            Cost.INVALID
-        }
+    override fun cost(predicate: Predicate): Cost {
+        if (predicate !is KnnPredicate) return Cost.INVALID
+        if (predicate.column != this.columns[0]) return Cost.INVALID
+        if (predicate.distance !is ManhattanDistance && predicate.distance !is EuclideanDistance &&  predicate.distance !is SquaredEuclideanDistance) return Cost.INVALID
+        return Cost(
+            this.signatures.size * this.marksStore.get().d * Cost.COST_DISK_ACCESS_READ + 0.1f * (this.signatures.size * this.columns[0].type.physicalSize * Cost.COST_DISK_ACCESS_READ),
+            this.signatures.size * this.marksStore.get().d * (2 * Cost.COST_MEMORY_ACCESS + Cost.COST_FLOP) + 0.1f * this.signatures.size * predicate.atomicCpuCost,
+            predicate.k * this.produces.map { it.type.physicalSize }.sum().toFloat()
+        )
+    }
 
     /**
      * Checks if the provided [Predicate] can be processed by this instance of [VAFIndex].
@@ -272,9 +271,9 @@ class VAFIndex(path: Path, parent: DefaultEntity, config: VAFIndexConfig? = null
                 check(value is RealVectorValue<*>) { "Bound value for query vector has wrong type (found = ${value.type})." }
                 this.query = value
                 this.bounds = when (this.predicate.distance) {
-                    Distances.L1 -> L1Bounds(this.query, this.marks)
-                    Distances.L2 -> L2Bounds(this.query, this.marks)
-                    Distances.L2SQUARED -> L2SBounds(this.query, this.marks)
+                    is ManhattanDistance -> L1Bounds(this.query, this.marks)
+                    is EuclideanDistance -> L2Bounds(this.query, this.marks)
+                    is SquaredEuclideanDistance -> L2SBounds(this.query, this.marks)
                     else -> throw IllegalArgumentException("The ${this.predicate.distance} distance kernel is not supported by VAFIndex.")
                 }
 
@@ -302,14 +301,13 @@ class VAFIndex(path: Path, parent: DefaultEntity, config: VAFIndexConfig? = null
 
                 /* Iterate over all signatures. */
                 var read = 0L
-                val kernel = this.predicate.toKernel() as DistanceKernel<VectorValue<*>>
                 for (sigIndex in this.range) {
                     val signature = this@VAFIndex.signatures[sigIndex]
                     if (signature != null) {
                         if (knn.size < this.predicate.k || this.bounds.isVASSACandidate(signature, knn.peek()!!.second.value)) {
                             val value = txn.read(signature.tupleId, this@VAFIndex.columns)[this@VAFIndex.columns[0]]
                             if (value is VectorValue<*>) {
-                                knn.offer(ComparablePair(signature.tupleId, kernel(value)))
+                                knn.offer(ComparablePair(signature.tupleId, this.predicate.distance(value)))
                             }
                             read += 1
                         }

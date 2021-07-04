@@ -4,7 +4,7 @@ import kotlinx.coroutines.flow.*
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
-import org.vitrivr.cottontail.math.knn.basics.DistanceKernel
+import org.vitrivr.cottontail.functions.math.distance.VectorDistance
 import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.DoubleValue
@@ -19,7 +19,7 @@ import org.vitrivr.cottontail.utilities.math.KnnUtilities
  * @author Ralph Gasser
  * @version 1.2.0
  */
-class DistanceProjectionOperator(parent: Operator, val column: ColumnDef<*>, val kernel: DistanceKernel<VectorValue<*>>) : Operator.PipelineOperator(parent) {
+class DistanceProjectionOperator(parent: Operator, val column: ColumnDef<*>, val distance: VectorDistance<*>) : Operator.PipelineOperator(parent) {
 
     /** The columns produced by this [DistanceProjectionOperator]. */
     override val columns: Array<ColumnDef<*>> = arrayOf(
@@ -46,7 +46,7 @@ class DistanceProjectionOperator(parent: Operator, val column: ColumnDef<*>, val
             var i = 0
             val value = it[this.column]
             val distance = if (value is VectorValue<*>) {
-                this.kernel(value)
+                this.distance(value)
             } else {
                 DoubleValue.NaN
             }

@@ -1,6 +1,5 @@
 package org.vitrivr.cottontail.database.queries.binding
 
-import org.vitrivr.cottontail.database.catalogue.Catalogue
 import org.vitrivr.cottontail.database.catalogue.CatalogueTx
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.Entity
@@ -26,8 +25,11 @@ import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicate
 import org.vitrivr.cottontail.database.queries.projection.Projection
 import org.vitrivr.cottontail.database.queries.sort.SortOrder
 import org.vitrivr.cottontail.database.schema.SchemaTx
+import org.vitrivr.cottontail.functions.basics.Signature
+import org.vitrivr.cottontail.functions.exception.FunctionNotFoundException
+import org.vitrivr.cottontail.functions.math.distance.VectorDistance
 import org.vitrivr.cottontail.grpc.CottontailGrpc
-import org.vitrivr.cottontail.math.knn.kernels.Distances
+import org.vitrivr.cottontail.functions.math.distance.Distances
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.basics.Type
@@ -173,7 +175,7 @@ object GrpcQueryBinder {
     }
 
     /**
-     * Binds the given [CottontailGrpc.InsertMessage] and returns the [RecordBinding].
+     * Binds the given [CottontailGrpc.InsertMessage] and returns the [Binding].
      *
      * @param insert The [ CottontailGrpc.InsertMessage] that should be bound.
      * @param context The [QueryContext] used for binding.
@@ -481,7 +483,15 @@ object GrpcQueryBinder {
     private fun parseAndBindKnn(input: OperatorNode.Logical, knn: CottontailGrpc.Knn, context: QueryContext): OperatorNode.Logical {
         val columnName = knn.attribute.fqn()
         val column = input.findUniqueColumnForName(columnName)
-        val distance = Distances.valueOf(knn.distance.name)
+        val signature = Signature.Closed(Distances.valueOf(knn.distance.name).functionName, Type.Double, arrayOf(column.type))
+        val function = try {
+            context.catalogue.functions.obtain(signature)
+        } catch (e: FunctionNotFoundException) {
+            throw QueryException.QueryBindException("Desired distance function $signature for NNS was not found!")
+        }
+        if (function !is VectorDistance<*>) {
+            throw QueryException.QueryBindException("Desired distance function $signature for NNS was not found!")
+        }
         val hint = knn.hint.toHint()
         val query: Pair<VectorValue<*>, VectorValue<*>?> = when (column.type) {
             is Type.DoubleVector -> Pair(
@@ -557,7 +567,7 @@ object GrpcQueryBinder {
         }
 
         /* Generate DistanceLogicalOperatorNode and return it. */
-        val predicate = KnnPredicate(column = column, k = knn.k, distance = distance, hint = hint, query = context.values.bind(query.first), query.second?.let { context.values.bind(it) })
+        val predicate = KnnPredicate(column = column, k = knn.k, distance = function, hint = hint, query = context.values.bind(query.first), query.second?.let { context.values.bind(it) })
         val dist = DistanceLogicalOperatorNode(input, predicate)
         val sort = SortLogicalOperatorNode(dist, arrayOf(KnnUtilities.distanceColumnDef(predicate.column.name.entity()) to SortOrder.ASCENDING))
         return LimitLogicalOperatorNode(sort, predicate.k.toLong(), 0L)

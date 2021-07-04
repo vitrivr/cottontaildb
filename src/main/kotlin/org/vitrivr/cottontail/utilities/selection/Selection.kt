@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail.math.knn.selection
+package org.vitrivr.cottontail.utilities.selection
 
 /**
  * A selection algorithm that returns k [Comparable]s from a stream of [Comparable]s.

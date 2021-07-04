@@ -66,6 +66,7 @@ class FunctionRegistry(config: Config) {
         check(collision == null) {
             "Static function $collision collides with function generator ${generator.signature}"
         }
+        this.generators[generator.signature] = generator
     }
 
     /**

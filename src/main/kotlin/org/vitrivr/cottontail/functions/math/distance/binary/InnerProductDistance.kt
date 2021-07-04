@@ -7,14 +7,13 @@ import org.vitrivr.cottontail.functions.basics.FunctionGenerator
 import org.vitrivr.cottontail.functions.basics.Signature
 import org.vitrivr.cottontail.functions.exception.FunctionNotSupportedException
 import org.vitrivr.cottontail.functions.math.distance.VectorDistance
-import org.vitrivr.cottontail.math.knn.basics.DistanceKernel
 import org.vitrivr.cottontail.model.basics.Type
 import org.vitrivr.cottontail.model.values.*
 import org.vitrivr.cottontail.model.values.types.Value
 import org.vitrivr.cottontail.model.values.types.VectorValue
 
 /**
- * A [DistanceKernel] implementation to calculate the inner product distance between [query] and a [VectorValue].
+ * A [VectorDistance] implementation to calculate the inner product distance between [query] and a [VectorValue].
  *
  * @author Ralph Gasser
  * @version 1.0.0

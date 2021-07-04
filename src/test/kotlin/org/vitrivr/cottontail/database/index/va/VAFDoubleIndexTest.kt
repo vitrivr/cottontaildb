@@ -13,10 +13,11 @@ import org.vitrivr.cottontail.database.queries.binding.BindingContext
 import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicate
 import org.vitrivr.cottontail.database.schema.SchemaTx
 import org.vitrivr.cottontail.execution.TransactionType
-import org.vitrivr.cottontail.math.knn.basics.DistanceKernel
-import org.vitrivr.cottontail.math.knn.kernels.Distances
-import org.vitrivr.cottontail.math.knn.selection.ComparablePair
-import org.vitrivr.cottontail.math.knn.selection.MinHeapSelection
+import org.vitrivr.cottontail.functions.basics.Signature
+import org.vitrivr.cottontail.functions.math.distance.Distances
+import org.vitrivr.cottontail.functions.math.distance.VectorDistance
+import org.vitrivr.cottontail.utilities.selection.ComparablePair
+import org.vitrivr.cottontail.utilities.selection.MinHeapSelection
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.basics.TupleId
@@ -26,7 +27,6 @@ import org.vitrivr.cottontail.model.values.DoubleValue
 import org.vitrivr.cottontail.model.values.DoubleVectorValue
 import org.vitrivr.cottontail.model.values.LongValue
 import org.vitrivr.cottontail.model.values.types.Value
-import org.vitrivr.cottontail.model.values.types.VectorValue
 import org.vitrivr.cottontail.utilities.math.KnnUtilities
 import java.util.*
 import java.util.stream.Stream
@@ -77,14 +77,10 @@ class VAFDoubleIndexTest : AbstractIndexTest() {
         val txn = this.manager.Transaction(TransactionType.SYSTEM)
         val k = 100
         val query = DoubleVectorValue.random(this.indexColumn.type.logicalSize, this.random)
-        val kernel = distance.kernelForQuery(query) as DistanceKernel<VectorValue<*>>
+        val function = this.catalogue.functions.obtain(Signature.Closed(distance.functionName, Type.Double, arrayOf(query.type))) as VectorDistance<*>
         val context = BindingContext<Value>()
-        val predicate = KnnPredicate(
-            column = this.indexColumn,
-            k = k,
-            distance = distance,
-            query = context.bind(query)
-        )
+        val predicate = KnnPredicate(column = this.indexColumn, k = k, distance = function, query = context.bind(query))
+
 
         /* Obtain necessary transactions. */
         val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
@@ -110,7 +106,7 @@ class VAFDoubleIndexTest : AbstractIndexTest() {
                     bruteForceResults.offer(
                         ComparablePair(
                             it.tupleId,
-                            kernel(vector)
+                            function(vector)
                         )
                     )
                 }

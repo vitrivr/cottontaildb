@@ -15,11 +15,12 @@ import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.predicates.Predicate
 import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicate
 import org.vitrivr.cottontail.execution.TransactionContext
-import org.vitrivr.cottontail.math.knn.basics.DistanceKernel
-import org.vitrivr.cottontail.math.knn.kernels.Distances
-import org.vitrivr.cottontail.math.knn.selection.ComparablePair
-import org.vitrivr.cottontail.math.knn.selection.MinHeapSelection
-import org.vitrivr.cottontail.math.knn.selection.MinSingleSelection
+import org.vitrivr.cottontail.functions.basics.Signature
+import org.vitrivr.cottontail.functions.math.distance.VectorDistance
+import org.vitrivr.cottontail.functions.math.distance.Distances
+import org.vitrivr.cottontail.utilities.selection.ComparablePair
+import org.vitrivr.cottontail.utilities.selection.MinHeapSelection
+import org.vitrivr.cottontail.utilities.selection.MinSingleSelection
 import org.vitrivr.cottontail.model.basics.*
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
@@ -97,8 +98,8 @@ class GGIndex(path: Path, parent: DefaultEntity, config: GGIndexConfig? = null) 
      * @return True if [Predicate] can be processed, false otherwise.
      */
     override fun canProcess(predicate: Predicate) = predicate is KnnPredicate
-            && predicate.columns.first() == this.columns[0]
-            && predicate.distance == this.config.distance
+            && predicate.column == this.columns[0]
+            && predicate.distance.signature.name == this.config.distance.functionName
 
     /**
      * Calculates the cost estimate if this [AbstractIndex] processing the provided [Predicate].
@@ -163,13 +164,15 @@ class GGIndex(path: Path, parent: DefaultEntity, config: GGIndexConfig? = null) 
                 val groupSeedValue = txn.read(groupSeedTid, this@GGIndex.columns)[this@GGIndex.columns[0]]
                 if (groupSeedValue is VectorValue<*>) {
                     /* Perform kNN for group. */
-                    val kernel = this@GGIndex.config.distance.kernelForQuery(groupSeedValue) as DistanceKernel<VectorValue<*>>
+                    val signature = Signature.Closed(this@GGIndex.config.distance.functionName, Type.Double, arrayOf(this@GGIndex.columns[0].type))
+                    val function = this@GGIndex.parent.parent.parent.functions.obtain(signature)
+                    check(function is VectorDistance<*>) { "GGIndex rebuild failed: Function $signature is not a vector distance function." }
                     val knn = MinHeapSelection<ComparablePair<Pair<TupleId, VectorValue<*>>, DoubleValue>>(groupSize)
                     remainingTids.forEach { tid ->
                         val r = txn.read(tid, this@GGIndex.columns)
                         val vec = r[this@GGIndex.columns[0]]
                         if (vec is VectorValue<*>) {
-                            val distance = kernel(vec)
+                            val distance = function(vec)
                             if (knn.size < groupSize || knn.peek()!!.second > distance) {
                                 knn.offer(ComparablePair(Pair(tid, vec), distance))
                             }
@@ -194,10 +197,10 @@ class GGIndex(path: Path, parent: DefaultEntity, config: GGIndexConfig? = null) 
         }
 
         /**
-         * Updates the [GGIndex] with the provided [DataChangeEvent]s. This method determines,
-         * whether the [Record] affected by the [DataChangeEvent] should be added or updated
+         * Updates the [GGIndex] with the provided [Operation.DataManagementOperation]s. This method determines,
+         * whether the [Record] affected by the [Operation.DataManagementOperation] should be added or updated
          *
-         * @param event [DataChangeEvent]s to process.
+         * @param event [Operation.DataManagementOperation]s to process.
          */
         override fun update(event: Operation.DataManagementOperation) = this.withWriteLock {
             this@GGIndex.dirtyField.compareAndSet(false, true)
@@ -225,7 +228,7 @@ class GGIndex(path: Path, parent: DefaultEntity, config: GGIndexConfig? = null) 
         override fun filter(predicate: Predicate): Iterator<Record> = object : Iterator<Record> {
 
             /** Cast [KnnPredicate] (if such a cast is possible).  */
-            private val predicate = if (predicate is KnnPredicate && predicate.distance == this@GGIndex.config.distance) {
+            private val predicate = if (predicate is KnnPredicate && predicate.distance.signature.name == this@GGIndex.config.distance.functionName) {
                 predicate
             } else {
                 throw QueryException.UnsupportedPredicateException("Index '${this@GGIndex.name}' (GGIndex) does not support predicates of type '${predicate::class.simpleName}'.")
@@ -255,7 +258,9 @@ class GGIndex(path: Path, parent: DefaultEntity, config: GGIndexConfig? = null) 
                 /* Scan >= 10% of entries by default */
                 val considerNumGroups = (this@GGIndex.config.numGroups + 9) / 10
                 val txn = this@Tx.context.getTx(this@GGIndex.parent) as EntityTx
-                val kernel = this@GGIndex.config.distance.kernelForQuery(this.vector) as DistanceKernel<VectorValue<*>>
+                val signature = Signature.Closed(this@GGIndex.config.distance.functionName, Type.Double, arrayOf(this@GGIndex.columns[0].type))
+                val function = this@GGIndex.parent.parent.parent.functions.obtain(signature)
+                check (function is VectorDistance<*>) { "Function $signature is not a vector distance function." }
 
                 /** Phase 1): Perform kNN on the groups. */
                 require(this.predicate.k < txn.maxTupleId() / config.numGroups * considerNumGroups) { "Value of k is too large for this index considering $considerNumGroups groups." }
@@ -263,7 +268,7 @@ class GGIndex(path: Path, parent: DefaultEntity, config: GGIndexConfig? = null) 
 
                 LOGGER.debug("Scanning group mean signals.")
                 this@GGIndex.groupsStore.forEach {
-                    groupKnn.offer(ComparablePair(it.value, kernel.invoke(it.key)))
+                    groupKnn.offer(ComparablePair(it.value, function(it.key)))
                 }
 
 
@@ -279,7 +284,7 @@ class GGIndex(path: Path, parent: DefaultEntity, config: GGIndexConfig? = null) 
                         val value =
                             txn.read(tupleId, this@GGIndex.columns)[this@GGIndex.columns[0]]
                         if (value is VectorValue<*>) {
-                            val distance = kernel.invoke(value)
+                            val distance = function(value)
                             if (knn.size < knn.k || knn.peek()!!.second > distance) {
                                 knn.offer(ComparablePair(tupleId, distance))
                             }

@@ -53,7 +53,7 @@ class DeferFetchOnScanRewriteRuleTest : AbstractDatabaseTest() {
     fun testNoMatch() {
         val txn = this.manager.Transaction(TransactionType.SYSTEM)
         try {
-            val ctx = QueryContext(txn)
+            val ctx = QueryContext(this.catalogue, txn)
             val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
             val schema = catalogueTx.schemaForName(this.schemaName)
             val schemaTx = txn.getTx(schema) as SchemaTx
@@ -80,7 +80,7 @@ class DeferFetchOnScanRewriteRuleTest : AbstractDatabaseTest() {
     fun testNoDefer() {
         val txn = this.manager.Transaction(TransactionType.SYSTEM)
         try {
-            val ctx = QueryContext(txn)
+            val ctx = QueryContext(this.catalogue, txn)
             val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
             val schema = catalogueTx.schemaForName(this.schemaName)
             val schemaTx = txn.getTx(schema) as SchemaTx
@@ -109,7 +109,7 @@ class DeferFetchOnScanRewriteRuleTest : AbstractDatabaseTest() {
     fun testDeferAndDrop() {
         val txn = this.manager.Transaction(TransactionType.SYSTEM)
         try {
-            val ctx = QueryContext(txn)
+            val ctx = QueryContext(this.catalogue, txn)
             val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
             val schema = catalogueTx.schemaForName(this.schemaName)
             val schemaTx = txn.getTx(schema) as SchemaTx
@@ -144,7 +144,7 @@ class DeferFetchOnScanRewriteRuleTest : AbstractDatabaseTest() {
     fun testDeferAfterFilter() {
         val txn = this.manager.Transaction(TransactionType.SYSTEM)
         try {
-            val ctx = QueryContext(txn)
+            val ctx = QueryContext(this.catalogue, txn)
             val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
             val schema = catalogueTx.schemaForName(this.schemaName)
             val schemaTx = txn.getTx(schema) as SchemaTx

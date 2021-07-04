@@ -5,7 +5,7 @@ import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.queries.sort.SortOrder
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
-import org.vitrivr.cottontail.math.knn.selection.HeapSelection
+import org.vitrivr.cottontail.utilities.selection.HeapSelection
 import org.vitrivr.cottontail.model.basics.Record
 
 /**

@@ -99,9 +99,9 @@ sealed class ManhattanDistance<T : VectorValue<*>>: VectorDistance.MinkowskiDist
             val vector = arguments[0] as DoubleVectorValue
             var sum = 0.0
             for (i in this.query.data.indices) {
-                sum += (this.query.data[i] - vector.data[i]).pow(2)
+                sum += (this.query.data[i] - vector.data[i]).absoluteValue
             }
-            return DoubleValue(sqrt(sum))
+            return DoubleValue(sum)
         }
     }
 

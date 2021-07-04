@@ -7,10 +7,11 @@ import org.vitrivr.cottontail.math.absFromFromComplexFieldVector
 import org.vitrivr.cottontail.math.arrayFieldVectorFromVectorValue
 import org.vitrivr.cottontail.math.conjFromFromComplexFieldVector
 import org.vitrivr.cottontail.math.isApproximatelyTheSame
-import org.vitrivr.cottontail.math.knn.basics.DistanceKernel
-import org.vitrivr.cottontail.math.knn.kernels.Distances
+import org.vitrivr.cottontail.functions.math.distance.binary.EuclideanDistance
+import org.vitrivr.cottontail.functions.math.distance.binary.InnerProductDistance
+import org.vitrivr.cottontail.functions.math.distance.binary.ManhattanDistance
+import org.vitrivr.cottontail.functions.math.distance.binary.SquaredEuclideanDistance
 import org.vitrivr.cottontail.model.values.Complex64VectorValue
-import org.vitrivr.cottontail.model.values.types.VectorValue
 import org.vitrivr.cottontail.utilities.VectorUtility
 import kotlin.math.pow
 import kotlin.time.Duration
@@ -21,7 +22,7 @@ import kotlin.time.measureTime
  * Test cases that test for correctness of some basic distance calculations with [Complex64VectorValue].
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.0.0
  */
 class Complex64VectorDistanceTest : AbstractDistanceTest() {
 
@@ -40,7 +41,8 @@ class Complex64VectorDistanceTest : AbstractDistanceTest() {
         var time1 = Duration.ZERO
         var time2 = Duration.ZERO
 
-        val kernel = Distances.L1.kernelForQuery(query) as DistanceKernel<VectorValue<*>>
+        val kernel = ManhattanDistance.Complex64Vector(query.logicalSize)
+        kernel.apply(query)
 
         collection.forEach {
             time1 += measureTime {
@@ -77,7 +79,8 @@ class Complex64VectorDistanceTest : AbstractDistanceTest() {
         var time1 = Duration.ZERO
         var time2 = Duration.ZERO
 
-        val kernel = Distances.L2SQUARED.kernelForQuery(query) as DistanceKernel<VectorValue<*>>
+        val kernel = SquaredEuclideanDistance.Complex64Vector(query.logicalSize)
+        kernel.apply(query)
 
         collection.forEach {
             time1 += measureTime {
@@ -114,7 +117,8 @@ class Complex64VectorDistanceTest : AbstractDistanceTest() {
         var time1 = Duration.ZERO
         var time2 = Duration.ZERO
 
-        val kernel = Distances.L2.kernelForQuery(query) as DistanceKernel<VectorValue<*>>
+        val kernel = EuclideanDistance.Complex64Vector(query.logicalSize)
+        kernel.apply(query)
 
         collection.forEach {
             time1 += measureTime {
@@ -150,7 +154,8 @@ class Complex64VectorDistanceTest : AbstractDistanceTest() {
         var time1 = Duration.ZERO
         var time2 = Duration.ZERO
 
-        val kernel = Distances.INNERPRODUCT.kernelForQuery(query) as DistanceKernel<VectorValue<*>>
+        val kernel = InnerProductDistance.Complex64Vector(query.logicalSize)
+        kernel.apply(query)
 
         collection.forEach {
             val conjDataitem = conjFromFromComplexFieldVector(arrayFieldVectorFromVectorValue(it))
