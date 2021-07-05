@@ -1,5 +1,11 @@
 # Change log for Cottontail DB
 
+## Version 0.12.11
+
+### Bugfixes
+
+* Added a normalization for BETWEEN clauses to `GrpcQueryBinder`.
+
 ## Version 0.12.10
 
 ### Bugfixes
