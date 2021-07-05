@@ -57,6 +57,7 @@ sealed class SquaredEuclideanDistance<T : VectorValue<*>> : VectorDistance.Minko
     class Complex64Vector(size: Int) : SquaredEuclideanDistance<Complex64VectorValue>() {
         override val type = Type.Complex64Vector(size)
         override var query = this.type.defaultValue()
+        override fun copy(d: Int) = Complex64Vector(d)
         override fun invoke(vararg arguments: Value): DoubleValue {
             val vector = arguments[0] as Complex64VectorValue
             var sum = 0.0
@@ -73,6 +74,7 @@ sealed class SquaredEuclideanDistance<T : VectorValue<*>> : VectorDistance.Minko
     class Complex32Vector(size: Int) : SquaredEuclideanDistance<Complex32VectorValue>() {
         override val type = Type.Complex32Vector(size)
         override var query = this.type.defaultValue()
+        override fun copy(d: Int) = Complex32Vector(d)
         override fun invoke(vararg arguments: Value): DoubleValue {
             val vector = arguments[0] as Complex32VectorValue
             var sum = 0.0
@@ -89,6 +91,7 @@ sealed class SquaredEuclideanDistance<T : VectorValue<*>> : VectorDistance.Minko
     class DoubleVector(size: Int) : SquaredEuclideanDistance<DoubleVectorValue>() {
         override val type = Type.DoubleVector(size)
         override var query = this.type.defaultValue()
+        override fun copy(d: Int) = DoubleVector(d)
         override fun invoke(vararg arguments: Value): DoubleValue {
             val vector = arguments[0] as DoubleVectorValue
             var sum = 0.0
@@ -105,6 +108,7 @@ sealed class SquaredEuclideanDistance<T : VectorValue<*>> : VectorDistance.Minko
     class FloatVector(size: Int) : SquaredEuclideanDistance<FloatVectorValue>() {
         override val type = Type.FloatVector(size)
         override var query = this.type.defaultValue()
+        override fun copy(d: Int) = FloatVector(d)
         override fun invoke(vararg arguments: Value): DoubleValue {
             val vector = arguments[0] as FloatVectorValue
             var sum = 0.0
@@ -121,6 +125,7 @@ sealed class SquaredEuclideanDistance<T : VectorValue<*>> : VectorDistance.Minko
     class LongVector(size: Int) : SquaredEuclideanDistance<LongVectorValue>() {
         override val type = Type.LongVector(size)
         override var query = this.type.defaultValue()
+        override fun copy(d: Int) = LongVector(d)
         override fun invoke(vararg arguments: Value): DoubleValue {
             val vector = arguments[0] as LongVectorValue
             var sum = 0.0
@@ -137,6 +142,7 @@ sealed class SquaredEuclideanDistance<T : VectorValue<*>> : VectorDistance.Minko
     class IntVector(size: Int) : SquaredEuclideanDistance<IntVectorValue>() {
         override val type = Type.IntVector(size)
         override var query = this.type.defaultValue()
+        override fun copy(d: Int) = IntVector(d)
         override fun invoke(vararg arguments: Value): DoubleValue {
             val vector = arguments[0] as IntVectorValue
             var sum = 0.0

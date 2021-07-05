@@ -53,6 +53,7 @@ sealed class InnerProductDistance<T : VectorValue<*>>: VectorDistance<T> {
     class Complex64Vector(size: Int) : EuclideanDistance<Complex64VectorValue>() {
         override val type = Type.Complex64Vector(size)
         override var query = this.type.defaultValue()
+        override fun copy(d: Int) = Complex64Vector(d)
         override fun invoke(vararg arguments: Value): DoubleValue {
             val vector = arguments[0] as Complex64VectorValue
             var real = 0.0
@@ -72,6 +73,7 @@ sealed class InnerProductDistance<T : VectorValue<*>>: VectorDistance<T> {
     class Complex32Vector(size: Int) : EuclideanDistance<Complex32VectorValue>() {
         override val type = Type.Complex32Vector(size)
         override var query = this.type.defaultValue()
+        override fun copy(d: Int) = Complex32Vector(d)
         override fun invoke(vararg arguments: Value): DoubleValue {
             val vector = arguments[0] as Complex32VectorValue
             var real = 0.0
@@ -91,6 +93,7 @@ sealed class InnerProductDistance<T : VectorValue<*>>: VectorDistance<T> {
     class DoubleVector(size: Int) : EuclideanDistance<DoubleVectorValue>() {
         override val type = Type.DoubleVector(size)
         override var query = this.type.defaultValue()
+        override fun copy(d: Int) = DoubleVector(d)
         override fun invoke(vararg arguments: Value): DoubleValue {
             val vector = arguments[0] as DoubleVectorValue
             var dotp = 0.0
@@ -107,6 +110,7 @@ sealed class InnerProductDistance<T : VectorValue<*>>: VectorDistance<T> {
     class FloatVector(size: Int) : EuclideanDistance<FloatVectorValue>() {
         override val type = Type.FloatVector(size)
         override var query = this.type.defaultValue()
+        override fun copy(d: Int) = FloatVector(d)
         override fun invoke(vararg arguments: Value): DoubleValue {
             val vector = arguments[0] as FloatVectorValue
             var dotp = 0.0
@@ -123,6 +127,7 @@ sealed class InnerProductDistance<T : VectorValue<*>>: VectorDistance<T> {
     class LongVector(size: Int) : EuclideanDistance<LongVectorValue>() {
         override val type = Type.LongVector(size)
         override var query = this.type.defaultValue()
+        override fun copy(d: Int) = LongVector(d)
         override fun invoke(vararg arguments: Value): DoubleValue {
             val vector = arguments[0] as LongVectorValue
             var dotp = 0.0
@@ -139,6 +144,7 @@ sealed class InnerProductDistance<T : VectorValue<*>>: VectorDistance<T> {
     class IntVector(size: Int) : EuclideanDistance<IntVectorValue>() {
         override val type = Type.IntVector(size)
         override var query = this.type.defaultValue()
+        override fun copy(d: Int) = IntVector(d)
         override fun invoke(vararg arguments: Value): DoubleValue {
             val vector = arguments[0] as IntVectorValue
             var dotp = 0.0

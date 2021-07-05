@@ -45,7 +45,7 @@ interface VectorDistance<T : VectorValue<*>>: Function.Dynamic<DoubleValue> {
 
     /** The [Signature.Closed] of this [VectorDistance] [Function]. */
     override val signature: Signature.Closed<out DoubleValue>
-        get() = Signature.Closed(name, Type.Double, arrayOf(this.type))
+        get() = Signature.Closed(this.name, Type.Double, arrayOf(this.type))
 
     /** The dimensionality of this [VectorDistance]. */
     val d: Int
@@ -63,6 +63,14 @@ interface VectorDistance<T : VectorValue<*>>: Function.Dynamic<DoubleValue> {
     fun apply(query: VectorValue<*>) {
         this.query = (query as T)
     }
+
+    /**
+     * Creates a copy of this [VectorDistance]. Can be used to create different shapes by choosing a new value for [d].
+     *
+     * @param d The new dimensionality of the [VectorDistance].
+     * @return New [VectorDistance]
+     */
+    fun copy(d: Int = this.d): VectorDistance<T>
 
     /**
      * A special type of [VectorDistance] is the [MinkowskiDistance], e.g., the L1, L2 or Lp distance.

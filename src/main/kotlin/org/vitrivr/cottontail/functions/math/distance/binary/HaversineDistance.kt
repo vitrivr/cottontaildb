@@ -68,6 +68,7 @@ sealed class HaversineDistance<T : VectorValue<*>>: VectorDistance<T> {
     class DoubleVector: HaversineDistance<DoubleVectorValue>() {
         override val type = Type.DoubleVector(2)
         override var query = this.type.defaultValue()
+        override fun copy(d: Int) = DoubleVector()
         override fun invoke(vararg arguments: Value): DoubleValue {
             val vector = arguments[0] as DoubleVectorValue
             return DoubleValue(haversine(this.query.data[0], this.query.data[1], vector.data[0], vector.data[1]))
@@ -80,6 +81,7 @@ sealed class HaversineDistance<T : VectorValue<*>>: VectorDistance<T> {
     class FloatVector: HaversineDistance<FloatVectorValue>() {
         override val type = Type.FloatVector(2)
         override var query = this.type.defaultValue()
+        override fun copy(d: Int) = FloatVector()
         override fun invoke(vararg arguments: Value): DoubleValue {
             val vector = arguments[0] as FloatVectorValue
             return DoubleValue(haversine(this.query.data[0].toDouble(), this.query.data[1].toDouble(), vector.data[0].toDouble(), vector.data[1].toDouble()))
@@ -92,6 +94,7 @@ sealed class HaversineDistance<T : VectorValue<*>>: VectorDistance<T> {
     class LongVector: HaversineDistance<LongVectorValue>() {
         override val type = Type.LongVector(2)
         override var query = this.type.defaultValue()
+        override fun copy(d: Int) = LongVector()
         override fun invoke(vararg arguments: Value): DoubleValue {
             val vector = arguments[0] as LongVectorValue
             return DoubleValue(haversine(this.query.data[0].toDouble(), this.query.data[1].toDouble(), vector.data[0].toDouble(), vector.data[1].toDouble()))
@@ -104,6 +107,7 @@ sealed class HaversineDistance<T : VectorValue<*>>: VectorDistance<T> {
     class IntVector(): HaversineDistance<IntVectorValue>() {
         override val type = Type.IntVector(2)
         override var query = this.type.defaultValue()
+        override fun copy(d: Int) = IntVector()
         override fun invoke(vararg arguments: Value): DoubleValue {
             val vector = arguments[0] as IntVectorValue
             return DoubleValue(haversine(this.query.data[0].toDouble(), this.query.data[1].toDouble(), vector.data[0].toDouble(), vector.data[1].toDouble()))
