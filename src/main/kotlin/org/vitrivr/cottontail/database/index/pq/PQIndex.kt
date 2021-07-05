@@ -263,9 +263,6 @@ class PQIndex(path: Path, parent: DefaultEntity, config: PQIndexConfig? = null) 
                 throw QueryException.UnsupportedPredicateException("Index '${this@PQIndex.name}' (PQ Index) does not support predicates of type '${predicate::class.simpleName}'.")
             }
 
-            /** [VectorValue] used for query. Must be prepared before using the [Iterator]. */
-            private val query: VectorValue<*>
-
             /** The [PQ] instance used for this [Iterator]. */
             private val pq = this@PQIndex.pqStore.get()
 
@@ -284,8 +281,7 @@ class PQIndex(path: Path, parent: DefaultEntity, config: PQIndexConfig? = null) 
                 this@Tx.withReadLock { }
                 val value = this.predicate.query.value
                 check(value is VectorValue<*>) { "Bound value for query vector has wrong type (found = ${value.type})." }
-                this.query = value
-                this.lookupTable = this.pq.getLookupTable(this.query, this.predicate.distance)
+                this.lookupTable = this.pq.getLookupTable(this.predicate.distance)
 
                 /* Calculate partition size. */
                 val pSize = Math.floorDiv(this@PQIndex.signaturesStore.size, partitions) + 1
