@@ -81,5 +81,5 @@ value class Cost private constructor(private val cost: FloatArray) : Comparable<
      * @param other The [Cost] to this [Cost] to.
      */
     override fun compareTo(other: Cost): Int
-        = (0.6f * (this.io - other.io) + 0.2f * (this.cpu - other.cpu) + 0.1f * (this.io - other.io) + 0.1f *  (this.accuracy - other.accuracy)).toInt()
+        = (0.6f * (this.io - other.io) + 0.2f * (this.cpu - other.cpu) + 0.1f * (this.memory - other.memory) + 0.1f *  (this.accuracy - other.accuracy)).toInt()
 }
