@@ -144,7 +144,7 @@ class DeferFetchOnFetchRewriteRuleTest : AbstractDatabaseTest() {
     fun testRemoveUnnecessaryFetch() {
         val txn = this.manager.Transaction(TransactionType.SYSTEM)
         try {
-            val ctx = QueryContext(txn)
+            val ctx = QueryContext(this.catalogue, txn)
             val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
             val schema = catalogueTx.schemaForName(this.schemaName)
             val schemaTx = txn.getTx(schema) as SchemaTx
