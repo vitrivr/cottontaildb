@@ -137,5 +137,46 @@ class DeferFetchOnFetchRewriteRuleTest : AbstractDatabaseTest() {
         }
     }
 
+    /**
+     * Tests simple deferral and dropping of columns in a SELECT followed by a PROJECTION
+     */
+    @Test
+    fun testRemoveUnnecessaryFetch() {
+        val txn = this.manager.Transaction(TransactionType.SYSTEM)
+        try {
+            val ctx = QueryContext(txn)
+            val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
+            val schema = catalogueTx.schemaForName(this.schemaName)
+            val schemaTx = txn.getTx(schema) as SchemaTx
+            val entity = schemaTx.entityForName(this.entityName)
+            val entityTx = txn.getTx(entity) as EntityTx
+
+            /* Prepare simple SCAN followed by a FILTER, followed by a PROJECTION. */
+            val scan0 = EntityScanLogicalOperatorNode(0, entityTx, arrayOf(this.columns[0], this.columns[1], this.columns[2]))
+            val fetch0 = FetchLogicalOperatorNode(scan0, entityTx, arrayOf(this.columns[3]))
+            val filter0 = FilterLogicalOperatorNode(fetch0, BooleanPredicate.Atomic.Literal(this.columns[2], ComparisonOperator.Binary.Equal(Binding(0)), false))
+            val projection0 = SelectProjectionLogicalOperatorNode(filter0, Projection.SELECT, listOf(this.columns[0].name to null, this.columns[1].name to null))
+
+            /* Step 1: Execute DeferFetchOnFetchRewriteRule and make basic assertions. */
+            Assertions.assertTrue(DeferFetchOnFetchRewriteRule.canBeApplied(fetch0))
+            Assertions.assertFalse(DeferFetchOnScanRewriteRule.canBeApplied(fetch0))
+            val result1 = DeferFetchOnFetchRewriteRule.apply(fetch0, ctx)
+
+            /* Check order: SCAN -> FILTER -> PROJECT. */
+            Assertions.assertTrue(result1 is SelectProjectionLogicalOperatorNode)
+            val filter1 = (result1 as SelectProjectionLogicalOperatorNode).input
+            Assertions.assertTrue(filter1 is FilterLogicalOperatorNode)
+            val scan1 = (filter1 as FilterLogicalOperatorNode).input
+            Assertions.assertTrue(scan1 is EntityScanLogicalOperatorNode)
+
+            /* Check that columns are preserved and unnecessary columns are dropped. */
+            Assertions.assertTrue((scan1 as EntityScanLogicalOperatorNode).columns.contentDeepEquals(scan0.columns))
+            Assertions.assertTrue(result1.columns.contentDeepEquals(projection0.columns))
+        } finally {
+            txn.rollback()
+        }
+    }
+
+
     override fun populateDatabase() { /* No op. */ }
 }

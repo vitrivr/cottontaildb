@@ -9,13 +9,14 @@ import org.vitrivr.cottontail.server.grpc.services.DMLService
 import org.vitrivr.cottontail.server.grpc.services.DQLService
 import org.vitrivr.cottontail.server.grpc.services.TXNService
 import java.util.concurrent.ThreadPoolExecutor
+import java.util.concurrent.TimeUnit
 import kotlin.time.ExperimentalTime
 
 /**
  * Main server class for the gRPC endpoint provided by Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.1.1
  */
 @ExperimentalTime
 class CottontailGrpcServer(val config: Config, val catalogue: DefaultCatalogue) {
@@ -60,7 +61,12 @@ class CottontailGrpcServer(val config: Config, val catalogue: DefaultCatalogue) 
      * Stops this instance of [CottontailGrpcServer].
      */
     fun stop() {
+        /* Shutdown gRPC server. */
         this.server.shutdown()
+        this.server.awaitTermination()
+
+        /* Shutdown thread pool executor. */
         this.executor.shutdown()
+        this.executor.awaitTermination(5000, TimeUnit.MILLISECONDS)
     }
 }

@@ -9,6 +9,7 @@ import org.vitrivr.cottontail.client.language.extensions.And
 import org.vitrivr.cottontail.client.language.extensions.Literal
 import org.vitrivr.cottontail.client.stub.SimpleClient
 import org.vitrivr.cottontail.embedded
+import java.util.concurrent.TimeUnit
 import kotlin.random.Random
 import kotlin.time.ExperimentalTime
 
@@ -39,6 +40,12 @@ class DQLServiceTest {
     @AfterAll
     fun cleanup() {
         GrpcTestUtils.dropTestSchema(client)
+
+        /* Shutdown ManagedChannel. */
+        this.channel.shutdown()
+        this.channel.awaitTermination(5000, TimeUnit.MILLISECONDS)
+
+        /* Stop embedded server. */
         this.embedded.stop()
     }
 

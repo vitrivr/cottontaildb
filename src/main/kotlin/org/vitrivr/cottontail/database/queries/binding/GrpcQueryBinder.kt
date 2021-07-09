@@ -464,7 +464,13 @@ object GrpcQueryBinder {
                     throw QueryException.QuerySyntaxException("MATCH operator expects a parsable string value as right operand.")
                 }
             }
-            CottontailGrpc.ComparisonOperator.BETWEEN -> ComparisonOperator.Between(context.values.bind(literals[0]), context.values.bind(literals[1]))
+            CottontailGrpc.ComparisonOperator.BETWEEN -> {
+                return if (literals[0] <= literals[1]) {
+                    ComparisonOperator.Between(context.values.bind(literals[0]), context.values.bind(literals[1]))
+                } else {
+                    ComparisonOperator.Between(context.values.bind(literals[1]), context.values.bind(literals[0]))
+                }
+            }
             CottontailGrpc.ComparisonOperator.IN -> ComparisonOperator.In(literals.map { context.values.bind(it) }.toMutableList())
             CottontailGrpc.ComparisonOperator.UNRECOGNIZED -> throw QueryException.QuerySyntaxException("'${operator.name}' is not a valid comparison operator for a boolean predicate!")
         }

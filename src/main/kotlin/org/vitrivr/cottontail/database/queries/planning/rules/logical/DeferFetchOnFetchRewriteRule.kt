@@ -5,6 +5,7 @@ import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.BinaryLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.NAryLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.UnaryLogicalOperatorNode
+import org.vitrivr.cottontail.database.queries.planning.nodes.logical.sources.EntityScanLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.transform.FetchLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.rules.RewriteRule
 
@@ -12,7 +13,7 @@ import org.vitrivr.cottontail.database.queries.planning.rules.RewriteRule
  * A [RewriteRule] that defers fetching of columns fetched in a [FetchLogicalOperatorNode].
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
 object DeferFetchOnFetchRewriteRule : RewriteRule {
     override fun canBeApplied(node: OperatorNode): Boolean = node is FetchLogicalOperatorNode
