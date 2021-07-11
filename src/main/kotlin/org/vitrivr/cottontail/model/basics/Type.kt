@@ -27,7 +27,7 @@ sealed class Type<T : Value> {
          * @param name For which to lookup the [Type].
          * @param logicalSize The logical size of this [Type] (only for vector types).
          */
-        fun forName(name: kotlin.String, logicalSize: kotlin.Int): Type<*> = when (name.toUpperCase()) {
+        fun forName(name: kotlin.String, logicalSize: kotlin.Int): Type<*> = when (name.uppercase()) {
             "BOOLEAN" -> Boolean
             "BYTE" -> Byte
             "SHORT" -> Short
