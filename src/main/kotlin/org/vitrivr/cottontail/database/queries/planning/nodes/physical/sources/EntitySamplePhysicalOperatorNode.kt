@@ -16,13 +16,13 @@ import kotlin.math.min
  * A [NullaryPhysicalOperatorNode] that formalizes the random sampling of a physical [Entity] in Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 2.1.1
+ * @version 2.2.0
  */
 class EntitySamplePhysicalOperatorNode(
     override val groupId: Int,
     val entity: EntityTx,
     override val columns: Array<ColumnDef<*>>,
-    override val outputSize: Long,
+    val p: Float,
     val seed: Long = System.currentTimeMillis()
 ) : NullaryPhysicalOperatorNode() {
 
@@ -30,9 +30,16 @@ class EntitySamplePhysicalOperatorNode(
         private const val NODE_NAME = "SampleEntity"
     }
 
+    init {
+        require(this.p in 0.0f..1.0f) { "Probability p must be between 0.0 and 1.0 but has value $p."}
+    }
+
     /** The name of this [EntityScanPhysicalOperatorNode]. */
     override val name: String
         get() = NODE_NAME
+
+    /** The output size of the [EntitySamplePhysicalOperatorNode] is actually limited by the size of the [Entity]s. */
+    override val outputSize: Long = (this.entity.count() * this.p).toLong()
 
     /** [EntitySamplePhysicalOperatorNode] is always executable. */
     override val executable: Boolean = true
@@ -48,16 +55,12 @@ class EntitySamplePhysicalOperatorNode(
     /** The [RecordStatistics] is taken from the underlying [Entity]. [RecordStatistics] are used by the query planning for [Cost] estimation. */
     override val statistics: RecordStatistics = this.entity.dbo.statistics
 
-    init {
-        require(this.outputSize > 0) { "Sample size must be greater than zero for sampling an entity but is $outputSize." }
-    }
-
     /**
      * Creates and returns a copy of this [EntityScanPhysicalOperatorNode] without any children or parents.
      *
      * @return Copy of this [EntityScanPhysicalOperatorNode].
      */
-    override fun copy() = EntitySamplePhysicalOperatorNode(this.groupId, this.entity, this.columns, this.outputSize, this.seed)
+    override fun copy() = EntitySamplePhysicalOperatorNode(this.groupId, this.entity, this.columns, this.p, this.seed)
 
     /**
      * Partitions this [EntitySamplePhysicalOperatorNode].
@@ -66,12 +69,7 @@ class EntitySamplePhysicalOperatorNode(
      * @return List of [OperatorNode.Physical], each representing a partition of the original tree.
      */
     override fun partition(p: Int): List<NullaryPhysicalOperatorNode> {
-        val partitionSize: Long = Math.floorDiv(this.outputSize, p.toLong()) + 1L
-        return (0 until p).map {
-            val start = it * partitionSize
-            val end = min((it + 1L) * partitionSize, this.outputSize)
-            EntitySamplePhysicalOperatorNode(this.groupId, this.entity, this.columns, end - start + 1)
-        }
+        throw UnsupportedOperationException("EntitySamplePhysicalNodeExpression cannot be partitioned.")
     }
 
     /**
@@ -80,7 +78,7 @@ class EntitySamplePhysicalOperatorNode(
      * @param tx The [TransactionContext] used for execution.
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(tx: TransactionContext, ctx: QueryContext) = EntitySampleOperator(this.groupId, this.entity, this.columns, this.outputSize, this.seed)
+    override fun toOperator(tx: TransactionContext, ctx: QueryContext) = EntitySampleOperator(this.groupId, this.entity, this.columns, this.p, this.seed)
 
     /** Generates and returns a [String] representation of this [EntitySamplePhysicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.columns.joinToString(",") { it.name.toString() }}]"
@@ -89,19 +87,19 @@ class EntitySamplePhysicalOperatorNode(
         if (this === other) return true
         if (other !is EntitySamplePhysicalOperatorNode) return false
 
-        if (entity != other.entity) return false
-        if (!columns.contentEquals(other.columns)) return false
-        if (outputSize != other.outputSize) return false
-        if (seed != other.seed) return false
+        if (this.entity != other.entity) return false
+        if (!this.columns.contentEquals(other.columns)) return false
+        if (this.outputSize != other.outputSize) return false
+        if (this.seed != other.seed) return false
 
         return true
     }
 
     override fun hashCode(): Int {
-        var result = entity.hashCode()
-        result = 31 * result + columns.contentHashCode()
-        result = 31 * result + outputSize.hashCode()
-        result = 31 * result + seed.hashCode()
+        var result = this.entity.hashCode()
+        result = 31 * result + this.columns.contentHashCode()
+        result = 31 * result + this.outputSize.hashCode()
+        result = 31 * result + this.seed.hashCode()
         return result
     }
 }

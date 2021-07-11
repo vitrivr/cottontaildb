@@ -15,13 +15,9 @@ import java.util.*
  * An [AbstractEntityOperator] that samples an [Entity] and streams all [Record]s found within.
  *
  * @author Ralph Gasser
- * @version 1.2.1
+ * @version 1.3.0
  */
-class EntitySampleOperator(groupId: GroupId, entity: EntityTx, columns: Array<ColumnDef<*>>, val size: Long, val seed: Long) : AbstractEntityOperator(groupId, entity, columns) {
-
-    init {
-        if (this.size <= 0L) throw OperatorSetupException(this, "EntitySampleOperator sample size is invalid (size=${this.size}).")
-    }
+class EntitySampleOperator(groupId: GroupId, entity: EntityTx, columns: Array<ColumnDef<*>>, val p: Float, val seed: Long) : AbstractEntityOperator(groupId, entity, columns) {
 
     /**
      * Converts this [EntitySampleOperator] to a [Flow] and returns it.
@@ -32,13 +28,10 @@ class EntitySampleOperator(groupId: GroupId, entity: EntityTx, columns: Array<Co
     override fun toFlow(context: TransactionContext): Flow<Record> {
         val random = SplittableRandom(this.seed)
         return flow {
-            for (i in 0 until size) {
-                var record: Record? = null
-                while (record == null) {
-                    val next = random.nextLong(this@EntitySampleOperator.entity.maxTupleId())
-                    record = this@EntitySampleOperator.entity.read(next, this@EntitySampleOperator.columns)
+            for (record in this@EntitySampleOperator.entity.scan(this@EntitySampleOperator.columns)) {
+                if (random.nextDouble(0.0, 1.0) <= this@EntitySampleOperator.p) {
+                    emit(record)
                 }
-                emit(record)
             }
         }
     }
