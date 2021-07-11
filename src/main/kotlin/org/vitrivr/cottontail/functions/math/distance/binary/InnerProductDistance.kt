@@ -26,7 +26,7 @@ sealed class InnerProductDistance<T : VectorValue<*>>: VectorDistance<T> {
         const val FUNCTION_NAME = "innerproduct"
 
         override val signature: Signature.Open<out DoubleValue>
-            get() = Signature.Open(FUNCTION_NAME, Type.Double, arity = 1)
+            get() = Signature.Open(FUNCTION_NAME, arity = 1, Type.Double)
 
         override fun generateInternal(vararg arguments: Type<*>): Function.Dynamic<DoubleValue> = when (arguments[0]) {
             is Type.Complex64Vector -> Complex64Vector(arguments[0].logicalSize)
@@ -54,7 +54,7 @@ sealed class InnerProductDistance<T : VectorValue<*>>: VectorDistance<T> {
         override val type = Type.Complex64Vector(size)
         override var query = this.type.defaultValue()
         override fun copy(d: Int) = Complex64Vector(d)
-        override fun invoke(vararg arguments: Value): DoubleValue {
+        override fun invoke(vararg arguments: Value?): DoubleValue {
             val vector = arguments[0] as Complex64VectorValue
             var real = 0.0
             var imaginary = 0.0
@@ -74,7 +74,7 @@ sealed class InnerProductDistance<T : VectorValue<*>>: VectorDistance<T> {
         override val type = Type.Complex32Vector(size)
         override var query = this.type.defaultValue()
         override fun copy(d: Int) = Complex32Vector(d)
-        override fun invoke(vararg arguments: Value): DoubleValue {
+        override fun invoke(vararg arguments: Value?): DoubleValue {
             val vector = arguments[0] as Complex32VectorValue
             var real = 0.0
             var imaginary = 0.0
@@ -94,7 +94,7 @@ sealed class InnerProductDistance<T : VectorValue<*>>: VectorDistance<T> {
         override val type = Type.DoubleVector(size)
         override var query = this.type.defaultValue()
         override fun copy(d: Int) = DoubleVector(d)
-        override fun invoke(vararg arguments: Value): DoubleValue {
+        override fun invoke(vararg arguments: Value?): DoubleValue {
             val vector = arguments[0] as DoubleVectorValue
             var dotp = 0.0
             for (i in this.query.data.indices) {
@@ -111,7 +111,7 @@ sealed class InnerProductDistance<T : VectorValue<*>>: VectorDistance<T> {
         override val type = Type.FloatVector(size)
         override var query = this.type.defaultValue()
         override fun copy(d: Int) = FloatVector(d)
-        override fun invoke(vararg arguments: Value): DoubleValue {
+        override fun invoke(vararg arguments: Value?): DoubleValue {
             val vector = arguments[0] as FloatVectorValue
             var dotp = 0.0
             for (i in this.query.data.indices) {
@@ -128,7 +128,7 @@ sealed class InnerProductDistance<T : VectorValue<*>>: VectorDistance<T> {
         override val type = Type.LongVector(size)
         override var query = this.type.defaultValue()
         override fun copy(d: Int) = LongVector(d)
-        override fun invoke(vararg arguments: Value): DoubleValue {
+        override fun invoke(vararg arguments: Value?): DoubleValue {
             val vector = arguments[0] as LongVectorValue
             var dotp = 0.0
             for (i in this.query.data.indices) {
@@ -145,7 +145,7 @@ sealed class InnerProductDistance<T : VectorValue<*>>: VectorDistance<T> {
         override val type = Type.IntVector(size)
         override var query = this.type.defaultValue()
         override fun copy(d: Int) = IntVector(d)
-        override fun invoke(vararg arguments: Value): DoubleValue {
+        override fun invoke(vararg arguments: Value?): DoubleValue {
             val vector = arguments[0] as IntVectorValue
             var dotp = 0.0
             for (i in this.query.data.indices) {

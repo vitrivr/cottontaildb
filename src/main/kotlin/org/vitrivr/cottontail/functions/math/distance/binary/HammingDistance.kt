@@ -26,7 +26,7 @@ sealed class HammingDistance<T : VectorValue<*>>: VectorDistance<T> {
         const val FUNCTION_NAME = "hamming"
 
         override val signature: Signature.Open<out DoubleValue>
-            get() = Signature.Open(FUNCTION_NAME, Type.Double, arity = 1)
+            get() = Signature.Open(FUNCTION_NAME, arity = 1, Type.Double)
 
         override fun generateInternal(vararg arguments: Type<*>): Function.Dynamic<DoubleValue> = when (arguments[0]) {
             is Type.DoubleVector -> DoubleVector(arguments[0].logicalSize)
@@ -52,7 +52,7 @@ sealed class HammingDistance<T : VectorValue<*>>: VectorDistance<T> {
         override val type = Type.DoubleVector(size)
         override var query = this.type.defaultValue()
         override fun copy(d: Int) = DoubleVector(d)
-        override fun invoke(vararg arguments: Value): DoubleValue {
+        override fun invoke(vararg arguments: Value?): DoubleValue {
             val vector = arguments[0] as DoubleVectorValue
             var sum = 0.0
             for (i in this.query.data.indices) {
@@ -71,7 +71,7 @@ sealed class HammingDistance<T : VectorValue<*>>: VectorDistance<T> {
         override val type = Type.FloatVector(size)
         override var query = this.type.defaultValue()
         override fun copy(d: Int): VectorDistance<FloatVectorValue> = FloatVector(d)
-        override fun invoke(vararg arguments: Value): DoubleValue {
+        override fun invoke(vararg arguments: Value?): DoubleValue {
             val vector = arguments[0] as FloatVectorValue
             var sum = 0.0
             for (i in this.query.data.indices) {
@@ -90,7 +90,7 @@ sealed class HammingDistance<T : VectorValue<*>>: VectorDistance<T> {
         override val type = Type.LongVector(size)
         override var query = this.type.defaultValue()
         override fun copy(d: Int): VectorDistance<LongVectorValue> = LongVector(d)
-        override fun invoke(vararg arguments: Value): DoubleValue {
+        override fun invoke(vararg arguments: Value?): DoubleValue {
             val vector = arguments[0] as LongVectorValue
             var sum = 0.0
             for (i in this.query.data.indices) {
@@ -109,7 +109,7 @@ sealed class HammingDistance<T : VectorValue<*>>: VectorDistance<T> {
         override val type = Type.IntVector(size)
         override var query = this.type.defaultValue()
         override fun copy(d: Int) = IntVector(d)
-        override fun invoke(vararg arguments: Value): DoubleValue {
+        override fun invoke(vararg arguments: Value?): DoubleValue {
             val vector = arguments[0] as IntVectorValue
             var sum = 0.0
             for (i in this.query.data.indices) {
@@ -128,7 +128,7 @@ sealed class HammingDistance<T : VectorValue<*>>: VectorDistance<T> {
         override val type = Type.BooleanVector(size)
         override var query = this.type.defaultValue()
         override fun copy(d: Int) = BooleanVector(d)
-        override fun invoke(vararg arguments: Value): DoubleValue {
+        override fun invoke(vararg arguments: Value?): DoubleValue {
             val vector = arguments[0] as BooleanVectorValue
             var sum = 0.0
             for (i in this.query.data.indices) {

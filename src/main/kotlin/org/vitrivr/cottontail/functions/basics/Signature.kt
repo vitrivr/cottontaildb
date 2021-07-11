@@ -7,9 +7,9 @@ import org.vitrivr.cottontail.model.values.types.Value
  * A signature that uniquely identifies a [Function].
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.0.1
  */
-sealed class Signature<R: Value>(val name: String, val returnType: Type<R>) {
+sealed class Signature<R: Value>(val name: String, val returnType: Type<R>? = null) {
     /** Returns the arity of this [Signature]. */
     abstract val arity: Int
 
@@ -24,7 +24,7 @@ sealed class Signature<R: Value>(val name: String, val returnType: Type<R>) {
     /**
      * A [Signature.Closed] with known arguments.
      */
-    class Closed<R: Value>(name: String, returnType: Type<R>, val arguments: Array<Type<*>>): Signature<R>(name, returnType) {
+    class Closed<R: Value>(name: String, val arguments: Array<Type<*>>, returnType: Type<R>? = null): Signature<R>(name, returnType) {
         override val arity: Int
             get() = arguments.size
 
@@ -33,7 +33,7 @@ sealed class Signature<R: Value>(val name: String, val returnType: Type<R>) {
          *
          * @return [Signature.Open]
          */
-        fun toOpen(): Open<R> = Open(this.name, this.returnType, this.arguments.size)
+        fun toOpen(): Open<R> = Open(this.name, this.arguments.size, this.returnType)
 
         /**
          * Checks if other [Signature] collides with this [Signature.Closed] and returns true or false respectively.
@@ -42,25 +42,29 @@ sealed class Signature<R: Value>(val name: String, val returnType: Type<R>) {
          * @return True if collision is expected, false otherwise.
          */
         override fun collides(other: Signature<*>): Boolean = when(other) {
-            is Open -> this.name == other.name && this.returnType == other.returnType && this.arity == other.arity
+            is Open -> this.name == other.name && this.arity == other.arity
             is Closed -> (this == other)
         }
 
+        /**
+         * Checks for equality; return type of a [Signature] is not considered for that comparison.
+         */
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
             if (other !is Closed<*>) return false
 
-            if (name != other.name) return false
-            if (!arguments.contentEquals(other.arguments)) return false
-            if (returnType != other.returnType) return false
+            if (this.name != other.name) return false
+            if (!this.arguments.contentEquals(other.arguments)) return false
 
             return true
         }
 
+        /**
+         * Generates hash code; return type of a [Signature] is not considered for hash code.
+         */
         override fun hashCode(): Int {
-            var result = name.hashCode()
-            result = 31 * result + arguments.contentHashCode()
-            result = 31 * result + returnType.hashCode()
+            var result = this.name.hashCode()
+            result = 31 * result + this.arguments.contentHashCode()
             return result
         }
 
@@ -70,7 +74,7 @@ sealed class Signature<R: Value>(val name: String, val returnType: Type<R>) {
     /**
      * A [Signature.Open] with unknown arguments but known argument arity.
      */
-    class Open<R: Value>(name: String, returnType: Type<R>, override val arity: Int): Signature<R>(name, returnType) {
+    class Open<R: Value>(name: String, override val arity: Int, returnType: Type<R>? = null): Signature<R>(name, returnType) {
 
         /**
          * Checks if other [Signature] collides with this [Signature.Open] and returns true or false respectively.
@@ -80,24 +84,28 @@ sealed class Signature<R: Value>(val name: String, val returnType: Type<R>) {
          */
         override fun collides(other: Signature<*>): Boolean = when(other) {
             is Open -> (this == other)
-            is Closed -> this.name == other.name && this.returnType == other.returnType && this.arity == other.arity
+            is Closed -> this.name == other.name && this.arity == other.arity
         }
 
+        /**
+         * Checks for equality; return type of a [Signature] is not considered for that comparison.
+         */
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
             if (other !is Open<*>) return false
 
-            if (name != other.name) return false
-            if (arity != other.arity) return false
-            if (returnType != other.returnType) return false
+            if (this.name != other.name) return false
+            if (this.arity != other.arity) return false
 
             return true
         }
 
+        /**
+         * Generates hash code; return type of a [Signature] is not considered for hash code.
+         */
         override fun hashCode(): Int {
             var result = name.hashCode()
             result = 31 * result + arity.hashCode()
-            result = 31 * result + returnType.hashCode()
             return result
         }
 

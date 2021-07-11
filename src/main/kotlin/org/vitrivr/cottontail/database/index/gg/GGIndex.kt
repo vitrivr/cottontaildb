@@ -164,7 +164,7 @@ class GGIndex(path: Path, parent: DefaultEntity, config: GGIndexConfig? = null) 
                 val groupSeedValue = txn.read(groupSeedTid, this@GGIndex.columns)[this@GGIndex.columns[0]]
                 if (groupSeedValue is VectorValue<*>) {
                     /* Perform kNN for group. */
-                    val signature = Signature.Closed(this@GGIndex.config.distance.functionName, Type.Double, arrayOf(this@GGIndex.columns[0].type))
+                    val signature = Signature.Closed(this@GGIndex.config.distance.functionName, arrayOf(this@GGIndex.columns[0].type), Type.Double)
                     val function = this@GGIndex.parent.parent.parent.functions.obtain(signature)
                     check(function is VectorDistance<*>) { "GGIndex rebuild failed: Function $signature is not a vector distance function." }
                     val knn = MinHeapSelection<ComparablePair<Pair<TupleId, VectorValue<*>>, DoubleValue>>(groupSize)
@@ -258,7 +258,7 @@ class GGIndex(path: Path, parent: DefaultEntity, config: GGIndexConfig? = null) 
                 /* Scan >= 10% of entries by default */
                 val considerNumGroups = (this@GGIndex.config.numGroups + 9) / 10
                 val txn = this@Tx.context.getTx(this@GGIndex.parent) as EntityTx
-                val signature = Signature.Closed(this@GGIndex.config.distance.functionName, Type.Double, arrayOf(this@GGIndex.columns[0].type))
+                val signature = Signature.Closed(this@GGIndex.config.distance.functionName, arrayOf(this@GGIndex.columns[0].type), Type.Double)
                 val function = this@GGIndex.parent.parent.parent.functions.obtain(signature)
                 check (function is VectorDistance<*>) { "Function $signature is not a vector distance function." }
 

@@ -45,7 +45,7 @@ interface VectorDistance<T : VectorValue<*>>: Function.Dynamic<DoubleValue> {
 
     /** The [Signature.Closed] of this [VectorDistance] [Function]. */
     override val signature: Signature.Closed<out DoubleValue>
-        get() = Signature.Closed(this.name, Type.Double, arrayOf(this.type))
+        get() = Signature.Closed(this.name, arrayOf(this.type), Type.Double)
 
     /** The dimensionality of this [VectorDistance]. */
     val d: Int
