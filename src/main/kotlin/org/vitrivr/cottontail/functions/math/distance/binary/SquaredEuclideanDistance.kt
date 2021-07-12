@@ -28,7 +28,7 @@ sealed class SquaredEuclideanDistance<T : VectorValue<*>> : VectorDistance.Minko
         const val FUNCTION_NAME = "squaredeuclidean"
 
         override val signature: Signature.Open<out DoubleValue>
-            get() = Signature.Open(FUNCTION_NAME, arity = 1, Type.Double)
+            get() = Signature.Open(FUNCTION_NAME, arity = 2, Type.Double)
 
         override fun generateInternal(vararg arguments: Type<*>): Function.Dynamic<DoubleValue> = when (arguments[0]) {
             is Type.Complex64Vector -> Complex64Vector(arguments[0].logicalSize)
