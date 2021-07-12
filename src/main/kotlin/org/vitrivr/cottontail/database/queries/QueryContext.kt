@@ -4,12 +4,10 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap
 import org.vitrivr.cottontail.database.catalogue.Catalogue
 import org.vitrivr.cottontail.database.column.ColumnDef
 
-import org.vitrivr.cottontail.database.queries.binding.Binding
 import org.vitrivr.cottontail.database.queries.binding.BindingContext
 import org.vitrivr.cottontail.database.queries.sort.SortOrder
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
-import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.values.types.Value
 
@@ -23,10 +21,7 @@ import org.vitrivr.cottontail.model.values.types.Value
 class QueryContext(val catalogue: Catalogue, val txn: TransactionContext) {
 
     /** List of bound [Value]s for this [QueryContext]. */
-    val values = BindingContext<Value>()
-
-    /** List of bound [Record]s for this [QueryContext]. */
-    val records = BindingContext<Record>()
+    val bindings = BindingContext()
 
     /** The individual [OperatorNode.Logical], each representing different sub-queries. */
     private val nodes: MutableMap<GroupId, OperatorNode.Logical> = Int2ObjectOpenHashMap()

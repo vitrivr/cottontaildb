@@ -58,14 +58,14 @@ class FilterOnSubselectOperator(val parent: Operator, val subSelects: List<Opera
                     is ComparisonOperator.Binary.Like -> select.second.take(1).onEach { localBindingContext.register(op.right, it[it.columns[0]]) }
                     is ComparisonOperator.In -> {
                         op.clear()
-                        select.second.onEach { op.addBinding(localBindingContext.bind(it[it.columns[0]])) }
+                        select.second.onEach { op.addRef(localBindingContext.bind(it[it.columns[0]])) }
                     }
                     else -> throw ExecutionException.OperatorExecutionException(this@FilterOnSubselectOperator, "Operator of type $op does not support integration of sub-selects.")
                 }.collect()
             }
 
             /* Stage 2: Make comparison */
-            emitAll(query.filter { this@FilterOnSubselectOperator.predicate.matches(it) })
+            emitAll(query.filter { this@FilterOnSubselectOperator.predicate.isMatch(it) })
         }
     }
 }

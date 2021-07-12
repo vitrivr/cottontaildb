@@ -64,17 +64,3 @@ fun Name.EntityName.protoFrom(): CottontailGrpc.From = CottontailGrpc.From.newBu
  * @return [CottontailGrpc.IndexName] for the given [Name.IndexName]
  */
 fun Name.IndexName.proto() = CottontailGrpc.IndexName.newBuilder().setEntity(this.entity().proto()).setName(this.simple).build()
-
-/**
- * Extension function that generates the [KnnPredicateHint] for the given [CottontailGrpc.KnnHint].
- *
- * @return Fully qualified name for the given [KnnPredicateHint]
- */
-fun CottontailGrpc.KnnHint.toHint(): KnnPredicateHint? = when (this.hintCase) {
-    CottontailGrpc.KnnHint.HintCase.ALLOWINEXACTINDEXHINT -> KnnPredicateHint.AllowInexactHint(this.allowInexactIndexHint.allow)
-    CottontailGrpc.KnnHint.HintCase.NOINDEXHINT -> KnnPredicateHint.NoIndexPredicateHint
-    CottontailGrpc.KnnHint.HintCase.TYPEINDEXHINT -> KnnPredicateHint.IndexTypeHint(IndexType.valueOf(this.typeIndexHint.type.toString()))
-    CottontailGrpc.KnnHint.HintCase.NAMEINDEXHINT -> KnnPredicateHint.IndexNameHint(Name.IndexName(this.nameIndexHint.name), this.nameIndexHint.parametersMap)
-    CottontailGrpc.KnnHint.HintCase.PARALLELINDEXHINT -> KnnPredicateHint.ParallelKnnHint(this.parallelIndexHint.min, this.parallelIndexHint.max)
-    else -> null
-}

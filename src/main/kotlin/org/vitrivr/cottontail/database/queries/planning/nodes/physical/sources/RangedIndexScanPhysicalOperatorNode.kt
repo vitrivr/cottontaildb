@@ -12,7 +12,6 @@ import org.vitrivr.cottontail.database.statistics.entity.RecordStatistics
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.sources.IndexScanOperator
-import org.vitrivr.cottontail.model.values.types.Value
 import java.lang.Math.floorDiv
 
 /**
@@ -56,7 +55,7 @@ class RangedIndexScanPhysicalOperatorNode(override val groupId: Int, val index: 
      * @param tx The [TransactionContext] used for execution.
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(tx: TransactionContext, ctx: QueryContext): Operator = IndexScanOperator(this.groupId, this.index, this.predicate.bindValues(ctx.values), this.partitionIndex, this.partitions)
+    override fun toOperator(tx: TransactionContext, ctx: QueryContext): Operator = IndexScanOperator(this.groupId, this.index, this.predicate.bindValues(ctx.bindings), this.partitionIndex, this.partitions)
 
     /**
      * [RangedIndexScanPhysicalOperatorNode] cannot be partitioned.
@@ -70,7 +69,7 @@ class RangedIndexScanPhysicalOperatorNode(override val groupId: Int, val index: 
      *
      * @param ctx The [BindingContext] used for value binding.
      */
-    override fun bindValues(ctx: BindingContext<Value>): OperatorNode {
+    override fun bindValues(ctx: BindingContext): OperatorNode {
         this.predicate.bindValues(ctx)
         return super.bindValues(ctx)
     }

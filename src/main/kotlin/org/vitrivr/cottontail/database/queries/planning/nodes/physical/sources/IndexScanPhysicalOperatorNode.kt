@@ -21,7 +21,6 @@ import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.sort.MergeLimitingHeapSortOperator
 import org.vitrivr.cottontail.execution.operators.sources.IndexScanOperator
-import org.vitrivr.cottontail.model.values.types.Value
 
 /**
  * A [IndexScanPhysicalOperatorNode] that represents a predicated lookup using an [AbstractIndex].
@@ -100,10 +99,10 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int, val index: IndexT
                 val operators = partitions.map { it.toOperator(tx, ctx) }
                 MergeLimitingHeapSortOperator(operators, arrayOf(Pair(this.predicate.produces, SortOrder.ASCENDING)), this.predicate.k.toLong())
             } else {
-                IndexScanOperator(this.groupId, this.index, this.predicate.bindValues(ctx.values))
+                IndexScanOperator(this.groupId, this.index, this.predicate.bindValues(ctx.bindings))
             }
         }
-        is BooleanPredicate -> IndexScanOperator(this.groupId, this.index, this.predicate.bindValues(ctx.values))
+        is BooleanPredicate -> IndexScanOperator(this.groupId, this.index, this.predicate.bindValues(ctx.bindings))
         else -> throw UnsupportedOperationException("Unknown type of predicate ${this.predicate} cannot be converted to operator.")
     }
 
@@ -112,7 +111,7 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int, val index: IndexT
      *
      * @param ctx The [BindingContext] used for value binding.
      */
-    override fun bindValues(ctx: BindingContext<Value>): OperatorNode {
+    override fun bindValues(ctx: BindingContext): OperatorNode {
         this.predicate.bindValues(ctx)
         return super.bindValues(ctx)
     }

@@ -4,7 +4,6 @@ import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.queries.QueryContext
-import org.vitrivr.cottontail.database.queries.binding.Binding
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalOperatorNode
 import org.vitrivr.cottontail.execution.TransactionContext
@@ -55,7 +54,7 @@ class UpdatePhysicalOperatorNode(input: Physical? = null, val entity: EntityTx, 
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
     override fun toOperator(tx: TransactionContext, ctx: QueryContext): Operator {
-        val entries = this.values.map { it.first to ctx.values[it.second] } /* Late binding. */
+        val entries = this.values.map { it.first to ctx.bindings[it.second] } /* Late binding. */
         return UpdateOperator(
             this.input?.toOperator(tx, ctx) ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)"),
             this.entity,

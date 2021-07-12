@@ -14,11 +14,7 @@ import org.vitrivr.cottontail.database.statistics.entity.RecordStatistics
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.projection.DistanceProjectionOperator
-import org.vitrivr.cottontail.functions.basics.Signature
-import org.vitrivr.cottontail.functions.math.distance.VectorDistance
-import org.vitrivr.cottontail.model.basics.Type
 import org.vitrivr.cottontail.model.values.types.Value
-import org.vitrivr.cottontail.model.values.types.VectorValue
 import org.vitrivr.cottontail.utilities.math.KnnUtilities
 
 /**
@@ -94,7 +90,7 @@ class DistancePhysicalOperatorNode(input: Physical? = null, val predicate: KnnPr
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
     override fun toOperator(tx: TransactionContext, ctx: QueryContext): Operator {
-        val predicate = this.predicate.bindValues(ctx.values)
+        val predicate = this.predicate.bindValues(ctx.bindings)
         val input = this.input?.toOperator(tx, ctx) ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)")
         return DistanceProjectionOperator(input, predicate.column, predicate.distance)
     }

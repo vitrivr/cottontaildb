@@ -3,7 +3,6 @@ package org.vitrivr.cottontail.database.queries.planning.nodes.logical.managemen
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.queries.GroupId
-import org.vitrivr.cottontail.database.queries.binding.Binding
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.NullaryLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.management.InsertPhysicalOperatorNode
 import org.vitrivr.cottontail.execution.operators.management.InsertOperator

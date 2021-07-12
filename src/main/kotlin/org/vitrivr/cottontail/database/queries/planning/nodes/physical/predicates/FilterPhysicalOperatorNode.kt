@@ -76,13 +76,13 @@ class FilterPhysicalOperatorNode(input: OperatorNode.Physical? = null, val predi
         val parallelisation = this.cost.parallelisation()
         return if (this.canBePartitioned && parallelisation > 1) {
             val operators = this.input?.partition(parallelisation)?.map {
-                FilterOperator(it.toOperator(tx, ctx), this.predicate.bindValues(ctx.values))
+                FilterOperator(it.toOperator(tx, ctx), this.predicate.bindValues(ctx.bindings))
             } ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)")
             MergeOperator(operators)
         } else {
             FilterOperator(
                 this.input?.toOperator(tx, ctx) ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)"),
-                this.predicate.bindValues(ctx.values)
+                this.predicate.bindValues(ctx.bindings)
             )
         }
     }

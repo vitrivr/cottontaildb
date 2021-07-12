@@ -1,7 +1,6 @@
 package org.vitrivr.cottontail.database.queries.predicates.knn
 
 import org.vitrivr.cottontail.database.column.ColumnDef
-import org.vitrivr.cottontail.database.queries.binding.Binding
 import org.vitrivr.cottontail.database.queries.binding.BindingContext
 import org.vitrivr.cottontail.database.queries.predicates.Predicate
 import org.vitrivr.cottontail.functions.math.distance.VectorDistance

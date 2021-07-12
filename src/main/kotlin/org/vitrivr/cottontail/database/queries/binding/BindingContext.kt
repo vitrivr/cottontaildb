@@ -1,8 +1,11 @@
 package org.vitrivr.cottontail.database.queries.binding
 
-import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
+import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.queries.QueryContext
+import org.vitrivr.cottontail.model.basics.Type
 import org.vitrivr.cottontail.model.values.types.Value
+import java.util.*
+import kotlin.collections.ArrayList
 
 /**
  * A context for late binding of values. Late binding is used during query planning or execution,
@@ -10,10 +13,10 @@ import org.vitrivr.cottontail.model.values.types.Value
  * @author Ralph Gasser
  * @version 1.1.0
  */
-class BindingContext<T : Any> {
+class BindingContext(startSize: Int = 100) {
 
     /** List of bound [Value]s for this [QueryContext]. */
-    private var bound = Object2ObjectOpenHashMap<Binding<T>, T?>()
+    private var bound = ArrayList<Binding>(startSize)
 
     /** The size of this [BindingContext], i.e., the number of values bound. */
     val size: Int
@@ -22,54 +25,53 @@ class BindingContext<T : Any> {
     /**
      * Returns the [Value] for the given [Binding].
      *
-     * @param binding The [Binding] to lookup.
+     * @param bindingIndex The [Binding] to lookup.
+     * @param type The [Binding] to lookup.
      * @return The bound [Value].
      */
-    operator fun get(binding: Binding<T>): T? {
-        require(this.bound.contains(binding)) { "Binding $binding is not known to this binding context." }
-        return this.bound[binding]
+    operator fun get(bindingIndex: Int, type: Type<*>? = null): Value? {
+        require(bindingIndex < this.bound.size) { "Binding $bindingIndex is not known to this binding context." }
+        return this.bound[bindingIndex].value
     }
 
     /**
-     * Updates the [Value] to an existing [Binding] in this [BindingContext].
-     *
-     * @param value The [Value] to bind. Can be null
-     * @return The [Binding].
+     * Returns a list of all [Binding]s held by this [BindingContext].
      */
-    fun update(binding: Binding<T>, value: T?) {
-        require(binding.context == this) { "Binding $binding does not belong to this binding context." }
-        require(this.bound.contains(binding)) { "Binding $binding is not known to this binding context." }
-        this.bound[binding] = value
-    }
+    fun bindings(): List<Binding> = Collections.unmodifiableList(this.bound)
 
     /**
-     * Registers the [Value] with the given [Binding] in this [BindingContext].
+     * Creates and returns a [Binding] for the given [Value].
      *
-     * @param value The [Value] to bind. Can be null
-     * @return The [Binding].
+     * @param value The [Value] to bind.
+     * @return A value [Binding]
      */
-    fun register(binding: Binding<T>, value: T?): Binding<T> {
-        require(binding.context == null) { "Binding $binding has been registered with another binding context." }
-        this.bound[binding] = value
-        binding.context = this
+    fun bind(value: Value): Binding.Literal {
+        val binding = Binding.Literal(this.bound.size, value, this)
+        this.bound.add(binding)
         return binding
     }
 
     /**
-     * Binds a [Value] to this [BindingContext].
+     * Creates and returns a [Binding] for the given [Value].
      *
-     * @param value The [Value] to bind. Can be null
-     * @return The [Binding].
+     * @param type The [Type] to bind.
+     * @return A value [Binding]
      */
-    fun bind(value: T?): Binding<T> = this.register(Binding(this.bound.size), value)
+    fun bindNull(type: Type<*>): Binding.Literal {
+        val binding = Binding.Literal(this.bound.size, type, this)
+        this.bound.add(binding)
+        return binding
+    }
 
     /**
-     * Clears this [BindingContext] and severs all existing connections to [Binding]s.
+     * Creates and returns a [Binding] for the given [ColumnDef].
+     *
+     * @param column The [ColumnDef] to bind.
+     * @return [Binding.Column]
      */
-    fun clear() {
-        for (bound in this.bound.keys) {
-            bound.context = null
-        }
-        this.bound.clear()
+    fun bind(column: ColumnDef<*>): Binding.Column {
+        val binding = Binding.Column(this.bound.size, column, this)
+        this.bound.add(binding)
+        return binding
     }
 }
