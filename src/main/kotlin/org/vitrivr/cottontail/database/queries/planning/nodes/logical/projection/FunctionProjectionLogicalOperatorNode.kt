@@ -37,7 +37,7 @@ class FunctionProjectionLogicalOperatorNode(input: OperatorNode.Logical? = null,
      *
      * @return Copy of this [FunctionProjectionLogicalOperatorNode].
      */
-    override fun copy() = FunctionProjectionLogicalOperatorNode(this.input, this.function, this.arguments, this.alias)
+    override fun copy() = FunctionProjectionLogicalOperatorNode(function = this.function, arguments = this.arguments, alias = this.alias)
 
     /**
      * Returns a [FunctionProjectionPhysicalOperatorNode] representation of this [FunctionProjectionLogicalOperatorNode]

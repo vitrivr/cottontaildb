@@ -32,7 +32,7 @@ class FunctionProjectionPhysicalOperatorNode(input: Physical? = null, val functi
     override val requires: Array<ColumnDef<*>>
         get() = this.arguments.filterIsInstance<Binding.Column>().map { it.column }.toTypedArray()
 
-    override fun copy(): UnaryPhysicalOperatorNode = FunctionProjectionPhysicalOperatorNode(this.input, this.function, this.arguments, this.alias)
+    override fun copy(): UnaryPhysicalOperatorNode = FunctionProjectionPhysicalOperatorNode(function = this.function, arguments =  this.arguments, alias = this.alias)
 
     /**The [ExistsProjectionPhysicalOperatorNode] cannot be partitioned. */
     override val canBePartitioned: Boolean = true
