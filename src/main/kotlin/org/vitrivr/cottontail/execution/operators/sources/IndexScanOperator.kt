@@ -15,7 +15,7 @@ import org.vitrivr.cottontail.model.basics.Record
  * An [AbstractEntityOperator] that scans an [Index] and streams all [Record]s found within.
  *
  * @author Ralph Gasser
- * @version 1.4.1
+ * @version 1.5.0
  */
 class IndexScanOperator(groupId: GroupId, private val index: IndexTx, private val predicate: Predicate, private val partitionIndex: Int = 0, private val partitions: Int = 1) : Operator.SourceOperator(groupId) {
 
@@ -29,19 +29,10 @@ class IndexScanOperator(groupId: GroupId, private val index: IndexTx, private va
      * @param context The [QueryContext] used for execution.
      * @return [Flow] representing this [IndexScanOperator]
      */
-    override fun toFlow(context: QueryContext): Flow<Record> {
-        return if (this.partitions == 1) {
-            flow {
-                this@IndexScanOperator.index.filter(this@IndexScanOperator.predicate).forEach {
-                    emit(it)
-                }
-            }
-        } else {
-            flow {
-                this@IndexScanOperator.index.filterRange(this@IndexScanOperator.predicate, this@IndexScanOperator.partitionIndex, this@IndexScanOperator.partitions).forEach {
-                    emit(it)
-                }
-            }
+    override fun toFlow(context: QueryContext): Flow<Record> = flow {
+        this@IndexScanOperator.index.filterRange(this@IndexScanOperator.predicate, this@IndexScanOperator.partitionIndex, this@IndexScanOperator.partitions).forEach {
+            context.bindings.bindRecord(it) /* Important: Make new record available to binding context. */
+            emit(it)
         }
     }
 }

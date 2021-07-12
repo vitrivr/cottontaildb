@@ -32,19 +32,7 @@ object NaiveSelectivityCalculator {
      * @param predicate The [BooleanPredicate.Atomic] to evaluate.
      * @param statistics The [RecordStatistics] to use in the calculation.
      */
-    private fun estimateAtomicReference(predicate: BooleanPredicate.Atomic, statistics: RecordStatistics): Selectivity = when (predicate.operator) {
-        is ComparisonOperator.Between -> TODO()
-        is ComparisonOperator.Binary.Equal -> TODO()
-        is ComparisonOperator.Binary.Greater -> TODO()
-        is ComparisonOperator.Binary.GreaterEqual -> TODO()
-        is ComparisonOperator.Binary.Less -> TODO()
-        is ComparisonOperator.Binary.LessEqual -> TODO()
-        is ComparisonOperator.Binary.Like -> TODO()
-        is ComparisonOperator.Binary.Match -> TODO()
-        is ComparisonOperator.In -> TODO()
-        is ComparisonOperator.IsNull -> TODO()
-    }
-
+    private fun estimateAtomicReference(predicate: BooleanPredicate.Atomic, statistics: RecordStatistics): Selectivity = Selectivity(1.0f)
     /**
      * Estimates the selectivity for a [BooleanPredicate.Compound].
      *

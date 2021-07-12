@@ -14,7 +14,7 @@ import org.vitrivr.cottontail.model.basics.Record
  * An [AbstractEntityOperator] that scans an [Entity] and streams all [Record]s found within.
  *
  * @author Ralph Gasser
- * @version 1.3.2
+ * @version 1.5.0
  */
 class EntityScanOperator(groupId: GroupId, entity: EntityTx, columns: Array<ColumnDef<*>>, private val partitionIndex: Int, private val partitions: Int) : AbstractEntityOperator(groupId, entity, columns) {
     /**
@@ -23,11 +23,10 @@ class EntityScanOperator(groupId: GroupId, entity: EntityTx, columns: Array<Colu
      * @param context The [TransactionContext] used for execution
      * @return [Flow] representing this [EntityScanOperator]
      */
-    override fun toFlow(context: QueryContext): Flow<Record> {
-        return flow {
-            for (record in this@EntityScanOperator.entity.scan(this@EntityScanOperator.columns, this@EntityScanOperator.partitionIndex, this@EntityScanOperator.partitions)) {
-                emit(record)
-            }
+    override fun toFlow(context: QueryContext): Flow<Record> = flow {
+        for (record in this@EntityScanOperator.entity.scan(this@EntityScanOperator.columns, this@EntityScanOperator.partitionIndex, this@EntityScanOperator.partitions)) {
+            context.bindings.bindRecord(record) /* Important: Make new record available to binding context. */
+            emit(record)
         }
     }
 }

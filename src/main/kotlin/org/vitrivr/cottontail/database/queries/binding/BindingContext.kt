@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.database.queries.binding
 
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.queries.QueryContext
+import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.basics.Type
 import org.vitrivr.cottontail.model.values.types.Value
 import java.util.*
@@ -17,6 +18,10 @@ class BindingContext(startSize: Int = 100) {
 
     /** List of bound [Value]s for this [QueryContext]. */
     private var bound = ArrayList<Binding>(startSize)
+
+    /** A [Record] currently bound to this [BindingContext]. Used to resolve [Binding.Column]. */
+    var boundRecord: Record? = null
+        private set
 
     /** The size of this [BindingContext], i.e., the number of values bound. */
     val size: Int
@@ -73,5 +78,14 @@ class BindingContext(startSize: Int = 100) {
         val binding = Binding.Column(this.bound.size, column, this)
         this.bound.add(binding)
         return binding
+    }
+
+    /**
+     * Updates the [Binding.Column]s based on the given [Record].
+     *
+     * @param record The [Record] to update the [Binding.Column] with.
+     */
+    fun bindRecord(record: Record) {
+        this.boundRecord = record
     }
 }

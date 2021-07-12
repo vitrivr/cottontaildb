@@ -35,12 +35,10 @@ sealed interface Binding {
 
     /** A value referred to by a [ColumnDef]. Can only be accessed during query execution. */
     class Column(val index: Int, val column: ColumnDef<*>, override val context: BindingContext): Binding {
-        var record: Record? = null
-
         override val type: Type<*>
             get() = this.column.type
 
         override val value: Value?
-            get() = (this.record ?: throw IllegalStateException("No record bound to column binding ${this.column} OR column not specified."))[this.column]
+            get() = (this.context.boundRecord ?: throw IllegalStateException("No record bound for column binding ${this.column}."))[this.column]
     }
 }

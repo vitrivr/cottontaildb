@@ -17,7 +17,7 @@ import org.vitrivr.cottontail.model.values.types.Value
  * the specified [Entity]. Can  be used for late population of requested [ColumnDef]s.
  *
  * @author Ralph Gasser
- * @version 1.0.4
+ * @version 1.1.0
  */
 class FetchOperator(parent: Operator, val entity: EntityTx, val fetch: Array<ColumnDef<*>>) : Operator.PipelineOperator(parent) {
 
@@ -39,7 +39,9 @@ class FetchOperator(parent: Operator, val entity: EntityTx, val fetch: Array<Col
             buffer.clear()
             r.forEach { _, v -> buffer.add(v) }
             this@FetchOperator.entity.read(r.tupleId, this.fetch).forEach { _, v -> buffer.add(v) }
-            StandaloneRecord(r.tupleId, this.columns, buffer.toTypedArray())
+            val record = StandaloneRecord(r.tupleId, this.columns, buffer.toTypedArray())
+            context.bindings.bindRecord(record) /* Important: Make new record available to binding context. */
+            record
         }
     }
 }

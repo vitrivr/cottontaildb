@@ -17,7 +17,7 @@ import org.vitrivr.cottontail.model.values.LongValue
  * An [AbstractEntityOperator] that counts the number of entries in an [Entity] and returns one [Record] with that number.
  *
  * @author Ralph Gasser
- * @version 1.2.2
+ * @version 1.5.0
  */
 class EntityCountOperator(groupId: GroupId, entity: EntityTx) : AbstractEntityOperator(groupId, entity, arrayOf()) {
 
@@ -32,9 +32,9 @@ class EntityCountOperator(groupId: GroupId, entity: EntityTx) : AbstractEntityOp
      * @param context The [QueryContext] used for execution.
      * @return [Flow] representing this [EntityCountOperator]
      */
-    override fun toFlow(context: QueryContext): Flow<Record> {
-        return flow {
-            emit(StandaloneRecord(0L, this@EntityCountOperator.columns, arrayOf(LongValue(this@EntityCountOperator.entity.count()))))
-        }
+    override fun toFlow(context: QueryContext): Flow<Record> = flow {
+        val record = StandaloneRecord(0L, this@EntityCountOperator.columns, arrayOf(LongValue(this@EntityCountOperator.entity.count())))
+        context.bindings.bindRecord(record) /* Important: Make new record available to binding context. */
+        emit(record)
     }
 }
