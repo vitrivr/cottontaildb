@@ -31,7 +31,7 @@ sealed class ComparisonOperator {
     /**
      * A [ComparisonOperator] that checks if a value is NULL.
      */
-    class IsNull(val left: Binding<*>) : ComparisonOperator() {
+    class IsNull(val left: Binding) : ComparisonOperator() {
         override val atomicCpuCost: Float = Cost.COST_MEMORY_ACCESS
         override fun match() = (this.left.value == null)
     }
@@ -39,20 +39,20 @@ sealed class ComparisonOperator {
     /**
      * A [ComparisonOperator] that expresses an equality (==) comparison.
      */
-    sealed class Binary(val left: Binding<*>, val right: Binding<*>) : ComparisonOperator() {
+    sealed class Binary(val left: Binding, val right: Binding) : ComparisonOperator() {
 
         override val atomicCpuCost: Float = 2 * Cost.COST_MEMORY_ACCESS
 
-        class Equal(left: Binding<*>, right: Binding<*>) : Binary(left, right) {
-            override fun match() = this.left.value.isEqual(this.right.value)
+        class Equal(left: Binding, right: Binding) : Binary(left, right) {
+            override fun match() = this.left.value != null && this.right.value != null && this.left.value!!.isEqual(this.right.value!!)
             override fun toString(): String = "= $right"
         }
 
         /**
          * A [ComparisonOperator] that expresses greater (>) comparison.
          */
-        class Greater(left: Binding<*>, right: Binding<*>) : Binary(left, right) {
-            override fun match(): Boolean = this.left.value > this.right.value
+        class Greater(left: Binding, right: Binding) : Binary(left, right) {
+            override fun match(): Boolean = this.left.value != null && this.right.value != null && this.left.value!! > this.right.value!!
             override fun toString(): String = "> $right"
 
         }
@@ -60,39 +60,39 @@ sealed class ComparisonOperator {
         /**
          * A [ComparisonOperator] that expresses less (<) comparison.
          */
-        class Less(left: Binding<*>, right: Binding<*>) : Binary(left, right) {
-            override fun match() = this.left.value < this.right.value
+        class Less(left: Binding, right: Binding) : Binary(left, right) {
+            override fun match() = this.left.value != null && this.right.value != null && this.left.value!! < this.right.value!!
             override fun toString(): String = "< $right"
         }
 
         /**
          * A [ComparisonOperator] that expresses greater or equal (>=) comparison.
          */
-        class GreaterEqual(left: Binding<*>, right: Binding<*>) : Binary(left, right) {
-            override fun match() = this.left.value >= this.right.value
+        class GreaterEqual(left: Binding, right: Binding) : Binary(left, right) {
+            override fun match() = this.left.value != null && this.right.value != null && this.left.value!! >= this.right.value!!
             override fun toString(): String = ">= $right"
         }
 
         /**
          * A [ComparisonOperator] that expresses less or equal (<=) comparison.
          */
-        class LessEqual(left: Binding<*>, right: Binding<*>) : Binary(left, right) {
-            override fun match() = this.left.value <= this.right.value
+        class LessEqual(left: Binding, right: Binding) : Binary(left, right) {
+            override fun match() = this.left.value != null && this.right.value != null && this.left.value!! <= this.right.value!!
             override fun toString(): String = "<= $right"
         }
 
         /**
-         * A [ComparisonOperator] that expresses a LIKE comparison. I.e. left LIKE right.
+         * A [ComparisonOperator] that expresses a LIKE comparison, i.e., left LIKE right.
          */
-        class Like(left: Binding<*>, right: Binding<*>) : Binary(left, right) {
-            override fun match() = (this.right.value as LikePatternValue).matches(left as StringValue)
+        class Like(left: Binding, right: Binding) : Binary(left, right) {
+            override fun match() = this.left.value is StringValue && this.right.value is LikePatternValue && (this.right.value as LikePatternValue).matches(this.left.value as StringValue)
             override fun toString(): String = "LIKE $right"
         }
 
         /**
          * A [ComparisonOperator] that expresses a MATCH comparison. Can only be evaluated through a lucene index.
          */
-        class Match(left: Binding<*>, right: Binding<*>) : Binary(left, right) {
+        class Match(left: Binding, right: Binding) : Binary(left, right) {
             override fun match() = throw UnsupportedOperationException("A MATCH comparison operator cannot be evaluated directly.")
             override fun toString(): String = "MATCH $right"
         }
@@ -101,17 +101,17 @@ sealed class ComparisonOperator {
     /**
      * A [ComparisonOperator] that expresses a BETWEEN comparison (i.e. lower <= left <= upper).
      */
-    class Between(val left: Binding<*>, val rightLower: Binding<*>, val rightUpper: Binding<*>) : ComparisonOperator() {
+    class Between(val left: Binding, val rightLower: Binding, val rightUpper: Binding) : ComparisonOperator() {
         override val atomicCpuCost: Float = 4.0f * Cost.COST_MEMORY_ACCESS
-        override fun match() = this.left.value in this.rightLower.value..this.rightUpper.value
+        override fun match() = this.left.value != null && this.rightLower.value != null && this.rightLower.value != null && this.left.value!! in this.rightLower.value!!..this.rightUpper.value!!
         override fun toString(): String = "BETWEEN $rightLower, $rightUpper"
     }
 
     /**
      * A [ComparisonOperator] that expresses a IN comparison (i.e. left IN right).
      */
-    class In(val left: Binding<*>, right: MutableList<Binding<*>>) : ComparisonOperator() {
-        val right: MutableList<Binding<*>> = LinkedList()
+    class In(val left: Binding, right: MutableList<Binding.Literal>) : ComparisonOperator() {
+        val right: MutableList<Binding> = LinkedList()
         private var rightSet: ObjectOpenHashSet<Value>? = null /* To speed-up IN operation. */
         override val atomicCpuCost: Float = 4.0f * Cost.COST_MEMORY_ACCESS
         override fun match(): Boolean {
@@ -127,11 +127,11 @@ sealed class ComparisonOperator {
         }
 
         /**
-         * Adds a [Binding] to this [In] operator.
+         * Adds a [Binding.Literal] to this [In] operator.
          *
-         * @param ref [Binding] to add.
+         * @param ref [Binding.Literal] to add.
          */
-        fun addRef(ref: Binding<*>) {
+        fun addRef(ref: Binding.Literal) {
             this.right.add(ref)
             this.rightSet = null
         }

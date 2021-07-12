@@ -24,7 +24,7 @@ import java.util.*
  * unique [Value] to a [TupleId]. Well suited for equality based lookups of [Value]s.
  *
  * @author Ralph Gasser
- * @version 2.0.1
+ * @version 2.0.2
  */
 class UniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path, parent) {
 
@@ -59,9 +59,9 @@ class UniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path, p
      * @param predicate The [Predicate] to check.
      * @return True if [Predicate] can be processed, false otherwise.
      */
-    override fun canProcess(predicate: Predicate): Boolean = predicate is BooleanPredicate.Atomic.Literal
+    override fun canProcess(predicate: Predicate): Boolean = predicate is BooleanPredicate.Atomic
             && !predicate.not
-            && predicate.columns.first() == this.columns[0]
+            && predicate.columns.contains(this.columns[0])
             && (predicate.operator is ComparisonOperator.In || predicate.operator is ComparisonOperator.Binary.Equal)
 
     /**
@@ -71,7 +71,7 @@ class UniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path, p
      * @return Cost estimate for the [Predicate]
      */
     override fun cost(predicate: Predicate): Cost = when {
-        predicate !is BooleanPredicate.Atomic.Literal || predicate.columns.first() != this.columns[0] || predicate.not -> Cost.INVALID
+        predicate !is BooleanPredicate.Atomic || predicate.columns.first() != this.columns[0] || predicate.not -> Cost.INVALID
         predicate.operator is ComparisonOperator.Binary.Equal -> Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_MEMORY_ACCESS, predicate.columns.map { it.type.physicalSize }.sum().toFloat())
         predicate.operator is ComparisonOperator.In -> Cost(Cost.COST_DISK_ACCESS_READ * predicate.operator.right.size, Cost.COST_MEMORY_ACCESS * predicate.operator.right.size, predicate.columns.map { it.type.physicalSize }.sum().toFloat())
         else -> Cost.INVALID
@@ -192,20 +192,24 @@ class UniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path, p
         override fun filter(predicate: Predicate) = object : Iterator<Record> {
 
             /** Local [BooleanPredicate.Atomic] instance. */
-            private val predicate: BooleanPredicate.Atomic.Literal
+            private val predicate: BooleanPredicate.Atomic
 
             /** Pre-fetched [Record]s that match the [Predicate]. */
             private val elements = LinkedList<Value>()
 
             /* Perform initial sanity checks. */
             init {
-                require(predicate is BooleanPredicate.Atomic.Literal) { "UniqueHashIndex.filter() does only support Atomic.Literal boolean predicates." }
+                require(predicate is BooleanPredicate.Atomic) { "UniqueHashIndex.filter() does only support Atomic.Literal boolean predicates." }
                 require(!predicate.not) { "UniqueHashIndex.filter() does not support negated statements (i.e. NOT EQUALS or NOT IN)." }
                 this@Tx.withReadLock { /* No op. */ }
                 this.predicate = predicate
                 when (predicate.operator) {
-                    is ComparisonOperator.In -> this.elements.addAll(predicate.operator.right.map { it.value })
-                    is ComparisonOperator.Binary.Equal -> this.elements.add(predicate.operator.right.value)
+                    is ComparisonOperator.In -> this.elements.addAll(predicate.operator.right.mapNotNull { it.value })
+                    is ComparisonOperator.Binary.Equal -> {
+                        if (predicate.operator.right.value != null) {
+                            this.elements.add(predicate.operator.right.value!!)
+                        }
+                    }
                     else -> throw IllegalArgumentException("UniqueHashIndex.filter() does only support EQUAL and IN operators.")
                 }
             }

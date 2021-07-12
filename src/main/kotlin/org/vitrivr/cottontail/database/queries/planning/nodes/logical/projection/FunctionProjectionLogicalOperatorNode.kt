@@ -12,9 +12,9 @@ import org.vitrivr.cottontail.model.basics.Name
  * A [UnaryLogicalOperatorNode] that represents the execution of a [Function] to generate some [ColumnDef].
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.0.1
  */
-class FunctionProjectionLogicalOperatorNode(input: OperatorNode.Logical? = null, val function: Function<*>, val arguments: List<Binding<*>>, val alias: Name.ColumnName? = null) : UnaryLogicalOperatorNode(input) {
+class FunctionProjectionLogicalOperatorNode(input: OperatorNode.Logical? = null, val function: Function<*>, val arguments: List<Binding>, val alias: Name.ColumnName? = null) : UnaryLogicalOperatorNode(input) {
 
     companion object {
         private const val NODE_NAME = "Function"
@@ -22,11 +22,11 @@ class FunctionProjectionLogicalOperatorNode(input: OperatorNode.Logical? = null,
 
     /** The column produced by this [FunctionProjectionLogicalOperatorNode] is determined by the [Function]'s signature. */
     override val columns: Array<ColumnDef<*>>
-        get() = (this.input?.columns ?: emptyArray()) + ColumnDef(this.alias ?: Name.ColumnName(this.function.signature.name), this.function.signature.returnType)
+        get() = (this.input?.columns ?: emptyArray()) + ColumnDef(this.alias ?: Name.ColumnName(this.function.signature.name), this.function.signature.returnType!!)
 
     /** The [FunctionProjectionLogicalOperatorNode] requires all [ColumnDef] used in the [Function]. */
     override val requires: Array<ColumnDef<*>>
-        get() = this.arguments.filterIsInstance<Binding.Column<*>>().map { it.column }.toTypedArray()
+        get() = this.arguments.filterIsInstance<Binding.Column>().map { it.column }.toTypedArray()
 
     /** Human readable name of this [FunctionProjectionLogicalOperatorNode]. */
     override val name: String

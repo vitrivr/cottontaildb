@@ -6,7 +6,6 @@ import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalOperatorNode
 import org.vitrivr.cottontail.database.queries.sort.SortOrder
-import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.sort.HeapSortOperator
 import org.vitrivr.cottontail.model.exceptions.QueryException
@@ -16,7 +15,7 @@ import org.vitrivr.cottontail.model.exceptions.QueryException
  * a heap sort algorithm is applied for sorting.
  *
  * @author Ralph Gasser
- * @version 2.1.0
+ * @version 2.1.1
  */
 class SortPhysicalOperatorNode(input: Physical? = null, sortOn: Array<Pair<ColumnDef<*>, SortOrder>>) : UnaryPhysicalOperatorNode(input) {
 
@@ -61,11 +60,10 @@ class SortPhysicalOperatorNode(input: Physical? = null, sortOn: Array<Pair<Colum
     /**
      * Converts this [SortPhysicalOperatorNode] to a [HeapSortOperator].
      *
-     * @param tx The [TransactionContext] used for execution.
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(tx: TransactionContext, ctx: QueryContext): Operator = HeapSortOperator(
-        this.input?.toOperator(tx, ctx) ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)"),
+    override fun toOperator(ctx: QueryContext): Operator = HeapSortOperator(
+        this.input?.toOperator(ctx) ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)"),
         this.order,
         if (this.outputSize > Integer.MAX_VALUE) {
             Integer.MAX_VALUE

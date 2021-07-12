@@ -280,7 +280,7 @@ class PQIndex(path: Path, parent: DefaultEntity, config: PQIndexConfig? = null) 
             init {
                 this@Tx.withReadLock { }
                 val value = this.predicate.query.value
-                check(value is VectorValue<*>) { "Bound value for query vector has wrong type (found = ${value.type})." }
+                check(value is VectorValue<*>) { "Bound value for query vector has wrong type (found = ${value?.type})." }
                 this.lookupTable = this.pq.getLookupTable(this.predicate.distance)
 
                 /* Calculate partition size. */

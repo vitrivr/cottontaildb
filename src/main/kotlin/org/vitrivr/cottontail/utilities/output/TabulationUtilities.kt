@@ -11,7 +11,7 @@ import java.util.*
  * Utility class for tabulated output.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.0.1
  */
 object TabulationUtilities {
 
@@ -96,7 +96,7 @@ object TabulationUtilities {
                     CottontailGrpc.Vector.VectorDataCase.VECTORDATA_NOT_SET -> "~~NULL~~"
                     else -> "~~N/A~~"
                 }
-                CottontailGrpc.Literal.DataCase.NULLDATA -> "~~NULL~~"
+                CottontailGrpc.Literal.DataCase.DATA_NOT_SET -> "~~NULL~~"
                 else -> "~~N/A~~"
             }
         }.forEach { cell(it) }

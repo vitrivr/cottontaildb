@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.onEach
 import org.vitrivr.cottontail.database.column.ColumnDef
+import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.exceptions.OperatorSetupException
 import org.vitrivr.cottontail.execution.operators.basics.Operator
@@ -20,7 +21,7 @@ import java.util.*
  * @param into The [MutableList] to write values into.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.0.1
  */
 class ValueCollectorSink(parent: Operator, val column: ColumnDef<*>, val into: MutableList<Value?>) : Operator.SinkOperator(parent) {
 
@@ -30,7 +31,7 @@ class ValueCollectorSink(parent: Operator, val column: ColumnDef<*>, val into: M
         }
     }
 
-    override fun toFlow(context: TransactionContext): Flow<Record> {
+    override fun toFlow(context: QueryContext): Flow<Record> {
         val parentFlow = this.parent.toFlow(context)
         return flow {
             this@ValueCollectorSink.into.clear()

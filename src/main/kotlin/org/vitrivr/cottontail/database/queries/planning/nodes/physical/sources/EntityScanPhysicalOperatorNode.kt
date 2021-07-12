@@ -9,14 +9,13 @@ import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.NullaryPhysicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalOperatorNode
 import org.vitrivr.cottontail.database.statistics.entity.RecordStatistics
-import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.sources.EntityScanOperator
 
 /**
  * A [UnaryPhysicalOperatorNode] that formalizes a scan of a physical [Entity] in Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 2.1.1
+ * @version 2.1.2
  */
 class EntityScanPhysicalOperatorNode(override val groupId: Int, val entity: EntityTx, override val columns: Array<ColumnDef<*>>) : NullaryPhysicalOperatorNode() {
 
@@ -63,10 +62,9 @@ class EntityScanPhysicalOperatorNode(override val groupId: Int, val entity: Enti
     /**
      * Converts this [EntityScanPhysicalOperatorNode] to a [EntityScanOperator].
      *
-     * @param tx The [TransactionContext] used for execution.
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(tx: TransactionContext, ctx: QueryContext) = EntityScanOperator(this.groupId, this.entity, this.columns, 0, 1)
+    override fun toOperator(ctx: QueryContext) = EntityScanOperator(this.groupId, this.entity, this.columns, 0, 1)
 
     /** Generates and returns a [String] representation of this [EntityScanPhysicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.columns.joinToString(",") { it.name.toString() }}]"

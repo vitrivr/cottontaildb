@@ -1,13 +1,11 @@
 package org.vitrivr.cottontail.database.queries.predicates.knn
 
 import org.vitrivr.cottontail.database.column.ColumnDef
-import org.vitrivr.cottontail.database.queries.binding.BindingContext
+import org.vitrivr.cottontail.database.queries.binding.Binding
 import org.vitrivr.cottontail.database.queries.predicates.Predicate
 import org.vitrivr.cottontail.functions.math.distance.VectorDistance
 import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.exceptions.QueryException
-import org.vitrivr.cottontail.model.values.types.Value
-import org.vitrivr.cottontail.model.values.types.VectorValue
 import org.vitrivr.cottontail.utilities.math.KnnUtilities
 
 /**
@@ -17,9 +15,9 @@ import org.vitrivr.cottontail.utilities.math.KnnUtilities
  * @see Record
  *
  * @author Ralph Gasser
- * @version 1.6.1
+ * @version 1.7.0
  */
-class KnnPredicate(val column: ColumnDef<*>, val k: Int, val distance: VectorDistance<*>, val hint: KnnPredicateHint? = null, val query: Binding<Value>, val weight: Binding<Value>? = null) : Predicate {
+class KnnPredicate(val column: ColumnDef<*>, val k: Int, val distance: VectorDistance<*>, val hint: KnnPredicateHint? = null, val query: Binding, val weight: Binding? = null) : Predicate {
 
     init {
         /* Basic sanity checks. */
@@ -38,19 +36,6 @@ class KnnPredicate(val column: ColumnDef<*>, val k: Int, val distance: VectorDis
     /** CPU cost required for applying this [KnnPredicate] to a single record. */
     override val atomicCpuCost: Float
         get() = this.distance.cost
-
-    /**
-     * Prepares this [KnnPredicate] for use in query execution, e.g., by executing late value binding.
-     *
-     * @param ctx [BindingContext] to use to resolve [Binding]s.
-     * @return this [KnnPredicate]
-     */
-    override fun bindValues(ctx: BindingContext<Value>): KnnPredicate {
-        this.query.context = ctx
-        this.weight?.context = ctx
-        this.distance.apply(this.query.value as VectorValue<*>)
-        return this
-    }
 
     /**
      * Calculates and returns the digest for this [KnnPredicate]

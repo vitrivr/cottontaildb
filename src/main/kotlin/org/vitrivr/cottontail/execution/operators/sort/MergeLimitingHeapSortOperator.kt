@@ -2,8 +2,8 @@ package org.vitrivr.cottontail.execution.operators.sort
 
 import kotlinx.coroutines.flow.*
 import org.vitrivr.cottontail.database.column.ColumnDef
+import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.sort.SortOrder
-import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.utilities.selection.HeapSelection
 import org.vitrivr.cottontail.model.basics.Record
@@ -15,7 +15,7 @@ import org.vitrivr.cottontail.model.basics.Record
  * This is often used in parallelized nearest neighbour queries.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.0.1
  */
 class MergeLimitingHeapSortOperator(parents: List<Operator>, sortOn: Array<Pair<ColumnDef<*>, SortOrder>>, val limit: Long) : Operator.MergingPipelineOperator(parents) {
 
@@ -36,10 +36,10 @@ class MergeLimitingHeapSortOperator(parents: List<Operator>, sortOn: Array<Pair<
     /**
      * Converts this [MergeLimitingHeapSortOperator] to a [Flow] and returns it.
      *
-     * @param context The [TransactionContext] used for execution
+     * @param context The [QueryContext] used for execution
      * @return [Flow] representing this [MergeLimitingHeapSortOperator]
      */
-    override fun toFlow(context: TransactionContext): Flow<Record> {
+    override fun toFlow(context: QueryContext): Flow<Record> {
         return flow {
             val selection = HeapSelection(this@MergeLimitingHeapSortOperator.limit, this@MergeLimitingHeapSortOperator.comparator)
             val parentFlows = this@MergeLimitingHeapSortOperator.parents.map {

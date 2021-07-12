@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import org.vitrivr.cottontail.database.column.ColumnDef
+import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.model.basics.Name
@@ -23,7 +24,7 @@ import java.nio.charset.Charset
  * Only produces a single [Record].
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.0.1
  */
 class SelectDistinctProjectionOperator(parent: Operator, fields: List<Pair<Name.ColumnName, Name.ColumnName?>>, expected: Long) : Operator.PipelineOperator(parent) {
 
@@ -94,10 +95,10 @@ class SelectDistinctProjectionOperator(parent: Operator, fields: List<Pair<Name.
     /**
      * Converts this [SelectProjectionOperator] to a [Flow] and returns it.
      *
-     * @param context The [TransactionContext] used for execution
+     * @param context The [QueryContext] used for execution
      * @return [Flow] representing this [SelectProjectionOperator]
      */
-    override fun toFlow(context: TransactionContext): Flow<Record> {
+    override fun toFlow(context: QueryContext): Flow<Record> {
         return this.parent.toFlow(context).map { r ->
             StandaloneRecord(r.tupleId, this.columns, this.parentColumns.map { r[it] }.toTypedArray())
         }.filter {

@@ -19,6 +19,7 @@ import org.vitrivr.cottontail.database.locking.LockHolder
 import org.vitrivr.cottontail.database.locking.LockManager
 import org.vitrivr.cottontail.database.locking.LockMode
 import org.vitrivr.cottontail.database.logging.operations.Operation
+import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.execution.TransactionManager.Transaction
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.model.basics.Record
@@ -31,7 +32,7 @@ import java.util.concurrent.atomic.AtomicLong
  * create and execute queries within different [Transaction]s.
  *
  * @author Ralph Gasser
- * @version 1.4.0
+ * @version 1.4.1
  */
 class TransactionManager(transactionTableSize: Int, private val transactionHistorySize: Int) {
     /** Logger used for logging the output. */
@@ -129,24 +130,24 @@ class TransactionManager(transactionTableSize: Int, private val transactionHisto
         }
 
         /**
-         * Signals a [DataManagementOperation] to this [Transaction].
+         * Signals a [Operation.DataManagementOperation] to this [Transaction].
          *
-         * Implementing methods must process these [DataManagementOperation]s quickly, since they are usually
+         * Implementing methods must process these [Operation.DataManagementOperation]s quickly, since they are usually
          * triggered during an ongoing transaction.
          *
-         * @param action The [DataManagementOperation] that has been reported.
+         * @param action The [Operation.DataManagementOperation] that has been reported.
          */
         override fun signalEvent(action: Operation.DataManagementOperation) {
             /* ToDo: Do something with the events. */
         }
 
         /**
-         * Schedules an [Operator.SinkOperator] for execution in this [Transaction] and blocks,
-         * until execution has completed.
+         * Schedules an [Operator] for execution in this [Transaction] and blocks, until execution has completed.
          *
+         * @param context The [QueryContext] to execute the [Operator] in.
          * @param operator The [Operator.SinkOperator] that should be executed.
          */
-        fun execute(operator: Operator): Flow<Record> = operator.toFlow(this@Transaction).onStart {
+        override fun execute(operator: Operator, context: QueryContext): Flow<Record> = operator.toFlow(context).onStart {
             this@Transaction.mutex.lock()
             check(this@Transaction.state === TransactionStatus.READY) { "Cannot start execution of transaction ${this@Transaction.txId} because it is in wrong state (s = ${this@Transaction.state})." }
             this@Transaction.state = TransactionStatus.RUNNING

@@ -6,7 +6,6 @@ import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalOperatorNode
 import org.vitrivr.cottontail.database.queries.projection.Projection
-import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.projection.SelectDistinctProjectionOperator
 import org.vitrivr.cottontail.execution.operators.projection.SelectProjectionOperator
@@ -86,14 +85,13 @@ class SelectProjectionPhysicalOperatorNode(input: Physical? = null, type: Projec
     /**
      * Converts this [SelectProjectionPhysicalOperatorNode] to a [SelectProjectionOperator].
      *
-     * @param tx The [TransactionContext] used for execution.
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(tx: TransactionContext, ctx: QueryContext): Operator {
+    override fun toOperator(ctx: QueryContext): Operator {
         val input = this.input ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)")
         return when (this.type) {
-            Projection.SELECT -> SelectProjectionOperator(input.toOperator(tx, ctx), this.fields)
-            Projection.SELECT_DISTINCT -> SelectDistinctProjectionOperator(input.toOperator(tx, ctx), this.fields, input.outputSize)
+            Projection.SELECT -> SelectProjectionOperator(input.toOperator(ctx), this.fields)
+            Projection.SELECT_DISTINCT -> SelectDistinctProjectionOperator(input.toOperator(ctx), this.fields, input.outputSize)
             else -> throw IllegalArgumentException("SelectProjectionPhysicalOperatorNode can only have type SELECT or SELECT_DISTINCT. This is a programmer's error!")
         }
     }

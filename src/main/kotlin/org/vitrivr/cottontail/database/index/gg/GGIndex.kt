@@ -243,7 +243,7 @@ class GGIndex(path: Path, parent: DefaultEntity, config: GGIndexConfig? = null) 
             init {
                 this@Tx.withReadLock { }
                 val value = this.predicate.query.value
-                check(value is VectorValue<*>) { "Bound value for query vector has wrong type (found = ${value.type})." }
+                check(value is VectorValue<*>) { "Bound value for query vector has wrong type (found = ${value?.type})." }
                 this.vector = value
             }
 

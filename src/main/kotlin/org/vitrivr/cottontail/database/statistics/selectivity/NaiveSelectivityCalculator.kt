@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.database.statistics.selectivity
 
 import org.vitrivr.cottontail.database.queries.predicates.bool.BooleanPredicate
+import org.vitrivr.cottontail.database.queries.predicates.bool.ComparisonOperator
 import org.vitrivr.cottontail.database.queries.predicates.bool.ConnectionOperator
 import org.vitrivr.cottontail.database.statistics.entity.RecordStatistics
 
@@ -11,7 +12,7 @@ import org.vitrivr.cottontail.database.statistics.entity.RecordStatistics
  * the column and then combines these [Selectivity] values as if they were uncorrelated.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.0.1
  */
 object NaiveSelectivityCalculator {
     /**
@@ -21,18 +22,28 @@ object NaiveSelectivityCalculator {
      * @param statistics The [RecordStatistics] to use in the calculation.
      */
     fun estimate(predicate: BooleanPredicate, statistics: RecordStatistics): Selectivity = when (predicate) {
-        is BooleanPredicate.Atomic.Literal -> estimateAtomicReference(predicate, statistics)
-        is BooleanPredicate.Atomic.Reference -> estimateAtomicReference(predicate, statistics)
+        is BooleanPredicate.Atomic -> estimateAtomicReference(predicate, statistics)
         is BooleanPredicate.Compound -> estimateCompoundSelectivity(predicate, statistics)
     }
 
     /**
-     * Estimates the selectivity of a [BooleanPredicate.Atomic.Reference] given the [RecordStatistics].
+     * Estimates the selectivity of a [BooleanPredicate.Atomic] given the [RecordStatistics].
      *
-     * @param predicate The [BooleanPredicate.Atomic.Reference] to evaluate.
+     * @param predicate The [BooleanPredicate.Atomic] to evaluate.
      * @param statistics The [RecordStatistics] to use in the calculation.
      */
-    private fun estimateAtomicReference(predicate: BooleanPredicate.Atomic, statistics: RecordStatistics): Selectivity = statistics[predicate.left].estimateSelectivity(predicate)
+    private fun estimateAtomicReference(predicate: BooleanPredicate.Atomic, statistics: RecordStatistics): Selectivity = when (predicate.operator) {
+        is ComparisonOperator.Between -> TODO()
+        is ComparisonOperator.Binary.Equal -> TODO()
+        is ComparisonOperator.Binary.Greater -> TODO()
+        is ComparisonOperator.Binary.GreaterEqual -> TODO()
+        is ComparisonOperator.Binary.Less -> TODO()
+        is ComparisonOperator.Binary.LessEqual -> TODO()
+        is ComparisonOperator.Binary.Like -> TODO()
+        is ComparisonOperator.Binary.Match -> TODO()
+        is ComparisonOperator.In -> TODO()
+        is ComparisonOperator.IsNull -> TODO()
+    }
 
     /**
      * Estimates the selectivity for a [BooleanPredicate.Compound].

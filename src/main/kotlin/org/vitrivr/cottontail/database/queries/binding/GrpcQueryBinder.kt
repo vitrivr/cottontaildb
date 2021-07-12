@@ -27,6 +27,7 @@ import org.vitrivr.cottontail.functions.basics.Signature
 import org.vitrivr.cottontail.functions.exception.FunctionNotFoundException
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.model.basics.Name
+import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.values.StringValue
@@ -147,7 +148,7 @@ object GrpcQueryBinder {
             }
 
             /* Parse records to BATCH INSERT. */
-            val records = insert.insertsList.map { i ->
+            val records: MutableList<Record> = insert.insertsList.map { i ->
                 RecordBinding(-1L, columns, Array<Binding>(i.valuesCount) {
                    context.bindings.bind(i.valuesList[it].toValue(columns[it].type))
                 })
@@ -389,51 +390,72 @@ object GrpcQueryBinder {
             CottontailGrpc.AtomicBooleanOperand.OperandCase.QUERY -> {
                 val subQuery = this.bind(atomic.right.query, context)
                 dependsOn = subQuery.groupId
-                emptyList<Binding>()
+                if (atomic.op == CottontailGrpc.ComparisonOperator.IN) {
+                    emptyList<Binding>()
+                } else {
+                    listOf(context.bindings.bindNull(left.type))
+                }
             }
             else -> throw QueryException.QuerySyntaxException("Failed to parse operand for atomic boolean predicate.")
         }
-        val operator = when (atomic.op) {
-            CottontailGrpc.ComparisonOperator.ISNULL -> ComparisonOperator.IsNull(left)
-            CottontailGrpc.ComparisonOperator.EQUAL -> ComparisonOperator.Binary.Equal(left, right[0])
-            CottontailGrpc.ComparisonOperator.GREATER -> ComparisonOperator.Binary.Greater(left, right[0])
-            CottontailGrpc.ComparisonOperator.LESS -> ComparisonOperator.Binary.LessEqual(left, right[0])
-            CottontailGrpc.ComparisonOperator.GEQUAL -> ComparisonOperator.Binary.GreaterEqual(left, right[0])
-            CottontailGrpc.ComparisonOperator.LEQUAL -> ComparisonOperator.Binary.LessEqual(left, right[0])
-            CottontailGrpc.ComparisonOperator.LIKE -> {
-                val v = right[0]
-                if (v.value is StringValue) {
-                    (v as Binding.Literal).value = LikePatternValue.forValue((v.value as StringValue).value)
-                    ComparisonOperator.Binary.Like(left, right[0])
-                } else {
-                    throw QueryException.QuerySyntaxException("LIKE operator expects a parsable string value as right operand.")
-                }
-            }
-            CottontailGrpc.ComparisonOperator.MATCH -> {
-                val v = right[0]
-                if (v.value is StringValue) {
-                    (v as Binding.Literal).value = LucenePatternValue((v.value as StringValue).value)
-                    ComparisonOperator.Binary.Like(left, right[0])
-                } else {
-                    throw QueryException.QuerySyntaxException("MATCH operator expects a parsable string value as right operand.")
-                }
-            }
-            CottontailGrpc.ComparisonOperator.BETWEEN -> {
-                if (right[0].value!! <= right[1].value!!) {
-                    ComparisonOperator.Between(left, right[0], right[1])
-                } else {
-                    ComparisonOperator.Between(left, right[1], right[0])
-                }
-            }
-            CottontailGrpc.ComparisonOperator.IN -> ComparisonOperator.In(left, right.toMutableList())
-            CottontailGrpc.ComparisonOperator.UNRECOGNIZED,
-            null -> throw QueryException.QuerySyntaxException("Operator ${atomic.op} is not a valid comparison operator for a boolean predicate!")
-        }
-        return BooleanPredicate.Atomic(operator, atomic.not, dependsOn)
+        return BooleanPredicate.Atomic(bindOperator(atomic.op, left, right), atomic.not, dependsOn)
     }
 
     /**
      *
+     */
+    private fun bindOperator(operator: CottontailGrpc.ComparisonOperator, left: Binding, right: List<Binding>) = when (operator) {
+        CottontailGrpc.ComparisonOperator.ISNULL -> ComparisonOperator.IsNull(left)
+        CottontailGrpc.ComparisonOperator.EQUAL -> ComparisonOperator.Binary.Equal(left, right[0])
+        CottontailGrpc.ComparisonOperator.GREATER -> ComparisonOperator.Binary.Greater(left, right[0])
+        CottontailGrpc.ComparisonOperator.LESS -> ComparisonOperator.Binary.LessEqual(left, right[0])
+        CottontailGrpc.ComparisonOperator.GEQUAL -> ComparisonOperator.Binary.GreaterEqual(left, right[0])
+        CottontailGrpc.ComparisonOperator.LEQUAL -> ComparisonOperator.Binary.LessEqual(left, right[0])
+        CottontailGrpc.ComparisonOperator.LIKE -> {
+            val r = right[0]
+            if (r is Binding.Literal && r.value is StringValue) {
+                r.value = LikePatternValue.forValue((r.value as StringValue).value)
+                ComparisonOperator.Binary.Like(left, r)
+            } else {
+                throw QueryException.QuerySyntaxException("LIKE operator expects a literal, parseable string value as right operand.")
+            }
+        }
+        CottontailGrpc.ComparisonOperator.MATCH -> {
+            val r = right[0]
+            if (r is Binding.Literal && r.value is StringValue) {
+                r.value = LucenePatternValue((r.value as StringValue).value)
+                ComparisonOperator.Binary.Like(left, r)
+            } else {
+                throw QueryException.QuerySyntaxException("MATCH operator expects a literal, parseable string value as right operand.")
+            }
+        }
+        CottontailGrpc.ComparisonOperator.BETWEEN -> {
+            var rightLower = right[0]
+            var rightUpper = right[1]
+            if (rightLower is Binding.Literal && rightUpper is Binding.Literal) {
+                try {
+                    if (right[0].value!! > right[1].value!!) { /* Normalize order for literal bindings. */
+                        rightLower = right[1]
+                        rightUpper = right[0]
+                    }
+                } catch (e: NullPointerException) {
+                    throw QueryException.QuerySyntaxException("BETWEEN operator expects two non-null, literal values as right operands.")
+                }
+            }
+            ComparisonOperator.Between(left, rightLower, rightUpper)
+        }
+        CottontailGrpc.ComparisonOperator.IN -> ComparisonOperator.In(left, right.filterIsInstance<Binding.Literal>().toMutableList())
+        CottontailGrpc.ComparisonOperator.UNRECOGNIZED -> throw QueryException.QuerySyntaxException("Operator $operator is not a valid comparison operator for a boolean predicate!")
+    }
+
+    /**
+     * Parses and binds the projection part of a gRPC [CottontailGrpc.Function]-clause
+     *
+     * @param input The [OperatorNode.Logical] on which to perform the [Function].
+     * @param function The [CottontailGrpc.Function] object.
+     * @param context The [QueryContext] used for query binding.
+     *
+     * @return The resulting [SortLogicalOperatorNode].
      */
     private fun parseAndBindFunction(input: OperatorNode.Logical, function: CottontailGrpc.Function, context: QueryContext): OperatorNode.Logical {
         val refs = function.argumentsList.mapIndexed { i, a ->
@@ -445,11 +467,12 @@ object GrpcQueryBinder {
             }
         }
         val signature = Signature.Closed<Value>(function.name, refs.map { it.type }.toTypedArray())
-        val function = try {
+        val functionObject = try {
             context.catalogue.functions.obtain(signature)
         } catch (e: FunctionNotFoundException) {
             throw QueryException.QueryBindException("Desired distance function $signature for NNS was not found!")
         }
+        return FunctionProjectionLogicalOperatorNode(input, functionObject, refs)
     }
 
     /**

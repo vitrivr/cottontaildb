@@ -70,9 +70,9 @@ class QueryContext(val catalogue: Catalogue, val txn: TransactionContext) {
     /**
      * Returns an executable [Operator] for this [QueryContext]. Requires a functional, [OperatorNode.Physical]
      */
-    fun toOperatorTree(txn: TransactionContext): Operator {
+    fun toOperatorTree(): Operator {
         val local = this.physical
         check(local != null) { IllegalStateException("Cannot generate an operator tree without a valid, physical node expression tree.") }
-        return local.toOperator(txn, this)
+        return local.toOperator(this)
     }
 }

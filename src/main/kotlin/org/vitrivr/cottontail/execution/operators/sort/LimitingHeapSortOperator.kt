@@ -4,6 +4,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
 import org.vitrivr.cottontail.database.column.ColumnDef
+import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.sort.SortOrder
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
@@ -18,7 +19,7 @@ import org.vitrivr.cottontail.model.basics.Record
  * Acts as pipeline breaker.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.0.1
  */
 class LimitingHeapSortOperator(parent: Operator, sortOn: Array<Pair<ColumnDef<*>, SortOrder>>, private val limit: Long, private val skip: Long) : AbstractSortOperator(parent, sortOn) {
 
@@ -34,7 +35,7 @@ class LimitingHeapSortOperator(parent: Operator, sortOn: Array<Pair<ColumnDef<*>
      * @param context The [TransactionContext] used for execution
      * @return [Flow] representing this [LimitingHeapSortOperator]
      */
-    override fun toFlow(context: TransactionContext): Flow<Record> {
+    override fun toFlow(context: QueryContext): Flow<Record> {
         val parentFlow = if (this.skip > 0) {
             this.parent.toFlow(context).drop(this.skip)
         } else {

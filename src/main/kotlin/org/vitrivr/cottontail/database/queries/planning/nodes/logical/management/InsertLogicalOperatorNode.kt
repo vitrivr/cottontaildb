@@ -12,9 +12,9 @@ import org.vitrivr.cottontail.model.basics.Record
  * A [InsertLogicalOperatorNode] that formalizes a INSERT operation on an [Entity].
  *
  * @author Ralph Gasser
- * @version 2.1.0
+ * @version 2.1.1
  */
-class InsertLogicalOperatorNode(override val groupId: GroupId, val entity: Entity, val records: MutableList<Binding<Record>>) : NullaryLogicalOperatorNode() {
+class InsertLogicalOperatorNode(override val groupId: GroupId, val entity: Entity, val records: MutableList<Record>) : NullaryLogicalOperatorNode() {
 
     companion object {
         private const val NODE_NAME = "Insert"

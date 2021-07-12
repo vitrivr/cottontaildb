@@ -3,18 +3,15 @@ package org.vitrivr.cottontail.database.queries.planning.nodes.physical
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.queries.Digest
 import org.vitrivr.cottontail.database.queries.OperatorNode
-import org.vitrivr.cottontail.database.queries.QueryContext
-import org.vitrivr.cottontail.database.queries.binding.BindingContext
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.NullaryLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.sort.SortOrder
-import org.vitrivr.cottontail.model.values.types.Value
 
 /**
  * An abstract [OperatorNode.Physical] implementation that has no input node, i.e., acts as a source.
  *
  * @author Ralph Gasser
- * @version 2.1.1
+ * @version 2.1.2
  */
 abstract class NullaryPhysicalOperatorNode : OperatorNode.Physical() {
     /** The arity of the [NullaryPhysicalOperatorNode] is always on. */
@@ -69,16 +66,6 @@ abstract class NullaryPhysicalOperatorNode : OperatorNode.Physical() {
         val copy = this.copy()
         return (this.output?.copyWithOutput(copy) ?: copy).root
     }
-
-    /**
-     * Performs late value binding using the given [QueryContext].
-     *
-     * By default, this operation has no effect. Override to implement operator specific binding.
-     *
-     * @param ctx [BindingContext] to use to resolve this [Binding].
-     * @return This [OperatorNode].
-     */
-    override fun bindValues(ctx: BindingContext<Value>): OperatorNode = this
 
     /**
      * Calculates and returns the digest for this [NullaryPhysicalOperatorNode].

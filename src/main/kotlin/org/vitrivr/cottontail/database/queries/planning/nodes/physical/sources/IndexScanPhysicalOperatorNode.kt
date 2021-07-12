@@ -7,7 +7,6 @@ import org.vitrivr.cottontail.database.index.Index
 import org.vitrivr.cottontail.database.index.IndexTx
 import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.QueryContext
-import org.vitrivr.cottontail.database.queries.binding.BindingContext
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.NullaryPhysicalOperatorNode
 import org.vitrivr.cottontail.database.queries.predicates.Predicate
@@ -26,7 +25,7 @@ import org.vitrivr.cottontail.execution.operators.sources.IndexScanOperator
  * A [IndexScanPhysicalOperatorNode] that represents a predicated lookup using an [AbstractIndex].
  *
  * @author Ralph Gasser
- * @version 2.1.0
+ * @version 2.1.1
  */
 class IndexScanPhysicalOperatorNode(override val groupId: Int, val index: IndexTx, val predicate: Predicate) : NullaryPhysicalOperatorNode() {
     companion object {
@@ -82,10 +81,9 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int, val index: IndexT
     /**
      * Converts this [IndexScanPhysicalOperatorNode] to a [IndexScanOperator].
      *
-     * @param tx The [TransactionContext] used for execution.
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(tx: TransactionContext, ctx: QueryContext): Operator = when (this.predicate) {
+    override fun toOperator(ctx: QueryContext): Operator = when (this.predicate) {
         is KnnPredicate -> {
             val hint = this.predicate.hint
             val p = if (hint is KnnPredicateHint.ParallelKnnHint) {
@@ -96,24 +94,14 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int, val index: IndexT
 
             if (p > 1 && this.canBePartitioned) {
                 val partitions = this.partition(p)
-                val operators = partitions.map { it.toOperator(tx, ctx) }
+                val operators = partitions.map { it.toOperator(ctx) }
                 MergeLimitingHeapSortOperator(operators, arrayOf(Pair(this.predicate.produces, SortOrder.ASCENDING)), this.predicate.k.toLong())
             } else {
-                IndexScanOperator(this.groupId, this.index, this.predicate.bindValues(ctx.bindings))
+                IndexScanOperator(this.groupId, this.index, this.predicate)
             }
         }
-        is BooleanPredicate -> IndexScanOperator(this.groupId, this.index, this.predicate.bindValues(ctx.bindings))
+        is BooleanPredicate -> IndexScanOperator(this.groupId, this.index, this.predicate)
         else -> throw UnsupportedOperationException("Unknown type of predicate ${this.predicate} cannot be converted to operator.")
-    }
-
-    /**
-     * Binds values from the provided [BindingContext] to this [IndexScanPhysicalOperatorNode]'s [Predicate].
-     *
-     * @param ctx The [BindingContext] used for value binding.
-     */
-    override fun bindValues(ctx: BindingContext): OperatorNode {
-        this.predicate.bindValues(ctx)
-        return super.bindValues(ctx)
     }
 
     /** Generates and returns a [String] representation of this [EntityScanPhysicalOperatorNode]. */

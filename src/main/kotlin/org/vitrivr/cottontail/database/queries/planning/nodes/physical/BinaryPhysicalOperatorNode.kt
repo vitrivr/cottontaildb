@@ -4,18 +4,16 @@ import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.queries.Digest
 import org.vitrivr.cottontail.database.queries.GroupId
 import org.vitrivr.cottontail.database.queries.OperatorNode
-import org.vitrivr.cottontail.database.queries.binding.BindingContext
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.sort.SortOrder
 import org.vitrivr.cottontail.database.statistics.entity.RecordStatistics
-import org.vitrivr.cottontail.model.values.types.Value
 import java.io.PrintStream
 
 /**
  * An abstract [OperatorNode.Physical] implementation that has exactly two [OperatorNode.Physical]s as input.
  *
  * @author Ralph Gasser
- * @version 2.1.1
+ * @version 2.1.2
  */
 abstract class BinaryPhysicalOperatorNode(left: Physical? = null, right: Physical? = null) : OperatorNode.Physical() {
 
@@ -138,23 +136,6 @@ abstract class BinaryPhysicalOperatorNode(left: Physical? = null, right: Physica
         copy.left = input.getOrNull(0)
         copy.right = input.getOrNull(1)
         return (this.output?.copyWithOutput(copy) ?: copy).root
-    }
-
-    /**
-     * Performs value binding using the given [BindingContext].
-     *
-     * [OperatorNode] are required to propagate calls to [bindValues] up the tree in addition
-     * to executing the binding locally. Consequently, the call is propagated to [left] and [right] input [OperatorNode].
-     *
-     * By default, this operation has no further effect. Override to implement operator specific binding but don't forget to call super.bindValues()
-     *
-     * @param ctx [BindingContext] to use to resolve [Binding]s.
-     * @return This [OperatorNode].
-     */
-    override fun bindValues(ctx: BindingContext<Value>): OperatorNode {
-        this.left?.bindValues(ctx)
-        this.right?.bindValues(ctx)
-        return this
     }
 
     /**

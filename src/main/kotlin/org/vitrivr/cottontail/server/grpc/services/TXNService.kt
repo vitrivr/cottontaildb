@@ -3,6 +3,8 @@ package org.vitrivr.cottontail.server.grpc.services
 import com.google.protobuf.Empty
 import io.grpc.Status
 import kotlinx.coroutines.flow.Flow
+import org.vitrivr.cottontail.database.catalogue.Catalogue
+import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.execution.TransactionManager
 import org.vitrivr.cottontail.execution.TransactionType
 import org.vitrivr.cottontail.execution.operators.system.ListLocksOperator
@@ -20,7 +22,7 @@ import kotlin.time.ExperimentalTime
  * @version 2.0.0
  */
 @ExperimentalTime
-class TXNService constructor(override val manager: TransactionManager) : TXNGrpcKt.TXNCoroutineImplBase(), gRPCTransactionService {
+class TXNService constructor(val catalogue: Catalogue, override val manager: TransactionManager) : TXNGrpcKt.TXNCoroutineImplBase(), gRPCTransactionService {
 
     /**
      * gRPC endpoint for beginning an new [TransactionManager.Transaction].
@@ -70,13 +72,13 @@ class TXNService constructor(override val manager: TransactionManager) : TXNGrpc
      * gRPC for listing all [TransactionManager.Transaction]s.
      */
     override fun listTransactions(request: Empty): Flow<CottontailGrpc.QueryResponseMessage> = this.withTransactionContext(description = "LIST TRANSACTIONS") { tx, q ->
-        executeAndMaterialize(tx, ListTransactionsOperator(this.manager), q, 0)
+        executeAndMaterialize(QueryContext(this.catalogue, tx), ListTransactionsOperator(this.manager), q, 0)
     }
 
     /**
      * gRPC for listing all active locks.
      */
     override fun listLocks(request: Empty): Flow<CottontailGrpc.QueryResponseMessage> = this.withTransactionContext(description = "LIST LOCKS") { tx, q ->
-        executeAndMaterialize(tx, ListLocksOperator(this.manager.lockManager), q, 0)
+        executeAndMaterialize(QueryContext(this.catalogue, tx), ListLocksOperator(this.manager.lockManager), q, 0)
     }
 }

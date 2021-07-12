@@ -6,7 +6,6 @@ import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalOperatorNode
 import org.vitrivr.cottontail.database.queries.sort.SortOrder
-import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.sort.LimitingHeapSortOperator
 import org.vitrivr.cottontail.execution.operators.sort.MergeLimitingHeapSortOperator
@@ -18,7 +17,7 @@ import kotlin.math.min
  * top K entries. This is semantically equivalent to a ORDER BY XY LIMIT Z. Internally, a heap sort algorithm is employed for sorting.
  *
  * @author Ralph Gasser
- * @version 2.1.0
+ * @version 2.1.1
  */
 class LimitingSortPhysicalOperatorNode(input: Physical? = null, sortOn: Array<Pair<ColumnDef<*>, SortOrder>>, val limit: Long, val skip: Long) : UnaryPhysicalOperatorNode(input) {
     companion object {
@@ -68,17 +67,16 @@ class LimitingSortPhysicalOperatorNode(input: Physical? = null, sortOn: Array<Pa
     /**
      * Converts this [LimitingSortPhysicalOperatorNode] to a [LimitingHeapSortOperator].
      *
-     * @param tx The [TransactionContext] used for execution.
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(tx: TransactionContext, ctx: QueryContext): Operator {
+    override fun toOperator(ctx: QueryContext): Operator {
         val p = this.totalCost.parallelisation()
         val input = this.input ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)")
         return if (p > 1) {
-            val partitions = input.partition(p).map { it.toOperator(tx, ctx) }
+            val partitions = input.partition(p).map { it.toOperator(ctx) }
             MergeLimitingHeapSortOperator(partitions, this.order, this.limit)
         } else {
-            LimitingHeapSortOperator(input.toOperator(tx, ctx), this.order, this.limit, this.skip)
+            LimitingHeapSortOperator(input.toOperator(ctx), this.order, this.limit, this.skip)
         }
     }
 

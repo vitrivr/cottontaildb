@@ -4,19 +4,17 @@ import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.queries.Digest
 import org.vitrivr.cottontail.database.queries.GroupId
 import org.vitrivr.cottontail.database.queries.OperatorNode
-import org.vitrivr.cottontail.database.queries.binding.BindingContext
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.UnaryLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.sort.SortOrder
 import org.vitrivr.cottontail.database.statistics.entity.RecordStatistics
-import org.vitrivr.cottontail.model.values.types.Value
 import java.io.PrintStream
 
 /**
  * An abstract [OperatorNode.Physical] implementation that has a single [OperatorNode] as input.
  *
  * @author Ralph Gasser
- * @version 2.1.1
+ * @version 2.1.2
  */
 abstract class UnaryPhysicalOperatorNode(input: Physical? = null) : OperatorNode.Physical() {
 
@@ -119,22 +117,6 @@ abstract class UnaryPhysicalOperatorNode(input: Physical? = null) : OperatorNode
         val copy = this.copy()
         copy.input = input.getOrNull(0)
         return (this.output?.copyWithOutput(copy) ?: copy).root
-    }
-
-    /**
-     * Performs value binding using the given [BindingContext].
-     *
-     * [UnaryPhysicalOperatorNode] are required to propagate calls to [bindValues] up the tree in addition
-     * to executing the binding locally. Consequently, the call is propagated to all the [input] [OperatorNode].
-     *
-     * By default, this operation has no further effect. Override to implement operator specific binding but don't forget to call super.bindValues()
-     *
-     * @param ctx [BindingContext] to use to resolve [Binding]s.
-     * @return This [OperatorNode].
-     */
-    override fun bindValues(ctx: BindingContext<Value>): OperatorNode {
-        this.input?.bindValues(ctx)
-        return this
     }
 
     /**

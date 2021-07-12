@@ -3,8 +3,8 @@ package org.vitrivr.cottontail.execution.operators.predicates
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filter
 import org.vitrivr.cottontail.database.column.ColumnDef
+import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.predicates.bool.BooleanPredicate
-import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.model.basics.Record
 
@@ -13,7 +13,7 @@ import org.vitrivr.cottontail.model.basics.Record
  * parent [Operator] using the given [BooleanPredicate].
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.2.1
  */
 class FilterOperator(parent: Operator, private val predicate: BooleanPredicate) : Operator.PipelineOperator(parent) {
 
@@ -26,8 +26,8 @@ class FilterOperator(parent: Operator, private val predicate: BooleanPredicate) 
     /**
      * Converts this [FilterOperator] to a [Flow] and returns it.
      *
-     * @param context The [TransactionContext] used for execution
+     * @param context The [QueryContext] used for execution
      * @return [Flow] representing this [FilterOperator]
      */
-    override fun toFlow(context: TransactionContext): Flow<Record> = this.parent.toFlow(context).filter { this.predicate.isMatch(it) }
+    override fun toFlow(context: QueryContext): Flow<Record> = this.parent.toFlow(context).filter { this.predicate.isMatch() }
 }

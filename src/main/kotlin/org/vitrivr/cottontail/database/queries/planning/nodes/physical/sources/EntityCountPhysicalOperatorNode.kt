@@ -8,7 +8,6 @@ import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.NullaryPhysicalOperatorNode
 import org.vitrivr.cottontail.database.queries.projection.Projection
 import org.vitrivr.cottontail.database.statistics.entity.RecordStatistics
-import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.sources.EntityCountOperator
 import org.vitrivr.cottontail.model.basics.Type
 
@@ -16,7 +15,7 @@ import org.vitrivr.cottontail.model.basics.Type
  * A [NullaryPhysicalOperatorNode] that formalizes the counting entries in a physical [Entity].
  *
  * @author Ralph Gasser
- * @version 2.1.1
+ * @version 2.1.2
  */
 class EntityCountPhysicalOperatorNode(override val groupId: Int, val entity: EntityTx) : NullaryPhysicalOperatorNode() {
 
@@ -63,10 +62,9 @@ class EntityCountPhysicalOperatorNode(override val groupId: Int, val entity: Ent
     /**
      * Converts this [EntityCountPhysicalOperatorNode] to a [EntityCountOperator].
      *
-     * @param tx The [TransactionContext] used for execution.
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(tx: TransactionContext, ctx: QueryContext) = EntityCountOperator(this.groupId, this.entity)
+    override fun toOperator(ctx: QueryContext) = EntityCountOperator(this.groupId, this.entity)
 
     /** Generates and returns a [String] representation of this [EntityCountPhysicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.columns.joinToString(",") { it.name.toString() }}]"

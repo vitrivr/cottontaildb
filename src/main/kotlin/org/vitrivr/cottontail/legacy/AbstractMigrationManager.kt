@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.legacy
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2ObjectMaps
+import kotlinx.coroutines.flow.Flow
 import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.database.catalogue.Catalogue
 import org.vitrivr.cottontail.database.catalogue.CatalogueTx
@@ -12,11 +13,14 @@ import org.vitrivr.cottontail.database.general.DBO
 import org.vitrivr.cottontail.database.general.Tx
 import org.vitrivr.cottontail.database.locking.LockMode
 import org.vitrivr.cottontail.database.logging.operations.Operation
+import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.schema.SchemaTx
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.TransactionManager.Transaction
 import org.vitrivr.cottontail.execution.TransactionStatus
 import org.vitrivr.cottontail.execution.TransactionType
+import org.vitrivr.cottontail.execution.operators.basics.Operator
+import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.basics.TransactionId
 import org.vitrivr.cottontail.utilities.io.TxFileUtilities
 import java.io.BufferedWriter
@@ -272,10 +276,12 @@ abstract class AbstractMigrationManager(val batchSize: Int, logFile: Path) : Mig
             /* No op. */
         }
 
-        /**
-         *
-         */
-        override fun signalEvent(event: Operation.DataManagementOperation) {/* NoOp */
+        override fun signalEvent(action: Operation.DataManagementOperation) {
+            throw UnsupportedOperationException("Operation signalEvent() not supported for AbstractMigrationManager.")
+        }
+
+        override fun execute(operator: Operator, context: QueryContext): Flow<Record> {
+            throw UnsupportedOperationException("Operation execute() not supported for AbstractMigrationManager.")
         }
 
         /**

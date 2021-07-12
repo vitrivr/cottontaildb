@@ -1,18 +1,22 @@
 package org.vitrivr.cottontail.execution
 
+import kotlinx.coroutines.flow.Flow
 import org.vitrivr.cottontail.database.general.DBO
 import org.vitrivr.cottontail.database.general.Tx
 import org.vitrivr.cottontail.database.locking.Lock
 import org.vitrivr.cottontail.database.locking.LockManager
 import org.vitrivr.cottontail.database.locking.LockMode
 import org.vitrivr.cottontail.database.logging.operations.Operation
+import org.vitrivr.cottontail.database.queries.QueryContext
+import org.vitrivr.cottontail.execution.operators.basics.Operator
+import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.basics.TransactionId
 
 /**
  * A [TransactionContext] used by operators and their [Txn]s to execute and obtain necessary locks
  *
  * @author Ralph Gasser
- * @version 1.3.0
+ * @version 1.4.0
  */
 interface TransactionContext {
 
@@ -43,12 +47,21 @@ interface TransactionContext {
     fun requestLock(dbo: DBO, mode: LockMode)
 
     /**
-     * Signals a [DataManagementOperation] to this [TransactionContext].
+     * Signals a [Operation.DataManagementOperation] to this [TransactionContext].
      *
-     * Implementing methods must process these [DataManagementOperation]s quickly, since they are usually
+     * Implementing methods must process these [Operation.DataManagementOperation]s quickly, since they are usually
      * triggered during an ongoing transaction.
      *
-     * @param action The [DataManagementOperation] that has been reported.
+     * @param action The [Operation.DataManagementOperation] that has been reported.
      */
     fun signalEvent(action: Operation.DataManagementOperation)
+
+    /**
+     * Schedules an [Operator] for execution in this [TransactionContext] and blocks, until execution has completed.
+     *
+     * @param context The [QueryContext] to execute the [Operator] in.
+     * @param operator The [Operator.SinkOperator] that should be executed.
+     * @return Resulting [Flow] of [Record]s
+     */
+    fun execute(operator: Operator, context: QueryContext): Flow<Record>
 }

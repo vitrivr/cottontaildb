@@ -6,8 +6,7 @@ import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.queries.GroupId
-import org.vitrivr.cottontail.execution.TransactionContext
-import org.vitrivr.cottontail.execution.exceptions.OperatorSetupException
+import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.model.basics.Record
 import java.util.*
 
@@ -15,17 +14,17 @@ import java.util.*
  * An [AbstractEntityOperator] that samples an [Entity] and streams all [Record]s found within.
  *
  * @author Ralph Gasser
- * @version 1.3.0
+ * @version 1.3.1
  */
 class EntitySampleOperator(groupId: GroupId, entity: EntityTx, columns: Array<ColumnDef<*>>, val p: Float, val seed: Long) : AbstractEntityOperator(groupId, entity, columns) {
 
     /**
      * Converts this [EntitySampleOperator] to a [Flow] and returns it.
      *
-     * @param context The [TransactionContext] used for execution.
+     * @param context The [QueryContext] used for execution.
      * @return [Flow] representing this [EntitySampleOperator].
      */
-    override fun toFlow(context: TransactionContext): Flow<Record> {
+    override fun toFlow(context: QueryContext): Flow<Record> {
         val random = SplittableRandom(this.seed)
         return flow {
             for (record in this@EntitySampleOperator.entity.scan(this@EntitySampleOperator.columns)) {

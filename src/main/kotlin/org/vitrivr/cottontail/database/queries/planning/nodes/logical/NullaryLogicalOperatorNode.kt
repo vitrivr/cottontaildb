@@ -3,16 +3,13 @@ package org.vitrivr.cottontail.database.queries.planning.nodes.logical
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.queries.Digest
 import org.vitrivr.cottontail.database.queries.OperatorNode
-import org.vitrivr.cottontail.database.queries.QueryContext
-import org.vitrivr.cottontail.database.queries.binding.BindingContext
 import org.vitrivr.cottontail.database.queries.sort.SortOrder
-import org.vitrivr.cottontail.model.values.types.Value
 
 /**
  * An abstract [OperatorNode.Logical] implementation that has no input.
  *
  * @author Ralph Gasser
- * @version 2.1.1
+ * @version 2.1.2
  */
 abstract class NullaryLogicalOperatorNode : OperatorNode.Logical() {
     /** Input arity of [NullaryLogicalOperatorNode] is always zero. */
@@ -64,16 +61,6 @@ abstract class NullaryLogicalOperatorNode : OperatorNode.Logical() {
         val copy = this.copy()
         return (this.output?.copyWithOutput(copy) ?: copy).root
     }
-
-    /**
-     * Performs value binding using the given [BindingContext].
-     *
-     * By default, this operation has no effect. Override to implement operator specific binding.
-     *
-     * @param ctx [QueryContext] to use to resolve this [Binding].
-     * @return This [OperatorNode].
-     */
-    override fun bindValues(ctx: BindingContext<Value>): OperatorNode = this
 
     /**
      * Calculates and returns the digest for this [NullaryLogicalOperatorNode].

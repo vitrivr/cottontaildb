@@ -6,6 +6,7 @@ import org.vitrivr.cottontail.client.language.basics.Constants
 import org.vitrivr.cottontail.database.catalogue.CatalogueTx
 import org.vitrivr.cottontail.database.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.database.column.ColumnDef
+import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.model.basics.Name
@@ -19,7 +20,7 @@ import kotlin.time.ExperimentalTime
  * An [Operator.SourceOperator] used during query execution. Lists all available [Schema]s.
  *
  * @author Ralph Gasser
- * @version 1.0.1
+ * @version 1.0.2
  */
 class ListSchemaOperator(val catalogue: DefaultCatalogue) : Operator.SourceOperator() {
 
@@ -33,8 +34,8 @@ class ListSchemaOperator(val catalogue: DefaultCatalogue) : Operator.SourceOpera
     override val columns: Array<ColumnDef<*>> = COLUMNS
 
     @ExperimentalTime
-    override fun toFlow(context: TransactionContext): Flow<Record> {
-        val txn = context.getTx(this.catalogue) as CatalogueTx
+    override fun toFlow(context: QueryContext): Flow<Record> {
+        val txn = context.txn.getTx(this.catalogue) as CatalogueTx
         return flow {
             for (schema in txn.listSchemas()) {
                 emit(

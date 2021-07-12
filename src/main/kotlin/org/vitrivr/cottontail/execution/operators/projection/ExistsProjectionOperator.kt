@@ -4,6 +4,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
 import org.vitrivr.cottontail.database.column.ColumnDef
+import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.projection.Projection
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.AbortFlowException
@@ -21,7 +22,7 @@ import org.vitrivr.cottontail.model.values.BooleanValue
  * Only produces a single [Record]. Acts as pipeline breaker.
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.2.1
  */
 class ExistsProjectionOperator(parent: Operator) : Operator.PipelineOperator(parent) {
 
@@ -34,10 +35,10 @@ class ExistsProjectionOperator(parent: Operator) : Operator.PipelineOperator(par
     /**
      * Converts this [ExistsProjectionOperator] to a [Flow] and returns it.
      *
-     * @param context The [TransactionContext] used for execution
+     * @param context The [QueryContext] used for execution
      * @return [Flow] representing this [ExistsProjectionOperator]
      */
-    override fun toFlow(context: TransactionContext): Flow<Record> {
+    override fun toFlow(context: QueryContext): Flow<Record> {
         val parentFlow = this.parent.toFlow(context)
         return flow {
             var exists = false

@@ -15,7 +15,6 @@ import org.vitrivr.cottontail.model.values.types.Value
 
 import java.nio.file.Files
 import java.nio.file.Path
-import java.util.*
 import java.util.concurrent.locks.StampedLock
 
 /**

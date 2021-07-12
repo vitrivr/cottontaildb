@@ -6,6 +6,7 @@ import org.vitrivr.cottontail.client.language.basics.Constants
 import org.vitrivr.cottontail.database.catalogue.CatalogueTx
 import org.vitrivr.cottontail.database.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.database.column.ColumnDef
+import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.schema.SchemaTx
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
@@ -20,7 +21,7 @@ import kotlin.time.ExperimentalTime
  * An [Operator.SourceOperator] used during query execution. Lists all available [Entity]s.
  *
  * @author Ralph Gasser
- * @version 1.0.1
+ * @version 1.0.2
  */
 class ListEntityOperator(val catalogue: DefaultCatalogue, val schema: Name.SchemaName? = null) : Operator.SourceOperator() {
 
@@ -34,8 +35,8 @@ class ListEntityOperator(val catalogue: DefaultCatalogue, val schema: Name.Schem
     override val columns: Array<ColumnDef<*>> = COLUMNS
 
     @ExperimentalTime
-    override fun toFlow(context: TransactionContext): Flow<Record> {
-        val txn = context.getTx(this.catalogue) as CatalogueTx
+    override fun toFlow(context: QueryContext): Flow<Record> {
+        val txn = context.txn.getTx(this.catalogue) as CatalogueTx
         val schemas = if (this.schema != null) {
             listOf(txn.schemaForName(this.schema))
         } else {
@@ -43,7 +44,7 @@ class ListEntityOperator(val catalogue: DefaultCatalogue, val schema: Name.Schem
         }
         return flow {
             for (schema in schemas) {
-                val schemaTxn = context.getTx(schema) as SchemaTx
+                val schemaTxn = context.txn.getTx(schema) as SchemaTx
                 for (entity in schemaTxn.listEntities()) {
                     emit(
                         StandaloneRecord(

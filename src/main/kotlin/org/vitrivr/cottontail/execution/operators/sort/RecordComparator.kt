@@ -9,7 +9,7 @@ import kotlin.math.sign
  * A set of [Comparator] implementations to compare two [Record]s.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.0.1
  */
 sealed class RecordComparator : Comparator<Record> {
 

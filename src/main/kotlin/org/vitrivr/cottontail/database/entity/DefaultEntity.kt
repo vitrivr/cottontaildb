@@ -488,7 +488,7 @@ class DefaultEntity(override val path: Path, override val parent: Schema) : Enti
                 private val wrapped = this.txs.first().scan(this.range)
 
                 /** Array of [Value]s emitted by this [DefaultEntity]. */
-                private val values = arrayOfNulls<Value?>(columns.size)
+                private val values = kotlin.arrayOfNulls<Value?>(columns.size)
 
                 /**
                  * Returns the next element in the iteration.

@@ -59,11 +59,10 @@ class FetchPhysicalOperatorNode(input: Physical? = null, val entity: EntityTx, v
     /**
      * Converts this [FetchPhysicalOperatorNode] to a [FetchOperator].
      *
-     * @param tx The [TransactionContext] used for execution.
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(tx: TransactionContext, ctx: QueryContext) = FetchOperator(
-        this.input?.toOperator(tx, ctx) ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)"),
+    override fun toOperator(ctx: QueryContext) = FetchOperator(
+        this.input?.toOperator(ctx) ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)"),
         this.entity,
         this.fetch
     )

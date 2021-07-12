@@ -6,8 +6,8 @@ import org.vitrivr.cottontail.database.catalogue.CatalogueTx
 import org.vitrivr.cottontail.database.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.EntityTx
+import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.schema.SchemaTx
-import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Record
@@ -22,7 +22,7 @@ import kotlin.time.ExperimentalTime
  * An [Operator.SourceOperator] used during query execution. Retrieves information regarding entities.
  *
  * @author Ralph Gasser
- * @version 1.0.1
+ * @version 1.0.2
  */
 class EntityDetailsOperator(val catalogue: DefaultCatalogue, val name: Name.EntityName) : Operator.SourceOperator() {
 
@@ -40,10 +40,10 @@ class EntityDetailsOperator(val catalogue: DefaultCatalogue, val name: Name.Enti
     override val columns: Array<ColumnDef<*>> = COLUMNS
 
     @ExperimentalTime
-    override fun toFlow(context: TransactionContext): Flow<Record> {
-        val catTxn = context.getTx(this.catalogue) as CatalogueTx
-        val schemaTxn = context.getTx(catTxn.schemaForName(this.name.schema())) as SchemaTx
-        val entityTxn = context.getTx(schemaTxn.entityForName(this.name)) as EntityTx
+    override fun toFlow(context: QueryContext): Flow<Record> {
+        val catTxn = context.txn.getTx(this.catalogue) as CatalogueTx
+        val schemaTxn = context.txn.getTx(catTxn.schemaForName(this.name.schema())) as SchemaTx
+        val entityTxn = context.txn.getTx(schemaTxn.entityForName(this.name)) as EntityTx
         return flow {
             var rowId = 0L
             emit(

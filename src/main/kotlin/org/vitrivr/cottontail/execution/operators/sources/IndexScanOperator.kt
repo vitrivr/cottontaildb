@@ -6,8 +6,8 @@ import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.index.Index
 import org.vitrivr.cottontail.database.index.IndexTx
 import org.vitrivr.cottontail.database.queries.GroupId
+import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.predicates.Predicate
-import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.model.basics.Record
 
@@ -15,7 +15,7 @@ import org.vitrivr.cottontail.model.basics.Record
  * An [AbstractEntityOperator] that scans an [Index] and streams all [Record]s found within.
  *
  * @author Ralph Gasser
- * @version 1.4.0
+ * @version 1.4.1
  */
 class IndexScanOperator(groupId: GroupId, private val index: IndexTx, private val predicate: Predicate, private val partitionIndex: Int = 0, private val partitions: Int = 1) : Operator.SourceOperator(groupId) {
 
@@ -26,10 +26,10 @@ class IndexScanOperator(groupId: GroupId, private val index: IndexTx, private va
     /**
      * Converts this [IndexScanOperator] to a [Flow] and returns it.
      *
-     * @param context The [TransactionContext] used for execution.
+     * @param context The [QueryContext] used for execution.
      * @return [Flow] representing this [IndexScanOperator]
      */
-    override fun toFlow(context: TransactionContext): Flow<Record> {
+    override fun toFlow(context: QueryContext): Flow<Record> {
         return if (this.partitions == 1) {
             flow {
                 this@IndexScanOperator.index.filter(this@IndexScanOperator.predicate).forEach {

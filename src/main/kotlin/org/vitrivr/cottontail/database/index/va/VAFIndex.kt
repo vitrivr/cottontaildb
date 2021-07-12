@@ -268,7 +268,7 @@ class VAFIndex(path: Path, parent: DefaultEntity, config: VAFIndexConfig? = null
             init {
                 this@Tx.withReadLock { }
                 val value = this.predicate.query.value
-                check(value is RealVectorValue<*>) { "Bound value for query vector has wrong type (found = ${value.type})." }
+                check(value is RealVectorValue<*>) { "Bound value for query vector has wrong type (found = ${value?.type})." }
                 this.query = value
                 this.bounds = when (this.predicate.distance) {
                     is ManhattanDistance -> L1Bounds(this.query, this.marks)

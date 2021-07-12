@@ -75,10 +75,9 @@ class EntitySamplePhysicalOperatorNode(
     /**
      * Converts this [EntitySamplePhysicalOperatorNode] to a [EntitySampleOperator].
      *
-     * @param tx The [TransactionContext] used for execution.
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(tx: TransactionContext, ctx: QueryContext) = EntitySampleOperator(this.groupId, this.entity, this.columns, this.p, this.seed)
+    override fun toOperator(ctx: QueryContext) = EntitySampleOperator(this.groupId, this.entity, this.columns, this.p, this.seed)
 
     /** Generates and returns a [String] representation of this [EntitySamplePhysicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.columns.joinToString(",") { it.name.toString() }}]"

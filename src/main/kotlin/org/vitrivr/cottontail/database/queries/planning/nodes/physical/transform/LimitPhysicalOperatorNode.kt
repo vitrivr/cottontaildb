@@ -57,11 +57,10 @@ class LimitPhysicalOperatorNode(input: Physical? = null, val limit: Long, val sk
     /**
      * Converts this [LimitPhysicalOperatorNode] to a [LimitOperator].
      *
-     * @param tx The [TransactionContext] used for execution.
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(tx: TransactionContext, ctx: QueryContext) = LimitOperator(
-        this.input?.toOperator(tx, ctx) ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)"),
+    override fun toOperator(ctx: QueryContext) = LimitOperator(
+        this.input?.toOperator(ctx) ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)"),
         this.skip, this.limit
     )
 

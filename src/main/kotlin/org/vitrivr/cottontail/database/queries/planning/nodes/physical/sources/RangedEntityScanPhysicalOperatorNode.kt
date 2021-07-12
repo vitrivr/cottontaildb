@@ -60,10 +60,9 @@ class RangedEntityScanPhysicalOperatorNode(override val groupId: Int, val entity
     /**
      * Converts this [RangedEntityScanPhysicalOperatorNode] to a [EntityScanOperator].
      *
-     * @param tx The [TransactionContext] used for execution.
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(tx: TransactionContext, ctx: QueryContext) = EntityScanOperator(this.groupId, this.entity, this.columns, this.partitionIndex, this.partitions)
+    override fun toOperator(ctx: QueryContext) = EntityScanOperator(this.groupId, this.entity, this.columns, this.partitionIndex, this.partitions)
 
     /** Generates and returns a [String] representation of this [RangedEntityScanPhysicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.columns.joinToString(",") { it.name.toString() }},${this.partitionIndex}/${this.partitions}]"

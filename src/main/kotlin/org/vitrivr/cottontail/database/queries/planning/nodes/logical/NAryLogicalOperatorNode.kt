@@ -4,10 +4,8 @@ import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.queries.Digest
 import org.vitrivr.cottontail.database.queries.GroupId
 import org.vitrivr.cottontail.database.queries.OperatorNode
-import org.vitrivr.cottontail.database.queries.binding.BindingContext
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.BinaryPhysicalOperatorNode
 import org.vitrivr.cottontail.database.queries.sort.SortOrder
-import org.vitrivr.cottontail.model.values.types.Value
 import java.io.PrintStream
 import java.util.*
 
@@ -15,7 +13,7 @@ import java.util.*
  * An abstract [OperatorNode.Logical] implementation that has multiple [OperatorNode.Logical]s as input.
  *
  * @author Ralph Gasser
- * @version 2.1.1
+ * @version 2.1.2
  */
 abstract class NAryLogicalOperatorNode(vararg inputs: Logical) : OperatorNode.Logical() {
 
@@ -112,22 +110,6 @@ abstract class NAryLogicalOperatorNode(vararg inputs: Logical) : OperatorNode.Lo
         val copy = this.copy()
         input.forEach { copy.addInput(it) }
         return (this.output?.copyWithOutput(copy) ?: copy).root
-    }
-
-    /**
-     * Performs value binding using the given [BindingContext].
-     *
-     * [NAryLogicalOperatorNode] are required to propagate calls to [bindValues] up the tree in addition
-     * to executing the binding locally. Consequently, the call is propagated to all input [OperatorNode]s.
-     *
-     * By default, this operation has no further effect. Override to implement operator specific binding but don't forget to call super.bindValues()
-     *
-     * @param ctx [BindingContext] to use to resolve [Binding]s.
-     * @return This [NAryLogicalOperatorNode].
-     */
-    override fun bindValues(ctx: BindingContext<Value>): NAryLogicalOperatorNode {
-        this._inputs.forEach { it.bindValues(ctx) }
-        return this
     }
 
     /**

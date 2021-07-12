@@ -4,12 +4,10 @@ import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.queries.Digest
 import org.vitrivr.cottontail.database.queries.GroupId
 import org.vitrivr.cottontail.database.queries.OperatorNode
-import org.vitrivr.cottontail.database.queries.binding.BindingContext
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.NAryLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.sort.SortOrder
 import org.vitrivr.cottontail.database.statistics.entity.RecordStatistics
-import org.vitrivr.cottontail.model.values.types.Value
 import java.io.PrintStream
 import java.util.*
 
@@ -17,7 +15,7 @@ import java.util.*
  * An abstract [OperatorNode.Physical] implementation that has multiple [OperatorNode.Physical]s as input.
  *
  * @author Ralph Gasser
- * @version 2.1.1
+ * @version 2.1.2
  */
 abstract class NAryPhysicalOperatorNode(vararg inputs: Physical) : OperatorNode.Physical() {
 
@@ -135,22 +133,6 @@ abstract class NAryPhysicalOperatorNode(vararg inputs: Physical) : OperatorNode.
         val copy = this.copy()
         input.forEach { copy.addInput(it) }
         return (this.output?.copyWithOutput(copy) ?: copy).root
-    }
-
-    /**
-     * Performs late value binding using the given [BindingContext].
-     *
-     * [NAryPhysicalOperatorNode] are required to propagate calls to [bindValues] up the tree in addition
-     * to executing the binding locally. Consequently, the call is propagated to all input [OperatorNode]s.
-     *
-     * By default, this operation has no further effect. Override to implement operator specific binding but don't forget to call super.bindValues()
-     *
-     * @param ctx [BindingContext] to use to resolve [Binding]s.
-     * @return This [OperatorNode].
-     */
-    override fun bindValues(ctx: BindingContext<Value>): OperatorNode {
-        this.inputs.forEach { it.bindValues(ctx) }
-        return this
     }
 
     /**

@@ -19,7 +19,7 @@ import kotlin.time.ExperimentalTime
  * Implementation of [DMLGrpc.DMLImplBase], the gRPC endpoint for inserting data into Cottontail DB [DefaultEntity]s.
  *
  * @author Ralph Gasser
- * @version 2.0.1
+ * @version 2.0.2
  */
 @ExperimentalTime
 class DMLService(val catalogue: Catalogue, override val manager: TransactionManager) : DMLGrpcKt.DMLCoroutineImplBase(), gRPCTransactionService {
@@ -44,7 +44,7 @@ class DMLService(val catalogue: Catalogue, override val manager: TransactionMana
         this.planner.planAndSelect(ctx)
 
         /* Execute UPDATE. */
-        executeAndMaterialize(tx, ctx.toOperatorTree(tx), q, 0)
+        executeAndMaterialize(ctx, ctx.toOperatorTree(), q, 0)
     }.single()
 
     /**
@@ -60,7 +60,7 @@ class DMLService(val catalogue: Catalogue, override val manager: TransactionMana
         this.planner.planAndSelect(ctx)
 
         /* Execute DELETE. */
-        executeAndMaterialize(tx, ctx.toOperatorTree(tx), q, 0)
+        executeAndMaterialize(ctx, ctx.toOperatorTree(), q, 0)
     }.single()
 
     /**
@@ -74,7 +74,7 @@ class DMLService(val catalogue: Catalogue, override val manager: TransactionMana
         ctx.physical = ctx.logical?.implement()
 
         /* Execute INSERT. */
-        executeAndMaterialize(tx, ctx.toOperatorTree(tx), q, 0)
+        executeAndMaterialize(ctx, ctx.toOperatorTree(), q, 0)
     }.single()
 
     /**
@@ -88,6 +88,6 @@ class DMLService(val catalogue: Catalogue, override val manager: TransactionMana
         ctx.physical = ctx.logical?.implement()
 
         /* Execute INSERT. */
-        executeAndMaterialize(tx, ctx.toOperatorTree(tx), q, 0)
+        executeAndMaterialize(ctx, ctx.toOperatorTree(), q, 0)
     }.single()
 }

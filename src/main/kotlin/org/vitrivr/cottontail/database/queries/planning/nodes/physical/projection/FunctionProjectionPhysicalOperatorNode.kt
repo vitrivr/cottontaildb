@@ -6,7 +6,6 @@ import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.binding.Binding
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalOperatorNode
-import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.projection.DistanceProjectionOperator
 import org.vitrivr.cottontail.execution.operators.projection.FunctionProjectionOperator
@@ -17,9 +16,9 @@ import org.vitrivr.cottontail.model.basics.Name
  * A [UnaryPhysicalOperatorNode] that represents the execution of a [Function] to generate some [ColumnDef].
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.0.1
  */
-class FunctionProjectionPhysicalOperatorNode(input: Physical? = null, val function: Function<*>, val arguments: List<Binding<*>>, val alias: Name.ColumnName? = null) : UnaryPhysicalOperatorNode(input) {
+class FunctionProjectionPhysicalOperatorNode(input: Physical? = null, val function: Function<*>, val arguments: List<Binding>, val alias: Name.ColumnName? = null) : UnaryPhysicalOperatorNode(input) {
 
     companion object {
         private const val NODE_NAME = "Function"
@@ -27,11 +26,11 @@ class FunctionProjectionPhysicalOperatorNode(input: Physical? = null, val functi
 
     /** The column produced by this [FunctionProjectionPhysicalOperatorNode] is determined by the [Function]'s signature. */
     override val columns: Array<ColumnDef<*>>
-        get() = (this.input?.columns ?: emptyArray()) + ColumnDef(this.alias ?: Name.ColumnName(this.function.signature.name), this.function.signature.returnType)
+        get() = (this.input?.columns ?: emptyArray()) + ColumnDef(this.alias ?: Name.ColumnName(this.function.signature.name), this.function.signature.returnType!!)
 
     /** The [FunctionProjectionPhysicalOperatorNode] requires all [ColumnDef] used in the [Function]. */
     override val requires: Array<ColumnDef<*>>
-        get() = this.arguments.filterIsInstance<Binding.Column<*>>().map { it.column }.toTypedArray()
+        get() = this.arguments.filterIsInstance<Binding.Column>().map { it.column }.toTypedArray()
 
     override fun copy(): UnaryPhysicalOperatorNode = FunctionProjectionPhysicalOperatorNode(this.input, this.function, this.arguments, this.alias)
 
@@ -48,16 +47,15 @@ class FunctionProjectionPhysicalOperatorNode(input: Physical? = null, val functi
     /**
      * Converts this [FunctionProjectionPhysicalOperatorNode] to a [DistanceProjectionOperator].
      *
-     * @param tx The [TransactionContext] used for execution.
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(tx: TransactionContext, ctx: QueryContext): Operator {
+    override fun toOperator(ctx: QueryContext): Operator {
         this.arguments.forEach {
             if (it is Binding.Literal) {
                 TODO()
             }
         }
-        val input = this.input?.toOperator(tx, ctx) ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)")
+        val input = this.input?.toOperator(ctx) ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)")
         return FunctionProjectionOperator(input, this.function, this.arguments, this.alias)
     }
 

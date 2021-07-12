@@ -22,7 +22,7 @@ import kotlin.time.ExperimentalTime
  * Implementation of [DQLGrpc.DQLImplBase], the gRPC endpoint for querying data in Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.0.2
  */
 @ExperimentalTime
 class DQLService(val catalogue: Catalogue, override val manager: TransactionManager) : DQLGrpcKt.DQLCoroutineImplBase(), gRPCTransactionService {
@@ -55,7 +55,7 @@ class DQLService(val catalogue: Catalogue, override val manager: TransactionMana
         this.planner.planAndSelect(ctx)
 
         /* Execute query in transaction context. */
-        executeAndMaterialize(tx, ctx.toOperatorTree(tx), q, 0)
+        executeAndMaterialize(ctx, ctx.toOperatorTree(), q, 0)
     }
 
     /**
@@ -71,7 +71,7 @@ class DQLService(val catalogue: Catalogue, override val manager: TransactionMana
         val candidates = this.planner.plan(ctx)
 
         /* Return execution plans. */
-        executeAndMaterialize(tx, ExplainQueryOperator(candidates), q, 0)
+        executeAndMaterialize(ctx, ExplainQueryOperator(candidates), q, 0)
     }
 
     /**

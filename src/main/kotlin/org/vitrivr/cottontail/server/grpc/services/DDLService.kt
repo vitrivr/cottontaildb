@@ -8,6 +8,7 @@ import org.vitrivr.cottontail.database.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.column.ColumnEngine
 import org.vitrivr.cottontail.database.index.IndexType
+import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.binding.extensions.fqn
 import org.vitrivr.cottontail.database.queries.sort.SortOrder
 import org.vitrivr.cottontail.execution.TransactionManager
@@ -34,7 +35,7 @@ class DDLService(val catalogue: DefaultCatalogue, override val manager: Transact
     override suspend fun createSchema(request: CottontailGrpc.CreateSchemaMessage): CottontailGrpc.QueryResponseMessage = this.withTransactionContext(request.txId, "CREATE SCHEMA") { tx, q ->
         val schemaName = request.schema.fqn()
         val op = CreateSchemaOperator(this.catalogue, schemaName)
-        executeAndMaterialize(tx, op, q, 0).catch { e ->
+        executeAndMaterialize(QueryContext(this.catalogue, tx), op, q, 0).catch { e ->
             throw when (e) {
                 is DatabaseException.SchemaAlreadyExistsException -> Status.ALREADY_EXISTS.withDescription(formatMessage(tx, q, "CREATE SCHEMA failed ($schemaName): Schema with identical name already exists.")).asException()
                 else -> e
@@ -48,7 +49,7 @@ class DDLService(val catalogue: DefaultCatalogue, override val manager: Transact
     override suspend fun dropSchema(request: CottontailGrpc.DropSchemaMessage): CottontailGrpc.QueryResponseMessage = this.withTransactionContext(request.txId, "DROP SCHEMA") { tx, q ->
         val schemaName = request.schema.fqn()
         val op = DropSchemaOperator(this.catalogue, schemaName)
-        executeAndMaterialize(tx, op, q, 0).catch { e ->
+        executeAndMaterialize(QueryContext(this.catalogue, tx), op, q, 0).catch { e ->
             throw when (e) {
                 is DatabaseException.SchemaDoesNotExistException -> Status.NOT_FOUND.withDescription(formatMessage(tx, q, "DROP SCHEMA failed ($schemaName): Schema does not exist.")).asException()
                 else -> e
@@ -61,7 +62,7 @@ class DDLService(val catalogue: DefaultCatalogue, override val manager: Transact
      */
     override fun listSchemas(request: CottontailGrpc.ListSchemaMessage): Flow<CottontailGrpc.QueryResponseMessage> = this.withTransactionContext(request.txId, "LIST SCHEMA") { tx, q ->
         val op = HeapSortOperator(ListSchemaOperator(this.catalogue), arrayOf(Pair(ListSchemaOperator.COLUMNS[0], SortOrder.ASCENDING)), 100)
-        executeAndMaterialize(tx, op, q, 0)
+        executeAndMaterialize(QueryContext(this.catalogue, tx), op, q, 0)
     }
 
     /**
@@ -75,7 +76,7 @@ class DDLService(val catalogue: DefaultCatalogue, override val manager: Transact
             ColumnDef(name, type, it.nullable) to ColumnEngine.valueOf(it.engine.toString())
         }.toTypedArray()
         val op = CreateEntityOperator(this.catalogue, entityName, columns)
-        executeAndMaterialize(tx, op, q, 0).catch { e ->
+        executeAndMaterialize(QueryContext(this.catalogue, tx), op, q, 0).catch { e ->
             throw when (e) {
                 is DatabaseException.SchemaDoesNotExistException -> Status.NOT_FOUND.withDescription(formatMessage(tx, q, "CREATE ENTITY failed ($entityName): Schema does not exist.")).asException()
                 is DatabaseException.EntityAlreadyExistsException -> Status.ALREADY_EXISTS.withDescription(formatMessage(tx, q, "CREATE ENTITY failed ($entityName): Entity with identical name already exists.")).asException()
@@ -90,7 +91,7 @@ class DDLService(val catalogue: DefaultCatalogue, override val manager: Transact
     override suspend fun dropEntity(request: CottontailGrpc.DropEntityMessage): CottontailGrpc.QueryResponseMessage = this.withTransactionContext(request.txId, "DROP ENTITY") { tx, q ->
         val entityName = request.entity.fqn()
         val op = DropEntityOperator(this.catalogue, entityName)
-        executeAndMaterialize(tx, op, q, 0).catch { e ->
+        executeAndMaterialize(QueryContext(this.catalogue, tx), op, q, 0).catch { e ->
             throw when (e) {
                 is DatabaseException.SchemaDoesNotExistException -> Status.NOT_FOUND.withDescription(formatMessage(tx, q, "DROP ENTITY failed ($entityName): Schema does not exist.")).asException()
                 is DatabaseException.EntityDoesNotExistException -> Status.NOT_FOUND.withDescription(formatMessage(tx, q, "DROP ENTITY failed ($entityName): Entity does not exist.")).asException()
@@ -105,7 +106,7 @@ class DDLService(val catalogue: DefaultCatalogue, override val manager: Transact
     override suspend fun truncateEntity(request: CottontailGrpc.TruncateEntityMessage): CottontailGrpc.QueryResponseMessage = this.withTransactionContext(request.txId, "TRUNCATE ENTITY") { tx, q ->
         val entityName = request.entity.fqn()
         val op = TruncateEntityOperator(this.catalogue, entityName)
-        executeAndMaterialize(tx, op, q, 0).catch { e ->
+        executeAndMaterialize(QueryContext(this.catalogue, tx), op, q, 0).catch { e ->
             throw when (e) {
                 is DatabaseException.SchemaDoesNotExistException -> Status.NOT_FOUND.withDescription(formatMessage(tx, q, "TRUNCATE ENTITY failed ($entityName): Schema does not exist.")).asException()
                 is DatabaseException.EntityDoesNotExistException -> Status.NOT_FOUND.withDescription(formatMessage(tx, q, "TRUNCATE ENTITY failed ($entityName): Entity does not exist.")).asException()
@@ -120,7 +121,7 @@ class DDLService(val catalogue: DefaultCatalogue, override val manager: Transact
     override suspend fun optimizeEntity(request: CottontailGrpc.OptimizeEntityMessage): CottontailGrpc.QueryResponseMessage = this.withTransactionContext(request.txId, "OPTIMIZE ENTITY") { tx, q ->
         val entityName = request.entity.fqn()
         val op = OptimizeEntityOperator(this.catalogue, entityName)
-        executeAndMaterialize(tx, op, q, 0).catch { e ->
+        executeAndMaterialize(QueryContext(this.catalogue, tx), op, q, 0).catch { e ->
             throw when (e) {
                 is DatabaseException.SchemaDoesNotExistException -> Status.NOT_FOUND.withDescription(formatMessage(tx, q, "OPTIMIZE ENTITY failed ($entityName): Schema does not exist.")).asException()
                 is DatabaseException.EntityDoesNotExistException -> Status.NOT_FOUND.withDescription(formatMessage(tx, q, "OPTIMIZE ENTITY failed ($entityName): Entity does not exist.")).asException()
@@ -139,7 +140,7 @@ class DDLService(val catalogue: DefaultCatalogue, override val manager: Transact
             null
         }
         val op = HeapSortOperator(ListEntityOperator(this.catalogue, schemaName), arrayOf(Pair(ListSchemaOperator.COLUMNS[0], SortOrder.ASCENDING)), 100)
-        executeAndMaterialize(tx, op, q, 0).catch { e ->
+        executeAndMaterialize(QueryContext(this.catalogue, tx), op, q, 0).catch { e ->
             throw when (e) {
                 is DatabaseException.SchemaDoesNotExistException -> Status.NOT_FOUND.withDescription(formatMessage(tx, q, "LIST ENTITIES failed ($schemaName}': Schema does not exist.")).asException()
                 else -> e
@@ -153,7 +154,7 @@ class DDLService(val catalogue: DefaultCatalogue, override val manager: Transact
     override suspend fun entityDetails(request: CottontailGrpc.EntityDetailsMessage): CottontailGrpc.QueryResponseMessage = this.withTransactionContext(request.txId, "SHOW ENTITY") { tx, q ->
         val entityName = request.entity.fqn()
         val op = EntityDetailsOperator(this.catalogue, entityName)
-        executeAndMaterialize(tx, op, q, 0).catch { e ->
+        executeAndMaterialize(QueryContext(this.catalogue, tx), op, q, 0).catch { e ->
             throw when (e) {
                 is DatabaseException.SchemaDoesNotExistException -> Status.NOT_FOUND.withDescription(formatMessage(tx, q, "SHOW ENTITY failed ($entityName): Schema does not exist.")).asException()
                 is DatabaseException.EntityDoesNotExistException -> Status.NOT_FOUND.withDescription(formatMessage(tx, q, "SHOW ENTITY failed ($entityName): Entity does not exist.")).asException()
@@ -173,7 +174,7 @@ class DDLService(val catalogue: DefaultCatalogue, override val manager: Transact
         val indexType = IndexType.valueOf(request.definition.type.toString())
         val params = request.definition.paramsMap
         val op = CreateIndexOperator(this.catalogue, indexName, indexType, columns, params, request.rebuild)
-        executeAndMaterialize(tx, op, q, 0).catch { e ->
+        executeAndMaterialize(QueryContext(this.catalogue, tx), op, q, 0).catch { e ->
             throw when (e) {
                 is DatabaseException.SchemaDoesNotExistException -> Status.NOT_FOUND.withDescription(formatMessage(tx, q, "CREATE INDEX failed ($indexName): Schema does not exist.")).asException()
                 is DatabaseException.EntityDoesNotExistException -> Status.NOT_FOUND.withDescription(formatMessage(tx, q, "CREATE INDEX failed ($indexName): Entity does not exist.")).asException()
@@ -191,7 +192,7 @@ class DDLService(val catalogue: DefaultCatalogue, override val manager: Transact
     override suspend fun dropIndex(request: CottontailGrpc.DropIndexMessage): CottontailGrpc.QueryResponseMessage = this.withTransactionContext(request.txId, "DROP INDEX") { tx, q ->
         val indexName = request.index.fqn()
         val op = DropIndexOperator(this.catalogue, indexName)
-        executeAndMaterialize(tx, op, q, 0).catch { e ->
+        executeAndMaterialize(QueryContext(this.catalogue, tx), op, q, 0).catch { e ->
             throw when (e) {
                 is DatabaseException.SchemaDoesNotExistException -> Status.NOT_FOUND.withDescription(formatMessage(tx, q, "DROP INDEX failed ($indexName): Schema does not exist.")).asException()
                 is DatabaseException.EntityDoesNotExistException -> Status.NOT_FOUND.withDescription(formatMessage(tx, q, "DROP INDEX failed ($indexName): Entity does not exist.")).asException()
@@ -207,7 +208,7 @@ class DDLService(val catalogue: DefaultCatalogue, override val manager: Transact
     override suspend fun rebuildIndex(request: CottontailGrpc.RebuildIndexMessage): CottontailGrpc.QueryResponseMessage = this.withTransactionContext(request.txId, "REBUILD INDEX") { tx, q ->
         val indexName = request.index.fqn()
         val op = RebuildIndexOperator(this.catalogue, indexName)
-        executeAndMaterialize(tx, op, q, 0).catch { e ->
+        executeAndMaterialize(QueryContext(this.catalogue, tx), op, q, 0).catch { e ->
             throw when (e) {
                 is DatabaseException.SchemaDoesNotExistException -> Status.NOT_FOUND.withDescription(formatMessage(tx, q, "REBUILD INDEX failed ($indexName): Schema does not exist.")).asException()
                 is DatabaseException.EntityDoesNotExistException -> Status.NOT_FOUND.withDescription(formatMessage(tx, q, "REBUILD INDEX failed ($indexName): Entity does not exist.")).asException()

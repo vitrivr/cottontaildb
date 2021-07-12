@@ -19,7 +19,7 @@ sealed interface Binding {
     /** The [Type] held by this [Binding]. */
     val type: Type<*>
 
-    /** */
+    /** The [BindingContext] associated with this [Binding]. */
     val context: BindingContext
 
     /** A literal [Value] without any indirection other than the [Binding]. */
@@ -41,6 +41,6 @@ sealed interface Binding {
             get() = this.column.type
 
         override val value: Value?
-            get() = (this.record ?: throw IllegalStateException(""))[this.column]
+            get() = (this.record ?: throw IllegalStateException("No record bound to column binding ${this.column} OR column not specified."))[this.column]
     }
 }

@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.*
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.client.language.basics.Constants
 import org.vitrivr.cottontail.database.locking.DeadlockException
+import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.binding.extensions.toLiteral
 import org.vitrivr.cottontail.execution.TransactionManager
 import org.vitrivr.cottontail.execution.TransactionStatus
@@ -25,7 +26,7 @@ import kotlin.time.TimeSource
  * A facility common to all service that handle [TransactionManager.Transaction]s over gRPC.
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.3.0
  */
 @ExperimentalTime
 interface gRPCTransactionService {
@@ -119,12 +120,13 @@ interface gRPCTransactionService {
     /**
      * Executes the given [Operator] and materializes the results as [CottontailGrpc.QueryResponseMessage].
      *
+     * @param context The [QueryContext] to operate in.
      * @param operator The [Operator] to executed.
      * @param queryId The [String] ID that identifies the query.
      * @param queryIndex The query index.
      * @return [Flow] of [CottontailGrpc.QueryResponseMessage]
      */
-    fun executeAndMaterialize(tx: TransactionManager.Transaction, operator: Operator, queryId: String, queryIndex: Int = 0): Flow<CottontailGrpc.QueryResponseMessage> {
+    fun executeAndMaterialize(context: QueryContext, operator: Operator, queryId: String, queryIndex: Int = 0): Flow<CottontailGrpc.QueryResponseMessage> {
         val columns = operator.columns.map {
             val name = CottontailGrpc.ColumnName.newBuilder().setName(it.name.simple)
             val entityName = it.name.entity()
@@ -135,10 +137,10 @@ interface gRPCTransactionService {
         }
 
         return flow {
-            val responseBuilder = CottontailGrpc.QueryResponseMessage.newBuilder().setTid(CottontailGrpc.TransactionId.newBuilder().setQueryId(queryId).setValue(tx.txId)).addAllColumns(columns)
+            val responseBuilder = CottontailGrpc.QueryResponseMessage.newBuilder().setTid(CottontailGrpc.TransactionId.newBuilder().setQueryId(queryId).setValue(context.txn.txId)).addAllColumns(columns)
             var accumulatedSize = 0L
             var results = 0
-            tx.execute(operator).collect {
+            context.txn.execute(operator, context).collect {
                 val tuple = it.toTuple()
                 results += 1
                 if (accumulatedSize + tuple.serializedSize >= Constants.MAX_PAGE_SIZE_BYTES) {
@@ -164,7 +166,7 @@ interface gRPCTransactionService {
      */
     fun Record.toTuple(): CottontailGrpc.QueryResponseMessage.Tuple {
         val tuple = CottontailGrpc.QueryResponseMessage.Tuple.newBuilder()
-        this.forEach { _, v -> tuple.addData(v?.toLiteral() ?: CottontailGrpc.Literal.newBuilder().setNullData(CottontailGrpc.Null.getDefaultInstance()).build()) }
+        this.forEach { _, v -> tuple.addData(v?.toLiteral() ?: CottontailGrpc.Literal.newBuilder().build()) }
         return tuple.build()
     }
 

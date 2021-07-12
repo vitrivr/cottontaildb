@@ -8,7 +8,7 @@ import org.vitrivr.cottontail.model.values.types.Value
  * Abstract [FunctionGenerator] implementation
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.0.1
  */
 abstract class AbstractFunctionGenerator<out R: Value>: FunctionGenerator<R> {
     /**
@@ -18,7 +18,7 @@ abstract class AbstractFunctionGenerator<out R: Value>: FunctionGenerator<R> {
      * @return The generated [Function.Dynamic]
      */
     final override fun generate(vararg arguments: Type<*>): Function.Dynamic<R>  {
-        if (arguments.size != this.signature.arity) throw FunctionNotSupportedException(Signature.Open(this.signature.name, this.signature.returnType, arguments.size))
+        if (arguments.size != this.signature.arity) throw FunctionNotSupportedException(Signature.Open(this.signature.name,arguments.size, this.signature.returnType))
         val ret = this.generateInternal(*arguments)
         require (ret.signature.arguments.size == this.signature.arity) { "Number of arguments of the produced function does not match arity of function generator. This is a programmer's error!" }
         return ret

@@ -61,11 +61,10 @@ class CountProjectionPhysicalOperatorNode(input: Physical? = null, fields: List<
     /**
      * Converts this [CountProjectionPhysicalOperatorNode] to a [CountProjectionOperator].
      *
-     * @param tx The [TransactionContext] used for execution.
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(tx: TransactionContext, ctx: QueryContext) = CountProjectionOperator(
-        this.input?.toOperator(tx, ctx) ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)")
+    override fun toOperator(ctx: QueryContext) = CountProjectionOperator(
+        this.input?.toOperator(ctx) ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)")
     )
 
     /**

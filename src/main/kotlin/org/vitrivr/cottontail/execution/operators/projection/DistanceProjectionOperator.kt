@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.execution.operators.projection
 
 import kotlinx.coroutines.flow.*
 import org.vitrivr.cottontail.database.column.ColumnDef
+import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.functions.math.distance.VectorDistance
@@ -17,7 +18,7 @@ import org.vitrivr.cottontail.utilities.math.KnnUtilities
  * to a set of query vectors and adds a [ColumnDef] that captures that distance. Used for NNS.
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.2.1
  */
 class DistanceProjectionOperator(parent: Operator, val column: ColumnDef<*>, val distance: VectorDistance<*>) : Operator.PipelineOperator(parent) {
 
@@ -33,10 +34,10 @@ class DistanceProjectionOperator(parent: Operator, val column: ColumnDef<*>, val
     /**
      * Converts this [DistanceProjectionOperator] to a [Flow] and returns it.
      *
-     * @param context The [TransactionContext] used for execution
+     * @param context The [QueryContext] used for execution
      * @return [Flow] representing this [DistanceProjectionOperator]
      */
-    override fun toFlow(context: TransactionContext): Flow<Record> {
+    override fun toFlow(context: QueryContext): Flow<Record> {
         /* Obtain parent flow. */
         val parentFlow = this.parent.toFlow(context)
         val values = Array<Value?>(this@DistanceProjectionOperator.columns.size) { null }

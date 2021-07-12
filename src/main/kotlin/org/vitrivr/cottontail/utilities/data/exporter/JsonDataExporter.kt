@@ -13,7 +13,7 @@ import java.nio.file.StandardOpenOption
  * Data produced by the [JsonDataExporter] can be used as input for the [JsonDataImporter].
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.0.1
  */
 class JsonDataExporter(override val path: Path, val indent: String = "") : DataExporter {
     /** The [Format] handled by this [DataImporter]. */
@@ -124,7 +124,6 @@ class JsonDataExporter(override val path: Path, val indent: String = "") : DataE
                         }
                         this.writer.endArray()
                     }
-                    CottontailGrpc.Literal.DataCase.NULLDATA,
                     CottontailGrpc.Literal.DataCase.DATA_NOT_SET,
                     null -> this.writer.nullValue()
                 }

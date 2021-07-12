@@ -95,22 +95,6 @@ abstract class UnaryLogicalOperatorNode(input: Logical? = null) : OperatorNode.L
     }
 
     /**
-     * Performs value binding using the given [QueryContext].
-     *
-     * [UnaryLogicalOperatorNode] are required to propagate calls to [bindValues] up the tree in addition
-     * to executing the binding locally. Consequently, the call is propagated to all the [input] [OperatorNode].
-     *
-     * By default, this operation has no further effect. Override to implement operator specific binding but don't forget to call super.bindValues()
-     *
-     * @param ctx [BindingContext] to use to resolve this [Binding].
-     * @return This [OperatorNode].
-     */
-    override fun bindValues(ctx: BindingContext<Value>): OperatorNode {
-        this.input?.bindValues(ctx)
-        return this
-    }
-
-    /**
      * Calculates and returns the digest for this [UnaryLogicalOperatorNode].
      *
      * @return [Digest] for this [UnaryLogicalOperatorNode]

@@ -235,7 +235,7 @@ class SuperBitLSHIndex<T : VectorValue<*>>(
 
                 /* Assure correctness of query vector. */
                 val value = this.predicate.query.value
-                check(value is VectorValue<*>) { "Bound value for query vector has wrong type (found = ${value.type})." }
+                check(value is VectorValue<*>) { "Bound value for query vector has wrong type (found = ${value?.type})." }
 
                 /** Prepare SuperBitLSH data structure. */
                 this@Tx.withReadLock { }

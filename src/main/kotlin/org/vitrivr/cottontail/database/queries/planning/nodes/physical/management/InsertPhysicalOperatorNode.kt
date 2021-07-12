@@ -8,20 +8,18 @@ import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.management.InsertLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.NullaryPhysicalOperatorNode
 import org.vitrivr.cottontail.database.statistics.entity.RecordStatistics
-import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.management.InsertOperator
 import org.vitrivr.cottontail.execution.operators.management.UpdateOperator
 import org.vitrivr.cottontail.model.basics.Record
-import org.vitrivr.cottontail.model.exceptions.QueryException
 
 /**
  * A [InsertPhysicalOperatorNode] that formalizes a INSERT operation on an [Entity].
  *
  * @author Ralph Gasser
- * @version 2.1.0
+ * @version 2.1.2
  */
-class InsertPhysicalOperatorNode(override val groupId: GroupId, val entity: Entity, val records: MutableList<Binding<Record>>) : NullaryPhysicalOperatorNode() {
+class InsertPhysicalOperatorNode(override val groupId: GroupId, val entity: Entity, val records: MutableList<Record>) : NullaryPhysicalOperatorNode() {
     companion object {
         private const val NODE_NAME = "Insert"
     }
@@ -58,13 +56,9 @@ class InsertPhysicalOperatorNode(override val groupId: GroupId, val entity: Enti
     /**
      * Converts this [InsertPhysicalOperatorNode] to a [InsertOperator].
      *
-     * @param tx The [TransactionContext] used for execution.
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(tx: TransactionContext, ctx: QueryContext): Operator {
-        val records = this.records.map { ctx.records[it] ?: throw QueryException.QueryBindException("Cannot bound null value to record for InsertOperator.") }
-        return InsertOperator(this.groupId, this.entity, records)
-    }
+    override fun toOperator(ctx: QueryContext): Operator = InsertOperator(this.groupId, this.entity, this.records)
 
     /**
      * [InsertPhysicalOperatorNode] cannot be partitioned.

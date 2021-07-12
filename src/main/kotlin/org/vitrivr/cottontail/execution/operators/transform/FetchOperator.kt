@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.map
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.entity.EntityTx
+import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.model.basics.Record
@@ -16,7 +17,7 @@ import org.vitrivr.cottontail.model.values.types.Value
  * the specified [Entity]. Can  be used for late population of requested [ColumnDef]s.
  *
  * @author Ralph Gasser
- * @version 1.0.3
+ * @version 1.0.4
  */
 class FetchOperator(parent: Operator, val entity: EntityTx, val fetch: Array<ColumnDef<*>>) : Operator.PipelineOperator(parent) {
 
@@ -32,7 +33,7 @@ class FetchOperator(parent: Operator, val entity: EntityTx, val fetch: Array<Col
      * @param context The [TransactionContext] used for execution
      * @return [Flow] representing this [FetchOperator]
      */
-    override fun toFlow(context: TransactionContext): Flow<Record> {
+    override fun toFlow(context: QueryContext): Flow<Record> {
         val buffer = ArrayList<Value?>(this.columns.size)
         return this.parent.toFlow(context).map { r ->
             buffer.clear()

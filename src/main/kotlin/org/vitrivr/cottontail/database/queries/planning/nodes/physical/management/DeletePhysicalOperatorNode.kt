@@ -7,7 +7,6 @@ import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.management.DeleteLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalOperatorNode
-import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.management.DeleteOperator
 
@@ -15,7 +14,7 @@ import org.vitrivr.cottontail.execution.operators.management.DeleteOperator
  * A [DeletePhysicalOperatorNode] that formalizes a delete operation on an [Entity].
  *
  * @author Ralph Gasser
- * @version 2.1.0
+ * @version 2.1.1
  */
 class DeletePhysicalOperatorNode(input: Physical? = null, val entity: EntityTx) : UnaryPhysicalOperatorNode(input) {
 
@@ -49,11 +48,10 @@ class DeletePhysicalOperatorNode(input: Physical? = null, val entity: EntityTx) 
     /**
      * Converts this [DeletePhysicalOperatorNode] to a [DeleteOperator].
      *
-     * @param tx The [TransactionContext] used for execution.
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(tx: TransactionContext, ctx: QueryContext): Operator = DeleteOperator(
-        this.input?.toOperator(tx, ctx) ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)"),
+    override fun toOperator(ctx: QueryContext): Operator = DeleteOperator(
+        this.input?.toOperator(ctx) ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)"),
         this.entity
     )
 

@@ -6,6 +6,7 @@ import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.queries.GroupId
+import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.model.basics.Name
@@ -23,7 +24,7 @@ import kotlin.time.measureTimedValue
  * [Entity] that it receives with the provided [Value].
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.1.1
  */
 class InsertOperator(groupId: GroupId, val entity: Entity, val records: List<Record>) : Operator.SourceOperator(groupId) {
 
@@ -41,12 +42,12 @@ class InsertOperator(groupId: GroupId, val entity: Entity, val records: List<Rec
     /**
      * Converts this [InsertOperator] to a [Flow] and returns it.
      *
-     * @param context The [TransactionContext] used for execution
+     * @param context The [QueryContext] used for execution
      * @return [Flow] representing this [InsertOperator]
      */
     @ExperimentalTime
-    override fun toFlow(context: TransactionContext): Flow<Record> {
-        val tx = context.getTx(this.entity) as EntityTx
+    override fun toFlow(context: QueryContext): Flow<Record> {
+        val tx = context.txn.getTx(this.entity) as EntityTx
         return flow {
             for (record in this@InsertOperator.records) {
                 val timedTupleId = measureTimedValue { tx.insert(record) }

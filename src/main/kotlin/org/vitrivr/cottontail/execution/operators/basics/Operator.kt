@@ -3,6 +3,7 @@ package org.vitrivr.cottontail.execution.operators.basics
 import kotlinx.coroutines.flow.Flow
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.queries.GroupId
+import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.exceptions.OperatorSetupException
 import org.vitrivr.cottontail.model.basics.Record
@@ -11,7 +12,7 @@ import org.vitrivr.cottontail.model.basics.Record
  * An [Operator] used during query execution and processing.
  *
  * @author Ralph Gasser
- * @version 1.3.0
+ * @version 1.4.0
  */
 sealed class Operator {
 
@@ -24,10 +25,10 @@ sealed class Operator {
     /**
      * Converts this [Operator] to a [Flow] and returns it.
      *
-     * @param context The [TransactionContext] used for execution.
-     * @return [Flow]
+     * @param context The [QueryContext] used for execution.
+     * @return Resulting [Flow]
      */
-    abstract fun toFlow(context: TransactionContext): Flow<Record>
+    abstract fun toFlow(context: QueryContext): Flow<Record>
 
 
     /**
