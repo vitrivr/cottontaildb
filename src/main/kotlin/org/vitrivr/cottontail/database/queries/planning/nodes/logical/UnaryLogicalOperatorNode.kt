@@ -47,7 +47,8 @@ abstract class UnaryLogicalOperatorNode(input: Logical? = null) : OperatorNode.L
         get() = this.input?.order ?: emptyArray()
 
     /** By default, a [UnaryLogicalOperatorNode]'s requirements are unspecified. */
-    override val requires: Array<ColumnDef<*>> = emptyArray()
+    override val requires: Array<ColumnDef<*>>
+        get() = emptyArray()
 
     init {
         this.input = input
