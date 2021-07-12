@@ -286,7 +286,7 @@ object GrpcQueryBinder {
                 EntityScanLogicalOperatorNode(context.nextGroupId(), entity = entityTx, columns = columns)
             }
             CottontailGrpc.From.FromCase.SAMPLE -> {
-                val entity = parseAndBindEntity(from.scan.entity, context)
+                val entity = parseAndBindEntity(from.sample.entity, context)
                 val entityTx = context.txn.getTx(entity) as EntityTx
                 val columns = entityTx.listColumns().map { it.columnDef }.toTypedArray()
                 EntitySampleLogicalOperatorNode(context.nextGroupId(), entity = entityTx, columns = columns, p = from.sample.probability, seed = from.sample.seed)
@@ -512,7 +512,7 @@ object GrpcQueryBinder {
         val fields = projection.elementsList.mapIndexed { i,p ->
             val name = when (p.projCase) {
                 CottontailGrpc.Projection.ProjectionElement.ProjCase.COLUMN -> p.column.fqn()
-                CottontailGrpc.Projection.ProjectionElement.ProjCase.FUNCTION -> Name.ColumnName(p.function.name)
+                CottontailGrpc.Projection.ProjectionElement.ProjCase.FUNCTION -> if (p.hasAlias()) { p.alias.fqn() } else { Name.ColumnName(p.function.name) }
                 CottontailGrpc.Projection.ProjectionElement.ProjCase.PROJ_NOT_SET,
                 null -> throw QueryException.QuerySyntaxException("Projection element at position $i is malformed (column or function missing).")
             }
