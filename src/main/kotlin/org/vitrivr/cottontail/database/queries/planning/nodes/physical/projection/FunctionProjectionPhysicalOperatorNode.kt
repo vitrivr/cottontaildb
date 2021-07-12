@@ -50,11 +50,6 @@ class FunctionProjectionPhysicalOperatorNode(input: Physical? = null, val functi
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
     override fun toOperator(ctx: QueryContext): Operator {
-        this.arguments.forEach {
-            if (it is Binding.Literal) {
-                TODO()
-            }
-        }
         val input = this.input?.toOperator(ctx) ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)")
         return FunctionProjectionOperator(input, this.function, this.arguments, this.alias)
     }

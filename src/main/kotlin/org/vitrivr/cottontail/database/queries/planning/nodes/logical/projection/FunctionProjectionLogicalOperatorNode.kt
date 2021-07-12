@@ -52,19 +52,12 @@ class FunctionProjectionLogicalOperatorNode(input: OperatorNode.Logical? = null,
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is FunctionProjectionPhysicalOperatorNode) return false
-
         if (this.function != other.function) return false
-        if (this.alias != other.alias) return false
-
         return true
     }
 
     /**
      * Generates and returns a hash code for this [FunctionProjectionLogicalOperatorNode].
      */
-    override fun hashCode(): Int {
-        var result = this.function.hashCode()
-        result = 31 * result + alias.hashCode()
-        return result
-    }
+    override fun hashCode(): Int = this.function.hashCode()
 }
