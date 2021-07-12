@@ -68,7 +68,7 @@ object GrpcQueryBinder {
         /* Bind FUNCTION-execution. */
         if (query.hasProjection()) {
             query.projection.elementsList.filter { it.hasFunction() }.forEach {
-                root = this.parseAndBindFunction(root, it.function, context)
+                root = this.parseAndBindFunctionProjection(root, it, context)
             }
         }
 
@@ -459,13 +459,14 @@ object GrpcQueryBinder {
      * Parses and binds the projection part of a gRPC [CottontailGrpc.Function]-clause
      *
      * @param input The [OperatorNode.Logical] on which to perform the [Function].
-     * @param function The [CottontailGrpc.Function] object.
+     * @param element The [CottontailGrpc.Function] object.
      * @param context The [QueryContext] used for query binding.
      *
      * @return The resulting [SortLogicalOperatorNode].
      */
-    private fun parseAndBindFunction(input: OperatorNode.Logical, function: CottontailGrpc.Function, context: QueryContext): OperatorNode.Logical {
-        val refs = function.argumentsList.mapIndexed { i, a ->
+    private fun parseAndBindFunctionProjection(input: OperatorNode.Logical, element: CottontailGrpc.Projection.ProjectionElement, context: QueryContext): OperatorNode.Logical {
+        require(element.hasFunction()) { "Given project element has not specified a function. This is a programmer's error!" }
+        val refs = element.function.argumentsList.mapIndexed { i, a ->
             when (a.expCase) {
                 CottontailGrpc.Expression.ExpCase.LITERAL -> context.bindings.bind(a.literal.toValue())
                 CottontailGrpc.Expression.ExpCase.COLUMN -> context.bindings.bind(input.findUniqueColumnForName(a.column.fqn()))
@@ -473,13 +474,13 @@ object GrpcQueryBinder {
                 null -> throw QueryException.QuerySyntaxException("Function argument at position $i is malformed.")
             }
         }
-        val signature = Signature.Closed<Value>(function.name, refs.map { it.type }.toTypedArray())
+        val signature = Signature.Closed<Value>(element.function.name, refs.map { it.type }.toTypedArray())
         val functionObject = try {
             context.catalogue.functions.obtain(signature)
         } catch (e: FunctionNotFoundException) {
             throw QueryException.QueryBindException("Desired distance function $signature could not be found!")
         }
-        return FunctionProjectionLogicalOperatorNode(input, functionObject, refs)
+        return FunctionProjectionLogicalOperatorNode(input, functionObject, refs, element.alias.fqn())
     }
 
     /**
