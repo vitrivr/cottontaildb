@@ -51,16 +51,16 @@ sealed class CosineDistance<T : VectorValue<*>>: VectorDistance<T> {
      */
     class DoubleVector(size: Int) : CosineDistance<DoubleVectorValue>() {
         override val type = Type.DoubleVector(size)
-        override var query = this.type.defaultValue()
         override fun copy(d: Int) = DoubleVector(d)
         override fun invoke(vararg arguments: Value?): DoubleValue {
-            val vector = arguments[0] as DoubleVectorValue
+            val query = arguments[0] as DoubleVectorValue
+            val vector = arguments[1] as DoubleVectorValue
             var dotp = 0.0
             var normq = 0.0
             var normv = 0.0
-            for (i in this.query.data.indices) {
-                dotp += (this.query.data[i] * vector.data[i])
-                normq += this.query.data[i].pow(2)
+            for (i in query.data.indices) {
+                dotp += (query.data[i] * vector.data[i])
+                normq += query.data[i].pow(2)
                 normv += vector.data[i].pow(2)
             }
             return DoubleValue(dotp / (sqrt(normq) * sqrt(normv)))
@@ -72,16 +72,16 @@ sealed class CosineDistance<T : VectorValue<*>>: VectorDistance<T> {
      */
     class FloatVector(size: Int) : CosineDistance<FloatVectorValue>() {
         override val type = Type.FloatVector(size)
-        override var query = this.type.defaultValue()
         override fun copy(d: Int) = FloatVector(d)
         override fun invoke(vararg arguments: Value?): DoubleValue {
-            val vector = arguments[0] as FloatVectorValue
+            val query = arguments[0] as FloatVectorValue
+            val vector = arguments[1] as FloatVectorValue
             var dotp = 0.0
             var normq = 0.0
             var normv = 0.0
-            for (i in this.query.data.indices) {
-                dotp += (this.query.data[i] * vector.data[i])
-                normq += this.query.data[i].pow(2)
+            for (i in query.data.indices) {
+                dotp += (query.data[i] * vector.data[i])
+                normq += query.data[i].pow(2)
                 normv += vector.data[i].pow(2)
             }
             return DoubleValue(dotp / (sqrt(normq) * sqrt(normv)))
@@ -93,16 +93,16 @@ sealed class CosineDistance<T : VectorValue<*>>: VectorDistance<T> {
      */
     class LongVector(size: Int) : CosineDistance<LongVectorValue>() {
         override val type = Type.LongVector(size)
-        override var query = this.type.defaultValue()
         override fun copy(d: Int) = LongVector(d)
         override fun invoke(vararg arguments: Value?): DoubleValue {
-            val vector = arguments[0] as LongVectorValue
+            val query = arguments[0] as LongVectorValue
+            val vector = arguments[1] as LongVectorValue
             var dotp = 0.0
             var normq = 0.0
             var normv = 0.0
-            for (i in this.query.data.indices) {
-                dotp += (this.query.data[i] * vector.data[i])
-                normq += this.query.data[i].toDouble().pow(2)
+            for (i in query.data.indices) {
+                dotp += (query.data[i] * vector.data[i])
+                normq += query.data[i].toDouble().pow(2)
                 normv += vector.data[i].toDouble().pow(2)
             }
             return DoubleValue(dotp / (sqrt(normq) * sqrt(normv)))
@@ -114,16 +114,16 @@ sealed class CosineDistance<T : VectorValue<*>>: VectorDistance<T> {
      */
     class IntVector(size: Int) : CosineDistance<IntVectorValue>() {
         override val type = Type.IntVector(size)
-        override var query = this.type.defaultValue()
         override fun copy(d: Int) = IntVector(d)
         override fun invoke(vararg arguments: Value?): DoubleValue {
-            val vector = arguments[0] as IntVectorValue
+            val query = arguments[0] as IntVectorValue
+            val vector = arguments[1] as IntVectorValue
             var dotp = 0.0
             var normq = 0.0
             var normv = 0.0
-            for (i in this.query.data.indices) {
-                dotp += (this.query.data[i] * vector.data[i])
-                normq += this.query.data[i].toDouble().pow(2)
+            for (i in query.data.indices) {
+                dotp += (query.data[i] * vector.data[i])
+                normq += query.data[i].toDouble().pow(2)
                 normv += vector.data[i].toDouble().pow(2)
             }
             return DoubleValue(dotp / (sqrt(normq) * sqrt(normv)))

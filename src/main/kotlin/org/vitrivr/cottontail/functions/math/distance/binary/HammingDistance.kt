@@ -50,13 +50,13 @@ sealed class HammingDistance<T : VectorValue<*>>: VectorDistance<T> {
      */
     class DoubleVector(size: Int) : HammingDistance<DoubleVectorValue>() {
         override val type = Type.DoubleVector(size)
-        override var query = this.type.defaultValue()
         override fun copy(d: Int) = DoubleVector(d)
         override fun invoke(vararg arguments: Value?): DoubleValue {
-            val vector = arguments[0] as DoubleVectorValue
+            val query = arguments[0] as DoubleVectorValue
+            val vector = arguments[1] as DoubleVectorValue
             var sum = 0.0
-            for (i in this.query.data.indices) {
-                if (this.query.data[i] != vector.data[i]) {
+            for (i in query.data.indices) {
+                if (query.data[i] != vector.data[i]) {
                     sum += 1.0
                 }
             }
@@ -69,13 +69,13 @@ sealed class HammingDistance<T : VectorValue<*>>: VectorDistance<T> {
      */
     class FloatVector(size: Int) : HammingDistance<FloatVectorValue>() {
         override val type = Type.FloatVector(size)
-        override var query = this.type.defaultValue()
         override fun copy(d: Int): VectorDistance<FloatVectorValue> = FloatVector(d)
         override fun invoke(vararg arguments: Value?): DoubleValue {
-            val vector = arguments[0] as FloatVectorValue
+            val query = arguments[0] as FloatVectorValue
+            val vector = arguments[1] as FloatVectorValue
             var sum = 0.0
-            for (i in this.query.data.indices) {
-                if (this.query.data[i] != vector.data[i]) {
+            for (i in query.data.indices) {
+                if (query.data[i] != vector.data[i]) {
                     sum += 1.0
                 }
             }
@@ -88,13 +88,13 @@ sealed class HammingDistance<T : VectorValue<*>>: VectorDistance<T> {
      */
     class LongVector(size: Int) : HammingDistance<LongVectorValue>() {
         override val type = Type.LongVector(size)
-        override var query = this.type.defaultValue()
         override fun copy(d: Int): VectorDistance<LongVectorValue> = LongVector(d)
         override fun invoke(vararg arguments: Value?): DoubleValue {
-            val vector = arguments[0] as LongVectorValue
+            val query = arguments[0] as LongVectorValue
+            val vector = arguments[1] as LongVectorValue
             var sum = 0.0
-            for (i in this.query.data.indices) {
-                if (this.query.data[i] != vector.data[i]) {
+            for (i in query.data.indices) {
+                if (query.data[i] != vector.data[i]) {
                     sum += 1.0
                 }
             }
@@ -107,13 +107,13 @@ sealed class HammingDistance<T : VectorValue<*>>: VectorDistance<T> {
      */
     class IntVector(size: Int) : HammingDistance<IntVectorValue>() {
         override val type = Type.IntVector(size)
-        override var query = this.type.defaultValue()
         override fun copy(d: Int) = IntVector(d)
         override fun invoke(vararg arguments: Value?): DoubleValue {
-            val vector = arguments[0] as IntVectorValue
+            val query = arguments[0] as IntVectorValue
+            val vector = arguments[1] as IntVectorValue
             var sum = 0.0
-            for (i in this.query.data.indices) {
-                if (this.query.data[i] != vector.data[i]) {
+            for (i in query.data.indices) {
+                if (query.data[i] != vector.data[i]) {
                     sum += 1.0
                 }
             }
@@ -126,13 +126,13 @@ sealed class HammingDistance<T : VectorValue<*>>: VectorDistance<T> {
      */
     class BooleanVector(size: Int) : HammingDistance<BooleanVectorValue>() {
         override val type = Type.BooleanVector(size)
-        override var query = this.type.defaultValue()
         override fun copy(d: Int) = BooleanVector(d)
         override fun invoke(vararg arguments: Value?): DoubleValue {
-            val vector = arguments[0] as BooleanVectorValue
+            val query = arguments[0] as BooleanVectorValue
+            val vector = arguments[1] as BooleanVectorValue
             var sum = 0.0
-            for (i in this.query.data.indices) {
-                if (this.query.data[i] != vector.data[i]) {
+            for (i in query.data.indices) {
+                if (query.data[i] != vector.data[i]) {
                     sum += 1.0
                 }
             }

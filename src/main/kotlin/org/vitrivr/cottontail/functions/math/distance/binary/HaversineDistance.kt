@@ -26,7 +26,7 @@ sealed class HaversineDistance<T : VectorValue<*>>: VectorDistance<T> {
         const val RADIUS_EARTH = 6371000.0
 
         override val signature: Signature.Open<out DoubleValue>
-            get() = Signature.Open(FUNCTION_NAME, arity = 1, Type.Double)
+            get() = Signature.Open(FUNCTION_NAME, arity = 2, Type.Double)
 
         override fun generateInternal(vararg arguments: Type<*>): Function.Dynamic<DoubleValue> = when {
             arguments[0] is Type.DoubleVector && arguments[0].logicalSize == 2 -> CosineDistance.DoubleVector(2)
@@ -67,11 +67,11 @@ sealed class HaversineDistance<T : VectorValue<*>>: VectorDistance<T> {
      */
     class DoubleVector: HaversineDistance<DoubleVectorValue>() {
         override val type = Type.DoubleVector(2)
-        override var query = this.type.defaultValue()
         override fun copy(d: Int) = DoubleVector()
         override fun invoke(vararg arguments: Value?): DoubleValue {
+            val query = arguments[0] as DoubleVectorValue
             val vector = arguments[0] as DoubleVectorValue
-            return DoubleValue(haversine(this.query.data[0], this.query.data[1], vector.data[0], vector.data[1]))
+            return DoubleValue(haversine(query.data[0], query.data[1], vector.data[0], vector.data[1]))
         }
     }
 
@@ -80,11 +80,11 @@ sealed class HaversineDistance<T : VectorValue<*>>: VectorDistance<T> {
      */
     class FloatVector: HaversineDistance<FloatVectorValue>() {
         override val type = Type.FloatVector(2)
-        override var query = this.type.defaultValue()
         override fun copy(d: Int) = FloatVector()
         override fun invoke(vararg arguments: Value?): DoubleValue {
+            val query = arguments[0] as FloatVectorValue
             val vector = arguments[0] as FloatVectorValue
-            return DoubleValue(haversine(this.query.data[0].toDouble(), this.query.data[1].toDouble(), vector.data[0].toDouble(), vector.data[1].toDouble()))
+            return DoubleValue(haversine(query.data[0].toDouble(), query.data[1].toDouble(), vector.data[0].toDouble(), vector.data[1].toDouble()))
         }
     }
 
@@ -93,24 +93,24 @@ sealed class HaversineDistance<T : VectorValue<*>>: VectorDistance<T> {
      */
     class LongVector: HaversineDistance<LongVectorValue>() {
         override val type = Type.LongVector(2)
-        override var query = this.type.defaultValue()
         override fun copy(d: Int) = LongVector()
         override fun invoke(vararg arguments: Value?): DoubleValue {
+            val query = arguments[0] as LongVectorValue
             val vector = arguments[0] as LongVectorValue
-            return DoubleValue(haversine(this.query.data[0].toDouble(), this.query.data[1].toDouble(), vector.data[0].toDouble(), vector.data[1].toDouble()))
+            return DoubleValue(haversine(query.data[0].toDouble(), query.data[1].toDouble(), vector.data[0].toDouble(), vector.data[1].toDouble()))
         }
     }
 
     /**
      * [HaversineDistance] for a [IntVectorValue].
      */
-    class IntVector(): HaversineDistance<IntVectorValue>() {
+    class IntVector: HaversineDistance<IntVectorValue>() {
         override val type = Type.IntVector(2)
-        override var query = this.type.defaultValue()
         override fun copy(d: Int) = IntVector()
         override fun invoke(vararg arguments: Value?): DoubleValue {
-            val vector = arguments[0] as IntVectorValue
-            return DoubleValue(haversine(this.query.data[0].toDouble(), this.query.data[1].toDouble(), vector.data[0].toDouble(), vector.data[1].toDouble()))
+            val query = arguments[0] as IntVectorValue
+            val vector = arguments[1] as IntVectorValue
+            return DoubleValue(haversine(query.data[0].toDouble(), query.data[1].toDouble(), vector.data[0].toDouble(), vector.data[1].toDouble()))
         }
     }
 }

@@ -58,14 +58,14 @@ sealed class ManhattanDistance<T : VectorValue<*>>: VectorDistance.MinkowskiDist
      */
     class Complex64Vector(size: Int) : ManhattanDistance<Complex64VectorValue>() {
         override val type = Type.Complex64Vector(size)
-        override var query = this.type.defaultValue()
         override fun copy(d: Int) = Complex64Vector(d)
         override fun invoke(vararg arguments: Value?): DoubleValue {
-            val vector = arguments[0] as Complex64VectorValue
+            val query = arguments[0] as Complex64VectorValue
+            val vector = arguments[1] as Complex64VectorValue
             var sum = 0.0
-            for (i in 0 until this.query.data.size / 2) {
-                val diffReal = this.query.data[i shl 1] - vector.data[i shl 1]
-                val diffImaginary = this.query.data[(i shl 1) + 1] - vector.data[(i shl 1) + 1]
+            for (i in 0 until query.data.size / 2) {
+                val diffReal = query.data[i shl 1] - vector.data[i shl 1]
+                val diffImaginary = query.data[(i shl 1) + 1] - vector.data[(i shl 1) + 1]
                 sum += sqrt(diffReal.pow(2) + diffImaginary.pow(2))
             }
             return DoubleValue(sum)
@@ -77,14 +77,14 @@ sealed class ManhattanDistance<T : VectorValue<*>>: VectorDistance.MinkowskiDist
      */
     class Complex32Vector(size: Int) : ManhattanDistance<Complex32VectorValue>() {
         override val type = Type.Complex32Vector(size)
-        override var query = this.type.defaultValue()
         override fun copy(d: Int) = Complex32Vector(d)
         override fun invoke(vararg arguments: Value?): DoubleValue {
-            val vector = arguments[0] as Complex32VectorValue
+            val query = arguments[0] as DoubleVectorValue
+            val vector = arguments[1] as Complex32VectorValue
             var sum = 0.0
-            for (i in 0 until this.query.data.size / 2) {
-                val diffReal = this.query.data[i shl 1] - vector.data[i shl 1]
-                val diffImaginary = this.query.data[(i shl 1) + 1] - vector.data[(i shl 1) + 1]
+            for (i in 0 until query.data.size / 2) {
+                val diffReal = query.data[i shl 1] - vector.data[i shl 1]
+                val diffImaginary = query.data[(i shl 1) + 1] - vector.data[(i shl 1) + 1]
                 sum += sqrt(diffReal.pow(2) + diffImaginary.pow(2))
             }
             return DoubleValue(sum)
@@ -96,13 +96,13 @@ sealed class ManhattanDistance<T : VectorValue<*>>: VectorDistance.MinkowskiDist
      */
     class DoubleVector(size: Int) : ManhattanDistance<DoubleVectorValue>() {
         override val type = Type.DoubleVector(size)
-        override var query = this.type.defaultValue()
         override fun copy(d: Int) = DoubleVector(d)
         override fun invoke(vararg arguments: Value?): DoubleValue {
-            val vector = arguments[0] as DoubleVectorValue
+            val query = arguments[0] as DoubleVectorValue
+            val vector = arguments[1] as DoubleVectorValue
             var sum = 0.0
-            for (i in this.query.data.indices) {
-                sum += (this.query.data[i] - vector.data[i]).absoluteValue
+            for (i in query.data.indices) {
+                sum += (query.data[i] - vector.data[i]).absoluteValue
             }
             return DoubleValue(sum)
         }
@@ -113,13 +113,13 @@ sealed class ManhattanDistance<T : VectorValue<*>>: VectorDistance.MinkowskiDist
      */
     class FloatVector(size: Int) : ManhattanDistance<FloatVectorValue>() {
         override val type = Type.FloatVector(size)
-        override var query = this.type.defaultValue()
         override fun copy(d: Int) = FloatVector(d)
         override fun invoke(vararg arguments: Value?): DoubleValue {
-            val vector = arguments[0] as FloatVectorValue
+            val query = arguments[0] as FloatVectorValue
+            val vector = arguments[1] as FloatVectorValue
             var sum = 0.0
-            for (i in this.query.data.indices) {
-                sum += (this.query.data[i] - vector.data[i]).absoluteValue
+            for (i in query.data.indices) {
+                sum += (query.data[i] - vector.data[i]).absoluteValue
             }
             return DoubleValue(sum)
         }
@@ -130,13 +130,13 @@ sealed class ManhattanDistance<T : VectorValue<*>>: VectorDistance.MinkowskiDist
      */
     class LongVector(size: Int) : ManhattanDistance<LongVectorValue>() {
         override val type = Type.LongVector(size)
-        override var query = this.type.defaultValue()
         override fun copy(d: Int) = LongVector(d)
         override fun invoke(vararg arguments: Value?): DoubleValue {
-            val vector = arguments[0] as LongVectorValue
+            val query = arguments[0] as LongVectorValue
+            val vector = arguments[1] as LongVectorValue
             var sum = 0.0
-            for (i in this.query.data.indices) {
-                sum += (this.query.data[i] - vector.data[i]).absoluteValue
+            for (i in query.data.indices) {
+                sum += (query.data[i] - vector.data[i]).absoluteValue
             }
             return DoubleValue(sum)
         }
@@ -147,13 +147,13 @@ sealed class ManhattanDistance<T : VectorValue<*>>: VectorDistance.MinkowskiDist
      */
     class IntVector(size: Int) : ManhattanDistance<IntVectorValue>() {
         override val type = Type.IntVector(size)
-        override var query = this.type.defaultValue()
         override fun copy(d: Int) = IntVector(d)
         override fun invoke(vararg arguments: Value?): DoubleValue {
-            val vector = arguments[0] as IntVectorValue
+            val query = arguments[0] as IntVectorValue
+            val vector = arguments[1] as IntVectorValue
             var sum = 0.0
-            for (i in this.query.data.indices) {
-                sum += (this.query.data[i] - vector.data[i]).absoluteValue
+            for (i in query.data.indices) {
+                sum += (query.data[i] - vector.data[i]).absoluteValue
             }
             return DoubleValue(sum)
         }

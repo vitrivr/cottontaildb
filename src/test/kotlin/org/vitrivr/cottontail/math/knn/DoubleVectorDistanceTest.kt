@@ -37,11 +37,9 @@ class DoubleVectorDistanceTest : AbstractDistanceTest() {
         var time2 = Duration.ZERO
 
         val kernel = ManhattanDistance.DoubleVector(query.logicalSize)
-        kernel.apply(query)
-
         collection.forEach {
             time1 += measureTime {
-                sum1 += kernel(it).value
+                sum1 += kernel(query, it).value
             }
             time2 += measureTime {
                 sum2 += (query - it).abs().sum().value
@@ -73,11 +71,9 @@ class DoubleVectorDistanceTest : AbstractDistanceTest() {
         var time2 = Duration.ZERO
 
         val kernel = SquaredEuclideanDistance.DoubleVector(query.logicalSize)
-        kernel.apply(query)
-
         collection.forEach {
             time1 += measureTime {
-                sum1 += kernel(it).value
+                sum1 += kernel(query, it).value
             }
             time2 += measureTime {
                 sum2 += (query - it).pow(2).sum().value
@@ -109,11 +105,9 @@ class DoubleVectorDistanceTest : AbstractDistanceTest() {
         var time2 = Duration.ZERO
 
         val kernel = EuclideanDistance.DoubleVector(query.logicalSize)
-        kernel.apply(query)
-
         collection.forEach {
             time1 += measureTime {
-                sum1 += kernel(it).value
+                sum1 += kernel(query, it).value
             }
             time2 += measureTime {
                 sum2 += (query - it).pow(2).sum().sqrt().value

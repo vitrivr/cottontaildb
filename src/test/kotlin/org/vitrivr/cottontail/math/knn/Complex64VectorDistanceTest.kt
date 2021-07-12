@@ -42,11 +42,9 @@ class Complex64VectorDistanceTest : AbstractDistanceTest() {
         var time2 = Duration.ZERO
 
         val kernel = ManhattanDistance.Complex64Vector(query.logicalSize)
-        kernel.apply(query)
-
         collection.forEach {
             time1 += measureTime {
-                sum1 += kernel(it).value
+                sum1 += kernel(query, it).value
             }
             time2 += measureTime {
                 sum2 += (query - it).abs().sum().value
@@ -80,11 +78,10 @@ class Complex64VectorDistanceTest : AbstractDistanceTest() {
         var time2 = Duration.ZERO
 
         val kernel = SquaredEuclideanDistance.Complex64Vector(query.logicalSize)
-        kernel.apply(query)
 
         collection.forEach {
             time1 += measureTime {
-                sum1 += kernel(it).value
+                sum1 += kernel(query, it).value
             }
             time2 += measureTime {
                 sum2 += (query - it).abs().pow(2).sum().value
@@ -118,11 +115,9 @@ class Complex64VectorDistanceTest : AbstractDistanceTest() {
         var time2 = Duration.ZERO
 
         val kernel = EuclideanDistance.Complex64Vector(query.logicalSize)
-        kernel.apply(query)
-
         collection.forEach {
             time1 += measureTime {
-                sum1 += kernel(it).value
+                sum1 += kernel(query, it).value
             }
             time2 += measureTime {
                 sum2 += (query - it).abs().pow(2).sum().sqrt().value
@@ -155,15 +150,13 @@ class Complex64VectorDistanceTest : AbstractDistanceTest() {
         var time2 = Duration.ZERO
 
         val kernel = InnerProductDistance.Complex64Vector(query.logicalSize)
-        kernel.apply(query)
-
         collection.forEach {
             val conjDataitem = conjFromFromComplexFieldVector(arrayFieldVectorFromVectorValue(it))
             time1 += measureTime {
                 sum1 += 1.0 - queryp.dotProduct(conjDataitem).abs()
             }
             time2 += measureTime {
-                sum2 += kernel(it).value
+                sum2 += kernel(query, it).value
             }
         }
 

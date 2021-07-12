@@ -37,32 +37,20 @@ interface VectorDistance<T : VectorValue<*>>: Function.Dynamic<DoubleValue> {
     /** The name of this [VectorDistance] [Function]. */
     val name: String
 
-    /** The query [VectorValue]. */
-    var query: T
-
     /** The [Type] accepted by this [VectorDistance] [Function]. Must be a vector value type. */
     val type: Type<out T>
 
     /** The [Signature.Closed] of this [VectorDistance] [Function]. */
     override val signature: Signature.Closed<out DoubleValue>
-        get() = Signature.Closed(this.name, arrayOf(this.type), Type.Double)
+        get() = Signature.Closed(this.name, arrayOf(this.type, this.type), Type.Double)
 
     /** The dimensionality of this [VectorDistance]. */
     val d: Int
-        get() = this.query.logicalSize
+        get() = this.type.logicalSize
 
     /** For the sake of optimization, [VectorDistance]s are not stateless! */
     override val stateless: Boolean
         get() = false
-
-    /**
-     * Replaces the query in this [VectorDistance] by the given [VectorValue].
-     *
-     * @param query New query [VectorValue]
-     */
-    fun apply(query: VectorValue<*>) {
-        this.query = (query as T)
-    }
 
     /**
      * Creates a copy of this [VectorDistance]. Can be used to create different shapes by choosing a new value for [d].

@@ -65,6 +65,13 @@ object GrpcQueryBinder {
         /* Create FROM clause. */
         var root: OperatorNode.Logical = parseAndBindFrom(query.from, context)
 
+        /* Bind FUNCTION-execution. */
+        if (query.hasProjection()) {
+            query.projection.elementsList.filter { it.hasFunction() }.forEach {
+                root = this.parseAndBindFunction(root, it.function, context)
+            }
+        }
+
         /* Create WHERE-clause. */
         root = if (query.hasWhere()) {
             parseAndBindBooleanPredicate(root, query.where, context)
@@ -470,7 +477,7 @@ object GrpcQueryBinder {
         val functionObject = try {
             context.catalogue.functions.obtain(signature)
         } catch (e: FunctionNotFoundException) {
-            throw QueryException.QueryBindException("Desired distance function $signature for NNS was not found!")
+            throw QueryException.QueryBindException("Desired distance function $signature could not be found!")
         }
         return FunctionProjectionLogicalOperatorNode(input, functionObject, refs)
     }

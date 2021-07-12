@@ -78,7 +78,6 @@ class VAFFloatIndexTest : AbstractIndexTest() {
 
         val query = FloatVectorValue.random(this.indexColumn.type.logicalSize, this.random)
         val function = this.catalogue.functions.obtain(Signature.Closed(distance.functionName, arrayOf(query.type), Type.Double)) as VectorDistance<*>
-        function.apply(query)
 
         val context = BindingContext()
         val predicate = KnnPredicate(column = this.indexColumn, k = k, distance = function, query = context.bind(query))

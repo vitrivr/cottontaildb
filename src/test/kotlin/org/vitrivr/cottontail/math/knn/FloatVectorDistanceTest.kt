@@ -37,10 +37,9 @@ class FloatVectorDistanceTest : AbstractDistanceTest() {
         var time2 = Duration.ZERO
 
         val kernel = ManhattanDistance.FloatVector(query.logicalSize)
-        kernel.apply(query)
         collection.forEach {
             time1 += measureTime {
-                sum1 += kernel(it).value.toFloat()
+                sum1 += kernel(query, it).value.toFloat()
             }
             time2 += measureTime {
                 sum2 += (query - it).abs().sum().value
@@ -72,11 +71,9 @@ class FloatVectorDistanceTest : AbstractDistanceTest() {
         var time2 = Duration.ZERO
 
         val kernel = SquaredEuclideanDistance.FloatVector(query.logicalSize)
-        kernel.apply(query)
-
         collection.forEach {
             time1 += measureTime {
-                sum1 += kernel(it).value.toFloat()
+                sum1 += kernel(query, it).value.toFloat()
             }
             time2 += measureTime {
                 sum2 += (query - it).pow(2).sum().value
@@ -108,10 +105,9 @@ class FloatVectorDistanceTest : AbstractDistanceTest() {
         var time2 = Duration.ZERO
 
         val kernel = EuclideanDistance.FloatVector(query.logicalSize)
-        kernel.apply(query)
         collection.forEach {
             time1 += measureTime {
-                sum1 += kernel(it).value.toFloat()
+                sum1 += kernel(query, it).value.toFloat()
             }
             time2 += measureTime {
                 sum2 += (query - it).pow(2).sum().sqrt().value
