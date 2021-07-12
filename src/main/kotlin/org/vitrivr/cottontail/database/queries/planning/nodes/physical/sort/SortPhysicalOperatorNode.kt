@@ -8,6 +8,7 @@ import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhys
 import org.vitrivr.cottontail.database.queries.sort.SortOrder
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.sort.HeapSortOperator
+import org.vitrivr.cottontail.model.basics.Type
 import org.vitrivr.cottontail.model.exceptions.QueryException
 
 /**
@@ -32,7 +33,16 @@ class SortPhysicalOperatorNode(input: Physical? = null, sortOn: Array<Pair<Colum
 
     /** The [Cost] incurred by this [SortPhysicalOperatorNode]. */
     override val cost: Cost
-        get() = Cost(cpu = 2 * this.order.size * Cost.COST_MEMORY_ACCESS, memory = this.columns.map { this.statistics[it].avgWidth }.sum().toFloat()) * this.outputSize
+        get() = Cost(
+            cpu = 2 * this.order.size * Cost.COST_MEMORY_ACCESS,
+            memory = this.columns.sumOf {
+                if (it.type == Type.String) {
+                    this.statistics[it].avgWidth * Char.SIZE_BYTES
+                } else {
+                    it.type.physicalSize
+                }
+            }.toFloat()
+        ) * this.outputSize
 
     /** A [SortPhysicalOperatorNode] orders the input in by the specified [ColumnDef]s. */
     override val order = sortOn
