@@ -99,12 +99,7 @@ class PQDoubleIndexTest : AbstractIndexTest() {
             entityTx.scan(arrayOf(this.indexColumn)).forEach {
                 val vector = it[this.indexColumn]
                 if (vector is DoubleVectorValue) {
-                    bruteForceResults.offer(
-                        ComparablePair(
-                            it.tupleId,
-                            function(vector)
-                        )
-                    )
+                    bruteForceResults.offer(ComparablePair(it.tupleId, function(query, vector)))
                 }
             }
         }
@@ -116,13 +111,13 @@ class PQDoubleIndexTest : AbstractIndexTest() {
         var found = 0.0f
         for (i in 0 until k) {
             val hit = bruteForceResults[i]
-            val index = indexResults.indexOfFirst { it.tupleId == hit.first }
-            if (index != -1) {
+            val idx = indexResults.indexOfFirst { it.tupleId == hit.first }
+            if (idx != -1) {
                 found += 1.0f
             }
         }
         val foundRatio = (found / k)
-        log("Test done for ${distance::class.java.simpleName} and d=${this.indexColumn.type.logicalSize}! PQ took $indexDuration, brute-force took $bruteForceDuration. Found ratio: $foundRatio")
+        log("Test done for $function and d=${this.indexColumn.type.logicalSize}! PQ took $indexDuration, brute-force took $bruteForceDuration. Found ratio: $foundRatio")
         txn.commit()
     }
 

@@ -95,8 +95,7 @@ class PQIndex(path: Path, parent: DefaultEntity, config: PQIndexConfig? = null) 
     init {
         /* Load or create config. */
         require(this.columns.size == 1) { "PQIndex only supports indexing a single column." }
-        val configOnDisk =
-            this.store.atomicVar(INDEX_CONFIG_FIELD, PQIndexConfig.Serializer).createOrOpen()
+        val configOnDisk = this.store.atomicVar(INDEX_CONFIG_FIELD, PQIndexConfig.Serializer).createOrOpen()
         if (configOnDisk.get() == null) {
             if (config != null) {
                 if (config.numSubspaces == PQIndexConfig.AUTO_VALUE || (config.numSubspaces % this.columns[0].type.logicalSize) != 0) {
@@ -281,7 +280,7 @@ class PQIndex(path: Path, parent: DefaultEntity, config: PQIndexConfig? = null) 
                 this@Tx.withReadLock { }
                 val value = this.predicate.query.value
                 check(value is VectorValue<*>) { "Bound value for query vector has wrong type (found = ${value?.type})." }
-                this.lookupTable = this.pq.getLookupTable(this.predicate.distance)
+                this.lookupTable = this.pq.getLookupTable(value, this.predicate.distance)
 
                 /* Calculate partition size. */
                 val pSize = Math.floorDiv(this@PQIndex.signaturesStore.size, partitions) + 1
@@ -312,6 +311,7 @@ class PQIndex(path: Path, parent: DefaultEntity, config: PQIndexConfig? = null) 
                 }
 
                 /* Phase 2: Perform exact kNN based on pre-kNN results. */
+                val query = this.predicate.query.value as VectorValue<*>
                 val knn = if (this.predicate.k == 1) {
                     MinSingleSelection<ComparablePair<TupleId, DoubleValue>>()
                 } else {
@@ -322,7 +322,7 @@ class PQIndex(path: Path, parent: DefaultEntity, config: PQIndexConfig? = null) 
                     for (tupleId in tupleIds) {
                         val exact = txn.read(tupleId, this@PQIndex.columns)[this@PQIndex.columns[0]]
                         if (exact is VectorValue<*>) {
-                            val distance = this.predicate.distance(exact)
+                            val distance = this.predicate.distance(query, exact)
                             if (knn.size < this.predicate.k || knn.peek()!!.second > distance) {
                                 knn.offer(ComparablePair(tupleId, distance))
                             }

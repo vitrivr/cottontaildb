@@ -300,6 +300,7 @@ class VAFIndex(path: Path, parent: DefaultEntity, config: VAFIndexConfig? = null
                 }
 
                 /* Iterate over all signatures. */
+                val query = this.predicate.query.value as VectorValue<*>
                 var read = 0L
                 for (sigIndex in this.range) {
                     val signature = this@VAFIndex.signatures[sigIndex]
@@ -307,7 +308,7 @@ class VAFIndex(path: Path, parent: DefaultEntity, config: VAFIndexConfig? = null
                         if (knn.size < this.predicate.k || this.bounds.isVASSACandidate(signature, knn.peek()!!.second.value)) {
                             val value = txn.read(signature.tupleId, this@VAFIndex.columns)[this@VAFIndex.columns[0]]
                             if (value is VectorValue<*>) {
-                                knn.offer(ComparablePair(signature.tupleId, this.predicate.distance(value)))
+                                knn.offer(ComparablePair(signature.tupleId, this.predicate.distance(query, value)))
                             }
                             read += 1
                         }

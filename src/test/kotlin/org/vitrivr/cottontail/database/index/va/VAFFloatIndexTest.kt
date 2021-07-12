@@ -51,10 +51,7 @@ class VAFFloatIndexTest : AbstractIndexTest() {
 
     override val columns: Array<ColumnDef<*>> = arrayOf(
         ColumnDef(this.entityName.column("id"), Type.Long),
-        ColumnDef(
-            this.entityName.column("feature"),
-            Type.FloatVector(this.random.nextInt(128, 2048))
-        )
+        ColumnDef(this.entityName.column("feature"), Type.FloatVector(this.random.nextInt(128, 2048)))
     )
 
     override val indexColumn: ColumnDef<FloatVectorValue>
@@ -103,12 +100,7 @@ class VAFFloatIndexTest : AbstractIndexTest() {
             entityTx.scan(arrayOf(this.indexColumn)).forEach {
                 val vector = it[this.indexColumn]
                 if (vector is FloatVectorValue) {
-                    bruteForceResults.offer(
-                        ComparablePair(
-                            it.tupleId,
-                            function(vector)
-                        )
-                    )
+                    bruteForceResults.offer(ComparablePair(it.tupleId, function(query, vector)))
                 }
             }
         }

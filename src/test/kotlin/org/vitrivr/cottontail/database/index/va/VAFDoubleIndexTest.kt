@@ -51,10 +51,7 @@ class VAFDoubleIndexTest : AbstractIndexTest() {
 
     override val columns: Array<ColumnDef<*>> = arrayOf(
         ColumnDef(this.entityName.column("id"), Type.Long),
-        ColumnDef(
-            this.entityName.column("feature"),
-            Type.DoubleVector(this.random.nextInt(128, 2048))
-        )
+        ColumnDef(this.entityName.column("feature"), Type.DoubleVector(this.random.nextInt(128, 2048)))
     )
 
     override val indexColumn: ColumnDef<DoubleVectorValue>
@@ -103,10 +100,7 @@ class VAFDoubleIndexTest : AbstractIndexTest() {
                 val vector = it[this.indexColumn]
                 if (vector is DoubleVectorValue) {
                     bruteForceResults.offer(
-                        ComparablePair(
-                            it.tupleId,
-                            function(vector)
-                        )
+                        ComparablePair(it.tupleId, function(query, vector))
                     )
                 }
             }
