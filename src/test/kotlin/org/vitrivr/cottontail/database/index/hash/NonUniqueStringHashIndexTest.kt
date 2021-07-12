@@ -26,7 +26,7 @@ import kotlin.collections.HashMap
  * This is a collection of test cases to test the correct behaviour of [UniqueHashIndex] with a [StringValue].
  *
  * @author Ralph Gasser
- * @param 1.2.0
+ * @version 1.2.1
  */
 class NonUniqueStringHashIndexTest : AbstractIndexTest() {
 
@@ -66,13 +66,9 @@ class NonUniqueStringHashIndexTest : AbstractIndexTest() {
         val index = entityTx.indexForName(this.indexName)
         val indexTx = txn.getTx(index) as IndexTx
 
-        val context = BindingContext<Value>()
+        val context = BindingContext()
         for (entry in this.list.entries) {
-            val predicate = BooleanPredicate.Atomic.Literal(
-                    this.columns[0] as ColumnDef<StringValue>,
-                    ComparisonOperator.Binary.Equal(context.bind(entry.key)),
-                    false,
-            )
+            val predicate = BooleanPredicate.Atomic(ComparisonOperator.Binary.Equal(context.bind(this.columns[0]), context.bind(entry.key)), false)
             var found = false
             indexTx.filter(predicate).forEach { r ->
                 val rec = entityTx.read(r.tupleId, this.columns)
@@ -103,12 +99,8 @@ class NonUniqueStringHashIndexTest : AbstractIndexTest() {
         val indexTx = txn.getTx(index) as IndexTx
 
         var count = 0
-        val context = BindingContext<Value>()
-        val predicate = BooleanPredicate.Atomic.Literal(
-                this.columns[0] as ColumnDef<StringValue>,
-                ComparisonOperator.Binary.Equal(context.bind(StringValue(UUID.randomUUID().toString()))),
-                false
-        )
+        val context = BindingContext()
+        val predicate = BooleanPredicate.Atomic(ComparisonOperator.Binary.Equal(context.bind(this.columns[0]), context.bind(StringValue(UUID.randomUUID().toString()))), false)
         indexTx.filter(predicate).forEach { count += 1 }
         Assertions.assertEquals(0, count)
         txn.commit()

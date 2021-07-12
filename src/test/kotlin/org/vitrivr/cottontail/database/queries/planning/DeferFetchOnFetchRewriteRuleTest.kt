@@ -8,6 +8,7 @@ import org.vitrivr.cottontail.database.catalogue.CatalogueTx
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.queries.QueryContext
+import org.vitrivr.cottontail.database.queries.binding.BindingContext
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.predicates.FilterLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.projection.SelectProjectionLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.sources.EntityScanLogicalOperatorNode
@@ -26,7 +27,7 @@ import org.vitrivr.cottontail.model.basics.Type
  * A collection of test cases for the [DeferFetchOnScanRewriteRule].
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class DeferFetchOnFetchRewriteRuleTest : AbstractDatabaseTest() {
@@ -87,8 +88,9 @@ class DeferFetchOnFetchRewriteRuleTest : AbstractDatabaseTest() {
             val entityTx = txn.getTx(entity) as EntityTx
 
             /* Prepare simple SCAN followed by a FILTER, followed by a PROJECTION. */
+            val context = BindingContext()
             val scan0 = EntityScanLogicalOperatorNode(0, entityTx, this.columns.toTypedArray())
-            val filter0 = FilterLogicalOperatorNode(scan0, BooleanPredicate.Atomic.Literal(this.columns[2], ComparisonOperator.Binary.Equal(Binding(0)), false))
+            val filter0 = FilterLogicalOperatorNode(scan0, BooleanPredicate.Atomic(ComparisonOperator.Binary.Equal(context.bind(this.columns[2]), context.bindNull(this.columns[2].type)), false))
             val projection0 = SelectProjectionLogicalOperatorNode(filter0, Projection.SELECT, listOf(this.columns[0].name to null, this.columns[1].name to null))
 
             /* Step 1: Execute DeferFetchOnScanRewriteRule and make basic assertions. */
@@ -151,9 +153,10 @@ class DeferFetchOnFetchRewriteRuleTest : AbstractDatabaseTest() {
             val entityTx = txn.getTx(entity) as EntityTx
 
             /* Prepare simple SCAN followed by a FILTER, followed by a PROJECTION. */
+            val context = BindingContext()
             val scan0 = EntityScanLogicalOperatorNode(0, entityTx, arrayOf(this.columns[0], this.columns[1], this.columns[2]))
             val fetch0 = FetchLogicalOperatorNode(scan0, entityTx, arrayOf(this.columns[3]))
-            val filter0 = FilterLogicalOperatorNode(fetch0, BooleanPredicate.Atomic.Literal(this.columns[2], ComparisonOperator.Binary.Equal(Binding(0)), false))
+            val filter0 = FilterLogicalOperatorNode(fetch0, BooleanPredicate.Atomic(ComparisonOperator.Binary.Equal(context.bind(this.columns[2]), context.bindNull(this.columns[2].type)), false))
             val projection0 = SelectProjectionLogicalOperatorNode(filter0, Projection.SELECT, listOf(this.columns[0].name to null, this.columns[1].name to null))
 
             /* Step 1: Execute DeferFetchOnFetchRewriteRule and make basic assertions. */

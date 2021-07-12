@@ -25,7 +25,6 @@ import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.DoubleValue
 import org.vitrivr.cottontail.model.values.FloatVectorValue
 import org.vitrivr.cottontail.model.values.LongValue
-import org.vitrivr.cottontail.model.values.types.Value
 import java.util.*
 import java.util.stream.Stream
 import kotlin.collections.ArrayList
@@ -36,7 +35,7 @@ import kotlin.time.measureTime
  * This is a collection of test cases to test the correct behaviour of [PQIndex] for [FloatVectorValue]s.
  *
  * @author Ralph Gasser
- * @param 1.2.0
+ * @param 1.2.2
  */
 class PQFloatIndexTest : AbstractIndexTest() {
 
@@ -75,8 +74,8 @@ class PQFloatIndexTest : AbstractIndexTest() {
         val txn = this.manager.Transaction(TransactionType.SYSTEM)
         val k = 5000
         val query = FloatVectorValue.random(this.indexColumn.type.logicalSize, this.random)
-        val function = this.catalogue.functions.obtain(Signature.Closed(distance.functionName, Type.Double, arrayOf(query.type))) as VectorDistance<*>
-        val context = BindingContext<Value>()
+        val function = this.catalogue.functions.obtain(Signature.Closed(distance.functionName, arrayOf(query.type), Type.Double)) as VectorDistance<*>
+        val context = BindingContext()
         val predicate = KnnPredicate(column = this.indexColumn, k = k, distance = function, query = context.bind(query))
 
         /* Obtain necessary transactions. */
