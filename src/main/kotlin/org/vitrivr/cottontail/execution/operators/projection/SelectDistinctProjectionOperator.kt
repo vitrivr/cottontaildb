@@ -24,7 +24,7 @@ import java.nio.charset.Charset
  * Only produces a single [Record].
  *
  * @author Ralph Gasser
- * @version 1.0.1
+ * @version 1.1.0
  */
 class SelectDistinctProjectionOperator(parent: Operator, fields: List<Pair<Name.ColumnName, Name.ColumnName?>>, expected: Long) : Operator.PipelineOperator(parent) {
 
@@ -75,7 +75,7 @@ class SelectDistinctProjectionOperator(parent: Operator, fields: List<Pair<Name.
     private val bloomFilter = BloomFilter.create(RecordFunnel, expected)
 
     /** Columns produced by [SelectProjectionOperator]. */
-    override val columns: Array<ColumnDef<*>> = this.parent.columns.mapNotNull { c ->
+    override val columns: List<ColumnDef<*>> = this.parent.columns.mapNotNull { c ->
         val match = fields.find { f -> f.first.matches(c.name) }
         if (match != null) {
             val alias = match.second
@@ -87,7 +87,7 @@ class SelectDistinctProjectionOperator(parent: Operator, fields: List<Pair<Name.
         } else {
             null
         }
-    }.toTypedArray()
+    }
 
     /** [SelectProjectionOperator] does not act as a pipeline breaker. */
     override val breaker: Boolean = false
@@ -99,8 +99,9 @@ class SelectDistinctProjectionOperator(parent: Operator, fields: List<Pair<Name.
      * @return [Flow] representing this [SelectProjectionOperator]
      */
     override fun toFlow(context: QueryContext): Flow<Record> {
+        val columns = this.columns.toTypedArray()
         return this.parent.toFlow(context).map { r ->
-            StandaloneRecord(r.tupleId, this.columns, this.parentColumns.map { r[it] }.toTypedArray())
+            StandaloneRecord(r.tupleId, columns, this.parentColumns.map { r[it] }.toTypedArray())
         }.filter {
             !this.bloomFilter.mightContain(it)
         }.onEach {

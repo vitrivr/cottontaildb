@@ -8,6 +8,7 @@ import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
+import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.types.Value
@@ -17,12 +18,12 @@ import org.vitrivr.cottontail.model.values.types.Value
  * the specified [Entity]. Can  be used for late population of requested [ColumnDef]s.
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.2.0
  */
-class FetchOperator(parent: Operator, val entity: EntityTx, val fetch: Array<ColumnDef<*>>) : Operator.PipelineOperator(parent) {
+class FetchOperator(parent: Operator, val entity: EntityTx, val fetch: Map<Name.ColumnName,ColumnDef<*>>) : Operator.PipelineOperator(parent) {
 
     /** Columns returned by [FetchOperator] are a combination of the parent and the [FetchOperator]'s columns */
-    override val columns: Array<ColumnDef<*>> = (this.parent.columns + this.fetch)
+    override val columns: List<ColumnDef<*>> = this.parent.columns + this.fetch.map { it.value.copy(name = it.key) }
 
     /** [FetchOperator] does not act as a pipeline breaker. */
     override val breaker: Boolean = false
@@ -34,12 +35,14 @@ class FetchOperator(parent: Operator, val entity: EntityTx, val fetch: Array<Col
      * @return [Flow] representing this [FetchOperator]
      */
     override fun toFlow(context: QueryContext): Flow<Record> {
-        val buffer = ArrayList<Value?>(this.columns.size)
+        val fetch = this.fetch.values.toTypedArray()
+        val columns = this.columns.toTypedArray()
+        val values = arrayOfNulls<Value?>(this.columns.size)
         return this.parent.toFlow(context).map { r ->
-            buffer.clear()
-            r.forEach { _, v -> buffer.add(v) }
-            this@FetchOperator.entity.read(r.tupleId, this.fetch).forEach { _, v -> buffer.add(v) }
-            val record = StandaloneRecord(r.tupleId, this.columns, buffer.toTypedArray())
+            var i = 0
+            r.forEach { _, v -> values[i++] = v }
+            this@FetchOperator.entity.read(r.tupleId, fetch).forEach { _, v -> values[i++] = v }
+            val record = StandaloneRecord(r.tupleId, columns, values)
             context.bindings.bindRecord(record) /* Important: Make new record available to binding context. */
             record
         }

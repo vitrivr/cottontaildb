@@ -17,7 +17,7 @@ import org.vitrivr.cottontail.model.basics.Record
  * A [InsertPhysicalOperatorNode] that formalizes a INSERT operation on an [Entity].
  *
  * @author Ralph Gasser
- * @version 2.1.2
+ * @version 2.2.0
  */
 class InsertPhysicalOperatorNode(override val groupId: GroupId, val entity: Entity, val records: MutableList<Record>) : NullaryPhysicalOperatorNode() {
     companion object {
@@ -29,7 +29,7 @@ class InsertPhysicalOperatorNode(override val groupId: GroupId, val entity: Enti
         get() = NODE_NAME
 
     /** The [InsertPhysicalOperatorNode] produces the [ColumnDef]s defined in the [UpdateOperator]. */
-    override val columns: Array<ColumnDef<*>> = InsertOperator.COLUMNS
+    override val columns: List<ColumnDef<*>> = InsertOperator.COLUMNS
 
     /** The [RecordStatistics] for this [InsertPhysicalOperatorNode]. */
     override val statistics: RecordStatistics = this.entity.statistics

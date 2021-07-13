@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.database.statistics.entity
 
 import org.mapdb.DataInput2
 import org.mapdb.DataOutput2
+import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.logging.operations.Operation
 import org.vitrivr.cottontail.database.statistics.columns.ValueStatistics
 import org.vitrivr.cottontail.model.basics.Name
@@ -34,7 +35,7 @@ class EntityStatistics(var count: Long = 0L, var maximumTupleId: TupleId = -1) :
         override fun deserialize(input: DataInput2, available: Int): EntityStatistics {
             val statistics = EntityStatistics(input.unpackLong(), input.unpackLong())
             repeat(input.unpackInt()) {
-                statistics.columns[Name.ColumnName(*input.readUTF().split('.').toTypedArray())] = ValueStatistics.deserialize(input, available) as ValueStatistics<Value>
+                statistics.columns[ColumnDef.deserialize(input, available).name] = ValueStatistics.deserialize(input, available) as ValueStatistics<Value>
             }
             return statistics
         }

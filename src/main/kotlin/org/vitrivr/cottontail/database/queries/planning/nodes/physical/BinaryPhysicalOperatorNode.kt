@@ -70,19 +70,20 @@ abstract class BinaryPhysicalOperatorNode(left: Physical? = null, right: Physica
     override val canBePartitioned: Boolean = false
 
     /** By default, the [BinaryPhysicalOperatorNode] outputs the [ColumnDef] of its left input. */
-    override val columns: Array<ColumnDef<*>>
-        get() = (this.left?.columns ?: emptyArray())
+    override val columns: List<ColumnDef<*>>
+        get() = (this.left?.columns ?: emptyList())
 
     /** By default, the output size of a [UnaryPhysicalOperatorNode] is the same as its left input's output size. */
     override val outputSize: Long
         get() = (this.left?.outputSize ?: 0)
 
     /** By default, a [BinaryPhysicalOperatorNode]'s order is inherited from the left branch of of the tree. */
-    override val order: Array<Pair<ColumnDef<*>, SortOrder>>
-        get() = this.left?.order ?: emptyArray()
+    override val sortOn: List<Pair<ColumnDef<*>, SortOrder>>
+        get() = this.left?.sortOn ?: emptyList()
 
     /** By default, a [BinaryPhysicalOperatorNode]'s has no specific requirements. */
-    override val requires: Array<ColumnDef<*>> = emptyArray()
+    override val requires: List<ColumnDef<*>>
+        get() = emptyList()
 
     /** By default, a [BinaryPhysicalOperatorNode]'s [RecordStatistics] is retained from its left inpu. */
     override val statistics: RecordStatistics

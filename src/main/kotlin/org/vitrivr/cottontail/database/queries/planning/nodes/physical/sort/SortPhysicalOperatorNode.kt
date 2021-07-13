@@ -16,9 +16,9 @@ import org.vitrivr.cottontail.model.exceptions.QueryException
  * a heap sort algorithm is applied for sorting.
  *
  * @author Ralph Gasser
- * @version 2.1.1
+ * @version 2.2.0
  */
-class SortPhysicalOperatorNode(input: Physical? = null, sortOn: Array<Pair<ColumnDef<*>, SortOrder>>) : UnaryPhysicalOperatorNode(input) {
+class SortPhysicalOperatorNode(input: Physical? = null, override val sortOn: List<Pair<ColumnDef<*>, SortOrder>>) : UnaryPhysicalOperatorNode(input) {
 
     companion object {
         private const val NODE_NAME = "Order"
@@ -29,12 +29,12 @@ class SortPhysicalOperatorNode(input: Physical? = null, sortOn: Array<Pair<Colum
         get() = NODE_NAME
 
     /** The [SortPhysicalOperatorNode] requires all [ColumnDef]s used on the ORDER BY clause. */
-    override val requires: Array<ColumnDef<*>> = sortOn.map { it.first }.toTypedArray()
+    override val requires: List<ColumnDef<*>> = sortOn.map { it.first }
 
     /** The [Cost] incurred by this [SortPhysicalOperatorNode]. */
     override val cost: Cost
         get() = Cost(
-            cpu = 2 * this.order.size * Cost.COST_MEMORY_ACCESS,
+            cpu = 2 * this.sortOn.size * Cost.COST_MEMORY_ACCESS,
             memory = this.columns.sumOf {
                 if (it.type == Type.String) {
                     this.statistics[it].avgWidth * Char.SIZE_BYTES
@@ -44,11 +44,8 @@ class SortPhysicalOperatorNode(input: Physical? = null, sortOn: Array<Pair<Colum
             }.toFloat()
         ) * this.outputSize
 
-    /** A [SortPhysicalOperatorNode] orders the input in by the specified [ColumnDef]s. */
-    override val order = sortOn
-
     init {
-        if (this.order.isEmpty()) throw QueryException.QuerySyntaxException("At least one column must be specified for sorting.")
+        if (this.sortOn.isEmpty()) throw QueryException.QuerySyntaxException("At least one column must be specified for sorting.")
     }
 
     /**
@@ -56,7 +53,7 @@ class SortPhysicalOperatorNode(input: Physical? = null, sortOn: Array<Pair<Colum
      *
      * @return Copy of this [SortPhysicalOperatorNode].
      */
-    override fun copy() = SortPhysicalOperatorNode(sortOn = this.order)
+    override fun copy() = SortPhysicalOperatorNode(sortOn = this.sortOn)
 
     /**
      * Partitions this [SortPhysicalOperatorNode].
@@ -65,7 +62,7 @@ class SortPhysicalOperatorNode(input: Physical? = null, sortOn: Array<Pair<Colum
      * @return List of [OperatorNode.Physical], each representing a partition of the original tree.
      */
     override fun partition(p: Int): List<Physical> =
-        this.input?.partition(p)?.map { SortPhysicalOperatorNode(it, this.order) } ?: throw IllegalStateException("Cannot partition disconnected OperatorNode (node = $this)")
+        this.input?.partition(p)?.map { SortPhysicalOperatorNode(it, this.sortOn) } ?: throw IllegalStateException("Cannot partition disconnected OperatorNode (node = $this)")
 
     /**
      * Converts this [SortPhysicalOperatorNode] to a [HeapSortOperator].
@@ -74,7 +71,7 @@ class SortPhysicalOperatorNode(input: Physical? = null, sortOn: Array<Pair<Colum
      */
     override fun toOperator(ctx: QueryContext): Operator = HeapSortOperator(
         this.input?.toOperator(ctx) ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)"),
-        this.order,
+        this.sortOn,
         if (this.outputSize > Integer.MAX_VALUE) {
             Integer.MAX_VALUE
             /** TODO: This case requires special handling. */
@@ -84,18 +81,14 @@ class SortPhysicalOperatorNode(input: Physical? = null, sortOn: Array<Pair<Colum
     )
 
     /** Generates and returns a [String] representation of this [SortPhysicalOperatorNode]. */
-    override fun toString() = "${super.toString()}[${this.order.joinToString(",") { "${it.first.name} ${it.second}" }}]"
+    override fun toString() = "${super.toString()}[${this.sortOn.joinToString(",") { "${it.first.name} ${it.second}" }}]"
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is SortPhysicalOperatorNode) return false
-
-        if (!order.contentEquals(other.order)) return false
-
+        if (this.sortOn != other.sortOn) return false
         return true
     }
 
-    override fun hashCode(): Int {
-        return order.contentHashCode()
-    }
+    override fun hashCode(): Int = this.sortOn.hashCode()
 }

@@ -14,7 +14,7 @@ import java.io.PrintStream
  * An abstract [OperatorNode.Physical] implementation that has a single [OperatorNode] as input.
  *
  * @author Ralph Gasser
- * @version 2.1.2
+ * @version 2.2.0
  */
 abstract class UnaryPhysicalOperatorNode(input: Physical? = null) : OperatorNode.Physical() {
 
@@ -48,7 +48,7 @@ abstract class UnaryPhysicalOperatorNode(input: Physical? = null) : OperatorNode
         get() = (this.input?.totalCost ?: Cost.ZERO) + this.cost
 
     /** By default, a [UnaryPhysicalOperatorNode] has no specific requirements. */
-    override val requires: Array<ColumnDef<*>> = emptyArray()
+    override val requires: List<ColumnDef<*>> = emptyList()
 
     /** By default, [UnaryPhysicalOperatorNode]s are executable if their input is executable. */
     override val executable: Boolean
@@ -59,16 +59,16 @@ abstract class UnaryPhysicalOperatorNode(input: Physical? = null) : OperatorNode
         get() = this.input?.canBePartitioned ?: false
 
     /** By default, the [UnaryPhysicalOperatorNode] outputs the [ColumnDef] of its input. */
-    override val columns: Array<ColumnDef<*>>
-        get() = (this.input?.columns ?: emptyArray())
+    override val columns: List<ColumnDef<*>>
+        get() = (this.input?.columns ?: emptyList())
 
     /** By default, the output size of a [UnaryPhysicalOperatorNode] is the same as its input's output size. */
     override val outputSize: Long
         get() = (this.input?.outputSize ?: 0)
 
     /** By default, a [UnaryPhysicalOperatorNode]'s order is the same as its input's order. */
-    override val order: Array<Pair<ColumnDef<*>, SortOrder>>
-        get() = this.input?.order ?: emptyArray()
+    override val sortOn: List<Pair<ColumnDef<*>, SortOrder>>
+        get() = this.input?.sortOn ?: emptyList()
 
     /** By default, a [UnaryPhysicalOperatorNode]'s [RecordStatistics] is the same as its input's [RecordStatistics].*/
     override val statistics: RecordStatistics

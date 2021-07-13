@@ -13,12 +13,13 @@ import org.vitrivr.cottontail.model.basics.Record
  * parent [Operator] using the given [BooleanPredicate].
  *
  * @author Ralph Gasser
- * @version 1.2.1
+ * @version 1.3.0
  */
 class FilterOperator(parent: Operator, private val predicate: BooleanPredicate) : Operator.PipelineOperator(parent) {
 
     /** Columns returned by [FilterOperator] depend on the parent [Operator]. */
-    override val columns: Array<ColumnDef<*>> = this.parent.columns
+    override val columns: List<ColumnDef<*>>
+        get() = this.parent.columns
 
     /** [FilterOperator] does not act as a pipeline breaker. */
     override val breaker: Boolean = false

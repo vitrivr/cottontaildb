@@ -9,6 +9,7 @@ import org.vitrivr.cottontail.database.queries.predicates.Predicate
 import org.vitrivr.cottontail.database.statistics.entity.RecordStatistics
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.sources.IndexScanOperator
+import org.vitrivr.cottontail.model.basics.Name
 import java.lang.Math.floorDiv
 
 /**
@@ -17,7 +18,7 @@ import java.lang.Math.floorDiv
  * @author Ralph Gasser
  * @version 2.2.0
  */
-class RangedIndexScanPhysicalOperatorNode(override val groupId: Int, val index: IndexTx, val predicate: Predicate, val partitionIndex: Int, val partitions: Int) : NullaryPhysicalOperatorNode() {
+class RangedIndexScanPhysicalOperatorNode(override val groupId: Int, val index: IndexTx, val predicate: Predicate, val fetch: Map<Name.ColumnName,ColumnDef<*>>, val partitionIndex: Int, val partitions: Int) : NullaryPhysicalOperatorNode() {
     companion object {
         private const val NODE_NAME = "ScanIndex"
     }
@@ -29,7 +30,10 @@ class RangedIndexScanPhysicalOperatorNode(override val groupId: Int, val index: 
 
     override val outputSize = floorDiv(this.index.dbo.parent.statistics.count, this.partitions)
     override val statistics: RecordStatistics = this.index.dbo.parent.statistics
-    override val columns: Array<ColumnDef<*>> = this.index.dbo.produces
+    override val columns: List<ColumnDef<*>> = this.fetch.map {
+        require(this.index.dbo.produces.contains(it.value)) { "The given column $it is not produec by the selected index ${this.index.dbo}. This is a programmer's error!"}
+        it.value.copy(name = it.key)
+    }
     override val executable: Boolean = true
     override val canBePartitioned: Boolean = false
     override val cost = this.index.dbo.cost(this.predicate)
@@ -44,14 +48,14 @@ class RangedIndexScanPhysicalOperatorNode(override val groupId: Int, val index: 
      *
      * @return Copy of this [RangedIndexScanPhysicalOperatorNode].
      */
-    override fun copy() = RangedIndexScanPhysicalOperatorNode(this.groupId, this.index, this.predicate, this.partitionIndex, this.partitions)
+    override fun copy() = RangedIndexScanPhysicalOperatorNode(this.groupId, this.index, this.predicate, this.fetch, this.partitionIndex, this.partitions)
 
     /**
      * Converts this [RangedIndexScanPhysicalOperatorNode] to a [IndexScanOperator].
      *
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(ctx: QueryContext): Operator = IndexScanOperator(this.groupId, this.index, this.predicate, this.partitionIndex, this.partitions)
+    override fun toOperator(ctx: QueryContext): Operator = IndexScanOperator(this.groupId, this.index, this.predicate, this.fetch, this.partitionIndex, this.partitions)
 
     /**
      * [RangedIndexScanPhysicalOperatorNode] cannot be partitioned.

@@ -13,7 +13,7 @@ import java.util.*
  * An abstract [OperatorNode.Logical] implementation that has multiple [OperatorNode.Logical]s as input.
  *
  * @author Ralph Gasser
- * @version 2.1.2
+ * @version 2.2.0
  */
 abstract class NAryLogicalOperatorNode(vararg inputs: Logical) : OperatorNode.Logical() {
 
@@ -35,18 +35,20 @@ abstract class NAryLogicalOperatorNode(vararg inputs: Logical) : OperatorNode.Lo
         get() = this._inputs.firstOrNull()?.groupId ?: 0
 
     /** The [base] of a [NAryLogicalOperatorNode] is always itself. */
-    final override val base: Collection<OperatorNode.Logical>
+    final override val base: Collection<Logical>
         get() = this._inputs.flatMap { it.base }
 
     /** By default, the [NAryLogicalOperatorNode] outputs the [ColumnDef] of its input. */
-    override val columns: Array<ColumnDef<*>>
-        get() = (this.inputs.firstOrNull()?.columns ?: emptyArray())
+    override val columns: List<ColumnDef<*>>
+        get() = (this.inputs.firstOrNull()?.columns ?: emptyList())
 
     /** By default, a [NAryLogicalOperatorNode]'s output is unordered. */
-    override val order: Array<Pair<ColumnDef<*>, SortOrder>> = emptyArray()
+    override val sortOn: List<Pair<ColumnDef<*>, SortOrder>>
+        get() = emptyList()
 
     /** By default, a [NAryLogicalOperatorNode] doesn't have any requirement. */
-    override val requires: Array<ColumnDef<*>> = emptyArray()
+    override val requires: List<ColumnDef<*>>
+        get() = emptyList()
 
     init {
         inputs.forEach { this.addInput(it) }
@@ -106,7 +108,7 @@ abstract class NAryLogicalOperatorNode(vararg inputs: Logical) : OperatorNode.Lo
      * @param input The [OperatorNode.Logical]s that act as input.
      * @return Copy of this [NAryLogicalOperatorNode] with its output.
      */
-    override fun copyWithOutput(vararg input: OperatorNode.Logical): Logical {
+    override fun copyWithOutput(vararg input: Logical): Logical {
         val copy = this.copy()
         input.forEach { copy.addInput(it) }
         return (this.output?.copyWithOutput(copy) ?: copy).root

@@ -13,7 +13,7 @@ import org.vitrivr.cottontail.database.queries.predicates.bool.BooleanPredicate
  * the execution of one or many sub-queries.
  *
  * @author Ralph Gasser
- * @version 2.1.0
+ * @version 2.2.0
  */
 class FilterOnSubSelectLogicalOperatorNode(val predicate: BooleanPredicate, vararg inputs: Logical) : NAryLogicalOperatorNode(*inputs) {
 
@@ -29,8 +29,7 @@ class FilterOnSubSelectLogicalOperatorNode(val predicate: BooleanPredicate, vara
     override val inputArity: Int = this.predicate.atomics.count { it.dependsOn != -1 } + 1
 
     /** The [FilterOnSubSelectLogicalOperatorNode] requires all [ColumnDef]s used in the [BooleanPredicate]. */
-    override val requires: Array<ColumnDef<*>>
-        get() = this.predicate.columns.toTypedArray()
+    override val requires: List<ColumnDef<*>> = this.predicate.columns.toList()
 
     /**
      * Creates and returns a copy of this [FilterOnSubSelectLogicalOperatorNode] without any children or parents.

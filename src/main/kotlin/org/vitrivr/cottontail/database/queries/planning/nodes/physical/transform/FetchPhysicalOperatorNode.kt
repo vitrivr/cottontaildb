@@ -7,8 +7,9 @@ import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalOperatorNode
-import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.transform.FetchOperator
+import org.vitrivr.cottontail.model.basics.Name
+import org.vitrivr.cottontail.model.basics.Type
 
 /**
  * A [UnaryPhysicalOperatorNode] that represents fetching certain [ColumnDef] from a specific [Entity] and
@@ -17,9 +18,9 @@ import org.vitrivr.cottontail.execution.operators.transform.FetchOperator
  * This can be used for late population, which can lead to optimized performance for kNN queries
  *
  * @author Ralph Gasser
- * @version 2.1.1
+ * @version 2.2.0
  */
-class FetchPhysicalOperatorNode(input: Physical? = null, val entity: EntityTx, val fetch: Array<ColumnDef<*>>) : UnaryPhysicalOperatorNode(input) {
+class FetchPhysicalOperatorNode(input: Physical? = null, val entity: EntityTx, val fetch: Map<Name.ColumnName,ColumnDef<*>>) : UnaryPhysicalOperatorNode(input) {
 
     companion object {
         private const val NODE_NAME = "Fetch"
@@ -30,15 +31,18 @@ class FetchPhysicalOperatorNode(input: Physical? = null, val entity: EntityTx, v
         get() = NODE_NAME
 
     /** The [FetchPhysicalOperatorNode] returns the [ColumnDef] of its input + the columns to be fetched. */
-    override val columns: Array<ColumnDef<*>>
-        get() = super.columns + this.fetch
+    override val columns: List<ColumnDef<*>>
+        get() = super.columns + this.fetch.map { it.value.copy(name = it.key) }
 
     /** The [Cost] of a [FetchPhysicalOperatorNode]. */
     override val cost: Cost
-        get() = Cost(
-            Cost.COST_DISK_ACCESS_READ,
-            Cost.COST_MEMORY_ACCESS
-        ) * this.outputSize * this.fetch.map { this.statistics[it].avgWidth }.sum()
+        get() = Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_MEMORY_ACCESS) * this.outputSize * this.columns.sumOf {
+            if (it.type == Type.String) {
+                this.statistics[it].avgWidth * Char.SIZE_BYTES
+            } else {
+                it.type.physicalSize
+            }
+        }
 
     /**
      * Creates and returns a copy of this [FetchPhysicalOperatorNode] without any children or parents.
@@ -68,21 +72,21 @@ class FetchPhysicalOperatorNode(input: Physical? = null, val entity: EntityTx, v
     )
 
     /** Generates and returns a [String] representation of this [FetchPhysicalOperatorNode]. */
-    override fun toString() = "${this.groupId}:Fetch[${this.fetch.joinToString(",") { it.name.toString() }}]"
+    override fun toString() = "${this.groupId}:Fetch[${this.columns.joinToString(",") { it.name.toString() }}]"
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is FetchPhysicalOperatorNode) return false
 
-        if (entity != other.entity) return false
-        if (!fetch.contentEquals(other.fetch)) return false
+        if (this.entity != other.entity) return false
+        if (this.fetch != other.fetch) return false
 
         return true
     }
 
     override fun hashCode(): Int {
-        var result = entity.hashCode()
-        result = 31 * result + fetch.contentHashCode()
+        var result = this.entity.hashCode()
+        result = 31 * result + this.fetch.hashCode()
         return result
     }
 }

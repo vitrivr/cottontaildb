@@ -15,12 +15,12 @@ import kotlin.time.ExperimentalTime
  * statements and returns a status result set.
  *
  * @author Ralph Gasser
- * @version 1.0.1
+ * @version 1.1.0
  */
 @ExperimentalTime
 abstract class AbstractDataDefinitionOperator(protected val dboName: Name, protected val action: String) : Operator.SourceOperator() {
     companion object {
-        val COLUMNS: Array<ColumnDef<*>> = arrayOf(
+        val COLUMNS: List<ColumnDef<*>> = listOf(
             ColumnDef(Name.ColumnName("action"), Type.String, false),
             ColumnDef(Name.ColumnName("dbo"), Type.String, false),
             ColumnDef(Name.ColumnName("duration_ms"), Type.Double, false)
@@ -28,10 +28,10 @@ abstract class AbstractDataDefinitionOperator(protected val dboName: Name, prote
     }
 
     /** The [ColumnDef] produced by this [AbstractDataDefinitionOperator]. */
-    override val columns: Array<ColumnDef<*>> = COLUMNS
+    override val columns: List<ColumnDef<*>> = COLUMNS
 
     /**
      * Generates and returns a [StandaloneRecord] for the given [duration]
      */
-    fun statusRecord(duration: Duration) = StandaloneRecord(0L, this.columns, arrayOf(StringValue(this.action), StringValue(dboName.toString()), DoubleValue(duration.inMilliseconds)))
+    fun statusRecord(duration: Duration) = StandaloneRecord(0L, this.columns.toTypedArray(), arrayOf(StringValue(this.action), StringValue(dboName.toString()), DoubleValue(duration.inWholeMilliseconds)))
 }

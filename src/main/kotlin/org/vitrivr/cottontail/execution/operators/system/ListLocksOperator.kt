@@ -19,12 +19,12 @@ import org.vitrivr.cottontail.model.values.types.Value
  * An [Operator.SourceOperator] used during query execution. Used to list all locks.
  *
  * @author Ralph Gasser
- * @version 1.0.2
+ * @version 1.1.0
  */
 class ListLocksOperator(val manager: LockManager<DBO>) : Operator.SourceOperator() {
 
     companion object {
-        val COLUMNS: Array<ColumnDef<*>> = arrayOf(
+        val COLUMNS: List<ColumnDef<*>> = listOf(
             ColumnDef(Name.ColumnName("dbo"), Type.String, false),
             ColumnDef(Name.ColumnName("mode"), Type.String, false),
             ColumnDef(Name.ColumnName("owner_count"), Type.Int, false),
@@ -32,19 +32,20 @@ class ListLocksOperator(val manager: LockManager<DBO>) : Operator.SourceOperator
         )
     }
 
-    override val columns: Array<ColumnDef<*>> = COLUMNS
+    override val columns: List<ColumnDef<*>> = COLUMNS
 
     override fun toFlow(context: QueryContext): Flow<Record> {
+        val columns = this.columns.toTypedArray()
+        val values = Array<Value?>(this@ListLocksOperator.columns.size) { null }
         return flow {
             var row = 0L
-            val values = Array<Value?>(this@ListLocksOperator.columns.size) { null }
             this@ListLocksOperator.manager.allLocks().forEach { lock ->
                 values[0] = StringValue(lock.first.name.toString())
                 values[1] = StringValue(lock.second.getMode().toString())
                 val owners = lock.second.getOwners().map { it.txId }
                 values[2] = IntValue(owners.size)
                 values[3] = StringValue(owners.joinToString(", "))
-                emit(StandaloneRecord(row++, this@ListLocksOperator.columns, values))
+                emit(StandaloneRecord(row++, columns, values))
             }
         }
     }

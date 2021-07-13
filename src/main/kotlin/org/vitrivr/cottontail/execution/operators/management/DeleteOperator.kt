@@ -23,19 +23,19 @@ import kotlin.time.measureTime
  * [Entity] that it receives.
  *
  * @author Ralph Gasser
- * @version 1.1.2
+ * @version 1.2.0
  */
 class DeleteOperator(parent: Operator, val entity: EntityTx) : Operator.PipelineOperator(parent) {
     companion object {
         /** The columns produced by the [DeleteOperator]. */
-        val COLUMNS: Array<ColumnDef<*>> = arrayOf(
+        val COLUMNS: List<ColumnDef<*>> = listOf(
             ColumnDef(Name.ColumnName("deleted"), Type.Long, false),
             ColumnDef(Name.ColumnName("duration_ms"), Type.Double, false)
         )
     }
 
     /** Columns produced by the [DeleteOperator]. */
-    override val columns: Array<ColumnDef<*>> = COLUMNS
+    override val columns: List<ColumnDef<*>> = COLUMNS
 
     /** [DeleteOperator] does not act as a pipeline breaker. */
     override val breaker: Boolean = false
@@ -50,6 +50,7 @@ class DeleteOperator(parent: Operator, val entity: EntityTx) : Operator.Pipeline
     override fun toFlow(context: QueryContext): Flow<Record> {
         var deleted = 0L
         val parent = this.parent.toFlow(context)
+        val columns = this.columns.toTypedArray()
         return flow {
             val time = measureTime {
                 parent.collect {
@@ -57,7 +58,7 @@ class DeleteOperator(parent: Operator, val entity: EntityTx) : Operator.Pipeline
                     deleted += 1
                 }
             }
-            emit(StandaloneRecord(0L, this@DeleteOperator.columns, arrayOf(LongValue(deleted), DoubleValue(time.inMilliseconds))))
+            emit(StandaloneRecord(0L, columns, arrayOf(LongValue(deleted), DoubleValue(time.inWholeMilliseconds))))
         }
     }
 }

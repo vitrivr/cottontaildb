@@ -18,7 +18,7 @@ import org.vitrivr.cottontail.execution.operators.transform.MergeOperator
  * A [UnaryPhysicalOperatorNode] that represents application of a [BooleanPredicate] on some intermediate result.
  *
  * @author Ralph Gasser
- * @version 2.1.2
+ * @version 2.2.0
  */
 class FilterPhysicalOperatorNode(input: Physical? = null, val predicate: BooleanPredicate) : UnaryPhysicalOperatorNode(input) {
     companion object {
@@ -29,12 +29,8 @@ class FilterPhysicalOperatorNode(input: Physical? = null, val predicate: Boolean
     override val name: String
         get() = NODE_NAME
 
-    /** The [FilterPhysicalOperatorNode] returns the [ColumnDef] of its input. */
-    override val columns: Array<ColumnDef<*>>
-        get() = this.input?.columns ?: emptyArray()
-
     /** The [FilterPhysicalOperatorNode] requires all [ColumnDef]s used in the [KnnPredicate]. */
-    override val requires: Array<ColumnDef<*>> = this.predicate.columns.toTypedArray()
+    override val requires: List<ColumnDef<*>> = this.predicate.columns.toList()
 
     /** The [FilterPhysicalOperatorNode] can only be executed if it doesn't contain any [ComparisonOperator.Binary.Match]. */
     override val executable: Boolean
@@ -89,7 +85,7 @@ class FilterPhysicalOperatorNode(input: Physical? = null, val predicate: Boolean
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is FilterPhysicalOperatorNode) return false
-        if (predicate != other.predicate) return false
+        if (this.predicate != other.predicate) return false
         return true
     }
 

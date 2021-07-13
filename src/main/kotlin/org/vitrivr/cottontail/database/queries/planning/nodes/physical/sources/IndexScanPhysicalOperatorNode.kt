@@ -16,18 +16,18 @@ import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicateHint
 import org.vitrivr.cottontail.database.queries.sort.SortOrder
 import org.vitrivr.cottontail.database.statistics.entity.RecordStatistics
 import org.vitrivr.cottontail.database.statistics.selectivity.NaiveSelectivityCalculator
-import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.sort.MergeLimitingHeapSortOperator
 import org.vitrivr.cottontail.execution.operators.sources.IndexScanOperator
+import org.vitrivr.cottontail.model.basics.Name
 
 /**
  * A [IndexScanPhysicalOperatorNode] that represents a predicated lookup using an [AbstractIndex].
  *
  * @author Ralph Gasser
- * @version 2.1.1
+ * @version 2.2.0
  */
-class IndexScanPhysicalOperatorNode(override val groupId: Int, val index: IndexTx, val predicate: Predicate) : NullaryPhysicalOperatorNode() {
+class IndexScanPhysicalOperatorNode(override val groupId: Int, val index: IndexTx, val predicate: Predicate, val fetch: Map<Name.ColumnName,ColumnDef<*>>) : NullaryPhysicalOperatorNode() {
     companion object {
         private const val NODE_NAME = "ScanIndex"
     }
@@ -37,7 +37,10 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int, val index: IndexT
         get() = NODE_NAME
 
     /** The [ColumnDef]s produced by this [IndexScanPhysicalOperatorNode] depends on the [ColumnDef]s produced by the [Index]. */
-    override val columns: Array<ColumnDef<*>> = this.index.dbo.produces
+    override val columns: List<ColumnDef<*>> = this.fetch.map {
+        require(this.index.dbo.produces.contains(it.value)) { "The given column $it is not produec by the selected index ${this.index.dbo}. This is a programmer's error!"}
+        it.value.copy(name = it.key)
+    }
 
     /** [IndexScanPhysicalOperatorNode] are always executable. */
     override val executable: Boolean = true
@@ -63,7 +66,7 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int, val index: IndexT
      *
      * @return Copy of this [IndexScanPhysicalOperatorNode].
      */
-    override fun copy() = IndexScanPhysicalOperatorNode(this.groupId, this.index, this.predicate)
+    override fun copy() = IndexScanPhysicalOperatorNode(this.groupId, this.index, this.predicate, this.fetch)
 
     /**
      * Partitions this [IndexScanPhysicalOperatorNode].
@@ -74,7 +77,7 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int, val index: IndexT
     override fun partition(p: Int): List<NullaryPhysicalOperatorNode> {
         check(this.index.dbo.supportsPartitioning) { "Index ${index.dbo.name} does not support partitioning!" }
         return (0 until p).map {
-            RangedIndexScanPhysicalOperatorNode(this.groupId, this.index, this.predicate, it, p)
+            RangedIndexScanPhysicalOperatorNode(this.groupId, this.index, this.predicate, this.fetch, it, p)
         }
     }
 
@@ -95,12 +98,12 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int, val index: IndexT
             if (p > 1 && this.canBePartitioned) {
                 val partitions = this.partition(p)
                 val operators = partitions.map { it.toOperator(ctx) }
-                MergeLimitingHeapSortOperator(operators, arrayOf(Pair(this.predicate.produces, SortOrder.ASCENDING)), this.predicate.k.toLong())
+                MergeLimitingHeapSortOperator(operators, listOf(Pair(this.predicate.produces, SortOrder.ASCENDING)), this.predicate.k.toLong())
             } else {
-                IndexScanOperator(this.groupId, this.index, this.predicate)
+                IndexScanOperator(this.groupId, this.index, this.predicate, this.fetch)
             }
         }
-        is BooleanPredicate -> IndexScanOperator(this.groupId, this.index, this.predicate)
+        is BooleanPredicate -> IndexScanOperator(this.groupId, this.index, this.predicate, this.fetch)
         else -> throw UnsupportedOperationException("Unknown type of predicate ${this.predicate} cannot be converted to operator.")
     }
 

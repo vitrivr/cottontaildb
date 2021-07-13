@@ -7,7 +7,6 @@ import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.queries.QueryContext
-import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Record
@@ -24,20 +23,20 @@ import kotlin.time.measureTime
  * that it receives with the provided [Value].
  *
  * @author Ralph Gasser
- * @version 1.1.2
+ * @version 1.2.0
  */
 class UpdateOperator(parent: Operator, val entity: EntityTx, val values: List<Pair<ColumnDef<*>, Value?>>) : Operator.PipelineOperator(parent) {
 
     companion object {
         /** The columns produced by the [UpdateOperator]. */
-        val COLUMNS: Array<ColumnDef<*>> = arrayOf(
+        val COLUMNS: List<ColumnDef<*>> = listOf(
             ColumnDef(Name.ColumnName("updated"), Type.Long, false),
             ColumnDef(Name.ColumnName("duration_ms"), Type.Double, false)
         )
     }
 
     /** Columns produced by [UpdateOperator]. */
-    override val columns: Array<ColumnDef<*>> = COLUMNS
+    override val columns: List<ColumnDef<*>> = COLUMNS
 
     /** [UpdateOperator] does not act as a pipeline breaker. */
     override val breaker: Boolean = false
@@ -52,6 +51,7 @@ class UpdateOperator(parent: Operator, val entity: EntityTx, val values: List<Pa
     override fun toFlow(context: QueryContext): Flow<Record> {
         var updated = 0L
         val parent = this.parent.toFlow(context)
+        val columns = this.columns.toTypedArray()
         return flow {
             val time = measureTime {
                 parent.collect { record ->
@@ -62,7 +62,7 @@ class UpdateOperator(parent: Operator, val entity: EntityTx, val values: List<Pa
                     updated += 1
                 }
             }
-            emit(StandaloneRecord(0L, this@UpdateOperator.columns, arrayOf(LongValue(updated), DoubleValue(time.inMilliseconds))))
+            emit(StandaloneRecord(0L, columns, arrayOf(LongValue(updated), DoubleValue(time.inWholeMilliseconds))))
         }
     }
 }

@@ -17,12 +17,12 @@ import org.vitrivr.cottontail.model.values.types.Value
  * An [Operator.SourceOperator] used during query execution. Used to list all ongoing transactions.
  *
  * @author Ralph Gasser
- * @version 1.0.3
+ * @version 1.1.0
  */
 class ListTransactionsOperator(val manager: TransactionManager) : Operator.SourceOperator() {
 
     companion object {
-        val COLUMNS: Array<ColumnDef<*>> = arrayOf(
+        val COLUMNS: List<ColumnDef<*>> = listOf(
             ColumnDef(Name.ColumnName("txId"), Type.Long, false),
             ColumnDef(Name.ColumnName("type"), Type.String, false),
             ColumnDef(Name.ColumnName("state"), Type.String, false),
@@ -35,12 +35,13 @@ class ListTransactionsOperator(val manager: TransactionManager) : Operator.Sourc
         )
     }
 
-    override val columns: Array<ColumnDef<*>> = COLUMNS
+    override val columns: List<ColumnDef<*>> = COLUMNS
 
     override fun toFlow(context: QueryContext): Flow<Record> {
+        val values = Array<Value?>(this@ListTransactionsOperator.columns.size) { null }
+        val columns = this.columns.toTypedArray()
         return flow {
             var row = 0L
-            val values = Array<Value?>(this@ListTransactionsOperator.columns.size) { null }
             this@ListTransactionsOperator.manager.transactionHistory.forEach {
                 values[0] = LongValue(it.txId)
                 values[1] = StringValue(it.type.toString())
@@ -59,7 +60,7 @@ class ListTransactionsOperator(val manager: TransactionManager) : Operator.Sourc
                     DoubleValue((System.currentTimeMillis() - it.created) / 1000.0)
 
                 }
-                emit(StandaloneRecord(row++, this@ListTransactionsOperator.columns, values))
+                emit(StandaloneRecord(row++, columns, values))
             }
         }
     }

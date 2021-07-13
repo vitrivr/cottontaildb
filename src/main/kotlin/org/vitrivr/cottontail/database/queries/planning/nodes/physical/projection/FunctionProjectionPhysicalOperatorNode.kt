@@ -16,7 +16,7 @@ import org.vitrivr.cottontail.model.basics.Name
  * A [UnaryPhysicalOperatorNode] that represents the execution of a [Function] to generate some [ColumnDef].
  *
  * @author Ralph Gasser
- * @version 1.0.1
+ * @version 1.1.0
  */
 class FunctionProjectionPhysicalOperatorNode(input: Physical? = null, val function: Function<*>, val arguments: List<Binding>, val alias: Name.ColumnName? = null) : UnaryPhysicalOperatorNode(input) {
 
@@ -25,12 +25,12 @@ class FunctionProjectionPhysicalOperatorNode(input: Physical? = null, val functi
     }
 
     /** The column produced by this [FunctionProjectionPhysicalOperatorNode] is determined by the [Function]'s signature. */
-    override val columns: Array<ColumnDef<*>>
-        get() = (this.input?.columns ?: emptyArray()) + ColumnDef(this.alias ?: Name.ColumnName(this.function.signature.name), this.function.signature.returnType!!)
+    override val columns: List<ColumnDef<*>>
+        get() = (this.input?.columns ?: emptyList()) + ColumnDef(this.alias ?: Name.ColumnName(this.function.signature.name), this.function.signature.returnType!!)
 
     /** The [FunctionProjectionPhysicalOperatorNode] requires all [ColumnDef] used in the [Function]. */
-    override val requires: Array<ColumnDef<*>>
-        get() = this.arguments.filterIsInstance<Binding.Column>().map { it.column }.toTypedArray()
+    override val requires: List<ColumnDef<*>>
+        get() = this.arguments.filterIsInstance<Binding.Column>().map { it.column }
 
     override fun copy(): UnaryPhysicalOperatorNode = FunctionProjectionPhysicalOperatorNode(function = this.function, arguments =  this.arguments, alias = this.alias)
 

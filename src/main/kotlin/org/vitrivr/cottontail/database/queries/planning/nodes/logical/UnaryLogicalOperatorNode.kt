@@ -4,17 +4,14 @@ import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.queries.Digest
 import org.vitrivr.cottontail.database.queries.GroupId
 import org.vitrivr.cottontail.database.queries.OperatorNode
-import org.vitrivr.cottontail.database.queries.QueryContext
-import org.vitrivr.cottontail.database.queries.binding.BindingContext
 import org.vitrivr.cottontail.database.queries.sort.SortOrder
-import org.vitrivr.cottontail.model.values.types.Value
 import java.io.PrintStream
 
 /**
  * An abstract [OperatorNode.Logical] implementation that has a single [OperatorNode] as input.
  *
  * @author Ralph Gasser
- * @version 2.1.1
+ * @version 2.2.0
  */
 abstract class UnaryLogicalOperatorNode(input: Logical? = null) : OperatorNode.Logical() {
     /** Input arity of [UnaryLogicalOperatorNode] is always one. */
@@ -42,13 +39,17 @@ abstract class UnaryLogicalOperatorNode(input: Logical? = null) : OperatorNode.L
             field = value
         }
 
+    /** By default, a [UnaryLogicalOperatorNode]'s columns are retained. */
+    override val columns: List<ColumnDef<*>>
+        get() = this.input?.columns ?: emptyList()
+
     /** By default, a [UnaryLogicalOperatorNode]'s order is retained. */
-    override val order: Array<Pair<ColumnDef<*>, SortOrder>>
-        get() = this.input?.order ?: emptyArray()
+    override val sortOn: List<Pair<ColumnDef<*>, SortOrder>>
+        get() = this.input?.sortOn ?: emptyList()
 
     /** By default, a [UnaryLogicalOperatorNode]'s requirements are unspecified. */
-    override val requires: Array<ColumnDef<*>>
-        get() = emptyArray()
+    override val requires: List<ColumnDef<*>>
+        get() = emptyList()
 
     init {
         this.input = input

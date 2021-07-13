@@ -18,9 +18,9 @@ import kotlin.math.min
  * top K entries. This is semantically equivalent to a ORDER BY XY LIMIT Z. Internally, a heap sort algorithm is employed for sorting.
  *
  * @author Ralph Gasser
- * @version 2.1.1
+ * @version 2.2.0
  */
-class LimitingSortPhysicalOperatorNode(input: Physical? = null, sortOn: Array<Pair<ColumnDef<*>, SortOrder>>, val limit: Long, val skip: Long) : UnaryPhysicalOperatorNode(input) {
+class LimitingSortPhysicalOperatorNode(input: Physical? = null, sortOn: List<Pair<ColumnDef<*>, SortOrder>>, val limit: Long, val skip: Long) : UnaryPhysicalOperatorNode(input) {
     companion object {
         private const val NODE_NAME = "OrderAndLimit"
     }
@@ -30,7 +30,7 @@ class LimitingSortPhysicalOperatorNode(input: Physical? = null, sortOn: Array<Pa
         get() = NODE_NAME
 
     /** The [LimitingSortPhysicalOperatorNode] requires all [ColumnDef]s used on the ORDER BY clause. */
-    override val requires: Array<ColumnDef<*>> = sortOn.map { it.first }.toTypedArray()
+    override val requires: List<ColumnDef<*>> = sortOn.map { it.first }
 
     /** The size of the output produced by this [SortPhysicalOperatorNode]. */
     override val outputSize: Long = min((super.outputSize - this.skip), this.limit)
@@ -38,7 +38,7 @@ class LimitingSortPhysicalOperatorNode(input: Physical? = null, sortOn: Array<Pa
     /** The [Cost] incurred by this [SortPhysicalOperatorNode]. */
     override val cost: Cost
         get() = Cost(
-            cpu = 2 * (this.input?.outputSize ?: 0) * this.order.size * Cost.COST_MEMORY_ACCESS,
+            cpu = 2 * (this.input?.outputSize ?: 0) * this.sortOn.size * Cost.COST_MEMORY_ACCESS,
             memory = (this.columns.sumOf {
                 if (it.type == Type.String) {
                     this.statistics[it].avgWidth * Char.SIZE_BYTES
@@ -49,10 +49,10 @@ class LimitingSortPhysicalOperatorNode(input: Physical? = null, sortOn: Array<Pa
         )
 
     /** A [SortPhysicalOperatorNode] orders the input in by the specified [ColumnDef]s. */
-    override val order = sortOn
+    override val sortOn = sortOn
 
     init {
-        if (this.order.isEmpty()) throw QueryException.QuerySyntaxException("At least one column must be specified for sorting.")
+        if (this.sortOn.isEmpty()) throw QueryException.QuerySyntaxException("At least one column must be specified for sorting.")
     }
 
     /**
@@ -60,7 +60,7 @@ class LimitingSortPhysicalOperatorNode(input: Physical? = null, sortOn: Array<Pa
      *
      * @return Copy of this [LimitingSortPhysicalOperatorNode].
      */
-    override fun copy() = LimitingSortPhysicalOperatorNode(sortOn = this.order, limit = this.limit, skip = this.skip)
+    override fun copy() = LimitingSortPhysicalOperatorNode(sortOn = this.sortOn, limit = this.limit, skip = this.skip)
 
     /**
      * Partitions this [LimitingSortPhysicalOperatorNode].
@@ -69,7 +69,7 @@ class LimitingSortPhysicalOperatorNode(input: Physical? = null, sortOn: Array<Pa
      * @return List of [OperatorNode.Physical], each representing a partition of the original tree.
      */
     override fun partition(p: Int): List<Physical> =
-        this.input?.partition(p)?.map { LimitingSortPhysicalOperatorNode(it, this.order, this.limit, this.skip) } ?: throw IllegalStateException("Cannot partition disconnected OperatorNode (node = $this)")
+        this.input?.partition(p)?.map { LimitingSortPhysicalOperatorNode(it, this.sortOn, this.limit, this.skip) } ?: throw IllegalStateException("Cannot partition disconnected OperatorNode (node = $this)")
 
     /**
      * Converts this [LimitingSortPhysicalOperatorNode] to a [LimitingHeapSortOperator].
@@ -81,14 +81,14 @@ class LimitingSortPhysicalOperatorNode(input: Physical? = null, sortOn: Array<Pa
         val input = this.input ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)")
         return if (p > 1) {
             val partitions = input.partition(p).map { it.toOperator(ctx) }
-            MergeLimitingHeapSortOperator(partitions, this.order, this.limit)
+            MergeLimitingHeapSortOperator(partitions, this.sortOn, this.limit)
         } else {
-            LimitingHeapSortOperator(input.toOperator(ctx), this.order, this.limit, this.skip)
+            LimitingHeapSortOperator(input.toOperator(ctx), this.sortOn, this.limit, this.skip)
         }
     }
 
     /** Generates and returns a [String] representation of this [SortPhysicalOperatorNode]. */
-    override fun toString() = "${super.toString()}[${this.order.joinToString(",") { "${it.first.name} ${it.second}" }},${this.skip},${this.limit}]"
+    override fun toString() = "${super.toString()}[${this.sortOn.joinToString(",") { "${it.first.name} ${it.second}" }},${this.skip},${this.limit}]"
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -96,7 +96,7 @@ class LimitingSortPhysicalOperatorNode(input: Physical? = null, sortOn: Array<Pa
 
         if (skip != other.skip) return false
         if (limit != other.limit) return false
-        if (!order.contentEquals(other.order)) return false
+        if (this.sortOn != other.sortOn) return false
 
         return true
     }
@@ -104,7 +104,7 @@ class LimitingSortPhysicalOperatorNode(input: Physical? = null, sortOn: Array<Pa
     override fun hashCode(): Int {
         var result = skip.hashCode()
         result = 31 * result + limit.hashCode()
-        result = 31 * result + order.contentHashCode()
+        result = 31 * result + sortOn.hashCode()
         return result
     }
 }

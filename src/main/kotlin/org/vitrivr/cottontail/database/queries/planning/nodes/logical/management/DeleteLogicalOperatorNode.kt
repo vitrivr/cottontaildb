@@ -12,9 +12,9 @@ import org.vitrivr.cottontail.execution.operators.management.DeleteOperator
  * A [DeleteLogicalOperatorNode] that formalizes a DELETE operation on an [Entity].
  *
  * @author Ralph Gasser
- * @version 2.1.1
+ * @version 2.2.0
  */
-class DeleteLogicalOperatorNode(input: OperatorNode.Logical? = null, val entity: EntityTx) : UnaryLogicalOperatorNode(input) {
+class DeleteLogicalOperatorNode(input: Logical? = null, val entity: EntityTx) : UnaryLogicalOperatorNode(input) {
 
     companion object {
         private const val NODE_NAME = "Delete"
@@ -25,7 +25,7 @@ class DeleteLogicalOperatorNode(input: OperatorNode.Logical? = null, val entity:
         get() = NODE_NAME
 
     /** The [DeleteLogicalOperatorNode] produces the columns defined in the [DeleteOperator] */
-    override val columns: Array<ColumnDef<*>> = DeleteOperator.COLUMNS
+    override val columns: List<ColumnDef<*>> = DeleteOperator.COLUMNS
 
     /**
      * Creates and returns a copy of this [DeleteLogicalOperatorNode] without any children or parents.
@@ -45,15 +45,15 @@ class DeleteLogicalOperatorNode(input: OperatorNode.Logical? = null, val entity:
         if (this === other) return true
         if (other !is DeleteLogicalOperatorNode) return false
 
-        if (entity != other.entity) return false
-        if (!columns.contentEquals(other.columns)) return false
+        if (this.entity != other.entity) return false
+        if (this.columns != other.columns) return false
 
         return true
     }
 
     override fun hashCode(): Int {
         var result = entity.hashCode()
-        result = 31 * result + columns.contentHashCode()
+        result = 31 * result + columns.hashCode()
         return result
     }
 }

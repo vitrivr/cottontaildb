@@ -12,7 +12,7 @@ import org.vitrivr.cottontail.execution.operators.management.UpdateOperator
  * A [DeleteLogicalOperatorNode] that formalizes an UPDATE operation on an [Entity].
  *
  * @author Ralph Gasser
- * @version 2.1.2
+ * @version 2.2.0
  */
 class UpdateLogicalOperatorNode(input: Logical? = null, val entity: EntityTx, val values: List<Pair<ColumnDef<*>, Binding>>) : UnaryLogicalOperatorNode(input) {
 
@@ -25,7 +25,7 @@ class UpdateLogicalOperatorNode(input: Logical? = null, val entity: EntityTx, va
         get() = NODE_NAME
 
     /** The [UpdateLogicalOperatorNode] does produce the columns defined in the [UpdateOperator]. */
-    override val columns: Array<ColumnDef<*>> = UpdateOperator.COLUMNS
+    override val columns: List<ColumnDef<*>> = UpdateOperator.COLUMNS
 
     /**
      * Creates and returns a copy of this [UpdateLogicalOperatorNode] without any children or parents.

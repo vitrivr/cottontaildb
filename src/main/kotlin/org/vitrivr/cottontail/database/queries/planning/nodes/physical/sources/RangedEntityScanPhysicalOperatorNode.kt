@@ -10,15 +10,17 @@ import org.vitrivr.cottontail.database.queries.planning.nodes.physical.NullaryPh
 import org.vitrivr.cottontail.database.statistics.entity.RecordStatistics
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.sources.EntityScanOperator
+import org.vitrivr.cottontail.model.basics.Name
+import org.vitrivr.cottontail.model.basics.Type
 import java.lang.Math.floorDiv
 
 /**
  * A [NullaryPhysicalOperatorNode] that formalizes a scan of a physical [Entity] in Cottontail DB on a given range.
  *
  * @author Ralph Gasser
- * @version 2.1.1
+ * @version 2.2.0
  */
-class RangedEntityScanPhysicalOperatorNode(override val groupId: Int, val entity: EntityTx, override val columns: Array<ColumnDef<*>>, val partitionIndex: Int, val partitions: Int) : NullaryPhysicalOperatorNode() {
+class RangedEntityScanPhysicalOperatorNode(override val groupId: Int, val entity: EntityTx, val fetch: Map<Name.ColumnName,ColumnDef<*>>, val partitionIndex: Int, val partitions: Int) : NullaryPhysicalOperatorNode() {
 
 
     companion object {
@@ -29,14 +31,21 @@ class RangedEntityScanPhysicalOperatorNode(override val groupId: Int, val entity
     override val name: String
         get() = NODE_NAME
 
+    /** The [ColumnDef] produced by this [RangedEntityScanPhysicalOperatorNode]. */
+    override val columns: List<ColumnDef<*>> = this.fetch.map { it.value.copy(name = it.key) }
+
 
     override val outputSize: Long = floorDiv(this.entity.count(), this.partitions.toLong())
     override val statistics: RecordStatistics = this.entity.snapshot.statistics
     override val executable: Boolean = true
     override val canBePartitioned: Boolean = false
-    override val cost = Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_MEMORY_ACCESS) * this.outputSize * this.columns.map {
-        this.statistics[it].avgWidth
-    }.sum()
+    override val cost = Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_MEMORY_ACCESS) * this.outputSize * this.columns.sumOf {
+        if (it.type == Type.String) {
+            this.statistics[it].avgWidth * Char.SIZE_BYTES
+        } else {
+            it.type.physicalSize
+        }
+    }
 
     init {
         require(this.partitions >= 1) { "A range entity scan requires at least one partition in order to be valid." }
@@ -48,7 +57,7 @@ class RangedEntityScanPhysicalOperatorNode(override val groupId: Int, val entity
      *
      * @return Copy of this [RangedEntityScanPhysicalOperatorNode].
      */
-    override fun copy() = RangedEntityScanPhysicalOperatorNode(this.groupId, this.entity, this.columns, this.partitionIndex, this.partitions)
+    override fun copy() = RangedEntityScanPhysicalOperatorNode(this.groupId, this.entity, this.fetch, this.partitionIndex, this.partitions)
 
     /**
      * [RangedIndexScanPhysicalOperatorNode] cannot be partitioned.
@@ -62,7 +71,7 @@ class RangedEntityScanPhysicalOperatorNode(override val groupId: Int, val entity
      *
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(ctx: QueryContext) = EntityScanOperator(this.groupId, this.entity, this.columns, this.partitionIndex, this.partitions)
+    override fun toOperator(ctx: QueryContext) = EntityScanOperator(this.groupId, this.entity, this.fetch, this.partitionIndex, this.partitions)
 
     /** Generates and returns a [String] representation of this [RangedEntityScanPhysicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.columns.joinToString(",") { it.name.toString() }},${this.partitionIndex}/${this.partitions}]"
@@ -71,17 +80,17 @@ class RangedEntityScanPhysicalOperatorNode(override val groupId: Int, val entity
         if (this === other) return true
         if (other !is RangedEntityScanPhysicalOperatorNode) return false
 
-        if (entity != other.entity) return false
-        if (!columns.contentEquals(other.columns)) return false
-        if (partitionIndex != other.partitionIndex) return false
-        if (partitions != other.partitions) return false
+        if (this.entity != other.entity) return false
+        if (this.columns != other.columns) return false
+        if (this.partitionIndex != other.partitionIndex) return false
+        if (this.partitions != other.partitions) return false
 
         return true
     }
 
     override fun hashCode(): Int {
         var result = entity.hashCode()
-        result = 31 * result + columns.contentHashCode()
+        result = 31 * result + columns.hashCode()
         result = 31 * result + partitionIndex.hashCode()
         result = 31 * result + partitions.hashCode()
         return result

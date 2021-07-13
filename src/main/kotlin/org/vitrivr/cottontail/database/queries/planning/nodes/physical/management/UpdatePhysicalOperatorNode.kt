@@ -14,7 +14,7 @@ import org.vitrivr.cottontail.execution.operators.management.UpdateOperator
  * A [UpdatePhysicalOperatorNode] that formalizes a UPDATE operation on an [Entity].
  *
  * @author Ralph Gasser
- * @version 2.1.2
+ * @version 2.2.0
  */
 class UpdatePhysicalOperatorNode(input: Physical? = null, val entity: EntityTx, val values: List<Pair<ColumnDef<*>, Binding>>) : UnaryPhysicalOperatorNode(input) {
     companion object {
@@ -26,7 +26,7 @@ class UpdatePhysicalOperatorNode(input: Physical? = null, val entity: EntityTx, 
         get() = NODE_NAME
 
     /** The [UpdatePhysicalOperatorNode] produces the [ColumnDef]s defined in the [UpdateOperator]. */
-    override val columns: Array<ColumnDef<*>> = UpdateOperator.COLUMNS
+    override val columns: List<ColumnDef<*>> = UpdateOperator.COLUMNS
 
     /** The [UpdatePhysicalOperatorNode] produces a single record. */
     override val outputSize: Long = 1L

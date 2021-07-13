@@ -16,18 +16,19 @@ import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.BooleanValue
 import org.vitrivr.cottontail.model.values.IntValue
 import org.vitrivr.cottontail.model.values.StringValue
+import org.vitrivr.cottontail.model.values.types.Value
 import kotlin.time.ExperimentalTime
 
 /**
  * An [Operator.SourceOperator] used during query execution. Retrieves information regarding entities.
  *
  * @author Ralph Gasser
- * @version 1.0.2
+ * @version 1.3.0
  */
 class EntityDetailsOperator(val catalogue: DefaultCatalogue, val name: Name.EntityName) : Operator.SourceOperator() {
 
     companion object {
-        val COLUMNS: Array<ColumnDef<*>> = arrayOf(
+        val COLUMNS: List<ColumnDef<*>> = listOf(
             ColumnDef(Name.ColumnName("dbo"), Type.String, false),
             ColumnDef(Name.ColumnName("class"), Type.String, false),
             ColumnDef(Name.ColumnName("type"), Type.String, true),
@@ -37,43 +38,42 @@ class EntityDetailsOperator(val catalogue: DefaultCatalogue, val name: Name.Enti
         )
     }
 
-    override val columns: Array<ColumnDef<*>> = COLUMNS
+    override val columns: List<ColumnDef<*>> = COLUMNS
 
     @ExperimentalTime
     override fun toFlow(context: QueryContext): Flow<Record> {
         val catTxn = context.txn.getTx(this.catalogue) as CatalogueTx
         val schemaTxn = context.txn.getTx(catTxn.schemaForName(this.name.schema())) as SchemaTx
         val entityTxn = context.txn.getTx(schemaTxn.entityForName(this.name)) as EntityTx
+        val columns = this.columns.toTypedArray()
+        val values = arrayOfNulls<Value?>(this.columns.size)
         return flow {
             var rowId = 0L
-            emit(
-                StandaloneRecord(
-                    rowId++,
-                    this@EntityDetailsOperator.columns,
-                    arrayOf(StringValue(this@EntityDetailsOperator.name.toString()), StringValue("ENTITY"), null, IntValue(entityTxn.count()), null, null)
-                )
-            )
+            values[0] = StringValue(this@EntityDetailsOperator.name.toString())
+            values[1] = StringValue("ENTITY")
+            values[3] =  IntValue(entityTxn.count())
+            emit(StandaloneRecord(rowId++, columns, values))
 
-            val columns = entityTxn.listColumns()
-            columns.forEach {
-                emit(
-                    StandaloneRecord(
-                        rowId++,
-                        this@EntityDetailsOperator.columns,
-                        arrayOf(StringValue(it.name.toString()), StringValue("COLUMN"), StringValue(it.type.toString()), null, IntValue(it.columnDef.type.logicalSize), BooleanValue(it.nullable))
-                    )
-                )
+            val cols = entityTxn.listColumns()
+            values[1] =  StringValue("COLUMN")
+            values[3] = null
+            cols.forEach {
+                values[0] = StringValue(it.name.toString())
+                values[2] = StringValue(it.type.toString())
+                values[4] = IntValue(it.columnDef.type.logicalSize)
+                values[5] =  BooleanValue(it.nullable)
+                emit(StandaloneRecord(rowId++, columns, values))
             }
 
             val indexes = entityTxn.listIndexes()
+            values[1] =  StringValue("INDEX")
+            values[3] = null
+            values[4] = null
+            values[5] = null
             indexes.forEach {
-                emit(
-                    StandaloneRecord(
-                        rowId++,
-                        this@EntityDetailsOperator.columns,
-                        arrayOf(StringValue(it.name.toString()), StringValue("INDEX"), StringValue(it.type.toString()), null, null, null)
-                    )
-                )
+                values[0] = StringValue(it.name.toString())
+                values[2] = StringValue(it.type.toString())
+                emit(StandaloneRecord(rowId++, columns, values))
             }
         }
     }

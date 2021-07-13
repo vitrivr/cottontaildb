@@ -61,7 +61,7 @@ class DDLService(val catalogue: DefaultCatalogue, override val manager: Transact
      * gRPC endpoint listing the available [org.vitrivr.cottontail.database.schema.DefaultSchema]s.
      */
     override fun listSchemas(request: CottontailGrpc.ListSchemaMessage): Flow<CottontailGrpc.QueryResponseMessage> = this.withTransactionContext(request.txId, "LIST SCHEMA") { tx, q ->
-        val op = HeapSortOperator(ListSchemaOperator(this.catalogue), arrayOf(Pair(ListSchemaOperator.COLUMNS[0], SortOrder.ASCENDING)), 100)
+        val op = HeapSortOperator(ListSchemaOperator(this.catalogue), listOf(Pair(ListSchemaOperator.COLUMNS[0], SortOrder.ASCENDING)), 100)
         executeAndMaterialize(QueryContext(this.catalogue, tx), op, q, 0)
     }
 
@@ -139,7 +139,7 @@ class DDLService(val catalogue: DefaultCatalogue, override val manager: Transact
         } else {
             null
         }
-        val op = HeapSortOperator(ListEntityOperator(this.catalogue, schemaName), arrayOf(Pair(ListSchemaOperator.COLUMNS[0], SortOrder.ASCENDING)), 100)
+        val op = HeapSortOperator(ListEntityOperator(this.catalogue, schemaName), listOf(Pair(ListSchemaOperator.COLUMNS[0], SortOrder.ASCENDING)), 100)
         executeAndMaterialize(QueryContext(this.catalogue, tx), op, q, 0).catch { e ->
             throw when (e) {
                 is DatabaseException.SchemaDoesNotExistException -> Status.NOT_FOUND.withDescription(formatMessage(tx, q, "LIST ENTITIES failed ($schemaName}': Schema does not exist.")).asException()

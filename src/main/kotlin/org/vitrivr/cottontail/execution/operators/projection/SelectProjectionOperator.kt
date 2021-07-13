@@ -28,7 +28,7 @@ class SelectProjectionOperator(
     private val flattenNames = fields.all { it.first.schema() == fields.first().first.schema() }
 
     /** Columns produced by [SelectProjectionOperator]. */
-    override val columns: Array<ColumnDef<*>> = this.parent.columns.mapNotNull { c ->
+    override val columns: List<ColumnDef<*>> = this.parent.columns.mapNotNull { c ->
         val match = fields.find { f -> f.first.matches(c.name) }
         if (match != null) {
             val alias = match.second
@@ -40,7 +40,7 @@ class SelectProjectionOperator(
         } else {
             null
         }
-    }.toTypedArray()
+    }
 
 
     /** Parent [ColumnDef] to access and aggregate. */
@@ -58,8 +58,9 @@ class SelectProjectionOperator(
      * @return [Flow] representing this [SelectProjectionOperator]
      */
     override fun toFlow(context: QueryContext): Flow<Record> {
+        val columns = this.columns.toTypedArray()
         return this.parent.toFlow(context).map { r ->
-            StandaloneRecord(r.tupleId, this.columns, this.parentColumns.map { r[it] }.toTypedArray())
+            StandaloneRecord(r.tupleId, columns, this.parentColumns.map { r[it] }.toTypedArray())
         }
     }
 }

@@ -15,7 +15,7 @@ import java.util.*
  * An abstract [OperatorNode.Physical] implementation that has multiple [OperatorNode.Physical]s as input.
  *
  * @author Ralph Gasser
- * @version 2.1.2
+ * @version 2.2.0
  */
 abstract class NAryPhysicalOperatorNode(vararg inputs: Physical) : OperatorNode.Physical() {
 
@@ -51,10 +51,12 @@ abstract class NAryPhysicalOperatorNode(vararg inputs: Physical) : OperatorNode.
         }
 
     /** By default, a [NAryPhysicalOperatorNode]'s order is unspecified. */
-    override val order: Array<Pair<ColumnDef<*>, SortOrder>> = emptyArray()
+    override val sortOn: List<Pair<ColumnDef<*>, SortOrder>>
+        get() = emptyList()
 
     /** By default, a [NAryPhysicalOperatorNode]'s requirements are empty. */
-    override val requires: Array<ColumnDef<*>> = emptyArray()
+    override val requires: List<ColumnDef<*>>
+        get() =  emptyList()
 
     /** [NAryPhysicalOperatorNode]s are executable if all their inputs are executable. */
     override val executable: Boolean
@@ -64,8 +66,8 @@ abstract class NAryPhysicalOperatorNode(vararg inputs: Physical) : OperatorNode.
     override val canBePartitioned: Boolean = false
 
     /** By default, the [NAryPhysicalOperatorNode] outputs the [ColumnDef] of its input. */
-    override val columns: Array<ColumnDef<*>>
-        get() = (this.inputs.firstOrNull()?.columns ?: emptyArray())
+    override val columns: List<ColumnDef<*>>
+        get() = (this.inputs.firstOrNull()?.columns ?: emptyList())
 
     /** By default, a [UnaryPhysicalOperatorNode]'s [RecordStatistics] is retained. */
     override val statistics: RecordStatistics

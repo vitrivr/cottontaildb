@@ -3,7 +3,6 @@ package org.vitrivr.cottontail.execution.operators.projection
 import kotlinx.coroutines.flow.*
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.queries.QueryContext
-import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.functions.math.distance.VectorDistance
 import org.vitrivr.cottontail.model.basics.Record
@@ -18,15 +17,13 @@ import org.vitrivr.cottontail.utilities.math.KnnUtilities
  * to a set of query vectors and adds a [ColumnDef] that captures that distance. Used for NNS.
  *
  * @author Ralph Gasser
- * @version 1.2.1
+ * @version 1.3.0
  */
+@Deprecated("Replaced by FunctionProjectionOperator; do not use anymore!")
 class DistanceProjectionOperator(parent: Operator, val column: ColumnDef<*>, val distance: VectorDistance<*>) : Operator.PipelineOperator(parent) {
 
     /** The columns produced by this [DistanceProjectionOperator]. */
-    override val columns: Array<ColumnDef<*>> = arrayOf(
-        *this.parent.columns,
-        KnnUtilities.distanceColumnDef(this.column.name.entity())
-    )
+    override val columns: List<ColumnDef<*>> = this.parent.columns + KnnUtilities.distanceColumnDef(this.column.name.entity())
 
     /** The [DistanceProjectionOperator] is not a pipeline breaker. */
     override val breaker: Boolean = false
@@ -40,6 +37,7 @@ class DistanceProjectionOperator(parent: Operator, val column: ColumnDef<*>, val
     override fun toFlow(context: QueryContext): Flow<Record> {
         /* Obtain parent flow. */
         val parentFlow = this.parent.toFlow(context)
+        val columns = this.columns.toTypedArray()
         val values = Array<Value?>(this@DistanceProjectionOperator.columns.size) { null }
 
         /* Generate new flow. */
@@ -53,7 +51,7 @@ class DistanceProjectionOperator(parent: Operator, val column: ColumnDef<*>, val
             }
             it.forEach { _, v -> values[i++] = v }
             values[i] = distance
-            StandaloneRecord(it.tupleId, this.columns, values)
+            StandaloneRecord(it.tupleId, columns, values)
         }
     }
 }

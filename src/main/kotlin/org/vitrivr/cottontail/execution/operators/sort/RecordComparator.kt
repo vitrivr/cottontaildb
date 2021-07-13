@@ -9,9 +9,24 @@ import kotlin.math.sign
  * A set of [Comparator] implementations to compare two [Record]s.
  *
  * @author Ralph Gasser
- * @version 1.0.1
+ * @version 1.1.0
  */
 sealed class RecordComparator : Comparator<Record> {
+
+    companion object {
+        /**
+         * Converts a list of [ColumnDef] to [SortOrder] mappings to a [RecordComparator]
+         *
+         * @param sortOn [List] of [ColumnDef] to [SortOrder] mappings.
+         * @return [RecordComparator].
+         */
+        fun fromList(sortOn: List<Pair<ColumnDef<*>, SortOrder>>): RecordComparator = when {
+            sortOn.size == 1 && sortOn.first().first.nullable -> SingleNullColumnComparator(sortOn.first().first, sortOn.first().second)
+            sortOn.size == 1 && !sortOn.first().first.nullable -> SingleNonNullColumnComparator(sortOn.first().first, sortOn.first().second)
+            sortOn.size > 1 && !sortOn.any { it.first.nullable } -> MultiNullColumnComparator(sortOn)
+            else -> MultiNonNullColumnComparator(sortOn)
+        }
+    }
 
     /**
      * Compares two [Record]s based on a single [ColumnDef] that are not nullable.
@@ -41,7 +56,7 @@ sealed class RecordComparator : Comparator<Record> {
     /**
      * Compares two [Record]s based on a multiple [ColumnDef] that are not nullable.
      */
-    class MultiNonNullColumnComparator(private val sortOn: Array<Pair<ColumnDef<*>, SortOrder>>) : RecordComparator() {
+    class MultiNonNullColumnComparator(private val sortOn: List<Pair<ColumnDef<*>, SortOrder>>) : RecordComparator() {
         init {
             require(!sortOn.any { it.first.nullable }) { "Columns cannot be nullable for SingleNonNullColumnComparator but are." }
         }
@@ -59,7 +74,7 @@ sealed class RecordComparator : Comparator<Record> {
     /**
      * Compares two [Record]s based on a multiple [ColumnDef] that can be nullable.
      */
-    class MultiNullColumnComparator(private val sortOn: Array<Pair<ColumnDef<*>, SortOrder>>) : RecordComparator() {
+    class MultiNullColumnComparator(private val sortOn: List<Pair<ColumnDef<*>, SortOrder>>) : RecordComparator() {
         override fun compare(o1: Record, o2: Record): Int {
             var comparison = 0
             for (c in this.sortOn) {

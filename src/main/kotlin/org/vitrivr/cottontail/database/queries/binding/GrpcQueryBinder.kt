@@ -62,24 +62,23 @@ object GrpcQueryBinder {
      * @throws QueryException.QuerySyntaxException If [CottontailGrpc.Query] is structurally incorrect.
      */
     fun bind(query: CottontailGrpc.Query, context: QueryContext): OperatorNode.Logical {
-        /* Create FROM clause. */
-        var root: OperatorNode.Logical = parseAndBindFrom(query.from, context)
+        /* Parse and bind FROM clause; take projection into account (-> alias). */
+        val projection = if (query.hasProjection()) { query.projection } else { DEFAULT_PROJECTION }
+        var root: OperatorNode.Logical = parseAndBindFrom(query.from, projection, context)
 
-        /* Bind FUNCTION-execution. */
-        if (query.hasProjection()) {
-            query.projection.elementsList.filter { it.hasFunction() }.forEach {
-                root = this.parseAndBindFunctionProjection(root, it, context)
-            }
+        /* Parse and bind FUNCTION-execution; take projection into account (-> alias). */
+        projection.elementsList.filter { it.hasFunction() }.forEach {
+            root = this.parseAndBindFunctionProjection(root, it, context)
         }
 
-        /* Create WHERE-clause. */
+        /* Parse and bind WHERE-clause. */
         root = if (query.hasWhere()) {
             parseAndBindBooleanPredicate(root, query.where, context)
         } else {
             root
         }
 
-        /* Parse and bind ORDER-clause . */
+        /* Parse and bind ORDER-clause. */
         root = if (query.hasOrder()) {
             parseAndBindOrder(root, query.order, context)
         } else {
@@ -94,11 +93,7 @@ object GrpcQueryBinder {
         }
 
         /* Process SELECT-clause (projection). */
-        root = if (query.hasProjection()) {
-            parseAndBindProjection(root, query.projection, context)
-        } else {
-            parseAndBindProjection(root, DEFAULT_PROJECTION, context)
-        }
+        root = parseAndBindProjection(root, projection, context)
         context.register(root)
         return root
     }
@@ -207,7 +202,7 @@ object GrpcQueryBinder {
     fun bind(update: CottontailGrpc.UpdateMessage, context: QueryContext) {
         try {
             /* Parse FROM-clause. */
-            var root = parseAndBindFrom(update.from, context)
+            var root = parseAndBindFrom(update.from, DEFAULT_PROJECTION, context)
             if (root !is EntityScanLogicalOperatorNode) {
                 throw QueryException.QueryBindException("Failed to bind query. UPDATES only support entity sources as FROM-clause.")
             }
@@ -251,7 +246,7 @@ object GrpcQueryBinder {
      */
     fun bind(delete: CottontailGrpc.DeleteMessage, context: QueryContext) {
         /* Parse FROM-clause. */
-        val from = parseAndBindFrom(delete.from, context)
+        val from = parseAndBindFrom(delete.from, DEFAULT_PROJECTION, context)
         if (from !is EntityScanLogicalOperatorNode) {
             throw QueryException.QueryBindException("Failed to bind query. UPDATES only support entity sources as FROM-clause.")
         }
@@ -273,23 +268,33 @@ object GrpcQueryBinder {
      * Parses and binds a [CottontailGrpc.From] clause.
      *
      * @param from The [CottontailGrpc.From] object.
+     * @param projection The [CottontailGrpc.Projection] object.
      * @param context The [QueryContext] used for binding.
      *
      * @return The resulting [OperatorNode.Logical].
      */
-    private fun parseAndBindFrom(from: CottontailGrpc.From, context: QueryContext): OperatorNode.Logical = try {
+    private fun parseAndBindFrom(from: CottontailGrpc.From, projection: CottontailGrpc.Projection, context: QueryContext): OperatorNode.Logical = try {
+        val projectionMap = projection.elementsList.filter { it.hasColumn() }.map { it.column.fqn() to if (it.hasAlias()) { it.alias.fqn()} else { null } }.toMap()
         when (from.fromCase) {
             CottontailGrpc.From.FromCase.SCAN -> {
                 val entity = parseAndBindEntity(from.scan.entity, context)
                 val entityTx = context.txn.getTx(entity) as EntityTx
-                val columns = entityTx.listColumns().map { it.columnDef }.toTypedArray()
-                EntityScanLogicalOperatorNode(context.nextGroupId(), entity = entityTx, columns = columns)
+                val fetch = entityTx.listColumns().map {
+                    val column = it.columnDef
+                    val name = projectionMap[column.name] ?: column.name
+                    name to column
+                }.toMap()
+                EntityScanLogicalOperatorNode(context.nextGroupId(), entity = entityTx, fetch = fetch)
             }
             CottontailGrpc.From.FromCase.SAMPLE -> {
                 val entity = parseAndBindEntity(from.sample.entity, context)
                 val entityTx = context.txn.getTx(entity) as EntityTx
-                val columns = entityTx.listColumns().map { it.columnDef }.toTypedArray()
-                EntitySampleLogicalOperatorNode(context.nextGroupId(), entity = entityTx, columns = columns, p = from.sample.probability, seed = from.sample.seed)
+                val fetch = entityTx.listColumns().map {
+                    val column = it.columnDef
+                    val name = projectionMap[column.name] ?: column.name
+                    name to column
+                }.toMap()
+                EntitySampleLogicalOperatorNode(context.nextGroupId(), entity = entityTx, fetch = fetch, p = from.sample.probability, seed = from.sample.seed)
             }
             CottontailGrpc.From.FromCase.SUBSELECT -> bind(from.subSelect, context) /* Sub-select. */
             else -> throw QueryException.QuerySyntaxException("Invalid or missing FROM-clause in query.")
@@ -493,9 +498,7 @@ object GrpcQueryBinder {
      * @return The resulting [SortLogicalOperatorNode].
      */
     private fun parseAndBindOrder(input: OperatorNode.Logical, order: CottontailGrpc.Order, context: QueryContext): OperatorNode.Logical {
-        val sortOn = order.componentsList.map {
-            input.findUniqueColumnForName(it.column.fqn()) to SortOrder.valueOf(it.direction.toString())
-        }.toTypedArray()
+        val sortOn = order.componentsList.map { input.findUniqueColumnForName(it.column.fqn()) to SortOrder.valueOf(it.direction.toString()) }
         return SortLogicalOperatorNode(input, sortOn)
     }
 

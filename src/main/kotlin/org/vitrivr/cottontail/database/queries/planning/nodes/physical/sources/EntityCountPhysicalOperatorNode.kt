@@ -9,15 +9,16 @@ import org.vitrivr.cottontail.database.queries.planning.nodes.physical.NullaryPh
 import org.vitrivr.cottontail.database.queries.projection.Projection
 import org.vitrivr.cottontail.database.statistics.entity.RecordStatistics
 import org.vitrivr.cottontail.execution.operators.sources.EntityCountOperator
+import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Type
 
 /**
  * A [NullaryPhysicalOperatorNode] that formalizes the counting entries in a physical [Entity].
  *
  * @author Ralph Gasser
- * @version 2.1.2
+ * @version 2.2.0
  */
-class EntityCountPhysicalOperatorNode(override val groupId: Int, val entity: EntityTx) : NullaryPhysicalOperatorNode() {
+class EntityCountPhysicalOperatorNode(override val groupId: Int, val entity: EntityTx, val alias: Name.ColumnName? = null) : NullaryPhysicalOperatorNode() {
 
     companion object {
         private const val NODE_NAME = "CountEntity"
@@ -30,8 +31,8 @@ class EntityCountPhysicalOperatorNode(override val groupId: Int, val entity: Ent
     /** The output size of an [EntityCountPhysicalOperatorNode] is always one. */
     override val outputSize = 1L
 
-    /** */
-    override val columns: Array<ColumnDef<*>> = arrayOf(ColumnDef(this.entity.dbo.name.column(Projection.COUNT.label()), Type.Long, false))
+    /** [ColumnDef] produced by this [EntitySamplePhysicalOperatorNode]. */
+    override val columns: List<ColumnDef<*>> = listOf(ColumnDef(this.alias ?: this.entity.dbo.name.column(Projection.COUNT.label()), Type.Long, false))
 
     /** [EntityCountPhysicalOperatorNode] is always executable. */
     override val executable: Boolean = true
@@ -50,7 +51,7 @@ class EntityCountPhysicalOperatorNode(override val groupId: Int, val entity: Ent
      *
      * @return Copy of this [EntityCountPhysicalOperatorNode].
      */
-    override fun copy() = EntityCountPhysicalOperatorNode(this.groupId, this.entity)
+    override fun copy() = EntityCountPhysicalOperatorNode(this.groupId, this.entity, this.alias)
 
     /**
      * [EntityCountPhysicalOperatorNode] cannot be partitioned.
@@ -64,7 +65,7 @@ class EntityCountPhysicalOperatorNode(override val groupId: Int, val entity: Ent
      *
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(ctx: QueryContext) = EntityCountOperator(this.groupId, this.entity)
+    override fun toOperator(ctx: QueryContext) = EntityCountOperator(this.groupId, this.entity, this.alias)
 
     /** Generates and returns a [String] representation of this [EntityCountPhysicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.columns.joinToString(",") { it.name.toString() }}]"

@@ -3,7 +3,6 @@ package org.vitrivr.cottontail.execution.operators.transform
 import kotlinx.coroutines.flow.Flow
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.queries.QueryContext
-import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.*
 import org.vitrivr.cottontail.model.basics.Record
 
@@ -11,12 +10,13 @@ import org.vitrivr.cottontail.model.basics.Record
  * An [Operator.PipelineOperator] used during query execution. Limit the number of outgoing [Record]s.
  *
  * @author Ralph Gasser
- * @version 1.1.3
+ * @version 1.2.0
  */
 class LimitOperator(parent: Operator, val skip: Long, val limit: Long) : Operator.PipelineOperator(parent) {
 
     /** Columns returned by [LimitOperator] depend on the parent [Operator]. */
-    override val columns: Array<ColumnDef<*>> = this.parent.columns
+    override val columns: List<ColumnDef<*>>
+        get() = this.parent.columns
 
     /** [LimitOperator] does not act as a pipeline breaker. */
     override val breaker: Boolean = false

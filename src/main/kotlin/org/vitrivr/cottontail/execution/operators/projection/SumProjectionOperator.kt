@@ -7,7 +7,6 @@ import kotlinx.coroutines.flow.onEach
 import org.vitrivr.cottontail.database.column.*
 import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.projection.Projection
-import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.exceptions.OperatorSetupException
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.model.basics.Name
@@ -16,7 +15,6 @@ import org.vitrivr.cottontail.model.basics.Type
 import org.vitrivr.cottontail.model.exceptions.ExecutionException
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.*
-import org.vitrivr.cottontail.model.values.types.Value
 
 /**
  * An [Operator.PipelineOperator] used during query execution. It calculates the SUM of all values it
@@ -36,7 +34,7 @@ class SumProjectionOperator(
     override val breaker: Boolean = true
 
     /** Columns produced by [SumProjectionOperator]. */
-    override val columns: Array<ColumnDef<*>> = this.parent.columns.mapNotNull { c ->
+    override val columns: List<ColumnDef<*>> = this.parent.columns.mapNotNull { c ->
         val match = fields.find { f -> f.first.matches(c.name) }
         if (match != null) {
             if (!c.type.numeric) throw OperatorSetupException(
@@ -55,7 +53,7 @@ class SumProjectionOperator(
         } else {
             null
         }
-    }.toTypedArray()
+    }
 
     /** Parent [ColumnDef] to access and aggregate. */
     private val parentColumns = this.parent.columns.filter { c ->
@@ -70,12 +68,13 @@ class SumProjectionOperator(
      */
     override fun toFlow(context: QueryContext): Flow<Record> {
         val parentFlow = this.parent.toFlow(context)
+        val columns = this.columns.toTypedArray()
+        val values = this.parentColumns.map { 0.0 }.toTypedArray()
         return flow {
             /* Prepare holder of type double. */
-            val sum = this@SumProjectionOperator.parentColumns.map { 0.0 }.toTypedArray()
             parentFlow.onEach {
                 this@SumProjectionOperator.parentColumns.forEachIndexed { i, c ->
-                    sum[i] += when (val value = it[c]) {
+                    values[i] += when (val value = it[c]) {
                         is ByteValue -> value.value.toDouble()
                         is ShortValue -> value.value.toDouble()
                         is IntValue -> value.value.toDouble()
@@ -89,8 +88,7 @@ class SumProjectionOperator(
             }.collect()
 
             /** Emit record. */
-            val results = Array<Value?>(sum.size) { DoubleValue(sum[it]) }
-            emit(StandaloneRecord(0L, this@SumProjectionOperator.columns, results))
+            emit(StandaloneRecord(0L, columns, values.map { DoubleValue(it) }.toTypedArray()))
         }
     }
 }

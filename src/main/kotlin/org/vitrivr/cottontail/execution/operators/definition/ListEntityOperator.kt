@@ -8,31 +8,31 @@ import org.vitrivr.cottontail.database.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.schema.SchemaTx
-import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.basics.Type
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.StringValue
+import org.vitrivr.cottontail.model.values.types.Value
 import kotlin.time.ExperimentalTime
 
 /**
  * An [Operator.SourceOperator] used during query execution. Lists all available [Entity]s.
  *
  * @author Ralph Gasser
- * @version 1.0.2
+ * @version 1.1.0
  */
 class ListEntityOperator(val catalogue: DefaultCatalogue, val schema: Name.SchemaName? = null) : Operator.SourceOperator() {
 
     companion object {
-        val COLUMNS: Array<ColumnDef<*>> = arrayOf(
+        val COLUMNS: List<ColumnDef<*>> = listOf(
             ColumnDef(Name.ColumnName(Constants.COLUMN_NAME_DBO), Type.String, false),
             ColumnDef(Name.ColumnName(Constants.COLUMN_NAME_CLASS), Type.String, false)
         )
     }
 
-    override val columns: Array<ColumnDef<*>> = COLUMNS
+    override val columns: List<ColumnDef<*>> = COLUMNS
 
     @ExperimentalTime
     override fun toFlow(context: QueryContext): Flow<Record> {
@@ -42,17 +42,16 @@ class ListEntityOperator(val catalogue: DefaultCatalogue, val schema: Name.Schem
         } else {
             txn.listSchemas()
         }
+        val columns = this.columns.toTypedArray()
+        val values = arrayOfNulls<Value?>(columns.size)
+        values[1] = StringValue("ENTITY")
         return flow {
+            var i = 0L
             for (schema in schemas) {
                 val schemaTxn = context.txn.getTx(schema) as SchemaTx
                 for (entity in schemaTxn.listEntities()) {
-                    emit(
-                        StandaloneRecord(
-                            0L,
-                            this@ListEntityOperator.columns,
-                            arrayOf(StringValue(entity.name.toString()), StringValue("ENTITY"))
-                        )
-                    )
+                    values[0] = StringValue(entity.name.toString())
+                    emit(StandaloneRecord(i++, columns, values))
                 }
             }
         }

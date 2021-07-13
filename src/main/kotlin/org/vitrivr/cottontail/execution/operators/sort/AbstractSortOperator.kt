@@ -10,21 +10,18 @@ import org.vitrivr.cottontail.model.basics.Record
  * returns the [Record] in sorted order. Acts as pipeline breaker.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
-abstract class AbstractSortOperator(parent: Operator, sortOn: Array<Pair<ColumnDef<*>, SortOrder>>) : Operator.PipelineOperator(parent) {
+abstract class AbstractSortOperator(parent: Operator, sortOn: List<Pair<ColumnDef<*>, SortOrder>>) : Operator.PipelineOperator(parent) {
 
-    /** The [AbstractSortOperator] retains the [ColumnDef] of the input. */
-    override val columns: Array<ColumnDef<*>> = this.parent.columns
+    /** The [AbstractSortOperator] retains the [ColumnDef] of the
+     *  input. */
+    override val columns: List<ColumnDef<*>>
+        get() = this.parent.columns
 
     /** The [AbstractSortOperator] is always a pipeline breaker. */
     override val breaker: Boolean = true
 
     /** The [Comparator] used for sorting. */
-    protected val comparator: Comparator<Record> = when {
-        sortOn.size == 1 && sortOn.first().first.nullable -> RecordComparator.SingleNullColumnComparator(sortOn.first().first, sortOn.first().second)
-        sortOn.size == 1 && !sortOn.first().first.nullable -> RecordComparator.SingleNonNullColumnComparator(sortOn.first().first, sortOn.first().second)
-        sortOn.size > 1 && !sortOn.any { it.first.nullable } -> RecordComparator.MultiNullColumnComparator(sortOn)
-        else -> RecordComparator.MultiNonNullColumnComparator(sortOn)
-    }
+    protected val comparator: Comparator<Record> = RecordComparator.fromList(sortOn)
 }

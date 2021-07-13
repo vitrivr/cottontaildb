@@ -10,6 +10,8 @@ import org.vitrivr.cottontail.database.queries.planning.nodes.physical.NullaryPh
 import org.vitrivr.cottontail.database.statistics.entity.RecordStatistics
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.sources.EntitySampleOperator
+import org.vitrivr.cottontail.model.basics.Name
+import org.vitrivr.cottontail.model.basics.Type
 import kotlin.math.min
 
 /**
@@ -18,13 +20,7 @@ import kotlin.math.min
  * @author Ralph Gasser
  * @version 2.2.0
  */
-class EntitySamplePhysicalOperatorNode(
-    override val groupId: Int,
-    val entity: EntityTx,
-    override val columns: Array<ColumnDef<*>>,
-    val p: Float,
-    val seed: Long = System.currentTimeMillis()
-) : NullaryPhysicalOperatorNode() {
+class EntitySamplePhysicalOperatorNode(override val groupId: Int, val entity: EntityTx, val fetch: Map<Name.ColumnName,ColumnDef<*>>, val p: Float, val seed: Long = System.currentTimeMillis()) : NullaryPhysicalOperatorNode() {
 
     companion object {
         private const val NODE_NAME = "SampleEntity"
@@ -38,6 +34,9 @@ class EntitySamplePhysicalOperatorNode(
     override val name: String
         get() = NODE_NAME
 
+    /** The [ColumnDef] produced by this [EntityScanPhysicalOperatorNode]. */
+    override val columns: List<ColumnDef<*>> = this.fetch.map { it.value.copy(name = it.key) }
+
     /** The output size of the [EntitySamplePhysicalOperatorNode] is actually limited by the size of the [Entity]s. */
     override val outputSize: Long = (this.entity.count() * this.p).toLong()
 
@@ -48,9 +47,13 @@ class EntitySamplePhysicalOperatorNode(
     override val canBePartitioned: Boolean = true
 
     /** The estimated [Cost] of sampling the [Entity]. */
-    override val cost = Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_MEMORY_ACCESS) * this.outputSize * this.columns.map {
-        this.statistics[it].avgWidth
-    }.sum()
+    override val cost = Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_MEMORY_ACCESS) * this.outputSize * this.columns.sumOf {
+        if (it.type == Type.String) {
+            this.statistics[it].avgWidth * Char.SIZE_BYTES
+        } else {
+            it.type.physicalSize
+        }
+    }
 
     /** The [RecordStatistics] is taken from the underlying [Entity]. [RecordStatistics] are used by the query planning for [Cost] estimation. */
     override val statistics: RecordStatistics = this.entity.dbo.statistics
@@ -60,7 +63,7 @@ class EntitySamplePhysicalOperatorNode(
      *
      * @return Copy of this [EntityScanPhysicalOperatorNode].
      */
-    override fun copy() = EntitySamplePhysicalOperatorNode(this.groupId, this.entity, this.columns, this.p, this.seed)
+    override fun copy() = EntitySamplePhysicalOperatorNode(this.groupId, this.entity, this.fetch, this.p, this.seed)
 
     /**
      * Partitions this [EntitySamplePhysicalOperatorNode].
@@ -77,7 +80,7 @@ class EntitySamplePhysicalOperatorNode(
      *
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(ctx: QueryContext) = EntitySampleOperator(this.groupId, this.entity, this.columns, this.p, this.seed)
+    override fun toOperator(ctx: QueryContext) = EntitySampleOperator(this.groupId, this.entity, this.fetch, this.p, this.seed)
 
     /** Generates and returns a [String] representation of this [EntitySamplePhysicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.columns.joinToString(",") { it.name.toString() }}]"
@@ -87,7 +90,7 @@ class EntitySamplePhysicalOperatorNode(
         if (other !is EntitySamplePhysicalOperatorNode) return false
 
         if (this.entity != other.entity) return false
-        if (!this.columns.contentEquals(other.columns)) return false
+        if (this.columns != other.columns) return false
         if (this.outputSize != other.outputSize) return false
         if (this.seed != other.seed) return false
 
@@ -96,7 +99,7 @@ class EntitySamplePhysicalOperatorNode(
 
     override fun hashCode(): Int {
         var result = this.entity.hashCode()
-        result = 31 * result + this.columns.contentHashCode()
+        result = 31 * result + this.columns.hashCode()
         result = 31 * result + this.outputSize.hashCode()
         result = 31 * result + this.seed.hashCode()
         return result

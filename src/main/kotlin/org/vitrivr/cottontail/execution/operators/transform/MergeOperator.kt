@@ -5,7 +5,6 @@ import kotlinx.coroutines.flow.flattenMerge
 import kotlinx.coroutines.flow.flowOf
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.queries.QueryContext
-import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.model.basics.Record
 
@@ -16,12 +15,13 @@ import org.vitrivr.cottontail.model.basics.Record
  * outgoing [Flow] may be arbitrary.
  *
  * @author Ralph Gasser
- * @version 1.0.1
+ * @version 1.1.0
  */
 class MergeOperator(parents: List<Operator>) : Operator.MergingPipelineOperator(parents) {
 
     /** The columns produced by this [MergeOperator]. */
-    override val columns: Array<ColumnDef<*>> = this.parents.first().columns
+    override val columns: List<ColumnDef<*>>
+        get() = this.parents.first().columns
 
     /** [MergeOperator] does act as a pipeline breaker. */
     override val breaker: Boolean = false

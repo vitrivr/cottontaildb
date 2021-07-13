@@ -22,7 +22,7 @@ import org.vitrivr.cottontail.execution.operators.predicates.FilterOnSubselectOp
  * the execution of one or many sub-queries.
  *
  * @author Ralph Gasser
- * @version 2.1.1
+ * @version 2.2.0
  */
 class FilterOnSubSelectPhysicalOperatorNode(val predicate: BooleanPredicate, vararg inputs: Physical) : NAryPhysicalOperatorNode(*inputs) {
     companion object {
@@ -36,12 +36,8 @@ class FilterOnSubSelectPhysicalOperatorNode(val predicate: BooleanPredicate, var
     /** The [inputArity] of a [FilterOnSubSelectPhysicalOperatorNode] depends on the [BooleanPredicate]. */
     override val inputArity: Int = this.predicate.atomics.count { it.dependsOn != -1 } + 1
 
-    /** The [FilterOnSubSelectPhysicalOperatorNode] returns the [ColumnDef] of its input. */
-    override val columns: Array<ColumnDef<*>>
-        get() = this.inputs[0].columns
-
     /** The [FilterOnSubSelectPhysicalOperatorNode] requires all [ColumnDef]s used in the [KnnPredicate]. */
-    override val requires: Array<ColumnDef<*>> = this.predicate.columns.toTypedArray()
+    override val requires: List<ColumnDef<*>> = this.predicate.columns.toList()
 
     /** The [FilterOnSubSelectPhysicalOperatorNode] can only be executed if it doesn't contain any [ComparisonOperator.Binary.Match]. */
     override val executable: Boolean

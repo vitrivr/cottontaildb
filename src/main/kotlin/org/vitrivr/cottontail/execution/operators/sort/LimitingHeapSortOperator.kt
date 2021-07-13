@@ -19,12 +19,13 @@ import org.vitrivr.cottontail.model.basics.Record
  * Acts as pipeline breaker.
  *
  * @author Ralph Gasser
- * @version 1.0.1
+ * @version 1.1.0
  */
-class LimitingHeapSortOperator(parent: Operator, sortOn: Array<Pair<ColumnDef<*>, SortOrder>>, private val limit: Long, private val skip: Long) : AbstractSortOperator(parent, sortOn) {
+class LimitingHeapSortOperator(parent: Operator, sortOn: List<Pair<ColumnDef<*>, SortOrder>>, private val limit: Long, private val skip: Long) : AbstractSortOperator(parent, sortOn) {
 
     /** The [HeapSortOperator] retains the [ColumnDef] of the input. */
-    override val columns: Array<ColumnDef<*>> = this.parent.columns
+    override val columns: List<ColumnDef<*>>
+        get() = this.parent.columns
 
     /** The [HeapSortOperator] is always a pipeline breaker. */
     override val breaker: Boolean = true

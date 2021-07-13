@@ -9,7 +9,7 @@ import org.vitrivr.cottontail.database.queries.sort.SortOrder
  * An abstract [OperatorNode.Logical] implementation that has no input.
  *
  * @author Ralph Gasser
- * @version 2.1.2
+ * @version 2.2.0
  */
 abstract class NullaryLogicalOperatorNode : OperatorNode.Logical() {
     /** Input arity of [NullaryLogicalOperatorNode] is always zero. */
@@ -19,14 +19,16 @@ abstract class NullaryLogicalOperatorNode : OperatorNode.Logical() {
     final override val depth: Int = 0
 
     /** The [base] of a [NullaryLogicalOperatorNode] is always itself. */
-    final override val base: Collection<OperatorNode.Logical>
+    final override val base: Collection<Logical>
         get() = listOf(this)
 
     /** By default, a [NullaryLogicalOperatorNode]'s output is unordered. */
-    override val order: Array<Pair<ColumnDef<*>, SortOrder>> = emptyArray()
+    override val sortOn: List<Pair<ColumnDef<*>, SortOrder>>
+        get() = emptyList()
 
     /** By default, a [NullaryLogicalOperatorNode] doesn't have any requirement. */
-    override val requires: Array<ColumnDef<*>> = emptyArray()
+    override val requires: List<ColumnDef<*>>
+        get() = emptyList()
 
     /**
      * Creates and returns a copy of this [NullaryLogicalOperatorNode] without any children or parents.
@@ -56,7 +58,7 @@ abstract class NullaryLogicalOperatorNode : OperatorNode.Logical() {
      * @param input The [OperatorNode.Logical]s that act as input. Must be empty!
      * @return Copy of this [NullaryLogicalOperatorNode] with its output.
      */
-    override fun copyWithOutput(vararg input: OperatorNode.Logical): Logical {
+    override fun copyWithOutput(vararg input: Logical): Logical {
         require(input.isEmpty()) { "Cannot provide input for NullaryLogicalOperatorNode." }
         val copy = this.copy()
         return (this.output?.copyWithOutput(copy) ?: copy).root

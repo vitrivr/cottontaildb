@@ -4,7 +4,6 @@ import kotlinx.coroutines.flow.Flow
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.queries.GroupId
 import org.vitrivr.cottontail.database.queries.QueryContext
-import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.exceptions.OperatorSetupException
 import org.vitrivr.cottontail.model.basics.Record
 
@@ -12,7 +11,7 @@ import org.vitrivr.cottontail.model.basics.Record
  * An [Operator] used during query execution and processing.
  *
  * @author Ralph Gasser
- * @version 1.4.0
+ * @version 1.5.0
  */
 sealed class Operator {
 
@@ -20,7 +19,7 @@ sealed class Operator {
     abstract val groupId: GroupId
 
     /** The list of [ColumnDef]s produced by this [Operator]. */
-    abstract val columns: Array<ColumnDef<*>>
+    abstract val columns: List<ColumnDef<*>>
 
     /**
      * Converts this [Operator] to a [Flow] and returns it.
@@ -36,7 +35,7 @@ sealed class Operator {
      * intermediate results is required.
      *
      * @author Ralph Gasser
-     * @version 1.3.0
+     * @version 1.4.0
      */
     abstract class PipelineOperator(val parent: Operator) : Operator() {
         /** Flag indicating whether this [PipelineOperator] acts as a pipeline breaker. */
@@ -51,7 +50,7 @@ sealed class Operator {
      * An [Operator] that can be pipelined and has multiple, incoming parent [Operator]s.
      *
      * @author Ralph Gasser
-     * @version 1.3.0
+     * @version 1.4.0
      */
     abstract class MergingPipelineOperator(val parents: List<Operator>) : Operator() {
         init {
@@ -72,10 +71,10 @@ sealed class Operator {
      * An [Operator] that acts as a sink, i.e., processes and consumes [Record]s.
      *
      * @author Ralph Gasser
-     * @version 1.3.0
+     * @version 1.5.0
      */
     abstract class SinkOperator(val parent: Operator) : Operator() {
-        final override val columns: Array<ColumnDef<*>> = emptyArray()
+        final override val columns: List<ColumnDef<*>> = emptyList()
 
         /** The [GroupId] of a [SinkOperator] is inherited by the parent [Operator]. */
         override val groupId: GroupId
@@ -86,7 +85,7 @@ sealed class Operator {
      * An [Operator] that acts as a source, i.e., thus has no parent [Operator].
      *
      * @author Ralph Gasser
-     * @version 1.3.0
+     * @version 1.5.0
      */
     abstract class SourceOperator(override val groupId: GroupId = 0) : Operator()
 }

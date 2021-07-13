@@ -12,11 +12,11 @@ import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.values.types.Value
 
 /**
- * A context for query binding and planning. Tracks logical and physical query plans and
- * enables late binding of [Binding]s to [Node]s
+ * A context for query binding and planning. Tracks logical and physical query plans, enables late binding of [Value]s
+ * and isolates different strands of execution within a query from one another.
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.2.0
  */
 class QueryContext(val catalogue: Catalogue, val txn: TransactionContext) {
 
@@ -35,12 +35,12 @@ class QueryContext(val catalogue: Catalogue, val txn: TransactionContext) {
         internal set
 
     /** Output [ColumnDef] for the query held by this [QueryContext] (as per canonical plan). */
-    val output: Array<ColumnDef<*>>?
+    val output: List<ColumnDef<*>>?
         get() = this.nodes[0]?.columns
 
     /** Output order for the query held by this [QueryContext] (as per canonical plan). */
-    val order: Array<Pair<ColumnDef<*>, SortOrder>>?
-        get() = this.nodes[0]?.order
+    val order: List<Pair<ColumnDef<*>, SortOrder>>?
+        get() = this.nodes[0]?.sortOn
 
     @Volatile
     private var groupIdCounter: GroupId = 0
