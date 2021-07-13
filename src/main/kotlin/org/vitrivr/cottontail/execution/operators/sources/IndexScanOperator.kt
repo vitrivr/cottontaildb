@@ -30,9 +30,17 @@ class IndexScanOperator(groupId: GroupId, private val index: IndexTx, private va
      * @return [Flow] representing this [IndexScanOperator]
      */
     override fun toFlow(context: QueryContext): Flow<Record> = flow {
-        this@IndexScanOperator.index.filterRange(this@IndexScanOperator.predicate, this@IndexScanOperator.partitionIndex, this@IndexScanOperator.partitions).forEach {
-            context.bindings.bindRecord(it) /* Important: Make new record available to binding context. */
-            emit(it)
+        if (this@IndexScanOperator.partitions == 1) {
+            this@IndexScanOperator.index.filter(this@IndexScanOperator.predicate).forEach {
+                context.bindings.bindRecord(it) /* Important: Make new record available to binding context. */
+                emit(it)
+            }
+        } else {
+            this@IndexScanOperator.index.filterRange(this@IndexScanOperator.predicate, this@IndexScanOperator.partitionIndex, this@IndexScanOperator.partitions).forEach {
+                context.bindings.bindRecord(it) /* Important: Make new record available to binding context. */
+                emit(it)
+            }
         }
+
     }
 }
