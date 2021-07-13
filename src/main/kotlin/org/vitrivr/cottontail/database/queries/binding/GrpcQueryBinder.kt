@@ -86,18 +86,18 @@ object GrpcQueryBinder {
             root
         }
 
-        /* Process SELECT-clause (projection). */
-        root = if (query.hasProjection()) {
-            parseAndBindProjection(root, query.projection, context)
-        } else {
-            parseAndBindProjection(root, DEFAULT_PROJECTION, context)
-        }
-
         /* Process LIMIT and SKIP. */
         root = if (query.limit > 0L || query.skip > 0L) {
             LimitLogicalOperatorNode(root, query.limit, query.skip)
         } else {
             root
+        }
+
+        /* Process SELECT-clause (projection). */
+        root = if (query.hasProjection()) {
+            parseAndBindProjection(root, query.projection, context)
+        } else {
+            parseAndBindProjection(root, DEFAULT_PROJECTION, context)
         }
         context.register(root)
         return root
