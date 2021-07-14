@@ -18,7 +18,7 @@ import java.lang.Math.floorDiv
  * @author Ralph Gasser
  * @version 2.2.0
  */
-class RangedIndexScanPhysicalOperatorNode(override val groupId: Int, val index: IndexTx, val predicate: Predicate, val fetch: Map<Name.ColumnName,ColumnDef<*>>, val partitionIndex: Int, val partitions: Int) : NullaryPhysicalOperatorNode() {
+class RangedIndexScanPhysicalOperatorNode(override val groupId: Int, val index: IndexTx, val predicate: Predicate, val fetch: List<Pair<Name.ColumnName,ColumnDef<*>>>, val partitionIndex: Int, val partitions: Int) : NullaryPhysicalOperatorNode() {
     companion object {
         private const val NODE_NAME = "ScanIndex"
     }
@@ -31,8 +31,8 @@ class RangedIndexScanPhysicalOperatorNode(override val groupId: Int, val index: 
     override val outputSize = floorDiv(this.index.dbo.parent.statistics.count, this.partitions)
     override val statistics: RecordStatistics = this.index.dbo.parent.statistics
     override val columns: List<ColumnDef<*>> = this.fetch.map {
-        require(this.index.dbo.produces.contains(it.value)) { "The given column $it is not produec by the selected index ${this.index.dbo}. This is a programmer's error!"}
-        it.value.copy(name = it.key)
+        require(this.index.dbo.produces.contains(it.second)) { "The given column $it is not produec by the selected index ${this.index.dbo}. This is a programmer's error!"}
+        it.second.copy(name = it.first)
     }
     override val executable: Boolean = true
     override val canBePartitioned: Boolean = false

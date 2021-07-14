@@ -18,12 +18,12 @@ import org.vitrivr.cottontail.model.basics.Record
  * @author Ralph Gasser
  * @version 1.5.0
  */
-class IndexScanOperator(groupId: GroupId, private val index: IndexTx, private val predicate: Predicate, private val fetch: Map<Name.ColumnName,ColumnDef<*>>, private val partitionIndex: Int = 0, private val partitions: Int = 1) : Operator.SourceOperator(groupId) {
+class IndexScanOperator(groupId: GroupId, private val index: IndexTx, private val predicate: Predicate, private val fetch: List<Pair<Name.ColumnName,ColumnDef<*>>>, private val partitionIndex: Int = 0, private val partitions: Int = 1) : Operator.SourceOperator(groupId) {
 
     /** The [ColumnDef] produced by this [IndexScanOperator]. */
     override val columns: List<ColumnDef<*>> = this.fetch.map {
-        require(this.index.dbo.produces.contains(it.value)) { "The given column $it is not produced by the selected index ${this.index.dbo}. This is a programmer's error!"}
-        it.value.copy(name = it.key)
+        require(this.index.dbo.produces.contains(it.second)) { "The given column $it is not produced by the selected index ${this.index.dbo}. This is a programmer's error!"}
+        it.second.copy(name = it.first)
     }
 
     /**

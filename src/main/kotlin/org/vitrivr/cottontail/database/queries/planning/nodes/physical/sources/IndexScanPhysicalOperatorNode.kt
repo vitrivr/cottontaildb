@@ -27,7 +27,7 @@ import org.vitrivr.cottontail.model.basics.Name
  * @author Ralph Gasser
  * @version 2.2.0
  */
-class IndexScanPhysicalOperatorNode(override val groupId: Int, val index: IndexTx, val predicate: Predicate, val fetch: Map<Name.ColumnName,ColumnDef<*>>) : NullaryPhysicalOperatorNode() {
+class IndexScanPhysicalOperatorNode(override val groupId: Int, val index: IndexTx, val predicate: Predicate, val fetch: List<Pair<Name.ColumnName,ColumnDef<*>>>) : NullaryPhysicalOperatorNode() {
     companion object {
         private const val NODE_NAME = "ScanIndex"
     }
@@ -38,8 +38,8 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int, val index: IndexT
 
     /** The [ColumnDef]s produced by this [IndexScanPhysicalOperatorNode] depends on the [ColumnDef]s produced by the [Index]. */
     override val columns: List<ColumnDef<*>> = this.fetch.map {
-        require(this.index.dbo.produces.contains(it.value)) { "The given column $it is not produec by the selected index ${this.index.dbo}. This is a programmer's error!"}
-        it.value.copy(name = it.key)
+        require(this.index.dbo.produces.contains(it.second)) { "The given column $it is not produced by the selected index ${this.index.dbo}. This is a programmer's error!"}
+        it.second.copy(name = it.first)
     }
 
     /** [IndexScanPhysicalOperatorNode] are always executable. */
