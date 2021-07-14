@@ -20,7 +20,7 @@ import org.vitrivr.cottontail.model.values.LongValue
  * @author Ralph Gasser
  * @version 1.5.0
  */
-class EntityCountOperator(groupId: GroupId, entity: EntityTx, alias: Name.ColumnName? = null) : AbstractEntityOperator(groupId, entity, emptyMap()) {
+class EntityCountOperator(groupId: GroupId, entity: EntityTx, alias: Name.ColumnName? = null) : AbstractEntityOperator(groupId, entity, emptyList()) {
 
     /** The [ColumnDef] returned by this [EntitySampleOperator]. */
     override val columns: List<ColumnDef<*>> = listOf(

@@ -5,7 +5,6 @@ import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.BinaryLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.NAryLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.UnaryLogicalOperatorNode
-import org.vitrivr.cottontail.database.queries.planning.nodes.logical.sources.EntityScanLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.transform.FetchLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.rules.RewriteRule
 
@@ -20,12 +19,12 @@ object DeferFetchOnFetchRewriteRule : RewriteRule {
     override fun apply(node: OperatorNode, ctx: QueryContext): OperatorNode? {
         if (node is FetchLogicalOperatorNode) {
             /* Copy tree up and until the fetch operation; append reduced FetchLogicalOperatorNode if not fetching of all nodes can be deferred. */
-            val defer = node.fetch.toMutableList()
+            val candidates = node.fetch.map { it.second.copy(it.first) to it.second }.toMutableList()
             val originalGroupId = node.groupId
             var copy: OperatorNode.Logical = node.input!!.copyWithInputs()
 
-            /* Check for early abort. */
-            if (defer.all { node.output?.requires?.contains(it) == true }) {
+            /* Check for early abort; if next node requires all candidates. */
+            if (candidates.all { node.output?.requires?.contains(it.first) == true }) {
                 return null
             }
 
@@ -33,15 +32,15 @@ object DeferFetchOnFetchRewriteRule : RewriteRule {
             var next: OperatorNode.Logical? = node.output
             while (next != null && next.groupId == originalGroupId) {
                 /* Append FetchLogicalOperatorNode for columns required by next element. */
-                val required = defer.filter { it in next!!.requires }.toTypedArray()
+                val required = candidates.filter { it.first in next!!.requires }
                 if (required.isEmpty()) {
                     /* Case 1: Next node has no requirement. Simply append node to tree. */
                     copy = append(copy, next)
                 } else {
                     /* Case 2: Next node has a requirement. Fetch required (column)s and continue build-up. */
-                    copy = FetchLogicalOperatorNode(copy, node.entity, required)
-                    defer.removeIf { required.contains(it) }
-                    if (defer.isEmpty()) {
+                    copy = FetchLogicalOperatorNode(copy, node.entity, required.map { it.first.name to it.second })
+                    candidates.removeIf { required.contains(it) }
+                    if (candidates.isEmpty()) {
                         copy = next.copyWithOutput(copy)
                         break
                     } else {

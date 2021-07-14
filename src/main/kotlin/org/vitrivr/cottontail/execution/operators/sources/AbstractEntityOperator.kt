@@ -13,6 +13,6 @@ import org.vitrivr.cottontail.model.basics.Name
  * @author Ralph Gasser
  * @version 1.2.0
  */
-abstract class AbstractEntityOperator(groupId: GroupId, protected val entity: EntityTx, val fetch: Map<Name.ColumnName,ColumnDef<*>>) : Operator.SourceOperator(groupId) {
-    override val columns: List<ColumnDef<*>> = this.fetch.map { it.value.copy(name = it.key) }
+abstract class AbstractEntityOperator(groupId: GroupId, protected val entity: EntityTx, val fetch: List<Pair<Name.ColumnName,ColumnDef<*>>>) : Operator.SourceOperator(groupId) {
+    override val columns: List<ColumnDef<*>> = this.fetch.map { it.second.copy(name = it.first) }
 }

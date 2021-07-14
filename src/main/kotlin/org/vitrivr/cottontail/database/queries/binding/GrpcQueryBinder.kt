@@ -283,7 +283,7 @@ object GrpcQueryBinder {
                     val column = it.columnDef
                     val name = projectionMap[column.name] ?: column.name
                     name to column
-                }.toMap()
+                }
                 EntityScanLogicalOperatorNode(context.nextGroupId(), entity = entityTx, fetch = fetch)
             }
             CottontailGrpc.From.FromCase.SAMPLE -> {
@@ -293,7 +293,7 @@ object GrpcQueryBinder {
                     val column = it.columnDef
                     val name = projectionMap[column.name] ?: column.name
                     name to column
-                }.toMap()
+                }
                 EntitySampleLogicalOperatorNode(context.nextGroupId(), entity = entityTx, fetch = fetch, p = from.sample.probability, seed = from.sample.seed)
             }
             CottontailGrpc.From.FromCase.SUBSELECT -> bind(from.subSelect, context) /* Sub-select. */

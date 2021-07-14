@@ -19,7 +19,7 @@ import java.util.*
  * @author Ralph Gasser
  * @version 1.5.0
  */
-class EntitySampleOperator(groupId: GroupId, entity: EntityTx, fetch: Map<Name.ColumnName,ColumnDef<*>>, val p: Float, val seed: Long) : AbstractEntityOperator(groupId, entity, fetch) {
+class EntitySampleOperator(groupId: GroupId, entity: EntityTx, fetch: List<Pair<Name.ColumnName,ColumnDef<*>>>, val p: Float, val seed: Long) : AbstractEntityOperator(groupId, entity, fetch) {
     /**
      * Converts this [EntitySampleOperator] to a [Flow] and returns it.
      *
@@ -27,7 +27,7 @@ class EntitySampleOperator(groupId: GroupId, entity: EntityTx, fetch: Map<Name.C
      * @return [Flow] representing this [EntitySampleOperator].
      */
     override fun toFlow(context: QueryContext): Flow<Record> {
-        val fetch = this.fetch.values.toTypedArray()
+        val fetch = this.fetch.map { it.second }.toTypedArray()
         val columns = this.columns.toTypedArray()
         val values = arrayOfNulls<Value?>(this.columns.size)
         return flow {

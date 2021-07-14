@@ -19,7 +19,7 @@ import org.vitrivr.cottontail.model.basics.Type
  * @author Ralph Gasser
  * @version 2.2.0
  */
-class EntityScanPhysicalOperatorNode(override val groupId: Int, val entity: EntityTx, val fetch: Map<Name.ColumnName,ColumnDef<*>>) : NullaryPhysicalOperatorNode() {
+class EntityScanPhysicalOperatorNode(override val groupId: Int, val entity: EntityTx, val fetch: List<Pair<Name.ColumnName,ColumnDef<*>>>) : NullaryPhysicalOperatorNode() {
 
     companion object {
         private const val NODE_NAME = "ScanEntity"
@@ -30,7 +30,7 @@ class EntityScanPhysicalOperatorNode(override val groupId: Int, val entity: Enti
         get() = NODE_NAME
 
     /** The [ColumnDef] produced by this [EntityScanPhysicalOperatorNode]. */
-    override val columns: List<ColumnDef<*>> = this.fetch.map { it.value.copy(name = it.key) }
+    override val columns: List<ColumnDef<*>> = this.fetch.map { it.second.copy(name = it.first) }
 
     /** The number of rows returned by this [EntityScanPhysicalOperatorNode] equals to the number of rows in the [Entity]. */
     override val outputSize = this.entity.count()

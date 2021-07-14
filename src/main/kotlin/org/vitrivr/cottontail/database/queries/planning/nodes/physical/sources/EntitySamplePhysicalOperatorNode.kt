@@ -8,11 +8,9 @@ import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.NullaryPhysicalOperatorNode
 import org.vitrivr.cottontail.database.statistics.entity.RecordStatistics
-import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.sources.EntitySampleOperator
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Type
-import kotlin.math.min
 
 /**
  * A [NullaryPhysicalOperatorNode] that formalizes the random sampling of a physical [Entity] in Cottontail DB.
@@ -20,7 +18,7 @@ import kotlin.math.min
  * @author Ralph Gasser
  * @version 2.2.0
  */
-class EntitySamplePhysicalOperatorNode(override val groupId: Int, val entity: EntityTx, val fetch: Map<Name.ColumnName,ColumnDef<*>>, val p: Float, val seed: Long = System.currentTimeMillis()) : NullaryPhysicalOperatorNode() {
+class EntitySamplePhysicalOperatorNode(override val groupId: Int, val entity: EntityTx, val fetch: List<Pair<Name.ColumnName,ColumnDef<*>>>, val p: Float, val seed: Long = System.currentTimeMillis()) : NullaryPhysicalOperatorNode() {
 
     companion object {
         private const val NODE_NAME = "SampleEntity"
@@ -35,7 +33,7 @@ class EntitySamplePhysicalOperatorNode(override val groupId: Int, val entity: En
         get() = NODE_NAME
 
     /** The [ColumnDef] produced by this [EntityScanPhysicalOperatorNode]. */
-    override val columns: List<ColumnDef<*>> = this.fetch.map { it.value.copy(name = it.key) }
+    override val columns: List<ColumnDef<*>> = this.fetch.map { it.second.copy(name = it.first) }
 
     /** The output size of the [EntitySamplePhysicalOperatorNode] is actually limited by the size of the [Entity]s. */
     override val outputSize: Long = (this.entity.count() * this.p).toLong()

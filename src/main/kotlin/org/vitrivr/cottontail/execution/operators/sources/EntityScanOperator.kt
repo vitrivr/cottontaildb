@@ -19,7 +19,7 @@ import org.vitrivr.cottontail.model.values.types.Value
  * @author Ralph Gasser
  * @version 1.5.0
  */
-class EntityScanOperator(groupId: GroupId, entity: EntityTx, fetch: Map<Name.ColumnName,ColumnDef<*>>, private val partitionIndex: Int, private val partitions: Int) : AbstractEntityOperator(groupId, entity, fetch) {
+class EntityScanOperator(groupId: GroupId, entity: EntityTx, fetch: List<Pair<Name.ColumnName,ColumnDef<*>>>, private val partitionIndex: Int, private val partitions: Int) : AbstractEntityOperator(groupId, entity, fetch) {
     /**
      * Converts this [EntityScanOperator] to a [Flow] and returns it.
      *
@@ -27,7 +27,7 @@ class EntityScanOperator(groupId: GroupId, entity: EntityTx, fetch: Map<Name.Col
      * @return [Flow] representing this [EntityScanOperator]
      */
     override fun toFlow(context: QueryContext): Flow<Record> {
-        val fetch = this.fetch.values.toTypedArray()
+        val fetch = this.fetch.map { it.second }.toTypedArray()
         val columns = this.columns.toTypedArray()
         val values = arrayOfNulls<Value?>(this.columns.size)
         return flow {

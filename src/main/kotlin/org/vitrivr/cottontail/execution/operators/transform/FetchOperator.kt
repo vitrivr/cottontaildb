@@ -20,10 +20,10 @@ import org.vitrivr.cottontail.model.values.types.Value
  * @author Ralph Gasser
  * @version 1.2.0
  */
-class FetchOperator(parent: Operator, val entity: EntityTx, val fetch: Map<Name.ColumnName,ColumnDef<*>>) : Operator.PipelineOperator(parent) {
+class FetchOperator(parent: Operator, val entity: EntityTx, val fetch: List<Pair<Name.ColumnName,ColumnDef<*>>>) : Operator.PipelineOperator(parent) {
 
     /** Columns returned by [FetchOperator] are a combination of the parent and the [FetchOperator]'s columns */
-    override val columns: List<ColumnDef<*>> = this.parent.columns + this.fetch.map { it.value.copy(name = it.key) }
+    override val columns: List<ColumnDef<*>> = this.parent.columns + this.fetch.map { it.second.copy(name = it.first) }
 
     /** [FetchOperator] does not act as a pipeline breaker. */
     override val breaker: Boolean = false
@@ -35,7 +35,7 @@ class FetchOperator(parent: Operator, val entity: EntityTx, val fetch: Map<Name.
      * @return [Flow] representing this [FetchOperator]
      */
     override fun toFlow(context: QueryContext): Flow<Record> {
-        val fetch = this.fetch.values.toTypedArray()
+        val fetch = this.fetch.map { it.second }.toTypedArray()
         val columns = this.columns.toTypedArray()
         val values = arrayOfNulls<Value?>(this.columns.size)
         return this.parent.toFlow(context).map { r ->

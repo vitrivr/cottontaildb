@@ -20,7 +20,7 @@ import org.vitrivr.cottontail.model.basics.Type
  * @author Ralph Gasser
  * @version 2.2.0
  */
-class FetchPhysicalOperatorNode(input: Physical? = null, val entity: EntityTx, val fetch: Map<Name.ColumnName,ColumnDef<*>>) : UnaryPhysicalOperatorNode(input) {
+class FetchPhysicalOperatorNode(input: Physical? = null, val entity: EntityTx, val fetch: List<Pair<Name.ColumnName,ColumnDef<*>>>) : UnaryPhysicalOperatorNode(input) {
 
     companion object {
         private const val NODE_NAME = "Fetch"
@@ -32,7 +32,7 @@ class FetchPhysicalOperatorNode(input: Physical? = null, val entity: EntityTx, v
 
     /** The [FetchPhysicalOperatorNode] returns the [ColumnDef] of its input + the columns to be fetched. */
     override val columns: List<ColumnDef<*>>
-        get() = super.columns + this.fetch.map { it.value.copy(name = it.key) }
+        get() = super.columns + this.fetch.map { it.second.copy(name = it.first) }
 
     /** The [Cost] of a [FetchPhysicalOperatorNode]. */
     override val cost: Cost

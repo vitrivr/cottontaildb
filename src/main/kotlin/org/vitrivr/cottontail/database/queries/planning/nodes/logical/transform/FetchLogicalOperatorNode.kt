@@ -17,7 +17,7 @@ import org.vitrivr.cottontail.model.basics.Name
  * @author Ralph Gasser
  * @version 2.2.0
  */
-class FetchLogicalOperatorNode(input: Logical? = null, val entity: EntityTx, val fetch: Map<Name.ColumnName,ColumnDef<*>>) : UnaryLogicalOperatorNode(input) {
+class FetchLogicalOperatorNode(input: Logical? = null, val entity: EntityTx, val fetch: List<Pair<Name.ColumnName,ColumnDef<*>>>) : UnaryLogicalOperatorNode(input) {
 
     companion object {
         private const val NODE_NAME = "Fetch"
@@ -30,7 +30,7 @@ class FetchLogicalOperatorNode(input: Logical? = null, val entity: EntityTx, val
 
     /** The [FetchLogicalOperatorNode] returns the [ColumnDef] of its input + the columns to be fetched. */
     override val columns: List<ColumnDef<*>>
-        get() = super.columns + this.fetch.map { it.value.copy(name = it.key) }
+        get() = super.columns + this.fetch.map { it.second.copy(name = it.first) }
 
     /**
      * Creates and returns a copy of this [LimitLogicalOperatorNode] without any children or parents.
@@ -64,5 +64,5 @@ class FetchLogicalOperatorNode(input: Logical? = null, val entity: EntityTx, val
     }
 
     /** Generates and returns a [String] representation of this [FetchLogicalOperatorNode]. */
-    override fun toString() = "${super.toString()}(${this.fetch.values.joinToString(",") { it.name.toString() }})"
+    override fun toString() = "${super.toString()}(${this.fetch.map { it.second }.joinToString(",") { it.name.toString() }})"
 }

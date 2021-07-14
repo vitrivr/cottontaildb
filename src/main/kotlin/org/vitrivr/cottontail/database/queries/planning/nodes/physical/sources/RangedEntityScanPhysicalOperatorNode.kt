@@ -20,7 +20,7 @@ import java.lang.Math.floorDiv
  * @author Ralph Gasser
  * @version 2.2.0
  */
-class RangedEntityScanPhysicalOperatorNode(override val groupId: Int, val entity: EntityTx, val fetch: Map<Name.ColumnName,ColumnDef<*>>, val partitionIndex: Int, val partitions: Int) : NullaryPhysicalOperatorNode() {
+class RangedEntityScanPhysicalOperatorNode(override val groupId: Int, val entity: EntityTx, val fetch: List<Pair<Name.ColumnName,ColumnDef<*>>>, val partitionIndex: Int, val partitions: Int) : NullaryPhysicalOperatorNode() {
 
 
     companion object {
@@ -32,7 +32,7 @@ class RangedEntityScanPhysicalOperatorNode(override val groupId: Int, val entity
         get() = NODE_NAME
 
     /** The [ColumnDef] produced by this [RangedEntityScanPhysicalOperatorNode]. */
-    override val columns: List<ColumnDef<*>> = this.fetch.map { it.value.copy(name = it.key) }
+    override val columns: List<ColumnDef<*>> = this.fetch.map { it.second.copy(name = it.first) }
 
 
     override val outputSize: Long = floorDiv(this.entity.count(), this.partitions.toLong())

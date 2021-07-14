@@ -13,7 +13,7 @@ import org.vitrivr.cottontail.model.basics.Name
  * @author Ralph Gasser
  * @version 2.2.0
  */
-class EntitySampleLogicalOperatorNode(override val groupId: Int, val entity: EntityTx, val fetch: Map<Name.ColumnName,ColumnDef<*>>, val p: Float, val seed: Long = System.currentTimeMillis()) : NullaryLogicalOperatorNode() {
+class EntitySampleLogicalOperatorNode(override val groupId: Int, val entity: EntityTx, val fetch: List<Pair<Name.ColumnName,ColumnDef<*>>>, val p: Float, val seed: Long = System.currentTimeMillis()) : NullaryLogicalOperatorNode() {
 
     companion object {
         private const val NODE_NAME = "SampleEntity"
@@ -28,7 +28,7 @@ class EntitySampleLogicalOperatorNode(override val groupId: Int, val entity: Ent
         get() = NODE_NAME
 
     /** The [ColumnDef] produced by this [EntitySampleLogicalOperatorNode]. */
-    override val columns: List<ColumnDef<*>> = this.fetch.map { it.value.copy(name = it.key) }
+    override val columns: List<ColumnDef<*>> = this.fetch.map { it.second.copy(name = it.first) }
 
     /**
      * Creates and returns a copy of this [EntitySampleLogicalOperatorNode] without any children or parents.
