@@ -27,7 +27,7 @@ enum class Projection(val aggregating: Boolean) {
      *
      * @return String label.
      */
-    fun label() = this.toString().toLowerCase().replace("_", "").capitalize()
+    fun label() = this.toString().toLowerCase().replace("_", "").uppercase()
 
     /**
      * Generates and returns a [ColumnDef] given this [Projection] and the given input [ColumnDef].
@@ -39,18 +39,18 @@ enum class Projection(val aggregating: Boolean) {
         SELECT_DISTINCT -> c
         COUNT,
         COUNT_DISTINCT -> {
-            val name = "${this.name.toLowerCase()}_${c.name.simple}"
+            val name = "${this.name.lowercase()}_${c.name.simple}"
             ColumnDef(c.name.entity()?.column(name) ?: Name.ColumnName(name), Type.Long, true)
         }
         EXISTS -> {
-            val name = "${this.name.toLowerCase()}_${c.name.simple}"
+            val name = "${this.name.lowercase()}_${c.name.simple}"
             ColumnDef(c.name.entity()?.column(name) ?: Name.ColumnName(name), Type.Boolean, true)
         }
         SUM,
         MAX,
         MIN,
         MEAN -> {
-            val name = "${this.name.toLowerCase()}_${c.name.simple}"
+            val name = "${this.name.lowercase()}_${c.name.simple}"
             ColumnDef(c.name.entity()?.column(name) ?: Name.ColumnName(name), c.type, true)
         }
     }
