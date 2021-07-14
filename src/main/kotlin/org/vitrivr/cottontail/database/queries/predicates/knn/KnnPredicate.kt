@@ -15,9 +15,9 @@ import org.vitrivr.cottontail.utilities.math.KnnUtilities
  * @see Record
  *
  * @author Ralph Gasser
- * @version 1.7.0
+ * @version 1.8.0
  */
-class KnnPredicate(val column: ColumnDef<*>, val k: Int, val distance: VectorDistance<*>, val hint: KnnPredicateHint? = null, val query: Binding, val weight: Binding? = null) : Predicate {
+data class KnnPredicate(val column: ColumnDef<*>, val k: Int, val distance: VectorDistance<*>, val query: Binding) : Predicate {
 
     init {
         /* Basic sanity checks. */
@@ -58,8 +58,6 @@ class KnnPredicate(val column: ColumnDef<*>, val k: Int, val distance: VectorDis
         if (k != other.k) return false
         if (query != other.query) return false
         if (distance != other.distance) return false
-        if (weight != other.weight) return false
-        if (hint != other.hint) return false
         return true
     }
 
@@ -68,8 +66,6 @@ class KnnPredicate(val column: ColumnDef<*>, val k: Int, val distance: VectorDis
         result = 31 * result + k
         result = 31 * result + query.hashCode()
         result = 31 * result + distance.hashCode()
-        result = 31 * result + weight.hashCode()
-        result = 31 * result + hint.hashCode()
         return result
     }
 }

@@ -12,7 +12,6 @@ import org.vitrivr.cottontail.database.queries.planning.nodes.physical.NullaryPh
 import org.vitrivr.cottontail.database.queries.predicates.Predicate
 import org.vitrivr.cottontail.database.queries.predicates.bool.BooleanPredicate
 import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicate
-import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicateHint
 import org.vitrivr.cottontail.database.queries.sort.SortOrder
 import org.vitrivr.cottontail.database.statistics.entity.RecordStatistics
 import org.vitrivr.cottontail.database.statistics.selectivity.NaiveSelectivityCalculator
@@ -88,13 +87,7 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int, val index: IndexT
      */
     override fun toOperator(ctx: QueryContext): Operator = when (this.predicate) {
         is KnnPredicate -> {
-            val hint = this.predicate.hint
-            val p = if (hint is KnnPredicateHint.ParallelKnnHint) {
-                Integer.max(hint.min, this.totalCost.parallelisation(hint.max))
-            } else {
-                this.totalCost.parallelisation()
-            }
-
+            val p = this.totalCost.parallelisation()
             if (p > 1 && this.canBePartitioned) {
                 val partitions = this.partition(p)
                 val operators = partitions.map { it.toOperator(ctx) }
