@@ -10,7 +10,7 @@ import org.vitrivr.cottontail.database.queries.planning.rules.RewriteRule
  * A [RewriteRule] that defers fetching of columns scanned in an [EntityScanLogicalOperatorNode].
  *
  * @author Ralph Gasser
- * @version 1.0.1
+ * @version 1.1.0
  */
 object DeferFetchOnScanRewriteRule : RewriteRule {
     override fun canBeApplied(node: OperatorNode): Boolean = node is EntityScanLogicalOperatorNode

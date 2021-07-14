@@ -12,7 +12,7 @@ import org.vitrivr.cottontail.database.queries.planning.rules.RewriteRule
  * A [RewriteRule] that defers fetching of columns fetched in a [FetchLogicalOperatorNode].
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.2.0
  */
 object DeferFetchOnFetchRewriteRule : RewriteRule {
     override fun canBeApplied(node: OperatorNode): Boolean = node is FetchLogicalOperatorNode
