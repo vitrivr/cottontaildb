@@ -8,7 +8,7 @@ import org.vitrivr.cottontail.database.queries.binding.GrpcQueryBinder
 import org.vitrivr.cottontail.database.queries.planning.CottontailQueryPlanner
 import org.vitrivr.cottontail.database.queries.planning.rules.logical.*
 import org.vitrivr.cottontail.database.queries.planning.rules.physical.index.BooleanIndexScanRule
-import org.vitrivr.cottontail.database.queries.planning.rules.physical.index.KnnIndexScanRule
+import org.vitrivr.cottontail.database.queries.planning.rules.physical.index.NNSIndexScanRule
 import org.vitrivr.cottontail.database.queries.planning.rules.physical.merge.LimitingSortMergeRule
 import org.vitrivr.cottontail.database.queries.planning.rules.physical.pushdown.CountPushdownRule
 import org.vitrivr.cottontail.execution.TransactionManager
@@ -37,7 +37,7 @@ class DQLService(val catalogue: Catalogue, override val manager: TransactionMana
             DeferFetchOnScanRewriteRule,
             DeferFetchOnFetchRewriteRule
         ),
-        physicalRules = listOf(BooleanIndexScanRule, KnnIndexScanRule, CountPushdownRule, LimitingSortMergeRule),
+        physicalRules = listOf(BooleanIndexScanRule, NNSIndexScanRule, CountPushdownRule, LimitingSortMergeRule),
         this.catalogue.config.cache.planCacheSize
     )
 

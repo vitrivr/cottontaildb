@@ -1,7 +1,5 @@
 package org.vitrivr.cottontail.database.queries.binding.extensions
 
-import org.vitrivr.cottontail.database.index.IndexType
-import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicateHint
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.model.basics.Name
 

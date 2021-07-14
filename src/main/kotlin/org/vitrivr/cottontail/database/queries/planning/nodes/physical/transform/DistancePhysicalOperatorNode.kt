@@ -6,7 +6,6 @@ import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalOperatorNode
 import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicate
-import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicateHint
 import org.vitrivr.cottontail.database.statistics.columns.DoubleValueStatistics
 import org.vitrivr.cottontail.database.statistics.columns.ValueStatistics
 import org.vitrivr.cottontail.database.statistics.entity.RecordStatistics
@@ -52,12 +51,7 @@ class DistancePhysicalOperatorNode(input: Physical? = null, val predicate: KnnPr
 
     /** Whether the [DistanceProjectionOperator] can be partitioned is determined by the [KnnPredicateHint]. */
     override val canBePartitioned: Boolean
-        get() {
-            if (this.predicate.hint is KnnPredicateHint.ParallelKnnHint) {
-                if (this.predicate.hint.max <= 1) return false
-            }
-            return super.canBePartitioned
-        }
+        get() = super.canBePartitioned
 
     /**
      * Creates and returns a copy of this [DistancePhysicalOperatorNode] without any children or parents.
@@ -74,12 +68,7 @@ class DistancePhysicalOperatorNode(input: Physical? = null, val predicate: KnnPr
      */
     override fun partition(p: Int): List<Physical> {
         val input = this.input ?: throw IllegalStateException("Cannot partition disconnected OperatorNode (node = $this)")
-        return if (this.predicate.hint is KnnPredicateHint.ParallelKnnHint) {
-            val actual = p.coerceAtLeast(this.predicate.hint.min).coerceAtMost(this.predicate.hint.max)
-            input.partition(actual).map { DistancePhysicalOperatorNode(it, this.predicate) }
-        } else {
-            input.partition(p).map { DistancePhysicalOperatorNode(it, this.predicate) }
-        }
+        return input.partition(p).map { DistancePhysicalOperatorNode(it, this.predicate) }
     }
 
     /**
