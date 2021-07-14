@@ -38,7 +38,7 @@ class FunctionProjectionOperator(parent: Operator, val function: Function<*>, va
 
         /* Prepare arguments for function. */
         val columnRefs = mutableListOf<Pair<Int,ColumnDef<*>>>()
-        val arguments = Array(this@FunctionProjectionOperator.columns.size) {
+        val arguments = Array(this@FunctionProjectionOperator.arguments.size) {
             when(val ref = this.arguments[it]) {
                 is Binding.Literal -> ref.value
                 is Binding.Column -> {
