@@ -13,9 +13,9 @@ import java.util.*
  * The sealed [ComparisonOperator]s class.
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.1.1
  */
-sealed class ComparisonOperator {
+sealed class ComparisonOperator(val left: Binding) {
 
     /** The atomic CPU cost of matching this [ComparisonOperator] with a [Value]. */
     abstract val atomicCpuCost: Float
@@ -31,7 +31,7 @@ sealed class ComparisonOperator {
     /**
      * A [ComparisonOperator] that checks if a value is NULL.
      */
-    class IsNull(val left: Binding) : ComparisonOperator() {
+    class IsNull(left: Binding) : ComparisonOperator(left) {
         override val atomicCpuCost: Float = Cost.COST_MEMORY_ACCESS
         override fun match() = (this.left.value == null)
     }
@@ -39,7 +39,7 @@ sealed class ComparisonOperator {
     /**
      * A [ComparisonOperator] that expresses an equality (==) comparison.
      */
-    sealed class Binary(val left: Binding, val right: Binding) : ComparisonOperator() {
+    sealed class Binary(left: Binding, val right: Binding) : ComparisonOperator(left) {
 
         override val atomicCpuCost: Float = 2 * Cost.COST_MEMORY_ACCESS
 
@@ -101,7 +101,7 @@ sealed class ComparisonOperator {
     /**
      * A [ComparisonOperator] that expresses a BETWEEN comparison (i.e. lower <= left <= upper).
      */
-    class Between(val left: Binding, val rightLower: Binding, val rightUpper: Binding) : ComparisonOperator() {
+    class Between(left: Binding, val rightLower: Binding, val rightUpper: Binding) : ComparisonOperator(left) {
         override val atomicCpuCost: Float = 4.0f * Cost.COST_MEMORY_ACCESS
         override fun match() = this.left.value != null && this.rightLower.value != null && this.rightLower.value != null && this.left.value!! in this.rightLower.value!!..this.rightUpper.value!!
         override fun toString(): String = "BETWEEN $rightLower, $rightUpper"
@@ -110,8 +110,8 @@ sealed class ComparisonOperator {
     /**
      * A [ComparisonOperator] that expresses a IN comparison (i.e. left IN right).
      */
-    class In(val left: Binding, right: MutableList<Binding.Literal>) : ComparisonOperator() {
-        val right: MutableList<Binding> = LinkedList()
+    class In(left: Binding, right: MutableList<Binding.Literal>) : ComparisonOperator(left) {
+        val right: MutableList<Binding.Literal> = LinkedList()
         private var rightSet: ObjectOpenHashSet<Value>? = null /* To speed-up IN operation. */
         override val atomicCpuCost: Float = 4.0f * Cost.COST_MEMORY_ACCESS
         override fun match(): Boolean {
