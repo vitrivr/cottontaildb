@@ -49,7 +49,6 @@ object BooleanIndexScanRule : RewriteRule {
         return null
     }
 
-
     /**
      * Normalizes the given [BooleanPredicate] given the list of mapped [ColumnDef]s. Normalization resolves
      * potential [ColumnDef] containing alias names to the root [ColumnDef]s.
@@ -62,14 +61,14 @@ object BooleanIndexScanRule : RewriteRule {
             /* Map left and right operands. */
             val op = predicate.operator
             val left = if (op.left is Binding.Column) {
-                Binding.Column(fetch[(op.left as Binding.Column).column.name]!!, op.left.context)
+                Binding.Column(fetch[op.left.column.name]!!, op.left.context)
             } else {
                 op.left
             }
             val right: List<Binding> = when(op) {
                 is ComparisonOperator.Binary -> {
                     listOf(if (op.right is Binding.Column) {
-                        Binding.Column(fetch[(op.right as Binding.Column).column.name]!!, op.right.context)
+                        Binding.Column(fetch[op.right.column.name]!!, op.right.context)
                     } else {
                         op.right
                     })
