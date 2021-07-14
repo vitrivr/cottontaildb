@@ -64,5 +64,5 @@ class FetchLogicalOperatorNode(input: Logical? = null, val entity: EntityTx, val
     }
 
     /** Generates and returns a [String] representation of this [FetchLogicalOperatorNode]. */
-    override fun toString() = "${super.toString()}(${this.fetch.map { it.second }.joinToString(",") { it.name.toString() }})"
+    override fun toString() = "${super.toString()}(${this.fetch.joinToString(",") { it.second.name.toString() }})"
 }

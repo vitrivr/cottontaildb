@@ -72,7 +72,7 @@ class FetchPhysicalOperatorNode(input: Physical? = null, val entity: EntityTx, v
     )
 
     /** Generates and returns a [String] representation of this [FetchPhysicalOperatorNode]. */
-    override fun toString() = "${this.groupId}:Fetch[${this.columns.joinToString(",") { it.name.toString() }}]"
+    override fun toString() = "${this.groupId}:Fetch[${this.fetch.joinToString(",") { it.second.name.toString() }}]"
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
