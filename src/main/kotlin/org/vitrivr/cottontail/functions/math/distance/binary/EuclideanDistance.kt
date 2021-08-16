@@ -7,6 +7,7 @@ import org.vitrivr.cottontail.functions.basics.FunctionGenerator
 import org.vitrivr.cottontail.functions.basics.Signature
 import org.vitrivr.cottontail.functions.exception.FunctionNotSupportedException
 import org.vitrivr.cottontail.functions.math.distance.VectorDistance
+import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Type
 import org.vitrivr.cottontail.model.values.*
 import org.vitrivr.cottontail.model.values.types.Value
@@ -15,10 +16,10 @@ import kotlin.math.pow
 import kotlin.math.sqrt
 
 /**
- * A [EuclideanDistance] implementation to calculate the Euclidean or L2 distance between a [query] and a series of [VectorValue]s.
+ * A [EuclideanDistance] implementation to calculate the Euclidean or L2 distance between two [VectorValue]s.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
 sealed class EuclideanDistance<T : VectorValue<*>>: VectorDistance.MinkowskiDistance<T> {
 
@@ -26,7 +27,7 @@ sealed class EuclideanDistance<T : VectorValue<*>>: VectorDistance.MinkowskiDist
      * The [FunctionGenerator] for the [EuclideanDistance].
      */
     object Generator: AbstractFunctionGenerator<DoubleValue>() {
-        const val FUNCTION_NAME = "euclidean"
+        val FUNCTION_NAME = Name.FunctionName("euclidean")
 
         override val signature: Signature.Open<out DoubleValue>
             get() = Signature.Open(FUNCTION_NAME, arity = 2, Type.Double)
@@ -43,7 +44,7 @@ sealed class EuclideanDistance<T : VectorValue<*>>: VectorDistance.MinkowskiDist
     }
 
     /** Name of this [EuclideanDistance]. */
-    override val name: String = Generator.FUNCTION_NAME
+    override val name: Name.FunctionName = Generator.FUNCTION_NAME
 
     /** The [p] value for an [EuclideanDistance] instance is always 2. */
     final override val p: Int = 2

@@ -6,6 +6,7 @@ import org.vitrivr.cottontail.functions.basics.Function
 import org.vitrivr.cottontail.functions.basics.Signature
 import org.vitrivr.cottontail.functions.exception.FunctionNotSupportedException
 import org.vitrivr.cottontail.functions.math.distance.VectorDistance
+import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Type
 import org.vitrivr.cottontail.model.values.*
 import org.vitrivr.cottontail.model.values.types.Value
@@ -16,12 +17,12 @@ import kotlin.math.*
  * A [VectorDistance] implementation to calculate the Haversine distance between two 2D points.
  *
  * @author Loris Sauter & Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
 sealed class HaversineDistance<T : VectorValue<*>>: VectorDistance<T> {
 
     object Generator: AbstractFunctionGenerator<DoubleValue>() {
-        const val FUNCTION_NAME = "haversine"
+        val FUNCTION_NAME = Name.FunctionName("haversine")
 
         const val RADIUS_EARTH = 6371000.0
 
@@ -38,7 +39,7 @@ sealed class HaversineDistance<T : VectorValue<*>>: VectorDistance<T> {
     }
 
     /** Name of this [HaversineDistance]. */
-    override val name: String = Generator.FUNCTION_NAME
+    override val name: Name.FunctionName = Generator.FUNCTION_NAME
 
     /** The cost of applying this [HaversineDistance] to a single [VectorValue]. */
     override val cost: Float

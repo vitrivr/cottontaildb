@@ -4,6 +4,7 @@ import org.vitrivr.cottontail.functions.FunctionRegistry
 import org.vitrivr.cottontail.functions.basics.Function
 import org.vitrivr.cottontail.functions.basics.Signature
 import org.vitrivr.cottontail.functions.math.distance.binary.*
+import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Type
 import org.vitrivr.cottontail.model.values.DoubleValue
 import org.vitrivr.cottontail.model.values.types.VectorValue
@@ -34,8 +35,8 @@ interface VectorDistance<T : VectorValue<*>>: Function.Dynamic<DoubleValue> {
         }
     }
 
-    /** The name of this [VectorDistance] [Function]. */
-    val name: String
+    /** The [Name.FunctionName] of this [VectorDistance]. */
+    val name: Name.FunctionName
 
     /** The [Type] accepted by this [VectorDistance] [Function]. Must be a vector value type. */
     val type: Type<out T>

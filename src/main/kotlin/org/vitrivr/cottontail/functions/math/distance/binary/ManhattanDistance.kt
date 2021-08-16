@@ -7,6 +7,7 @@ import org.vitrivr.cottontail.functions.basics.FunctionGenerator
 import org.vitrivr.cottontail.functions.basics.Signature
 import org.vitrivr.cottontail.functions.exception.FunctionNotSupportedException
 import org.vitrivr.cottontail.functions.math.distance.VectorDistance
+import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Type
 import org.vitrivr.cottontail.model.values.*
 import org.vitrivr.cottontail.model.values.types.Value
@@ -19,7 +20,7 @@ import kotlin.math.sqrt
  * A [ManhattanDistance] implementation to calculate Manhattan or L1 distance between two [VectorValue]s.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
 sealed class ManhattanDistance<T : VectorValue<*>>: VectorDistance.MinkowskiDistance<T> {
 
@@ -27,7 +28,7 @@ sealed class ManhattanDistance<T : VectorValue<*>>: VectorDistance.MinkowskiDist
      * The [FunctionGenerator] for the [ManhattanDistance].
      */
     object Generator: AbstractFunctionGenerator<DoubleValue>() {
-        const val FUNCTION_NAME = "manhattan"
+        val FUNCTION_NAME = Name.FunctionName("manhattan")
 
         override val signature: Signature.Open<out DoubleValue>
             get() = Signature.Open(FUNCTION_NAME, arity = 2, Type.Double)
@@ -51,7 +52,7 @@ sealed class ManhattanDistance<T : VectorValue<*>>: VectorDistance.MinkowskiDist
         get() = d * (2.0f * Cost.COST_FLOP + 2.0f * Cost.COST_MEMORY_ACCESS)
 
     /** Name of this [ManhattanDistance]. */
-    override val name: String = Generator.FUNCTION_NAME
+    override val name: Name.FunctionName = Generator.FUNCTION_NAME
 
     /**
      * [ManhattanDistance] for a [Complex64VectorValue].

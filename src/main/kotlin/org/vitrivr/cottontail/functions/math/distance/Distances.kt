@@ -1,14 +1,15 @@
 package org.vitrivr.cottontail.functions.math.distance
 
 import org.vitrivr.cottontail.functions.math.distance.binary.*
+import org.vitrivr.cottontail.model.basics.Name
 
 /**
  * A enumeration of all [Distances] supported by Cottontail DB for NNS.
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.3.0
  */
-enum class Distances(val functionName: String) {
+enum class Distances(val functionName: Name.FunctionName) {
     L1(ManhattanDistance.Generator.FUNCTION_NAME),
     L2(EuclideanDistance.Generator.FUNCTION_NAME),
     L2SQUARED(SquaredEuclideanDistance.Generator.FUNCTION_NAME),

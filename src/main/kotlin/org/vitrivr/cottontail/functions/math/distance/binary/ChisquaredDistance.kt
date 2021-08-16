@@ -7,6 +7,7 @@ import org.vitrivr.cottontail.functions.basics.FunctionGenerator
 import org.vitrivr.cottontail.functions.basics.Signature
 import org.vitrivr.cottontail.functions.exception.FunctionNotSupportedException
 import org.vitrivr.cottontail.functions.math.distance.VectorDistance
+import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Type
 import org.vitrivr.cottontail.model.values.*
 import org.vitrivr.cottontail.model.values.types.Value
@@ -14,17 +15,17 @@ import org.vitrivr.cottontail.model.values.types.VectorValue
 import kotlin.math.pow
 
 /**
- * A [VectorDistance] implementation to calculate the Chi^2 distance between a [query] and a series of [VectorValue]s.
+ * A [VectorDistance] implementation to calculate the Chi^2 distance between two [VectorValue]s.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
 sealed class ChisquaredDistance<T : VectorValue<*>>: VectorDistance<T> {
     /**
      * The [FunctionGenerator] for the [ChisquaredDistance].
      */
     object Generator: AbstractFunctionGenerator<DoubleValue>() {
-        const val FUNCTION_NAME = "chisquared"
+        val FUNCTION_NAME = Name.FunctionName("chisquared")
 
         override val signature: Signature.Open<out DoubleValue>
             get() = Signature.Open(FUNCTION_NAME, arity = 2, Type.Double)
@@ -39,7 +40,7 @@ sealed class ChisquaredDistance<T : VectorValue<*>>: VectorDistance<T> {
     }
 
     /** Name of this [ChisquaredDistance]. */
-    override val name: String = Generator.FUNCTION_NAME
+    override val name: Name.FunctionName = Generator.FUNCTION_NAME
 
     /** The cost of applying this [ChisquaredDistance] to a single [VectorValue]. */
     override val cost: Float

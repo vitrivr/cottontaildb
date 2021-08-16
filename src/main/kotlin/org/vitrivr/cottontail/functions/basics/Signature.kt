@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.functions.basics
 
+import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Type
 import org.vitrivr.cottontail.model.values.types.Value
 
@@ -7,9 +8,9 @@ import org.vitrivr.cottontail.model.values.types.Value
  * A signature that uniquely identifies a [Function].
  *
  * @author Ralph Gasser
- * @version 1.0.1
+ * @version 1.1.0
  */
-sealed class Signature<R: Value>(val name: String, val returnType: Type<R>? = null) {
+sealed class Signature<R: Value>(val name: Name.FunctionName, val returnType: Type<R>? = null) {
     /** Returns the arity of this [Signature]. */
     abstract val arity: Int
 
@@ -24,7 +25,7 @@ sealed class Signature<R: Value>(val name: String, val returnType: Type<R>? = nu
     /**
      * A [Signature.Closed] with known arguments.
      */
-    class Closed<R: Value>(name: String, val arguments: Array<Type<*>>, returnType: Type<R>? = null): Signature<R>(name, returnType) {
+    class Closed<R: Value>(name: Name.FunctionName, val arguments: Array<Type<*>>, returnType: Type<R>? = null): Signature<R>(name, returnType) {
         override val arity: Int
             get() = arguments.size
 
@@ -74,7 +75,7 @@ sealed class Signature<R: Value>(val name: String, val returnType: Type<R>? = nu
     /**
      * A [Signature.Open] with unknown arguments but known argument arity.
      */
-    class Open<R: Value>(name: String, override val arity: Int, returnType: Type<R>? = null): Signature<R>(name, returnType) {
+    class Open<R: Value>(name: Name.FunctionName, override val arity: Int, returnType: Type<R>? = null): Signature<R>(name, returnType) {
 
         /**
          * Checks if other [Signature] collides with this [Signature.Open] and returns true or false respectively.

@@ -11,6 +11,13 @@ import org.vitrivr.cottontail.model.basics.Name
 fun CottontailGrpc.SchemaName.fqn(): Name.SchemaName = Name.SchemaName(this.name)
 
 /**
+ * Extension function that generates the FQN for the given [CottontailGrpc.FunctionName].
+ *
+ * @return [Name.FunctionName] for the given [CottontailGrpc.FunctionName]
+ */
+fun CottontailGrpc.FunctionName.fqn(): Name.FunctionName = Name.FunctionName(this.name)
+
+/**
  * Extension function that generates the FQN for the given [CottontailGrpc.EntityName].
  *
  * @return [Name.EntityName] for the given [CottontailGrpc.EntityName]

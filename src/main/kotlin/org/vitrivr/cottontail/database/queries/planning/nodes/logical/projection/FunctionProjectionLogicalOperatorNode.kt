@@ -1,7 +1,6 @@
 package org.vitrivr.cottontail.database.queries.planning.nodes.logical.projection
 
 import org.vitrivr.cottontail.database.column.ColumnDef
-import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.binding.Binding
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.UnaryLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.projection.FunctionProjectionPhysicalOperatorNode
@@ -22,7 +21,7 @@ class FunctionProjectionLogicalOperatorNode(input: Logical? = null, val function
 
     /** The column produced by this [FunctionProjectionLogicalOperatorNode] is determined by the [Function]'s signature. */
     override val columns: List<ColumnDef<*>>
-        get() = (this.input?.columns ?: emptyList()) + ColumnDef(this.alias ?: Name.ColumnName(this.function.signature.name), this.function.signature.returnType!!)
+        get() = (this.input?.columns ?: emptyList()) + ColumnDef(this.alias ?: Name.ColumnName(this.function.signature.name.simple), this.function.signature.returnType!!)
 
     /** The [FunctionProjectionLogicalOperatorNode] requires all [ColumnDef] used in the [Function]. */
     override val requires: List<ColumnDef<*>>
