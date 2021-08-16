@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.database.queries.binding
 
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import org.vitrivr.cottontail.database.catalogue.CatalogueTx
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.Entity
@@ -61,14 +62,22 @@ object GrpcQueryBinder {
      * @return [OperatorNode.Logical]
      * @throws QueryException.QuerySyntaxException If [CottontailGrpc.Query] is structurally incorrect.
      */
+    @Suppress("UNCHECKED_CAST")
     fun bind(query: CottontailGrpc.Query, context: QueryContext): OperatorNode.Logical {
-        /* Parse and bind FROM clause; take projection into account (-> alias). */
+        /* Parse SELECT-clause (projection); this clause is important because of aliases. */
         val projection = if (query.hasProjection()) { query.projection } else { DEFAULT_PROJECTION }
-        var root: OperatorNode.Logical = parseAndBindFrom(query.from, projection, context)
+        val columns = this.parseProjectionColumns(projection)
 
-        /* Parse and bind FUNCTION-execution; take projection into account (-> alias). */
-        projection.elementsList.filter { it.hasFunction() }.forEach {
-            root = this.parseAndBindFunctionProjection(root, it, context)
+        /** Parse FROM-clause and take projection into account. */
+        var root: OperatorNode.Logical = parseAndBindFrom(query.from, columns, context)
+
+        /* Parse and bind functions in projection. */
+        columns.entries.map {
+            Pair(it.value, it.key) /* Reverse association. */
+        }.zip(projection.elementsList).filter {
+            it.first.first is Name.FunctionName
+        }.forEach {
+            root = this.parseAndBindFunction(root, it.first as Pair<Name.FunctionName,Name.ColumnName>, it.second.function, context)
         }
 
         /* Parse and bind WHERE-clause. */
@@ -93,7 +102,7 @@ object GrpcQueryBinder {
         }
 
         /* Process SELECT-clause (projection). */
-        root = parseAndBindProjection(root, projection, context)
+        root = parseAndBindProjection(root, columns, Projection.valueOf(projection.op.toString()), context)
         context.register(root)
         return root
     }
@@ -202,7 +211,7 @@ object GrpcQueryBinder {
     fun bind(update: CottontailGrpc.UpdateMessage, context: QueryContext) {
         try {
             /* Parse FROM-clause. */
-            var root = parseAndBindFrom(update.from, DEFAULT_PROJECTION, context)
+            var root = parseAndBindFrom(update.from, parseProjectionColumns(DEFAULT_PROJECTION), context)
             if (root !is EntityScanLogicalOperatorNode) {
                 throw QueryException.QueryBindException("Failed to bind query. UPDATES only support entity sources as FROM-clause.")
             }
@@ -246,7 +255,7 @@ object GrpcQueryBinder {
      */
     fun bind(delete: CottontailGrpc.DeleteMessage, context: QueryContext) {
         /* Parse FROM-clause. */
-        val from = parseAndBindFrom(delete.from, DEFAULT_PROJECTION, context)
+        val from = parseAndBindFrom(delete.from, parseProjectionColumns(DEFAULT_PROJECTION), context)
         if (from !is EntityScanLogicalOperatorNode) {
             throw QueryException.QueryBindException("Failed to bind query. UPDATES only support entity sources as FROM-clause.")
         }
@@ -268,20 +277,20 @@ object GrpcQueryBinder {
      * Parses and binds a [CottontailGrpc.From] clause.
      *
      * @param from The [CottontailGrpc.From] object.
-     * @param projection The [CottontailGrpc.Projection] object.
+     * @param columns The list of [Name.ColumnName] as per parsed projection-clause. Used to determine aliases.
      * @param context The [QueryContext] used for binding.
      *
      * @return The resulting [OperatorNode.Logical].
      */
-    private fun parseAndBindFrom(from: CottontailGrpc.From, projection: CottontailGrpc.Projection, context: QueryContext): OperatorNode.Logical = try {
-        val projectionMap = projection.elementsList.filter { it.hasColumn() }.map { it.column.fqn() to if (it.hasAlias()) { it.alias.fqn()} else { null } }.toMap()
+    private fun parseAndBindFrom(from: CottontailGrpc.From, columns: Map<Name.ColumnName,Name>, context: QueryContext): OperatorNode.Logical = try {
+        val columnAliases = columns.entries.filter { it.value is Name.ColumnName }.associate { it.value as Name.ColumnName to it.key } /* Map input column to alias. */
         when (from.fromCase) {
             CottontailGrpc.From.FromCase.SCAN -> {
                 val entity = parseAndBindEntity(from.scan.entity, context)
                 val entityTx = context.txn.getTx(entity) as EntityTx
                 val fetch = entityTx.listColumns().map {
                     val column = it.columnDef
-                    val name = projectionMap[column.name] ?: column.name
+                    val name = columnAliases[column.name] ?: column.name
                     name to column
                 }
                 EntityScanLogicalOperatorNode(context.nextGroupId(), entity = entityTx, fetch = fetch)
@@ -291,7 +300,7 @@ object GrpcQueryBinder {
                 val entityTx = context.txn.getTx(entity) as EntityTx
                 val fetch = entityTx.listColumns().map {
                     val column = it.columnDef
-                    val name = projectionMap[column.name] ?: column.name
+                    val name = columnAliases[column.name] ?: column.name
                     name to column
                 }
                 EntitySampleLogicalOperatorNode(context.nextGroupId(), entity = entityTx, fetch = fetch, p = from.sample.probability, seed = from.sample.seed)
@@ -403,7 +412,7 @@ object GrpcQueryBinder {
                 val subQuery = this.bind(atomic.right.query, context)
                 dependsOn = subQuery.groupId
                 if (atomic.op == CottontailGrpc.ComparisonOperator.IN) {
-                    emptyList<Binding>()
+                    emptyList()
                 } else {
                     listOf(context.bindings.bindNull(left.type))
                 }
@@ -414,7 +423,12 @@ object GrpcQueryBinder {
     }
 
     /**
+     * Parses and binds a [CottontailGrpc.ComparisonOperator] and returns the associated [ComparisonOperator].
      *
+     * @param operator The [CottontailGrpc.ComparisonOperator] to bind.
+     * @param left The left [Binding]
+     * @param right The right [Binding]'s or an empty list.
+     * @return [ComparisonOperator] that corresponds to the [CottontailGrpc.ComparisonOperator].
      */
     private fun bindOperator(operator: CottontailGrpc.ComparisonOperator, left: Binding, right: List<Binding>) = when (operator) {
         CottontailGrpc.ComparisonOperator.ISNULL -> ComparisonOperator.IsNull(left)
@@ -464,14 +478,14 @@ object GrpcQueryBinder {
      * Parses and binds the projection part of a gRPC [CottontailGrpc.Function]-clause
      *
      * @param input The [OperatorNode.Logical] on which to perform the [Function].
-     * @param element The [CottontailGrpc.Function] object.
+     * @param projection The parsed projection element.
+     * @param function The (unparsed) [CottontailGrpc.Function] object.
      * @param context The [QueryContext] used for query binding.
      *
      * @return The resulting [SortLogicalOperatorNode].
      */
-    private fun parseAndBindFunctionProjection(input: OperatorNode.Logical, element: CottontailGrpc.Projection.ProjectionElement, context: QueryContext): OperatorNode.Logical {
-        require(element.hasFunction()) { "Given project element has not specified a function. This is a programmer's error!" }
-        val refs = element.function.argumentsList.mapIndexed { i, a ->
+    private fun parseAndBindFunction(input: OperatorNode.Logical, projection: Pair<Name.FunctionName, Name.ColumnName>, function: CottontailGrpc.Function, context: QueryContext): OperatorNode.Logical {
+        val arguments = function.argumentsList.mapIndexed { i, a ->
             when (a.expCase) {
                 CottontailGrpc.Expression.ExpCase.LITERAL -> context.bindings.bind(a.literal.toValue())
                 CottontailGrpc.Expression.ExpCase.COLUMN -> context.bindings.bind(input.findUniqueColumnForName(a.column.fqn()))
@@ -479,13 +493,13 @@ object GrpcQueryBinder {
                 null -> throw QueryException.QuerySyntaxException("Function argument at position $i is malformed.")
             }
         }
-        val signature = Signature.Closed<Value>(element.function.name, refs.map { it.type }.toTypedArray())
+        val signature = Signature.Closed<Value>(projection.first, arguments.map { it.type }.toTypedArray())
         val functionObject = try {
             context.catalogue.functions.obtain(signature)
         } catch (e: FunctionNotFoundException) {
             throw QueryException.QueryBindException("Desired distance function $signature could not be found!")
         }
-        return FunctionProjectionLogicalOperatorNode(input, functionObject, refs, element.alias.fqn())
+        return FunctionProjectionLogicalOperatorNode(input, functionObject, arguments, projection.second)
     }
 
     /**
@@ -506,43 +520,86 @@ object GrpcQueryBinder {
      * Parses and binds the projection part of a gRPC [CottontailGrpc.Query]
      *
      * @param input The [OperatorNode.Logical] on which to perform projection.
-     * @param projection The [CottontailGrpc.Projection] object.
+     * @param projection Map of output [Name.ColumnName] to input [Name].
      * @param context The [QueryContext] used for query binding.
+     * @param simplify Flag indicating, that only simple names should be used (i.e. not FQNs).
      *
      * @return The resulting [SelectProjectionLogicalOperatorNode].
      */
-    private fun parseAndBindProjection(input: OperatorNode.Logical, projection: CottontailGrpc.Projection, context: QueryContext): OperatorNode.Logical {
-        val fields = projection.elementsList.mapIndexed { i,p ->
-            val name = when (p.projCase) {
-                CottontailGrpc.Projection.ProjectionElement.ProjCase.COLUMN -> p.column.fqn()
-                CottontailGrpc.Projection.ProjectionElement.ProjCase.FUNCTION -> if (p.hasAlias()) { p.alias.fqn() } else { Name.ColumnName(p.function.name) }
-                CottontailGrpc.Projection.ProjectionElement.ProjCase.PROJ_NOT_SET,
-                null -> throw QueryException.QuerySyntaxException("Projection element at position $i is malformed (column or function missing).")
-            }
-            if (p.hasAlias()) {
-                name to p.alias.fqn()
-            } else {
-                name to null
-            }
-        }
-        val type = try {
-            Projection.valueOf(projection.op.name)
-        } catch (e: java.lang.IllegalArgumentException) {
-            throw QueryException.QuerySyntaxException("The query lacks a valid SELECT-clause (projection): ${projection.op} is not supported.")
-        }
+    private fun parseAndBindProjection(input: OperatorNode.Logical, projection: Map<Name.ColumnName,Name>, op: Projection, context: QueryContext, simplify: Boolean = false): OperatorNode.Logical = try {
 
-        /* Return logical node expression for projection. */
-        return when (type) {
+        val wildcards = projection.keys.filter { it.wildcard }
+        when (op) {
             Projection.SELECT,
-            Projection.SELECT_DISTINCT -> SelectProjectionLogicalOperatorNode(input, type, fields)
-            Projection.COUNT -> CountProjectionLogicalOperatorNode(input, fields)
-            Projection.EXISTS -> ExistsProjectionLogicalOperatorNode(input, fields)
+            Projection.SELECT_DISTINCT -> {
+                val fields = input.columns.filter { col -> projection.containsKey(col.name) || wildcards.any { w -> w.matches(col.name)} }.map { it.name }
+                SelectProjectionLogicalOperatorNode(input, op, fields)
+            }
+            Projection.COUNT -> CountProjectionLogicalOperatorNode(input, projection.keys.firstOrNull())
+            Projection.EXISTS -> ExistsProjectionLogicalOperatorNode(input, projection.keys.firstOrNull())
             Projection.SUM,
             Projection.MAX,
             Projection.MIN,
-            Projection.MEAN -> AggregatingProjectionLogicalOperatorNode(input, type, fields)
-            else -> throw QueryException.QuerySyntaxException("Project of type $type is currently not supported.")
+            Projection.MEAN -> {
+                val fields = input.columns.filter { col -> projection.containsKey(col.name) || wildcards.any { w -> w.matches(col.name)} }.map { it.name }
+                AggregatingProjectionLogicalOperatorNode(input, op, fields)
+            }
+            else -> throw QueryException.QuerySyntaxException("Project of type $op is currently not supported.")
         }
+    } catch (e: java.lang.IllegalArgumentException) {
+        throw QueryException.QuerySyntaxException("The query lacks a valid SELECT-clause (projection): $op is not supported.")
+    }
+
+
+    /**
+     * Parses the list of [Name.ColumnName] in the [CottontailGrpc.Projection] element and returns a map of the source [Name.ColumnName] and/or
+     * [Name.FunctionName] the resulting [Name.ColumnName] resolving both simplification and aliases.
+     *
+     * @param projection The [CottontailGrpc.Projection] element to parse.
+     * @param simplify Whether or not names should be simplified, i.e., simple name instead of FQN should be used.
+     * @return Mapping of resulting [Name.ColumnName] to source [Name]
+     */
+    private fun parseProjectionColumns(projection: CottontailGrpc.Projection, simplify: Boolean = false): Map<Name.ColumnName,Name> {
+        val map = Object2ObjectLinkedOpenHashMap<Name.ColumnName, Name>()
+        projection.elementsList.forEachIndexed { i, e ->
+            when (e.projCase) {
+                CottontailGrpc.Projection.ProjectionElement.ProjCase.COLUMN -> {
+                    /* Sanity check; star projections can't have aliases. */
+                    if (e.column.name == "*" && e.hasAlias()) {
+                        throw QueryException.QuerySyntaxException("The query lacks a valid SELECT-clause (projection): Cannot assign alias to star-projection at index $i.")
+                    }
+
+                    /* Determine final name of column. */
+                    val finalName = when {
+                        e.hasAlias() -> e.alias.fqn()
+                        simplify -> Name.ColumnName(e.column.name)
+                        else -> e.column.fqn()
+                    }
+
+                    /* Check for uniqueness and assign. */
+                    if (map.contains(finalName)) {
+                        throw QueryException.QuerySyntaxException("The query lacks a valid SELECT-clause (projection): Duplicate projection element $finalName at index $i.")
+                    }
+                    map[finalName] = e.column.fqn()
+                }
+                CottontailGrpc.Projection.ProjectionElement.ProjCase.FUNCTION -> {
+                    /* Sanity check; star projections can't have aliases. */
+                    val finalName = when {
+                        e.hasAlias() -> e.alias.fqn()
+                        else -> Name.ColumnName(e.function.name.name)
+                    }
+
+                    /* Check for uniqueness and assign. */
+                    if (map.contains(finalName)) {
+                        throw QueryException.QuerySyntaxException("The query lacks a valid SELECT-clause (projection): Duplicate projection element $finalName at index $i.")
+                    }
+                    map[finalName] =  e.function.name.fqn()
+                }
+                CottontailGrpc.Projection.ProjectionElement.ProjCase.PROJ_NOT_SET,
+                null -> throw QueryException.QuerySyntaxException("The query lacks a valid SELECT-clause (projection): Projection element at index $i is malformed.")
+            }
+        }
+        return map
     }
 
     /**
