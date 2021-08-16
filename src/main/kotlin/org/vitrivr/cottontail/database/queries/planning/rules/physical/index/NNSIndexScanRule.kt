@@ -37,7 +37,7 @@ object NNSIndexScanRule : RewriteRule {
             val scan = node.input
             if (scan is EntityScanPhysicalOperatorNode) {
                 val physicalQueryColumn = scan.fetch.singleOrNull { it.first == queryColumn.name }?.second ?: return null
-                val distanceColumn = ColumnDef(Name.ColumnName(node.function.name), Type.Double)
+                val distanceColumn = ColumnDef(Name.ColumnName(node.function.name.simple), Type.Double)
                 val sort = node.output
                 if (sort is SortPhysicalOperatorNode) {
                     if (sort.sortOn.first().first != node.columns.last()) return null /* Sort on distance column is required. */
