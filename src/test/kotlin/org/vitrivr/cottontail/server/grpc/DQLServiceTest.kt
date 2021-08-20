@@ -3,6 +3,7 @@ package org.vitrivr.cottontail.server.grpc
 import io.grpc.ManagedChannel
 import io.grpc.netty.NettyChannelBuilder
 import org.junit.jupiter.api.*
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.vitrivr.cottontail.TestConstants
 import org.vitrivr.cottontail.TestConstants.STRING_COLUMN_NAME
 import org.vitrivr.cottontail.TestConstants.TEST_ENTITY_FQN_INPUT
@@ -10,6 +11,7 @@ import org.vitrivr.cottontail.TestConstants.TEST_ENTITY_TUPLE_COUNT
 import org.vitrivr.cottontail.TestConstants.TEST_VECTOR_ENTITY_FQN_INPUT
 import org.vitrivr.cottontail.TestConstants.TWOD_COLUMN_NAME
 import org.vitrivr.cottontail.client.language.dql.Query
+import org.vitrivr.cottontail.client.language.extensions.Literal
 import org.vitrivr.cottontail.client.stub.SimpleClient
 import org.vitrivr.cottontail.embedded
 import java.util.concurrent.TimeUnit
@@ -99,5 +101,29 @@ class DQLServiceTest {
         val el = result.next()
         val distance = el.asDouble("distance")
         assert(distance != null)
+    }
+
+    @Test
+    fun queryNNSWithLikeStart() {
+        val query = Query().from(TEST_VECTOR_ENTITY_FQN_INPUT).knn(TWOD_COLUMN_NAME, 500, "l2", arrayOf(5f, 10f)).where(Literal(STRING_COLUMN_NAME, "LIKE", "a%"))
+        val result = client.query(query)
+        for (r in result) {
+            val distance = r.asDouble("distance")
+            val string = r.asString(STRING_COLUMN_NAME)!!
+            assert(distance != null)
+            assertTrue(string.first() == 'a')
+        }
+    }
+
+    @Test
+    fun queryNNSWithLikeEnd() {
+        val query = Query().from(TEST_VECTOR_ENTITY_FQN_INPUT).knn(TWOD_COLUMN_NAME, 500, "l2", arrayOf(5f, 10f)).where(Literal(STRING_COLUMN_NAME, "LIKE", "%z"))
+        val result = client.query(query)
+        for (r in result) {
+            val distance = r.asDouble("distance")
+            val string = r.asString(STRING_COLUMN_NAME)!!
+            assert(distance != null)
+            assertTrue(string.last() == 'z')
+        }
     }
 }

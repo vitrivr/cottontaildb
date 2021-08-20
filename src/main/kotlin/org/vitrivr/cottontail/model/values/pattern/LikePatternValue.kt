@@ -7,7 +7,7 @@ import org.vitrivr.cottontail.model.values.StringValue
  * be converted to a [LucenePatternValue] or matched directly through regular expressions.
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.1.1
  */
 sealed class LikePatternValue(value: String) : PatternValue(value) {
 
@@ -101,7 +101,7 @@ sealed class LikePatternValue(value: String) : PatternValue(value) {
         }
 
         /** String used for comparison. */
-        private val endsWith = this.value.substring(1, value.length - 1)
+        val endsWith = this.value.substring(1, value.length)
 
         /**
          * Checks if the given [StringValue] matches this [LikePatternValue].
@@ -109,7 +109,7 @@ sealed class LikePatternValue(value: String) : PatternValue(value) {
          * @param value [StringValue] to match.
          * @return True on match, false otherwise.
          */
-        override fun matches(value: StringValue) = this.value.endsWith(this.endsWith)
+        override fun matches(value: StringValue) = value.value.endsWith(this.endsWith)
     }
 
     /**
