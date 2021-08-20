@@ -7,7 +7,7 @@ import org.vitrivr.cottontail.model.values.StringValue
  * be converted to a [LucenePatternValue] or matched directly through regular expressions.
  *
  * @author Ralph Gasser
- * @version 1.1.1
+ * @version 1.1.2
  */
 sealed class LikePatternValue(value: String) : PatternValue(value) {
 
@@ -19,12 +19,17 @@ sealed class LikePatternValue(value: String) : PatternValue(value) {
         const val SINGLE_WILDCARD = '_'
 
         /**
+         * Converts an expression to a [LikePatternValue].
          *
+         * @param exp The expression to convert.
+         * @return [LikePatternValue]
          */
-        fun forValue(value: String) = when {
-            value.endsWith(ZERO_ONE_MULTIPLE_WILDCARD) && value.count { it == '%' } == 1 -> StartsWith(value)
-            value.startsWith(ZERO_ONE_MULTIPLE_WILDCARD) && value.count { it == '%' } == 1 -> EndsWith(value)
-            else -> Regex(value)
+        fun forValue(exp: String) = when {
+            exp.endsWith(ZERO_ONE_MULTIPLE_WILDCARD) && exp.count { it == ZERO_ONE_MULTIPLE_WILDCARD } == 1 ||
+            exp.endsWith(SINGLE_WILDCARD) && exp.count { it == SINGLE_WILDCARD } == 1 -> StartsWith(exp)
+            exp.startsWith(ZERO_ONE_MULTIPLE_WILDCARD) && exp.count { it == ZERO_ONE_MULTIPLE_WILDCARD } == 1 ||
+            exp.startsWith(SINGLE_WILDCARD) && exp.count { it == SINGLE_WILDCARD } == 1 -> EndsWith(exp)
+            else -> Regex(exp)
         }
     }
 
