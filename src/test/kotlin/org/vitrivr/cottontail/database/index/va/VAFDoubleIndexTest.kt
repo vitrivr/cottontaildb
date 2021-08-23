@@ -15,7 +15,7 @@ import org.vitrivr.cottontail.database.schema.SchemaTx
 import org.vitrivr.cottontail.execution.TransactionType
 import org.vitrivr.cottontail.functions.basics.Signature
 import org.vitrivr.cottontail.functions.math.distance.Distances
-import org.vitrivr.cottontail.functions.math.distance.VectorDistance
+import org.vitrivr.cottontail.functions.math.distance.basics.VectorDistance
 import org.vitrivr.cottontail.utilities.selection.ComparablePair
 import org.vitrivr.cottontail.utilities.selection.MinHeapSelection
 import org.vitrivr.cottontail.model.basics.Name
@@ -73,7 +73,7 @@ class VAFDoubleIndexTest : AbstractIndexTest() {
         val txn = this.manager.Transaction(TransactionType.SYSTEM)
         val k = 100
         val query = DoubleVectorValue.random(this.indexColumn.type.logicalSize, this.random)
-        val function = this.catalogue.functions.obtain(Signature.Closed(distance.functionName, arrayOf(query.type, query.type), Type.Double)) as VectorDistance<*>
+        val function = this.catalogue.functions.obtain(Signature.Closed(distance.functionName, arrayOf(query.type, query.type), Type.Double)) as VectorDistance.Binary<*>
         val context = BindingContext()
         val predicate = KnnPredicate(column = this.indexColumn, k = k, distance = function, query = context.bind(query))
 

@@ -8,8 +8,7 @@ import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.index.pq.codebook.DoublePrecisionPQCodebook
 import org.vitrivr.cottontail.database.index.pq.codebook.PQCodebook
 import org.vitrivr.cottontail.database.index.pq.codebook.SinglePrecisionPQCodebook
-import org.vitrivr.cottontail.functions.math.distance.VectorDistance
-import org.vitrivr.cottontail.functions.math.distance.Distances
+import org.vitrivr.cottontail.functions.math.distance.basics.VectorDistance
 import org.vitrivr.cottontail.model.basics.Type
 import org.vitrivr.cottontail.model.values.DoubleVectorValue
 import org.vitrivr.cottontail.model.values.FloatVectorValue
@@ -174,12 +173,12 @@ class PQ(val type: Type<*>, val codebooks: List<PQCodebook<VectorValue<*>>>) {
     }
 
     /**
-     * Generates and returns a [PQLookupTable] for the given [VectorDistance].
+     * Generates and returns a [PQLookupTable] for the given [VectorDistance.Binary].
      *
-     * @param distance The [VectorDistance] to generate the [PQLookupTable] for.
-     * @return The [PQLookupTable] for the given [VectorDistance].
+     * @param distance The [VectorDistance.Binary] to generate the [PQLookupTable] for.
+     * @return The [PQLookupTable] for the given [VectorDistance.Binary].
      */
-    fun getLookupTable(query: VectorValue<*>, distance: VectorDistance<*>): PQLookupTable {
+    fun getLookupTable(query: VectorValue<*>, distance: VectorDistance.Binary<*>): PQLookupTable {
         val reshape = distance.copy(this.dimensionsPerSubspace)
         return PQLookupTable(
             Array(this.numberOfSubspaces) { k ->

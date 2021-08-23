@@ -13,7 +13,7 @@ import org.vitrivr.cottontail.database.queries.planning.nodes.physical.transform
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.transform.LimitPhysicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.rules.RewriteRule
 import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicate
-import org.vitrivr.cottontail.functions.math.distance.VectorDistance
+import org.vitrivr.cottontail.functions.math.distance.basics.VectorDistance
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Type
 
@@ -31,7 +31,7 @@ object NNSIndexScanRule : RewriteRule {
     override fun canBeApplied(node: OperatorNode): Boolean = node is FunctionProjectionPhysicalOperatorNode
 
     override fun apply(node: OperatorNode, ctx: QueryContext): OperatorNode? {
-        if (node is FunctionProjectionPhysicalOperatorNode && node.function is VectorDistance<*>) {
+        if (node is FunctionProjectionPhysicalOperatorNode && node.function is VectorDistance.Binary<*>) {
             val queryColumn = node.arguments.filterIsInstance<Binding.Column>().singleOrNull()?.column ?: return null
             val vectorLiteral = node.arguments.filterIsInstance<Binding.Literal>().singleOrNull() ?: return null
             val scan = node.input

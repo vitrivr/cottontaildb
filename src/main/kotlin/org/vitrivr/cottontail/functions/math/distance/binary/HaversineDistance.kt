@@ -5,7 +5,7 @@ import org.vitrivr.cottontail.functions.basics.AbstractFunctionGenerator
 import org.vitrivr.cottontail.functions.basics.Function
 import org.vitrivr.cottontail.functions.basics.Signature
 import org.vitrivr.cottontail.functions.exception.FunctionNotSupportedException
-import org.vitrivr.cottontail.functions.math.distance.VectorDistance
+import org.vitrivr.cottontail.functions.math.distance.basics.VectorDistance
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Type
 import org.vitrivr.cottontail.model.values.*
@@ -14,12 +14,12 @@ import org.vitrivr.cottontail.model.values.types.VectorValue
 import kotlin.math.*
 
 /**
- * A [VectorDistance] implementation to calculate the Haversine distance between two 2D points.
+ * A [VectorDistance.Binary] implementation to calculate the Haversine distance between two 2D points.
  *
  * @author Loris Sauter & Ralph Gasser
  * @version 1.1.0
  */
-sealed class HaversineDistance<T : VectorValue<*>>: VectorDistance<T> {
+sealed class HaversineDistance<T : VectorValue<*>>: VectorDistance.Binary<T> {
 
     object Generator: AbstractFunctionGenerator<DoubleValue>() {
         val FUNCTION_NAME = Name.FunctionName("haversine")

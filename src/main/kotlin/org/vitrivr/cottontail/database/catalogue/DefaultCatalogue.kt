@@ -11,6 +11,7 @@ import org.vitrivr.cottontail.database.schema.DefaultSchema
 import org.vitrivr.cottontail.database.schema.Schema
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.functions.FunctionRegistry
+import org.vitrivr.cottontail.functions.initialize
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import org.vitrivr.cottontail.model.exceptions.TxException
@@ -86,7 +87,7 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
             this.store.commit()
         }
 
-        /* Initialize. */
+        /* Initialize schemas. */
         for (schemaRef in this.headerField.get().schemas) {
             if (schemaRef.path != null && Files.exists(schemaRef.path)) {
                 this.registry[Name.SchemaName(schemaRef.name)] = DefaultSchema(path, this)
@@ -98,6 +99,9 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
                 this.registry[Name.SchemaName(schemaRef.name)] = DefaultSchema(path, this)
             }
         }
+
+        /* Initialize function registry. */
+        this.functions.initialize()
     }
 
     /**

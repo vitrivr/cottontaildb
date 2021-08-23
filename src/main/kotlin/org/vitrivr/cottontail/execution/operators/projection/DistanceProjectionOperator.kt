@@ -4,7 +4,7 @@ import kotlinx.coroutines.flow.*
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
-import org.vitrivr.cottontail.functions.math.distance.VectorDistance
+import org.vitrivr.cottontail.functions.math.distance.basics.VectorDistance
 import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.DoubleValue
@@ -20,7 +20,7 @@ import org.vitrivr.cottontail.utilities.math.KnnUtilities
  * @version 1.3.0
  */
 @Deprecated("Replaced by FunctionProjectionOperator; do not use anymore!")
-class DistanceProjectionOperator(parent: Operator, val column: ColumnDef<*>, val distance: VectorDistance<*>) : Operator.PipelineOperator(parent) {
+class DistanceProjectionOperator(parent: Operator, val column: ColumnDef<*>, val distance: VectorDistance.Binary<*>) : Operator.PipelineOperator(parent) {
 
     /** The columns produced by this [DistanceProjectionOperator]. */
     override val columns: List<ColumnDef<*>> = this.parent.columns + KnnUtilities.distanceColumnDef(this.column.name.entity())

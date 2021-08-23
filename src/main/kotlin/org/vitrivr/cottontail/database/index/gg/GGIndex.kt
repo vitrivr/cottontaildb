@@ -16,8 +16,8 @@ import org.vitrivr.cottontail.database.queries.predicates.Predicate
 import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicate
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.functions.basics.Signature
-import org.vitrivr.cottontail.functions.math.distance.VectorDistance
 import org.vitrivr.cottontail.functions.math.distance.Distances
+import org.vitrivr.cottontail.functions.math.distance.basics.VectorDistance
 import org.vitrivr.cottontail.utilities.selection.ComparablePair
 import org.vitrivr.cottontail.utilities.selection.MinHeapSelection
 import org.vitrivr.cottontail.utilities.selection.MinSingleSelection
@@ -166,7 +166,7 @@ class GGIndex(path: Path, parent: DefaultEntity, config: GGIndexConfig? = null) 
                     /* Perform kNN for group. */
                     val signature = Signature.Closed(this@GGIndex.config.distance.functionName, arrayOf(this@GGIndex.columns[0].type), Type.Double)
                     val function = this@GGIndex.parent.parent.parent.functions.obtain(signature)
-                    check(function is VectorDistance<*>) { "GGIndex rebuild failed: Function $signature is not a vector distance function." }
+                    check(function is VectorDistance.Binary<*>) { "GGIndex rebuild failed: Function $signature is not a vector distance function." }
                     val knn = MinHeapSelection<ComparablePair<Pair<TupleId, VectorValue<*>>, DoubleValue>>(groupSize)
                     remainingTids.forEach { tid ->
                         val r = txn.read(tid, this@GGIndex.columns)
@@ -260,7 +260,7 @@ class GGIndex(path: Path, parent: DefaultEntity, config: GGIndexConfig? = null) 
                 val txn = this@Tx.context.getTx(this@GGIndex.parent) as EntityTx
                 val signature = Signature.Closed(this@GGIndex.config.distance.functionName, arrayOf(this@GGIndex.columns[0].type), Type.Double)
                 val function = this@GGIndex.parent.parent.parent.functions.obtain(signature)
-                check (function is VectorDistance<*>) { "Function $signature is not a vector distance function." }
+                check (function is VectorDistance.Binary<*>) { "Function $signature is not a vector distance function." }
 
                 /** Phase 1): Perform kNN on the groups. */
                 require(this.predicate.k < txn.maxTupleId() / config.numGroups * considerNumGroups) { "Value of k is too large for this index considering $considerNumGroups groups." }

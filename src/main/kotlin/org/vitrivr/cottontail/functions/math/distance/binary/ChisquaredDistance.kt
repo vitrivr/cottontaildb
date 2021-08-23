@@ -6,7 +6,7 @@ import org.vitrivr.cottontail.functions.basics.Function
 import org.vitrivr.cottontail.functions.basics.FunctionGenerator
 import org.vitrivr.cottontail.functions.basics.Signature
 import org.vitrivr.cottontail.functions.exception.FunctionNotSupportedException
-import org.vitrivr.cottontail.functions.math.distance.VectorDistance
+import org.vitrivr.cottontail.functions.math.distance.basics.VectorDistance
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Type
 import org.vitrivr.cottontail.model.values.*
@@ -15,12 +15,12 @@ import org.vitrivr.cottontail.model.values.types.VectorValue
 import kotlin.math.pow
 
 /**
- * A [VectorDistance] implementation to calculate the Chi^2 distance between two [VectorValue]s.
+ * A [VectorDistance.Binary] implementation to calculate the Chi^2 distance between two [VectorValue]s.
  *
  * @author Ralph Gasser
  * @version 1.1.0
  */
-sealed class ChisquaredDistance<T : VectorValue<*>>: VectorDistance<T> {
+sealed class ChisquaredDistance<T : VectorValue<*>>: VectorDistance.Binary<T> {
     /**
      * The [FunctionGenerator] for the [ChisquaredDistance].
      */

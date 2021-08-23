@@ -19,6 +19,7 @@ import org.vitrivr.cottontail.database.queries.predicates.Predicate
 import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicate
 import org.vitrivr.cottontail.database.statistics.columns.*
 import org.vitrivr.cottontail.execution.TransactionContext
+import org.vitrivr.cottontail.functions.math.distance.basics.MinkowskiDistance
 import org.vitrivr.cottontail.functions.math.distance.binary.EuclideanDistance
 import org.vitrivr.cottontail.functions.math.distance.binary.ManhattanDistance
 import org.vitrivr.cottontail.functions.math.distance.binary.SquaredEuclideanDistance
@@ -104,11 +105,11 @@ class VAFIndex(path: Path, parent: DefaultEntity, config: VAFIndexConfig? = null
     override fun cost(predicate: Predicate): Cost {
         if (predicate !is KnnPredicate) return Cost.INVALID
         if (predicate.column != this.columns[0]) return Cost.INVALID
-        if (predicate.distance !is ManhattanDistance && predicate.distance !is EuclideanDistance &&  predicate.distance !is SquaredEuclideanDistance) return Cost.INVALID
+        if (predicate.distance !is MinkowskiDistance<*>) return Cost.INVALID
         return Cost(
             this.signatures.size * this.marksStore.get().d * Cost.COST_DISK_ACCESS_READ + 0.1f * (this.signatures.size * this.columns[0].type.physicalSize * Cost.COST_DISK_ACCESS_READ),
             this.signatures.size * this.marksStore.get().d * (2 * Cost.COST_MEMORY_ACCESS + Cost.COST_FLOP) + 0.1f * this.signatures.size * predicate.atomicCpuCost,
-            predicate.k * this.produces.map { it.type.physicalSize }.sum().toFloat()
+            predicate.k * this.produces.sumOf { it.type.physicalSize }.toFloat()
         )
     }
 
@@ -271,9 +272,9 @@ class VAFIndex(path: Path, parent: DefaultEntity, config: VAFIndexConfig? = null
                 check(value is RealVectorValue<*>) { "Bound value for query vector has wrong type (found = ${value?.type})." }
                 this.query = value
                 this.bounds = when (this.predicate.distance) {
-                    is ManhattanDistance -> L1Bounds(this.query, this.marks)
-                    is EuclideanDistance -> L2Bounds(this.query, this.marks)
-                    is SquaredEuclideanDistance -> L2SBounds(this.query, this.marks)
+                    is ManhattanDistance<*> -> L1Bounds(this.query, this.marks)
+                    is EuclideanDistance<*> -> L2Bounds(this.query, this.marks)
+                    is SquaredEuclideanDistance<*> -> L2SBounds(this.query, this.marks)
                     else -> throw IllegalArgumentException("The ${this.predicate.distance} distance kernel is not supported by VAFIndex.")
                 }
 

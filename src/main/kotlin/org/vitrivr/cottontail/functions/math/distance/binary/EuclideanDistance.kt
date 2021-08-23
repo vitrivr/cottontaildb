@@ -6,7 +6,7 @@ import org.vitrivr.cottontail.functions.basics.Function
 import org.vitrivr.cottontail.functions.basics.FunctionGenerator
 import org.vitrivr.cottontail.functions.basics.Signature
 import org.vitrivr.cottontail.functions.exception.FunctionNotSupportedException
-import org.vitrivr.cottontail.functions.math.distance.VectorDistance
+import org.vitrivr.cottontail.functions.math.distance.basics.MinkowskiDistance
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Type
 import org.vitrivr.cottontail.model.values.*
@@ -21,7 +21,7 @@ import kotlin.math.sqrt
  * @author Ralph Gasser
  * @version 1.1.0
  */
-sealed class EuclideanDistance<T : VectorValue<*>>: VectorDistance.MinkowskiDistance<T> {
+sealed class EuclideanDistance<T : VectorValue<*>>: MinkowskiDistance<T> {
 
     /**
      * The [FunctionGenerator] for the [EuclideanDistance].

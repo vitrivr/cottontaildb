@@ -3,7 +3,7 @@ package org.vitrivr.cottontail.database.queries.predicates.knn
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.queries.binding.Binding
 import org.vitrivr.cottontail.database.queries.predicates.Predicate
-import org.vitrivr.cottontail.functions.math.distance.VectorDistance
+import org.vitrivr.cottontail.functions.math.distance.basics.VectorDistance
 import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.utilities.math.KnnUtilities
@@ -17,7 +17,7 @@ import org.vitrivr.cottontail.utilities.math.KnnUtilities
  * @author Ralph Gasser
  * @version 1.8.0
  */
-data class KnnPredicate(val column: ColumnDef<*>, val k: Int, val distance: VectorDistance<*>, val query: Binding) : Predicate {
+data class KnnPredicate(val column: ColumnDef<*>, val k: Int, val distance: VectorDistance.Binary<*>, val query: Binding) : Predicate {
 
     init {
         /* Basic sanity checks. */

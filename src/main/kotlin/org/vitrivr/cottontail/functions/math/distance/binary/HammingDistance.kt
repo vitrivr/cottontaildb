@@ -6,7 +6,7 @@ import org.vitrivr.cottontail.functions.basics.Function
 import org.vitrivr.cottontail.functions.basics.FunctionGenerator
 import org.vitrivr.cottontail.functions.basics.Signature
 import org.vitrivr.cottontail.functions.exception.FunctionNotSupportedException
-import org.vitrivr.cottontail.functions.math.distance.VectorDistance
+import org.vitrivr.cottontail.functions.math.distance.basics.VectorDistance
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Type
 import org.vitrivr.cottontail.model.values.*
@@ -14,12 +14,12 @@ import org.vitrivr.cottontail.model.values.types.Value
 import org.vitrivr.cottontail.model.values.types.VectorValue
 
 /**
- * A [VectorDistance] implementation to calculate the Cosine distance between two [VectorValue]s.
+ * A [VectorDistance.Binary] implementation to calculate the Cosine distance between two [VectorValue]s.
  *
  * @author Ralph Gasser
  * @version 1.1.0
  */
-sealed class HammingDistance<T : VectorValue<*>>: VectorDistance<T> {
+sealed class HammingDistance<T : VectorValue<*>>: VectorDistance.Binary<T> {
     /**
      * The [FunctionGenerator] for the [HammingDistance].
      */
@@ -70,7 +70,7 @@ sealed class HammingDistance<T : VectorValue<*>>: VectorDistance<T> {
      */
     class FloatVector(size: Int) : HammingDistance<FloatVectorValue>() {
         override val type = Type.FloatVector(size)
-        override fun copy(d: Int): VectorDistance<FloatVectorValue> = FloatVector(d)
+        override fun copy(d: Int): VectorDistance.Binary<FloatVectorValue> = FloatVector(d)
         override fun invoke(vararg arguments: Value?): DoubleValue {
             val query = arguments[0] as FloatVectorValue
             val vector = arguments[1] as FloatVectorValue
@@ -89,7 +89,7 @@ sealed class HammingDistance<T : VectorValue<*>>: VectorDistance<T> {
      */
     class LongVector(size: Int) : HammingDistance<LongVectorValue>() {
         override val type = Type.LongVector(size)
-        override fun copy(d: Int): VectorDistance<LongVectorValue> = LongVector(d)
+        override fun copy(d: Int): VectorDistance.Binary<LongVectorValue> = LongVector(d)
         override fun invoke(vararg arguments: Value?): DoubleValue {
             val query = arguments[0] as LongVectorValue
             val vector = arguments[1] as LongVectorValue
