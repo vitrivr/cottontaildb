@@ -69,9 +69,9 @@ sealed class HyperplaneDistance<T: VectorValue<*>>: VectorDistance<T> {
             var norm = 0.0
             for (i in 0 until q.logicalSize) {
                 dotp += q.data[i] * w.data[i]
-                norm += w.data[i].pow(2.0)
+                norm += w.data[i] * w.data[i]
             }
-            return DoubleValue(kotlin.math.abs(dotp + b.value) / sqrt(norm))
+            return DoubleValue(dotp + b.value / sqrt(norm))
         }
     }
 
@@ -94,9 +94,9 @@ sealed class HyperplaneDistance<T: VectorValue<*>>: VectorDistance<T> {
             var norm = 0.0
             for (i in 0 until q.logicalSize) {
                 dotp += q.data[i] * w.data[i]
-                norm += w.data[i].pow(2.0f)
+                norm += w.data[i] * w.data[i]
             }
-            return DoubleValue(kotlin.math.abs(dotp + b.value) / sqrt(norm))
+            return DoubleValue(dotp + b.value / sqrt(norm))
         }
     }
 
@@ -121,7 +121,7 @@ sealed class HyperplaneDistance<T: VectorValue<*>>: VectorDistance<T> {
                 dotp += q.data[i] * w.data[i]
                 norm += w.data[i] * w.data[i]
             }
-            return DoubleValue(kotlin.math.abs(dotp + b.value) / sqrt(norm))
+            return DoubleValue(dotp + b.value / sqrt(norm))
         }
     }
 
@@ -146,7 +146,7 @@ sealed class HyperplaneDistance<T: VectorValue<*>>: VectorDistance<T> {
                 dotp += q.data[i] * w.data[i]
                 norm += w.data[i] * w.data[i]
             }
-            return DoubleValue(kotlin.math.abs(dotp + b.value) / sqrt(norm))
+            return DoubleValue(dotp + b.value / sqrt(norm))
         }
     }
 }
