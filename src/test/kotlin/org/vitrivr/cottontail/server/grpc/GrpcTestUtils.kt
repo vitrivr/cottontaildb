@@ -67,10 +67,7 @@ fun populateTestEntity(client: SimpleClient) {
             .columns(STRING_COLUMN_NAME, INT_COLUMN_NAME)
     val random = Random.Default
     repeat(TEST_ENTITY_TUPLE_COUNT.toInt()) {
-        batch.append(
-                RandomStringUtils.randomAlphabetic(5),
-                random.nextInt(0, 10)
-        )
+        batch.append(RandomStringUtils.randomAlphabetic(5), random.nextInt(0, 10))
     }
     client.insert(batch)
 }
