@@ -20,14 +20,12 @@ import kotlin.time.ExperimentalTime
  * @version 1.0
  */
 @ExperimentalTime
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class DMLServiceTest {
     private lateinit var client: SimpleClient
     private lateinit var channel: ManagedChannel
     private lateinit var embedded: CottontailGrpcServer
 
-
-    @BeforeAll
+    @BeforeEach
     fun startCottontail() {
         this.embedded = embedded(TestConstants.testConfig())
         val builder = NettyChannelBuilder.forAddress("localhost", 1865)
@@ -41,6 +39,20 @@ class DMLServiceTest {
         createTestEntity(client)
         populateTestEntity(client)
         populateVectorEntity(client)
+
+        assert(client.ping())
+    }
+
+    @AfterEach
+    fun cleanup() {
+        dropTestSchema(this.client)
+
+        /* Shutdown ManagedChannel. */
+        this.channel.shutdown()
+        this.channel.awaitTermination(5000, TimeUnit.MILLISECONDS)
+
+        /* Stop embedded server. */
+        this.embedded.stop()
     }
 
     @Test
@@ -106,22 +118,5 @@ class DMLServiceTest {
         for (el2 in r2) {
             Assertions.assertNotEquals(-1, el2.asInt(TestConstants.INT_COLUMN_NAME))
         }
-    }
-
-    @AfterAll
-    fun cleanup() {
-        dropTestSchema(this.client)
-
-        /* Shutdown ManagedChannel. */
-        this.channel.shutdown()
-        this.channel.awaitTermination(5000, TimeUnit.MILLISECONDS)
-
-        /* Stop embedded server. */
-        this.embedded.stop()
-    }
-
-    @BeforeEach
-    fun setup() {
-        assert(client.ping())
     }
 }
