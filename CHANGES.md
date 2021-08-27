@@ -1,5 +1,14 @@
 # Change log for Cottontail DB
 
+## Version 0.12.12
+
+* Bumped some library versions.
+
+### Bugfixes
+
+* Fixed a bug in LIKE-queries with wildcard at the beginning (ends with).
+* Another, minor bugfix for `DeferFetchOnFetchRewriteRule
+
 ## Version 0.12.11
 
 ### Bugfixes

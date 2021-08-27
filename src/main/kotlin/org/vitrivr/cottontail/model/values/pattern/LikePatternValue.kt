@@ -7,7 +7,7 @@ import org.vitrivr.cottontail.model.values.StringValue
  * be converted to a [LucenePatternValue] or matched directly through regular expressions.
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.1.2
  */
 sealed class LikePatternValue(value: String) : PatternValue(value) {
 
@@ -19,12 +19,17 @@ sealed class LikePatternValue(value: String) : PatternValue(value) {
         const val SINGLE_WILDCARD = '_'
 
         /**
+         * Converts an expression to a [LikePatternValue].
          *
+         * @param exp The expression to convert.
+         * @return [LikePatternValue]
          */
-        fun forValue(value: String) = when {
-            value.endsWith(ZERO_ONE_MULTIPLE_WILDCARD) && value.count { it == '%' } == 1 -> StartsWith(value)
-            value.startsWith(ZERO_ONE_MULTIPLE_WILDCARD) && value.count { it == '%' } == 1 -> EndsWith(value)
-            else -> Regex(value)
+        fun forValue(exp: String) = when {
+            exp.endsWith(ZERO_ONE_MULTIPLE_WILDCARD) && exp.count { it == ZERO_ONE_MULTIPLE_WILDCARD } == 1 ||
+            exp.endsWith(SINGLE_WILDCARD) && exp.count { it == SINGLE_WILDCARD } == 1 -> StartsWith(exp)
+            exp.startsWith(ZERO_ONE_MULTIPLE_WILDCARD) && exp.count { it == ZERO_ONE_MULTIPLE_WILDCARD } == 1 ||
+            exp.startsWith(SINGLE_WILDCARD) && exp.count { it == SINGLE_WILDCARD } == 1 -> EndsWith(exp)
+            else -> Regex(exp)
         }
     }
 
@@ -101,7 +106,7 @@ sealed class LikePatternValue(value: String) : PatternValue(value) {
         }
 
         /** String used for comparison. */
-        private val endsWith = this.value.substring(1, value.length - 1)
+        val endsWith = this.value.substring(1, value.length)
 
         /**
          * Checks if the given [StringValue] matches this [LikePatternValue].
@@ -109,7 +114,7 @@ sealed class LikePatternValue(value: String) : PatternValue(value) {
          * @param value [StringValue] to match.
          * @return True on match, false otherwise.
          */
-        override fun matches(value: StringValue) = this.value.endsWith(this.endsWith)
+        override fun matches(value: StringValue) = value.value.endsWith(this.endsWith)
     }
 
     /**
