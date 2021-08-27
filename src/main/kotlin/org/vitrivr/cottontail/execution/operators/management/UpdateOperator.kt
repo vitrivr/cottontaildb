@@ -15,6 +15,7 @@ import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.DoubleValue
 import org.vitrivr.cottontail.model.values.LongValue
 import org.vitrivr.cottontail.model.values.types.Value
+import kotlin.time.DurationUnit
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTime
 
@@ -51,17 +52,16 @@ class UpdateOperator(parent: Operator, val entity: EntityTx, val values: List<Pa
     override fun toFlow(context: TransactionContext): Flow<Record> {
         var updated = 0L
         val parent = this.parent.toFlow(context)
+        val c = this.values.map { it.first }.toTypedArray()
+        val v = this.values.map { it.second }.toTypedArray()
         return flow {
             val time = measureTime {
                 parent.collect { record ->
-                    for (value in this@UpdateOperator.values) {
-                        record[value.first] = value.second
-                    }
-                    this@UpdateOperator.entity.update(record) /* Safe, cause tuple IDs are retained for simple queries. */
+                    this@UpdateOperator.entity.update(StandaloneRecord(record.tupleId, c, v)) /* Safe, cause tuple IDs are retained for simple queries. */
                     updated += 1
                 }
             }
-            emit(StandaloneRecord(0L, this@UpdateOperator.columns, arrayOf(LongValue(updated), DoubleValue(time.inMilliseconds))))
+            emit(StandaloneRecord(0L, this@UpdateOperator.columns, arrayOf(LongValue(updated), DoubleValue(time.toDouble(DurationUnit.MILLISECONDS)))))
         }
     }
 }
