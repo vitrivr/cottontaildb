@@ -29,6 +29,7 @@ import org.vitrivr.cottontail.cli.schema.ListEntitiesCommand
 import org.vitrivr.cottontail.cli.system.ListLocksCommand
 import org.vitrivr.cottontail.cli.system.ListTransactionsCommand
 import org.vitrivr.cottontail.cli.system.MigrationCommand
+import org.vitrivr.cottontail.cli.system.RollbackTransactionCommand
 import org.vitrivr.cottontail.grpc.*
 import java.io.IOException
 import java.util.*
@@ -246,6 +247,7 @@ class Cli(val host: String = "localhost", val port: Int = 1865) {
                 "exit" to listOf("stop"),
                 "schemas" to listOf("schema"),
                 "entities" to listOf("entity"),
+                "trb" to listOf("system", "rollback"),
             )
         }
 
@@ -326,12 +328,14 @@ class Cli(val host: String = "localhost", val port: Int = 1865) {
                         return mapOf(
                             "ls" to listOf("list"),
                             "tls" to listOf("transactions"),
-                            "list-transactionstls" to listOf("transactions")
+                            "list-transactionstls" to listOf("transactions"),
+                            "rb" to listOf("rollback")
                         )
                     }
                 }.subcommands(
                     ListTransactionsCommand(this.txnService),
                     ListLocksCommand(this.txnService),
+                    RollbackTransactionCommand(this.txnService),
                     MigrationCommand()
                 ),
 
