@@ -35,6 +35,7 @@ import java.io.IOException
 import java.util.*
 import java.util.regex.Pattern
 import kotlin.time.ExperimentalTime
+import kotlin.time.measureTimedValue
 
 /**
  * Command line interface instance.  Setup and general parsing. Actual commands are implemented as
@@ -232,7 +233,7 @@ class Cli(val host: String = "localhost", val port: Int = 1865) {
             return mapOf(
                 "sls" to listOf("schema", "all"),
                 "els" to listOf("schema", "list"),
-                "tls" to listOf("system", "list-transactions"),
+                "tls" to listOf("system", "transactions"),
                 "ls" to listOf("entity", "all"),
                 "edelete" to listOf("entity", "drop"),
                 "edel" to listOf("entity", "drop"),
@@ -328,7 +329,7 @@ class Cli(val host: String = "localhost", val port: Int = 1865) {
                         return mapOf(
                             "ls" to listOf("list"),
                             "tls" to listOf("transactions"),
-                            "list-transactionstls" to listOf("transactions"),
+                            "list-transactions" to listOf("transactions"),
                             "rb" to listOf("rollback")
                         )
                     }
@@ -351,8 +352,28 @@ class Cli(val host: String = "localhost", val port: Int = 1865) {
             val schemata = mutableListOf<CottontailGrpc.SchemaName>()
             val entities = mutableListOf<CottontailGrpc.EntityName>()
             this@CottontailCommand.ddlService.listSchemas(CottontailGrpc.ListSchemaMessage.getDefaultInstance()).forEach { _schema ->
-                /* ToDo. */
+                // Streaming result, not sure whether the blocking stub guarantees to only have a single _schema ever
+                // To be sure, we loop also over tuples.
+                _schema.tuplesList.forEach {
+                    val fqn = it.dataList.first().stringData // empirically realised, always the first item
+                    val schemaName = CottontailGrpc.SchemaName.newBuilder().setName(
+                        fqn.substring(fqn.lastIndexOf('.')+1) // comes with 'warren' prefix --> fully qualified name
+                    ).build()
+                    schemata.add(schemaName)
+                    this@CottontailCommand.ddlService.listEntities(
+                        CottontailGrpc.ListEntityMessage.newBuilder().setSchema(schemaName).build()).forEach { _entity ->
+                        // Again, streaming result, we also loop over tuples (empirically found, that tuples contain all entities
+                        _entity.tuplesList.forEach {
+                            val efqn = it.dataList.first().stringData // empirically found
+                            val entityName = CottontailGrpc.EntityName.newBuilder().setName(
+                                efqn.substring(efqn.lastIndexOf('.')+1) // strip fqn
+                            ).build()
+                            entities.add(entityName)
+                        }
+                    }
+                }
             }
+            // The deluxe version would check, if the schema and entity match upon completion (i.e. only suggest entities of the currently typed schema)
             this@Cli.updateArgumentCompletion(schemata = schemata.map { it.name }, entities = entities.map { it.name })
         }
 
