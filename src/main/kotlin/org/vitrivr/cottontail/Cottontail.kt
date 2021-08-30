@@ -12,6 +12,7 @@ import java.io.BufferedReader
 import java.io.FileNotFoundException
 import java.io.InputStreamReader
 import java.nio.file.Files
+import java.nio.file.Path
 import java.nio.file.Paths
 import kotlin.system.exitProcess
 import kotlin.time.ExperimentalTime
@@ -41,49 +42,31 @@ fun main(args: Array<String>) {
     }
 
     /* Order for config: 1) ENV 2) first argument 3) default */
-    var config: Config? = null
-    var configPath = ""
-    var readErr = false
-    var readErrCause: Throwable? = null
-    /* Load config from ENV specification */
-    try {
-        configPath = System.getenv(COTTONTAIL_CONFIG_FILE_ENV_KEY)
-        config = loadConfig(configPath)
-    } catch (e: FileNotFoundException) {
-        // Ignore
-    } catch (r: RuntimeException) {
-        readErr = true
-        readErrCause = r.cause
-    }
-    if (readErr) {
-        if (readErrCause != null) {
-            System.err.println("Config reading error: ${readErrCause.message}")
+
+    /**
+     * Extract configuration path. Order:
+     * 1) Argument
+     * 2) Environment variable
+     * 3) Default path
+     */
+    val configPath: String = when {
+        args.isNotEmpty() -> args.first()
+        System.getenv(COTTONTAIL_CONFIG_FILE_ENV_KEY) != null -> System.getenv(COTTONTAIL_CONFIG_FILE_ENV_KEY)
+        else -> {
+            System.err.println("No path to configuration file specified; using default file at ./config.json.")
+            "./config.json"
         }
+    }
+
+    /* Load config from path. */
+    val config: Config = try {
+       loadConfig(configPath)
+    } catch (e: FileNotFoundException) {
+        System.err.println("Specified Cottontail DB configuration file $configPath does not exist. Cottontail DB will shut down.")
+        exitProcess(1)
+    } catch (r: Throwable) {
         System.err.println("Error on reading Cottontail DB configuration file ($configPath). Cottontail DB will shut down.")
         exitProcess(1)
-    }
-    /* Load config from argument OR default */
-    if (config == null) {
-        configPath = if (args.isEmpty()) {
-            /* No arguments given, use default */
-            System.err.println("No config path specified; using default config at ./config.json.")
-            "./config.json"
-        } else {
-            /* Arguments present, try first argument */
-            args.first()
-        }
-        try {
-            config = loadConfig(configPath)
-        } catch (e: FileNotFoundException) {
-            System.err.println("Specified Cottontail DB configuration file $configPath does not exist. Cottontail DB will shut down.")
-            exitProcess(1)
-        } catch (r: RuntimeException) {
-            if (readErrCause != null) {
-                System.err.println("Config reading error: ${readErrCause.message}")
-            }
-            System.err.println("Error on reading Cottontail DB configuration file ($configPath). Cottontail DB will shut down.")
-            exitProcess(1)
-        }
     }
 
     /* Try to start Cottontail DB */
