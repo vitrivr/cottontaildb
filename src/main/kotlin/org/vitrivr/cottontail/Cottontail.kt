@@ -21,6 +21,11 @@ import kotlin.time.ExperimentalTime
  */
 const val COTTONTAIL_CONFIG_FILE_ENV_KEY = "COTTONTAIL_CONFIG"
 
+/**
+ * The system property key for the config file path
+ */
+const val COTTONTAIL_CONFIG_FILE_SYSTEM_PROPERTY_KEY = "org.vitrivr.cottontail.config"
+
 
 /**
  * Entry point for Cottontail DB demon and CLI.
@@ -40,50 +45,16 @@ fun main(args: Array<String>) {
         return
     }
 
-    /* Order for config: 1) ENV 2) first argument 3) default */
     var config: Config? = null
-    var configPath = ""
-    var readErr = false
-    var readErrCause: Throwable? = null
-    /* Load config from ENV specification */
+    var configPath = findConfigPathOrdered(args)
     try {
-        configPath = System.getenv(COTTONTAIL_CONFIG_FILE_ENV_KEY)
         config = loadConfig(configPath)
     } catch (e: FileNotFoundException) {
-        // Ignore
+        System.err.println("Specified Cottontail DB configuration file $configPath does not exist. Cottontail DB will shut down.")
+        exitProcess(1)
     } catch (r: RuntimeException) {
-        readErr = true
-        readErrCause = r.cause
-    }
-    if (readErr) {
-        if (readErrCause != null) {
-            System.err.println("Config reading error: ${readErrCause.message}")
-        }
         System.err.println("Error on reading Cottontail DB configuration file ($configPath). Cottontail DB will shut down.")
         exitProcess(1)
-    }
-    /* Load config from argument OR default */
-    if (config == null) {
-        configPath = if (args.isEmpty()) {
-            /* No arguments given, use default */
-            System.err.println("No config path specified; using default config at ./config.json.")
-            "./config.json"
-        } else {
-            /* Arguments present, try first argument */
-            args.first()
-        }
-        try {
-            config = loadConfig(configPath)
-        } catch (e: FileNotFoundException) {
-            System.err.println("Specified Cottontail DB configuration file $configPath does not exist. Cottontail DB will shut down.")
-            exitProcess(1)
-        } catch (r: RuntimeException) {
-            if (readErrCause != null) {
-                System.err.println("Config reading error: ${readErrCause.message}")
-            }
-            System.err.println("Error on reading Cottontail DB configuration file ($configPath). Cottontail DB will shut down.")
-            exitProcess(1)
-        }
     }
 
     /* Try to start Cottontail DB */
@@ -93,6 +64,37 @@ fun main(args: Array<String>) {
         System.err.println("Failed to start Cottontail DB due to error:")
         System.err.println(e.printStackTrace())
         exitProcess(1)
+    }
+}
+
+/**
+ * Looks in the following places for a config path (ordered, fifo):
+ *   1. The first program argument
+ *   2. System property with the key [COTTONTAIL_CONFIG_FILE_SYSTEM_PROPERTY_KEY]
+ *   3. Environment variable with the name [COTTONTAIL_CONFIG_FILE_ENV_KEY]
+ *   4. Literally `./config.json` i.e. in the CWD
+ *
+ * @param args The command line arguments array as it was passed to the program
+ * @return The path to use, based on the described order
+ */
+private fun findConfigPathOrdered(args: Array<String>): String {
+    return if (args.isNotEmpty() && args[0].isNotBlank()) {
+        /* Likely specified argumetn */
+        args[0]
+    } else if (System.getProperties()
+            .containsKey(COTTONTAIL_CONFIG_FILE_SYSTEM_PROPERTY_KEY) && System.getProperty(
+            COTTONTAIL_CONFIG_FILE_SYSTEM_PROPERTY_KEY, ""
+        ).isNotBlank()
+    ) {
+        System.getProperty(COTTONTAIL_CONFIG_FILE_SYSTEM_PROPERTY_KEY)
+    } else if (System.getenv().containsKey(COTTONTAIL_CONFIG_FILE_ENV_KEY) && System.getenv(
+            COTTONTAIL_CONFIG_FILE_ENV_KEY
+        ).isNotBlank()
+    ) {
+        System.getenv(COTTONTAIL_CONFIG_FILE_ENV_KEY);
+    } else {
+        System.err.println("No CottontailDB Config file specified. Defaulting to ./config.json")
+        "./config.json"
     }
 }
 
