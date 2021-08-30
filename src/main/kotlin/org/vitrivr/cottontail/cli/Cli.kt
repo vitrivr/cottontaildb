@@ -29,13 +29,12 @@ import org.vitrivr.cottontail.cli.schema.ListEntitiesCommand
 import org.vitrivr.cottontail.cli.system.ListLocksCommand
 import org.vitrivr.cottontail.cli.system.ListTransactionsCommand
 import org.vitrivr.cottontail.cli.system.MigrationCommand
-import org.vitrivr.cottontail.cli.system.RollbackTransactionCommand
+import org.vitrivr.cottontail.cli.system.KillTransactionCommand
 import org.vitrivr.cottontail.grpc.*
 import java.io.IOException
 import java.util.*
 import java.util.regex.Pattern
 import kotlin.time.ExperimentalTime
-import kotlin.time.measureTimedValue
 
 /**
  * Command line interface instance.  Setup and general parsing. Actual commands are implemented as
@@ -336,7 +335,7 @@ class Cli(val host: String = "localhost", val port: Int = 1865) {
                 }.subcommands(
                     ListTransactionsCommand(this.txnService),
                     ListLocksCommand(this.txnService),
-                    RollbackTransactionCommand(this.txnService),
+                    KillTransactionCommand(this.txnService),
                     MigrationCommand()
                 ),
 

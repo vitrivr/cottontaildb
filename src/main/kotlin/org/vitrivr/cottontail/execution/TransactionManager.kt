@@ -4,9 +4,8 @@ import it.unimi.dsi.fastutil.Hash.VERY_FAST_LOAD_FACTOR
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2ObjectMaps
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.onCompletion
-import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -149,8 +148,12 @@ class TransactionManager(transactionTableSize: Int, private val transactionHisto
          */
         override fun execute(operator: Operator, context: QueryContext): Flow<Record> = operator.toFlow(context).onStart {
             this@Transaction.mutex.lock()
-            check(this@Transaction.state === TransactionStatus.READY) { "Cannot start execution of transaction ${this@Transaction.txId} because it is in wrong state (s = ${this@Transaction.state})." }
+            check(this@Transaction.state === TransactionStatus.READY) { "Cannot start execution of transaction ${this@Transaction.txId} because it is in the wrong state (s = ${this@Transaction.state})." }
             this@Transaction.state = TransactionStatus.RUNNING
+        }.onEach {
+            if (this.state === TransactionStatus.KILLED) {
+                throw CancellationException("Transaction $this.txId was killed by the user.")
+            }
         }.onCompletion {
             this@Transaction.mutex.unlock()
             if (it == null) {
@@ -187,7 +190,7 @@ class TransactionManager(transactionTableSize: Int, private val transactionHisto
          */
         fun rollback() = runBlocking {
             this@Transaction.mutex.withLock {
-                check(this@Transaction.state === TransactionStatus.READY || this@Transaction.state === TransactionStatus.ERROR) { "Cannot rollback transaction ${this@Transaction.txId} because it is in wrong state (s = ${this@Transaction.state})." }
+                check(this@Transaction.state === TransactionStatus.READY || this@Transaction.state === TransactionStatus.ERROR || this@Transaction.state === TransactionStatus.KILLED) { "Cannot rollback transaction ${this@Transaction.txId} because it is in wrong state (s = ${this@Transaction.state})." }
                 this@Transaction.state = TransactionStatus.FINALIZING
                 try {
                     this@Transaction.txns.values.reversed().forEachIndexed { i, txn ->
@@ -201,6 +204,18 @@ class TransactionManager(transactionTableSize: Int, private val transactionHisto
                     this@Transaction.finalize(false)
                 }
             }
+        }
+
+        /**
+         * Tries to kill this [Transaction] interrupting all running queries.
+         *
+         * A call to this method is a best-effort attempt to stop all ongoing queries. After a transaction was killed
+         * successfully, all changes are rolled back.
+         */
+        fun kill() = runBlocking {
+            check(this@Transaction.state === TransactionStatus.READY || this@Transaction.state === TransactionStatus.RUNNING) { "Cannot kill transaction ${this@Transaction.txId} because it is in wrong state (s = ${this@Transaction.state})." }
+            this@Transaction.state = TransactionStatus.KILLED
+            this@Transaction.rollback()
         }
 
         /**

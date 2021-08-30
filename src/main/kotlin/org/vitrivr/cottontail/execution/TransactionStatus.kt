@@ -4,7 +4,7 @@ package org.vitrivr.cottontail.execution
  * Status of the [TransactionManager.Transaction].
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.2.0
  */
 enum class TransactionStatus {
     /** [TransactionManager.Transaction] is ready and able to process queries. */
@@ -24,4 +24,7 @@ enum class TransactionStatus {
 
     /** [TransactionManager.Transaction] was committed. Execution not possible. */
     COMMIT,
+
+    /** [TransactionManager.Transaction] was killed. Execution not possible. */
+    KILLED
 }

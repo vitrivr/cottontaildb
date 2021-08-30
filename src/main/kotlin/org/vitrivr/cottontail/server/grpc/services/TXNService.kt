@@ -69,6 +69,24 @@ class TXNService constructor(val catalogue: Catalogue, override val manager: Tra
     }
 
     /**
+     * gRPC for killing a [TransactionManager.Transaction].
+     */
+    override suspend fun kill(request: CottontailGrpc.TransactionId): Empty {
+        val txn = this.manager[request.value]
+        if (txn === null) {
+            val message = "KILL failed because transaction ${request.value} could not be obtained."
+            throw Status.FAILED_PRECONDITION.withDescription(message).asException()
+        }
+        val queryId = request.queryId.ifEmpty { UUID.randomUUID().toString() }
+        try {
+            txn.kill()
+            return Empty.getDefaultInstance()
+        } catch (e: Throwable) {
+            throw Status.INTERNAL.withDescription(formatMessage(txn, queryId, "Failed to execute KILL due to unexpected error: ${e.message}")).asException()
+        }
+    }
+
+    /**
      * gRPC for listing all [TransactionManager.Transaction]s.
      */
     override fun listTransactions(request: Empty): Flow<CottontailGrpc.QueryResponseMessage> = this.withTransactionContext(description = "LIST TRANSACTIONS") { tx, q ->
