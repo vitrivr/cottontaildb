@@ -190,7 +190,7 @@ class TransactionManager(transactionTableSize: Int, private val transactionHisto
          */
         fun rollback() = runBlocking {
             this@Transaction.mutex.withLock {
-                check(this@Transaction.state === TransactionStatus.READY || this@Transaction.state === TransactionStatus.ERROR) { "Cannot rollback transaction ${this@Transaction.txId} because it is in wrong state (s = ${this@Transaction.state})." }
+                check(this@Transaction.state === TransactionStatus.READY || this@Transaction.state === TransactionStatus.ERROR || this@Transaction.state === TransactionStatus.KILLED) { "Cannot rollback transaction ${this@Transaction.txId} because it is in wrong state (s = ${this@Transaction.state})." }
                 this@Transaction.state = TransactionStatus.FINALIZING
                 try {
                     this@Transaction.txns.values.reversed().forEachIndexed { i, txn ->
@@ -215,19 +215,7 @@ class TransactionManager(transactionTableSize: Int, private val transactionHisto
         fun kill() = runBlocking {
             check(this@Transaction.state === TransactionStatus.READY || this@Transaction.state === TransactionStatus.RUNNING) { "Cannot kill transaction ${this@Transaction.txId} because it is in wrong state (s = ${this@Transaction.state})." }
             this@Transaction.state = TransactionStatus.KILLED
-            this@Transaction.mutex.withLock { /* Blocks until all queries have completed. */
-                try {
-                    this@Transaction.txns.values.reversed().forEachIndexed { i, txn ->
-                        try {
-                            txn.rollback()
-                        } catch (e: Throwable) {
-                            LOGGER.error("An error occurred while rolling back Tx $i (${txn.dbo.name}) of transaction ${this@Transaction.txId}. This is serious!", e)
-                        }
-                    }
-                } finally {
-                    this@Transaction.finalize(false)
-                }
-            }
+            this@Transaction.rollback()
         }
 
         /**
