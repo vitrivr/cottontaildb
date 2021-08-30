@@ -11,7 +11,7 @@ import java.util.*
  * Utility class for tabulated output.
  *
  * @author Ralph Gasser
- * @version 1.0.1
+ * @version 1.1.0
  */
 object TabulationUtilities {
 
@@ -39,6 +39,35 @@ object TabulationUtilities {
                 while (result.hasNext()) {
                     next = result.next()
                     next.tuplesList.forEach { tupleToRow(this, it) }
+                }
+            }
+        }
+    }
+
+    /**
+     * Takes a [Iterator] of [CottontailGrpc.QueryResponseMessage], iterates over it and arranges
+     * the results in a [Table].
+     *
+     * @param result The [Iterator] of [CottontailGrpc.QueryResponseMessage] to go visualize.
+     */
+    fun tabulateIf(result: Iterator<CottontailGrpc.QueryResponseMessage>, predicate: (CottontailGrpc.QueryResponseMessage.Tuple) -> Boolean): Table {
+        var next = result.next()
+        return table {
+            cellStyle {
+                border = true
+                paddingLeft = 1
+                paddingRight = 1
+            }
+            header {
+                row {
+                    next.columnsList.forEach { cell(it.fqn()) }
+                }
+            }
+            body {
+                next.tuplesList.filter(predicate).forEach { tupleToRow(this, it) }
+                while (result.hasNext()) {
+                    next = result.next()
+                    next.tuplesList.filter(predicate).forEach { tupleToRow(this, it) }
                 }
             }
         }
