@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.database.locking
 
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet
 import org.vitrivr.cottontail.model.basics.TransactionId
+import org.vitrivr.cottontail.utilities.extensions.toLong
 import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
@@ -17,7 +18,7 @@ import kotlin.concurrent.write
  * Inspired by: https://github.com/dstibrany/LockManager
  *
  * @author Ralph Gasser
- * @version 1.1.1
+ * @version 1.2.0
  */
 class Lock<T> internal constructor(private val waitForGraph: WaitForGraph, val obj: T) {
 
@@ -44,13 +45,20 @@ class Lock<T> internal constructor(private val waitForGraph: WaitForGraph, val o
      * Acquires a hold on this [Lock].
      *
      * @param txn [LockHolder] that tries to acquire the lock.
-     * @param lockMode The [LockMode] the transaction tries to acquire.
+     * @param requestedLockMode The [LockMode] the transaction tries to acquire.
      */
-    fun acquire(txn: LockHolder<T>, lockMode: LockMode) {
-        when (lockMode) {
-            LockMode.SHARED -> acquireSharedLock(txn)
-            LockMode.EXCLUSIVE -> acquireExclusiveLock(txn)
-            else -> throw IllegalArgumentException("Lock mode of type $lockMode cannot be explicitly acquired!")
+    fun acquire(txn: LockHolder<T>, requestedLockMode: LockMode) = this.lock.write {
+        if (this.owners.contains(txn)) {
+            when (requestedLockMode) {
+                LockMode.EXCLUSIVE -> upgradeSharedLock(txn)
+                else -> { /* Lock already held; no action needed. */ }
+            }
+        } else {
+            when (requestedLockMode) {
+                LockMode.SHARED -> acquireSharedLock(txn)
+                LockMode.EXCLUSIVE -> acquireExclusiveLock(txn)
+                else -> throw IllegalArgumentException("Lock mode of type $requestedLockMode cannot be explicitly acquired!")
+            }
         }
     }
 
@@ -70,24 +78,6 @@ class Lock<T> internal constructor(private val waitForGraph: WaitForGraph, val o
     }
 
     /**
-     * Tries to upgrade the hold on this [Lock].
-     *
-     * @param txn [LockHolder] that tries to upgrade the [Lock].
-     */
-    fun upgrade(txn: LockHolder<T>) = this.lock.write {
-        check(this.owners.contains(txn)) { "Transaction ${txn.txId} failed to upgrade lock $this: Transaction does not own this lock!" }
-        if (this.isExclusivelyLocked.get()) return /* Try to upgrade even though exclusive lock is already being held! */
-        while (this.sharedLockCount.get() > 1) {
-            val ownersWithSelfRemoved: Set<LockHolder<T>> = ObjectOpenHashSet(this.owners.filter { it != txn })
-            this.waitForGraph.add(txn, ownersWithSelfRemoved)
-            this.waitForGraph.detectDeadlock(txn)
-            this.waiters.await()
-        }
-        check(this.sharedLockCount.compareAndSet(1, 0)) { "Transaction ${txn.txId} failed to upgrade lock $this: expected one shared lock (own)." }
-        check(this.isExclusivelyLocked.compareAndSet(false, true)) { "Transaction ${txn.txId} failed to upgrade lock $this: non-exclusive lock." }
-    }
-
-    /**
      * Returns an unmodifiable set of all [TransactionId]s that currently have a hold on this [Lock]
      */
     fun getOwners(): Set<LockHolder<T>> = Collections.unmodifiableSet(this.owners)
@@ -104,13 +94,30 @@ class Lock<T> internal constructor(private val waitForGraph: WaitForGraph, val o
     }
 
     /**
+     * Tries to upgrade the hold on this [Lock].
+     *
+     * @param txn [LockHolder] that tries to upgrade the [Lock].
+     */
+    private fun upgradeSharedLock(txn: LockHolder<T>) {
+        if (this.isExclusivelyLocked.get()) return
+        while (this.sharedLockCount.get() > 1) {
+            val ownersWithSelfRemoved: Set<LockHolder<T>> = ObjectOpenHashSet(this.owners.filter { it != txn })
+            this.waitForGraph.add(txn, ownersWithSelfRemoved) /* Ok to add on each iteration, because WaitForGraph takes care of de-duplication. */
+            this.waitForGraph.detectDeadlock(txn)
+            this.waiters.await()
+        }
+        check(this.sharedLockCount.compareAndSet(1, 0)) { "Transaction ${txn.txId} failed to upgrade lock $this: expected one shared lock (own)." }
+        check(this.isExclusivelyLocked.compareAndSet(false, true)) { "Transaction ${txn.txId} failed to upgrade lock $this: non-exclusive lock." }
+    }
+
+    /**
      * Tries to acquire a shared lock on this [Lock]. Blocks until the lock could be acquired,
      *
      * @param txn [LockHolder] that tries to acquire the lock.
      */
-    private fun acquireSharedLock(txn: LockHolder<T>) = this.lock.write {
+    private fun acquireSharedLock(txn: LockHolder<T>) {
         while (this.isExclusivelyLocked.get() || this.lock.hasWaiters(waiters)) {
-            this.waitForGraph.add(txn, this.owners)
+            this.waitForGraph.add(txn, this.owners) /* Ok to add on each iteration, because WaitForGraph takes care of de-duplication. */
             this.waitForGraph.detectDeadlock(txn)
             this.waiters.await()
         }
@@ -124,9 +131,10 @@ class Lock<T> internal constructor(private val waitForGraph: WaitForGraph, val o
      *
      * @param txn [LockHolder] that tries to acquire the exclusive lock.
      */
-    private fun acquireExclusiveLock(txn: LockHolder<T>) = this.lock.write {
+    private fun acquireExclusiveLock(txn: LockHolder<T>) {
+        if (this.isExclusivelyLocked.get() || this.isSharedLocked)
         while (this.isExclusivelyLocked.get() || this.isSharedLocked) {
-            this.waitForGraph.add(txn, this.owners)
+            this.waitForGraph.add(txn, this.owners) /* Ok to add on each iteration, because WaitForGraph takes care of de-duplication. */
             this.waitForGraph.detectDeadlock(txn)
             this.waiters.await()
         }

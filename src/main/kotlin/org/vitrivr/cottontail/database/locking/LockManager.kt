@@ -38,11 +38,7 @@ class LockManager<T> {
     fun lock(txn: LockHolder<T>, obj: T, requestedMode: LockMode) {
         require(requestedMode != LockMode.NO_LOCK) { "Cannot acquire a lock of mode $requestedMode; try LockManager.release()." }
         val lock = this.locks.computeIfAbsent(obj) { Lock(this.waitForGraph, obj) }
-        if (lock.getMode() == LockMode.SHARED && requestedMode == LockMode.EXCLUSIVE && lock.getOwners().contains(txn)) {
-            lock.upgrade(txn)
-        } else {
-            lock.acquire(txn, requestedMode)
-        }
+        lock.acquire(txn, requestedMode)
     }
 
     /**
