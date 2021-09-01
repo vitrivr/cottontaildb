@@ -7,7 +7,7 @@ import org.vitrivr.cottontail.client.language.ddl.CreateEntity
 import org.vitrivr.cottontail.client.language.ddl.CreateSchema
 import org.vitrivr.cottontail.client.language.ddl.DropSchema
 import org.vitrivr.cottontail.client.language.dml.BatchInsert
-import org.vitrivr.cottontail.client.stub.SimpleClient
+import org.vitrivr.cottontail.client.SimpleClient
 import kotlin.random.Random
 
 

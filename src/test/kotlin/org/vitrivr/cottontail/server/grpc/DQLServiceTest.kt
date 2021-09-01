@@ -7,7 +7,7 @@ import org.vitrivr.cottontail.TestConstants
 import org.vitrivr.cottontail.client.language.dql.Query
 import org.vitrivr.cottontail.client.language.extensions.And
 import org.vitrivr.cottontail.client.language.extensions.Literal
-import org.vitrivr.cottontail.client.stub.SimpleClient
+import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.embedded
 import java.util.concurrent.TimeUnit
 import kotlin.random.Random
