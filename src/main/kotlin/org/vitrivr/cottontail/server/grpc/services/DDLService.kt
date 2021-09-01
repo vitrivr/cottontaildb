@@ -51,7 +51,7 @@ class DDLService(val catalogue: DefaultCatalogue, override val manager: Transact
         val op = DropSchemaOperator(this.catalogue, schemaName)
         executeAndMaterialize(QueryContext(this.catalogue, tx), op, q, 0).catch { e ->
             throw when (e) {
-                is DatabaseException.SchemaDoesNotExistException -> Status.NOT_FOUND.withDescription(formatMessage(tx, q, "DROP SCHEMA failed ($schemaName): Schema does not exist.")).asException()
+                is DatabaseException.SchemaDoesNotExistException -> Status.NOT_FOUND.withCause(e).withDescription(formatMessage(tx, q, "DROP SCHEMA failed ($schemaName): Schema does not exist.")).asException()
                 else -> e
             }
         }
@@ -78,8 +78,8 @@ class DDLService(val catalogue: DefaultCatalogue, override val manager: Transact
         val op = CreateEntityOperator(this.catalogue, entityName, columns)
         executeAndMaterialize(QueryContext(this.catalogue, tx), op, q, 0).catch { e ->
             throw when (e) {
-                is DatabaseException.SchemaDoesNotExistException -> Status.NOT_FOUND.withDescription(formatMessage(tx, q, "CREATE ENTITY failed ($entityName): Schema does not exist.")).asException()
-                is DatabaseException.EntityAlreadyExistsException -> Status.ALREADY_EXISTS.withDescription(formatMessage(tx, q, "CREATE ENTITY failed ($entityName): Entity with identical name already exists.")).asException()
+                is DatabaseException.SchemaDoesNotExistException -> Status.NOT_FOUND.withCause(e).withDescription(formatMessage(tx, q, "CREATE ENTITY failed ($entityName): Schema does not exist.")).asException()
+                is DatabaseException.EntityAlreadyExistsException -> Status.ALREADY_EXISTS.withCause(e).withDescription(formatMessage(tx, q, "CREATE ENTITY failed ($entityName): Entity with identical name already exists.")).asException()
                 else -> e
             }
         }
@@ -93,8 +93,8 @@ class DDLService(val catalogue: DefaultCatalogue, override val manager: Transact
         val op = DropEntityOperator(this.catalogue, entityName)
         executeAndMaterialize(QueryContext(this.catalogue, tx), op, q, 0).catch { e ->
             throw when (e) {
-                is DatabaseException.SchemaDoesNotExistException -> Status.NOT_FOUND.withDescription(formatMessage(tx, q, "DROP ENTITY failed ($entityName): Schema does not exist.")).asException()
-                is DatabaseException.EntityDoesNotExistException -> Status.NOT_FOUND.withDescription(formatMessage(tx, q, "DROP ENTITY failed ($entityName): Entity does not exist.")).asException()
+                is DatabaseException.SchemaDoesNotExistException -> Status.NOT_FOUND.withCause(e).withDescription(formatMessage(tx, q, "DROP ENTITY failed ($entityName): Schema does not exist.")).asException()
+                is DatabaseException.EntityDoesNotExistException -> Status.NOT_FOUND.withCause(e).withDescription(formatMessage(tx, q, "DROP ENTITY failed ($entityName): Entity does not exist.")).asException()
                 else -> e
             }
         }
@@ -108,8 +108,8 @@ class DDLService(val catalogue: DefaultCatalogue, override val manager: Transact
         val op = TruncateEntityOperator(this.catalogue, entityName)
         executeAndMaterialize(QueryContext(this.catalogue, tx), op, q, 0).catch { e ->
             throw when (e) {
-                is DatabaseException.SchemaDoesNotExistException -> Status.NOT_FOUND.withDescription(formatMessage(tx, q, "TRUNCATE ENTITY failed ($entityName): Schema does not exist.")).asException()
-                is DatabaseException.EntityDoesNotExistException -> Status.NOT_FOUND.withDescription(formatMessage(tx, q, "TRUNCATE ENTITY failed ($entityName): Entity does not exist.")).asException()
+                is DatabaseException.SchemaDoesNotExistException -> Status.NOT_FOUND.withCause(e).withDescription(formatMessage(tx, q, "TRUNCATE ENTITY failed ($entityName): Schema does not exist.")).asException()
+                is DatabaseException.EntityDoesNotExistException -> Status.NOT_FOUND.withCause(e).withDescription(formatMessage(tx, q, "TRUNCATE ENTITY failed ($entityName): Entity does not exist.")).asException()
                 else -> e
             }
         }
@@ -123,8 +123,8 @@ class DDLService(val catalogue: DefaultCatalogue, override val manager: Transact
         val op = OptimizeEntityOperator(this.catalogue, entityName)
         executeAndMaterialize(QueryContext(this.catalogue, tx), op, q, 0).catch { e ->
             throw when (e) {
-                is DatabaseException.SchemaDoesNotExistException -> Status.NOT_FOUND.withDescription(formatMessage(tx, q, "OPTIMIZE ENTITY failed ($entityName): Schema does not exist.")).asException()
-                is DatabaseException.EntityDoesNotExistException -> Status.NOT_FOUND.withDescription(formatMessage(tx, q, "OPTIMIZE ENTITY failed ($entityName): Entity does not exist.")).asException()
+                is DatabaseException.SchemaDoesNotExistException -> Status.NOT_FOUND.withCause(e).withDescription(formatMessage(tx, q, "OPTIMIZE ENTITY failed ($entityName): Schema does not exist.")).asException()
+                is DatabaseException.EntityDoesNotExistException -> Status.NOT_FOUND.withCause(e).withDescription(formatMessage(tx, q, "OPTIMIZE ENTITY failed ($entityName): Entity does not exist.")).asException()
                 else -> e
             }
         }
@@ -142,7 +142,7 @@ class DDLService(val catalogue: DefaultCatalogue, override val manager: Transact
         val op = HeapSortOperator(ListEntityOperator(this.catalogue, schemaName), listOf(Pair(ListSchemaOperator.COLUMNS[0], SortOrder.ASCENDING)), 100)
         executeAndMaterialize(QueryContext(this.catalogue, tx), op, q, 0).catch { e ->
             throw when (e) {
-                is DatabaseException.SchemaDoesNotExistException -> Status.NOT_FOUND.withDescription(formatMessage(tx, q, "LIST ENTITIES failed ($schemaName}': Schema does not exist.")).asException()
+                is DatabaseException.SchemaDoesNotExistException -> Status.NOT_FOUND.withCause(e).withDescription(formatMessage(tx, q, "LIST ENTITIES failed ($schemaName}': Schema does not exist.")).asException()
                 else -> e
             }
         }
@@ -156,8 +156,8 @@ class DDLService(val catalogue: DefaultCatalogue, override val manager: Transact
         val op = EntityDetailsOperator(this.catalogue, entityName)
         executeAndMaterialize(QueryContext(this.catalogue, tx), op, q, 0).catch { e ->
             throw when (e) {
-                is DatabaseException.SchemaDoesNotExistException -> Status.NOT_FOUND.withDescription(formatMessage(tx, q, "SHOW ENTITY failed ($entityName): Schema does not exist.")).asException()
-                is DatabaseException.EntityDoesNotExistException -> Status.NOT_FOUND.withDescription(formatMessage(tx, q, "SHOW ENTITY failed ($entityName): Entity does not exist.")).asException()
+                is DatabaseException.SchemaDoesNotExistException -> Status.NOT_FOUND.withCause(e).withDescription(formatMessage(tx, q, "SHOW ENTITY failed ($entityName): Schema does not exist.")).asException()
+                is DatabaseException.EntityDoesNotExistException -> Status.NOT_FOUND.withCause(e).withDescription(formatMessage(tx, q, "SHOW ENTITY failed ($entityName): Entity does not exist.")).asException()
                 else -> e
             }
         }
@@ -176,10 +176,10 @@ class DDLService(val catalogue: DefaultCatalogue, override val manager: Transact
         val op = CreateIndexOperator(this.catalogue, indexName, indexType, columns, params, request.rebuild)
         executeAndMaterialize(QueryContext(this.catalogue, tx), op, q, 0).catch { e ->
             throw when (e) {
-                is DatabaseException.SchemaDoesNotExistException -> Status.NOT_FOUND.withDescription(formatMessage(tx, q, "CREATE INDEX failed ($indexName): Schema does not exist.")).asException()
-                is DatabaseException.EntityDoesNotExistException -> Status.NOT_FOUND.withDescription(formatMessage(tx, q, "CREATE INDEX failed ($indexName): Entity does not exist.")).asException()
-                is DatabaseException.ColumnDoesNotExistException -> Status.NOT_FOUND.withDescription(formatMessage(tx, q, "CREATE INDEX failed ($indexName): Column does not exist.")).asException()
-                is DatabaseException.IndexAlreadyExistsException -> Status.ALREADY_EXISTS.withDescription(formatMessage(tx, q, "CREATE INDEX failed ($indexName): Index with identical name does already exist.")).asException()
+                is DatabaseException.SchemaDoesNotExistException -> Status.NOT_FOUND.withCause(e).withDescription(formatMessage(tx, q, "CREATE INDEX failed ($indexName): Schema does not exist.")).asException()
+                is DatabaseException.EntityDoesNotExistException -> Status.NOT_FOUND.withCause(e).withDescription(formatMessage(tx, q, "CREATE INDEX failed ($indexName): Entity does not exist.")).asException()
+                is DatabaseException.ColumnDoesNotExistException -> Status.NOT_FOUND.withCause(e).withDescription(formatMessage(tx, q, "CREATE INDEX failed ($indexName): Column does not exist.")).asException()
+                is DatabaseException.IndexAlreadyExistsException -> Status.ALREADY_EXISTS.withCause(e).withDescription(formatMessage(tx, q, "CREATE INDEX failed ($indexName): Index with identical name does already exist.")).asException()
 
                 else -> e
             }
@@ -194,9 +194,9 @@ class DDLService(val catalogue: DefaultCatalogue, override val manager: Transact
         val op = DropIndexOperator(this.catalogue, indexName)
         executeAndMaterialize(QueryContext(this.catalogue, tx), op, q, 0).catch { e ->
             throw when (e) {
-                is DatabaseException.SchemaDoesNotExistException -> Status.NOT_FOUND.withDescription(formatMessage(tx, q, "DROP INDEX failed ($indexName): Schema does not exist.")).asException()
-                is DatabaseException.EntityDoesNotExistException -> Status.NOT_FOUND.withDescription(formatMessage(tx, q, "DROP INDEX failed ($indexName): Entity does not exist.")).asException()
-                is DatabaseException.IndexDoesNotExistException -> Status.NOT_FOUND.withDescription(formatMessage(tx, q, "DROP INDEX failed ($indexName): Index does not exist.")).asException()
+                is DatabaseException.SchemaDoesNotExistException -> Status.NOT_FOUND.withCause(e).withDescription(formatMessage(tx, q, "DROP INDEX failed ($indexName): Schema does not exist.")).asException()
+                is DatabaseException.EntityDoesNotExistException -> Status.NOT_FOUND.withCause(e).withDescription(formatMessage(tx, q, "DROP INDEX failed ($indexName): Entity does not exist.")).asException()
+                is DatabaseException.IndexDoesNotExistException -> Status.NOT_FOUND.withCause(e).withDescription(formatMessage(tx, q, "DROP INDEX failed ($indexName): Index does not exist.")).asException()
                 else -> e
             }
         }
@@ -210,9 +210,9 @@ class DDLService(val catalogue: DefaultCatalogue, override val manager: Transact
         val op = RebuildIndexOperator(this.catalogue, indexName)
         executeAndMaterialize(QueryContext(this.catalogue, tx), op, q, 0).catch { e ->
             throw when (e) {
-                is DatabaseException.SchemaDoesNotExistException -> Status.NOT_FOUND.withDescription(formatMessage(tx, q, "REBUILD INDEX failed ($indexName): Schema does not exist.")).asException()
-                is DatabaseException.EntityDoesNotExistException -> Status.NOT_FOUND.withDescription(formatMessage(tx, q, "REBUILD INDEX failed ($indexName): Entity does not exist.")).asException()
-                is DatabaseException.IndexDoesNotExistException -> Status.NOT_FOUND.withDescription(formatMessage(tx, q, "REBUILD INDEX failed ($indexName): Index does not exist.")).asException()
+                is DatabaseException.SchemaDoesNotExistException -> Status.NOT_FOUND.withCause(e).withDescription(formatMessage(tx, q, "REBUILD INDEX failed ($indexName): Schema does not exist.")).asException()
+                is DatabaseException.EntityDoesNotExistException -> Status.NOT_FOUND.withCause(e).withDescription(formatMessage(tx, q, "REBUILD INDEX failed ($indexName): Entity does not exist.")).asException()
+                is DatabaseException.IndexDoesNotExistException -> Status.NOT_FOUND.withCause(e).withDescription(formatMessage(tx, q, "REBUILD INDEX failed ($indexName): Index does not exist.")).asException()
                 else -> e
             }
         }
