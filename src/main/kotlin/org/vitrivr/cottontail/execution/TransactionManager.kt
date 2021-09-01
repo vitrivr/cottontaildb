@@ -31,7 +31,7 @@ import java.util.concurrent.atomic.AtomicLong
  * create and execute queries within different [Transaction]s.
  *
  * @author Ralph Gasser
- * @version 1.4.1
+ * @version 1.5.0
  */
 class TransactionManager(transactionTableSize: Int, private val transactionHistorySize: Int) {
     /** Logger used for logging the output. */
@@ -65,7 +65,7 @@ class TransactionManager(transactionTableSize: Int, private val transactionHisto
      * A [Transaction] can be of different [TransactionType]s. Their execution semantics may differ slightly.
      *
      * @author Ralph Gasser
-     * @version 1.2.1
+     * @version 1.3.0
      */
     inner class Transaction(override val type: TransactionType) : LockHolder<DBO>(this@TransactionManager.tidCounter.getAndIncrement()), TransactionContext {
 
@@ -77,6 +77,9 @@ class TransactionManager(transactionTableSize: Int, private val transactionHisto
         /** Map of all [Tx] that have been created as part of this [Transaction]. */
         private val txns: MutableMap<DBO, Tx> = Object2ObjectMaps.synchronize(Object2ObjectLinkedOpenHashMap())
 
+        /** A [Mutex] data structure used for synchronisation on the [Transaction]. */
+        private val mutex = Mutex()
+
         /** Number of [Tx] held by this [Transaction]. */
         val numberOfTxs: Int
             get() = this.txns.size
@@ -84,8 +87,7 @@ class TransactionManager(transactionTableSize: Int, private val transactionHisto
         /** Timestamp of when this [Transaction] was created. */
         val created = System.currentTimeMillis()
 
-        /** A [Mutex] data structure used for synchronisation on the [Transaction]. */
-        val mutex = Mutex()
+
 
         /** Timestamp of when this [Transaction] was either COMMITTED or ABORTED. */
         var ended: Long? = null
@@ -155,12 +157,18 @@ class TransactionManager(transactionTableSize: Int, private val transactionHisto
                 throw CancellationException("Transaction $this.txId was killed by the user.")
             }
         }.onCompletion {
-            this@Transaction.mutex.unlock()
             if (it == null) {
                 this@Transaction.state = TransactionStatus.READY
+                if (this@Transaction.type === TransactionType.USER_IMPLICIT) {
+                    this@Transaction.commitInternal()
+                }
             } else {
                 this@Transaction.state = TransactionStatus.ERROR
+                if (this@Transaction.type === TransactionType.USER_IMPLICIT) {
+                    this@Transaction.rollbackInternal()
+                }
             }
+            this@Transaction.mutex.unlock()
         }
 
         /**
@@ -168,41 +176,60 @@ class TransactionManager(transactionTableSize: Int, private val transactionHisto
          */
         fun commit() = runBlocking {
             this@Transaction.mutex.withLock {
-                check(this@Transaction.state === TransactionStatus.READY) { "Cannot commit transaction ${this@Transaction.txId} because it is in wrong state (s = ${this@Transaction.state})." }
-                check(this@Transaction.txns.values.none { it.status == TxStatus.ERROR }) { "Cannot commit transaction ${this@Transaction.txId} because some of the participating Tx are in an error state." }
-                this@Transaction.state = TransactionStatus.FINALIZING
-                try {
-                    this@Transaction.txns.values.reversed().forEachIndexed { i, txn ->
-                        try {
-                            txn.commit()
-                        } catch (e: Throwable) {
-                            LOGGER.error("An error occurred while committing Tx $i (${txn.dbo.name}) of transaction ${this@Transaction.txId}. This is serious!", e)
-                        }
-                    }
-                } finally {
-                    this@Transaction.finalize(true)
-                }
+                this@Transaction.commitInternal()
             }
         }
+
+        /**
+         * Internal commit logic: Commits this [Transaction] thus finalizing and persisting all operations executed so far.
+         *
+         * When calling this method, a lock on [mutex] should be held!
+         */
+        private fun commitInternal() {
+            check(this@Transaction.state === TransactionStatus.READY) { "Cannot commit transaction ${this@Transaction.txId} because it is in wrong state (s = ${this@Transaction.state})." }
+            check(this@Transaction.txns.values.none { it.status == TxStatus.ERROR }) { "Cannot commit transaction ${this@Transaction.txId} because some of the participating Tx are in an error state." }
+            this@Transaction.state = TransactionStatus.FINALIZING
+            try {
+                this@Transaction.txns.values.reversed().forEachIndexed { i, txn ->
+                    try {
+                        txn.commit()
+                    } catch (e: Throwable) {
+                        LOGGER.error("An error occurred while committing Tx $i (${txn.dbo.name}) of transaction ${this@Transaction.txId}. This is serious!", e)
+                    }
+                }
+            } finally {
+                this@Transaction.finalize(true)
+            }
+        }
+
 
         /**
          * Rolls back this [Transaction] thus reverting all operations executed so far.
          */
         fun rollback() = runBlocking {
             this@Transaction.mutex.withLock {
-                check(this@Transaction.state === TransactionStatus.READY || this@Transaction.state === TransactionStatus.ERROR || this@Transaction.state === TransactionStatus.KILLED) { "Cannot rollback transaction ${this@Transaction.txId} because it is in wrong state (s = ${this@Transaction.state})." }
-                this@Transaction.state = TransactionStatus.FINALIZING
-                try {
-                    this@Transaction.txns.values.reversed().forEachIndexed { i, txn ->
-                        try {
-                            txn.rollback()
-                        } catch (e: Throwable) {
-                            LOGGER.error("An error occurred while rolling back Tx $i (${txn.dbo.name}) of transaction ${this@Transaction.txId}. This is serious!", e)
-                        }
+                this@Transaction.rollbackInternal()
+            }
+        }
+
+        /**
+         * Internal rollback logic: Rolls back this [Transaction] thus reverting all operations executed so far.
+         *
+         * When calling this method, a lock on [mutex] should be held!
+         */
+        private fun rollbackInternal() {
+            check(this@Transaction.state === TransactionStatus.READY || this@Transaction.state === TransactionStatus.ERROR || this@Transaction.state === TransactionStatus.KILLED) { "Cannot rollback transaction ${this@Transaction.txId} because it is in wrong state (s = ${this@Transaction.state})." }
+            this@Transaction.state = TransactionStatus.FINALIZING
+            try {
+                this@Transaction.txns.values.reversed().forEachIndexed { i, txn ->
+                    try {
+                        txn.rollback()
+                    } catch (e: Throwable) {
+                        LOGGER.error("An error occurred while rolling back Tx $i (${txn.dbo.name}) of transaction ${this@Transaction.txId}. This is serious!", e)
                     }
-                } finally {
-                    this@Transaction.finalize(false)
                 }
+            } finally {
+                this@Transaction.finalize(false)
             }
         }
 
