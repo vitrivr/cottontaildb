@@ -11,7 +11,7 @@ import org.vitrivr.cottontail.model.basics.Name
  * Inspired by: https://github.com/dstibrany/LockManager
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.1.1
  */
 class LockManager<T> {
 
@@ -33,27 +33,15 @@ class LockManager<T> {
      *
      * @param txn [LockHolder] to acquire the lock for.
      * @param obj Object [T] to acquire a lock on.
-     * @param mode The [LockMode]
+     * @param requestedMode The requested [LockMode]
      */
-    fun lock(txn: LockHolder<T>, obj: T, mode: LockMode) {
-        require(mode != LockMode.NO_LOCK) { "Cannot acquire a lock of mode $mode; try LockManager.release()." }
-        this.locks.compute(obj) { _, l ->
-            val lock: Lock<T> = l ?: Lock(this.waitForGraph, obj)
-            when (lock.getMode()) {
-                LockMode.NO_LOCK -> {
-                    lock.acquire(txn, mode)
-                    txn.addLock(lock)
-                }
-                LockMode.SHARED -> {
-                    if (mode == LockMode.EXCLUSIVE) {
-                        lock.upgrade(txn)
-                        txn.addLock(lock)
-                    }
-                }
-                else -> { /* No op. */
-                }
-            }
-            lock
+    fun lock(txn: LockHolder<T>, obj: T, requestedMode: LockMode) {
+        require(requestedMode != LockMode.NO_LOCK) { "Cannot acquire a lock of mode $requestedMode; try LockManager.release()." }
+        val lock = this.locks.computeIfAbsent(obj) { Lock(this.waitForGraph, obj) }
+        if (lock.getMode() == LockMode.SHARED && requestedMode == LockMode.EXCLUSIVE && lock.getOwners().contains(txn)) {
+            lock.upgrade(txn)
+        } else {
+            lock.acquire(txn, requestedMode)
         }
     }
 
@@ -64,7 +52,6 @@ class LockManager<T> {
      * @param obj Object [T] to release the lock on.
      */
     fun unlock(txn: LockHolder<T>, obj: T) = this.locks.computeIfPresent(obj) { _, lock ->
-        txn.removeLock(lock)
         lock.release(txn)
         if (lock.getMode() === LockMode.NO_LOCK) {
             null

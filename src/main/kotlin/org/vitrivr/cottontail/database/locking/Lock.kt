@@ -17,7 +17,7 @@ import kotlin.concurrent.write
  * Inspired by: https://github.com/dstibrany/LockManager
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.1.1
  */
 class Lock<T> internal constructor(private val waitForGraph: WaitForGraph, val obj: T) {
 
@@ -50,7 +50,7 @@ class Lock<T> internal constructor(private val waitForGraph: WaitForGraph, val o
         when (lockMode) {
             LockMode.SHARED -> acquireSharedLock(txn)
             LockMode.EXCLUSIVE -> acquireExclusiveLock(txn)
-            else -> throw IllegalArgumentException("Lock mode of type UNLOCKED cannot be acquired!")
+            else -> throw IllegalArgumentException("Lock mode of type $lockMode cannot be explicitly acquired!")
         }
     }
 
@@ -64,6 +64,7 @@ class Lock<T> internal constructor(private val waitForGraph: WaitForGraph, val o
             this.waitForGraph.remove(txn)
             this.sharedLockCount.decrementAndGet()
             this.isExclusivelyLocked.compareAndExchange(true, false)
+            txn.removeLock(this)
             this.waiters.signalAll()
         }
     }
@@ -74,9 +75,9 @@ class Lock<T> internal constructor(private val waitForGraph: WaitForGraph, val o
      * @param txn [LockHolder] that tries to upgrade the [Lock].
      */
     fun upgrade(txn: LockHolder<T>) = this.lock.write {
-        check(this.owners.contains(txn)) { "Transaction ${txn.txId} failed upgrade lock $this: Transaction does not own lock." }
-        if (this.isExclusivelyLocked.get()) return
-        while (this.isExclusivelyLocked.get() || this.sharedLockCount.get() > 1) {
+        check(this.owners.contains(txn)) { "Transaction ${txn.txId} failed to upgrade lock $this: Transaction does not own this lock!" }
+        if (this.isExclusivelyLocked.get()) return /* Try to upgrade even though exclusive lock is already being held! */
+        while (this.sharedLockCount.get() > 1) {
             val ownersWithSelfRemoved: Set<LockHolder<T>> = ObjectOpenHashSet(this.owners.filter { it != txn })
             this.waitForGraph.add(txn, ownersWithSelfRemoved)
             this.waitForGraph.detectDeadlock(txn)
@@ -115,6 +116,7 @@ class Lock<T> internal constructor(private val waitForGraph: WaitForGraph, val o
         }
         this.sharedLockCount.incrementAndGet()
         this.owners.add(txn)
+        txn.addLock(this)
     }
 
     /**
@@ -130,5 +132,6 @@ class Lock<T> internal constructor(private val waitForGraph: WaitForGraph, val o
         }
         check(this.isExclusivelyLocked.compareAndSet(false, true)) { "Transaction ${txn.txId} failed to acquire lock $this: Lock is being held exclusively." }
         this.owners.add(txn)
+        txn.addLock(this)
     }
 }
