@@ -133,10 +133,18 @@ class LockManagerTest {
                 exc = e
             }
         }
+
+        /* Start transactions. */
         t1.start()
         t2.start()
-        while (exc == null) Thread.yield()
-        assert(exc is DeadlockException)
-        println(exc!!.message)
+
+        /* Wait for execution to finish. */
+        val start = System.currentTimeMillis()
+        while (exc == null && System.currentTimeMillis() - start < 5000) {
+            Thread.yield()
+        }
+
+        /* Check for exception. */
+        Assertions.assertTrue(exc is DeadlockException)
     }
 }
