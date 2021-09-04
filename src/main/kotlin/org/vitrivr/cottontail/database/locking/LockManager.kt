@@ -4,6 +4,7 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectMaps
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
 import org.vitrivr.cottontail.database.general.DBO
 import org.vitrivr.cottontail.model.basics.Name
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * A [LockManager] implementation that allows for management of [Lock]s on [DBO]s.
@@ -11,12 +12,12 @@ import org.vitrivr.cottontail.model.basics.Name
  * Inspired by: https://github.com/dstibrany/LockManager
  *
  * @author Ralph Gasser
- * @version 1.1.1
+ * @version 1.1.2
  */
 class LockManager<T> {
 
     /** List of all [Lock]s managed by this [LockManager]. */
-    private val locks = Object2ObjectMaps.synchronize(Object2ObjectOpenHashMap<T, Lock<T>>())
+    private val locks: ConcurrentHashMap<T, Lock<T>> = ConcurrentHashMap<T, Lock<T>>()
 
     /** The [WaitForGraph] data structure used to detect deadlock situations. */
     private val waitForGraph: WaitForGraph = WaitForGraph()
