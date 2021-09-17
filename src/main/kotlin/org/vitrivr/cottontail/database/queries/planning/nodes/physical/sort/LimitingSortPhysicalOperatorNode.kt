@@ -39,7 +39,7 @@ class LimitingSortPhysicalOperatorNode(input: Physical? = null, sortOn: Array<Pa
     override val cost: Cost
         get() = Cost(
             cpu = 2 * (this.input?.outputSize ?: 0) * this.order.size * Cost.COST_MEMORY_ACCESS,
-            memory = (this.columns.map { this.statistics[it].avgWidth }.sum() * this.outputSize).toFloat()
+            memory = (this.columns.sumOf { this.statistics[it].avgWidth } * this.outputSize).toFloat()
         )
 
     /** A [SortPhysicalOperatorNode] orders the input in by the specified [ColumnDef]s. */
@@ -74,7 +74,7 @@ class LimitingSortPhysicalOperatorNode(input: Physical? = null, sortOn: Array<Pa
     override fun toOperator(tx: TransactionContext, ctx: QueryContext): Operator {
         val p = this.totalCost.parallelisation()
         val input = this.input ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)")
-        return if (p > 1) {
+        return if (p > 1 && this.input?.canBePartitioned == true) {
             val partitions = input.partition(p).map { it.toOperator(tx, ctx) }
             MergeLimitingHeapSortOperator(partitions, this.order, this.limit)
         } else {
