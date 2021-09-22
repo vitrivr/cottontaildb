@@ -1,5 +1,12 @@
 # Change log for Cottontail DB
 
+## Version 0.12.13
+
+### Bugfixes
+
+* Fixed an issue that caused index partition strategy to be used despite an index not supporting this.
+* UpdateOperator now only write columns that are actually changed.
+
 ## Version 0.12.12
 
 * Bumped some library versions.
