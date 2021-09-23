@@ -35,7 +35,7 @@ class EntityStatistics(var count: Long = 0L, var maximumTupleId: TupleId = -1) :
         override fun deserialize(input: DataInput2, available: Int): EntityStatistics {
             val statistics = EntityStatistics(input.unpackLong(), input.unpackLong())
             repeat(input.unpackInt()) {
-                statistics.columns[Name.ColumnName(*input.readUTF().split('.').toTypedArray())] = ValueStatistics.deserialize(input, available) as ValueStatistics<Value>
+                statistics.columns[ColumnDef.deserialize(input, available)] = ValueStatistics.deserialize(input, available) as ValueStatistics<Value>
             }
             return statistics
         }

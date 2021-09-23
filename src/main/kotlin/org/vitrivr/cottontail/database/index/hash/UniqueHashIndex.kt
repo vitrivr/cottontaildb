@@ -148,23 +148,23 @@ class UniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path, p
         override fun update(event: Operation.DataManagementOperation) = this.withWriteLock {
             when (event) {
                 is Operation.DataManagementOperation.InsertOperation-> {
-                    val value = event.inserts[this.dbo.columns[0].name]
+                    val value = event.inserts[this.dbo.columns[0]]
                     if (value != null) {
                         this.addMapping(value, event.tupleId)
                     }
                 }
                 is Operation.DataManagementOperation.UpdateOperation -> {
-                    val old = event.updates[this.dbo.columns[0].name]?.first
+                    val old = event.updates[this.dbo.columns[0]]?.first
                     if (old != null) {
                         this.removeMapping(old)
                     }
-                    val new = event.updates[this.dbo.columns[0].name]?.second
+                    val new = event.updates[this.dbo.columns[0]]?.second
                     if (new != null) {
                         this.addMapping(new, event.tupleId)
                     }
                 }
                 is Operation.DataManagementOperation.DeleteOperation -> {
-                    val old = event.deleted[this.dbo.columns[0].name]
+                    val old = event.deleted[this.dbo.columns[0]]
                     if (old != null) {
                         this.removeMapping(old)
                     }

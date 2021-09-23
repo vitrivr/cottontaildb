@@ -97,7 +97,7 @@ sealed class Operation(val txId: TransactionId) {
         /**
          * A [DataManagementOperation] that signals an INSERT into an [Entity]
          */
-        class InsertOperation(txId: TransactionId, entity: Name.EntityName, tupleId: TupleId, val inserts: Map<Name.ColumnName, Value?>) : DataManagementOperation(txId, entity, tupleId) {
+        class InsertOperation(txId: TransactionId, entity: Name.EntityName, tupleId: TupleId, val inserts: Map<ColumnDef<*>, Value?>) : DataManagementOperation(txId, entity, tupleId) {
             override val opType: OperationType = OperationType.INSERT
             override val serializer: Serializer<*> = InsertOperationSerializer
         }
@@ -105,7 +105,7 @@ sealed class Operation(val txId: TransactionId) {
         /**
          * A [DataManagementOperation] that signals an UPDATE in an [Entity]
          */
-        class UpdateOperation(txId: TransactionId, entity: Name.EntityName, tupleId: TupleId, val updates: Map<Name.ColumnName, Pair<Value?, Value?>>, ) : DataManagementOperation(txId, entity, tupleId) {
+        class UpdateOperation(txId: TransactionId, entity: Name.EntityName, tupleId: TupleId, val updates: Map<ColumnDef<*>, Pair<Value?, Value?>>, ) : DataManagementOperation(txId, entity, tupleId) {
             override val opType: OperationType = OperationType.UPDATE
             override val serializer: Serializer<*> = TODO()
         }
@@ -113,7 +113,7 @@ sealed class Operation(val txId: TransactionId) {
         /**
          * A [DataManagementOperation] that signals a DELETE from an [Entity]
          */
-        class DeleteOperation(txId: TransactionId, entity: Name.EntityName, tupleId: TupleId, val deleted: Map<Name.ColumnName, Value?>) : DataManagementOperation(txId, entity, tupleId) {
+        class DeleteOperation(txId: TransactionId, entity: Name.EntityName, tupleId: TupleId, val deleted: Map<ColumnDef<*>, Value?>) : DataManagementOperation(txId, entity, tupleId) {
             override val opType: OperationType = OperationType.DELETE
             override val serializer: Serializer<*> = TODO()
         }

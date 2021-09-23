@@ -424,11 +424,11 @@ class DefaultEntity(override val path: Path, override val parent: Schema) : Enti
                 this.context.getTx(it) as IndexTx
             }
             val columns = this@DefaultEntity.columns.values.map { it.columnDef }.toTypedArray()
-            val map = Object2ObjectOpenHashMap<Name.ColumnName, Value>(columns.size)
+            val map = Object2ObjectOpenHashMap<ColumnDef<*>, Value>(columns.size)
             val iterator = this.scan(columns)
             this.snapshot.statistics.reset()
             iterator.forEach { r ->
-                r.forEach { columnDef, value -> map[columnDef.name] = value }
+                r.forEach { columnDef, value -> map[columnDef] = value }
                 val event = Operation.DataManagementOperation.InsertOperation(this.context.txId, this@DefaultEntity.name, r.tupleId, map) /* Fake data change event for update. */
                 this.snapshot.statistics.consume(event)
                 incremental.forEach { it.update(event) }
@@ -520,7 +520,7 @@ class DefaultEntity(override val path: Path, override val parent: Schema) : Enti
         override fun insert(record: Record): TupleId? = this.withWriteLock {
             try {
                 var lastTupleId: TupleId? = null
-                val inserts = Object2ObjectArrayMap<Name.ColumnName, Value>(this@DefaultEntity.columns.size)
+                val inserts = Object2ObjectArrayMap<ColumnDef<*>, Value>(this@DefaultEntity.columns.size)
 
                 /* This is a critical section and requires a latch. */
                 this@DefaultEntity.columns.values.forEach {
@@ -531,7 +531,7 @@ class DefaultEntity(override val path: Path, override val parent: Schema) : Enti
                         throw DatabaseException.DataCorruptionException("Entity '${this@DefaultEntity.name}' is corrupt. Insert did not yield same record ID for all columns involved!")
                     }
                     lastTupleId = tupleId
-                    inserts[it.columnDef.name] = value
+                    inserts[it.columnDef] = value
                 }
 
                 /* Issue DataChangeEvent.InsertDataChange event and update indexes + statistics. */
@@ -560,12 +560,12 @@ class DefaultEntity(override val path: Path, override val parent: Schema) : Enti
          */
         override fun update(record: Record) = this.withWriteLock {
             try {
-                val updates = Object2ObjectArrayMap<Name.ColumnName, Pair<Value?, Value?>>(record.columns.size)
+                val updates = Object2ObjectArrayMap<ColumnDef<*>, Pair<Value?, Value?>>(record.columns.size)
                 record.columns.forEach { def ->
                     val column = this@DefaultEntity.columns[def.name] ?: throw IllegalArgumentException("Column $def does not exist on entity ${this@DefaultEntity.name}.")
                     val value = record[def]
                     val columnTx = (this.context.getTx(column) as ColumnTx<Value>)
-                    updates[def.name] = Pair(columnTx.update(record.tupleId, value), value) /* Map: ColumnDef -> Pair[Old, New]. */
+                    updates[def] = Pair(columnTx.update(record.tupleId, value), value) /* Map: ColumnDef -> Pair[Old, New]. */
                 }
 
                 /* Issue DataChangeEvent.UpdateDataChangeEvent and update indexes + statistics. */
@@ -592,9 +592,9 @@ class DefaultEntity(override val path: Path, override val parent: Schema) : Enti
         override fun delete(tupleId: TupleId) = this.withWriteLock {
             try {
                 /* Perform delete on each column. */
-                val deleted = Object2ObjectArrayMap<Name.ColumnName, Value?>(this@DefaultEntity.columns.size)
+                val deleted = Object2ObjectArrayMap<ColumnDef<*>, Value?>(this@DefaultEntity.columns.size)
                 this@DefaultEntity.columns.values.map {
-                    deleted[it.name] = (this.context.getTx(it) as ColumnTx<*>).delete(tupleId)
+                    deleted[it.columnDef] = (this.context.getTx(it) as ColumnTx<*>).delete(tupleId)
                 }
 
                 /* Issue DataChangeEvent.DeleteDataChangeEvent and update indexes + statistics. */
