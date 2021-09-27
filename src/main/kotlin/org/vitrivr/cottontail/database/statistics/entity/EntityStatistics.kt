@@ -27,7 +27,7 @@ class EntityStatistics(var count: Long = 0L, var maximumTupleId: TupleId = -1) :
             out.packLong(value.maximumTupleId)
             out.packInt(value.columns.size)
             value.columns.forEach { (t, u) ->
-                out.writeUTF(t.toString())
+                ColumnDef.serialize(out, t)
                 ValueStatistics.serialize(out, u)
             }
         }
