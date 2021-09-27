@@ -45,11 +45,11 @@ class EntitySamplePhysicalOperatorNode(override val groupId: Int, val entity: En
     override val canBePartitioned: Boolean = true
 
     /** The estimated [Cost] of sampling the [Entity]. */
-    override val cost = Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_MEMORY_ACCESS) * this.outputSize * this.columns.sumOf {
-        if (it.type == Type.String) {
-            this.statistics[it].avgWidth * Char.SIZE_BYTES
+    override val cost = Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_MEMORY_ACCESS) * this.outputSize * this.fetch.sumOf {
+        if (it.second.type == Type.String) {
+            this.statistics[it.second].avgWidth * Char.SIZE_BYTES
         } else {
-            it.type.physicalSize
+            it.second.type.physicalSize
         }
     }
 

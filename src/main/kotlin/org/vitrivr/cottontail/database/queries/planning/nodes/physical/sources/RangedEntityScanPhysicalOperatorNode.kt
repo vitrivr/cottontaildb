@@ -3,12 +3,10 @@ package org.vitrivr.cottontail.database.queries.planning.nodes.physical.sources
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.entity.EntityTx
-import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.NullaryPhysicalOperatorNode
 import org.vitrivr.cottontail.database.statistics.entity.RecordStatistics
-import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.sources.EntityScanOperator
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Type
@@ -39,11 +37,11 @@ class RangedEntityScanPhysicalOperatorNode(override val groupId: Int, val entity
     override val statistics: RecordStatistics = this.entity.snapshot.statistics
     override val executable: Boolean = true
     override val canBePartitioned: Boolean = false
-    override val cost = Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_MEMORY_ACCESS) * this.outputSize * this.columns.sumOf {
-        if (it.type == Type.String) {
-            this.statistics[it].avgWidth * Char.SIZE_BYTES
+    override val cost = Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_MEMORY_ACCESS) * this.outputSize * this.fetch.sumOf {
+        if (it.second.type == Type.String) {
+            this.statistics[it.second].avgWidth * Char.SIZE_BYTES
         } else {
-            it.type.physicalSize
+            it.second.type.physicalSize
         }
     }
 
@@ -62,7 +60,7 @@ class RangedEntityScanPhysicalOperatorNode(override val groupId: Int, val entity
     /**
      * [RangedIndexScanPhysicalOperatorNode] cannot be partitioned.
      */
-    override fun partition(p: Int): List<OperatorNode.Physical> {
+    override fun partition(p: Int): List<Physical> {
         throw UnsupportedOperationException("RangedEntityScanPhysicalOperatorNode cannot be further partitioned.")
     }
 

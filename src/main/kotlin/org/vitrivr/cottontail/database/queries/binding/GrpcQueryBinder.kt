@@ -7,7 +7,8 @@ import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.QueryContext
-import org.vitrivr.cottontail.database.queries.binding.extensions.*
+import org.vitrivr.cottontail.database.queries.binding.extensions.fqn
+import org.vitrivr.cottontail.database.queries.binding.extensions.toValue
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.management.DeleteLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.management.InsertLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.management.UpdateLogicalOperatorNode
@@ -24,6 +25,7 @@ import org.vitrivr.cottontail.database.queries.predicates.bool.ConnectionOperato
 import org.vitrivr.cottontail.database.queries.projection.Projection
 import org.vitrivr.cottontail.database.queries.sort.SortOrder
 import org.vitrivr.cottontail.database.schema.SchemaTx
+import org.vitrivr.cottontail.functions.basics.Argument
 import org.vitrivr.cottontail.functions.basics.Signature
 import org.vitrivr.cottontail.functions.exception.FunctionNotFoundException
 import org.vitrivr.cottontail.grpc.CottontailGrpc
@@ -283,25 +285,26 @@ object GrpcQueryBinder {
      * @return The resulting [OperatorNode.Logical].
      */
     private fun parseAndBindFrom(from: CottontailGrpc.From, columns: Map<Name.ColumnName,Name>, context: QueryContext): OperatorNode.Logical = try {
-        val columnAliases = columns.entries.filter { it.value is Name.ColumnName }.associate { it.value as Name.ColumnName to it.key } /* Map input column to alias. */
         when (from.fromCase) {
             CottontailGrpc.From.FromCase.SCAN -> {
                 val entity = parseAndBindEntity(from.scan.entity, context)
                 val entityTx = context.txn.getTx(entity) as EntityTx
-                val fetch = entityTx.listColumns().map {
-                    val column = it.columnDef
-                    val name = columnAliases[column.name] ?: column.name
-                    name to column
+                val fetch = entityTx.listColumns().map { ci ->
+                    val name = columns.entries.singleOrNull {
+                        c -> c.value is Name.ColumnName && (c.value == ci.name || c.value.simple == ci.name.simple)
+                    }?.key ?: ci.name
+                    name to ci.columnDef
                 }
                 EntityScanLogicalOperatorNode(context.nextGroupId(), entity = entityTx, fetch = fetch)
             }
             CottontailGrpc.From.FromCase.SAMPLE -> {
                 val entity = parseAndBindEntity(from.sample.entity, context)
                 val entityTx = context.txn.getTx(entity) as EntityTx
-                val fetch = entityTx.listColumns().map {
-                    val column = it.columnDef
-                    val name = columnAliases[column.name] ?: column.name
-                    name to column
+                val fetch = entityTx.listColumns().map { ci ->
+                    val name = columns.entries.singleOrNull {
+                        c -> c.value is Name.ColumnName && (c.value == ci.name || c.value.simple == ci.name.simple)
+                    }?.key ?: ci.name
+                    name to ci.columnDef
                 }
                 EntitySampleLogicalOperatorNode(context.nextGroupId(), entity = entityTx, fetch = fetch, p = from.sample.probability, seed = from.sample.seed)
             }
@@ -493,7 +496,7 @@ object GrpcQueryBinder {
                 null -> throw QueryException.QuerySyntaxException("Function argument at position $i is malformed.")
             }
         }
-        val signature = Signature.Closed<Value>(projection.first, arguments.map { it.type }.toTypedArray())
+        val signature = Signature.Closed<Value>(projection.first, arguments.map { Argument.Typed(it.type) }.toTypedArray())
         val functionObject = try {
             context.catalogue.functions.obtain(signature)
         } catch (e: FunctionNotFoundException) {
