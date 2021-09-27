@@ -3,6 +3,7 @@ package org.vitrivr.cottontail.server.grpc.services
 import io.grpc.Status
 import io.grpc.StatusException
 import io.grpc.StatusRuntimeException
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.*
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.client.language.basics.Constants
@@ -10,7 +11,6 @@ import org.vitrivr.cottontail.database.locking.DeadlockException
 import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.binding.extensions.toLiteral
 import org.vitrivr.cottontail.execution.TransactionManager
-import org.vitrivr.cottontail.execution.TransactionStatus
 import org.vitrivr.cottontail.execution.TransactionType
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.grpc.CottontailGrpc
@@ -96,10 +96,10 @@ interface gRPCTransactionService {
                 else -> Status.UNKNOWN.withCause(e).withDescription(formatMessage(context, queryId, "$description failed because of an unhandled exception.")).asException()
             }
         }.onCompletion {
-            if (it == null) {
-                LOGGER.info(formatMessage(context, queryId, "$description completed successfully in ${mark.elapsedNow()}!"))
-            } else {
-                LOGGER.error(formatMessage(context, queryId, "$description failed: ${it.cause?.message}"))
+            when(it) {
+                null -> LOGGER.info(formatMessage(context, queryId, "$description completed successfully in ${mark.elapsedNow()}."))
+                is CancellationException -> LOGGER.warn(formatMessage(context, queryId, "$description interrupted by user after ${mark.elapsedNow()}."))
+                else -> LOGGER.error(formatMessage(context, queryId, "$description failed: ${it.message}"))
             }
         }
     }
