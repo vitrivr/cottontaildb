@@ -17,7 +17,7 @@ import java.io.PrintStream
  * and are manipulated by the query planner.
  *
  * @author Ralph Gasser
- * @version 2.3.0
+ * @version 2.4.0
  */
 sealed class OperatorNode : Node {
 
@@ -33,17 +33,20 @@ sealed class OperatorNode : Node {
     /** The name of this [OperatorNode]. */
     abstract val name: String
 
-    /** Whether or not this [OperatorNode] is executable. */
+    /** Whether this [OperatorNode] is executable. */
     abstract val executable: Boolean
+
+    /** The physical [ColumnDef]s (indirectly) accessed by this [OperatorNode]. */
+    abstract val physicalColumns: List<ColumnDef<*>>
 
     /** The [ColumnDef]s produced by this [OperatorNode]. */
     abstract val columns: List<ColumnDef<*>>
 
-    /** The [ColumnDef]s by which the output of this [OperatorNode] is sorted. By default, there is no particular order. */
-    abstract val sortOn: List<Pair<ColumnDef<*>, SortOrder>>
-
     /** List of [ColumnDef]s required by this [OperatorNode] in order to be able to function. */
     abstract val requires: List<ColumnDef<*>>
+
+    /** The [ColumnDef]s by which the output of this [OperatorNode] is sorted. By default, there is no particular order. */
+    abstract val sortOn: List<Pair<ColumnDef<*>, SortOrder>>
 
     /**
      * Creates and returns a copy of this [OperatorNode] without any children or parents.

@@ -13,7 +13,7 @@ import java.io.PrintStream
  * An abstract [OperatorNode.Physical] implementation that has exactly two [OperatorNode.Physical]s as input.
  *
  * @author Ralph Gasser
- * @version 2.1.2
+ * @version 2.4.0
  */
 abstract class BinaryPhysicalOperatorNode(left: Physical? = null, right: Physical? = null) : OperatorNode.Physical() {
 
@@ -68,6 +68,10 @@ abstract class BinaryPhysicalOperatorNode(left: Physical? = null, right: Physica
 
     /** By default, [BinaryPhysicalOperatorNode]s cannot be partitioned. */
     override val canBePartitioned: Boolean = false
+
+    /** By default, the [BinaryPhysicalOperatorNode] outputs the physical [ColumnDef] of its left input. */
+    override val physicalColumns: List<ColumnDef<*>>
+        get() = (this.left?.physicalColumns ?: emptyList())
 
     /** By default, the [BinaryPhysicalOperatorNode] outputs the [ColumnDef] of its left input. */
     override val columns: List<ColumnDef<*>>

@@ -13,7 +13,7 @@ import java.util.*
  * An abstract [OperatorNode.Logical] implementation that has multiple [OperatorNode.Logical]s as input.
  *
  * @author Ralph Gasser
- * @version 2.2.0
+ * @version 2.4.0
  */
 abstract class NAryLogicalOperatorNode(vararg inputs: Logical) : OperatorNode.Logical() {
 
@@ -37,6 +37,10 @@ abstract class NAryLogicalOperatorNode(vararg inputs: Logical) : OperatorNode.Lo
     /** The [base] of a [NAryLogicalOperatorNode] is always itself. */
     final override val base: Collection<Logical>
         get() = this._inputs.flatMap { it.base }
+
+    /** By default, the [NAryLogicalOperatorNode] outputs the physical [ColumnDef] of its input. */
+    override val physicalColumns: List<ColumnDef<*>>
+        get() = (this.inputs.firstOrNull()?.physicalColumns ?: emptyList())
 
     /** By default, the [NAryLogicalOperatorNode] outputs the [ColumnDef] of its input. */
     override val columns: List<ColumnDef<*>>

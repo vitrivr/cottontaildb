@@ -11,7 +11,7 @@ import java.io.PrintStream
  * An abstract [OperatorNode.Logical] implementation that has exactly two [OperatorNode.Logical]s as input.
  *
  * @author Ralph Gasser
- * @version 2.2.0
+ * @version 2.4.0
  */
 abstract class BinaryLogicalOperatorNode(left: Logical? = null, right: Logical? = null) : OperatorNode.Logical() {
 
@@ -52,6 +52,14 @@ abstract class BinaryLogicalOperatorNode(left: Logical? = null, right: Logical? 
     /** The [base] of a [BinaryLogicalOperatorNode] is the sum of its input's bases. */
     final override val base: Collection<Logical>
         get() = (this.left?.base ?: emptyList()) + (this.right?.base ?: emptyList())
+
+    /** By default, the [BinaryLogicalOperatorNode] outputs the physical [ColumnDef] of its input. */
+    override val physicalColumns: List<ColumnDef<*>>
+        get() = (this.left?.physicalColumns ?: emptyList())
+
+    /** By default, the [BinaryLogicalOperatorNode] outputs the [ColumnDef] of its input. */
+    override val columns: List<ColumnDef<*>>
+        get() = (this.left?.columns ?: emptyList())
 
     /** By default, a [BinaryLogicalOperatorNode]'s order is unspecified. */
     override val sortOn: List<Pair<ColumnDef<*>, SortOrder>>

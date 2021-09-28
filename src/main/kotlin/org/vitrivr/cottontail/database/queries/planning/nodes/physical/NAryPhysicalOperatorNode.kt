@@ -15,7 +15,7 @@ import java.util.*
  * An abstract [OperatorNode.Physical] implementation that has multiple [OperatorNode.Physical]s as input.
  *
  * @author Ralph Gasser
- * @version 2.2.0
+ * @version 2.4.0
  */
 abstract class NAryPhysicalOperatorNode(vararg inputs: Physical) : OperatorNode.Physical() {
 
@@ -64,6 +64,10 @@ abstract class NAryPhysicalOperatorNode(vararg inputs: Physical) : OperatorNode.
 
     /** [NAryPhysicalOperatorNode] usually cannot be partitioned. */
     override val canBePartitioned: Boolean = false
+
+    /** By default, the [NAryPhysicalOperatorNode] outputs the physical [ColumnDef] of its input. */
+    override val physicalColumns: List<ColumnDef<*>>
+        get() = (this.inputs.firstOrNull()?.physicalColumns ?: emptyList())
 
     /** By default, the [NAryPhysicalOperatorNode] outputs the [ColumnDef] of its input. */
     override val columns: List<ColumnDef<*>>

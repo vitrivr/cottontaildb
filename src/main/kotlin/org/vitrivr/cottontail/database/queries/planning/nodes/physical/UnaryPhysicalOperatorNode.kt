@@ -14,7 +14,7 @@ import java.io.PrintStream
  * An abstract [OperatorNode.Physical] implementation that has a single [OperatorNode] as input.
  *
  * @author Ralph Gasser
- * @version 2.2.0
+ * @version 2.4.0
  */
 abstract class UnaryPhysicalOperatorNode(input: Physical? = null) : OperatorNode.Physical() {
 
@@ -57,6 +57,10 @@ abstract class UnaryPhysicalOperatorNode(input: Physical? = null) : OperatorNode
     /** By default, [UnaryPhysicalOperatorNode]s can be partitioned, if their parent can be partitioned. */
     override val canBePartitioned: Boolean
         get() = this.input?.canBePartitioned ?: false
+
+    /** By default, the [UnaryPhysicalOperatorNode] outputs the physical [ColumnDef] of its input. */
+    override val physicalColumns: List<ColumnDef<*>>
+        get() = (this.input?.physicalColumns ?: emptyList())
 
     /** By default, the [UnaryPhysicalOperatorNode] outputs the [ColumnDef] of its input. */
     override val columns: List<ColumnDef<*>>

@@ -11,7 +11,7 @@ import java.io.PrintStream
  * An abstract [OperatorNode.Logical] implementation that has a single [OperatorNode] as input.
  *
  * @author Ralph Gasser
- * @version 2.2.0
+ * @version 2.4.0
  */
 abstract class UnaryLogicalOperatorNode(input: Logical? = null) : OperatorNode.Logical() {
     /** Input arity of [UnaryLogicalOperatorNode] is always one. */
@@ -39,7 +39,11 @@ abstract class UnaryLogicalOperatorNode(input: Logical? = null) : OperatorNode.L
             field = value
         }
 
-    /** By default, a [UnaryLogicalOperatorNode]'s columns are retained. */
+    /** By default, a [UnaryLogicalOperatorNode]'s input physical columns are retained. */
+    override val physicalColumns: List<ColumnDef<*>>
+        get() = this.input?.physicalColumns ?: emptyList()
+
+    /** By default, a [UnaryLogicalOperatorNode]'s input columns are retained. */
     override val columns: List<ColumnDef<*>>
         get() = this.input?.columns ?: emptyList()
 
