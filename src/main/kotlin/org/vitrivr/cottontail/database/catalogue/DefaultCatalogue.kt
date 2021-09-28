@@ -70,7 +70,7 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
     private val registry: MutableMap<Name.SchemaName, Schema> = Collections.synchronizedMap(Object2ObjectOpenHashMap())
 
     /** The [FunctionRegistry] exposed by this [Catalogue]. */
-    override val functions: FunctionRegistry = FunctionRegistry(this.config)
+    override val functions: FunctionRegistry = FunctionRegistry()
 
     /** Size of this [DefaultCatalogue] in terms of [Schema]s it contains. This is a snapshot and may change anytime! */
     override val size: Int
