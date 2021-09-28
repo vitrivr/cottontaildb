@@ -1,10 +1,8 @@
 package org.vitrivr.cottontail.functions.math.distance.binary
 
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
-import org.vitrivr.cottontail.functions.basics.AbstractFunctionGenerator
+import org.vitrivr.cottontail.functions.basics.*
 import org.vitrivr.cottontail.functions.basics.Function
-import org.vitrivr.cottontail.functions.basics.FunctionGenerator
-import org.vitrivr.cottontail.functions.basics.Signature
 import org.vitrivr.cottontail.functions.exception.FunctionNotSupportedException
 import org.vitrivr.cottontail.functions.math.distance.basics.VectorDistance
 import org.vitrivr.cottontail.model.basics.Name
@@ -27,15 +25,15 @@ sealed class HammingDistance<T : VectorValue<*>>: VectorDistance.Binary<T> {
         val FUNCTION_NAME = Name.FunctionName("hamming")
 
         override val signature: Signature.Open<out DoubleValue>
-            get() = Signature.Open(FUNCTION_NAME, arity = 2, Type.Double)
+            get() = Signature.Open(FUNCTION_NAME, arrayOf(Argument.Vector, Argument.Vector), Type.Double)
 
-        override fun generateInternal(vararg arguments: Type<*>): Function.Dynamic<DoubleValue> = when (arguments[0]) {
-            is Type.DoubleVector -> DoubleVector(arguments[0].logicalSize)
-            is Type.FloatVector -> FloatVector(arguments[0].logicalSize)
-            is Type.IntVector -> IntVector(arguments[0].logicalSize)
-            is Type.LongVector -> LongVector(arguments[0].logicalSize)
-            is Type.BooleanVector -> BooleanVector(arguments[0].logicalSize)
-            else -> throw FunctionNotSupportedException(this.signature)
+        override fun generateInternal(dst: Signature.Closed<*>): Function<DoubleValue> = when (val type = dst.arguments[0].type) {
+            is Type.DoubleVector -> DoubleVector(type.logicalSize)
+            is Type.FloatVector -> FloatVector(type.logicalSize)
+            is Type.IntVector -> IntVector(type.logicalSize)
+            is Type.LongVector -> LongVector(type.logicalSize)
+            is Type.BooleanVector -> BooleanVector(type.logicalSize)
+            else -> throw FunctionNotSupportedException("Function generator signature ${this.signature} does not support destination signature (dst = $dst).")
         }
     }
 
@@ -51,17 +49,21 @@ sealed class HammingDistance<T : VectorValue<*>>: VectorDistance.Binary<T> {
      */
     class DoubleVector(size: Int) : HammingDistance<DoubleVectorValue>() {
         override val type = Type.DoubleVector(size)
+        override var query = this.type.defaultValue()
         override fun copy(d: Int) = DoubleVector(d)
         override fun invoke(vararg arguments: Value?): DoubleValue {
-            val query = arguments[0] as DoubleVectorValue
-            val vector = arguments[1] as DoubleVectorValue
+            val probing = arguments[0] as DoubleVectorValue
             var sum = 0.0
             for (i in query.data.indices) {
-                if (query.data[i] != vector.data[i]) {
+                if (query.data[i] != probing.data[i]) {
                     sum += 1.0
                 }
             }
             return DoubleValue(sum)
+        }
+        override fun prepare(vararg arguments: Value?) {
+            require(arguments[0]?.type == this.type) { "Value of type ${arguments[0]?.type} cannot be applied as argument for ${this.signature}." }
+            this.query = arguments[0] as DoubleVectorValue
         }
     }
 
@@ -70,17 +72,21 @@ sealed class HammingDistance<T : VectorValue<*>>: VectorDistance.Binary<T> {
      */
     class FloatVector(size: Int) : HammingDistance<FloatVectorValue>() {
         override val type = Type.FloatVector(size)
+        override var query = this.type.defaultValue()
         override fun copy(d: Int): VectorDistance.Binary<FloatVectorValue> = FloatVector(d)
         override fun invoke(vararg arguments: Value?): DoubleValue {
-            val query = arguments[0] as FloatVectorValue
-            val vector = arguments[1] as FloatVectorValue
+            val probing = arguments[0] as FloatVectorValue
             var sum = 0.0
             for (i in query.data.indices) {
-                if (query.data[i] != vector.data[i]) {
+                if (query.data[i] != probing.data[i]) {
                     sum += 1.0
                 }
             }
             return DoubleValue(sum)
+        }
+        override fun prepare(vararg arguments: Value?) {
+            require(arguments[0]?.type == this.type) { "Value of type ${arguments[0]?.type} cannot be applied as argument for ${this.signature}." }
+            this.query = arguments[0] as FloatVectorValue
         }
     }
 
@@ -89,17 +95,21 @@ sealed class HammingDistance<T : VectorValue<*>>: VectorDistance.Binary<T> {
      */
     class LongVector(size: Int) : HammingDistance<LongVectorValue>() {
         override val type = Type.LongVector(size)
+        override var query = this.type.defaultValue()
         override fun copy(d: Int): VectorDistance.Binary<LongVectorValue> = LongVector(d)
         override fun invoke(vararg arguments: Value?): DoubleValue {
-            val query = arguments[0] as LongVectorValue
-            val vector = arguments[1] as LongVectorValue
+            val probing = arguments[0] as LongVectorValue
             var sum = 0.0
             for (i in query.data.indices) {
-                if (query.data[i] != vector.data[i]) {
+                if (query.data[i] != probing.data[i]) {
                     sum += 1.0
                 }
             }
             return DoubleValue(sum)
+        }
+        override fun prepare(vararg arguments: Value?) {
+            require(arguments[0]?.type == this.type) { "Value of type ${arguments[0]?.type} cannot be applied as argument for ${this.signature}." }
+            this.query = arguments[0] as LongVectorValue
         }
     }
 
@@ -108,17 +118,21 @@ sealed class HammingDistance<T : VectorValue<*>>: VectorDistance.Binary<T> {
      */
     class IntVector(size: Int) : HammingDistance<IntVectorValue>() {
         override val type = Type.IntVector(size)
+        override var query = this.type.defaultValue()
         override fun copy(d: Int) = IntVector(d)
         override fun invoke(vararg arguments: Value?): DoubleValue {
-            val query = arguments[0] as IntVectorValue
-            val vector = arguments[1] as IntVectorValue
+            val probing = arguments[0] as IntVectorValue
             var sum = 0.0
             for (i in query.data.indices) {
-                if (query.data[i] != vector.data[i]) {
+                if (query.data[i] != probing.data[i]) {
                     sum += 1.0
                 }
             }
             return DoubleValue(sum)
+        }
+        override fun prepare(vararg arguments: Value?) {
+            require(arguments[0]?.type == this.type) { "Value of type ${arguments[0]?.type} cannot be applied as argument for ${this.signature}." }
+            this.query = arguments[0] as IntVectorValue
         }
     }
 
@@ -127,17 +141,21 @@ sealed class HammingDistance<T : VectorValue<*>>: VectorDistance.Binary<T> {
      */
     class BooleanVector(size: Int) : HammingDistance<BooleanVectorValue>() {
         override val type = Type.BooleanVector(size)
+        override var query = this.type.defaultValue()
         override fun copy(d: Int) = BooleanVector(d)
         override fun invoke(vararg arguments: Value?): DoubleValue {
-            val query = arguments[0] as BooleanVectorValue
-            val vector = arguments[1] as BooleanVectorValue
+            val probing = arguments[0] as BooleanVectorValue
             var sum = 0.0
             for (i in query.data.indices) {
-                if (query.data[i] != vector.data[i]) {
+                if (query.data[i] != probing.data[i]) {
                     sum += 1.0
                 }
             }
             return DoubleValue(sum)
+        }
+        override fun prepare(vararg arguments: Value?) {
+            require(arguments[0]?.type == this.type) { "Value of type ${arguments[0]?.type} cannot be applied as argument for ${this.signature}." }
+            this.query = arguments[0] as BooleanVectorValue
         }
     }
 }

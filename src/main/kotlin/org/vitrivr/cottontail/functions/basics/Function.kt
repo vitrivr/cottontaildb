@@ -3,10 +3,10 @@ package org.vitrivr.cottontail.functions.basics
 import org.vitrivr.cottontail.model.values.types.Value
 
 /**
- * A invokable [Function] that can be used by Cottontail DB to produce results.
+ * An invokable [Function] that can be used by Cottontail DB to produce results.
  *
- * A function is a bit of logic, that takes an arbitrary number of [Value]s as input returns some [Value]
- * a output. A [Function] is fully defined by its [Signature].
+ * A function is a piece of logic, that takes an arbitrary number of [Value]s as input returns some [Value]
+ * as output. A [Function] is fully defined by its [Signature].
  *
  * @author Ralph Gasser
  * @version 1.0.0
@@ -27,22 +27,27 @@ sealed interface Function<out R: Value> {
     operator fun invoke(vararg arguments: Value?): R
 
     /**
-     * [Function.Static] are [Function]s that are known ahead of time upon booting up Cottontail DB.
+     * [Function.Stateless] are [Function]s that do not have any state and are therefore safe for re-use.
      *
-     * They cannot have any state and are therefore safe for re-use.
+     * Usually, only a single instance of a [Function.Stateless] exists within Cottontail DB.
      */
-    interface Static<out R: Value>: Function<R> {
-
-    }
+    interface Stateless<out R: Value>: Function<R>
 
     /**
-     * [Function.Dynamic] are [Function]s that are not known ahead of time and generated when executing a certain query.
+     * [Function.Stateful] are [Function]s that have an internal state, e.g., values that remain constant between function invocations.
      *
-     * The rely on [FunctionGenerator]s to do so. Furthermore, [Function.Dynamic] may have a state and can therefore not be re-used.
      */
-    interface Dynamic<out R: Value>: Function<R> {
-        /** Flag indicating whether this [Function] is stateful (i.e., has local variables) or stateless. */
-        val stateless: Boolean
+    interface Stateful<out R: Value>: Function<R> {
+
+        /** [IntArray] containing the positions of the stateful arguments w.r.t to this [Function.Stateful]'s [Signature]. */
+        val statefulArguments: IntArray
+
+        /**
+         * Prepares this [Function.Stateful] for executing by applying the provided arguments.
+         *
+         * The order in which arguments must be provided is determined by the [Function.Stateful]'s signature.
+         */
+        fun prepare(vararg arguments: Value?)
     }
 }
 

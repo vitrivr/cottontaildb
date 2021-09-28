@@ -37,31 +37,35 @@ class FunctionProjectionOperator(parent: Operator, val function: Function<*>, va
         val parentFlow = this.parent.toFlow(context)
 
         /* Prepare arguments for function. */
-        val columnRefs = mutableListOf<Pair<Int,ColumnDef<*>>>()
-        val arguments = Array(this@FunctionProjectionOperator.arguments.size) {
-            when(val ref = this.arguments[it]) {
-                is Binding.Literal -> ref.value
-                is Binding.Column -> {
-                    columnRefs.add(Pair(it, ref.column))
-                    null
+        val arguments = mutableListOf<Binding>()
+        if (this.function is Function.Stateful) {
+            val prepArgs = mutableListOf<Value?>()
+            this.arguments.forEachIndexed { i, b ->
+                if (this.function.statefulArguments.contains(i)) {
+                    require(b is Binding.Literal) { "Only literal arguments can be used as stateful arguments for a stateful function. " }
+                    prepArgs.add(b.value)
+                } else {
+                    arguments.add(b)
                 }
             }
+            this.function.prepare(*prepArgs.toTypedArray())
+        } else {
+            this.arguments.forEach{ b -> arguments.add(b) }
         }
 
         /* Prepare empty array that acts a holder for values. */
+        val argumentValues = Array<Value?>(arguments.size) { null }
         val columns = this.columns.toTypedArray()
         val values = Array<Value?>(this.columns.size) { null }
 
         return parentFlow.map { record ->
             /* Update arguments based on incoming record. */
-            columnRefs.forEach { ref ->
-                arguments[ref.first] = record[ref.second]
-            }
+            arguments.forEachIndexed { i, b -> argumentValues[i] = b.value }
 
             /* Update values. */
             var i = 0
             record.forEach { _, v -> values[i++] = v }
-            values[values.lastIndex] = this@FunctionProjectionOperator.function(*arguments)
+            values[values.lastIndex] = this@FunctionProjectionOperator.function(*argumentValues)
 
             /* Generate and return record. */
             StandaloneRecord(record.tupleId, columns, values)

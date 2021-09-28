@@ -1,6 +1,5 @@
 package org.vitrivr.cottontail.functions.basics
 
-import org.vitrivr.cottontail.model.basics.Type
 import org.vitrivr.cottontail.model.values.types.Value
 
 /**
@@ -23,13 +22,13 @@ sealed interface FunctionGenerator<out R: Value> {
      * @param arguments The argument [Value]s to generate a [Function] for.
      * @return The generated [Function]
      */
-    fun generate(vararg arguments: Value): Function.Dynamic<R> = generate(*arguments.map { it.type }.toTypedArray())
+    fun generate(vararg arguments: Value): Function<R> = generate(*arguments.map { Argument.Typed(it.type) }.toTypedArray())
 
     /**
      * Generates a [Function] for the given arguments.
      *
-     * @param arguments The argument [Value]s to generate a [Function] for.
+     * @param arguments The [Argument.Typed]s to generate a [Function] for.
      * @return The generated [Function]
      */
-    fun generate(vararg arguments: Type<*>): Function.Dynamic<R>
+    fun generate(vararg arguments: Argument.Typed<*>): Function<R>
 }

@@ -1,9 +1,8 @@
 package org.vitrivr.cottontail.functions.math.distance.basics
 
-import org.vitrivr.cottontail.functions.FunctionRegistry
+import org.vitrivr.cottontail.functions.basics.Argument
 import org.vitrivr.cottontail.functions.basics.Function
 import org.vitrivr.cottontail.functions.basics.Signature
-import org.vitrivr.cottontail.functions.math.distance.binary.*
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Type
 import org.vitrivr.cottontail.model.values.DoubleValue
@@ -15,7 +14,7 @@ import org.vitrivr.cottontail.model.values.types.VectorValue
  * @author Ralph Gasser
  * @version 2.0.0
  */
-interface VectorDistance<T : VectorValue<*>>: Function.Dynamic<DoubleValue> {
+interface VectorDistance<T : VectorValue<*>>: Function.Stateful<DoubleValue> {
 
     /** The [Name.FunctionName] of this [VectorDistance]. */
     val name: Name.FunctionName
@@ -26,10 +25,6 @@ interface VectorDistance<T : VectorValue<*>>: Function.Dynamic<DoubleValue> {
     /** The dimensionality of this [VectorDistance]. */
     val d: Int
         get() = this.type.logicalSize
-
-    /** For the sake of optimization, [VectorDistance]s are usually not stateless! */
-    override val stateless: Boolean
-        get() = false
 
     /**
      * Creates a copy of this [VectorDistance]. Can be used to create different shapes by choosing a new value for [d].
@@ -47,6 +42,13 @@ interface VectorDistance<T : VectorValue<*>>: Function.Dynamic<DoubleValue> {
     interface Binary<T : VectorValue<*>>: VectorDistance<T> {
         /** The [Signature.Closed] of this [VectorDistance.Binary] [Function]. */
         override val signature: Signature.Closed<out DoubleValue>
-            get() = Signature.Closed(this.name, arrayOf(this.type, this.type), Type.Double)
+            get() = Signature.Closed(this.name, arrayOf(Argument.Typed(this.type), Argument.Typed(this.type)), Type.Double)
+
+        /** By convention, the argument at position 1 (query argument) is stateful for [Binary]. */
+        override val statefulArguments: IntArray
+            get() = intArrayOf(1)
+
+        /** The query [VectorValue]. */
+        val query: T
     }
 }

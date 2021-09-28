@@ -64,6 +64,13 @@ class FunctionProjectionPhysicalOperatorNode(input: Physical? = null, val functi
         return input.partition(p).map { FunctionProjectionPhysicalOperatorNode(it, this.function, this.arguments, this.alias) }
     }
 
+    /** Generates and returns a [String] representation of this [FunctionProjectionOperator]. */
+    override fun toString() = if (this.alias != null) {
+        "${super.toString()}[${this.function.signature} -> ${this.alias}]"
+    } else {
+        "${super.toString()}[${this.function.signature}]"
+    }
+
     /**
      * Compares this [FunctionProjectionOperator] to the given [Object] and returns true if they're equal and false otherwise.
      */

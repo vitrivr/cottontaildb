@@ -1,7 +1,6 @@
 package org.vitrivr.cottontail.functions.basics
 
 import org.vitrivr.cottontail.functions.exception.FunctionNotSupportedException
-import org.vitrivr.cottontail.model.basics.Type
 import org.vitrivr.cottontail.model.values.types.Value
 
 /**
@@ -12,23 +11,32 @@ import org.vitrivr.cottontail.model.values.types.Value
  */
 abstract class AbstractFunctionGenerator<out R: Value>: FunctionGenerator<R> {
     /**
-     * Generates a [Function.Dynamic] for the given arguments.
+     * Generates a [Function.Stateful] for the given arguments.
      *
      * @param arguments The argument [Value]s to generate a [Function] for.
-     * @return The generated [Function.Dynamic]
+     * @return The generated [Function.Stateful]
      */
-    final override fun generate(vararg arguments: Type<*>): Function.Dynamic<R>  {
-        if (arguments.size != this.signature.arity) throw FunctionNotSupportedException(Signature.Open(this.signature.name,arguments.size, this.signature.returnType))
-        val ret = this.generateInternal(*arguments)
-        require (ret.signature.arguments.size == this.signature.arity) { "Number of arguments of the produced function does not match arity of function generator. This is a programmer's error!" }
+    final override fun generate(vararg arguments: Argument.Typed<*>): Function<R>  {
+        /* Check compatibility. */
+        val destSignature = Signature.Closed(this.signature.name, arguments.map { Argument.Typed(it.type) }.toTypedArray(), this.signature.returnType)
+        if (!this.signature.includes(destSignature)) {
+            throw FunctionNotSupportedException("Function generator signature ${this.signature} does not support destination signature (dst = $destSignature).")
+        }
+
+        /* Check of closes signature of this Function is compatible with arguments. */
+        val ret = this.generateInternal(destSignature)
+        if (ret.signature != destSignature) {
+            throw FunctionNotSupportedException("Generated signature ${ret.signature} is not compatible with destination signature (dst = $destSignature)")
+        }
+
         return ret
     }
 
     /**
-     * Internal [Function.Dynamic] generator.
+     * Internal [Function.Stateful] generator.
      *
-     * @param arguments The argument [Value]s to generate a [Function] for.
-     * @return The generated [Function.Dynamic]
+     * @param dst The destination signature [Signature.Closed].
+     * @return The generated [Function.Stateful]
      */
-    protected abstract fun generateInternal(vararg arguments: Type<*>): Function.Dynamic<R>
+    protected abstract fun generateInternal(dst: Signature.Closed<*>): Function<R>
 }

@@ -15,18 +15,21 @@ import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.predicates.Predicate
 import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicate
 import org.vitrivr.cottontail.execution.TransactionContext
+import org.vitrivr.cottontail.functions.basics.Argument
 import org.vitrivr.cottontail.functions.basics.Signature
 import org.vitrivr.cottontail.functions.math.distance.Distances
 import org.vitrivr.cottontail.functions.math.distance.basics.VectorDistance
-import org.vitrivr.cottontail.utilities.selection.ComparablePair
-import org.vitrivr.cottontail.utilities.selection.MinHeapSelection
-import org.vitrivr.cottontail.utilities.selection.MinSingleSelection
-import org.vitrivr.cottontail.model.basics.*
+import org.vitrivr.cottontail.model.basics.Record
+import org.vitrivr.cottontail.model.basics.TupleId
+import org.vitrivr.cottontail.model.basics.Type
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.DoubleValue
 import org.vitrivr.cottontail.model.values.types.VectorValue
 import org.vitrivr.cottontail.utilities.math.KnnUtilities
+import org.vitrivr.cottontail.utilities.selection.ComparablePair
+import org.vitrivr.cottontail.utilities.selection.MinHeapSelection
+import org.vitrivr.cottontail.utilities.selection.MinSingleSelection
 import java.nio.file.Path
 import java.util.*
 import kotlin.collections.ArrayDeque
@@ -164,7 +167,7 @@ class GGIndex(path: Path, parent: DefaultEntity, config: GGIndexConfig? = null) 
                 val groupSeedValue = txn.read(groupSeedTid, this@GGIndex.columns)[this@GGIndex.columns[0]]
                 if (groupSeedValue is VectorValue<*>) {
                     /* Perform kNN for group. */
-                    val signature = Signature.Closed(this@GGIndex.config.distance.functionName, arrayOf(this@GGIndex.columns[0].type), Type.Double)
+                    val signature = Signature.Closed(this@GGIndex.config.distance.functionName, arrayOf(Argument.Typed(this@GGIndex.columns[0].type)), Type.Double)
                     val function = this@GGIndex.parent.parent.parent.functions.obtain(signature)
                     check(function is VectorDistance.Binary<*>) { "GGIndex rebuild failed: Function $signature is not a vector distance function." }
                     val knn = MinHeapSelection<ComparablePair<Pair<TupleId, VectorValue<*>>, DoubleValue>>(groupSize)
@@ -258,7 +261,7 @@ class GGIndex(path: Path, parent: DefaultEntity, config: GGIndexConfig? = null) 
                 /* Scan >= 10% of entries by default */
                 val considerNumGroups = (this@GGIndex.config.numGroups + 9) / 10
                 val txn = this@Tx.context.getTx(this@GGIndex.parent) as EntityTx
-                val signature = Signature.Closed(this@GGIndex.config.distance.functionName, arrayOf(this@GGIndex.columns[0].type), Type.Double)
+                val signature = Signature.Closed(this@GGIndex.config.distance.functionName, arrayOf(Argument.Typed(this@GGIndex.columns[0].type)), Type.Double)
                 val function = this@GGIndex.parent.parent.parent.functions.obtain(signature)
                 check (function is VectorDistance.Binary<*>) { "Function $signature is not a vector distance function." }
 

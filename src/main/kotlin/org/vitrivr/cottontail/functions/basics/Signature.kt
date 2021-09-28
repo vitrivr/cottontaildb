@@ -15,26 +15,28 @@ sealed class Signature<R: Value>(val name: Name.FunctionName, val returnType: Ty
     abstract val arity: Int
 
     /**
-     * Checks if other [Signature] collides with this [Signature] and returns true or false respectively.
+     * Checks if provided [Signature] is equivalent to this [Signature] and returns true or false respectively.
      *
      * @param other [Signature] to check.
-     * @return True if collision is expected, false otherwise.
+     * @return True on equivalence, false otherwise.
      */
     abstract fun collides(other: Signature<*>): Boolean
 
     /**
      * A [Signature.Closed] with known arguments.
      */
-    class Closed<R: Value>(name: Name.FunctionName, val arguments: Array<Type<*>>, returnType: Type<R>? = null): Signature<R>(name, returnType) {
+    class Closed<R: Value>(name: Name.FunctionName, val arguments: Array<Argument.Typed<*>>, returnType: Type<R>? = null): Signature<R>(name, returnType) {
         override val arity: Int
-            get() = arguments.size
+            get() = this.arguments.size
 
         /**
          * Converts this [Signature.Closed] to a [Signature.Open].
          *
+         * @param retain Array of argument positions that should be retained.
+         *
          * @return [Signature.Open]
          */
-        fun toOpen(): Open<R> = Open(this.name, this.arguments.size, this.returnType)
+        fun toOpen(vararg retain: Int): Open<R> = Open(this.name, this.arguments.mapIndexed {i, t -> if (retain.contains(i)) t else Argument.Open }.toTypedArray(), this.returnType)
 
         /**
          * Checks if other [Signature] collides with this [Signature.Closed] and returns true or false respectively.
@@ -43,8 +45,8 @@ sealed class Signature<R: Value>(val name: Name.FunctionName, val returnType: Ty
          * @return True if collision is expected, false otherwise.
          */
         override fun collides(other: Signature<*>): Boolean = when(other) {
-            is Open -> this.name == other.name && this.arity == other.arity
-            is Closed -> (this == other)
+            is Open -> other.includes(this)
+            is Closed -> this == other
         }
 
         /**
@@ -61,7 +63,7 @@ sealed class Signature<R: Value>(val name: Name.FunctionName, val returnType: Ty
         }
 
         /**
-         * Generates hash code; return type of a [Signature] is not considered for hash code.
+         * Generates hash code; the return type of a [Signature] is not considered for hash code.
          */
         override fun hashCode(): Int {
             var result = this.name.hashCode()
@@ -73,19 +75,35 @@ sealed class Signature<R: Value>(val name: Name.FunctionName, val returnType: Ty
     }
 
     /**
-     * A [Signature.Open] with unknown arguments but known argument arity.
+     * A [Signature.Open] that may contain [Argument.Open]s.
      */
-    class Open<R: Value>(name: Name.FunctionName, override val arity: Int, returnType: Type<R>? = null): Signature<R>(name, returnType) {
+    class Open<R: Value>(name: Name.FunctionName, val arguments: Array<Argument>, returnType: Type<R>? = null): Signature<R>(name, returnType) {
+
+        /** Returns the [arity] of this [Signature.Open]*/
+        override val arity: Int
+            get() = this.arguments.size
 
         /**
          * Checks if other [Signature] collides with this [Signature.Open] and returns true or false respectively.
          *
          * @param other [Signature] to check.
-         * @return True if collision is expected, false otherwise.
+         * @return True if collision is detected, false otherwise.
          */
         override fun collides(other: Signature<*>): Boolean = when(other) {
             is Open -> (this == other)
-            is Closed -> this.name == other.name && this.arity == other.arity
+            is Closed -> this.includes(other)
+        }
+
+        /**
+         * Checks if this [Signature.Open] includes the provided [Signature.Closed].
+         *
+         * @param other The [Signature.Closed] that should be checked.
+         * @return true if [Signature.Closed] is included, false otherwise.
+         */
+        fun includes(other: Closed<*>): Boolean {
+            if (this.name != other.name) return false
+            if (this.arity != other.arity) return false
+            return this.arguments.mapIndexed { i, a -> a.isCompatible(other.arguments[i]) }.all { it }
         }
 
         /**
@@ -110,6 +128,6 @@ sealed class Signature<R: Value>(val name: Name.FunctionName, val returnType: Ty
             return result
         }
 
-        override fun toString(): String = "$name(${(0 until this.arity).joinToString(",") { "?" }}) -> $returnType"
+        override fun toString(): String = "$name(${this.arguments.joinToString(",")}) -> $returnType"
     }
 }
