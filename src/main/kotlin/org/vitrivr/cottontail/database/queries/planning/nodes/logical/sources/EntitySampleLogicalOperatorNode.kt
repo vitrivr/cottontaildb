@@ -11,7 +11,7 @@ import org.vitrivr.cottontail.model.basics.Name
  * A [NullaryLogicalOperatorNode] that formalizes the sampling of a physical [Entity] in Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 2.2.0
+ * @version 2.4.0
  */
 class EntitySampleLogicalOperatorNode(override val groupId: Int, val entity: EntityTx, val fetch: List<Pair<Name.ColumnName,ColumnDef<*>>>, val p: Float, val seed: Long = System.currentTimeMillis()) : NullaryLogicalOperatorNode() {
 
@@ -26,6 +26,9 @@ class EntitySampleLogicalOperatorNode(override val groupId: Int, val entity: Ent
     /** The name of this [EntitySampleLogicalOperatorNode]. */
     override val name: String
         get() = NODE_NAME
+
+    /** The physical [ColumnDef] accessed by this [EntitySampleLogicalOperatorNode]. */
+    override val physicalColumns: List<ColumnDef<*>> = this.fetch.map { it.second }
 
     /** The [ColumnDef] produced by this [EntitySampleLogicalOperatorNode]. */
     override val columns: List<ColumnDef<*>> = this.fetch.map { it.second.copy(name = it.first) }

@@ -16,7 +16,7 @@ import java.lang.Math.floorDiv
  * A [NullaryPhysicalOperatorNode] that formalizes a scan of a physical [Entity] in Cottontail DB on a given range.
  *
  * @author Ralph Gasser
- * @version 2.2.0
+ * @version 2.4.0
  */
 class RangedEntityScanPhysicalOperatorNode(override val groupId: Int, val entity: EntityTx, val fetch: List<Pair<Name.ColumnName,ColumnDef<*>>>, val partitionIndex: Int, val partitions: Int) : NullaryPhysicalOperatorNode() {
 
@@ -29,14 +29,23 @@ class RangedEntityScanPhysicalOperatorNode(override val groupId: Int, val entity
     override val name: String
         get() = NODE_NAME
 
+    /** The physical [ColumnDef] accessed by this [RangedEntityScanPhysicalOperatorNode]. */
+    override val physicalColumns: List<ColumnDef<*>> = this.fetch.map { it.second }
+
     /** The [ColumnDef] produced by this [RangedEntityScanPhysicalOperatorNode]. */
     override val columns: List<ColumnDef<*>> = this.fetch.map { it.second.copy(name = it.first) }
 
-
+    /** The number of rows returned by this [RangedEntityScanPhysicalOperatorNode] equals to the number of rows in the [Entity]. */
     override val outputSize: Long = floorDiv(this.entity.count(), this.partitions.toLong())
+
     override val statistics: RecordStatistics = this.entity.snapshot.statistics
+
+    /** [RangedEntityScanPhysicalOperatorNode] is always executable. */
     override val executable: Boolean = true
+
+    /** [RangedEntityScanPhysicalOperatorNode] cannot be partitioned any further. */
     override val canBePartitioned: Boolean = false
+
     override val cost = Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_MEMORY_ACCESS) * this.outputSize * this.fetch.sumOf {
         if (it.second.type == Type.String) {
             this.statistics[it.second].avgWidth * Char.SIZE_BYTES

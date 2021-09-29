@@ -134,7 +134,7 @@ object GrpcQueryBinder {
 
             /* Create and return INSERT-clause. */
             val record = RecordBinding(-1L, columns, values)
-            context.register(InsertLogicalOperatorNode(context.nextGroupId(), entity, mutableListOf(record)))
+            context.register(InsertLogicalOperatorNode(context.nextGroupId(), entityTx, mutableListOf(record)))
         } catch (e: DatabaseException.ColumnDoesNotExistException) {
             throw QueryException.QueryBindException("Failed to bind '${e.column}'. Column does not exist!")
         }
@@ -166,7 +166,7 @@ object GrpcQueryBinder {
                    context.bindings.bind(i.valuesList[it].toValue(columns[it].type))
                 })
             }.toMutableList()
-            context.register(InsertLogicalOperatorNode(context.nextGroupId(), entity, records))
+            context.register(InsertLogicalOperatorNode(context.nextGroupId(), entityTx, records))
         } catch (e: DatabaseException.ColumnDoesNotExistException) {
             throw QueryException.QueryBindException("Failed to bind '${e.column}'. Column does not exist!")
         }

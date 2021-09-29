@@ -1,9 +1,11 @@
 package org.vitrivr.cottontail.database.queries.planning.nodes.physical.sources
 
 import org.vitrivr.cottontail.database.column.ColumnDef
+import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.index.Index
 import org.vitrivr.cottontail.database.index.IndexTx
 import org.vitrivr.cottontail.database.queries.QueryContext
+import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.NullaryPhysicalOperatorNode
 import org.vitrivr.cottontail.database.queries.predicates.Predicate
 import org.vitrivr.cottontail.database.statistics.entity.RecordStatistics
@@ -16,7 +18,7 @@ import java.lang.Math.floorDiv
  * A [NullaryPhysicalOperatorNode] that formalizes a scan of a physical [Index] in Cottontail DB on a given range.
  *
  * @author Ralph Gasser
- * @version 2.2.0
+ * @version 2.4.0
  */
 class RangedIndexScanPhysicalOperatorNode(override val groupId: Int, val index: IndexTx, val predicate: Predicate, val fetch: List<Pair<Name.ColumnName,ColumnDef<*>>>, val partitionIndex: Int, val partitions: Int) : NullaryPhysicalOperatorNode() {
     companion object {
@@ -28,15 +30,32 @@ class RangedIndexScanPhysicalOperatorNode(override val groupId: Int, val index: 
         get() = NODE_NAME
 
 
-    override val outputSize = floorDiv(this.index.dbo.parent.statistics.count, this.partitions)
-    override val statistics: RecordStatistics = this.index.dbo.parent.statistics
+    /** The [ColumnDef]s accessed by this [RangedIndexScanPhysicalOperatorNode] depends on the [ColumnDef]s produced by the [Index]. */
+    override val physicalColumns: List<ColumnDef<*>> = this.fetch.map {
+        require(this.index.dbo.produces.contains(it.second)) { "The given column $it is not produced by the selected index ${this.index.dbo}. This is a programmer's error!"}
+        it.second
+    }
+
+    /** The [ColumnDef]s produced by this [RangedIndexScanPhysicalOperatorNode] depends on the [ColumnDef]s produced by the [Index]. */
     override val columns: List<ColumnDef<*>> = this.fetch.map {
         require(this.index.dbo.produces.contains(it.second)) { "The given column $it is not produec by the selected index ${this.index.dbo}. This is a programmer's error!"}
         it.second.copy(name = it.first)
     }
+
+    /** [RangedIndexScanPhysicalOperatorNode] are always executable. */
     override val executable: Boolean = true
+
+    /** [RangedIndexScanPhysicalOperatorNode] cannot be further. */
     override val canBePartitioned: Boolean = false
-    override val cost = this.index.dbo.cost(this.predicate)
+
+    /** The estimated output size of this [IndexScanPhysicalOperatorNode]. */
+    override val outputSize = floorDiv(this.index.dbo.parent.statistics.count, this.partitions)
+
+    /** The [RecordStatistics] is taken from the underlying [Entity]. [RecordStatistics] are used by the query planning for [Cost] estimation. */
+    override val statistics: RecordStatistics = this.index.dbo.parent.statistics
+
+    /** Cost estimation for [IndexScanPhysicalOperatorNode]s is delegated to the [Index]. */
+    override val cost = (this.index.dbo.cost(this.predicate) / this.partitions)
 
     init {
         require(this.partitionIndex >= 0) { "The partitionIndex of a ranged index scan must be greater than zero." }

@@ -35,6 +35,12 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int, val index: IndexT
     override val name: String
         get() = NODE_NAME
 
+    /** The [ColumnDef]s accessed by this [IndexScanPhysicalOperatorNode] depends on the [ColumnDef]s produced by the [Index]. */
+    override val physicalColumns: List<ColumnDef<*>> = this.fetch.map {
+        require(this.index.dbo.produces.contains(it.second)) { "The given column $it is not produced by the selected index ${this.index.dbo}. This is a programmer's error!"}
+        it.second
+    }
+
     /** The [ColumnDef]s produced by this [IndexScanPhysicalOperatorNode] depends on the [ColumnDef]s produced by the [Index]. */
     override val columns: List<ColumnDef<*>> = this.fetch.map {
         require(this.index.dbo.produces.contains(it.second)) { "The given column $it is not produced by the selected index ${this.index.dbo}. This is a programmer's error!"}
@@ -53,7 +59,7 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int, val index: IndexT
     /** Cost estimation for [IndexScanPhysicalOperatorNode]s is delegated to the [Index]. */
     override val cost: Cost = this.index.dbo.cost(this.predicate)
 
-    /** */
+    /** The estimated output size of this [IndexScanPhysicalOperatorNode]. */
     override val outputSize: Long = when (this.predicate) {
         is BooleanPredicate -> NaiveSelectivityCalculator.estimate(this.predicate, this.statistics)(this.index.dbo.parent.numberOfRows)
         is KnnPredicate -> this.predicate.k.toLong()

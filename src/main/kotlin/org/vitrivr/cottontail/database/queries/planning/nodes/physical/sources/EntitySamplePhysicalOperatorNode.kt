@@ -6,6 +6,7 @@ import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
+import org.vitrivr.cottontail.database.queries.planning.nodes.logical.sources.EntitySampleLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.NullaryPhysicalOperatorNode
 import org.vitrivr.cottontail.database.statistics.entity.RecordStatistics
 import org.vitrivr.cottontail.execution.operators.sources.EntitySampleOperator
@@ -16,7 +17,7 @@ import org.vitrivr.cottontail.model.basics.Type
  * A [NullaryPhysicalOperatorNode] that formalizes the random sampling of a physical [Entity] in Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 2.2.0
+ * @version 2.4.0
  */
 class EntitySamplePhysicalOperatorNode(override val groupId: Int, val entity: EntityTx, val fetch: List<Pair<Name.ColumnName,ColumnDef<*>>>, val p: Float, val seed: Long = System.currentTimeMillis()) : NullaryPhysicalOperatorNode() {
 
@@ -31,6 +32,9 @@ class EntitySamplePhysicalOperatorNode(override val groupId: Int, val entity: En
     /** The name of this [EntityScanPhysicalOperatorNode]. */
     override val name: String
         get() = NODE_NAME
+
+    /** The physical [ColumnDef] accessed by this [EntitySamplePhysicalOperatorNode]. */
+    override val physicalColumns: List<ColumnDef<*>> = this.fetch.map { it.second }
 
     /** The [ColumnDef] produced by this [EntityScanPhysicalOperatorNode]. */
     override val columns: List<ColumnDef<*>> = this.fetch.map { it.second.copy(name = it.first) }

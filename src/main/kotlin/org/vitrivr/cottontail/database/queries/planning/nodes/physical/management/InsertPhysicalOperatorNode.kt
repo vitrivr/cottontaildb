@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.database.queries.planning.nodes.physical.manageme
 
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.Entity
+import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.queries.GroupId
 import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
@@ -17,9 +18,9 @@ import org.vitrivr.cottontail.model.basics.Record
  * A [InsertPhysicalOperatorNode] that formalizes a INSERT operation on an [Entity].
  *
  * @author Ralph Gasser
- * @version 2.2.0
+ * @version 2.4.0
  */
-class InsertPhysicalOperatorNode(override val groupId: GroupId, val entity: Entity, val records: MutableList<Record>) : NullaryPhysicalOperatorNode() {
+class InsertPhysicalOperatorNode(override val groupId: GroupId, val entity: EntityTx, val records: MutableList<Record>) : NullaryPhysicalOperatorNode() {
     companion object {
         private const val NODE_NAME = "Insert"
     }
@@ -28,11 +29,14 @@ class InsertPhysicalOperatorNode(override val groupId: GroupId, val entity: Enti
     override val name: String
         get() = NODE_NAME
 
+    /** The physical [ColumnDef] accessed by the [InsertPhysicalOperatorNode]. */
+    override val physicalColumns: List<ColumnDef<*>> = this.entity.listColumns().map { it.columnDef }
+
     /** The [InsertPhysicalOperatorNode] produces the [ColumnDef]s defined in the [UpdateOperator]. */
     override val columns: List<ColumnDef<*>> = InsertOperator.COLUMNS
 
     /** The [RecordStatistics] for this [InsertPhysicalOperatorNode]. */
-    override val statistics: RecordStatistics = this.entity.statistics
+    override val statistics: RecordStatistics = this.entity.snapshot.statistics
 
     /** The [InsertPhysicalOperatorNode] produces a single record. */
     override val outputSize: Long = 1L

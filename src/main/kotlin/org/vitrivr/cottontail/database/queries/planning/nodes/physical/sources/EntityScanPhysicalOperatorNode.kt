@@ -17,7 +17,7 @@ import org.vitrivr.cottontail.model.basics.Type
  * A [UnaryPhysicalOperatorNode] that formalizes a scan of a physical [Entity] in Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 2.2.0
+ * @version 2.4.0
  */
 class EntityScanPhysicalOperatorNode(override val groupId: Int, val entity: EntityTx, val fetch: List<Pair<Name.ColumnName,ColumnDef<*>>>) : NullaryPhysicalOperatorNode() {
 
@@ -28,6 +28,9 @@ class EntityScanPhysicalOperatorNode(override val groupId: Int, val entity: Enti
     /** The name of this [EntityScanPhysicalOperatorNode]. */
     override val name: String
         get() = NODE_NAME
+
+    /** The physical [ColumnDef] accessed by this [EntityScanPhysicalOperatorNode]. */
+    override val physicalColumns: List<ColumnDef<*>> = this.fetch.map { it.second }
 
     /** The [ColumnDef] produced by this [EntityScanPhysicalOperatorNode]. */
     override val columns: List<ColumnDef<*>> = this.fetch.map { it.second.copy(name = it.first) }

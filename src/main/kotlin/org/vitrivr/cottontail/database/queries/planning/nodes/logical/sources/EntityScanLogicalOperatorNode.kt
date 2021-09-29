@@ -11,7 +11,7 @@ import org.vitrivr.cottontail.model.basics.Name
  * A [NullaryLogicalOperatorNode] that formalizes the scan of a physical [Entity] in Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 2.2.0
+ * @version 2.4.0
  */
 class EntityScanLogicalOperatorNode(override val groupId: Int, val entity: EntityTx, val fetch: List<Pair<Name.ColumnName,ColumnDef<*>>>) : NullaryLogicalOperatorNode() {
 
@@ -23,7 +23,10 @@ class EntityScanLogicalOperatorNode(override val groupId: Int, val entity: Entit
     override val name: String
         get() = NODE_NAME
 
-    /** The [ColumnDef] produced by this [EntitySampleLogicalOperatorNode]. */
+    /** The physical [ColumnDef] accessed by this [EntityScanPhysicalOperatorNode]. */
+    override val physicalColumns: List<ColumnDef<*>> = this.fetch.map { it.second }
+
+    /** The [ColumnDef] produced by this [EntityScanPhysicalOperatorNode]. */
     override val columns: List<ColumnDef<*>> = this.fetch.map { it.second.copy(name = it.first) }
 
     /**

@@ -16,7 +16,7 @@ import org.vitrivr.cottontail.model.basics.Type
  * A [NullaryPhysicalOperatorNode] that formalizes the counting entries in a physical [Entity].
  *
  * @author Ralph Gasser
- * @version 2.2.0
+ * @version 2.4.0
  */
 class EntityCountPhysicalOperatorNode(override val groupId: Int, val entity: EntityTx, val alias: Name.ColumnName? = null) : NullaryPhysicalOperatorNode() {
 
@@ -31,7 +31,10 @@ class EntityCountPhysicalOperatorNode(override val groupId: Int, val entity: Ent
     /** The output size of an [EntityCountPhysicalOperatorNode] is always one. */
     override val outputSize = 1L
 
-    /** [ColumnDef] produced by this [EntitySamplePhysicalOperatorNode]. */
+    /** physical [ColumnDef] accessed by this [EntityCountPhysicalOperatorNode]. */
+    override val physicalColumns: List<ColumnDef<*>> = emptyList()
+
+    /** [ColumnDef] produced by this [EntityCountPhysicalOperatorNode]. */
     override val columns: List<ColumnDef<*>> = listOf(ColumnDef(this.alias ?: this.entity.dbo.name.column(Projection.COUNT.label()), Type.Long, false))
 
     /** [EntityCountPhysicalOperatorNode] is always executable. */

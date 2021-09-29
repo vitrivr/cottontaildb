@@ -23,9 +23,9 @@ import kotlin.time.measureTimedValue
  * [Entity] that it receives with the provided [Value].
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.3.0
  */
-class InsertOperator(groupId: GroupId, val entity: Entity, val records: List<Record>) : Operator.SourceOperator(groupId) {
+class InsertOperator(groupId: GroupId, val entity: EntityTx, val records: List<Record>) : Operator.SourceOperator(groupId) {
 
     companion object {
         /** The columns produced by the [InsertOperator]. */
@@ -46,11 +46,10 @@ class InsertOperator(groupId: GroupId, val entity: Entity, val records: List<Rec
      */
     @ExperimentalTime
     override fun toFlow(context: QueryContext): Flow<Record> {
-        val tx = context.txn.getTx(this.entity) as EntityTx
         val columns = this.columns.toTypedArray()
         return flow {
             for (record in this@InsertOperator.records) {
-                val timedTupleId = measureTimedValue { tx.insert(record) }
+                val timedTupleId = measureTimedValue { this@InsertOperator.entity.insert(record) }
                 emit(StandaloneRecord(0L, columns, arrayOf(LongValue(timedTupleId.value!!), DoubleValue(timedTupleId.duration.inWholeMilliseconds))))
             }
         }
