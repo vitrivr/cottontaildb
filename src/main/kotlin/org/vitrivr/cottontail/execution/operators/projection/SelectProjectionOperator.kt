@@ -23,7 +23,9 @@ import org.vitrivr.cottontail.model.values.types.Value
 class SelectProjectionOperator(parent: Operator, fields: List<Name.ColumnName>) : Operator.PipelineOperator(parent) {
 
     /** Columns produced by [SelectProjectionOperator]. */
-    override val columns: List<ColumnDef<*>> = this.parent.columns.filter { c -> fields.any { f -> f == c.name }}
+    override val columns: List<ColumnDef<*>> = fields.map { f ->
+        this.parent.columns.single { c -> c.name == f }
+    }
 
     /** [SelectProjectionOperator] does not act as a pipeline breaker. */
     override val breaker: Boolean = false
