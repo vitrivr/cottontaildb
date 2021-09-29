@@ -290,9 +290,7 @@ object GrpcQueryBinder {
                 val entity = parseAndBindEntity(from.scan.entity, context)
                 val entityTx = context.txn.getTx(entity) as EntityTx
                 val fetch = entityTx.listColumns().map { ci ->
-                    val name = columns.entries.singleOrNull {
-                        c -> c.value is Name.ColumnName && (c.value == ci.name || c.value.simple == ci.name.simple)
-                    }?.key ?: ci.name
+                    val name = columns.entries.singleOrNull { c -> c.value is Name.ColumnName && c.value.matches(ci.name) }?.key ?: ci.name
                     name to ci.columnDef
                 }
                 EntityScanLogicalOperatorNode(context.nextGroupId(), entity = entityTx, fetch = fetch)
@@ -301,9 +299,7 @@ object GrpcQueryBinder {
                 val entity = parseAndBindEntity(from.sample.entity, context)
                 val entityTx = context.txn.getTx(entity) as EntityTx
                 val fetch = entityTx.listColumns().map { ci ->
-                    val name = columns.entries.singleOrNull {
-                        c -> c.value is Name.ColumnName && (c.value == ci.name || c.value.simple == ci.name.simple)
-                    }?.key ?: ci.name
+                    val name = columns.entries.singleOrNull { c -> c.value is Name.ColumnName && c.value.matches(ci.name) }?.key ?: ci.name
                     name to ci.columnDef
                 }
                 EntitySampleLogicalOperatorNode(context.nextGroupId(), entity = entityTx, fetch = fetch, p = from.sample.probability, seed = from.sample.seed)
@@ -530,12 +526,14 @@ object GrpcQueryBinder {
      * @return The resulting [SelectProjectionLogicalOperatorNode].
      */
     private fun parseAndBindProjection(input: OperatorNode.Logical, projection: Map<Name.ColumnName,Name>, op: Projection, context: QueryContext, simplify: Boolean = false): OperatorNode.Logical = try {
-
-        val wildcards = projection.keys.filter { it.wildcard }
         when (op) {
             Projection.SELECT,
             Projection.SELECT_DISTINCT -> {
-                val fields = input.columns.filter { col -> projection.containsKey(col.name) || wildcards.any { w -> w.matches(col.name)} }.map { it.name }
+                val fields = projection.keys.flatMap { cp ->
+                    input.columns.filter { c -> cp.matches(c.name) }.ifEmpty { throw QueryException.QueryBindException("Column $cp could not be found in output.") }
+                }.map {
+                    it.name
+                }
                 SelectProjectionLogicalOperatorNode(input, op, fields)
             }
             Projection.COUNT -> CountProjectionLogicalOperatorNode(input, projection.keys.firstOrNull())
@@ -544,7 +542,11 @@ object GrpcQueryBinder {
             Projection.MAX,
             Projection.MIN,
             Projection.MEAN -> {
-                val fields = input.columns.filter { col -> projection.containsKey(col.name) || wildcards.any { w -> w.matches(col.name)} }.map { it.name }
+                val fields = projection.keys.flatMap { cp ->
+                    input.columns.filter { c -> cp.matches(c.name) }.ifEmpty { throw QueryException.QueryBindException("Column $cp could not be found in output.") }
+                }.map {
+                    it.name
+                }
                 AggregatingProjectionLogicalOperatorNode(input, op, fields)
             }
             else -> throw QueryException.QuerySyntaxException("Project of type $op is currently not supported.")
@@ -559,7 +561,7 @@ object GrpcQueryBinder {
      * [Name.FunctionName] the resulting [Name.ColumnName] resolving both simplification and aliases.
      *
      * @param projection The [CottontailGrpc.Projection] element to parse.
-     * @param simplify Whether or not names should be simplified, i.e., simple name instead of FQN should be used.
+     * @param simplify Whether names should be simplified, i.e., simple name instead of FQN should be used.
      * @return Mapping of resulting [Name.ColumnName] to source [Name]
      */
     private fun parseProjectionColumns(projection: CottontailGrpc.Projection, simplify: Boolean = false): Map<Name.ColumnName,Name> {
@@ -596,7 +598,7 @@ object GrpcQueryBinder {
                     if (map.contains(finalName)) {
                         throw QueryException.QuerySyntaxException("The query lacks a valid SELECT-clause (projection): Duplicate projection element $finalName at index $i.")
                     }
-                    map[finalName] =  e.function.name.fqn()
+                    map[finalName] = e.function.name.fqn()
                 }
                 CottontailGrpc.Projection.ProjectionElement.ProjCase.PROJ_NOT_SET,
                 null -> throw QueryException.QuerySyntaxException("The query lacks a valid SELECT-clause (projection): Projection element at index $i is malformed.")
