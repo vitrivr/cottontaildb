@@ -25,7 +25,11 @@ class FunctionProjectionPhysicalOperatorNode(input: Physical? = null, val functi
 
     /** The column produced by this [FunctionProjectionPhysicalOperatorNode] is determined by the [Function]'s signature. */
     override val columns: List<ColumnDef<*>>
-        get() = (this.input?.columns ?: emptyList()) + ColumnDef(this.alias ?: Name.ColumnName(this.function.signature.name.simple), this.function.signature.returnType!!)
+        get() = (this.input?.columns ?: emptyList()) + ColumnDef(
+            name = this.alias ?: Name.ColumnName(this.function.signature.name.simple),
+            type = this.function.signature.returnType!!,
+            nullable = false
+        )
 
     /** The [FunctionProjectionPhysicalOperatorNode] requires all [ColumnDef] used in the [Function]. */
     override val requires: List<ColumnDef<*>>
