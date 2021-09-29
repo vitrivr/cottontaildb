@@ -13,12 +13,14 @@ import org.vitrivr.cottontail.database.queries.predicates.Predicate
 import org.vitrivr.cottontail.database.queries.predicates.bool.BooleanPredicate
 import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicate
 import org.vitrivr.cottontail.database.queries.sort.SortOrder
+import org.vitrivr.cottontail.database.statistics.columns.ValueStatistics
 import org.vitrivr.cottontail.database.statistics.entity.RecordStatistics
 import org.vitrivr.cottontail.database.statistics.selectivity.NaiveSelectivityCalculator
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.sort.MergeLimitingHeapSortOperator
 import org.vitrivr.cottontail.execution.operators.sources.IndexScanOperator
 import org.vitrivr.cottontail.model.basics.Name
+import org.vitrivr.cottontail.model.values.types.Value
 
 /**
  * A [IndexScanPhysicalOperatorNode] that represents a predicated lookup using an [AbstractIndex].
@@ -54,7 +56,15 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int, val index: IndexT
     override val canBePartitioned: Boolean = this.index.dbo.supportsPartitioning
 
     /** The [RecordStatistics] is taken from the underlying [Entity]. [RecordStatistics] are used by the query planning for [Cost] estimation. */
-    override val statistics: RecordStatistics = this.index.dbo.parent.statistics
+    override val statistics: RecordStatistics = this.index.dbo.parent.statistics.let { statistics ->
+        this.fetch.forEach {
+            val column = it.second.copy(it.first)
+            if (!statistics.has(column)) {
+                statistics[column] = statistics[it.second] as ValueStatistics<Value>
+            }
+        }
+        statistics
+    }
 
     /** Cost estimation for [IndexScanPhysicalOperatorNode]s is delegated to the [Index]. */
     override val cost: Cost = this.index.dbo.cost(this.predicate)

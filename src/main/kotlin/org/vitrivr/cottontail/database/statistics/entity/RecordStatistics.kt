@@ -45,6 +45,13 @@ open class RecordStatistics {
     }
 
     /**
+     *  Checks if this [RecordStatistics] contains an entry for the given [ColumnDef].
+     *
+     *  @param key The [ColumnDef] to check.
+     */
+    fun has(key: ColumnDef<*>): Boolean = this.columns.containsKey(key)
+
+    /**
      * Sets the [ValueStatistics] for the given [ColumnDef].
      *
      * @param key [ColumnDef] to remove.

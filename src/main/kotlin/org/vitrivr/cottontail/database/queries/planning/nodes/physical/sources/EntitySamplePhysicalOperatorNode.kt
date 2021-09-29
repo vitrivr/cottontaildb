@@ -8,10 +8,12 @@ import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.sources.EntitySampleLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.NullaryPhysicalOperatorNode
+import org.vitrivr.cottontail.database.statistics.columns.ValueStatistics
 import org.vitrivr.cottontail.database.statistics.entity.RecordStatistics
 import org.vitrivr.cottontail.execution.operators.sources.EntitySampleOperator
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Value
 
 /**
  * A [NullaryPhysicalOperatorNode] that formalizes the random sampling of a physical [Entity] in Cottontail DB.
@@ -48,6 +50,17 @@ class EntitySamplePhysicalOperatorNode(override val groupId: Int, val entity: En
     /** [EntitySamplePhysicalOperatorNode] can always be partitioned. */
     override val canBePartitioned: Boolean = true
 
+    /** The [RecordStatistics] is taken from the underlying [Entity]. [RecordStatistics] are used by the query planning for [Cost] estimation. */
+    override val statistics: RecordStatistics = this.entity.dbo.statistics.let { statistics ->
+        this.fetch.forEach {
+            val column = it.second.copy(it.first)
+            if (!statistics.has(column)) {
+                statistics[column] = statistics[it.second] as ValueStatistics<Value>
+            }
+        }
+        statistics
+    }
+
     /** The estimated [Cost] of sampling the [Entity]. */
     override val cost = Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_MEMORY_ACCESS) * this.outputSize * this.fetch.sumOf {
         if (it.second.type == Type.String) {
@@ -56,9 +69,6 @@ class EntitySamplePhysicalOperatorNode(override val groupId: Int, val entity: En
             it.second.type.physicalSize
         }
     }
-
-    /** The [RecordStatistics] is taken from the underlying [Entity]. [RecordStatistics] are used by the query planning for [Cost] estimation. */
-    override val statistics: RecordStatistics = this.entity.dbo.statistics
 
     /**
      * Creates and returns a copy of this [EntityScanPhysicalOperatorNode] without any children or parents.

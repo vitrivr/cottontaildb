@@ -6,10 +6,12 @@ import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.NullaryPhysicalOperatorNode
+import org.vitrivr.cottontail.database.statistics.columns.ValueStatistics
 import org.vitrivr.cottontail.database.statistics.entity.RecordStatistics
 import org.vitrivr.cottontail.execution.operators.sources.EntityScanOperator
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Value
 import java.lang.Math.floorDiv
 
 /**
@@ -38,7 +40,16 @@ class RangedEntityScanPhysicalOperatorNode(override val groupId: Int, val entity
     /** The number of rows returned by this [RangedEntityScanPhysicalOperatorNode] equals to the number of rows in the [Entity]. */
     override val outputSize: Long = floorDiv(this.entity.count(), this.partitions.toLong())
 
-    override val statistics: RecordStatistics = this.entity.snapshot.statistics
+    /** The [RecordStatistics] is taken from the underlying [Entity]. [RecordStatistics] are used by the query planning for [Cost] estimation. */
+    override val statistics: RecordStatistics = this.entity.snapshot.statistics.let { statistics ->
+        this.fetch.forEach {
+            val column = it.second.copy(it.first)
+            if (!statistics.has(column)) {
+                statistics[column] = statistics[it.second] as ValueStatistics<Value>
+            }
+        }
+        statistics
+    }
 
     /** [RangedEntityScanPhysicalOperatorNode] is always executable. */
     override val executable: Boolean = true
