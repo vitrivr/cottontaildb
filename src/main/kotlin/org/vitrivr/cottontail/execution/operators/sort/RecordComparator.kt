@@ -23,7 +23,7 @@ sealed class RecordComparator : Comparator<Record> {
         fun fromList(sortOn: List<Pair<ColumnDef<*>, SortOrder>>): RecordComparator = when {
             sortOn.size == 1 && sortOn.first().first.nullable -> SingleNullColumnComparator(sortOn.first().first, sortOn.first().second)
             sortOn.size == 1 && !sortOn.first().first.nullable -> SingleNonNullColumnComparator(sortOn.first().first, sortOn.first().second)
-            sortOn.size > 1 && !sortOn.any { it.first.nullable } -> MultiNullColumnComparator(sortOn)
+            sortOn.size > 1 && sortOn.any { it.first.nullable } -> MultiNullColumnComparator(sortOn)
             else -> MultiNonNullColumnComparator(sortOn)
         }
     }
