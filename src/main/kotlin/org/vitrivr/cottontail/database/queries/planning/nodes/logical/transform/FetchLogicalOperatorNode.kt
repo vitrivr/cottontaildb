@@ -15,7 +15,7 @@ import org.vitrivr.cottontail.model.basics.Name
  * that involve pruning the result set (e.g. filters or nearest neighbour search).
  *
  * @author Ralph Gasser
- * @version 2.2.0
+ * @version 2.4.0
  */
 class FetchLogicalOperatorNode(input: Logical? = null, val entity: EntityTx, val fetch: List<Pair<Name.ColumnName,ColumnDef<*>>>) : UnaryLogicalOperatorNode(input) {
 
@@ -27,6 +27,9 @@ class FetchLogicalOperatorNode(input: Logical? = null, val entity: EntityTx, val
     override val name: String
         get() = NODE_NAME
 
+    /** The [FetchLogicalOperatorNode] accesses the [ColumnDef] of its input + the columns to be fetched. */
+    override val physicalColumns: List<ColumnDef<*>>
+        get() = super.physicalColumns + this.fetch.map { it.second }
 
     /** The [FetchLogicalOperatorNode] returns the [ColumnDef] of its input + the columns to be fetched. */
     override val columns: List<ColumnDef<*>>

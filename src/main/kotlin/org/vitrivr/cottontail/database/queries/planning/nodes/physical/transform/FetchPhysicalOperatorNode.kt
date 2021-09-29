@@ -18,7 +18,7 @@ import org.vitrivr.cottontail.model.basics.Type
  * This can be used for late population, which can lead to optimized performance for kNN queries
  *
  * @author Ralph Gasser
- * @version 2.2.0
+ * @version 2.4.0
  */
 class FetchPhysicalOperatorNode(input: Physical? = null, val entity: EntityTx, val fetch: List<Pair<Name.ColumnName,ColumnDef<*>>>) : UnaryPhysicalOperatorNode(input) {
 
@@ -30,17 +30,21 @@ class FetchPhysicalOperatorNode(input: Physical? = null, val entity: EntityTx, v
     override val name: String
         get() = NODE_NAME
 
+    /** The [FetchPhysicalOperatorNode] accesses the [ColumnDef] of its input + the columns to be fetched. */
+    override val physicalColumns: List<ColumnDef<*>>
+        get() = super.physicalColumns + this.fetch.map { it.second }
+
     /** The [FetchPhysicalOperatorNode] returns the [ColumnDef] of its input + the columns to be fetched. */
     override val columns: List<ColumnDef<*>>
         get() = super.columns + this.fetch.map { it.second.copy(name = it.first) }
 
     /** The [Cost] of a [FetchPhysicalOperatorNode]. */
     override val cost: Cost
-        get() = Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_MEMORY_ACCESS) * this.outputSize * this.columns.sumOf {
-            if (it.type == Type.String) {
-                this.statistics[it].avgWidth * Char.SIZE_BYTES
+        get() = Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_MEMORY_ACCESS) * this.outputSize * this.fetch.sumOf {
+            if (it.second.type == Type.String) {
+                this.statistics[it.second].avgWidth * Char.SIZE_BYTES
             } else {
-                it.type.physicalSize
+                it.second.type.physicalSize
             }
         }
 
