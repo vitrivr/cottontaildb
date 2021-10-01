@@ -453,7 +453,7 @@ object GrpcQueryBinder {
             val r = right[0]
             if (r is Binding.Literal && r.value is StringValue) {
                 r.value = LucenePatternValue((r.value as StringValue).value)
-                ComparisonOperator.Binary.Like(left, r)
+                ComparisonOperator.Binary.Match(left, r)
             } else {
                 throw QueryException.QuerySyntaxException("MATCH operator expects a literal, parseable string value as right operand.")
             }
