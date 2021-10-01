@@ -290,8 +290,12 @@ object GrpcQueryBinder {
                 val entity = parseAndBindEntity(from.scan.entity, context)
                 val entityTx = context.txn.getTx(entity) as EntityTx
                 val fetch = entityTx.listColumns().map { ci ->
-                    val name = columns.entries.singleOrNull { c -> c.value is Name.ColumnName && c.value.matches(ci.name) }?.key ?: ci.name
-                    name to ci.columnDef
+                    val name = columns.entries.singleOrNull { c -> c.value is Name.ColumnName && c.value.matches(ci.name) }
+                    if (name == null || name.key.components[3] == Name.NAME_COMPONENT_WILDCARD) {
+                        ci.columnDef.name to ci.columnDef
+                    } else {
+                        name.key to ci.columnDef
+                    }
                 }
                 EntityScanLogicalOperatorNode(context.nextGroupId(), entity = entityTx, fetch = fetch)
             }
