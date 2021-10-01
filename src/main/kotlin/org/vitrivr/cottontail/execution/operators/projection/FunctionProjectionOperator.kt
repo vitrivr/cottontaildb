@@ -21,7 +21,11 @@ import org.vitrivr.cottontail.model.values.types.Value
 class FunctionProjectionOperator(parent: Operator, val function: Function<*>, val arguments: List<Binding>, alias: Name.ColumnName? = null) : Operator.PipelineOperator(parent) {
 
     /** The column produced by this [FunctionProjectionOperator] is determined by the [Function]'s signature. */
-    override val columns: List<ColumnDef<*>> = this.parent.columns + ColumnDef(alias ?: Name.ColumnName(function.signature.name.simple), this.function.signature.returnType!!)
+    override val columns: List<ColumnDef<*>> = this.parent.columns + ColumnDef(
+        name = alias ?: Name.ColumnName(function.signature.name.simple),
+        type = this.function.signature.returnType!!,
+        nullable = false
+    )
 
     /** The [DistanceProjectionOperator] is not a pipeline breaker. */
     override val breaker: Boolean = false
