@@ -31,7 +31,11 @@ class FunctionProjectionLogicalOperatorNode(input: Logical? = null, val function
     override val requires: List<ColumnDef<*>>
         get() = this.arguments.filterIsInstance<Binding.Column>().map { it.column }
 
-    /** Human readable name of this [FunctionProjectionLogicalOperatorNode]. */
+    /** [FunctionProjectionLogicalOperatorNode] can only be executed if [Function] can be executed. */
+    override val executable: Boolean
+        get() = super.executable && this.function.executable
+
+    /** Human-readable name of this [FunctionProjectionLogicalOperatorNode]. */
     override val name: String
         get() = NODE_NAME
 

@@ -18,6 +18,10 @@ sealed interface Function<out R: Value> {
     /** Cost of calling this [Function]. */
     val cost: Float
 
+    /** Flag indicating, that this [Function] can be executed. Defaults to true. */
+    val executable: Boolean
+        get() = true
+
     /**
      * Invokes this [Function] with the given arguments.
      *

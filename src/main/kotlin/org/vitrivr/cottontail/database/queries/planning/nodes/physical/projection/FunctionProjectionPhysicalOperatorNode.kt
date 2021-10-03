@@ -5,6 +5,7 @@ import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.binding.Binding
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
+import org.vitrivr.cottontail.database.queries.planning.nodes.logical.projection.FunctionProjectionLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalOperatorNode
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.projection.FunctionProjectionOperator
@@ -47,6 +48,11 @@ class FunctionProjectionPhysicalOperatorNode(input: Physical? = null, val functi
     override val cost: Cost
         get() = Cost(cpu = this.outputSize * this.function.cost)
 
+    /** [FunctionProjectionLogicalOperatorNode] can only be executed if [Function] can be executed. */
+    override val executable: Boolean
+        get() = super.executable && this.function.executable
+
+    /** Human-readable name of this [FunctionProjectionLogicalOperatorNode]. */
     override val name: String
         get() = NODE_NAME
 
