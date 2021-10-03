@@ -29,6 +29,8 @@ sealed interface Binding {
             set(v) {
                 this.context.update(this, v)
             }
+
+        override fun toString(): String = ":$bindingIndex"
     }
 
     /** A [Binding] for a value referred to by a [ColumnDef]. Can only be accessed during query execution. */
@@ -36,5 +38,7 @@ sealed interface Binding {
 
         override val type: Type<*>
             get() = this.column.type
+
+        override fun toString(): String = "${this.column.name}"
     }
 }

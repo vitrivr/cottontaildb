@@ -13,7 +13,7 @@ import java.util.*
  * The sealed [ComparisonOperator]s class.
  *
  * @author Ralph Gasser
- * @version 1.1.1
+ * @version 1.2.0
  */
 sealed class ComparisonOperator(val left: Binding) {
 
@@ -45,7 +45,7 @@ sealed class ComparisonOperator(val left: Binding) {
 
         class Equal(left: Binding, right: Binding) : Binary(left, right) {
             override fun match() = this.left.value != null && this.right.value != null && this.left.value!!.isEqual(this.right.value!!)
-            override fun toString(): String = "= $right"
+            override fun toString(): String = "$left = $right"
         }
 
         /**
@@ -53,8 +53,7 @@ sealed class ComparisonOperator(val left: Binding) {
          */
         class Greater(left: Binding, right: Binding) : Binary(left, right) {
             override fun match(): Boolean = this.left.value != null && this.right.value != null && this.left.value!! > this.right.value!!
-            override fun toString(): String = "> $right"
-
+            override fun toString(): String = "$left > $right"
         }
 
         /**
@@ -62,7 +61,7 @@ sealed class ComparisonOperator(val left: Binding) {
          */
         class Less(left: Binding, right: Binding) : Binary(left, right) {
             override fun match() = this.left.value != null && this.right.value != null && this.left.value!! < this.right.value!!
-            override fun toString(): String = "< $right"
+            override fun toString(): String = "$left < $right"
         }
 
         /**
@@ -70,7 +69,7 @@ sealed class ComparisonOperator(val left: Binding) {
          */
         class GreaterEqual(left: Binding, right: Binding) : Binary(left, right) {
             override fun match() = this.left.value != null && this.right.value != null && this.left.value!! >= this.right.value!!
-            override fun toString(): String = ">= $right"
+            override fun toString(): String = "$left >= $right"
         }
 
         /**
@@ -78,7 +77,7 @@ sealed class ComparisonOperator(val left: Binding) {
          */
         class LessEqual(left: Binding, right: Binding) : Binary(left, right) {
             override fun match() = this.left.value != null && this.right.value != null && this.left.value!! <= this.right.value!!
-            override fun toString(): String = "<= $right"
+            override fun toString(): String = "$left <= $right"
         }
 
         /**
@@ -86,7 +85,7 @@ sealed class ComparisonOperator(val left: Binding) {
          */
         class Like(left: Binding, right: Binding) : Binary(left, right) {
             override fun match() = this.left.value is StringValue && this.right.value is LikePatternValue && (this.right.value as LikePatternValue).matches(this.left.value as StringValue)
-            override fun toString(): String = "LIKE $right"
+            override fun toString(): String = "$left LIKE $right"
         }
 
         /**
@@ -94,7 +93,7 @@ sealed class ComparisonOperator(val left: Binding) {
          */
         class Match(left: Binding, right: Binding) : Binary(left, right) {
             override fun match() = throw UnsupportedOperationException("A MATCH comparison operator cannot be evaluated directly.")
-            override fun toString(): String = "MATCH $right"
+            override fun toString(): String = "$left MATCH $right"
         }
     }
 
@@ -104,7 +103,7 @@ sealed class ComparisonOperator(val left: Binding) {
     class Between(left: Binding, val rightLower: Binding, val rightUpper: Binding) : ComparisonOperator(left) {
         override val atomicCpuCost: Float = 4.0f * Cost.COST_MEMORY_ACCESS
         override fun match() = this.left.value != null && this.rightLower.value != null && this.rightLower.value != null && this.left.value!! in this.rightLower.value!!..this.rightUpper.value!!
-        override fun toString(): String = "BETWEEN $rightLower, $rightUpper"
+        override fun toString(): String = "$left BETWEEN $rightLower, $rightUpper"
     }
 
     /**
@@ -136,6 +135,6 @@ sealed class ComparisonOperator(val left: Binding) {
             this.rightSet = null
         }
 
-        override fun toString(): String = "IN [${this.right.joinToString(",")}]"
+        override fun toString(): String = "$left IN [${this.right.joinToString(",")}]"
     }
 }
