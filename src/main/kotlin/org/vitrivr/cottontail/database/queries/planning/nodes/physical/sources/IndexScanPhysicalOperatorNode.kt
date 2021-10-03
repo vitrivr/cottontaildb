@@ -56,15 +56,7 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int, val index: IndexT
     override val canBePartitioned: Boolean = this.index.dbo.supportsPartitioning
 
     /** The [RecordStatistics] is taken from the underlying [Entity]. [RecordStatistics] are used by the query planning for [Cost] estimation. */
-    override val statistics: RecordStatistics = this.index.dbo.parent.statistics.let { statistics ->
-        this.fetch.forEach {
-            val column = it.second.copy(it.first)
-            if (!statistics.has(column)) {
-                statistics[column] = statistics[it.second] as ValueStatistics<Value>
-            }
-        }
-        statistics
-    }
+    override val statistics: RecordStatistics = this.index.dbo.parent.statistics
 
     /** Cost estimation for [IndexScanPhysicalOperatorNode]s is delegated to the [Index]. */
     override val cost: Cost = this.index.dbo.cost(this.predicate)
