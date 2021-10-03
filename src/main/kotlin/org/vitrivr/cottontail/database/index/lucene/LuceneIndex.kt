@@ -31,10 +31,9 @@ import org.vitrivr.cottontail.model.basics.*
 import org.vitrivr.cottontail.model.basics.Type
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
-import org.vitrivr.cottontail.model.values.FloatValue
+import org.vitrivr.cottontail.model.values.DoubleValue
 import org.vitrivr.cottontail.model.values.StringValue
 import org.vitrivr.cottontail.model.values.pattern.LikePatternValue
-import org.vitrivr.cottontail.model.values.pattern.LucenePatternValue
 import java.nio.file.Path
 
 /**
@@ -53,7 +52,7 @@ class LuceneIndex(path: Path, parent: DefaultEntity, config: LuceneIndexConfig? 
     }
 
     /** The [LuceneIndex] implementation produces an additional score column. */
-    override val produces: Array<ColumnDef<*>> = arrayOf(ColumnDef(this.parent.name.column("score"), Type.Float))
+    override val produces: Array<ColumnDef<*>> = arrayOf(ColumnDef(this.parent.name.column("score"), Type.Double, false))
 
     /** True since [SuperBitLSHIndex] supports incremental updates. */
     override val supportsIncrementalUpdate: Boolean = true
@@ -220,25 +219,19 @@ class LuceneIndex(path: Path, parent: DefaultEntity, config: LuceneIndexConfig? 
                 }
             }
             is ComparisonOperator.Binary.Like -> {
-                when (literal) {
-                    is LucenePatternValue -> QueryParserUtil.parse(
-                        arrayOf(literal.value),
-                        arrayOf("${column.name}_txt"),
-                        StandardAnalyzer()
-                    )
-                    is LikePatternValue -> QueryParserUtil.parse(
-                        arrayOf(literal.toLucene().value),
-                        arrayOf("${column.name}_txt"),
-                        StandardAnalyzer()
-                    )
-                    else -> throw throw QueryException("Conversion to Lucene query failed: LIKE queries require a LucenePatternValue OR LikePatternValue as second operand!")
+                if (literal is LikePatternValue) {
+                    QueryParserUtil.parse(arrayOf(literal.toLucene().value), arrayOf("${column.name}_txt"), StandardAnalyzer())
+                } else {
+                    throw throw QueryException("Conversion to Lucene query failed: LIKE queries require a LucenePatternValue OR LikePatternValue as second operand!")
                 }
             }
             is ComparisonOperator.Binary.Match -> {
-                if (literal is LucenePatternValue) {
-                    QueryParserUtil.parse(arrayOf(literal.value), arrayOf("${column.name}_txt"), StandardAnalyzer())
+                if (literal is StringValue) {
+                    val values = literal.value.split(" ").map { it.trim() }.filter { it.isNotBlank() }.toTypedArray()
+                    val fields = values.map { "${column.name}_txt" }.toTypedArray()
+                    QueryParserUtil.parse(values, fields, StandardAnalyzer())
                 } else {
-                    throw throw QueryException("Conversion to Lucene query failed: MATCH queries strictly require a LucenePatternValue as second operand!")
+                    throw throw QueryException("Conversion to Lucene query failed: MATCH queries strictly require a StringValue as second operand!")
                 }
             }
             else -> throw QueryException("Lucene Query Conversion failed: Only EQUAL, MATCH and LIKE queries can be mapped to a Apache Lucene!")
@@ -410,7 +403,7 @@ class LuceneIndex(path: Path, parent: DefaultEntity, config: LuceneIndexConfig? 
             override fun next(): Record {
                 val scores = this.results.scoreDocs[this.returned++]
                 val doc = this.searcher.doc(scores.doc)
-                return StandaloneRecord(doc[TID_COLUMN].toLong(), this@LuceneIndex.produces, arrayOf(FloatValue(scores.score)))
+                return StandaloneRecord(doc[TID_COLUMN].toLong(), this@LuceneIndex.produces, arrayOf(DoubleValue(scores.score)))
             }
         }
 

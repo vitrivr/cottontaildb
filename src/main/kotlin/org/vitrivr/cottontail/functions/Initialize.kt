@@ -4,11 +4,13 @@ import org.vitrivr.cottontail.functions.math.distance.binary.*
 import org.vitrivr.cottontail.functions.math.distance.other.HyperplaneDistance
 import org.vitrivr.cottontail.functions.basics.Function
 import org.vitrivr.cottontail.functions.math.distance.basics.VectorDistance
+import org.vitrivr.cottontail.functions.math.score.FulltextScore
 
 /**
  * Registers default [Function]s.
  */
 fun FunctionRegistry.initialize() {
+    this.register(FulltextScore)
     this.initializeVectorDistance()
 }
 
