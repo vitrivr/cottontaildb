@@ -3,20 +3,22 @@ package org.vitrivr.cottontail.database.index.hash
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
 import org.mapdb.Serializer
 import org.mapdb.serializer.GroupSerializer
-
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.DefaultEntity
 import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.general.TxAction
 import org.vitrivr.cottontail.database.general.TxSnapshot
-import org.vitrivr.cottontail.database.index.*
-import org.vitrivr.cottontail.database.logging.operations.Operation
+import org.vitrivr.cottontail.database.index.AbstractIndex
+import org.vitrivr.cottontail.database.index.IndexTx
+import org.vitrivr.cottontail.database.index.IndexType
+import org.vitrivr.cottontail.database.operations.Operation
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.predicates.Predicate
 import org.vitrivr.cottontail.database.queries.predicates.bool.BooleanPredicate
 import org.vitrivr.cottontail.database.queries.predicates.bool.ComparisonOperator
 import org.vitrivr.cottontail.execution.TransactionContext
-import org.vitrivr.cottontail.model.basics.*
+import org.vitrivr.cottontail.model.basics.Record
+import org.vitrivr.cottontail.model.basics.TupleId
 import org.vitrivr.cottontail.model.exceptions.TxException
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.StringValue

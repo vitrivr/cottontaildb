@@ -19,7 +19,7 @@ import org.vitrivr.cottontail.database.index.IndexTx
 import org.vitrivr.cottontail.database.index.IndexType
 import org.vitrivr.cottontail.database.index.hash.UniqueHashIndex
 import org.vitrivr.cottontail.database.index.lsh.superbit.SuperBitLSHIndex
-import org.vitrivr.cottontail.database.logging.operations.Operation
+import org.vitrivr.cottontail.database.operations.Operation
 import org.vitrivr.cottontail.database.queries.binding.Binding
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.predicates.Predicate
@@ -27,7 +27,8 @@ import org.vitrivr.cottontail.database.queries.predicates.bool.BooleanPredicate
 import org.vitrivr.cottontail.database.queries.predicates.bool.ComparisonOperator
 import org.vitrivr.cottontail.database.queries.predicates.bool.ConnectionOperator
 import org.vitrivr.cottontail.execution.TransactionContext
-import org.vitrivr.cottontail.model.basics.*
+import org.vitrivr.cottontail.model.basics.Record
+import org.vitrivr.cottontail.model.basics.TupleId
 import org.vitrivr.cottontail.model.basics.Type
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord

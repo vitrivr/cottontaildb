@@ -3,9 +3,8 @@ package org.vitrivr.cottontail.database.statistics.entity
 import org.mapdb.DataInput2
 import org.mapdb.DataOutput2
 import org.vitrivr.cottontail.database.column.ColumnDef
-import org.vitrivr.cottontail.database.logging.operations.Operation
+import org.vitrivr.cottontail.database.operations.Operation
 import org.vitrivr.cottontail.database.statistics.columns.ValueStatistics
-import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.TupleId
 import org.vitrivr.cottontail.model.values.types.Value
 import kotlin.math.max

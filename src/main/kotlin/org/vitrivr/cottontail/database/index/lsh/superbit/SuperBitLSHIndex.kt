@@ -11,13 +11,14 @@ import org.vitrivr.cottontail.database.index.IndexTx
 import org.vitrivr.cottontail.database.index.IndexType
 import org.vitrivr.cottontail.database.index.lsh.LSHIndex
 import org.vitrivr.cottontail.database.index.va.signature.VAFSignature
-import org.vitrivr.cottontail.database.logging.operations.Operation
+import org.vitrivr.cottontail.database.operations.Operation
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.predicates.Predicate
 import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicate
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.functions.math.distance.Distances
-import org.vitrivr.cottontail.model.basics.*
+import org.vitrivr.cottontail.model.basics.Record
+import org.vitrivr.cottontail.model.basics.TupleId
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.recordset.Recordset

@@ -6,13 +6,14 @@ import kotlinx.coroutines.flow.Flow
 import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.database.catalogue.Catalogue
 import org.vitrivr.cottontail.database.catalogue.CatalogueTx
+import org.vitrivr.cottontail.database.column.Column
 import org.vitrivr.cottontail.database.column.ColumnEngine
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.general.DBO
 import org.vitrivr.cottontail.database.general.Tx
 import org.vitrivr.cottontail.database.locking.LockMode
-import org.vitrivr.cottontail.database.logging.operations.Operation
+import org.vitrivr.cottontail.database.operations.Operation
 import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.schema.SchemaTx
 import org.vitrivr.cottontail.execution.TransactionContext
@@ -24,8 +25,10 @@ import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.basics.TransactionId
 import org.vitrivr.cottontail.utilities.io.TxFileUtilities
 import java.io.BufferedWriter
-import java.nio.file.*
-import java.util.*
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.StandardCopyOption
+import java.nio.file.StandardOpenOption
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTime
@@ -178,7 +181,7 @@ abstract class AbstractMigrationManager(val batchSize: Int, logFile: Path) : Mig
         for ((s, srcSchema) in schemas.withIndex()) {
             val srcSchemaTx = sourceContext.getTx(srcSchema) as SchemaTx
             val entities = srcSchemaTx.listEntities()
-            for ((e, srcEntity) in entities.withIndex()) {
+            for (srcEntity in entities) {
                 this.logStdout("+ Migrating data for schema ${srcSchema.name} (${s + 1} / ${schemas.size})...\n")
 
                 val srcEntityTx = sourceContext.getTx(srcEntity) as EntityTx
