@@ -59,11 +59,10 @@ sealed class EuclideanDistance<T : VectorValue<*>>: MinkowskiDistance<T> {
         override var query = this.type.defaultValue()
         override fun copy(d: Int) = Complex64Vector(d)
         override fun invoke(vararg arguments: Value?): DoubleValue {
-            val query = arguments[0] as Complex64VectorValue
-            val vector = arguments[1] as Complex64VectorValue
+            val probing = arguments[0] as Complex32VectorValue
             var sum = 0.0
             for (i in query.data.indices) {
-                sum += (query.data[i] - vector.data[i]).pow(2)
+                sum += (query.data[i] - probing.data[i]).pow(2)
             }
             return DoubleValue(sqrt(sum))
         }
@@ -144,7 +143,7 @@ sealed class EuclideanDistance<T : VectorValue<*>>: MinkowskiDistance<T> {
         override var query = this.type.defaultValue()
         override fun copy(d: Int) = LongVector(d)
         override fun invoke(vararg arguments: Value?): DoubleValue {
-            val probing = arguments[1] as LongVectorValue
+            val probing = arguments[0] as LongVectorValue
             var sum = 0.0
             for (i in query.data.indices) {
                 sum += (query.data[i] - probing.data[i]).toDouble().pow(2)
