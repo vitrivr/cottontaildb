@@ -14,7 +14,7 @@ import org.vitrivr.cottontail.execution.operators.management.UpdateOperator
  * A [UpdatePhysicalOperatorNode] that formalizes a UPDATE operation on an [Entity].
  *
  * @author Ralph Gasser
- * @version 2.2.0
+ * @version 2.2.1
  */
 class UpdatePhysicalOperatorNode(input: Physical? = null, val entity: EntityTx, val values: List<Pair<ColumnDef<*>, Binding>>) : UnaryPhysicalOperatorNode(input) {
     companion object {
@@ -28,12 +28,18 @@ class UpdatePhysicalOperatorNode(input: Physical? = null, val entity: EntityTx, 
     /** The [UpdatePhysicalOperatorNode] produces the [ColumnDef]s defined in the [UpdateOperator]. */
     override val columns: List<ColumnDef<*>> = UpdateOperator.COLUMNS
 
+    /** The [UpdatePhysicalOperatorNode] requires the [ColumnDef] that are being updated. */
+    override val requires: List<ColumnDef<*>> = this.values.map { it.first }
+
     /** The [UpdatePhysicalOperatorNode] produces a single record. */
     override val outputSize: Long = 1L
 
     /** The [Cost] of this [UpdatePhysicalOperatorNode]. */
     override val cost: Cost
-        get() = Cost(Cost.COST_DISK_ACCESS_WRITE, Cost.COST_MEMORY_ACCESS) * this.values.sumOf { this.statistics[it.first].avgWidth } * (this.input?.outputSize ?: 0)
+        get() = Cost(
+            Cost.COST_DISK_ACCESS_WRITE * (this.input?.columns?.sumOf { this.statistics[it].avgWidth } ?: 0), /* Columns that are being written (all input columns). */
+            Cost.COST_MEMORY_ACCESS * this.values.sumOf { this.statistics[it.first].avgWidth }               /* Column values that are being updated because they must be fetched from memory. */
+        ) * (this.input?.outputSize ?: 0)
 
     /** The [UpdatePhysicalOperatorNode]s cannot be partitioned. */
     override val canBePartitioned: Boolean = false
@@ -66,6 +72,8 @@ class UpdatePhysicalOperatorNode(input: Physical? = null, val entity: EntityTx, 
     override fun partition(p: Int): List<Physical> {
         throw UnsupportedOperationException("UpdatePhysicalOperatorNode cannot be partitioned.")
     }
+
+    override fun toString(): String = "${super.toString()}[${this.values.map { it.first.name }.joinToString(",")}]"
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
