@@ -6,6 +6,8 @@ import org.vitrivr.cottontail.database.entity.DefaultEntity
 import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.binding.GrpcQueryBinder
 import org.vitrivr.cottontail.database.queries.planning.CottontailQueryPlanner
+import org.vitrivr.cottontail.database.queries.planning.rules.logical.DeferFetchOnFetchRewriteRule
+import org.vitrivr.cottontail.database.queries.planning.rules.logical.DeferFetchOnScanRewriteRule
 import org.vitrivr.cottontail.database.queries.planning.rules.logical.LeftConjunctionRewriteRule
 import org.vitrivr.cottontail.database.queries.planning.rules.logical.RightConjunctionRewriteRule
 import org.vitrivr.cottontail.database.queries.planning.rules.physical.index.BooleanIndexScanRule
@@ -26,7 +28,12 @@ class DMLService(val catalogue: Catalogue, override val manager: TransactionMana
 
     /** [CottontailQueryPlanner] instance used to generate execution plans from query definitions. */
     private val planner = CottontailQueryPlanner(
-        logicalRules = listOf(LeftConjunctionRewriteRule, RightConjunctionRewriteRule),
+        logicalRules = listOf(
+            LeftConjunctionRewriteRule,
+            RightConjunctionRewriteRule,
+            DeferFetchOnScanRewriteRule,
+            DeferFetchOnFetchRewriteRule
+        ),
         physicalRules = listOf(BooleanIndexScanRule),
         this.catalogue.config.cache.planCacheSize
     )
