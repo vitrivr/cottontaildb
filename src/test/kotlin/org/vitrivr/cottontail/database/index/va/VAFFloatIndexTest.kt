@@ -13,11 +13,10 @@ import org.vitrivr.cottontail.database.queries.binding.BindingContext
 import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicate
 import org.vitrivr.cottontail.database.schema.SchemaTx
 import org.vitrivr.cottontail.execution.TransactionType
+import org.vitrivr.cottontail.functions.basics.Argument
 import org.vitrivr.cottontail.functions.basics.Signature
 import org.vitrivr.cottontail.functions.math.distance.Distances
 import org.vitrivr.cottontail.functions.math.distance.basics.VectorDistance
-import org.vitrivr.cottontail.utilities.selection.ComparablePair
-import org.vitrivr.cottontail.utilities.selection.MinHeapSelection
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.basics.TupleId
@@ -27,9 +26,10 @@ import org.vitrivr.cottontail.model.values.DoubleValue
 import org.vitrivr.cottontail.model.values.FloatVectorValue
 import org.vitrivr.cottontail.model.values.LongValue
 import org.vitrivr.cottontail.utilities.math.KnnUtilities
+import org.vitrivr.cottontail.utilities.selection.ComparablePair
+import org.vitrivr.cottontail.utilities.selection.MinHeapSelection
 import java.util.*
 import java.util.stream.Stream
-import kotlin.collections.ArrayList
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTime
 
@@ -74,7 +74,7 @@ class VAFFloatIndexTest : AbstractIndexTest() {
         val k = 100
 
         val query = FloatVectorValue.random(this.indexColumn.type.logicalSize, this.random)
-        val function = this.catalogue.functions.obtain(Signature.Closed(distance.functionName, arrayOf(query.type, query.type), Type.Double)) as VectorDistance.Binary<*>
+        val function = this.catalogue.functions.obtain(Signature.Closed(distance.functionName, arrayOf(Argument.Typed(query.type), Argument.Typed(query.type)), Type.Double)) as VectorDistance.Binary<*>
 
         val context = BindingContext()
         val predicate = KnnPredicate(column = this.indexColumn, k = k, distance = function, query = context.bind(query))
