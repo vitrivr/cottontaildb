@@ -4,6 +4,7 @@ import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.google.protobuf.Empty
 import org.vitrivr.cottontail.cli.AbstractCottontailCommand
+import org.vitrivr.cottontail.execution.TransactionStatus
 import org.vitrivr.cottontail.grpc.TXNGrpc
 import org.vitrivr.cottontail.utilities.output.TabulationUtilities
 import kotlin.time.ExperimentalTime
@@ -25,7 +26,7 @@ class ListTransactionsCommand(private val txnStub: TXNGrpc.TXNBlockingStub) : Ab
         /* Execute query. */
         val timedTable = measureTimedValue {
             TabulationUtilities.tabulateIf(this@ListTransactionsCommand.txnStub.listTransactions(Empty.getDefaultInstance())) {
-                this@ListTransactionsCommand.all || it.getData(2).stringData == "RUNNING"
+                this@ListTransactionsCommand.all || (it.getData(2).stringData == TransactionStatus.RUNNING.toString() || it.getData(2).stringData == TransactionStatus.ERROR.toString())
             }
         }
 
