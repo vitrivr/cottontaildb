@@ -3,14 +3,12 @@ package org.vitrivr.cottontail.math.knn
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import org.vitrivr.cottontail.TestConstants
-
-import org.vitrivr.cottontail.math.isApproximatelyTheSame
 import org.vitrivr.cottontail.functions.math.distance.binary.EuclideanDistance
 import org.vitrivr.cottontail.functions.math.distance.binary.ManhattanDistance
 import org.vitrivr.cottontail.functions.math.distance.binary.SquaredEuclideanDistance
+import org.vitrivr.cottontail.math.isApproximatelyTheSame
 import org.vitrivr.cottontail.model.values.LongVectorValue
 import org.vitrivr.cottontail.utilities.VectorUtility
-
 import kotlin.math.abs
 import kotlin.math.pow
 import kotlin.time.Duration
@@ -40,9 +38,10 @@ class LongVectorDistanceTest : AbstractDistanceTest() {
         var time2 = Duration.ZERO
 
         val kernel = ManhattanDistance.LongVector(query.logicalSize)
+        kernel.prepare(query)
         collection.forEach {
             time1 += measureTime {
-                sum1 += kernel(query, it).value
+                sum1 += kernel(it).value
             }
             time2 += measureTime {
                 sum2 += (it - query).abs().sum().value
@@ -74,9 +73,10 @@ class LongVectorDistanceTest : AbstractDistanceTest() {
         var time2 = Duration.ZERO
 
         val kernel = SquaredEuclideanDistance.LongVector(query.logicalSize)
+        kernel.prepare(query)
         collection.forEach {
             time1 += measureTime {
-                sum1 += kernel(query, it).value
+                sum1 += kernel(it).value
             }
             time2 += measureTime {
                 sum2 += (it - query).pow(2).sum().value
@@ -108,9 +108,10 @@ class LongVectorDistanceTest : AbstractDistanceTest() {
         var time2 = Duration.ZERO
 
         val kernel = EuclideanDistance.LongVector(query.logicalSize)
+        kernel.prepare(query)
         collection.forEach {
             time1 += measureTime {
-                sum1 += kernel(query, it).value
+                sum1 += kernel(it).value
             }
             time2 += measureTime {
                 sum2 += (query - it).pow(2).sum().sqrt().value
@@ -134,7 +135,7 @@ class LongVectorDistanceTest : AbstractDistanceTest() {
      * @param p2 the second point
      * @return the L<sub>1</sub> distance between the two points
      */
-    fun l1(p1: LongArray, p2: LongArray): Double {
+    private fun l1(p1: LongArray, p2: LongArray): Double {
         require(p1.size == p2.size) { "Dimension mismatch!" }
         var sum = 0.0
         for (i in p1.indices) {

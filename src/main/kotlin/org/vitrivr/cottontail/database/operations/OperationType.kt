@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail.database.logging.operations
+package org.vitrivr.cottontail.database.operations
 
 /**
  * Enumeration of all [Operation]s supported by the Cottontail DB database engine.

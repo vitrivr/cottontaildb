@@ -6,14 +6,14 @@ import org.vitrivr.cottontail.database.general.Tx
 import org.vitrivr.cottontail.database.locking.Lock
 import org.vitrivr.cottontail.database.locking.LockManager
 import org.vitrivr.cottontail.database.locking.LockMode
-import org.vitrivr.cottontail.database.logging.operations.Operation
+import org.vitrivr.cottontail.database.operations.Operation
 import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.basics.TransactionId
 
 /**
- * A [TransactionContext] used by operators and their [Txn]s to execute and obtain necessary locks
+ * A [TransactionContext] used by operators and their subtransactions to execute and obtain necessary locks
  *
  * @author Ralph Gasser
  * @version 1.4.0

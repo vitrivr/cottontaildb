@@ -14,7 +14,7 @@ import org.vitrivr.cottontail.execution.operators.management.DeleteOperator
  * A [DeletePhysicalOperatorNode] that formalizes a delete operation on an [Entity].
  *
  * @author Ralph Gasser
- * @version 2.2.0
+ * @version 2.2.1
  */
 class DeletePhysicalOperatorNode(input: Physical? = null, val entity: EntityTx) : UnaryPhysicalOperatorNode(input) {
 
@@ -28,6 +28,9 @@ class DeletePhysicalOperatorNode(input: Physical? = null, val entity: EntityTx) 
 
     /** The [DeletePhysicalOperatorNode] produces the [ColumnDef]s defined in the [DeleteOperator]. */
     override val columns: List<ColumnDef<*>> = DeleteOperator.COLUMNS
+
+    /** The [DeletePhysicalOperatorNode] does not require any [ColumnDef]. */
+    override val requires: List<ColumnDef<*>> = emptyList()
 
     /** The [DeletePhysicalOperatorNode] produces a single record. */
     override val outputSize: Long = 1L
@@ -61,6 +64,8 @@ class DeletePhysicalOperatorNode(input: Physical? = null, val entity: EntityTx) 
     override fun partition(p: Int): List<Physical> {
         throw UnsupportedOperationException("DeletePhysicalOperatorNode cannot be partitioned.")
     }
+
+    override fun toString(): String = "${super.toString()}[${this.entity.dbo.name}]"
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

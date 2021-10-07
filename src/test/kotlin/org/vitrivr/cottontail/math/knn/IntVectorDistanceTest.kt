@@ -3,10 +3,10 @@ package org.vitrivr.cottontail.math.knn
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import org.vitrivr.cottontail.TestConstants
-import org.vitrivr.cottontail.math.isApproximatelyTheSame
 import org.vitrivr.cottontail.functions.math.distance.binary.EuclideanDistance
 import org.vitrivr.cottontail.functions.math.distance.binary.ManhattanDistance
 import org.vitrivr.cottontail.functions.math.distance.binary.SquaredEuclideanDistance
+import org.vitrivr.cottontail.math.isApproximatelyTheSame
 import org.vitrivr.cottontail.model.values.IntVectorValue
 import org.vitrivr.cottontail.utilities.VectorUtility
 import kotlin.math.abs
@@ -38,9 +38,10 @@ class IntVectorDistanceTest : AbstractDistanceTest() {
         var time2 = Duration.ZERO
 
         val kernel = ManhattanDistance.IntVector(query.logicalSize)
+        kernel.prepare(query)
         collection.forEach {
             time1 += measureTime {
-                sum1 += kernel(query, it).value.toFloat()
+                sum1 += kernel(it).value.toFloat()
             }
             time2 += measureTime {
                 sum2 += (it - query).abs().sum().value
@@ -72,9 +73,10 @@ class IntVectorDistanceTest : AbstractDistanceTest() {
         var time2 = Duration.ZERO
 
         val kernel = SquaredEuclideanDistance.IntVector(query.logicalSize)
+        kernel.prepare(query)
         collection.forEach {
             time1 += measureTime {
-                sum1 += kernel(query, it).value.toFloat()
+                sum1 += kernel(it).value.toFloat()
             }
             time2 += measureTime {
                 sum2 += (it - query).pow(2).sum().value
@@ -106,9 +108,10 @@ class IntVectorDistanceTest : AbstractDistanceTest() {
         var time2 = Duration.ZERO
 
         val kernel = EuclideanDistance.IntVector(query.logicalSize)
+        kernel.prepare(query)
         collection.forEach {
             time1 += measureTime {
-                sum1 += kernel(query, it).value.toFloat()
+                sum1 += kernel(it).value.toFloat()
             }
             time2 += measureTime {
                 sum2 += (query - it).pow(2).sum().sqrt().value
@@ -132,7 +135,7 @@ class IntVectorDistanceTest : AbstractDistanceTest() {
      * @param p2 the second point
      * @return the L<sub>1</sub> distance between the two points
      */
-    fun l1(p1: IntArray, p2: IntArray): Float {
+    private fun l1(p1: IntArray, p2: IntArray): Float {
         require(p1.size == p2.size) { "Dimension mismatch!" }
         var sum = 0.0f
         for (i in p1.indices) {

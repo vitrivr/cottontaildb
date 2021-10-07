@@ -38,7 +38,6 @@ sealed class InnerProductDistance<T : VectorValue<*>>: VectorDistance.Binary<T> 
         }
     }
 
-
     /** Name of this [InnerProductDistance]. */
     override val name: Name.FunctionName = Generator.FUNCTION_NAME
 
@@ -47,9 +46,9 @@ sealed class InnerProductDistance<T : VectorValue<*>>: VectorDistance.Binary<T> 
         get() = this.d * (3.0f * Cost.COST_FLOP + 2.0f * Cost.COST_MEMORY_ACCESS) + Cost.COST_FLOP
 
     /**
-     * [EuclideanDistance] for a [Complex64VectorValue].
+     * [InnerProductDistance] for a [Complex64VectorValue].
      */
-    class Complex64Vector(size: Int) : EuclideanDistance<Complex64VectorValue>() {
+    class Complex64Vector(size: Int) : InnerProductDistance<Complex64VectorValue>() {
         override val type = Type.Complex64Vector(size)
         override var query = this.type.defaultValue()
         override fun copy(d: Int) = Complex64Vector(d)
@@ -71,9 +70,9 @@ sealed class InnerProductDistance<T : VectorValue<*>>: VectorDistance.Binary<T> 
     }
 
     /**
-     * [EuclideanDistance] for a [Complex32VectorValue].
+     * [InnerProductDistance] for a [Complex32VectorValue].
      */
-    class Complex32Vector(size: Int) : EuclideanDistance<Complex32VectorValue>() {
+    class Complex32Vector(size: Int) : InnerProductDistance<Complex32VectorValue>() {
         override val type = Type.Complex32Vector(size)
         override var query = this.type.defaultValue()
         override fun copy(d: Int) = Complex32Vector(d)
@@ -95,9 +94,9 @@ sealed class InnerProductDistance<T : VectorValue<*>>: VectorDistance.Binary<T> 
     }
 
     /**
-     * [EuclideanDistance] for a [DoubleVectorValue].
+     * [InnerProductDistance] for a [DoubleVectorValue].
      */
-    class DoubleVector(size: Int) : EuclideanDistance<DoubleVectorValue>() {
+    class DoubleVector(size: Int) : InnerProductDistance<DoubleVectorValue>() {
         override val type = Type.DoubleVector(size)
         override var query = this.type.defaultValue()
         override fun copy(d: Int) = DoubleVector(d)
@@ -116,9 +115,9 @@ sealed class InnerProductDistance<T : VectorValue<*>>: VectorDistance.Binary<T> 
     }
 
     /**
-     * [EuclideanDistance] for a [FloatVectorValue].
+     * [InnerProductDistance] for a [FloatVectorValue].
      */
-    class FloatVector(size: Int) : EuclideanDistance<FloatVectorValue>() {
+    class FloatVector(size: Int) : InnerProductDistance<FloatVectorValue>() {
         override val type = Type.FloatVector(size)
         override var query = this.type.defaultValue()
         override fun copy(d: Int) = FloatVector(d)
@@ -137,9 +136,9 @@ sealed class InnerProductDistance<T : VectorValue<*>>: VectorDistance.Binary<T> 
     }
 
     /**
-     * [EuclideanDistance] for a [LongVectorValue].
+     * [InnerProductDistance] for a [LongVectorValue].
      */
-    class LongVector(size: Int) : EuclideanDistance<LongVectorValue>() {
+    class LongVector(size: Int) : InnerProductDistance<LongVectorValue>() {
         override val type = Type.LongVector(size)
         override var query = this.type.defaultValue()
         override fun copy(d: Int) = LongVector(d)
@@ -158,9 +157,9 @@ sealed class InnerProductDistance<T : VectorValue<*>>: VectorDistance.Binary<T> 
     }
 
     /**
-     * [EuclideanDistance] for a [IntVectorValue].
+     * [InnerProductDistance] for a [IntVectorValue].
      */
-    class IntVector(size: Int) : EuclideanDistance<IntVectorValue>() {
+    class IntVector(size: Int) : InnerProductDistance<IntVectorValue>() {
         override val type = Type.IntVector(size)
         override var query = this.type.defaultValue()
         override fun copy(d: Int) = IntVector(d)
