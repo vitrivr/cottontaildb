@@ -31,7 +31,7 @@ class DQLServiceTest {
         assert(client.ping())
         GrpcTestUtils.dropTestSchema(client)
         GrpcTestUtils.createTestSchema(client)
-        GrpcTestUtils. createTestVectorEntity(client)
+        GrpcTestUtils.createTestVectorEntity(client)
         GrpcTestUtils.createTestEntity(client)
         GrpcTestUtils.populateTestEntity(client)
         GrpcTestUtils.populateVectorEntity(client)
@@ -86,7 +86,8 @@ class DQLServiceTest {
         val lb = random.nextInt(98)
         val ub = random.nextInt(lb+1, 100)
         val query = Query().from(GrpcTestUtils.TEST_ENTITY_FQN_INPUT)
-            .select(GrpcTestUtils.STRING_COLUMN_NAME, GrpcTestUtils.INT_COLUMN_NAME)
+            .select(GrpcTestUtils.STRING_COLUMN_NAME)
+            .select(GrpcTestUtils.INT_COLUMN_NAME)
             .where(Literal(GrpcTestUtils.INT_COLUMN_NAME, "BETWEEN", lb, ub))
         val result = client.query(query)
         for (el in result) {
@@ -99,7 +100,8 @@ class DQLServiceTest {
         val random = Random.Default
         val lb = random.nextInt(50)
         val query = Query().from(GrpcTestUtils.TEST_ENTITY_FQN_INPUT)
-            .select(GrpcTestUtils.STRING_COLUMN_NAME, GrpcTestUtils.INT_COLUMN_NAME)
+            .select(GrpcTestUtils.STRING_COLUMN_NAME)
+            .select(GrpcTestUtils.INT_COLUMN_NAME)
             .where(
                  And(
                      Literal(GrpcTestUtils.INT_COLUMN_NAME, "BETWEEN", lb, lb+1),
