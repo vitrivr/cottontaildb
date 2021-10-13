@@ -48,8 +48,8 @@ internal interface TransactionalGrpcService {
      * @param metadata The [CottontailGrpc.Metadata] to process.
      * @return [TransactionContext]
      */
-    fun transactionContext(metadata: CottontailGrpc.Metadata): TransactionManager.TransactionImpl = if (metadata.transactionId == 0L) {
-        this.manager.TransactionImpl(TransactionType.USER_IMPLICIT) /* Start new transaction. */
+    fun transactionContext(metadata: CottontailGrpc.Metadata): TransactionManager.TransactionImpl = if (metadata.transactionId <= 0L) {
+        this.manager.TransactionImpl(TransactionType.USER) /* Start new transaction. */
     } else {
         val txn = this.manager[metadata.transactionId] /* Reuse existing transaction. */
         if (txn === null || txn.type !== TransactionType.USER) {
@@ -111,16 +111,14 @@ internal interface TransactionalGrpcService {
             /* Add entry to page and increment counter. */
             responseBuilder.addTuples(tuple)
             accumulatedSize += tuple.serializedSize
-        }.catch {
-            throw context.toStatusException(it)
         }.onCompletion {
-            when(it) {
-                null -> {
-                    if (results == 0 || responseBuilder.tuplesCount > 0) emit(responseBuilder.build())
-                    LOGGER.info(context.formatSuccessMessage(mark.elapsedNow()))
-                }
-                is CancellationException -> LOGGER.warn(context.formatErrorMessage("Operation was interrupted by user after ${mark.elapsedNow()}."))
-                else -> LOGGER.error(it.message)
+            if (it == null) {
+                if (results == 0 || responseBuilder.tuplesCount > 0) emit(responseBuilder.build())
+                LOGGER.info(context.formatSuccessMessage(mark.elapsedNow()))
+            } else {
+                val e = context.toStatusException(it)
+                LOGGER.error(e.message)
+                throw e
             }
         }
     }
@@ -150,6 +148,7 @@ internal interface TransactionalGrpcService {
         is DeadlockException -> Status.ABORTED.withCause(e).withDescription(this.formatErrorMessage(e.message!!)).asException()
         is DatabaseException -> Status.INTERNAL.withCause(e).withDescription(this.formatErrorMessage(e.message!!)).asException()
         is ExecutionException -> Status.INTERNAL.withCause(e).withDescription(this.formatErrorMessage(e.message!!)).asException()
+        is CancellationException -> Status.CANCELLED.withCause(e).withDescription(this.formatErrorMessage(e.message!!)).asException()
         else -> Status.UNKNOWN.withCause(e).withDescription(this.formatErrorMessage(e.message ?: "Reason unknown!")).asException()
     }
 
