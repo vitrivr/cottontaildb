@@ -101,7 +101,7 @@ abstract class AbstractSerializationTest {
     @RepeatedTest(3)
     fun test() {
         log("Starting serialization test on (${TestConstants.collectionSize} items).")
-        val txn = this.manager.Transaction(TransactionType.SYSTEM)
+        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM)
         try {
             val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
             val schema = catalogueTx.schemaForName(this.schemaName)
@@ -134,7 +134,7 @@ abstract class AbstractSerializationTest {
      */
     private fun prepareSchema(): Schema {
         log("Creating schema ${this.schemaName}.")
-        val txn = this.manager.Transaction(TransactionType.SYSTEM)
+        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM)
         val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
         val ret = catalogueTx.createSchema(this.schemaName)
         txn.commit()
@@ -146,7 +146,7 @@ abstract class AbstractSerializationTest {
      */
     private fun prepareEntity(): Entity {
         log("Creating schema ${this.entityName}.")
-        val txn = this.manager.Transaction(TransactionType.SYSTEM)
+        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM)
         val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
         val schema = catalogueTx.schemaForName(this.schemaName)
         val schemaTx = txn.getTx(schema) as SchemaTx
@@ -160,7 +160,7 @@ abstract class AbstractSerializationTest {
      */
     private fun populateDatabase() {
         log("Inserting data (${TestConstants.collectionSize} items).")
-        val txn = this.manager.Transaction(TransactionType.SYSTEM)
+        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM)
         val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
         val schema = catalogueTx.schemaForName(this.schemaName)
         val schemaTx = txn.getTx(schema) as SchemaTx

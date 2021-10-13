@@ -58,7 +58,7 @@ class ImportDataCommand(
         val iterator = this.format.newImporter(this.input, schema)
 
         /** Begin transaction (if single transaction option has been set). */
-        val txId = if (this.singleTransaction) {
+        val metadata = if (this.singleTransaction) {
             this.txnStub.begin(Empty.getDefaultInstance())
         } else {
             null
@@ -67,21 +67,21 @@ class ImportDataCommand(
         try {
             /* Perform insert. */
             iterator.forEach {
-                if (txId != null) {
-                    it.txId = txId
+                if (metadata != null) {
+                    it.metadata = metadata
                 }
                 it.from = this.entityName.protoFrom()
                 this.dmlStub.insert(it.build())
             }
 
             /** Commit transaction, if single transaction option has been set. */
-            if (txId != null) {
-                this.txnStub.commit(txId)
+            if (metadata != null) {
+                this.txnStub.commit(metadata)
             }
         } catch (e: Throwable) {
             /** Rollback transaction, if single transaction option has been set. */
-            if (txId != null) {
-                this.txnStub.rollback(txId)
+            if (metadata != null) {
+                this.txnStub.rollback(metadata)
             }
         } finally {
             iterator.close()

@@ -3,7 +3,6 @@ package org.vitrivr.cottontail.server.grpc.services
 import com.google.protobuf.Empty
 import kotlinx.coroutines.flow.Flow
 import org.vitrivr.cottontail.database.catalogue.Catalogue
-import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.binding.GrpcQueryBinder
 import org.vitrivr.cottontail.database.queries.planning.CottontailQueryPlanner
 import org.vitrivr.cottontail.database.queries.planning.rules.logical.*
@@ -23,10 +22,10 @@ import kotlin.time.ExperimentalTime
  * Implementation of [DQLGrpc.DQLImplBase], the gRPC endpoint for querying data in Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 2.0.2
+ * @version 2.1.0
  */
 @ExperimentalTime
-class DQLService(val catalogue: Catalogue, override val manager: TransactionManager) : DQLGrpcKt.DQLCoroutineImplBase(), gRPCTransactionService {
+class DQLService(override val catalogue: Catalogue, override val manager: TransactionManager) : DQLGrpcKt.DQLCoroutineImplBase(), TransactionalGrpcService {
 
     /** [CottontailQueryPlanner] used to generate execution plans from a logical query plan. */
     private val planner = CottontailQueryPlanner(
@@ -45,9 +44,9 @@ class DQLService(val catalogue: Catalogue, override val manager: TransactionMana
     /**
      * gRPC endpoint for executing queries.
      */
-    override fun query(request: CottontailGrpc.QueryMessage): Flow<CottontailGrpc.QueryResponseMessage> = this.withTransactionContext(request.txId, "EXECUTE QUERY") { tx, q ->
-        /* Start query execution. */
-        val ctx = QueryContext(this.catalogue, tx)
+    override fun query(request: CottontailGrpc.QueryMessage): Flow<CottontailGrpc.QueryResponseMessage> {
+        /* Obtain query context */
+        val ctx = this.queryContext(request.metadata)
 
         /* Bind query and create logical plan. */
         GrpcQueryBinder.bind(request.query, ctx)
@@ -56,14 +55,14 @@ class DQLService(val catalogue: Catalogue, override val manager: TransactionMana
         this.planner.planAndSelect(ctx)
 
         /* Execute query in transaction context. */
-        executeAndMaterialize(ctx, ctx.toOperatorTree(), q, 0)
+        return executeAndMaterialize(ctx, ctx.toOperatorTree())
     }
 
     /**
      * gRPC endpoint for explaining queries.
      */
-    override fun explain(request: CottontailGrpc.QueryMessage): Flow<CottontailGrpc.QueryResponseMessage> = this.withTransactionContext(request.txId, "EXPLAIN QUERY") { tx, q ->
-        val ctx = QueryContext(this.catalogue, tx)
+    override fun explain(request: CottontailGrpc.QueryMessage): Flow<CottontailGrpc.QueryResponseMessage> {
+        val ctx = this.queryContext(request.metadata)
 
         /* Bind query and create logical plan. */
         GrpcQueryBinder.bind(request.query, ctx)
@@ -72,7 +71,7 @@ class DQLService(val catalogue: Catalogue, override val manager: TransactionMana
         val candidates = this.planner.plan(ctx)
 
         /* Return execution plans. */
-        executeAndMaterialize(ctx, ExplainQueryOperator(candidates), q, 0)
+        return executeAndMaterialize(ctx, ExplainQueryOperator(candidates))
     }
 
     /**

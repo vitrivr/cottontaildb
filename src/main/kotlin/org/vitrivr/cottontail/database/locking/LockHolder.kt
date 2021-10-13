@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.database.locking
 
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet
-import org.vitrivr.cottontail.execution.TransactionManager.Transaction
+import org.vitrivr.cottontail.execution.TransactionManager.TransactionImpl
 import org.vitrivr.cottontail.model.basics.TransactionId
 
 /**
@@ -13,7 +13,7 @@ import org.vitrivr.cottontail.model.basics.TransactionId
  * @version 1.1.1
  */
 open class LockHolder<T>(val txId: TransactionId) : Comparable<LockHolder<*>> {
-    /** The [Lock]s held by this [Transaction]. */
+    /** The [Lock]s held by this [TransactionImpl]. */
     private val locks = ObjectOpenHashSet<Lock<T>>()
 
     /** Returns the number of [Lock]s held by this [LockHolder]. */

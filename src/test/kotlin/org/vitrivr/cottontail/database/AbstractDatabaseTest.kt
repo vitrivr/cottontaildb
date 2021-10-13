@@ -90,7 +90,7 @@ abstract class AbstractDatabaseTest {
      */
     protected fun prepareSchema(): Schema {
         LOGGER.info("Creating schema ${this.schemaName}.")
-        val txn = this.manager.Transaction(TransactionType.SYSTEM)
+        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM)
         val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
         val ret = catalogueTx.createSchema(this.schemaName)
         txn.commit()
@@ -101,7 +101,7 @@ abstract class AbstractDatabaseTest {
      * Prepares and returns an empty test [Entity].
      */
     protected fun prepareEntity() {
-        val txn = this.manager.Transaction(TransactionType.SYSTEM)
+        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM)
         for (e in this.entities) {
             LOGGER.info("Creating schema ${e.first}.")
             val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx

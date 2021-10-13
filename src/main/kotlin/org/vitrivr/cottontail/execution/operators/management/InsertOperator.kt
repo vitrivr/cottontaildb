@@ -6,8 +6,11 @@ import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.queries.GroupId
-import org.vitrivr.cottontail.database.queries.QueryContext
+import org.vitrivr.cottontail.database.queries.binding.BindingContext
+import org.vitrivr.cottontail.database.queries.binding.EmptyBindingContext
+import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
+import org.vitrivr.cottontail.execution.operators.definition.AbstractDataDefinitionOperator
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.basics.Type
@@ -23,10 +26,9 @@ import kotlin.time.measureTimedValue
  * [Entity] that it receives with the provided [Value].
  *
  * @author Ralph Gasser
- * @version 1.3.0
+ * @version 1.4.0
  */
 class InsertOperator(groupId: GroupId, val entity: EntityTx, val records: List<Record>) : Operator.SourceOperator(groupId) {
-
     companion object {
         /** The columns produced by the [InsertOperator]. */
         val COLUMNS: List<ColumnDef<*>> = listOf(
@@ -35,17 +37,20 @@ class InsertOperator(groupId: GroupId, val entity: EntityTx, val records: List<R
         )
     }
 
+    /** The [BindingContext] used [AbstractDataDefinitionOperator]. */
+    override val binding: BindingContext = EmptyBindingContext
+
     /** Columns produced by [InsertOperator]. */
     override val columns: List<ColumnDef<*>> = COLUMNS
 
     /**
      * Converts this [InsertOperator] to a [Flow] and returns it.
      *
-     * @param context The [QueryContext] used for execution
+     * @param context The [TransactionContext] used for execution
      * @return [Flow] representing this [InsertOperator]
      */
     @ExperimentalTime
-    override fun toFlow(context: QueryContext): Flow<Record> {
+    override fun toFlow(context: TransactionContext): Flow<Record> {
         val columns = this.columns.toTypedArray()
         return flow {
             for (record in this@InsertOperator.records) {

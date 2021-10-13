@@ -10,6 +10,7 @@ import org.vitrivr.cottontail.database.index.AbstractIndexTest
 import org.vitrivr.cottontail.database.index.IndexTx
 import org.vitrivr.cottontail.database.index.IndexType
 import org.vitrivr.cottontail.database.queries.binding.BindingContext
+import org.vitrivr.cottontail.database.queries.binding.DefaultBindingContext
 import org.vitrivr.cottontail.database.queries.predicates.bool.BooleanPredicate
 import org.vitrivr.cottontail.database.queries.predicates.bool.ComparisonOperator
 import org.vitrivr.cottontail.database.schema.SchemaTx
@@ -26,7 +27,7 @@ import kotlin.collections.HashMap
  * This is a collection of test cases to test the correct behaviour of [UniqueHashIndex].
  *
  * @author Ralph Gasser
- * @param 1.2.1
+ * @param 1.2.2
  */
 class UniqueHashIndexTest : AbstractIndexTest() {
 
@@ -55,7 +56,7 @@ class UniqueHashIndexTest : AbstractIndexTest() {
      */
     @RepeatedTest(3)
     fun testFilterEqualPositive() {
-        val txn = this.manager.Transaction(TransactionType.SYSTEM)
+        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM)
 
         /* Obtain necessary transactions. */
         val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
@@ -66,7 +67,7 @@ class UniqueHashIndexTest : AbstractIndexTest() {
         val index = entityTx.indexForName(this.indexName)
         val indexTx = txn.getTx(index) as IndexTx
 
-        val context = BindingContext()
+        val context = DefaultBindingContext()
         for (entry in this.list.entries) {
             val predicate = BooleanPredicate.Atomic(ComparisonOperator.Binary.Equal(context.bind(this.columns[0]), context.bind(entry.key)), false,)
             indexTx.filter(predicate).forEach { r ->
@@ -86,7 +87,7 @@ class UniqueHashIndexTest : AbstractIndexTest() {
      */
     @RepeatedTest(3)
     fun testFilterEqualNegative() {
-        val txn = this.manager.Transaction(TransactionType.SYSTEM)
+        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM)
 
         /* Obtain necessary transactions. */
         val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
@@ -98,7 +99,7 @@ class UniqueHashIndexTest : AbstractIndexTest() {
         val indexTx = txn.getTx(index) as IndexTx
 
         var count = 0
-        val context = BindingContext()
+        val context = DefaultBindingContext()
         val predicate = BooleanPredicate.Atomic(ComparisonOperator.Binary.Equal(context.bind(this.columns[0]), context.bind(StringValue(UUID.randomUUID().toString()))), false)
         indexTx.filter(predicate).forEach { count += 1 }
         assertEquals(0, count)

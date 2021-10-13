@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.map
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.binding.Binding
+import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.functions.basics.Function
 import org.vitrivr.cottontail.model.basics.Name
@@ -16,7 +17,7 @@ import org.vitrivr.cottontail.model.values.types.Value
  * A [Operator.PipelineOperator] used during query execution. It executes a defined [Function] and generates a new [ColumnDef] from its results
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.2.0
  */
 class FunctionProjectionOperator(parent: Operator, val function: Function<*>, val arguments: List<Binding>, alias: Name.ColumnName? = null) : Operator.PipelineOperator(parent) {
 
@@ -36,7 +37,7 @@ class FunctionProjectionOperator(parent: Operator, val function: Function<*>, va
      * @param context The [QueryContext] used for execution
      * @return [Flow] representing this [FunctionProjectionOperator]
      */
-    override fun toFlow(context: QueryContext): Flow<Record> {
+    override fun toFlow(context: TransactionContext): Flow<Record> {
         /* Obtain parent flow. */
         val parentFlow = this.parent.toFlow(context)
 

@@ -1,6 +1,8 @@
 package org.vitrivr.cottontail.execution.operators.definition
 
 import org.vitrivr.cottontail.database.column.ColumnDef
+import org.vitrivr.cottontail.database.queries.binding.BindingContext
+import org.vitrivr.cottontail.database.queries.binding.EmptyBindingContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Type
@@ -26,6 +28,9 @@ abstract class AbstractDataDefinitionOperator(protected val dboName: Name, prote
             ColumnDef(Name.ColumnName("duration_ms"), Type.Double, false)
         )
     }
+
+    /** The [BindingContext] used [AbstractDataDefinitionOperator]. */
+    override val binding: BindingContext = EmptyBindingContext
 
     /** The [ColumnDef] produced by this [AbstractDataDefinitionOperator]. */
     override val columns: List<ColumnDef<*>> = COLUMNS

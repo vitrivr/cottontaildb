@@ -9,6 +9,7 @@ import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.binding.BindingContext
+import org.vitrivr.cottontail.database.queries.binding.DefaultBindingContext
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.predicates.FilterLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.projection.SelectProjectionLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.sources.EntityScanLogicalOperatorNode
@@ -27,7 +28,7 @@ import org.vitrivr.cottontail.model.basics.Type
  * A collection of test cases for the [DeferFetchOnScanRewriteRule].
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.2.1
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class DeferFetchOnFetchRewriteRuleTest : AbstractDatabaseTest() {
@@ -51,9 +52,9 @@ class DeferFetchOnFetchRewriteRuleTest : AbstractDatabaseTest() {
      */
     @Test
     fun testNoMatch() {
-        val txn = this.manager.Transaction(TransactionType.SYSTEM)
+        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM)
         try {
-            val ctx = QueryContext(this.catalogue, txn)
+            val ctx = QueryContext("test", this.catalogue, txn)
             val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
             val schema = catalogueTx.schemaForName(this.schemaName)
             val schemaTx = txn.getTx(schema) as SchemaTx
@@ -78,9 +79,9 @@ class DeferFetchOnFetchRewriteRuleTest : AbstractDatabaseTest() {
      */
     @Test
     fun testDeferAfterFilter() {
-        val txn = this.manager.Transaction(TransactionType.SYSTEM)
+        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM)
         try {
-            val ctx = QueryContext(this.catalogue, txn)
+            val ctx = QueryContext("test", this.catalogue, txn)
             val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
             val schema = catalogueTx.schemaForName(this.schemaName)
             val schemaTx = txn.getTx(schema) as SchemaTx
@@ -88,7 +89,7 @@ class DeferFetchOnFetchRewriteRuleTest : AbstractDatabaseTest() {
             val entityTx = txn.getTx(entity) as EntityTx
 
             /* Prepare simple SCAN followed by a FILTER, followed by a PROJECTION. */
-            val context = BindingContext()
+            val context = DefaultBindingContext()
             val scan0 = EntityScanLogicalOperatorNode(0, entityTx, this.columns.map { it.name to it })
             val filter0 = FilterLogicalOperatorNode(scan0, BooleanPredicate.Atomic(ComparisonOperator.Binary.Equal(context.bind(this.columns[2]), context.bindNull(this.columns[2].type)), false))
             val projection0 = SelectProjectionLogicalOperatorNode(filter0, Projection.SELECT, listOf(this.columns[0].name, this.columns[1].name))
@@ -143,9 +144,9 @@ class DeferFetchOnFetchRewriteRuleTest : AbstractDatabaseTest() {
      */
     @Test
     fun testRemoveUnnecessaryFetch() {
-        val txn = this.manager.Transaction(TransactionType.SYSTEM)
+        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM)
         try {
-            val ctx = QueryContext(this.catalogue, txn)
+            val ctx = QueryContext("test", this.catalogue, txn)
             val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
             val schema = catalogueTx.schemaForName(this.schemaName)
             val schemaTx = txn.getTx(schema) as SchemaTx
@@ -153,7 +154,7 @@ class DeferFetchOnFetchRewriteRuleTest : AbstractDatabaseTest() {
             val entityTx = txn.getTx(entity) as EntityTx
 
             /* Prepare simple SCAN followed by a FILTER, followed by a PROJECTION. */
-            val context = BindingContext()
+            val context = DefaultBindingContext()
             val scan0 = EntityScanLogicalOperatorNode(0, entityTx, listOf(this.columns[0].name to this.columns[0], this.columns[1].name to this.columns[1], this.columns[2].name to this.columns[2]))
             val fetch0 = FetchLogicalOperatorNode(scan0, entityTx, listOf(this.columns[3].name to this.columns[3]))
             val filter0 = FilterLogicalOperatorNode(fetch0, BooleanPredicate.Atomic(ComparisonOperator.Binary.Equal(context.bind(this.columns[2]), context.bindNull(this.columns[2].type)), false))

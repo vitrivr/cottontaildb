@@ -1,7 +1,6 @@
 package org.vitrivr.cottontail.database.queries.planning.nodes.physical.transform
 
 import org.vitrivr.cottontail.database.queries.OperatorNode
-import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalOperatorNode
 import org.vitrivr.cottontail.execution.TransactionContext
@@ -57,9 +56,9 @@ class LimitPhysicalOperatorNode(input: Physical? = null, val limit: Long, val sk
     /**
      * Converts this [LimitPhysicalOperatorNode] to a [LimitOperator].
      *
-     * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
+     * @param ctx The [TransactionContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(ctx: QueryContext) = LimitOperator(
+    override fun toOperator(ctx: org.vitrivr.cottontail.database.queries.QueryContext) = LimitOperator(
         this.input?.toOperator(ctx) ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)"),
         this.skip, this.limit
     )

@@ -3,10 +3,11 @@ package org.vitrivr.cottontail.database.queries
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap
 import org.vitrivr.cottontail.database.catalogue.Catalogue
 import org.vitrivr.cottontail.database.column.ColumnDef
-
 import org.vitrivr.cottontail.database.queries.binding.BindingContext
+
+import org.vitrivr.cottontail.database.queries.binding.DefaultBindingContext
 import org.vitrivr.cottontail.database.queries.sort.SortOrder
-import org.vitrivr.cottontail.execution.TransactionContext
+import org.vitrivr.cottontail.execution.TransactionManager
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.values.types.Value
@@ -16,12 +17,12 @@ import org.vitrivr.cottontail.model.values.types.Value
  * and isolates different strands of execution within a query from one another.
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.3.0
  */
-class QueryContext(val catalogue: Catalogue, val txn: TransactionContext) {
+class QueryContext(val queryId: String, val catalogue: Catalogue, val txn: TransactionManager.TransactionImpl) {
 
     /** List of bound [Value]s for this [QueryContext]. */
-    val bindings = BindingContext()
+    val bindings: BindingContext = DefaultBindingContext()
 
     /** The individual [OperatorNode.Logical], each representing different sub-queries. */
     private val nodes: MutableMap<GroupId, OperatorNode.Logical> = Int2ObjectOpenHashMap()

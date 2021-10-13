@@ -14,10 +14,10 @@ import org.vitrivr.cottontail.database.general.DBO
 import org.vitrivr.cottontail.database.general.Tx
 import org.vitrivr.cottontail.database.locking.LockMode
 import org.vitrivr.cottontail.database.operations.Operation
-import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.schema.SchemaTx
+import org.vitrivr.cottontail.execution.Transaction
 import org.vitrivr.cottontail.execution.TransactionContext
-import org.vitrivr.cottontail.execution.TransactionManager.Transaction
+import org.vitrivr.cottontail.execution.TransactionManager.TransactionImpl
 import org.vitrivr.cottontail.execution.TransactionStatus
 import org.vitrivr.cottontail.execution.TransactionType
 import org.vitrivr.cottontail.execution.operators.basics.Operator
@@ -249,7 +249,7 @@ abstract class AbstractMigrationManager(val batchSize: Int, logFile: Path) : Mig
      * @author Ralph Gasser
      * @version 1.0.0
      */
-    inner class MigrationContext : TransactionContext {
+    inner class MigrationContext : TransactionContext, Transaction {
         /** The [TransactionId] of the [MigrationContext]. */
         override val txId: TransactionId = transactionIdCounter.getAndIncrement()
 
@@ -261,12 +261,16 @@ abstract class AbstractMigrationManager(val batchSize: Int, logFile: Path) : Mig
         override var state: TransactionStatus = TransactionStatus.READY
             private set
 
+        /** The [MigrationContext] are never readonly. */
+        override val readonly: Boolean
+            get() = false
+
         /** Map of all [Tx] that have been created as part of this [MigrationManager]. Used for final COMMIT or ROLLBACK. */
         protected val txns: MutableMap<DBO, Tx> = Object2ObjectMaps.synchronize(Object2ObjectLinkedOpenHashMap())
 
         /**
          * Returns the [Tx] for the provided [DBO]. Creating [Tx] through this method makes sure,
-         * that only on [Tx] per [DBO] and [Transaction] is created.
+         * that only on [Tx] per [DBO] and [TransactionImpl] is created.
          *
          * @param dbo [DBO] to return the [Tx] for.
          * @return entity [Tx]
@@ -280,17 +284,21 @@ abstract class AbstractMigrationManager(val batchSize: Int, logFile: Path) : Mig
         }
 
         override fun signalEvent(action: Operation.DataManagementOperation) {
-            throw UnsupportedOperationException("Operation signalEvent() not supported for AbstractMigrationManager.")
+            throw UnsupportedOperationException("Operation signalEvent() not supported for MigrationContext.")
         }
 
-        override fun execute(operator: Operator, context: QueryContext): Flow<Record> {
-            throw UnsupportedOperationException("Operation execute() not supported for AbstractMigrationManager.")
+        override fun execute(operator: Operator): Flow<Record> {
+            throw UnsupportedOperationException("Operation execute() not supported for MigrationContext.")
+        }
+
+        override fun kill() {
+            throw UnsupportedOperationException("Operation kill() not supported for MigrationContext.")
         }
 
         /**
-         * Commits this [Transaction] thus finalizing and persisting all operations executed so far.
+         * Commits this [TransactionImpl] thus finalizing and persisting all operations executed so far.
          */
-        fun commit() {
+        override fun commit() {
             check(this.state === TransactionStatus.READY) { "Cannot commit transaction ${this.txId} because it is in wrong state (s = ${this.state})." }
             this.state = TransactionStatus.FINALIZING
             try {
@@ -304,9 +312,9 @@ abstract class AbstractMigrationManager(val batchSize: Int, logFile: Path) : Mig
         }
 
         /**
-         * Rolls back this [Transaction] thus reverting all operations executed so far.
+         * Rolls back this [TransactionImpl] thus reverting all operations executed so far.
          */
-        fun rollback() {
+        override fun rollback() {
             check(this.state === TransactionStatus.READY || this.state === TransactionStatus.ERROR) { "Cannot rollback transaction ${this.txId} because it is in wrong state (s = ${this.state})." }
             this.state = TransactionStatus.FINALIZING
             try {
@@ -318,5 +326,7 @@ abstract class AbstractMigrationManager(val batchSize: Int, logFile: Path) : Mig
                 this.state = TransactionStatus.COMMIT
             }
         }
+
+
     }
 }

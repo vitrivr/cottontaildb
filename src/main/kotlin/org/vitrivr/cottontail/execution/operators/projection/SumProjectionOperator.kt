@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.onEach
 import org.vitrivr.cottontail.database.column.*
 import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.projection.Projection
+import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.exceptions.OperatorSetupException
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.model.basics.Name
@@ -24,7 +25,7 @@ import org.vitrivr.cottontail.model.values.*
  * Acts as pipeline breaker.
  *
  * @author Ralph Gasser
- * @version 1.3.0
+ * @version 1.4.0
  */
 class SumProjectionOperator(parent: Operator, fields: List<Name.ColumnName>) : Operator.PipelineOperator(parent) {
     /** [SumProjectionOperator] does act as a pipeline breaker. */
@@ -47,10 +48,10 @@ class SumProjectionOperator(parent: Operator, fields: List<Name.ColumnName>) : O
     /**
      * Converts this [SumProjectionOperator] to a [Flow] and returns it.
      *
-     * @param context The [QueryContext] used for execution
+     * @param context The [TransactionContext] used for execution
      * @return [Flow] representing this [SumProjectionOperator]
      */
-    override fun toFlow(context: QueryContext): Flow<Record> {
+    override fun toFlow(context: TransactionContext): Flow<Record> {
         val parentFlow = this.parent.toFlow(context)
         val columns = this.columns.toTypedArray()
         val values = this.parentColumns.map { 0.0 }.toTypedArray()

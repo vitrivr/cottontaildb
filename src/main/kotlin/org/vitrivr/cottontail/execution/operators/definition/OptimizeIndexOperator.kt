@@ -6,7 +6,6 @@ import org.vitrivr.cottontail.database.catalogue.CatalogueTx
 import org.vitrivr.cottontail.database.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.index.IndexTx
-import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.schema.SchemaTx
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
@@ -19,17 +18,15 @@ import kotlin.time.measureTimedValue
  * An [Operator.SourceOperator] used during query execution. Can be used to optimize a single [Index]
  *
  * @author Ralph Gasser
- * @version 1.0.1
+ * @version 1.1.0
  */
 @ExperimentalTime
-class OptimizeIndexOperator(private val catalogue: DefaultCatalogue, private val name: Name.IndexName) :
-    AbstractDataDefinitionOperator(name, "OPTIMIZE INDEX") {
-
-    override fun toFlow(context: QueryContext): Flow<Record> {
-        val catTxn = context.txn.getTx(this.catalogue) as CatalogueTx
-        val schemaTxn = context.txn.getTx(catTxn.schemaForName(this.name.schema())) as SchemaTx
-        val entityTxn = context.txn.getTx(schemaTxn.entityForName(this.name.entity())) as EntityTx
-        val indexTxn = context.txn.getTx(entityTxn.indexForName(this.name)) as IndexTx
+class OptimizeIndexOperator(private val catalogue: DefaultCatalogue, private val name: Name.IndexName): AbstractDataDefinitionOperator(name, "OPTIMIZE INDEX") {
+    override fun toFlow(context: TransactionContext): Flow<Record> {
+        val catTxn = context.getTx(this.catalogue) as CatalogueTx
+        val schemaTxn = context.getTx(catTxn.schemaForName(this.name.schema())) as SchemaTx
+        val entityTxn = context.getTx(schemaTxn.entityForName(this.name.entity())) as EntityTx
+        val indexTxn = context.getTx(entityTxn.indexForName(this.name)) as IndexTx
         return flow {
             val timedTupleId = measureTimedValue {
                 indexTxn.rebuild()

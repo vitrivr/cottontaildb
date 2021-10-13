@@ -4,7 +4,6 @@ import com.google.protobuf.Empty
 import io.grpc.Status
 import kotlinx.coroutines.flow.Flow
 import org.vitrivr.cottontail.database.catalogue.Catalogue
-import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.execution.TransactionManager
 import org.vitrivr.cottontail.execution.TransactionType
 import org.vitrivr.cottontail.execution.operators.system.ListLocksOperator
@@ -12,91 +11,83 @@ import org.vitrivr.cottontail.execution.operators.system.ListTransactionsOperato
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.grpc.TXNGrpc
 import org.vitrivr.cottontail.grpc.TXNGrpcKt
-import java.util.*
 import kotlin.time.ExperimentalTime
 
 /**
- * Implementation of [TXNGrpc.TXNImplBase], the gRPC endpoint for managing [TransactionManager.Transaction]s in Cottontail DB
+ * Implementation of [TXNGrpc.TXNImplBase], the gRPC endpoint for managing [TransactionManager.TransactionImpl]s in Cottontail DB
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.1.0
  */
 @ExperimentalTime
-class TXNService constructor(val catalogue: Catalogue, override val manager: TransactionManager) : TXNGrpcKt.TXNCoroutineImplBase(), gRPCTransactionService {
+class TXNService constructor(override val catalogue: Catalogue, override val manager: TransactionManager) : TXNGrpcKt.TXNCoroutineImplBase(), TransactionalGrpcService {
 
     /**
-     * gRPC endpoint for beginning an new [TransactionManager.Transaction].
+     * gRPC endpoint for beginning an new [TransactionManager.TransactionImpl].
      */
-    override suspend fun begin(request: Empty): CottontailGrpc.TransactionId {
-        val txn = this.manager.Transaction(TransactionType.USER)
-        return CottontailGrpc.TransactionId.newBuilder().setValue(txn.txId).build()
+    override suspend fun begin(request: Empty): CottontailGrpc.Metadata {
+        val txn = this.manager.TransactionImpl(TransactionType.USER)
+        return CottontailGrpc.Metadata.newBuilder().setTransactionId(txn.txId).build()
     }
 
     /**
-     * gRPC for committing a [TransactionManager.Transaction].
+     * gRPC for committing a [TransactionManager.TransactionImpl].
      */
-    override suspend fun commit(request: CottontailGrpc.TransactionId): Empty {
-        val txn = this.manager[request.value] /* Reuse existing transaction. */
-        if (txn === null || txn.type !== TransactionType.USER) {
-            val message = "COMMIT failed because USER transaction ${request.value} could not be obtained."
-            throw Status.FAILED_PRECONDITION.withDescription(message).asException()
-        }
-        val queryId = request.queryId.ifEmpty { UUID.randomUUID().toString() }
+    override suspend fun commit(request: CottontailGrpc.Metadata): Empty {
+        if (request.transactionId <= 0L)
+            throw Status.INVALID_ARGUMENT.withDescription("Failed to execute COMMIT: Invalid transaction identifier ${request.transactionId }!").asException()
+        val ctx = this.queryContext(request)
         try {
-            txn.commit()
+            ctx.txn.commit()
             return Empty.getDefaultInstance()
         } catch (e: Throwable) {
-            throw Status.INTERNAL.withDescription(formatMessage(txn, queryId, "Failed to execute COMMIT due to unexpected error: ${e.message}")).asException()
+            throw Status.INTERNAL.withDescription("Failed to execute COMMIT due to unexpected error: ${e.message}").asException()
         }
     }
 
     /**
-     * gRPC for rolling back a [TransactionManager.Transaction].
+     * gRPC for rolling back a [TransactionManager.TransactionImpl].
      */
-    override suspend fun rollback(request: CottontailGrpc.TransactionId): Empty {
-        val txn = this.manager[request.value]
-        if (txn === null || txn.type !== TransactionType.USER) {
-            val message = "ROLLBACK failed because USER transaction ${request.value} could not be obtained."
-            throw Status.FAILED_PRECONDITION.withDescription(message).asException()
-        }
-        val queryId = request.queryId.ifEmpty { UUID.randomUUID().toString() }
+    override suspend fun rollback(request: CottontailGrpc.Metadata): Empty {
+        if (request.transactionId <= 0L)
+            throw Status.INVALID_ARGUMENT.withDescription("Failed to execute ROLLBACK: Invalid transaction identifier ${request.transactionId }!").asException()
+        val ctx = this.queryContext(request)
         try {
-            txn.rollback()
+            ctx.txn.rollback()
             return Empty.getDefaultInstance()
         } catch (e: Throwable) {
-            throw Status.INTERNAL.withDescription(formatMessage(txn, queryId, "Failed to execute COMMIT due to unexpected error: ${e.message}")).asException()
+            throw Status.INTERNAL.withDescription("Failed to execute COMMIT due to unexpected error: ${e.message}").asException()
         }
     }
 
     /**
-     * gRPC for killing a [TransactionManager.Transaction].
+     * gRPC for killing a [TransactionManager.TransactionImpl].
      */
-    override suspend fun kill(request: CottontailGrpc.TransactionId): Empty {
-        val txn = this.manager[request.value]
-        if (txn === null) {
-            val message = "KILL failed because transaction ${request.value} could not be obtained."
-            throw Status.FAILED_PRECONDITION.withDescription(message).asException()
-        }
-        val queryId = request.queryId.ifEmpty { UUID.randomUUID().toString() }
+    override suspend fun kill(request: CottontailGrpc.Metadata): Empty {
+        if (request.transactionId <= 0L)
+            throw Status.INVALID_ARGUMENT.withDescription("Failed to execute KILL: Invalid transaction identifier ${request.transactionId }!").asException()
+        val ctx = this.queryContext(request)
         try {
-            txn.kill()
+            ctx.txn.kill()
             return Empty.getDefaultInstance()
         } catch (e: Throwable) {
-            throw Status.INTERNAL.withDescription(formatMessage(txn, queryId, "Failed to execute KILL due to unexpected error: ${e.message}")).asException()
+            throw Status.INTERNAL.withDescription("Failed to execute KILL due to unexpected error: ${e.message}").asException()
         }
     }
 
     /**
-     * gRPC for listing all [TransactionManager.Transaction]s.
+     * gRPC for listing all [TransactionManager.TransactionImpl]s.
      */
-    override fun listTransactions(request: Empty): Flow<CottontailGrpc.QueryResponseMessage> = this.withTransactionContext(description = "LIST TRANSACTIONS") { tx, q ->
-        executeAndMaterialize(QueryContext(this.catalogue, tx), ListTransactionsOperator(this.manager), q, 0)
+    override fun listTransactions(request: Empty): Flow<CottontailGrpc.QueryResponseMessage> {
+        val ctx = this.queryContext(CottontailGrpc.Metadata.getDefaultInstance())
+        return executeAndMaterialize(ctx, ListTransactionsOperator(this.manager))
     }
 
     /**
      * gRPC for listing all active locks.
      */
-    override fun listLocks(request: Empty): Flow<CottontailGrpc.QueryResponseMessage> = this.withTransactionContext(description = "LIST LOCKS") { tx, q ->
-        executeAndMaterialize(QueryContext(this.catalogue, tx), ListLocksOperator(this.manager.lockManager), q, 0)
+    override fun listLocks(request: Empty): Flow<CottontailGrpc.QueryResponseMessage> {
+        val ctx = this.queryContext(CottontailGrpc.Metadata.getDefaultInstance())
+        return executeAndMaterialize(ctx, ListLocksOperator(this.manager.lockManager))
     }
 }

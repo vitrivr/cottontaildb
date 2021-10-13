@@ -5,7 +5,6 @@ import kotlinx.coroutines.flow.map
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.entity.EntityTx
-import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.model.basics.Name
@@ -18,7 +17,7 @@ import org.vitrivr.cottontail.model.values.types.Value
  * the specified [Entity]. Can  be used for late population of requested [ColumnDef]s.
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.3.0
  */
 class FetchOperator(parent: Operator, val entity: EntityTx, val fetch: List<Pair<Name.ColumnName,ColumnDef<*>>>) : Operator.PipelineOperator(parent) {
 
@@ -34,7 +33,7 @@ class FetchOperator(parent: Operator, val entity: EntityTx, val fetch: List<Pair
      * @param context The [TransactionContext] used for execution
      * @return [Flow] representing this [FetchOperator]
      */
-    override fun toFlow(context: QueryContext): Flow<Record> {
+    override fun toFlow(context: TransactionContext): Flow<Record> {
         val fetch = this.fetch.map { it.second }.toTypedArray()
         val columns = this.columns.toTypedArray()
         val values = arrayOfNulls<Value?>(this.columns.size)
@@ -43,7 +42,7 @@ class FetchOperator(parent: Operator, val entity: EntityTx, val fetch: List<Pair
             r.forEach { _, v -> values[i++] = v }
             this@FetchOperator.entity.read(r.tupleId, fetch).forEach { _, v -> values[i++] = v }
             val record = StandaloneRecord(r.tupleId, columns, values)
-            context.bindings.bindRecord(record) /* Important: Make new record available to binding context. */
+            this@FetchOperator.binding.bindRecord(record) /* Important: Make new record available to binding context. */
             record
         }
     }

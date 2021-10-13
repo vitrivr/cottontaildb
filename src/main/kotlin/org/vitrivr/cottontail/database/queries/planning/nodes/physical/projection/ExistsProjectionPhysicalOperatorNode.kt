@@ -2,7 +2,6 @@ package org.vitrivr.cottontail.database.queries.planning.nodes.physical.projecti
 
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.queries.OperatorNode
-import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalOperatorNode
 import org.vitrivr.cottontail.database.queries.projection.Projection
@@ -60,9 +59,9 @@ class ExistsProjectionPhysicalOperatorNode(input: Physical? = null, val alias: N
     /**
      * Converts this [ExistsProjectionPhysicalOperatorNode] to a [ExistsProjectionOperator].
      *
-     * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
+     * @param ctx The [TransactionContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(ctx: QueryContext) = ExistsProjectionOperator(
+    override fun toOperator(ctx: org.vitrivr.cottontail.database.queries.QueryContext) = ExistsProjectionOperator(
         this.input?.toOperator(ctx) ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)")
     )
 

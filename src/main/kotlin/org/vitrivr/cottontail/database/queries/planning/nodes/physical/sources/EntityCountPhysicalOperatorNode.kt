@@ -68,7 +68,7 @@ class EntityCountPhysicalOperatorNode(override val groupId: Int, val entity: Ent
      *
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(ctx: QueryContext) = EntityCountOperator(this.groupId, this.entity, this.alias)
+    override fun toOperator(ctx: QueryContext) = EntityCountOperator(this.groupId, this.entity, ctx.bindings, this.alias)
 
     /** Generates and returns a [String] representation of this [EntityCountPhysicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.columns.joinToString(",") { it.name.toString() }}]"

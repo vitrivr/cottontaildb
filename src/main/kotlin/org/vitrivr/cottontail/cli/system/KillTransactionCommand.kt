@@ -19,7 +19,7 @@ import kotlin.time.measureTimedValue
 class KillTransactionCommand(private val txnStub: TXNGrpc.TXNBlockingStub) : AbstractCottontailCommand(name = "kill", help = "Kills an ongoing transaction.") {
 
     private val txid by argument("TXID").convert {
-        CottontailGrpc.TransactionId.newBuilder().setValue(it.toLong()).build()
+        CottontailGrpc.Metadata.newBuilder().setTransactionId(it.toLong()).build()
     }
 
     override fun exec() {
@@ -27,6 +27,6 @@ class KillTransactionCommand(private val txnStub: TXNGrpc.TXNBlockingStub) : Abs
         val duration = measureTime { this.txnStub.kill(this.txid) }
 
         /* Output results. */
-        println("Killing of transaction ${txid.value} completed (took $duration)!")
+        println("Killing of transaction ${txid.transactionId} completed (took $duration)!")
     }
 }

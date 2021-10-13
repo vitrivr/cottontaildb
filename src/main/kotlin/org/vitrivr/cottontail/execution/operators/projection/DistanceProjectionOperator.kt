@@ -3,6 +3,7 @@ package org.vitrivr.cottontail.execution.operators.projection
 import kotlinx.coroutines.flow.*
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.queries.QueryContext
+import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.functions.math.distance.basics.VectorDistance
 import org.vitrivr.cottontail.model.basics.Record
@@ -31,10 +32,10 @@ class DistanceProjectionOperator(parent: Operator, val column: ColumnDef<*>, val
     /**
      * Converts this [DistanceProjectionOperator] to a [Flow] and returns it.
      *
-     * @param context The [QueryContext] used for execution
+     * @param context The [TransactionContext] used for execution
      * @return [Flow] representing this [DistanceProjectionOperator]
      */
-    override fun toFlow(context: QueryContext): Flow<Record> {
+    override fun toFlow(context: TransactionContext): Flow<Record> {
         /* Obtain parent flow. */
         val parentFlow = this.parent.toFlow(context)
         val columns = this.columns.toTypedArray()

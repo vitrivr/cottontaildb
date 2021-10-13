@@ -4,10 +4,13 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.queries.OperatorNode
-import org.vitrivr.cottontail.database.queries.QueryContext
+import org.vitrivr.cottontail.database.queries.binding.BindingContext
+import org.vitrivr.cottontail.database.queries.binding.EmptyBindingContext
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.NullaryLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalOperatorNode
+import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
+import org.vitrivr.cottontail.execution.operators.definition.AbstractDataDefinitionOperator
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.basics.Type
@@ -22,10 +25,9 @@ import org.vitrivr.cottontail.model.values.types.Value
  * An [Operator.SourceOperator] used during query execution. Used to explain queries
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.2.0
  */
 class ExplainQueryOperator(val candidates: Collection<OperatorNode.Physical>) : Operator.SourceOperator() {
-
     companion object {
         val COLUMNS: List<ColumnDef<*>> = listOf(
             ColumnDef(Name.ColumnName("path"), Type.String, false),
@@ -39,9 +41,12 @@ class ExplainQueryOperator(val candidates: Collection<OperatorNode.Physical>) : 
         )
     }
 
+    /** The [BindingContext] used [AbstractDataDefinitionOperator]. */
+    override val binding: BindingContext = EmptyBindingContext
+
     override val columns: List<ColumnDef<*>> = COLUMNS
 
-    override fun toFlow(context: QueryContext): Flow<Record> {
+    override fun toFlow(context: TransactionContext): Flow<Record> {
         val candidate = this.candidates.minByOrNull { it.totalCost }!!
         val columns = this.columns.toTypedArray()
         val values = Array<Value?>(this@ExplainQueryOperator.columns.size) { null }

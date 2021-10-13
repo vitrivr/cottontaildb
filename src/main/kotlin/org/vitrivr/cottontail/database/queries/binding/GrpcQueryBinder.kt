@@ -35,7 +35,6 @@ import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.values.StringValue
 import org.vitrivr.cottontail.model.values.pattern.LikePatternValue
-import org.vitrivr.cottontail.model.values.pattern.LucenePatternValue
 import org.vitrivr.cottontail.model.values.types.Value
 
 /**
@@ -124,12 +123,17 @@ object GrpcQueryBinder {
             val entityTx = context.txn.getTx(entity) as EntityTx
 
             /* Parse columns to INSERT. */
-            val columns = Array<ColumnDef<*>>(insert.elementsCount) {
-                val columnName = insert.elementsList[it].column.fqn()
-                entityTx.columnForName(columnName).columnDef
-            }
-            val values = Array<Binding>(insert.elementsCount) {
-                context.bindings.bind(insert.elementsList[it].value.toValue(columns[it].type))
+            val columns = entityTx.listColumns().map { it.columnDef }.toTypedArray()
+            val values = Array<Binding>(columns.size) { i ->
+                val element = insert.elementsList.singleOrNull { el ->
+                    val fqn = el.column.fqn()
+                    fqn.matches(columns[i].name)
+                }
+                if (element != null) {
+                    context.bindings.bind(element.value.toValue(columns[i].type))
+                } else {
+                    context.bindings.bindNull(columns[i].type)
+                }
             }
 
             /* Create and return INSERT-clause. */

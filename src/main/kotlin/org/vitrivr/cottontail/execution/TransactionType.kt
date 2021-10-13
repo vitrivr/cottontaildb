@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.execution
 
 /**
- * Type of [TransactionManager.Transaction].
+ * Type of [TransactionManager.TransactionImpl].
  *
  * @author Ralph Gasser
  * @version 1.0.0

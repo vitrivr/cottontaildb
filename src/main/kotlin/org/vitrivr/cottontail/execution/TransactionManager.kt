@@ -5,10 +5,7 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2ObjectMaps
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.onCompletion
-import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -22,7 +19,7 @@ import org.vitrivr.cottontail.database.locking.LockManager
 import org.vitrivr.cottontail.database.locking.LockMode
 import org.vitrivr.cottontail.database.operations.Operation
 import org.vitrivr.cottontail.database.queries.QueryContext
-import org.vitrivr.cottontail.execution.TransactionManager.Transaction
+import org.vitrivr.cottontail.execution.TransactionManager.TransactionImpl
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.basics.TransactionId
@@ -31,7 +28,7 @@ import java.util.concurrent.atomic.AtomicLong
 
 /**
  * The default [TransactionManager] for Cottontail DB. It hosts all the necessary facilities to
- * create and execute queries within different [Transaction]s.
+ * create and execute queries within different [TransactionImpl]s.
  *
  * @author Ralph Gasser
  * @version 1.5.0
@@ -42,8 +39,8 @@ class TransactionManager(transactionTableSize: Int, private val transactionHisto
         private val LOGGER = LoggerFactory.getLogger(TransactionManager::class.java)
     }
 
-    /** Map of [Transaction]s that are currently PENDING or RUNNING. */
-    private val transactions = Collections.synchronizedMap(Long2ObjectOpenHashMap<Transaction>(transactionTableSize, VERY_FAST_LOAD_FACTOR))
+    /** Map of [TransactionImpl]s that are currently PENDING or RUNNING. */
+    private val transactions = Collections.synchronizedMap(Long2ObjectOpenHashMap<TransactionImpl>(transactionTableSize, VERY_FAST_LOAD_FACTOR))
 
     /** Internal counter to generate [TransactionId]s. */
     private val tidCounter = AtomicLong()
@@ -52,48 +49,50 @@ class TransactionManager(transactionTableSize: Int, private val transactionHisto
     val lockManager = LockManager<DBO>()
 
     /** List of ongoing or past transactions (limited to [transactionHistorySize] entries). */
-    val transactionHistory = Collections.synchronizedList(LinkedList<Transaction>())
+    val transactionHistory = Collections.synchronizedList(LinkedList<TransactionImpl>())
 
     /**
-     * Returns the [Transaction] for the provided [TransactionId].
+     * Returns the [TransactionImpl] for the provided [TransactionId].
      *
-     * @param txId [TransactionId] to return the [Transaction] for.
-     * @return [Transaction] or null
+     * @param txId [TransactionId] to return the [TransactionImpl] for.
+     * @return [TransactionImpl] or null
      */
-    operator fun get(txId: TransactionId): Transaction? = this.transactions[txId]
+    operator fun get(txId: TransactionId): TransactionImpl? = this.transactions[txId]
 
     /**
-     * A concrete [Transaction] used for executing a query.
+     * A concrete [TransactionImpl] used for executing a query.
      *
-     * A [Transaction] can be of different [TransactionType]s. Their execution semantics may differ slightly.
+     * A [TransactionImpl] can be of different [TransactionType]s. Their execution semantics may differ slightly.
      *
      * @author Ralph Gasser
-     * @version 1.3.0
+     * @version 1.4.0
      */
-    inner class Transaction(override val type: TransactionType) : LockHolder<DBO>(this@TransactionManager.tidCounter.getAndIncrement()), TransactionContext {
+    inner class TransactionImpl(override val type: TransactionType) : LockHolder<DBO>(this@TransactionManager.tidCounter.getAndIncrement()), Transaction, TransactionContext {
 
-        /** The [TransactionStatus] of this [Transaction]. */
+        /** The [TransactionStatus] of this [TransactionImpl]. */
         @Volatile
         override var state: TransactionStatus = TransactionStatus.READY
             private set
 
-        /** Map of all [Tx] that have been created as part of this [Transaction]. */
+        /** Map of all [Tx] that have been created as part of this [TransactionImpl]. */
         private val txns: MutableMap<DBO, Tx> = Object2ObjectMaps.synchronize(Object2ObjectLinkedOpenHashMap())
 
-        /** A [Mutex] data structure used for synchronisation on the [Transaction]. */
+        /** A [Mutex] data structure used for synchronisation on the [TransactionImpl]. */
         private val mutex = Mutex()
 
-        /** Number of [Tx] held by this [Transaction]. */
+        /** Number of [Tx] held by this [TransactionImpl]. */
         val numberOfTxs: Int
             get() = this.txns.size
 
-        /** Timestamp of when this [Transaction] was created. */
+        /** Timestamp of when this [TransactionImpl] was created. */
         val created = System.currentTimeMillis()
 
-
-
-        /** Timestamp of when this [Transaction] was either COMMITTED or ABORTED. */
+        /** Timestamp of when this [TransactionImpl] was either COMMITTED or ABORTED. */
         var ended: Long? = null
+            private set
+
+        /** Flag indicating, that this [Transaction] was used to write data. */
+        override var readonly: Boolean = true
             private set
 
         init {
@@ -107,7 +106,7 @@ class TransactionManager(transactionTableSize: Int, private val transactionHisto
 
         /**
          * Returns the [Tx] for the provided [DBO]. Creating [Tx] through this method makes sure,
-         * that only on [Tx] per [DBO] and [Transaction] is created.
+         * that only on [Tx] per [DBO] and [TransactionImpl] is created.
          *
          * @param dbo [DBO] to return the [Tx] for.
          * @return entity [Tx]
@@ -134,7 +133,7 @@ class TransactionManager(transactionTableSize: Int, private val transactionHisto
         }
 
         /**
-         * Signals a [Operation.DataManagementOperation] to this [Transaction].
+         * Signals a [Operation.DataManagementOperation] to this [TransactionImpl].
          *
          * Implementing methods must process these [Operation.DataManagementOperation]s quickly, since they are usually
          * triggered during an ongoing transaction.
@@ -146,123 +145,127 @@ class TransactionManager(transactionTableSize: Int, private val transactionHisto
         }
 
         /**
-         * Schedules an [Operator] for execution in this [Transaction] and blocks, until execution has completed.
+         * Schedules an [Operator] for execution in this [TransactionImpl] and blocks, until execution has completed.
          *
-         * @param context The [QueryContext] to execute the [Operator] in.
          * @param operator The [Operator.SinkOperator] that should be executed.
          */
-        override fun execute(operator: Operator, context: QueryContext): Flow<Record> = operator.toFlow(context).onStart {
-            this@Transaction.mutex.lock()
-            check(this@Transaction.state === TransactionStatus.READY) { "Cannot start execution of transaction ${this@Transaction.txId} because it is in the wrong state (s = ${this@Transaction.state})." }
-            this@Transaction.state = TransactionStatus.RUNNING
+        override fun execute(operator: Operator): Flow<Record> = operator.toFlow(this).onStart {
+            this@TransactionImpl.mutex.lock()
+            check(this@TransactionImpl.state === TransactionStatus.READY) { "Cannot start execution of transaction ${this@TransactionImpl.txId} because it is in the wrong state (s = ${this@TransactionImpl.state})." }
+            this@TransactionImpl.state = TransactionStatus.RUNNING
         }.onEach {
-            if (this.state === TransactionStatus.KILLED) {
-                throw CancellationException("Transaction $this.txId was killed by the user.")
-            }
+            if (this.state === TransactionStatus.KILLED) throw CancellationException("Transaction $this.txId was killed by the user.")
         }.onCompletion {
-            if (it == null) {
-                this@Transaction.state = TransactionStatus.READY
-                if (this@Transaction.type === TransactionType.USER_IMPLICIT) {
-                    this@Transaction.commitInternal()
+            when (it) {
+                null -> {
+                    this@TransactionImpl.state = TransactionStatus.READY
+                    if (this@TransactionImpl.type === TransactionType.USER_IMPLICIT) {
+                        this@TransactionImpl.commitInternal() /* Commit implicit transaction on success. */
+                    }
                 }
-            } else {
-                this@Transaction.state = TransactionStatus.ERROR
-                if (this@Transaction.type === TransactionType.USER_IMPLICIT) {
-                    this@Transaction.rollbackInternal()
+                is CancellationException -> {
+                    this@TransactionImpl.state = TransactionStatus.KILLED
+                    this@TransactionImpl.rollbackInternal() /* Rollback transaction on cancellation. */
+                }
+                else -> {
+                    this@TransactionImpl.state = TransactionStatus.ERROR
+                    this@TransactionImpl.rollbackInternal() /* Rollback transaction on error. */
                 }
             }
-            this@Transaction.mutex.unlock()
+
+            /* Unlock mutex. */
+            this@TransactionImpl.mutex.unlock()
         }
 
         /**
-         * Commits this [Transaction] thus finalizing and persisting all operations executed so far.
+         * Commits this [TransactionImpl] thus finalizing and persisting all operations executed so far.
          */
-        fun commit() = runBlocking {
-            this@Transaction.mutex.withLock {
-                this@Transaction.commitInternal()
+        override fun commit() = runBlocking {
+            this@TransactionImpl.mutex.withLock {
+                this@TransactionImpl.commitInternal()
             }
         }
 
         /**
-         * Internal commit logic: Commits this [Transaction] thus finalizing and persisting all operations executed so far.
+         * Internal commit logic: Commits this [TransactionImpl] thus finalizing and persisting all operations executed so far.
          *
          * When calling this method, a lock on [mutex] should be held!
          */
         private fun commitInternal() {
-            check(this@Transaction.state === TransactionStatus.READY) { "Cannot commit transaction ${this@Transaction.txId} because it is in wrong state (s = ${this@Transaction.state})." }
-            check(this@Transaction.txns.values.none { it.status == TxStatus.ERROR }) { "Cannot commit transaction ${this@Transaction.txId} because some of the participating Tx are in an error state." }
-            this@Transaction.state = TransactionStatus.FINALIZING
+            check(this@TransactionImpl.state === TransactionStatus.READY) { "Cannot commit transaction ${this@TransactionImpl.txId} because it is in wrong state (s = ${this@TransactionImpl.state})." }
+            check(this@TransactionImpl.txns.values.none { it.status == TxStatus.ERROR }) { "Cannot commit transaction ${this@TransactionImpl.txId} because some of the participating Tx are in an error state." }
+            this@TransactionImpl.state = TransactionStatus.FINALIZING
             try {
-                this@Transaction.txns.values.reversed().forEachIndexed { i, txn ->
+                this@TransactionImpl.txns.values.reversed().forEachIndexed { i, txn ->
                     try {
                         txn.commit()
                     } catch (e: Throwable) {
-                        LOGGER.error("An error occurred while committing Tx $i (${txn.dbo.name}) of transaction ${this@Transaction.txId}. This is serious!", e)
+                        LOGGER.error("An error occurred while committing Tx $i (${txn.dbo.name}) of transaction ${this@TransactionImpl.txId}. This is serious!", e)
                     }
                 }
             } finally {
-                this@Transaction.finalize(true)
+                this@TransactionImpl.finalize(true)
             }
         }
 
 
         /**
-         * Rolls back this [Transaction] thus reverting all operations executed so far.
+         * Rolls back this [TransactionImpl] thus reverting all operations executed so far.
          */
-        fun rollback() = runBlocking {
-            this@Transaction.mutex.withLock {
-                this@Transaction.rollbackInternal()
+        override fun rollback() = runBlocking {
+            this@TransactionImpl.mutex.withLock {
+                this@TransactionImpl.rollbackInternal()
             }
         }
 
         /**
-         * Internal rollback logic: Rolls back this [Transaction] thus reverting all operations executed so far.
+         * Internal rollback logic: Rolls back this [TransactionImpl] thus reverting all operations executed so far.
          *
          * When calling this method, a lock on [mutex] should be held!
          */
         private fun rollbackInternal() {
-            check(this@Transaction.state === TransactionStatus.READY || this@Transaction.state === TransactionStatus.ERROR || this@Transaction.state === TransactionStatus.KILLED) { "Cannot rollback transaction ${this@Transaction.txId} because it is in wrong state (s = ${this@Transaction.state})." }
-            this@Transaction.state = TransactionStatus.FINALIZING
+            check(this@TransactionImpl.state === TransactionStatus.READY || this@TransactionImpl.state === TransactionStatus.ERROR || this@TransactionImpl.state === TransactionStatus.KILLED) { "Cannot rollback transaction ${this@TransactionImpl.txId} because it is in wrong state (s = ${this@TransactionImpl.state})." }
+            this@TransactionImpl.state = TransactionStatus.FINALIZING
             try {
-                this@Transaction.txns.values.reversed().forEachIndexed { i, txn ->
+                this@TransactionImpl.txns.values.reversed().forEachIndexed { i, txn ->
                     try {
                         txn.rollback()
                     } catch (e: Throwable) {
-                        LOGGER.error("An error occurred while rolling back Tx $i (${txn.dbo.name}) of transaction ${this@Transaction.txId}. This is serious!", e)
+                        LOGGER.error("An error occurred while rolling back Tx $i (${txn.dbo.name}) of transaction ${this@TransactionImpl.txId}. This is serious!", e)
                     }
                 }
             } finally {
-                this@Transaction.finalize(false)
+                this@TransactionImpl.finalize(false)
             }
         }
 
         /**
-         * Tries to kill this [Transaction] interrupting all running queries.
+         * Tries to kill this [TransactionImpl] interrupting all running queries.
          *
-         * A call to this method is a best-effort attempt to stop all ongoing queries. After a transaction was killed
-         * successfully, all changes are rolled back.
+         * A call to this method is a best-effort attempt to stop all ongoing queries. After killing a
+         * transaction successfully, all changes are rolled back.
          */
-        fun kill() = runBlocking {
-            check(this@Transaction.state === TransactionStatus.READY || this@Transaction.state === TransactionStatus.RUNNING) { "Cannot kill transaction ${this@Transaction.txId} because it is in wrong state (s = ${this@Transaction.state})." }
-            this@Transaction.state = TransactionStatus.KILLED
-            this@Transaction.rollback()
+        override fun kill() = runBlocking {
+            check(this@TransactionImpl.state === TransactionStatus.READY || this@TransactionImpl.state === TransactionStatus.RUNNING) { "Cannot kill transaction ${this@TransactionImpl.txId} because it is in wrong state (s = ${this@TransactionImpl.state})." }
+            this@TransactionImpl.state = TransactionStatus.KILLED
+            this@TransactionImpl.rollback()
         }
 
         /**
-         * Finalizes the state of this [Transaction].
+         * Finalizes the state of this [TransactionImpl].
          *
-         * @param committed True if [Transaction] was committed, false otherwise.
+         * @param committed True if [TransactionImpl] was committed, false otherwise.
          */
         private fun finalize(committed: Boolean) {
-            this@Transaction.allLocks().forEach { this@TransactionManager.lockManager.unlock(this@Transaction, it.obj) }
-            this@Transaction.txns.clear()
-            this@Transaction.ended = System.currentTimeMillis()
-            this@Transaction.state = if (committed) {
+            this@TransactionImpl.allLocks().forEach { this@TransactionManager.lockManager.unlock(this@TransactionImpl, it.obj) }
+            this@TransactionImpl.txns.clear()
+            this@TransactionImpl.ended = System.currentTimeMillis()
+            this@TransactionImpl.state = if (committed) {
                 TransactionStatus.COMMIT
             } else {
                 TransactionStatus.ROLLBACK
             }
-            this@TransactionManager.transactions.remove(this@Transaction.txId)
+            this@TransactionManager.transactions.remove(this@TransactionImpl.txId)
         }
     }
 }

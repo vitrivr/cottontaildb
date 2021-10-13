@@ -3,7 +3,6 @@ package org.vitrivr.cottontail.execution.operators.projection
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import org.vitrivr.cottontail.database.column.ColumnDef
-import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.model.basics.Name
@@ -18,7 +17,7 @@ import org.vitrivr.cottontail.model.values.types.Value
  * Only produces a single [Record].
  *
  * @author Ralph Gasser
- * @version 1.3.0
+ * @version 1.4.0
  */
 class SelectProjectionOperator(parent: Operator, fields: List<Name.ColumnName>) : Operator.PipelineOperator(parent) {
 
@@ -33,10 +32,10 @@ class SelectProjectionOperator(parent: Operator, fields: List<Name.ColumnName>) 
     /**
      * Converts this [SelectProjectionOperator] to a [Flow] and returns it.
      *
-     * @param context The [QueryContext] used for execution
+     * @param context The [TransactionContext] used for execution
      * @return [Flow] representing this [SelectProjectionOperator]
      */
-    override fun toFlow(context: QueryContext): Flow<Record> {
+    override fun toFlow(context: TransactionContext): Flow<Record> {
         val columns = this.columns.toTypedArray()
         val values = arrayOfNulls<Value?>(columns.size)
         return this.parent.toFlow(context).map { r ->

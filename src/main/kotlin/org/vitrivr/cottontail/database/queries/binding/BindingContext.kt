@@ -4,10 +4,9 @@ import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.basics.Type
 import org.vitrivr.cottontail.model.values.types.Value
-import kotlin.collections.ArrayList
 
 /**
- * A context for late binding of values. Late binding is used during query planning or execution, e.g., when
+ * A context for late binding of values. Late binding can be used during query planning or execution, e.g., when
  * literal values are replaced upon re-use of a query plan or when values used in query execution are dynamically loaded.
  *
  * The [BindingContext] class is NOT thread-safe. When concurrently executing part of a query plan, different copies of
@@ -16,27 +15,14 @@ import kotlin.collections.ArrayList
  * @author Ralph Gasser
  * @version 1.1.0
  */
-class BindingContext(startSize: Int = 100) {
-
-    /** List of bound [Value]s for this [BindingContext]. */
-    private val boundValues = ArrayList<Value?>(startSize)
-
-    /** A [Record] currently bound to this [BindingContext]. Used to resolve [Binding.Column]. */
-    private var boundRecord: Record? = null
-
+interface BindingContext {
     /**
      * Returns the [Value] for the given [Binding].
      *
      * @param binding The [Binding] to lookup.
      * @return The bound [Value].
      */
-    operator fun get(binding: Binding): Value? {
-        require(binding.context == this) { "The given binding $binding has not been registered with this binding context." }
-        return when (binding) {
-            is Binding.Column -> (this.boundRecord ?: throw IllegalStateException("No record bound for column binding ${binding.column}."))[binding.column]
-            is Binding.Literal -> this[binding.bindingIndex]
-        }
-    }
+    operator fun get(binding: Binding): Value?
 
     /**
      * Returns the [Value] for the given [bindingIndex].
@@ -44,10 +30,7 @@ class BindingContext(startSize: Int = 100) {
      * @param bindingIndex The [Binding] to lookup.
      * @return The bound [Value].
      */
-    operator fun get(bindingIndex: Int): Value? {
-        require(bindingIndex < this.boundValues.size) { "Binding $bindingIndex is not known to this binding context." }
-        return this.boundValues[bindingIndex]
-    }
+    operator fun get(bindingIndex: Int): Value?
 
     /**
      * Creates and returns a [Binding] for the given [Value].
@@ -55,11 +38,7 @@ class BindingContext(startSize: Int = 100) {
      * @param value The [Value] to bind.
      * @return A value [Binding]
      */
-    fun bind(value: Value): Binding.Literal {
-        val bindingIndex = this.boundValues.size
-        check(this.boundValues.add(value)) { "Failed to add $value to list of bound values for index $bindingIndex." }
-        return Binding.Literal(bindingIndex, value.type, this)
-    }
+    fun bind(value: Value): Binding.Literal
 
     /**
      * Updates the [Value] for a [Binding.Literal].
@@ -68,10 +47,7 @@ class BindingContext(startSize: Int = 100) {
      * @param value The [Value] to bind.
      * @return A value [Binding]
      */
-    fun update(binding: Binding.Literal, value: Value?) {
-        require(binding.context == this) { "The given binding $binding has not been registered with this binding context." }
-        this.boundValues[binding.bindingIndex] = value
-    }
+    fun update(binding: Binding.Literal, value: Value?)
 
     /**
      * Creates and returns a [Binding] for the given [Value].
@@ -79,11 +55,7 @@ class BindingContext(startSize: Int = 100) {
      * @param type The [Type] to bind.
      * @return A value [Binding]
      */
-    fun bindNull(type: Type<*>): Binding.Literal {
-        val bindingIndex = this.boundValues.size
-        check(this.boundValues.add(null)) { "Failed to add null to list of bound values for index $bindingIndex." }
-        return Binding.Literal(bindingIndex, type, this)
-    }
+    fun bindNull(type: Type<*>): Binding.Literal
 
     /**
      * Creates and returns a [Binding] for the given [ColumnDef].
@@ -91,23 +63,12 @@ class BindingContext(startSize: Int = 100) {
      * @param column The [ColumnDef] to bind.
      * @return [Binding.Column]
      */
-    fun bind(column: ColumnDef<*>): Binding.Column =  Binding.Column(column, this)
+    fun bind(column: ColumnDef<*>): Binding.Column
 
     /**
      * Updates the [Binding.Column]s based on the given [Record].
      *
      * @param record The [Record] to update the [Binding.Column] with.
      */
-    fun bindRecord(record: Record) {
-        this.boundRecord = record
-    }
-
-    /**
-     * Creates a copy of this [BindingContext].
-     */
-    fun copy() {
-        val copy = BindingContext(this.boundValues.size)
-        copy.boundValues.addAll(this.boundValues)
-        copy.boundRecord = this.boundRecord
-    }
+    fun bindRecord(record: Record)
 }
