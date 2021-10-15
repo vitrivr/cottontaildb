@@ -30,6 +30,9 @@ import org.vitrivr.cottontail.cli.system.ListLocksCommand
 import org.vitrivr.cottontail.cli.system.ListTransactionsCommand
 import org.vitrivr.cottontail.cli.system.MigrationCommand
 import org.vitrivr.cottontail.cli.system.KillTransactionCommand
+import org.vitrivr.cottontail.client.SimpleClient
+import org.vitrivr.cottontail.client.language.ddl.ListEntities
+import org.vitrivr.cottontail.client.language.ddl.ListSchemas
 import org.vitrivr.cottontail.grpc.*
 import java.io.IOException
 import java.util.*
@@ -82,17 +85,14 @@ class Cli(val host: String = "localhost", val port: Int = 1865) {
      */
     fun updateArgumentCompletion(schemata: List<String>, entities: List<String>) {
         val args = ArgumentCompleter(
-                StringsCompleter(clikt.registeredSubcommandNames()),// should be safe to call
-                StringsCompleter(schemata),
-                StringsCompleter(entities),
-                NullCompleter()
+            StringsCompleter(clikt.registeredSubcommandNames()),// should be safe to call
+            StringsCompleter(schemata),
+            StringsCompleter(entities),
+            NullCompleter()
         )
         args.setStrictCommand(true)
         args.isStrict = false
-        completer.delegate = AggregateCompleter(
-                StringsCompleter("help"),
-                args
-        )
+        completer.delegate = AggregateCompleter(StringsCompleter("help"), args)
     }
 
 
@@ -207,7 +207,7 @@ class Cli(val host: String = "localhost", val port: Int = 1865) {
     @ExperimentalTime
     inner class CottontailCommand : NoOpCliktCommand(name = "cottontail", help = "The base command for all CLI commands.") {
 
-        /** The [ManagedChannel] used to conect to Cottontail DB. */
+        /** The [ManagedChannel] used to connect to Cottontail DB. */
         private val channel: ManagedChannel = ManagedChannelBuilder
             .forAddress(this@Cli.host, this@Cli.port)
             .enableFullStreamDecompression()
@@ -225,6 +225,8 @@ class Cli(val host: String = "localhost", val port: Int = 1865) {
 
         /** The [TXNGrpc.TXNBlockingStub] used for changing Cottontail DB data. */
         private val txnService = TXNGrpc.newBlockingStub(this.channel)
+
+        private val client = SimpleClient(this.channel)
 
         /** A list of aliases: mapping of alias name to commands */
         override fun aliases(): Map<String, List<String>> {
@@ -348,32 +350,20 @@ class Cli(val host: String = "localhost", val port: Int = 1865) {
          * Initializes the auto completion for entity names.
          */
         fun initCompletion() {
-            val schemata = mutableListOf<CottontailGrpc.SchemaName>()
-            val entities = mutableListOf<CottontailGrpc.EntityName>()
-            this@CottontailCommand.ddlService.listSchemas(CottontailGrpc.ListSchemaMessage.getDefaultInstance()).forEach { _schema ->
-                // Streaming result, not sure whether the blocking stub guarantees to only have a single _schema ever
-                // To be sure, we loop also over tuples.
-                _schema.tuplesList.forEach {
-                    val fqn = it.dataList.first().stringData // empirically realised, always the first item
-                    val schemaName = CottontailGrpc.SchemaName.newBuilder().setName(
-                        fqn.substring(fqn.lastIndexOf('.')+1) // comes with 'warren' prefix --> fully qualified name
-                    ).build()
-                    schemata.add(schemaName)
-                    this@CottontailCommand.ddlService.listEntities(
-                        CottontailGrpc.ListEntityMessage.newBuilder().setSchema(schemaName).build()).forEach { _entity ->
-                        // Again, streaming result, we also loop over tuples (empirically found, that tuples contain all entities
-                        _entity.tuplesList.forEach {
-                            val efqn = it.dataList.first().stringData // empirically found
-                            val entityName = CottontailGrpc.EntityName.newBuilder().setName(
-                                efqn.substring(efqn.lastIndexOf('.')+1) // strip fqn
-                            ).build()
-                            entities.add(entityName)
-                        }
-                    }
+            val schemata = mutableListOf<String>()
+            val entities = mutableListOf<String>()
+            for (schema in this@CottontailCommand.client.list(ListSchemas())) {
+                val sfqn = schema.asString(0)!!
+                schemata.add(sfqn)
+                schemata.add(sfqn.replace("warren.", ""))
+                for (entity in this@CottontailCommand.client.list(ListEntities(sfqn))) {
+                    val efqn = entity.asString(0)!!
+                    entities.add(efqn)
+                    entities.add(efqn.replace("warren.", ""))
                 }
             }
             // The deluxe version would check, if the schema and entity match upon completion (i.e. only suggest entities of the currently typed schema)
-            this@Cli.updateArgumentCompletion(schemata = schemata.map { it.name }, entities = entities.map { it.name })
+            this@Cli.updateArgumentCompletion(schemata = schemata, entities = entities)
         }
 
         /**
