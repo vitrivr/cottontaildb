@@ -26,13 +26,18 @@ class DDLServiceTest {
     @BeforeAll
     fun startCottontail() {
         this.embedded = embedded(TestConstants.testConfig())
+        this.channel =  NettyChannelBuilder.forAddress("localhost", 1865).usePlaintext().build()
+        this.client = SimpleClient(this.channel)
     }
 
     @AfterAll
     fun cleanup() {
+        /** Close SimpleClient. */
+        this.client.close()
+
         /* Shutdown ManagedChannel. */
         this.channel.shutdown()
-        this.channel.awaitTermination(5000, TimeUnit.MILLISECONDS)
+        this.channel.awaitTermination(25000, TimeUnit.MILLISECONDS)
 
         /* Stop embedded server. */
         this.embedded.stop()
@@ -40,10 +45,6 @@ class DDLServiceTest {
 
     @BeforeEach
     fun setup() {
-        val builder = NettyChannelBuilder.forAddress("localhost", 1865)
-        builder.usePlaintext()
-        this.channel = builder.build()
-        this.client = SimpleClient(this.channel)
         assert(client.ping())
         GrpcTestUtils.dropTestSchema(client)
     }
