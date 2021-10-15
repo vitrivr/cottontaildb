@@ -258,7 +258,7 @@ abstract class AbstractMigrationManager(val batchSize: Int, logFile: Path) : Mig
 
         /** The [TransactionStatus] of this [MigrationContext]. */
         @Volatile
-        override var state: TransactionStatus = TransactionStatus.READY
+        override var state: TransactionStatus = TransactionStatus.IDLE
             private set
 
         /** The [MigrationContext] are never readonly. */
@@ -299,7 +299,7 @@ abstract class AbstractMigrationManager(val batchSize: Int, logFile: Path) : Mig
          * Commits this [TransactionImpl] thus finalizing and persisting all operations executed so far.
          */
         override fun commit() {
-            check(this.state === TransactionStatus.READY) { "Cannot commit transaction ${this.txId} because it is in wrong state (s = ${this.state})." }
+            check(this.state === TransactionStatus.IDLE) { "Cannot commit transaction ${this.txId} because it is in wrong state (s = ${this.state})." }
             this.state = TransactionStatus.FINALIZING
             try {
                 this.txns.values.reversed().forEachIndexed { i, txn ->
@@ -315,7 +315,7 @@ abstract class AbstractMigrationManager(val batchSize: Int, logFile: Path) : Mig
          * Rolls back this [TransactionImpl] thus reverting all operations executed so far.
          */
         override fun rollback() {
-            check(this.state === TransactionStatus.READY || this.state === TransactionStatus.ERROR) { "Cannot rollback transaction ${this.txId} because it is in wrong state (s = ${this.state})." }
+            check(this.state === TransactionStatus.IDLE || this.state === TransactionStatus.ERROR) { "Cannot rollback transaction ${this.txId} because it is in wrong state (s = ${this.state})." }
             this.state = TransactionStatus.FINALIZING
             try {
                 this.txns.values.reversed().forEach { txn ->

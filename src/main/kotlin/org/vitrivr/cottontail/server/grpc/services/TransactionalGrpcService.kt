@@ -49,7 +49,7 @@ internal interface TransactionalGrpcService {
      * @return [TransactionContext]
      */
     fun transactionContext(metadata: CottontailGrpc.Metadata): TransactionManager.TransactionImpl = if (metadata.transactionId <= 0L) {
-        this.manager.TransactionImpl(TransactionType.USER) /* Start new transaction. */
+        this.manager.TransactionImpl(TransactionType.USER_IMPLICIT) /* Start new transaction. */
     } else {
         val txn = this.manager[metadata.transactionId] /* Reuse existing transaction. */
         if (txn === null || txn.type !== TransactionType.USER) {
@@ -93,7 +93,7 @@ internal interface TransactionalGrpcService {
         }
 
         /* Contextual information used by Flow. */
-        val responseBuilder = CottontailGrpc.QueryResponseMessage.newBuilder().setTid(CottontailGrpc.Metadata.newBuilder().setQueryId(context.queryId).setTransactionId(context.txn.txId)).addAllColumns(columns)
+        val responseBuilder = CottontailGrpc.QueryResponseMessage.newBuilder().setMetadata(CottontailGrpc.Metadata.newBuilder().setQueryId(context.queryId).setTransactionId(context.txn.txId)).addAllColumns(columns)
         val headerSize = responseBuilder.build().serializedSize
         var accumulatedSize = headerSize
         var results = 0
