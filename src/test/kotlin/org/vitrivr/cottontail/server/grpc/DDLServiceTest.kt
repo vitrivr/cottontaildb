@@ -28,10 +28,17 @@ class DDLServiceTest {
         this.embedded = embedded(TestConstants.testConfig())
         this.channel =  NettyChannelBuilder.forAddress("localhost", 1865).usePlaintext().build()
         this.client = SimpleClient(this.channel)
+
+        /** Drop and (re-)create test schema. */
+        GrpcTestUtils.dropTestSchema(client)
+        GrpcTestUtils.createTestSchema(client)
     }
 
     @AfterAll
     fun cleanup() {
+        /* Drop test schema. */
+        GrpcTestUtils.dropTestSchema(client)
+
         /** Close SimpleClient. */
         this.client.close()
 
@@ -41,19 +48,13 @@ class DDLServiceTest {
 
         /* Stop embedded server. */
         this.embedded.stop()
+
     }
 
     @BeforeEach
     fun setup() {
         assert(client.ping())
-        GrpcTestUtils.dropTestSchema(client)
     }
-
-    @AfterEach
-    fun tearDown() {
-        GrpcTestUtils.dropTestSchema(client)
-    }
-
 
     @Test
     fun pingTest() {

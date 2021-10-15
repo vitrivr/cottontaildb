@@ -24,11 +24,11 @@ class DQLServiceTest {
     @BeforeAll
     fun startCottontail() {
         this.embedded = embedded(TestConstants.testConfig())
-        val builder = NettyChannelBuilder.forAddress("localhost", 1865)
-        builder.usePlaintext()
-        this.channel = builder.build()
+        this.channel = NettyChannelBuilder.forAddress("localhost", 1865).usePlaintext().build()
         this.client = SimpleClient(this.channel)
         assert(client.ping())
+
+        /* Prepare test database. */
         GrpcTestUtils.dropTestSchema(client)
         GrpcTestUtils.createTestSchema(client)
         GrpcTestUtils.createTestVectorEntity(client)
@@ -39,7 +39,11 @@ class DQLServiceTest {
 
     @AfterAll
     fun cleanup() {
+        /* Drop test schema. */
         GrpcTestUtils.dropTestSchema(client)
+
+        /* Close SimpleClient. */
+        this.client.close()
 
         /* Shutdown ManagedChannel. */
         this.channel.shutdown()
@@ -51,17 +55,12 @@ class DQLServiceTest {
 
     @BeforeEach
     fun setup() {
-        assert(client.ping())
-    }
-
-    @AfterEach
-    fun tearDown() {
-        assert(client.ping())
+        assert(this.client.ping())
     }
 
     @Test
     fun pingTest() {
-        assert(client.ping()) { "ping unsuccessful" }
+        assert(this.client.ping()) { "ping unsuccessful" }
     }
 
     @Test
