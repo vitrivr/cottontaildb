@@ -3,6 +3,7 @@ package org.vitrivr.cottontail.database.queries.components
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.RepeatedTest
 import org.vitrivr.cottontail.database.queries.binding.BindingContext
+import org.vitrivr.cottontail.database.queries.binding.DefaultBindingContext
 import org.vitrivr.cottontail.database.queries.predicates.bool.ComparisonOperator
 import org.vitrivr.cottontail.model.basics.Type
 import org.vitrivr.cottontail.model.values.*
@@ -20,7 +21,7 @@ class NumericValueComparisonOperatorTest {
      */
     @RepeatedTest(100)
     fun checkIsNull() {
-        val context = BindingContext()
+        val context = DefaultBindingContext()
         val referenceBoolean = BooleanValue.random()
         val referenceByte = ByteValue.random()
         val referenceShort = ShortValue.random()
@@ -76,7 +77,7 @@ class NumericValueComparisonOperatorTest {
         val negativeComparisonFloat = FloatValue.random()
         val negativeComparisonDouble = DoubleValue.random()
 
-        val context = BindingContext()
+        val context = DefaultBindingContext()
 
         /** Assert equality .*/
         Assertions.assertEquals(referenceBoolean, positiveComparisonBoolean)
@@ -148,7 +149,7 @@ class NumericValueComparisonOperatorTest {
         val negativeComparisonFloat = FloatValue.random()
         val negativeComparisonDouble = DoubleValue.random()
 
-        val context = BindingContext()
+        val context = DefaultBindingContext()
         val positiveReference = mutableListOf(
             context.bind(referenceShort),
             context.bind(referenceInt),
@@ -204,7 +205,7 @@ class NumericValueComparisonOperatorTest {
         val comparisonFloat = FloatValue.random()
         val comparisonDouble = DoubleValue.random()
 
-        val context = BindingContext()
+        val context = DefaultBindingContext()
 
         val referenceByteBinding = context.bind(referenceByte)
         val referenceShortBinding = context.bind(referenceShort)
@@ -370,7 +371,7 @@ class NumericValueComparisonOperatorTest {
      */
     @RepeatedTest(100)
     fun checkBetween() {
-        val context = BindingContext()
+        val context = DefaultBindingContext()
 
         /* Bind values. */
         val referenceInt = IntValue.random()
