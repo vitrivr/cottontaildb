@@ -10,13 +10,6 @@ import org.vitrivr.cottontail.utilities.extensions.*
 import java.util.*
 
 /**
- * Helpers to convert Cottontail DB [Value] types to gRPC [CottontailGrpc.Literal] and vice versa.
- *
- * @author Ralph Gasser
- * @version 1.3.0
- */
-
-/**
  * Converts this [Value] to the corresponding [CottontailGrpc.Literal] object and returns it.
  *
  * @return [CottontailGrpc.Literal]
@@ -142,19 +135,57 @@ fun CottontailGrpc.Literal.toType(): Type<*> = when(this.dataCase) {
 }
 
 /**
+ * Converts a [Type] to the [CottontailGrpc.Type] equivalent.
  *
+ * @return [CottontailGrpc.Type]
  */
-fun CottontailGrpc.Type.toType(): Type<*> = when(this) {
-
+fun CottontailGrpc.Type.toType(size: Int = 0): Type<*> = when(this) {
+    CottontailGrpc.Type.BOOLEAN -> Type.Boolean
+    CottontailGrpc.Type.BYTE -> Type.Byte
+    CottontailGrpc.Type.SHORT -> Type.Short
+    CottontailGrpc.Type.INTEGER -> Type.Int
+    CottontailGrpc.Type.LONG -> Type.Long
+    CottontailGrpc.Type.FLOAT -> Type.Float
+    CottontailGrpc.Type.DOUBLE -> Type.Double
+    CottontailGrpc.Type.DATE -> Type.Date
+    CottontailGrpc.Type.STRING -> Type.String
+    CottontailGrpc.Type.COMPLEX32 -> Type.Complex32
+    CottontailGrpc.Type.COMPLEX64 -> Type.Complex64
+    CottontailGrpc.Type.DOUBLE_VEC -> Type.DoubleVector(size)
+    CottontailGrpc.Type.FLOAT_VEC -> Type.FloatVector(size)
+    CottontailGrpc.Type.LONG_VEC -> Type.LongVector(size)
+    CottontailGrpc.Type.INT_VEC -> Type.IntVector(size)
+    CottontailGrpc.Type.BOOL_VEC -> Type.BooleanVector(size)
+    CottontailGrpc.Type.COMPLEX32_VEC -> Type.Complex32Vector(size)
+    CottontailGrpc.Type.COMPLEX64_VEC -> Type.Complex64Vector(size)
+    else -> throw IllegalArgumentException("gRPC type $this is unsupported and cannot be converted to Cottontail DB equivalent.")
 }
 
 /**
+ * Converts a [Type] to the [CottontailGrpc.Type] equivalent.
  *
+ * @return [CottontailGrpc.Type]
  */
 fun Type<*>.proto(): CottontailGrpc.Type = when(this) {
-
+    Type.Boolean -> CottontailGrpc.Type.BOOLEAN
+    Type.Byte -> CottontailGrpc.Type.BYTE
+    Type.Complex32 -> CottontailGrpc.Type.COMPLEX64
+    Type.Complex64 -> CottontailGrpc.Type.COMPLEX32
+    Type.Date -> CottontailGrpc.Type.DATE
+    Type.Double -> CottontailGrpc.Type.DOUBLE
+    Type.Float -> CottontailGrpc.Type.FLOAT
+    Type.Int -> CottontailGrpc.Type.INTEGER
+    Type.Long -> CottontailGrpc.Type.LONG
+    Type.Short -> CottontailGrpc.Type.SHORT
+    Type.String -> CottontailGrpc.Type.STRING
+    is Type.BooleanVector -> CottontailGrpc.Type.BOOL_VEC
+    is Type.IntVector -> CottontailGrpc.Type.INT_VEC
+    is Type.LongVector -> CottontailGrpc.Type.LONG_VEC
+    is Type.FloatVector -> CottontailGrpc.Type.FLOAT_VEC
+    is Type.DoubleVector -> CottontailGrpc.Type.DOUBLE_VEC
+    is Type.Complex32Vector -> CottontailGrpc.Type.COMPLEX32_VEC
+    is Type.Complex64Vector -> CottontailGrpc.Type.COMPLEX64_VEC
 }
-
 
 /**
  * Returns the value of [CottontailGrpc.Literal] as String.
