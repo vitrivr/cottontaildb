@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.cli
 
+import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.NoOpCliktCommand
 import com.github.ajalt.clikt.core.context
 import com.github.ajalt.clikt.core.subcommands
@@ -9,13 +10,13 @@ import io.grpc.ManagedChannel
 import io.grpc.ManagedChannelBuilder
 import io.grpc.StatusException
 import io.grpc.StatusRuntimeException
+import org.jline.builtins.Completers
+import org.jline.builtins.Completers.TreeCompleter.node
+import org.jline.reader.Completer
 import org.jline.reader.EndOfFileException
 import org.jline.reader.LineReaderBuilder
 import org.jline.reader.UserInterruptException
-import org.jline.reader.impl.completer.AggregateCompleter
 import org.jline.reader.impl.completer.ArgumentCompleter
-import org.jline.reader.impl.completer.NullCompleter
-import org.jline.reader.impl.completer.StringsCompleter
 import org.jline.terminal.TerminalBuilder
 import org.vitrivr.cottontail.cli.entity.*
 import org.vitrivr.cottontail.cli.query.CountEntityCommand
@@ -34,6 +35,7 @@ import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.language.ddl.ListEntities
 import org.vitrivr.cottontail.client.language.ddl.ListSchemas
 import org.vitrivr.cottontail.grpc.*
+import java.io.Console
 import java.io.IOException
 import java.util.*
 import java.util.regex.Pattern
@@ -59,72 +61,41 @@ class Cli(val host: String = "localhost", val port: Int = 1865) {
         private val LINE_SPLIT_REGEX: Pattern = Pattern.compile("[^\\s\"']+|\"([^\"]*)\"|'([^']*)'")
     }
 
+    /** The [ManagedChannel] used to connect to Cottontail DB. */
+    private val channel: ManagedChannel = ManagedChannelBuilder.forAddress(this@Cli.host, this@Cli.port)
+        .enableFullStreamDecompression()
+        .usePlaintext()
+        .build()
+
+    /** The [SimpleClient] used to access Cottontail DB. */
+    private val client = SimpleClient(this.channel)
+
+    /** The [TXNGrpc.TXNBlockingStub] used for changing Cottontail DB data. */
+    private val txnService = TXNGrpc.newBlockingStub(this.channel)
+
     /** Generates a new instance of [CottontailCommand]. */
     private val clikt = CottontailCommand()
 
-    /** [DelegateCompleter] for auto completion. */
-    private val completer: DelegateCompleter = DelegateCompleter(AggregateCompleter(StringsCompleter("help")))
+    /** Register [ArgumentCompleter] for tope level CLI. */
+    private val completer: Completer = initCompleter()
 
     /** Flag indicating whether [Cli] has been stopped. */
     @Volatile
     private var stopped: Boolean = false
 
     /**
-     * Add the given list of completion candidates to completion
-     */
-    fun updateCompletion(strings: List<String>) {
-        this.completer.delegate = AggregateCompleter(
-            StringsCompleter("help"),
-            StringsCompleter(clikt.registeredSubcommandNames()),
-            StringsCompleter(strings)
-        )
-    }
-
-    /**
-     * Adds dedicated argument completers to the completion
-     */
-    fun updateArgumentCompletion(schemata: List<String>, entities: List<String>) {
-        val args = ArgumentCompleter(
-            StringsCompleter(clikt.registeredSubcommandNames()),// should be safe to call
-            StringsCompleter(schemata),
-            StringsCompleter(entities),
-            NullCompleter()
-        )
-        args.setStrictCommand(true)
-        args.isStrict = false
-        completer.delegate = AggregateCompleter(StringsCompleter("help"), args)
-    }
-
-
-    /**
-     * Resets the autocompletion.
-     * Resetting means, that in case the commands are already loaded, these are set plus "help"
-     * Otherwise only "help" is added to the completion.
-     */
-    fun resetCompletion() {
-        this.completer.delegate = AggregateCompleter(StringsCompleter("help"), StringsCompleter(clikt.registeredSubcommandNames()))
-    }
-
-    /**
      * Blocking REPL of the CLI
      */
     fun loop() {
         val terminal = try {
-            TerminalBuilder.builder().jansi(true).build()
+            TerminalBuilder.builder().jna(true).build()
         } catch (e: IOException) {
             System.err.println("Could not initialize terminal: ${e.message}. Aborting...")
             return
         }
 
-        /* Initialize auto complete. */
-        try {
-            this.clikt.initCompletion()
-        } catch (e: StatusRuntimeException) {
-            System.err.println("Failed to fetch schema from Cottontail DB instance; some commands may be unavailable!")
-        }
-
         /* Start CLI loop. */
-        val lineReader = LineReaderBuilder.builder().terminal(terminal).completer(completer).build()
+        val lineReader = LineReaderBuilder.builder().terminal(terminal).completer(this.completer).appName("Cottontail DB").build()
         while (!this.stopped) {
             /* Catch ^D end of file as exit method */
             val line = try {
@@ -137,7 +108,7 @@ class Cli(val host: String = "localhost", val port: Int = 1865) {
                 break
             }
 
-            if (line.toLowerCase() == "help") {
+            if (line.lowercase() == "help") {
                 println(clikt.getFormattedHelp())
                 continue
             }
@@ -167,6 +138,53 @@ class Cli(val host: String = "localhost", val port: Int = 1865) {
         }
 
     }
+
+    /**
+     * Initializes the necessary [Completer]s.
+     */
+    private fun initCompleter(): Completer {
+        val schemata = mutableListOf<String>()
+        val entities = mutableListOf<String>()
+        try {
+            for (schema in this.client.list(ListSchemas())) {
+                val sfqn = schema.asString(0)!!
+
+                /* Schema name with and w/o 'warren.'. */
+                schemata.add(sfqn)
+                schemata.add("warren.$sfqn")
+
+                for (entity in this.client.list(ListEntities(sfqn))) {
+                    val efqn = node(entity.asString(0)!!)
+
+                    /* Entity name with and w/o 'warren.'. */
+                    entities.add("$sfqn.$efqn")
+                    entities.add("warren.$sfqn.$efqn")
+                }
+            }
+        } catch (e: StatusRuntimeException) {
+            System.err.println("Failed to fetch schema from Cottontail DB instance; some commands may be unavailable!")
+        }
+
+        val nodes = this.clikt.registeredSubcommands().map { ocmd -> /* Outer command. */
+            node(ocmd.commandName, *ocmd.registeredSubcommands().map { icmd -> /* Inner command. */
+                when {
+                    icmd is AbstractCottontailCommand.Schema && icmd.expand -> {
+                        node(icmd.commandName, *schemata.map { node(it) }.toTypedArray())
+                    }
+                    icmd is AbstractCottontailCommand.Query && icmd.expand ||
+                    icmd is AbstractCottontailCommand.Entity && icmd.expand -> {
+                        node(icmd.commandName, *entities.map { node(it) }.toTypedArray())
+                    }
+                    else -> {
+                        node(icmd.commandName)
+                    }
+                }
+            }.toTypedArray())
+        }
+
+        return Completers.TreeCompleter(nodes)
+    }
+
 
     //based on https://stackoverflow.com/questions/366202/regex-for-splitting-a-string-using-space-when-not-surrounded-by-single-or-double/366532
     private fun splitLine(line: String?): List<String> {
@@ -202,31 +220,13 @@ class Cli(val host: String = "localhost", val port: Int = 1865) {
      * </ul>
      *
      * @author Loris Sauter
-     * @version 1.0.2
+     * @version 2.0.0
      */
     @ExperimentalTime
     inner class CottontailCommand : NoOpCliktCommand(name = "cottontail", help = "The base command for all CLI commands.") {
 
-        /** The [ManagedChannel] used to connect to Cottontail DB. */
-        private val channel: ManagedChannel = ManagedChannelBuilder
-            .forAddress(this@Cli.host, this@Cli.port)
-            .enableFullStreamDecompression()
-            .usePlaintext()
-            .build()
 
-        /** The [DQLGrpc.DQLBlockingStub] used for querying Cottontail DB. */
-        private val dqlService = DQLGrpc.newBlockingStub(this.channel)
 
-        /** The [DDLGrpc.DDLBlockingStub] used for changing Cottontail DB DBOs. */
-        private val ddlService = DDLGrpc.newBlockingStub(this.channel)
-
-        /** The [DMLGrpc.DMLBlockingStub] used for changing Cottontail DB data. */
-        private val dmlService = DMLGrpc.newBlockingStub(this.channel)
-
-        /** The [TXNGrpc.TXNBlockingStub] used for changing Cottontail DB data. */
-        private val txnService = TXNGrpc.newBlockingStub(this.channel)
-
-        private val client = SimpleClient(this.channel)
 
         /** A list of aliases: mapping of alias name to commands */
         override fun aliases(): Map<String, List<String>> {
@@ -272,16 +272,16 @@ class Cli(val host: String = "localhost", val port: Int = 1865) {
                         )
                     }
                 }.subcommands(
-                    AboutEntityCommand(this.ddlService),
-                    ClearEntityCommand(this.dmlService),
-                    CreateEntityCommand(this.ddlService),
-                    DropEntityCommand(this.ddlService),
-                    DumpEntityCommand(this.dqlService),
-                    ListAllEntitiesCommand(this.ddlService),
-                    OptimizeEntityCommand(this.ddlService),
-                    CreateIndexCommand(this.ddlService),
-                    DropIndexCommand(this.ddlService),
-                    ImportDataCommand(this.ddlService, this.dmlService, this.txnService)
+                    AboutEntityCommand(this@Cli.client),
+                    ClearEntityCommand(this@Cli.client),
+                    CreateEntityCommand(this@Cli.client),
+                    DropEntityCommand(this@Cli.client),
+                    DumpEntityCommand(this@Cli.client),
+                    ListAllEntitiesCommand(this@Cli.client),
+                    OptimizeEntityCommand(this@Cli.client),
+                    CreateIndexCommand(this@Cli.client),
+                    DropIndexCommand(this@Cli.client),
+                    ImportDataCommand(this@Cli.client)
                 ),
 
                 /* Schema related commands. */
@@ -298,10 +298,10 @@ class Cli(val host: String = "localhost", val port: Int = 1865) {
                         )
                     }
                 }.subcommands(
-                    CreateSchemaCommand(this.ddlService),
-                    DropSchemaCommand(this.ddlService),
-                    ListAllSchemaCommand(this.ddlService),
-                    ListEntitiesCommand(this.ddlService)
+                    CreateSchemaCommand(this@Cli.client),
+                    DropSchemaCommand(this@Cli.client),
+                    ListAllSchemaCommand(this@Cli.client),
+                    ListEntitiesCommand(this@Cli.client)
                 ),
 
                 /* Transaction related commands. */
@@ -312,10 +312,10 @@ class Cli(val host: String = "localhost", val port: Int = 1865) {
                     invokeWithoutSubcommand = true,
                     printHelpOnEmptyArgs = true
                 ) {}.subcommands(
-                    CountEntityCommand(this.dqlService),
-                    PreviewEntityCommand(this.dqlService),
-                    FindInEntityCommand(this.dqlService),
-                    ExecuteQueryCommand(this.dqlService)
+                    CountEntityCommand(this@Cli.client),
+                    PreviewEntityCommand(this@Cli.client),
+                    FindInEntityCommand(this@Cli.client),
+                    ExecuteQueryCommand(this@Cli.client)
                 ),
 
                 /* Transaction related commands. */
@@ -335,35 +335,15 @@ class Cli(val host: String = "localhost", val port: Int = 1865) {
                         )
                     }
                 }.subcommands(
-                    ListTransactionsCommand(this.txnService),
-                    ListLocksCommand(this.txnService),
-                    KillTransactionCommand(this.txnService),
+                    ListTransactionsCommand(this@Cli.txnService),
+                    ListLocksCommand(this@Cli.txnService),
+                    KillTransactionCommand(this@Cli.txnService),
                     MigrationCommand()
                 ),
 
                 /* General commands. */
                 StopCommand()
             )
-        }
-
-        /**
-         * Initializes the auto completion for entity names.
-         */
-        fun initCompletion() {
-            val schemata = mutableListOf<String>()
-            val entities = mutableListOf<String>()
-            for (schema in this@CottontailCommand.client.list(ListSchemas())) {
-                val sfqn = schema.asString(0)!!
-                schemata.add(sfqn)
-                schemata.add(sfqn.replace("warren.", ""))
-                for (entity in this@CottontailCommand.client.list(ListEntities(sfqn))) {
-                    val efqn = entity.asString(0)!!
-                    entities.add(efqn)
-                    entities.add(efqn.replace("warren.", ""))
-                }
-            }
-            // The deluxe version would check, if the schema and entity match upon completion (i.e. only suggest entities of the currently typed schema)
-            this@Cli.updateArgumentCompletion(schemata = schemata, entities = entities)
         }
 
         /**
@@ -396,8 +376,8 @@ class Cli(val host: String = "localhost", val port: Int = 1865) {
         /**
          * Stops the entire application
          */
-        inner class StopCommand : AbstractCottontailCommand(name = "stop", help = "Stops the database server and this CLI") {
-            override fun exec() {
+        inner class StopCommand : CliktCommand(name = "stop", help = "Stops the database server and this CLI") {
+            override fun run() {
                 println("Stopping Cottontail DB now...")
                 this@Cli.stop()
             }

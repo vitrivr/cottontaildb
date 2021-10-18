@@ -141,6 +141,20 @@ fun CottontailGrpc.Literal.toType(): Type<*> = when(this.dataCase) {
     null -> throw QueryException.UnsupportedCastException("A value of NULL cannot be cast to VALUE.")
 }
 
+/**
+ *
+ */
+fun CottontailGrpc.Type.toType(): Type<*> = when(this) {
+
+}
+
+/**
+ *
+ */
+fun Type<*>.proto(): CottontailGrpc.Type = when(this) {
+
+}
+
 
 /**
  * Returns the value of [CottontailGrpc.Literal] as String.

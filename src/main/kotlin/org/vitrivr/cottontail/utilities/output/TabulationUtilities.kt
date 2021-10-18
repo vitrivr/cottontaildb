@@ -3,6 +3,7 @@ package org.vitrivr.cottontail.utilities.output
 import com.jakewharton.picnic.Table
 import com.jakewharton.picnic.TableSectionDsl
 import com.jakewharton.picnic.table
+import org.vitrivr.cottontail.client.iterators.TupleIterator
 import org.vitrivr.cottontail.database.queries.binding.extensions.fqn
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import java.util.*
@@ -11,7 +12,7 @@ import java.util.*
  * Utility class for tabulated output.
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 2.0.0
  */
 object TabulationUtilities {
 
@@ -21,8 +22,7 @@ object TabulationUtilities {
      *
      * @param result The [Iterator] of [CottontailGrpc.QueryResponseMessage] to go visualize.
      */
-    fun tabulate(result: Iterator<CottontailGrpc.QueryResponseMessage>): Table {
-        var next = result.next()
+    fun tabulate(result: TupleIterator): Table {
         return table {
             cellStyle {
                 border = true
@@ -31,14 +31,15 @@ object TabulationUtilities {
             }
             header {
                 row {
-                    next.columnsList.forEach { cell(it.fqn()) }
+                    result.columns.forEach { cell(it) }
                 }
             }
             body {
-                next.tuplesList.forEach { tupleToRow(this, it) }
                 while (result.hasNext()) {
-                    next = result.next()
-                    next.tuplesList.forEach { tupleToRow(this, it) }
+                    val next = result.next()
+                    row {
+                        repeat(result.numberOfColumns) { i -> cell("${next[i] ?: "~~N/A~~"}") }
+                    }
                 }
             }
         }

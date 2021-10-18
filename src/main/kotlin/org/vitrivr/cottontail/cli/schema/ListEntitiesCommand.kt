@@ -1,5 +1,8 @@
 package org.vitrivr.cottontail.cli.schema
 
+import io.grpc.StatusException
+import org.vitrivr.cottontail.cli.AbstractCottontailCommand
+import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.database.queries.binding.extensions.proto
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.grpc.DDLGrpc
@@ -11,14 +14,14 @@ import kotlin.time.measureTimedValue
  * Command to list available entities and schemata
  *
  * @author Ralph Gasser
- * @version 1.0.1
+ * @version 2.0.0
  */
 @ExperimentalTime
-class ListEntitiesCommand(private val ddlStub: DDLGrpc.DDLBlockingStub) : AbstractSchemaCommand(name = "list", help = "Lists all entities for a given schema. schema list <name>") {
+class ListEntitiesCommand(client: SimpleClient) : AbstractCottontailCommand.Schema(client, name = "list", help = "Lists all entities for a given schema. schema list <name>") {
     override fun exec() {
         /* Execute query. */
         val timedTable = measureTimedValue {
-            TabulationUtilities.tabulate(this.ddlStub.listEntities(CottontailGrpc.ListEntityMessage.newBuilder().setSchema(this.schemaName.proto()).build()))
+            TabulationUtilities.tabulate(this.client.list(CottontailGrpc.ListEntityMessage.newBuilder().setSchema(this.schemaName.proto()).build()))
         }
 
         /* Output results. */

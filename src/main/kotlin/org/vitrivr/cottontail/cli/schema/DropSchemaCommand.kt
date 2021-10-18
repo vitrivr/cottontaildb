@@ -3,9 +3,11 @@ package org.vitrivr.cottontail.cli.schema
 import com.github.ajalt.clikt.output.TermUi
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
-import org.vitrivr.cottontail.database.queries.binding.extensions.proto
-import org.vitrivr.cottontail.grpc.CottontailGrpc
-import org.vitrivr.cottontail.grpc.DDLGrpc
+import io.grpc.StatusException
+import org.vitrivr.cottontail.cli.AbstractCottontailCommand
+import org.vitrivr.cottontail.cli.AbstractCottontailCommand.Schema
+import org.vitrivr.cottontail.client.SimpleClient
+import org.vitrivr.cottontail.client.language.ddl.DropSchema
 import org.vitrivr.cottontail.utilities.output.TabulationUtilities
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTimedValue
@@ -17,8 +19,7 @@ import kotlin.time.measureTimedValue
  * @version 1.0.1
  */
 @ExperimentalTime
-class DropSchemaCommand(private val ddlStub: DDLGrpc.DDLBlockingStub) :
-    AbstractSchemaCommand(name = "drop", help = "Drops the schema with the given name. Usage: schema drop <name>") {
+class DropSchemaCommand(client: SimpleClient) : AbstractCottontailCommand.Schema(client, name = "drop", help = "Drops the schema with the given name. Usage: schema drop <name>") {
     /** Flag that can be used to directly provide confirmation. */
     private val confirm: Boolean by option(
         "-c",
@@ -36,12 +37,7 @@ class DropSchemaCommand(private val ddlStub: DDLGrpc.DDLBlockingStub) :
         ) {
             /* Execute query. */
             val timedTable = measureTimedValue {
-                TabulationUtilities.tabulate(
-                    this.ddlStub.dropSchema(
-                        CottontailGrpc.DropSchemaMessage.newBuilder()
-                            .setSchema(this.schemaName.proto()).build()
-                    )
-                )
+                TabulationUtilities.tabulate(this.client.drop(DropSchema(this.schemaName.toString())))
             }
 
             /* Output results. */

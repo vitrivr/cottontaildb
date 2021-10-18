@@ -16,6 +16,7 @@ import java.nio.file.Paths
 import kotlin.system.exitProcess
 import kotlin.time.ExperimentalTime
 
+
 /**
  * The environment variable key for the config file
  */
@@ -46,7 +47,7 @@ fun main(args: Array<String>) {
     }
 
     var config: Config? = null
-    var configPath = findConfigPathOrdered(args)
+    val configPath = findConfigPathOrdered(args)
     try {
         config = loadConfig(configPath)
     } catch (e: FileNotFoundException) {

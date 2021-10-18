@@ -9,6 +9,7 @@ import org.vitrivr.cottontail.client.language.basics.Constants
 import org.vitrivr.cottontail.database.catalogue.Catalogue
 import org.vitrivr.cottontail.database.locking.DeadlockException
 import org.vitrivr.cottontail.database.queries.QueryContext
+import org.vitrivr.cottontail.database.queries.binding.extensions.proto
 import org.vitrivr.cottontail.database.queries.binding.extensions.toLiteral
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.TransactionManager
@@ -83,17 +84,17 @@ internal interface TransactionalGrpcService {
     fun executeAndMaterialize(context: QueryContext, operator: Operator, queryIndex: Int = 0): Flow<CottontailGrpc.QueryResponseMessage> {
         /* Prepare columns for transmission by flow. */
         val mark = TimeSource.Monotonic.markNow()
-        val columns = operator.columns.map {
-            val name = CottontailGrpc.ColumnName.newBuilder().setName(it.name.simple)
-            val entityName = it.name.entity()
-            if (entityName != null) {
-                name.setEntity(CottontailGrpc.EntityName.newBuilder().setName(entityName.simple).setSchema(CottontailGrpc.SchemaName.newBuilder().setName(entityName.schema().simple)))
-            }
-            name.build()
+
+        /* Prepare query response message. */
+        val responseBuilder = CottontailGrpc.QueryResponseMessage.newBuilder().setMetadata(CottontailGrpc.Metadata.newBuilder().setQueryId(context.queryId).setTransactionId(context.txn.txId))
+        for (c in operator.columns) {
+            responseBuilder.addColumnsBuilder().setName(c.name.proto())
+                .setNullable(c.nullable)
+                .setPrimary(c.primary)
+                .setType(CottontailGrpc.Type.valueOf())
         }
 
         /* Contextual information used by Flow. */
-        val responseBuilder = CottontailGrpc.QueryResponseMessage.newBuilder().setMetadata(CottontailGrpc.Metadata.newBuilder().setQueryId(context.queryId).setTransactionId(context.txn.txId)).addAllColumns(columns)
         val headerSize = responseBuilder.build().serializedSize
         var accumulatedSize = headerSize
         var results = 0

@@ -69,3 +69,17 @@ fun Name.EntityName.protoFrom(): CottontailGrpc.From = CottontailGrpc.From.newBu
  * @return [CottontailGrpc.IndexName] for the given [Name.IndexName]
  */
 fun Name.IndexName.proto() = CottontailGrpc.IndexName.newBuilder().setEntity(this.entity().proto()).setName(this.simple).build()
+
+/**
+ * Extension function that generates the [CottontailGrpc.ColumnName] for the given [Name.ColumnName].
+ *
+ * @return [CottontailGrpc.ColumnName] for the given [Name.ColumnName]
+ */
+fun Name.ColumnName.proto(): CottontailGrpc.ColumnName {
+    val name =  CottontailGrpc.ColumnName.newBuilder().setName(this.simple)
+    val entityName = this.entity()
+    if (entityName != null) {
+        name.setEntity(CottontailGrpc.EntityName.newBuilder().setName(entityName.simple).setSchema(CottontailGrpc.SchemaName.newBuilder()))
+    }
+    return name.build()
+}

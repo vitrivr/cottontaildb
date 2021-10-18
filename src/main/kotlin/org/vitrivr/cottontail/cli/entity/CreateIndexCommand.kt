@@ -5,10 +5,11 @@ import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.enum
 import io.grpc.StatusException
+import org.vitrivr.cottontail.cli.AbstractCottontailCommand
+import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.database.queries.binding.extensions.fqn
 import org.vitrivr.cottontail.database.queries.binding.extensions.proto
 import org.vitrivr.cottontail.grpc.CottontailGrpc
-import org.vitrivr.cottontail.grpc.DDLGrpc
 import org.vitrivr.cottontail.utilities.output.TabulationUtilities
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTimedValue
@@ -17,11 +18,10 @@ import kotlin.time.measureTimedValue
  * Command to create a index on a specified entities column from Cottontail DB.
  *
  * @author Loris Sauter & Ralph Gasser
- * @version 1.0.3
+ * @version 2.0.0
  */
 @ExperimentalTime
-class CreateIndexCommand(private val ddlStub: DDLGrpc.DDLBlockingStub) :
-    AbstractEntityCommand(name = "create-index", help = "Creates an index on the given entity and rebuilds the newly created index. Usage: entity createIndex <schema>.<entity> <column> <index>") {
+class CreateIndexCommand(client: SimpleClient) : AbstractCottontailCommand.Entity(client, name = "create-index", help = "Creates an index on the given entity and rebuilds the newly created index. Usage: entity createIndex <schema>.<entity> <column> <index>") {
 
     private val attribute by argument(
         name = "column",
@@ -44,14 +44,14 @@ class CreateIndexCommand(private val ddlStub: DDLGrpc.DDLBlockingStub) :
             .setType(this.index)
             .setName(
                 CottontailGrpc.IndexName.newBuilder().setEntity(entity)
-                    .setName("index-${index.name.toLowerCase()}-${entityName.schema()}_${entity.name}_${attribute}")
+                    .setName("index-${index.name.lowercase()}-${entityName.schema()}_${entity.name}_${attribute}")
             )
             .addColumns(CottontailGrpc.ColumnName.newBuilder().setName(this.attribute))
             .build()
 
         try {
             val timedTable = measureTimedValue {
-                TabulationUtilities.tabulate(this.ddlStub.createIndex(CottontailGrpc.CreateIndexMessage.newBuilder().setRebuild(this.rebuild).setDefinition(index).build()))
+                TabulationUtilities.tabulate(this.client.create(CottontailGrpc.CreateIndexMessage.newBuilder().setRebuild(this.rebuild).setDefinition(index).build()))
             }
             println("Successfully created index ${index.name.fqn()} (took ${timedTable.duration}).")
             print(timedTable.value)
