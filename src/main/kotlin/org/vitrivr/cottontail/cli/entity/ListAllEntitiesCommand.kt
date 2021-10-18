@@ -17,7 +17,7 @@ import kotlin.time.measureTimedValue
  * @version 2.0.0
  */
 @ExperimentalTime
-class ListAllEntitiesCommand(client: SimpleClient) : AbstractCottontailCommand.Entity(client, name = "all", help = "Lists all entities stored in Cottontail DB.") {
+class ListAllEntitiesCommand(val client: SimpleClient) : AbstractCottontailCommand.System(name = "all", help = "Lists all entities stored in Cottontail DB.") {
     override fun exec() {
         /* Execute query. */
         val timedTable = measureTimedValue {
