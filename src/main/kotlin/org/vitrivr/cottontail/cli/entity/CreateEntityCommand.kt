@@ -9,7 +9,7 @@ import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.language.ddl.ListEntities
 import org.vitrivr.cottontail.database.queries.binding.extensions.proto
 import org.vitrivr.cottontail.grpc.CottontailGrpc
-import org.vitrivr.cottontail.grpc.DDLGrpc
+import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.utilities.output.TabulationUtilities
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTimedValue
@@ -108,11 +108,11 @@ class CreateEntityCommand(client: SimpleClient) : AbstractCottontailCommand.Enti
     /**
      * Prompts user to specify column information and returns a [CottontailGrpc.ColumnDefinition] if user completes this step.
      *
-     * @return Optional [CottontailGrpc.ColColumnDefinition]
+     * @return Optional [CottontailGrpc.ColumnDefinition]
      */
     private fun promptForColumn(): CottontailGrpc.ColumnDefinition? {
         val def = CottontailGrpc.ColumnDefinition.newBuilder()
-        def.name = TermUi.prompt("Column name (must consist of letters and numbers)")
+        def.nameBuilder.setName(TermUi.prompt("Column name (must consist of letters and numbers)"))
         def.type = TermUi.prompt("Column type (${CottontailGrpc.Type.values().joinToString(", ")})") {
             CottontailGrpc.Type.valueOf(it.uppercase())
         }

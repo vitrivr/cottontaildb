@@ -25,7 +25,7 @@ class ListTransactionsCommand(private val client: SimpleClient) : AbstractCotton
         /* Execute query. */
         val timedTable = measureTimedValue {
             TabulationUtilities.tabulateIf(this.client.transactions()) {
-                this@ListTransactionsCommand.all || (it.getData(2).stringData == TransactionStatus.RUNNING.toString() || it.getData(2).stringData == TransactionStatus.ERROR.toString())
+                this@ListTransactionsCommand.all || (it.asString(2) == TransactionStatus.RUNNING.toString() || it.asString(2) == TransactionStatus.ERROR.toString())
             }
         }
 

@@ -34,8 +34,6 @@ import org.vitrivr.cottontail.cli.system.KillTransactionCommand
 import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.language.ddl.ListEntities
 import org.vitrivr.cottontail.client.language.ddl.ListSchemas
-import org.vitrivr.cottontail.grpc.*
-import java.io.Console
 import java.io.IOException
 import java.util.*
 import java.util.regex.Pattern
@@ -48,7 +46,7 @@ import kotlin.time.ExperimentalTime
  * This is basically a port of https://github.com/lucaro/DRES 's CLI
  *
  * @author Loris Sauter
- * @version 1.0.2
+ * @version 1.1.0
  */
 @ExperimentalTime
 class Cli(val host: String = "localhost", val port: Int = 1865) {
@@ -69,9 +67,6 @@ class Cli(val host: String = "localhost", val port: Int = 1865) {
 
     /** The [SimpleClient] used to access Cottontail DB. */
     private val client = SimpleClient(this.channel)
-
-    /** The [TXNGrpc.TXNBlockingStub] used for changing Cottontail DB data. */
-    private val txnService = TXNGrpc.newBlockingStub(this.channel)
 
     /** Generates a new instance of [CottontailCommand]. */
     private val clikt = CottontailCommand()
@@ -335,9 +330,9 @@ class Cli(val host: String = "localhost", val port: Int = 1865) {
                         )
                     }
                 }.subcommands(
-                    ListTransactionsCommand(this@Cli.txnService),
-                    ListLocksCommand(this@Cli.txnService),
-                    KillTransactionCommand(this@Cli.txnService),
+                    ListTransactionsCommand(this@Cli.client),
+                    ListLocksCommand(this@Cli.client),
+                    KillTransactionCommand(this@Cli.client),
                     MigrationCommand()
                 ),
 

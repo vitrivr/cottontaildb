@@ -1,12 +1,8 @@
 package org.vitrivr.cottontail.cli.schema
 
-import io.grpc.StatusException
 import org.vitrivr.cottontail.cli.AbstractCottontailCommand
 import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.language.ddl.CreateSchema
-import org.vitrivr.cottontail.database.queries.binding.extensions.proto
-import org.vitrivr.cottontail.grpc.CottontailGrpc
-import org.vitrivr.cottontail.grpc.DDLGrpc
 import org.vitrivr.cottontail.utilities.output.TabulationUtilities
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTimedValue
