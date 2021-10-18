@@ -1,5 +1,7 @@
 package org.vitrivr.cottontail.utilities.data.exporter
 
+import org.vitrivr.cottontail.client.iterators.Tuple
+import org.vitrivr.cottontail.client.iterators.TupleIterator
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.utilities.data.Format
 import java.nio.file.Path
@@ -8,7 +10,7 @@ import java.nio.file.Path
  * A class that can be used for exporting  data out of Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
 interface DataExporter : AutoCloseable {
     /** The [Path] to the import file. */
@@ -21,10 +23,16 @@ interface DataExporter : AutoCloseable {
     val closed: Boolean
 
     /**
-     * Offers a [CottontailGrpc.QueryResponseMessage] for export by this [DataExporter].
+     * Offers a single [Tuple] for export by this [DataExporter].
      *
-     * Due to the nature of how Cottontail DB returns queries, individual tuples are written-out
-     * to disk in batches.
+     * @param tuple The [Tuple] to write.
      */
-    fun offer(message: CottontailGrpc.QueryResponseMessage)
+    fun offer(tuple: Tuple)
+
+    /**
+     * Offers a [TupleIterator] for export by this [DataExporter].
+     *
+     * @param iterator The [TupleIterator] to write.
+     */
+    fun offerAll(iterator: TupleIterator) = iterator.forEach { this.offer(it) }
 }
