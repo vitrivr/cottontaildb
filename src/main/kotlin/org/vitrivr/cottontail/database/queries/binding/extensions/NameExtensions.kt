@@ -43,18 +43,18 @@ fun CottontailGrpc.ColumnName.fqn(): Name.ColumnName = if (this.hasEntity()) {
 }
 
 /**
- * Extension function that generates the [CottontailGrpc.EntityName] for the given [Name.EntityName].
- *
- * @return [CottontailGrpc.EntityName] for the given [Name.EntityName].
- */
-fun Name.EntityName.proto(): CottontailGrpc.EntityName = CottontailGrpc.EntityName.newBuilder().setName(this.simple).setSchema(this.schema().proto()).build()
-
-/**
  * Extension function that generates the [CottontailGrpc.SchemaName] for the given [Name.SchemaName].
  *
  * @return [CottontailGrpc.SchemaName] for the given [Name.SchemaName].
  */
 fun Name.SchemaName.proto() = CottontailGrpc.SchemaName.newBuilder().setName(this.simple).build()
+
+/**
+ * Extension function that generates the [CottontailGrpc.EntityName] for the given [Name.EntityName].
+ *
+ * @return [CottontailGrpc.EntityName] for the given [Name.EntityName].
+ */
+fun Name.EntityName.proto(): CottontailGrpc.EntityName = CottontailGrpc.EntityName.newBuilder().setName(this.simple).setSchema(this.schema().proto()).build()
 
 /**
  * Extension function that generates the [CottontailGrpc.From] for the given [Name.EntityName].
@@ -79,7 +79,11 @@ fun Name.ColumnName.proto(): CottontailGrpc.ColumnName {
     val name =  CottontailGrpc.ColumnName.newBuilder().setName(this.simple)
     val entityName = this.entity()
     if (entityName != null) {
-        name.setEntity(CottontailGrpc.EntityName.newBuilder().setName(entityName.simple).setSchema(CottontailGrpc.SchemaName.newBuilder()))
+        val schemaName = this.schema()
+        name.entityBuilder.name = entityName.simple
+        if (schemaName != null) {
+            name.entityBuilder.schemaBuilder.name = schemaName.simple
+        }
     }
     return name.build()
 }

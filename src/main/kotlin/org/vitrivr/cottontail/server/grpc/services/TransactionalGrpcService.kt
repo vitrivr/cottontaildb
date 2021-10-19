@@ -88,7 +88,11 @@ internal interface TransactionalGrpcService {
         /* Prepare query response message. */
         val responseBuilder = CottontailGrpc.QueryResponseMessage.newBuilder().setMetadata(CottontailGrpc.Metadata.newBuilder().setQueryId(context.queryId).setTransactionId(context.txn.txId))
         for (c in operator.columns) {
-            responseBuilder.addColumnsBuilder().setName(c.name.proto()).setNullable(c.nullable).setPrimary(c.primary).setType(c.type.proto())
+            val builder = responseBuilder.addColumnsBuilder()
+            builder.name = c.name.proto()
+            builder.nullable = c.nullable
+            builder.primary = c.primary
+            builder.type = c.type.proto()
         }
 
         /* Contextual information used by Flow. */
