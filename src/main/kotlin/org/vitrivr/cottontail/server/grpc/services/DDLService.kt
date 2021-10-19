@@ -62,7 +62,7 @@ class DDLService(override val catalogue: DefaultCatalogue, override val manager:
         val entityName = request.definition.entity.fqn()
         val columns = request.definition.columnsList.map {
             val type = Type.forName(it.type.name, it.length)
-            val name = it.name.fqn()
+            val name = entityName.column(it.name.name) /* To make sure that columns belongs to entity. */
             ColumnDef(name, type, it.nullable) to ColumnEngine.valueOf(it.engine.toString())
         }.toTypedArray()
         val op = CreateEntityOperator(this.catalogue, entityName, columns)
