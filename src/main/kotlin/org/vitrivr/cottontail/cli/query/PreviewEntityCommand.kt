@@ -27,11 +27,15 @@ class PreviewEntityCommand(client: SimpleClient): AbstractCottontailCommand.Quer
         Name.EntityName(*it.split(Name.NAME_COMPONENT_DELIMITER).toTypedArray())
     }
 
-    /** */
+    /**
+     * Upper limit of results. Option given via CLI. Defaults to 50
+     */
     private val limit: Long by option("-l", "--limit", help = "Limits the amount of printed results").long().default(50).validate { require(it > 1) }
 
-    /** */
-    private val skip: Long by option("-s", "--skip", help = "Limits the amount of printed results").long().default(0).validate { require(it >= 0) }
+    /**
+     * Offset from the start of the table. Option given vai CLI. Defaults to 0
+     */
+    private val skip: Long by option("-s", "--skip", help = "The offset on how many rows should be skipped").long().default(0).validate { require(it >= 0) }
 
     override fun exec() {
         /* Prepare query. */
