@@ -123,20 +123,16 @@ object GrpcQueryBinder {
             val entityTx = context.txn.getTx(entity) as EntityTx
 
             /* Parse columns to INSERT. */
-            val columns = entityTx.listColumns().map { it.columnDef }.toTypedArray()
-            val values = Array<Binding>(columns.size) { i ->
-                val literal = insert.elementsList.singleOrNull { el ->
-                    val fqn = el.column.fqn()
-                    fqn.matches(columns[i].name)
-                }?.value
-                if (literal != null) {
-                    if (literal.dataCase == CottontailGrpc.Literal.DataCase.DATA_NOT_SET) {
-                        context.bindings.bindNull(columns[i].type)
-                    } else {
-                        context.bindings.bind(literal.toValue(columns[i].type))
-                    }
+            val columns = Array<ColumnDef<*>>(insert.elementsCount) {
+                val columnName = insert.elementsList[it].column.fqn()
+                entityTx.columnForName(columnName).columnDef
+            }
+            val values = Array<Binding>(insert.elementsCount) {
+                val literal = insert.elementsList[it].value
+                if (literal.dataCase == CottontailGrpc.Literal.DataCase.DATA_NOT_SET) {
+                    context.bindings.bindNull(columns[it].type)
                 } else {
-                    context.bindings.bindNull(columns[i].type)
+                    context.bindings.bind(literal.toValue(columns[it].type))
                 }
             }
 
