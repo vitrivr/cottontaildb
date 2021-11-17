@@ -525,7 +525,15 @@ class DefaultEntity(override val path: Path, override val parent: Schema) : Enti
                 /* This is a critical section and requires a latch. */
                 this@DefaultEntity.columns.values.forEach {
                     val tx = this.context.getTx(it) as ColumnTx<Value>
-                    val value = record[it.columnDef]
+                    val value = try {
+                        record[it.columnDef]
+                    } catch (e: ArrayIndexOutOfBoundsException) {
+                        if (it.nullable) {
+                            null
+                        } else {
+                            it.type.defaultValue()
+                        }
+                    }
                     val tupleId = tx.insert(value)
                     if (lastTupleId != tupleId && lastTupleId != null) {
                         throw DatabaseException.DataCorruptionException("Entity '${this@DefaultEntity.name}' is corrupt. Insert did not yield same record ID for all columns involved!")
