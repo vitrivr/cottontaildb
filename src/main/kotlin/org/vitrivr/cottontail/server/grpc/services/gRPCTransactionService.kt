@@ -136,15 +136,16 @@ interface gRPCTransactionService {
 
         return flow {
             val responseBuilder = CottontailGrpc.QueryResponseMessage.newBuilder().setTid(CottontailGrpc.TransactionId.newBuilder().setQueryId(queryId).setValue(tx.txId)).addAllColumns(columns)
-            var accumulatedSize = 0L
-            var results = 0
+            val minSize = responseBuilder.build().serializedSize
+            var accumulatedSize = minSize
+            var results = 0L
             tx.execute(operator).collect {
                 val tuple = it.toTuple()
-                results += 1
+                results += 1L
                 if (accumulatedSize + tuple.serializedSize >= Constants.MAX_PAGE_SIZE_BYTES) {
                     emit(responseBuilder.build())
                     responseBuilder.clearTuples()
-                    accumulatedSize = 0L
+                    accumulatedSize = minSize
                 }
 
                 /* Add entry to page and increment counter. */
@@ -153,7 +154,7 @@ interface gRPCTransactionService {
             }
 
             /* Flush remaining tuples. */
-            if (results == 0 || responseBuilder.tuplesCount > 0) {
+            if (results == 0L || responseBuilder.tuplesCount > 0L) {
                 emit(responseBuilder.build())
             }
         }
