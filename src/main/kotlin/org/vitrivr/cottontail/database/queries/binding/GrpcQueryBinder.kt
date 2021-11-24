@@ -202,7 +202,13 @@ object GrpcQueryBinder {
             val values = update.updatesList.map {
                 val column = root.findUniqueColumnForName(it.column.fqn())
                 val value = when (it.value.expCase) {
-                    CottontailGrpc.Expression.ExpCase.LITERAL -> context.bindings.bind(it.value.literal.toValue(column.type))
+                    CottontailGrpc.Expression.ExpCase.LITERAL -> {
+                        if (it.value.literal.dataCase == CottontailGrpc.Literal.DataCase.DATA_NOT_SET) {
+                            context.bindings.bindNull(column.type)
+                        } else {
+                            context.bindings.bind(it.value.literal.toValue(column.type))
+                        }
+                    }
                     CottontailGrpc.Expression.ExpCase.COLUMN -> context.bindings.bind(root.findUniqueColumnForName(it.value.column.fqn()))
                     CottontailGrpc.Expression.ExpCase.EXP_NOT_SET ->  context.bindings.bindNull(column.type)
                     else -> throw QueryException.QuerySyntaxException("Failed to bind value for column '${column}': Unsupported expression!")
