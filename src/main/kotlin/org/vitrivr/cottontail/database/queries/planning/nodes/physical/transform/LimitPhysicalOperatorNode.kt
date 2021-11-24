@@ -31,12 +31,6 @@ class LimitPhysicalOperatorNode(input: Physical? = null, val limit: Long, val sk
     override val cost: Cost
         get() = Cost(cpu = this.outputSize * Cost.COST_MEMORY_ACCESS)
 
-
-    init {
-        require(this.limit > 0) { "Limit must be greater than zero but isn't (limit = $limit)." }
-        require(this.limit >= 0) { "Skip must be greater or equal to zero but isn't (limit = $skip)." }
-    }
-
     /**
      * Creates and returns a copy of this [LimitPhysicalOperatorNode] without any children or parents.
      *

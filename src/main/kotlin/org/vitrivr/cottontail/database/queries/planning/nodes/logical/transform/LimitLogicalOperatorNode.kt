@@ -1,6 +1,5 @@
 package org.vitrivr.cottontail.database.queries.planning.nodes.logical.transform
 
-import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.UnaryLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.transform.LimitPhysicalOperatorNode
 
@@ -19,11 +18,6 @@ class LimitLogicalOperatorNode(input: Logical? = null, val limit: Long, val skip
     /** The name of this [LimitLogicalOperatorNode]. */
     override val name: String
         get() = NODE_NAME
-
-    init {
-        require(this.limit > 0) { "Limit must be greater than zero but isn't (limit = $limit)." }
-        require(this.skip >= 0) { "Skip must be greater or equal to zero but isn't (limit = $skip)." }
-    }
 
     /**
      * Creates and returns a copy of this [LimitLogicalOperatorNode] without any children or parents.
