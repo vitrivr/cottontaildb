@@ -527,7 +527,7 @@ class DefaultEntity(override val path: Path, override val parent: Schema) : Enti
                     val tx = this.context.getTx(it) as ColumnTx<Value>
                     val value = try {
                         record[it.columnDef]
-                    } catch (e: ArrayIndexOutOfBoundsException) {
+                    } catch (e: IllegalArgumentException) { /* If column is not specified, use default or null. */
                         if (it.nullable) {
                             null
                         } else {
