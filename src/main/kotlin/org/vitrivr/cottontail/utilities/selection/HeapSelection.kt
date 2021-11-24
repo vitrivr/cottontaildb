@@ -139,7 +139,7 @@ class HeapSelection<T>(val k: Long, val comparator: Comparator<T>) {
      */
     private fun heapify() {
         val n = this.heap.size64()
-        for (i in n / 2 - 1 downTo 0) {
+        for (i in Math.floorDiv(n, 2) downTo 0) {
             siftDown(i, n - 1)
         }
     }
