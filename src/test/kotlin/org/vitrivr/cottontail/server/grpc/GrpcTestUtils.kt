@@ -13,9 +13,9 @@ import kotlin.random.Random
 
 object GrpcTestUtils {
 
-    const val TEST_ENTITY_FQN_INPUT = "${TestConstants.TEST_SCHEMA}.${TestConstants.TEST_ENTITY}"
+    const val TEST_ENTITY_FQN = "${TestConstants.TEST_SCHEMA}.${TestConstants.TEST_ENTITY}"
+    const val TEST_ENTITY_FQN_WITH_WARREN = "warren.${TestConstants.TEST_SCHEMA}.${TestConstants.TEST_ENTITY}"
     const val TEST_VECTOR_ENTITY_FQN_INPUT = "${TestConstants.TEST_SCHEMA}.${TestConstants.TEST_VECTOR_ENTITY}"
-    const val TEST_ENTITY_FQN_OUTPUT = "warren.${TestConstants.TEST_SCHEMA}.${TestConstants.TEST_ENTITY}"
 
     /** */
     const val STRING_COLUMN_NAME = "string_col"
@@ -53,7 +53,7 @@ object GrpcTestUtils {
      * @param client [SimpleClient] to use.
      */
     fun createTestEntity(client: SimpleClient) {
-        val create = CreateEntity(TEST_ENTITY_FQN_INPUT)
+        val create = CreateEntity(TEST_ENTITY_FQN)
             .column(STRING_COLUMN_NAME, Type.STRING)
             .column(INT_COLUMN_NAME, Type.INTEGER)
             .column(DOUBLE_COLUMN_NAME, Type.DOUBLE)
@@ -79,7 +79,7 @@ object GrpcTestUtils {
      * @param client [SimpleClient] to use.
      */
     fun populateTestEntity(client: SimpleClient) {
-        val batch = BatchInsert().into(TEST_ENTITY_FQN_INPUT)
+        val batch = BatchInsert().into(TEST_ENTITY_FQN)
             .columns(STRING_COLUMN_NAME, INT_COLUMN_NAME, DOUBLE_COLUMN_NAME)
         val random = Random.Default
         repeat(TEST_ENTITY_TUPLE_COUNT.toInt()) {

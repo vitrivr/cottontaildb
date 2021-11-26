@@ -65,14 +65,14 @@ class DQLServiceTest {
 
     @Test
     fun count() {
-        val countQuery = Query(GrpcTestUtils.TEST_ENTITY_FQN_INPUT).count()
+        val countQuery = Query(GrpcTestUtils.TEST_ENTITY_FQN).count()
         val count = client.query(countQuery).next()
         assert(count.asLong(0)!! == GrpcTestUtils.TEST_ENTITY_TUPLE_COUNT)
     }
 
     @Test
     fun queryColumn() {
-        val query = Query().from(GrpcTestUtils.TEST_ENTITY_FQN_INPUT).select(GrpcTestUtils.STRING_COLUMN_NAME)
+        val query = Query().from(GrpcTestUtils.TEST_ENTITY_FQN).select(GrpcTestUtils.STRING_COLUMN_NAME)
         val result = client.query(query)
         assert(result.numberOfColumns == 1)
         val el = result.next()
@@ -84,7 +84,7 @@ class DQLServiceTest {
         val random = Random.Default
         val lb = random.nextInt(98)
         val ub = random.nextInt(lb+1, 100)
-        val query = Query().from(GrpcTestUtils.TEST_ENTITY_FQN_INPUT)
+        val query = Query().from(GrpcTestUtils.TEST_ENTITY_FQN)
             .select(GrpcTestUtils.STRING_COLUMN_NAME)
             .select(GrpcTestUtils.INT_COLUMN_NAME)
             .where(Literal(GrpcTestUtils.INT_COLUMN_NAME, "BETWEEN", lb, ub))
@@ -98,7 +98,7 @@ class DQLServiceTest {
     fun queryBetweenWithAnd() {
         val random = Random.Default
         val lb = random.nextInt(50)
-        val query = Query().from(GrpcTestUtils.TEST_ENTITY_FQN_INPUT)
+        val query = Query().from(GrpcTestUtils.TEST_ENTITY_FQN)
             .select(GrpcTestUtils.STRING_COLUMN_NAME)
             .select(GrpcTestUtils.INT_COLUMN_NAME)
             .where(
