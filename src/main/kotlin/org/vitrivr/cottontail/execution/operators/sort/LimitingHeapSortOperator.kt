@@ -36,15 +36,11 @@ class LimitingHeapSortOperator(parent: Operator, sortOn: List<Pair<ColumnDef<*>,
      * @return [Flow] representing this [LimitingHeapSortOperator]
      */
     override fun toFlow(context: TransactionContext): Flow<Record> {
-        val parentFlow = if (this.skip > 0) {
-            this.parent.toFlow(context).drop(this.skip)
-        } else {
-            this.parent.toFlow(context)
-        }
+        val parentFlow = this.parent.toFlow(context)
         return flow {
-            val selection = HeapSelection(this@LimitingHeapSortOperator.limit, this@LimitingHeapSortOperator.comparator)
-            parentFlow.collect { selection.offer(it.copy()) }
-            for (i in 0 until selection.size) {
+            val selection = HeapSelection(this@LimitingHeapSortOperator.limit + this@LimitingHeapSortOperator.skip, this@LimitingHeapSortOperator.comparator)
+            parentFlow.collect { selection.offer(it.copy()) } /* Important: Materialization! */
+            for (i in this@LimitingHeapSortOperator.skip until selection.size) {
                 emit(selection[i])
             }
         }
