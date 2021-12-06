@@ -139,10 +139,8 @@ class LockManagerTest {
         t2.start()
 
         /* Wait for execution to finish. */
-        val start = System.currentTimeMillis()
-        while (exc == null && (System.currentTimeMillis() - start) < 60000) { /* Wait for one minute at most. */
-            Thread.yield()
-        }
+        t1.join()
+        t2.join()
 
         /* Check for exception. */
         Assertions.assertTrue(exc is DeadlockException)
