@@ -140,7 +140,7 @@ class LockManagerTest {
 
         /* Wait for execution to finish. */
         val start = System.currentTimeMillis()
-        while (exc == null && System.currentTimeMillis() - start < 5000) {
+        while (exc == null && (System.currentTimeMillis() - start) < 60000) { /* Wait for one minute at most. */
             Thread.yield()
         }
 
