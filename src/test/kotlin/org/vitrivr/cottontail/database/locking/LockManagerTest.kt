@@ -1,5 +1,9 @@
 package org.vitrivr.cottontail.database.locking
 
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.*
 import java.util.*
 
@@ -106,38 +110,26 @@ class LockManagerTest {
     /**
      * Provokes a deadlock situation and tests for the respective exception to be thrown.
      */
-    @Test
+    @Test()
     fun testDeadlock() {
-        var exc: DeadlockException? = null
+        this@LockManagerTest.lockManager.lock(tx1, o3, LockMode.EXCLUSIVE) /* Tx1 Locks O3 */
+        this@LockManagerTest.lockManager.lock(tx2, o1, LockMode.EXCLUSIVE) /* Tx2 Locks O1 */
+        this@LockManagerTest.lockManager.lock(tx2, o2, LockMode.EXCLUSIVE) /* Tx2 Locks O2 */
 
-        this.lockManager.lock(tx1, o1, LockMode.EXCLUSIVE) /* Tx1 Locks O1. */
-        this.lockManager.lock(tx2, o3, LockMode.EXCLUSIVE) /* Tx2 Locks O3. */
-        this.lockManager.lock(tx1, o2, LockMode.EXCLUSIVE) /* Tx2 Locks O2. */
-
+        /* Lock and wait. */
         val t1 = Thread {
-            try {
-                this.lockManager.lock(tx2, o2, LockMode.EXCLUSIVE) /* Tx2 Locks O2 --> Deadlock */
-            } catch (e: DeadlockException) {
-                exc = e
+            Assertions.assertThrows(DeadlockException::class.java) {
+                this@LockManagerTest.lockManager.lock(tx1, o1, LockMode.EXCLUSIVE) /* Tx1 Locks O1 -> Block, Wait for Tx2 */
             }
         }
-        val t2 = Thread {
-            try {
-                this.lockManager.lock(tx1, o3, LockMode.EXCLUSIVE) /* Tx2 Locks O2 --> Deadlock */
-            } catch (e: DeadlockException) {
-                exc = e
-            }
-        }
-
-        /* Start transactions. */
         t1.start()
-        t2.start()
 
-        /* Wait for execution to finish. */
-        t1.join()
-        t2.join()
+        /* Lock. */
+        Assertions.assertThrows(DeadlockException::class.java) {
+            this@LockManagerTest.lockManager.lock(tx2, o3, LockMode.EXCLUSIVE) /* Tx2 Locks O3 -> Block, Wait for Tx3 */
+        }
 
-        /* Check for exception. */
-        Assertions.assertTrue(exc is DeadlockException)
+        /* Interrupt t1. */
+        t1.interrupt()
     }
 }
