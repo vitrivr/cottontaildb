@@ -109,26 +109,21 @@ class LockManagerTest {
     @Test
     fun testDeadlock() {
         var exc: DeadlockException? = null
+
+        this.lockManager.lock(tx1, o1, LockMode.EXCLUSIVE) /* Tx1 Locks O1. */
+        this.lockManager.lock(tx2, o3, LockMode.EXCLUSIVE) /* Tx2 Locks O3. */
+        this.lockManager.lock(tx1, o2, LockMode.EXCLUSIVE) /* Tx2 Locks O2. */
+
         val t1 = Thread {
             try {
-                println("w($tx1, $o1)")
-                this.lockManager.lock(tx1, o1, LockMode.EXCLUSIVE)
-                println("w($tx1, $o2)")
-                this.lockManager.lock(tx1, o2, LockMode.EXCLUSIVE)
-                println("w($tx1, $o3)")
-                this.lockManager.lock(tx1, o3, LockMode.EXCLUSIVE)
+                this.lockManager.lock(tx2, o2, LockMode.EXCLUSIVE) /* Tx2 Locks O2 --> Deadlock */
             } catch (e: DeadlockException) {
                 exc = e
             }
         }
         val t2 = Thread {
             try {
-                println("w($tx2, $o3)")
-                this.lockManager.lock(tx2, o3, LockMode.EXCLUSIVE)
-                println("w($tx2, $o2)")
-                this.lockManager.lock(tx2, o2, LockMode.EXCLUSIVE)
-                println("w($tx2, $o1)")
-                this.lockManager.lock(tx2, o1, LockMode.EXCLUSIVE)
+                this.lockManager.lock(tx1, o3, LockMode.EXCLUSIVE) /* Tx2 Locks O2 --> Deadlock */
             } catch (e: DeadlockException) {
                 exc = e
             }
