@@ -20,7 +20,7 @@ import kotlin.time.ExperimentalTime
  * This is a gRPC service endpoint that handles DDL (= Data Definition Language) request for Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 2.1.0
+ * @version 2.2.0
  */
 @ExperimentalTime
 class DDLService(override val catalogue: DefaultCatalogue, override val manager: TransactionManager) : DDLGrpcKt.DDLCoroutineImplBase(), TransactionalGrpcService {
@@ -28,133 +28,108 @@ class DDLService(override val catalogue: DefaultCatalogue, override val manager:
     /**
      * gRPC endpoint for creating a new [org.vitrivr.cottontail.database.schema.Schema]
      */
-    override suspend fun createSchema(request: CottontailGrpc.CreateSchemaMessage): CottontailGrpc.QueryResponseMessage {
-        val ctx = this.queryContext(request.metadata)
+    override suspend fun createSchema(request: CottontailGrpc.CreateSchemaMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata) {
         val schemaName = request.schema.fqn()
-        val op = CreateSchemaOperator(this.catalogue, schemaName)
-        return executeAndMaterialize(ctx, op).single()
-    }
+        CreateSchemaOperator(this.catalogue, schemaName)
+    }.single()
 
     /**
      * gRPC endpoint for dropping a [org.vitrivr.cottontail.database.schema.Schema]
      */
-    override suspend fun dropSchema(request: CottontailGrpc.DropSchemaMessage): CottontailGrpc.QueryResponseMessage {
-        val ctx = this.queryContext(request.metadata)
+    override suspend fun dropSchema(request: CottontailGrpc.DropSchemaMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata) {
         val schemaName = request.schema.fqn()
-        val op = DropSchemaOperator(this.catalogue, schemaName)
-        return executeAndMaterialize(ctx, op).single()
-    }
-
+        DropSchemaOperator(this.catalogue, schemaName)
+    }.single()
     /**
      * gRPC endpoint listing the available [org.vitrivr.cottontail.database.schema.DefaultSchema]s.
      */
-    override fun listSchemas(request: CottontailGrpc.ListSchemaMessage): Flow<CottontailGrpc.QueryResponseMessage> {
-        val ctx = this.queryContext(request.metadata)
-        val op = HeapSortOperator(ListSchemaOperator(this.catalogue), listOf(Pair(ListSchemaOperator.COLUMNS[0], SortOrder.ASCENDING)), 100)
-        return executeAndMaterialize(ctx, op)
+    override fun listSchemas(request: CottontailGrpc.ListSchemaMessage): Flow<CottontailGrpc.QueryResponseMessage> = prepareAndExecute(request.metadata) {
+        HeapSortOperator(ListSchemaOperator(this.catalogue), listOf(Pair(ListSchemaOperator.COLUMNS[0], SortOrder.ASCENDING)), 100)
     }
 
     /**
      * gRPC endpoint for creating a new [org.vitrivr.cottontail.database.entity.Entity]
      */
-    override suspend fun createEntity(request: CottontailGrpc.CreateEntityMessage): CottontailGrpc.QueryResponseMessage {
-        val ctx = this.queryContext(request.metadata)
+    override suspend fun createEntity(request: CottontailGrpc.CreateEntityMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata) {
         val entityName = request.definition.entity.fqn()
         val columns = request.definition.columnsList.map {
             val type = Type.forName(it.type.name, it.length)
             val name = entityName.column(it.name.name) /* To make sure that columns belongs to entity. */
             ColumnDef(name, type, it.nullable) to ColumnEngine.valueOf(it.engine.toString())
         }.toTypedArray()
-        val op = CreateEntityOperator(this.catalogue, entityName, columns)
-        return executeAndMaterialize(ctx, op).single()
-    }
+        CreateEntityOperator(this.catalogue, entityName, columns)
+    }.single()
 
     /**
      * gRPC endpoint for dropping a specific [org.vitrivr.cottontail.database.entity.Entity].
      */
-    override suspend fun dropEntity(request: CottontailGrpc.DropEntityMessage): CottontailGrpc.QueryResponseMessage {
-        val ctx = this.queryContext(request.metadata)
+    override suspend fun dropEntity(request: CottontailGrpc.DropEntityMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata) {
         val entityName = request.entity.fqn()
-        val op = DropEntityOperator(this.catalogue, entityName)
-        return executeAndMaterialize(ctx, op).single()
-    }
+        DropEntityOperator(this.catalogue, entityName)
+    }.single()
 
     /**
      * gRPC endpoint for truncating a specific [org.vitrivr.cottontail.database.entity.Entity].
      */
-    override suspend fun truncateEntity(request: CottontailGrpc.TruncateEntityMessage): CottontailGrpc.QueryResponseMessage {
-        val ctx = this.queryContext(request.metadata)
+    override suspend fun truncateEntity(request: CottontailGrpc.TruncateEntityMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata) {
         val entityName = request.entity.fqn()
-        val op = TruncateEntityOperator(this.catalogue, entityName)
-        return executeAndMaterialize(ctx, op).single()
-    }
+        TruncateEntityOperator(this.catalogue, entityName)
+    }.single()
 
     /**
      * gRPC endpoint for optimizing a particular [org.vitrivr.cottontail.database.entity.Entity].
      */
-    override suspend fun optimizeEntity(request: CottontailGrpc.OptimizeEntityMessage): CottontailGrpc.QueryResponseMessage {
-        val ctx = this.queryContext(request.metadata)
+    override suspend fun optimizeEntity(request: CottontailGrpc.OptimizeEntityMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata) {
         val entityName = request.entity.fqn()
-        val op = OptimizeEntityOperator(this.catalogue, entityName)
-        return executeAndMaterialize(ctx, op).single()
-    }
+        OptimizeEntityOperator(this.catalogue, entityName)
+    }.single()
 
     /**
      * gRPC endpoint listing the available [org.vitrivr.cottontail.database.entity.Entity]s for the provided [org.vitrivr.cottontail.database.schema.Schema].
      */
-    override fun listEntities(request: CottontailGrpc.ListEntityMessage): Flow<CottontailGrpc.QueryResponseMessage> {
-        val ctx = this.queryContext(request.metadata)
+    override fun listEntities(request: CottontailGrpc.ListEntityMessage): Flow<CottontailGrpc.QueryResponseMessage> = prepareAndExecute(request.metadata) {
         val schemaName = if (request.hasSchema()) {
             request.schema.fqn()
         } else {
             null
         }
-        val op = HeapSortOperator(ListEntityOperator(this.catalogue, schemaName), listOf(Pair(ListSchemaOperator.COLUMNS[0], SortOrder.ASCENDING)), 100)
-        return executeAndMaterialize(ctx, op)
+        HeapSortOperator(ListEntityOperator(this.catalogue, schemaName), listOf(Pair(ListSchemaOperator.COLUMNS[0], SortOrder.ASCENDING)), 100)
     }
 
     /**
      * gRPC endpoint for requesting details about a specific [org.vitrivr.cottontail.database.entity.Entity].
      */
-    override suspend fun entityDetails(request: CottontailGrpc.EntityDetailsMessage): CottontailGrpc.QueryResponseMessage {
-        val ctx = this.queryContext(request.metadata)
+    override suspend fun entityDetails(request: CottontailGrpc.EntityDetailsMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata) {
         val entityName = request.entity.fqn()
-        val op = EntityDetailsOperator(this.catalogue, entityName)
-        return executeAndMaterialize(ctx, op).single()
-    }
+        EntityDetailsOperator(this.catalogue, entityName)
+    }.single()
 
     /**
      * gRPC endpoint for creating a particular [org.vitrivr.cottontail.database.index.Index]
      */
-    override suspend fun createIndex(request: CottontailGrpc.CreateIndexMessage): CottontailGrpc.QueryResponseMessage {
-        val ctx = this.queryContext(request.metadata)
+    override suspend fun createIndex(request: CottontailGrpc.CreateIndexMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata) {
         val indexName = request.definition.name.fqn()
         val columns = request.definition.columnsList.map {
             indexName.entity().column(it.name)
         }
         val indexType = IndexType.valueOf(request.definition.type.toString())
         val params = request.definition.paramsMap
-        val op = CreateIndexOperator(this.catalogue, indexName, indexType, columns, params, request.rebuild)
-        return executeAndMaterialize(ctx, op).single()
-    }
+        CreateIndexOperator(this.catalogue, indexName, indexType, columns, params, request.rebuild)
+    }.single()
 
     /**
      * gRPC endpoint for dropping a particular [org.vitrivr.cottontail.database.index.Index]
      */
-    override suspend fun dropIndex(request: CottontailGrpc.DropIndexMessage): CottontailGrpc.QueryResponseMessage {
-        val ctx = this.queryContext(request.metadata)
+    override suspend fun dropIndex(request: CottontailGrpc.DropIndexMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata) {
         val indexName = request.index.fqn()
-        val op = DropIndexOperator(this.catalogue, indexName)
-        return executeAndMaterialize(ctx, op).single()
-    }
+        DropIndexOperator(this.catalogue, indexName)
+    }.single()
 
     /**
      * gRPC endpoint for rebuilding a particular [org.vitrivr.cottontail.database.index.Index]
      */
-    override suspend fun rebuildIndex(request: CottontailGrpc.RebuildIndexMessage): CottontailGrpc.QueryResponseMessage  {
-        val ctx = this.queryContext(request.metadata)
+    override suspend fun rebuildIndex(request: CottontailGrpc.RebuildIndexMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata) {
         val indexName = request.index.fqn()
-        val op = RebuildIndexOperator(this.catalogue, indexName)
-        return executeAndMaterialize(ctx, op).single()
-    }
+        RebuildIndexOperator(this.catalogue, indexName)
+    }.single()
 }
