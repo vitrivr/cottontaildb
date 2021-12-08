@@ -302,7 +302,7 @@ abstract class AbstractMigrationManager(val batchSize: Int, logFile: Path) : Mig
             check(this.state === TransactionStatus.IDLE) { "Cannot commit transaction ${this.txId} because it is in wrong state (s = ${this.state})." }
             this.state = TransactionStatus.FINALIZING
             try {
-                this.txns.values.reversed().forEachIndexed { i, txn ->
+                this.txns.values.reversed().forEachIndexed { _, txn ->
                     txn.commit()
                 }
             } finally {

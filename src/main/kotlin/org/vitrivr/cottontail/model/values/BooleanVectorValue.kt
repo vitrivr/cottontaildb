@@ -212,7 +212,7 @@ value class BooleanVectorValue(val data: BooleanArray) : RealVectorValue<Int> {
 
     override fun abs(): RealVectorValue<Int> = this.copy()
 
-    override fun sum(): DoubleValue = DoubleValue(this.data.sumByDouble {
+    override fun sum(): DoubleValue = DoubleValue(this.data.sumOf {
         if (it) {
             1.0
         } else {

@@ -27,7 +27,7 @@ enum class Projection(val aggregating: Boolean) {
      *
      * @return String label.
      */
-    fun label() = this.toString().toLowerCase().replace("_", "").uppercase()
+    fun label() = this.toString().lowercase().replace("_", "").uppercase()
 
     /**
      * Generates and returns a [ColumnDef] given this [Projection] and the given input [ColumnDef].
