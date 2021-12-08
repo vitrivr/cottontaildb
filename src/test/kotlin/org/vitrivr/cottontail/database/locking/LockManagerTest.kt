@@ -1,10 +1,7 @@
 package org.vitrivr.cottontail.database.locking
 
-import kotlinx.coroutines.cancelAndJoin
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
-import org.junit.jupiter.api.*
+import org.junit.jupiter.api.Assertions
+import org.junit.jupiter.api.RepeatedTest
 import java.util.*
 
 /**
@@ -105,31 +102,5 @@ class LockManagerTest {
         } else {
             Assertions.fail("Invalid schedule!")
         }
-    }
-
-    /**
-     * Provokes a deadlock situation and tests for the respective exception to be thrown.
-     */
-    @Test()
-    fun testDeadlock() {
-        this@LockManagerTest.lockManager.lock(tx1, o3, LockMode.EXCLUSIVE) /* Tx1 Locks O3 */
-        this@LockManagerTest.lockManager.lock(tx2, o1, LockMode.EXCLUSIVE) /* Tx2 Locks O1 */
-        this@LockManagerTest.lockManager.lock(tx2, o2, LockMode.EXCLUSIVE) /* Tx2 Locks O2 */
-
-        /* Lock and wait. */
-        val t1 = Thread {
-            Assertions.assertThrows(DeadlockException::class.java) {
-                this@LockManagerTest.lockManager.lock(tx1, o1, LockMode.EXCLUSIVE) /* Tx1 Locks O1 -> Block, Wait for Tx2 */
-            }
-        }
-        t1.start()
-
-        /* Lock. */
-        Assertions.assertThrows(DeadlockException::class.java) {
-            this@LockManagerTest.lockManager.lock(tx2, o3, LockMode.EXCLUSIVE) /* Tx2 Locks O3 -> Block, Wait for Tx3 */
-        }
-
-        /* Interrupt t1. */
-        t1.interrupt()
     }
 }
