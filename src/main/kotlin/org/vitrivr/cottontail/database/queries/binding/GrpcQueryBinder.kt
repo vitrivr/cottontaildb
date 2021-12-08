@@ -211,6 +211,7 @@ object GrpcQueryBinder {
                     }
                     CottontailGrpc.Expression.ExpCase.COLUMN -> context.bindings.bind(root.findUniqueColumnForName(it.value.column.fqn()))
                     CottontailGrpc.Expression.ExpCase.EXP_NOT_SET ->  context.bindings.bindNull(column.type)
+                    CottontailGrpc.Expression.ExpCase.FUNCTION -> throw QueryException.QuerySyntaxException("Function expressions are not yet not supported as values in update statements.") /* TODO. */
                     else -> throw QueryException.QuerySyntaxException("Failed to bind value for column '${column}': Unsupported expression!")
                 }
                 column to value
@@ -393,6 +394,7 @@ object GrpcQueryBinder {
                 when(it.expCase) {
                     CottontailGrpc.Expression.ExpCase.COLUMN ->  context.bindings.bind(input.findUniqueColumnForName(it.column.fqn()))
                     CottontailGrpc.Expression.ExpCase.LITERAL -> context.bindings.bind(it.literal.toValue())
+                    CottontailGrpc.Expression.ExpCase.FUNCTION -> throw QueryException.QuerySyntaxException("Function expressions are not yet not supported as operands in boolean predicate.") /* TODO. */
                     else -> throw QueryException.QuerySyntaxException("Failed to parse right operand for atomic boolean predicate.")
                 }
             }
@@ -468,8 +470,8 @@ object GrpcQueryBinder {
             when (a.expCase) {
                 CottontailGrpc.Expression.ExpCase.LITERAL -> context.bindings.bind(a.literal.toValue())
                 CottontailGrpc.Expression.ExpCase.COLUMN -> context.bindings.bind(input.findUniqueColumnForName(a.column.fqn()))
-                CottontailGrpc.Expression.ExpCase.EXP_NOT_SET,
-                null -> throw QueryException.QuerySyntaxException("Function argument at position $i is malformed.")
+                CottontailGrpc.Expression.ExpCase.FUNCTION ->  throw QueryException.QuerySyntaxException("Nested functions are currently not supported.") /* TODO */
+                else -> throw QueryException.QuerySyntaxException("Function argument at position $i is malformed.")
             }
         }
         val signature = Signature.Closed<Value>(projection.first, arguments.map { Argument.Typed(it.type) }.toTypedArray())
