@@ -8,43 +8,22 @@ import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
+import org.vitrivr.cottontail.model.values.types.Value
 
 /**
  * An [Operator.PipelineOperator] used during query execution. It generates new [Record]s for
- * each incoming [Record] and removes / renames field according to the [fields] definition provided.
+ * each incoming [Record] and removes field not required by the query.
  *
  * Only produces a single [Record].
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.4.0
  */
-class SelectProjectionOperator(
-    parent: Operator,
-    fields: List<Pair<Name.ColumnName, Name.ColumnName?>>
-) : Operator.PipelineOperator(parent) {
-
-    /** True if names should be flattened, i.e., prefixes should be removed. */
-    private val flattenNames = fields.all { it.first.schema() == fields.first().first.schema() }
+class SelectProjectionOperator(parent: Operator, fields: List<Name.ColumnName>) : Operator.PipelineOperator(parent) {
 
     /** Columns produced by [SelectProjectionOperator]. */
-    override val columns: Array<ColumnDef<*>> = this.parent.columns.mapNotNull { c ->
-        val match = fields.find { f -> f.first.matches(c.name) }
-        if (match != null) {
-            val alias = match.second
-            when {
-                alias != null -> c.copy(name = alias)
-                this.flattenNames -> c.copy(name = Name.ColumnName(c.name.simple))
-                else -> c
-            }
-        } else {
-            null
-        }
-    }.toTypedArray()
-
-
-    /** Parent [ColumnDef] to access and aggregate. */
-    private val parentColumns = this.parent.columns.filter { c ->
-        fields.any { f -> f.first.matches(c.name) }
+    override val columns: List<ColumnDef<*>> = fields.map { f ->
+        this.parent.columns.single { c -> c.name == f }
     }
 
     /** [SelectProjectionOperator] does not act as a pipeline breaker. */
@@ -57,8 +36,11 @@ class SelectProjectionOperator(
      * @return [Flow] representing this [SelectProjectionOperator]
      */
     override fun toFlow(context: TransactionContext): Flow<Record> {
+        val columns = this.columns.toTypedArray()
+        val values = arrayOfNulls<Value?>(columns.size)
         return this.parent.toFlow(context).map { r ->
-            StandaloneRecord(r.tupleId, this.columns, this.parentColumns.map { r[it] }.toTypedArray())
+            columns.forEachIndexed { i, c -> values[i] = r[c]  }
+            StandaloneRecord(r.tupleId, columns, values)
         }
     }
 }

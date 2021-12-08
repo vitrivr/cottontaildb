@@ -11,9 +11,10 @@ import kotlin.math.pow
  * This is an abstraction over a [Double].
  *
  * @author Ralph Gasser
- * @version 1.5.1
+ * @version 1.6.0
  */
-inline class DoubleValue(override val value: Double): RealValue<Double> {
+@JvmInline
+value class DoubleValue(override val value: Double): RealValue<Double> {
 
     companion object {
         val ZERO = DoubleValue(0.0)

@@ -18,7 +18,7 @@ import kotlin.time.measureTimedValue
  * An [Operator.SourceOperator] used during query execution. Creates an [Entity]
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.2.0
  */
 @ExperimentalTime
 class CreateEntityOperator(

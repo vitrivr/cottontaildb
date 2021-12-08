@@ -2,7 +2,6 @@ package org.vitrivr.cottontail.database.queries.predicates.bool
 
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet
 import org.vitrivr.cottontail.database.queries.binding.Binding
-import org.vitrivr.cottontail.database.queries.binding.BindingContext
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.model.values.StringValue
 import org.vitrivr.cottontail.model.values.pattern.LikePatternValue
@@ -14,9 +13,9 @@ import java.util.*
  * The sealed [ComparisonOperator]s class.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.2.0
  */
-sealed class ComparisonOperator {
+sealed class ComparisonOperator(val left: Binding) {
 
     /** The atomic CPU cost of matching this [ComparisonOperator] with a [Value]. */
     abstract val atomicCpuCost: Float
@@ -27,173 +26,115 @@ sealed class ComparisonOperator {
      *
      * @return True on match, false otherwise.
      */
-    abstract fun match(left: Value?): Boolean
-
-    /**
-     * Binds the values in this [ComparisonOperator] to this [BindingContext].
-     *
-     * @param ctx The [BindingContext] to bind the values to.
-     */
-    abstract fun bindValues(ctx: BindingContext<Value>)
+    abstract fun match(): Boolean
 
     /**
      * A [ComparisonOperator] that checks if a value is NULL.
      */
-    class IsNull : ComparisonOperator() {
+    class IsNull(left: Binding) : ComparisonOperator(left) {
         override val atomicCpuCost: Float = Cost.COST_MEMORY_ACCESS
-        override fun match(left: Value?) = (left == null)
-        override fun bindValues(ctx: BindingContext<Value>) { /* No Op. */
-        }
+        override fun match() = (this.left.value == null)
     }
 
     /**
      * A [ComparisonOperator] that expresses an equality (==) comparison.
      */
-    sealed class Binary(val right: Binding<Value>) : ComparisonOperator() {
+    sealed class Binary(left: Binding, val right: Binding) : ComparisonOperator(left) {
 
         override val atomicCpuCost: Float = 2 * Cost.COST_MEMORY_ACCESS
 
-        /** The [Value] bound by this [ComparisonOperator.Binary]. Can be updated via [bindValues]*/
-        protected var rightValue: Value? = null
-
-        init {
-            if (this.right.context != null) {
-                this.rightValue = this.right.value
-            }
-        }
-
-        /**
-         * Binds the values in this [ComparisonOperator] to this [BindingContext].
-         *
-         * @param ctx The [BindingContext] to bind the values to.
-         */
-        override fun bindValues(ctx: BindingContext<Value>) {
-            this.right.context = ctx
-            this.rightValue = this.right.value
-        }
-
-        class Equal(right: Binding<Value>) : Binary(right) {
-            override fun match(left: Value?) = (left != null) && left.isEqual(this.rightValue!!)
-            override fun toString(): String = "= $right"
+        class Equal(left: Binding, right: Binding) : Binary(left, right) {
+            override fun match() = this.left.value != null && this.right.value != null && this.left.value!!.isEqual(this.right.value!!)
+            override fun toString(): String = "$left = $right"
         }
 
         /**
          * A [ComparisonOperator] that expresses greater (>) comparison.
          */
-        class Greater(right: Binding<Value>) : Binary(right) {
-            override fun match(left: Value?): Boolean {
-                return (left != null) && left > this.rightValue!!
-            }
-
-            override fun toString(): String = "> $right"
-
+        class Greater(left: Binding, right: Binding) : Binary(left, right) {
+            override fun match(): Boolean = this.left.value != null && this.right.value != null && this.left.value!! > this.right.value!!
+            override fun toString(): String = "$left > $right"
         }
 
         /**
          * A [ComparisonOperator] that expresses less (<) comparison.
          */
-        class Less(right: Binding<Value>) : Binary(right) {
-            override fun match(left: Value?) = (left != null) && left < this.rightValue!!
-            override fun toString(): String = "< $right"
+        class Less(left: Binding, right: Binding) : Binary(left, right) {
+            override fun match() = this.left.value != null && this.right.value != null && this.left.value!! < this.right.value!!
+            override fun toString(): String = "$left < $right"
         }
 
         /**
          * A [ComparisonOperator] that expresses greater or equal (>=) comparison.
          */
-        class GreaterEqual(right: Binding<Value>) : Binary(right) {
-            override fun match(left: Value?) = (left != null) && left >= this.rightValue!!
-            override fun toString(): String = ">= $right"
+        class GreaterEqual(left: Binding, right: Binding) : Binary(left, right) {
+            override fun match() = this.left.value != null && this.right.value != null && this.left.value!! >= this.right.value!!
+            override fun toString(): String = "$left >= $right"
         }
 
         /**
          * A [ComparisonOperator] that expresses less or equal (<=) comparison.
          */
-        class LessEqual(right: Binding<Value>) : Binary(right) {
-            override fun match(left: Value?) = (left != null) && left <= this.rightValue!!
-            override fun toString(): String = "<= $right"
+        class LessEqual(left: Binding, right: Binding) : Binary(left, right) {
+            override fun match() = this.left.value != null && this.right.value != null && this.left.value!! <= this.right.value!!
+            override fun toString(): String = "$left <= $right"
         }
 
         /**
-         * A [ComparisonOperator] that expresses a LIKE comparison. I.e. left LIKE right.
+         * A [ComparisonOperator] that expresses a LIKE comparison, i.e., left LIKE right.
          */
-        class Like(right: Binding<Value>) : Binary(right) {
-            override fun match(left: Value?) = (left is StringValue) && (this.rightValue as LikePatternValue).matches(left)
-            override fun toString(): String = "LIKE $right"
+        class Like(left: Binding, right: Binding) : Binary(left, right) {
+            override fun match() = this.left.value is StringValue && this.right.value is LikePatternValue && (this.right.value as LikePatternValue).matches(this.left.value as StringValue)
+            override fun toString(): String = "$left LIKE $right"
         }
 
         /**
          * A [ComparisonOperator] that expresses a MATCH comparison. Can only be evaluated through a lucene index.
          */
-        class Match(right: Binding<Value>) : Binary(right) {
-            override fun match(left: Value?) = throw UnsupportedOperationException("A MATCH comparison operator cannot be evaluated directly.")
-            override fun toString(): String = "MATCH $right"
+        class Match(left: Binding, right: Binding) : Binary(left, right) {
+            override fun match() = throw UnsupportedOperationException("A MATCH comparison operator cannot be evaluated directly.")
+            override fun toString(): String = "$left MATCH $right"
         }
     }
 
     /**
      * A [ComparisonOperator] that expresses a BETWEEN comparison (i.e. lower <= left <= upper).
      */
-    class Between(val rightLower: Binding<Value>, val rightUpper: Binding<Value>) : ComparisonOperator() {
+    class Between(left: Binding, val rightLower: Binding, val rightUpper: Binding) : ComparisonOperator(left) {
         override val atomicCpuCost: Float = 4.0f * Cost.COST_MEMORY_ACCESS
-        override fun match(left: Value?) = (left != null) && left in this.rightLower.value..this.rightUpper.value
-        override fun bindValues(ctx: BindingContext<Value>) {
-            this.rightLower.context = ctx
-            this.rightUpper.context = ctx
-        }
-
-        override fun toString(): String = "BETWEEN $rightLower, $rightUpper"
+        override fun match() = this.left.value != null && this.rightLower.value != null && this.rightLower.value != null && this.left.value!! in this.rightLower.value!!..this.rightUpper.value!!
+        override fun toString(): String = "$left BETWEEN $rightLower, $rightUpper"
     }
 
     /**
      * A [ComparisonOperator] that expresses a IN comparison (i.e. left IN right).
      */
-    class In(right: MutableList<Binding<Value>>) : ComparisonOperator() {
-        private val rightBindings = LinkedList<Binding<Value>>()
-        private val rightValues = ObjectOpenHashSet<Value>()
-        val right: List<Binding<Value>> = Collections.unmodifiableList(this.rightBindings)
+    class In(left: Binding, right: MutableList<Binding.Literal>) : ComparisonOperator(left) {
+        val right: MutableList<Binding.Literal> = LinkedList()
+        private var rightSet: ObjectOpenHashSet<Value>? = null /* To speed-up IN operation. */
         override val atomicCpuCost: Float = 4.0f * Cost.COST_MEMORY_ACCESS
-        override fun match(left: Value?): Boolean = left in this.rightValues
+        override fun match(): Boolean {
+            if (this.rightSet == null) {
+                this.rightSet = ObjectOpenHashSet()
+                this.right.forEach { this.rightSet!!.add(it.value) }
+            }
+            return this.left.value in this.rightSet!!
+        }
 
         init {
-            right.forEach { this.addBinding(it) }
+            right.forEach { this.addRef(it) }
         }
 
         /**
-         * Adds a [Binding] to this [In] operator.
+         * Adds a [Binding.Literal] to this [In] operator.
          *
-         * @param binding [Binding] to add.
+         * @param ref [Binding.Literal] to add.
          */
-        fun addBinding(binding: Binding<Value>) {
-            this.rightBindings.add(binding)
-            try {
-                this.rightValues.add(binding.value)
-            } catch (e: IllegalStateException) {
-                /* Ignore. */
-            }
+        fun addRef(ref: Binding.Literal) {
+            this.right.add(ref)
+            this.rightSet = null
         }
 
-        /**
-         * Removes all [Binding]s from this [In] operator.
-         */
-        fun clear() {
-            this.rightBindings.clear()
-            this.rightValues.clear()
-        }
-
-        /**
-         * Binds the [Binding]s in this [In] operator to the given [BindingContext].
-         * Updates all [Value]s accordingly.
-         *
-         * @param ctx The [BindingContext]
-         */
-        override fun bindValues(ctx: BindingContext<Value>) {
-            this.rightValues.clear()
-            this.rightBindings.forEach {
-                it.context = ctx
-                this.rightValues.add(it.value)
-            }
-        }
-
-        override fun toString(): String = "IN [${this.rightBindings.joinToString(",")}]"
+        override fun toString(): String = "$left IN [${this.right.joinToString(",")}]"
     }
 }

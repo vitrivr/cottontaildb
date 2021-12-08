@@ -2,28 +2,28 @@ package org.vitrivr.cottontail.database.index.pq
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
 import org.slf4j.LoggerFactory
-import org.vitrivr.cottontail.database.column.*
+import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.DefaultEntity
 import org.vitrivr.cottontail.database.entity.EntityTx
-import org.vitrivr.cottontail.database.events.DataChangeEvent
 import org.vitrivr.cottontail.database.index.AbstractIndex
 import org.vitrivr.cottontail.database.index.IndexTx
 import org.vitrivr.cottontail.database.index.IndexType
 import org.vitrivr.cottontail.database.index.va.VAFIndex
+import org.vitrivr.cottontail.database.operations.Operation
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.predicates.Predicate
 import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicate
 import org.vitrivr.cottontail.execution.TransactionContext
-import org.vitrivr.cottontail.math.knn.basics.DistanceKernel
-import org.vitrivr.cottontail.math.knn.selection.ComparablePair
-import org.vitrivr.cottontail.math.knn.selection.MinHeapSelection
-import org.vitrivr.cottontail.math.knn.selection.MinSingleSelection
-import org.vitrivr.cottontail.model.basics.*
+import org.vitrivr.cottontail.model.basics.Record
+import org.vitrivr.cottontail.model.basics.TupleId
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.DoubleValue
 import org.vitrivr.cottontail.model.values.types.VectorValue
 import org.vitrivr.cottontail.utilities.math.KnnUtilities
+import org.vitrivr.cottontail.utilities.selection.ComparablePair
+import org.vitrivr.cottontail.utilities.selection.MinHeapSelection
+import org.vitrivr.cottontail.utilities.selection.MinSingleSelection
 import java.nio.file.Path
 import java.util.*
 import kotlin.collections.ArrayDeque
@@ -96,8 +96,7 @@ class PQIndex(path: Path, parent: DefaultEntity, config: PQIndexConfig? = null) 
     init {
         /* Load or create config. */
         require(this.columns.size == 1) { "PQIndex only supports indexing a single column." }
-        val configOnDisk =
-            this.store.atomicVar(INDEX_CONFIG_FIELD, PQIndexConfig.Serializer).createOrOpen()
+        val configOnDisk = this.store.atomicVar(INDEX_CONFIG_FIELD, PQIndexConfig.Serializer).createOrOpen()
         if (configOnDisk.get() == null) {
             if (config != null) {
                 if (config.numSubspaces == PQIndexConfig.AUTO_VALUE || (config.numSubspaces % this.columns[0].type.logicalSize) != 0) {
@@ -135,8 +134,7 @@ class PQIndex(path: Path, parent: DefaultEntity, config: PQIndexConfig? = null) 
      * @return True if [Predicate] can be processed, false otherwise.
      */
     override fun canProcess(predicate: Predicate) =
-        predicate is KnnPredicate
-                && predicate.columns.first() == this.columns[0]
+        predicate is KnnPredicate && predicate.column == this.columns[0]
 
     /**
      * Calculates the cost estimate if this [AbstractIndex] processing the provided [Predicate].
@@ -144,16 +142,15 @@ class PQIndex(path: Path, parent: DefaultEntity, config: PQIndexConfig? = null) 
      * @param predicate [Predicate] to check.
      * @return [Cost] estimate for the [Predicate]
      */
-    override fun cost(predicate: Predicate) =
-        if (predicate is KnnPredicate && predicate.column == this.columns[0]) {
-            Cost(
-                this.signaturesStore.size * this.config.numSubspaces * Cost.COST_DISK_ACCESS_READ + predicate.k * predicate.column.type.logicalSize * Cost.COST_DISK_ACCESS_READ,
-                this.signaturesStore.size * (4 * Cost.COST_MEMORY_ACCESS + Cost.COST_FLOP) + predicate.k * predicate.atomicCpuCost,
-                (predicate.k * this.produces.map { it.type.physicalSize }.sum()).toFloat()
-            )
-        } else {
-            Cost.INVALID
-        }
+    override fun cost(predicate: Predicate): Cost {
+        if (predicate !is KnnPredicate) return Cost.INVALID
+        if (predicate.column != this.columns[0]) return Cost.INVALID
+        return Cost(
+            this.signaturesStore.size * this.config.numSubspaces * Cost.COST_DISK_ACCESS_READ + predicate.k * predicate.column.type.logicalSize * Cost.COST_DISK_ACCESS_READ,
+            this.signaturesStore.size * (4 * Cost.COST_MEMORY_ACCESS + Cost.COST_FLOP) + predicate.k * predicate.atomicCpuCost,
+            (predicate.k * this.produces.map { it.type.physicalSize }.sum()).toFloat()
+        )
+    }
 
     /**
      * Opens and returns a new [IndexTx] object that can be used to interact with this [PQIndex].
@@ -215,13 +212,13 @@ class PQIndex(path: Path, parent: DefaultEntity, config: PQIndexConfig? = null) 
         }
 
         /**
-         * Updates the [PQIndex] with the provided [DataChangeEvent]s. Since the [PQIndex] does
+         * Updates the [PQIndex] with the provided [Operation.DataManagementOperation]s. Since the [PQIndex] does
          * not support incremental updates, calling this method will simply set the [PQIndex] [dirty]
          * flag to true.
          *
-         * @param event Collection of [DataChangeEvent]s to process.
+         * @param event Collection of [Operation.DataManagementOperation]s to process.
          */
-        override fun update(event: DataChangeEvent) = this.withWriteLock {
+        override fun update(event: Operation.DataManagementOperation) = this.withWriteLock {
             this@PQIndex.dirtyField.compareAndSet(false, true)
             Unit
         }
@@ -266,9 +263,6 @@ class PQIndex(path: Path, parent: DefaultEntity, config: PQIndexConfig? = null) 
                 throw QueryException.UnsupportedPredicateException("Index '${this@PQIndex.name}' (PQ Index) does not support predicates of type '${predicate::class.simpleName}'.")
             }
 
-            /** [VectorValue] used for query. Must be prepared before using the [Iterator]. */
-            private val query: VectorValue<*>
-
             /** The [PQ] instance used for this [Iterator]. */
             private val pq = this@PQIndex.pqStore.get()
 
@@ -286,9 +280,8 @@ class PQIndex(path: Path, parent: DefaultEntity, config: PQIndexConfig? = null) 
             init {
                 this@Tx.withReadLock { }
                 val value = this.predicate.query.value
-                check(value is VectorValue<*>) { "Bound value for query vector has wrong type (found = ${value.type})." }
-                this.query = value
-                this.lookupTable = this.pq.getLookupTable(this.query, this.predicate.distance)
+                check(value is VectorValue<*>) { "Bound value for query vector has wrong type (found = ${value?.type})." }
+                this.lookupTable = this.pq.getLookupTable(value, this.predicate.distance)
 
                 /* Calculate partition size. */
                 val pSize = Math.floorDiv(this@PQIndex.signaturesStore.size, partitions) + 1
@@ -310,7 +303,7 @@ class PQIndex(path: Path, parent: DefaultEntity, config: PQIndexConfig? = null) 
 
                 /* Phase 1: Perform pre-kNN based on signatures. */
                 for (i in range) {
-                    val entry = this@PQIndex.signaturesStore[i.toInt()]
+                    val entry = this@PQIndex.signaturesStore[i]
                     val approximation =
                         this.lookupTable.approximateDistance(entry!!.signature)
                     if (preKnn.size < this.predicate.k || preKnn.peek()!!.second > approximation) {
@@ -319,18 +312,18 @@ class PQIndex(path: Path, parent: DefaultEntity, config: PQIndexConfig? = null) 
                 }
 
                 /* Phase 2: Perform exact kNN based on pre-kNN results. */
+                val query = this.predicate.query.value as VectorValue<*>
                 val knn = if (this.predicate.k == 1) {
                     MinSingleSelection<ComparablePair<TupleId, DoubleValue>>()
                 } else {
                     MinHeapSelection<ComparablePair<TupleId, DoubleValue>>(this.predicate.k)
                 }
-                val kernel = this.predicate.distance.kernelForQuery(this.query) as DistanceKernel<VectorValue<*>>
                 for (j in 0 until preKnn.size) {
                     val tupleIds = preKnn[j].first
                     for (tupleId in tupleIds) {
                         val exact = txn.read(tupleId, this@PQIndex.columns)[this@PQIndex.columns[0]]
                         if (exact is VectorValue<*>) {
-                            val distance = kernel(exact)
+                            val distance = this.predicate.distance(query, exact)
                             if (knn.size < this.predicate.k || knn.peek()!!.second > distance) {
                                 knn.offer(ComparablePair(tupleId, distance))
                             }

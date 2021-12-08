@@ -1,9 +1,9 @@
 package org.vitrivr.cottontail.cli.entity
 
 import io.grpc.StatusException
-import org.vitrivr.cottontail.database.queries.binding.extensions.proto
-import org.vitrivr.cottontail.grpc.CottontailGrpc
-import org.vitrivr.cottontail.grpc.DDLGrpc
+import org.vitrivr.cottontail.cli.AbstractCottontailCommand
+import org.vitrivr.cottontail.client.SimpleClient
+import org.vitrivr.cottontail.client.language.ddl.AboutEntity
 import org.vitrivr.cottontail.utilities.output.TabulationUtilities
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTimedValue
@@ -12,14 +12,14 @@ import kotlin.time.measureTimedValue
  * Command for accessing and reviewing [org.vitrivr.cottontail.database.entity.DefaultEntity] details.
  *
  * @author Loris Sauter & Ralph Gasser
- * @version 1.0.1
+ * @version 2.0.0
  */
 @ExperimentalTime
-class AboutEntityCommand(private val dqlStub: DDLGrpc.DDLBlockingStub) : AbstractEntityCommand(name = "about", help = "Gives an overview of the entity and its columns.") {
+class AboutEntityCommand(client: SimpleClient) : AbstractCottontailCommand.Entity(client, name = "about", help = "Gives an overview of the entity and its columns.") {
     override fun exec() {
         try {
             val timedTable = measureTimedValue {
-                TabulationUtilities.tabulate(this.dqlStub.entityDetails(CottontailGrpc.EntityDetailsMessage.newBuilder().setEntity(this.entityName.proto()).build()))
+                TabulationUtilities.tabulate(this.client.about(AboutEntity(this.entityName.toString())))
             }
             println("Details for entity ${this.entityName} (took ${timedTable.duration}):")
             print(timedTable.value)

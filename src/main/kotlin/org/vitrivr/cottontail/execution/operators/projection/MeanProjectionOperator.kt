@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.onEach
 import org.vitrivr.cottontail.database.column.ColumnDef
+import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.projection.Projection
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.exceptions.OperatorSetupException
@@ -25,51 +26,36 @@ import org.vitrivr.cottontail.model.values.types.Value
  * Acts as pipeline breaker.
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.4.0
  */
-class MeanProjectionOperator(
-    parent: Operator,
-    fields: List<Pair<Name.ColumnName, Name.ColumnName?>>
-) : Operator.PipelineOperator(parent) {
+class MeanProjectionOperator(parent: Operator, fields: List<Name.ColumnName>) : Operator.PipelineOperator(parent) {
 
     /** [MaxProjectionOperator] does act as a pipeline breaker. */
     override val breaker: Boolean = true
 
     /** Columns produced by [MeanProjectionOperator]. */
-    override val columns: Array<ColumnDef<*>> = this.parent.columns.mapNotNull { c ->
-        val match = fields.find { f -> f.first.matches(c.name) }
+    override val columns: List<ColumnDef<*>> = this.parent.columns.mapNotNull { c ->
+        val match = fields.find { f -> f.matches(c.name) }
         if (match != null) {
-            if (!c.type.numeric) throw OperatorSetupException(
-                this,
-                "The provided column $match cannot be used for a ${Projection.MEAN} projection because it has the wrong type."
-            )
-            val alias = match.second
-            if (alias != null) {
-                ColumnDef(alias, Type.Double)
-            } else {
-                val columnNameStr = "${Projection.MEAN.label()}_${c.name.simple})"
-                val columnName =
-                    c.name.entity()?.column(columnNameStr) ?: Name.ColumnName(columnNameStr)
-                ColumnDef(columnName, Type.Double)
-            }
+            if (!c.type.numeric) throw OperatorSetupException(this, "The provided column $match cannot be used for a ${Projection.SUM} projection because it has the wrong type.")
+            ColumnDef(c.name, Type.Double)
         } else {
             null
         }
-    }.toTypedArray()
+    }
 
     /** Parent [ColumnDef] to access and aggregate. */
-    private val parentColumns = this.parent.columns.filter { c ->
-        fields.any { f -> f.first.matches(c.name) }
-    }
+    private val parentColumns = this.parent.columns.filter { c -> fields.any { f -> f.matches(c.name) } }
 
     /**
      * Converts this [MeanProjectionOperator] to a [Flow] and returns it.
      *
-     * @param context The [TransactionContext] used for execution
+     * @param context The [QueryContext] used for execution
      * @return [Flow] representing this [MeanProjectionOperator]
      */
     override fun toFlow(context: TransactionContext): Flow<Record> {
         val parentFlow = this.parent.toFlow(context)
+        val columns = this.columns.toTypedArray()
         return flow {
             /* Prepare holder of type double. */
             val count = this@MeanProjectionOperator.parentColumns.map { 0L }.toTypedArray()
@@ -95,7 +81,7 @@ class MeanProjectionOperator(
 
             /** Emit record. */
             val results = Array<Value?>(sum.size) { DoubleValue(sum[it] / count[it]) }
-            emit(StandaloneRecord(0L, this@MeanProjectionOperator.columns, results))
+            emit(StandaloneRecord(0L, columns, results))
         }
     }
 }

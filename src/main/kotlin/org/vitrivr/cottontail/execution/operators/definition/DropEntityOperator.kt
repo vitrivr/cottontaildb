@@ -16,7 +16,7 @@ import kotlin.time.measureTimedValue
  * An [Operator.SourceOperator] used during query execution. Drops an [Entity]
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
 @ExperimentalTime
 class DropEntityOperator(val catalogue: DefaultCatalogue, val name: Name.EntityName) : AbstractDataDefinitionOperator(name, "DROP ENTITY") {

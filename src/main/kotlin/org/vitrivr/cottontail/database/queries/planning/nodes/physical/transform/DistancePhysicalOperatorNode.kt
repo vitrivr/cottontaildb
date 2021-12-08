@@ -3,20 +3,15 @@ package org.vitrivr.cottontail.database.queries.planning.nodes.physical.transfor
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.QueryContext
-import org.vitrivr.cottontail.database.queries.binding.BindingContext
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalOperatorNode
 import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicate
-import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicateHint
 import org.vitrivr.cottontail.database.statistics.columns.DoubleValueStatistics
 import org.vitrivr.cottontail.database.statistics.columns.ValueStatistics
 import org.vitrivr.cottontail.database.statistics.entity.RecordStatistics
-import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.projection.DistanceProjectionOperator
-import org.vitrivr.cottontail.math.knn.basics.DistanceKernel
 import org.vitrivr.cottontail.model.values.types.Value
-import org.vitrivr.cottontail.model.values.types.VectorValue
 import org.vitrivr.cottontail.utilities.math.KnnUtilities
 
 /**
@@ -25,6 +20,7 @@ import org.vitrivr.cottontail.utilities.math.KnnUtilities
  * @author Ralph Gasser
  * @version 2.1.0
  */
+@Deprecated("Replaced by FunctionProjectionOperator; do not use anymore!")
 class DistancePhysicalOperatorNode(input: Physical? = null, val predicate: KnnPredicate) : UnaryPhysicalOperatorNode(input) {
     companion object {
         private const val NODE_NAME = "Distance"
@@ -35,11 +31,11 @@ class DistancePhysicalOperatorNode(input: Physical? = null, val predicate: KnnPr
         get() = NODE_NAME
 
     /** The [DistancePhysicalOperatorNode] returns the [ColumnDef] of its input + a distance column. */
-    override val columns: Array<ColumnDef<*>>
+    override val columns: List<ColumnDef<*>>
         get() = super.columns + KnnUtilities.distanceColumnDef(this.predicate.column.name.entity())
 
     /** The [DistancePhysicalOperatorNode] requires all [ColumnDef]s used in the [KnnPredicate]. */
-    override val requires: Array<ColumnDef<*>> = this.predicate.columns.toTypedArray()
+    override val requires: List<ColumnDef<*>> = this.predicate.columns.toList()
 
     /** The [Cost] of a [DistancePhysicalOperatorNode]. */
     override val cost: Cost
@@ -55,12 +51,7 @@ class DistancePhysicalOperatorNode(input: Physical? = null, val predicate: KnnPr
 
     /** Whether the [DistanceProjectionOperator] can be partitioned is determined by the [KnnPredicateHint]. */
     override val canBePartitioned: Boolean
-        get() {
-            if (this.predicate.hint is KnnPredicateHint.ParallelKnnHint) {
-                if (this.predicate.hint.max <= 1) return false
-            }
-            return super.canBePartitioned
-        }
+        get() = super.canBePartitioned
 
     /**
      * Creates and returns a copy of this [DistancePhysicalOperatorNode] without any children or parents.
@@ -77,34 +68,17 @@ class DistancePhysicalOperatorNode(input: Physical? = null, val predicate: KnnPr
      */
     override fun partition(p: Int): List<Physical> {
         val input = this.input ?: throw IllegalStateException("Cannot partition disconnected OperatorNode (node = $this)")
-        return if (this.predicate.hint is KnnPredicateHint.ParallelKnnHint) {
-            val actual = p.coerceAtLeast(this.predicate.hint.min).coerceAtMost(this.predicate.hint.max)
-            input.partition(actual).map { DistancePhysicalOperatorNode(it, this.predicate) }
-        } else {
-            input.partition(p).map { DistancePhysicalOperatorNode(it, this.predicate) }
-        }
+        return input.partition(p).map { DistancePhysicalOperatorNode(it, this.predicate) }
     }
 
     /**
      * Converts this [DistancePhysicalOperatorNode] to a [DistanceProjectionOperator].
      *
-     * @param tx The [TransactionContext] used for execution.
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(tx: TransactionContext, ctx: QueryContext): Operator {
-        val predicate = this.predicate.bindValues(ctx.values)
-        val input = this.input?.toOperator(tx, ctx) ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)")
-        return DistanceProjectionOperator(input, predicate.column, this.predicate.toKernel() as DistanceKernel<VectorValue<*>>)
-    }
-
-    /**
-     * Binds values from the provided [BindingContext] to this [DistancePhysicalOperatorNode]'s [KnnPredicate].
-     *
-     * @param ctx The [BindingContext] used for value binding.
-     */
-    override fun bindValues(ctx: BindingContext<Value>): OperatorNode {
-        this.predicate.bindValues(ctx)
-        return super.bindValues(ctx) /* Important! */
+    override fun toOperator(ctx: QueryContext): Operator {
+        val input = this.input?.toOperator(ctx) ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)")
+        return DistanceProjectionOperator(input, this.predicate.column, this.predicate.distance)
     }
 
     override fun equals(other: Any?): Boolean {

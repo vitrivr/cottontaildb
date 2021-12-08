@@ -1,29 +1,23 @@
 package org.vitrivr.cottontail.execution
 
-import org.vitrivr.cottontail.database.events.DataChangeEvent
 import org.vitrivr.cottontail.database.general.DBO
 import org.vitrivr.cottontail.database.general.Tx
 import org.vitrivr.cottontail.database.locking.Lock
 import org.vitrivr.cottontail.database.locking.LockManager
 import org.vitrivr.cottontail.database.locking.LockMode
+import org.vitrivr.cottontail.database.operations.Operation
 import org.vitrivr.cottontail.model.basics.TransactionId
 
 /**
- * A [TransactionContext] used by operators and their [Txn]s to execute and obtain necessary locks
+ * A [TransactionContext] used by operators and their sub transactions to execute and obtain necessary locks on database objects.
  *
  * @author Ralph Gasser
- * @version 1.3.0
+ * @version 1.5.0
  */
 interface TransactionContext {
 
     /** The [TransactionId] of this [TransactionContext]. */
     val txId: TransactionId
-
-    /** The [TransactionType] of this [TransactionContext]. */
-    val type: TransactionType
-
-    /** The [TransactionContext] of this [TransactionContext]. */
-    val state: TransactionStatus
 
     /**
      * Obtains a [Tx] for the given [DBO]. This method should make sure, that only one [Tx] per [DBO] is created.
@@ -43,12 +37,12 @@ interface TransactionContext {
     fun requestLock(dbo: DBO, mode: LockMode)
 
     /**
-     * Signals a [DataChangeEvent] to this [TransactionContext].
+     * Signals a [Operation.DataManagementOperation] to this [TransactionContext].
      *
-     * Implementing methods must process these [DataChangeEvent]s quickly, since they are usually
+     * Implementing methods must process these [Operation.DataManagementOperation]s quickly, since they are usually
      * triggered during an ongoing transaction.
      *
-     * @param event The [DataChangeEvent] that has been reported.
+     * @param action The [Operation.DataManagementOperation] that has been reported.
      */
-    fun signalEvent(event: DataChangeEvent)
+    fun signalEvent(action: Operation.DataManagementOperation)
 }

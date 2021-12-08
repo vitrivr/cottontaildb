@@ -11,10 +11,11 @@ import kotlin.math.atan2
 /**
  * Represents a complex number backed by double-precision (64bit) [Double]s
  *
- * @version 1.5.0
+ * @version 1.6.0
  * @author Ralph Gasser
  */
-inline class Complex64Value(val data: DoubleArray): ComplexValue<Double> {
+@JvmInline
+value class Complex64Value(val data: DoubleArray): ComplexValue<Double> {
     companion object {
         val I = Complex64Value(doubleArrayOf(0.0, 1.0))
         val ZERO = Complex64Value(doubleArrayOf(0.0, 0.0))

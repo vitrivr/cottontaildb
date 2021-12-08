@@ -21,12 +21,12 @@ import org.vitrivr.cottontail.model.values.BooleanValue
  * Only produces a single [Record]. Acts as pipeline breaker.
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.4.0
  */
 class ExistsProjectionOperator(parent: Operator) : Operator.PipelineOperator(parent) {
 
     /** Column returned by [ExistsProjectionOperator]. */
-    override val columns: Array<ColumnDef<*>> = arrayOf(ColumnDef(Name.ColumnName(Projection.EXISTS.label()), Type.Boolean))
+    override val columns: List<ColumnDef<*>> = listOf(ColumnDef(Name.ColumnName(Projection.EXISTS.label()), Type.Boolean))
 
     /** [ExistsProjectionOperator] does act as a pipeline breaker. */
     override val breaker: Boolean = true

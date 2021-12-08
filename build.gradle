@@ -16,7 +16,7 @@ apply plugin: 'com.github.johnrengelman.shadow'
 
 /* Group and SNAPSHOT version. Update version for each major and minor release. */
 group 'org.vitrivr'
-version '0.12.13'
+version '0.13.0'
 
 /* General application attributes. */
 mainClassName = 'org.vitrivr.cottontail.CottontailKt'
@@ -139,7 +139,7 @@ dependencies {
 
     ////// CLI & Terminal
     implementation group: 'org.jline', name: 'jline', version: version_jline
-    implementation group: 'org.jline', name: 'jline-terminal-jansi', version: version_jline
+    implementation group: 'org.jline', name: 'jline-terminal-jna', version: version_jline
     implementation group: 'com.github.ajalt.clikt', name: 'clikt', version: version_clikt
     implementation group: 'com.jakewharton.picnic', name: 'picnic', version: version_picnic
 
@@ -182,5 +182,5 @@ tasks.withType(Test) {
 }
 
 ///// Default names for distributions
-distZip.archiveName('cottontaildb-bin.zip')
-distTar.archiveName('cottontaildb-bin.tar')
+distZip.archiveFileName = 'cottontaildb-bin.zip'
+distTar.archiveFileName = 'cottontaildb-bin.tar'

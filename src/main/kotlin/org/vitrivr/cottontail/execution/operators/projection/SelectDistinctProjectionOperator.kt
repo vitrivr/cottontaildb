@@ -3,10 +3,7 @@ package org.vitrivr.cottontail.execution.operators.projection
 import com.google.common.hash.BloomFilter
 import com.google.common.hash.Funnel
 import com.google.common.hash.PrimitiveSink
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.*
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
@@ -14,6 +11,7 @@ import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.*
+import org.vitrivr.cottontail.model.values.types.Value
 import java.nio.charset.Charset
 
 /**
@@ -23,14 +21,14 @@ import java.nio.charset.Charset
  * Only produces a single [Record].
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.3.0
  */
-class SelectDistinctProjectionOperator(parent: Operator, fields: List<Pair<Name.ColumnName, Name.ColumnName?>>, expected: Long) : Operator.PipelineOperator(parent) {
+class SelectDistinctProjectionOperator(parent: Operator, fields: List<Name.ColumnName>, expected: Long) : Operator.PipelineOperator(parent) {
 
     /** [Funnel] implementation for [Record]s. */
-    object RecordFunnel : Funnel<Record> {
-        override fun funnel(from: Record, into: PrimitiveSink) {
-            from.forEach { _, value ->
+    object ValueFunnel : Funnel<Array<Value?>> {
+        override fun funnel(from: Array<Value?>, into: PrimitiveSink) {
+            from.forEach { value ->
                 when (value) {
                     is BooleanValue -> into.putBoolean(value.value)
                     is ByteValue -> into.putByte(value.value)
@@ -62,31 +60,11 @@ class SelectDistinctProjectionOperator(parent: Operator, fields: List<Pair<Name.
         }
     }
 
-    /** True if names should be flattened, i.e., prefixes should be removed. */
-    private val flattenNames = fields.all { it.first.schema() == fields.first().first.schema() }
-
-    /** Parent [ColumnDef] to access and aggregate. */
-    private val parentColumns = this.parent.columns.filter { c ->
-        fields.any { f -> f.first.matches(c.name) }
-    }
+    /** Columns produced by [SelectProjectionOperator]. */
+    override val columns: List<ColumnDef<*>> = this.parent.columns.filter { c -> fields.any { f -> f == c.name }}
 
     /** The [BloomFilter] used for SELECT DISTINCT. */
-    private val bloomFilter = BloomFilter.create(RecordFunnel, expected)
-
-    /** Columns produced by [SelectProjectionOperator]. */
-    override val columns: Array<ColumnDef<*>> = this.parent.columns.mapNotNull { c ->
-        val match = fields.find { f -> f.first.matches(c.name) }
-        if (match != null) {
-            val alias = match.second
-            when {
-                alias != null -> c.copy(name = alias)
-                this.flattenNames -> c.copy(name = Name.ColumnName(c.name.simple))
-                else -> c
-            }
-        } else {
-            null
-        }
-    }.toTypedArray()
+    private val bloomFilter = BloomFilter.create(ValueFunnel, expected)
 
     /** [SelectProjectionOperator] does not act as a pipeline breaker. */
     override val breaker: Boolean = false
@@ -98,12 +76,16 @@ class SelectDistinctProjectionOperator(parent: Operator, fields: List<Pair<Name.
      * @return [Flow] representing this [SelectProjectionOperator]
      */
     override fun toFlow(context: TransactionContext): Flow<Record> {
-        return this.parent.toFlow(context).map { r ->
-            StandaloneRecord(r.tupleId, this.columns, this.parentColumns.map { r[it] }.toTypedArray())
-        }.filter {
-            !this.bloomFilter.mightContain(it)
-        }.onEach {
-            this.bloomFilter.put(it)
+        val columns = this.columns.toTypedArray()
+        val values = arrayOfNulls<Value?>(columns.size)
+        return this.parent.toFlow(context).mapNotNull { r ->
+            columns.forEachIndexed { i, c -> values[i] = r[c]  }
+            if (!this.bloomFilter.mightContain(values)) {
+                this.bloomFilter.put(values)
+                StandaloneRecord(r.tupleId, columns, values)
+            } else {
+                null
+            }
         }
     }
 }

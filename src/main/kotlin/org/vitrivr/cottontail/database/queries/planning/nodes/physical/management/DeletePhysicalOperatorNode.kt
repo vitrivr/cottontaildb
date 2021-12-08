@@ -7,7 +7,6 @@ import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.management.DeleteLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalOperatorNode
-import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.management.DeleteOperator
 
@@ -15,7 +14,7 @@ import org.vitrivr.cottontail.execution.operators.management.DeleteOperator
  * A [DeletePhysicalOperatorNode] that formalizes a delete operation on an [Entity].
  *
  * @author Ralph Gasser
- * @version 2.1.0
+ * @version 2.2.1
  */
 class DeletePhysicalOperatorNode(input: Physical? = null, val entity: EntityTx) : UnaryPhysicalOperatorNode(input) {
 
@@ -28,7 +27,10 @@ class DeletePhysicalOperatorNode(input: Physical? = null, val entity: EntityTx) 
         get() = NODE_NAME
 
     /** The [DeletePhysicalOperatorNode] produces the [ColumnDef]s defined in the [DeleteOperator]. */
-    override val columns: Array<ColumnDef<*>> = DeleteOperator.COLUMNS
+    override val columns: List<ColumnDef<*>> = DeleteOperator.COLUMNS
+
+    /** The [DeletePhysicalOperatorNode] does not require any [ColumnDef]. */
+    override val requires: List<ColumnDef<*>> = emptyList()
 
     /** The [DeletePhysicalOperatorNode] produces a single record. */
     override val outputSize: Long = 1L
@@ -49,11 +51,10 @@ class DeletePhysicalOperatorNode(input: Physical? = null, val entity: EntityTx) 
     /**
      * Converts this [DeletePhysicalOperatorNode] to a [DeleteOperator].
      *
-     * @param tx The [TransactionContext] used for execution.
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(tx: TransactionContext, ctx: QueryContext): Operator = DeleteOperator(
-        this.input?.toOperator(tx, ctx) ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)"),
+    override fun toOperator(ctx: QueryContext): Operator = DeleteOperator(
+        this.input?.toOperator(ctx) ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)"),
         this.entity
     )
 
@@ -63,6 +64,8 @@ class DeletePhysicalOperatorNode(input: Physical? = null, val entity: EntityTx) 
     override fun partition(p: Int): List<Physical> {
         throw UnsupportedOperationException("DeletePhysicalOperatorNode cannot be partitioned.")
     }
+
+    override fun toString(): String = "${super.toString()}[${this.entity.dbo.name}]"
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

@@ -10,6 +10,8 @@ import org.vitrivr.cottontail.database.locking.LockMode
 import org.vitrivr.cottontail.database.schema.DefaultSchema
 import org.vitrivr.cottontail.database.schema.Schema
 import org.vitrivr.cottontail.execution.TransactionContext
+import org.vitrivr.cottontail.functions.FunctionRegistry
+import org.vitrivr.cottontail.functions.initialize
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import org.vitrivr.cottontail.model.exceptions.TxException
@@ -61,11 +63,14 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
     private val store: DB = this.config.mapdb.db(this.path.resolve(FILE_CATALOGUE))
 
     /** Reference to the [CatalogueHeader] of the [DefaultCatalogue]. Accessing it will read right from the underlying store. */
-    private val headerField =
-        this.store.atomicVar(CATALOGUE_HEADER_FIELD, CatalogueHeader.Serializer).createOrOpen()
+    private val headerField = this.store.atomicVar(CATALOGUE_HEADER_FIELD, CatalogueHeader.Serializer).createOrOpen()
+
 
     /** A in-memory registry of all the [Schema]s contained in this [DefaultCatalogue]. When a [Catalogue] is opened, all the [Schema]s will be loaded. */
     private val registry: MutableMap<Name.SchemaName, Schema> = Collections.synchronizedMap(Object2ObjectOpenHashMap())
+
+    /** The [FunctionRegistry] exposed by this [Catalogue]. */
+    override val functions: FunctionRegistry = FunctionRegistry()
 
     /** Size of this [DefaultCatalogue] in terms of [Schema]s it contains. This is a snapshot and may change anytime! */
     override val size: Int
@@ -82,7 +87,7 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
             this.store.commit()
         }
 
-        /* Initialize. */
+        /* Initialize schemas. */
         for (schemaRef in this.headerField.get().schemas) {
             if (schemaRef.path != null && Files.exists(schemaRef.path)) {
                 this.registry[Name.SchemaName(schemaRef.name)] = DefaultSchema(path, this)
@@ -94,6 +99,9 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
                 this.registry[Name.SchemaName(schemaRef.name)] = DefaultSchema(path, this)
             }
         }
+
+        /* Initialize function registry. */
+        this.functions.initialize()
     }
 
     /**

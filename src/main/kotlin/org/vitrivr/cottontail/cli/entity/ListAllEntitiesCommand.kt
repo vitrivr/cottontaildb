@@ -2,8 +2,8 @@ package org.vitrivr.cottontail.cli.entity
 
 
 import org.vitrivr.cottontail.cli.AbstractCottontailCommand
-import org.vitrivr.cottontail.grpc.CottontailGrpc
-import org.vitrivr.cottontail.grpc.DDLGrpc
+import org.vitrivr.cottontail.client.SimpleClient
+import org.vitrivr.cottontail.client.language.ddl.ListEntities
 import org.vitrivr.cottontail.utilities.output.TabulationUtilities
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTimedValue
@@ -12,14 +12,14 @@ import kotlin.time.measureTimedValue
  * List all [org.vitrivr.cottontail.database.entity.DefaultEntity] stored in Cottontail DB.
  *
  * @author Loris Sauter & Ralph Gasser
- * @version 1.0.2
+ * @version 2.0.0
  */
 @ExperimentalTime
-class ListAllEntitiesCommand(private val ddlStub: DDLGrpc.DDLBlockingStub) : AbstractCottontailCommand(name = "all", help = "Lists all entities stored in Cottontail DB.") {
+class ListAllEntitiesCommand(val client: SimpleClient) : AbstractCottontailCommand.System(name = "all", help = "Lists all entities stored in Cottontail DB.") {
     override fun exec() {
         /* Execute query. */
         val timedTable = measureTimedValue {
-            TabulationUtilities.tabulate(this.ddlStub.listEntities(CottontailGrpc.ListEntityMessage.newBuilder().build()))
+            TabulationUtilities.tabulate(this.client.list(ListEntities()))
         }
 
         /* Output results. */

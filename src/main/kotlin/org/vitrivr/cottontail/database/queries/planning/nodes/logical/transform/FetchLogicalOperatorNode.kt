@@ -5,6 +5,7 @@ import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.UnaryLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.transform.FetchPhysicalOperatorNode
+import org.vitrivr.cottontail.model.basics.Name
 
 /**
  * A [UnaryLogicalOperatorNode] that represents fetching certain [ColumnDef] from a specific
@@ -14,9 +15,9 @@ import org.vitrivr.cottontail.database.queries.planning.nodes.physical.transform
  * that involve pruning the result set (e.g. filters or nearest neighbour search).
  *
  * @author Ralph Gasser
- * @version 2.1.1
+ * @version 2.4.0
  */
-class FetchLogicalOperatorNode(input: Logical? = null, val entity: EntityTx, val fetch: Array<ColumnDef<*>>) : UnaryLogicalOperatorNode(input) {
+class FetchLogicalOperatorNode(input: Logical? = null, val entity: EntityTx, val fetch: List<Pair<Name.ColumnName,ColumnDef<*>>>) : UnaryLogicalOperatorNode(input) {
 
     companion object {
         private const val NODE_NAME = "Fetch"
@@ -26,10 +27,13 @@ class FetchLogicalOperatorNode(input: Logical? = null, val entity: EntityTx, val
     override val name: String
         get() = NODE_NAME
 
+    /** The [FetchLogicalOperatorNode] accesses the [ColumnDef] of its input + the columns to be fetched. */
+    override val physicalColumns: List<ColumnDef<*>>
+        get() = super.physicalColumns + this.fetch.map { it.second }
 
     /** The [FetchLogicalOperatorNode] returns the [ColumnDef] of its input + the columns to be fetched. */
-    override val columns: Array<ColumnDef<*>>
-        get() = (this.input?.columns ?: emptyArray()) + this.fetch
+    override val columns: List<ColumnDef<*>>
+        get() = super.columns + this.fetch.map { it.second.copy(name = it.first) }
 
     /**
      * Creates and returns a copy of this [LimitLogicalOperatorNode] without any children or parents.
@@ -49,8 +53,8 @@ class FetchLogicalOperatorNode(input: Logical? = null, val entity: EntityTx, val
         if (this === other) return true
         if (other !is FetchLogicalOperatorNode) return false
 
-        if (entity != other.entity) return false
-        if (!fetch.contentEquals(other.fetch)) return false
+        if (this.entity != other.entity) return false
+        if (this.fetch != other.fetch) return false
 
         return true
     }
@@ -58,10 +62,10 @@ class FetchLogicalOperatorNode(input: Logical? = null, val entity: EntityTx, val
     /** Generates and returns a [String] representation of this [FetchLogicalOperatorNode]. */
     override fun hashCode(): Int {
         var result = this.entity.hashCode()
-        result = 31 * result + fetch.contentHashCode()
+        result = 31 * result + this.fetch.hashCode()
         return result
     }
 
     /** Generates and returns a [String] representation of this [FetchLogicalOperatorNode]. */
-    override fun toString() = "${super.toString()}(${this.fetch.joinToString(",") { it.name.toString() }})"
+    override fun toString() = "${super.toString()}(${this.fetch.joinToString(",") { it.second.name.toString() }})"
 }

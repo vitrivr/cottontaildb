@@ -12,7 +12,6 @@ import org.apache.lucene.store.NativeFSLockFactory
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.DefaultEntity
 import org.vitrivr.cottontail.database.entity.EntityTx
-import org.vitrivr.cottontail.database.events.DataChangeEvent
 import org.vitrivr.cottontail.database.general.TxAction
 import org.vitrivr.cottontail.database.general.TxSnapshot
 import org.vitrivr.cottontail.database.index.AbstractIndex
@@ -20,20 +19,22 @@ import org.vitrivr.cottontail.database.index.IndexTx
 import org.vitrivr.cottontail.database.index.IndexType
 import org.vitrivr.cottontail.database.index.hash.UniqueHashIndex
 import org.vitrivr.cottontail.database.index.lsh.superbit.SuperBitLSHIndex
+import org.vitrivr.cottontail.database.operations.Operation
+import org.vitrivr.cottontail.database.queries.binding.Binding
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.predicates.Predicate
 import org.vitrivr.cottontail.database.queries.predicates.bool.BooleanPredicate
 import org.vitrivr.cottontail.database.queries.predicates.bool.ComparisonOperator
 import org.vitrivr.cottontail.database.queries.predicates.bool.ConnectionOperator
 import org.vitrivr.cottontail.execution.TransactionContext
-import org.vitrivr.cottontail.model.basics.*
+import org.vitrivr.cottontail.model.basics.Record
+import org.vitrivr.cottontail.model.basics.TupleId
 import org.vitrivr.cottontail.model.basics.Type
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
-import org.vitrivr.cottontail.model.values.FloatValue
+import org.vitrivr.cottontail.model.values.DoubleValue
 import org.vitrivr.cottontail.model.values.StringValue
 import org.vitrivr.cottontail.model.values.pattern.LikePatternValue
-import org.vitrivr.cottontail.model.values.pattern.LucenePatternValue
 import java.nio.file.Path
 
 /**
@@ -52,7 +53,7 @@ class LuceneIndex(path: Path, parent: DefaultEntity, config: LuceneIndexConfig? 
     }
 
     /** The [LuceneIndex] implementation produces an additional score column. */
-    override val produces: Array<ColumnDef<*>> = arrayOf(ColumnDef(this.parent.name.column("score"), Type.Float))
+    override val produces: Array<ColumnDef<*>> = arrayOf(ColumnDef(this.parent.name.column("score"), Type.Double, false))
 
     /** True since [SuperBitLSHIndex] supports incremental updates. */
     override val supportsIncrementalUpdate: Boolean = true
@@ -183,9 +184,8 @@ class LuceneIndex(path: Path, parent: DefaultEntity, config: LuceneIndexConfig? 
      * @return [Query]
      */
     private fun BooleanPredicate.toLuceneQuery(): Query = when (this) {
-        is BooleanPredicate.Atomic.Literal -> this.toLuceneQuery()
+        is BooleanPredicate.Atomic -> this.toLuceneQuery()
         is BooleanPredicate.Compound -> this.toLuceneQuery()
-        is BooleanPredicate.Atomic.Reference -> throw IllegalStateException("An Atomic.Reference boolean predicate cannot be converted to a lucene query.")
     }
 
     /**
@@ -194,42 +194,49 @@ class LuceneIndex(path: Path, parent: DefaultEntity, config: LuceneIndexConfig? 
      *
      * @return [Query]
      */
-    private fun BooleanPredicate.Atomic.Literal.toLuceneQuery(): Query = when (this.operator) {
-        is ComparisonOperator.Binary.Equal -> {
-            val column = this.columns.first()
-            val string = this.operator.right.value
-            if (string is StringValue) {
-                TermQuery(Term("${column.name}_str", string.value))
-            } else {
-                throw throw QueryException("Conversion to Lucene query failed: EQUAL queries strictly require a StringValue as second operand!")
-            }
+    private fun BooleanPredicate.Atomic.toLuceneQuery(): Query {
+        if (this.operator !is ComparisonOperator.Binary) {
+            throw QueryException("Conversion to Lucene query failed: Only binary operators are supported.")
         }
-        is ComparisonOperator.Binary.Like -> {
-            val column = this.columns.first()
-            when (val pattern = this.operator.right.value) {
-                is LucenePatternValue -> QueryParserUtil.parse(
-                    arrayOf(pattern.value),
-                    arrayOf("${column.name}_txt"),
-                    StandardAnalyzer()
-                )
-                is LikePatternValue -> QueryParserUtil.parse(
-                    arrayOf(pattern.toLucene().value),
-                    arrayOf("${column.name}_txt"),
-                    StandardAnalyzer()
-                )
-                else -> throw throw QueryException("Conversion to Lucene query failed: LIKE queries require a LucenePatternValue OR LikePatternValue as second operand!")
-            }
+        val column = when {
+            this.operator.right is Binding.Column -> this.operator.right.column
+            this.operator.left is Binding.Column -> this.operator.left.column
+            else -> throw QueryException("Conversion to Lucene query failed: One side of the comparison operator must be a column value!")
         }
-        is ComparisonOperator.Binary.Match -> {
-            val column = this.columns.first()
-            val pattern = this.operator.right.value
-            if (pattern is LucenePatternValue) {
-                QueryParserUtil.parse(arrayOf(pattern.value), arrayOf("${column.name}_txt"), StandardAnalyzer())
-            } else {
-                throw throw QueryException("Conversion to Lucene query failed: MATCH queries strictly require a LucenePatternValue as second operand!")
-            }
+        if (column != this@LuceneIndex.columns.first()) {
+            throw QueryException("Conversion to Lucene query failed: One side of the comparison operator must be an indexed column!")
         }
-        else -> throw QueryException("Lucene Query Conversion failed: Only EQUAL, MATCH and LIKE queries can be mapped to a Apache Lucene!")
+        val literal = when {
+            this.operator.right is Binding.Literal -> this.operator.right.value
+            this.operator.left is Binding.Literal -> this.operator.left.value
+            else -> throw QueryException("Conversion to Lucene query failed: One side of the comparison operator must be a literal value!")
+        }
+        return when (this.operator) {
+            is ComparisonOperator.Binary.Equal -> {
+                if (literal is StringValue) {
+                    TermQuery(Term("${column.name}_str", literal.value))
+                } else {
+                    throw QueryException("Conversion to Lucene query failed: EQUAL queries strictly require a StringValue as second operand!")
+                }
+            }
+            is ComparisonOperator.Binary.Like -> {
+                if (literal is LikePatternValue) {
+                    QueryParserUtil.parse(arrayOf(literal.toLucene().value), arrayOf("${column.name}_txt"), StandardAnalyzer())
+                } else {
+                    throw throw QueryException("Conversion to Lucene query failed: LIKE queries require a LucenePatternValue OR LikePatternValue as second operand!")
+                }
+            }
+            is ComparisonOperator.Binary.Match -> {
+                if (literal is StringValue) {
+                    val values = literal.value.split(" ").map { it.trim() }.filter { it.isNotBlank() }.toTypedArray()
+                    val fields = values.map { "${column.name}_txt" }.toTypedArray()
+                    QueryParserUtil.parse(values, fields, StandardAnalyzer())
+                } else {
+                    throw throw QueryException("Conversion to Lucene query failed: MATCH queries strictly require a StringValue as second operand!")
+                }
+            }
+            else -> throw QueryException("Lucene Query Conversion failed: Only EQUAL, MATCH and LIKE queries can be mapped to a Apache Lucene!")
+        }
     }
 
     /**
@@ -309,27 +316,27 @@ class LuceneIndex(path: Path, parent: DefaultEntity, config: LuceneIndexConfig? 
         }
 
         /**
-         * Updates the [LuceneIndex] with the provided [DataChangeEvent].
+         * Updates the [LuceneIndex] with the provided [Operation.DataManagementOperation].
          *
-         * @param event [DataChangeEvent] to process.
+         * @param event [Operation.DataManagementOperation] to process.
          */
-        override fun update(event: DataChangeEvent) = this.withWriteLock {
+        override fun update(event: Operation.DataManagementOperation) = this.withWriteLock {
             this.ensureWriterAvailable()
             when (event) {
-                is DataChangeEvent.InsertDataChangeEvent -> {
+                is Operation.DataManagementOperation.InsertOperation -> {
                     val new = event.inserts[this.dbo.columns[0]]
                     if (new is StringValue) {
                         this.writer?.addDocument(this@LuceneIndex.documentFromValue(new, event.tupleId))
                     }
                 }
-                is DataChangeEvent.UpdateDataChangeEvent -> {
+                is Operation.DataManagementOperation.UpdateOperation -> {
                     this.writer?.deleteDocuments(Term(TID_COLUMN, event.tupleId.toString()))
                     val new = event.updates[this.dbo.columns[0]]?.second
                     if (new is StringValue) {
                         this.writer?.addDocument(this@LuceneIndex.documentFromValue(new, event.tupleId))
                     }
                 }
-                is DataChangeEvent.DeleteDataChangeEvent -> {
+                is Operation.DataManagementOperation.DeleteOperation -> {
                     this.writer?.deleteDocuments(Term(TID_COLUMN, event.tupleId.toString()))
                 }
             }
@@ -397,7 +404,7 @@ class LuceneIndex(path: Path, parent: DefaultEntity, config: LuceneIndexConfig? 
             override fun next(): Record {
                 val scores = this.results.scoreDocs[this.returned++]
                 val doc = this.searcher.doc(scores.doc)
-                return StandaloneRecord(doc[TID_COLUMN].toLong(), this@LuceneIndex.produces, arrayOf(FloatValue(scores.score)))
+                return StandaloneRecord(doc[TID_COLUMN].toLong(), this@LuceneIndex.produces, arrayOf(DoubleValue(scores.score)))
             }
         }
 

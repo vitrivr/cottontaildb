@@ -1,8 +1,7 @@
 package org.vitrivr.cottontail.cli.system
 
-import com.google.protobuf.Empty
 import org.vitrivr.cottontail.cli.AbstractCottontailCommand
-import org.vitrivr.cottontail.grpc.TXNGrpc
+import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.utilities.output.TabulationUtilities
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTimedValue
@@ -11,14 +10,14 @@ import kotlin.time.measureTimedValue
  * List all known locks on  Cottontail DB resources
  *
  * @author Loris Sauter & Ralph Gasser
- * @version 1.0.1
+ * @version 2.0.0
  */
 @ExperimentalTime
-class ListLocksCommand(private val txnStub: TXNGrpc.TXNBlockingStub) : AbstractCottontailCommand(name = "locks", help = "Lists all locks in the current Cottontail DB instance.") {
+class ListLocksCommand(private val client: SimpleClient) : AbstractCottontailCommand.System(name = "locks", help = "Lists all locks in the current Cottontail DB instance.") {
     override fun exec() {
         /* Execute query. */
         val timedTable = measureTimedValue {
-            TabulationUtilities.tabulate(this@ListLocksCommand.txnStub.listLocks(Empty.getDefaultInstance()))
+            TabulationUtilities.tabulate(this.client.locks())
         }
 
         /* Output results. */

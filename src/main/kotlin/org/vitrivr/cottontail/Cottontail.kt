@@ -9,11 +9,23 @@ import org.vitrivr.cottontail.legacy.VersionProber
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import org.vitrivr.cottontail.server.grpc.CottontailGrpcServer
 import java.io.BufferedReader
+import java.io.FileNotFoundException
 import java.io.InputStreamReader
 import java.nio.file.Files
 import java.nio.file.Paths
 import kotlin.system.exitProcess
 import kotlin.time.ExperimentalTime
+
+
+/**
+ * The environment variable key for the config file
+ */
+const val COTTONTAIL_CONFIG_FILE_ENV_KEY = "COTTONTAIL_CONFIG"
+
+/**
+ * The system property key for the config file path
+ */
+const val COTTONTAIL_CONFIG_FILE_SYSTEM_PROPERTY_KEY = "org.vitrivr.cottontail.config"
 
 
 /**
@@ -34,30 +46,78 @@ fun main(args: Array<String>) {
         return
     }
 
-    /* Handle case when arguments are empty. */
-    val configPath = if (args.isEmpty()) {
-        System.err.println("No config path specified; using default config at ./config.json.")
-        Paths.get("./config.json") /* Start with default value. */
-    } else {
-        Paths.get(args.first()) /* Start with default value. */
-    }
-
-    /* Check if config file exists. */
-    if (!Files.isRegularFile(configPath)) {
+    var config: Config? = null
+    val configPath = findConfigPathOrdered(args)
+    try {
+        config = loadConfig(configPath)
+    } catch (e: FileNotFoundException) {
         System.err.println("Specified Cottontail DB configuration file $configPath does not exist. Cottontail DB will shut down.")
+        exitProcess(1)
+    } catch (r: RuntimeException) {
+        System.err.println("Error on reading Cottontail DB configuration file ($configPath). Cottontail DB will shut down.")
         exitProcess(1)
     }
 
-    /* Load config file and start Cottontail DB. */
-    Files.newBufferedReader(configPath).use { reader ->
-        val config = Json.decodeFromString(Config.serializer(), reader.readText())
-        try {
-            standalone(config)
-        } catch (e: Throwable) {
-            System.err.println("Failed to start Cottontail DB due to error:")
-            System.err.println(e.printStackTrace())
-            exitProcess(1)
+    /* Try to start Cottontail DB */
+    try {
+        standalone(config)
+    } catch (e: Throwable) {
+        System.err.println("Failed to start Cottontail DB due to error:")
+        System.err.println(e.printStackTrace())
+        exitProcess(1)
+    }
+}
+
+/**
+ * Looks in the following places for a config path (ordered, fifo):
+ *   1. The first program argument
+ *   2. System property with the key [COTTONTAIL_CONFIG_FILE_SYSTEM_PROPERTY_KEY]
+ *   3. Environment variable with the name [COTTONTAIL_CONFIG_FILE_ENV_KEY]
+ *   4. Literally `./config.json` i.e. in the CWD
+ *
+ * @param args The command line arguments array as it was passed to the program
+ * @return The path to use, based on the described order
+ */
+private fun findConfigPathOrdered(args: Array<String>): String {
+    return if (args.isNotEmpty() && args[0].isNotBlank()) {
+        /* Likely specified argumetn */
+        args[0]
+    } else if (System.getProperties()
+            .containsKey(COTTONTAIL_CONFIG_FILE_SYSTEM_PROPERTY_KEY) && System.getProperty(
+            COTTONTAIL_CONFIG_FILE_SYSTEM_PROPERTY_KEY, ""
+        ).isNotBlank()
+    ) {
+        System.getProperty(COTTONTAIL_CONFIG_FILE_SYSTEM_PROPERTY_KEY)
+    } else if (System.getenv().containsKey(COTTONTAIL_CONFIG_FILE_ENV_KEY) && System.getenv(
+            COTTONTAIL_CONFIG_FILE_ENV_KEY
+        ).isNotBlank()
+    ) {
+        System.getenv(COTTONTAIL_CONFIG_FILE_ENV_KEY)
+    } else {
+        System.err.println("No CottontailDB Config file specified. Defaulting to ./config.json")
+        "./config.json"
+    }
+}
+
+/**
+ * Loads (i.e. reads and parses) the [Config] from the path specified.
+ * @throws FileNotFoundException In case the specified path is not a regular file
+ * @throws RuntimeException In case an error occurs during parsing / reading
+ * @return The parsed [Config] ready to be used.
+ */
+private fun loadConfig(path: String): Config {
+    val configPath = Paths.get(path)
+    /* Check if file is regular and exists */
+    if (!Files.isRegularFile(configPath)) {
+        throw FileNotFoundException("Cottontail DB configuration file $configPath des not exist.")
+    }
+    /* Check if loading works */
+    try {
+        return Files.newBufferedReader(configPath).use {
+            return@use Json.decodeFromString(Config.serializer(), it.readText())
         }
+    } catch (e: Throwable) {
+        throw RuntimeException("Could not read Cottontail DB configuration file", e)
     }
 }
 
@@ -91,7 +151,11 @@ fun standalone(config: Config) {
     /* Start gRPC Server and print message. */
     val server = CottontailGrpcServer(config, catalogue)
     server.start()
-    println("Cottontail DB server is up and running at port ${config.server.port}! Hop along... (catalogue: ${catalogue.version}, pid: ${ProcessHandle.current().pid()})")
+    println(
+        "Cottontail DB server is up and running at port ${config.server.port}! Hop along... (catalogue: ${catalogue.version}, pid: ${
+            ProcessHandle.current().pid()
+        })"
+    )
 
     /* Start CLI (if configured). */
     if (config.cli) {

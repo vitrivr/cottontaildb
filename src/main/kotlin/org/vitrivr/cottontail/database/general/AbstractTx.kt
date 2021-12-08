@@ -1,7 +1,6 @@
 package org.vitrivr.cottontail.database.general
 
 import org.vitrivr.cottontail.database.index.AbstractIndex
-import org.vitrivr.cottontail.database.index.IndexTx
 import org.vitrivr.cottontail.database.locking.LockMode
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.model.exceptions.TxException
@@ -85,10 +84,7 @@ abstract class AbstractTx(override val context: TransactionContext) : Tx {
         if (this.status == TxStatus.CLOSED) throw TxException.TxClosedException(this.context.txId)
         if (this.status == TxStatus.ERROR) throw TxException.TxInErrorException(this.context.txId)
         this.context.requestLock(this.dbo, LockMode.EXCLUSIVE)
-
-        if (this.status != TxStatus.DIRTY) {
-            this.status = TxStatus.DIRTY
-        }
+        this.status = TxStatus.DIRTY
         return this.txLatch.write {
             block()
         }

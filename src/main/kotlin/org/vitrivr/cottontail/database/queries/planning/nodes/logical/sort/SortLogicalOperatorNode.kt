@@ -1,7 +1,6 @@
 package org.vitrivr.cottontail.database.queries.planning.nodes.logical.sort
 
 import org.vitrivr.cottontail.database.column.ColumnDef
-import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.UnaryLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.sort.SortPhysicalOperatorNode
 import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicate
@@ -12,9 +11,9 @@ import org.vitrivr.cottontail.model.exceptions.QueryException
  * A [UnaryLogicalOperatorNode] that represents sorting the input by a set of specified [ColumnDef]s.
  *
  * @author Ralph Gasser
- * @version 2.1.0
+ * @version 2.2.0
  */
-class SortLogicalOperatorNode(input: OperatorNode.Logical? = null, sortOn: Array<Pair<ColumnDef<*>, SortOrder>>) : UnaryLogicalOperatorNode(input) {
+class SortLogicalOperatorNode(input: Logical? = null, override val sortOn: List<Pair<ColumnDef<*>, SortOrder>>) : UnaryLogicalOperatorNode(input) {
 
     companion object {
         private const val NODE_NAME = "Order"
@@ -24,19 +23,12 @@ class SortLogicalOperatorNode(input: OperatorNode.Logical? = null, sortOn: Array
     override val name: String
         get() = NODE_NAME
 
-    /** The [SortLogicalOperatorNode] returns the [ColumnDef] of its input. */
-    override val columns: Array<ColumnDef<*>>
-        get() = this.input?.columns ?: emptyArray()
-
-    /** A [SortLogicalOperatorNode] orders the input in by the specified [ColumnDef]s. */
-    override val order = sortOn
-
     /** The [SortLogicalOperatorNode] requires all [ColumnDef]s used in the [KnnPredicate]. */
-    override val requires: Array<ColumnDef<*>> = this.order.map { it.first }.toTypedArray()
+    override val requires: List<ColumnDef<*>> = this.sortOn.map { it.first }
 
     init {
         /* Sanity check. */
-        if (sortOn.isEmpty()) throw QueryException.QuerySyntaxException("At least one column must be specified for sorting.")
+        if (this.sortOn.isEmpty()) throw QueryException.QuerySyntaxException("At least one column must be specified for sorting.")
     }
 
     /**
@@ -44,27 +36,25 @@ class SortLogicalOperatorNode(input: OperatorNode.Logical? = null, sortOn: Array
      *
      * @return Copy of this [SortLogicalOperatorNode].
      */
-    override fun copy() = SortLogicalOperatorNode(sortOn = this.order)
+    override fun copy() = SortLogicalOperatorNode(sortOn = this.sortOn)
 
     /**
      * Returns a [SortPhysicalOperatorNode] representation of this [SortLogicalOperatorNode]
      *
      * @return [SortPhysicalOperatorNode]
      */
-    override fun implement(): Physical = SortPhysicalOperatorNode(this.input?.implement(), this.order)
+    override fun implement(): Physical = SortPhysicalOperatorNode(this.input?.implement(), this.sortOn)
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is SortLogicalOperatorNode) return false
-
-        if (!order.contentEquals(other.order)) return false
-
+        if (this.sortOn != other.sortOn) return false
         return true
     }
 
     /** Generates and returns a hash code for this [SortLogicalOperatorNode]. */
-    override fun hashCode(): Int = this.order.contentHashCode()
+    override fun hashCode(): Int = this.sortOn.hashCode()
 
     /** Generates and returns a [String] representation of this [SortLogicalOperatorNode]. */
-    override fun toString() = "${super.toString()}[${this.order.joinToString(",") { "${it.first.name} ${it.second}" }}]"
+    override fun toString() = "${super.toString()}[${this.sortOn.joinToString(",") { "${it.first.name} ${it.second}" }}]"
 }

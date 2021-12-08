@@ -33,7 +33,7 @@ class CottontailGrpcServer(val config: Config, val catalogue: DefaultCatalogue) 
         .addService(DDLService(this.catalogue, this.transactionManager))
         .addService(DMLService(this.catalogue, this.transactionManager))
         .addService(DQLService(this.catalogue, this.transactionManager))
-        .addService(TXNService(this.transactionManager))
+        .addService(TXNService(this.catalogue, this.transactionManager))
         .let {
             if (this.config.server.useTls) {
                 val certFile = this.config.server.certFile!!.toFile()

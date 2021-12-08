@@ -14,10 +14,11 @@ import kotlin.math.pow
 /**
  * This is an abstraction over an [Array] and it represents a vector of [Complex32Value]s.
  *
+ * @version 1.6.0
  * @author Manuel Huerbin & Ralph Gasser
- * @version 1.5.0
  */
-inline class Complex32VectorValue(val data: FloatArray) : ComplexVectorValue<Float> {
+@JvmInline
+value class Complex32VectorValue(val data: FloatArray) : ComplexVectorValue<Float> {
     companion object {
         /**
          * Generates a [Complex32VectorValue] of the given size initialized with random numbers.

@@ -11,9 +11,10 @@ import kotlin.math.pow
  * This is an abstraction over a [DoubleArray] and it represents a vector of [Double]s.
  *
  * @author Ralph Gasser
- * @version 1.5.0
+ * @version 1.6.0
  */
-inline class DoubleVectorValue(val data: DoubleArray) : RealVectorValue<Double> {
+@JvmInline
+value class DoubleVectorValue(val data: DoubleArray) : RealVectorValue<Double> {
 
     companion object {
         /**

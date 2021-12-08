@@ -17,13 +17,10 @@ import kotlin.time.measureTimedValue
  * An [Operator.SourceOperator] used during query execution. Truncates an [Entity] (i.e. drops and re-creates it).
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.2.0
  */
 @ExperimentalTime
-class TruncateEntityOperator(
-    val catalogue: Catalogue,
-    val name: Name.EntityName
-) : AbstractDataDefinitionOperator(name, "TRUNCATE ENTITY") {
+class TruncateEntityOperator(val catalogue: Catalogue, val name: Name.EntityName) : AbstractDataDefinitionOperator(name, "TRUNCATE ENTITY") {
     override fun toFlow(context: TransactionContext): Flow<Record> {
         val catTxn = context.getTx(this.catalogue) as CatalogueTx
         val schemaTxn = context.getTx(catTxn.schemaForName(this.name.schema())) as SchemaTx

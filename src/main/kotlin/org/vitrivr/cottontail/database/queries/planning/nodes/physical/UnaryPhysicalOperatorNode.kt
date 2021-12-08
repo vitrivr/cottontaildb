@@ -4,20 +4,17 @@ import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.queries.Digest
 import org.vitrivr.cottontail.database.queries.GroupId
 import org.vitrivr.cottontail.database.queries.OperatorNode
-import org.vitrivr.cottontail.database.queries.binding.Binding
-import org.vitrivr.cottontail.database.queries.binding.BindingContext
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.UnaryLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.sort.SortOrder
 import org.vitrivr.cottontail.database.statistics.entity.RecordStatistics
-import org.vitrivr.cottontail.model.values.types.Value
 import java.io.PrintStream
 
 /**
  * An abstract [OperatorNode.Physical] implementation that has a single [OperatorNode] as input.
  *
  * @author Ralph Gasser
- * @version 2.1.1
+ * @version 2.4.0
  */
 abstract class UnaryPhysicalOperatorNode(input: Physical? = null) : OperatorNode.Physical() {
 
@@ -51,7 +48,7 @@ abstract class UnaryPhysicalOperatorNode(input: Physical? = null) : OperatorNode
         get() = (this.input?.totalCost ?: Cost.ZERO) + this.cost
 
     /** By default, a [UnaryPhysicalOperatorNode] has no specific requirements. */
-    override val requires: Array<ColumnDef<*>> = emptyArray()
+    override val requires: List<ColumnDef<*>> = emptyList()
 
     /** By default, [UnaryPhysicalOperatorNode]s are executable if their input is executable. */
     override val executable: Boolean
@@ -61,17 +58,21 @@ abstract class UnaryPhysicalOperatorNode(input: Physical? = null) : OperatorNode
     override val canBePartitioned: Boolean
         get() = this.input?.canBePartitioned ?: false
 
+    /** By default, the [UnaryPhysicalOperatorNode] outputs the physical [ColumnDef] of its input. */
+    override val physicalColumns: List<ColumnDef<*>>
+        get() = (this.input?.physicalColumns ?: emptyList())
+
     /** By default, the [UnaryPhysicalOperatorNode] outputs the [ColumnDef] of its input. */
-    override val columns: Array<ColumnDef<*>>
-        get() = (this.input?.columns ?: emptyArray())
+    override val columns: List<ColumnDef<*>>
+        get() = (this.input?.columns ?: emptyList())
 
     /** By default, the output size of a [UnaryPhysicalOperatorNode] is the same as its input's output size. */
     override val outputSize: Long
         get() = (this.input?.outputSize ?: 0)
 
     /** By default, a [UnaryPhysicalOperatorNode]'s order is the same as its input's order. */
-    override val order: Array<Pair<ColumnDef<*>, SortOrder>>
-        get() = this.input?.order ?: emptyArray()
+    override val sortOn: List<Pair<ColumnDef<*>, SortOrder>>
+        get() = this.input?.sortOn ?: emptyList()
 
     /** By default, a [UnaryPhysicalOperatorNode]'s [RecordStatistics] is the same as its input's [RecordStatistics].*/
     override val statistics: RecordStatistics
@@ -120,22 +121,6 @@ abstract class UnaryPhysicalOperatorNode(input: Physical? = null) : OperatorNode
         val copy = this.copy()
         copy.input = input.getOrNull(0)
         return (this.output?.copyWithOutput(copy) ?: copy).root
-    }
-
-    /**
-     * Performs value binding using the given [BindingContext].
-     *
-     * [UnaryPhysicalOperatorNode] are required to propagate calls to [bindValues] up the tree in addition
-     * to executing the binding locally. Consequently, the call is propagated to all the [input] [OperatorNode].
-     *
-     * By default, this operation has no further effect. Override to implement operator specific binding but don't forget to call super.bindValues()
-     *
-     * @param ctx [BindingContext] to use to resolve [Binding]s.
-     * @return This [OperatorNode].
-     */
-    override fun bindValues(ctx: BindingContext<Value>): OperatorNode {
-        this.input?.bindValues(ctx)
-        return this
     }
 
     /**

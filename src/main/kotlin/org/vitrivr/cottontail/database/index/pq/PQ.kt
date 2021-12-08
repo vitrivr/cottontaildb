@@ -8,14 +8,12 @@ import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.index.pq.codebook.DoublePrecisionPQCodebook
 import org.vitrivr.cottontail.database.index.pq.codebook.PQCodebook
 import org.vitrivr.cottontail.database.index.pq.codebook.SinglePrecisionPQCodebook
-import org.vitrivr.cottontail.math.knn.basics.DistanceKernel
-import org.vitrivr.cottontail.math.knn.kernels.Distances
+import org.vitrivr.cottontail.functions.math.distance.basics.VectorDistance
 import org.vitrivr.cottontail.model.basics.Type
 import org.vitrivr.cottontail.model.values.DoubleVectorValue
 import org.vitrivr.cottontail.model.values.FloatVectorValue
 import org.vitrivr.cottontail.model.values.types.VectorValue
 import java.util.*
-import kotlin.collections.ArrayList
 
 /**
  * Product Quantizer (PQ) that minimizes inner product error. Input data should be permuted for better results!
@@ -174,17 +172,19 @@ class PQ(val type: Type<*>, val codebooks: List<PQCodebook<VectorValue<*>>>) {
     }
 
     /**
-     * Generates and returns a [PQLookupTable] for the given [VectorValue] and the given [DistanceKernel].
+     * Generates and returns a [PQLookupTable] for the given [VectorDistance.Binary].
      *
-     * @param v The [VectorValue] to obtain the [PQLookupTable] for.
-     * @param distance The [Distances] to apply.
-     * @return The [PQLookupTable] for the given [VectorValue] and the [DistanceKernel]
+     * @param distance The [VectorDistance.Binary] to generate the [PQLookupTable] for.
+     * @return The [PQLookupTable] for the given [VectorDistance.Binary].
      */
-    fun getLookupTable(v: VectorValue<*>, distance: Distances) = PQLookupTable(
-        Array(this.numberOfSubspaces) { k ->
-            val kernel = distance.kernelForQuery(v.subvector(k * this.dimensionsPerSubspace, dimensionsPerSubspace)) as DistanceKernel<VectorValue<*>>
-            val codebook = this.codebooks[k]
-            DoubleArray(codebook.numberOfCentroids) { kernel.invoke(codebook[it]).value }
-        }
-    )
+    fun getLookupTable(query: VectorValue<*>, distance: VectorDistance.Binary<*>): PQLookupTable {
+        val reshape = distance.copy(this.dimensionsPerSubspace)
+        return PQLookupTable(
+            Array(this.numberOfSubspaces) { k ->
+                val codebook = this.codebooks[k]
+                val subspaceQuery = query.subvector(k * this.dimensionsPerSubspace, this.dimensionsPerSubspace)
+                DoubleArray(codebook.numberOfCentroids) { reshape(subspaceQuery, codebook[it]).value }
+            }
+        )
+    }
 }

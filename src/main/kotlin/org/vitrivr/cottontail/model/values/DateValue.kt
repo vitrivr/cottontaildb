@@ -10,9 +10,10 @@ import java.util.*
  * This is an abstraction over a [Date].
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.6.0
  */
-inline class DateValue(override val value: Long) : ScalarValue<Long> {
+@JvmInline
+value class DateValue(override val value: Long) : ScalarValue<Long> {
 
     /**
      * Converts a [Date] to a [DateValue].

@@ -1,31 +1,28 @@
 package org.vitrivr.cottontail.database.queries
 
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap
+import org.vitrivr.cottontail.database.catalogue.Catalogue
 import org.vitrivr.cottontail.database.column.ColumnDef
-
-import org.vitrivr.cottontail.database.queries.binding.Binding
 import org.vitrivr.cottontail.database.queries.binding.BindingContext
+
+import org.vitrivr.cottontail.database.queries.binding.DefaultBindingContext
 import org.vitrivr.cottontail.database.queries.sort.SortOrder
-import org.vitrivr.cottontail.execution.TransactionContext
+import org.vitrivr.cottontail.execution.TransactionManager
 import org.vitrivr.cottontail.execution.operators.basics.Operator
-import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.values.types.Value
 
 /**
- * A context for query binding and planning. Tracks logical and physical query plans and
- * enables late binding of [Binding]s to [Node]s
+ * A context for query binding and planning. Tracks logical and physical query plans, enables late binding of [Value]s
+ * and isolates different strands of execution within a query from one another.
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.3.0
  */
-class QueryContext(val txn: TransactionContext) {
+class QueryContext(val queryId: String, val catalogue: Catalogue, val txn: TransactionManager.TransactionImpl) {
 
     /** List of bound [Value]s for this [QueryContext]. */
-    val values = BindingContext<Value>()
-
-    /** List of bound [Record]s for this [QueryContext]. */
-    val records = BindingContext<Record>()
+    val bindings: BindingContext = DefaultBindingContext()
 
     /** The individual [OperatorNode.Logical], each representing different sub-queries. */
     private val nodes: MutableMap<GroupId, OperatorNode.Logical> = Int2ObjectOpenHashMap()
@@ -39,12 +36,12 @@ class QueryContext(val txn: TransactionContext) {
         internal set
 
     /** Output [ColumnDef] for the query held by this [QueryContext] (as per canonical plan). */
-    val output: Array<ColumnDef<*>>?
+    val output: List<ColumnDef<*>>?
         get() = this.nodes[0]?.columns
 
     /** Output order for the query held by this [QueryContext] (as per canonical plan). */
-    val order: Array<Pair<ColumnDef<*>, SortOrder>>?
-        get() = this.nodes[0]?.order
+    val order: List<Pair<ColumnDef<*>, SortOrder>>?
+        get() = this.nodes[0]?.sortOn
 
     @Volatile
     private var groupIdCounter: GroupId = 0
@@ -74,9 +71,9 @@ class QueryContext(val txn: TransactionContext) {
     /**
      * Returns an executable [Operator] for this [QueryContext]. Requires a functional, [OperatorNode.Physical]
      */
-    fun toOperatorTree(txn: TransactionContext): Operator {
+    fun toOperatorTree(): Operator {
         val local = this.physical
         check(local != null) { IllegalStateException("Cannot generate an operator tree without a valid, physical node expression tree.") }
-        return local.toOperator(txn, this)
+        return local.toOperator(this)
     }
 }

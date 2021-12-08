@@ -19,7 +19,7 @@ import kotlin.time.measureTimedValue
  * An [Operator.SourceOperator] used during query execution. Creates an [Index]
  *
  * @author Ralph Gasser
- * @version 1.0.1
+ * @version 1.1.0
  */
 @ExperimentalTime
 class CreateIndexOperator(
@@ -28,7 +28,7 @@ class CreateIndexOperator(
     private val type: IndexType,
     private val indexColumns: List<Name.ColumnName>,
     private val params: Map<String, String>,
-    private val rebuild: Boolean = false
+    private val rebuild: Boolean = false,
 ) : AbstractDataDefinitionOperator(name, "CREATE INDEX") {
 
     override fun toFlow(context: TransactionContext): Flow<Record> {

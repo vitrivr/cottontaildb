@@ -15,7 +15,7 @@ import kotlin.time.measureTimedValue
  * An [Operator.SourceOperator] used during query execution. Drops a [Schema]
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
 @ExperimentalTime
 class DropSchemaOperator(val catalogue: DefaultCatalogue, val name: Name.SchemaName) : AbstractDataDefinitionOperator(name, "DROP SCHEMA") {

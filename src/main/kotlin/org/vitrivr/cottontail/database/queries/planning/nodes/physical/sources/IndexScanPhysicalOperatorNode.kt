@@ -7,29 +7,26 @@ import org.vitrivr.cottontail.database.index.Index
 import org.vitrivr.cottontail.database.index.IndexTx
 import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.QueryContext
-import org.vitrivr.cottontail.database.queries.binding.BindingContext
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.NullaryPhysicalOperatorNode
 import org.vitrivr.cottontail.database.queries.predicates.Predicate
 import org.vitrivr.cottontail.database.queries.predicates.bool.BooleanPredicate
 import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicate
-import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicateHint
 import org.vitrivr.cottontail.database.queries.sort.SortOrder
 import org.vitrivr.cottontail.database.statistics.entity.RecordStatistics
 import org.vitrivr.cottontail.database.statistics.selectivity.NaiveSelectivityCalculator
-import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.sort.MergeLimitingHeapSortOperator
 import org.vitrivr.cottontail.execution.operators.sources.IndexScanOperator
-import org.vitrivr.cottontail.model.values.types.Value
+import org.vitrivr.cottontail.model.basics.Name
 
 /**
  * A [IndexScanPhysicalOperatorNode] that represents a predicated lookup using an [AbstractIndex].
  *
  * @author Ralph Gasser
- * @version 2.1.0
+ * @version 2.2.0
  */
-class IndexScanPhysicalOperatorNode(override val groupId: Int, val index: IndexTx, val predicate: Predicate) : NullaryPhysicalOperatorNode() {
+class IndexScanPhysicalOperatorNode(override val groupId: Int, val index: IndexTx, val predicate: Predicate, val fetch: List<Pair<Name.ColumnName,ColumnDef<*>>>) : NullaryPhysicalOperatorNode() {
     companion object {
         private const val NODE_NAME = "ScanIndex"
     }
@@ -38,8 +35,17 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int, val index: IndexT
     override val name: String
         get() = NODE_NAME
 
+    /** The [ColumnDef]s accessed by this [IndexScanPhysicalOperatorNode] depends on the [ColumnDef]s produced by the [Index]. */
+    override val physicalColumns: List<ColumnDef<*>> = this.fetch.map {
+        require(this.index.dbo.produces.contains(it.second)) { "The given column $it is not produced by the selected index ${this.index.dbo}. This is a programmer's error!"}
+        it.second
+    }
+
     /** The [ColumnDef]s produced by this [IndexScanPhysicalOperatorNode] depends on the [ColumnDef]s produced by the [Index]. */
-    override val columns: Array<ColumnDef<*>> = this.index.dbo.produces
+    override val columns: List<ColumnDef<*>> = this.fetch.map {
+        require(this.index.dbo.produces.contains(it.second)) { "The given column $it is not produced by the selected index ${this.index.dbo}. This is a programmer's error!"}
+        it.second.copy(name = it.first)
+    }
 
     /** [IndexScanPhysicalOperatorNode] are always executable. */
     override val executable: Boolean = true
@@ -53,7 +59,7 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int, val index: IndexT
     /** Cost estimation for [IndexScanPhysicalOperatorNode]s is delegated to the [Index]. */
     override val cost: Cost = this.index.dbo.cost(this.predicate)
 
-    /** */
+    /** The estimated output size of this [IndexScanPhysicalOperatorNode]. */
     override val outputSize: Long = when (this.predicate) {
         is BooleanPredicate -> NaiveSelectivityCalculator.estimate(this.predicate, this.statistics)(this.index.dbo.parent.numberOfRows)
         is KnnPredicate -> this.predicate.k.toLong()
@@ -65,7 +71,7 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int, val index: IndexT
      *
      * @return Copy of this [IndexScanPhysicalOperatorNode].
      */
-    override fun copy() = IndexScanPhysicalOperatorNode(this.groupId, this.index, this.predicate)
+    override fun copy() = IndexScanPhysicalOperatorNode(this.groupId, this.index, this.predicate, this.fetch)
 
     /**
      * Partitions this [IndexScanPhysicalOperatorNode].
@@ -76,45 +82,28 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int, val index: IndexT
     override fun partition(p: Int): List<NullaryPhysicalOperatorNode> {
         check(this.index.dbo.supportsPartitioning) { "Index ${index.dbo.name} does not support partitioning!" }
         return (0 until p).map {
-            RangedIndexScanPhysicalOperatorNode(this.groupId, this.index, this.predicate, it, p)
+            RangedIndexScanPhysicalOperatorNode(this.groupId, this.index, this.predicate, this.fetch, it, p)
         }
     }
 
     /**
      * Converts this [IndexScanPhysicalOperatorNode] to a [IndexScanOperator].
      *
-     * @param tx The [TransactionContext] used for execution.
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(tx: TransactionContext, ctx: QueryContext): Operator = when (this.predicate) {
+    override fun toOperator(ctx: QueryContext): Operator = when (this.predicate) {
         is KnnPredicate -> {
-            val hint = this.predicate.hint
-            val p = if (hint is KnnPredicateHint.ParallelKnnHint) {
-                Integer.max(hint.min, this.totalCost.parallelisation(hint.max))
-            } else {
-                this.totalCost.parallelisation()
-            }
-
+            val p = this.totalCost.parallelisation()
             if (p > 1 && this.canBePartitioned) {
                 val partitions = this.partition(p)
-                val operators = partitions.map { it.toOperator(tx, ctx) }
-                MergeLimitingHeapSortOperator(operators, arrayOf(Pair(this.predicate.produces, SortOrder.ASCENDING)), this.predicate.k.toLong())
+                val operators = partitions.map { it.toOperator(ctx) }
+                MergeLimitingHeapSortOperator(operators, listOf(Pair(this.predicate.produces, SortOrder.ASCENDING)), this.predicate.k.toLong())
             } else {
-                IndexScanOperator(this.groupId, this.index, this.predicate.bindValues(ctx.values))
+                IndexScanOperator(this.groupId, this.index, this.predicate, this.fetch, ctx.bindings)
             }
         }
-        is BooleanPredicate -> IndexScanOperator(this.groupId, this.index, this.predicate.bindValues(ctx.values))
+        is BooleanPredicate -> IndexScanOperator(this.groupId, this.index, this.predicate, this.fetch, ctx.bindings)
         else -> throw UnsupportedOperationException("Unknown type of predicate ${this.predicate} cannot be converted to operator.")
-    }
-
-    /**
-     * Binds values from the provided [BindingContext] to this [IndexScanPhysicalOperatorNode]'s [Predicate].
-     *
-     * @param ctx The [BindingContext] used for value binding.
-     */
-    override fun bindValues(ctx: BindingContext<Value>): OperatorNode {
-        this.predicate.bindValues(ctx)
-        return super.bindValues(ctx)
     }
 
     /** Generates and returns a [String] representation of this [EntityScanPhysicalOperatorNode]. */

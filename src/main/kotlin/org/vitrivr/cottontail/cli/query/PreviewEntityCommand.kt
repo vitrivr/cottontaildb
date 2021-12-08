@@ -6,27 +6,36 @@ import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.validate
 import com.github.ajalt.clikt.parameters.types.long
+import org.vitrivr.cottontail.cli.AbstractCottontailCommand
 import org.vitrivr.cottontail.cli.MatchAll
+import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.database.queries.binding.extensions.protoFrom
 import org.vitrivr.cottontail.grpc.CottontailGrpc
-import org.vitrivr.cottontail.grpc.DQLGrpc
 import org.vitrivr.cottontail.model.basics.Name
 import kotlin.time.ExperimentalTime
 
 /**
- * Command to preview a given entity
+ * Command to preview a given entity, identified by an entity name.
  *
  * @author Loris Sauter
- * @version 1.0.2
+ * @version 2.0.0
  */
 @ExperimentalTime
-class PreviewEntityCommand constructor(dqlStub: DQLGrpc.DQLBlockingStub) : AbstractQueryCommand(name = "preview", help = "Gives a preview of the entity specified", stub = dqlStub) {
+class PreviewEntityCommand(client: SimpleClient): AbstractCottontailCommand.Query(client, name = "preview", help = "Gives a preview of the entity specified") {
 
     private val entityName: Name.EntityName by argument(name = "entity", help = "The fully qualified entity name targeted by the command. Has the form of [\"warren\"].<schema>.<entity>").convert {
         Name.EntityName(*it.split(Name.NAME_COMPONENT_DELIMITER).toTypedArray())
     }
+
+    /**
+     * Upper limit of results. Option given via CLI. Defaults to 50
+     */
     private val limit: Long by option("-l", "--limit", help = "Limits the amount of printed results").long().default(50).validate { require(it > 1) }
-    private val skip: Long by option("-s", "--skip", help = "Limits the amount of printed results").long().default(0).validate { require(it >= 0) }
+
+    /**
+     * Offset from the start of the table. Option given vai CLI. Defaults to 0
+     */
+    private val skip: Long by option("-s", "--skip", help = "The offset on how many rows should be skipped").long().default(0).validate { require(it >= 0) }
 
     override fun exec() {
         /* Prepare query. */

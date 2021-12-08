@@ -3,6 +3,8 @@ package org.vitrivr.cottontail.utilities.output
 import com.jakewharton.picnic.Table
 import com.jakewharton.picnic.TableSectionDsl
 import com.jakewharton.picnic.table
+import org.vitrivr.cottontail.client.iterators.Tuple
+import org.vitrivr.cottontail.client.iterators.TupleIterator
 import org.vitrivr.cottontail.database.queries.binding.extensions.fqn
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import java.util.*
@@ -11,7 +13,7 @@ import java.util.*
  * Utility class for tabulated output.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 2.0.0
  */
 object TabulationUtilities {
 
@@ -20,25 +22,55 @@ object TabulationUtilities {
      * the results in a [Table].
      *
      * @param result The [Iterator] of [CottontailGrpc.QueryResponseMessage] to go visualize.
+     * @return [Table]
      */
-    fun tabulate(result: Iterator<CottontailGrpc.QueryResponseMessage>): Table {
-        var next = result.next()
-        return table {
-            cellStyle {
-                border = true
-                paddingLeft = 1
-                paddingRight = 1
+    fun tabulate(result: TupleIterator): Table = table {
+        cellStyle {
+            border = true
+            paddingLeft = 1
+            paddingRight = 1
+        }
+        header {
+            row {
+                result.columnNames.forEach { cell(it) }
             }
-            header {
+        }
+        body {
+            while (result.hasNext()) {
+                val next = result.next()
                 row {
-                    next.columnsList.forEach { cell(it.fqn()) }
+                    repeat(result.numberOfColumns) { i -> cell("${next[i] ?: "~~N/A~~"}") }
                 }
             }
-            body {
-                next.tuplesList.forEach { tupleToRow(this, it) }
-                while (result.hasNext()) {
-                    next = result.next()
-                    next.tuplesList.forEach { tupleToRow(this, it) }
+        }
+    }
+
+    /**
+     * Takes a [Iterator] of [CottontailGrpc.QueryResponseMessage], iterates over it and arranges
+     * the results in a [Table].
+     *
+     * @param result The [TupleIterator] to go tabulate.
+     * @param predicate A predicate evaluating a [Tuple] and returning either true or false.
+     * @return [Table]
+     */
+    fun tabulateIf(result: TupleIterator, predicate: (Tuple) -> Boolean): Table = table {
+        cellStyle {
+            border = true
+            paddingLeft = 1
+            paddingRight = 1
+        }
+        header {
+            row {
+                result.columnNames.forEach { cell(it) }
+            }
+        }
+        body {
+            while (result.hasNext()) {
+                val next = result.next()
+                if (predicate(next)) {
+                    row {
+                        repeat(result.numberOfColumns) { i -> cell("${next[i] ?: "~~N/A~~"}") }
+                    }
                 }
             }
         }
@@ -57,7 +89,7 @@ object TabulationUtilities {
         }
         header {
             row {
-                result.columnsList.forEach { cell(it.fqn()) }
+                result.columnsList.forEach { cell(it.name.fqn()) }
             }
         }
         body {
@@ -96,7 +128,7 @@ object TabulationUtilities {
                     CottontailGrpc.Vector.VectorDataCase.VECTORDATA_NOT_SET -> "~~NULL~~"
                     else -> "~~N/A~~"
                 }
-                CottontailGrpc.Literal.DataCase.NULLDATA -> "~~NULL~~"
+                CottontailGrpc.Literal.DataCase.DATA_NOT_SET -> "~~NULL~~"
                 else -> "~~N/A~~"
             }
         }.forEach { cell(it) }

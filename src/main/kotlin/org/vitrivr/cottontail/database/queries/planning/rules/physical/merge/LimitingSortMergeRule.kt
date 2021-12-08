@@ -22,7 +22,7 @@ object LimitingSortMergeRule : RewriteRule {
             val sort = node.input
             if (sort is SortPhysicalOperatorNode) {
                 val input = sort.input?.copyWithInputs() ?: throw IllegalStateException("Encountered null node in physical operator node tree (node = $node). This is a programmer's error!")
-                val p = LimitingSortPhysicalOperatorNode(input, sort.order, node.limit, node.skip)
+                val p = LimitingSortPhysicalOperatorNode(input, sort.sortOn, node.limit, node.skip)
                 return node.output?.copyWithOutput(p) ?: p
             }
         }
