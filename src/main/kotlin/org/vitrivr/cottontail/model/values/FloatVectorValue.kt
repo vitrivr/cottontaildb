@@ -15,9 +15,10 @@ import kotlin.math.pow
  * This is an abstraction over a [FloatArray] and it represents a vector of [Float]s.
  *
  * @author Ralph Gasser
- * @version 1.5.0
+ * @version 1.6.0
  */
-inline class FloatVectorValue(val data: FloatArray) : RealVectorValue<Float> {
+@JvmInline
+value class FloatVectorValue(val data: FloatArray) : RealVectorValue<Float> {
 
     companion object {
         /**

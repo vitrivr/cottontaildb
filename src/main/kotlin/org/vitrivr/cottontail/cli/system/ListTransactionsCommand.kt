@@ -1,8 +1,10 @@
 package org.vitrivr.cottontail.cli.system
 
-import com.google.protobuf.Empty
+import com.github.ajalt.clikt.parameters.options.flag
+import com.github.ajalt.clikt.parameters.options.option
 import org.vitrivr.cottontail.cli.AbstractCottontailCommand
-import org.vitrivr.cottontail.grpc.TXNGrpc
+import org.vitrivr.cottontail.client.SimpleClient
+import org.vitrivr.cottontail.execution.TransactionStatus
 import org.vitrivr.cottontail.utilities.output.TabulationUtilities
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTimedValue
@@ -11,14 +13,20 @@ import kotlin.time.measureTimedValue
  * List all known transactions in Cottontail DB.
  *
  * @author Loris Sauter & Ralph Gasser
- * @version 1.0.1
+ * @version 2.0.0
  */
 @ExperimentalTime
-class ListTransactionsCommand(private val txnStub: TXNGrpc.TXNBlockingStub) : AbstractCottontailCommand(name = "transactions", help = "Lists all ongoing transaction in the current Cottontail DB instance.") {
+class ListTransactionsCommand(private val client: SimpleClient) : AbstractCottontailCommand.System(name = "transactions", help = "Lists all ongoing transaction in the current Cottontail DB instance.") {
+
+    /** Flag that can be used to directly provide confirmation. */
+    private val all: Boolean by option("-a", "--all", help = "If this flag is set, all transactions are listed and not just the running ones.").flag()
+
     override fun exec() {
         /* Execute query. */
         val timedTable = measureTimedValue {
-            TabulationUtilities.tabulate(this@ListTransactionsCommand.txnStub.listTransactions(Empty.getDefaultInstance()))
+            TabulationUtilities.tabulateIf(this.client.transactions()) {
+                this@ListTransactionsCommand.all || (it.asString(2) == TransactionStatus.RUNNING.toString() || it.asString(2) == TransactionStatus.ERROR.toString())
+            }
         }
 
         /* Output results. */

@@ -11,12 +11,12 @@ import org.vitrivr.cottontail.database.column.Column
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.column.ColumnEngine
 import org.vitrivr.cottontail.database.column.ColumnTx
-import org.vitrivr.cottontail.database.events.DataChangeEvent
 import org.vitrivr.cottontail.database.general.*
 import org.vitrivr.cottontail.database.index.Index
 import org.vitrivr.cottontail.database.index.IndexTx
 import org.vitrivr.cottontail.database.index.IndexType
 import org.vitrivr.cottontail.database.locking.LockMode
+import org.vitrivr.cottontail.database.operations.Operation
 import org.vitrivr.cottontail.database.schema.DefaultSchema
 import org.vitrivr.cottontail.database.schema.Schema
 import org.vitrivr.cottontail.database.statistics.columns.ValueStatistics
@@ -421,9 +421,7 @@ class DefaultEntity(override val path: Path, override val parent: Schema) : Enti
             val incremental = this.snapshot.indexes.values.filter {
                 it.supportsIncrementalUpdate
             }.map {
-                val tx = this.context.getTx(it) as IndexTx
-                tx.clear() /* Important: Clear indexes. */
-                tx
+                this.context.getTx(it) as IndexTx
             }
             val columns = this@DefaultEntity.columns.values.map { it.columnDef }.toTypedArray()
             val map = Object2ObjectOpenHashMap<ColumnDef<*>, Value>(columns.size)
@@ -431,7 +429,7 @@ class DefaultEntity(override val path: Path, override val parent: Schema) : Enti
             this.snapshot.statistics.reset()
             iterator.forEach { r ->
                 r.forEach { columnDef, value -> map[columnDef] = value }
-                val event = DataChangeEvent.InsertDataChangeEvent(this@DefaultEntity, r.tupleId, map) /* Fake data change event for update. */
+                val event = Operation.DataManagementOperation.InsertOperation(this.context.txId, this@DefaultEntity.name, r.tupleId, map) /* Fake data change event for update. */
                 this.snapshot.statistics.consume(event)
                 incremental.forEach { it.update(event) }
             }
@@ -527,7 +525,15 @@ class DefaultEntity(override val path: Path, override val parent: Schema) : Enti
                 /* This is a critical section and requires a latch. */
                 this@DefaultEntity.columns.values.forEach {
                     val tx = this.context.getTx(it) as ColumnTx<Value>
-                    val value = record[it.columnDef]
+                    val value = try {
+                        record[it.columnDef]
+                    } catch (e: IllegalArgumentException) { /* If column is not specified, use default or null. */
+                        if (it.nullable) {
+                            null
+                        } else {
+                            it.type.defaultValue()
+                        }
+                    }
                     val tupleId = tx.insert(value)
                     if (lastTupleId != tupleId && lastTupleId != null) {
                         throw DatabaseException.DataCorruptionException("Entity '${this@DefaultEntity.name}' is corrupt. Insert did not yield same record ID for all columns involved!")
@@ -537,7 +543,7 @@ class DefaultEntity(override val path: Path, override val parent: Schema) : Enti
                 }
 
                 /* Issue DataChangeEvent.InsertDataChange event and update indexes + statistics. */
-                val event = DataChangeEvent.InsertDataChangeEvent(this@DefaultEntity, lastTupleId!!, inserts)
+                val event = Operation.DataManagementOperation.InsertOperation(this.context.txId, this@DefaultEntity.name, lastTupleId!!, inserts)
                 this.snapshot.indexes.values.forEach { (this.context.getTx(it) as IndexTx).update(event) }
                 this.snapshot.statistics.consume(event)
                 this.context.signalEvent(event)
@@ -571,7 +577,7 @@ class DefaultEntity(override val path: Path, override val parent: Schema) : Enti
                 }
 
                 /* Issue DataChangeEvent.UpdateDataChangeEvent and update indexes + statistics. */
-                val event = DataChangeEvent.UpdateDataChangeEvent(this@DefaultEntity, record.tupleId, updates)
+                val event = Operation.DataManagementOperation.UpdateOperation(this.context.txId, this@DefaultEntity.name, record.tupleId, updates)
                 this.snapshot.indexes.values.forEach { (this.context.getTx(it) as IndexTx).update(event) }
                 this.snapshot.statistics.consume(event)
                 this.context.signalEvent(event)
@@ -600,7 +606,7 @@ class DefaultEntity(override val path: Path, override val parent: Schema) : Enti
                 }
 
                 /* Issue DataChangeEvent.DeleteDataChangeEvent and update indexes + statistics. */
-                val event = DataChangeEvent.DeleteDataChangeEvent(this@DefaultEntity, tupleId, deleted)
+                val event = Operation.DataManagementOperation.DeleteOperation(this.context.txId, this@DefaultEntity.name, tupleId, deleted)
                 this.snapshot.indexes.values.forEach { (this.context.getTx(it) as IndexTx).update(event) }
                 this.snapshot.statistics.consume(event)
                 this.context.signalEvent(event)

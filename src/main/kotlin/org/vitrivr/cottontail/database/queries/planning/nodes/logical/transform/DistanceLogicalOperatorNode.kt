@@ -14,8 +14,9 @@ import org.vitrivr.cottontail.utilities.math.KnnUtilities
  * This can be used for late population, which can lead to optimized performance for kNN queries
  *
  * @author Ralph Gasser
- * @version 2.1.0
+ * @version 2.2.0
  */
+@Deprecated("Replaced by FunctionProjectionLogicalOperator; do not use anymore!")
 class DistanceLogicalOperatorNode(input: OperatorNode.Logical? = null, val predicate: KnnPredicate) : UnaryLogicalOperatorNode(input) {
 
     companion object {
@@ -27,11 +28,11 @@ class DistanceLogicalOperatorNode(input: OperatorNode.Logical? = null, val predi
         get() = NODE_NAME
 
     /** The [DistanceLogicalOperatorNode] returns the [ColumnDef] of its input + a distance column. */
-    override val columns: Array<ColumnDef<*>>
-        get() = (this.input?.columns ?: emptyArray()) + KnnUtilities.distanceColumnDef(this.predicate.column.name.entity())
+    override val columns: List<ColumnDef<*>>
+        get() = (this.input?.columns ?: emptyList()) + KnnUtilities.distanceColumnDef(this.predicate.column.name.entity())
 
     /** The [DistanceLogicalOperatorNode] requires all [ColumnDef]s used in the [KnnPredicate]. */
-    override val requires: Array<ColumnDef<*>> = arrayOf(this.predicate.column)
+    override val requires: List<ColumnDef<*>> = listOf(this.predicate.column)
 
     /**
      * Creates and returns a copy of this [LimitLogicalOperatorNode] without any children or parents.

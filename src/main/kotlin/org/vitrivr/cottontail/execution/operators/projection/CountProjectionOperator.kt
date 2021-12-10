@@ -20,11 +20,11 @@ import org.vitrivr.cottontail.model.values.LongValue
  * Only produces a single [Record]. Acts as pipeline breaker.
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.4.0
  */
 class CountProjectionOperator(parent: Operator) : Operator.PipelineOperator(parent) {
     /** Column returned by [CountProjectionOperator]. */
-    override val columns: Array<ColumnDef<*>> = arrayOf(
+    override val columns: List<ColumnDef<*>> = listOf(
         ColumnDef(
             name = parent.columns.first().name.entity()?.column(Projection.COUNT.label()) ?: Name.ColumnName(Projection.COUNT.label()),
             type = Type.Long

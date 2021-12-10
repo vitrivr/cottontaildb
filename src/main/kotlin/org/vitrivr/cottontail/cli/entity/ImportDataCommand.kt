@@ -5,14 +5,11 @@ import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.types.enum
-import com.google.protobuf.Empty
+import org.vitrivr.cottontail.cli.AbstractCottontailCommand
+import org.vitrivr.cottontail.client.SimpleClient
+import org.vitrivr.cottontail.client.language.ddl.AboutEntity
 import org.vitrivr.cottontail.database.column.ColumnDef
-import org.vitrivr.cottontail.database.queries.binding.extensions.proto
 import org.vitrivr.cottontail.database.queries.binding.extensions.protoFrom
-import org.vitrivr.cottontail.grpc.CottontailGrpc
-import org.vitrivr.cottontail.grpc.DDLGrpc
-import org.vitrivr.cottontail.grpc.DMLGrpc
-import org.vitrivr.cottontail.grpc.TXNGrpc
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Type
 import org.vitrivr.cottontail.utilities.data.Format
@@ -24,14 +21,10 @@ import kotlin.time.ExperimentalTime
  * Command to import data into a specified entity in Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 2.0.0
  */
 @ExperimentalTime
-class ImportDataCommand(
-    val ddlStub: DDLGrpc.DDLBlockingStub,
-    val dmlStub: DMLGrpc.DMLBlockingStub,
-    val txnStub: TXNGrpc.TXNBlockingStub
-) : AbstractEntityCommand(name = "import", help = "Used to import data into Cottontail DB.") {
+class ImportDataCommand(client: SimpleClient) : AbstractCottontailCommand.Entity(client, name = "import", help = "Used to import data into Cottontail DB.") {
 
     /** The [Format] used for the import. */
     private val format: Format by option(
@@ -59,7 +52,7 @@ class ImportDataCommand(
 
         /** Begin transaction (if single transaction option has been set). */
         val txId = if (this.singleTransaction) {
-            this.txnStub.begin(Empty.getDefaultInstance())
+            this.client.begin()
         } else {
             null
         }
@@ -67,21 +60,21 @@ class ImportDataCommand(
         try {
             /* Perform insert. */
             iterator.forEach {
-                if (txId != null) {
-                    it.txId = txId
-                }
                 it.from = this.entityName.protoFrom()
-                this.dmlStub.insert(it.build())
+                if (txId != null) {
+                    it.metadataBuilder.transactionId = txId
+                }
+                this.client.insert(it.build())
             }
 
             /** Commit transaction, if single transaction option has been set. */
             if (txId != null) {
-                this.txnStub.commit(txId)
+                this.client.commit(txId)
             }
         } catch (e: Throwable) {
             /** Rollback transaction, if single transaction option has been set. */
             if (txId != null) {
-                this.txnStub.rollback(txId)
+                this.client.rollback(txId)
             }
         } finally {
             iterator.close()
@@ -95,17 +88,14 @@ class ImportDataCommand(
      */
     private fun readSchema(): Array<ColumnDef<*>> {
         val columns = mutableListOf<ColumnDef<*>>()
-        val schemaInfo = this.ddlStub.entityDetails(
-            CottontailGrpc.EntityDetailsMessage.newBuilder().setEntity(this.entityName.proto())
-                .build()
-        )
-        schemaInfo.tuplesList.forEach {
-            if (it.dataList[1].stringData == "COLUMN") {
+        val schemaInfo = this.client.about(AboutEntity(this.entityName.toString()))
+        schemaInfo.forEach {
+            if (it.asString(1) == "COLUMN") {
                 columns.add(
                     ColumnDef(
-                        name = Name.ColumnName(*it.dataList[0].stringData.split(Name.NAME_COMPONENT_DELIMITER).toTypedArray()),
-                        type = Type.forName(it.dataList[2].stringData, it.dataList[4].intData),
-                        nullable = it.dataList[5].booleanData
+                        name = Name.ColumnName(*it.asString(0)!!.split(Name.NAME_COMPONENT_DELIMITER).toTypedArray()),
+                        type = Type.forName(it.asString(2)!!, it.asInt(4)!!),
+                        nullable =  it.asBoolean(5)!!
                     )
                 )
             }

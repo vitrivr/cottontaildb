@@ -4,9 +4,9 @@ import com.github.ajalt.clikt.output.TermUi
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import io.grpc.StatusException
-import org.vitrivr.cottontail.database.queries.binding.extensions.proto
-import org.vitrivr.cottontail.grpc.CottontailGrpc
-import org.vitrivr.cottontail.grpc.DDLGrpc
+import org.vitrivr.cottontail.cli.AbstractCottontailCommand
+import org.vitrivr.cottontail.client.SimpleClient
+import org.vitrivr.cottontail.client.language.ddl.DropEntity
 import org.vitrivr.cottontail.utilities.output.TabulationUtilities
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTimedValue
@@ -15,19 +15,10 @@ import kotlin.time.measureTimedValue
  * Command to drop, i.e., remove a [org.vitrivr.cottontail.database.entity.DefaultEntity] by its name.
  *
  * @author Ralph Gasser
- * @version 1.0.3
+ * @version 2.0.0
  */
 @ExperimentalTime
-class DropEntityCommand(private val ddlStub: DDLGrpc.DDLBlockingStub) : AbstractEntityCommand(
-    name = "drop",
-    help = "Drops the given entity from the database. Usage: entity drop <schema>.<entity>"
-) {
-    /** Flag indicating whether CLI should ask for confirmation. #FIXME: Currently unused and semantically equivalent to "confirm" */
-    private val force: Boolean by option(
-        "-f",
-        "--force",
-        help = "Forces the drop and does not ask for confirmation."
-    ).flag(default = false)
+class DropEntityCommand(client: SimpleClient) : AbstractCottontailCommand.Entity(client, name = "drop", help = "Drops the given entity from the database. Usage: entity drop <schema>.<entity>") {
 
     /** Flag that can be used to directly provide confirmation. */
     private val confirm: Boolean by option(
@@ -37,20 +28,10 @@ class DropEntityCommand(private val ddlStub: DDLGrpc.DDLBlockingStub) : Abstract
     ).flag()
 
     override fun exec() {
-        if (this.confirm || TermUi.confirm(
-                "Do you really want to drop the entity ${this.entityName} [y/N]?",
-                default = false,
-                showDefault = false
-            ) == true
-        ) {
+        if (this.confirm || TermUi.confirm("Do you really want to drop the entity ${this.entityName} [y/N]?", default = false, showDefault = false) == true) {
             try {
                 val timedTable = measureTimedValue {
-                    TabulationUtilities.tabulate(
-                        this.ddlStub.dropEntity(
-                            CottontailGrpc.DropEntityMessage.newBuilder()
-                                .setEntity(this.entityName.proto()).build()
-                        )
-                    )
+                    TabulationUtilities.tabulate(this.client.drop(DropEntity(this.entityName.toString())))
                 }
                 println("Successfully dropped entity ${this.entityName} (took ${timedTable.duration}).")
                 print(timedTable.value)

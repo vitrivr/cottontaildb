@@ -1,11 +1,12 @@
 package org.vitrivr.cottontail.server.grpc.services
 
 import kotlinx.coroutines.flow.single
-import org.vitrivr.cottontail.database.catalogue.DefaultCatalogue
+import org.vitrivr.cottontail.database.catalogue.Catalogue
 import org.vitrivr.cottontail.database.entity.DefaultEntity
-import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.binding.GrpcQueryBinder
 import org.vitrivr.cottontail.database.queries.planning.CottontailQueryPlanner
+import org.vitrivr.cottontail.database.queries.planning.rules.logical.DeferFetchOnFetchRewriteRule
+import org.vitrivr.cottontail.database.queries.planning.rules.logical.DeferFetchOnScanRewriteRule
 import org.vitrivr.cottontail.database.queries.planning.rules.logical.LeftConjunctionRewriteRule
 import org.vitrivr.cottontail.database.queries.planning.rules.logical.RightConjunctionRewriteRule
 import org.vitrivr.cottontail.database.queries.planning.rules.physical.index.BooleanIndexScanRule
@@ -19,17 +20,19 @@ import kotlin.time.ExperimentalTime
  * Implementation of [DMLGrpc.DMLImplBase], the gRPC endpoint for inserting data into Cottontail DB [DefaultEntity]s.
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.2.0
  */
 @ExperimentalTime
-class DMLService(val catalogue: DefaultCatalogue, override val manager: TransactionManager) : DMLGrpcKt.DMLCoroutineImplBase(), gRPCTransactionService {
-
-    /** [GrpcQueryBinder] used to bind a gRPC query to a tree of node expressions. */
-    private val binder = GrpcQueryBinder(this.catalogue)
+class DMLService(override val catalogue: Catalogue, override val manager: TransactionManager) : DMLGrpcKt.DMLCoroutineImplBase(), TransactionalGrpcService {
 
     /** [CottontailQueryPlanner] instance used to generate execution plans from query definitions. */
     private val planner = CottontailQueryPlanner(
-        logicalRules = listOf(LeftConjunctionRewriteRule, RightConjunctionRewriteRule),
+        logicalRules = listOf(
+            LeftConjunctionRewriteRule,
+            RightConjunctionRewriteRule,
+            DeferFetchOnScanRewriteRule,
+            DeferFetchOnFetchRewriteRule
+        ),
         physicalRules = listOf(BooleanIndexScanRule),
         this.catalogue.config.cache.planCacheSize
     )
@@ -37,60 +40,58 @@ class DMLService(val catalogue: DefaultCatalogue, override val manager: Transact
     /**
      * gRPC endpoint for handling UPDATE queries.
      */
-    override suspend fun update(request: CottontailGrpc.UpdateMessage): CottontailGrpc.QueryResponseMessage = this.withTransactionContext(request.txId, "UPDATE") { tx, q ->
-        val ctx = QueryContext(tx)
-
+    override suspend fun update(request: CottontailGrpc.UpdateMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata) { ctx ->
         /* Bind query and create logical plan. */
-        this.binder.bind(request, ctx)
+        GrpcQueryBinder.bind(request, ctx)
 
-        /* Generate physical execution plan for query. */
+        /* Plan query and create execution plan. */
         this.planner.planAndSelect(ctx)
 
-        /* Execute UPDATE. */
-        executeAndMaterialize(tx, ctx.toOperatorTree(tx), q, 0)
+        /* Generate operator tree. */
+        ctx.toOperatorTree()
     }.single()
 
     /**
      * gRPC endpoint for handling DELETE queries.
      */
-    override suspend fun delete(request: CottontailGrpc.DeleteMessage): CottontailGrpc.QueryResponseMessage = this.withTransactionContext(request.txId, "DELETE") { tx, q ->
-        val ctx = QueryContext(tx)
-
+    override suspend fun delete(request: CottontailGrpc.DeleteMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata) { ctx ->
         /* Bind query and create logical plan. */
-        this.binder.bind(request, ctx)
+        GrpcQueryBinder.bind(request, ctx)
 
-        /* Generate physical execution plan for query. */
+        /* Plan query and create execution plan. */
         this.planner.planAndSelect(ctx)
 
-        /* Execute DELETE. */
-        executeAndMaterialize(tx, ctx.toOperatorTree(tx), q, 0)
+        /* Generate operator tree. */
+        ctx.toOperatorTree()
     }.single()
 
     /**
      * gRPC endpoint for handling INSERT queries.
      */
-    override suspend fun insert(request: CottontailGrpc.InsertMessage): CottontailGrpc.QueryResponseMessage = this.withTransactionContext(request.txId, "INSERT") { tx, q ->
-        val ctx = QueryContext(tx)
+    override suspend fun insert(request: CottontailGrpc.InsertMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata) { ctx ->
+        /* Bind query and create logical plan. */
+        GrpcQueryBinder.bind(request, ctx)
 
         /* Bind query and create logical + physical plan (bypass query planner). */
-        this.binder.bind(request, ctx)
+        GrpcQueryBinder.bind(request, ctx)
         ctx.physical = ctx.logical?.implement()
 
-        /* Execute INSERT. */
-        executeAndMaterialize(tx, ctx.toOperatorTree(tx), q, 0)
+        /* Generate operator tree. */
+        ctx.toOperatorTree()
     }.single()
 
     /**
      * gRPC endpoint for handling INSERT BATCH queries.
      */
-    override suspend fun insertBatch(request: CottontailGrpc.BatchInsertMessage): CottontailGrpc.QueryResponseMessage = this.withTransactionContext(request.txId, "INSERT BATCH") { tx, q ->
-        val ctx = QueryContext(tx)
-
+    override suspend fun insertBatch(request: CottontailGrpc.BatchInsertMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata) { ctx ->
         /* Bind query and create logical plan. */
-        this.binder.bind(request, ctx)
+        GrpcQueryBinder.bind(request, ctx)
+
+        /* Bind query and create logical + physical plan (bypass query planner). */
+        GrpcQueryBinder.bind(request, ctx)
         ctx.physical = ctx.logical?.implement()
 
-        /* Execute INSERT. */
-        executeAndMaterialize(tx, ctx.toOperatorTree(tx), q, 0)
+        /* Generate operator tree. */
+        ctx.toOperatorTree()
     }.single()
 }

@@ -12,9 +12,10 @@ import kotlin.math.pow
  * This is an abstraction over an [IntArray] and it represents a vector of [Int]s.
  *
  * @author Ralph Gasser
- * @version 1.5.0
+ * @version 1.6.0
  */
-inline class IntVectorValue(val data: IntArray) : RealVectorValue<Int> {
+@JvmInline
+value class IntVectorValue(val data: IntArray) : RealVectorValue<Int> {
 
     companion object {
         /**

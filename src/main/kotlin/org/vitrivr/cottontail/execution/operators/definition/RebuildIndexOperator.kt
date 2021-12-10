@@ -17,7 +17,7 @@ import kotlin.time.measureTimedValue
  * An [Operator.SourceOperator] used during query execution. Rebuilds an [Index]
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
 @ExperimentalTime
 class RebuildIndexOperator(val catalogue: DefaultCatalogue, val name: Name.IndexName) : AbstractDataDefinitionOperator(name, "REBUILD INDEX") {

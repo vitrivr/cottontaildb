@@ -1,75 +1,74 @@
 package org.vitrivr.cottontail.database.queries.binding
 
-import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
-import org.vitrivr.cottontail.database.queries.QueryContext
+import org.vitrivr.cottontail.database.column.ColumnDef
+import org.vitrivr.cottontail.model.basics.Record
+import org.vitrivr.cottontail.model.basics.Type
 import org.vitrivr.cottontail.model.values.types.Value
 
 /**
- * A context for late binding of values. Late binding is used during query planning or execution,
+ * A context for late binding of values. Late binding can be used during query planning or execution, e.g., when
+ * literal values are replaced upon re-use of a query plan or when values used in query execution are dynamically loaded.
+ *
+ * The [BindingContext] class is NOT thread-safe. When concurrently executing part of a query plan, different copies of
+ * the [BindingContext] should be created and used.
  *
  * @author Ralph Gasser
  * @version 1.1.0
  */
-class BindingContext<T : Any> {
-
-    /** List of bound [Value]s for this [QueryContext]. */
-    private var bound = Object2ObjectOpenHashMap<Binding<T>, T?>()
-
-    /** The size of this [BindingContext], i.e., the number of values bound. */
-    val size: Int
-        get() = this.bound.size
-
+interface BindingContext {
     /**
      * Returns the [Value] for the given [Binding].
      *
      * @param binding The [Binding] to lookup.
      * @return The bound [Value].
      */
-    operator fun get(binding: Binding<T>): T? {
-        require(this.bound.contains(binding)) { "Binding $binding is not known to this binding context." }
-        return this.bound[binding]
-    }
+    operator fun get(binding: Binding): Value?
 
     /**
-     * Updates the [Value] to an existing [Binding] in this [BindingContext].
+     * Returns the [Value] for the given [bindingIndex].
      *
-     * @param value The [Value] to bind. Can be null
-     * @return The [Binding].
+     * @param bindingIndex The [Binding] to lookup.
+     * @return The bound [Value].
      */
-    fun update(binding: Binding<T>, value: T?) {
-        require(binding.context == this) { "Binding $binding does not belong to this binding context." }
-        require(this.bound.contains(binding)) { "Binding $binding is not known to this binding context." }
-        this.bound[binding] = value
-    }
+    operator fun get(bindingIndex: Int): Value?
 
     /**
-     * Registers the [Value] with the given [Binding] in this [BindingContext].
+     * Creates and returns a [Binding] for the given [Value].
      *
-     * @param value The [Value] to bind. Can be null
-     * @return The [Binding].
+     * @param value The [Value] to bind.
+     * @return A value [Binding]
      */
-    fun register(binding: Binding<T>, value: T?): Binding<T> {
-        require(binding.context == null) { "Binding $binding has been registered with another binding context." }
-        this.bound[binding] = value
-        binding.context = this
-        return binding
-    }
+    fun bind(value: Value): Binding.Literal
 
     /**
-     * Binds a [Value] to this [BindingContext].
+     * Updates the [Value] for a [Binding.Literal].
      *
-     * @param value The [Value] to bind. Can be null
-     * @return The [Binding].
+     * @param binding The [Binding.Literal] to update.
+     * @param value The [Value] to bind.
+     * @return A value [Binding]
      */
-    fun bind(value: T?): Binding<T> = this.register(Binding(this.bound.size), value)
+    fun update(binding: Binding.Literal, value: Value?)
 
     /**
-     * Clears this [BindingContext] and severs all existing connections to [Binding]s.
+     * Creates and returns a [Binding] for the given [Value].
+     *
+     * @param type The [Type] to bind.
+     * @return A value [Binding]
      */
-    fun clear() {
-        for (bound in this.bound.keys) {
-            bound.context = null
-        }
-        this.bound.clear()
-    }
+    fun bindNull(type: Type<*>): Binding.Literal
+
+    /**
+     * Creates and returns a [Binding] for the given [ColumnDef].
+     *
+     * @param column The [ColumnDef] to bind.
+     * @return [Binding.Column]
+     */
+    fun bind(column: ColumnDef<*>): Binding.Column
+
+    /**
+     * Updates the [Binding.Column]s based on the given [Record].
+     *
+     * @param record The [Record] to update the [Binding.Column] with.
+     */
+    fun bindRecord(record: Record)
 }

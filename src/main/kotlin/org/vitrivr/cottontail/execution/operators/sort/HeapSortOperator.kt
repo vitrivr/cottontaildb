@@ -15,10 +15,9 @@ import org.vitrivr.cottontail.model.basics.Record
  * returns the [Record] in sorted order. Acts as pipeline breaker.
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.3.0
  */
-open class HeapSortOperator(parent: Operator, sortOn: Array<Pair<ColumnDef<*>, SortOrder>>, private val queueSize: Int) : AbstractSortOperator(parent, sortOn) {
-
+open class HeapSortOperator(parent: Operator, sortOn: List<Pair<ColumnDef<*>, SortOrder>>, private val queueSize: Int) : AbstractSortOperator(parent, sortOn) {
     /**
      * Converts this [HeapSortOperator] to a [Flow] and returns it.
      *

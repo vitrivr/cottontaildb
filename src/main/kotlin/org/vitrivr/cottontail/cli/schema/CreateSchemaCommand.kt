@@ -1,9 +1,8 @@
 package org.vitrivr.cottontail.cli.schema
 
-import io.grpc.StatusException
-import org.vitrivr.cottontail.database.queries.binding.extensions.proto
-import org.vitrivr.cottontail.grpc.CottontailGrpc
-import org.vitrivr.cottontail.grpc.DDLGrpc
+import org.vitrivr.cottontail.cli.AbstractCottontailCommand
+import org.vitrivr.cottontail.client.SimpleClient
+import org.vitrivr.cottontail.client.language.ddl.CreateSchema
 import org.vitrivr.cottontail.utilities.output.TabulationUtilities
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTimedValue
@@ -15,19 +14,14 @@ import kotlin.time.measureTimedValue
  * @version 1.0.1
  */
 @ExperimentalTime
-class CreateSchemaCommand(private val ddlStub: DDLGrpc.DDLBlockingStub) : AbstractSchemaCommand(name = "create", help = "Create the schema with the given name. Usage: schema create <name>") {
+class CreateSchemaCommand(client: SimpleClient) : AbstractCottontailCommand.Schema(client, name = "create", help = "Create the schema with the given name. Usage: schema create <name>") {
     override fun exec() {
-        /* Execute query. */
-        try {
-            val timedTable = measureTimedValue {
-                TabulationUtilities.tabulate(this.ddlStub.createSchema(CottontailGrpc.CreateSchemaMessage.newBuilder().setSchema(this.schemaName.proto()).build()))
-            }
-
-            /* Output results. */
-            println("Schema ${this.schemaName} created successfully (took ${timedTable.duration}).")
-            print(timedTable.value)
-        } catch (e: StatusException) {
-            println("Failed to to create ${this.schemaName}: ${e.message}.")
+        val timedTable = measureTimedValue {
+            TabulationUtilities.tabulate(this.client.create(CreateSchema(this.schemaName.toString())))
         }
+
+        /* Output results. */
+        println("Schema ${this.schemaName} created successfully (took ${timedTable.duration}).")
+        print(timedTable.value)
     }
 }

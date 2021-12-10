@@ -20,10 +20,7 @@ import kotlin.time.ExperimentalTime
  * @version 1.0.0
  */
 @ExperimentalTime
-class MigrationCommand : AbstractCottontailCommand(
-    name = "migration",
-    help = "Command to migrate between Cottontail DB instances."
-) {
+class MigrationCommand : AbstractCottontailCommand.System(name = "migration", help = "Command to migrate between Cottontail DB instances.") {
 
     /** Path to .proto file that contains query. */
     private val input: Path by option(

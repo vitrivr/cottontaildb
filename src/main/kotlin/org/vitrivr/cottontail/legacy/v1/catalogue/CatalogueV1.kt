@@ -10,6 +10,7 @@ import org.vitrivr.cottontail.database.general.*
 import org.vitrivr.cottontail.database.schema.Schema
 import org.vitrivr.cottontail.database.schema.SchemaTx
 import org.vitrivr.cottontail.execution.TransactionContext
+import org.vitrivr.cottontail.functions.FunctionRegistry
 import org.vitrivr.cottontail.legacy.v1.schema.SchemaV1
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
@@ -41,6 +42,11 @@ class CatalogueV1(override val config: Config) : Catalogue {
         /** Filename for the [DefaultEntity] catalogue.  */
         internal const val FILE_CATALOGUE = "catalogue.db"
     }
+
+    override val functions: FunctionRegistry
+        get() {
+            throw UnsupportedOperationException("Operation not supported on legacy DBO.")
+        }
 
     /** Root to Cottontail DB root folder. */
     override val path: Path = config.root

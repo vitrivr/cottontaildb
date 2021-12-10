@@ -16,7 +16,7 @@ import org.vitrivr.cottontail.database.queries.predicates.bool.ConnectionOperato
  * Gives precedence to the left operand.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.0.1
  */
 object LeftConjunctionOnSubselectRewriteRule : RewriteRule {
 
@@ -45,8 +45,8 @@ object LeftConjunctionOnSubselectRewriteRule : RewriteRule {
     override fun apply(node: OperatorNode, ctx: QueryContext): OperatorNode? {
         if (node is FilterOnSubSelectLogicalOperatorNode && node.predicate is BooleanPredicate.Compound && node.predicate.connector == ConnectionOperator.AND) {
             val parent = node.inputs[0].copyWithInputs()
-            val p1DependsOn = node.predicate.p1.atomics.filterIsInstance<BooleanPredicate.Atomic.Literal>().filter { it.dependsOn > -1 }
-            val p2DependsOn = node.predicate.p2.atomics.filterIsInstance<BooleanPredicate.Atomic.Literal>().filter { it.dependsOn > -1 }
+            val p1DependsOn = node.predicate.p1.atomics.filter { it.dependsOn > -1 }
+            val p2DependsOn = node.predicate.p2.atomics.filter { it.dependsOn > -1 }
 
             val p1Filter = if (p1DependsOn.isNotEmpty()) {
                 FilterOnSubSelectLogicalOperatorNode(node.predicate.p1, parent)

@@ -4,7 +4,6 @@ import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.sort.SortOrder
 import org.vitrivr.cottontail.database.statistics.entity.RecordStatistics
-import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import java.io.PrintStream
 
@@ -18,7 +17,7 @@ import java.io.PrintStream
  * and are manipulated by the query planner.
  *
  * @author Ralph Gasser
- * @version 2.1.0
+ * @version 2.4.0
  */
 sealed class OperatorNode : Node {
 
@@ -34,17 +33,20 @@ sealed class OperatorNode : Node {
     /** The name of this [OperatorNode]. */
     abstract val name: String
 
-    /** Whether or not this [OperatorNode] is executable. */
+    /** Whether this [OperatorNode] is executable. */
     abstract val executable: Boolean
 
-    /** The [ColumnDef]s produced by this [OperatorNode]. */
-    abstract val columns: Array<ColumnDef<*>>
+    /** The physical [ColumnDef]s (indirectly) accessed by this [OperatorNode]. */
+    abstract val physicalColumns: List<ColumnDef<*>>
 
-    /** The [ColumnDef]s by which the output of this [OperatorNode] is sorted. By default, there is no particular order. */
-    abstract val order: Array<Pair<ColumnDef<*>, SortOrder>>
+    /** The [ColumnDef]s produced by this [OperatorNode]. */
+    abstract val columns: List<ColumnDef<*>>
 
     /** List of [ColumnDef]s required by this [OperatorNode] in order to be able to function. */
-    abstract val requires: Array<ColumnDef<*>>
+    abstract val requires: List<ColumnDef<*>>
+
+    /** The [ColumnDef]s by which the output of this [OperatorNode] is sorted. By default, there is no particular order. */
+    abstract val sortOn: List<Pair<ColumnDef<*>, SortOrder>>
 
     /**
      * Creates and returns a copy of this [OperatorNode] without any children or parents.
@@ -76,19 +78,19 @@ sealed class OperatorNode : Node {
      * are transformed into equivalent representations of [OperatorNode.Logical]s.
      *
      * @author Ralph Gasser
-     * @version 2.1.0
+     * @version 2.2.0
      */
     abstract class Logical : OperatorNode() {
 
         /** The [OperatorNode.Logical] that receives the results produced by this [OperatorNode.Logical] as input. May be null, which makes this [OperatorNode.Logical] the root of the tree. */
-        var output: OperatorNode.Logical? = null
+        var output: Logical? = null
 
         /** The root of this [OperatorNode.Logical], i.e., the final [OperatorNode.Logical] in terms of operation that usually produces the output. */
-        val root: OperatorNode.Logical
+        val root: Logical
             get() = this.output?.root ?: this
 
         /** The base of this [OperatorNode], i.e., the starting point(s) in terms of operation. Depending on the tree structure, multiple bases may exist. */
-        abstract val base: Collection<OperatorNode.Logical>
+        abstract val base: Collection<Logical>
 
         /** [OperatorNode.Logical]s are never executable. */
         override val executable: Boolean = false
@@ -144,21 +146,21 @@ sealed class OperatorNode : Node {
      * and a cost model that allows  the query planner to select the optimal plan.
      *
      * @author Ralph Gasser
-     * @version 2.1.0
+     * @version 2.2.0
      *
      * @see OperatorNode
      */
     abstract class Physical : OperatorNode() {
 
         /** The [OperatorNode.Logical] that receives the results produced by this [OperatorNode.Logical] as input. May be null, which makes this [OperatorNode.Logical] the root of the tree. */
-        var output: OperatorNode.Physical? = null
+        var output: Physical? = null
 
         /** The root of this [OperatorNode.Physical], i.e., the final [OperatorNode.Physical] in terms of operation that usually produces the output. */
-        val root: OperatorNode.Physical
+        val root: Physical
             get() = this.output?.root ?: this
 
         /** The base of this [OperatorNode], i.e., the starting point(s) in terms of operation. Depending on the tree structure, multiple bases may exist. */
-        abstract val base: Collection<OperatorNode.Physical>
+        abstract val base: Collection<Physical>
 
         /** [RecordStatistics] about the [ColumnDef]s contained in this [OperatorNode.Physical]. */
         abstract val statistics: RecordStatistics
@@ -205,12 +207,11 @@ sealed class OperatorNode : Node {
         /**
          * Converts this [OperatorNode.Physical] to the corresponding [Operator].
          *
-         * @param tx The [TransactionContext] the [Operator] should be executed in.
-         * @param ctx: The [QueryContext] used for conversion. Mainly for value binding.
+         * @param ctx: The [QueryContext] used for conversion.
          *
          * @return [Operator]
          */
-        abstract fun toOperator(tx: TransactionContext, ctx: QueryContext): Operator
+        abstract fun toOperator(ctx: QueryContext): Operator
 
         /**
          * Tries to create [p] partitions of this [OperatorNode.Physical] if possible. If the implementing

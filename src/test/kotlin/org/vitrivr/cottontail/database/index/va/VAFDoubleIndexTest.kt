@@ -9,14 +9,14 @@ import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.index.AbstractIndexTest
 import org.vitrivr.cottontail.database.index.IndexTx
 import org.vitrivr.cottontail.database.index.IndexType
-import org.vitrivr.cottontail.database.queries.binding.BindingContext
+import org.vitrivr.cottontail.database.queries.binding.DefaultBindingContext
 import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicate
 import org.vitrivr.cottontail.database.schema.SchemaTx
 import org.vitrivr.cottontail.execution.TransactionType
-import org.vitrivr.cottontail.math.knn.basics.DistanceKernel
-import org.vitrivr.cottontail.math.knn.kernels.Distances
-import org.vitrivr.cottontail.math.knn.selection.ComparablePair
-import org.vitrivr.cottontail.math.knn.selection.MinHeapSelection
+import org.vitrivr.cottontail.functions.basics.Argument
+import org.vitrivr.cottontail.functions.basics.Signature
+import org.vitrivr.cottontail.functions.math.distance.Distances
+import org.vitrivr.cottontail.functions.math.distance.basics.VectorDistance
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.basics.TupleId
@@ -25,12 +25,11 @@ import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.DoubleValue
 import org.vitrivr.cottontail.model.values.DoubleVectorValue
 import org.vitrivr.cottontail.model.values.LongValue
-import org.vitrivr.cottontail.model.values.types.Value
-import org.vitrivr.cottontail.model.values.types.VectorValue
 import org.vitrivr.cottontail.utilities.math.KnnUtilities
+import org.vitrivr.cottontail.utilities.selection.ComparablePair
+import org.vitrivr.cottontail.utilities.selection.MinHeapSelection
 import java.util.*
 import java.util.stream.Stream
-import kotlin.collections.ArrayList
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTime
 
@@ -38,7 +37,7 @@ import kotlin.time.measureTime
  * This is a collection of test cases to test the correct behaviour of [VAFIndex] for [DoubleVectorValue]s.
  *
  * @author Ralph Gasser
- * @param 1.3.0
+ * @param 1.3.1
  */
 class VAFDoubleIndexTest : AbstractIndexTest() {
 
@@ -52,10 +51,7 @@ class VAFDoubleIndexTest : AbstractIndexTest() {
 
     override val columns: Array<ColumnDef<*>> = arrayOf(
         ColumnDef(this.entityName.column("id"), Type.Long),
-        ColumnDef(
-            this.entityName.column("feature"),
-            Type.DoubleVector(this.random.nextInt(128, 2048))
-        )
+        ColumnDef(this.entityName.column("feature"), Type.DoubleVector(this.random.nextInt(128, 2048)))
     )
 
     override val indexColumn: ColumnDef<DoubleVectorValue>
@@ -74,17 +70,13 @@ class VAFDoubleIndexTest : AbstractIndexTest() {
     @MethodSource("kernels")
     @ExperimentalTime
     fun test(distance: Distances) {
-        val txn = this.manager.Transaction(TransactionType.SYSTEM)
+        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM)
         val k = 100
         val query = DoubleVectorValue.random(this.indexColumn.type.logicalSize, this.random)
-        val kernel = distance.kernelForQuery(query) as DistanceKernel<VectorValue<*>>
-        val context = BindingContext<Value>()
-        val predicate = KnnPredicate(
-            column = this.indexColumn,
-            k = k,
-            distance = distance,
-            query = context.bind(query)
-        )
+        val function = this.catalogue.functions.obtain(Signature.Closed(distance.functionName, arrayOf(Argument.Typed(query.type), Argument.Typed(query.type)), Type.Double)) as VectorDistance.Binary<*>
+        val context = DefaultBindingContext()
+        val predicate = KnnPredicate(column = this.indexColumn, k = k, distance = function, query = context.bind(query))
+
 
         /* Obtain necessary transactions. */
         val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
@@ -108,10 +100,7 @@ class VAFDoubleIndexTest : AbstractIndexTest() {
                 val vector = it[this.indexColumn]
                 if (vector is DoubleVectorValue) {
                     bruteForceResults.offer(
-                        ComparablePair(
-                            it.tupleId,
-                            kernel(vector)
-                        )
+                        ComparablePair(it.tupleId, function(query, vector))
                     )
                 }
             }

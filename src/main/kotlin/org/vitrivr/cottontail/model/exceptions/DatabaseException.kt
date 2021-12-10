@@ -19,7 +19,7 @@ open class DatabaseException(message: String, cause: Throwable? = null) : Throwa
      *
      * @param schema [Name] of the [Schema][org.vitrivr.cottontail.database.schema.DefaultSchema].
      */
-    class SchemaAlreadyExistsException(schema: Name) : DatabaseException("Schema '$schema' does already exist!")
+    class SchemaAlreadyExistsException(val schema: Name.SchemaName) : DatabaseException("Schema '$schema' does already exist!")
 
     /**
      * Thrown when trying to access a [Schema][org.vitrivr.cottontail.database.schema.DefaultSchema]
@@ -35,7 +35,7 @@ open class DatabaseException(message: String, cause: Throwable? = null) : Throwa
      *
      * @param entity [Name] of the [Entity][org.vitrivr.cottontail.database.entity.DefaultEntity].
      */
-    class EntityAlreadyExistsException(entity: Name.EntityName) : DatabaseException("Entity '$entity' does already exist!")
+    class EntityAlreadyExistsException(val entity: Name.EntityName) : DatabaseException("Entity '$entity' does already exist!")
 
     /**
      * Thrown when trying to access an [Entity][org.vitrivr.cottontail.database.entity.DefaultEntity]

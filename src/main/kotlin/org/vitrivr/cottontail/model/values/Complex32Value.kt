@@ -10,10 +10,11 @@ import java.util.*
 /**
  * Represents a complex number backed by single-precision (32bit) [Float]s
  *
- * @version 1.5.0
+ * @version 1.6.0
  * @author Ralph Gasser
  */
-inline class Complex32Value(val data: FloatArray): ComplexValue<Float> {
+@JvmInline
+value class Complex32Value(val data: FloatArray): ComplexValue<Float> {
 
     companion object {
         val I = Complex32Value(floatArrayOf(0.0f, 1.0f))

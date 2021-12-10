@@ -1,9 +1,9 @@
 package org.vitrivr.cottontail.cli.entity
 
 import io.grpc.StatusException
-import org.vitrivr.cottontail.database.queries.binding.extensions.proto
-import org.vitrivr.cottontail.grpc.CottontailGrpc
-import org.vitrivr.cottontail.grpc.DDLGrpc
+import org.vitrivr.cottontail.cli.AbstractCottontailCommand
+import org.vitrivr.cottontail.client.SimpleClient
+import org.vitrivr.cottontail.client.language.ddl.OptimizeEntity
 import org.vitrivr.cottontail.utilities.output.TabulationUtilities
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTimedValue
@@ -12,15 +12,15 @@ import kotlin.time.measureTimedValue
  * Command to optimize an entity (i.e. rebuild all its index structures).
  *
  * @author Loris Sauter
- * @version 1.0.1
+ * @version 2.0.0
  */
 @ExperimentalTime
-class OptimizeEntityCommand(private val ddlStub: DDLGrpc.DDLBlockingStub) : AbstractEntityCommand(name = "optimize", help = "Optimizes the specified entity, i.e., rebuilds its index structures.") {
+class OptimizeEntityCommand(client: SimpleClient) : AbstractCottontailCommand.Entity(client, name = "optimize", help = "Optimizes the specified entity, i.e., rebuilds its index structures.") {
     override fun exec() {
         println("Optimizing entity ${this.entityName}. This might take a while...")
         try {
             val timedTable = measureTimedValue {
-                TabulationUtilities.tabulate(this.ddlStub.optimizeEntity(CottontailGrpc.OptimizeEntityMessage.newBuilder().setEntity(this.entityName.proto()).build()))
+                TabulationUtilities.tabulate(this.client.optimize(OptimizeEntity(this.entityName.toString())))
             }
             println("Successfully optimized entity ${this.entityName} (took ${timedTable.duration}).")
             print(timedTable.value)

@@ -6,18 +6,19 @@ import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.database.column.Column
 import org.vitrivr.cottontail.database.entity.DefaultEntity
 import org.vitrivr.cottontail.database.entity.EntityTx
-import org.vitrivr.cottontail.database.events.DataChangeEvent
 import org.vitrivr.cottontail.database.index.AbstractIndex
 import org.vitrivr.cottontail.database.index.IndexTx
 import org.vitrivr.cottontail.database.index.IndexType
 import org.vitrivr.cottontail.database.index.lsh.LSHIndex
 import org.vitrivr.cottontail.database.index.va.signature.VAFSignature
+import org.vitrivr.cottontail.database.operations.Operation
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.predicates.Predicate
 import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicate
 import org.vitrivr.cottontail.execution.TransactionContext
-import org.vitrivr.cottontail.math.knn.kernels.Distances
-import org.vitrivr.cottontail.model.basics.*
+import org.vitrivr.cottontail.functions.math.distance.Distances
+import org.vitrivr.cottontail.model.basics.Record
+import org.vitrivr.cottontail.model.basics.TupleId
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.recordset.Recordset
@@ -44,7 +45,7 @@ class SuperBitLSHIndex<T : VectorValue<*>>(
 
     companion object {
         private val LOGGER = LoggerFactory.getLogger(SuperBitLSHIndex::class.java)
-        private val SUPPORTED_DISTANCES = arrayOf(Distances.COSINE, Distances.INNERPRODUCT)
+        private val SUPPORTED_DISTANCES = arrayOf(Distances.COSINE.functionName, Distances.INNERPRODUCT.functionName)
     }
 
     /** False since [SuperBitLSHIndex] doesn't supports incremental updates. */
@@ -106,7 +107,7 @@ class SuperBitLSHIndex<T : VectorValue<*>>(
     override fun canProcess(predicate: Predicate): Boolean =
         predicate is KnnPredicate
                 && predicate.columns.first() == this.columns[0]
-                && predicate.distance in SUPPORTED_DISTANCES
+                && predicate.distance.signature.name in SUPPORTED_DISTANCES
                 && (!this.config.considerImaginary || predicate.query is ComplexVectorValue<*>)
 
     /**
@@ -186,12 +187,12 @@ class SuperBitLSHIndex<T : VectorValue<*>>(
         }
 
         /**
-         * Updates the [SuperBitLSHIndex] with the provided [DataChangeEvent]. This method determines,
-         * whether the [Record] affected by the [DataChangeEvent] should be added or updated
+         * Updates the [SuperBitLSHIndex] with the provided [Operation.DataManagementOperation]. This method determines,
+         * whether the [Record] affected by the [Operation.DataManagementOperation] should be added or updated
          *
-         * @param event [DataChangeEvent]s to process.
+         * @param event [Operation.DataManagementOperation]s to process.
          */
-        override fun update(event: DataChangeEvent) = this.withWriteLock {
+        override fun update(event: Operation.DataManagementOperation) = this.withWriteLock {
             this@SuperBitLSHIndex.dirtyField.compareAndSet(false, true)
             Unit
         }
@@ -229,13 +230,13 @@ class SuperBitLSHIndex<T : VectorValue<*>>(
 
             /* Performs some sanity checks. */
             init {
-                if (this.predicate.columns.first() != this@SuperBitLSHIndex.columns[0] || !(this.predicate.distance in SUPPORTED_DISTANCES)) {
+                if (this.predicate.columns.first() != this@SuperBitLSHIndex.columns[0] || !(this.predicate.distance.signature.name in SUPPORTED_DISTANCES)) {
                     throw QueryException.UnsupportedPredicateException("Index '${this@SuperBitLSHIndex.name}' (lsh-index) does not support the provided predicate.")
                 }
 
                 /* Assure correctness of query vector. */
                 val value = this.predicate.query.value
-                check(value is VectorValue<*>) { "Bound value for query vector has wrong type (found = ${value.type})." }
+                check(value is VectorValue<*>) { "Bound value for query vector has wrong type (found = ${value?.type})." }
 
                 /** Prepare SuperBitLSH data structure. */
                 this@Tx.withReadLock { }

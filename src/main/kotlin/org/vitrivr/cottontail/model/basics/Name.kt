@@ -26,6 +26,10 @@ sealed class Name {
     open val simple: String
         get() = this.components.last()
 
+    /** Returns the [RootName] reference. */
+    val root: RootName
+        get() = RootName
+
     /** Returns true if this [Name] matches the other [Name]. */
     abstract fun matches(other: Name): Boolean
 
@@ -39,6 +43,26 @@ sealed class Name {
     }
 
     /**
+     * A [Name] object used to identify a [Function][org.vitrivr.cottontail.functions.basics.Function].
+     */
+    class FunctionName(vararg components: String): Name() {
+        /** Normalized [Name] components of this [SchemaName]. */
+        override val components = when {
+            components.size == 1 -> arrayOf(NAME_COMPONENT_ROOT, components[0].lowercase())
+            components.size == 2 && components[0].lowercase() == NAME_COMPONENT_ROOT -> arrayOf(NAME_COMPONENT_ROOT, components[1].lowercase())
+            else -> throw IllegalStateException("${components.joinToString(".")} is not a valid function name.")
+        }
+
+        /**
+         * Checks for a match with another [Name]. Only exact matches, i.e. equality, are possible for [SchemaName]s.
+         *
+         * @param other [Name] to compare to.
+         * @return True on match, false otherwise.
+         */
+        override fun matches(other: Name): Boolean = (other == this)
+    }
+
+    /**
      * A [Name] object used to identify a [Schema][org.vitrivr.cottontail.database.schema.DefaultSchema].
      */
     class SchemaName(vararg components: String) : Name() {
@@ -47,21 +71,14 @@ sealed class Name {
         override val components = when {
             components.size == 1 -> arrayOf(
                 NAME_COMPONENT_ROOT,
-                components[0].toLowerCase()
+                components[0].lowercase()
             )
-            components.size == 2 && components[0].toLowerCase() == NAME_COMPONENT_ROOT -> arrayOf(
+            components.size == 2 && components[0].lowercase() == NAME_COMPONENT_ROOT -> arrayOf(
                 NAME_COMPONENT_ROOT,
-                components[1].toLowerCase()
+                components[1].lowercase()
             )
             else -> throw IllegalStateException("${components.joinToString(".")} is not a valid schema name.")
         }
-
-        /**
-         * Returns [RootName] of this [SchemaName].
-
-         * @return [RootName]
-         */
-        fun root() = RootName
 
         /**
          * Generates an [EntityName] as child of this [SchemaName].
@@ -89,23 +106,16 @@ sealed class Name {
         override val components = when {
             components.size == 2 -> arrayOf(
                 NAME_COMPONENT_ROOT,
-                components[0].toLowerCase(),
-                components[1].toLowerCase()
+                components[0].lowercase(),
+                components[1].lowercase()
             )
-            components.size == 3 && components[0].toLowerCase() == NAME_COMPONENT_ROOT -> arrayOf(
-                components[0].toLowerCase(),
-                components[1].toLowerCase(),
-                components[2].toLowerCase()
+            components.size == 3 && components[0].lowercase() == NAME_COMPONENT_ROOT -> arrayOf(
+                components[0].lowercase(),
+                components[1].lowercase(),
+                components[2].lowercase()
             )
             else -> throw IllegalStateException("${components.joinToString(".")} is not a valid entity name.")
         }
-
-        /**
-         * Returns [RootName] of this [EntityName].
-         *
-         * @return [RootName]
-         */
-        fun root() = RootName
 
         /**
          * Returns parent [SchemaName] for this [EntityName].
@@ -146,27 +156,19 @@ sealed class Name {
 
         /** Normalized [Name] components of this [IndexName]. */
         override val components = when {
-            components.size == 3 -> arrayOf(
-                NAME_COMPONENT_ROOT,
-                components[0].toLowerCase(),
-                components[1].toLowerCase(),
-                components[2].toLowerCase()
+            components.size == 3 -> arrayOf(NAME_COMPONENT_ROOT,
+                components[0].lowercase(),
+                components[1].lowercase(),
+                components[2].lowercase()
             )
-            components.size == 4 && components[0].toLowerCase() == NAME_COMPONENT_ROOT -> arrayOf(
-                components[0].toLowerCase(),
-                components[1].toLowerCase(),
-                components[2].toLowerCase(),
-                components[3].toLowerCase()
+            components.size == 4 && components[0].lowercase() == NAME_COMPONENT_ROOT -> arrayOf(
+                components[0].lowercase(),
+                components[1].lowercase(),
+                components[2].lowercase(),
+                components[3].lowercase()
             )
             else -> throw IllegalStateException("${components.joinToString(".")} is not a valid index name.")
         }
-
-        /**
-         * Returns [RootName] of this [EntityName].
-         *
-         * @return [RootName]
-         */
-        fun root() = RootName
 
         /**
          * Returns parent [SchemaName] of this [IndexName].
@@ -202,38 +204,31 @@ sealed class Name {
                 NAME_COMPONENT_ROOT,
                 "*",
                 "*",
-                components[0].toLowerCase()
+                components[0].lowercase()
             )
             components.size == 2 -> arrayOf(
                 NAME_COMPONENT_ROOT,
                 "*",
-                components[0].toLowerCase(),
-                components[1].toLowerCase()
+                components[0].lowercase(),
+                components[1].lowercase()
             )
             components.size == 3 -> arrayOf(
                 NAME_COMPONENT_ROOT,
-                components[0].toLowerCase(),
-                components[1].toLowerCase(),
-                components[2].toLowerCase()
+                components[0].lowercase(),
+                components[1].lowercase(),
+                components[2].lowercase()
             )
-            components.size == 4 && components[0].toLowerCase() == NAME_COMPONENT_ROOT -> arrayOf(
-                components[0].toLowerCase(),
-                components[1].toLowerCase(),
-                components[2].toLowerCase(),
-                components[3].toLowerCase()
+            components.size == 4 && components[0].lowercase() == NAME_COMPONENT_ROOT -> arrayOf(
+                components[0].lowercase(),
+                components[1].lowercase(),
+                components[2].lowercase(),
+                components[3].lowercase()
             )
             else -> throw IllegalStateException("${components.joinToString(".")} is not a valid column name.")
         }
 
         /** True if this [ColumnName] is a wildcard. */
         val wildcard: Boolean = this.components.any { it == NAME_COMPONENT_WILDCARD }
-
-        /**
-         * Returns [RootName] of this [EntityName].
-         *
-         * @return [RootName]
-         */
-        fun root() = RootName
 
         /**
          * Returns parent [SchemaName] of this [ColumnName].

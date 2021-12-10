@@ -1,8 +1,6 @@
 package org.vitrivr.cottontail.database.queries.planning
 
 import it.unimi.dsi.fastutil.ints.Int2ObjectLinkedOpenHashMap
-import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
-import it.unimi.dsi.fastutil.objects.Object2ObjectMaps
 import org.vitrivr.cottontail.database.queries.GroupId
 import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.QueryContext
@@ -17,7 +15,6 @@ import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhys
 import org.vitrivr.cottontail.database.queries.planning.rules.RewriteRule
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import java.util.*
-import kotlin.collections.LinkedHashMap
 
 /**
  * This is a rather simple query planner that optimizes a [OperatorNode] by recursively applying a set of [RewriteRule]s to get more

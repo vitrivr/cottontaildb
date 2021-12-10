@@ -10,9 +10,10 @@ import java.util.*
  * This is a [Value] abstraction over a [String].
  *
  * @author Ralph Gasser
- * @version 1.5.0
+ * @version 1.6.0
  */
-inline class StringValue(override val value: String) : ScalarValue<String> {
+@JvmInline
+value class StringValue(override val value: String) : ScalarValue<String> {
     companion object {
 
         /** */

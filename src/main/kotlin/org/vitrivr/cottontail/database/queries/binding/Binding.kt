@@ -1,21 +1,44 @@
 package org.vitrivr.cottontail.database.queries.binding
 
+import org.vitrivr.cottontail.database.column.ColumnDef
+import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Value
+
 /**
- * A [Binding] is a placeholder for content, usually a value, which will be populated at a later stage.
- *
- * Used in query binding and planning.
+ * This class acts as a level of indirection for [Value]'s used during query planning, optimization and execution.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
-data class Binding<T : Any>(val index: Int) {
+sealed interface Binding {
 
-    /** The [BindingContext] currently associated with this [Binding]. The [BindingContext] can change! */
-    internal var context: BindingContext<T>? = null
+    /** The [Value]. */
+    val value: Value?
+        get() = this.context[this]
 
-    /** The value [T] associated with this [Binding]. */
-    val value: T
-        get() = this.context?.get(this) ?: throw IllegalStateException("Failed to resolve value binding $this (context = $context).")
+    /** The [Type] held by this [Binding]. */
+    val type: Type<*>
 
-    override fun toString(): String = ":$index"
+    /** The [BindingContext] associated with this [Binding]. */
+    var context: BindingContext
+
+    /** A [Binding] for a literal [Value] without any indirection other than the [Binding] itself. */
+    data class Literal(val bindingIndex: Int, override val type: Type<*>, override var context: BindingContext): Binding {
+        override var value: Value?
+            get() = this.context[this.bindingIndex]
+            set(v) {
+                this.context.update(this, v)
+            }
+
+        override fun toString(): String = ":$bindingIndex"
+    }
+
+    /** A [Binding] for a value referred to by a [ColumnDef]. Can only be accessed during query execution. */
+    data class Column(val column: ColumnDef<*>, override var context: BindingContext): Binding {
+
+        override val type: Type<*>
+            get() = this.column.type
+
+        override fun toString(): String = "${this.column.name}"
+    }
 }

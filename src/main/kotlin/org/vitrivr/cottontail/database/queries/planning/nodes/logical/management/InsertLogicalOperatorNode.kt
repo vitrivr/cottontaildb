@@ -2,8 +2,8 @@ package org.vitrivr.cottontail.database.queries.planning.nodes.logical.managemen
 
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.Entity
+import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.queries.GroupId
-import org.vitrivr.cottontail.database.queries.binding.Binding
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.NullaryLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.management.InsertPhysicalOperatorNode
 import org.vitrivr.cottontail.execution.operators.management.InsertOperator
@@ -13,9 +13,9 @@ import org.vitrivr.cottontail.model.basics.Record
  * A [InsertLogicalOperatorNode] that formalizes a INSERT operation on an [Entity].
  *
  * @author Ralph Gasser
- * @version 2.1.0
+ * @version 2.4.0
  */
-class InsertLogicalOperatorNode(override val groupId: GroupId, val entity: Entity, val records: MutableList<Binding<Record>>) : NullaryLogicalOperatorNode() {
+class InsertLogicalOperatorNode(override val groupId: GroupId, val entity: EntityTx, val records: MutableList<Record>) : NullaryLogicalOperatorNode() {
 
     companion object {
         private const val NODE_NAME = "Insert"
@@ -25,8 +25,11 @@ class InsertLogicalOperatorNode(override val groupId: GroupId, val entity: Entit
     override val name: String
         get() = NODE_NAME
 
+    /** The physical [ColumnDef] accessed by the [InsertLogicalOperatorNode]. */
+    override val physicalColumns: List<ColumnDef<*>> = this.entity.listColumns().map { it.columnDef }
+
     /** The [InsertLogicalOperatorNode] produces the columns defined in the [InsertOperator] */
-    override val columns: Array<ColumnDef<*>> = InsertOperator.COLUMNS
+    override val columns: List<ColumnDef<*>> = InsertOperator.COLUMNS
 
     /**
      * Creates and returns a copy of this [InsertLogicalOperatorNode] without any children or parents.

@@ -6,7 +6,6 @@ import org.vitrivr.cottontail.database.statistics.columns.ValueStatistics
 import org.vitrivr.cottontail.model.values.types.Value
 import java.util.*
 
-
 /**
  * A collection of [ValueStatistics] for a record as used by the query planner.
  *
@@ -44,6 +43,13 @@ open class RecordStatistics {
         require(!this.columns.containsKey(key)) { "Column $key is already contained in this record statistics." }
         this.columns[key] = statistics
     }
+
+    /**
+     *  Checks if this [RecordStatistics] contains an entry for the given [ColumnDef].
+     *
+     *  @param key The [ColumnDef] to check.
+     */
+    fun has(key: ColumnDef<*>): Boolean = this.columns.containsKey(key)
 
     /**
      * Sets the [ValueStatistics] for the given [ColumnDef].

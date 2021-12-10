@@ -17,11 +17,10 @@ import kotlin.time.measureTimedValue
  * An [Operator.SourceOperator] used during query execution. Optimizes an [Entity]
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
 @ExperimentalTime
 class OptimizeEntityOperator(private val catalogue: DefaultCatalogue, private val name: Name.EntityName) : AbstractDataDefinitionOperator(name, "OPTIMIZE ENTITY") {
-
     override fun toFlow(context: TransactionContext): Flow<Record> {
         val catTxn = context.getTx(this.catalogue) as CatalogueTx
         val schemaTxn = context.getTx(catTxn.schemaForName(this.name.schema())) as SchemaTx

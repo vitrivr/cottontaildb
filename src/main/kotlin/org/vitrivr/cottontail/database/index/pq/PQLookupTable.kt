@@ -4,9 +4,10 @@ package org.vitrivr.cottontail.database.index.pq
  * A lookup table like data structure used by [PQIndex] to obtain approximate distances from [PQShortSignature]s
  *
  * @author Gabriel Zihlmann & Ralph Gasser
- * @version 1.0.0
+ * @version 1.0.1
  */
-inline class PQLookupTable(val data: Array<DoubleArray>) {
+@JvmInline
+value class PQLookupTable(val data: Array<DoubleArray>) {
     /**
      * Calculates and returns the approximate distance for the given [PQSignature].
      *

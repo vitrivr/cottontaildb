@@ -7,9 +7,8 @@ import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.queries.sort.SortOrder
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
-import org.vitrivr.cottontail.execution.operators.basics.drop
-import org.vitrivr.cottontail.math.knn.selection.HeapSelection
 import org.vitrivr.cottontail.model.basics.Record
+import org.vitrivr.cottontail.utilities.selection.HeapSelection
 
 /**
  * An [Operator.PipelineOperator] used during query execution. Performs sorting on the specified
@@ -18,12 +17,13 @@ import org.vitrivr.cottontail.model.basics.Record
  * Acts as pipeline breaker.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.2.0
  */
-class LimitingHeapSortOperator(parent: Operator, sortOn: Array<Pair<ColumnDef<*>, SortOrder>>, private val limit: Long, private val skip: Long) : AbstractSortOperator(parent, sortOn) {
+class LimitingHeapSortOperator(parent: Operator, sortOn: List<Pair<ColumnDef<*>, SortOrder>>, private val limit: Long, private val skip: Long) : AbstractSortOperator(parent, sortOn) {
 
     /** The [HeapSortOperator] retains the [ColumnDef] of the input. */
-    override val columns: Array<ColumnDef<*>> = this.parent.columns
+    override val columns: List<ColumnDef<*>>
+        get() = this.parent.columns
 
     /** The [HeapSortOperator] is always a pipeline breaker. */
     override val breaker: Boolean = true
@@ -35,15 +35,11 @@ class LimitingHeapSortOperator(parent: Operator, sortOn: Array<Pair<ColumnDef<*>
      * @return [Flow] representing this [LimitingHeapSortOperator]
      */
     override fun toFlow(context: TransactionContext): Flow<Record> {
-        val parentFlow = if (this.skip > 0) {
-            this.parent.toFlow(context).drop(this.skip)
-        } else {
-            this.parent.toFlow(context)
-        }
+        val parentFlow = this.parent.toFlow(context)
         return flow {
-            val selection = HeapSelection(this@LimitingHeapSortOperator.limit, this@LimitingHeapSortOperator.comparator)
-            parentFlow.collect { selection.offer(it.copy()) }
-            for (i in 0 until selection.size) {
+            val selection = HeapSelection(this@LimitingHeapSortOperator.limit + this@LimitingHeapSortOperator.skip, this@LimitingHeapSortOperator.comparator)
+            parentFlow.collect { selection.offer(it.copy()) } /* Important: Materialization! */
+            for (i in this@LimitingHeapSortOperator.skip until selection.size) {
                 emit(selection[i])
             }
         }

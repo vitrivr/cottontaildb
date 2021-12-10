@@ -5,14 +5,17 @@ import org.mapdb.Serializer
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.DefaultEntity
 import org.vitrivr.cottontail.database.entity.EntityTx
-import org.vitrivr.cottontail.database.events.DataChangeEvent
-import org.vitrivr.cottontail.database.index.*
+import org.vitrivr.cottontail.database.index.AbstractIndex
+import org.vitrivr.cottontail.database.index.IndexTx
+import org.vitrivr.cottontail.database.index.IndexType
+import org.vitrivr.cottontail.database.operations.Operation
 import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.predicates.Predicate
 import org.vitrivr.cottontail.database.queries.predicates.bool.BooleanPredicate
 import org.vitrivr.cottontail.database.queries.predicates.bool.ComparisonOperator
 import org.vitrivr.cottontail.execution.TransactionContext
-import org.vitrivr.cottontail.model.basics.*
+import org.vitrivr.cottontail.model.basics.Record
+import org.vitrivr.cottontail.model.basics.TupleId
 import org.vitrivr.cottontail.model.exceptions.TxException
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.types.Value
@@ -24,7 +27,7 @@ import java.util.*
  * unique [Value] to a [TupleId]. Well suited for equality based lookups of [Value]s.
  *
  * @author Ralph Gasser
- * @version 2.0.1
+ * @version 2.0.2
  */
 class UniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path, parent) {
 
@@ -59,9 +62,9 @@ class UniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path, p
      * @param predicate The [Predicate] to check.
      * @return True if [Predicate] can be processed, false otherwise.
      */
-    override fun canProcess(predicate: Predicate): Boolean = predicate is BooleanPredicate.Atomic.Literal
+    override fun canProcess(predicate: Predicate): Boolean = predicate is BooleanPredicate.Atomic
             && !predicate.not
-            && predicate.columns.first() == this.columns[0]
+            && predicate.columns.contains(this.columns[0])
             && (predicate.operator is ComparisonOperator.In || predicate.operator is ComparisonOperator.Binary.Equal)
 
     /**
@@ -71,7 +74,7 @@ class UniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path, p
      * @return Cost estimate for the [Predicate]
      */
     override fun cost(predicate: Predicate): Cost = when {
-        predicate !is BooleanPredicate.Atomic.Literal || predicate.columns.first() != this.columns[0] || predicate.not -> Cost.INVALID
+        predicate !is BooleanPredicate.Atomic || predicate.columns.first() != this.columns[0] || predicate.not -> Cost.INVALID
         predicate.operator is ComparisonOperator.Binary.Equal -> Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_MEMORY_ACCESS, predicate.columns.map { it.type.physicalSize }.sum().toFloat())
         predicate.operator is ComparisonOperator.In -> Cost(Cost.COST_DISK_ACCESS_READ * predicate.operator.right.size, Cost.COST_MEMORY_ACCESS * predicate.operator.right.size, predicate.columns.map { it.type.physicalSize }.sum().toFloat())
         else -> Cost.INVALID
@@ -140,20 +143,20 @@ class UniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path, p
         }
 
         /**
-         * Updates the [UniqueHashIndex] with the provided [DataChangeEvent]s. This method determines,
-         * whether the [Record] affected by the [DataChangeEvent] should be added or updated
+         * Updates the [UniqueHashIndex] with the provided [Operation.DataManagementOperation]s. This method determines,
+         * whether the [Record] affected by the [Operation.DataManagementOperation] should be added or updated
          *
-         * @param event [DataChangeEvent]s to process.
+         * @param event [Operation.DataManagementOperation]s to process.
          */
-        override fun update(event: DataChangeEvent) = this.withWriteLock {
+        override fun update(event: Operation.DataManagementOperation) = this.withWriteLock {
             when (event) {
-                is DataChangeEvent.InsertDataChangeEvent -> {
+                is Operation.DataManagementOperation.InsertOperation-> {
                     val value = event.inserts[this.dbo.columns[0]]
                     if (value != null) {
                         this.addMapping(value, event.tupleId)
                     }
                 }
-                is DataChangeEvent.UpdateDataChangeEvent -> {
+                is Operation.DataManagementOperation.UpdateOperation -> {
                     val old = event.updates[this.dbo.columns[0]]?.first
                     if (old != null) {
                         this.removeMapping(old)
@@ -163,7 +166,7 @@ class UniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path, p
                         this.addMapping(new, event.tupleId)
                     }
                 }
-                is DataChangeEvent.DeleteDataChangeEvent -> {
+                is Operation.DataManagementOperation.DeleteOperation -> {
                     val old = event.deleted[this.dbo.columns[0]]
                     if (old != null) {
                         this.removeMapping(old)
@@ -192,20 +195,24 @@ class UniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path, p
         override fun filter(predicate: Predicate) = object : Iterator<Record> {
 
             /** Local [BooleanPredicate.Atomic] instance. */
-            private val predicate: BooleanPredicate.Atomic.Literal
+            private val predicate: BooleanPredicate.Atomic
 
             /** Pre-fetched [Record]s that match the [Predicate]. */
             private val elements = LinkedList<Value>()
 
             /* Perform initial sanity checks. */
             init {
-                require(predicate is BooleanPredicate.Atomic.Literal) { "UniqueHashIndex.filter() does only support Atomic.Literal boolean predicates." }
+                require(predicate is BooleanPredicate.Atomic) { "UniqueHashIndex.filter() does only support Atomic.Literal boolean predicates." }
                 require(!predicate.not) { "UniqueHashIndex.filter() does not support negated statements (i.e. NOT EQUALS or NOT IN)." }
                 this@Tx.withReadLock { /* No op. */ }
                 this.predicate = predicate
                 when (predicate.operator) {
-                    is ComparisonOperator.In -> this.elements.addAll(predicate.operator.right.map { it.value })
-                    is ComparisonOperator.Binary.Equal -> this.elements.add(predicate.operator.right.value)
+                    is ComparisonOperator.In -> this.elements.addAll(predicate.operator.right.mapNotNull { it.value })
+                    is ComparisonOperator.Binary.Equal -> {
+                        if (predicate.operator.right.value != null) {
+                            this.elements.add(predicate.operator.right.value!!)
+                        }
+                    }
                     else -> throw IllegalArgumentException("UniqueHashIndex.filter() does only support EQUAL and IN operators.")
                 }
             }

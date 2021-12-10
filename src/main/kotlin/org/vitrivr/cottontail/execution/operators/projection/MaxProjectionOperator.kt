@@ -4,7 +4,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.onEach
-import org.vitrivr.cottontail.database.column.*
+import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.queries.projection.Projection
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.exceptions.OperatorSetupException
@@ -26,42 +26,26 @@ import kotlin.math.max
  * single [Record]. Acts as pipeline breaker.
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.4.0
  */
-class MaxProjectionOperator(
-    parent: Operator,
-    fields: List<Pair<Name.ColumnName, Name.ColumnName?>>
-) : Operator.PipelineOperator(parent) {
+class MaxProjectionOperator(parent: Operator, fields: List<Name.ColumnName>) : Operator.PipelineOperator(parent) {
 
     /** [MaxProjectionOperator] does act as a pipeline breaker. */
     override val breaker: Boolean = true
 
     /** Columns produced by [MaxProjectionOperator]. */
-    override val columns: Array<ColumnDef<*>> = this.parent.columns.mapNotNull { c ->
-        val match = fields.find { f -> f.first.matches(c.name) }
+    override val columns: List<ColumnDef<*>> = this.parent.columns.mapNotNull { c ->
+        val match = fields.find { f -> f.matches(c.name) }
         if (match != null) {
-            if (!c.type.numeric) throw OperatorSetupException(
-                this,
-                "The provided column $match cannot be used for a ${Projection.MAX} projection because it has the wrong type."
-            )
-            val alias = match.second
-            if (alias != null) {
-                c.copy(name = alias)
-            } else {
-                val columnNameStr = "${Projection.MAX.label()}_${c.name.simple})"
-                val columnName =
-                    c.name.entity()?.column(columnNameStr) ?: Name.ColumnName(columnNameStr)
-                c.copy(name = columnName)
-            }
+            if (!c.type.numeric) throw OperatorSetupException(this, "The provided column $match cannot be used for a ${Projection.MAX} projection because it has the wrong type.")
+            c
         } else {
             null
         }
-    }.toTypedArray()
+    }
 
     /** Parent [ColumnDef] to access and aggregate. */
-    private val parentColumns = this.parent.columns.filter { c ->
-        fields.any { f -> f.first.matches(c.name) }
-    }
+    private val parentColumns = this.parent.columns.filter { c -> fields.any { f -> f.matches(c.name) } }
 
     /**
      * Converts this [CountProjectionOperator] to a [Flow] and returns it.
@@ -71,6 +55,7 @@ class MaxProjectionOperator(
      */
     override fun toFlow(context: TransactionContext): Flow<Record> {
         val parentFlow = this.parent.toFlow(context)
+        val columns = this.columns.toTypedArray()
         return flow {
             /* Prepare holder of type double, which can hold all types of values and collect incoming flow */
             val max = this@MaxProjectionOperator.parentColumns.map { Double.MIN_VALUE }.toTypedArray()
@@ -104,7 +89,7 @@ class MaxProjectionOperator(
             }
 
             /** Emit record. */
-            emit(StandaloneRecord(0L, this@MaxProjectionOperator.columns, results))
+            emit(StandaloneRecord(0L, columns, results))
         }
     }
 }

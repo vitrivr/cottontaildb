@@ -4,17 +4,14 @@ import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.queries.Digest
 import org.vitrivr.cottontail.database.queries.GroupId
 import org.vitrivr.cottontail.database.queries.OperatorNode
-import org.vitrivr.cottontail.database.queries.binding.Binding
-import org.vitrivr.cottontail.database.queries.binding.BindingContext
 import org.vitrivr.cottontail.database.queries.sort.SortOrder
-import org.vitrivr.cottontail.model.values.types.Value
 import java.io.PrintStream
 
 /**
  * An abstract [OperatorNode.Logical] implementation that has exactly two [OperatorNode.Logical]s as input.
  *
  * @author Ralph Gasser
- * @version 2.1.1
+ * @version 2.4.0
  */
 abstract class BinaryLogicalOperatorNode(left: Logical? = null, right: Logical? = null) : OperatorNode.Logical() {
 
@@ -56,11 +53,21 @@ abstract class BinaryLogicalOperatorNode(left: Logical? = null, right: Logical? 
     final override val base: Collection<Logical>
         get() = (this.left?.base ?: emptyList()) + (this.right?.base ?: emptyList())
 
+    /** By default, the [BinaryLogicalOperatorNode] outputs the physical [ColumnDef] of its input. */
+    override val physicalColumns: List<ColumnDef<*>>
+        get() = (this.left?.physicalColumns ?: emptyList())
+
+    /** By default, the [BinaryLogicalOperatorNode] outputs the [ColumnDef] of its input. */
+    override val columns: List<ColumnDef<*>>
+        get() = (this.left?.columns ?: emptyList())
+
     /** By default, a [BinaryLogicalOperatorNode]'s order is unspecified. */
-    override val order: Array<Pair<ColumnDef<*>, SortOrder>> = emptyArray()
+    override val sortOn: List<Pair<ColumnDef<*>, SortOrder>>
+        get() = emptyList()
 
     /** By default, a [BinaryLogicalOperatorNode]'s requirements are empty. */
-    override val requires: Array<ColumnDef<*>> = emptyArray()
+    override val requires: List<ColumnDef<*>>
+        get() = emptyList()
 
     init {
         this.left = left
@@ -110,22 +117,6 @@ abstract class BinaryLogicalOperatorNode(left: Logical? = null, right: Logical? 
         copy.left = input.getOrNull(0)
         copy.right = input.getOrNull(1)
         return (this.output?.copyWithOutput(copy) ?: copy).root
-    }
-
-    /**
-     * Performs late value binding using the given [BindingContext].
-     *
-     * [OperatorNode] are required to propagate calls to [bindValues] up the tree in addition
-     * to executing the binding locally. Consequently, the call is propagated to all input [OperatorNode]
-     * of this [OperatorNode].
-     *
-     * @param ctx [BindingContext] to use to resolve this [Binding].
-     * @return This [OperatorNode].
-     */
-    override fun bindValues(ctx: BindingContext<Value>): OperatorNode {
-        this.left?.bindValues(ctx)
-        this.right?.bindValues(ctx)
-        return this
     }
 
     /**

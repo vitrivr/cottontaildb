@@ -74,7 +74,7 @@ object MarksGenerator {
                  * tmp = (difference between data point and c).pow(2) = euclidean distance
                  * if distance > 0.999 then break
                  */
-                deltaBar = (0 until marks.marks[d].size - 1).sumByDouble { c ->
+                deltaBar = (0 until marks.marks[d].size - 1).sumOf { c ->
                     var tmp = 0.0
                     data.forEach {
                         if (it[d] >= marks.marks[d][c] && it[d] < marks.marks[d][c + 1]) {

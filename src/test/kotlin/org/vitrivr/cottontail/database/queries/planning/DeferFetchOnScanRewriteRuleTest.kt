@@ -8,7 +8,7 @@ import org.vitrivr.cottontail.database.catalogue.CatalogueTx
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.queries.QueryContext
-import org.vitrivr.cottontail.database.queries.binding.Binding
+import org.vitrivr.cottontail.database.queries.binding.DefaultBindingContext
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.predicates.FilterLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.projection.SelectProjectionLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.sources.EntitySampleLogicalOperatorNode
@@ -26,7 +26,7 @@ import org.vitrivr.cottontail.model.basics.Type
  * A collection of test cases for the [DeferFetchOnScanRewriteRule].
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.2.1
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class DeferFetchOnScanRewriteRuleTest : AbstractDatabaseTest() {
@@ -38,7 +38,7 @@ class DeferFetchOnScanRewriteRuleTest : AbstractDatabaseTest() {
     private val columns = listOf(
         ColumnDef(this.entityName.column("id"), Type.Long),
         ColumnDef(this.entityName.column("doubleValue"), Type.Double),
-        ColumnDef(this.entityName.column("stringValue"), Type.Double),
+        ColumnDef(this.entityName.column("stringValue"), Type.String),
         ColumnDef(this.entityName.column("intValue"), Type.Int),
         ColumnDef(this.entityName.column("booleanValue"), Type.Boolean)
     )
@@ -51,9 +51,9 @@ class DeferFetchOnScanRewriteRuleTest : AbstractDatabaseTest() {
      */
     @Test
     fun testNoMatch() {
-        val txn = this.manager.Transaction(TransactionType.SYSTEM)
+        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM)
         try {
-            val ctx = QueryContext(txn)
+            val ctx = QueryContext("test", this.catalogue, txn)
             val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
             val schema = catalogueTx.schemaForName(this.schemaName)
             val schemaTx = txn.getTx(schema) as SchemaTx
@@ -61,8 +61,8 @@ class DeferFetchOnScanRewriteRuleTest : AbstractDatabaseTest() {
             val entityTx = txn.getTx(entity) as EntityTx
 
             /* Prepare simple SAMPLE with projection. */
-            val sample0 = EntitySampleLogicalOperatorNode(0, entityTx, this.columns.toTypedArray(), 10)
-            val projection0 = SelectProjectionLogicalOperatorNode(sample0, Projection.SELECT, this.columns.map { it.name to null })
+            val sample0 = EntitySampleLogicalOperatorNode(0, entityTx, this.columns.map { it.name to it }, 0.5f)
+            SelectProjectionLogicalOperatorNode(sample0, Projection.SELECT, this.columns.map { it.name })
 
             /* Check DeferFetchOnFetchRewriteRule.canBeApplied and test output for null. */
             Assertions.assertFalse(DeferFetchOnScanRewriteRule.canBeApplied(sample0))
@@ -78,9 +78,9 @@ class DeferFetchOnScanRewriteRuleTest : AbstractDatabaseTest() {
      */
     @Test
     fun testNoDefer() {
-        val txn = this.manager.Transaction(TransactionType.SYSTEM)
+        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM)
         try {
-            val ctx = QueryContext(txn)
+            val ctx = QueryContext("test", this.catalogue, txn)
             val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
             val schema = catalogueTx.schemaForName(this.schemaName)
             val schemaTx = txn.getTx(schema) as SchemaTx
@@ -88,8 +88,8 @@ class DeferFetchOnScanRewriteRuleTest : AbstractDatabaseTest() {
             val entityTx = txn.getTx(entity) as EntityTx
 
             /* Prepare simple SAMPLE with projection. */
-            val scan0 = EntityScanLogicalOperatorNode(0, entityTx, this.columns.toTypedArray())
-            val projection0 = SelectProjectionLogicalOperatorNode(scan0, Projection.SELECT, this.columns.map { it.name to null })
+            val scan0 = EntityScanLogicalOperatorNode(0, entityTx, this.columns.map { it.name to it })
+            SelectProjectionLogicalOperatorNode(scan0, Projection.SELECT, this.columns.map { it.name })
 
             /* Step 1: Execute DeferFetchOnScanRewriteRule and make basic assertions. */
             Assertions.assertTrue(DeferFetchOnScanRewriteRule.canBeApplied(scan0))
@@ -107,9 +107,9 @@ class DeferFetchOnScanRewriteRuleTest : AbstractDatabaseTest() {
      */
     @Test
     fun testDeferAndDrop() {
-        val txn = this.manager.Transaction(TransactionType.SYSTEM)
+        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM)
         try {
-            val ctx = QueryContext(txn)
+            val ctx = QueryContext("test", this.catalogue, txn)
             val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
             val schema = catalogueTx.schemaForName(this.schemaName)
             val schemaTx = txn.getTx(schema) as SchemaTx
@@ -117,8 +117,8 @@ class DeferFetchOnScanRewriteRuleTest : AbstractDatabaseTest() {
             val entityTx = txn.getTx(entity) as EntityTx
 
             /* Prepare simple scan with projection. */
-            val scan0 = EntityScanLogicalOperatorNode(0, entityTx, this.columns.toTypedArray())
-            val projection0 = SelectProjectionLogicalOperatorNode(scan0, Projection.SELECT, listOf(this.columns[0].name to null, this.columns[1].name to null))
+            val scan0 = EntityScanLogicalOperatorNode(0, entityTx, this.columns.map { it.name to it })
+            val projection0 = SelectProjectionLogicalOperatorNode(scan0, Projection.SELECT, listOf(this.columns[0].name, this.columns[1].name))
 
             /* Execute rule, */
             Assertions.assertTrue(DeferFetchOnScanRewriteRule.canBeApplied(scan0))
@@ -130,8 +130,8 @@ class DeferFetchOnScanRewriteRuleTest : AbstractDatabaseTest() {
             Assertions.assertTrue(scan1 is EntityScanLogicalOperatorNode)
 
             /* Check that columns are preserved and unnecessary columns are dropped. */
-            Assertions.assertTrue(result1.columns.contentDeepEquals(projection0.columns)) /* Columns of the resulting PROJECTION should be the same as the original PROJECTION */
-            Assertions.assertTrue((result1.input as EntityScanLogicalOperatorNode).columns.contentDeepEquals(projection0.columns)) /* Columns SCANNED should only contain the projected columns. */
+            Assertions.assertTrue(result1.columns == projection0.columns) /* Columns of the resulting PROJECTION should be the same as the original PROJECTION */
+            Assertions.assertTrue((result1.input as EntityScanLogicalOperatorNode).columns == projection0.columns) /* Columns SCANNED should only contain the projected columns. */
         } finally {
             txn.rollback()
         }
@@ -142,9 +142,9 @@ class DeferFetchOnScanRewriteRuleTest : AbstractDatabaseTest() {
      */
     @Test
     fun testDeferAfterFilter() {
-        val txn = this.manager.Transaction(TransactionType.SYSTEM)
+        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM)
         try {
-            val ctx = QueryContext(txn)
+            val ctx = QueryContext("test", this.catalogue, txn)
             val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
             val schema = catalogueTx.schemaForName(this.schemaName)
             val schemaTx = txn.getTx(schema) as SchemaTx
@@ -152,9 +152,10 @@ class DeferFetchOnScanRewriteRuleTest : AbstractDatabaseTest() {
             val entityTx = txn.getTx(entity) as EntityTx
 
             /* Prepare simple SCAN followed by a FILTER, followed by a PROJECTION. */
-            val scan0 = EntityScanLogicalOperatorNode(0, entityTx, this.columns.toTypedArray())
-            val filter0 = FilterLogicalOperatorNode(scan0, BooleanPredicate.Atomic.Literal(this.columns[2], ComparisonOperator.Binary.Equal(Binding(0)), false))
-            val projection0 = SelectProjectionLogicalOperatorNode(filter0, Projection.SELECT, listOf(this.columns[0].name to null, this.columns[1].name to null))
+            val context = DefaultBindingContext()
+            val scan0 = EntityScanLogicalOperatorNode(0, entityTx, this.columns.map { it.name to it })
+            val filter0 = FilterLogicalOperatorNode(scan0, BooleanPredicate.Atomic(ComparisonOperator.Binary.Equal(context.bind(this.columns[2]), context.bindNull(this.columns[2].type)), false))
+            val projection0 = SelectProjectionLogicalOperatorNode(filter0, Projection.SELECT, listOf(this.columns[0].name, this.columns[1].name))
 
 
             /* Execute rule and make basic assertions. */
@@ -163,7 +164,7 @@ class DeferFetchOnScanRewriteRuleTest : AbstractDatabaseTest() {
 
             /* Check order: SCAN -> FILTER -> FETCH -> PROJECT. */
             Assertions.assertTrue(result1 is SelectProjectionLogicalOperatorNode)
-            Assertions.assertTrue(result1!!.columns.contentDeepEquals(projection0.columns))
+            Assertions.assertTrue(result1!!.columns == projection0.columns)
             val fetch1 = (result1 as SelectProjectionLogicalOperatorNode).input
             Assertions.assertTrue(fetch1 is FetchLogicalOperatorNode)
             val filter1 = (fetch1 as FetchLogicalOperatorNode).input
@@ -172,12 +173,12 @@ class DeferFetchOnScanRewriteRuleTest : AbstractDatabaseTest() {
             Assertions.assertTrue(scan1 is EntityScanLogicalOperatorNode)
 
             /* Check that columns are preserved and unnecessary columns are dropped. */
-            Assertions.assertTrue(result1.columns.contentDeepEquals(projection0.columns)) /* Columns of the resulting PROJECTION should be the same as the original PROJECTION */
+            Assertions.assertTrue(result1.columns == projection0.columns) /* Columns of the resulting PROJECTION should be the same as the original PROJECTION */
 
             val combined = ((scan1 as EntityScanLogicalOperatorNode).columns + fetch1.fetch) /* Columns of the SCAN + FETCH. */
             Assertions.assertEquals(scan0.columns.size, combined.size) /* Columns FETCHED + columns SCANNED should of the same size as the SCAN columns. */
             Assertions.assertTrue(scan1.columns.all { combined.contains(it) }) /* Columns FETCHED + columns SCANNED should be all columns in the original SCAN. */
-            Assertions.assertTrue(scan1.columns.contentDeepEquals(filter0.predicate.columns.toTypedArray())) /* Columns SCANNED should only contain the columns used by FILTER. */
+            Assertions.assertTrue(scan1.columns == filter0.predicate.columns.toList()) /* Columns SCANNED should only contain the columns used by FILTER. */
         } finally {
             txn.rollback()
         }

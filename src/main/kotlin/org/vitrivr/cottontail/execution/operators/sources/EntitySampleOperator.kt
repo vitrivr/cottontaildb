@@ -6,39 +6,47 @@ import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.entity.Entity
 import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.queries.GroupId
+import org.vitrivr.cottontail.database.queries.QueryContext
+import org.vitrivr.cottontail.database.queries.binding.BindingContext
 import org.vitrivr.cottontail.execution.TransactionContext
-import org.vitrivr.cottontail.execution.exceptions.OperatorSetupException
+import org.vitrivr.cottontail.execution.operators.basics.Operator
+import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Record
+import org.vitrivr.cottontail.model.recordset.StandaloneRecord
+import org.vitrivr.cottontail.model.values.types.Value
 import java.util.*
 
 /**
- * An [AbstractEntityOperator] that samples an [Entity] and streams all [Record]s found within.
+ * An [Operator.SourceOperator] that samples an [Entity] and streams all [Record]s found within.
  *
  * @author Ralph Gasser
- * @version 1.2.1
+ * @version 1.6.0
  */
-class EntitySampleOperator(groupId: GroupId, entity: EntityTx, columns: Array<ColumnDef<*>>, val size: Long, val seed: Long) : AbstractEntityOperator(groupId, entity, columns) {
+class EntitySampleOperator(groupId: GroupId, val entity: EntityTx, val fetch: List<Pair<Name.ColumnName,ColumnDef<*>>>, override val binding: BindingContext, val p: Float, val seed: Long) : Operator.SourceOperator(groupId) {
 
-    init {
-        if (this.size <= 0L) throw OperatorSetupException(this, "EntitySampleOperator sample size is invalid (size=${this.size}).")
-    }
+    /** The [ColumnDef] fetched by this [EntitySampleOperator]. */
+    override val columns: List<ColumnDef<*>> = this.fetch.map { it.second.copy(name = it.first) }
 
     /**
      * Converts this [EntitySampleOperator] to a [Flow] and returns it.
      *
-     * @param context The [TransactionContext] used for execution.
+     * @param context The [QueryContext] used for execution.
      * @return [Flow] representing this [EntitySampleOperator].
      */
     override fun toFlow(context: TransactionContext): Flow<Record> {
-        val random = SplittableRandom(this.seed)
+        val fetch = this.fetch.map { it.second }.toTypedArray()
+        val columns = this.columns.toTypedArray()
+        val values = arrayOfNulls<Value?>(this.columns.size)
         return flow {
-            for (i in 0 until size) {
-                var record: Record? = null
-                while (record == null) {
-                    val next = random.nextLong(this@EntitySampleOperator.entity.maxTupleId())
-                    record = this@EntitySampleOperator.entity.read(next, this@EntitySampleOperator.columns)
+            val random = SplittableRandom(this@EntitySampleOperator.seed)
+            for (record in this@EntitySampleOperator.entity.scan(fetch)) {
+                if (random.nextDouble(0.0, 1.0) <= this@EntitySampleOperator.p) {
+                    var i = 0
+                    record.forEach { _, v -> values[i++] = v }
+                    val r = StandaloneRecord(record.tupleId, columns, values)
+                    this@EntitySampleOperator.binding.bindRecord(r) /* Important: Make new record available to binding context. */
+                    emit(r)
                 }
-                emit(record)
             }
         }
     }

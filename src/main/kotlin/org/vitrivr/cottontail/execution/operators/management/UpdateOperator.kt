@@ -15,7 +15,6 @@ import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.DoubleValue
 import org.vitrivr.cottontail.model.values.LongValue
 import org.vitrivr.cottontail.model.values.types.Value
-import kotlin.time.DurationUnit
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTime
 
@@ -24,20 +23,20 @@ import kotlin.time.measureTime
  * that it receives with the provided [Value].
  *
  * @author Ralph Gasser
- * @version 1.1.1
+ * @version 1.3.0
  */
 class UpdateOperator(parent: Operator, val entity: EntityTx, val values: List<Pair<ColumnDef<*>, Value?>>) : Operator.PipelineOperator(parent) {
 
     companion object {
         /** The columns produced by the [UpdateOperator]. */
-        val COLUMNS: Array<ColumnDef<*>> = arrayOf(
+        val COLUMNS: List<ColumnDef<*>> = listOf(
             ColumnDef(Name.ColumnName("updated"), Type.Long, false),
             ColumnDef(Name.ColumnName("duration_ms"), Type.Double, false)
         )
     }
 
     /** Columns produced by [UpdateOperator]. */
-    override val columns: Array<ColumnDef<*>> = COLUMNS
+    override val columns: List<ColumnDef<*>> = COLUMNS
 
     /** [UpdateOperator] does not act as a pipeline breaker. */
     override val breaker: Boolean = false
@@ -61,7 +60,7 @@ class UpdateOperator(parent: Operator, val entity: EntityTx, val values: List<Pa
                     updated += 1
                 }
             }
-            emit(StandaloneRecord(0L, this@UpdateOperator.columns, arrayOf(LongValue(updated), DoubleValue(time.toDouble(DurationUnit.MILLISECONDS)))))
+            emit(StandaloneRecord(0L, this@UpdateOperator.columns.toTypedArray(), arrayOf(LongValue(updated), DoubleValue(time.inWholeMilliseconds))))
         }
     }
 }

@@ -7,12 +7,9 @@ import io.grpc.netty.NettyChannelBuilder
 import org.junit.jupiter.api.*
 import org.vitrivr.cottontail.TestConstants
 import org.vitrivr.cottontail.TestConstants.DBO_CONSTANT
-import org.vitrivr.cottontail.TestConstants.TEST_ENTITY
-import org.vitrivr.cottontail.TestConstants.TEST_ENTITY_FQN_INPUT
-import org.vitrivr.cottontail.TestConstants.TEST_ENTITY_FQN_OUTPUT
 import org.vitrivr.cottontail.TestConstants.TEST_SCHEMA
+import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.language.ddl.*
-import org.vitrivr.cottontail.client.stub.SimpleClient
 import org.vitrivr.cottontail.embedded
 import java.util.concurrent.TimeUnit
 import kotlin.time.ExperimentalTime
@@ -28,34 +25,34 @@ class DDLServiceTest {
     @BeforeAll
     fun startCottontail() {
         this.embedded = embedded(TestConstants.testConfig())
+        this.channel =  NettyChannelBuilder.forAddress("localhost", 1865).usePlaintext().build()
+        this.client = SimpleClient(this.channel)
+
+        /** Drop and (re-)create test schema. */
+        GrpcTestUtils.dropTestSchema(client)
     }
 
     @AfterAll
     fun cleanup() {
+        /* Drop test schema. */
+        GrpcTestUtils.dropTestSchema(client)
+
+        /** Close SimpleClient. */
+        this.client.close()
+
         /* Shutdown ManagedChannel. */
         this.channel.shutdown()
-        this.channel.awaitTermination(5000, TimeUnit.MILLISECONDS)
+        this.channel.awaitTermination(25000, TimeUnit.MILLISECONDS)
 
         /* Stop embedded server. */
         this.embedded.stop()
-        this.embedded.stop()
+
     }
 
     @BeforeEach
     fun setup() {
-        val builder = NettyChannelBuilder.forAddress("localhost", 1865)
-        builder.usePlaintext()
-        this.channel = builder.build()
-        this.client = SimpleClient(this.channel)
         assert(client.ping())
-        dropTestSchema(client)
     }
-
-    @AfterEach
-    fun tearDown() {
-        dropTestSchema(client)
-    }
-
 
     @Test
     fun pingTest() {
@@ -63,7 +60,7 @@ class DDLServiceTest {
     }
 
     /**
-     * At this point, the test schema should not exists.
+     * At this point, the test schema should not exist.
      * Therefore, trying to drop it should lead to a NOT_FOUND StatusRuntimeException
      */
     @Test
@@ -72,57 +69,70 @@ class DDLServiceTest {
             client.drop(DropSchema(TEST_SCHEMA))
         } catch (e: StatusRuntimeException) {
             if (e.status.code != Status.NOT_FOUND.code) {
-                fail("status was " + e.status + " instead of NOT_FOUND")
+                fail("Status was " + e.status + " instead of NOT_FOUND")
             }
         }
     }
 
     @Test
     fun createAndListSchema() {
-        createTestSchema(client)
-        val names = schemaNames()
-        assert(names.contains("warren.$TEST_SCHEMA")) { "returned schema names were $names instead of expected $TEST_SCHEMA" }
+        try {
+            client.create(CreateSchema(TEST_SCHEMA))
+            val names = schemaNames()
+            assert(names.contains("warren.$TEST_SCHEMA")) { "returned schema names were $names instead of expected $TEST_SCHEMA" }
+        } finally {
+            client.drop(DropSchema(TEST_SCHEMA))
+        }
     }
 
     @Test
     fun createAndDropSchema() {
-        createTestSchema(client)
+        client.create(CreateSchema(TEST_SCHEMA))
         client.drop(DropSchema(TEST_SCHEMA))
-        assert(!schemaNames().contains(TEST_SCHEMA)) { "schema $TEST_SCHEMA was not dropped" }
+        val names = schemaNames()
+        assert(!names.contains("warren.$TEST_SCHEMA")) { "Schema $TEST_SCHEMA was not dropped" }
     }
 
     @Test
     fun dropNonExistingEntity() {
-        createTestSchema(client)
         try {
-            client.drop(DropEntity(TEST_ENTITY_FQN_INPUT))
+            client.create(CreateSchema(TEST_SCHEMA))
+            client.drop(DropEntity(GrpcTestUtils.TEST_ENTITY_FQN))
         } catch (e: StatusRuntimeException) {
             if (e.status.code != Status.NOT_FOUND.code) {
                 fail("status was " + e.status + " instead of NOT_FOUND")
             }
+        } finally {
+            client.drop(DropSchema(TEST_SCHEMA))
         }
     }
 
     @Test
     fun createAndListEntity() {
-        createAndListEntity(TEST_ENTITY_FQN_INPUT)
-        dropTestSchema(client)
-        createAndListEntity(TEST_ENTITY_FQN_OUTPUT)
-    }
-
-    fun createAndListEntity(input: String) {
-        createTestSchema(client)
-        createTestEntity(input)
-        val names = entityNames()
-        assert(names.contains(TEST_ENTITY_FQN_OUTPUT)) { "returned schema names were $names instead of expected $TEST_ENTITY_FQN_OUTPUT" }
+        try {
+            client.create(CreateSchema(TEST_SCHEMA))
+            client.create(CreateEntity(GrpcTestUtils.TEST_ENTITY_FQN))
+            val names = entityNames()
+            assert(names.contains(GrpcTestUtils.TEST_ENTITY_FQN_WITH_WARREN)) { "Returned entity names do not contain ${GrpcTestUtils.TEST_ENTITY_FQN_WITH_WARREN}." }
+        } catch (e: StatusRuntimeException) {
+            fail("Creating entity ${GrpcTestUtils.TEST_ENTITY_FQN_WITH_WARREN} failed with status " + e.status)
+        } finally {
+            client.drop(DropSchema(TEST_SCHEMA))
+        }
     }
 
     @Test
     fun createAndVerifyAboutEntity() {
-        createTestSchema(client)
-        createTestEntity()
-        val about = client.about(AboutEntity(TEST_ENTITY_FQN_INPUT))
-        assert(about.hasNext()) { "could not verify existence with about message" }
+        try {
+            client.create(CreateSchema(TEST_SCHEMA))
+            client.create(CreateEntity(GrpcTestUtils.TEST_ENTITY_FQN))
+            val about = client.about(AboutEntity(GrpcTestUtils.TEST_ENTITY_FQN))
+            assert(about.hasNext()) { "could not verify existence with about message" }
+        } catch (e: StatusRuntimeException) {
+            fail("Creating entity ${GrpcTestUtils.TEST_ENTITY_FQN_WITH_WARREN} failed with status " + e.status)
+        } finally {
+            client.drop(DropSchema(TEST_SCHEMA))
+        }
     }
 
     /**
@@ -130,20 +140,35 @@ class DDLServiceTest {
      */
     @Test
     fun createAndDropEntity() {
-        createAndDropEntity(TEST_ENTITY_FQN_INPUT)
-        dropTestSchema(client)
-        createAndDropEntity(TEST_ENTITY_FQN_OUTPUT)
+        try {
+            client.create(CreateSchema(TEST_SCHEMA))
+            client.create(CreateEntity(GrpcTestUtils.TEST_ENTITY_FQN))
+            client.drop(DropEntity(GrpcTestUtils.TEST_ENTITY_FQN))
+            val names = entityNames()
+            assert(!names.contains(GrpcTestUtils.TEST_ENTITY_FQN)) { "Returned entity names do not contain ${GrpcTestUtils.TEST_ENTITY_FQN_WITH_WARREN}." }
+        } catch (e: StatusRuntimeException) {
+            fail("Creating entity ${GrpcTestUtils.TEST_ENTITY_FQN} failed with status " + e.status)
+        } finally {
+            client.drop(DropSchema(TEST_SCHEMA))
+        }
     }
 
-    fun createAndDropEntity(input: String) {
-        createTestSchema(client)
-        createTestEntity()
-        client.drop(DropEntity(input))
-        assert(!entityNames().contains(TEST_ENTITY_FQN_OUTPUT)) { "entity $TEST_ENTITY was not dropped" }
-    }
-
-    private fun createTestEntity(input: String = TEST_ENTITY_FQN_INPUT) {
-        client.create(CreateEntity(input))
+    /**
+     * drop entity api should accept both with and without warren qualifier
+     */
+    @Test
+    fun createAndDropEntityWithWarren() {
+        try {
+            client.create(CreateSchema(TEST_SCHEMA))
+            client.create(CreateEntity(GrpcTestUtils.TEST_ENTITY_FQN))
+            client.drop(DropEntity(GrpcTestUtils.TEST_ENTITY_FQN))
+            val names = entityNames()
+            assert(!names.contains(GrpcTestUtils.TEST_ENTITY_FQN_WITH_WARREN)) { "Returned entity names do not contain ${GrpcTestUtils.TEST_ENTITY_FQN_WITH_WARREN}." }
+        } catch (e: StatusRuntimeException) {
+            fail("Creating entity ${GrpcTestUtils.TEST_ENTITY_FQN_WITH_WARREN} failed with status " + e.status)
+        } finally {
+            client.drop(DropSchema(TEST_SCHEMA))
+        }
     }
 
     private fun schemaNames(): List<String> {

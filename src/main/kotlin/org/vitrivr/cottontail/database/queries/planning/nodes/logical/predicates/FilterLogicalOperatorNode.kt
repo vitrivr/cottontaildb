@@ -9,7 +9,7 @@ import org.vitrivr.cottontail.database.queries.predicates.bool.BooleanPredicate
  * A [UnaryLogicalOperatorNode] that formalizes filtering using some [BooleanPredicate].
  *
  * @author Ralph Gasser
- * @version 2.1.0
+ * @version 2.2.0
  */
 class FilterLogicalOperatorNode(input: Logical? = null, val predicate: BooleanPredicate) : UnaryLogicalOperatorNode(input) {
 
@@ -21,13 +21,8 @@ class FilterLogicalOperatorNode(input: Logical? = null, val predicate: BooleanPr
     override val name: String
         get() = NODE_NAME
 
-    /** The [FilterLogicalOperatorNode] returns the [ColumnDef] of its input, or no column at all. */
-    override val columns: Array<ColumnDef<*>>
-        get() = this.input?.columns ?: emptyArray()
-
     /** The [FilterLogicalOperatorNode] requires all [ColumnDef]s used in the [BooleanPredicate]. */
-    override val requires: Array<ColumnDef<*>>
-        get() = this.predicate.columns.toTypedArray()
+    override val requires: List<ColumnDef<*>> = this.predicate.columns.toList()
 
     /**
      * Creates and returns a copy of this [FilterLogicalOperatorNode] without any children or parents.

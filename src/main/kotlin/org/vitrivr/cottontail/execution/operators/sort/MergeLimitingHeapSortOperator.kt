@@ -5,8 +5,8 @@ import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.queries.sort.SortOrder
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
-import org.vitrivr.cottontail.math.knn.selection.HeapSelection
 import org.vitrivr.cottontail.model.basics.Record
+import org.vitrivr.cottontail.utilities.selection.HeapSelection
 
 /**
  * A [MergeLimitingHeapSortOperator] merges the results of multiple incoming operators into a single [Flow],
@@ -15,23 +15,18 @@ import org.vitrivr.cottontail.model.basics.Record
  * This is often used in parallelized nearest neighbour queries.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.2.0
  */
-class MergeLimitingHeapSortOperator(parents: List<Operator>, sortOn: Array<Pair<ColumnDef<*>, SortOrder>>, val limit: Long) : Operator.MergingPipelineOperator(parents) {
+class MergeLimitingHeapSortOperator(parents: List<Operator>, sortOn: List<Pair<ColumnDef<*>, SortOrder>>, val limit: Long) : Operator.MergingPipelineOperator(parents) {
 
-    /** The columns produced by this [MergeOperator]. */
-    override val columns: Array<ColumnDef<*>> = this.parents.first().columns
+    /** The columns produced by this [MergeLimitingHeapSortOperator]. */
+    override val columns: List<ColumnDef<*>> = this.parents.first().columns
 
     /** The [HeapSortOperator] is always a pipeline breaker. */
     override val breaker: Boolean = true
 
     /** The [Comparator] used for sorting. */
-    private val comparator: Comparator<Record> = when {
-        sortOn.size == 1 && sortOn.first().first.nullable -> RecordComparator.SingleNullColumnComparator(sortOn.first().first, sortOn.first().second)
-        sortOn.size == 1 && !sortOn.first().first.nullable -> RecordComparator.SingleNonNullColumnComparator(sortOn.first().first, sortOn.first().second)
-        sortOn.size > 1 && !sortOn.any { it.first.nullable } -> RecordComparator.MultiNullColumnComparator(sortOn)
-        else -> RecordComparator.MultiNonNullColumnComparator(sortOn)
-    }
+    private val comparator: Comparator<Record> = RecordComparator.fromList(sortOn)
 
     /**
      * Converts this [MergeLimitingHeapSortOperator] to a [Flow] and returns it.

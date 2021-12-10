@@ -11,9 +11,10 @@ import java.util.*
  * This is an abstraction over a [Byte].
  *
  * @author Ralph Gasser
- * @version 1.5.0
+ * @version 1.6.0
  */
-inline class ByteValue(override val value: Byte): RealValue<Byte> {
+@JvmInline
+value class ByteValue(override val value: Byte): RealValue<Byte> {
 
     companion object {
         val ZERO = ByteValue(0.toByte())

@@ -1,7 +1,9 @@
 package org.vitrivr.cottontail.utilities.data.exporter
 
+import org.vitrivr.cottontail.client.iterators.Tuple
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.utilities.data.Format
+import org.vitrivr.cottontail.utilities.data.importer.ProtoDataImporter
 import java.io.OutputStream
 import java.nio.file.Files
 import java.nio.file.Path
@@ -13,13 +15,13 @@ import java.nio.file.StandardOpenOption
  * Data produced by the [ProtoDataExporter] can be used as input for the [ProtoDataImporter].
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
 class ProtoDataExporter(override val path: Path) : DataExporter {
-    /** The [Format] handled by this [DataImporter]. */
+    /** The [Format] handled by this [DataExporter]. */
     override val format: Format = Format.PROTO
 
-    /** Indicator whether this [DataImporter] has been closed. */
+    /** Indicator whether this [DataExporter] has been closed. */
     override var closed: Boolean = false
         private set
 
@@ -28,23 +30,21 @@ class ProtoDataExporter(override val path: Path) : DataExporter {
         Files.newOutputStream(this.path, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE)
 
     /**
-     * Offers a new [CottontailGrpc.QueryResponseMessage] to this [ProtoDataExporter], which will
-     * be appended to the output stream.
+     * Offers a new [Tuple] to this [ProtoDataExporter], which will be appended to the output stream.
      *
-     * @param message The [CottontailGrpc.QueryResponseMessage] to append.
+     * @param tuple The [Tuple] to append.
      */
-    override fun offer(message: CottontailGrpc.QueryResponseMessage) {
-        for (tuple in message.tuplesList) {
-            val insert = CottontailGrpc.InsertMessage.newBuilder()
-            tuple.dataList.zip(message.columnsList).forEach { e ->
-                insert.addElements(
-                    CottontailGrpc.InsertMessage.InsertElement.newBuilder().setValue(e.first)
-                        .setColumn(e.second)
-                )
+    override fun offer(tuple: Tuple) {
+        val insert = CottontailGrpc.InsertMessage.newBuilder()
+        for ((i, l) in tuple.raw.dataList.withIndex()) {
+            val name = tuple.nameForIndex(i)
+            if (name.contains('.')) {
+                insert.addElementsBuilder().setValue(l).setColumn(CottontailGrpc.ColumnName.newBuilder().setName(name.split('.').last()))
+            } else {
+                insert.addElementsBuilder().setValue(l).setColumn(CottontailGrpc.ColumnName.newBuilder().setName(name))
             }
-            insert.build().writeDelimitedTo(this.output)
         }
-        this.output.flush()
+        insert.build().writeDelimitedTo(this.output)
     }
 
     /**

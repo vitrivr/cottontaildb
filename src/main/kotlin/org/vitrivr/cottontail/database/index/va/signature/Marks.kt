@@ -11,7 +11,8 @@ import org.vitrivr.cottontail.model.values.types.RealVectorValue
  * @author Gabriel Zihlmann & Ralph Gasser
  * @version 1.0.0
  */
-inline class Marks(val marks: Array<DoubleArray>) {
+@JvmInline
+value class Marks(val marks: Array<DoubleArray>) {
 
     companion object Serializer : org.mapdb.Serializer<Marks> {
         override fun serialize(out: DataOutput2, value: Marks) {

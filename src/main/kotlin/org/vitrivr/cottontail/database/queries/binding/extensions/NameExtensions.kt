@@ -1,7 +1,5 @@
 package org.vitrivr.cottontail.database.queries.binding.extensions
 
-import org.vitrivr.cottontail.database.index.IndexType
-import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicateHint
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.model.basics.Name
 
@@ -11,6 +9,13 @@ import org.vitrivr.cottontail.model.basics.Name
  * @return [Name.SchemaName] for the given [CottontailGrpc.EntityName]
  */
 fun CottontailGrpc.SchemaName.fqn(): Name.SchemaName = Name.SchemaName(this.name)
+
+/**
+ * Extension function that generates the FQN for the given [CottontailGrpc.FunctionName].
+ *
+ * @return [Name.FunctionName] for the given [CottontailGrpc.FunctionName]
+ */
+fun CottontailGrpc.FunctionName.fqn(): Name.FunctionName = Name.FunctionName(this.name)
 
 /**
  * Extension function that generates the FQN for the given [CottontailGrpc.EntityName].
@@ -38,18 +43,18 @@ fun CottontailGrpc.ColumnName.fqn(): Name.ColumnName = if (this.hasEntity()) {
 }
 
 /**
- * Extension function that generates the [CottontailGrpc.EntityName] for the given [Name.EntityName].
- *
- * @return [CottontailGrpc.EntityName] for the given [Name.EntityName].
- */
-fun Name.EntityName.proto(): CottontailGrpc.EntityName = CottontailGrpc.EntityName.newBuilder().setName(this.simple).setSchema(this.schema().proto()).build()
-
-/**
  * Extension function that generates the [CottontailGrpc.SchemaName] for the given [Name.SchemaName].
  *
  * @return [CottontailGrpc.SchemaName] for the given [Name.SchemaName].
  */
 fun Name.SchemaName.proto() = CottontailGrpc.SchemaName.newBuilder().setName(this.simple).build()
+
+/**
+ * Extension function that generates the [CottontailGrpc.EntityName] for the given [Name.EntityName].
+ *
+ * @return [CottontailGrpc.EntityName] for the given [Name.EntityName].
+ */
+fun Name.EntityName.proto(): CottontailGrpc.EntityName = CottontailGrpc.EntityName.newBuilder().setName(this.simple).setSchema(this.schema().proto()).build()
 
 /**
  * Extension function that generates the [CottontailGrpc.From] for the given [Name.EntityName].
@@ -66,15 +71,19 @@ fun Name.EntityName.protoFrom(): CottontailGrpc.From = CottontailGrpc.From.newBu
 fun Name.IndexName.proto() = CottontailGrpc.IndexName.newBuilder().setEntity(this.entity().proto()).setName(this.simple).build()
 
 /**
- * Extension function that generates the [KnnPredicateHint] for the given [CottontailGrpc.KnnHint].
+ * Extension function that generates the [CottontailGrpc.ColumnName] for the given [Name.ColumnName].
  *
- * @return Fully qualified name for the given [KnnPredicateHint]
+ * @return [CottontailGrpc.ColumnName] for the given [Name.ColumnName]
  */
-fun CottontailGrpc.KnnHint.toHint(): KnnPredicateHint? = when (this.hintCase) {
-    CottontailGrpc.KnnHint.HintCase.ALLOWINEXACTINDEXHINT -> KnnPredicateHint.AllowInexactHint(this.allowInexactIndexHint.allow)
-    CottontailGrpc.KnnHint.HintCase.NOINDEXHINT -> KnnPredicateHint.NoIndexPredicateHint
-    CottontailGrpc.KnnHint.HintCase.TYPEINDEXHINT -> KnnPredicateHint.IndexTypeHint(IndexType.valueOf(this.typeIndexHint.type.toString()))
-    CottontailGrpc.KnnHint.HintCase.NAMEINDEXHINT -> KnnPredicateHint.IndexNameHint(Name.IndexName(this.nameIndexHint.name), this.nameIndexHint.parametersMap)
-    CottontailGrpc.KnnHint.HintCase.PARALLELINDEXHINT -> KnnPredicateHint.ParallelKnnHint(this.parallelIndexHint.min, this.parallelIndexHint.max)
-    else -> null
+fun Name.ColumnName.proto(): CottontailGrpc.ColumnName {
+    val name =  CottontailGrpc.ColumnName.newBuilder().setName(this.simple)
+    val entityName = this.entity()
+    if (entityName != null) {
+        val schemaName = this.schema()
+        name.entityBuilder.name = entityName.simple
+        if (schemaName != null) {
+            name.entityBuilder.schemaBuilder.name = schemaName.simple
+        }
+    }
+    return name.build()
 }

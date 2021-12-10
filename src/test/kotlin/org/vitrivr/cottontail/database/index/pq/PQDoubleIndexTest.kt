@@ -8,14 +8,14 @@ import org.vitrivr.cottontail.database.entity.EntityTx
 import org.vitrivr.cottontail.database.index.AbstractIndexTest
 import org.vitrivr.cottontail.database.index.IndexTx
 import org.vitrivr.cottontail.database.index.IndexType
-import org.vitrivr.cottontail.database.queries.binding.BindingContext
+import org.vitrivr.cottontail.database.queries.binding.DefaultBindingContext
 import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicate
 import org.vitrivr.cottontail.database.schema.SchemaTx
 import org.vitrivr.cottontail.execution.TransactionType
-import org.vitrivr.cottontail.math.knn.basics.DistanceKernel
-import org.vitrivr.cottontail.math.knn.kernels.Distances
-import org.vitrivr.cottontail.math.knn.selection.ComparablePair
-import org.vitrivr.cottontail.math.knn.selection.MinHeapSelection
+import org.vitrivr.cottontail.functions.basics.Argument
+import org.vitrivr.cottontail.functions.basics.Signature
+import org.vitrivr.cottontail.functions.math.distance.Distances
+import org.vitrivr.cottontail.functions.math.distance.basics.VectorDistance
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.basics.TupleId
@@ -24,11 +24,10 @@ import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.DoubleValue
 import org.vitrivr.cottontail.model.values.DoubleVectorValue
 import org.vitrivr.cottontail.model.values.LongValue
-import org.vitrivr.cottontail.model.values.types.Value
-import org.vitrivr.cottontail.model.values.types.VectorValue
+import org.vitrivr.cottontail.utilities.selection.ComparablePair
+import org.vitrivr.cottontail.utilities.selection.MinHeapSelection
 import java.util.*
 import java.util.stream.Stream
-import kotlin.collections.ArrayList
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTime
 
@@ -36,7 +35,7 @@ import kotlin.time.measureTime
  * This is a collection of test cases to test the correct behaviour of [PQIndex] for [DoubleVectorValue]s.
  *
  * @author Ralph Gasser
- * @param 1.2.1
+ * @param 1.2.2
  */
 class PQDoubleIndexTest : AbstractIndexTest() {
 
@@ -72,17 +71,12 @@ class PQDoubleIndexTest : AbstractIndexTest() {
     @MethodSource("kernels")
     @ExperimentalTime
     fun test(distance: Distances) {
-        val txn = this.manager.Transaction(TransactionType.SYSTEM)
+        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM)
         val k = 5000
         val query = DoubleVectorValue.random(this.indexColumn.type.logicalSize, this.random)
-        val kernel = distance.kernelForQuery(query) as DistanceKernel<VectorValue<*>>
-        val context = BindingContext<Value>()
-        val predicate = KnnPredicate(
-            column = this.indexColumn,
-            k = k,
-            distance = distance,
-            query = context.bind(query)
-        )
+        val function = this.catalogue.functions.obtain(Signature.Closed(distance.functionName, arrayOf(Argument.Typed(query.type), Argument.Typed(query.type)), Type.Double)) as VectorDistance.Binary<*>
+        val context = DefaultBindingContext()
+        val predicate = KnnPredicate(column = this.indexColumn, k = k, distance = function, query = context.bind(query))
 
         /* Obtain necessary transactions. */
         val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
@@ -105,12 +99,7 @@ class PQDoubleIndexTest : AbstractIndexTest() {
             entityTx.scan(arrayOf(this.indexColumn)).forEach {
                 val vector = it[this.indexColumn]
                 if (vector is DoubleVectorValue) {
-                    bruteForceResults.offer(
-                        ComparablePair(
-                            it.tupleId,
-                            kernel(vector)
-                        )
-                    )
+                    bruteForceResults.offer(ComparablePair(it.tupleId, function(query, vector)))
                 }
             }
         }
@@ -122,13 +111,13 @@ class PQDoubleIndexTest : AbstractIndexTest() {
         var found = 0.0f
         for (i in 0 until k) {
             val hit = bruteForceResults[i]
-            val index = indexResults.indexOfFirst { it.tupleId == hit.first }
-            if (index != -1) {
+            val idx = indexResults.indexOfFirst { it.tupleId == hit.first }
+            if (idx != -1) {
                 found += 1.0f
             }
         }
         val foundRatio = (found / k)
-        log("Test done for ${distance::class.java.simpleName} and d=${this.indexColumn.type.logicalSize}! PQ took $indexDuration, brute-force took $bruteForceDuration. Found ratio: $foundRatio")
+        log("Test done for $function and d=${this.indexColumn.type.logicalSize}! PQ took $indexDuration, brute-force took $bruteForceDuration. Found ratio: $foundRatio")
         txn.commit()
     }
 

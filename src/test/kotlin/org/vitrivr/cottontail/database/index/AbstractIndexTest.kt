@@ -1,10 +1,6 @@
 package org.vitrivr.cottontail.database.index
 
-import junit.framework.Assert.fail
-import org.junit.jupiter.api.AfterAll
-import org.junit.jupiter.api.BeforeAll
-import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.TestInstance
+import org.junit.jupiter.api.*
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.TestConstants
 import org.vitrivr.cottontail.config.Config
@@ -109,7 +105,7 @@ abstract class AbstractIndexTest {
      */
     protected fun prepareSchema(): Schema {
         log("Creating schema ${this.schemaName}.")
-        val txn = this.manager.Transaction(TransactionType.SYSTEM)
+        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM)
         val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
         val ret = catalogueTx.createSchema(this.schemaName)
         txn.commit()
@@ -121,7 +117,7 @@ abstract class AbstractIndexTest {
      */
     protected fun prepareEntity() {
         log("Creating schema ${this.entityName}.")
-        val txn = this.manager.Transaction(TransactionType.SYSTEM)
+        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM)
         val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
         val schema = catalogueTx.schemaForName(this.schemaName)
         val schemaTx = txn.getTx(schema) as SchemaTx
@@ -134,7 +130,7 @@ abstract class AbstractIndexTest {
      */
     protected fun prepareIndex() {
         log("Creating index ${this.indexName}.")
-        val txn = this.manager.Transaction(TransactionType.SYSTEM)
+        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM)
         val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
         val schema = catalogueTx.schemaForName(this.schemaName)
         val schemaTx = txn.getTx(schema) as SchemaTx
@@ -149,7 +145,7 @@ abstract class AbstractIndexTest {
      */
     protected fun updateIndex() {
         log("Updating index ${this.indexName}.")
-        val txn = this.manager.Transaction(TransactionType.SYSTEM)
+        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM)
         val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
         val schema = catalogueTx.schemaForName(this.schemaName)
         val schemaTx = txn.getTx(schema) as SchemaTx
@@ -167,7 +163,7 @@ abstract class AbstractIndexTest {
      */
     protected fun populateDatabase() {
         log("Inserting data (${TestConstants.collectionSize} items).")
-        val txn = this.manager.Transaction(TransactionType.SYSTEM)
+        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM)
         val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
         val schema = catalogueTx.schemaForName(this.schemaName)
         val schemaTx = txn.getTx(schema) as SchemaTx
@@ -194,7 +190,7 @@ abstract class AbstractIndexTest {
         log("Optimizing entity ${this.entityName}.")
 
         /* Create entry. */
-        val tx1 = this.manager.Transaction(TransactionType.SYSTEM)
+        val tx1 = this.manager.TransactionImpl(TransactionType.SYSTEM)
         val catalogueTx = tx1.getTx(this.catalogue) as CatalogueTx
         val schema = catalogueTx.schemaForName(this.schemaName)
         val schemaTx = tx1.getTx(schema) as SchemaTx
@@ -205,11 +201,11 @@ abstract class AbstractIndexTest {
         tx1.commit()
 
         /* Test count. */
-        val tx2 = this.manager.Transaction(TransactionType.SYSTEM)
+        val tx2 = this.manager.TransactionImpl(TransactionType.SYSTEM)
         val countTx = tx2.getTx(entity) as EntityTx
         val postCount = countTx.count()
         if (postCount != preCount) {
-            fail("optimizing caused elements to disappear")
+            Assertions.fail<Unit>("Optimizing caused elements to disappear")
         }
         countTx.commit()
     }

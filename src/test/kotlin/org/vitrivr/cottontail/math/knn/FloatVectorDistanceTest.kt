@@ -3,11 +3,11 @@ package org.vitrivr.cottontail.math.knn
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import org.vitrivr.cottontail.TestConstants
+import org.vitrivr.cottontail.functions.math.distance.binary.EuclideanDistance
+import org.vitrivr.cottontail.functions.math.distance.binary.ManhattanDistance
+import org.vitrivr.cottontail.functions.math.distance.binary.SquaredEuclideanDistance
 import org.vitrivr.cottontail.math.isApproximatelyTheSame
-import org.vitrivr.cottontail.math.knn.basics.DistanceKernel
-import org.vitrivr.cottontail.math.knn.kernels.Distances
 import org.vitrivr.cottontail.model.values.FloatVectorValue
-import org.vitrivr.cottontail.model.values.types.VectorValue
 import org.vitrivr.cottontail.utilities.VectorUtility
 import kotlin.math.abs
 import kotlin.time.Duration
@@ -18,7 +18,7 @@ import kotlin.time.measureTime
  * Test cases that test for correctness of some basic distance calculations with [FloatVectorValue].
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.0.0
  */
 class FloatVectorDistanceTest : AbstractDistanceTest() {
 
@@ -36,8 +36,8 @@ class FloatVectorDistanceTest : AbstractDistanceTest() {
         var time1 = Duration.ZERO
         var time2 = Duration.ZERO
 
-        val kernel = Distances.L1.kernelForQuery(query) as DistanceKernel<VectorValue<*>>
-
+        val kernel = ManhattanDistance.FloatVector(query.logicalSize)
+        kernel.prepare(query)
         collection.forEach {
             time1 += measureTime {
                 sum1 += kernel(it).value.toFloat()
@@ -71,8 +71,8 @@ class FloatVectorDistanceTest : AbstractDistanceTest() {
         var time1 = Duration.ZERO
         var time2 = Duration.ZERO
 
-        val kernel = Distances.L2SQUARED.kernelForQuery(query) as DistanceKernel<VectorValue<*>>
-
+        val kernel = SquaredEuclideanDistance.FloatVector(query.logicalSize)
+        kernel.prepare(query)
         collection.forEach {
             time1 += measureTime {
                 sum1 += kernel(it).value.toFloat()
@@ -106,8 +106,8 @@ class FloatVectorDistanceTest : AbstractDistanceTest() {
         var time1 = Duration.ZERO
         var time2 = Duration.ZERO
 
-        val kernel = Distances.L2.kernelForQuery(query) as DistanceKernel<VectorValue<*>>
-
+        val kernel = EuclideanDistance.FloatVector(query.logicalSize)
+        kernel.prepare(query)
         collection.forEach {
             time1 += measureTime {
                 sum1 += kernel(it).value.toFloat()
@@ -134,7 +134,7 @@ class FloatVectorDistanceTest : AbstractDistanceTest() {
      * @param p2 the second point
      * @return the L<sub>1</sub> distance between the two points
      */
-    fun l1(p1: FloatArray, p2: FloatArray): Float {
+    private fun l1(p1: FloatArray, p2: FloatArray): Float {
         require(p1.size == p2.size) { "Dimension mismatch!" }
         var sum = 0.0f
         for (i in p1.indices) {
