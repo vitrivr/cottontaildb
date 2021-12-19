@@ -10,10 +10,10 @@ RUN cd /cottontail-src && \
 
 FROM zenika/kotlin:1.4.20-jdk11-slim
 
-RUN mkdir /cottontaildb-data
-COPY config.json /cottontaildb-data/
+RUN mkdir /cottontaildb-data /cottontaildb-config
+COPY config.json /cottontaildb-config/
 COPY --from=build /cottontail-src/cottontaildb-bin /
 
 EXPOSE 1865
 
-ENTRYPOINT /cottontaildb-bin/bin/cottontaildb /cottontaildb-data/config.json
+ENTRYPOINT /cottontaildb-bin/bin/cottontaildb /cottontaildb-config/config.json
