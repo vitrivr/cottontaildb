@@ -7,10 +7,7 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectMaps
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.cancellable
-import kotlinx.coroutines.flow.onCompletion
-import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -160,9 +157,12 @@ class TransactionManager(transactionTableSize: Int, private val transactionHisto
          *
          * @param operator The [Operator.SinkOperator] that should be executed.
          */
-        override fun execute(operator: Operator): Flow<Record> = operator.toFlow(this).onStart {
-            /* Update transaction state; synchronise with ongoing COMMITS or ROLLBACKS. */
-            this@TransactionImpl.mutex.withLock {
+        override fun execute(operator: Operator): Flow<Record> = try {
+            operator.toFlow(this)
+        } catch (e: Throwable) {
+            flow { throw e } /* If preparation of flow fails, wrap exception in dedicated flow. */
+        }.onStart {
+            this@TransactionImpl.mutex.withLock {  /* Update transaction state; synchronise with ongoing COMMITS or ROLLBACKS. */
                 check(this@TransactionImpl.state.canExecute) {
                     "Cannot start execution of transaction ${this@TransactionImpl.txId} because it is in the wrong state (s = ${this@TransactionImpl.state})."
                 }
@@ -170,8 +170,7 @@ class TransactionManager(transactionTableSize: Int, private val transactionHisto
                 this@TransactionImpl.activeContexts.add(currentCoroutineContext())
             }
         }.onCompletion {
-            /* Update transaction state; synchronise with ongoing COMMITS or ROLLBACKS. */
-            this@TransactionImpl.mutex.withLock {
+            this@TransactionImpl.mutex.withLock { /* Update transaction state; synchronise with ongoing COMMITS or ROLLBACKS. */
                 this@TransactionImpl.activeContexts.remove(currentCoroutineContext())
                 if (it == null) {
                     this@TransactionImpl.numberOfSuccess += 1
