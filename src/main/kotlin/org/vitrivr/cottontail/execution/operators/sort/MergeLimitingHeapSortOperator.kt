@@ -41,8 +41,8 @@ class MergeLimitingHeapSortOperator(parents: List<Operator>, sortOn: List<Pair<C
                 it.toFlow(context).onEach { record ->
                     selection.offer(record.copy())
                 }
-            }.toTypedArray()
-            flowOf(*parentFlows).flattenMerge(this@MergeLimitingHeapSortOperator.parents.size).collect()
+            }
+            parentFlows.merge().collect()
 
             /* Emit sorted and limited values. */
             for (i in 0 until selection.size) {
