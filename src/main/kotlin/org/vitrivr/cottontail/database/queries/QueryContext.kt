@@ -7,7 +7,9 @@ import org.vitrivr.cottontail.database.queries.binding.BindingContext
 
 import org.vitrivr.cottontail.database.queries.binding.DefaultBindingContext
 import org.vitrivr.cottontail.database.queries.sort.SortOrder
+import org.vitrivr.cottontail.execution.Transaction
 import org.vitrivr.cottontail.execution.TransactionManager
+import org.vitrivr.cottontail.execution.TransactionStatus
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.values.types.Value

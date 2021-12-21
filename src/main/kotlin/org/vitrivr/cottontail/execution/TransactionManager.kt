@@ -157,11 +157,7 @@ class TransactionManager(transactionTableSize: Int, private val transactionHisto
          *
          * @param operator The [Operator.SinkOperator] that should be executed.
          */
-        override fun execute(operator: Operator): Flow<Record> = try {
-            operator.toFlow(this)
-        } catch (e: Throwable) {
-            flow { throw e } /* If preparation of flow fails, wrap exception in dedicated flow. */
-        }.onStart {
+        override fun execute(operator: Operator): Flow<Record> = operator.toFlow(this).onStart {
             this@TransactionImpl.mutex.withLock {  /* Update transaction state; synchronise with ongoing COMMITS or ROLLBACKS. */
                 check(this@TransactionImpl.state.canExecute) {
                     "Cannot start execution of transaction ${this@TransactionImpl.txId} because it is in the wrong state (s = ${this@TransactionImpl.state})."
@@ -176,16 +172,11 @@ class TransactionManager(transactionTableSize: Int, private val transactionHisto
                     this@TransactionImpl.numberOfSuccess += 1
                     if (this@TransactionImpl.numberOfOngoing == 0 && this@TransactionImpl.state == TransactionStatus.RUNNING) {
                         this@TransactionImpl.state = TransactionStatus.IDLE
-                        if (this@TransactionImpl.type.autoCommit) {
-                            this@TransactionImpl.performCommit()
-                        }
                     }
                 } else {
                     this@TransactionImpl.numberOfError += 1
                     this@TransactionImpl.state = TransactionStatus.ERROR
-                    if (this@TransactionImpl.type.autoRollback) {
-                        this@TransactionImpl.performRollback()
-                    }
+
                 }
             }
         }.cancellable()
@@ -198,25 +189,18 @@ class TransactionManager(transactionTableSize: Int, private val transactionHisto
                 check(this@TransactionImpl.state.canCommit) {
                     "Unable to commit transaction ${this@TransactionImpl.txId} because it is in wrong state (s = ${this@TransactionImpl.state})."
                 }
-                this@TransactionImpl.performCommit()
-            }
-        }
-
-        /**
-         * Actually performs transaction rollback.
-         */
-        private fun performCommit() {
-            this@TransactionImpl.state = TransactionStatus.FINALIZING
-            try {
-                this@TransactionImpl.txns.values.reversed().forEachIndexed { i, txn ->
-                    try {
-                        txn.commit()
-                    } catch (e: Throwable) {
-                        LOGGER.error("An error occurred while committing Tx $i (${txn.dbo.name}) of transaction ${this@TransactionImpl.txId}. This is serious!", e)
+                this@TransactionImpl.state = TransactionStatus.FINALIZING
+                try {
+                    this@TransactionImpl.txns.values.reversed().forEachIndexed { i, txn ->
+                        try {
+                            txn.commit()
+                        } catch (e: Throwable) {
+                            LOGGER.error("An error occurred while committing Tx $i (${txn.dbo.name}) of transaction ${this@TransactionImpl.txId}. This is serious!", e)
+                        }
                     }
+                } finally {
+                    this@TransactionImpl.finalize(true)
                 }
-            } finally {
-                this@TransactionImpl.finalize(true)
             }
         }
 
@@ -229,6 +213,23 @@ class TransactionManager(transactionTableSize: Int, private val transactionHisto
                     "Unable to rollback transaction ${this@TransactionImpl.txId} because it is in wrong state (s = ${this@TransactionImpl.state})."
                 }
                 this@TransactionImpl.performRollback()
+            }
+        }
+
+        /**
+         * Kills this [TransactionImpl] interrupting all running queries and rolling it back.
+         */
+        override fun kill() = runBlocking {
+            this@TransactionImpl.mutex.withLock {
+                if (this@TransactionImpl.state === TransactionStatus.RUNNING) {
+                    this@TransactionImpl.activeContexts.forEach {
+                        it.cancel(CancellationException("Transaction ${this@TransactionImpl.txId} was killed by user."))
+                    }
+                } else if (this@TransactionImpl.state.canRollback) {
+                    this@TransactionImpl.performRollback()
+                } else {
+                    throw IllegalStateException( "Unable to kill transaction ${this@TransactionImpl.txId} because it is in wrong state (s = ${this@TransactionImpl.state}).")
+                }
             }
         }
 
@@ -247,23 +248,6 @@ class TransactionManager(transactionTableSize: Int, private val transactionHisto
                 }
             } finally {
                 this@TransactionImpl.finalize(false)
-            }
-        }
-
-        /**
-         * Kills this [TransactionImpl] interrupting all running queries and rolling it back.
-         */
-        override fun kill() = runBlocking {
-            this@TransactionImpl.mutex.withLock {
-                if (this@TransactionImpl.state === TransactionStatus.RUNNING) {
-                    this@TransactionImpl.activeContexts.forEach {
-                        it.cancel(CancellationException("Transaction ${this@TransactionImpl.txId} was killed by user."))
-                    }
-                } else if (this@TransactionImpl.state.canRollback) {
-                    this@TransactionImpl.performRollback()
-                } else {
-                    throw IllegalStateException( "Unable to kill transaction ${this@TransactionImpl.txId} because it is in wrong state (s = ${this@TransactionImpl.state}).")
-                }
             }
         }
 
