@@ -30,22 +30,27 @@ class CottontailGrpcServer(val config: Config) {
     /** The [DefaultCatalogue] instance used by this [CottontailGrpcServer]. */
     val catalogue = DefaultCatalogue(this.config)
 
-    /** Reference to the gRPC server. */
-    private val server = ServerBuilder.forPort(this.config.server.port)
-        .executor(this.executor)
-        .addService(DDLService(this.catalogue, this.transactionManager))
-        .addService(DMLService(this.catalogue, this.transactionManager))
-        .addService(DQLService(this.catalogue, this.transactionManager))
-        .addService(TXNService(this.catalogue, this.transactionManager))
-        .let {
-            if (this.config.server.useTls) {
-                val certFile = this.config.server.certFile!!.toFile()
-                val privateKeyFile = this.config.server.privateKey!!.toFile()
-                it.useTransportSecurity(certFile, privateKeyFile)
-            } else {
-                it
-            }
-        }.build()
+    /** The internal gRPC server; if building that server fails then the [DefaultCatalogue] is closed again! */
+    private val server = try {
+        ServerBuilder.forPort(this.config.server.port)
+            .executor(this.executor)
+            .addService(DDLService(this.catalogue, this.transactionManager))
+            .addService(DMLService(this.catalogue, this.transactionManager))
+            .addService(DQLService(this.catalogue, this.transactionManager))
+            .addService(TXNService(this.catalogue, this.transactionManager))
+            .let {
+                if (this.config.server.useTls) {
+                    val certFile = this.config.server.certFile!!.toFile()
+                    val privateKeyFile = this.config.server.privateKey!!.toFile()
+                    it.useTransportSecurity(certFile, privateKeyFile)
+                } else {
+                    it
+                }
+            }.build()
+    } catch (e: Throwable) {
+        this.catalogue.close()
+        throw e
+    }
 
     /**
      * Returns true if this [CottontailGrpcServer] is currently running, and false otherwise.
