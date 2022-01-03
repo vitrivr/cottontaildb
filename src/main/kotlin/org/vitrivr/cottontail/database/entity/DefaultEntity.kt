@@ -426,7 +426,12 @@ class DefaultEntity(override val path: Path, override val parent: Schema) : Enti
             val columns = this@DefaultEntity.columns.values.map { it.columnDef }.toTypedArray()
             val map = Object2ObjectOpenHashMap<ColumnDef<*>, Value>(columns.size)
             val iterator = this.scan(columns)
+
+            /* Reset statistics and incremental indexes. */
             this.snapshot.statistics.reset()
+            incremental.forEach { it.clear() }
+
+            /* Rebuild indexes and statistics in single iteration. */
             iterator.forEach { r ->
                 r.forEach { columnDef, value -> map[columnDef] = value }
                 val event = Operation.DataManagementOperation.InsertOperation(this.context.txId, this@DefaultEntity.name, r.tupleId, map) /* Fake data change event for update. */
