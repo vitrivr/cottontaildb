@@ -228,9 +228,7 @@ class LuceneIndex(path: Path, parent: DefaultEntity, config: LuceneIndexConfig? 
             }
             is ComparisonOperator.Binary.Match -> {
                 if (literal is StringValue) {
-                    val values = literal.value.split(" ").map { it.trim() }.filter { it.isNotBlank() }.toTypedArray()
-                    val fields = values.map { "${column.name}_txt" }.toTypedArray()
-                    QueryParserUtil.parse(values, fields, StandardAnalyzer())
+                    QueryParserUtil.parse(arrayOf(literal.value), arrayOf("${column.name}_txt"), StandardAnalyzer())
                 } else {
                     throw throw QueryException("Conversion to Lucene query failed: MATCH queries strictly require a StringValue as second operand!")
                 }
