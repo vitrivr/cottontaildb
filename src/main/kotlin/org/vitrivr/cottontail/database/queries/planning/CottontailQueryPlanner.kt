@@ -79,7 +79,11 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
         for (d in decomposition) {
             val stage1 = this.optimizeLogical(d.value, context).map { it.implement() }
             val stage2 = stage1.flatMap { this.optimizePhysical(it, context) }
-            val candidate = stage2.minByOrNull { it.totalCost } ?: throw QueryException.QueryPlannerException("Failed to generate a physical execution plan for expression: $logical.")
+            val candidate = stage2.filter {
+                it.executable /* Filter-out plans that cannot be executed. */
+            }.minByOrNull {
+                it.totalCost
+            } ?: throw QueryException.QueryPlannerException("Failed to generate a physical execution plan for expression: $logical.")
             candidates[d.key] = candidate
         }
         return listOf(this.compose(0, candidates))
