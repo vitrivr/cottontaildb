@@ -3,7 +3,6 @@ package org.vitrivr.cottontail
 import kotlinx.serialization.json.Json
 import org.vitrivr.cottontail.cli.Cli
 import org.vitrivr.cottontail.config.Config
-import org.vitrivr.cottontail.database.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.database.general.DBOVersion
 import org.vitrivr.cottontail.legacy.VersionProber
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
@@ -133,26 +132,10 @@ fun standalone(config: Config) {
         System.getProperties().setProperty("log4j.configurationFile", config.logConfig.toString())
     }
 
-    /* Create root-folder, if it doesn't exist yet. */
-    if (!Files.exists(config.root)) {
-        Files.createDirectories(config.root)
-    }
-
-    /* Check catalogue version. */
-    val detected = VersionProber(config).probe(config.root)
-    if (detected != VersionProber.EXPECTED && detected != DBOVersion.UNDEFINED) {
-        System.err.println("Version mismatch: Trying to open an incompatible Cottontail DB catalogue version. Run system migration to upgrade catalogue (detected = $detected, expected = ${VersionProber.EXPECTED}, path = ${config.root}).")
-        exitProcess(1)
-    }
-
-    /* Instantiate Catalogue, execution engine and gRPC server. */
-    val catalogue = DefaultCatalogue(config)
-
     /* Start gRPC Server and print message. */
-    val server = CottontailGrpcServer(config, catalogue)
-    server.start()
+    val server = embedded(config)
     println(
-        "Cottontail DB server is up and running at port ${config.server.port}! Hop along... (catalogue: ${catalogue.version}, pid: ${
+        "Cottontail DB server is up and running at port ${config.server.port}! Hop along... (catalogue: ${server.catalogue.version}, pid: ${
             ProcessHandle.current().pid()
         })"
     )
@@ -160,7 +143,6 @@ fun standalone(config: Config) {
     /* Start CLI (if configured). */
     if (config.cli) {
         Cli("localhost", config.server.port).loop()
-        server.stop()
     } else {
         /* Wait for gRPC server to be stopped. */
         val obj = BufferedReader(InputStreamReader(System.`in`))
@@ -172,7 +154,8 @@ fun standalone(config: Config) {
         }
     }
 
-    /* Print shutdown message. */
+    /* Stop server and print shutdown message. */
+    server.stop()
     println("Cottontail DB was shut down. Have a binky day!")
 }
 
@@ -196,8 +179,7 @@ fun embedded(config: Config): CottontailGrpcServer {
     }
 
     /* Instantiate Catalogue, execution engine and gRPC server. */
-    val catalogue = DefaultCatalogue(config)
-    val server = CottontailGrpcServer(config, catalogue)
+    val server = CottontailGrpcServer(config)
 
     /* Start gRPC Server and return object. */
     server.start()

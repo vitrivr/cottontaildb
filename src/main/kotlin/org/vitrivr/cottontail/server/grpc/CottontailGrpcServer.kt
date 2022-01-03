@@ -16,16 +16,19 @@ import kotlin.time.ExperimentalTime
  * Main server class for the gRPC endpoint provided by Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 1.1.1
+ * @version 1.2.0
  */
 @ExperimentalTime
-class CottontailGrpcServer(val config: Config, val catalogue: DefaultCatalogue) {
+class CottontailGrpcServer(val config: Config) {
 
     /** The [ThreadPoolExecutor] used for handling gRPC calls and executing queries. */
     private val executor = this.config.execution.newExecutor()
 
     /** The [TransactionManager] used by this [CottontailGrpcServer] instance. */
     private val transactionManager: TransactionManager = TransactionManager(this.config.execution.transactionTableSize, this.config.execution.transactionHistorySize)
+
+    /** The [DefaultCatalogue] instance used by this [CottontailGrpcServer]. */
+    val catalogue = DefaultCatalogue(this.config)
 
     /** Reference to the gRPC server. */
     private val server = ServerBuilder.forPort(this.config.server.port)
@@ -68,5 +71,8 @@ class CottontailGrpcServer(val config: Config, val catalogue: DefaultCatalogue) 
         /* Shutdown thread pool executor. */
         this.executor.shutdown()
         this.executor.awaitTermination(5000, TimeUnit.MILLISECONDS)
+
+        /* Close catalogue. */
+        this.catalogue.close()
     }
 }
