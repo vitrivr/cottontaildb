@@ -178,10 +178,6 @@ fun embedded(config: Config): CottontailGrpcServer {
         throw DatabaseException.VersionMismatchException(VersionProber.EXPECTED, detected)
     }
 
-    /* Instantiate Catalogue, execution engine and gRPC server. */
-    val server = CottontailGrpcServer(config)
-
-    /* Start gRPC Server and return object. */
-    server.start()
-    return server
+    /* Start gRPC Server and return it. */
+    return CottontailGrpcServer(config)
 }

@@ -65,7 +65,6 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
     /** Reference to the [CatalogueHeader] of the [DefaultCatalogue]. Accessing it will read right from the underlying store. */
     private val headerField = this.store.atomicVar(CATALOGUE_HEADER_FIELD, CatalogueHeader.Serializer).createOrOpen()
 
-
     /** A in-memory registry of all the [Schema]s contained in this [DefaultCatalogue]. When a [Catalogue] is opened, all the [Schema]s will be loaded. */
     private val registry: MutableMap<Name.SchemaName, Schema> = Collections.synchronizedMap(Object2ObjectOpenHashMap())
 

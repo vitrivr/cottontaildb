@@ -31,25 +31,30 @@ class CottontailGrpcServer(val config: Config) {
     val catalogue = DefaultCatalogue(this.config)
 
     /** The internal gRPC server; if building that server fails then the [DefaultCatalogue] is closed again! */
-    private val server = try {
-        ServerBuilder.forPort(this.config.server.port)
-            .executor(this.executor)
-            .addService(DDLService(this.catalogue, this.transactionManager))
-            .addService(DMLService(this.catalogue, this.transactionManager))
-            .addService(DQLService(this.catalogue, this.transactionManager))
-            .addService(TXNService(this.catalogue, this.transactionManager))
-            .let {
-                if (this.config.server.useTls) {
-                    val certFile = this.config.server.certFile!!.toFile()
-                    val privateKeyFile = this.config.server.privateKey!!.toFile()
-                    it.useTransportSecurity(certFile, privateKeyFile)
-                } else {
-                    it
-                }
-            }.build()
-    } catch (e: Throwable) {
-        this.catalogue.close()
-        throw e
+    private val server = ServerBuilder.forPort(this.config.server.port)
+        .executor(this.executor)
+        .addService(DDLService(this.catalogue, this.transactionManager))
+        .addService(DMLService(this.catalogue, this.transactionManager))
+        .addService(DQLService(this.catalogue, this.transactionManager))
+        .addService(TXNService(this.catalogue, this.transactionManager))
+        .let {
+            if (this.config.server.useTls) {
+                val certFile = this.config.server.certFile!!.toFile()
+                val privateKeyFile = this.config.server.privateKey!!.toFile()
+                it.useTransportSecurity(certFile, privateKeyFile)
+            } else {
+                it
+            }
+        }.build()
+
+
+    /* Start server and close catalogue upon failure. */
+    init {
+        try {
+            this.server.start()
+        } catch (e: Throwable) {
+            this.catalogue.close()
+        }
     }
 
     /**
@@ -57,13 +62,6 @@ class CottontailGrpcServer(val config: Config) {
      */
     val isRunning: Boolean
         get() = !this.server.isShutdown
-
-    /**
-     * Starts this instance of [CottontailGrpcServer].
-     */
-    fun start() {
-        this.server.start()
-    }
 
     /**
      * Stops this instance of [CottontailGrpcServer].
