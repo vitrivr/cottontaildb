@@ -424,7 +424,7 @@ object GrpcQueryBinder {
         CottontailGrpc.ComparisonOperator.ISNULL -> ComparisonOperator.IsNull(left)
         CottontailGrpc.ComparisonOperator.EQUAL -> ComparisonOperator.Binary.Equal(left, right[0])
         CottontailGrpc.ComparisonOperator.GREATER -> ComparisonOperator.Binary.Greater(left, right[0])
-        CottontailGrpc.ComparisonOperator.LESS -> ComparisonOperator.Binary.LessEqual(left, right[0])
+        CottontailGrpc.ComparisonOperator.LESS -> ComparisonOperator.Binary.Less(left, right[0])
         CottontailGrpc.ComparisonOperator.GEQUAL -> ComparisonOperator.Binary.GreaterEqual(left, right[0])
         CottontailGrpc.ComparisonOperator.LEQUAL -> ComparisonOperator.Binary.LessEqual(left, right[0])
         CottontailGrpc.ComparisonOperator.LIKE -> {
