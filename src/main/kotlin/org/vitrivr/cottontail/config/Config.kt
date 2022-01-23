@@ -3,21 +3,22 @@ package org.vitrivr.cottontail.config
 import kotlinx.serialization.Serializable
 import org.vitrivr.cottontail.utilities.serializers.PathSerializer
 import java.nio.file.Path
+import java.nio.file.Paths
 
 /**
  * Cottontail DB configuration class.
  *
  * @author Ralph Gasser
- * @version 1.4.0
+ * @version 1.4.1
  */
 @Serializable
 data class Config(
         /** Path to the root data folder used by Cottontail DB. */
         @Serializable(with = PathSerializer::class)
-        val root: Path,
+        val root: Path = Paths.get("./data"),
 
         /** Flag indicating whether to start the CLI upon starting Cottontail DB.*/
-        val cli: Boolean = true,
+        val cli: Boolean = false,
 
         /** Flag indicating whether Cottontail DB should be allowed to start even in the presence of broken indexes.*/
         val allowBrokenIndex: Boolean = true,
