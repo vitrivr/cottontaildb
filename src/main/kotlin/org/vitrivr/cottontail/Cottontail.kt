@@ -45,20 +45,9 @@ fun main(args: Array<String>) {
         return
     }
 
-    var config: Config? = null
-    val configPath = findConfigPathOrdered(args)
-    try {
-        config = loadConfig(configPath)
-    } catch (e: FileNotFoundException) {
-        System.err.println("Specified Cottontail DB configuration file $configPath does not exist. Cottontail DB will shut down.")
-        exitProcess(1)
-    } catch (r: RuntimeException) {
-        System.err.println("Error on reading Cottontail DB configuration file ($configPath). Cottontail DB will shut down.")
-        exitProcess(1)
-    }
-
     /* Try to start Cottontail DB */
     try {
+        val config: Config = loadConfig(findConfigPathOrdered(args))
         standalone(config)
     } catch (e: Throwable) {
         System.err.println("Failed to start Cottontail DB due to error:")
@@ -72,14 +61,13 @@ fun main(args: Array<String>) {
  *   1. The first program argument
  *   2. System property with the key [COTTONTAIL_CONFIG_FILE_SYSTEM_PROPERTY_KEY]
  *   3. Environment variable with the name [COTTONTAIL_CONFIG_FILE_ENV_KEY]
- *   4. Literally `./config.json` i.e. in the CWD
+ *   4. Literally `./config.json`, i.e., in the CWD
  *
  * @param args The command line arguments array as it was passed to the program
  * @return The path to use, based on the described order
  */
 private fun findConfigPathOrdered(args: Array<String>): String {
     return if (args.isNotEmpty() && args[0].isNotBlank()) {
-        /* Likely specified argumetn */
         args[0]
     } else if (System.getProperties()
             .containsKey(COTTONTAIL_CONFIG_FILE_SYSTEM_PROPERTY_KEY) && System.getProperty(
@@ -99,24 +87,29 @@ private fun findConfigPathOrdered(args: Array<String>): String {
 }
 
 /**
- * Loads (i.e. reads and parses) the [Config] from the path specified.
+ * Tries to load (i.e.n read and parse) the [Config] from the path specified and creates a default [Config] file if none exists.
+ *
  * @throws FileNotFoundException In case the specified path is not a regular file
  * @throws RuntimeException In case an error occurs during parsing / reading
  * @return The parsed [Config] ready to be used.
  */
 private fun loadConfig(path: String): Config {
     val configPath = Paths.get(path)
-    /* Check if file is regular and exists */
-    if (!Files.isRegularFile(configPath)) {
-        throw FileNotFoundException("Cottontail DB configuration file $configPath des not exist.")
-    }
-    /* Check if loading works */
     try {
-        return Files.newBufferedReader(configPath).use {
-            return@use Json.decodeFromString(Config.serializer(), it.readText())
+        if (!Files.isRegularFile(configPath)) {
+            System.err.println("No CottontailDB config exists under $configPath; trying to create default config!")
+            val config = Config()
+            Files.newBufferedWriter(configPath).use { it.write(Json.encodeToString(Config.serializer(), config)) }
+            return config
+        } else {
+            return Files.newBufferedReader(configPath).use {
+                return@use Json.decodeFromString(Config.serializer(), it.readText())
+            }
         }
     } catch (e: Throwable) {
-        throw RuntimeException("Could not read Cottontail DB configuration file", e)
+        System.err.println("Could not load Cottontail DB configuration file under $configPath. Cottontail DB will shutdown!")
+        e.printStackTrace()
+        exitProcess(1)
     }
 }
 
