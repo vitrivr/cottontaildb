@@ -35,11 +35,15 @@ For Kotlin and Java, there is also a Maven dependency, which includes pre-built 
 <dependency>
   <groupId>org.vitrivr</groupId>
   <artifactId>cottontaildb-proto</artifactId>
-  <version>0.12.1</version>
+  <version>0.13.0</version>
 </dependency>
 ```
 
 More information as to how to connect to and use Cottontail DB can be found in the [Wiki](https://github.com/vitrivr/cottontaildb/wiki/Connecting-to-Cottontail-DB) and the [example repository](https://github.com/vitrivr/cottontaildb-examples).
+
+### Compatibility with vitrivr
+
+Please refer to the [compatibility matrix](https://github.com/vitrivr/cottontaildb/wiki/Compatibility-Matrix) to check for compatibility with other *vitrivr* components.
 
 ## Citation
 We kindly ask you to refer to the following paper in publications mentioning or employing Cottontail DB:
