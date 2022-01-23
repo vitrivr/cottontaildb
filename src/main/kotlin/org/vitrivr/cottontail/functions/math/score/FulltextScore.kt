@@ -12,15 +12,12 @@ import org.vitrivr.cottontail.model.values.types.Value
  * This function is a mere placeholder used to express fulltext searches.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.2.0
  */
-object FulltextScore: Function.Stateless<DoubleValue> {
-    override val signature: Signature.Closed<out DoubleValue>
-        = Signature.Closed(Name.FunctionName("fulltext"), arrayOf(Argument.Typed(Type.String), Argument.Typed(Type.String)), Type.Double)
-    override val executable: Boolean
-        get() = false
+object FulltextScore: Function<DoubleValue> {
+    override val signature: Signature.Closed<out DoubleValue> = Signature.Closed(Name.FunctionName("fulltext"), arrayOf(Argument.Typed(Type.String), Argument.Typed(Type.String)), Type.Double)
+    override val executable: Boolean = false
     override val cost: Float = Float.POSITIVE_INFINITY
-    override fun invoke(vararg arguments: Value?): DoubleValue {
-        throw UnsupportedOperationException("LuceneScore cannot be executed directly.")
-    }
+    override fun invoke(): DoubleValue = throw UnsupportedOperationException("Function ${this.signature} cannot be executed directly.")
+    override fun provide(index: Int, value: Value?) = throw UnsupportedOperationException("Function ${this.signature} cannot be executed directly.")
 }

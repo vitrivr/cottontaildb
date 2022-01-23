@@ -7,10 +7,10 @@ import org.vitrivr.cottontail.functions.exception.FunctionNotSupportedException
 import org.vitrivr.cottontail.functions.math.distance.basics.VectorDistance
 import org.vitrivr.cottontail.functions.math.distance.binary.ChisquaredDistance
 import org.vitrivr.cottontail.functions.math.distance.binary.InnerProductDistance
+import org.vitrivr.cottontail.functions.math.distance.other.HyperplaneDistance.Generator.FUNCTION_NAME
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Type
 import org.vitrivr.cottontail.model.values.*
-import org.vitrivr.cottontail.model.values.types.Value
 import org.vitrivr.cottontail.model.values.types.VectorValue
 import kotlin.math.sqrt
 
@@ -21,7 +21,8 @@ import kotlin.math.sqrt
  * @author Ralph Gasser
  * @version 1.0.0
  */
-sealed class HyperplaneDistance<T: VectorValue<*>>: VectorDistance<T> {
+sealed class HyperplaneDistance<T: VectorValue<*>>(val type: Type<out T>)
+    : AbstractFunction<DoubleValue>(Signature.Closed(FUNCTION_NAME, arrayOf(Argument.Typed(type), Argument.Typed(type), Argument.Typed(Type.Double)), Type.Double)) {
 
     /**
      * The [FunctionGenerator] for the [InnerProductDistance].
@@ -35,24 +36,13 @@ sealed class HyperplaneDistance<T: VectorValue<*>>: VectorDistance<T> {
         override fun generateInternal(dst: Signature.Closed<*>): Function<DoubleValue> = when (val type = dst.arguments[0].type) {
             is Type.DoubleVector -> DoubleVector(type.logicalSize)
             is Type.FloatVector -> FloatVector(type.logicalSize)
-            is Type.LongVector -> LongVector(type.logicalSize)
-            is Type.IntVector -> IntVector(type.logicalSize)
             else -> throw FunctionNotSupportedException("Function generator signature ${this.signature} does not support destination signature (dst = $dst).")
         }
     }
 
-
-
-    /** The query [VectorValue] for this hyperplane distance. */
-    abstract var query: T
-
-    /** Name of this [HyperplaneDistance]. */
-
-    override val name: Name.FunctionName = Generator.FUNCTION_NAME
-
-    /** By convention, the argument at position 1 (query argument) and position 2 (support argument / bias) is stateful for [HyperplaneDistance]. */
-    override val statefulArguments: IntArray
-        get() = intArrayOf(1, 2)
+    /** The dimensionality of this [VectorDistance]. */
+    val d: Int
+        get() = this.type.logicalSize
 
     /** The cost of applying this [InnerProductDistance] to a single [VectorValue]. */
     override val cost: Float
@@ -61,146 +51,72 @@ sealed class HyperplaneDistance<T: VectorValue<*>>: VectorDistance<T> {
     /**
      * [HyperplaneDistance] for a [DoubleVectorValue].
      */
-    class DoubleVector(size: Int) : HyperplaneDistance<DoubleVectorValue>() {
-        override val type = Type.DoubleVector(size)
-        override var query = this.type.defaultValue()
-        var bias = DoubleValue.ZERO
-            private set
-        private var cachedNormSqrt = 0.0
-
-        override fun copy(d: Int) = DoubleVector(d)
-
-        /** The [Signature.Closed] of this [HyperplaneDistance] [Function]. */
-        override val signature: Signature.Closed<out DoubleValue>
-            get() = Signature.Closed(this.name, arrayOf(Argument.Typed(this.type), Argument.Typed(this.type), Argument.Typed(Type.Double)), Type.Double)
-
-        override fun invoke(vararg arguments: Value?): DoubleValue {
-            val probing = arguments[0] as DoubleVectorValue
+    class DoubleVector(size: Int) : HyperplaneDistance<DoubleVectorValue>(Type.DoubleVector(size)) {
+        override fun invoke(): DoubleValue {
+            val probing = this.arguments[0] as DoubleVectorValue
+            val query = this.arguments[1] as DoubleVectorValue
+            val bias = this.arguments[2] as DoubleValue
             var dotp = 0.0
+            var norm = 0.0
             for (i in 0 until probing.logicalSize) {
                 dotp += probing.data[i] * query.data[i]
-            }
-            return DoubleValue(dotp + bias.value / sqrt(cachedNormSqrt))
-        }
-        override fun prepare(vararg arguments: Value?) {
-            require(arguments[0]?.type == this.type) { "Value of type ${arguments[0]?.type} cannot be applied as argument for ${this.signature}." }
-            require(arguments[1]?.type == Type.Double) { "Value of type ${arguments[0]?.type} cannot be applied as argument for ${this.signature}." }
-            this.query = arguments[0] as DoubleVectorValue
-            this.bias = arguments[1] as DoubleValue
-            var norm = 0.0
-            for (i in 0 until this.query.logicalSize) {
                 norm += query.data[i] * query.data[i]
             }
-            this.cachedNormSqrt = sqrt(norm)
+            return DoubleValue(dotp + bias.value / sqrt(norm))
         }
     }
 
     /**
      * [HyperplaneDistance] for a [FloatVectorValue].
      */
-    class FloatVector(size: Int) : HyperplaneDistance<FloatVectorValue>() {
-        override val type = Type.FloatVector(size)
-        override var query = this.type.defaultValue()
-        var bias = FloatValue.ZERO
-            private set
-        private var cachedNormSqrt = 0.0f
-
-        override fun copy(d: Int) = FloatVector(d)
-
-        /** The [Signature.Closed] of this [HyperplaneDistance] [Function]. */
-        override val signature: Signature.Closed<out DoubleValue>
-            get() = Signature.Closed(this.name, arrayOf(Argument.Typed(this.type), Argument.Typed(this.type), Argument.Typed(Type.Float)), Type.Double)
-
-        override fun invoke(vararg arguments: Value?): DoubleValue {
-            val probing = arguments[0] as FloatVectorValue
+    class FloatVector(size: Int) : HyperplaneDistance<FloatVectorValue>(Type.FloatVector(size)) {
+        override fun invoke(): DoubleValue {
+            val probing = this.arguments[0] as DoubleVectorValue
+            val query = this.arguments[1] as DoubleVectorValue
+            val bias = this.arguments[2] as DoubleValue
             var dotp = 0.0
+            var norm = 0.0
             for (i in 0 until probing.logicalSize) {
                 dotp += probing.data[i] * query.data[i]
-            }
-            return DoubleValue(dotp + bias.value / cachedNormSqrt)
-        }
-        override fun prepare(vararg arguments: Value?) {
-            require(arguments[0]?.type == this.type) { "Value of type ${arguments[0]?.type} cannot be applied as argument for ${this.signature}." }
-            require(arguments[1]?.type == Type.Double) { "Value of type ${arguments[0]?.type} cannot be applied as argument for ${this.signature}." }
-            this.query = arguments[0] as FloatVectorValue
-            this.bias = arguments[1] as FloatValue
-            var norm = 0.0f
-            for (i in 0 until this.query.logicalSize) {
                 norm += query.data[i] * query.data[i]
             }
-            this.cachedNormSqrt = sqrt(norm)
+            return DoubleValue(dotp + bias.value / norm)
         }
     }
 
     /**
      * [HyperplaneDistance] for a [LongVectorValue].
      */
-    class LongVector(size: Int) : HyperplaneDistance<LongVectorValue>() {
-        override val type = Type.LongVector(size)
-        override var query = this.type.defaultValue()
-        var bias = LongValue.ZERO
-            private set
-        private var cachedNormSqrt = 0L
-        override fun copy(d: Int) = LongVector(d)
-
-        /** The [Signature.Closed] of this [HyperplaneDistance] [Function]. */
-        override val signature: Signature.Closed<out DoubleValue>
-            get() = Signature.Closed(this.name, arrayOf(Argument.Typed(this.type), Argument.Typed(this.type), Argument.Typed(Type.Long)), Type.Double)
-
-        override fun invoke(vararg arguments: Value?): DoubleValue {
-            val probing = arguments[0] as LongVectorValue
+    class LongVector(size: Int) : HyperplaneDistance<LongVectorValue>(Type.LongVector(size)) {
+        override fun invoke(): DoubleValue {
+            val probing = this.arguments[0] as LongVectorValue
+            val query = this.arguments[1] as LongVectorValue
+            val bias = this.arguments[2] as DoubleValue
             var dotp = 0.0
+            var norm = 0.0
             for (i in 0 until probing.logicalSize) {
                 dotp += probing.data[i] * query.data[i]
-            }
-            return DoubleValue(dotp + bias.value / cachedNormSqrt)
-        }
-        override fun prepare(vararg arguments: Value?) {
-            require(arguments[0]?.type == this.type) { "Value of type ${arguments[0]?.type} cannot be applied as argument for ${this.signature}." }
-            require(arguments[1]?.type == Type.Double) { "Value of type ${arguments[0]?.type} cannot be applied as argument for ${this.signature}." }
-            this.query = arguments[0] as LongVectorValue
-            this.bias = arguments[1] as LongValue
-            var norm = 0.0
-            for (i in 0 until this.query.logicalSize) {
                 norm += query.data[i] * query.data[i]
             }
-            this.cachedNormSqrt = sqrt(norm).toLong()
+            return DoubleValue(dotp + bias.value / norm)
         }
     }
 
     /**
      * [HyperplaneDistance] for a [IntVectorValue].
      */
-    class IntVector(size: Int) : HyperplaneDistance<IntVectorValue>() {
-        override val type = Type.IntVector(size)
-        override var query = this.type.defaultValue()
-        var bias = IntValue.ZERO
-            private set
-        private var cachedNormSqrt = 0
-        override fun copy(d: Int) = IntVector(d)
-
-        /** The [Signature.Closed] of this [HyperplaneDistance] [Function]. */
-        override val signature: Signature.Closed<out DoubleValue>
-            get() = Signature.Closed(this.name, arrayOf(Argument.Typed(this.type), Argument.Typed(this.type), Argument.Typed(Type.Int)), Type.Double)
-
-        override fun invoke(vararg arguments: Value?): DoubleValue {
+    class IntVector(size: Int) : HyperplaneDistance<IntVectorValue>(Type.IntVector(size)) {
+        override fun invoke(): DoubleValue {
             val probing = arguments[0] as IntVectorValue
+            val query = this.arguments[1] as IntVectorValue
+            val bias = this.arguments[2] as DoubleValue
             var dotp = 0.0
+            var norm = 0.0
             for (i in 0 until probing.logicalSize) {
                 dotp += probing.data[i] * query.data[i]
-            }
-            return DoubleValue(dotp + bias.value / cachedNormSqrt)
-        }
-        override fun prepare(vararg arguments: Value?) {
-            require(arguments[0]?.type == this.type) { "Value of type ${arguments[0]?.type} cannot be applied as argument for ${this.signature}." }
-            require(arguments[1]?.type == Type.Double) { "Value of type ${arguments[0]?.type} cannot be applied as argument for ${this.signature}." }
-            this.query = arguments[0] as IntVectorValue
-            this.bias = arguments[1] as IntValue
-            var norm = 0.0f
-            for (i in 0 until this.query.logicalSize) {
                 norm += query.data[i] * query.data[i]
             }
-            this.cachedNormSqrt = sqrt(norm).toInt()
+            return DoubleValue(dotp + bias.value / norm)
         }
     }
 }

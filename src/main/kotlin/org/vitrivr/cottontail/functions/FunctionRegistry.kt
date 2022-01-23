@@ -33,12 +33,12 @@ class FunctionRegistry {
     private val generators = mutableMapOf<Signature.Open<*>, FunctionGenerator<*>>()
 
     /**
-     * Registers a new [Function.Stateless] with this [FunctionRegistry].
+     * Registers a new [Function] with this [FunctionRegistry].
      *
-     * @param function The [Function.Stateless] to register.
-     * @throws IllegalStateException If a [Function.Stateless] or a [FunctionGenerator] with a colliding [Signature] has been registered.
+     * @param function The [Function] to register.
+     * @throws IllegalStateException If a [Function] or a [FunctionGenerator] with a colliding [Signature] has been registered.
      */
-    fun register(function: Function.Stateless<*>) {
+    fun register(function: Function<*>) {
         check(!this.registry.containsKey(function.signature)) { "Function ${function.signature} collides with existing function." }
         val collision = this.generators.keys.find { it.collides(function.signature) }
         check(collision == null) {

@@ -8,7 +8,7 @@ import org.vitrivr.cottontail.database.queries.planning.cost.Cost
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.projection.FunctionProjectionLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhysicalOperatorNode
 import org.vitrivr.cottontail.execution.operators.basics.Operator
-import org.vitrivr.cottontail.execution.operators.projection.FunctionProjectionOperator
+import org.vitrivr.cottontail.execution.operators.function.FunctionProjectionOperator
 import org.vitrivr.cottontail.functions.basics.Function
 import org.vitrivr.cottontail.model.basics.Name
 
@@ -63,7 +63,7 @@ class FunctionProjectionPhysicalOperatorNode(input: Physical? = null, val functi
      */
     override fun toOperator(ctx: QueryContext): Operator {
         val input = this.input?.toOperator(ctx) ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)")
-        return FunctionProjectionOperator(input, this.function, this.arguments, this.alias)
+        return FunctionProjectionOperator(input, this.function, this.arguments, ctx.bindings, this.alias)
     }
 
     /**

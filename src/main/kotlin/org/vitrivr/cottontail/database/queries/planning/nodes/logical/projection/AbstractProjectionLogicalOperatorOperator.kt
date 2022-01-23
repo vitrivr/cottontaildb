@@ -1,7 +1,6 @@
 package org.vitrivr.cottontail.database.queries.planning.nodes.logical.projection
 
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.UnaryLogicalOperatorNode
-import org.vitrivr.cottontail.database.queries.planning.nodes.logical.transform.DistanceLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.projection.Projection
 
 /**

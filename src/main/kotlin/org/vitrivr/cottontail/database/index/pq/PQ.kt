@@ -174,16 +174,19 @@ class PQ(val type: Type<*>, val codebooks: List<PQCodebook<VectorValue<*>>>) {
     /**
      * Generates and returns a [PQLookupTable] for the given [VectorDistance.Binary].
      *
-     * @param distance The [VectorDistance.Binary] to generate the [PQLookupTable] for.
-     * @return The [PQLookupTable] for the given [VectorDistance.Binary].
+     * @param distance The [VectorDistance] to generate the [PQLookupTable] for.
+     * @return The [PQLookupTable] for the given [VectorDistance].
      */
-    fun getLookupTable(query: VectorValue<*>, distance: VectorDistance.Binary<*>): PQLookupTable {
+    fun getLookupTable(query: VectorValue<*>, distance: VectorDistance<*>): PQLookupTable {
         val reshape = distance.copy(this.dimensionsPerSubspace)
         return PQLookupTable(
             Array(this.numberOfSubspaces) { k ->
                 val codebook = this.codebooks[k]
-                val subspaceQuery = query.subvector(k * this.dimensionsPerSubspace, this.dimensionsPerSubspace)
-                DoubleArray(codebook.numberOfCentroids) { reshape(subspaceQuery, codebook[it]).value }
+                distance.provide(0, query.subvector(k * this.dimensionsPerSubspace, this.dimensionsPerSubspace))
+                DoubleArray(codebook.numberOfCentroids) {
+                    distance.provide(1,  codebook[it])
+                    reshape().value
+                }
             }
         )
     }

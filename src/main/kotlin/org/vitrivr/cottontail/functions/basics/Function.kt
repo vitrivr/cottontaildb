@@ -1,17 +1,20 @@
 package org.vitrivr.cottontail.functions.basics
 
 import org.vitrivr.cottontail.model.values.types.Value
+import kotlin.Function
 
 /**
- * An invokable [Function] that can be used by Cottontail DB to produce results.
+ * An invokable [Function] that can be used by Cottontail DB to produce results. A [Function] is fully defined by its [Signature].
  *
- * A function is a piece of logic, that takes an arbitrary number of [Value]s as input returns some [Value]
- * as output. A [Function] is fully defined by its [Signature].
+ * A function is a piece of logic, that takes an arbitrary number of [Value]s as input returns some [Value]  as output. In practice,
+ * this is executed in two steps: First, arguments can be provided by [Function.provide] then the [Function] can be invoked by [Function.invoke].
+ * The reason for separating these steps is, that in a query plan, some arguments may remain static while others are dynamically determined as
+ * the query is executed.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.2.0
  */
-sealed interface Function<out R: Value> {
+interface Function<out R: Value> {
     /** Signature of this [Function]. */
     val signature: Signature.Closed<out R>
 
@@ -23,36 +26,19 @@ sealed interface Function<out R: Value> {
         get() = true
 
     /**
-     * Invokes this [Function] with the given arguments.
+     * Invokes this [Function] and returns the results.
      *
-     * @param arguments Arguments of type [Value].
      * @return [R]
      */
-    operator fun invoke(vararg arguments: Value?): R
+    operator fun invoke(): R
 
     /**
-     * [Function.Stateless] are [Function]s that do not have any state and are therefore safe for re-use.
+     * Provides a positional argument [Value] for this [Function].
      *
-     * Usually, only a single instance of a [Function.Stateless] exists within Cottontail DB.
+     * @param index The index of the argument.
+     * @param value The argument value.
      */
-    interface Stateless<out R: Value>: Function<R>
-
-    /**
-     * [Function.Stateful] are [Function]s that have an internal state, e.g., values that remain constant between function invocations.
-     *
-     */
-    interface Stateful<out R: Value>: Function<R> {
-
-        /** [IntArray] containing the positions of the stateful arguments w.r.t to this [Function.Stateful]'s [Signature]. */
-        val statefulArguments: IntArray
-
-        /**
-         * Prepares this [Function.Stateful] for executing by applying the provided arguments.
-         *
-         * The order in which arguments must be provided is determined by the [Function.Stateful]'s signature.
-         */
-        fun prepare(vararg arguments: Value?)
-    }
+    fun provide(index: Int, value: Value?)
 }
 
 

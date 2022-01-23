@@ -312,7 +312,7 @@ class PQIndex(path: Path, parent: DefaultEntity, config: PQIndexConfig? = null) 
                 }
 
                 /* Phase 2: Perform exact kNN based on pre-kNN results. */
-                val query = this.predicate.query.value as VectorValue<*>
+                this.predicate.distance.provide(1,  this.predicate.query.value) /* Query argument is static and doesn't change. */
                 val knn = if (this.predicate.k == 1) {
                     MinSingleSelection<ComparablePair<TupleId, DoubleValue>>()
                 } else {
@@ -321,12 +321,10 @@ class PQIndex(path: Path, parent: DefaultEntity, config: PQIndexConfig? = null) 
                 for (j in 0 until preKnn.size) {
                     val tupleIds = preKnn[j].first
                     for (tupleId in tupleIds) {
-                        val exact = txn.read(tupleId, this@PQIndex.columns)[this@PQIndex.columns[0]]
-                        if (exact is VectorValue<*>) {
-                            val distance = this.predicate.distance(query, exact)
-                            if (knn.size < this.predicate.k || knn.peek()!!.second > distance) {
-                                knn.offer(ComparablePair(tupleId, distance))
-                            }
+                        this.predicate.distance.provide(0, txn.read(tupleId, this@PQIndex.columns)[this@PQIndex.columns[0]]) /* Probing argument is dynamic. */
+                        val distance = this.predicate.distance()
+                        if (knn.size < this.predicate.k || knn.peek()!!.second > distance) {
+                            knn.offer(ComparablePair(tupleId, distance))
                         }
                     }
                 }

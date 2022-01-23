@@ -31,7 +31,7 @@ object NNSIndexScanRule : RewriteRule {
     override fun canBeApplied(node: OperatorNode): Boolean = node is FunctionProjectionPhysicalOperatorNode
 
     override fun apply(node: OperatorNode, ctx: QueryContext): OperatorNode? {
-        if (node is FunctionProjectionPhysicalOperatorNode && node.function is VectorDistance.Binary<*>) {
+        if (node is FunctionProjectionPhysicalOperatorNode && node.function is VectorDistance<*>) {
             val queryColumn = node.arguments.filterIsInstance<Binding.Column>().singleOrNull()?.column ?: return null
             val vectorLiteral = node.arguments.filterIsInstance<Binding.Literal>().singleOrNull() ?: return null
             val scan = node.input

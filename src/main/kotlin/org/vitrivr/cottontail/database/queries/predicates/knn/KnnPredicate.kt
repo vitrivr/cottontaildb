@@ -17,7 +17,7 @@ import org.vitrivr.cottontail.utilities.math.KnnUtilities
  * @author Ralph Gasser
  * @version 1.8.0
  */
-data class KnnPredicate(val column: ColumnDef<*>, val k: Int, val distance: VectorDistance.Binary<*>, val query: Binding) : Predicate {
+data class KnnPredicate(val column: ColumnDef<*>, val k: Int, val distance: VectorDistance<*>, val query: Binding) : Predicate {
 
     init {
         /* Basic sanity checks. */

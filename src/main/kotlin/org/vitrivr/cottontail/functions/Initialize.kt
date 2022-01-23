@@ -13,8 +13,6 @@ fun FunctionRegistry.initialize() {
     this.register(FulltextScore)
     this.initializeVectorDistance()
 }
-
-
 /**
  * Registers default [VectorDistance] functions.
  */

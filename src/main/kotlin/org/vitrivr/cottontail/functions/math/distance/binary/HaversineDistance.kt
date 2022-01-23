@@ -10,7 +10,6 @@ import org.vitrivr.cottontail.functions.math.distance.basics.VectorDistance
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Type
 import org.vitrivr.cottontail.model.values.*
-import org.vitrivr.cottontail.model.values.types.Value
 import org.vitrivr.cottontail.model.values.types.VectorValue
 import kotlin.math.atan2
 import kotlin.math.cos
@@ -18,12 +17,12 @@ import kotlin.math.sin
 import kotlin.math.sqrt
 
 /**
- * A [VectorDistance.Binary] implementation to calculate the Haversine distance between two 2D points.
+ * A [VectorDistance] implementation to calculate the Haversine distance between two 2D points.
  *
  * @author Loris Sauter & Ralph Gasser
- * @version 1.1.0
+ * @version 1.2.0
  */
-sealed class HaversineDistance<T : VectorValue<*>>: VectorDistance.Binary<T> {
+sealed class HaversineDistance<T : VectorValue<*>>(type: Type<T>): VectorDistance<T>(Generator.FUNCTION_NAME, type) {
 
     object Generator: AbstractFunctionGenerator<DoubleValue>() {
         val FUNCTION_NAME = Name.FunctionName("haversine")
@@ -41,9 +40,6 @@ sealed class HaversineDistance<T : VectorValue<*>>: VectorDistance.Binary<T> {
             else -> throw FunctionNotSupportedException("Function generator signature ${this.signature} does not support destination signature (dst = $dst).")
         }
     }
-
-    /** Name of this [HaversineDistance]. */
-    override val name: Name.FunctionName = Generator.FUNCTION_NAME
 
     /** The cost of applying this [HaversineDistance] to a single [VectorValue]. */
     override val cost: Float
@@ -70,68 +66,48 @@ sealed class HaversineDistance<T : VectorValue<*>>: VectorDistance.Binary<T> {
     /**
      * [HaversineDistance] for a [DoubleVectorValue].
      */
-    class DoubleVector: HaversineDistance<DoubleVectorValue>() {
-        override val type = Type.DoubleVector(2)
-        override var query = this.type.defaultValue()
+    class DoubleVector: HaversineDistance<DoubleVectorValue>( Type.DoubleVector(2)) {
         override fun copy(d: Int) = DoubleVector()
-        override fun invoke(vararg arguments: Value?): DoubleValue {
-            val probing = arguments[0] as DoubleVectorValue
+        override fun invoke(): DoubleValue {
+            val probing = this.arguments[0] as DoubleVectorValue
+            val query = this.arguments[1] as DoubleVectorValue
             return DoubleValue(haversine(query.data[0], query.data[1], probing.data[0], probing.data[1]))
-        }
-        override fun prepare(vararg arguments: Value?) {
-            require(arguments[0]?.type == this.type) { "Value of type ${arguments[0]?.type} cannot be applied as argument for ${this.signature}." }
-            this.query = arguments[0] as DoubleVectorValue
         }
     }
 
     /**
      * [HaversineDistance] for a [FloatVectorValue].
      */
-    class FloatVector: HaversineDistance<FloatVectorValue>() {
-        override val type = Type.FloatVector(2)
-        override var query = this.type.defaultValue()
+    class FloatVector: HaversineDistance<FloatVectorValue>(Type.FloatVector(2)) {
         override fun copy(d: Int) = FloatVector()
-        override fun invoke(vararg arguments: Value?): DoubleValue {
-            val probing = arguments[0] as FloatVectorValue
+        override fun invoke(): DoubleValue {
+            val probing = this.arguments[0] as FloatVectorValue
+            val query = this.arguments[1] as FloatVectorValue
             return DoubleValue(haversine(query.data[0].toDouble(), query.data[1].toDouble(), probing.data[0].toDouble(), probing.data[1].toDouble()))
-        }
-        override fun prepare(vararg arguments: Value?) {
-            require(arguments[0]?.type == this.type) { "Value of type ${arguments[0]?.type} cannot be applied as argument for ${this.signature}." }
-            this.query = arguments[0] as FloatVectorValue
         }
     }
 
     /**
      * [HaversineDistance] for a [LongVectorValue].
      */
-    class LongVector: HaversineDistance<LongVectorValue>() {
-        override val type = Type.LongVector(2)
-        override var query = this.type.defaultValue()
+    class LongVector: HaversineDistance<LongVectorValue>(Type.LongVector(2)) {
         override fun copy(d: Int) = LongVector()
-        override fun invoke(vararg arguments: Value?): DoubleValue {
-            val probing = arguments[0] as LongVectorValue
+        override fun invoke(): DoubleValue {
+            val probing = this.arguments[0] as LongVectorValue
+            val query = this.arguments[1] as LongVectorValue
             return DoubleValue(haversine(query.data[0].toDouble(), query.data[1].toDouble(), probing.data[0].toDouble(), probing.data[1].toDouble()))
-        }
-        override fun prepare(vararg arguments: Value?) {
-            require(arguments[0]?.type == this.type) { "Value of type ${arguments[0]?.type} cannot be applied as argument for ${this.signature}." }
-            this.query = arguments[0] as LongVectorValue
         }
     }
 
     /**
      * [HaversineDistance] for a [IntVectorValue].
      */
-    class IntVector: HaversineDistance<IntVectorValue>() {
-        override val type = Type.IntVector(2)
-        override var query = this.type.defaultValue()
+    class IntVector: HaversineDistance<IntVectorValue>(Type.IntVector(2)) {
         override fun copy(d: Int) = IntVector()
-        override fun invoke(vararg arguments: Value?): DoubleValue {
-            val probing = arguments[0] as IntVectorValue
+        override fun invoke(): DoubleValue {
+            val probing = this.arguments[0] as IntVectorValue
+            val query = this.arguments[1] as IntVectorValue
             return DoubleValue(haversine(query.data[0].toDouble(), query.data[1].toDouble(), probing.data[0].toDouble(), probing.data[1].toDouble()))
-        }
-        override fun prepare(vararg arguments: Value?) {
-            require(arguments[0]?.type == this.type) { "Value of type ${arguments[0]?.type} cannot be applied as argument for ${this.signature}." }
-            this.query = arguments[0] as IntVectorValue
         }
     }
 }

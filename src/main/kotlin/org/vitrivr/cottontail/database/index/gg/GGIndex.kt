@@ -169,13 +169,14 @@ class GGIndex(path: Path, parent: DefaultEntity, config: GGIndexConfig? = null) 
                     /* Perform kNN for group. */
                     val signature = Signature.Closed(this@GGIndex.config.distance.functionName, arrayOf(Argument.Typed(this@GGIndex.columns[0].type)), Type.Double)
                     val function = this@GGIndex.parent.parent.parent.functions.obtain(signature)
-                    check(function is VectorDistance.Binary<*>) { "GGIndex rebuild failed: Function $signature is not a vector distance function." }
+                    check(function is VectorDistance<*>) { "GGIndex rebuild failed: Function $signature is not a vector distance function." }
                     val knn = MinHeapSelection<ComparablePair<Pair<TupleId, VectorValue<*>>, DoubleValue>>(groupSize)
                     remainingTids.forEach { tid ->
                         val r = txn.read(tid, this@GGIndex.columns)
                         val vec = r[this@GGIndex.columns[0]]
+                        function.provide(1, vec)
                         if (vec is VectorValue<*>) {
-                            val distance = function(vec)
+                            val distance = function()
                             if (knn.size < groupSize || knn.peek()!!.second > distance) {
                                 knn.offer(ComparablePair(Pair(tid, vec), distance))
                             }
@@ -263,7 +264,7 @@ class GGIndex(path: Path, parent: DefaultEntity, config: GGIndexConfig? = null) 
                 val txn = this@Tx.context.getTx(this@GGIndex.parent) as EntityTx
                 val signature = Signature.Closed(this@GGIndex.config.distance.functionName, arrayOf(Argument.Typed(this@GGIndex.columns[0].type)), Type.Double)
                 val function = this@GGIndex.parent.parent.parent.functions.obtain(signature)
-                check (function is VectorDistance.Binary<*>) { "Function $signature is not a vector distance function." }
+                check (function is VectorDistance<*>) { "Function $signature is not a vector distance function." }
 
                 /** Phase 1): Perform kNN on the groups. */
                 require(this.predicate.k < txn.maxTupleId() / config.numGroups * considerNumGroups) { "Value of k is too large for this index considering $considerNumGroups groups." }
@@ -271,7 +272,8 @@ class GGIndex(path: Path, parent: DefaultEntity, config: GGIndexConfig? = null) 
 
                 LOGGER.debug("Scanning group mean signals.")
                 this@GGIndex.groupsStore.forEach {
-                    groupKnn.offer(ComparablePair(it.value, function(it.key)))
+                    function.provide(0, it.key) /* Probing argument is dynamic. */
+                    groupKnn.offer(ComparablePair(it.value, function()))
                 }
 
 
@@ -284,13 +286,10 @@ class GGIndex(path: Path, parent: DefaultEntity, config: GGIndexConfig? = null) 
                 LOGGER.debug("Scanning group members.")
                 for (k in 0 until groupKnn.size) {
                     for (tupleId in groupKnn[k].first) {
-                        val value =
-                            txn.read(tupleId, this@GGIndex.columns)[this@GGIndex.columns[0]]
-                        if (value is VectorValue<*>) {
-                            val distance = function(value)
-                            if (knn.size < knn.k || knn.peek()!!.second > distance) {
-                                knn.offer(ComparablePair(tupleId, distance))
-                            }
+                        function.provide(0, txn.read(tupleId, this@GGIndex.columns)[this@GGIndex.columns[0]]) /* Probing argument is dynamic. */
+                        val distance = function()
+                        if (knn.size < knn.k || knn.peek()!!.second > distance) {
+                            knn.offer(ComparablePair(tupleId, distance))
                         }
                     }
                 }

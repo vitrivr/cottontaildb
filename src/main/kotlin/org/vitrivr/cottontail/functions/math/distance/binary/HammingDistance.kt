@@ -8,16 +8,15 @@ import org.vitrivr.cottontail.functions.math.distance.basics.VectorDistance
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Type
 import org.vitrivr.cottontail.model.values.*
-import org.vitrivr.cottontail.model.values.types.Value
 import org.vitrivr.cottontail.model.values.types.VectorValue
 
 /**
- * A [VectorDistance.Binary] implementation to calculate the Cosine distance between two [VectorValue]s.
+ * A [VectorDistance] implementation to calculate the Cosine distance between two [VectorValue]s.
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.2.0
  */
-sealed class HammingDistance<T : VectorValue<*>>: VectorDistance.Binary<T> {
+sealed class HammingDistance<T : VectorValue<*>>(type: Type<T>): VectorDistance<T>(Generator.FUNCTION_NAME, type) {
     /**
      * The [FunctionGenerator] for the [HammingDistance].
      */
@@ -41,18 +40,14 @@ sealed class HammingDistance<T : VectorValue<*>>: VectorDistance.Binary<T> {
     override val cost: Float
         get() = d * (Cost.COST_FLOP + Cost.COST_MEMORY_ACCESS)
 
-    /** Name of this [HammingDistance]. */
-    override val name: Name.FunctionName = Generator.FUNCTION_NAME
-
     /**
      * [HammingDistance] for a [DoubleVectorValue].
      */
-    class DoubleVector(size: Int) : HammingDistance<DoubleVectorValue>() {
-        override val type = Type.DoubleVector(size)
-        override var query = this.type.defaultValue()
+    class DoubleVector(size: Int) : HammingDistance<DoubleVectorValue>(Type.DoubleVector(size)) {
         override fun copy(d: Int) = DoubleVector(d)
-        override fun invoke(vararg arguments: Value?): DoubleValue {
-            val probing = arguments[0] as DoubleVectorValue
+        override fun invoke(): DoubleValue {
+            val probing = this.arguments[0] as DoubleVectorValue
+            val query = this.arguments[1] as DoubleVectorValue
             var sum = 0.0
             for (i in query.data.indices) {
                 if (query.data[i] != probing.data[i]) {
@@ -60,22 +55,17 @@ sealed class HammingDistance<T : VectorValue<*>>: VectorDistance.Binary<T> {
                 }
             }
             return DoubleValue(sum)
-        }
-        override fun prepare(vararg arguments: Value?) {
-            require(arguments[0]?.type == this.type) { "Value of type ${arguments[0]?.type} cannot be applied as argument for ${this.signature}." }
-            this.query = arguments[0] as DoubleVectorValue
         }
     }
 
     /**
      * [HammingDistance] for a [FloatVectorValue].
      */
-    class FloatVector(size: Int) : HammingDistance<FloatVectorValue>() {
-        override val type = Type.FloatVector(size)
-        override var query = this.type.defaultValue()
-        override fun copy(d: Int): VectorDistance.Binary<FloatVectorValue> = FloatVector(d)
-        override fun invoke(vararg arguments: Value?): DoubleValue {
-            val probing = arguments[0] as FloatVectorValue
+    class FloatVector(size: Int) : HammingDistance<FloatVectorValue>(Type.FloatVector(size)) {
+        override fun copy(d: Int) = FloatVector(d)
+        override fun invoke(): DoubleValue {
+            val probing = this.arguments[0] as FloatVectorValue
+            val query = this.arguments[1] as FloatVectorValue
             var sum = 0.0
             for (i in query.data.indices) {
                 if (query.data[i] != probing.data[i]) {
@@ -83,22 +73,17 @@ sealed class HammingDistance<T : VectorValue<*>>: VectorDistance.Binary<T> {
                 }
             }
             return DoubleValue(sum)
-        }
-        override fun prepare(vararg arguments: Value?) {
-            require(arguments[0]?.type == this.type) { "Value of type ${arguments[0]?.type} cannot be applied as argument for ${this.signature}." }
-            this.query = arguments[0] as FloatVectorValue
         }
     }
 
     /**
      * [HammingDistance] for a [LongVectorValue].
      */
-    class LongVector(size: Int) : HammingDistance<LongVectorValue>() {
-        override val type = Type.LongVector(size)
-        override var query = this.type.defaultValue()
-        override fun copy(d: Int): VectorDistance.Binary<LongVectorValue> = LongVector(d)
-        override fun invoke(vararg arguments: Value?): DoubleValue {
-            val probing = arguments[0] as LongVectorValue
+    class LongVector(size: Int) : HammingDistance<LongVectorValue>(Type.LongVector(size)) {
+        override fun copy(d: Int) = LongVector(d)
+        override fun invoke(): DoubleValue {
+            val probing = this.arguments[0] as LongVectorValue
+            val query = this.arguments[1] as LongVectorValue
             var sum = 0.0
             for (i in query.data.indices) {
                 if (query.data[i] != probing.data[i]) {
@@ -107,21 +92,16 @@ sealed class HammingDistance<T : VectorValue<*>>: VectorDistance.Binary<T> {
             }
             return DoubleValue(sum)
         }
-        override fun prepare(vararg arguments: Value?) {
-            require(arguments[0]?.type == this.type) { "Value of type ${arguments[0]?.type} cannot be applied as argument for ${this.signature}." }
-            this.query = arguments[0] as LongVectorValue
-        }
     }
 
     /**
      * [HammingDistance] for a [IntVectorValue].
      */
-    class IntVector(size: Int) : HammingDistance<IntVectorValue>() {
-        override val type = Type.IntVector(size)
-        override var query = this.type.defaultValue()
+    class IntVector(size: Int) : HammingDistance<IntVectorValue>(Type.IntVector(size)) {
         override fun copy(d: Int) = IntVector(d)
-        override fun invoke(vararg arguments: Value?): DoubleValue {
-            val probing = arguments[0] as IntVectorValue
+        override fun invoke(): DoubleValue {
+            val probing = this.arguments[0] as IntVectorValue
+            val query = this.arguments[1] as IntVectorValue
             var sum = 0.0
             for (i in query.data.indices) {
                 if (query.data[i] != probing.data[i]) {
@@ -129,22 +109,17 @@ sealed class HammingDistance<T : VectorValue<*>>: VectorDistance.Binary<T> {
                 }
             }
             return DoubleValue(sum)
-        }
-        override fun prepare(vararg arguments: Value?) {
-            require(arguments[0]?.type == this.type) { "Value of type ${arguments[0]?.type} cannot be applied as argument for ${this.signature}." }
-            this.query = arguments[0] as IntVectorValue
         }
     }
 
     /**
      * [HammingDistance] for a [IntVectorValue].
      */
-    class BooleanVector(size: Int) : HammingDistance<BooleanVectorValue>() {
-        override val type = Type.BooleanVector(size)
-        override var query = this.type.defaultValue()
+    class BooleanVector(size: Int) : HammingDistance<BooleanVectorValue>(Type.BooleanVector(size)) {
         override fun copy(d: Int) = BooleanVector(d)
-        override fun invoke(vararg arguments: Value?): DoubleValue {
-            val probing = arguments[0] as BooleanVectorValue
+        override fun invoke(): DoubleValue {
+            val probing = this.arguments[0] as BooleanVectorValue
+            val query = this.arguments[1] as BooleanVectorValue
             var sum = 0.0
             for (i in query.data.indices) {
                 if (query.data[i] != probing.data[i]) {
@@ -152,10 +127,6 @@ sealed class HammingDistance<T : VectorValue<*>>: VectorDistance.Binary<T> {
                 }
             }
             return DoubleValue(sum)
-        }
-        override fun prepare(vararg arguments: Value?) {
-            require(arguments[0]?.type == this.type) { "Value of type ${arguments[0]?.type} cannot be applied as argument for ${this.signature}." }
-            this.query = arguments[0] as BooleanVectorValue
         }
     }
 }

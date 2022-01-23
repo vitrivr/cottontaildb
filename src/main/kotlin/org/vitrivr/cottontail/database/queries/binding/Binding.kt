@@ -8,7 +8,7 @@ import org.vitrivr.cottontail.model.values.types.Value
  * This class acts as a level of indirection for [Value]'s used during query planning, optimization and execution.
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.2.0
  */
 sealed interface Binding {
 
@@ -19,11 +19,14 @@ sealed interface Binding {
     /** The [Type] held by this [Binding]. */
     val type: Type<*>
 
+    /** Flag indicating whether [Binding] remains static in the context of a query. */
+    val static: Boolean
+
     /** The [BindingContext] associated with this [Binding]. */
     var context: BindingContext
 
     /** A [Binding] for a literal [Value] without any indirection other than the [Binding] itself. */
-    data class Literal(val bindingIndex: Int, override val type: Type<*>, override var context: BindingContext): Binding {
+    data class Literal(val bindingIndex: Int, override val type: Type<*>, override var context: BindingContext, override val static: Boolean = true): Binding {
         override var value: Value?
             get() = this.context[this.bindingIndex]
             set(v) {
@@ -38,6 +41,9 @@ sealed interface Binding {
 
         override val type: Type<*>
             get() = this.column.type
+
+        override val static: Boolean
+            get() = false
 
         override fun toString(): String = "${this.column.name}"
     }

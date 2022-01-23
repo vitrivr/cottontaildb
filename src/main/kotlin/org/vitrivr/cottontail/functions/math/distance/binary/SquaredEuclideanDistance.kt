@@ -8,7 +8,6 @@ import org.vitrivr.cottontail.functions.math.distance.basics.MinkowskiDistance
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Type
 import org.vitrivr.cottontail.model.values.*
-import org.vitrivr.cottontail.model.values.types.Value
 import org.vitrivr.cottontail.model.values.types.VectorValue
 import kotlin.math.pow
 
@@ -16,9 +15,9 @@ import kotlin.math.pow
  * A [SquaredEuclideanDistance] implementation to calculate the squared Euclidean or L2 distance between two [VectorValue]s.
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.2.0
  */
-sealed class SquaredEuclideanDistance<T : VectorValue<*>> : MinkowskiDistance<T> {
+sealed class SquaredEuclideanDistance<T : VectorValue<*>>(type: Type<T>): MinkowskiDistance<T>(Generator.FUNCTION_NAME, type, 2) {
 
     /**
      * The [FunctionGenerator] for the [SquaredEuclideanDistance].
@@ -40,12 +39,6 @@ sealed class SquaredEuclideanDistance<T : VectorValue<*>> : MinkowskiDistance<T>
         }
     }
 
-    /** Name of this [SquaredEuclideanDistance]. */
-    override val name: Name.FunctionName = Generator.FUNCTION_NAME
-
-    /** The [p] value for an [SquaredEuclideanDistance] instance is always 2. */
-    final override val p: Int = 2
-
     /** The cost of applying this [SquaredEuclideanDistance] to a single [VectorValue]. */
     override val cost: Float
         get() = d * (3.0f * Cost.COST_FLOP + 2.0f * Cost.COST_MEMORY_ACCESS) + Cost.COST_FLOP + Cost.COST_MEMORY_ACCESS
@@ -53,126 +46,96 @@ sealed class SquaredEuclideanDistance<T : VectorValue<*>> : MinkowskiDistance<T>
     /**
      * [SquaredEuclideanDistance] for a [Complex64VectorValue].
      */
-    class Complex64Vector(size: Int) : SquaredEuclideanDistance<Complex64VectorValue>() {
-        override val type = Type.Complex64Vector(size)
-        override var query = this.type.defaultValue()
+    class Complex64Vector(size: Int) : SquaredEuclideanDistance<Complex64VectorValue>(Type.Complex64Vector(size)) {
         override fun copy(d: Int) = Complex64Vector(d)
-        override fun invoke(vararg arguments: Value?): DoubleValue {
-            val probing = arguments[0] as Complex64VectorValue
+        override fun invoke(): DoubleValue {
+            val probing = this.arguments[0] as Complex64VectorValue
+            val query = this.arguments[1] as Complex64VectorValue
             var sum = 0.0
             for (i in query.data.indices) {
                 sum += (query.data[i] - probing.data[i]).pow(2)
             }
             return DoubleValue(sum)
-        }
-        override fun prepare(vararg arguments: Value?) {
-            require(arguments[0]?.type == this.type) { "Value of type ${arguments[0]?.type} cannot be applied as argument for ${this.signature}." }
-            this.query = arguments[0] as Complex64VectorValue
         }
     }
 
     /**
      * [SquaredEuclideanDistance] for a [Complex32VectorValue].
      */
-    class Complex32Vector(size: Int) : SquaredEuclideanDistance<Complex32VectorValue>() {
-        override val type = Type.Complex32Vector(size)
-        override var query = this.type.defaultValue()
+    class Complex32Vector(size: Int) : SquaredEuclideanDistance<Complex32VectorValue>(Type.Complex32Vector(size)) {
         override fun copy(d: Int) = Complex32Vector(d)
-        override fun invoke(vararg arguments: Value?): DoubleValue {
-            val probing = arguments[0] as Complex32VectorValue
+        override fun invoke(): DoubleValue {
+            val probing = this.arguments[0] as Complex32VectorValue
+            val query = this.arguments[1] as Complex32VectorValue
             var sum = 0.0
             for (i in query.data.indices) {
                 sum += (query.data[i] - probing.data[i]).pow(2)
             }
             return DoubleValue(sum)
-        }
-        override fun prepare(vararg arguments: Value?) {
-            require(arguments[0]?.type == this.type) { "Value of type ${arguments[0]?.type} cannot be applied as argument for ${this.signature}." }
-            this.query = arguments[0] as Complex32VectorValue
         }
     }
 
     /**
      * [SquaredEuclideanDistance] for a [DoubleVectorValue].
      */
-    class DoubleVector(size: Int) : SquaredEuclideanDistance<DoubleVectorValue>() {
-        override val type = Type.DoubleVector(size)
-        override var query = this.type.defaultValue()
+    class DoubleVector(size: Int) : SquaredEuclideanDistance<DoubleVectorValue>(Type.DoubleVector(size)) {
         override fun copy(d: Int) = DoubleVector(d)
-        override fun invoke(vararg arguments: Value?): DoubleValue {
-            val probing = arguments[0] as DoubleVectorValue
+        override fun invoke(): DoubleValue {
+            val probing = this.arguments[0] as DoubleVectorValue
+            val query = this.arguments[1] as DoubleVectorValue
             var sum = 0.0
             for (i in query.data.indices) {
                 sum += (query.data[i] - probing.data[i]).pow(2)
             }
             return DoubleValue(sum)
-        }
-        override fun prepare(vararg arguments: Value?) {
-            require(arguments[0]?.type == this.type) { "Value of type ${arguments[0]?.type} cannot be applied as argument for ${this.signature}." }
-            this.query = arguments[0] as DoubleVectorValue
         }
     }
 
     /**
      * [SquaredEuclideanDistance] for a [FloatVectorValue].
      */
-    class FloatVector(size: Int) : SquaredEuclideanDistance<FloatVectorValue>() {
-        override val type = Type.FloatVector(size)
-        override var query = this.type.defaultValue()
+    class FloatVector(size: Int) : SquaredEuclideanDistance<FloatVectorValue>(Type.FloatVector(size)) {
         override fun copy(d: Int) = FloatVector(d)
-        override fun invoke(vararg arguments: Value?): DoubleValue {
-            val probing = arguments[0] as FloatVectorValue
+        override fun invoke(): DoubleValue {
+            val probing = this.arguments[0] as FloatVectorValue
+            val query = this.arguments[1] as FloatVectorValue
             var sum = 0.0
             for (i in query.data.indices) {
                 sum += (query.data[i] - probing.data[i]).pow(2)
             }
             return DoubleValue(sum)
         }
-        override fun prepare(vararg arguments: Value?) {
-            require(arguments[0]?.type == this.type) { "Value of type ${arguments[0]?.type} cannot be applied as argument for ${this.signature}." }
-            this.query = arguments[0] as FloatVectorValue
-        }
     }
 
     /**
      * [SquaredEuclideanDistance] for a [LongVectorValue].
      */
-    class LongVector(size: Int) : SquaredEuclideanDistance<LongVectorValue>() {
-        override val type = Type.LongVector(size)
-        override var query = this.type.defaultValue()
+    class LongVector(size: Int) : SquaredEuclideanDistance<LongVectorValue>(Type.LongVector(size)) {
         override fun copy(d: Int) = LongVector(d)
-        override fun invoke(vararg arguments: Value?): DoubleValue {
-            val probing = arguments[0] as LongVectorValue
+        override fun invoke(): DoubleValue {
+            val probing = this.arguments[0] as LongVectorValue
+            val query = this.arguments[1] as LongVectorValue
             var sum = 0.0
             for (i in query.data.indices) {
                 sum += (query.data[i] - probing.data[i]).toDouble().pow(2)
             }
             return DoubleValue(sum)
-        }
-        override fun prepare(vararg arguments: Value?) {
-            require(arguments[0]?.type == this.type) { "Value of type ${arguments[0]?.type} cannot be applied as argument for ${this.signature}." }
-            this.query = arguments[0] as LongVectorValue
         }
     }
 
     /**
      * [SquaredEuclideanDistance] for a [IntVectorValue].
      */
-    class IntVector(size: Int) : SquaredEuclideanDistance<IntVectorValue>() {
-        override val type = Type.IntVector(size)
-        override var query = this.type.defaultValue()
+    class IntVector(size: Int) : SquaredEuclideanDistance<IntVectorValue>(Type.IntVector(size)) {
         override fun copy(d: Int) = IntVector(d)
-        override fun invoke(vararg arguments: Value?): DoubleValue {
-            val probing = arguments[0] as IntVectorValue
+        override fun invoke(): DoubleValue {
+            val probing = this.arguments[0] as IntVectorValue
+            val query = this.arguments[1] as IntVectorValue
             var sum = 0.0
             for (i in query.data.indices) {
                 sum += (query.data[i] - probing.data[i]).toDouble().pow(2)
             }
             return DoubleValue(sum)
-        }
-        override fun prepare(vararg arguments: Value?) {
-            require(arguments[0]?.type == this.type) { "Value of type ${arguments[0]?.type} cannot be applied as argument for ${this.signature}." }
-            this.query = arguments[0] as IntVectorValue
         }
     }
 }
