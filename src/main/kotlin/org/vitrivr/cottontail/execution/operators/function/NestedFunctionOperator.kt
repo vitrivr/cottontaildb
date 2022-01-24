@@ -19,7 +19,7 @@ import org.vitrivr.cottontail.model.basics.Record
  * @author Ralph Gasser
  * @version 1.2.0
  */
-class NestedFunctionProjectionOperator(parent: Operator, val function: Function<*>, val arguments: List<Binding>, override val binding: BindingContext, val out: Binding.Literal) : Operator.PipelineOperator(parent) {
+class NestedFunctionOperator(parent: Operator, val function: Function<*>, val arguments: List<Binding>, override val binding: BindingContext, val out: Binding.Literal) : Operator.PipelineOperator(parent) {
 
     /** The [DistanceProjectionOperator] is not a pipeline breaker. */
     override val breaker: Boolean = false
@@ -27,10 +27,10 @@ class NestedFunctionProjectionOperator(parent: Operator, val function: Function<
         get() = parent.columns
 
     /**
-     * Converts this [FunctionProjectionOperator] to a [Flow] and returns it.
+     * Converts this [FunctionOperator] to a [Flow] and returns it.
      *
      * @param context The [QueryContext] used for execution
-     * @return [Flow] representing this [FunctionProjectionOperator]
+     * @return [Flow] representing this [FunctionOperator]
      */
     override fun toFlow(context: TransactionContext): Flow<Record> {
         /* Obtain parent flow. */
@@ -48,8 +48,8 @@ class NestedFunctionProjectionOperator(parent: Operator, val function: Function<
 
         /* Prepare empty array that acts a holder for values. */
         return parentFlow.onEach { _ ->
-            dynamicArgs.forEach { this@NestedFunctionProjectionOperator.function.provide(it.first, it.second.value) }
-            this@NestedFunctionProjectionOperator.binding.update(this@NestedFunctionProjectionOperator.out, this@NestedFunctionProjectionOperator.function())
+            dynamicArgs.forEach { this@NestedFunctionOperator.function.provide(it.first, it.second.value) }
+            this@NestedFunctionOperator.binding.update(this@NestedFunctionOperator.out, this@NestedFunctionOperator.function())
         }
     }
 }

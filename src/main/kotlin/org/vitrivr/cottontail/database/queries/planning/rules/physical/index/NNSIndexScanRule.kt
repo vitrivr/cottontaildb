@@ -5,7 +5,7 @@ import org.vitrivr.cottontail.database.index.IndexTx
 import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.binding.Binding
-import org.vitrivr.cottontail.database.queries.planning.nodes.physical.projection.FunctionProjectionPhysicalOperatorNode
+import org.vitrivr.cottontail.database.queries.planning.nodes.physical.function.FunctionPhysicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.sort.SortPhysicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.sources.EntityScanPhysicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.sources.IndexScanPhysicalOperatorNode
@@ -28,10 +28,10 @@ import org.vitrivr.cottontail.model.values.types.Types
  * @version 1.3.0
  */
 object NNSIndexScanRule : RewriteRule {
-    override fun canBeApplied(node: OperatorNode): Boolean = node is FunctionProjectionPhysicalOperatorNode
+    override fun canBeApplied(node: OperatorNode): Boolean = node is FunctionPhysicalOperatorNode
 
     override fun apply(node: OperatorNode, ctx: QueryContext): OperatorNode? {
-        if (node is FunctionProjectionPhysicalOperatorNode && node.function is VectorDistance<*>) {
+        if (node is FunctionPhysicalOperatorNode && node.function is VectorDistance<*>) {
             val queryColumn = node.arguments.filterIsInstance<Binding.Column>().singleOrNull()?.column ?: return null
             val vectorLiteral = node.arguments.filterIsInstance<Binding.Literal>().singleOrNull() ?: return null
             val scan = node.input
@@ -61,7 +61,7 @@ object NNSIndexScanRule : RewriteRule {
                                 /* Case 2: Index produces the columns needed for the NNS operation. */
                                 candidate.produces.contains(queryColumn) -> {
                                     val index = IndexScanPhysicalOperatorNode(node.groupId, ctx.txn.getTx(candidate) as IndexTx, predicate, listOf(Pair(queryColumn.name, physicalQueryColumn)))
-                                    var p: OperatorNode.Physical = FunctionProjectionPhysicalOperatorNode(index, node.function, node.arguments, node.alias)
+                                    var p: OperatorNode.Physical = FunctionPhysicalOperatorNode(index, node.function, node.arguments, node.alias)
                                     val newFetch = scan.fetch.filter { !candidate.produces.contains(it.second) }
                                     if (newFetch.isNotEmpty()) {
                                         p = FetchPhysicalOperatorNode(p, scan.entity,newFetch)
@@ -72,7 +72,7 @@ object NNSIndexScanRule : RewriteRule {
                                 /* Case 3: Index only produces TupleIds. Column for NNS needs to be fetched in an extra step. */
                                 else -> {
                                     val index = IndexScanPhysicalOperatorNode(node.groupId, ctx.txn.getTx(candidate) as IndexTx, predicate, emptyList())
-                                    val distance = FunctionProjectionPhysicalOperatorNode(index, node.function, node.arguments, node.alias)
+                                    val distance = FunctionPhysicalOperatorNode(index, node.function, node.arguments, node.alias)
                                     val p = FetchPhysicalOperatorNode(distance, scan.entity, scan.fetch.filter { !candidate.produces.contains(it.second) })
                                     return node.output?.copyWithOutput(p) ?: p
                                 }

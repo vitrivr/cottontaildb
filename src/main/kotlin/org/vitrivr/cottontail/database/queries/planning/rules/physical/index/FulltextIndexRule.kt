@@ -4,7 +4,7 @@ import org.vitrivr.cottontail.database.index.IndexTx
 import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.binding.Binding
-import org.vitrivr.cottontail.database.queries.planning.nodes.physical.projection.FunctionProjectionPhysicalOperatorNode
+import org.vitrivr.cottontail.database.queries.planning.nodes.physical.function.FunctionPhysicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.sources.EntityScanPhysicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.sources.IndexScanPhysicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.transform.FetchPhysicalOperatorNode
@@ -32,7 +32,7 @@ object FulltextIndexRule : RewriteRule {
      * @return True if [FulltextIndexRule] can be applied, false otherwise.
      */
     override fun canBeApplied(node: OperatorNode): Boolean
-        = node is FunctionProjectionPhysicalOperatorNode && node.function is FulltextScore
+        = node is FunctionPhysicalOperatorNode && node.function is FulltextScore
 
     /**
      * Applies this [FulltextIndexRule], transforming the execution of a [FulltextScore] function by an index scan.
@@ -42,7 +42,7 @@ object FulltextIndexRule : RewriteRule {
      * @return Transformed [OperatorNode] or null, if transformation was not possible.
      */
     override fun apply(node: OperatorNode, ctx: QueryContext): OperatorNode? {
-        if (node is FunctionProjectionPhysicalOperatorNode && node.function is FulltextScore) {
+        if (node is FunctionPhysicalOperatorNode && node.function is FulltextScore) {
             val scan = node.input
             if (scan is EntityScanPhysicalOperatorNode) {
                 val probingArgument = node.arguments.filterIsInstance<Binding.Column>().singleOrNull() ?: return null

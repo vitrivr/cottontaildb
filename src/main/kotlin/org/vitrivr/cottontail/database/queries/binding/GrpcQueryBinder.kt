@@ -9,6 +9,7 @@ import org.vitrivr.cottontail.database.queries.OperatorNode
 import org.vitrivr.cottontail.database.queries.QueryContext
 import org.vitrivr.cottontail.database.queries.binding.extensions.fqn
 import org.vitrivr.cottontail.database.queries.binding.extensions.toValue
+import org.vitrivr.cottontail.database.queries.planning.nodes.logical.function.FunctionLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.management.DeleteLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.management.InsertLogicalOperatorNode
 import org.vitrivr.cottontail.database.queries.planning.nodes.logical.management.UpdateLogicalOperatorNode
@@ -480,7 +481,7 @@ object GrpcQueryBinder {
         } catch (e: FunctionNotFoundException) {
             throw QueryException.QueryBindException("Desired distance function $signature could not be found!")
         }
-        return FunctionProjectionLogicalOperatorNode(input, functionObject, arguments, projection.second)
+        return FunctionLogicalOperatorNode(input, functionObject, arguments, projection.second)
     }
 
     /**

@@ -22,9 +22,9 @@ import org.vitrivr.cottontail.model.values.types.Value
  * @author Ralph Gasser
  * @version 1.2.0
  */
-class FunctionProjectionOperator(parent: Operator, val function: Function<*>, val arguments: List<Binding>, override val binding: BindingContext, alias: Name.ColumnName? = null) : Operator.PipelineOperator(parent) {
+class FunctionOperator(parent: Operator, val function: Function<*>, val arguments: List<Binding>, override val binding: BindingContext, alias: Name.ColumnName? = null) : Operator.PipelineOperator(parent) {
 
-    /** The column produced by this [FunctionProjectionOperator] is determined by the [Function]'s signature. */
+    /** The column produced by this [FunctionOperator] is determined by the [Function]'s signature. */
     override val columns: List<ColumnDef<*>> = this.parent.columns + ColumnDef(
         name = alias ?: Name.ColumnName(function.signature.name.simple),
         type = this.function.signature.returnType!!,
@@ -35,10 +35,10 @@ class FunctionProjectionOperator(parent: Operator, val function: Function<*>, va
     override val breaker: Boolean = false
 
     /**
-     * Converts this [FunctionProjectionOperator] to a [Flow] and returns it.
+     * Converts this [FunctionOperator] to a [Flow] and returns it.
      *
      * @param context The [QueryContext] used for execution
-     * @return [Flow] representing this [FunctionProjectionOperator]
+     * @return [Flow] representing this [FunctionOperator]
      */
     override fun toFlow(context: TransactionContext): Flow<Record> {
         /* Obtain parent flow. */
@@ -59,16 +59,16 @@ class FunctionProjectionOperator(parent: Operator, val function: Function<*>, va
         val values = Array<Value?>(this.columns.size) { null }
         return parentFlow.map { record ->
             /* Provide arguments. */
-            dynamicArgs.forEach { this@FunctionProjectionOperator.function.provide(it.first, it.second.value) }
+            dynamicArgs.forEach { this@FunctionOperator.function.provide(it.first, it.second.value) }
 
             /* Copy record and append function call. */
             var i = 0
             record.forEach { _, v -> values[i++] = v }
-            values[values.lastIndex] = this@FunctionProjectionOperator.function()
+            values[values.lastIndex] = this@FunctionOperator.function()
 
             /* Generate and return record. Important: Make new record available to binding context. */
             val rec = StandaloneRecord(record.tupleId, columns, values)
-            this@FunctionProjectionOperator.binding.bindRecord(rec)
+            this@FunctionOperator.binding.bindRecord(rec)
             rec
         }
     }
