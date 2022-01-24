@@ -1,10 +1,14 @@
 package org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index
 
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.core.functions.math.VectorDistance
+import org.vitrivr.cottontail.core.queries.binding.Binding
+import org.vitrivr.cottontail.core.queries.predicates.knn.KnnPredicate
+import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.dbms.index.IndexTx
 import org.vitrivr.cottontail.dbms.queries.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.QueryContext
-import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.physical.function.FunctionPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.physical.sort.SortPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.physical.sources.EntityScanPhysicalOperatorNode
@@ -12,10 +16,6 @@ import org.vitrivr.cottontail.dbms.queries.planning.nodes.physical.sources.Index
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.physical.transform.FetchPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.physical.transform.LimitPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
-import org.vitrivr.cottontail.core.queries.predicates.knn.KnnPredicate
-import org.vitrivr.cottontail.core.functions.math.VectorDistance
-import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.values.types.Types
 
 /**
  * A [RewriteRule] that replaces a very specific operator constellation that indicates a Nearest Neighbor Search (NNS)
@@ -50,7 +50,8 @@ object NNSIndexScanRule : RewriteRule {
                             when {
                                 /* Case 1: Index produces distance, hence no distance calculation required! */
                                 candidate.produces.contains(distanceColumn) -> {
-                                    var p: OperatorNode.Physical = IndexScanPhysicalOperatorNode(node.groupId, ctx.txn.getTx(candidate) as IndexTx, predicate, listOf(Pair(node.alias ?: distanceColumn.name, distanceColumn)))
+                                    var p: OperatorNode.Physical = IndexScanPhysicalOperatorNode(node.groupId, ctx.txn.getTx(candidate) as IndexTx, predicate, listOf(Pair(
+                                        node.columnName, distanceColumn)))
                                     val newFetch = scan.fetch.filter { !candidate.produces.contains(it.second) && it != predicate.column }
                                     if (newFetch.isNotEmpty()) {
                                         p = FetchPhysicalOperatorNode(p, scan.entity, newFetch)
@@ -61,7 +62,7 @@ object NNSIndexScanRule : RewriteRule {
                                 /* Case 2: Index produces the columns needed for the NNS operation. */
                                 candidate.produces.contains(queryColumn) -> {
                                     val index = IndexScanPhysicalOperatorNode(node.groupId, ctx.txn.getTx(candidate) as IndexTx, predicate, listOf(Pair(queryColumn.name, physicalQueryColumn)))
-                                    var p: OperatorNode.Physical = FunctionPhysicalOperatorNode(index, node.function, node.arguments, node.alias)
+                                    var p: OperatorNode.Physical = FunctionPhysicalOperatorNode(index, node.function, node.arguments, node.columnName)
                                     val newFetch = scan.fetch.filter { !candidate.produces.contains(it.second) }
                                     if (newFetch.isNotEmpty()) {
                                         p = FetchPhysicalOperatorNode(p, scan.entity,newFetch)
@@ -72,7 +73,7 @@ object NNSIndexScanRule : RewriteRule {
                                 /* Case 3: Index only produces TupleIds. Column for NNS needs to be fetched in an extra step. */
                                 else -> {
                                     val index = IndexScanPhysicalOperatorNode(node.groupId, ctx.txn.getTx(candidate) as IndexTx, predicate, emptyList())
-                                    val distance = FunctionPhysicalOperatorNode(index, node.function, node.arguments, node.alias)
+                                    val distance = FunctionPhysicalOperatorNode(index, node.function, node.arguments, node.columnName)
                                     val p = FetchPhysicalOperatorNode(distance, scan.entity, scan.fetch.filter { !candidate.produces.contains(it.second) })
                                     return node.output?.copyWithOutput(p) ?: p
                                 }

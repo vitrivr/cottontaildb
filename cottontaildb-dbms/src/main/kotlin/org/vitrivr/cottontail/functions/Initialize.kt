@@ -5,6 +5,7 @@ import org.vitrivr.cottontail.core.functions.FunctionRegistry
 import org.vitrivr.cottontail.core.functions.math.VectorDistance
 import org.vitrivr.cottontail.functions.math.distance.binary.*
 import org.vitrivr.cottontail.functions.math.distance.other.HyperplaneDistance
+import org.vitrivr.cottontail.functions.math.random.RandomFloatVector
 import org.vitrivr.cottontail.functions.math.score.FulltextScore
 
 /**
@@ -12,6 +13,7 @@ import org.vitrivr.cottontail.functions.math.score.FulltextScore
  */
 fun FunctionRegistry.initialize() {
     this.register(FulltextScore)
+    this.register(RandomFloatVector())
     this.initializeVectorDistance()
 }
 /**

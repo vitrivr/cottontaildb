@@ -36,9 +36,19 @@ interface BindingContext {
      * Creates and returns a [Binding] for the given [Value].
      *
      * @param value The [Value] to bind.
+     * @param static True, if [Binding] is expected to change during query execution.
      * @return A value [Binding]
      */
-    fun bind(value: Value): Binding.Literal
+    fun bind(value: Value, static: Boolean = true): Binding.Literal
+
+    /**
+     * Creates and returns a [Binding] for the given [Value].
+     *
+     * @param type The [Types] to bind.
+     * @param static True, if [Binding] is expected to change during query execution.
+     * @return A value [Binding]
+     */
+    fun bindNull(type: Types<*>, static: Boolean = true): Binding.Literal
 
     /**
      * Updates the [Value] for a [Binding.Literal].
@@ -48,14 +58,6 @@ interface BindingContext {
      * @return A value [Binding]
      */
     fun update(binding: Binding.Literal, value: Value?)
-
-    /**
-     * Creates and returns a [Binding] for the given [Value].
-     *
-     * @param type The [Types] to bind.
-     * @return A value [Binding]
-     */
-    fun bindNull(type: Types<*>): Binding.Literal
 
     /**
      * Creates and returns a [Binding] for the given [ColumnDef].

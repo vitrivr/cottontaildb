@@ -54,12 +54,26 @@ class DefaultBindingContext(startSize: Int = 100) : BindingContext {
      * Creates and returns a [Binding] for the given [Value].
      *
      * @param value The [Value] to bind.
+     * @param static True, if [Binding] is expected to change during query execution.
      * @return A value [Binding]
      */
-    override fun bind(value: Value): Binding.Literal {
+    override fun bind(value: Value, static: Boolean): Binding.Literal {
         val bindingIndex = this.boundValues.size
         check(this.boundValues.add(value)) { "Failed to add $value to list of bound values for index $bindingIndex." }
-        return Binding.Literal(bindingIndex, value.type, this)
+        return Binding.Literal(bindingIndex, value.type, this, static)
+    }
+
+    /**
+     * Creates and returns a [Binding] for the given [Value].
+     *
+     * @param type The [Types] to bind.
+     * @param static True, if [Binding] is expected to change during query execution.
+     * @return A value [Binding]
+     */
+    override fun bindNull(type: Types<*>, static: Boolean): Binding.Literal {
+        val bindingIndex = this.boundValues.size
+        check(this.boundValues.add(null)) { "Failed to add null to list of bound values for index $bindingIndex." }
+        return Binding.Literal(bindingIndex, type, this, static)
     }
 
     /**
@@ -74,17 +88,7 @@ class DefaultBindingContext(startSize: Int = 100) : BindingContext {
         this.boundValues[binding.bindingIndex] = value
     }
 
-    /**
-     * Creates and returns a [Binding] for the given [Value].
-     *
-     * @param type The [Types] to bind.
-     * @return A value [Binding]
-     */
-    override fun bindNull(type: Types<*>): Binding.Literal {
-        val bindingIndex = this.boundValues.size
-        check(this.boundValues.add(null)) { "Failed to add null to list of bound values for index $bindingIndex." }
-        return Binding.Literal(bindingIndex, type, this)
-    }
+
 
     /**
      * Creates and returns a [Binding] for the given [ColumnDef].

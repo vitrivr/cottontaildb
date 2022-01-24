@@ -2,17 +2,17 @@ package org.vitrivr.cottontail.execution.operators.function
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
-import org.vitrivr.cottontail.dbms.queries.QueryContext
+import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.core.functions.Function
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
-import org.vitrivr.cottontail.execution.TransactionContext
-import org.vitrivr.cottontail.execution.operators.basics.Operator
-import org.vitrivr.cottontail.core.functions.Function
-import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.types.Value
+import org.vitrivr.cottontail.dbms.queries.QueryContext
+import org.vitrivr.cottontail.execution.TransactionContext
+import org.vitrivr.cottontail.execution.operators.basics.Operator
 
 /**
  * A [Operator.PipelineOperator] used during query execution. It executes a defined [Function] and generates a new [ColumnDef] from its results
@@ -22,16 +22,16 @@ import org.vitrivr.cottontail.core.values.types.Value
  * @author Ralph Gasser
  * @version 1.2.0
  */
-class FunctionOperator(parent: Operator, val function: Function<*>, val arguments: List<Binding>, override val binding: BindingContext, alias: Name.ColumnName? = null) : Operator.PipelineOperator(parent) {
+class FunctionOperator(parent: Operator, val function: Function<*>, val arguments: List<Binding>, override val binding: BindingContext, val name: Name.ColumnName) : Operator.PipelineOperator(parent) {
 
     /** The column produced by this [FunctionOperator] is determined by the [Function]'s signature. */
     override val columns: List<ColumnDef<*>> = this.parent.columns + ColumnDef(
-        name = alias ?: Name.ColumnName(function.signature.name.simple),
+        name = name,
         type = this.function.signature.returnType!!,
         nullable = false
     )
 
-    /** The [DistanceProjectionOperator] is not a pipeline breaker. */
+    /** The [FunctionOperator] is not a pipeline breaker. */
     override val breaker: Boolean = false
 
     /**

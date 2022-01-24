@@ -1,41 +1,46 @@
 package org.vitrivr.cottontail.dbms.queries.binding
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
-import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
+import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.core.functions.Argument
+import org.vitrivr.cottontail.core.functions.Signature
+import org.vitrivr.cottontail.core.functions.exception.FunctionNotFoundException
+import org.vitrivr.cottontail.core.queries.binding.Binding
+import org.vitrivr.cottontail.core.queries.predicates.bool.BooleanPredicate
+import org.vitrivr.cottontail.core.queries.predicates.bool.ComparisonOperator
+import org.vitrivr.cottontail.core.queries.predicates.bool.ConnectionOperator
+import org.vitrivr.cottontail.core.values.StringValue
+import org.vitrivr.cottontail.core.values.pattern.LikePatternValue
+import org.vitrivr.cottontail.core.values.types.Types
+import org.vitrivr.cottontail.core.values.types.Value
+import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
+import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
+import org.vitrivr.cottontail.dbms.exceptions.QueryException
 import org.vitrivr.cottontail.dbms.queries.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.QueryContext
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.function.FunctionLogicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.function.NestedFunctionLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.management.DeleteLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.management.InsertLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.management.UpdateLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.predicates.FilterLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.predicates.FilterOnSubSelectLogicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.projection.*
+import org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.projection.AggregatingProjectionLogicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.projection.CountProjectionLogicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.projection.ExistsProjectionLogicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.projection.SelectProjectionLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.sort.SortLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.sources.EntitySampleLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.sources.EntityScanLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.transform.LimitLogicalOperatorNode
-import org.vitrivr.cottontail.core.queries.predicates.bool.BooleanPredicate
-import org.vitrivr.cottontail.core.queries.predicates.bool.ComparisonOperator
-import org.vitrivr.cottontail.core.queries.predicates.bool.ConnectionOperator
 import org.vitrivr.cottontail.dbms.queries.projection.Projection
 import org.vitrivr.cottontail.dbms.queries.sort.SortOrder
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
-import org.vitrivr.cottontail.core.functions.Argument
-import org.vitrivr.cottontail.core.functions.Signature
-import org.vitrivr.cottontail.core.functions.exception.FunctionNotFoundException
 import org.vitrivr.cottontail.grpc.CottontailGrpc
-import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.queries.binding.Binding
-import org.vitrivr.cottontail.core.basics.Record
-import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.exceptions.QueryException
-import org.vitrivr.cottontail.core.values.StringValue
-import org.vitrivr.cottontail.core.values.pattern.LikePatternValue
-import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.utilities.extensions.fqn
 import org.vitrivr.cottontail.utilities.extensions.toValue
 
@@ -80,7 +85,7 @@ object GrpcQueryBinder {
         }.zip(projection.elementsList).filter {
             it.first.first is Name.FunctionName
         }.forEach {
-            root = this.parseAndBindFunction(root, it.first as Pair<Name.FunctionName, Name.ColumnName>, it.second.function, context)
+            root = this.parseAndBindFunction(root, it.second.function, it.first.second, context)
         }
 
         /* Parse and bind WHERE-clause. */
@@ -461,28 +466,79 @@ object GrpcQueryBinder {
      * Parses and binds the projection part of a gRPC [CottontailGrpc.Function]-clause
      *
      * @param input The [OperatorNode.Logical] on which to perform the [Function].
-     * @param projection The parsed projection element.
      * @param function The (unparsed) [CottontailGrpc.Function] object.
+     * @param name The [Name.ColumnName] of the resulting column
      * @param context The [QueryContext] used for query binding.
      *
      * @return The resulting [SortLogicalOperatorNode].
      */
-    private fun parseAndBindFunction(input: OperatorNode.Logical, projection: Pair<Name.FunctionName, Name.ColumnName>, function: CottontailGrpc.Function, context: QueryContext): OperatorNode.Logical {
+    private fun parseAndBindFunction(input: OperatorNode.Logical, function: CottontailGrpc.Function, name: Name.ColumnName, context: QueryContext): OperatorNode.Logical {
+        var executionGraph: NestedFunctionLogicalOperatorNode? = null
         val arguments = function.argumentsList.mapIndexed { i, a ->
             when (a.expCase) {
                 CottontailGrpc.Expression.ExpCase.LITERAL -> context.bindings.bind(a.literal.toValue())
                 CottontailGrpc.Expression.ExpCase.COLUMN -> context.bindings.bind(input.findUniqueColumnForName(a.column.fqn()))
-                CottontailGrpc.Expression.ExpCase.FUNCTION ->  throw QueryException.QuerySyntaxException("Nested functions are currently not supported.") /* TODO */
+                CottontailGrpc.Expression.ExpCase.FUNCTION -> {
+                    val nested = parseAndBindNestedFunction(input, a.function, context)
+                    executionGraph = nested.second
+                    nested.first
+                }
                 else -> throw QueryException.QuerySyntaxException("Function argument at position $i is malformed.")
             }
         }
-        val signature = Signature.Closed<Value>(projection.first, arguments.map { Argument.Typed(it.type) }.toTypedArray())
+
+        /* Obtain signature and function object. */
+        val signature = Signature.Closed<Value>(function.name.fqn(), arguments.map { Argument.Typed(it.type) }.toTypedArray())
         val functionObject = try {
             context.catalogue.functions.obtain(signature)
         } catch (e: FunctionNotFoundException) {
             throw QueryException.QueryBindException("Desired distance function $signature could not be found!")
         }
-        return FunctionLogicalOperatorNode(input, functionObject, arguments, projection.second)
+        return FunctionLogicalOperatorNode((executionGraph ?: input), functionObject, arguments, name)
+    }
+
+    /**
+     * Parses and binds a nested [CottontailGrpc.Function]
+     *
+     * @param input The [OperatorNode.Logical] on which to perform the [Function].
+     * @param function The (unparsed) [CottontailGrpc.Function] object.
+     * @param context The [QueryContext] used for query binding.
+     *
+     * @return The resulting [SortLogicalOperatorNode].
+     */
+    private fun parseAndBindNestedFunction(input: OperatorNode.Logical, function: CottontailGrpc.Function, context: QueryContext): Pair<Binding.Literal, NestedFunctionLogicalOperatorNode> {
+        var executionGraph: NestedFunctionLogicalOperatorNode? = null
+        val arguments = function.argumentsList.mapIndexed { i, a ->
+            when (a.expCase) {
+                CottontailGrpc.Expression.ExpCase.LITERAL -> context.bindings.bind(a.literal.toValue())
+                CottontailGrpc.Expression.ExpCase.COLUMN -> context.bindings.bind(input.findUniqueColumnForName(a.column.fqn()))
+                CottontailGrpc.Expression.ExpCase.FUNCTION ->  {
+                    val nested = parseAndBindNestedFunction(input, a.function, context)
+                    executionGraph = nested.second
+                    nested.first
+                }
+                else -> throw QueryException.QuerySyntaxException("Function argument at position $i is malformed.")
+            }
+        }
+
+        /* Obtain signature and function object. */
+        val signature = Signature.Closed<Value>(function.name.fqn(), arguments.map { Argument.Typed(it.type) }.toTypedArray())
+        val functionObject = try {
+            context.catalogue.functions.obtain(signature)
+        } catch (e: FunctionNotFoundException) {
+            throw QueryException.QueryBindException("Desired distance function $signature could not be found!")
+        }
+
+        /*
+         * Important: In contrast to most cases, execution graph acts as input because inner terms must be evaluated
+         * first but decomposition works its way from the outer function to the inner functions.
+         */
+        val binding = context.bindings.bindNull(functionObject.signature.returnType as Types<*>, false)
+        return binding to if (executionGraph != null) {
+            NestedFunctionLogicalOperatorNode(executionGraph, functionObject, arguments, binding)
+        } else {
+            NestedFunctionLogicalOperatorNode(input, functionObject, arguments, binding)
+        }
     }
 
     /**

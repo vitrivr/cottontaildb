@@ -1,19 +1,20 @@
 package org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.function
 
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.core.functions.Function
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.UnaryLogicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.predicates.FilterLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.physical.function.FunctionPhysicalOperatorNode
-import org.vitrivr.cottontail.core.functions.Function
-import org.vitrivr.cottontail.core.database.Name
 
 /**
- * A [UnaryLogicalOperatorNode] that represents the execution of a [Function] to generate some [ColumnDef].
+ * A [UnaryLogicalOperatorNode] that represents the execution of a [Function] that is manifested in an additional [ColumnDef].
  *
  * @author Ralph Gasser
  * @version 1.1.0
  */
-class FunctionLogicalOperatorNode(input: Logical? = null, val function: Function<*>, val arguments: List<Binding>, val alias: Name.ColumnName? = null) : UnaryLogicalOperatorNode(input) {
+class FunctionLogicalOperatorNode(input: Logical? = null, val function: Function<*>, val arguments: List<Binding>, val columnName: Name.ColumnName) : UnaryLogicalOperatorNode(input) {
 
     companion object {
         private const val NODE_NAME = "Function"
@@ -22,7 +23,7 @@ class FunctionLogicalOperatorNode(input: Logical? = null, val function: Function
     /** The column produced by this [FunctionLogicalOperatorNode] is determined by the [Function]'s signature. */
     override val columns: List<ColumnDef<*>>
         get() = (this.input?.columns ?: emptyList()) + ColumnDef(
-            name = this.alias ?: Name.ColumnName(this.function.signature.name.simple),
+            name = this.columnName,
             type = this.function.signature.returnType!!,
             nullable = false
         )
@@ -44,14 +45,14 @@ class FunctionLogicalOperatorNode(input: Logical? = null, val function: Function
      *
      * @return Copy of this [FunctionLogicalOperatorNode].
      */
-    override fun copy() = FunctionLogicalOperatorNode(function = this.function, arguments = this.arguments, alias = this.alias)
+    override fun copy() = FunctionLogicalOperatorNode(function = this.function, arguments = this.arguments, columnName = this.columnName)
 
     /**
      * Returns a [FunctionPhysicalOperatorNode] representation of this [FunctionLogicalOperatorNode]
      *
      * @return [FunctionPhysicalOperatorNode]
      */
-    override fun implement() = FunctionPhysicalOperatorNode(this.input?.implement(), this.function, this.arguments, this.alias)
+    override fun implement() = FunctionPhysicalOperatorNode(this.input?.implement(), this.function, this.arguments, this.columnName)
 
     /**
      * Compares this [FunctionLogicalOperatorNode] to the given [Object] and returns true if they're equal and false otherwise.
@@ -67,4 +68,7 @@ class FunctionLogicalOperatorNode(input: Logical? = null, val function: Function
      * Generates and returns a hash code for this [FunctionLogicalOperatorNode].
      */
     override fun hashCode(): Int = this.function.hashCode()
+
+    /** Generates and returns a [String] representation of this [FilterLogicalOperatorNode]. */
+    override fun toString() = "${super.toString()}[${this.function.signature} -> ${this.columnName}]"
 }

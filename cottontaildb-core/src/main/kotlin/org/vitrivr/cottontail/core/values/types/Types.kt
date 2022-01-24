@@ -99,31 +99,45 @@ sealed interface Types<T : Value> {
     /**
      * A [Scalar] type.
      */
-    sealed interface Scalar<T: ScalarValue<*>>: Types<T> {
+    sealed class Scalar<T: ScalarValue<*>>: Types<T> {
         override val logicalSize
             get() = 1
+        override fun equals(other: Any?): kotlin.Boolean {
+            if (this === other) return true
+            if (other !is Scalar<*>) return false
+            return other.ordinal == this.ordinal
+        }
+        override fun hashCode(): kotlin.Int = this.ordinal.hashCode()
+        override fun toString(): kotlin.String = this.name
     }
 
     /**
      * A [Numeric] type.
      */
-    sealed interface Numeric<T: NumericValue<*>>: Scalar<T>
+    sealed class  Numeric<T: NumericValue<*>>: Scalar<T>()
 
     /**
      * A [Complex] type.
      */
-    sealed interface Complex<T: ComplexValue<*>>: Numeric<T>
+    sealed class  Complex<T: ComplexValue<*>>: Numeric<T>()
 
     /**
      * A [Vector] type
      */
-    sealed interface Vector<T: VectorValue<*>, E: ScalarValue<*>>: Types<T> {
+    sealed class Vector<T: VectorValue<*>, E: ScalarValue<*>>: Types<T> {
         /** The element type of this [Vector] type. */
-        val elementType: Scalar<E>
+        abstract val elementType: Scalar<E>
+        override fun equals(other: Any?): kotlin.Boolean {
+            if (this === other) return true
+            if (other !is Vector<*,*>) return false
+            return other.ordinal == this.ordinal && other.logicalSize == this.logicalSize
+        }
+        override fun hashCode(): kotlin.Int = 31 * this.ordinal.hashCode() + this.logicalSize.hashCode()
+        override fun toString(): kotlin.String = "${this.name}(${this.logicalSize})"
     }
 
     @Suppress("UNCHECKED_CAST")
-    object Boolean : Scalar<BooleanValue> {
+    object Boolean : Scalar<BooleanValue>() {
         override val name = "BOOLEAN"
         override val ordinal: kotlin.Int = 0
         override val physicalSize = kotlin.Byte.SIZE_BYTES
@@ -131,7 +145,7 @@ sealed interface Types<T : Value> {
     }
 
     @Suppress("UNCHECKED_CAST")
-    object Byte : Numeric<ByteValue> {
+    object Byte : Numeric<ByteValue>() {
         override val name = "BYTE"
         override val ordinal: kotlin.Int = 1
         override val physicalSize = kotlin.Byte.SIZE_BYTES
@@ -139,7 +153,7 @@ sealed interface Types<T : Value> {
     }
 
     @Suppress("UNCHECKED_CAST")
-    object Short : Numeric<ShortValue> {
+    object Short : Numeric<ShortValue>() {
         override val name = "SHORT"
         override val ordinal: kotlin.Int = 2
         override val physicalSize = kotlin.Short.SIZE_BYTES
@@ -147,7 +161,7 @@ sealed interface Types<T : Value> {
     }
 
     @Suppress("UNCHECKED_CAST")
-    object Int : Numeric<IntValue> {
+    object Int : Numeric<IntValue>(){
         override val name = "INTEGER"
         override val ordinal: kotlin.Int = 3
         override val physicalSize = kotlin.Int.SIZE_BYTES
@@ -155,7 +169,7 @@ sealed interface Types<T : Value> {
     }
 
     @Suppress("UNCHECKED_CAST")
-    object Long : Numeric<LongValue> {
+    object Long : Numeric<LongValue>() {
         override val name = "LONG"
         override val ordinal: kotlin.Int = 4
         override val physicalSize = kotlin.Long.SIZE_BYTES
@@ -163,7 +177,7 @@ sealed interface Types<T : Value> {
     }
 
     @Suppress("UNCHECKED_CAST")
-    object Date : Scalar<DateValue> {
+    object Date : Scalar<DateValue>() {
         override val name = "DATE"
         override val ordinal: kotlin.Int = 5
         override val physicalSize = kotlin.Long.SIZE_BYTES
@@ -171,7 +185,7 @@ sealed interface Types<T : Value> {
     }
 
     @Suppress("UNCHECKED_CAST")
-    object Float : Numeric<FloatValue> {
+    object Float : Numeric<FloatValue>() {
         override val name = "FLOAT"
         override val ordinal: kotlin.Int = 6
         override val physicalSize = kotlin.Int.SIZE_BYTES
@@ -179,7 +193,7 @@ sealed interface Types<T : Value> {
     }
 
     @Suppress("UNCHECKED_CAST")
-    object Double : Numeric<DoubleValue> {
+    object Double : Numeric<DoubleValue>() {
         override val name = "DOUBLE"
         override val ordinal: kotlin.Int = 7
         override val physicalSize = kotlin.Long.SIZE_BYTES
@@ -187,7 +201,7 @@ sealed interface Types<T : Value> {
     }
 
     @Suppress("UNCHECKED_CAST")
-    object String : Scalar<StringValue> {
+    object String : Scalar<StringValue>() {
         override val name = "STRING"
         override val ordinal: kotlin.Int = 8
         override val logicalSize = LOGICAL_SIZE_UNKNOWN
@@ -196,7 +210,7 @@ sealed interface Types<T : Value> {
     }
 
     @Suppress("UNCHECKED_CAST")
-    object Complex32 : Complex<Complex32Value> {
+    object Complex32 : Complex<Complex32Value>() {
         override val name = "COMPLEX32"
         override val ordinal: kotlin.Int = 9
         override val logicalSize = 1
@@ -205,7 +219,7 @@ sealed interface Types<T : Value> {
     }
 
     @Suppress("UNCHECKED_CAST")
-    object Complex64 : Complex<Complex64Value> {
+    object Complex64 : Complex<Complex64Value>() {
         override val name = "COMPLEX64"
         override val ordinal: kotlin.Int = 10
         override val logicalSize = 1
@@ -214,7 +228,7 @@ sealed interface Types<T : Value> {
     }
 
     @Suppress("UNCHECKED_CAST")
-    class IntVector(override val logicalSize: kotlin.Int) : Vector<IntVectorValue, IntValue> {
+    class IntVector(override val logicalSize: kotlin.Int) : Vector<IntVectorValue, IntValue>() {
         override val name = "INT_VEC"
         override val ordinal: kotlin.Int = 11
         override val physicalSize = this.logicalSize * kotlin.Int.SIZE_BYTES
@@ -223,7 +237,7 @@ sealed interface Types<T : Value> {
     }
 
     @Suppress("UNCHECKED_CAST")
-    class LongVector(override val logicalSize: kotlin.Int) : Vector<LongVectorValue, LongValue> {
+    class LongVector(override val logicalSize: kotlin.Int) : Vector<LongVectorValue, LongValue>() {
         override val name = "LONG_VEC"
         override val ordinal: kotlin.Int = 12
         override val physicalSize = this.logicalSize * kotlin.Long.SIZE_BYTES
@@ -232,7 +246,7 @@ sealed interface Types<T : Value> {
     }
 
     @Suppress("UNCHECKED_CAST")
-    class FloatVector(override val logicalSize: kotlin.Int) : Vector<FloatVectorValue, FloatValue> {
+    class FloatVector(override val logicalSize: kotlin.Int) : Vector<FloatVectorValue, FloatValue>() {
         override val name = "FLOAT_VEC"
         override val ordinal: kotlin.Int = 13
         override val physicalSize = this.logicalSize * kotlin.Int.SIZE_BYTES
@@ -241,7 +255,7 @@ sealed interface Types<T : Value> {
     }
 
     @Suppress("UNCHECKED_CAST")
-    class DoubleVector(override val logicalSize: kotlin.Int) : Vector<DoubleVectorValue, DoubleValue> {
+    class DoubleVector(override val logicalSize: kotlin.Int) : Vector<DoubleVectorValue, DoubleValue>() {
         override val name = "DOUBLE_VEC"
         override val ordinal: kotlin.Int = 14
         override val physicalSize = this.logicalSize * kotlin.Long.SIZE_BYTES
@@ -250,7 +264,7 @@ sealed interface Types<T : Value> {
     }
 
     @Suppress("UNCHECKED_CAST")
-    class BooleanVector(override val logicalSize: kotlin.Int) : Vector<BooleanVectorValue, BooleanValue> {
+    class BooleanVector(override val logicalSize: kotlin.Int) : Vector<BooleanVectorValue, BooleanValue>() {
         override val name = "BOOL_VEC"
         override val ordinal: kotlin.Int = 15
         override val physicalSize = this.logicalSize * kotlin.Byte.SIZE_BYTES
@@ -259,7 +273,7 @@ sealed interface Types<T : Value> {
     }
 
     @Suppress("UNCHECKED_CAST")
-    class Complex32Vector(override val logicalSize: kotlin.Int) : Vector<Complex32VectorValue, Complex32Value> {
+    class Complex32Vector(override val logicalSize: kotlin.Int) : Vector<Complex32VectorValue, Complex32Value>() {
         override val name = "COMPLEX32_VEC"
         override val ordinal: kotlin.Int = 16
         override val physicalSize = this.logicalSize * 2 * kotlin.Int.SIZE_BYTES
@@ -268,7 +282,7 @@ sealed interface Types<T : Value> {
     }
 
     @Suppress("UNCHECKED_CAST")
-    class Complex64Vector(override val logicalSize: kotlin.Int) : Vector<Complex64VectorValue, Complex32Value> {
+    class Complex64Vector(override val logicalSize: kotlin.Int) : Vector<Complex64VectorValue, Complex32Value>() {
         override val name = "COMPLEX64_VEC"
         override val ordinal: kotlin.Int = 17
         override val elementType = Complex32

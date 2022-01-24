@@ -1,16 +1,15 @@
 package org.vitrivr.cottontail.dbms.queries.planning.nodes.physical.function
 
 import org.vitrivr.cottontail.core.database.ColumnDef
-import org.vitrivr.cottontail.dbms.queries.OperatorNode
-import org.vitrivr.cottontail.dbms.queries.QueryContext
+import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.core.functions.Function
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
-import org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.function.FunctionLogicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.OperatorNode
+import org.vitrivr.cottontail.dbms.queries.QueryContext
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.physical.UnaryPhysicalOperatorNode
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.function.FunctionOperator
-import org.vitrivr.cottontail.core.functions.Function
-import org.vitrivr.cottontail.core.database.Name
 
 /**
  * A [UnaryPhysicalOperatorNode] that represents the execution of a [Function] to generate some [ColumnDef].
@@ -18,7 +17,7 @@ import org.vitrivr.cottontail.core.database.Name
  * @author Ralph Gasser
  * @version 1.1.0
  */
-class FunctionPhysicalOperatorNode(input: Physical? = null, val function: Function<*>, val arguments: List<Binding>, val alias: Name.ColumnName? = null) : UnaryPhysicalOperatorNode(input) {
+class FunctionPhysicalOperatorNode(input: Physical? = null, val function: Function<*>, val arguments: List<Binding>, val columnName: Name.ColumnName) : UnaryPhysicalOperatorNode(input) {
 
     companion object {
         private const val NODE_NAME = "Function"
@@ -26,7 +25,7 @@ class FunctionPhysicalOperatorNode(input: Physical? = null, val function: Functi
 
     /** The [ColumnDef] being produced by this [FunctionPhysicalOperatorNode]. */
     val produces: ColumnDef<*> = ColumnDef(
-        name = this.alias ?: Name.ColumnName(this.function.signature.name.simple),
+        name = this.columnName,
         type = this.function.signature.returnType!!,
         nullable = false
     )
@@ -39,20 +38,20 @@ class FunctionPhysicalOperatorNode(input: Physical? = null, val function: Functi
     override val requires: List<ColumnDef<*>>
         get() = this.arguments.filterIsInstance<Binding.Column>().map { it.column }
 
-    override fun copy(): UnaryPhysicalOperatorNode = FunctionPhysicalOperatorNode(function = this.function, arguments =  this.arguments, alias = this.alias)
+    override fun copy(): UnaryPhysicalOperatorNode = FunctionPhysicalOperatorNode(function = this.function, arguments =  this.arguments, columnName = this.columnName)
 
-    /**The [ExistsProjectionPhysicalOperatorNode] cannot be partitioned. */
+    /**The [FunctionPhysicalOperatorNode] cannot be partitioned. */
     override val canBePartitioned: Boolean = true
 
     /** The [Cost] of executing this [FunctionPhysicalOperatorNode]. */
     override val cost: Cost
         get() = Cost(cpu = this.outputSize * this.function.cost)
 
-    /** [FunctionLogicalOperatorNode] can only be executed if [Function] can be executed. */
+    /** [FunctionPhysicalOperatorNode] can only be executed if [Function] can be executed. */
     override val executable: Boolean
         get() = super.executable && this.function.executable
 
-    /** Human-readable name of this [FunctionLogicalOperatorNode]. */
+    /** Human-readable name of this [FunctionPhysicalOperatorNode]. */
     override val name: String
         get() = NODE_NAME
 
@@ -63,7 +62,7 @@ class FunctionPhysicalOperatorNode(input: Physical? = null, val function: Functi
      */
     override fun toOperator(ctx: QueryContext): Operator {
         val input = this.input?.toOperator(ctx) ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)")
-        return FunctionOperator(input, this.function, this.arguments, ctx.bindings, this.alias)
+        return FunctionOperator(input, this.function, this.arguments, ctx.bindings, this.columnName)
     }
 
     /**
@@ -74,14 +73,7 @@ class FunctionPhysicalOperatorNode(input: Physical? = null, val function: Functi
      */
     override fun partition(p: Int): List<Physical> {
         val input = this.input ?: throw IllegalStateException("Cannot partition disconnected OperatorNode (node = $this)")
-        return input.partition(p).map { FunctionPhysicalOperatorNode(it, this.function, this.arguments, this.alias) }
-    }
-
-    /** Generates and returns a [String] representation of this [FunctionOperator]. */
-    override fun toString() = if (this.alias != null) {
-        "${super.toString()}[${this.function.signature} -> ${this.alias}]"
-    } else {
-        "${super.toString()}[${this.function.signature}]"
+        return input.partition(p).map { FunctionPhysicalOperatorNode(it, this.function, this.arguments, this.columnName) }
     }
 
     /**
@@ -91,7 +83,7 @@ class FunctionPhysicalOperatorNode(input: Physical? = null, val function: Functi
         if (this === other) return true
         if (other !is FunctionPhysicalOperatorNode) return false
         if (this.function != other.function) return false
-        if (this.alias != other.alias) return false
+        if (this.columnName != other.columnName) return false
         return true
     }
 
@@ -100,7 +92,10 @@ class FunctionPhysicalOperatorNode(input: Physical? = null, val function: Functi
      */
     override fun hashCode(): Int {
         var result = this.function.hashCode()
-        result = 31 * result + alias.hashCode()
+        result = 31 * result + columnName.hashCode()
         return result
     }
+
+    /** Generates and returns a [String] representation of this [FunctionOperator]. */
+    override fun toString() =  "${super.toString()}[${this.function.signature} -> ${this.columnName}]"
 }
