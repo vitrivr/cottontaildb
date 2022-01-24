@@ -1,6 +1,8 @@
 /* Plugins. */
 apply plugin: 'application'
 apply plugin: 'kotlinx-serialization'
+apply plugin: 'maven-publish'
+apply plugin: 'signing'
 
 /* Cottontail DB dependencies. */
 dependencies {
@@ -33,6 +35,60 @@ application {
     applicationName = 'cottontaildb'
     mainClassName = 'org.vitrivr.cottontail.cli.CottontailKt'
     applicationDefaultJvmArgs = ["-Xms2G", "-Xmx4G"]
+}
+
+/* Publication of Cottontail DB to Maven Central. */
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            groupId = 'org.vitrivr'
+            artifactId = 'cottontaildb'
+            version = System.getenv().getOrDefault("MAVEN_PUBLICATION_VERSION", version.toString())
+            from components.java
+            pom {
+                name = 'Cottontail DB'
+                description = 'Cottontail DB as java library, for use in embedded mode.'
+                url = 'https://github.com/vitrivr/cottontaildb/'
+                licenses {
+                    license {
+                        name = 'MIT License'
+                    }
+                }
+                developers {
+                    developer {
+                        id = 'ppanopticon'
+                        name = 'Ralph Gasser'
+                        email = 'ralph.gasser@unibas.ch'
+                    }
+                }
+                scm {
+                    connection = 'scm:git:https://github.com/vitrivr/cottontaildb.git'
+                    url = 'https://github.com/vitrivr/cottontaildb'
+                }
+            }
+        }
+    }
+    repositories {
+        repositories {
+            maven {
+                def releasesRepoUrl = 'https://oss.sonatype.org/service/local/staging/deploy/maven2/'
+                def snapshotsRepoUrl = 'https://oss.sonatype.org/content/repositories/snapshots/'
+                name = "OSSRH"
+                url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
+                credentials {
+                    username = System.getenv("MAVEN_USERNAME")
+                    password = System.getenv("MAVEN_PASSWORD")
+                }
+            }
+        }
+    }
+}
+
+signing {
+    def signingKey = findProperty("signingKey")
+    def signingPassword = findProperty("signingPassword")
+    useInMemoryPgpKeys(signingKey, signingPassword)
+    sign publishing.publications.mavenJava
 }
 
 shadowJar {

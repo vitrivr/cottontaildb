@@ -5,7 +5,7 @@ RUN cd /cottontail-src && \
   ./gradlew distTar && \
   mkdir cottontaildb-bin && \
   cd cottontaildb-bin && \
-  tar xf ../build/distributions/cottontaildb-bin.tar
+  tar xf ../build/cottontaildb-dbms/distributions/cottontaildb-dbms.tar
 
 
 FROM openjdk:latest

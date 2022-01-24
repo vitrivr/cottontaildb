@@ -32,9 +32,6 @@ allprojects {
         }
     }
 
-
-    apply plugin: 'maven-publish'
-    apply plugin: 'signing'
     apply plugin: 'com.github.johnrengelman.shadow'
 }
 
