@@ -1,11 +1,7 @@
 package org.vitrivr.cottontail.model.values
 
 import org.apache.commons.math3.util.FastMath
-import org.vitrivr.cottontail.model.basics.Type
-import org.vitrivr.cottontail.model.values.types.ComplexVectorValue
-import org.vitrivr.cottontail.model.values.types.NumericValue
-import org.vitrivr.cottontail.model.values.types.Value
-import org.vitrivr.cottontail.model.values.types.VectorValue
+import org.vitrivr.cottontail.model.values.types.*
 import java.util.*
 import kotlin.math.atan2
 import kotlin.math.pow
@@ -81,9 +77,9 @@ value class Complex64VectorValue(val data: DoubleArray) : ComplexVectorValue<Dou
     override val logicalSize: Int
         get() = this.data.size / 2
 
-    /** The [Type] of this [Complex64VectorValue]. */
-    override val type: Type<*>
-        get() = Type.Complex64Vector(this.logicalSize)
+    /** The [Types] of this [Complex64VectorValue]. */
+    override val type: Types<*>
+        get() = Types.Complex64Vector(this.logicalSize)
 
     /**
      * Returns the i-th entry of  this [Complex64VectorValue]. All entries with i % 2 == 0 correspond

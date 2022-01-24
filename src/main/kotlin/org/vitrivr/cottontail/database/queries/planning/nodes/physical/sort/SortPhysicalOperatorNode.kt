@@ -8,7 +8,7 @@ import org.vitrivr.cottontail.database.queries.planning.nodes.physical.UnaryPhys
 import org.vitrivr.cottontail.database.queries.sort.SortOrder
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.sort.HeapSortOperator
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.exceptions.QueryException
 
 /**
@@ -36,7 +36,7 @@ class SortPhysicalOperatorNode(input: Physical? = null, override val sortOn: Lis
         get() = Cost(
             cpu = 2 * this.sortOn.size * Cost.COST_MEMORY_ACCESS,
             memory = this.columns.sumOf {
-                if (it.type == Type.String) {
+                if (it.type == Types.String) {
                     this.statistics[it].avgWidth * Char.SIZE_BYTES
                 } else {
                     it.type.physicalSize

@@ -4,7 +4,7 @@ import com.google.gson.stream.JsonReader
 import com.google.gson.stream.JsonToken
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.grpc.CottontailGrpc
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.utilities.data.Format
 import java.nio.file.Files
 import java.nio.file.Path
@@ -47,33 +47,33 @@ class JsonDataImporter(override val path: Path, private val schema: Array<Column
             if (column.name.simple == name || column.name.toString() == name) {
                 val element = CottontailGrpc.InsertMessage.InsertElement.newBuilder()
                 val value = when (column.type) {
-                    is Type.Boolean -> CottontailGrpc.Literal.newBuilder()
+                    is Types.Boolean -> CottontailGrpc.Literal.newBuilder()
                         .setBooleanData(this.reader.nextBoolean())
-                    is Type.Byte,
-                    is Type.Short,
-                    is Type.Int -> CottontailGrpc.Literal.newBuilder()
+                    is Types.Byte,
+                    is Types.Short,
+                    is Types.Int -> CottontailGrpc.Literal.newBuilder()
                         .setIntData(this.reader.nextInt())
-                    is Type.Long -> CottontailGrpc.Literal.newBuilder()
+                    is Types.Long -> CottontailGrpc.Literal.newBuilder()
                         .setLongData(this.reader.nextLong())
-                    is Type.Float -> CottontailGrpc.Literal.newBuilder()
+                    is Types.Float -> CottontailGrpc.Literal.newBuilder()
                         .setFloatData(this.reader.nextDouble().toFloat())
-                    is Type.Double -> CottontailGrpc.Literal.newBuilder()
+                    is Types.Double -> CottontailGrpc.Literal.newBuilder()
                         .setDoubleData(this.reader.nextDouble())
-                    is Type.Date -> CottontailGrpc.Literal.newBuilder()
+                    is Types.Date -> CottontailGrpc.Literal.newBuilder()
                         .setStringData(this.reader.nextString())
-                    is Type.String -> CottontailGrpc.Literal.newBuilder()
+                    is Types.String -> CottontailGrpc.Literal.newBuilder()
                         .setDateData(
                             CottontailGrpc.Date.newBuilder().setUtcTimestamp(this.reader.nextLong())
                         )
-                    is Type.Complex32 -> this.readComplex32Value()
-                    is Type.Complex64 -> this.readComplex64Value()
-                    is Type.IntVector -> this.readIntVector(column.type.logicalSize)
-                    is Type.LongVector -> this.readLongVector(column.type.logicalSize)
-                    is Type.FloatVector -> this.readFloatVector(column.type.logicalSize)
-                    is Type.DoubleVector -> this.readDoubleVector(column.type.logicalSize)
-                    is Type.BooleanVector -> this.readBooleanVector(column.type.logicalSize)
-                    is Type.Complex32Vector -> this.readComplex32Vector(column.type.logicalSize)
-                    is Type.Complex64Vector -> this.readComplex64Vector(column.type.logicalSize)
+                    is Types.Complex32 -> this.readComplex32Value()
+                    is Types.Complex64 -> this.readComplex64Value()
+                    is Types.IntVector -> this.readIntVector(column.type.logicalSize)
+                    is Types.LongVector -> this.readLongVector(column.type.logicalSize)
+                    is Types.FloatVector -> this.readFloatVector(column.type.logicalSize)
+                    is Types.DoubleVector -> this.readDoubleVector(column.type.logicalSize)
+                    is Types.BooleanVector -> this.readBooleanVector(column.type.logicalSize)
+                    is Types.Complex32Vector -> this.readComplex32Vector(column.type.logicalSize)
+                    is Types.Complex64Vector -> this.readComplex64Vector(column.type.logicalSize)
                 }
                 element.setColumn(
                     CottontailGrpc.ColumnName.newBuilder().setName(column.name.simple)

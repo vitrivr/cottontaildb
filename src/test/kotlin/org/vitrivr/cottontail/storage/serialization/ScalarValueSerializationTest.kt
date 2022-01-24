@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.storage.serialization
 
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.column.ColumnEngine
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.*
 import org.vitrivr.cottontail.model.values.types.Value
@@ -17,13 +17,13 @@ class ScalarValueSerializationTest : AbstractSerializationTest() {
 
     /** Columns tested by this [DoubleVectorValueSerializationTest]. */
     override val columns: Array<Pair<ColumnDef<*>, ColumnEngine>> = arrayOf(
-        ColumnDef(this.entityName.column("id"), Type.Int) to ColumnEngine.MAPDB,
-        ColumnDef(this.entityName.column("int"), Type.Int) to ColumnEngine.MAPDB,
-        ColumnDef(this.entityName.column("long"), Type.Long) to ColumnEngine.MAPDB,
-        ColumnDef(this.entityName.column("double"), Type.Double) to ColumnEngine.MAPDB,
-        ColumnDef(this.entityName.column("float"), Type.Float) to ColumnEngine.MAPDB,
-        ColumnDef(this.entityName.column("byte"), Type.Byte) to ColumnEngine.MAPDB,
-        ColumnDef(this.entityName.column("short"), Type.Short) to ColumnEngine.MAPDB,
+        ColumnDef(this.entityName.column("id"), Types.Int) to ColumnEngine.MAPDB,
+        ColumnDef(this.entityName.column("int"), Types.Int) to ColumnEngine.MAPDB,
+        ColumnDef(this.entityName.column("long"), Types.Long) to ColumnEngine.MAPDB,
+        ColumnDef(this.entityName.column("double"), Types.Double) to ColumnEngine.MAPDB,
+        ColumnDef(this.entityName.column("float"), Types.Float) to ColumnEngine.MAPDB,
+        ColumnDef(this.entityName.column("byte"), Types.Byte) to ColumnEngine.MAPDB,
+        ColumnDef(this.entityName.column("short"), Types.Short) to ColumnEngine.MAPDB,
     )
 
     /** Name of this [LongVectorValueSerializationTest]. */

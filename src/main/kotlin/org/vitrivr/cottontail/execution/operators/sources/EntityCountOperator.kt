@@ -12,7 +12,7 @@ import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Record
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.LongValue
 
@@ -26,7 +26,7 @@ class EntityCountOperator(groupId: GroupId, val entity: EntityTx, override val b
 
     /** The [ColumnDef] returned by this [EntitySampleOperator]. */
     override val columns: List<ColumnDef<*>> = listOf(
-        ColumnDef(alias ?: entity.dbo.name.column(Projection.COUNT.label()), Type.Long)
+        ColumnDef(alias ?: entity.dbo.name.column(Projection.COUNT.label()), Types.Long)
     )
 
     /**

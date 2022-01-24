@@ -1,10 +1,6 @@
 package org.vitrivr.cottontail.model.values
 
-import org.vitrivr.cottontail.model.basics.Type
-import org.vitrivr.cottontail.model.values.types.ComplexValue
-import org.vitrivr.cottontail.model.values.types.NumericValue
-import org.vitrivr.cottontail.model.values.types.RealValue
-import org.vitrivr.cottontail.model.values.types.Value
+import org.vitrivr.cottontail.model.values.types.*
 import java.util.*
 
 /**
@@ -95,9 +91,9 @@ value class Complex32Value(val data: FloatArray): ComplexValue<Float> {
     override val logicalSize: Int
         get() = 1
 
-    /** The [Type] of this [Complex32Value]. */
-    override val type: Type<*>
-        get() = Type.Complex32
+    /** The [Types] of this [Complex32Value]. */
+    override val type: Types<*>
+        get() = Types.Complex32
 
     /**
      * Compares this [Complex32Value] to another [Value]. Returns -1, 0 or 1 of other value is smaller,

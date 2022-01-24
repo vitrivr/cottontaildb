@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.model.values
 
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.values.types.NumericValue
 import org.vitrivr.cottontail.model.values.types.RealVectorValue
 import org.vitrivr.cottontail.model.values.types.Value
@@ -48,9 +48,9 @@ value class IntVectorValue(val data: IntArray) : RealVectorValue<Int> {
     override val logicalSize: Int
         get() = this.data.size
 
-    /** The [Type] of this [IntVectorValue]. */
-    override val type: Type<*>
-        get() = Type.IntVector(this.logicalSize)
+    /** The [Types] of this [IntVectorValue]. */
+    override val type: Types<*>
+        get() = Types.IntVector(this.logicalSize)
 
     /**
      * Checks for equality between this [IntVectorValue] and the other [Value]. Equality can only be

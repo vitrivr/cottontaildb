@@ -9,7 +9,7 @@ import org.vitrivr.cottontail.database.queries.sort.SortOrder
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.sort.LimitingHeapSortOperator
 import org.vitrivr.cottontail.execution.operators.sort.MergeLimitingHeapSortOperator
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import kotlin.math.min
 
@@ -40,7 +40,7 @@ class LimitingSortPhysicalOperatorNode(input: Physical? = null, sortOn: List<Pai
         get() = Cost(
             cpu = 2 * (this.input?.outputSize ?: 0) * this.sortOn.size * Cost.COST_MEMORY_ACCESS,
             memory = (this.columns.sumOf {
-                if (it.type == Type.String) {
+                if (it.type == Types.String) {
                     this.statistics[it].avgWidth * Char.SIZE_BYTES
                 } else {
                     it.type.physicalSize

@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.model.values
 
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.values.types.NumericValue
 import org.vitrivr.cottontail.model.values.types.ScalarValue
 import org.vitrivr.cottontail.model.values.types.Value
@@ -32,9 +32,9 @@ value class BooleanValue(override val value: Boolean): ScalarValue<Boolean> {
     override val logicalSize: Int
         get() = 1
 
-    /** The [Type] size of this [BooleanValue]. */
-    override val type: Type<*>
-        get() = Type.Boolean
+    /** The [Types] size of this [BooleanValue]. */
+    override val type: Types<*>
+        get() = Types.Boolean
 
     /**
      * Compares this [BooleanValue] to another [Value]. Returns -1, 0 or 1 of other value is smaller,

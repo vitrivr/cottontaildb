@@ -5,7 +5,7 @@ import org.vitrivr.cottontail.database.queries.binding.BindingContext
 import org.vitrivr.cottontail.database.queries.binding.EmptyBindingContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.model.basics.Name
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.DoubleValue
 import org.vitrivr.cottontail.model.values.StringValue
@@ -23,9 +23,9 @@ import kotlin.time.ExperimentalTime
 abstract class AbstractDataDefinitionOperator(protected val dboName: Name, protected val action: String) : Operator.SourceOperator() {
     companion object {
         val COLUMNS: List<ColumnDef<*>> = listOf(
-            ColumnDef(Name.ColumnName("action"), Type.String, false),
-            ColumnDef(Name.ColumnName("dbo"), Type.String, false),
-            ColumnDef(Name.ColumnName("duration_ms"), Type.Double, false)
+            ColumnDef(Name.ColumnName("action"), Types.String, false),
+            ColumnDef(Name.ColumnName("dbo"), Types.String, false),
+            ColumnDef(Name.ColumnName("duration_ms"), Types.Double, false)
         )
     }
 

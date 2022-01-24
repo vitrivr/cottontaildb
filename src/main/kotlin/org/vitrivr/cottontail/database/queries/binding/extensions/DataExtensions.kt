@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.database.queries.binding.extensions
 
 import org.vitrivr.cottontail.grpc.CottontailGrpc
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.values.*
 import org.vitrivr.cottontail.model.values.types.Value
@@ -40,31 +40,31 @@ fun Value.toLiteral(): CottontailGrpc.Literal = when (this) {
 }
 
 /**
- * Returns the value of [CottontailGrpc.Literal] as [Value] of the given [Type]. Performs
+ * Returns the value of [CottontailGrpc.Literal] as [Value] of the given [Types]. Performs
  * conversion if necessary.
  *
- * @param type The desired [Type].
+ * @param type The desired [Types].
  * @return [Value] or null
  */
-fun CottontailGrpc.Literal.toValue(type: Type<*>): Value = when (type) {
-    is Type.Double -> this.toDoubleValue()
-    is Type.Float -> this.toFloatValue()
-    is Type.Boolean -> this.toBooleanValue()
-    is Type.Byte -> this.toByteValue()
-    is Type.Short -> this.toShortValue()
-    is Type.Int -> this.toIntValue()
-    is Type.Long -> this.toLongValue()
-    is Type.Date -> this.toDateValue()
-    is Type.String -> this.toStringValue()
-    is Type.Complex32 -> this.toComplex32Value()
-    is Type.Complex64 -> this.toComplex64Value()
-    is Type.IntVector -> this.toIntVectorValue()
-    is Type.LongVector -> this.toLongVectorValue()
-    is Type.FloatVector -> this.toFloatVectorValue()
-    is Type.DoubleVector -> this.toDoubleVectorValue()
-    is Type.BooleanVector -> this.toBooleanVectorValue()
-    is Type.Complex32Vector -> this.toComplex32VectorValue()
-    is Type.Complex64Vector -> this.toComplex64VectorValue()
+fun CottontailGrpc.Literal.toValue(type: Types<*>): Value = when (type) {
+    is Types.Double -> this.toDoubleValue()
+    is Types.Float -> this.toFloatValue()
+    is Types.Boolean -> this.toBooleanValue()
+    is Types.Byte -> this.toByteValue()
+    is Types.Short -> this.toShortValue()
+    is Types.Int -> this.toIntValue()
+    is Types.Long -> this.toLongValue()
+    is Types.Date -> this.toDateValue()
+    is Types.String -> this.toStringValue()
+    is Types.Complex32 -> this.toComplex32Value()
+    is Types.Complex64 -> this.toComplex64Value()
+    is Types.IntVector -> this.toIntVectorValue()
+    is Types.LongVector -> this.toLongVectorValue()
+    is Types.FloatVector -> this.toFloatVectorValue()
+    is Types.DoubleVector -> this.toDoubleVectorValue()
+    is Types.BooleanVector -> this.toBooleanVectorValue()
+    is Types.Complex32Vector -> this.toComplex32VectorValue()
+    is Types.Complex64Vector -> this.toComplex64VectorValue()
 }
 
 /**
@@ -103,29 +103,29 @@ fun CottontailGrpc.Literal.toValue(): Value = when(this.dataCase) {
 }
 
 /**
- * Returns the [Type] of a [CottontailGrpc.Literal].
+ * Returns the [Types] of a [CottontailGrpc.Literal].
  *
- * @return [Type]
+ * @return [Types]
  * @throws QueryException.UnsupportedCastException If cast is not possible.
  */
-fun CottontailGrpc.Literal.toType(): Type<*> = when(this.dataCase) {
-    CottontailGrpc.Literal.DataCase.BOOLEANDATA -> Type.Boolean
-    CottontailGrpc.Literal.DataCase.INTDATA -> Type.Int
-    CottontailGrpc.Literal.DataCase.LONGDATA -> Type.Long
-    CottontailGrpc.Literal.DataCase.FLOATDATA -> Type.Float
-    CottontailGrpc.Literal.DataCase.DOUBLEDATA -> Type.Double
-    CottontailGrpc.Literal.DataCase.STRINGDATA -> Type.String
-    CottontailGrpc.Literal.DataCase.DATEDATA -> Type.Date
-    CottontailGrpc.Literal.DataCase.COMPLEX32DATA -> Type.Complex32
-    CottontailGrpc.Literal.DataCase.COMPLEX64DATA -> Type.Complex64
+fun CottontailGrpc.Literal.toType(): Types<*> = when(this.dataCase) {
+    CottontailGrpc.Literal.DataCase.BOOLEANDATA -> Types.Boolean
+    CottontailGrpc.Literal.DataCase.INTDATA -> Types.Int
+    CottontailGrpc.Literal.DataCase.LONGDATA -> Types.Long
+    CottontailGrpc.Literal.DataCase.FLOATDATA -> Types.Float
+    CottontailGrpc.Literal.DataCase.DOUBLEDATA -> Types.Double
+    CottontailGrpc.Literal.DataCase.STRINGDATA -> Types.String
+    CottontailGrpc.Literal.DataCase.DATEDATA -> Types.Date
+    CottontailGrpc.Literal.DataCase.COMPLEX32DATA -> Types.Complex32
+    CottontailGrpc.Literal.DataCase.COMPLEX64DATA -> Types.Complex64
     CottontailGrpc.Literal.DataCase.VECTORDATA -> when(this.vectorData.vectorDataCase) {
-        CottontailGrpc.Vector.VectorDataCase.DOUBLEVECTOR -> Type.DoubleVector(this.vectorData.doubleVector.vectorCount)
-        CottontailGrpc.Vector.VectorDataCase.FLOATVECTOR -> Type.FloatVector(this.vectorData.floatVector.vectorCount)
-        CottontailGrpc.Vector.VectorDataCase.LONGVECTOR -> Type.LongVector(this.vectorData.longVector.vectorCount)
-        CottontailGrpc.Vector.VectorDataCase.INTVECTOR -> Type.IntVector(this.vectorData.intVector.vectorCount)
-        CottontailGrpc.Vector.VectorDataCase.BOOLVECTOR -> Type.BooleanVector(this.vectorData.boolVector.vectorCount)
-        CottontailGrpc.Vector.VectorDataCase.COMPLEX32VECTOR -> Type.Complex32Vector(this.vectorData.complex32Vector.vectorCount)
-        CottontailGrpc.Vector.VectorDataCase.COMPLEX64VECTOR -> Type.Complex64Vector(this.vectorData.complex64Vector.vectorCount)
+        CottontailGrpc.Vector.VectorDataCase.DOUBLEVECTOR -> Types.DoubleVector(this.vectorData.doubleVector.vectorCount)
+        CottontailGrpc.Vector.VectorDataCase.FLOATVECTOR -> Types.FloatVector(this.vectorData.floatVector.vectorCount)
+        CottontailGrpc.Vector.VectorDataCase.LONGVECTOR -> Types.LongVector(this.vectorData.longVector.vectorCount)
+        CottontailGrpc.Vector.VectorDataCase.INTVECTOR -> Types.IntVector(this.vectorData.intVector.vectorCount)
+        CottontailGrpc.Vector.VectorDataCase.BOOLVECTOR -> Types.BooleanVector(this.vectorData.boolVector.vectorCount)
+        CottontailGrpc.Vector.VectorDataCase.COMPLEX32VECTOR -> Types.Complex32Vector(this.vectorData.complex32Vector.vectorCount)
+        CottontailGrpc.Vector.VectorDataCase.COMPLEX64VECTOR -> Types.Complex64Vector(this.vectorData.complex64Vector.vectorCount)
         CottontailGrpc.Vector.VectorDataCase.VECTORDATA_NOT_SET,
         null -> throw QueryException.UnsupportedCastException("A value of NULL cannot be cast to VECTOR.")
     }
@@ -134,56 +134,56 @@ fun CottontailGrpc.Literal.toType(): Type<*> = when(this.dataCase) {
 }
 
 /**
- * Converts a [Type] to the [CottontailGrpc.Type] equivalent.
+ * Converts a [Types] to the [CottontailGrpc.Type] equivalent.
  *
  * @return [CottontailGrpc.Type]
  */
-fun CottontailGrpc.Type.toType(size: Int = 0): Type<*> = when(this) {
-    CottontailGrpc.Type.BOOLEAN -> Type.Boolean
-    CottontailGrpc.Type.BYTE -> Type.Byte
-    CottontailGrpc.Type.SHORT -> Type.Short
-    CottontailGrpc.Type.INTEGER -> Type.Int
-    CottontailGrpc.Type.LONG -> Type.Long
-    CottontailGrpc.Type.FLOAT -> Type.Float
-    CottontailGrpc.Type.DOUBLE -> Type.Double
-    CottontailGrpc.Type.DATE -> Type.Date
-    CottontailGrpc.Type.STRING -> Type.String
-    CottontailGrpc.Type.COMPLEX32 -> Type.Complex32
-    CottontailGrpc.Type.COMPLEX64 -> Type.Complex64
-    CottontailGrpc.Type.DOUBLE_VEC -> Type.DoubleVector(size)
-    CottontailGrpc.Type.FLOAT_VEC -> Type.FloatVector(size)
-    CottontailGrpc.Type.LONG_VEC -> Type.LongVector(size)
-    CottontailGrpc.Type.INT_VEC -> Type.IntVector(size)
-    CottontailGrpc.Type.BOOL_VEC -> Type.BooleanVector(size)
-    CottontailGrpc.Type.COMPLEX32_VEC -> Type.Complex32Vector(size)
-    CottontailGrpc.Type.COMPLEX64_VEC -> Type.Complex64Vector(size)
+fun CottontailGrpc.Type.toType(size: Int = 0): Types<*> = when(this) {
+    CottontailGrpc.Type.BOOLEAN -> Types.Boolean
+    CottontailGrpc.Type.BYTE -> Types.Byte
+    CottontailGrpc.Type.SHORT -> Types.Short
+    CottontailGrpc.Type.INTEGER -> Types.Int
+    CottontailGrpc.Type.LONG -> Types.Long
+    CottontailGrpc.Type.FLOAT -> Types.Float
+    CottontailGrpc.Type.DOUBLE -> Types.Double
+    CottontailGrpc.Type.DATE -> Types.Date
+    CottontailGrpc.Type.STRING -> Types.String
+    CottontailGrpc.Type.COMPLEX32 -> Types.Complex32
+    CottontailGrpc.Type.COMPLEX64 -> Types.Complex64
+    CottontailGrpc.Type.DOUBLE_VEC -> Types.DoubleVector(size)
+    CottontailGrpc.Type.FLOAT_VEC -> Types.FloatVector(size)
+    CottontailGrpc.Type.LONG_VEC -> Types.LongVector(size)
+    CottontailGrpc.Type.INT_VEC -> Types.IntVector(size)
+    CottontailGrpc.Type.BOOL_VEC -> Types.BooleanVector(size)
+    CottontailGrpc.Type.COMPLEX32_VEC -> Types.Complex32Vector(size)
+    CottontailGrpc.Type.COMPLEX64_VEC -> Types.Complex64Vector(size)
     else -> throw IllegalArgumentException("gRPC type $this is unsupported and cannot be converted to Cottontail DB equivalent.")
 }
 
 /**
- * Converts a [Type] to the [CottontailGrpc.Type] equivalent.
+ * Converts a [Types] to the [CottontailGrpc.Type] equivalent.
  *
  * @return [CottontailGrpc.Type]
  */
-fun Type<*>.proto(): CottontailGrpc.Type = when(this) {
-    Type.Boolean -> CottontailGrpc.Type.BOOLEAN
-    Type.Byte -> CottontailGrpc.Type.BYTE
-    Type.Complex32 -> CottontailGrpc.Type.COMPLEX64
-    Type.Complex64 -> CottontailGrpc.Type.COMPLEX32
-    Type.Date -> CottontailGrpc.Type.DATE
-    Type.Double -> CottontailGrpc.Type.DOUBLE
-    Type.Float -> CottontailGrpc.Type.FLOAT
-    Type.Int -> CottontailGrpc.Type.INTEGER
-    Type.Long -> CottontailGrpc.Type.LONG
-    Type.Short -> CottontailGrpc.Type.SHORT
-    Type.String -> CottontailGrpc.Type.STRING
-    is Type.BooleanVector -> CottontailGrpc.Type.BOOL_VEC
-    is Type.IntVector -> CottontailGrpc.Type.INT_VEC
-    is Type.LongVector -> CottontailGrpc.Type.LONG_VEC
-    is Type.FloatVector -> CottontailGrpc.Type.FLOAT_VEC
-    is Type.DoubleVector -> CottontailGrpc.Type.DOUBLE_VEC
-    is Type.Complex32Vector -> CottontailGrpc.Type.COMPLEX32_VEC
-    is Type.Complex64Vector -> CottontailGrpc.Type.COMPLEX64_VEC
+fun Types<*>.proto(): CottontailGrpc.Type = when(this) {
+    Types.Boolean -> CottontailGrpc.Type.BOOLEAN
+    Types.Byte -> CottontailGrpc.Type.BYTE
+    Types.Complex32 -> CottontailGrpc.Type.COMPLEX64
+    Types.Complex64 -> CottontailGrpc.Type.COMPLEX32
+    Types.Date -> CottontailGrpc.Type.DATE
+    Types.Double -> CottontailGrpc.Type.DOUBLE
+    Types.Float -> CottontailGrpc.Type.FLOAT
+    Types.Int -> CottontailGrpc.Type.INTEGER
+    Types.Long -> CottontailGrpc.Type.LONG
+    Types.Short -> CottontailGrpc.Type.SHORT
+    Types.String -> CottontailGrpc.Type.STRING
+    is Types.BooleanVector -> CottontailGrpc.Type.BOOL_VEC
+    is Types.IntVector -> CottontailGrpc.Type.INT_VEC
+    is Types.LongVector -> CottontailGrpc.Type.LONG_VEC
+    is Types.FloatVector -> CottontailGrpc.Type.FLOAT_VEC
+    is Types.DoubleVector -> CottontailGrpc.Type.DOUBLE_VEC
+    is Types.Complex32Vector -> CottontailGrpc.Type.COMPLEX32_VEC
+    is Types.Complex64Vector -> CottontailGrpc.Type.COMPLEX64_VEC
 }
 
 /**

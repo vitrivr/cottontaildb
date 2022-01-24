@@ -11,7 +11,7 @@ import org.vitrivr.cottontail.execution.exceptions.OperatorSetupException
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Record
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.exceptions.ExecutionException
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.*
@@ -37,7 +37,7 @@ class MinProjectionOperator(parent: Operator, fields: List<Name.ColumnName>) : O
     override val columns: List<ColumnDef<*>> = this.parent.columns.mapNotNull { c ->
         val match = fields.find { f -> f.matches(c.name) }
         if (match != null) {
-            if (!c.type.numeric) throw OperatorSetupException(this, "The provided column $match cannot be used for a ${Projection.MAX} projection because it has the wrong type.")
+            if (c.type !is Types.Numeric<*>) throw OperatorSetupException(this, "The provided column $match cannot be used for a ${Projection.MAX} projection because it has the wrong type.")
             c
         } else {
             null
@@ -78,12 +78,12 @@ class MinProjectionOperator(parent: Operator, fields: List<Name.ColumnName>) : O
             val results = Array<Value?>(min.size) {
                 val column = this@MinProjectionOperator.parentColumns[it]
                 when (column.type) {
-                    Type.Boolean -> ByteValue(min[it])
-                    Type.Short -> ShortValue(min[it])
-                    Type.Int -> IntValue(min[it])
-                    Type.Long -> LongValue(min[it])
-                    Type.Float -> FloatValue(min[it])
-                    Type.Double -> DoubleValue(min[it])
+                    Types.Boolean -> ByteValue(min[it])
+                    Types.Short -> ShortValue(min[it])
+                    Types.Int -> IntValue(min[it])
+                    Types.Long -> LongValue(min[it])
+                    Types.Float -> FloatValue(min[it])
+                    Types.Double -> DoubleValue(min[it])
                     else -> throw ExecutionException.OperatorExecutionException(this@MinProjectionOperator, "The provided column $column cannot be used for a MIN projection.")
                 }
             }

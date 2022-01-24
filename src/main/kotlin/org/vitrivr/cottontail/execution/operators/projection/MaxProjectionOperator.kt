@@ -11,7 +11,7 @@ import org.vitrivr.cottontail.execution.exceptions.OperatorSetupException
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Record
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.exceptions.ExecutionException
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.*
@@ -22,7 +22,7 @@ import kotlin.math.max
  * A [Operator.PipelineOperator] used during query execution. It tracks the MAX (maximum) it has
  * encountered so far for each column and returns it as a [Record].
  *
- * The [MaxProjectionOperator] retains the [Type] of the incoming entries! Only produces a
+ * The [MaxProjectionOperator] retains the [Types] of the incoming entries! Only produces a
  * single [Record]. Acts as pipeline breaker.
  *
  * @author Ralph Gasser
@@ -37,7 +37,7 @@ class MaxProjectionOperator(parent: Operator, fields: List<Name.ColumnName>) : O
     override val columns: List<ColumnDef<*>> = this.parent.columns.mapNotNull { c ->
         val match = fields.find { f -> f.matches(c.name) }
         if (match != null) {
-            if (!c.type.numeric) throw OperatorSetupException(this, "The provided column $match cannot be used for a ${Projection.MAX} projection because it has the wrong type.")
+            if (c.type !is Types.Numeric<*>) throw OperatorSetupException(this, "The provided column $match cannot be used for a ${Projection.MAX} projection because it has the wrong type.")
             c
         } else {
             null
@@ -78,12 +78,12 @@ class MaxProjectionOperator(parent: Operator, fields: List<Name.ColumnName>) : O
             val results = Array<Value?>(max.size) {
                 val column = this@MaxProjectionOperator.parentColumns[it]
                 when (column.type) {
-                    Type.Byte -> ByteValue(max[it])
-                    Type.Short -> ShortValue(max[it])
-                    Type.Int -> IntValue(max[it])
-                    Type.Long -> LongValue(max[it])
-                    Type.Float -> FloatValue(max[it])
-                    Type.Double -> DoubleValue(max[it])
+                    Types.Byte -> ByteValue(max[it])
+                    Types.Short -> ShortValue(max[it])
+                    Types.Int -> IntValue(max[it])
+                    Types.Long -> LongValue(max[it])
+                    Types.Float -> FloatValue(max[it])
+                    Types.Double -> DoubleValue(max[it])
                     else -> throw ExecutionException.OperatorExecutionException(this@MaxProjectionOperator, "The provided column $column cannot be used for a MAX projection.")
                 }
             }

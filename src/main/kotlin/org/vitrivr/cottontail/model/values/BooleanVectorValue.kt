@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.model.values
 
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.values.types.NumericValue
 import org.vitrivr.cottontail.model.values.types.RealVectorValue
 import org.vitrivr.cottontail.model.values.types.Value
@@ -50,9 +50,9 @@ value class BooleanVectorValue(val data: BooleanArray) : RealVectorValue<Int> {
     override val logicalSize: Int
         get() = this.data.size
 
-    /** The [Type] size of this [BooleanVectorValue]. */
-    override val type: Type<*>
-        get() = Type.BooleanVector(this.logicalSize)
+    /** The [Types] size of this [BooleanVectorValue]. */
+    override val type: Types<*>
+        get() = Types.BooleanVector(this.logicalSize)
 
     /**
      * Checks for equality between this [BooleanVectorValue] and the other [Value]. Equality can only be

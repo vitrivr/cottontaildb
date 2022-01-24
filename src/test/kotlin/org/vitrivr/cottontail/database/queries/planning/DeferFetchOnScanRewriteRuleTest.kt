@@ -21,7 +21,7 @@ import org.vitrivr.cottontail.database.queries.projection.Projection
 import org.vitrivr.cottontail.database.schema.SchemaTx
 import org.vitrivr.cottontail.execution.TransactionType
 import org.vitrivr.cottontail.model.basics.Name
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 /**
  * A collection of test cases for the [DeferFetchOnScanRewriteRule].
  *
@@ -36,11 +36,11 @@ class DeferFetchOnScanRewriteRuleTest : AbstractDatabaseTest() {
 
     /** [ColumnDef] in test entity. */
     private val columns = listOf(
-        ColumnDef(this.entityName.column("id"), Type.Long),
-        ColumnDef(this.entityName.column("doubleValue"), Type.Double),
-        ColumnDef(this.entityName.column("stringValue"), Type.String),
-        ColumnDef(this.entityName.column("intValue"), Type.Int),
-        ColumnDef(this.entityName.column("booleanValue"), Type.Boolean)
+        ColumnDef(this.entityName.column("id"), Types.Long),
+        ColumnDef(this.entityName.column("doubleValue"), Types.Double),
+        ColumnDef(this.entityName.column("stringValue"), Types.String),
+        ColumnDef(this.entityName.column("intValue"), Types.Int),
+        ColumnDef(this.entityName.column("booleanValue"), Types.Boolean)
     )
 
     /** Entities used for this [DeferFetchOnScanRewriteRuleTest]. */

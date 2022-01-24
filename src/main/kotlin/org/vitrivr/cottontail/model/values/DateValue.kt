@@ -1,8 +1,8 @@
 package org.vitrivr.cottontail.model.values
 
-import org.vitrivr.cottontail.model.basics.Type
 import org.vitrivr.cottontail.model.values.types.NumericValue
 import org.vitrivr.cottontail.model.values.types.ScalarValue
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.values.types.Value
 import java.util.*
 
@@ -26,9 +26,9 @@ value class DateValue(override val value: Long) : ScalarValue<Long> {
     override val logicalSize: Int
         get() = 1
 
-    /** The [Type] of this [DateValue]. */
-    override val type: Type<*>
-        get() = Type.Date
+    /** The [Types] of this [DateValue]. */
+    override val type: Types<*>
+        get() = Types.Date
 
     /**
      * Compares this [LongValue] to another [Value]. Returns -1, 0 or 1 of other value is smaller,

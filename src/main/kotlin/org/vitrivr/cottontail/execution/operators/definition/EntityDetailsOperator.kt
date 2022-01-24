@@ -13,7 +13,7 @@ import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Record
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.BooleanValue
 import org.vitrivr.cottontail.model.values.IntValue
@@ -31,12 +31,12 @@ class EntityDetailsOperator(val catalogue: DefaultCatalogue, val name: Name.Enti
 
     companion object {
         val COLUMNS: List<ColumnDef<*>> = listOf(
-            ColumnDef(Name.ColumnName("dbo"), Type.String, false),
-            ColumnDef(Name.ColumnName("class"), Type.String, false),
-            ColumnDef(Name.ColumnName("type"), Type.String, true),
-            ColumnDef(Name.ColumnName("rows"), Type.Int, true),
-            ColumnDef(Name.ColumnName("l_size"), Type.Int, true),
-            ColumnDef(Name.ColumnName("nullable"), Type.Boolean, true)
+            ColumnDef(Name.ColumnName("dbo"), Types.String, false),
+            ColumnDef(Name.ColumnName("class"), Types.String, false),
+            ColumnDef(Name.ColumnName("type"), Types.String, true),
+            ColumnDef(Name.ColumnName("rows"), Types.Int, true),
+            ColumnDef(Name.ColumnName("l_size"), Types.Int, true),
+            ColumnDef(Name.ColumnName("nullable"), Types.Boolean, true)
         )
     }
 

@@ -29,7 +29,7 @@ import org.vitrivr.cottontail.database.queries.predicates.bool.ConnectionOperato
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.basics.TupleId
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.DoubleValue
@@ -53,7 +53,7 @@ class LuceneIndex(path: Path, parent: DefaultEntity, config: LuceneIndexConfig? 
     }
 
     /** The [LuceneIndex] implementation produces an additional score column. */
-    override val produces: Array<ColumnDef<*>> = arrayOf(ColumnDef(this.parent.name.column("score"), Type.Double, false))
+    override val produces: Array<ColumnDef<*>> = arrayOf(ColumnDef(this.parent.name.column("score"), Types.Double, false))
 
     /** True since [SuperBitLSHIndex] supports incremental updates. */
     override val supportsIncrementalUpdate: Boolean = true

@@ -15,7 +15,7 @@ import org.vitrivr.cottontail.database.queries.planning.rules.RewriteRule
 import org.vitrivr.cottontail.database.queries.predicates.knn.KnnPredicate
 import org.vitrivr.cottontail.functions.math.distance.basics.VectorDistance
 import org.vitrivr.cottontail.model.basics.Name
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 
 /**
  * A [RewriteRule] that replaces a very specific operator constellation that indicates a Nearest Neighbor Search (NNS)
@@ -37,7 +37,7 @@ object NNSIndexScanRule : RewriteRule {
             val scan = node.input
             if (scan is EntityScanPhysicalOperatorNode) {
                 val physicalQueryColumn = scan.fetch.singleOrNull { it.first == queryColumn.name }?.second ?: return null
-                val distanceColumn = ColumnDef(Name.ColumnName(node.function.name.simple), Type.Double)
+                val distanceColumn = ColumnDef(Name.ColumnName(node.function.name.simple), Types.Double)
                 val sort = node.output
                 if (sort is SortPhysicalOperatorNode) {
                     if (sort.sortOn.first().first != node.columns.last()) return null /* Sort on distance column is required. */

@@ -9,7 +9,7 @@ import org.vitrivr.cottontail.database.index.pq.codebook.DoublePrecisionPQCodebo
 import org.vitrivr.cottontail.database.index.pq.codebook.PQCodebook
 import org.vitrivr.cottontail.database.index.pq.codebook.SinglePrecisionPQCodebook
 import org.vitrivr.cottontail.functions.math.distance.basics.VectorDistance
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.values.DoubleVectorValue
 import org.vitrivr.cottontail.model.values.FloatVectorValue
 import org.vitrivr.cottontail.model.values.types.VectorValue
@@ -23,7 +23,7 @@ import java.util.*
  * @author Gabriel Zihlmann & Ralph Gasser
  * @version 1.0.0
  */
-class PQ(val type: Type<*>, val codebooks: List<PQCodebook<VectorValue<*>>>) {
+class PQ(val type: Types<*>, val codebooks: List<PQCodebook<VectorValue<*>>>) {
 
     /** The number of subspaces as defined in this [PQ] implementation. */
     val numberOfSubspaces
@@ -68,16 +68,16 @@ class PQ(val type: Type<*>, val codebooks: List<PQCodebook<VectorValue<*>>>) {
          * @return the de-serialized content of the given [DataInput2]
          */
         override fun deserialize(input: DataInput2, available: Int): PQ {
-            val type = Type.forName(input.readUTF(), input.unpackInt())
+            val type = Types.forName(input.readUTF(), input.unpackInt())
             val size = input.unpackInt()
             val codebooks = ArrayList<PQCodebook<VectorValue<*>>>(size)
             for (i in 0 until size) {
                 codebooks.add(
                     when (type) {
-                        is Type.FloatVector -> SinglePrecisionPQCodebook.Serializer.deserialize(input, available)
-                        is Type.DoubleVector -> DoublePrecisionPQCodebook.Serializer.deserialize(input, available)
-                        is Type.Complex32Vector -> SinglePrecisionPQCodebook.Serializer.deserialize(input, available)
-                        is Type.Complex64Vector -> DoublePrecisionPQCodebook.Serializer.deserialize(input, available)
+                        is Types.FloatVector -> SinglePrecisionPQCodebook.Serializer.deserialize(input, available)
+                        is Types.DoubleVector -> DoublePrecisionPQCodebook.Serializer.deserialize(input, available)
+                        is Types.Complex32Vector -> SinglePrecisionPQCodebook.Serializer.deserialize(input, available)
+                        is Types.Complex64Vector -> DoublePrecisionPQCodebook.Serializer.deserialize(input, available)
                         else -> throw IllegalStateException("")
                     } as PQCodebook<VectorValue<*>>
                 )
@@ -122,15 +122,15 @@ class PQ(val type: Type<*>, val codebooks: List<PQCodebook<VectorValue<*>>>) {
             val codebooks = mutableListOf<PQCodebook<VectorValue<*>>>()
             subspaceData.parallelStream().forEach { d ->
                 val codebook: PQCodebook<*> = when (column.type) {
-                    is Type.Complex32Vector,
-                    is Type.FloatVector -> SinglePrecisionPQCodebook.learnFromData(
+                    is Types.Complex32Vector,
+                    is Types.FloatVector -> SinglePrecisionPQCodebook.learnFromData(
                         d as List<FloatVectorValue>,
                         config.numCentroids,
                         config.seed,
                         MAX_ITERATIONS
                     )
-                    is Type.Complex64Vector,
-                    is Type.DoubleVector -> DoublePrecisionPQCodebook.learnFromData(
+                    is Types.Complex64Vector,
+                    is Types.DoubleVector -> DoublePrecisionPQCodebook.learnFromData(
                         d as List<DoubleVectorValue>,
                         config.numCentroids,
                         config.seed,

@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.database.statistics.columns
 
 import org.mapdb.DataInput2
 import org.mapdb.DataOutput2
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.values.DoubleVectorValue
 import org.vitrivr.cottontail.model.values.types.Value
 
@@ -12,7 +12,7 @@ import org.vitrivr.cottontail.model.values.types.Value
  * @author Ralph Gasser
  * @version 1.1.0
  */
-class DoubleVectorValueStatistics(type: Type<DoubleVectorValue>) : ValueStatistics<DoubleVectorValue>(type) {
+class DoubleVectorValueStatistics(type: Types<DoubleVectorValue>) : ValueStatistics<DoubleVectorValue>(type) {
     /** Minimum value in this [DoubleVectorValueStatistics]. */
     val min: DoubleVectorValue = DoubleVectorValue(DoubleArray(this.type.logicalSize) { Double.MAX_VALUE })
 
@@ -68,7 +68,7 @@ class DoubleVectorValueStatistics(type: Type<DoubleVectorValue>) : ValueStatisti
      * @author Ralph Gasser
      * @version 1.0.0
      */
-    class Serializer(val type: Type<DoubleVectorValue>) : org.mapdb.Serializer<DoubleVectorValueStatistics> {
+    class Serializer(val type: Types<DoubleVectorValue>) : org.mapdb.Serializer<DoubleVectorValueStatistics> {
         override fun serialize(out: DataOutput2, value: DoubleVectorValueStatistics) {
             value.min.data.forEach { out.writeDouble(it) }
             value.max.data.forEach { out.writeDouble(it) }

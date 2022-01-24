@@ -13,7 +13,7 @@ import org.vitrivr.cottontail.execution.operators.definition.*
 import org.vitrivr.cottontail.execution.operators.sort.HeapSortOperator
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.grpc.DDLGrpcKt
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import kotlin.time.ExperimentalTime
 
 /**
@@ -53,7 +53,7 @@ class DDLService(override val catalogue: DefaultCatalogue, override val manager:
     override suspend fun createEntity(request: CottontailGrpc.CreateEntityMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata) {
         val entityName = request.definition.entity.fqn()
         val columns = request.definition.columnsList.map {
-            val type = Type.forName(it.type.name, it.length)
+            val type = Types.forName(it.type.name, it.length)
             val name = entityName.column(it.name.name) /* To make sure that columns belongs to entity. */
             ColumnDef(name, type, it.nullable) to ColumnEngine.valueOf(it.engine.toString())
         }.toTypedArray()

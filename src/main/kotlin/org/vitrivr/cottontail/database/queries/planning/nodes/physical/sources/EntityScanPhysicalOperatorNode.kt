@@ -12,7 +12,7 @@ import org.vitrivr.cottontail.database.statistics.columns.ValueStatistics
 import org.vitrivr.cottontail.database.statistics.entity.RecordStatistics
 import org.vitrivr.cottontail.execution.operators.sources.EntityScanOperator
 import org.vitrivr.cottontail.model.basics.Name
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.values.types.Value
 
 /**
@@ -59,7 +59,7 @@ class EntityScanPhysicalOperatorNode(override val groupId: Int, val entity: Enti
 
     /** The estimated [Cost] of scanning the [Entity]. */
     override val cost = Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_MEMORY_ACCESS) * this.outputSize * this.fetch.sumOf {
-        if (it.second.type == Type.String) {
+        if (it.second.type == Types.String) {
             this.statistics[it.second].avgWidth * Char.SIZE_BYTES
         } else {
             it.second.type.physicalSize

@@ -13,7 +13,7 @@ import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.definition.AbstractDataDefinitionOperator
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Record
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.DoubleValue
 import org.vitrivr.cottontail.model.values.LongValue
@@ -32,8 +32,8 @@ class InsertOperator(groupId: GroupId, val entity: EntityTx, val records: List<R
     companion object {
         /** The columns produced by the [InsertOperator]. */
         val COLUMNS: List<ColumnDef<*>> = listOf(
-            ColumnDef(Name.ColumnName("tupleId"), Type.Long, false),
-            ColumnDef(Name.ColumnName("duration_ms"), Type.Double, false)
+            ColumnDef(Name.ColumnName("tupleId"), Types.Long, false),
+            ColumnDef(Name.ColumnName("duration_ms"), Types.Double, false)
         )
     }
 

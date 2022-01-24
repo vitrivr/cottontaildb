@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.model.values
 
 import org.apache.commons.math3.util.FastMath
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.values.types.ComplexVectorValue
 import org.vitrivr.cottontail.model.values.types.NumericValue
 import org.vitrivr.cottontail.model.values.types.Value
@@ -82,9 +82,9 @@ value class Complex32VectorValue(val data: FloatArray) : ComplexVectorValue<Floa
     override val logicalSize: Int
         get() = this.data.size / 2
 
-    /** The [Type] of this [Complex32VectorValue]. */
-    override val type: Type<*>
-        get() = Type.Complex32Vector(this.logicalSize)
+    /** The [Types] of this [Complex32VectorValue]. */
+    override val type: Types<*>
+        get() = Types.Complex32Vector(this.logicalSize)
 
     /**
      * Returns the i-th entry of  this [Complex32VectorValue].

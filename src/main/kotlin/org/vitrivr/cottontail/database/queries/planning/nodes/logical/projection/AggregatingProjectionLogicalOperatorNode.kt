@@ -6,6 +6,7 @@ import org.vitrivr.cottontail.database.queries.planning.nodes.physical.projectio
 import org.vitrivr.cottontail.database.queries.projection.Projection
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.exceptions.QueryException
+import org.vitrivr.cottontail.model.values.types.Types
 
 /**
  * A [UnaryLogicalOperatorNode] that represents a projection operation involving aggregate functions such as [Projection.MAX], [Projection.MIN] or [Projection.SUM].
@@ -19,7 +20,7 @@ class AggregatingProjectionLogicalOperatorNode(input: Logical? = null, type: Pro
     override val columns: List<ColumnDef<*>>
         get() = this.fields.map {
             val col = this.input?.columns?.find { c -> c.name == it } ?: throw QueryException.QueryBindException("Column with name $it could not be found on input.")
-            if (!col.type.numeric) throw QueryException.QueryBindException("Projection of type ${this.type} can only be applied to numeric column, which $col isn't.")
+            if (col.type !is Types.Numeric<*>) throw QueryException.QueryBindException("Projection of type ${this.type} can only be applied to numeric column, which $col isn't.")
             col
         }
 

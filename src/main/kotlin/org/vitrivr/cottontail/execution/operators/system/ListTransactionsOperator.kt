@@ -11,7 +11,7 @@ import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.definition.AbstractDataDefinitionOperator
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Record
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.*
 import org.vitrivr.cottontail.model.values.types.Value
@@ -25,14 +25,14 @@ import org.vitrivr.cottontail.model.values.types.Value
 class ListTransactionsOperator(val manager: TransactionManager) : Operator.SourceOperator() {
     companion object {
         val COLUMNS: List<ColumnDef<*>> = listOf(
-            ColumnDef(Name.ColumnName("txId"), Type.Long, false),
-            ColumnDef(Name.ColumnName("type"), Type.String, false),
-            ColumnDef(Name.ColumnName("state"), Type.String, false),
-            ColumnDef(Name.ColumnName("lock_count"), Type.Int, false),
-            ColumnDef(Name.ColumnName("tx_count"), Type.Int, false),
-            ColumnDef(Name.ColumnName("created"), Type.Date, false),
-            ColumnDef(Name.ColumnName("ended"), Type.Date, true),
-            ColumnDef(Name.ColumnName("duration[s]"), Type.Double, true)
+            ColumnDef(Name.ColumnName("txId"), Types.Long, false),
+            ColumnDef(Name.ColumnName("type"), Types.String, false),
+            ColumnDef(Name.ColumnName("state"), Types.String, false),
+            ColumnDef(Name.ColumnName("lock_count"), Types.Int, false),
+            ColumnDef(Name.ColumnName("tx_count"), Types.Int, false),
+            ColumnDef(Name.ColumnName("created"), Types.Date, false),
+            ColumnDef(Name.ColumnName("ended"), Types.Date, true),
+            ColumnDef(Name.ColumnName("duration[s]"), Types.Double, true)
 
         )
     }

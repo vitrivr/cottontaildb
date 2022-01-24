@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.functions.math.distance.basics
 
 import org.vitrivr.cottontail.model.basics.Name
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.values.types.VectorValue
 
 /**
@@ -10,4 +10,4 @@ import org.vitrivr.cottontail.model.values.types.VectorValue
  * @author Ralph Gasser
  * @version 1.2.0
  */
-abstract class MinkowskiDistance<T : VectorValue<*>>(name: Name.FunctionName, type: Type<out T>, val p: Int): VectorDistance<T>(name, type)
+abstract class MinkowskiDistance<T : VectorValue<*>>(name: Name.FunctionName, type: Types.Vector<T,*>, val p: Int): VectorDistance<T>(name, type)

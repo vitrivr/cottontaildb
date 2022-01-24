@@ -4,7 +4,7 @@ import com.google.common.primitives.Shorts.max
 import com.google.common.primitives.Shorts.min
 import org.mapdb.DataInput2
 import org.mapdb.DataOutput2
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.values.IntValue
 import org.vitrivr.cottontail.model.values.ShortValue
 import org.vitrivr.cottontail.model.values.types.Value
@@ -15,7 +15,7 @@ import org.vitrivr.cottontail.model.values.types.Value
  * @author Ralph Gasser
  * @version 1.1.0
  */
-class ShortValueStatistics : ValueStatistics<ShortValue>(Type.Short) {
+class ShortValueStatistics : ValueStatistics<ShortValue>(Types.Short) {
 
     /**
      * Serializer for [LongValueStatistics].

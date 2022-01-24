@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.database.queries.binding
 
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.model.basics.Record
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.values.types.Value
 
 /**
@@ -52,10 +52,10 @@ interface BindingContext {
     /**
      * Creates and returns a [Binding] for the given [Value].
      *
-     * @param type The [Type] to bind.
+     * @param type The [Types] to bind.
      * @return A value [Binding]
      */
-    fun bindNull(type: Type<*>): Binding.Literal
+    fun bindNull(type: Types<*>): Binding.Literal
 
     /**
      * Creates and returns a [Binding] for the given [ColumnDef].

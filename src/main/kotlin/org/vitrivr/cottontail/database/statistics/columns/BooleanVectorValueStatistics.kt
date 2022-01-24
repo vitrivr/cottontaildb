@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.database.statistics.columns
 
 import org.mapdb.DataInput2
 import org.mapdb.DataOutput2
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.values.BooleanVectorValue
 import org.vitrivr.cottontail.model.values.DoubleVectorValue
 import org.vitrivr.cottontail.model.values.types.Value
@@ -13,7 +13,7 @@ import org.vitrivr.cottontail.model.values.types.Value
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class BooleanVectorValueStatistics(type: Type<BooleanVectorValue>) : ValueStatistics<BooleanVectorValue>(type) {
+class BooleanVectorValueStatistics(type: Types<BooleanVectorValue>) : ValueStatistics<BooleanVectorValue>(type) {
 
     /** A histogram capturing the number of true entries per component. */
     val numberOfTrueEntries: LongArray = LongArray(this.type.logicalSize)
@@ -58,7 +58,7 @@ class BooleanVectorValueStatistics(type: Type<BooleanVectorValue>) : ValueStatis
      * @author Ralph Gasser
      * @version 1.0.0
      */
-    class Serializer(val type: Type<BooleanVectorValue>) : org.mapdb.Serializer<BooleanVectorValueStatistics> {
+    class Serializer(val type: Types<BooleanVectorValue>) : org.mapdb.Serializer<BooleanVectorValueStatistics> {
         override fun serialize(out: DataOutput2, value: BooleanVectorValueStatistics) {
             value.numberOfTrueEntries.forEach { out.writeLong(it) }
         }

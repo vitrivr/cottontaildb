@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.functions.basics
 
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.values.types.Value
 
 /**
@@ -27,9 +27,9 @@ sealed interface Argument {
     fun isCompatible(argument: Argument): Boolean
 
     /**
-     * An [Argument] related to a [Type] that is part of Cottontail DB's type system.
+     * An [Argument] related to a [Types] that is part of Cottontail DB's type system.
      */
-    data class Typed<T: Value>(val type: Type<T>): Argument {
+    data class Typed<T: Value>(val type: Types<T>): Argument {
         /**
          * [Typed]s are only compatible to arguments of the same type.
          *
@@ -53,7 +53,7 @@ sealed interface Argument {
          * @param value The [Value] to compare this [Open] to.
          * @return true if compatibility is given, false otherwise.
          */
-        override fun isCompatible(value: Value?): Boolean = (value == null || value.type.numeric)
+        override fun isCompatible(value: Value?): Boolean = (value == null || value.type is Types.Numeric)
 
         /**
          * [Argument.Vector]s are compatible to all types of [Argument.Vector]s.
@@ -61,7 +61,7 @@ sealed interface Argument {
          * @param argument The [Argument] to compare this [Open] to.
          * @return true if compatibility is given, false otherwise.
          */
-        override fun isCompatible(argument: Argument): Boolean = (argument is Typed<*>) && (argument.type.vector)
+        override fun isCompatible(argument: Argument): Boolean = (argument is Typed<*>) && (argument.type is Types.Vector<*,*>)
         override fun toString(): String = "Open[Numeric]"
     }
 
@@ -76,7 +76,7 @@ sealed interface Argument {
          * @param value The [Value] to compare this [Open] to.
          * @return true if compatibility is given, false otherwise.
          */
-        override fun isCompatible(value: Value?): Boolean = (value == null || value.type.vector)
+        override fun isCompatible(value: Value?): Boolean = (value == null || value.type is Types.Vector<*,*>)
 
         /**
          * [Argument.Vector]s are compatible to all types of [Argument.Vector]s.
@@ -84,7 +84,7 @@ sealed interface Argument {
          * @param argument The [Argument] to compare this [Open] to.
          * @return true if compatibility is given, false otherwise.
          */
-        override fun isCompatible(argument: Argument): Boolean = (argument is Typed<*>) && (argument.type.vector)
+        override fun isCompatible(argument: Argument): Boolean = (argument is Typed<*>) && (argument.type is Types.Vector<*,*>)
         override fun toString(): String = "Open[Vector]"
     }
 

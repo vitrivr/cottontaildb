@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.database.statistics.columns
 
 import org.mapdb.DataInput2
 import org.mapdb.DataOutput2
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.values.FloatVectorValue
 import org.vitrivr.cottontail.model.values.types.Value
 import java.lang.Float.max
@@ -14,7 +14,7 @@ import java.lang.Float.min
  * @author Ralph Gasser
  * @version 1.1.0
  */
-class FloatVectorValueStatistics(type: Type<FloatVectorValue>) : ValueStatistics<FloatVectorValue>(type) {
+class FloatVectorValueStatistics(type: Types<FloatVectorValue>) : ValueStatistics<FloatVectorValue>(type) {
     /** Minimum value in this [FloatVectorValueStatistics]. */
     val min: FloatVectorValue = FloatVectorValue(FloatArray(this.type.logicalSize) { Float.MAX_VALUE })
 
@@ -70,7 +70,7 @@ class FloatVectorValueStatistics(type: Type<FloatVectorValue>) : ValueStatistics
      * @author Ralph Gasser
      * @version 1.0.0
      */
-    class Serializer(val type: Type<FloatVectorValue>) : org.mapdb.Serializer<FloatVectorValueStatistics> {
+    class Serializer(val type: Types<FloatVectorValue>) : org.mapdb.Serializer<FloatVectorValueStatistics> {
         override fun serialize(out: DataOutput2, value: FloatVectorValueStatistics) {
             value.min.data.forEach { out.writeFloat(it) }
             value.max.data.forEach { out.writeFloat(it) }

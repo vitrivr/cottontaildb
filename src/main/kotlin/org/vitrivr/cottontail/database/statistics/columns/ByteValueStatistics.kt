@@ -4,7 +4,7 @@ import com.google.common.primitives.SignedBytes.max
 import com.google.common.primitives.SignedBytes.min
 import org.mapdb.DataInput2
 import org.mapdb.DataOutput2
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.values.ByteValue
 import org.vitrivr.cottontail.model.values.IntValue
 import org.vitrivr.cottontail.model.values.types.Value
@@ -15,7 +15,7 @@ import org.vitrivr.cottontail.model.values.types.Value
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class ByteValueStatistics : ValueStatistics<ByteValue>(Type.Byte) {
+class ByteValueStatistics : ValueStatistics<ByteValue>(Types.Byte) {
 
     /**
      * Serializer for [LongValueStatistics].

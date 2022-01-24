@@ -1,8 +1,8 @@
 package org.vitrivr.cottontail.model.values
 
-import org.vitrivr.cottontail.model.basics.Type
 import org.vitrivr.cottontail.model.values.types.NumericValue
 import org.vitrivr.cottontail.model.values.types.ScalarValue
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.values.types.Value
 import java.util.*
 
@@ -40,9 +40,9 @@ value class StringValue(override val value: String) : ScalarValue<String> {
     override val logicalSize: Int
         get() = this.value.length
 
-    /** The [Type] of this [StringValue]. */
-    override val type: Type<*>
-        get() = Type.String
+    /** The [Types] of this [StringValue]. */
+    override val type: Types<*>
+        get() = Types.String
 
     /**
      * Compares this [StringValue] to another [Value]. Returns -1, 0 or 1 of other value is smaller,

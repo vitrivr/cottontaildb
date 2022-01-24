@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.model.values
 
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.values.types.NumericValue
 import org.vitrivr.cottontail.model.values.types.RealValue
 import org.vitrivr.cottontail.model.values.types.Value
@@ -40,9 +40,9 @@ value class ByteValue(override val value: Byte): RealValue<Byte> {
     override val logicalSize: Int
         get() = 1
 
-    /** The [Type] of this [ByteValue]. */
-    override val type: Type<*>
-        get() = Type.Byte
+    /** The [Types] of this [ByteValue]. */
+    override val type: Types<*>
+        get() = Types.Byte
 
     override val real: RealValue<Byte>
         get() = this

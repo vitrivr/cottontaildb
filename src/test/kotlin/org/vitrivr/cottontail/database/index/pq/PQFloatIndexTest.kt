@@ -19,7 +19,7 @@ import org.vitrivr.cottontail.functions.math.distance.basics.VectorDistance
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.basics.TupleId
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.DoubleValue
 import org.vitrivr.cottontail.model.values.FloatVectorValue
@@ -48,10 +48,10 @@ class PQFloatIndexTest : AbstractIndexTest() {
     private val random = SplittableRandom()
 
     override val columns: Array<ColumnDef<*>> = arrayOf(
-        ColumnDef(this.entityName.column("id"), Type.Long),
+        ColumnDef(this.entityName.column("id"), Types.Long),
         ColumnDef(
             this.entityName.column("feature"),
-            Type.FloatVector(this.random.nextInt(128, 2048))
+            Types.FloatVector(this.random.nextInt(128, 2048))
         )
     )
 
@@ -74,7 +74,7 @@ class PQFloatIndexTest : AbstractIndexTest() {
         val txn = this.manager.TransactionImpl(TransactionType.SYSTEM)
         val k = 5000
         val query = FloatVectorValue.random(this.indexColumn.type.logicalSize, this.random)
-        val function = this.catalogue.functions.obtain(Signature.Closed(distance.functionName, arrayOf(Argument.Typed(query.type), Argument.Typed(query.type)), Type.Double)) as VectorDistance.Binary<*>
+        val function = this.catalogue.functions.obtain(Signature.Closed(distance.functionName, arrayOf(Argument.Typed(query.type), Argument.Typed(query.type)), Types.Double)) as VectorDistance.Binary<*>
         val context = DefaultBindingContext()
         val predicate = KnnPredicate(column = this.indexColumn, k = k, distance = function, query = context.bind(query))
 

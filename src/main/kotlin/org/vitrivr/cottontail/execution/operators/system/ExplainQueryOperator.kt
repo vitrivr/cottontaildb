@@ -13,7 +13,7 @@ import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.definition.AbstractDataDefinitionOperator
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Record
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.BooleanValue
 import org.vitrivr.cottontail.model.values.FloatValue
@@ -30,14 +30,14 @@ import org.vitrivr.cottontail.model.values.types.Value
 class ExplainQueryOperator(val candidates: Collection<OperatorNode.Physical>) : Operator.SourceOperator() {
     companion object {
         val COLUMNS: List<ColumnDef<*>> = listOf(
-            ColumnDef(Name.ColumnName("path"), Type.String, false),
-            ColumnDef(Name.ColumnName("name"), Type.String, false),
-            ColumnDef(Name.ColumnName("output_size"), Type.Long, false),
-            ColumnDef(Name.ColumnName("cost_cpu"), Type.Float, false),
-            ColumnDef(Name.ColumnName("cost_io"), Type.Float, false),
-            ColumnDef(Name.ColumnName("cost_memory"), Type.Float, false),
-            ColumnDef(Name.ColumnName("partitionable"), Type.Boolean, false),
-            ColumnDef(Name.ColumnName("comment"), Type.String, false)
+            ColumnDef(Name.ColumnName("path"), Types.String, false),
+            ColumnDef(Name.ColumnName("name"), Types.String, false),
+            ColumnDef(Name.ColumnName("output_size"), Types.Long, false),
+            ColumnDef(Name.ColumnName("cost_cpu"), Types.Float, false),
+            ColumnDef(Name.ColumnName("cost_io"), Types.Float, false),
+            ColumnDef(Name.ColumnName("cost_memory"), Types.Float, false),
+            ColumnDef(Name.ColumnName("partitionable"), Types.Boolean, false),
+            ColumnDef(Name.ColumnName("comment"), Types.String, false)
         )
     }
 

@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.database.statistics.columns
 
 import org.mapdb.DataInput2
 import org.mapdb.DataOutput2
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.values.IntVectorValue
 import org.vitrivr.cottontail.model.values.types.Value
 import java.lang.Integer.max
@@ -14,7 +14,7 @@ import java.lang.Integer.min
  * @author Ralph Gasser
  * @version 1.1.0
  */
-class IntVectorValueStatistics(type: Type<IntVectorValue>) : ValueStatistics<IntVectorValue>(type) {
+class IntVectorValueStatistics(type: Types<IntVectorValue>) : ValueStatistics<IntVectorValue>(type) {
     /** Minimum value in this [IntVectorValueStatistics]. */
     val min: IntVectorValue = IntVectorValue(IntArray(this.type.logicalSize) { Int.MAX_VALUE })
 
@@ -58,7 +58,7 @@ class IntVectorValueStatistics(type: Type<IntVectorValue>) : ValueStatistics<Int
      * @author Ralph Gasser
      * @version 1.0.0
      */
-    class Serializer(private val type: Type<IntVectorValue>) : org.mapdb.Serializer<IntVectorValueStatistics> {
+    class Serializer(private val type: Types<IntVectorValue>) : org.mapdb.Serializer<IntVectorValueStatistics> {
         override fun serialize(out: DataOutput2, value: IntVectorValueStatistics) {
             value.min.data.forEach { out.writeInt(it) }
             value.max.data.forEach { out.writeInt(it) }

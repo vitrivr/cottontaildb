@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.model.values
 
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.values.types.NumericValue
 import org.vitrivr.cottontail.model.values.types.RealValue
 import org.vitrivr.cottontail.model.values.types.Value
@@ -56,9 +56,9 @@ value class DoubleValue(override val value: Double): RealValue<Double> {
     override val logicalSize: Int
         get() = 1
 
-    /** The [Type] of this [DoubleValue]. */
-    override val type: Type<*>
-        get() = Type.Double
+    /** The [Types] of this [DoubleValue]. */
+    override val type: Types<*>
+        get() = Types.Double
 
     override val real: RealValue<Double>
         get() = this

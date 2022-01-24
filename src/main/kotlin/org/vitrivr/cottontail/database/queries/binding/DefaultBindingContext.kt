@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.database.queries.binding
 
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.model.basics.Record
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.values.types.Value
 
 /**
@@ -75,10 +75,10 @@ class DefaultBindingContext(startSize: Int = 100) : BindingContext {
     /**
      * Creates and returns a [Binding] for the given [Value].
      *
-     * @param type The [Type] to bind.
+     * @param type The [Types] to bind.
      * @return A value [Binding]
      */
-    override fun bindNull(type: Type<*>): Binding.Literal {
+    override fun bindNull(type: Types<*>): Binding.Literal {
         val bindingIndex = this.boundValues.size
         check(this.boundValues.add(null)) { "Failed to add null to list of bound values for index $bindingIndex." }
         return Binding.Literal(bindingIndex, type, this)

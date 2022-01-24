@@ -7,7 +7,7 @@ package org.vitrivr.cottontail.model.values.types
  * @see VectorValue
  * @see ComplexValue
  *
- * @version 1.0
+ * @version 1.0.0
  * @author Ralph Gasser
  */
 interface ComplexVectorValue<T: Number> : VectorValue<T>, Iterable<ComplexValue<T>> {

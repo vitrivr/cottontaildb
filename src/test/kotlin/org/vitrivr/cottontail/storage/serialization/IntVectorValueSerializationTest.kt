@@ -3,7 +3,7 @@ package org.vitrivr.cottontail.storage.serialization
 import org.vitrivr.cottontail.TestConstants
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.column.ColumnEngine
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.IntValue
 import org.vitrivr.cottontail.model.values.IntVectorValue
@@ -21,8 +21,8 @@ class IntVectorValueSerializationTest : AbstractSerializationTest() {
 
     /** Columns tested by this [IntVectorValueSerializationTest]. */
     override val columns: Array<Pair<ColumnDef<*>, ColumnEngine>> = arrayOf(
-        ColumnDef(this.entityName.column("id"), Type.Int) to ColumnEngine.MAPDB,
-        ColumnDef(this.entityName.column("vector"), Type.IntVector(this.d)) to ColumnEngine.MAPDB
+        ColumnDef(this.entityName.column("id"), Types.Int) to ColumnEngine.MAPDB,
+        ColumnDef(this.entityName.column("vector"), Types.IntVector(this.d)) to ColumnEngine.MAPDB
     )
 
     /** Name of this [IntVectorValueSerializationTest]. */

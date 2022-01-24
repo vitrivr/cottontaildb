@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.database.queries.binding
 
 import org.vitrivr.cottontail.database.column.ColumnDef
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.values.types.Value
 
 /**
@@ -16,8 +16,8 @@ sealed interface Binding {
     val value: Value?
         get() = this.context[this]
 
-    /** The [Type] held by this [Binding]. */
-    val type: Type<*>
+    /** The [Types] held by this [Binding]. */
+    val type: Types<*>
 
     /** Flag indicating whether [Binding] remains static in the context of a query. */
     val static: Boolean
@@ -26,7 +26,7 @@ sealed interface Binding {
     var context: BindingContext
 
     /** A [Binding] for a literal [Value] without any indirection other than the [Binding] itself. */
-    data class Literal(val bindingIndex: Int, override val type: Type<*>, override var context: BindingContext, override val static: Boolean = true): Binding {
+    data class Literal(val bindingIndex: Int, override val type: Types<*>, override var context: BindingContext, override val static: Boolean = true): Binding {
         override var value: Value?
             get() = this.context[this.bindingIndex]
             set(v) {
@@ -39,7 +39,7 @@ sealed interface Binding {
     /** A [Binding] for a value referred to by a [ColumnDef]. Can only be accessed during query execution. */
     data class Column(val column: ColumnDef<*>, override var context: BindingContext): Binding {
 
-        override val type: Type<*>
+        override val type: Types<*>
             get() = this.column.type
 
         override val static: Boolean

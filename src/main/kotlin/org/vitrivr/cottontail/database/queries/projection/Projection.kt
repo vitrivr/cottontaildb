@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.database.queries.projection
 
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.model.basics.Name
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 
 /**
  * Enumeration of all [Projection] operations supported by Cottontail DB.
@@ -40,11 +40,11 @@ enum class Projection(val aggregating: Boolean) {
         COUNT,
         COUNT_DISTINCT -> {
             val name = "${this.name.lowercase()}_${c.name.simple}"
-            ColumnDef(c.name.entity()?.column(name) ?: Name.ColumnName(name), Type.Long, true)
+            ColumnDef(c.name.entity()?.column(name) ?: Name.ColumnName(name), Types.Long, true)
         }
         EXISTS -> {
             val name = "${this.name.lowercase()}_${c.name.simple}"
-            ColumnDef(c.name.entity()?.column(name) ?: Name.ColumnName(name), Type.Boolean, true)
+            ColumnDef(c.name.entity()?.column(name) ?: Name.ColumnName(name), Types.Boolean, true)
         }
         SUM,
         MAX,

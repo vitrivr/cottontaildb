@@ -1,6 +1,5 @@
 package org.vitrivr.cottontail.model.values.types
 
-import org.vitrivr.cottontail.model.basics.Type
 import java.util.*
 
 /**
@@ -20,8 +19,8 @@ interface Value : Comparable<Value> {
     /** Size of this [Value]. */
     val logicalSize: Int
 
-    /** The [Type] of this [Value]. */
-    val type: Type<*>
+    /** The [Types] of this [Value]. */
+    val type: Types<*>
 
     /**
      * Compares two [Value]s. Returns true, if they are equal, and false otherwise.

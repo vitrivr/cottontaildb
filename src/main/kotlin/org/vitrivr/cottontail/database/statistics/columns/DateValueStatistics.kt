@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.database.statistics.columns
 
 import org.mapdb.DataInput2
 import org.mapdb.DataOutput2
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.values.DateValue
 import org.vitrivr.cottontail.model.values.LongValue
 import org.vitrivr.cottontail.model.values.types.Value
@@ -15,7 +15,7 @@ import java.lang.Long.min
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class DateValueStatistics : ValueStatistics<DateValue>(Type.Date) {
+class DateValueStatistics : ValueStatistics<DateValue>(Types.Date) {
 
     /**
      * Serializer for [DateValueStatistics].

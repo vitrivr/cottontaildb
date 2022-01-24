@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.model.values
 
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.values.types.ComplexValue
 import org.vitrivr.cottontail.model.values.types.NumericValue
 import org.vitrivr.cottontail.model.values.types.RealValue
@@ -95,9 +95,9 @@ value class Complex64Value(val data: DoubleArray): ComplexValue<Double> {
     override val logicalSize: Int
         get() = 1
 
-    /** The [Type] of this [Complex64Value]. */
-    override val type: Type<*>
-        get() = Type.Complex64
+    /** The [Types] of this [Complex64Value]. */
+    override val type: Types<*>
+        get() = Types.Complex64
 
     /**
      * Compares this [Complex32Value] to another [Value]. Returns -1, 0 or 1 of other value is smaller,

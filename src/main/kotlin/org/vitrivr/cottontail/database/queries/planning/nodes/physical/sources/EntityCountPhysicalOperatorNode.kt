@@ -10,7 +10,7 @@ import org.vitrivr.cottontail.database.queries.projection.Projection
 import org.vitrivr.cottontail.database.statistics.entity.RecordStatistics
 import org.vitrivr.cottontail.execution.operators.sources.EntityCountOperator
 import org.vitrivr.cottontail.model.basics.Name
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 
 /**
  * A [NullaryPhysicalOperatorNode] that formalizes the counting entries in a physical [Entity].
@@ -35,7 +35,7 @@ class EntityCountPhysicalOperatorNode(override val groupId: Int, val entity: Ent
     override val physicalColumns: List<ColumnDef<*>> = emptyList()
 
     /** [ColumnDef] produced by this [EntityCountPhysicalOperatorNode]. */
-    override val columns: List<ColumnDef<*>> = listOf(ColumnDef(this.alias ?: this.entity.dbo.name.column(Projection.COUNT.label()), Type.Long, false))
+    override val columns: List<ColumnDef<*>> = listOf(ColumnDef(this.alias ?: this.entity.dbo.name.column(Projection.COUNT.label()), Types.Long, false))
 
     /** [EntityCountPhysicalOperatorNode] is always executable. */
     override val executable: Boolean = true

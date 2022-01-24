@@ -9,7 +9,7 @@ import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Record
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.LongValue
 
@@ -27,7 +27,7 @@ class CountProjectionOperator(parent: Operator) : Operator.PipelineOperator(pare
     override val columns: List<ColumnDef<*>> = listOf(
         ColumnDef(
             name = parent.columns.first().name.entity()?.column(Projection.COUNT.label()) ?: Name.ColumnName(Projection.COUNT.label()),
-            type = Type.Long
+            type = Types.Long
         )
     )
 

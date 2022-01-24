@@ -13,7 +13,7 @@ import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Record
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.StringValue
 import org.vitrivr.cottontail.model.values.types.Value
@@ -27,8 +27,8 @@ import org.vitrivr.cottontail.model.values.types.Value
 class ListEntityOperator(val catalogue: DefaultCatalogue, val schema: Name.SchemaName? = null) : Operator.SourceOperator() {
     companion object {
         val COLUMNS: List<ColumnDef<*>> = listOf(
-            ColumnDef(Name.ColumnName(Constants.COLUMN_NAME_DBO), Type.String, false),
-            ColumnDef(Name.ColumnName(Constants.COLUMN_NAME_CLASS), Type.String, false)
+            ColumnDef(Name.ColumnName(Constants.COLUMN_NAME_DBO), Types.String, false),
+            ColumnDef(Name.ColumnName(Constants.COLUMN_NAME_CLASS), Types.String, false)
         )
     }
 

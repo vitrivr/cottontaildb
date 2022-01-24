@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.functions.basics
 
 import org.vitrivr.cottontail.model.basics.Name
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.values.types.Value
 
 /**
@@ -10,7 +10,7 @@ import org.vitrivr.cottontail.model.values.types.Value
  * @author Ralph Gasser
  * @version 1.1.0
  */
-sealed class Signature<R: Value>(val name: Name.FunctionName, val returnType: Type<R>? = null) {
+sealed class Signature<R: Value>(val name: Name.FunctionName, val returnType: Types<R>? = null) {
     /** Returns the arity of this [Signature]. */
     abstract val arity: Int
 
@@ -25,7 +25,7 @@ sealed class Signature<R: Value>(val name: Name.FunctionName, val returnType: Ty
     /**
      * A [Signature.Closed] with known arguments.
      */
-    class Closed<R: Value>(name: Name.FunctionName, val arguments: Array<Argument.Typed<*>>, returnType: Type<R>? = null): Signature<R>(name, returnType) {
+    class Closed<R: Value>(name: Name.FunctionName, val arguments: Array<Argument.Typed<*>>, returnType: Types<R>? = null): Signature<R>(name, returnType) {
         override val arity: Int
             get() = this.arguments.size
 
@@ -77,7 +77,7 @@ sealed class Signature<R: Value>(val name: Name.FunctionName, val returnType: Ty
     /**
      * A [Signature.Open] that may contain [Argument.Open]s.
      */
-    class Open<R: Value>(name: Name.FunctionName, val arguments: Array<Argument>, returnType: Type<R>? = null): Signature<R>(name, returnType) {
+    class Open<R: Value>(name: Name.FunctionName, val arguments: Array<Argument>, returnType: Types<R>? = null): Signature<R>(name, returnType) {
 
         /** Returns the [arity] of this [Signature.Open]*/
         override val arity: Int

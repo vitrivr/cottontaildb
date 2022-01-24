@@ -8,7 +8,7 @@ import org.vitrivr.cottontail.database.queries.projection.Projection
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.projection.ExistsProjectionOperator
 import org.vitrivr.cottontail.model.basics.Name
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 
 /**
  * A [UnaryPhysicalOperatorNode] that represents a projection operation involving aggregate functions such as [Projection.EXISTS].
@@ -22,7 +22,7 @@ class ExistsProjectionPhysicalOperatorNode(input: Physical? = null, val alias: N
     override val columns: List<ColumnDef<*>>
         get() {
             val name = this.alias ?: (this.input?.columns?.first()?.name?.entity()?.column(Projection.EXISTS.label()) ?: Name.ColumnName(Projection.EXISTS.label()))
-            return listOf(ColumnDef(name, Type.Boolean, false))
+            return listOf(ColumnDef(name, Types.Boolean, false))
         }
 
     /** The [ColumnDef] required by this [ExistsProjectionPhysicalOperatorNode]. */

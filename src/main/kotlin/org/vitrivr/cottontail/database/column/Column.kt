@@ -5,7 +5,7 @@ import org.vitrivr.cottontail.database.general.DBO
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.TupleId
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.values.types.Value
 
 /**
@@ -39,9 +39,9 @@ interface Column<T: Value> : DBO {
     /**
      * This [Column]'s type.
      *
-     * @return The [Type] of this [Column].
+     * @return The [Types] of this [Column].
      */
-    val type: Type<T>
+    val type: Types<T>
         get() = this.columnDef.type
 
     /**

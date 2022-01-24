@@ -5,7 +5,7 @@ import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.index.AbstractIndexTest
 import org.vitrivr.cottontail.database.index.IndexType
 import org.vitrivr.cottontail.model.basics.Name
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.LongValue
 import org.vitrivr.cottontail.model.values.StringValue
@@ -19,8 +19,8 @@ import java.util.*
  */
 class LuceneIndexText : AbstractIndexTest() {
     override val columns: Array<ColumnDef<*>> = arrayOf(
-        ColumnDef(this.entityName.column("id"), Type.Long),
-        ColumnDef(this.entityName.column("feature"), Type.String)
+        ColumnDef(this.entityName.column("id"), Types.Long),
+        ColumnDef(this.entityName.column("feature"), Types.String)
     )
 
     override val indexColumn: ColumnDef<*>

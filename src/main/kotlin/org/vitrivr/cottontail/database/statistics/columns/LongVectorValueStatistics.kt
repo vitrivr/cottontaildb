@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.database.statistics.columns
 
 import org.mapdb.DataInput2
 import org.mapdb.DataOutput2
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.values.LongVectorValue
 import org.vitrivr.cottontail.model.values.types.Value
 
@@ -15,7 +15,7 @@ import java.lang.Long.min
  * @author Ralph Gasser
  * @version 1.1.0
  */
-class LongVectorValueStatistics(type: Type<LongVectorValue>) : ValueStatistics<LongVectorValue>(type) {
+class LongVectorValueStatistics(type: Types<LongVectorValue>) : ValueStatistics<LongVectorValue>(type) {
     /** Minimum value in this [LongVectorValueStatistics]. */
     val min: LongVectorValue = LongVectorValue(LongArray(this.type.logicalSize) { Long.MAX_VALUE })
 
@@ -59,7 +59,7 @@ class LongVectorValueStatistics(type: Type<LongVectorValue>) : ValueStatistics<L
      * @author Ralph Gasser
      * @version 1.0.0
      */
-    class Serializer(private val type: Type<LongVectorValue>) : org.mapdb.Serializer<LongVectorValueStatistics> {
+    class Serializer(private val type: Types<LongVectorValue>) : org.mapdb.Serializer<LongVectorValueStatistics> {
         override fun serialize(out: DataOutput2, value: LongVectorValueStatistics) {
             value.min.data.forEach { out.writeLong(it) }
             value.max.data.forEach { out.writeLong(it) }

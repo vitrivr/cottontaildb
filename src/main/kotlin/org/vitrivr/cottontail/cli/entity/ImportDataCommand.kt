@@ -11,7 +11,7 @@ import org.vitrivr.cottontail.client.language.ddl.AboutEntity
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.database.queries.binding.extensions.protoFrom
 import org.vitrivr.cottontail.model.basics.Name
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.utilities.data.Format
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -94,7 +94,7 @@ class ImportDataCommand(client: SimpleClient) : AbstractCottontailCommand.Entity
                 columns.add(
                     ColumnDef(
                         name = Name.ColumnName(*it.asString(0)!!.split(Name.NAME_COMPONENT_DELIMITER).toTypedArray()),
-                        type = Type.forName(it.asString(2)!!, it.asInt(4)!!),
+                        type = Types.forName(it.asString(2)!!, it.asInt(4)!!),
                         nullable =  it.asBoolean(5)!!
                     )
                 )

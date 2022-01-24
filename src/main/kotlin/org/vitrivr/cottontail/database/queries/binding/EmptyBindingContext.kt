@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.database.queries.binding
 
 import org.vitrivr.cottontail.database.column.ColumnDef
 import org.vitrivr.cottontail.model.basics.Record
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.values.types.Value
 
 /**
@@ -23,7 +23,7 @@ object EmptyBindingContext: BindingContext {
     override fun update(binding: Binding.Literal, value: Value?) {
         throw UnsupportedOperationException("EmptyBindingContext does not support updating values.")
     }
-    override fun bindNull(type: Type<*>): Binding.Literal {
+    override fun bindNull(type: Types<*>): Binding.Literal {
         throw UnsupportedOperationException("EmptyBindingContext does not support binding values.")
     }
     override fun bindRecord(record: Record) {

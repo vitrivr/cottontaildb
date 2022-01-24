@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.database.statistics.columns
 
 import org.mapdb.DataInput2
 import org.mapdb.DataOutput2
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.values.StringValue
 import org.vitrivr.cottontail.model.values.types.Value
 import java.lang.Integer.max
@@ -14,7 +14,7 @@ import java.lang.Integer.min
  * @author Ralph Gasser
  * @version 1.1.0
  */
-class StringValueStatistics : ValueStatistics<StringValue>(Type.String) {
+class StringValueStatistics : ValueStatistics<StringValue>(Types.String) {
 
     /**
      * Serializer for [StringValueStatistics].

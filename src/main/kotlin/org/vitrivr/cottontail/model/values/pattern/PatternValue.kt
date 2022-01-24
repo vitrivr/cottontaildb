@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.model.values.pattern
 
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.values.StringValue
 import org.vitrivr.cottontail.model.values.types.ScalarValue
 import org.vitrivr.cottontail.model.values.types.Value
@@ -18,9 +18,9 @@ abstract class PatternValue(override val value: String) : ScalarValue<String> {
     override val logicalSize: Int
         get() = this.value.length
 
-    /** The [Type] of this [PatternValue]. */
-    override val type: Type<*>
-        get() = Type.String
+    /** The [Types] of this [PatternValue]. */
+    override val type: Types<*>
+        get() = Types.String
 
     /**
      * Checks if the given [StringValue] matches this [PatternValue].

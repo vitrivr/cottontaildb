@@ -24,6 +24,7 @@ import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.recordset.Recordset
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.types.ComplexVectorValue
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.values.types.VectorValue
 import java.nio.file.Path
 import java.util.*
@@ -64,7 +65,7 @@ class SuperBitLSHIndex<T : VectorValue<*>>(
     private val maps: List<HTreeMap<Int, LongArray>>
 
     init {
-        if (!columns.all { it.type.vector }) {
+        if (!columns.all { it.type is Types.Vector<*,*>}) {
             throw DatabaseException.IndexNotSupportedException(
                 name,
                 "Because only vector columns are supported for SuperBitLSHIndex."

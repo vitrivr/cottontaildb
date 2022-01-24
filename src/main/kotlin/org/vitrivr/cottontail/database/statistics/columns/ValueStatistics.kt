@@ -5,7 +5,7 @@ import org.mapdb.DataOutput2
 import org.mapdb.Serializer
 import org.vitrivr.cottontail.database.queries.predicates.bool.BooleanPredicate
 import org.vitrivr.cottontail.database.statistics.selectivity.Selectivity
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.values.types.Value
 import java.lang.Math.floorDiv
 
@@ -18,7 +18,7 @@ import java.lang.Math.floorDiv
  * @author Ralph Gasser
  * @version 1.1.0
  */
-open class ValueStatistics<T : Value>(val type: Type<T>) {
+open class ValueStatistics<T : Value>(val type: Types<T>) {
 
     /** Flag indicating that this [ValueStatistics] needs updating. */
     var fresh: Boolean = true
@@ -58,26 +58,26 @@ open class ValueStatistics<T : Value>(val type: Type<T>) {
         }
 
         override fun deserialize(input: DataInput2, available: Int): ValueStatistics<*> {
-            val stat = when (val type = Type.forOrdinal(input.unpackInt(), input.unpackInt())) {
-                Type.Complex32,
-                Type.Complex64,
-                is Type.Complex32Vector,
-                is Type.Complex64Vector,
+            val stat = when (val type = Types.forOrdinal(input.unpackInt(), input.unpackInt())) {
+                Types.Complex32,
+                Types.Complex64,
+                is Types.Complex32Vector,
+                is Types.Complex64Vector,
                 -> ValueStatistics(type)
-                Type.Boolean -> BooleanValueStatistics.deserialize(input, available)
-                Type.Byte -> ByteValueStatistics.deserialize(input, available)
-                Type.Double -> DoubleValueStatistics.deserialize(input, available)
-                Type.Float -> FloatValueStatistics.deserialize(input, available)
-                Type.Int -> IntValueStatistics.deserialize(input, available)
-                Type.Long -> LongValueStatistics.deserialize(input, available)
-                Type.Short -> ShortValueStatistics.deserialize(input, available)
-                Type.String -> StringValueStatistics.deserialize(input, available)
-                Type.Date -> DateValueStatistics.deserialize(input, available)
-                is Type.BooleanVector -> BooleanVectorValueStatistics.Serializer(type).deserialize(input, available)
-                is Type.DoubleVector -> DoubleVectorValueStatistics.Serializer(type).deserialize(input, available)
-                is Type.FloatVector -> FloatVectorValueStatistics.Serializer(type).deserialize(input, available)
-                is Type.IntVector -> IntVectorValueStatistics.Serializer(type).deserialize(input, available)
-                is Type.LongVector -> LongVectorValueStatistics.Serializer(type).deserialize(input, available)
+                Types.Boolean -> BooleanValueStatistics.deserialize(input, available)
+                Types.Byte -> ByteValueStatistics.deserialize(input, available)
+                Types.Double -> DoubleValueStatistics.deserialize(input, available)
+                Types.Float -> FloatValueStatistics.deserialize(input, available)
+                Types.Int -> IntValueStatistics.deserialize(input, available)
+                Types.Long -> LongValueStatistics.deserialize(input, available)
+                Types.Short -> ShortValueStatistics.deserialize(input, available)
+                Types.String -> StringValueStatistics.deserialize(input, available)
+                Types.Date -> DateValueStatistics.deserialize(input, available)
+                is Types.BooleanVector -> BooleanVectorValueStatistics.Serializer(type).deserialize(input, available)
+                is Types.DoubleVector -> DoubleVectorValueStatistics.Serializer(type).deserialize(input, available)
+                is Types.FloatVector -> FloatVectorValueStatistics.Serializer(type).deserialize(input, available)
+                is Types.IntVector -> IntVectorValueStatistics.Serializer(type).deserialize(input, available)
+                is Types.LongVector -> LongVectorValueStatistics.Serializer(type).deserialize(input, available)
             }
             stat.fresh = input.readBoolean()
             stat.numberOfNullEntries = input.unpackLong()

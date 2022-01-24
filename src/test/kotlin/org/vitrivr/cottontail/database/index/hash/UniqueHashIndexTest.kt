@@ -15,7 +15,7 @@ import org.vitrivr.cottontail.database.queries.predicates.bool.ComparisonOperato
 import org.vitrivr.cottontail.database.schema.SchemaTx
 import org.vitrivr.cottontail.execution.TransactionType
 import org.vitrivr.cottontail.model.basics.Name
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.FloatVectorValue
 import org.vitrivr.cottontail.model.values.StringValue
@@ -31,8 +31,8 @@ class UniqueHashIndexTest : AbstractIndexTest() {
 
     /** List of columns for this [UniqueHashIndexTest]. */
     override val columns = arrayOf(
-        ColumnDef(this.entityName.column("id"), Type.String),
-        ColumnDef(this.entityName.column("feature"), Type.FloatVector(128))
+        ColumnDef(this.entityName.column("id"), Types.String),
+        ColumnDef(this.entityName.column("feature"), Types.FloatVector(128))
     )
     override val indexColumn: ColumnDef<*>
         get() = this.columns.first()

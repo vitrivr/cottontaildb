@@ -6,7 +6,7 @@ import org.vitrivr.cottontail.functions.basics.Function
 import org.vitrivr.cottontail.functions.exception.FunctionNotSupportedException
 import org.vitrivr.cottontail.functions.math.distance.basics.MinkowskiDistance
 import org.vitrivr.cottontail.model.basics.Name
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.values.*
 import org.vitrivr.cottontail.model.values.types.VectorValue
 import kotlin.math.absoluteValue
@@ -19,7 +19,7 @@ import kotlin.math.sqrt
  * @author Ralph Gasser
  * @version 1.2.0
  */
-sealed class ManhattanDistance<T : VectorValue<*>>(type: Type<T>): MinkowskiDistance<T>(Generator.FUNCTION_NAME, type, 1) {
+sealed class ManhattanDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): MinkowskiDistance<T>(Generator.FUNCTION_NAME, type, 1) {
 
     /**
      * The [FunctionGenerator] for the [ManhattanDistance].
@@ -28,15 +28,15 @@ sealed class ManhattanDistance<T : VectorValue<*>>(type: Type<T>): MinkowskiDist
         val FUNCTION_NAME = Name.FunctionName("manhattan")
 
         override val signature: Signature.Open<out DoubleValue>
-            get() = Signature.Open(FUNCTION_NAME, arrayOf(Argument.Vector, Argument.Vector), Type.Double)
+            get() = Signature.Open(FUNCTION_NAME, arrayOf(Argument.Vector, Argument.Vector), Types.Double)
 
         override fun generateInternal(dst: Signature.Closed<*>): Function<DoubleValue> = when (val type = dst.arguments[0].type) {
-            is Type.Complex64Vector -> Complex64Vector(type.logicalSize)
-            is Type.Complex32Vector -> Complex32Vector(type.logicalSize)
-            is Type.DoubleVector -> DoubleVector(type.logicalSize)
-            is Type.FloatVector -> FloatVector(type.logicalSize)
-            is Type.IntVector -> IntVector(type.logicalSize)
-            is Type.LongVector -> LongVector(type.logicalSize)
+            is Types.Complex64Vector -> Complex64Vector(type.logicalSize)
+            is Types.Complex32Vector -> Complex32Vector(type.logicalSize)
+            is Types.DoubleVector -> DoubleVector(type.logicalSize)
+            is Types.FloatVector -> FloatVector(type.logicalSize)
+            is Types.IntVector -> IntVector(type.logicalSize)
+            is Types.LongVector -> LongVector(type.logicalSize)
             else -> throw FunctionNotSupportedException("Function generator signature ${this.signature} does not support destination signature (dst = $dst).")
         }
     }
@@ -48,7 +48,7 @@ sealed class ManhattanDistance<T : VectorValue<*>>(type: Type<T>): MinkowskiDist
     /**
      * [ManhattanDistance] for a [Complex64VectorValue].
      */
-    class Complex64Vector(size: Int) : ManhattanDistance<Complex64VectorValue>(Type.Complex64Vector(size)) {
+    class Complex64Vector(size: Int) : ManhattanDistance<Complex64VectorValue>(Types.Complex64Vector(size)) {
         override fun copy(d: Int) = Complex64Vector(d)
         override fun invoke(): DoubleValue {
             val probing = this.arguments[0] as Complex64VectorValue
@@ -66,7 +66,7 @@ sealed class ManhattanDistance<T : VectorValue<*>>(type: Type<T>): MinkowskiDist
     /**
      * [ManhattanDistance] for a [Complex32VectorValue].
      */
-    class Complex32Vector(size: Int) : ManhattanDistance<Complex32VectorValue>(Type.Complex32Vector(size)) {
+    class Complex32Vector(size: Int) : ManhattanDistance<Complex32VectorValue>(Types.Complex32Vector(size)) {
         override fun copy(d: Int) = Complex32Vector(d)
         override fun invoke(): DoubleValue {
             val probing = this.arguments[0] as Complex32VectorValue
@@ -84,7 +84,7 @@ sealed class ManhattanDistance<T : VectorValue<*>>(type: Type<T>): MinkowskiDist
     /**
      * [ManhattanDistance] for a [DoubleVectorValue].
      */
-    class DoubleVector(size: Int) : ManhattanDistance<DoubleVectorValue>(Type.DoubleVector(size)) {
+    class DoubleVector(size: Int) : ManhattanDistance<DoubleVectorValue>(Types.DoubleVector(size)) {
         override fun copy(d: Int) = DoubleVector(d)
         override fun invoke(): DoubleValue {
             val probing = this.arguments[0] as DoubleVectorValue
@@ -100,7 +100,7 @@ sealed class ManhattanDistance<T : VectorValue<*>>(type: Type<T>): MinkowskiDist
     /**
      * [ManhattanDistance] for a [FloatVectorValue].
      */
-    class FloatVector(size: Int) : ManhattanDistance<FloatVectorValue>(Type.FloatVector(size)) {
+    class FloatVector(size: Int) : ManhattanDistance<FloatVectorValue>(Types.FloatVector(size)) {
         override fun copy(d: Int) = FloatVector(d)
         override fun invoke(): DoubleValue {
             val probing = this.arguments[0] as FloatVectorValue
@@ -116,7 +116,7 @@ sealed class ManhattanDistance<T : VectorValue<*>>(type: Type<T>): MinkowskiDist
     /**
      * [ManhattanDistance] for a [LongVectorValue].
      */
-    class LongVector(size: Int) : ManhattanDistance<LongVectorValue>(Type.LongVector(size)) {
+    class LongVector(size: Int) : ManhattanDistance<LongVectorValue>(Types.LongVector(size)) {
         override fun copy(d: Int) = LongVector(d)
         override fun invoke(): DoubleValue {
             val probing = this.arguments[0] as LongVectorValue
@@ -132,7 +132,7 @@ sealed class ManhattanDistance<T : VectorValue<*>>(type: Type<T>): MinkowskiDist
     /**
      * [ManhattanDistance] for a [IntVectorValue].
      */
-    class IntVector(size: Int) : ManhattanDistance<IntVectorValue>(Type.IntVector(size)) {
+    class IntVector(size: Int) : ManhattanDistance<IntVectorValue>(Types.IntVector(size)) {
         override fun copy(d: Int) = IntVector(d)
         override fun invoke(): DoubleValue {
             val probing = this.arguments[0] as IntVectorValue

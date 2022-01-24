@@ -12,7 +12,7 @@ import org.vitrivr.cottontail.execution.exceptions.OperatorSetupException
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Record
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.exceptions.ExecutionException
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.*
@@ -22,7 +22,7 @@ import org.vitrivr.cottontail.model.values.types.Value
  * An [Operator.PipelineOperator] used during query execution. It calculates the MEAN of all values
  * it has encountered and returns it as a [Record].
  *
- * Only produces a single [Record] and converts the projected columns to a [Type.Double] column.
+ * Only produces a single [Record] and converts the projected columns to a [Types.Double] column.
  * Acts as pipeline breaker.
  *
  * @author Ralph Gasser
@@ -37,8 +37,8 @@ class MeanProjectionOperator(parent: Operator, fields: List<Name.ColumnName>) : 
     override val columns: List<ColumnDef<*>> = this.parent.columns.mapNotNull { c ->
         val match = fields.find { f -> f.matches(c.name) }
         if (match != null) {
-            if (!c.type.numeric) throw OperatorSetupException(this, "The provided column $match cannot be used for a ${Projection.SUM} projection because it has the wrong type.")
-            ColumnDef(c.name, Type.Double)
+            if (c.type !is Types.Numeric<*>) throw OperatorSetupException(this, "The provided column $match cannot be used for a ${Projection.SUM} projection because it has the wrong type.")
+            ColumnDef(c.name, Types.Double)
         } else {
             null
         }

@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.legacy.v1.column
 
 import org.mapdb.DataInput2
 import org.mapdb.DataOutput2
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
 
 /**
@@ -12,7 +12,7 @@ import org.vitrivr.cottontail.model.exceptions.DatabaseException
  * @version 1.0.0
  */
 class ColumnV1Header(
-    val type: Type<*>,
+    val type: Types<*>,
     var size: Int = 0,
     var nullable: Boolean = true,
     var count: Long = 0,
@@ -41,7 +41,7 @@ class ColumnV1Header(
             if (!validate(input)) {
                 throw DatabaseException.InvalidFileException("Cottontail DB Column")
             }
-            val type = Type.forName(input.readUTF(), input.readInt())
+            val type = Types.forName(input.readUTF(), input.readInt())
             return ColumnV1Header(
                 type,
                 type.logicalSize,

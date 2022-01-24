@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.model.values
 
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.values.types.*
 import org.vitrivr.cottontail.model.values.types.Value.Companion.RANDOM
 import java.util.*
@@ -47,9 +47,9 @@ value class DoubleVectorValue(val data: DoubleArray) : RealVectorValue<Double> {
     override val logicalSize: Int
         get() = this.data.size
 
-    /** The [Type] of this [DoubleVectorValue]. */
-    override val type: Type<*>
-        get() = Type.DoubleVector(this.logicalSize)
+    /** The [Types] of this [DoubleVectorValue]. */
+    override val type: Types<*>
+        get() = Types.DoubleVector(this.logicalSize)
 
     /**
      * Checks for equality between this [DoubleVectorValue] and the other [Value]. Equality can only be

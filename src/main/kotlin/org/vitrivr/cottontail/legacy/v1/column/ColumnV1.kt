@@ -14,7 +14,7 @@ import org.vitrivr.cottontail.database.general.TxSnapshot
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.TupleId
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import org.vitrivr.cottontail.model.exceptions.TxException
 import org.vitrivr.cottontail.model.values.types.Value
@@ -69,7 +69,7 @@ class ColumnV1<T : Value>(
      */
     @Suppress("UNCHECKED_CAST")
     override val columnDef: ColumnDef<T> =
-        this.header.let { ColumnDef(this.name, it.type as Type<T>, it.nullable) }
+        this.header.let { ColumnDef(this.name, it.type as Types<T>, it.nullable) }
 
     /** The [DBOVersion] of this [ColumnV1]. */
     override val version: DBOVersion

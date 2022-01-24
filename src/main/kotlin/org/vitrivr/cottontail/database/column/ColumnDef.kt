@@ -3,7 +3,7 @@ package org.vitrivr.cottontail.database.column
 import org.mapdb.DataInput2
 import org.mapdb.DataOutput2
 import org.vitrivr.cottontail.model.basics.Name
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.values.types.Value
 
 
@@ -14,7 +14,7 @@ import org.vitrivr.cottontail.model.values.types.Value
  * @author Ralph Gasser
  * @version 1.5.1
  */
-data class ColumnDef<T : Value>(val name: Name.ColumnName, val type: Type<T>, val nullable: Boolean = true, val primary: Boolean = false) {
+data class ColumnDef<T : Value>(val name: Name.ColumnName, val type: Types<T>, val nullable: Boolean = true, val primary: Boolean = false) {
 
     /**
      * [org.mapdb.Serializer] for [ColumnDef].
@@ -30,7 +30,7 @@ data class ColumnDef<T : Value>(val name: Name.ColumnName, val type: Type<T>, va
 
         override fun deserialize(input: DataInput2, available: Int): ColumnDef<*> = ColumnDef(
             Name.ColumnName(*input.readUTF().split('.').toTypedArray()),
-            Type.forOrdinal(input.unpackInt(), input.unpackInt()),
+            Types.forOrdinal(input.unpackInt(), input.unpackInt()),
             input.readBoolean(),
             input.readBoolean()
         )

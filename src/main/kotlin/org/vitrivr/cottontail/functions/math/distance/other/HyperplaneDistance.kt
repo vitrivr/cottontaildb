@@ -9,7 +9,7 @@ import org.vitrivr.cottontail.functions.math.distance.binary.ChisquaredDistance
 import org.vitrivr.cottontail.functions.math.distance.binary.InnerProductDistance
 import org.vitrivr.cottontail.functions.math.distance.other.HyperplaneDistance.Generator.FUNCTION_NAME
 import org.vitrivr.cottontail.model.basics.Name
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.values.*
 import org.vitrivr.cottontail.model.values.types.VectorValue
 import kotlin.math.sqrt
@@ -21,8 +21,8 @@ import kotlin.math.sqrt
  * @author Ralph Gasser
  * @version 1.0.0
  */
-sealed class HyperplaneDistance<T: VectorValue<*>>(val type: Type<out T>)
-    : AbstractFunction<DoubleValue>(Signature.Closed(FUNCTION_NAME, arrayOf(Argument.Typed(type), Argument.Typed(type), Argument.Typed(Type.Double)), Type.Double)) {
+sealed class HyperplaneDistance<T: VectorValue<*>>(val type: Types.Vector<T,*>)
+    : AbstractFunction<DoubleValue>(Signature.Closed(FUNCTION_NAME, arrayOf(Argument.Typed(type), Argument.Typed(type), Argument.Typed(type.elementType)), Types.Double)) {
 
     /**
      * The [FunctionGenerator] for the [InnerProductDistance].
@@ -31,11 +31,11 @@ sealed class HyperplaneDistance<T: VectorValue<*>>(val type: Type<out T>)
         val FUNCTION_NAME = Name.FunctionName("hyperplane")
 
         override val signature: Signature.Open<out DoubleValue>
-            get() = Signature.Open(ChisquaredDistance.Generator.FUNCTION_NAME, arrayOf(Argument.Vector, Argument.Vector, Argument.Numeric), Type.Double)
+            get() = Signature.Open(ChisquaredDistance.Generator.FUNCTION_NAME, arrayOf(Argument.Vector, Argument.Vector, Argument.Numeric), Types.Double)
 
         override fun generateInternal(dst: Signature.Closed<*>): Function<DoubleValue> = when (val type = dst.arguments[0].type) {
-            is Type.DoubleVector -> DoubleVector(type.logicalSize)
-            is Type.FloatVector -> FloatVector(type.logicalSize)
+            is Types.DoubleVector -> DoubleVector(type.logicalSize)
+            is Types.FloatVector -> FloatVector(type.logicalSize)
             else -> throw FunctionNotSupportedException("Function generator signature ${this.signature} does not support destination signature (dst = $dst).")
         }
     }
@@ -51,7 +51,7 @@ sealed class HyperplaneDistance<T: VectorValue<*>>(val type: Type<out T>)
     /**
      * [HyperplaneDistance] for a [DoubleVectorValue].
      */
-    class DoubleVector(size: Int) : HyperplaneDistance<DoubleVectorValue>(Type.DoubleVector(size)) {
+    class DoubleVector(size: Int) : HyperplaneDistance<DoubleVectorValue>(Types.DoubleVector(size)) {
         override fun invoke(): DoubleValue {
             val probing = this.arguments[0] as DoubleVectorValue
             val query = this.arguments[1] as DoubleVectorValue
@@ -69,11 +69,11 @@ sealed class HyperplaneDistance<T: VectorValue<*>>(val type: Type<out T>)
     /**
      * [HyperplaneDistance] for a [FloatVectorValue].
      */
-    class FloatVector(size: Int) : HyperplaneDistance<FloatVectorValue>(Type.FloatVector(size)) {
+    class FloatVector(size: Int) : HyperplaneDistance<FloatVectorValue>(Types.FloatVector(size)) {
         override fun invoke(): DoubleValue {
             val probing = this.arguments[0] as DoubleVectorValue
             val query = this.arguments[1] as DoubleVectorValue
-            val bias = this.arguments[2] as DoubleValue
+            val bias = this.arguments[2] as FloatValue
             var dotp = 0.0
             var norm = 0.0
             for (i in 0 until probing.logicalSize) {
@@ -87,7 +87,7 @@ sealed class HyperplaneDistance<T: VectorValue<*>>(val type: Type<out T>)
     /**
      * [HyperplaneDistance] for a [LongVectorValue].
      */
-    class LongVector(size: Int) : HyperplaneDistance<LongVectorValue>(Type.LongVector(size)) {
+    class LongVector(size: Int) : HyperplaneDistance<LongVectorValue>(Types.LongVector(size)) {
         override fun invoke(): DoubleValue {
             val probing = this.arguments[0] as LongVectorValue
             val query = this.arguments[1] as LongVectorValue
@@ -105,7 +105,7 @@ sealed class HyperplaneDistance<T: VectorValue<*>>(val type: Type<out T>)
     /**
      * [HyperplaneDistance] for a [IntVectorValue].
      */
-    class IntVector(size: Int) : HyperplaneDistance<IntVectorValue>(Type.IntVector(size)) {
+    class IntVector(size: Int) : HyperplaneDistance<IntVectorValue>(Types.IntVector(size)) {
         override fun invoke(): DoubleValue {
             val probing = arguments[0] as IntVectorValue
             val query = this.arguments[1] as IntVectorValue

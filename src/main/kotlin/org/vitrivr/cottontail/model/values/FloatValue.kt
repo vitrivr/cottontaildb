@@ -1,8 +1,8 @@
 package org.vitrivr.cottontail.model.values
 
-import org.vitrivr.cottontail.model.basics.Type
 import org.vitrivr.cottontail.model.values.types.NumericValue
 import org.vitrivr.cottontail.model.values.types.RealValue
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.values.types.Value
 import org.vitrivr.cottontail.utilities.extensions.nextFloat
 import java.util.*
@@ -58,9 +58,9 @@ value class FloatValue(override val value: Float): RealValue<Float> {
     override val logicalSize: Int
         get() = 1
 
-    /** The [Type] of this [FloatValue]. */
-    override val type: Type<*>
-        get() = Type.Float
+    /** The [Types] of this [FloatValue]. */
+    override val type: Types<*>
+        get() = Types.Float
 
     override val real: RealValue<Float>
         get() = this

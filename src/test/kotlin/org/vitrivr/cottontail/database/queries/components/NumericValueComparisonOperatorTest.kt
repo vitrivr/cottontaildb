@@ -4,7 +4,7 @@ import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.RepeatedTest
 import org.vitrivr.cottontail.database.queries.binding.DefaultBindingContext
 import org.vitrivr.cottontail.database.queries.predicates.bool.ComparisonOperator
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.values.*
 import org.vitrivr.cottontail.model.values.types.Value
 
@@ -38,11 +38,11 @@ class NumericValueComparisonOperatorTest {
         Assertions.assertFalse(ComparisonOperator.IsNull(context.bind(referenceLong)).match())
         Assertions.assertFalse(ComparisonOperator.IsNull(context.bind(referenceFloat)).match())
         Assertions.assertFalse(ComparisonOperator.IsNull(context.bind(referenceDouble)).match())
-        Assertions.assertTrue(ComparisonOperator.IsNull(context.bindNull(Type.Byte)).match())
-        Assertions.assertTrue(ComparisonOperator.IsNull(context.bindNull(Type.Int)).match())
-        Assertions.assertTrue(ComparisonOperator.IsNull(context.bindNull(Type.Long)).match())
-        Assertions.assertTrue(ComparisonOperator.IsNull(context.bindNull(Type.Float)).match())
-        Assertions.assertTrue(ComparisonOperator.IsNull(context.bindNull(Type.Double)).match())
+        Assertions.assertTrue(ComparisonOperator.IsNull(context.bindNull(Types.Byte)).match())
+        Assertions.assertTrue(ComparisonOperator.IsNull(context.bindNull(Types.Int)).match())
+        Assertions.assertTrue(ComparisonOperator.IsNull(context.bindNull(Types.Long)).match())
+        Assertions.assertTrue(ComparisonOperator.IsNull(context.bindNull(Types.Float)).match())
+        Assertions.assertTrue(ComparisonOperator.IsNull(context.bindNull(Types.Double)).match())
 
 
     }

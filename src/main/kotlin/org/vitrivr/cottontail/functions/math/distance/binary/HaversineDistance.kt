@@ -8,7 +8,7 @@ import org.vitrivr.cottontail.functions.basics.Signature
 import org.vitrivr.cottontail.functions.exception.FunctionNotSupportedException
 import org.vitrivr.cottontail.functions.math.distance.basics.VectorDistance
 import org.vitrivr.cottontail.model.basics.Name
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.values.*
 import org.vitrivr.cottontail.model.values.types.VectorValue
 import kotlin.math.atan2
@@ -22,7 +22,7 @@ import kotlin.math.sqrt
  * @author Loris Sauter & Ralph Gasser
  * @version 1.2.0
  */
-sealed class HaversineDistance<T : VectorValue<*>>(type: Type<T>): VectorDistance<T>(Generator.FUNCTION_NAME, type) {
+sealed class HaversineDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): VectorDistance<T>(Generator.FUNCTION_NAME, type) {
 
     object Generator: AbstractFunctionGenerator<DoubleValue>() {
         val FUNCTION_NAME = Name.FunctionName("haversine")
@@ -30,13 +30,13 @@ sealed class HaversineDistance<T : VectorValue<*>>(type: Type<T>): VectorDistanc
         const val RADIUS_EARTH = 6371000.0
 
         override val signature: Signature.Open<out DoubleValue>
-            get() = Signature.Open(FUNCTION_NAME, arrayOf(Argument.Vector, Argument.Vector), Type.Double)
+            get() = Signature.Open(FUNCTION_NAME, arrayOf(Argument.Vector, Argument.Vector), Types.Double)
 
         override fun generateInternal(dst: Signature.Closed<*>): Function<DoubleValue> = when {
-            dst.arguments[0].type is Type.DoubleVector && dst.arguments[0].type.logicalSize == 2 -> DoubleVector()
-            dst.arguments[0].type is Type.FloatVector && dst.arguments[0].type.logicalSize == 2 -> FloatVector()
-            dst.arguments[0].type is Type.LongVector && dst.arguments[0].type.logicalSize == 2 -> LongVector()
-            dst.arguments[0].type is Type.IntVector && dst.arguments[0].type.logicalSize == 2 -> IntVector()
+            dst.arguments[0].type is Types.DoubleVector && dst.arguments[0].type.logicalSize == 2 -> DoubleVector()
+            dst.arguments[0].type is Types.FloatVector && dst.arguments[0].type.logicalSize == 2 -> FloatVector()
+            dst.arguments[0].type is Types.LongVector && dst.arguments[0].type.logicalSize == 2 -> LongVector()
+            dst.arguments[0].type is Types.IntVector && dst.arguments[0].type.logicalSize == 2 -> IntVector()
             else -> throw FunctionNotSupportedException("Function generator signature ${this.signature} does not support destination signature (dst = $dst).")
         }
     }
@@ -66,7 +66,7 @@ sealed class HaversineDistance<T : VectorValue<*>>(type: Type<T>): VectorDistanc
     /**
      * [HaversineDistance] for a [DoubleVectorValue].
      */
-    class DoubleVector: HaversineDistance<DoubleVectorValue>( Type.DoubleVector(2)) {
+    class DoubleVector: HaversineDistance<DoubleVectorValue>( Types.DoubleVector(2)) {
         override fun copy(d: Int) = DoubleVector()
         override fun invoke(): DoubleValue {
             val probing = this.arguments[0] as DoubleVectorValue
@@ -78,7 +78,7 @@ sealed class HaversineDistance<T : VectorValue<*>>(type: Type<T>): VectorDistanc
     /**
      * [HaversineDistance] for a [FloatVectorValue].
      */
-    class FloatVector: HaversineDistance<FloatVectorValue>(Type.FloatVector(2)) {
+    class FloatVector: HaversineDistance<FloatVectorValue>(Types.FloatVector(2)) {
         override fun copy(d: Int) = FloatVector()
         override fun invoke(): DoubleValue {
             val probing = this.arguments[0] as FloatVectorValue
@@ -90,7 +90,7 @@ sealed class HaversineDistance<T : VectorValue<*>>(type: Type<T>): VectorDistanc
     /**
      * [HaversineDistance] for a [LongVectorValue].
      */
-    class LongVector: HaversineDistance<LongVectorValue>(Type.LongVector(2)) {
+    class LongVector: HaversineDistance<LongVectorValue>(Types.LongVector(2)) {
         override fun copy(d: Int) = LongVector()
         override fun invoke(): DoubleValue {
             val probing = this.arguments[0] as LongVectorValue
@@ -102,7 +102,7 @@ sealed class HaversineDistance<T : VectorValue<*>>(type: Type<T>): VectorDistanc
     /**
      * [HaversineDistance] for a [IntVectorValue].
      */
-    class IntVector: HaversineDistance<IntVectorValue>(Type.IntVector(2)) {
+    class IntVector: HaversineDistance<IntVectorValue>(Types.IntVector(2)) {
         override fun copy(d: Int) = IntVector()
         override fun invoke(): DoubleValue {
             val probing = this.arguments[0] as IntVectorValue

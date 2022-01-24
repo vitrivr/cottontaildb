@@ -5,7 +5,7 @@ import org.mapdb.DataInput2
 import org.mapdb.DataOutput2
 import org.vitrivr.cottontail.database.column.*
 import org.vitrivr.cottontail.database.index.pq.codebook.PQCodebook.Companion.clusterRealData
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.values.*
 import org.vitrivr.cottontail.model.values.types.VectorValue
 import org.vitrivr.cottontail.storage.serializers.DoubleVectorValueSerializerFactory
@@ -100,8 +100,8 @@ class DoublePrecisionPQCodebook(
     }
 
     /** The [DoublePrecisionPQCodebook] handles [DoubleVectorColumnType]s. */
-    override val type: Type<DoubleVectorValue>
-        get() = Type.DoubleVector(this.logicalSize)
+    override val type: Types<DoubleVectorValue>
+        get() = Types.DoubleVector(this.logicalSize)
 
     /** The number of centroids contained in this [SinglePrecisionPQCodebook]. */
     override val numberOfCentroids: Int

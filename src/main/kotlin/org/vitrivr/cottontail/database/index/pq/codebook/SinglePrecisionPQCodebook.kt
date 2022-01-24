@@ -4,7 +4,7 @@ import org.apache.commons.math3.stat.correlation.Covariance
 import org.mapdb.DataInput2
 import org.mapdb.DataOutput2
 import org.vitrivr.cottontail.database.index.pq.codebook.PQCodebook.Companion.clusterRealData
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.values.DoubleVectorValue
 import org.vitrivr.cottontail.model.values.FloatVectorValue
 import org.vitrivr.cottontail.model.values.types.VectorValue
@@ -105,8 +105,8 @@ class SinglePrecisionPQCodebook(
     }
 
     /** The [SinglePrecisionPQCodebook] handles [FloatVectorValue]s. */
-    override val type: Type<FloatVectorValue>
-        get() = Type.FloatVector(this.logicalSize)
+    override val type: Types<FloatVectorValue>
+        get() = Types.FloatVector(this.logicalSize)
 
     /** The number of centroids contained in this [SinglePrecisionPQCodebook]. */
     override val numberOfCentroids: Int

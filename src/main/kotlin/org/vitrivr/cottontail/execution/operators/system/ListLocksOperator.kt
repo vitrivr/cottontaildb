@@ -12,7 +12,7 @@ import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.definition.AbstractDataDefinitionOperator
 import org.vitrivr.cottontail.model.basics.Name
 import org.vitrivr.cottontail.model.basics.Record
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.IntValue
 import org.vitrivr.cottontail.model.values.StringValue
@@ -27,10 +27,10 @@ import org.vitrivr.cottontail.model.values.types.Value
 class ListLocksOperator(val manager: LockManager<DBO>) : Operator.SourceOperator() {
     companion object {
         val COLUMNS: List<ColumnDef<*>> = listOf(
-            ColumnDef(Name.ColumnName("dbo"), Type.String, false),
-            ColumnDef(Name.ColumnName("mode"), Type.String, false),
-            ColumnDef(Name.ColumnName("owner_count"), Type.Int, false),
-            ColumnDef(Name.ColumnName("owners"), Type.String, false)
+            ColumnDef(Name.ColumnName("dbo"), Types.String, false),
+            ColumnDef(Name.ColumnName("mode"), Types.String, false),
+            ColumnDef(Name.ColumnName("owner_count"), Types.Int, false),
+            ColumnDef(Name.ColumnName("owners"), Types.String, false)
         )
     }
 

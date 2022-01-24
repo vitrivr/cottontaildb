@@ -4,7 +4,7 @@ import org.vitrivr.cottontail.functions.basics.AbstractFunction
 import org.vitrivr.cottontail.functions.basics.Argument
 import org.vitrivr.cottontail.functions.basics.Signature
 import org.vitrivr.cottontail.model.basics.Name
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.values.DoubleValue
 import org.vitrivr.cottontail.model.values.types.VectorValue
 
@@ -14,8 +14,8 @@ import org.vitrivr.cottontail.model.values.types.VectorValue
  * @author Ralph Gasser
  * @version 1.2.0
  */
-abstract class VectorDistance<T : VectorValue<*>>(val name: Name.FunctionName, val type: Type<out T>)
-    : AbstractFunction<DoubleValue>(Signature.Closed(name, arrayOf(Argument.Typed(type), Argument.Typed(type)), Type.Double)) {
+abstract class VectorDistance<T : VectorValue<*>>(val name: Name.FunctionName, val type: Types.Vector<T,*>)
+    : AbstractFunction<DoubleValue>(Signature.Closed(name, arrayOf(Argument.Typed(type), Argument.Typed(type)), Types.Double)) {
 
     /** The dimensionality of this [VectorDistance]. */
     val d: Int

@@ -14,7 +14,7 @@ import org.vitrivr.cottontail.database.queries.predicates.bool.ComparisonOperato
 import org.vitrivr.cottontail.database.schema.SchemaTx
 import org.vitrivr.cottontail.execution.TransactionType
 import org.vitrivr.cottontail.model.basics.Name
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.FloatValue
 import org.vitrivr.cottontail.model.values.IntValue
@@ -31,8 +31,8 @@ class NonUniqueIntHashIndexTest : AbstractIndexTest() {
 
     /** List of columns for this [NonUniqueStringHashIndexTest]. */
     override val columns: Array<ColumnDef<*>> = arrayOf(
-        ColumnDef(this.entityName.column("id"), Type.Int),
-        ColumnDef(this.entityName.column("feature"), Type.Float)
+        ColumnDef(this.entityName.column("id"), Types.Int),
+        ColumnDef(this.entityName.column("feature"), Types.Float)
     )
 
     override val indexColumn: ColumnDef<*>

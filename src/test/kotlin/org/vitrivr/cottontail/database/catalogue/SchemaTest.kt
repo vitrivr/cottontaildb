@@ -16,7 +16,7 @@ import org.vitrivr.cottontail.database.schema.SchemaTx
 import org.vitrivr.cottontail.execution.TransactionManager
 import org.vitrivr.cottontail.execution.TransactionType
 import org.vitrivr.cottontail.model.basics.Name
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.exceptions.DatabaseException
 import org.vitrivr.cottontail.utilities.io.TxFileUtilities
 import java.nio.file.Files
@@ -80,7 +80,7 @@ class SchemaTest {
             val schema = catalogueTx1.createSchema(this.schemaName)
             val schemaTx1 = txn1.getTx(schema) as SchemaTx
             for (name in entityNames) {
-                schemaTx1.createEntity(name, ColumnDef(name.column("id"), Type.String) to ColumnEngine.MAPDB)
+                schemaTx1.createEntity(name, ColumnDef(name.column("id"), Types.String) to ColumnEngine.MAPDB)
             }
             txn1.commit()
         } catch (t: Throwable) {
@@ -124,7 +124,7 @@ class SchemaTest {
             val schema = catalogueTx1.createSchema(this.schemaName)
             val schemaTx1 = txn1.getTx(schema) as SchemaTx
             for (name in entityNames) {
-                schemaTx1.createEntity(name, ColumnDef(name.column("id"), Type.String) to ColumnEngine.MAPDB)
+                schemaTx1.createEntity(name, ColumnDef(name.column("id"), Types.String) to ColumnEngine.MAPDB)
             }
 
             /* Drop newly created entity. */
@@ -133,8 +133,8 @@ class SchemaTest {
             /* Create new entity with the same name. */
             schemaTx1.createEntity(
                 entityNames[1],
-                ColumnDef(entityNames[1].column("id1"), Type.Long) to ColumnEngine.MAPDB,
-                ColumnDef(entityNames[1].column("id2"), Type.Int) to ColumnEngine.MAPDB
+                ColumnDef(entityNames[1].column("id1"), Types.Long) to ColumnEngine.MAPDB,
+                ColumnDef(entityNames[1].column("id2"), Types.Int) to ColumnEngine.MAPDB
             )
             txn1.commit()
         } catch (t: Throwable) {
@@ -184,7 +184,7 @@ class SchemaTest {
             val schema = catalogueTx1.schemaForName(this.schemaName)
             val schemaTx1 = txn1.getTx(schema) as SchemaTx
             for (name in entityNames) {
-                schemaTx1.createEntity(name, ColumnDef(name.column("id"), Type.String) to ColumnEngine.MAPDB)
+                schemaTx1.createEntity(name, ColumnDef(name.column("id"), Types.String) to ColumnEngine.MAPDB)
             }
         } finally {
             txn1.rollback()
@@ -218,7 +218,7 @@ class SchemaTest {
             val schema = catalogueTx1.createSchema(this.schemaName)
             val schemaTx1 = txn1.getTx(schema) as SchemaTx
             for (name in this.entityNames) {
-                schemaTx1.createEntity(name, ColumnDef(name.column("id"), Type.String) to ColumnEngine.MAPDB)
+                schemaTx1.createEntity(name, ColumnDef(name.column("id"), Types.String) to ColumnEngine.MAPDB)
             }
         } finally {
             txn1.commit()
@@ -236,8 +236,8 @@ class SchemaTest {
                 schemaTx2.dropEntity(name)
                 schemaTx2.createEntity(
                         name,
-                        ColumnDef(name.column("id"), Type.String) to ColumnEngine.MAPDB,
-                        ColumnDef(name.column("value"), Type.String) to ColumnEngine.MAPDB
+                        ColumnDef(name.column("id"), Types.String) to ColumnEngine.MAPDB,
+                        ColumnDef(name.column("value"), Types.String) to ColumnEngine.MAPDB
                 )
             }
         } finally {

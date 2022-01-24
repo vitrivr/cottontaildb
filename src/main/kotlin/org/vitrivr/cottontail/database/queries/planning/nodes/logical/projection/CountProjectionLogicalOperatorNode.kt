@@ -5,7 +5,7 @@ import org.vitrivr.cottontail.database.queries.planning.nodes.logical.UnaryLogic
 import org.vitrivr.cottontail.database.queries.planning.nodes.physical.projection.CountProjectionPhysicalOperatorNode
 import org.vitrivr.cottontail.database.queries.projection.Projection
 import org.vitrivr.cottontail.model.basics.Name
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 
 /**
  * A [UnaryLogicalOperatorNode] that represents a projection operation involving aggregate functions such as [Projection.COUNT].
@@ -19,7 +19,7 @@ class CountProjectionLogicalOperatorNode(input: Logical? = null, val alias: Name
     override val columns: List<ColumnDef<*>>
         get() {
             val name = this.alias ?: (this.input?.columns?.first()?.name?.entity()?.column(Projection.COUNT.label()) ?: Name.ColumnName(Projection.COUNT.label()))
-            return listOf(ColumnDef(name, Type.Long, false))
+            return listOf(ColumnDef(name, Types.Long, false))
         }
 
     /**

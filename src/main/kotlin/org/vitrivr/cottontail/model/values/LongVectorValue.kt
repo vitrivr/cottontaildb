@@ -1,10 +1,6 @@
 package org.vitrivr.cottontail.model.values
 
-import org.vitrivr.cottontail.model.basics.Type
-import org.vitrivr.cottontail.model.values.types.NumericValue
-import org.vitrivr.cottontail.model.values.types.RealVectorValue
-import org.vitrivr.cottontail.model.values.types.Value
-import org.vitrivr.cottontail.model.values.types.VectorValue
+import org.vitrivr.cottontail.model.values.types.*
 import java.util.*
 import kotlin.math.pow
 
@@ -48,9 +44,9 @@ value class LongVectorValue(val data: LongArray) : RealVectorValue<Long> {
     override val logicalSize: Int
         get() = this.data.size
 
-    /** The [Type] of this [LongVectorValue]. */
-    override val type: Type<*>
-        get() = Type.LongVector(this.logicalSize)
+    /** The [Types] of this [LongVectorValue]. */
+    override val type: Types<*>
+        get() = Types.LongVector(this.logicalSize)
 
     /**
      * Checks for equality between this [LongVectorValue] and the other [Value]. Equality can only be

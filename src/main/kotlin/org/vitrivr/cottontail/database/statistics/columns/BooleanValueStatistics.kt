@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.database.statistics.columns
 
 import org.mapdb.DataInput2
 import org.mapdb.DataOutput2
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.values.BooleanValue
 import org.vitrivr.cottontail.model.values.types.Value
 
@@ -12,7 +12,7 @@ import org.vitrivr.cottontail.model.values.types.Value
  * @author Ralph Gasser
  * @version 1.1.0
  */
-class BooleanValueStatistics : ValueStatistics<BooleanValue>(Type.Boolean) {
+class BooleanValueStatistics : ValueStatistics<BooleanValue>(Types.Boolean) {
 
     /**
      * Serializer for [LongValueStatistics].

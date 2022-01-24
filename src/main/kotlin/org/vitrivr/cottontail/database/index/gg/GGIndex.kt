@@ -21,7 +21,7 @@ import org.vitrivr.cottontail.functions.math.distance.Distances
 import org.vitrivr.cottontail.functions.math.distance.basics.VectorDistance
 import org.vitrivr.cottontail.model.basics.Record
 import org.vitrivr.cottontail.model.basics.TupleId
-import org.vitrivr.cottontail.model.basics.Type
+import org.vitrivr.cottontail.model.values.types.Types
 import org.vitrivr.cottontail.model.exceptions.QueryException
 import org.vitrivr.cottontail.model.recordset.StandaloneRecord
 import org.vitrivr.cottontail.model.values.DoubleValue
@@ -167,7 +167,7 @@ class GGIndex(path: Path, parent: DefaultEntity, config: GGIndexConfig? = null) 
                 val groupSeedValue = txn.read(groupSeedTid, this@GGIndex.columns)[this@GGIndex.columns[0]]
                 if (groupSeedValue is VectorValue<*>) {
                     /* Perform kNN for group. */
-                    val signature = Signature.Closed(this@GGIndex.config.distance.functionName, arrayOf(Argument.Typed(this@GGIndex.columns[0].type)), Type.Double)
+                    val signature = Signature.Closed(this@GGIndex.config.distance.functionName, arrayOf(Argument.Typed(this@GGIndex.columns[0].type)), Types.Double)
                     val function = this@GGIndex.parent.parent.parent.functions.obtain(signature)
                     check(function is VectorDistance<*>) { "GGIndex rebuild failed: Function $signature is not a vector distance function." }
                     val knn = MinHeapSelection<ComparablePair<Pair<TupleId, VectorValue<*>>, DoubleValue>>(groupSize)
@@ -262,7 +262,7 @@ class GGIndex(path: Path, parent: DefaultEntity, config: GGIndexConfig? = null) 
                 /* Scan >= 10% of entries by default */
                 val considerNumGroups = (this@GGIndex.config.numGroups + 9) / 10
                 val txn = this@Tx.context.getTx(this@GGIndex.parent) as EntityTx
-                val signature = Signature.Closed(this@GGIndex.config.distance.functionName, arrayOf(Argument.Typed(this@GGIndex.columns[0].type)), Type.Double)
+                val signature = Signature.Closed(this@GGIndex.config.distance.functionName, arrayOf(Argument.Typed(this@GGIndex.columns[0].type)), Types.Double)
                 val function = this@GGIndex.parent.parent.parent.functions.obtain(signature)
                 check (function is VectorDistance<*>) { "Function $signature is not a vector distance function." }
 
