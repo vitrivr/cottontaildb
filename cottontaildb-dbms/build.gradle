@@ -1,7 +1,8 @@
-/* General application attributes. */
-mainClassName = 'org.vitrivr.cottontail.CottontailKt'
-applicationDefaultJvmArgs = ["-Xms2G", "-Xmx4G"]
+/* Plugins. */
+apply plugin: 'application'
+apply plugin: 'kotlinx-serialization'
 
+/* Cottontail DB dependencies. */
 dependencies {
     api project(':cottontaildb-core')
 
@@ -25,12 +26,13 @@ dependencies {
     implementation group: 'org.apache.lucene', name: 'lucene-analyzers-phonetic', version: version_lucene
     implementation group: 'org.apache.lucene', name: 'lucene-codecs', version: version_lucene
     implementation group: 'org.apache.lucene', name: 'lucene-queryparser', version: version_lucene
+}
 
-    ////// CLI & Terminal
-    implementation group: 'org.jline', name: 'jline', version: version_jline
-    implementation group: 'org.jline', name: 'jline-terminal-jna', version: version_jline
-    implementation group: 'com.github.ajalt.clikt', name: 'clikt', version: version_clikt
-    implementation group: 'com.jakewharton.picnic', name: 'picnic', version: version_picnic
+/* General application attributes. */
+application {
+    applicationName = 'cottontaildb'
+    mainClassName = 'org.vitrivr.cottontail.cli.CottontailKt'
+    applicationDefaultJvmArgs = ["-Xms2G", "-Xmx4G"]
 }
 
 shadowJar {
@@ -55,5 +57,5 @@ tasks.withType(Test) {
 }
 
 ///// Default names for distributions
-distZip.archiveFileName = 'cottontaildb-bin.zip'
-distTar.archiveFileName = 'cottontaildb-bin.tar'
+distZip.archiveFileName = 'cottontaildb-dbms.zip'
+distTar.archiveFileName = 'cottontaildb-dbms.tar'

@@ -1,7 +1,7 @@
-/* General application attributes. */
-mainClassName = 'org.vitrivr.cottontail.CarrotliKt'
-applicationDefaultJvmArgs = ["-Xms256MB", "-Xmx1G"]
+/* Plugins. */
+apply plugin: 'application'
 
+/* C(arrot)LI dependencies. */
 dependencies {
     api project(':cottontaildb-core')
 
@@ -12,8 +12,23 @@ dependencies {
     implementation group: 'com.jakewharton.picnic', name: 'picnic', version: version_picnic
 }
 
+/* General application attributes. */
+application {
+    applicationName = 'carrotli'
+    applicationDefaultJvmArgs = ["-Xms256M", "-Xmx1G"]
+    mainClassName = 'org.vitrivr.cottontail.CarrotliKt'
+}
+
+shadowJar {
+    mergeServiceFiles()
+}
+
 idea {
     module {
         downloadJavadoc = true
     }
 }
+
+//// Change name for distribution to C(arrot)LI.
+distZip.archiveFileName = 'cottontaildb-cli.zip'
+distTar.archiveFileName = 'cottontaildb-cli.tar'
