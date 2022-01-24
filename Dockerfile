@@ -3,8 +3,8 @@ FROM openjdk:latest AS build
 COPY . /cottontail-src
 RUN cd /cottontail-src && \
   ./gradlew distTar && \
-  mkdir cottontaildb-bin && \
-  cd cottontaildb-bin && \
+  mkdir cottontaildb-dbms && \
+  cd cottontaildb-dbms && \
   tar xf ../build/cottontaildb-dbms/distributions/cottontaildb-dbms.tar
 
 
@@ -16,4 +16,4 @@ COPY --from=build /cottontail-src/cottontaildb-bin /
 
 EXPOSE 1865
 
-ENTRYPOINT /cottontaildb-bin/bin/cottontaildb /cottontaildb-config/config.json
+ENTRYPOINT /cottontaildb-dbms/bin/cottontaildb /cottontaildb-config/config.json
