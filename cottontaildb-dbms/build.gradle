@@ -1,0 +1,59 @@
+/* General application attributes. */
+mainClassName = 'org.vitrivr.cottontail.CottontailKt'
+applicationDefaultJvmArgs = ["-Xms2G", "-Xmx4G"]
+
+dependencies {
+    api project(':cottontaildb-core')
+
+    ///// MapDB dependency
+    implementation group: 'org.mapdb', name: 'mapdb', version: version_mapdb
+
+    ///// FastUtil
+    implementation group: 'it.unimi.dsi', name: 'fastutil', version: version_fastutil
+
+    ///// Google Guava
+    implementation group: 'com.google.guava', name: 'guava', version: version_guava
+
+    ////// Log4j2 & SLF4j
+    implementation group: 'org.apache.logging.log4j', name: 'log4j-api', version: version_log4j2
+    implementation group: 'org.apache.logging.log4j', name: 'log4j-core', version: version_log4j2
+    implementation group: 'org.apache.logging.log4j', name: 'log4j-slf4j-impl', version: version_log4j2
+
+    ////// Lucene
+    implementation group: 'org.apache.lucene', name: 'lucene-core', version: version_lucene
+    implementation group: 'org.apache.lucene', name: 'lucene-analyzers-common', version: version_lucene
+    implementation group: 'org.apache.lucene', name: 'lucene-analyzers-phonetic', version: version_lucene
+    implementation group: 'org.apache.lucene', name: 'lucene-codecs', version: version_lucene
+    implementation group: 'org.apache.lucene', name: 'lucene-queryparser', version: version_lucene
+
+    ////// CLI & Terminal
+    implementation group: 'org.jline', name: 'jline', version: version_jline
+    implementation group: 'org.jline', name: 'jline-terminal-jna', version: version_jline
+    implementation group: 'com.github.ajalt.clikt', name: 'clikt', version: version_clikt
+    implementation group: 'com.jakewharton.picnic', name: 'picnic', version: version_picnic
+}
+
+shadowJar {
+    mergeServiceFiles()
+}
+
+idea {
+    module {
+        downloadJavadoc = true
+        excludeDirs += file('cottontaildb-data')
+    }
+}
+
+// used to pass flags such as windows to test-runner
+test {
+    systemProperties(System.getProperties())
+}
+
+tasks.withType(Test) {
+    useJUnitPlatform()
+    jvmArgs '--enable-preview'
+}
+
+///// Default names for distributions
+distZip.archiveFileName = 'cottontaildb-bin.zip'
+distTar.archiveFileName = 'cottontaildb-bin.tar'

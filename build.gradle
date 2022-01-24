@@ -1,186 +1,102 @@
+
 plugins {
     id "org.jetbrains.kotlin.jvm" version "$version_kotlin"
     id "org.jetbrains.kotlin.plugin.serialization" version "$version_kotlin"
     id "com.github.johnrengelman.shadow" version "6.1.0"
+    id 'idea'
 }
 
-apply plugin: 'java'
-apply plugin: 'kotlin'
-apply plugin: 'kotlinx-serialization'
-apply plugin: 'idea'
-apply plugin: 'application'
-apply plugin: 'java-library'
-apply plugin: 'maven-publish'
-apply plugin: 'signing'
-apply plugin: 'com.github.johnrengelman.shadow'
+allprojects {
+    /* Group name of our artifacts */
+    group = 'org.vitrivr'
 
-/* Group and SNAPSHOT version. Update version for each major and minor release. */
-group 'org.vitrivr'
-version '0.13.3'
+    /* Our current version, on dev branch this should always be release+1-SNAPSHOT */
+    version = '0.14.0'
 
-/* General application attributes. */
-mainClassName = 'org.vitrivr.cottontail.CottontailKt'
-applicationDefaultJvmArgs = ["-Xms2G", "-Xmx4G"]
-
-/* Source and target compatibility are set to Java 8. */
-targetCompatibility = 1.8
-sourceCompatibility = 1.8
-
-repositories {
-    mavenCentral()
-    maven {
-        url "https://oss.sonatype.org/content/repositories/snapshots/"
-    }
-}
-
-compileKotlin {
-    kotlinOptions.jvmTarget = "1.8"
-    kotlinOptions {
-        freeCompilerArgs = ["-Xinline-classes"]
-    }
-}
-compileTestKotlin {
-    kotlinOptions.jvmTarget = "1.8"
-}
-
-java {
-    withJavadocJar()
-    withSourcesJar()
-}
-
-javadoc {
-    options.addStringOption("Xdoclint:none", "-quiet")
-    options.memberLevel = JavadocMemberLevel.PRIVATE
-    if (JavaVersion.current().isJava9Compatible()) {
-        options.addBooleanOption("html5", true)
-    }
-}
-
-publishing {
-    publications {
-        mavenJava(MavenPublication) {
-            groupId = 'org.vitrivr'
-            artifactId = 'cottontaildb'
-            version = System.getenv().getOrDefault("MAVEN_PUBLICATION_VERSION", version.toString())
-            from components.java
-            pom {
-                name = 'Cottontail DB'
-                description = 'Cottontail DB as java library, for use in embedded mode.'
-                url = 'https://github.com/vitrivr/cottontaildb/'
-                licenses {
-                    license {
-                        name = 'MIT License'
-                    }
-                }
-                developers {
-                    developer {
-                        id = 'ppanopticon'
-                        name = 'Ralph Gasser'
-                        email = 'ralph.gasser@unibas.ch'
-                    }
-                }
-                scm {
-                    connection = 'scm:git:https://github.com/vitrivr/cottontaildb.git'
-                    url = 'https://github.com/vitrivr/cottontaildb'
-                }
-            }
-        }
-    }
-    repositories {
+    /* Repositories for build script. */
+    buildscript {
         repositories {
+            mavenCentral()
             maven {
-                def releasesRepoUrl = 'https://oss.sonatype.org/service/local/staging/deploy/maven2/'
-                def snapshotsRepoUrl = 'https://oss.sonatype.org/content/repositories/snapshots/'
-                name = "OSSRH"
-                url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
-                credentials {
-                    username = System.getenv("MAVEN_USERNAME")
-                    password = System.getenv("MAVEN_PASSWORD")
-                }
+                url "https://oss.sonatype.org/content/repositories/snapshots/"
             }
         }
     }
+
+    /* Project repositories for build script. */
+    repositories {
+        mavenCentral()
+        maven {
+            url "https://oss.sonatype.org/content/repositories/snapshots/"
+        }
+    }
+
+    /* Common plugins. */
+    apply plugin: 'java'
+    apply plugin: 'kotlin'
+    apply plugin: 'kotlinx-serialization'
+    apply plugin: 'idea'
+    apply plugin: 'application'
+    apply plugin: 'java-library'
+    apply plugin: 'maven-publish'
+    apply plugin: 'signing'
+    apply plugin: 'com.github.johnrengelman.shadow'
 }
 
-signing {
-    def signingKey = findProperty("signingKey")
-    def signingPassword = findProperty("signingPassword")
-    useInMemoryPgpKeys(signingKey, signingPassword)
-    sign publishing.publications.mavenJava
-}
+subprojects {
+    compileKotlin {
+        kotlinOptions.jvmTarget = "1.8"
+        kotlinOptions {
+            freeCompilerArgs = ["-Xinline-classes"]
+        }
+    }
+    compileTestKotlin {
+        kotlinOptions.jvmTarget = "1.8"
+    }
 
-dependencies {
-    ///// Cottontail DB Driver + gRPC dependencies
-    implementation group: 'org.vitrivr', name: 'cottontaildb-proto', version: version_cottontaildb_driver
-    implementation group: 'io.grpc', name: 'grpc-all', version: version_grpc
-    implementation group: 'io.grpc', name: 'grpc-kotlin-stub', version: version_grpc_kotlin
-    implementation group: 'com.google.protobuf', name: 'protobuf-java', version: version_protobuf
+    java {
+        withJavadocJar()
+        withSourcesJar()
+    }
 
-    ///// MapDB dependency
-    implementation group: 'org.mapdb', name: 'mapdb', version: version_mapdb
+    javadoc {
+        options.addStringOption("Xdoclint:none", "-quiet")
+        options.memberLevel = JavadocMemberLevel.PRIVATE
+        if (JavaVersion.current().isJava9Compatible()) {
+            options.addBooleanOption("html5", true)
+        }
+    }
 
-    ///// FastUtil
-    implementation group: 'it.unimi.dsi', name: 'fastutil', version: version_fastutil
+    /* Important warnings that are currently missing simply because there are too many: "cast", "rawtypes". Ideally, "all" should be used in the future. */
+    def enabledWarnings = ["-Xlint:deprecation", "-Xlint:empty", "-Xlint:overrides", "-Xlint:serial", "-Xlint:static", "-Xlint:unchecked", "-Xlint:varargs"]
+    compileJava {
+        options.encoding = 'UTF-8'
+        options.compilerArgs += enabledWarnings
+    }
+    compileTestJava.options.compilerArgs += enabledWarnings
 
-    ///// Google Guava
-    implementation group: 'com.google.guava', name: 'guava', version: version_guava
+    dependencies {
+        ///// Kotlin
+        implementation group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib', version: version_kotlin
+        implementation group: 'org.jetbrains.kotlin', name: 'kotlin-reflect', version: version_kotlin
+        implementation group: 'org.jetbrains.kotlinx', name: 'kotlinx-coroutines-core', version: version_kotlinx_coroutines
+        implementation group: 'org.jetbrains.kotlinx', name: 'kotlinx-serialization-json-jvm', version: version_kotlinx_json_jvm
 
-    ////// Log4j2 & SLF4j
-    implementation group: 'org.apache.logging.log4j', name: 'log4j-api', version: version_log4j2
-    implementation group: 'org.apache.logging.log4j', name: 'log4j-core', version: version_log4j2
-    implementation group: 'org.apache.logging.log4j', name: 'log4j-slf4j-impl', version: version_log4j2
+        ///// Cottontail DB Driver + gRPC dependencies
+        implementation group: 'org.vitrivr', name: 'cottontaildb-proto', version: version_cottontaildb_driver
+        implementation group: 'io.grpc', name: 'grpc-all', version: version_grpc
+        implementation group: 'io.grpc', name: 'grpc-kotlin-stub', version: version_grpc_kotlin
+        implementation group: 'com.google.protobuf', name: 'protobuf-java', version: version_protobuf
 
-    ////// Lucene
-    implementation group: 'org.apache.lucene', name: 'lucene-core', version: version_lucene
-    implementation group: 'org.apache.lucene', name: 'lucene-analyzers-common', version: version_lucene
-    implementation group: 'org.apache.lucene', name: 'lucene-analyzers-phonetic', version: version_lucene
-    implementation group: 'org.apache.lucene', name: 'lucene-codecs', version: version_lucene
-    implementation group: 'org.apache.lucene', name: 'lucene-queryparser', version: version_lucene
+        ////// Log4j2 & SLF4j
+        implementation group: 'org.apache.logging.log4j', name: 'log4j-api', version: version_log4j2
+        implementation group: 'org.apache.logging.log4j', name: 'log4j-core', version: version_log4j2
+        implementation group: 'org.apache.logging.log4j', name: 'log4j-slf4j-impl', version: version_log4j2
 
-    ////// CLI & Terminal
-    implementation group: 'org.jline', name: 'jline', version: version_jline
-    implementation group: 'org.jline', name: 'jline-terminal-jna', version: version_jline
-    implementation group: 'com.github.ajalt.clikt', name: 'clikt', version: version_clikt
-    implementation group: 'com.jakewharton.picnic', name: 'picnic', version: version_picnic
-
-    ///// Kotlin
-    implementation group: 'org.jetbrains.kotlin', name: 'kotlin-stdlib', version: version_kotlin
-    implementation group: 'org.jetbrains.kotlin', name: 'kotlin-reflect', version: version_kotlin
-    implementation group: 'org.jetbrains.kotlinx', name: 'kotlinx-coroutines-core', version: version_kotlinx_coroutines
-    implementation group: 'org.jetbrains.kotlinx', name: 'kotlinx-serialization-json-jvm', version: version_kotlinx_json_jvm
-
-    ///// Apache Commons 3.6
-    implementation group: 'org.apache.commons', name: 'commons-math3', version: version_commons_math3
-    implementation group: 'org.apache.commons', name: 'commons-lang3', version: version_commons_lang3
-
-    ///// JUnit 5
-    testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-api', version: version_junit
-    testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: version_junit
-    testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-params', version: version_junit
-    testImplementation group: 'org.junit.platform', name: 'junit-platform-commons', version: version_junit_platform
-}
-
-shadowJar {
-    mergeServiceFiles()
-}
-
-idea {
-    module {
-        downloadJavadoc = true
-        excludeDirs += file('cottontaildb-data')
+        ///// JUnit 5
+        testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-api', version: version_junit
+        testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: version_junit
+        testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-params', version: version_junit
+        testImplementation group: 'org.junit.platform', name: 'junit-platform-commons', version: version_junit_platform
     }
 }
-
-// used to pass flags such as windows to test-runner
-test {
-    systemProperties(System.getProperties())
-}
-
-tasks.withType(Test) {
-    useJUnitPlatform()
-    jvmArgs '--enable-preview'
-}
-
-///// Default names for distributions
-distZip.archiveFileName = 'cottontaildb-bin.zip'
-distTar.archiveFileName = 'cottontaildb-bin.tar'

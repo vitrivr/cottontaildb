@@ -1,0 +1,19 @@
+/* General application attributes. */
+mainClassName = 'org.vitrivr.cottontail.CarrotliKt'
+applicationDefaultJvmArgs = ["-Xms256MB", "-Xmx1G"]
+
+dependencies {
+    api project(':cottontaildb-core')
+
+    ////// CLI & Terminal
+    implementation group: 'org.jline', name: 'jline', version: version_jline
+    implementation group: 'org.jline', name: 'jline-terminal-jna', version: version_jline
+    implementation group: 'com.github.ajalt.clikt', name: 'clikt', version: version_clikt
+    implementation group: 'com.jakewharton.picnic', name: 'picnic', version: version_picnic
+}
+
+idea {
+    module {
+        downloadJavadoc = true
+    }
+}

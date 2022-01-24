@@ -1,0 +1,8 @@
+dependencies {
+    ///// FastUtil
+    api group: 'it.unimi.dsi', name: 'fastutil', version: version_fastutil
+
+    ///// Apache Commons 3.6
+    api group: 'org.apache.commons', name: 'commons-math3', version: version_commons_math3
+    api group: 'org.apache.commons', name: 'commons-lang3', version: version_commons_lang3
+}

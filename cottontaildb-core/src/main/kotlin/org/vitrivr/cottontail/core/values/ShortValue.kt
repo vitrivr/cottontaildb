@@ -1,0 +1,115 @@
+package org.vitrivr.cottontail.core.values
+
+import org.vitrivr.cottontail.core.values.types.Types
+import org.vitrivr.cottontail.core.values.types.NumericValue
+import org.vitrivr.cottontail.core.values.types.RealValue
+import org.vitrivr.cottontail.core.values.types.Value
+import org.vitrivr.cottontail.utilities.extensions.nextShort
+import java.util.*
+
+/**
+ * This is an abstraction over a [Short].
+ *
+ * @author Ralph Gasser
+ * @version 1.6.0
+ */
+@JvmInline
+value class ShortValue(override val value: Short): RealValue<Short> {
+    companion object {
+        val ZERO = ShortValue(0.toShort())
+        val ONE = ShortValue(1.toShort())
+
+        /**
+         * Generates a random [ShortValue].
+         *
+         * @param rnd A [SplittableRandom] to generate the random numbers.
+         * @return Random [ShortValue]
+         */
+        fun random(rnd: SplittableRandom = Value.RANDOM) = ShortValue(rnd.nextShort())
+    }
+
+    /**
+     * Constructor for an arbitrary [Number].
+     *
+     * @param number The [Number] that should be converted to a [ShortValue]
+     */
+    constructor(number: Number) : this(number.toShort())
+
+    /**
+     * Constructor for an arbitrary [NumericValue].
+     *
+     * @param number The [NumericValue] that should be converted to a [ShortValue]
+     */
+    constructor(number: NumericValue<*>) : this(number.value.toShort())
+
+    /** The logical size of this [ShortValue]. */
+    override val logicalSize: Int
+        get() = 1
+
+    /** The [Types] of this [ShortValue]. */
+    override val type: Types<*>
+        get() = Types.Short
+
+    override val real: RealValue<Short>
+        get() = this
+
+    override val imaginary: RealValue<Short>
+        get() = ZERO
+
+    /**
+     * Compares this [ShortValue] to another [Value]. Returns -1, 0 or 1 of other value is smaller,
+     * equal or greater than this value. [ShortValue] can only be compared to other [NumericValue]s.
+     *
+     * @param other Value to compare to.
+     * @return -1, 0 or 1 of other value is smaller, equal or greater than this value
+     */
+    override fun compareTo(other: Value): Int = when (other) {
+        is ByteValue -> this.value.compareTo(other.value)
+        is ShortValue -> this.value.compareTo(other.value)
+        is IntValue -> this.value.compareTo(other.value)
+        is LongValue -> this.value.compareTo(other.value)
+        is DoubleValue -> this.value.compareTo(other.value)
+        is FloatValue -> this.value.compareTo(other.value)
+        is Complex32Value -> this.value.compareTo(other.data[0])
+        is Complex64Value -> this.value.compareTo(other.data[0])
+        else -> throw IllegalArgumentException("LongValues can only be compared to other numeric values.")
+    }
+
+    /**
+     * Checks for equality between this [LongValue] and the other [Value]. Equality can only be
+     * established if the other [Value] is also a [LongValue] and holds the same value.
+     *
+     * @param other [Value] to compare to.
+     * @return True if equal, false otherwise.
+     */
+    override fun isEqual(other: Value): Boolean = (other is ShortValue) && (other.value == this.value)
+
+    override fun asDouble(): DoubleValue = DoubleValue(this.value.toDouble())
+    override fun asFloat(): FloatValue = FloatValue(this.value.toFloat())
+    override fun asInt(): IntValue = IntValue(this.value.toInt())
+    override fun asLong(): LongValue = LongValue(this.value.toLong())
+    override fun asShort(): ShortValue = this
+    override fun asByte(): ByteValue = ByteValue(this.value.toByte())
+    override fun asComplex32(): Complex32Value = Complex32Value(this.asFloat(), FloatValue(0.0f))
+    override fun asComplex64(): Complex64Value = Complex64Value(this.asDouble(), DoubleValue(0.0))
+
+    override fun unaryMinus(): ShortValue = ShortValue((-this.value).toShort())
+
+    override fun plus(other: NumericValue<*>) = ShortValue((this.value + other.value.toShort()).toShort())
+    override fun minus(other: NumericValue<*>) = ShortValue((this.value - other.value.toShort()).toShort())
+    override fun times(other: NumericValue<*>) = ShortValue((this.value * other.value.toShort()).toShort())
+    override fun div(other: NumericValue<*>) = ShortValue((this.value / other.value.toShort()).toShort())
+
+    override fun abs() = ShortValue(kotlin.math.abs(this.value.toInt()))
+
+    override fun pow(x: Int) = this.asDouble().pow(x)
+    override fun pow(x: Double) = this.asDouble().pow(x)
+    override fun sqrt() = this.asDouble().sqrt()
+    override fun exp() = this.asDouble().exp()
+    override fun ln() = this.asDouble().ln()
+
+    override fun cos() = this.asDouble().cos()
+    override fun sin() = this.asDouble().sin()
+    override fun tan() = this.asDouble().tan()
+    override fun atan() = this.asDouble().atan()
+}
