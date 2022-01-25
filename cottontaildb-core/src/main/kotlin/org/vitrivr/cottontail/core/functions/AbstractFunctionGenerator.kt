@@ -24,13 +24,13 @@ abstract class AbstractFunctionGenerator<out R: Value>: FunctionGenerator<R> {
             this.signature.returnType
         )
         if (!this.signature.includes(destSignature)) {
-            throw FunctionNotSupportedException("Function generator signature ${this.signature} does not support destination signature (dst = $destSignature).")
+            throw FunctionNotSupportedException("Function generator signature ${this.signature} does not support destination signature $destSignature.")
         }
 
         /* Check of closes signature of this Function is compatible with arguments. */
         val ret = this.generateInternal(destSignature)
         if (ret.signature != destSignature) {
-            throw FunctionNotSupportedException("Generated signature ${ret.signature} is not compatible with destination signature (dst = $destSignature)")
+            throw FunctionNotSupportedException("Generated signature ${ret.signature} is not compatible with destination signature $destSignature")
         }
 
         return ret

@@ -44,24 +44,48 @@ sealed interface Argument {
     }
 
     /**
+     * A scalar argument, i.e., an argument that is not a vector.
+     */
+    object Scalar: Argument {
+        /**
+         * [Argument.Scalar]s are compatible to all [Value]s of [Types.Scalar].
+         *
+         * @param value The [Value] to compare this [Open] to.
+         * @return true if compatibility is provided, false otherwise.
+         */
+        override fun isCompatible(value: Value?): Boolean = (value == null || value.type is Types.Scalar)
+
+        /**
+         * [Argument.Vector]s are compatible to all types of [Argument.Scalar]s.
+         *
+         * @param argument The [Argument] to compare this [Argument.Numeric] to.
+         * @return true if compatibility is given, false otherwise.
+         */
+        override fun isCompatible(argument: Argument): Boolean = (argument is Typed<*> && argument.type is Types.Scalar<*>)
+
+        override fun toString(): String = "Open[Scalar]"
+    }
+
+    /**
      * A numeric argument, i.e., an argument that must contain a vector value
      */
     object Numeric: Argument {
         /**
-         * [Numeric]s are compatible to all [Value]s that are numbers.
+         * [Argument.Numeric]s are compatible to all [Value]s of [Types.Numeric].
          *
-         * @param value The [Value] to compare this [Open] to.
-         * @return true if compatibility is given, false otherwise.
+         * @param value The [Value] to compare this [Argument.Numeric] to.
+         * @return true if compatibility is provided, false otherwise.
          */
         override fun isCompatible(value: Value?): Boolean = (value == null || value.type is Types.Numeric)
 
         /**
-         * [Argument.Vector]s are compatible to all types of [Argument.Vector]s.
+         * [Argument.Numeric]s are compatible to all types of [Argument.Numeric]s.
          *
          * @param argument The [Argument] to compare this [Open] to.
          * @return true if compatibility is given, false otherwise.
          */
-        override fun isCompatible(argument: Argument): Boolean = (argument is Typed<*>) && (argument.type is Types.Vector<*,*>)
+        override fun isCompatible(argument: Argument): Boolean = (argument is Typed<*> && argument.type is Types.Numeric<*>)
+
         override fun toString(): String = "Open[Numeric]"
     }
 
@@ -71,10 +95,10 @@ sealed interface Argument {
     object Vector: Argument {
 
         /**
-         * [Vector]s are compatible to all [Value]s that are vectors.
+         * [Argument.Numeric]s are compatible to all [Value]s that are vectors.
          *
          * @param value The [Value] to compare this [Open] to.
-         * @return true if compatibility is given, false otherwise.
+         * @return true if compatibility is provided, false otherwise.
          */
         override fun isCompatible(value: Value?): Boolean = (value == null || value.type is Types.Vector<*,*>)
 
@@ -84,30 +108,7 @@ sealed interface Argument {
          * @param argument The [Argument] to compare this [Open] to.
          * @return true if compatibility is given, false otherwise.
          */
-        override fun isCompatible(argument: Argument): Boolean = (argument is Typed<*>) && (argument.type is Types.Vector<*,*>)
+        override fun isCompatible(argument: Argument): Boolean = (argument is Typed<*> && argument.type is Types.Vector<*,*>)
         override fun toString(): String = "Open[Vector]"
-    }
-
-    /**
-     * An open argument, i.e., an argument that is undefined.
-     */
-    object Open: Argument {
-
-        /**
-         * [Open]s are compatible to all types of [Value]s.
-         *
-         * @param value The [Value] to compare this [Open] to.
-         * @return true if compatibility is given, false otherwise.
-         */
-        override fun isCompatible(value: Value?): Boolean = true
-
-        /**
-         * [Open]s are compatible to all types of [Argument]s.
-         *
-         * @param argument The [Argument] to compare this [Open] to.
-         * @return true if compatibility is given, false otherwise.
-         */
-        override fun isCompatible(argument: Argument): Boolean = true
-        override fun toString(): String = "Open[Any]"
     }
 }

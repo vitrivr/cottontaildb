@@ -36,7 +36,8 @@ sealed class Signature<R: Value>(val name: Name.FunctionName, val returnType: Ty
          *
          * @return [Signature.Open]
          */
-        fun toOpen(vararg retain: Int): Open<R> = Open(this.name, this.arguments.mapIndexed { i, t -> if (retain.contains(i)) t else Argument.Open }.toTypedArray(), this.returnType)
+        fun toOpen(vararg retain: Int): Open<R> = Open(this.name,
+            this.arguments.mapIndexed { i, t -> if (retain.contains(i)) t else convertToOpen(t) }.toTypedArray(), this.returnType)
 
         /**
          * Checks if other [Signature] collides with this [Signature.Closed] and returns true or false respectively.
@@ -71,7 +72,13 @@ sealed class Signature<R: Value>(val name: Name.FunctionName, val returnType: Ty
             return result
         }
 
-        override fun toString(): String = "$name(${this.arguments.joinToString(",")}) -> $returnType"
+        override fun toString(): String = "$name(${this.arguments.joinToString(",")}): $returnType"
+
+        private fun convertToOpen(arg: Argument.Typed<*>) = when(arg.type) {
+            is Types.Numeric<*> -> Argument.Numeric
+            is Types.Scalar<*> -> Argument.Scalar
+            is Types.Vector<*,*> -> Argument.Vector
+        }
     }
 
     /**
