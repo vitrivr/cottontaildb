@@ -20,7 +20,7 @@ abstract class AbstractFunction<R: Value>(final override val signature: Signatur
      */
     override fun provide(index: Int, value: Value?) {
         require(this.signature.arguments[index].isCompatible(value)) {
-            "Provided argument for position ${index} is not compatible with signature ${this.signature}."
+            "Provided argument of type ${value?.type} for position $index is incompatible with function ${this.signature}."
         }
         this.arguments[index] = value
     }

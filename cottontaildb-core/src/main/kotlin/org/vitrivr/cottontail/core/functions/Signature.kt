@@ -128,6 +128,6 @@ sealed class Signature<R: Value>(val name: Name.FunctionName, val returnType: Ty
             return result
         }
 
-        override fun toString(): String = "$name(${this.arguments.joinToString(",")}) -> $returnType"
+        override fun toString(): String = "$name(${this.arguments.joinToString(",")}): $returnType"
     }
 }
