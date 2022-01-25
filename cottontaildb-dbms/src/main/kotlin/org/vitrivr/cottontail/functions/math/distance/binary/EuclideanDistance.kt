@@ -83,7 +83,7 @@ sealed class EuclideanDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Min
         override fun copy(d: Int) = DoubleVector(d)
         override fun invoke(): DoubleValue {
             val probing = this.arguments[0] as DoubleVectorValue
-            val query = this.arguments[0] as DoubleVectorValue
+            val query = this.arguments[1] as DoubleVectorValue
             var sum = 0.0
             for (i in query.data.indices) {
                 sum += (query.data[i] - probing.data[i]).pow(2)
