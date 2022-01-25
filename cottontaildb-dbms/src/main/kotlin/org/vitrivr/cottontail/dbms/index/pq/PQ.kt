@@ -182,9 +182,9 @@ class PQ(val type: Types<*>, val codebooks: List<PQCodebook<VectorValue<*>>>) {
         return PQLookupTable(
             Array(this.numberOfSubspaces) { k ->
                 val codebook = this.codebooks[k]
-                distance.provide(0, query.subvector(k * this.dimensionsPerSubspace, this.dimensionsPerSubspace))
+                reshape.provide(0, query.subvector(k * this.dimensionsPerSubspace, this.dimensionsPerSubspace))
                 DoubleArray(codebook.numberOfCentroids) {
-                    distance.provide(1,  codebook[it])
+                    reshape.provide(1,  codebook[it])
                     reshape().value
                 }
             }
