@@ -5,6 +5,7 @@ import org.vitrivr.cottontail.core.functions.FunctionRegistry
 import org.vitrivr.cottontail.core.functions.math.VectorDistance
 import org.vitrivr.cottontail.functions.math.distance.binary.*
 import org.vitrivr.cottontail.functions.math.distance.other.HyperplaneDistance
+import org.vitrivr.cottontail.functions.math.distance.ternary.WeightedManhattanDistance
 import org.vitrivr.cottontail.functions.math.score.FulltextScore
 
 /**
@@ -39,4 +40,5 @@ private fun FunctionRegistry.initializeVectorDistance() {
     this.register(ChisquaredDistance.Generator)
     this.register(InnerProductDistance.Generator)
     this.register(HyperplaneDistance.Generator)
+    this.register(WeightedManhattanDistance.Generator)
 }
