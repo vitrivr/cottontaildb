@@ -28,7 +28,7 @@ sealed class Minimum<T : Value>(type: Types<T>): AbstractFunction<T>(Signature.C
         private val FUNCTION_NAME = Name.FunctionName("min")
 
         override val signature: Signature.Open<out NumericValue<*>>
-            get() = Signature.Open(ChisquaredDistance.Generator.FUNCTION_NAME, arrayOf(Argument.Vector, Argument.Vector))
+            get() = Signature.Open(FUNCTION_NAME, arrayOf(Argument.Vector, Argument.Vector))
 
         override fun generateInternal(dst: Signature.Closed<*>): Function<NumericValue<*>> = when (dst.arguments[0].type) {
             is Types.Int -> Int()
