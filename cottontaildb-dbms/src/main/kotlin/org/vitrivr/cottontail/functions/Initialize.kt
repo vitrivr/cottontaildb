@@ -23,7 +23,7 @@ private fun FunctionRegistry.initializeArithmetics() {
     this.register(org.vitrivr.cottontail.functions.math.arithmetics.scalar.Maximum)
     this.register(org.vitrivr.cottontail.functions.math.arithmetics.scalar.Minimum)
     this.register(org.vitrivr.cottontail.functions.math.arithmetics.vector.Maximum)
-    this.register(org.vitrivr.cottontail.functions.math.arithmetics.vector.Maximum)
+    this.register(org.vitrivr.cottontail.functions.math.arithmetics.vector.Minimum)
 }
 
 /**
