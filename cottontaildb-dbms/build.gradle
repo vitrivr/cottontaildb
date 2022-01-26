@@ -115,3 +115,9 @@ tasks.withType(Test) {
 ///// Default names for distributions
 distZip.archiveFileName = 'cottontaildb-dbms.zip'
 distTar.archiveFileName = 'cottontaildb-dbms.tar'
+
+startScripts {
+    doLast {
+        windowsScript.text = windowsScript.text.replaceAll('set CLASSPATH=.*', 'set CLASSPATH=.;%APP_HOME%/lib/*')
+    }
+}
