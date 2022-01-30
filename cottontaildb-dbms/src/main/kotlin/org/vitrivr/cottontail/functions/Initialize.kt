@@ -1,11 +1,12 @@
 package org.vitrivr.cottontail.functions
 
-import org.vitrivr.cottontail.core.functions.Function
-import org.vitrivr.cottontail.core.functions.FunctionRegistry
-import org.vitrivr.cottontail.core.functions.math.VectorDistance
+import org.vitrivr.cottontail.core.queries.functions.Function
+import org.vitrivr.cottontail.core.queries.functions.FunctionRegistry
+import org.vitrivr.cottontail.core.queries.functions.math.VectorDistance
 import org.vitrivr.cottontail.functions.math.distance.binary.*
 import org.vitrivr.cottontail.functions.math.distance.other.HyperplaneDistance
 import org.vitrivr.cottontail.functions.math.distance.ternary.WeightedManhattanDistance
+import org.vitrivr.cottontail.functions.math.random.RandomFloatVector
 import org.vitrivr.cottontail.functions.math.score.FulltextScore
 
 /**
@@ -15,6 +16,7 @@ fun FunctionRegistry.initialize() {
     this.register(FulltextScore)
     this.initializeArithmetics()
     this.initializeVectorDistance()
+    this.initializeRandoms()
 }
 
 /**
@@ -31,14 +33,21 @@ private fun FunctionRegistry.initializeArithmetics() {
  * Registers default [VectorDistance] functions.
  */
 private fun FunctionRegistry.initializeVectorDistance() {
-    this.register(ManhattanDistance.Generator)
-    this.register(EuclideanDistance.Generator)
-    this.register(SquaredEuclideanDistance.Generator)
-    this.register(HammingDistance.Generator)
-    this.register(HaversineDistance.Generator)
-    this.register(CosineDistance.Generator)
-    this.register(ChisquaredDistance.Generator)
-    this.register(InnerProductDistance.Generator)
-    this.register(HyperplaneDistance.Generator)
-    this.register(WeightedManhattanDistance.Generator)
+    this.register(ManhattanDistance)
+    this.register(EuclideanDistance)
+    this.register(SquaredEuclideanDistance)
+    this.register(HammingDistance)
+    this.register(HaversineDistance)
+    this.register(CosineDistance)
+    this.register(ChisquaredDistance)
+    this.register(InnerProductDistance)
+    this.register(HyperplaneDistance)
+    this.register(WeightedManhattanDistance)
+}
+
+/**
+ * Registers default random functions.
+ */
+private fun FunctionRegistry.initializeRandoms() {
+    this.register(RandomFloatVector)
 }

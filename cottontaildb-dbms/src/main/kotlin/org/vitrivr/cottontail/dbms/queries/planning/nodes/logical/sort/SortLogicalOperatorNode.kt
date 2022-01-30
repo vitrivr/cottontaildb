@@ -3,7 +3,7 @@ package org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.sort
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.UnaryLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.physical.sort.SortPhysicalOperatorNode
-import org.vitrivr.cottontail.core.queries.predicates.knn.KnnPredicate
+import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
 import org.vitrivr.cottontail.dbms.queries.sort.SortOrder
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
 
@@ -23,7 +23,7 @@ class SortLogicalOperatorNode(input: Logical? = null, override val sortOn: List<
     override val name: String
         get() = NODE_NAME
 
-    /** The [SortLogicalOperatorNode] requires all [ColumnDef]s used in the [KnnPredicate]. */
+    /** The [SortLogicalOperatorNode] requires all [ColumnDef]s used in the [ProximityPredicate]. */
     override val requires: List<ColumnDef<*>> = this.sortOn.map { it.first }
 
     init {

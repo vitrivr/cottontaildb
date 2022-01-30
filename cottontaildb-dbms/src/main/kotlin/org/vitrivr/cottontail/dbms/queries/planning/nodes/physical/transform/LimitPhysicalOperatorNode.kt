@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.dbms.queries.planning.nodes.physical.transform
 
-import org.vitrivr.cottontail.dbms.queries.OperatorNode
+import org.vitrivr.cottontail.dbms.queries.planning.nodes.OperatorNode
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.physical.UnaryPhysicalOperatorNode
 import org.vitrivr.cottontail.execution.TransactionContext
@@ -37,15 +37,6 @@ class LimitPhysicalOperatorNode(input: Physical? = null, val limit: Long, val sk
      * @return Copy of this [LimitPhysicalOperatorNode].
      */
     override fun copy() = LimitPhysicalOperatorNode(limit = this.limit, skip = this.skip)
-
-    /**
-     * Partitions this [LimitPhysicalOperatorNode].
-     *
-     * @param p The number of partitions to create.
-     * @return List of [OperatorNode.Physical], each representing a partition of the original tree.
-     */
-    override fun partition(p: Int): List<Physical> =
-        this.input?.partition(p)?.map { LimitPhysicalOperatorNode(it, this.limit, this.skip) } ?: throw IllegalStateException("Cannot partition disconnected OperatorNode (node = $this)")
 
     /**
      * Converts this [LimitPhysicalOperatorNode] to a [LimitOperator].

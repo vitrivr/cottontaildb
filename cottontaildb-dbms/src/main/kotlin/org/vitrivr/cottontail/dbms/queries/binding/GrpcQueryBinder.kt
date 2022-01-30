@@ -4,23 +4,21 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.functions.Argument
-import org.vitrivr.cottontail.core.functions.Signature
-import org.vitrivr.cottontail.core.functions.exception.FunctionNotFoundException
+import org.vitrivr.cottontail.core.queries.functions.exception.FunctionNotFoundException
 import org.vitrivr.cottontail.core.queries.binding.Binding
-import org.vitrivr.cottontail.core.queries.predicates.bool.BooleanPredicate
-import org.vitrivr.cottontail.core.queries.predicates.bool.ComparisonOperator
-import org.vitrivr.cottontail.core.queries.predicates.bool.ConnectionOperator
+import org.vitrivr.cottontail.core.queries.functions.Argument
+import org.vitrivr.cottontail.core.queries.functions.Signature
+import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
+import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.core.values.StringValue
 import org.vitrivr.cottontail.core.values.pattern.LikePatternValue
 import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
-import org.vitrivr.cottontail.dbms.queries.OperatorNode
+import org.vitrivr.cottontail.dbms.queries.planning.nodes.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.QueryContext
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.function.FunctionLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.function.NestedFunctionLogicalOperatorNode
@@ -45,14 +43,16 @@ import org.vitrivr.cottontail.utilities.extensions.fqn
 import org.vitrivr.cottontail.utilities.extensions.toValue
 
 /**
- * This helper class parses and binds queries issued through the gRPC endpoint. The process encompasses three steps:
+ * This helper class parses and binds queries issued through the gRPC endpoint.
+ *
+ * The process encompasses three steps:
  *
  * 1) The [CottontailGrpc.Query] is decomposed into its components.
- * 2) The gRPC query components are bound to Cottontail DB objects and internal query objects are constructed. This step includes some basic validation.
- * 3) A [OperatorNode.Logical] tree is constructed from the internal query objects.
+ * 2) The gRPC query components are bound to Cottontail DB database objects.
+ * 3) Construction of a [OperatorNode.Logical] tree from the internal query objects.
  *
  * @author Ralph Gasser
- * @version 2.0.1
+ * @version 2.0.5
  */
 object GrpcQueryBinder {
 
@@ -285,21 +285,25 @@ object GrpcQueryBinder {
                 val fetch = entityTx.listColumns().map { ci ->
                     val name = columns.entries.singleOrNull { c -> c.value is Name.ColumnName && c.value.matches(ci.name) }
                     if (name == null || name.key.components[3] == Name.NAME_COMPONENT_WILDCARD) {
-                        ci.columnDef.name to ci.columnDef
+                        context.bindings.bind(ci.columnDef) to ci.columnDef
                     } else {
-                        name.key to ci.columnDef
+                        context.bindings.bind(ci.columnDef.copy(name = name.key)) to ci.columnDef
                     }
                 }
-                EntityScanLogicalOperatorNode(context.nextGroupId(), entity = entityTx, fetch = fetch)
+                EntityScanLogicalOperatorNode(context.nextGroupId(), entityTx, fetch)
             }
             CottontailGrpc.From.FromCase.SAMPLE -> {
-                val entity = parseAndBindEntity(from.sample.entity, context)
+                val entity = parseAndBindEntity(from.scan.entity, context)
                 val entityTx = context.txn.getTx(entity) as EntityTx
                 val fetch = entityTx.listColumns().map { ci ->
-                    val name = columns.entries.singleOrNull { c -> c.value is Name.ColumnName && c.value.matches(ci.name) }?.key ?: ci.name
-                    name to ci.columnDef
+                    val name = columns.entries.singleOrNull { c -> c.value is Name.ColumnName && c.value.matches(ci.name) }
+                    if (name == null || name.key.components[3] == Name.NAME_COMPONENT_WILDCARD) {
+                        context.bindings.bind(ci.columnDef) to ci.columnDef
+                    } else {
+                        context.bindings.bind(ci.columnDef.copy(name = name.key)) to ci.columnDef
+                    }
                 }
-                EntitySampleLogicalOperatorNode(context.nextGroupId(), entity = entityTx, fetch = fetch, p = from.sample.probability, seed = from.sample.seed)
+                EntitySampleLogicalOperatorNode(context.nextGroupId(), entityTx, fetch, from.sample.probability, from.sample.seed)
             }
             CottontailGrpc.From.FromCase.SUBSELECT -> bind(from.subSelect, context) /* Sub-select. */
             else -> throw QueryException.QuerySyntaxException("Invalid or missing FROM-clause in query.")
@@ -376,10 +380,10 @@ object GrpcQueryBinder {
             else -> throw QueryException.QuerySyntaxException("Unbalanced predicate! A compound boolean predicate must have a left and a right side.")
         }
 
-        return try {
-            BooleanPredicate.Compound(ConnectionOperator.valueOf(compound.op.name), left, right)
-        } catch (e: IllegalArgumentException) {
-            throw QueryException.QuerySyntaxException("'${compound.op.name}' is not a valid connection operator for a boolean predicate!")
+        return when(compound.op) {
+            CottontailGrpc.ConnectionOperator.AND -> BooleanPredicate.Compound.And(left, right)
+            CottontailGrpc.ConnectionOperator.OR -> BooleanPredicate.Compound.Or(left, right)
+            else -> throw QueryException.QuerySyntaxException("'${compound.op.name}' is not a valid connection operator for a boolean predicate!")
         }
     }
 
@@ -437,7 +441,7 @@ object GrpcQueryBinder {
         CottontailGrpc.ComparisonOperator.LIKE -> {
             val r = right[0]
             if (r is Binding.Literal && r.value is StringValue) {
-                r.value = LikePatternValue.forValue((r.value as StringValue).value)
+                r.update(LikePatternValue.forValue((r.value as StringValue).value))
                 ComparisonOperator.Binary.Like(left, r)
             } else {
                 throw QueryException.QuerySyntaxException("LIKE operator expects a literal, parseable string value as right operand.")
@@ -487,14 +491,15 @@ object GrpcQueryBinder {
             }
         }
 
-        /* Obtain signature and function object. */
-        val signature = Signature.Closed<Value>(function.name.fqn(), arguments.map { Argument.Typed(it.type) }.toTypedArray())
-        val functionObject = try {
+        /* Try to resolve signature and obtain function object. */
+        val signature = Signature.SemiClosed(function.name.fqn(), arguments.map { Argument.Typed(it.type) }.toTypedArray())
+        val functionInstance = try {
             context.catalogue.functions.obtain(signature)
         } catch (e: FunctionNotFoundException) {
-            throw QueryException.QueryBindException("Desired distance function $signature could not be found!")
+            throw QueryException.QueryBindException("Desired function $signature could not be found.")
         }
-        return FunctionLogicalOperatorNode((executionGraph ?: input), functionObject, arguments, name)
+        val outBinding = context.bindings.bind(ColumnDef(name, functionInstance.signature.returnType))
+        return FunctionLogicalOperatorNode((executionGraph ?: input), functionInstance, outBinding, arguments)
     }
 
     /**
@@ -521,24 +526,25 @@ object GrpcQueryBinder {
             }
         }
 
-        /* Obtain signature and function object. */
-        val signature = Signature.Closed<Value>(function.name.fqn(), arguments.map { Argument.Typed(it.type) }.toTypedArray())
-        val functionObject = try {
+        /* Try tp resolve signature and obtain function object. */
+        val signature = Signature.SemiClosed(function.name.fqn(), arguments.map { Argument.Typed(it.type) }.toTypedArray())
+        val functionInstance = try {
             context.catalogue.functions.obtain(signature)
         } catch (e: FunctionNotFoundException) {
-            throw QueryException.QueryBindException("Desired distance function $signature could not be found!")
+            throw QueryException.QueryBindException("Desired function $signature could not be found.")
         }
+        val outBinding = context.bindings.bindNull(functionInstance.signature.returnType as Types<*>, false)
 
         /*
          * Important: In contrast to most cases, execution graph acts as input because inner terms must be evaluated
          * first but decomposition works its way from the outer function to the inner functions.
          */
-        val binding = context.bindings.bindNull(functionObject.signature.returnType as Types<*>, false)
-        return binding to if (executionGraph != null) {
-            NestedFunctionLogicalOperatorNode(executionGraph, functionObject, arguments, binding)
+        return outBinding to if (executionGraph != null) {
+            NestedFunctionLogicalOperatorNode(executionGraph, functionInstance, outBinding, arguments)
         } else {
-            NestedFunctionLogicalOperatorNode(input, functionObject, arguments, binding)
+            NestedFunctionLogicalOperatorNode(input, functionInstance, outBinding, arguments)
         }
+
     }
 
     /**
@@ -576,8 +582,16 @@ object GrpcQueryBinder {
                 }
                 SelectProjectionLogicalOperatorNode(input, op, fields)
             }
-            Projection.COUNT -> CountProjectionLogicalOperatorNode(input, projection.keys.firstOrNull())
-            Projection.EXISTS -> ExistsProjectionLogicalOperatorNode(input, projection.keys.firstOrNull())
+            Projection.COUNT -> {
+                val columnName = projection.keys.first()
+                val columnDef = ColumnDef(columnName, Types.Long, false)
+                CountProjectionLogicalOperatorNode(input, context.bindings.bind(columnDef))
+            }
+            Projection.EXISTS -> {
+                val columnName = projection.keys.first()
+                val columnDef = ColumnDef(columnName, Types.Boolean, false)
+                ExistsProjectionLogicalOperatorNode(input, context.bindings.bind(columnDef))
+            }
             Projection.SUM,
             Projection.MAX,
             Projection.MIN,

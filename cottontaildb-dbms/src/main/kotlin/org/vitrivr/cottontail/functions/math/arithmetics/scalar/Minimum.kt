@@ -1,19 +1,17 @@
 package org.vitrivr.cottontail.functions.math.arithmetics.scalar
 
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.functions.*
-import org.vitrivr.cottontail.core.functions.Function
-import org.vitrivr.cottontail.core.functions.exception.FunctionNotSupportedException
-import org.vitrivr.cottontail.core.functions.math.VectorDistance
+import org.vitrivr.cottontail.core.queries.functions.exception.FunctionNotSupportedException
+import org.vitrivr.cottontail.core.queries.functions.math.VectorDistance
+import org.vitrivr.cottontail.core.queries.functions.*
+import org.vitrivr.cottontail.core.queries.functions.Function
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.FloatValue
 import org.vitrivr.cottontail.core.values.IntValue
 import org.vitrivr.cottontail.core.values.LongValue
-import org.vitrivr.cottontail.core.values.types.NumericValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.core.values.types.VectorValue
-import org.vitrivr.cottontail.functions.math.distance.binary.ChisquaredDistance
 import kotlin.math.min
 
 /**
@@ -22,31 +20,49 @@ import kotlin.math.min
  * @author Ralph Gasser
  * @version 1.0.0
  */
-sealed class Minimum<T : Value>(type: Types<T>): AbstractFunction<T>(Signature.Closed(FUNCTION_NAME, arrayOf(Argument.Typed(type), Argument.Typed(type)), type)) {
+sealed class Minimum<T : Value>(val type: Types<T>): Function<T> {
 
-    companion object: AbstractFunctionGenerator<Value>() {
+    companion object: FunctionGenerator<Value> {
         private val FUNCTION_NAME = Name.FunctionName("min")
 
-        override val signature: Signature.Open<out NumericValue<*>>
-            get() = Signature.Open(FUNCTION_NAME, arrayOf(Argument.Vector, Argument.Vector))
+        override val signature: Signature.Open
+            get() = Signature.Open(FUNCTION_NAME, arrayOf(Argument.Numeric, Argument.Numeric))
 
-        override fun generateInternal(dst: Signature.Closed<*>): Function<NumericValue<*>> = when (dst.arguments[0].type) {
-            is Types.Int -> Int()
-            is Types.Long -> Long()
-            is Types.Float -> Float()
-            is Types.Double -> Double()
-            else ->  throw FunctionNotSupportedException("Function generator signature ${this.signature} does not support destination signature (dst = $dst).")
+        override fun obtain(signature: Signature.SemiClosed): Minimum<*> {
+            check(this.signature.collides(signature)) { "Provided signature $signature is incompatible with generator signature ${this.signature}. This is a programmer's error!"  }
+            return when(signature.arguments[0].type) {
+                is Types.Int  -> Int()
+                is Types.Long -> Long()
+                is Types.Float -> Float()
+                is Types.Double -> Double()
+                else -> throw FunctionNotSupportedException("Function generator ${this.signature} cannot generate function with signature $signature.")
+            }
+        }
+
+        override fun resolve(signature: Signature.Open): List<Signature.Closed<*>> {
+            if (this.signature != signature) throw FunctionNotSupportedException("Function generator ${this.signature} cannot generate function with signature $signature.")
+            return listOf(
+                Int().signature,
+                Long().signature,
+                Float().signature,
+                Double().signature,
+            )
         }
     }
+
+    /** The CPU cost of executing this [Minimum] is 1.0. */
+    override val cost = 1.0f
+
+    /** The [Signature.Closed] of this [Minimum]. */
+    override val signature: Signature.Closed<T> = Signature.Closed(FUNCTION_NAME, arrayOf(this.type, this.type), this.type)
 
     /**
      * [Minimum] for a [IntValue].
      */
     class Int: Minimum<IntValue>(Types.Int) {
-        override val cost = 1.0f
-        override fun invoke(): IntValue {
-            val left = this.arguments[0] as IntValue
-            val right = this.arguments[1] as IntValue
+        override fun invoke(vararg arguments: Value?): IntValue {
+            val left = arguments[0] as IntValue
+            val right = arguments[1] as IntValue
             return IntValue(min(left.value, right.value))
         }
     }
@@ -55,10 +71,9 @@ sealed class Minimum<T : Value>(type: Types<T>): AbstractFunction<T>(Signature.C
      * [Minimum] for a [LongValue].
      */
     class Long: Minimum<LongValue>(Types.Long) {
-        override val cost = 1.0f
-        override fun invoke(): LongValue {
-            val left = this.arguments[0] as LongValue
-            val right = this.arguments[1] as LongValue
+        override fun invoke(vararg arguments: Value?): LongValue {
+            val left = arguments[0] as LongValue
+            val right = arguments[1] as LongValue
             return LongValue(min(left.value, right.value))
         }
     }
@@ -67,10 +82,9 @@ sealed class Minimum<T : Value>(type: Types<T>): AbstractFunction<T>(Signature.C
      * [Minimum] for a [FloatValue].
      */
     class Float: Minimum<FloatValue>(Types.Float) {
-        override val cost = 1.0f
-        override fun invoke(): FloatValue {
-            val left = this.arguments[0] as FloatValue
-            val right = this.arguments[1] as FloatValue
+        override fun invoke(vararg arguments: Value?): FloatValue {
+            val left = arguments[0] as FloatValue
+            val right = arguments[1] as FloatValue
             return FloatValue(min(left.value, right.value))
         }
     }
@@ -79,10 +93,9 @@ sealed class Minimum<T : Value>(type: Types<T>): AbstractFunction<T>(Signature.C
      * (Element-wise) [Minimum] for a [IntValue].
      */
     class Double: Minimum<DoubleValue>(Types.Double) {
-        override val cost = 1.0f
-        override fun invoke(): DoubleValue {
-            val left = this.arguments[0] as DoubleValue
-            val right = this.arguments[1] as DoubleValue
+        override fun invoke(vararg arguments: Value?): DoubleValue {
+            val left = arguments[0] as DoubleValue
+            val right = arguments[1] as DoubleValue
             return DoubleValue(min(left.value, right.value))
         }
     }

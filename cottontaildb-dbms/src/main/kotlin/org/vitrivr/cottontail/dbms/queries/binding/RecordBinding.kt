@@ -8,7 +8,7 @@ import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.values.types.Value
 
 /**
- * A [Record] implementation that depends on the existence of [Binding]s for the [Value]s it contains.
+ * A [Record] implementation that depends on the existence of [Binding]s for the [Value]s it contains. Used for inserts.
  *
  * @author Ralph Gasser
  * @version 1.0.0
@@ -19,17 +19,6 @@ class RecordBinding(override var tupleId: TupleId, override val columns: Array<C
      * Creates a copy of this [RecordBinding]
      */
     override fun copy(): Record = RecordBinding(this.tupleId, this.columns.copyOf(), this.values.copyOf())
-
-    /**
-     * Iterates over the [ColumnDef] and [Value] pairs in this [Record] in the order specified by [columns].
-     *
-     * @param action The action to apply to each [ColumnDef], [Value] pair.
-     */
-    override fun forEach(action: (ColumnDef<*>, Value?) -> Unit) {
-        for ((i, c) in this.columns.withIndex()) {
-            action(c, this.values[i].value)
-        }
-    }
 
     /**
      * Returns true, if this [RecordBinding] contains the specified [ColumnDef] and false otherwise.
@@ -60,20 +49,35 @@ class RecordBinding(override var tupleId: TupleId, override val columns: Array<C
      * @param column The [ColumnDef] for which to retrieve the value.
      * @return The value for the [ColumnDef]
      */
-    override fun get(column: ColumnDef<*>): Value? = this.get(this.columns.indexOf(column))
+    override fun get(column: ColumnDef<*>): Value? = this[this.columns.indexOf(column)]
 
     /**
      * Retrieves the value for the specified column index from this [RecordBinding].
      *
-     * @param columnIndex The index for which to retrieve the value.
+     * @param index The index for which to retrieve the value.
      * @return The value for the column index.
      */
-    fun get(columnIndex: Int): Value? {
-        require(columnIndex in (0 until this.size)) { "The specified column $columnIndex is out of bounds." }
-        return this.values[columnIndex].value
+    override fun get(index: Int): Value? {
+        require(index in (0 until this.size)) { "The specified column $index is out of bounds." }
+        return this.values[index].value
     }
 
-    override fun set(column: ColumnDef<*>, value: Value?) {
-        throw UnsupportedOperationException("A bound record cannot be updated with new value.")
+    /**
+     * Sets the [Value]  for the specified [ColumnDef] in this [Record].
+     *
+     * @param column The [ColumnDef] for which to set the value.
+     * @param value The new [Value]
+     */
+    override fun set(column: ColumnDef<*>, value: Value?) = this.set(this.columns.indexOf(column), value)
+
+    /**
+     * Sets the [Value]  for the specified column index in this [Record].
+     *
+     * @param index The column index for which to set the value.
+     * @param value The new [Value]
+     */
+    override fun set(index: Int, value: Value?) {
+        require(index in (0 until this.size)) { "The specified column $index is out of bounds." }
+        return this.values[index].update(value)
     }
 }

@@ -3,12 +3,9 @@ package org.vitrivr.cottontail.execution.operators.system
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import org.vitrivr.cottontail.core.database.ColumnDef
-import org.vitrivr.cottontail.core.queries.binding.BindingContext
-import org.vitrivr.cottontail.dbms.queries.binding.EmptyBindingContext
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.TransactionManager
 import org.vitrivr.cottontail.execution.operators.basics.Operator
-import org.vitrivr.cottontail.execution.operators.definition.AbstractDataDefinitionOperator
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.values.types.Types
@@ -36,9 +33,6 @@ class ListTransactionsOperator(val manager: TransactionManager) : Operator.Sourc
 
         )
     }
-
-    /** The [BindingContext] used [AbstractDataDefinitionOperator]. */
-    override val binding: BindingContext = EmptyBindingContext
 
     override val columns: List<ColumnDef<*>> = COLUMNS
 

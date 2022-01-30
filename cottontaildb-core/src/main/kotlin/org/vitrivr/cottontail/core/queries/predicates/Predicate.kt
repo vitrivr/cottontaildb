@@ -5,18 +5,26 @@ import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.queries.Node
 
 /**
- * A general purpose [Predicate] us can be used in a Cottontail DB query. Generally, [Predicate]s
- * are assumed to operate on [Record]s and usually affect a set of [ColumnDef]s in that [Record].
+ * A [Predicate] is a [Node] that is being evaluated as part of a Cottontail DB query.
+ *
+ * Generally, [Predicate]s are assumed to operate on [Record]s and usually affect a set of [ColumnDef]s in that [Record].
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.3.0
  */
-interface Predicate : Node {
+sealed interface Predicate : Node {
     /** An estimation of the CPU cost required to apply this [Predicate] to a single [Record]. */
     val atomicCpuCost: Float
 
-    /** Set of [ColumnDef] that are affected by this [Predicate]. */
+    /** Set of [ColumnDef] that are accessed by this [Predicate]. */
     val columns: Set<ColumnDef<*>>
+
+    /**
+     * Creates a copy of this [Predicate].
+     *
+     * @return [Predicate]
+     */
+    override fun copy(): Predicate
 }
 
 

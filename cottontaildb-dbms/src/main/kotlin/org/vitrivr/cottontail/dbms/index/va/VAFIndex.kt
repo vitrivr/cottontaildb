@@ -19,13 +19,13 @@ import org.vitrivr.cottontail.dbms.index.va.signature.VAFSignature
 import org.vitrivr.cottontail.dbms.operations.Operation
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
-import org.vitrivr.cottontail.core.queries.predicates.knn.KnnPredicate
+import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
 import org.vitrivr.cottontail.dbms.statistics.columns.DoubleVectorValueStatistics
 import org.vitrivr.cottontail.dbms.statistics.columns.FloatVectorValueStatistics
 import org.vitrivr.cottontail.dbms.statistics.columns.IntVectorValueStatistics
 import org.vitrivr.cottontail.dbms.statistics.columns.LongVectorValueStatistics
 import org.vitrivr.cottontail.execution.TransactionContext
-import org.vitrivr.cottontail.core.functions.math.MinkowskiDistance
+import org.vitrivr.cottontail.core.queries.functions.math.MinkowskiDistance
 import org.vitrivr.cottontail.functions.math.distance.binary.EuclideanDistance
 import org.vitrivr.cottontail.functions.math.distance.binary.ManhattanDistance
 import org.vitrivr.cottontail.functions.math.distance.binary.SquaredEuclideanDistance
@@ -108,7 +108,7 @@ class VAFIndex(path: Path, parent: DefaultEntity, config: VAFIndexConfig? = null
      * @return Cost estimate for the [Predicate]
      */
     override fun cost(predicate: Predicate): Cost {
-        if (predicate !is KnnPredicate) return Cost.INVALID
+        if (predicate !is ProximityPredicate) return Cost.INVALID
         if (predicate.column != this.columns[0]) return Cost.INVALID
         if (predicate.distance !is MinkowskiDistance<*>) return Cost.INVALID
         return Cost(
@@ -124,7 +124,7 @@ class VAFIndex(path: Path, parent: DefaultEntity, config: VAFIndexConfig? = null
      * @param predicate The [Predicate] to check.
      * @return True if [Predicate] can be processed, false otherwise.
      */
-    override fun canProcess(predicate: Predicate) = predicate is KnnPredicate && predicate.column == this.columns[0]
+    override fun canProcess(predicate: Predicate) = predicate is ProximityPredicate && predicate.column == this.columns[0]
 
     /**
      * Opens and returns a new [IndexTx] object that can be used to interact with this [VAFIndex].
@@ -226,7 +226,7 @@ class VAFIndex(path: Path, parent: DefaultEntity, config: VAFIndexConfig? = null
 
         /**
          * Performs a lookup through this [VAFIndex.Tx] and returns a [Iterator] of all [Record]s
-         * that match the [Predicate]. Only supports [KnnPredicate]s.
+         * that match the [Predicate]. Only supports [ProximityPredicate]s.
          *
          * <strong>Important:</strong> The [Iterator] is not thread safe! It remains to the
          * caller to close the [Iterator]
@@ -238,7 +238,7 @@ class VAFIndex(path: Path, parent: DefaultEntity, config: VAFIndexConfig? = null
 
         /**
          * Performs a lookup through this [VAFIndex.Tx] and returns a [Iterator] of all [Record]s
-         * that match the [Predicate] within the given [LongRange]. Only supports [KnnPredicate]s.
+         * that match the [Predicate] within the given [LongRange]. Only supports [ProximityPredicate]s.
          *
          * <strong>Important:</strong> The [Iterator] is not thread safe!
          *
@@ -249,8 +249,8 @@ class VAFIndex(path: Path, parent: DefaultEntity, config: VAFIndexConfig? = null
          */
         override fun filterRange(predicate: Predicate, partitionIndex: Int, partitions: Int) = object : Iterator<Record> {
 
-            /** Cast  to [KnnPredicate] (if such a cast is possible).  */
-            private val predicate = if (predicate is KnnPredicate) {
+            /** Cast  to [ProximityPredicate] (if such a cast is possible).  */
+            private val predicate = if (predicate is ProximityPredicate) {
                 predicate
             } else {
                 throw QueryException.UnsupportedPredicateException("Index '${this@VAFIndex.name}' (VAF Index) does not support predicates of type '${predicate::class.simpleName}'.")
@@ -296,6 +296,8 @@ class VAFIndex(path: Path, parent: DefaultEntity, config: VAFIndexConfig? = null
              * Executes the kNN and prepares the results to return by this [Iterator].
              */
             private fun prepareResults(): ArrayDeque<StandaloneRecord> {
+                /* Prepare empty queue */
+                val queue = ArrayDeque<StandaloneRecord>(this.predicate.k)
 
                 /* Prepare txn and kNN data structures. */
                 val txn = this@Tx.context.getTx(this@VAFIndex.parent) as EntityTx
@@ -306,15 +308,17 @@ class VAFIndex(path: Path, parent: DefaultEntity, config: VAFIndexConfig? = null
                 }
 
                 /* Iterate over all signatures. */
-                this.predicate.distance.provide(1, this.predicate.query.value) /* Query argument is static and doesn't change. */
+                val queryArgument = this.predicate.query.value ?: return queue
                 var read = 0L
                 for (sigIndex in this.range) {
                     val signature = this@VAFIndex.signatures[sigIndex]
                     if (signature != null) {
                         if (knn.size < this.predicate.k || this.bounds.isVASSACandidate(signature, knn.peek()!!.second.value)) {
-                            this.predicate.distance.provide(0, txn.read(signature.tupleId, this@VAFIndex.columns)[this@VAFIndex.columns[0]]) /* Probing argument is dynamic. */
-                            knn.offer(ComparablePair(signature.tupleId, this.predicate.distance()))
-                            read += 1
+                            val probingArgument = txn.read(signature.tupleId, this@VAFIndex.columns)[this@VAFIndex.columns[0]]
+                            if (probingArgument is VectorValue<*>) {
+                                knn.offer(ComparablePair(signature.tupleId, this.predicate.distance(queryArgument, probingArgument)))
+                                read += 1
+                            }
                         }
                     }
                 }
@@ -323,7 +327,6 @@ class VAFIndex(path: Path, parent: DefaultEntity, config: VAFIndexConfig? = null
                 LOGGER.debug("VA-file scan: Skipped over $skipped% of entries.")
 
                 /* Prepare and return list of results. */
-                val queue = ArrayDeque<StandaloneRecord>(this.predicate.k)
                 for (i in 0 until knn.size) {
                     queue.add(StandaloneRecord(knn[i].first, this@VAFIndex.produces, arrayOf(knn[i].second)))
                 }

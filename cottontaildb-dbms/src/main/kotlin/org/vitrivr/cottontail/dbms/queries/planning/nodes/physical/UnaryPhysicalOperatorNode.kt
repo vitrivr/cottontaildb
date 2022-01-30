@@ -3,9 +3,12 @@ package org.vitrivr.cottontail.dbms.queries.planning.nodes.physical
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
-import org.vitrivr.cottontail.dbms.queries.OperatorNode
+import org.vitrivr.cottontail.core.queries.Node
+import org.vitrivr.cottontail.core.queries.binding.BindingContext
+import org.vitrivr.cottontail.dbms.queries.planning.nodes.OperatorNode
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.UnaryLogicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.planning.nodes.physical.merge.MergePhysicalOperator
 import org.vitrivr.cottontail.dbms.queries.sort.SortOrder
 import org.vitrivr.cottontail.dbms.statistics.entity.RecordStatistics
 import java.io.PrintStream
@@ -14,7 +17,7 @@ import java.io.PrintStream
  * An abstract [OperatorNode.Physical] implementation that has a single [OperatorNode] as input.
  *
  * @author Ralph Gasser
- * @version 2.4.0
+ * @version 2.5.0
  */
 abstract class UnaryPhysicalOperatorNode(input: Physical? = null) : OperatorNode.Physical() {
 
@@ -102,8 +105,7 @@ abstract class UnaryPhysicalOperatorNode(input: Physical? = null) : OperatorNode
     }
 
     /**
-     * Creates and returns a copy of this [UnaryPhysicalOperatorNode] and all its inputs that belong to the same [GroupId],
-     * up and until the base of the tree.
+     * Creates and returns a copy of this [UnaryPhysicalOperatorNode] and all its inputs, up and until the base of the tree.
      *
      * @return Copy of this [OperatorNode.Physical].
      */
@@ -111,7 +113,7 @@ abstract class UnaryPhysicalOperatorNode(input: Physical? = null) : OperatorNode
 
     /**
      * Creates and returns a copy of this [UnaryPhysicalOperatorNode] with its output reaching down to the [root] of the tree.
-     * Furthermore connects the provided [input] to the copied [UnaryPhysicalOperatorNode]s.
+     * Furthermore, connects the provided [input] to the copied [UnaryPhysicalOperatorNode]s.
      *
      * @param input The [OperatorNode.Physical]s that act as input.
      * @return Copy of this [UnaryPhysicalOperatorNode] with its output.
@@ -121,6 +123,51 @@ abstract class UnaryPhysicalOperatorNode(input: Physical? = null) : OperatorNode
         val copy = this.copy()
         copy.input = input.getOrNull(0)
         return (this.output?.copyWithOutput(copy) ?: copy).root
+    }
+
+    /**
+     * By default, the [UnaryPhysicalOperatorNode] simply propagates [bind] calls to its input.
+     *
+     * However, some implementations must propagate the call to inner [Node]s.
+     *
+     * @param context The [BindingContext] to bind this [UnaryPhysicalOperatorNode] to.
+     */
+    override fun bind(context: BindingContext) {
+        this.input?.bind(context)
+    }
+
+    /**
+     * Tries to create a partitioned version of this [OperatorNode.Physical] and its parents.
+     *
+     * A [UnaryPhysicalOperatorNode] propagates this call up a tree until a [OperatorNode.Physical]
+     * that allows for partitioning (see [canBePartitioned]) or the end of the tree has been reached.
+     * In the former case, this method return a partitioned copy of this [OperatorNode.Physical].
+     *
+     * @param p The desired number of partitions. If null, the value will be determined automatically.
+     * @return Array of [OperatorNode.Physical]s.
+     */
+    override fun tryPartition(partitions: Int, p: Int?): Physical? {
+        val input = this.input ?: return null
+
+        /* If p is set, simply copy and propagate upwards. */
+        if (p != null) {
+            val copy = this.copy()
+            copy.input = (this.input?.tryPartition(partitions, p) ?: throw IllegalStateException("Tried to propagate call to tryPartition($partitions, $p), which returned null. This is a programmer's error!"))
+            return copy
+        } else if (this.canBePartitioned) {
+            val inbound = (0 until partitions).map {
+                input.tryPartition(partitions, it) ?: throw IllegalStateException("Tried to propagate call to tryPartition($partitions, $it), which returned null. This is a programmer's error!")
+            }
+            val merge = MergePhysicalOperator(*inbound.toTypedArray())
+            return this.output?.copyWithOutput(merge)
+        } else {
+            val newp = this.totalCost.parallelisation()
+            val partitionedInput = this.input?.tryPartition(newp)
+            if (partitionedInput != null) {
+                return this.copyWithOutput(partitionedInput)
+            }
+        }
+        return null
     }
 
     /**

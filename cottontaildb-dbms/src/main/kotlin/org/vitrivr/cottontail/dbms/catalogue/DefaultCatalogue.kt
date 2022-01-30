@@ -5,7 +5,7 @@ import org.mapdb.DB
 import org.mapdb.StoreWAL
 import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.functions.FunctionRegistry
+import org.vitrivr.cottontail.core.queries.functions.FunctionRegistry
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.exceptions.TxException

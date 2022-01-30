@@ -40,9 +40,6 @@ class EntityDetailsOperator(val catalogue: DefaultCatalogue, val name: Name.Enti
         )
     }
 
-    /** The [BindingContext] used [AbstractDataDefinitionOperator]. */
-    override val binding: BindingContext = EmptyBindingContext
-
     override val columns: List<ColumnDef<*>> = COLUMNS
 
     @ExperimentalTime

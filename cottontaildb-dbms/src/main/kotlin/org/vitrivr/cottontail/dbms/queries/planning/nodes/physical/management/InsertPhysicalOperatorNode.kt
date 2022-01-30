@@ -13,12 +13,13 @@ import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.management.InsertOperator
 import org.vitrivr.cottontail.execution.operators.management.UpdateOperator
 import org.vitrivr.cottontail.core.basics.Record
+import org.vitrivr.cottontail.core.queries.binding.BindingContext
 
 /**
  * A [InsertPhysicalOperatorNode] that formalizes a INSERT operation on an [Entity].
  *
  * @author Ralph Gasser
- * @version 2.4.0
+ * @version 2.5.0
  */
 class InsertPhysicalOperatorNode(override val groupId: GroupId, val entity: EntityTx, val records: MutableList<Record>) : NullaryPhysicalOperatorNode() {
     companion object {
@@ -58,18 +59,18 @@ class InsertPhysicalOperatorNode(override val groupId: GroupId, val entity: Enti
     override fun copy() = InsertPhysicalOperatorNode(this.groupId, this.entity, this.records)
 
     /**
+     * Bind calls have no effect on [InsertPhysicalOperatorNode]
+     *
+     * @param context The new [BindingContext]
+     */
+    override fun bind(context: BindingContext) { /* No op. */ }
+
+    /**
      * Converts this [InsertPhysicalOperatorNode] to a [InsertOperator].
      *
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
     override fun toOperator(ctx: QueryContext): Operator = InsertOperator(this.groupId, this.entity, this.records)
-
-    /**
-     * [InsertPhysicalOperatorNode] cannot be partitioned.
-     */
-    override fun partition(p: Int): List<Physical> {
-        throw UnsupportedOperationException("InsertPhysicalOperatorNode cannot be partitioned.")
-    }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

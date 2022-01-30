@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.dbms.queries.planning.nodes.physical
 
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
-import org.vitrivr.cottontail.dbms.queries.OperatorNode
+import org.vitrivr.cottontail.dbms.queries.planning.nodes.OperatorNode
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.NullaryLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.sort.SortOrder
@@ -11,9 +11,9 @@ import org.vitrivr.cottontail.dbms.queries.sort.SortOrder
  * An abstract [OperatorNode.Physical] implementation that has no input node, i.e., acts as a source.
  *
  * @author Ralph Gasser
- * @version 2.2.0
+ * @version 2.5.0
  */
-abstract class NullaryPhysicalOperatorNode : OperatorNode.Physical() {
+abstract class NullaryPhysicalOperatorNode() : OperatorNode.Physical() {
     /** The arity of the [NullaryPhysicalOperatorNode] is always on. */
     final override val inputArity = 0
 
@@ -35,6 +35,10 @@ abstract class NullaryPhysicalOperatorNode : OperatorNode.Physical() {
     /** By default, a [NullaryPhysicalOperatorNode] does not have specific requirements. */
     override val requires: List<ColumnDef<*>>
         get() = emptyList()
+
+    /** By default, a [NullaryPhysicalOperatorNode] does not support partitioning. */
+    override val canBePartitioned: Boolean
+        get() = false
 
     /**
      * Creates and returns a copy of this [NullaryPhysicalOperatorNode] without any children or parents.
@@ -68,6 +72,13 @@ abstract class NullaryPhysicalOperatorNode : OperatorNode.Physical() {
         val copy = this.copy()
         return (this.output?.copyWithOutput(copy) ?: copy).root
     }
+
+    /**
+     * By default, a [NullaryPhysicalOperatorNode] cannot be partitioned.
+     *
+     * Must be overridden in order to support partitioning.
+     */
+    override fun tryPartition(partitions: Int, p: Int? ): Physical? = null
 
     /**
      * Calculates and returns the digest for this [NullaryPhysicalOperatorNode].

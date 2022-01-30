@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index
 
 import org.vitrivr.cottontail.dbms.index.IndexTx
-import org.vitrivr.cottontail.dbms.queries.OperatorNode
+import org.vitrivr.cottontail.dbms.queries.planning.nodes.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.QueryContext
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.physical.function.FunctionPhysicalOperatorNode
@@ -9,8 +9,8 @@ import org.vitrivr.cottontail.dbms.queries.planning.nodes.physical.sources.Entit
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.physical.sources.IndexScanPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.physical.transform.FetchPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
-import org.vitrivr.cottontail.core.queries.predicates.bool.BooleanPredicate
-import org.vitrivr.cottontail.core.queries.predicates.bool.ComparisonOperator
+import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
+import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.functions.math.score.FulltextScore
 
 /**
@@ -50,7 +50,7 @@ object FulltextIndexRule : RewriteRule {
                 val predicate = BooleanPredicate.Atomic(ComparisonOperator.Binary.Match(probingArgument, queryString), false, scan.groupId)
                 val candidate = scan.entity.listIndexes().find { it.canProcess(predicate) }
                 if (candidate != null) {
-                    val indexScan = IndexScanPhysicalOperatorNode(scan.groupId, ctx.txn.getTx(candidate) as IndexTx, predicate, listOf(Pair(node.produces.name, candidate.produces[0])))
+                    val indexScan = IndexScanPhysicalOperatorNode(scan.groupId, ctx.txn.getTx(candidate) as IndexTx, predicate, listOf(Pair(node.out, candidate.produces[0])))
                     val fetch = FetchPhysicalOperatorNode(indexScan, scan.entity, scan.fetch.filter { !candidate.produces.contains(it.second) })
                     return if (node.output != null) {
                         node.output?.copyWithOutput(fetch)

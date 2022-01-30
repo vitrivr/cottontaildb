@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.dbms.queries.binding
 
-import org.vitrivr.cottontail.core.basics.Record
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
@@ -19,11 +19,11 @@ import org.vitrivr.cottontail.core.values.types.Value
  */
 class DefaultBindingContext(startSize: Int = 100) : BindingContext {
 
-    /** List of bound [Value]s for this [BindingContext]. */
-    private val boundValues = ArrayList<Value?>(startSize)
+    /** List of bound [Value]s used to resolve [Binding.Literal] in this [BindingContext]. */
+    private val boundLiterals = ArrayList<Value?>(startSize)
 
-    /** A [Record] currently bound to this [BindingContext]. Used to resolve [Binding.Column]. */
-    private var boundRecord: Record? = null
+    /** List of bound [Value]s used to resolve [Binding.Column] in this [BindingContext]. */
+    private val boundColumns = Object2ObjectOpenHashMap<ColumnDef<*>, Value?>()
 
     /**
      * Returns the [Value] for the given [Binding].
@@ -31,23 +31,20 @@ class DefaultBindingContext(startSize: Int = 100) : BindingContext {
      * @param binding The [Binding] to lookup.
      * @return The bound [Value].
      */
-    override operator fun get(binding: Binding): Value? {
+    override operator fun get(binding: Binding.Literal): Value? {
         require(binding.context == this) { "The given binding $binding has not been registered with this binding context." }
-        return when (binding) {
-            is Binding.Column -> (this.boundRecord ?: throw IllegalStateException("No record bound for column binding ${binding.column}."))[binding.column]
-            is Binding.Literal -> this[binding.bindingIndex]
-        }
+        return this.boundLiterals[binding.bindingIndex]
     }
 
     /**
-     * Returns the [Value] for the given [bindingIndex].
+     * Returns the [Value] for the given [Binding].
      *
-     * @param bindingIndex The [Binding] to lookup.
+     * @param binding The [Binding] to lookup.
      * @return The bound [Value].
      */
-    override operator fun get(bindingIndex: Int): Value? {
-        require(bindingIndex < this.boundValues.size) { "Binding $bindingIndex is not known to this binding context." }
-        return this.boundValues[bindingIndex]
+    override operator fun get(binding: Binding.Column): Value? {
+        require(binding.context == this) { "The given binding $binding has not been registered with this binding context." }
+        return this.boundColumns[binding.column]
     }
 
     /**
@@ -58,8 +55,8 @@ class DefaultBindingContext(startSize: Int = 100) : BindingContext {
      * @return A value [Binding]
      */
     override fun bind(value: Value, static: Boolean): Binding.Literal {
-        val bindingIndex = this.boundValues.size
-        check(this.boundValues.add(value)) { "Failed to add $value to list of bound values for index $bindingIndex." }
+        val bindingIndex = this.boundLiterals.size
+        check(this.boundLiterals.add(value)) { "Failed to add $value to list of bound values for index $bindingIndex." }
         return Binding.Literal(bindingIndex, value.type, this, static)
     }
 
@@ -71,8 +68,8 @@ class DefaultBindingContext(startSize: Int = 100) : BindingContext {
      * @return A value [Binding]
      */
     override fun bindNull(type: Types<*>, static: Boolean): Binding.Literal {
-        val bindingIndex = this.boundValues.size
-        check(this.boundValues.add(null)) { "Failed to add null to list of bound values for index $bindingIndex." }
+        val bindingIndex = this.boundLiterals.size
+        check(this.boundLiterals.add(null)) { "Failed to add null to list of bound values for index $bindingIndex." }
         return Binding.Literal(bindingIndex, type, this, static)
     }
 
@@ -85,10 +82,22 @@ class DefaultBindingContext(startSize: Int = 100) : BindingContext {
      */
     override fun update(binding: Binding.Literal, value: Value?) {
         require(binding.context == this) { "The given binding $binding has not been registered with this binding context." }
-        this.boundValues[binding.bindingIndex] = value
+        require(value == null || binding.type.compatible(value)) { "Value $value cannot be bound to $binding because of type mismatch (${binding.type})."}
+        this.boundLiterals[binding.bindingIndex] = value
     }
 
-
+    /**
+     * Updates the [Value] for a [Binding.Column].
+     *
+     * @param binding The [Binding.Column] to update.
+     * @param value The [Value] to bind.
+     * @return A value [Binding]
+     */
+    override fun update(binding: Binding.Column, value: Value?) {
+        require(binding.context == this) { "The given binding $binding has not been registered with this binding context." }
+        require((value == null && binding.column.nullable) || (value != null && binding.type.compatible(value))) { "Value $value cannot be bound to $binding because of type mismatch (${binding.column}."}
+        this.boundColumns[binding.column] = value
+    }
 
     /**
      * Creates and returns a [Binding] for the given [ColumnDef].
@@ -99,11 +108,18 @@ class DefaultBindingContext(startSize: Int = 100) : BindingContext {
     override fun bind(column: ColumnDef<*>): Binding.Column =  Binding.Column(column, this)
 
     /**
-     * Updates the [Binding.Column]s based on the given [Record].
+     * Creates a copy of this [DefaultBindingContext].
      *
-     * @param record The [Record] to update the [Binding.Column] with.
+     * @return Copy of this [DefaultBindingContext].
      */
-    override fun bindRecord(record: Record) {
-        this.boundRecord = record
+    override fun copy(): BindingContext {
+        val copy = DefaultBindingContext(this.boundLiterals.size)
+        for ((i,v) in this.boundLiterals.withIndex()) {
+            copy.boundLiterals[i] = v
+        }
+        for ((k,v) in this.boundColumns) {
+            copy.boundColumns[k] = v
+        }
+        return copy
     }
 }

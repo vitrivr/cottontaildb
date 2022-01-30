@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.dbms.queries.planning
 
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet
-import org.vitrivr.cottontail.dbms.queries.OperatorNode
+import org.vitrivr.cottontail.dbms.queries.planning.nodes.OperatorNode
 import java.util.*
 
 /**

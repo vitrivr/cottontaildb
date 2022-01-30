@@ -17,20 +17,20 @@ import org.vitrivr.cottontail.core.values.types.Value
  */
 interface BindingContext {
     /**
-     * Returns the [Value] for the given [Binding].
+     * Returns the [Value] for the given [Binding.Literal].
      *
-     * @param binding The [Binding] to lookup.
+     * @param binding The [Binding.Literal] to lookup.
      * @return The bound [Value].
      */
-    operator fun get(binding: Binding): Value?
+    operator fun get(binding: Binding.Literal): Value?
 
     /**
-     * Returns the [Value] for the given [bindingIndex].
+     * Returns the [Value] for the given [Binding.Column].
      *
-     * @param bindingIndex The [Binding] to lookup.
+     * @param binding The [Binding.Column] to lookup.
      * @return The bound [Value].
      */
-    operator fun get(bindingIndex: Int): Value?
+    operator fun get(binding: Binding.Column): Value?
 
     /**
      * Creates and returns a [Binding] for the given [Value].
@@ -40,6 +40,14 @@ interface BindingContext {
      * @return A value [Binding]
      */
     fun bind(value: Value, static: Boolean = true): Binding.Literal
+
+    /**
+     * Creates and returns a [Binding] for the given [ColumnDef].
+     *
+     * @param column The [ColumnDef] to bind.
+     * @return [Binding.Column]
+     */
+    fun bind(column: ColumnDef<*>): Binding.Column
 
     /**
      * Creates and returns a [Binding] for the given [Value].
@@ -54,23 +62,22 @@ interface BindingContext {
      * Updates the [Value] for a [Binding.Literal].
      *
      * @param binding The [Binding.Literal] to update.
-     * @param value The [Value] to bind.
-     * @return A value [Binding]
+     * @param value The new [Value] to bind.
      */
     fun update(binding: Binding.Literal, value: Value?)
 
     /**
-     * Creates and returns a [Binding] for the given [ColumnDef].
+     * Updates the [Value] for a [Binding.Column].
      *
-     * @param column The [ColumnDef] to bind.
-     * @return [Binding.Column]
+     * @param binding The [Binding.Column] to update.
+     * @param value The new [Value] to bind.
      */
-    fun bind(column: ColumnDef<*>): Binding.Column
+    fun update(binding: Binding.Column, value: Value?)
 
     /**
-     * Updates the [Binding.Column]s based on the given [Record].
+     * Creates a copy of this [BindingContext]. The copy must be fully independent.
      *
-     * @param record The [Record] to update the [Binding.Column] with.
+     * @return Copy of this [BindingContext]
      */
-    fun bindRecord(record: Record)
+    fun copy(): BindingContext
 }

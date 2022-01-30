@@ -3,7 +3,9 @@ package org.vitrivr.cottontail.dbms.queries.planning.nodes.logical
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
-import org.vitrivr.cottontail.dbms.queries.OperatorNode
+import org.vitrivr.cottontail.core.queries.Node
+import org.vitrivr.cottontail.core.queries.binding.BindingContext
+import org.vitrivr.cottontail.dbms.queries.planning.nodes.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.sort.SortOrder
 import java.io.PrintStream
 
@@ -11,7 +13,7 @@ import java.io.PrintStream
  * An abstract [OperatorNode.Logical] implementation that has exactly two [OperatorNode.Logical]s as input.
  *
  * @author Ralph Gasser
- * @version 2.4.0
+ * @version 2.5.0
  */
 abstract class BinaryLogicalOperatorNode(left: Logical? = null, right: Logical? = null) : OperatorNode.Logical() {
 
@@ -117,6 +119,18 @@ abstract class BinaryLogicalOperatorNode(left: Logical? = null, right: Logical? 
         copy.left = input.getOrNull(0)
         copy.right = input.getOrNull(1)
         return (this.output?.copyWithOutput(copy) ?: copy).root
+    }
+
+    /**
+     * By default, the [BinaryLogicalOperatorNode] simply propagates [bind] calls to its inpus.
+     *
+     * However, some implementations must propagate the call to inner [Node]s.
+     *
+     * @param context The [BindingContext] to bind this [BinaryLogicalOperatorNode] to.
+     */
+    override fun bind(context: BindingContext) {
+        this.left?.bind(context)
+        this.right?.bind(context)
     }
 
     /**

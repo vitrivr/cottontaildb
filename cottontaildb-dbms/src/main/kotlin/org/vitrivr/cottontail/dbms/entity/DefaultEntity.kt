@@ -433,8 +433,8 @@ class DefaultEntity(override val path: Path, override val parent: Schema) : Enti
             incremental.forEach { it.clear() }
 
             /* Rebuild indexes and statistics in single iteration. */
-            iterator.forEach { r ->
-                r.forEach { columnDef, value -> map[columnDef] = value }
+            for (r in iterator) {
+                for (i in 0 until r.size) map[r.columns[i]] = r[i]
                 val event = Operation.DataManagementOperation.InsertOperation(this.context.txId, this@DefaultEntity.name, r.tupleId, map) /* Fake data change event for update. */
                 this.snapshot.statistics.consume(event)
                 incremental.forEach { it.update(event) }

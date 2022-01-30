@@ -58,13 +58,6 @@ class DeletePhysicalOperatorNode(input: Physical? = null, val entity: EntityTx) 
         this.entity
     )
 
-    /**
-     * [DeletePhysicalOperatorNode] cannot be partitioned.
-     */
-    override fun partition(p: Int): List<Physical> {
-        throw UnsupportedOperationException("DeletePhysicalOperatorNode cannot be partitioned.")
-    }
-
     override fun toString(): String = "${super.toString()}[${this.entity.dbo.name}]"
 
     override fun equals(other: Any?): Boolean {

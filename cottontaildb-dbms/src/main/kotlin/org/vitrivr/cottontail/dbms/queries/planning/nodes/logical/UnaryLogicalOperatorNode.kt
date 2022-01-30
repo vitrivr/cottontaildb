@@ -3,7 +3,9 @@ package org.vitrivr.cottontail.dbms.queries.planning.nodes.logical
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
-import org.vitrivr.cottontail.dbms.queries.OperatorNode
+import org.vitrivr.cottontail.core.queries.Node
+import org.vitrivr.cottontail.core.queries.binding.BindingContext
+import org.vitrivr.cottontail.dbms.queries.planning.nodes.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.sort.SortOrder
 import java.io.PrintStream
 
@@ -11,7 +13,7 @@ import java.io.PrintStream
  * An abstract [OperatorNode.Logical] implementation that has a single [OperatorNode] as input.
  *
  * @author Ralph Gasser
- * @version 2.4.0
+ * @version 2.5.0
  */
 abstract class UnaryLogicalOperatorNode(input: Logical? = null) : OperatorNode.Logical() {
     /** Input arity of [UnaryLogicalOperatorNode] is always one. */
@@ -98,6 +100,17 @@ abstract class UnaryLogicalOperatorNode(input: Logical? = null) : OperatorNode.L
         val copy = this.copy()
         copy.input = input.getOrNull(0)
         return (this.output?.copyWithOutput(copy) ?: copy).root
+    }
+
+    /**
+     * By default, the [UnaryLogicalOperatorNode] simply propagates [bind] calls to its input.
+     *
+     * However, some implementations must propagate the call to inner [Node]s.
+     *
+     * @param context The [BindingContext] to bind this [UnaryLogicalOperatorNode] to.
+     */
+    override fun bind(context: BindingContext) {
+        this.input?.bind(context)
     }
 
     /**

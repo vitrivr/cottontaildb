@@ -11,7 +11,7 @@ import org.vitrivr.cottontail.dbms.queries.projection.Projection
  */
 abstract class AbstractProjectionPhysicalOperatorNode(input: Physical? = null, val type: Projection) : UnaryPhysicalOperatorNode(input) {
 
-    /** The name of this [DistanceLogicalOperatorNode]. */
+    /** The name of this [AbstractProjectionPhysicalOperatorNode]. */
     override val name: String
         get() = this.type.label()
 

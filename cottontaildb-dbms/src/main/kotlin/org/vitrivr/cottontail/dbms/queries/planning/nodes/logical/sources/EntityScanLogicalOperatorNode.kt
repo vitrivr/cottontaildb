@@ -1,7 +1,8 @@
 package org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.sources
 
 import org.vitrivr.cottontail.core.database.ColumnDef
-import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.core.queries.binding.Binding
+import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.NullaryLogicalOperatorNode
@@ -11,9 +12,9 @@ import org.vitrivr.cottontail.dbms.queries.planning.nodes.physical.sources.Entit
  * A [NullaryLogicalOperatorNode] that formalizes the scan of a physical [Entity] in Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 2.4.0
+ * @version 2.5.0
  */
-class EntityScanLogicalOperatorNode(override val groupId: Int, val entity: EntityTx, val fetch: List<Pair<Name.ColumnName, ColumnDef<*>>>) : NullaryLogicalOperatorNode() {
+class EntityScanLogicalOperatorNode(override val groupId: Int, val entity: EntityTx, val fetch: List<Pair<Binding.Column, ColumnDef<*>>>) : NullaryLogicalOperatorNode() {
 
     companion object {
         private const val NODE_NAME = "ScanEntity"
@@ -27,14 +28,23 @@ class EntityScanLogicalOperatorNode(override val groupId: Int, val entity: Entit
     override val physicalColumns: List<ColumnDef<*>> = this.fetch.map { it.second }
 
     /** The [ColumnDef] produced by this [EntityScanPhysicalOperatorNode]. */
-    override val columns: List<ColumnDef<*>> = this.fetch.map { it.second.copy(name = it.first) }
+    override val columns: List<ColumnDef<*>> = this.fetch.map { it.first.column }
 
     /**
      * Creates and returns a copy of this [EntityScanLogicalOperatorNode] without any children or parents.
      *
      * @return Copy of this [EntityScanLogicalOperatorNode].
      */
-    override fun copy() = EntityScanLogicalOperatorNode(this.groupId, this.entity, this.fetch)
+    override fun copy() = EntityScanLogicalOperatorNode(this.groupId, this.entity, this.fetch.map { it.first.copy() to it.second })
+
+    /**
+     * Propagates the [bind] call to all [Binding.Column] processed by this [EntityScanLogicalOperatorNode].
+     *
+     * @param context The new [BindingContext]
+     */
+    override fun bind(context: BindingContext) {
+        this.fetch.forEach { it.first.bind(context) }
+    }
 
     /**
      * Returns a [EntityScanPhysicalOperatorNode] representation of this [EntityScanLogicalOperatorNode]

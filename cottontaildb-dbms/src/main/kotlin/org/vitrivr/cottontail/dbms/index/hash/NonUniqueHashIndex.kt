@@ -14,8 +14,8 @@ import org.vitrivr.cottontail.dbms.index.IndexType
 import org.vitrivr.cottontail.dbms.operations.Operation
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
-import org.vitrivr.cottontail.core.queries.predicates.bool.BooleanPredicate
-import org.vitrivr.cottontail.core.queries.predicates.bool.ComparisonOperator
+import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
+import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.TupleId

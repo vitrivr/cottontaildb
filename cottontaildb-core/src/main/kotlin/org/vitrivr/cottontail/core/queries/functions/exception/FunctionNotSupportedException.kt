@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail.core.functions.exception
+package org.vitrivr.cottontail.core.queries.functions.exception
 
 /**
  * An exception thrown if generating a certain [Function] fails.

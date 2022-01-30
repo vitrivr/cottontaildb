@@ -12,7 +12,7 @@ import org.vitrivr.cottontail.dbms.index.va.VAFIndex
 import org.vitrivr.cottontail.dbms.operations.Operation
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
-import org.vitrivr.cottontail.core.queries.predicates.knn.KnnPredicate
+import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.TupleId
@@ -134,7 +134,7 @@ class PQIndex(path: Path, parent: DefaultEntity, config: PQIndexConfig? = null) 
      * @return True if [Predicate] can be processed, false otherwise.
      */
     override fun canProcess(predicate: Predicate) =
-        predicate is KnnPredicate && predicate.column == this.columns[0]
+        predicate is ProximityPredicate && predicate.column == this.columns[0]
 
     /**
      * Calculates the cost estimate if this [AbstractIndex] processing the provided [Predicate].
@@ -143,7 +143,7 @@ class PQIndex(path: Path, parent: DefaultEntity, config: PQIndexConfig? = null) 
      * @return [Cost] estimate for the [Predicate]
      */
     override fun cost(predicate: Predicate): Cost {
-        if (predicate !is KnnPredicate) return Cost.INVALID
+        if (predicate !is ProximityPredicate) return Cost.INVALID
         if (predicate.column != this.columns[0]) return Cost.INVALID
         return Cost(
             this.signaturesStore.size * this.config.numSubspaces * Cost.COST_DISK_ACCESS_READ + predicate.k * predicate.column.type.logicalSize * Cost.COST_DISK_ACCESS_READ,
@@ -233,7 +233,7 @@ class PQIndex(path: Path, parent: DefaultEntity, config: PQIndexConfig? = null) 
 
         /**
          * Performs a lookup through this [PQIndex.Tx] and returns a [Iterator] of all [Record]s
-         * that match the [Predicate]. Only supports [KnnPredicate]s.
+         * that match the [Predicate]. Only supports [ProximityPredicate]s.
          *
          * <strong>Important:</strong> The [Iterator] is not thread safe! It remains to the
          * caller to close the [Iterator]
@@ -245,7 +245,7 @@ class PQIndex(path: Path, parent: DefaultEntity, config: PQIndexConfig? = null) 
 
         /**
          * Performs a lookup through this [PQIndex.Tx] and returns a [Iterator] of all [Record]s
-         * that match the [Predicate] in the given [LongRange]. Only supports [KnnPredicate]s.
+         * that match the [Predicate] in the given [LongRange]. Only supports [ProximityPredicate]s.
          *
          * <strong>Important:</strong> The [Iterator] is not thread safe!
          *
@@ -256,8 +256,8 @@ class PQIndex(path: Path, parent: DefaultEntity, config: PQIndexConfig? = null) 
          */
         override fun filterRange(predicate: Predicate, partitionIndex: Int, partitions: Int) = object : Iterator<Record> {
 
-            /** Cast [KnnPredicate] (if such a cast is possible).  */
-            private val predicate = if (predicate is KnnPredicate) {
+            /** Cast [ProximityPredicate] (if such a cast is possible).  */
+            private val predicate = if (predicate is ProximityPredicate) {
                 predicate
             } else {
                 throw QueryException.UnsupportedPredicateException("Index '${this@PQIndex.name}' (PQ Index) does not support predicates of type '${predicate::class.simpleName}'.")
@@ -296,6 +296,8 @@ class PQIndex(path: Path, parent: DefaultEntity, config: PQIndexConfig? = null) 
              * Executes the kNN and prepares the results to return by this [Iterator].
              */
             private fun prepareResults(): ArrayDeque<StandaloneRecord> {
+                val queue = ArrayDeque<StandaloneRecord>(this.predicate.k)
+
                 /* Prepare data structures for NNS. */
                 val txn = this@Tx.context.getTx(this@PQIndex.parent) as EntityTx
                 val preKnnSize = (this.predicate.k * 1.15).toInt() /* Pre-kNN size is 15% larger than k. */
@@ -312,7 +314,7 @@ class PQIndex(path: Path, parent: DefaultEntity, config: PQIndexConfig? = null) 
                 }
 
                 /* Phase 2: Perform exact kNN based on pre-kNN results. */
-                this.predicate.distance.provide(1,  this.predicate.query.value) /* Query argument is static and doesn't change. */
+                val queryArgument = this.predicate.query.value ?: return queue
                 val knn = if (this.predicate.k == 1) {
                     MinSingleSelection<ComparablePair<TupleId, DoubleValue>>()
                 } else {
@@ -321,16 +323,17 @@ class PQIndex(path: Path, parent: DefaultEntity, config: PQIndexConfig? = null) 
                 for (j in 0 until preKnn.size) {
                     val tupleIds = preKnn[j].first
                     for (tupleId in tupleIds) {
-                        this.predicate.distance.provide(0, txn.read(tupleId, this@PQIndex.columns)[this@PQIndex.columns[0]]) /* Probing argument is dynamic. */
-                        val distance = this.predicate.distance()
-                        if (knn.size < this.predicate.k || knn.peek()!!.second > distance) {
-                            knn.offer(ComparablePair(tupleId, distance))
+                        val probingArgument = txn.read(tupleId, this@PQIndex.columns)[this@PQIndex.columns[0]] /* Probing argument is dynamic. */
+                        if (probingArgument is VectorValue<*>) {
+                            val distance = this.predicate.distance(queryArgument, probingArgument)
+                            if (knn.size < this.predicate.k || knn.peek()!!.second > distance) {
+                                knn.offer(ComparablePair(tupleId, distance))
+                            }
                         }
                     }
                 }
 
                 /* Phase 3: Prepare and return list of results. */
-                val queue = ArrayDeque<StandaloneRecord>(this.predicate.k)
                 for (i in 0 until knn.size) {
                     queue.add(StandaloneRecord(knn[i].first, this@PQIndex.produces, arrayOf(knn[i].second)))
                 }

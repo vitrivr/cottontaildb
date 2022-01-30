@@ -3,7 +3,6 @@ package org.vitrivr.cottontail.execution.operators.basics
 import kotlinx.coroutines.flow.Flow
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.GroupId
-import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.exceptions.OperatorSetupException
 import org.vitrivr.cottontail.core.basics.Record
@@ -20,9 +19,6 @@ sealed class Operator {
 
     /** The list of [ColumnDef]s produced by this [Operator]. */
     abstract val columns: List<ColumnDef<*>>
-
-    /** The [BindingContext] used by this [Operator] Not all [Operator] instances use a [BindingContext]. */
-    abstract val binding: BindingContext
 
     /**
      * Converts this [Operator] to a [Flow] and returns it.
@@ -46,10 +42,6 @@ sealed class Operator {
         /** The [GroupId] of a [PipelineOperator] is inherited by the parent [Operator]. */
         override val groupId: GroupId
             get() = this.parent.groupId
-
-        /** The [BindingContext] of a [PipelineOperator] is inherited by the parent [Operator]. */
-        override val binding: BindingContext
-            get() = this.parent.binding
     }
 
     /**
@@ -71,10 +63,6 @@ sealed class Operator {
         /** The [GroupId] of a [SinkOperator] is inherited by the left most parent [Operator]. */
         override val groupId: GroupId
             get() = this.parents[0].groupId
-
-        /** The [BindingContext] of a [PipelineOperator] is inherited by the left most parent [Operator]. */
-        override val binding: BindingContext
-            get() = this.parents[0].binding
     }
 
     /**
@@ -89,10 +77,6 @@ sealed class Operator {
         /** The [GroupId] of a [SinkOperator] is inherited by the parent [Operator]. */
         override val groupId: GroupId
             get() = this.parent.groupId
-
-        /** The [BindingContext] of a [PipelineOperator] is inherited by the left most parent [Operator]. */
-        override val binding: BindingContext
-            get() = this.parent.binding
     }
 
     /**

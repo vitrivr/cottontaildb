@@ -5,11 +5,11 @@ import kotlinx.coroutines.flow.onEach
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.dbms.queries.QueryContext
 import org.vitrivr.cottontail.core.queries.binding.Binding
-import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
-import org.vitrivr.cottontail.core.functions.Function
+import org.vitrivr.cottontail.core.queries.functions.Function
 import org.vitrivr.cottontail.core.basics.Record
+import org.vitrivr.cottontail.core.values.types.Value
 
 /**
  * A [Operator.PipelineOperator] used during query execution. It executes a defined [Function] and generates [Binding] from its result.
@@ -19,12 +19,14 @@ import org.vitrivr.cottontail.core.basics.Record
  * @author Ralph Gasser
  * @version 1.2.0
  */
-class NestedFunctionOperator(parent: Operator, val function: Function<*>, val arguments: List<Binding>, override val binding: BindingContext, val out: Binding.Literal) : Operator.PipelineOperator(parent) {
+class NestedFunctionOperator(parent: Operator, val function: Function<*>, val out: Binding.Literal, val arguments: List<Binding>) : Operator.PipelineOperator(parent) {
 
-    /** The [DistanceProjectionOperator] is not a pipeline breaker. */
+    /** The [NestedFunctionOperator] is not a pipeline breaker. */
     override val breaker: Boolean = false
+
+    /** The [NestedFunctionOperator] does not produce additional columns. */
     override val columns: List<ColumnDef<*>>
-        get() = parent.columns
+        get() = this.parent.columns
 
     /**
      * Converts this [FunctionOperator] to a [Flow] and returns it.
@@ -33,23 +35,14 @@ class NestedFunctionOperator(parent: Operator, val function: Function<*>, val ar
      * @return [Flow] representing this [FunctionOperator]
      */
     override fun toFlow(context: TransactionContext): Flow<Record> {
-        /* Obtain parent flow. */
         val parentFlow = this.parent.toFlow(context)
-
-        /* Prepare arguments for function. */
-        val dynamicArgs = mutableListOf<Pair<Int, Binding>>()
-        this.arguments.forEachIndexed {  i, b ->
-            if (b.static) {
-                this.function.provide(i, b.value)
-            } else {
-                dynamicArgs.add(i to b)
-            }
-        }
-
-        /* Prepare empty array that acts a holder for values. */
+        val arguments = Array<Value?>(this.arguments.size) { this.arguments[it].type.defaultValue() }
         return parentFlow.onEach { _ ->
-            dynamicArgs.forEach { this@NestedFunctionOperator.function.provide(it.first, it.second.value) }
-            this@NestedFunctionOperator.binding.update(this@NestedFunctionOperator.out, this@NestedFunctionOperator.function())
+            /* Load arguments into array. */
+            for ((argIdx, arg) in this@NestedFunctionOperator.arguments.withIndex()) {
+                arguments[argIdx] = arg.value
+            }
+            this@NestedFunctionOperator.out.update(this@NestedFunctionOperator.function(*arguments))
         }
     }
 }

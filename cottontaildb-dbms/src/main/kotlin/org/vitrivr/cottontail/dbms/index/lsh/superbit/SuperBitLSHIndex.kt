@@ -14,7 +14,7 @@ import org.vitrivr.cottontail.dbms.index.va.signature.VAFSignature
 import org.vitrivr.cottontail.dbms.operations.Operation
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
-import org.vitrivr.cottontail.core.queries.predicates.knn.KnnPredicate
+import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.functions.math.distance.Distances
 import org.vitrivr.cottontail.core.basics.Record
@@ -105,7 +105,7 @@ class SuperBitLSHIndex<T : VectorValue<*>>(
      * @return True if [Predicate] can be processed, false otherwise.
      */
     override fun canProcess(predicate: Predicate): Boolean =
-        predicate is KnnPredicate
+        predicate is ProximityPredicate
                 && predicate.columns.first() == this.columns[0]
                 && predicate.distance.signature.name in SUPPORTED_DISTANCES
                 && (!this.config.considerImaginary || predicate.query is ComplexVectorValue<*>)
@@ -209,7 +209,7 @@ class SuperBitLSHIndex<T : VectorValue<*>>(
 
         /**
          * Performs a lookup through this [SuperBitLSHIndex] and returns a [Iterator] of
-         * all [TupleId]s that match the [Predicate]. Only supports [KnnPredicate]s.
+         * all [TupleId]s that match the [Predicate]. Only supports [ProximityPredicate]s.
          *
          * The [Iterator] is not thread safe!
          *
@@ -218,8 +218,8 @@ class SuperBitLSHIndex<T : VectorValue<*>>(
          */
         override fun filter(predicate: Predicate) = object : Iterator<Record> {
 
-            /** Cast [KnnPredicate] (if such a cast is possible).  */
-            private val predicate = if (predicate is KnnPredicate) {
+            /** Cast [ProximityPredicate] (if such a cast is possible).  */
+            private val predicate = if (predicate is ProximityPredicate) {
                 predicate
             } else {
                 throw QueryException.UnsupportedPredicateException("Index '${this@SuperBitLSHIndex.name}' (LSH Index) does not support predicates of type '${predicate::class.simpleName}'.")

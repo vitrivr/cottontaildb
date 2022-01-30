@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.dbms.queries.planning.rules.physical.pushdown
 
-import org.vitrivr.cottontail.dbms.queries.OperatorNode
+import org.vitrivr.cottontail.dbms.entity.Entity
+import org.vitrivr.cottontail.dbms.queries.planning.nodes.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.QueryContext
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.physical.projection.CountProjectionPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.physical.sources.EntityCountPhysicalOperatorNode
@@ -20,7 +21,7 @@ object CountPushdownRule : RewriteRule {
         if (node is CountProjectionPhysicalOperatorNode) {
             val input = node.input
             if (input is EntityScanPhysicalOperatorNode) {
-                val p = EntityCountPhysicalOperatorNode(input.groupId, input.entity)
+                val p = EntityCountPhysicalOperatorNode(input.groupId, input.entity, node.out)
                 return node.output?.copyWithOutput(p) ?: p
             }
         }

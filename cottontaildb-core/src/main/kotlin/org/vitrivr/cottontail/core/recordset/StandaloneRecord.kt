@@ -43,17 +43,6 @@ class StandaloneRecord(override var tupleId: TupleId, override val columns: Arra
     override fun copy(): Record = StandaloneRecord(this.tupleId, this.columns, this.values.copyOf())
 
     /**
-     * Iterates over the [ColumnDef] and [Value] pairs in this [Record] in the order specified by [columns].
-     *
-     * @param action The action to apply to each [ColumnDef], [Value] pair.
-     */
-    override fun forEach(action: (ColumnDef<*>, Value?) -> Unit) {
-        for ((i, c) in this.columns.withIndex()) {
-            action(c, this.values[i])
-        }
-    }
-
-    /**
      * Returns true, if this [StandaloneRecord] contains the specified [ColumnDef] and false otherwise.
      *
      * @param column The [ColumnDef] specifying the column
@@ -82,17 +71,17 @@ class StandaloneRecord(override var tupleId: TupleId, override val columns: Arra
      * @param column The [ColumnDef] for which to retrieve the value.
      * @return The value for the [ColumnDef]
      */
-    override fun get(column: ColumnDef<*>): Value? = this.get(this.columns.indexOf(column))
+    override fun get(column: ColumnDef<*>): Value? = this[this.columns.indexOf(column)]
 
     /**
      * Retrieves the value for the specified column index from this [StandaloneRecord].
      *
-     * @param columnIndex The index for which to retrieve the value.
+     * @param index The index for which to retrieve the value.
      * @return The value for the column index.
      */
-    fun get(columnIndex: Int): Value? {
-        require(columnIndex in (0 until this.size)) { "The specified column $columnIndex is out of bounds." }
-        return this.values[columnIndex]
+    override fun get(index: Int): Value? {
+        require(index in (0 until this.size)) { "The specified column $index is out of bounds." }
+        return this.values[index]
     }
 
     /**
@@ -106,33 +95,30 @@ class StandaloneRecord(override var tupleId: TupleId, override val columns: Arra
     /**
      * Sets the value for the specified column index  in this [StandaloneRecord].
      *
-     * @param columnIndex The index for which to set the value.
+     * @param index The index for which to set the value.
      * @param value The new [Value]
      */
-    fun set(columnIndex: Int, value: Value?) {
-        require(columnIndex in (0 until this.size)) { "The specified column $columnIndex is out of bounds." }
-        require(this.columns[columnIndex].validate(value)) { "Provided value $value is incompatible with column ${this.columns[columnIndex]}." }
-        this.values[columnIndex] = value
+    override fun set(index: Int, value: Value?) {
+        require(index in (0 until this.size)) { "The specified column $index is out of bounds." }
+        require(this.columns[index].validate(value)) { "Provided value $value is incompatible with column ${this.columns[index]}." }
+        this.values[index] = value
     }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
-        if (javaClass != other?.javaClass) return false
-
-        other as StandaloneRecord
-
-        if (tupleId != other.tupleId) return false
-        if (this.columns.contentEquals(other.columns)) return false
-        if (this.values.contentEquals(other.values)) return false
-
+        if (other !is Record) return false
+        if (this.tupleId != other.tupleId) return false
+        if (this.columns.contentDeepEquals(other.columns)) return false
+        for (i in 0 until this.columns.size) {
+            if (this[i] != other[i]) return false
+        }
         return true
     }
 
     override fun hashCode(): Int {
-        var result = tupleId.hashCode()
-        result = 31 * result + this.columns.contentHashCode()
-        result = 31 * result + this.columns.contentHashCode()
-
+        var result = this.tupleId.hashCode()
+        result = 31 * result + this.columns.hashCode()
+        result = 31 * result + this.values.hashCode()
         return result
     }
 }

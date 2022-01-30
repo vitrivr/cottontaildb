@@ -31,9 +31,6 @@ class ListSchemaOperator(val catalogue: DefaultCatalogue) : Operator.SourceOpera
         )
     }
 
-    /** The [BindingContext] used [AbstractDataDefinitionOperator]. */
-    override val binding: BindingContext = EmptyBindingContext
-
     override val columns: List<ColumnDef<*>> = COLUMNS
 
     override fun toFlow(context: TransactionContext): Flow<Record> {

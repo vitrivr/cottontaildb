@@ -37,9 +37,6 @@ class InsertOperator(groupId: GroupId, val entity: EntityTx, val records: List<R
         )
     }
 
-    /** The [BindingContext] used [AbstractDataDefinitionOperator]. */
-    override val binding: BindingContext = EmptyBindingContext
-
     /** Columns produced by [InsertOperator]. */
     override val columns: List<ColumnDef<*>> = COLUMNS
 

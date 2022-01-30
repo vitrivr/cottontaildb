@@ -1,17 +1,15 @@
 package org.vitrivr.cottontail.dbms.queries.planning.rules.logical
 
-import org.vitrivr.cottontail.dbms.queries.OperatorNode
+import org.vitrivr.cottontail.dbms.queries.planning.nodes.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.QueryContext
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.predicates.FilterLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.predicates.FilterOnSubSelectLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
-import org.vitrivr.cottontail.core.queries.predicates.bool.BooleanPredicate
-import org.vitrivr.cottontail.core.queries.predicates.bool.ConnectionOperator
+import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 
 /**
- * Decomposes a [FilterOnSubSelectLogicalOperatorNode] that contains a [BooleanPredicate.Compound]
- * connected with a [ConnectionOperator.AND] into a sequence of two [FilterOnSubSelectLogicalOperatorNode]s or
- * a [FilterOnSubSelectLogicalOperatorNode] and a [FilterLogicalOperatorNode].
+ * Decomposes a [FilterOnSubSelectLogicalOperatorNode] that contains a [BooleanPredicate.Compound.And] into a sequence
+ * of two [FilterOnSubSelectLogicalOperatorNode]s or a [FilterOnSubSelectLogicalOperatorNode] and a [FilterLogicalOperatorNode].
  *
  * Gives precedence to the left operand.
  *
@@ -27,10 +25,7 @@ object LeftConjunctionOnSubselectRewriteRule : RewriteRule {
      * @return True if [RewriteRule] can be applied, false otherwise.
      */
     override fun canBeApplied(node: OperatorNode): Boolean =
-        node is FilterOnSubSelectLogicalOperatorNode &&
-                node.predicate is BooleanPredicate.Compound &&
-                node.predicate.connector == ConnectionOperator.AND
-
+        node is FilterOnSubSelectLogicalOperatorNode && node.predicate is BooleanPredicate.Compound.And
 
     /**
      * Decomposes the provided [FilterOnSubSelectLogicalOperatorNode] with a conjunction into two consecutive
@@ -43,7 +38,7 @@ object LeftConjunctionOnSubselectRewriteRule : RewriteRule {
      * @return The output [OperatorNode] or null, if no rewrite was done.
      */
     override fun apply(node: OperatorNode, ctx: QueryContext): OperatorNode? {
-        if (node is FilterOnSubSelectLogicalOperatorNode && node.predicate is BooleanPredicate.Compound && node.predicate.connector == ConnectionOperator.AND) {
+        if (node is FilterOnSubSelectLogicalOperatorNode && node.predicate is BooleanPredicate.Compound.And) {
             val parent = node.inputs[0].copyWithInputs()
             val p1DependsOn = node.predicate.p1.atomics.filter { it.dependsOn > -1 }
             val p2DependsOn = node.predicate.p2.atomics.filter { it.dependsOn > -1 }

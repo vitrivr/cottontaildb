@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.transform
 
 import org.vitrivr.cottontail.core.database.ColumnDef
-import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.UnaryLogicalOperatorNode
@@ -17,7 +17,7 @@ import org.vitrivr.cottontail.dbms.queries.planning.nodes.physical.transform.Fet
  * @author Ralph Gasser
  * @version 2.4.0
  */
-class FetchLogicalOperatorNode(input: Logical? = null, val entity: EntityTx, val fetch: List<Pair<Name.ColumnName, ColumnDef<*>>>) : UnaryLogicalOperatorNode(input) {
+class FetchLogicalOperatorNode(input: Logical? = null, val entity: EntityTx, val fetch: List<Pair<Binding.Column, ColumnDef<*>>>) : UnaryLogicalOperatorNode(input) {
 
     companion object {
         private const val NODE_NAME = "Fetch"
@@ -33,7 +33,7 @@ class FetchLogicalOperatorNode(input: Logical? = null, val entity: EntityTx, val
 
     /** The [FetchLogicalOperatorNode] returns the [ColumnDef] of its input + the columns to be fetched. */
     override val columns: List<ColumnDef<*>>
-        get() = super.columns + this.fetch.map { it.second.copy(name = it.first) }
+        get() = super.columns + this.fetch.map { it.first.column }
 
     /**
      * Creates and returns a copy of this [LimitLogicalOperatorNode] without any children or parents.

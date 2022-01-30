@@ -4,7 +4,7 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
 import org.mapdb.*
 import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.functions.FunctionRegistry
+import org.vitrivr.cottontail.core.queries.functions.FunctionRegistry
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity

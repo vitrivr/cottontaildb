@@ -3,9 +3,12 @@ package org.vitrivr.cottontail.dbms.queries.planning.nodes.physical
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
-import org.vitrivr.cottontail.dbms.queries.OperatorNode
+import org.vitrivr.cottontail.core.queries.Node
+import org.vitrivr.cottontail.core.queries.binding.BindingContext
+import org.vitrivr.cottontail.dbms.queries.planning.nodes.OperatorNode
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.NAryLogicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.planning.nodes.physical.merge.MergePhysicalOperator
 import org.vitrivr.cottontail.dbms.queries.sort.SortOrder
 import org.vitrivr.cottontail.dbms.statistics.entity.RecordStatistics
 import java.io.PrintStream
@@ -15,7 +18,7 @@ import java.util.*
  * An abstract [OperatorNode.Physical] implementation that has multiple [OperatorNode.Physical]s as input.
  *
  * @author Ralph Gasser
- * @version 2.4.0
+ * @version 2.5.0
  */
 abstract class NAryPhysicalOperatorNode(vararg inputs: Physical) : OperatorNode.Physical() {
 
@@ -39,6 +42,10 @@ abstract class NAryPhysicalOperatorNode(vararg inputs: Physical) : OperatorNode.
     /** The [base] of a [NAryPhysicalOperatorNode] is the sum of its input's bases. */
     final override val base: Collection<Physical>
         get() = this.inputs.flatMap { it.base }
+
+    /** The input arity of a [NAryPhysicalOperatorNode] depends on the number of inputs. */
+    final override val inputArity: Int
+        get() = this.inputs.size
 
     /** The [totalCost] of a [NAryPhysicalOperatorNode] is the sum of its own and its input cost. */
     final override val totalCost: Cost
@@ -130,7 +137,7 @@ abstract class NAryPhysicalOperatorNode(vararg inputs: Physical) : OperatorNode.
 
     /**
      * Creates and returns a copy of this [NAryPhysicalOperatorNode] with its output reaching down to the [root] of the tree.
-     * Furthermore connects the provided [input] to the copied [OperatorNode.Physical]s.
+     * Furthermore, connects the provided [input] to the copied [OperatorNode.Physical]s.
      *
      * @param input The [OperatorNode.Physical]s that act as input.
      * @return Copy of this [NAryPhysicalOperatorNode] with its output.
@@ -139,6 +146,26 @@ abstract class NAryPhysicalOperatorNode(vararg inputs: Physical) : OperatorNode.
         val copy = this.copy()
         input.forEach { copy.addInput(it) }
         return (this.output?.copyWithOutput(copy) ?: copy).root
+    }
+
+    /**
+     * By default, [NAryPhysicalOperatorNode] cannot be partitioned.
+     *
+     * @param partitions The desired number of partitions.
+     * @param p The partition index.
+     * @return null
+     */
+    override fun tryPartition(partitions: Int, p: Int?): Physical? = null
+
+    /**
+     * By default, the [NAryPhysicalOperatorNode] simply propagates [bind] calls to its inpus.
+     *
+     * However, some implementations must propagate the call to inner [Node]s.
+     *
+     * @param context The [BindingContext] to bind this [NAryPhysicalOperatorNode] to.
+     */
+    override fun bind(context: BindingContext) {
+        this.inputs.forEach { it.bind(context) }
     }
 
     /**

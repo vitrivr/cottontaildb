@@ -4,13 +4,14 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
-import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
+import java.util.*
 
 /**
  * An [Operator.PipelineOperator] used during query execution. Fetches the specified [ColumnDef] from
@@ -19,10 +20,10 @@ import org.vitrivr.cottontail.execution.operators.basics.Operator
  * @author Ralph Gasser
  * @version 1.3.0
  */
-class FetchOperator(parent: Operator, val entity: EntityTx, val fetch: List<Pair<Name.ColumnName, ColumnDef<*>>>) : Operator.PipelineOperator(parent) {
+class FetchOperator(parent: Operator, val entity: EntityTx, val fetch: List<Pair<Binding.Column, ColumnDef<*>>>) : Operator.PipelineOperator(parent) {
 
     /** Columns returned by [FetchOperator] are a combination of the parent and the [FetchOperator]'s columns */
-    override val columns: List<ColumnDef<*>> = this.parent.columns + this.fetch.map { it.second.copy(name = it.first) }
+    override val columns: List<ColumnDef<*>> = this.parent.columns + this.fetch.map { it.first.column }
 
     /** [FetchOperator] does not act as a pipeline breaker. */
     override val breaker: Boolean = false
@@ -36,14 +37,18 @@ class FetchOperator(parent: Operator, val entity: EntityTx, val fetch: List<Pair
     override fun toFlow(context: TransactionContext): Flow<Record> {
         val fetch = this.fetch.map { it.second }.toTypedArray()
         val columns = this.columns.toTypedArray()
+        val numberOfInputColumns = this.parent.columns.size
         val values = arrayOfNulls<Value?>(this.columns.size)
         return this.parent.toFlow(context).map { r ->
-            var i = 0
-            r.forEach { _, v -> values[i++] = v }
-            this@FetchOperator.entity.read(r.tupleId, fetch).forEach { _, v -> values[i++] = v }
-            val record = StandaloneRecord(r.tupleId, columns, values)
-            this@FetchOperator.binding.bindRecord(record) /* Important: Make new record available to binding context. */
-            record
+            val fetched = this@FetchOperator.entity.read(r.tupleId, fetch)
+            for (i in 0 until numberOfInputColumns) {
+                values[i] = r[r.columns[i]]
+            }
+            for (i in numberOfInputColumns until values.size) {
+                values[i] = fetched[i-numberOfInputColumns]
+                this@FetchOperator.fetch[i-numberOfInputColumns].first.update(values[i])
+            }
+            StandaloneRecord(r.tupleId, columns, values) /* New record is emitted. */
         }
     }
 }

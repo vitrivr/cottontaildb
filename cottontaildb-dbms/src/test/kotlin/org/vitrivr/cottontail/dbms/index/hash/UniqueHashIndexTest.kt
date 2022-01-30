@@ -11,8 +11,8 @@ import org.vitrivr.cottontail.dbms.index.AbstractIndexTest
 import org.vitrivr.cottontail.dbms.index.IndexTx
 import org.vitrivr.cottontail.dbms.index.IndexType
 import org.vitrivr.cottontail.dbms.queries.binding.DefaultBindingContext
-import org.vitrivr.cottontail.core.queries.predicates.bool.BooleanPredicate
-import org.vitrivr.cottontail.core.queries.predicates.bool.ComparisonOperator
+import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
+import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
 import org.vitrivr.cottontail.execution.TransactionType
 import org.vitrivr.cottontail.core.values.types.Types

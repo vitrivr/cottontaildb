@@ -3,7 +3,9 @@ package org.vitrivr.cottontail.dbms.queries.planning.nodes.logical
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
-import org.vitrivr.cottontail.dbms.queries.OperatorNode
+import org.vitrivr.cottontail.core.queries.Node
+import org.vitrivr.cottontail.core.queries.binding.BindingContext
+import org.vitrivr.cottontail.dbms.queries.planning.nodes.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.physical.BinaryPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.sort.SortOrder
 import java.io.PrintStream
@@ -13,7 +15,7 @@ import java.util.*
  * An abstract [OperatorNode.Logical] implementation that has multiple [OperatorNode.Logical]s as input.
  *
  * @author Ralph Gasser
- * @version 2.4.0
+ * @version 2.5.0
  */
 abstract class NAryLogicalOperatorNode(vararg inputs: Logical) : OperatorNode.Logical() {
 
@@ -107,7 +109,7 @@ abstract class NAryLogicalOperatorNode(vararg inputs: Logical) : OperatorNode.Lo
 
     /**
      * Creates and returns a copy of this [NAryLogicalOperatorNode] with its output reaching down to the [root] of the tree.
-     * Furthermore connects the provided [input] to the copied [OperatorNode.Logical]s.
+     * Furthermore, connects the provided [input] to the copied [OperatorNode.Logical]s.
      *
      * @param input The [OperatorNode.Logical]s that act as input.
      * @return Copy of this [NAryLogicalOperatorNode] with its output.
@@ -116,6 +118,17 @@ abstract class NAryLogicalOperatorNode(vararg inputs: Logical) : OperatorNode.Lo
         val copy = this.copy()
         input.forEach { copy.addInput(it) }
         return (this.output?.copyWithOutput(copy) ?: copy).root
+    }
+
+    /**
+     * By default, the [NAryLogicalOperatorNode] simply propagates [bind] calls to its inpus.
+     *
+     * However, some implementations must propagate the call to inner [Node]s.
+     *
+     * @param context The [BindingContext] to bind this [NAryLogicalOperatorNode] to.
+     */
+    override fun bind(context: BindingContext) {
+        this.inputs.forEach { it.bind(context) }
     }
 
     /**

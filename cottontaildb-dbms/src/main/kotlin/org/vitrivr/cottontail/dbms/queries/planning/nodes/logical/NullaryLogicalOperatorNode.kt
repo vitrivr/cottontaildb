@@ -2,16 +2,16 @@ package org.vitrivr.cottontail.dbms.queries.planning.nodes.logical
 
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
-import org.vitrivr.cottontail.dbms.queries.OperatorNode
+import org.vitrivr.cottontail.dbms.queries.planning.nodes.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.sort.SortOrder
 
 /**
  * An abstract [OperatorNode.Logical] implementation that has no input.
  *
  * @author Ralph Gasser
- * @version 2.2.0
+ * @version 2.5.0
  */
-abstract class NullaryLogicalOperatorNode : OperatorNode.Logical() {
+abstract class NullaryLogicalOperatorNode() : OperatorNode.Logical() {
     /** Input arity of [NullaryLogicalOperatorNode] is always zero. */
     final override val inputArity: Int = 0
 
@@ -53,7 +53,7 @@ abstract class NullaryLogicalOperatorNode : OperatorNode.Logical() {
 
     /**
      * Creates and returns a copy of this [NullaryLogicalOperatorNode] with its output reaching down to the [root] of the tree.
-     * Furthermore connects the provided [input] to the copied [NullaryLogicalOperatorNode]s.
+     * Furthermore, connects the provided [input] to the copied [NullaryLogicalOperatorNode]s.
      *
      * @param input The [OperatorNode.Logical]s that act as input. Must be empty!
      * @return Copy of this [NullaryLogicalOperatorNode] with its output.

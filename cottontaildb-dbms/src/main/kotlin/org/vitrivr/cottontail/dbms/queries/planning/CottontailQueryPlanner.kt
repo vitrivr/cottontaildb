@@ -3,7 +3,7 @@ package org.vitrivr.cottontail.dbms.queries.planning
 import it.unimi.dsi.fastutil.ints.Int2ObjectLinkedOpenHashMap
 import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
-import org.vitrivr.cottontail.dbms.queries.OperatorNode
+import org.vitrivr.cottontail.dbms.queries.planning.nodes.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.QueryContext
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.BinaryLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.NAryLogicalOperatorNode

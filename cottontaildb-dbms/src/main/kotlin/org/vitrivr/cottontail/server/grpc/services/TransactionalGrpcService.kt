@@ -158,7 +158,9 @@ internal interface TransactionalGrpcService {
      */
     private fun Record.toTuple(): CottontailGrpc.QueryResponseMessage.Tuple {
         val tuple = CottontailGrpc.QueryResponseMessage.Tuple.newBuilder()
-        this.forEach { _, v -> tuple.addData(v?.toLiteral() ?: CottontailGrpc.Literal.newBuilder().build()) }
+        for (i in 0 until this.size) {
+            tuple.addData(this[i]?.toLiteral() ?: CottontailGrpc.Literal.newBuilder().build())
+        }
         return tuple.build()
     }
 }

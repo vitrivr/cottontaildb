@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.dbms.catalogue
 
 import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.functions.FunctionRegistry
+import org.vitrivr.cottontail.core.queries.functions.FunctionRegistry
 import org.vitrivr.cottontail.dbms.general.DBO
 import org.vitrivr.cottontail.dbms.schema.Schema
 import org.vitrivr.cottontail.execution.TransactionContext

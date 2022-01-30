@@ -1,13 +1,12 @@
 package org.vitrivr.cottontail.dbms.queries.planning.nodes.physical.transform
 
 import org.vitrivr.cottontail.core.database.ColumnDef
-import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
-import org.vitrivr.cottontail.dbms.queries.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.QueryContext
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.physical.UnaryPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
@@ -23,7 +22,7 @@ import org.vitrivr.cottontail.execution.operators.transform.FetchOperator
  * @author Ralph Gasser
  * @version 2.4.0
  */
-class FetchPhysicalOperatorNode(input: Physical? = null, val entity: EntityTx, val fetch: List<Pair<Name.ColumnName, ColumnDef<*>>>) : UnaryPhysicalOperatorNode(input) {
+class FetchPhysicalOperatorNode(input: Physical? = null, val entity: EntityTx, val fetch: List<Pair<Binding.Column, ColumnDef<*>>>) : UnaryPhysicalOperatorNode(input) {
 
     companion object {
         private const val NODE_NAME = "Fetch"
@@ -37,13 +36,13 @@ class FetchPhysicalOperatorNode(input: Physical? = null, val entity: EntityTx, v
     override val physicalColumns: List<ColumnDef<*>> = super.physicalColumns + this.fetch.map { it.second }
 
     /** The [FetchPhysicalOperatorNode] returns the [ColumnDef] of its input + the columns to be fetched. */
-    override val columns: List<ColumnDef<*>> = super.columns + this.fetch.map { it.second.copy(name = it.first) }
+    override val columns: List<ColumnDef<*>> = super.columns + this.fetch.map { it.first.column }
 
     /** The [RecordStatistics] is taken from the underlying [Entity]. [RecordStatistics] are used by the query planning for [Cost] estimation. */
     override val statistics: RecordStatistics = super.statistics.let { statistics ->
         val entityStatistics = this.entity.snapshot.statistics
         this.fetch.forEach {
-            val column = it.second.copy(it.first)
+            val column = it.first.column
             if (!statistics.has(it.second)) {
                 statistics[it.second] = entityStatistics[it.second] as ValueStatistics<Value>
             }
@@ -69,15 +68,6 @@ class FetchPhysicalOperatorNode(input: Physical? = null, val entity: EntityTx, v
      * @return Copy of this [FetchPhysicalOperatorNode].
      */
     override fun copy() = FetchPhysicalOperatorNode(entity = this.entity, fetch = this.fetch)
-
-    /**
-     * Partitions this [FetchPhysicalOperatorNode].
-     *
-     * @param p The number of partitions to create.
-     * @return List of [OperatorNode.Physical], each representing a partition of the original tree.
-     */
-    override fun partition(p: Int): List<Physical> =
-        this.input?.partition(p)?.map { FetchPhysicalOperatorNode(it, this.entity, this.fetch) } ?: throw IllegalStateException("Cannot partition disconnected OperatorNode (node = $this)")
 
     /**
      * Converts this [FetchPhysicalOperatorNode] to a [FetchOperator].

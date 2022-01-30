@@ -3,7 +3,7 @@ package org.vitrivr.cottontail.dbms.queries.components
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.RepeatedTest
 import org.vitrivr.cottontail.dbms.queries.binding.DefaultBindingContext
-import org.vitrivr.cottontail.core.queries.predicates.bool.ComparisonOperator
+import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.*
 import org.vitrivr.cottontail.core.values.types.Value

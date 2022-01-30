@@ -5,19 +5,12 @@ import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.values.types.Value
 
 /**
- * A [Record] as returned and processed by Cottontail DB. A [Record] corresponds to a single row and
- * it can hold multiple values, each belonging to a different column (defined by [ColumnDef]s). A [ColumnDef]
- * must not necessarily correspond to a physical database [Column][org.vitrivr.cottontail.dbms.column.Column].
- *
- * Column-wise access to records through the [Entity][org.vitrivr.cottontail.dbms.entity.DefaultEntity]
- * class returns [Record]s. Furthermore, the interface is
- * used in conjunction with the [Recordset][org.vitrivr.cottontail.model.recordset.Recordset] class.
- *
- * @see org.vitrivr.cottontail.model.recordset.Recordset
- * @see org.vitrivr.cottontail.dbms.entity.DefaultEntity
+ * A [Record] as returned and processed by Cottontail DB. A [Record] corresponds to a single row and it can hold
+ * multiple values, each belonging to a different column (defined by [ColumnDef]s). A [ColumnDef] must not necessarily
+ * correspond to a physical database column.
  *
  * @author Ralph Gasser
- * @version 1.4.0
+ * @version 1.5.0
  */
 interface Record {
 
@@ -32,19 +25,14 @@ interface Record {
         get() = this.columns.size
 
     /**
-     * Creates and returns a copy of this [Record]. The copy is supposed to hold its own copy of the values it holds. However,
-     * structural information, such as the columns, may be shared between instances, as they are supposed to be immutable.
+     * Creates and returns a copy of this [Record].
+     *
+     * The copy of a [Record] is supposed to hold its own copy of the values it holds. However, structural information,
+     * such as the columns, may be shared between instances, as they are supposed to be immutable.
      *
      * @return Copy of this [Record].
      */
     fun copy(): Record
-
-    /**
-     * Iterates over the [ColumnDef] and [Value] pairs in this [Record] in the order specified by [columns].
-     *
-     * @param action The action to apply to each [ColumnDef], [Value] pair.
-     */
-    fun forEach(action: (ColumnDef<*>, Value?) -> Unit)
 
     /**
      * Returns true, if this [Record] contains the specified [ColumnDef] and false otherwise.
@@ -70,7 +58,23 @@ interface Record {
     fun toMap(): Map<ColumnDef<*>, Value?>
 
     /**
-     * Retrieves the value for the specified [ColumnDef] from this [Record].
+     * Retrieves the [Value] for the specified column index from this [Record].
+     *
+     * @param index The column index for which to retrieve the value.
+     * @return The value for the index.
+     */
+    operator fun get(index: Int): Value?
+
+    /**
+     * Sets the [Value] for the specified index in this [Record].
+     *
+     * @param index The column index for which to set the value.
+     * @param value The new [Value]
+     */
+    operator fun set(index: Int, value: Value?)
+
+    /**
+     * Retrieves the [Value]  for the specified [ColumnDef] from this [Record].
      *
      * @param column The [ColumnDef] for which to retrieve the value.
      * @return The value for the [ColumnDef]
@@ -78,10 +82,10 @@ interface Record {
     operator fun get(column: ColumnDef<*>): Value?
 
     /**
-     * Sets the value for the specified [ColumnDef] in this [MutableRecord].
+     * Sets the [Value]  for the specified [ColumnDef] in this [Record].
      *
      * @param column The [ColumnDef] for which to set the value.
-     * @param value The new value for the [ColumnDef]
+     * @param value The new [Value]
      */
     operator fun set(column: ColumnDef<*>, value: Value?)
 }

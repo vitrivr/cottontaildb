@@ -1,11 +1,11 @@
 package org.vitrivr.cottontail.core.recordset
 
 import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap
-import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
+import it.unimi.dsi.fastutil.objects.Object2ObjectArrayMap
 import it.unimi.dsi.fastutil.objects.ObjectBigArrayBigList
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
-import org.vitrivr.cottontail.core.queries.predicates.bool.BooleanPredicate
+import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.basics.Filterable
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.basics.Scanable
@@ -13,24 +13,19 @@ import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.utilities.extensions.read
 import org.vitrivr.cottontail.utilities.extensions.write
-import java.util.*
 import java.util.concurrent.locks.StampedLock
 import kotlin.math.min
 
 /**
- * A [Recordset] as returned and processed by Cottontail DB. [Recordset]s are tables. A [Recordset]'s
- * columns are defined by the [ColumnDef]'s it contains ([Recordset.columns] and may contain an arbitrary
- * number of [Record] entries as rows.
+ * A [Recordset] as returned and processed by Cottontail DB. [Recordset]s are tables held in memory.
  *
- * [Recordset]s are the unit of in-memory data storage and processing in Cottontail DB.
- *
- * @see org.vitrivr.cottontail.dbms.entity.DefaultEntity
+ * A [Recordset]'s columns are defined by the [ColumnDef]'s it contains ([Recordset.columns] and may
+ * contain an arbitrary number of [Record] entries as rows.
  *
  * @author Ralph Gasser
- * @version 1.7.0
+ * @version 1.8.0
  */
-class Recordset(val columns: Array<ColumnDef<*>>, capacity: Long = 250L) : Scanable,
-    Filterable {
+class Recordset(val columns: Array<ColumnDef<*>>, capacity: Long = 250L) : Scanable, Filterable {
     /** List of all the [Record]s contained in this [Recordset] (TupleId -> Record). */
     private val list = ObjectBigArrayBigList<Record>(capacity)
 
@@ -267,10 +262,11 @@ class Recordset(val columns: Array<ColumnDef<*>>, capacity: Long = 250L) : Scana
      * @author Ralph Gasser
      * @version 1.0.1
      */
-    inner class RecordsetRecord(override var tupleId: TupleId, values: Array<Value?> = Array(this@Recordset.columns.size) { null }) : Record {
+    inner class RecordsetRecord(override var tupleId: TupleId, private val values: Array<Value?> = arrayOfNulls(this@Recordset.columns.size)) : Record {
+
         init {
             /** Sanity check. */
-            require(values.size == this.columns.size) { "The number of values must be equal to the number of columns held by the StandaloneRecord (v = ${values.size}, c = ${this.columns.size})" }
+            require(this.values.size == this.columns.size) { "The number of values must be equal to the number of columns held by the StandaloneRecord (v = ${values.size}, c = ${this.columns.size})" }
             this.columns.forEachIndexed { index, columnDef ->
                 if (!columnDef.validate(values[index])) {
                     throw IllegalArgumentException("Provided value ${values[index]} is incompatible with column ${columnDef}.")
@@ -282,24 +278,12 @@ class Recordset(val columns: Array<ColumnDef<*>>, capacity: Long = 250L) : Scana
         override val columns: Array<ColumnDef<*>>
             get() = this@Recordset.columns
 
-        /** Initialize internal [Object2ObjectOpenHashMap] used to map columns to values. */
-        private val map = Object2ObjectOpenHashMap(this.columns, values)
-
         /**
          * Copies this [RecordsetRecord] and returns the copy as [StandaloneRecord].
          *
          * @return Copy of this [RecordsetRecord] as [StandaloneRecord].
          */
-        override fun copy(): Record = StandaloneRecord(this.tupleId, this.columns, this.columns.map { this.map[it] }.toTypedArray())
-
-        /**
-         * Iterates over the [ColumnDef] and [Value] pairs in this [Record] in the order specified by [columns].
-         *
-         * @param action The action to apply to each [ColumnDef], [Value] pair.
-         */
-        override fun forEach(action: (ColumnDef<*>, Value?) -> Unit) {
-            for (c in this.columns) action(c, this.map[c])
-        }
+        override fun copy(): Record = StandaloneRecord(this.tupleId, this.columns, this.values.copyOf(this.values.size))
 
         /**
          * Returns true, if this [StandaloneRecord] contains the specified [ColumnDef] and false otherwise.
@@ -307,7 +291,7 @@ class Recordset(val columns: Array<ColumnDef<*>>, capacity: Long = 250L) : Scana
          * @param column The [ColumnDef] specifying the column
          * @return True if record contains the [ColumnDef], false otherwise.
          */
-        override fun has(column: ColumnDef<*>): Boolean = this.map.containsKey(column)
+        override fun has(column: ColumnDef<*>): Boolean = this.columns.contains(column)
 
         /**
          * Returns column index of the given [ColumnDef] within this [Record]. Returns -1 if [ColumnDef] is not contained
@@ -315,14 +299,14 @@ class Recordset(val columns: Array<ColumnDef<*>>, capacity: Long = 250L) : Scana
          * @param column The [ColumnDef] to check.
          * @return The column index or -1. of [ColumnDef] is not part of this [Record].
          */
-        override fun indexOf(column: ColumnDef<*>): Int = this@Recordset.columns.indexOf(column)
+        override fun indexOf(column: ColumnDef<*>): Int = this@Recordset.indexOf(column)
 
         /**
          * Returns an unmodifiable [Map] of the data contained in this [StandaloneRecord].
          *
          * @return Unmodifiable [Map] of the data in this [StandaloneRecord].
          */
-        override fun toMap(): Map<ColumnDef<*>, Value?> = Collections.unmodifiableMap(this.map)
+        override fun toMap(): Map<ColumnDef<*>, Value?>  = Object2ObjectArrayMap(this.columns, this.values)
 
         /**
          * Retrieves the value for the specified [ColumnDef] from this [StandaloneRecord].
@@ -330,9 +314,17 @@ class Recordset(val columns: Array<ColumnDef<*>>, capacity: Long = 250L) : Scana
          * @param column The [ColumnDef] for which to retrieve the value.
          * @return The value for the [ColumnDef]
          */
-        override fun get(column: ColumnDef<*>): Value? {
-            require(this.map.contains(column)) { "The specified column ${column.name}  (type=${column.type.name}) is not contained in this record." }
-            return this.map[column]
+        override fun get(column: ColumnDef<*>): Value? = this[this.columns.indexOf(column)]
+
+        /**
+         * Retrieves the value for the specified column index from this [StandaloneRecord].
+         *
+         * @param index The index for which to retrieve the value.
+         * @return The value for the column index.
+         */
+        override fun get(index: Int): Value? {
+            require(index in (0 until this.size)) { "The specified column $index is out of bounds." }
+            return this.values[index]
         }
 
         /**
@@ -341,30 +333,35 @@ class Recordset(val columns: Array<ColumnDef<*>>, capacity: Long = 250L) : Scana
          * @param column The [ColumnDef] for which to set the value.
          * @param value The new value for the [ColumnDef]
          */
-        override fun set(column: ColumnDef<*>, value: Value?) {
-            require(this.map.contains(column)) { "The specified column ${column.name}  (type=${column.type.name}) is not contained in this record." }
-            if (!column.validate(value)) {
-                throw IllegalArgumentException("Provided value $value is incompatible with column $column.")
-            }
-            this.map[column] = value
+        override fun set(column: ColumnDef<*>, value: Value?) = this.set(this.columns.indexOf(column), value)
+
+        /**
+         * Sets the value for the specified column index  in this [StandaloneRecord].
+         *
+         * @param index The index for which to set the value.
+         * @param value The new [Value]
+         */
+        override fun set(index: Int, value: Value?) {
+            require(index in (0 until this.size)) { "The specified column $index is out of bounds." }
+            require(this.columns[index].validate(value)) { "Provided value $value is incompatible with column ${this.columns[index]}." }
+            this.values[index] = value
         }
 
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
-            if (javaClass != other?.javaClass) return false
-
-            other as RecordsetRecord
-
+            if (other !is Record) return false
             if (tupleId != other.tupleId) return false
-            if (map != other.map) return false
-
+            if (columns.contentDeepEquals(other.columns)) return false
+            for (i in 0 until this.columns.size) {
+                if (this[i] != other[i]) return false
+            }
             return true
         }
 
         override fun hashCode(): Int {
             var result = tupleId.hashCode()
             result = 31 * result + columns.hashCode()
-            result = 31 * result + map.hashCode()
+            result = 31 * result + values.hashCode()
             return result
         }
     }

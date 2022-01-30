@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.dbms.queries.planning.rules.physical.merge
 
-import org.vitrivr.cottontail.dbms.queries.OperatorNode
+import org.vitrivr.cottontail.dbms.queries.planning.nodes.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.QueryContext
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.physical.sort.LimitingSortPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.physical.sort.SortPhysicalOperatorNode

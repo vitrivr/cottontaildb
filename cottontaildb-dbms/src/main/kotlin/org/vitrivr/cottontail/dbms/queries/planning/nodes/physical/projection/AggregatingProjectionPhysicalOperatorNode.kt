@@ -5,7 +5,7 @@ import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
-import org.vitrivr.cottontail.dbms.queries.OperatorNode
+import org.vitrivr.cottontail.dbms.queries.planning.nodes.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.QueryContext
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.physical.UnaryPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.projection.Projection
@@ -54,16 +54,6 @@ class AggregatingProjectionPhysicalOperatorNode(input: Physical? = null, type: P
      * @return Copy of this [AggregatingProjectionPhysicalOperatorNode].
      */
     override fun copy() = AggregatingProjectionPhysicalOperatorNode(type = this.type, fields = this.fields)
-
-    /**
-     * Partitions this [AggregatingProjectionPhysicalOperatorNode].
-     *
-     * @param p The number of partitions to create.
-     * @return List of [OperatorNode.Physical], each representing a partition of the original tree.
-     */
-    override fun partition(p: Int): List<Physical> {
-        throw UnsupportedOperationException("AggregatingProjectionPhysicalOperatorNode cannot be partitioned.")
-    }
 
     /**
      * Converts this [CountProjectionPhysicalOperatorNode] to a [CountProjectionOperator].

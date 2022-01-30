@@ -1,7 +1,6 @@
 package org.vitrivr.cottontail.dbms.statistics.selectivity
 
-import org.vitrivr.cottontail.core.queries.predicates.bool.BooleanPredicate
-import org.vitrivr.cottontail.core.queries.predicates.bool.ConnectionOperator
+import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.dbms.statistics.entity.RecordStatistics
 
 /**
@@ -32,6 +31,7 @@ object NaiveSelectivityCalculator {
      * @param statistics The [RecordStatistics] to use in the calculation.
      */
     private fun estimateAtomicReference(predicate: BooleanPredicate.Atomic, statistics: RecordStatistics): Selectivity = Selectivity(1.0f)
+
     /**
      * Estimates the selectivity for a [BooleanPredicate.Compound].
      *
@@ -44,9 +44,9 @@ object NaiveSelectivityCalculator {
     private fun estimateCompoundSelectivity(predicate: BooleanPredicate.Compound, statistics: RecordStatistics): Selectivity {
         val pp1 = estimate(predicate.p1, statistics)
         val pp2 = estimate(predicate.p2, statistics)
-        return when (predicate.connector) {
-            ConnectionOperator.AND -> pp1 * pp2
-            ConnectionOperator.OR -> pp1 + pp2 - pp1 * pp2
+        return when (predicate) {
+            is BooleanPredicate.Compound.And ->  pp1 * pp2
+            is BooleanPredicate.Compound.Or -> pp1 + pp2 - pp1 * pp2
         }
     }
 }

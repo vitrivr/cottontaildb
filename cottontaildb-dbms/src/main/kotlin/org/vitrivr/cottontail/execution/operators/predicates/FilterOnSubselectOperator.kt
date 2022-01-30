@@ -4,12 +4,13 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap
 import kotlinx.coroutines.flow.*
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.binding.Binding
-import org.vitrivr.cottontail.core.queries.predicates.bool.BooleanPredicate
-import org.vitrivr.cottontail.core.queries.predicates.bool.ComparisonOperator
+import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
+import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.basics.take
 import org.vitrivr.cottontail.core.basics.Record
+import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.dbms.exceptions.ExecutionException
 
 /**
@@ -21,7 +22,7 @@ import org.vitrivr.cottontail.dbms.exceptions.ExecutionException
  * @author Ralph Gasser
  * @version 1.2.0
  */
-class FilterOnSubselectOperator(val parent: Operator, val subSelects: List<Operator>, val predicate: BooleanPredicate) : Operator.MergingPipelineOperator(subSelects + parent) {
+class FilterOnSubselectOperator(val parent: Operator, val bindingContext: BindingContext, val subSelects: List<Operator>, val predicate: BooleanPredicate) : Operator.MergingPipelineOperator(subSelects + parent) {
 
     /** This is technically a pipeline breaker because it has to wait for the completion of the sub-SELECTS. */
     override val breaker: Boolean = true
@@ -46,17 +47,17 @@ class FilterOnSubselectOperator(val parent: Operator, val subSelects: List<Opera
             subSelects.forEach { select ->
                 val op = atomics[select.first]
                 when (op) {
-                    is ComparisonOperator.Binary.Equal -> select.second.take(1).onEach { (op.right as Binding.Literal).value = it[it.columns[0]] }
-                    is ComparisonOperator.Binary.Greater -> select.second.take(1).onEach { (op.right as Binding.Literal).value = it[it.columns[0]] }
-                    is ComparisonOperator.Binary.GreaterEqual -> select.second.take(1).onEach { (op.right as Binding.Literal).value = it[it.columns[0]] }
-                    is ComparisonOperator.Binary.Less -> select.second.take(1).onEach { (op.right as Binding.Literal).value = it[it.columns[0]] }
-                    is ComparisonOperator.Binary.LessEqual -> select.second.take(1).onEach { (op.right as Binding.Literal).value = it[it.columns[0]] }
-                    is ComparisonOperator.Binary.Like -> select.second.take(1).onEach { (op.right as Binding.Literal).value = it[it.columns[0]] }
+                    is ComparisonOperator.Binary.Equal -> select.second.take(1).onEach { (op.right as Binding.Literal).update(it[it.columns[0]]) }
+                    is ComparisonOperator.Binary.Greater -> select.second.take(1).onEach { (op.right as Binding.Literal).update(it[it.columns[0]]) }
+                    is ComparisonOperator.Binary.GreaterEqual -> select.second.take(1).onEach { (op.right as Binding.Literal).update(it[it.columns[0]]) }
+                    is ComparisonOperator.Binary.Less -> select.second.take(1).onEach { (op.right as Binding.Literal).update(it[it.columns[0]]) }
+                    is ComparisonOperator.Binary.LessEqual -> select.second.take(1).onEach { (op.right as Binding.Literal).update(it[it.columns[0]]) }
+                    is ComparisonOperator.Binary.Like -> select.second.take(1).onEach { (op.right as Binding.Literal).update(it[it.columns[0]]) }
                     is ComparisonOperator.In -> {
                         select.second.onEach {
                             val value = it[it.columns[0]]
                             if (value != null) {
-                                op.addRef(this@FilterOnSubselectOperator.binding.bind(value))
+                                op.addRef(this@FilterOnSubselectOperator.bindingContext.bind(value))
                             }
                         }
                     }

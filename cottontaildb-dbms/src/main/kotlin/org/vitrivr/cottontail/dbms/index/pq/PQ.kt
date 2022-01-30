@@ -8,7 +8,7 @@ import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.dbms.index.pq.codebook.DoublePrecisionPQCodebook
 import org.vitrivr.cottontail.dbms.index.pq.codebook.PQCodebook
 import org.vitrivr.cottontail.dbms.index.pq.codebook.SinglePrecisionPQCodebook
-import org.vitrivr.cottontail.core.functions.math.VectorDistance
+import org.vitrivr.cottontail.core.queries.functions.math.VectorDistance
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.DoubleVectorValue
 import org.vitrivr.cottontail.core.values.FloatVectorValue
@@ -172,7 +172,7 @@ class PQ(val type: Types<*>, val codebooks: List<PQCodebook<VectorValue<*>>>) {
     }
 
     /**
-     * Generates and returns a [PQLookupTable] for the given [VectorDistance.Binary].
+     * Generates and returns a [PQLookupTable] for the given [VectorDistance].
      *
      * @param distance The [VectorDistance] to generate the [PQLookupTable] for.
      * @return The [PQLookupTable] for the given [VectorDistance].
@@ -182,10 +182,10 @@ class PQ(val type: Types<*>, val codebooks: List<PQCodebook<VectorValue<*>>>) {
         return PQLookupTable(
             Array(this.numberOfSubspaces) { k ->
                 val codebook = this.codebooks[k]
-                reshape.provide(0, query.subvector(k * this.dimensionsPerSubspace, this.dimensionsPerSubspace))
+                val queryArgument = query.subvector(k * this.dimensionsPerSubspace, this.dimensionsPerSubspace)
                 DoubleArray(codebook.numberOfCentroids) {
-                    reshape.provide(1,  codebook[it])
-                    reshape().value
+                    val probingArgument = codebook[it]
+                    reshape(queryArgument, probingArgument).value
                 }
             }
         )

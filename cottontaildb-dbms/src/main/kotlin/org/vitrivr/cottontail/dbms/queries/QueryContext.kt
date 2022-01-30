@@ -5,7 +5,7 @@ import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
-
+import org.vitrivr.cottontail.dbms.queries.planning.nodes.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.binding.DefaultBindingContext
 import org.vitrivr.cottontail.dbms.queries.sort.SortOrder
 import org.vitrivr.cottontail.execution.TransactionManager
@@ -71,10 +71,20 @@ class QueryContext(val queryId: String, val catalogue: Catalogue, val txn: Trans
 
     /**
      * Returns an executable [Operator] for this [QueryContext]. Requires a functional, [OperatorNode.Physical]
+     *
+     * @return [Operator]
      */
     fun toOperatorTree(): Operator {
         val local = this.physical
         check(local != null) { IllegalStateException("Cannot generate an operator tree without a valid, physical node expression tree.") }
+        val parallelisation = local.totalCost.parallelisation()
+        if (local.totalCost.parallelisation(parallelisation) > 1) {
+            val partitioned = local.tryPartition(parallelisation) /* TODO: Query hint. */
+            if (partitioned != null) {
+                partitioned.bind(context = this.bindings)
+                return partitioned.toOperator(this)
+            }
+        }
         return local.toOperator(this)
     }
 }

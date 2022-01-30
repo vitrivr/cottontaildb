@@ -1,10 +1,10 @@
 package org.vitrivr.cottontail.dbms.queries.planning.nodes.physical.function
 
 import org.vitrivr.cottontail.core.database.ColumnDef
-import org.vitrivr.cottontail.core.functions.Function
+import org.vitrivr.cottontail.core.queries.functions.Function
 import org.vitrivr.cottontail.core.queries.binding.Binding
+import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
-import org.vitrivr.cottontail.dbms.queries.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.QueryContext
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.UnaryLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.function.NestedFunctionLogicalOperatorNode
@@ -21,17 +21,22 @@ import org.vitrivr.cottontail.execution.operators.function.NestedFunctionOperato
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class NestedFunctionPhysicalOperatorNode(input: Physical? = null, val function: Function<*>, val arguments: List<Binding>, val out: Binding.Literal) : UnaryPhysicalOperatorNode(input) {
+class NestedFunctionPhysicalOperatorNode(input: Physical? = null, val function: Function<*>, val out: Binding.Literal, val arguments: List<Binding>) : UnaryPhysicalOperatorNode(input) {
 
     companion object {
         private const val NODE_NAME = "NestedFunction"
     }
 
+    init {
+        require(this.function.signature.returnType == this.out.type) { "Type ${out.type} of output binding is incompatible with function ${function.signature}'s return type." }
+        this.function.signature.arguments.forEachIndexed {  i, arg ->
+            check(arg.type == this.arguments[i].type) { "Type ${this.arguments[i].type} of $i-th argument binding is incompatible with function ${function.signature}'s return type." }
+        }
+    }
+
     /** The [NestedFunctionPhysicalOperatorNode] requires all [ColumnDef] used in the [Function]. */
     override val requires: List<ColumnDef<*>>
         get() = this.arguments.filterIsInstance<Binding.Column>().map { it.column }
-
-    override fun copy(): UnaryPhysicalOperatorNode = NestedFunctionPhysicalOperatorNode(function = this.function, arguments =  this.arguments, out = this.out)
 
     /**The [NestedFunctionPhysicalOperatorNode] cannot be partitioned. */
     override val canBePartitioned: Boolean = true
@@ -49,24 +54,32 @@ class NestedFunctionPhysicalOperatorNode(input: Physical? = null, val function: 
         get() = NODE_NAME
 
     /**
+     * Creates a copy of this [FunctionPhysicalOperatorNode].
+     *
+     * @return Copy of this [FunctionPhysicalOperatorNode]
+     */
+    override fun copy(): UnaryPhysicalOperatorNode = NestedFunctionPhysicalOperatorNode(function = this.function.copy(), out = this.out.copy(), arguments = this.arguments.map { it.copy() })
+
+    /**
+     * Binds the provided [BindingContext] to this [Function], the output [Binding.Column] and the argument [Binding]s.
+     *
+     * @param context The new [BindingContext].
+     */
+    override fun bind(context: BindingContext) {
+        super.bind(context)
+        this.function.bind(context)
+        this.out.bind(context)
+        this.arguments.forEach { it.bind(context) }
+    }
+
+    /**
      * Converts this [NestedFunctionPhysicalOperatorNode] to a [FunctionOperator].
      *
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
     override fun toOperator(ctx: QueryContext): Operator {
         val input = this.input?.toOperator(ctx) ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)")
-        return NestedFunctionOperator(input, this.function, this.arguments, ctx.bindings, this.out)
-    }
-
-    /**
-     * Partitions this [NestedFunctionPhysicalOperatorNode].
-     *
-     * @param p The number of partitions to create.
-     * @return List of [OperatorNode.Physical], each representing a partition of the original tree.
-     */
-    override fun partition(p: Int): List<Physical> {
-        val input = this.input ?: throw IllegalStateException("Cannot partition disconnected OperatorNode (node = $this)")
-        return input.partition(p).map { NestedFunctionPhysicalOperatorNode(it, this.function, this.arguments, this.out) }
+        return NestedFunctionOperator(input, this.function, this.out, this.arguments)
     }
 
     /**
@@ -76,18 +89,13 @@ class NestedFunctionPhysicalOperatorNode(input: Physical? = null, val function: 
         if (this === other) return true
         if (other !is NestedFunctionPhysicalOperatorNode) return false
         if (this.function != other.function) return false
-        if (this.out != other.out) return false
         return true
     }
 
     /**
      * Generates and returns a hash code for this [NestedFunctionPhysicalOperatorNode].
      */
-    override fun hashCode(): Int {
-        var result = this.function.hashCode()
-        result = 31 * result + this.out.hashCode()
-        return result
-    }
+    override fun hashCode(): Int = 123 * this.function.hashCode()
 
     /** Generates and returns a [String] representation of this [NestedFunctionPhysicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.function.signature}]"

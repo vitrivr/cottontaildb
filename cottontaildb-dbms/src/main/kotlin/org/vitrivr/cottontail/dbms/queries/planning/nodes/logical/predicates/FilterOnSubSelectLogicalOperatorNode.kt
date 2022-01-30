@@ -4,7 +4,7 @@ import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.BinaryLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.NAryLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.physical.predicates.FilterOnSubSelectPhysicalOperatorNode
-import org.vitrivr.cottontail.core.queries.predicates.bool.BooleanPredicate
+import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 
 /**
  * A [BinaryLogicalOperatorNode] that formalizes filtering using some [BooleanPredicate].

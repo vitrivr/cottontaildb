@@ -3,8 +3,10 @@ package org.vitrivr.cottontail.dbms.queries.planning.nodes.physical
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
+import org.vitrivr.cottontail.core.queries.Node
+import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
-import org.vitrivr.cottontail.dbms.queries.OperatorNode
+import org.vitrivr.cottontail.dbms.queries.planning.nodes.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.sort.SortOrder
 import org.vitrivr.cottontail.dbms.statistics.entity.RecordStatistics
 import java.io.PrintStream
@@ -13,7 +15,7 @@ import java.io.PrintStream
  * An abstract [OperatorNode.Physical] implementation that has exactly two [OperatorNode.Physical]s as input.
  *
  * @author Ralph Gasser
- * @version 2.4.0
+ * @version 2.5.0
  */
 abstract class BinaryPhysicalOperatorNode(left: Physical? = null, right: Physical? = null) : OperatorNode.Physical() {
 
@@ -59,8 +61,7 @@ abstract class BinaryPhysicalOperatorNode(left: Physical? = null, right: Physica
     /** The [totalCost] of a [BinaryPhysicalOperatorNode] is always the sum of its own and its input cost. */
     final override val totalCost: Cost
         get() = (this.left?.totalCost ?: Cost.ZERO) +
-                (this.right?.totalCost ?: Cost.ZERO) +
-                this.cost
+                (this.right?.totalCost ?: Cost.ZERO) + this.cost
 
     /** By default, [BinaryPhysicalOperatorNode]s are executable if both their inputs are executable. */
     override val executable: Boolean
@@ -141,6 +142,18 @@ abstract class BinaryPhysicalOperatorNode(left: Physical? = null, right: Physica
         copy.left = input.getOrNull(0)
         copy.right = input.getOrNull(1)
         return (this.output?.copyWithOutput(copy) ?: copy).root
+    }
+
+    /**
+     * By default, the [BinaryPhysicalOperatorNode] simply propagates [bind] calls to its inpus.
+     *
+     * However, some implementations must propagate the call to inner [Node]s.
+     *
+     * @param context The [BindingContext] to bind this [BinaryPhysicalOperatorNode] to.
+     */
+    override fun bind(context: BindingContext) {
+        this.left?.bind(context)
+        this.right?.bind(context)
     }
 
     /**

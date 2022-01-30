@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.dbms.queries.planning.nodes.physical.sort
 
 import org.vitrivr.cottontail.core.database.ColumnDef
-import org.vitrivr.cottontail.dbms.queries.OperatorNode
+import org.vitrivr.cottontail.dbms.queries.planning.nodes.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.QueryContext
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.physical.UnaryPhysicalOperatorNode
@@ -54,15 +54,6 @@ class SortPhysicalOperatorNode(input: Physical? = null, override val sortOn: Lis
      * @return Copy of this [SortPhysicalOperatorNode].
      */
     override fun copy() = SortPhysicalOperatorNode(sortOn = this.sortOn)
-
-    /**
-     * Partitions this [SortPhysicalOperatorNode].
-     *
-     * @param p The number of partitions to create.
-     * @return List of [OperatorNode.Physical], each representing a partition of the original tree.
-     */
-    override fun partition(p: Int): List<Physical> =
-        this.input?.partition(p)?.map { SortPhysicalOperatorNode(it, this.sortOn) } ?: throw IllegalStateException("Cannot partition disconnected OperatorNode (node = $this)")
 
     /**
      * Converts this [SortPhysicalOperatorNode] to a [HeapSortOperator].

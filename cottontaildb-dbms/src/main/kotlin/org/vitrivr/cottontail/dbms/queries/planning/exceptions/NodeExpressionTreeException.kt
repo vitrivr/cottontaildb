@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.dbms.queries.planning.exceptions
 
-import org.vitrivr.cottontail.dbms.queries.OperatorNode
+import org.vitrivr.cottontail.dbms.queries.planning.nodes.OperatorNode
 
 /**
  * Type of [Exception]s that are thrown while processing a [OperatorNode] or a [OperatorNode] tree.

@@ -1,7 +1,8 @@
 package org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.sources
 
 import org.vitrivr.cottontail.core.database.ColumnDef
-import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.core.queries.binding.Binding
+import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.NullaryLogicalOperatorNode
@@ -11,9 +12,9 @@ import org.vitrivr.cottontail.dbms.queries.planning.nodes.physical.sources.Entit
  * A [NullaryLogicalOperatorNode] that formalizes the sampling of a physical [Entity] in Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 2.4.0
+ * @version 2.5.0
  */
-class EntitySampleLogicalOperatorNode(override val groupId: Int, val entity: EntityTx, val fetch: List<Pair<Name.ColumnName, ColumnDef<*>>>, val p: Float, val seed: Long = System.currentTimeMillis()) : NullaryLogicalOperatorNode() {
+class EntitySampleLogicalOperatorNode(override val groupId: Int, val entity: EntityTx, val fetch: List<Pair<Binding.Column, ColumnDef<*>>>, val p: Float, val seed: Long = System.currentTimeMillis()) : NullaryLogicalOperatorNode() {
 
     companion object {
         private const val NODE_NAME = "SampleEntity"
@@ -31,7 +32,7 @@ class EntitySampleLogicalOperatorNode(override val groupId: Int, val entity: Ent
     override val physicalColumns: List<ColumnDef<*>> = this.fetch.map { it.second }
 
     /** The [ColumnDef] produced by this [EntitySampleLogicalOperatorNode]. */
-    override val columns: List<ColumnDef<*>> = this.fetch.map { it.second.copy(name = it.first) }
+    override val columns: List<ColumnDef<*>> = this.fetch.map { it.first.column }
 
     /**
      * Creates and returns a copy of this [EntitySampleLogicalOperatorNode] without any children or parents.
@@ -39,6 +40,15 @@ class EntitySampleLogicalOperatorNode(override val groupId: Int, val entity: Ent
      * @return Copy of this [EntitySampleLogicalOperatorNode].
      */
     override fun copy() = EntitySampleLogicalOperatorNode(this.groupId, this.entity, this.fetch, this.p, this.seed)
+
+    /**
+     * Propagates the [bind] call to all [Binding.Column] processed by this [EntitySampleLogicalOperatorNode].
+     *
+     * @param context The new [BindingContext]
+     */
+    override fun bind(context: BindingContext) {
+        this.fetch.forEach { it.first.bind(context) }
+    }
 
     /**
      * Returns a [EntitySamplePhysicalOperatorNode] representation of this [EntitySampleLogicalOperatorNode]

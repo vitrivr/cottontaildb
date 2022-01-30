@@ -5,8 +5,8 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.queries.predicates.bool.BooleanPredicate
-import org.vitrivr.cottontail.core.queries.predicates.bool.ComparisonOperator
+import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
+import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.dbms.AbstractDatabaseTest
 import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
@@ -61,7 +61,7 @@ class DeferFetchOnFetchRewriteRuleTest : AbstractDatabaseTest() {
             val entityTx = txn.getTx(entity) as EntityTx
 
             /* Prepare simple scan with projection. */
-            val scan0 = EntityScanLogicalOperatorNode(0, entityTx, this.columns.map { it.name to it })
+            val scan0 = EntityScanLogicalOperatorNode(0, entityTx, this.columns.map { ctx.bindings.bind(it) to it })
             SelectProjectionLogicalOperatorNode(scan0, Projection.SELECT, this.columns.map { it.name })
 
             /* Check DeferFetchOnFetchRewriteRule.canBeApplied and test output for null. */
@@ -89,7 +89,7 @@ class DeferFetchOnFetchRewriteRuleTest : AbstractDatabaseTest() {
 
             /* Prepare simple SCAN followed by a FILTER, followed by a PROJECTION. */
             val context = DefaultBindingContext()
-            val scan0 = EntityScanLogicalOperatorNode(0, entityTx, this.columns.map { it.name to it })
+            val scan0 = EntityScanLogicalOperatorNode(0, entityTx, this.columns.map { ctx.bindings.bind(it) to it })
             val filter0 = FilterLogicalOperatorNode(scan0, BooleanPredicate.Atomic(ComparisonOperator.Binary.Equal(context.bind(this.columns[2]), context.bindNull(this.columns[2].type)), false))
             val projection0 = SelectProjectionLogicalOperatorNode(filter0, Projection.SELECT, listOf(this.columns[0].name, this.columns[1].name))
 
@@ -151,11 +151,14 @@ class DeferFetchOnFetchRewriteRuleTest : AbstractDatabaseTest() {
             val schemaTx = txn.getTx(schema) as SchemaTx
             val entity = schemaTx.entityForName(this.entityName)
             val entityTx = txn.getTx(entity) as EntityTx
-
             /* Prepare simple SCAN followed by a FILTER, followed by a PROJECTION. */
             val context = DefaultBindingContext()
-            val scan0 = EntityScanLogicalOperatorNode(0, entityTx, listOf(this.columns[0].name to this.columns[0], this.columns[1].name to this.columns[1], this.columns[2].name to this.columns[2]))
-            val fetch0 = FetchLogicalOperatorNode(scan0, entityTx, listOf(this.columns[3].name to this.columns[3]))
+            val scan0 = EntityScanLogicalOperatorNode(0, entityTx, listOf(
+                ctx.bindings.bind(this.columns[0]) to this.columns[0],
+                ctx.bindings.bind(this.columns[1]) to this.columns[1],
+                ctx.bindings.bind(this.columns[2]) to this.columns[2])
+            )
+            val fetch0 = FetchLogicalOperatorNode(scan0, entityTx, listOf(ctx.bindings.bind(this.columns[3]) to this.columns[3]))
             val filter0 = FilterLogicalOperatorNode(fetch0, BooleanPredicate.Atomic(ComparisonOperator.Binary.Equal(context.bind(this.columns[2]), context.bindNull(this.columns[2].type)), false))
             val projection0 = SelectProjectionLogicalOperatorNode(filter0, Projection.SELECT, listOf(this.columns[0].name, this.columns[1].name))
 

@@ -29,9 +29,6 @@ abstract class AbstractDataDefinitionOperator(protected val dboName: Name, prote
         )
     }
 
-    /** The [BindingContext] used [AbstractDataDefinitionOperator]. */
-    override val binding: BindingContext = EmptyBindingContext
-
     /** The [ColumnDef] produced by this [AbstractDataDefinitionOperator]. */
     override val columns: List<ColumnDef<*>> = COLUMNS
 

@@ -1,15 +1,14 @@
 package org.vitrivr.cottontail.dbms.queries.planning.rules.logical
 
-import org.vitrivr.cottontail.dbms.queries.OperatorNode
+import org.vitrivr.cottontail.dbms.queries.planning.nodes.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.QueryContext
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.predicates.FilterLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
-import org.vitrivr.cottontail.core.queries.predicates.bool.BooleanPredicate
-import org.vitrivr.cottontail.core.queries.predicates.bool.ConnectionOperator
+import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 
 /**
- * Decomposes a [FilterLogicalOperatorNode] that contains a [BooleanPredicate.Compound]
- * connected with a [ConnectionOperator.AND] into a sequence of two [FilterLogicalOperatorNode]s.
+ * Decomposes a [FilterLogicalOperatorNode] that contains a [BooleanPredicate.Compound.And]
+ * into a sequence of two [FilterLogicalOperatorNode]s.
  *
  * @author Ralph Gasser
  * @version 1.1.0
@@ -23,9 +22,7 @@ object RightConjunctionRewriteRule : RewriteRule {
      * @return True if [RewriteRule] can be applied, false otherwise.
      */
     override fun canBeApplied(node: OperatorNode): Boolean =
-        node is FilterLogicalOperatorNode &&
-                node.predicate is BooleanPredicate.Compound &&
-                node.predicate.connector == ConnectionOperator.AND
+        node is FilterLogicalOperatorNode && node.predicate is BooleanPredicate.Compound.And
 
     /**
      * Decomposes the provided [FilterLogicalOperatorNode] with a conjunction (AND) into two
@@ -38,7 +35,7 @@ object RightConjunctionRewriteRule : RewriteRule {
      * @return The output [OperatorNode] or null, if no rewrite was done.
      */
     override fun apply(node: OperatorNode, ctx: QueryContext): OperatorNode? {
-        if (node is FilterLogicalOperatorNode && node.predicate is BooleanPredicate.Compound && node.predicate.connector == ConnectionOperator.AND) {
+        if (node is FilterLogicalOperatorNode && node.predicate is BooleanPredicate.Compound.And) {
             val parent = node.input?.copyWithInputs() ?: throw IllegalStateException("Encountered null node in logical operator node tree (node = $node). This is a programmer's error!")
             val ret = FilterLogicalOperatorNode(FilterLogicalOperatorNode(parent, node.predicate.p2), node.predicate.p1)
             return node.output?.copyWithOutput(ret) ?: ret

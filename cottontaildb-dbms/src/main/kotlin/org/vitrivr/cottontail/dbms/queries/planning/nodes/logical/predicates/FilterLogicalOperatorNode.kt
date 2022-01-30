@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.predicates
 
 import org.vitrivr.cottontail.core.database.ColumnDef
-import org.vitrivr.cottontail.core.queries.predicates.bool.BooleanPredicate
+import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.UnaryLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.physical.predicates.FilterPhysicalOperatorNode
 

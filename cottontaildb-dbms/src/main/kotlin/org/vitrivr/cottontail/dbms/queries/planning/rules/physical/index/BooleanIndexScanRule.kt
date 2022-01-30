@@ -3,10 +3,10 @@ package org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.binding.Binding
-import org.vitrivr.cottontail.core.queries.predicates.bool.BooleanPredicate
-import org.vitrivr.cottontail.core.queries.predicates.bool.ComparisonOperator
+import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
+import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.dbms.index.IndexTx
-import org.vitrivr.cottontail.dbms.queries.OperatorNode
+import org.vitrivr.cottontail.dbms.queries.planning.nodes.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.QueryContext
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.predicates.FilterLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.sources.EntityScanLogicalOperatorNode
@@ -56,19 +56,19 @@ object BooleanIndexScanRule : RewriteRule {
      * @param predicate [BooleanPredicate] To normalize.
      * @param fetch [Map] of [ColumnDef] and alias [Name.ColumnName].
      */
-    private fun normalize(predicate: BooleanPredicate, fetch: Map<Name.ColumnName, ColumnDef<*>>): BooleanPredicate = when (predicate) {
+    private fun normalize(predicate: BooleanPredicate, fetch: Map<Binding.Column, ColumnDef<*>>): BooleanPredicate = when (predicate) {
         is BooleanPredicate.Atomic -> {
             /* Map left and right operands. */
             val op = predicate.operator
             val left = if (op.left is Binding.Column) {
-                Binding.Column(fetch[(op.left as Binding.Column).column.name]!!, op.left.context)
+                Binding.Column(fetch[(op.left as Binding.Column)]!!, op.left.context)
             } else {
                 op.left
             }
             val right: List<Binding> = when(op) {
                 is ComparisonOperator.Binary -> {
                     listOf(if (op.right is Binding.Column) {
-                        Binding.Column(fetch[(op.right as Binding.Column).column.name]!!, op.right.context)
+                        Binding.Column(fetch[(op.right as Binding.Column)]!!, op.right.context)
                     } else {
                         op.right
                     })
@@ -76,12 +76,12 @@ object BooleanIndexScanRule : RewriteRule {
                 is ComparisonOperator.Between -> {
                     listOf(
                         if (op.rightLower is Binding.Column) {
-                            Binding.Column(fetch[(op.rightLower as Binding.Column).column.name]!!, op.rightLower.context)
+                            Binding.Column(fetch[(op.rightLower as Binding.Column)]!!, op.rightLower.context)
                         } else {
                             op.rightLower
                         },
                         if (op.rightUpper is Binding.Column) {
-                            Binding.Column(fetch[(op.rightUpper as Binding.Column).column.name]!!, op.rightUpper.context)
+                            Binding.Column(fetch[(op.rightUpper as Binding.Column)]!!, op.rightUpper.context)
                         } else {
                             op.rightUpper
                         }
@@ -105,6 +105,7 @@ object BooleanIndexScanRule : RewriteRule {
             }
             BooleanPredicate.Atomic(newOp, predicate.not, predicate.dependsOn)
         }
-        is BooleanPredicate.Compound -> BooleanPredicate.Compound(predicate.connector, normalize(predicate.p1, fetch), normalize(predicate.p2, fetch))
+        is BooleanPredicate.Compound.And -> BooleanPredicate.Compound.And(normalize(predicate.p1, fetch), normalize(predicate.p2, fetch))
+        is BooleanPredicate.Compound.Or -> BooleanPredicate.Compound.Or(normalize(predicate.p1, fetch), normalize(predicate.p2, fetch))
     }
 }

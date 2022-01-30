@@ -3,7 +3,7 @@ package org.vitrivr.cottontail.dbms.statistics.columns
 import org.mapdb.DataInput2
 import org.mapdb.DataOutput2
 import org.mapdb.Serializer
-import org.vitrivr.cottontail.core.queries.predicates.bool.BooleanPredicate
+import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.dbms.statistics.selectivity.Selectivity
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value

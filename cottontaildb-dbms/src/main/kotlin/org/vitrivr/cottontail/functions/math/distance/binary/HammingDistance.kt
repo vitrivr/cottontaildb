@@ -1,16 +1,16 @@
 package org.vitrivr.cottontail.functions.math.distance.binary
 
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
-import org.vitrivr.cottontail.core.functions.*
-import org.vitrivr.cottontail.core.functions.Function
-import org.vitrivr.cottontail.core.functions.exception.FunctionNotSupportedException
-import org.vitrivr.cottontail.core.functions.math.VectorDistance
+import org.vitrivr.cottontail.core.queries.functions.Function
+import org.vitrivr.cottontail.core.queries.functions.exception.FunctionNotSupportedException
+import org.vitrivr.cottontail.core.queries.functions.math.VectorDistance
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.functions.AbstractFunctionGenerator
-import org.vitrivr.cottontail.core.functions.Argument
-import org.vitrivr.cottontail.core.functions.Signature
+import org.vitrivr.cottontail.core.queries.functions.Argument
+import org.vitrivr.cottontail.core.queries.functions.FunctionGenerator
+import org.vitrivr.cottontail.core.queries.functions.Signature
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.*
+import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.core.values.types.VectorValue
 
 /**
@@ -19,38 +19,50 @@ import org.vitrivr.cottontail.core.values.types.VectorValue
  * @author Ralph Gasser
  * @version 1.2.0
  */
-sealed class HammingDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): VectorDistance<T>(Generator.FUNCTION_NAME, type) {
-    /**
-     * The [FunctionGenerator] for the [HammingDistance].
-     */
-    object Generator: AbstractFunctionGenerator<DoubleValue>() {
+sealed class HammingDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): VectorDistance<T>(type) {
+
+    companion object: FunctionGenerator<DoubleValue> {
         val FUNCTION_NAME = Name.FunctionName("hamming")
 
-        override val signature: Signature.Open<out DoubleValue>
-            get() = Signature.Open(FUNCTION_NAME, arrayOf(Argument.Vector, Argument.Vector), Types.Double)
+        override val signature: Signature.Open
+            get() = Signature.Open(FUNCTION_NAME, arrayOf(Argument.Vector, Argument.Vector))
 
-        override fun generateInternal(dst: Signature.Closed<*>): Function<DoubleValue> = when (val type = dst.arguments[0].type) {
-            is Types.DoubleVector -> DoubleVector(type.logicalSize)
-            is Types.FloatVector -> FloatVector(type.logicalSize)
-            is Types.IntVector -> IntVector(type.logicalSize)
-            is Types.LongVector -> LongVector(type.logicalSize)
-            is Types.BooleanVector -> BooleanVector(type.logicalSize)
-            else -> throw FunctionNotSupportedException("Function generator signature ${this.signature} does not support destination signature (dst = $dst).")
+        override fun obtain(signature: Signature.SemiClosed): Function<DoubleValue> {
+            check(this.signature.collides(signature)) { "Provided signature $signature is incompatible with generator signature ${this.signature}. This is a programmer's error!"  }
+            return when(val type = signature.arguments[0].type) {
+                is Types.BooleanVector -> BooleanVector(type)
+                is Types.DoubleVector -> DoubleVector(type)
+                is Types.FloatVector -> FloatVector(type)
+                is Types.LongVector -> LongVector(type)
+                is Types.IntVector -> IntVector(type)
+                else -> throw FunctionNotSupportedException("Function generator ${this.signature} cannot generate function with signature $signature.")
+            }
+        }
+
+        override fun resolve(signature: Signature.Open): List<Signature.Closed<*>> {
+            if (this.signature != signature) throw FunctionNotSupportedException("Function generator ${this.signature} cannot generate function with signature $signature.")
+            return listOf(
+                BooleanVector(Types.BooleanVector(1)).signature,
+                DoubleVector(Types.DoubleVector(1)).signature,
+                FloatVector(Types.FloatVector(1)).signature,
+                LongVector(Types.LongVector(1)).signature,
+                IntVector(Types.IntVector(1)).signature
+            )
         }
     }
 
     /** The cost of applying this [HammingDistance] to a single [VectorValue]. */
     override val cost: Float
-        get() = d * (Cost.COST_FLOP + Cost.COST_MEMORY_ACCESS)
+        get() = this.d * (Cost.COST_FLOP + Cost.COST_MEMORY_ACCESS)
 
     /**
      * [HammingDistance] for a [DoubleVectorValue].
      */
-    class DoubleVector(size: Int) : HammingDistance<DoubleVectorValue>(Types.DoubleVector(size)) {
-        override fun copy(d: Int) = DoubleVector(d)
-        override fun invoke(): DoubleValue {
-            val probing = this.arguments[0] as DoubleVectorValue
-            val query = this.arguments[1] as DoubleVectorValue
+    class DoubleVector(type: Types.Vector<DoubleVectorValue,*>): HammingDistance<DoubleVectorValue>(type) {
+        override val name: Name.FunctionName = FUNCTION_NAME
+        override fun invoke(vararg arguments: Value?): DoubleValue {
+            val probing = arguments[0] as DoubleVectorValue
+            val query = arguments[1] as DoubleVectorValue
             var sum = 0.0
             for (i in query.data.indices) {
                 if (query.data[i] != probing.data[i]) {
@@ -59,16 +71,17 @@ sealed class HammingDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Vecto
             }
             return DoubleValue(sum)
         }
+        override fun copy(d: Int) = DoubleVector(Types.DoubleVector(d))
     }
 
     /**
      * [HammingDistance] for a [FloatVectorValue].
      */
-    class FloatVector(size: Int) : HammingDistance<FloatVectorValue>(Types.FloatVector(size)) {
-        override fun copy(d: Int) = FloatVector(d)
-        override fun invoke(): DoubleValue {
-            val probing = this.arguments[0] as FloatVectorValue
-            val query = this.arguments[1] as FloatVectorValue
+    class FloatVector(type: Types.Vector<FloatVectorValue,*>): HammingDistance<FloatVectorValue>(type) {
+        override val name: Name.FunctionName = FUNCTION_NAME
+        override fun invoke(vararg arguments: Value?): DoubleValue {
+            val probing = arguments[0] as FloatVectorValue
+            val query = arguments[1] as FloatVectorValue
             var sum = 0.0
             for (i in query.data.indices) {
                 if (query.data[i] != probing.data[i]) {
@@ -77,16 +90,17 @@ sealed class HammingDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Vecto
             }
             return DoubleValue(sum)
         }
+        override fun copy(d: Int) = FloatVector(Types.FloatVector(d))
     }
 
     /**
      * [HammingDistance] for a [LongVectorValue].
      */
-    class LongVector(size: Int) : HammingDistance<LongVectorValue>(Types.LongVector(size)) {
-        override fun copy(d: Int) = LongVector(d)
-        override fun invoke(): DoubleValue {
-            val probing = this.arguments[0] as LongVectorValue
-            val query = this.arguments[1] as LongVectorValue
+    class LongVector(type: Types.Vector<LongVectorValue,*>): HammingDistance<LongVectorValue>(type) {
+        override val name: Name.FunctionName = FUNCTION_NAME
+        override fun invoke(vararg arguments: Value?): DoubleValue {
+            val probing = arguments[0] as LongVectorValue
+            val query = arguments[1] as LongVectorValue
             var sum = 0.0
             for (i in query.data.indices) {
                 if (query.data[i] != probing.data[i]) {
@@ -95,16 +109,17 @@ sealed class HammingDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Vecto
             }
             return DoubleValue(sum)
         }
+        override fun copy(d: Int) = LongVector(Types.LongVector(d))
     }
 
     /**
      * [HammingDistance] for a [IntVectorValue].
      */
-    class IntVector(size: Int) : HammingDistance<IntVectorValue>(Types.IntVector(size)) {
-        override fun copy(d: Int) = IntVector(d)
-        override fun invoke(): DoubleValue {
-            val probing = this.arguments[0] as IntVectorValue
-            val query = this.arguments[1] as IntVectorValue
+    class IntVector(type: Types.Vector<IntVectorValue,*>): HammingDistance<IntVectorValue>(type) {
+        override val name: Name.FunctionName = FUNCTION_NAME
+        override fun invoke(vararg arguments: Value?): DoubleValue {
+            val probing = arguments[0] as IntVectorValue
+            val query = arguments[1] as IntVectorValue
             var sum = 0.0
             for (i in query.data.indices) {
                 if (query.data[i] != probing.data[i]) {
@@ -113,16 +128,17 @@ sealed class HammingDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Vecto
             }
             return DoubleValue(sum)
         }
+        override fun copy(d: Int) = IntVector(Types.IntVector(d))
     }
 
     /**
      * [HammingDistance] for a [IntVectorValue].
      */
-    class BooleanVector(size: Int) : HammingDistance<BooleanVectorValue>(Types.BooleanVector(size)) {
-        override fun copy(d: Int) = BooleanVector(d)
-        override fun invoke(): DoubleValue {
-            val probing = this.arguments[0] as BooleanVectorValue
-            val query = this.arguments[1] as BooleanVectorValue
+    class BooleanVector(type: Types.Vector<BooleanVectorValue,*>): HammingDistance<BooleanVectorValue>(type) {
+        override val name: Name.FunctionName = FUNCTION_NAME
+        override fun invoke(vararg arguments: Value?): DoubleValue {
+            val probing = arguments[0] as BooleanVectorValue
+            val query = arguments[1] as BooleanVectorValue
             var sum = 0.0
             for (i in query.data.indices) {
                 if (query.data[i] != probing.data[i]) {
@@ -131,5 +147,6 @@ sealed class HammingDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Vecto
             }
             return DoubleValue(sum)
         }
+        override fun copy(d: Int) = BooleanVector(Types.BooleanVector(d))
     }
 }

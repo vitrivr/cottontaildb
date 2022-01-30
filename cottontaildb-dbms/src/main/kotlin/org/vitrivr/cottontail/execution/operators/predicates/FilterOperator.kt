@@ -3,7 +3,7 @@ package org.vitrivr.cottontail.execution.operators.predicates
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filter
 import org.vitrivr.cottontail.core.database.ColumnDef
-import org.vitrivr.cottontail.core.queries.predicates.bool.BooleanPredicate
+import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.core.basics.Record

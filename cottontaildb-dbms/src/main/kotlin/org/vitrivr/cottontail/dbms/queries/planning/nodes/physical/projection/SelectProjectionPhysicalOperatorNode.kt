@@ -2,7 +2,6 @@ package org.vitrivr.cottontail.dbms.queries.planning.nodes.physical.projection
 
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.dbms.queries.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.QueryContext
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.physical.UnaryPhysicalOperatorNode
@@ -56,15 +55,6 @@ class SelectProjectionPhysicalOperatorNode(input: Physical? = null, val type: Pr
      * @return Copy of this [SelectProjectionPhysicalOperatorNode].
      */
     override fun copy() = SelectProjectionPhysicalOperatorNode(type = this.type, fields = this.fields)
-
-    /**
-     * Partitions this [SelectProjectionPhysicalOperatorNode].
-     *
-     * @param p The number of partitions to create.
-     * @return List of [OperatorNode.Physical], each representing a partition of the original tree.
-     */
-    override fun partition(p: Int): List<Physical> =
-        this.input?.partition(p)?.map { SelectProjectionPhysicalOperatorNode(it, this.type, this.fields) } ?: throw IllegalStateException("Cannot partition disconnected OperatorNode (node = $this)")
 
     /**
      * Converts this [SelectProjectionPhysicalOperatorNode] to a [SelectProjectionOperator].

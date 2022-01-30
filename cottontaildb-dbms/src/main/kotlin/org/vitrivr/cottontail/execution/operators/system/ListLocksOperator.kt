@@ -34,9 +34,6 @@ class ListLocksOperator(val manager: LockManager<DBO>) : Operator.SourceOperator
         )
     }
 
-    /** The [BindingContext] used [AbstractDataDefinitionOperator]. */
-    override val binding: BindingContext = EmptyBindingContext
-
     override val columns: List<ColumnDef<*>> = COLUMNS
 
     override fun toFlow(context: TransactionContext): Flow<Record> {

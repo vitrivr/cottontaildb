@@ -66,13 +66,6 @@ class UpdatePhysicalOperatorNode(input: Physical? = null, val entity: EntityTx, 
         )
     }
 
-    /**
-     * [InsertPhysicalOperatorNode] cannot be partitioned.
-     */
-    override fun partition(p: Int): List<Physical> {
-        throw UnsupportedOperationException("UpdatePhysicalOperatorNode cannot be partitioned.")
-    }
-
     override fun toString(): String = "${super.toString()}[${this.values.map { it.first.name }.joinToString(",")}]"
 
     override fun equals(other: Any?): Boolean {

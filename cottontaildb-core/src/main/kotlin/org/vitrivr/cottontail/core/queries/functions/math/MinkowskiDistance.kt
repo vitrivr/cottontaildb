@@ -1,6 +1,5 @@
-package org.vitrivr.cottontail.core.functions.math
+package org.vitrivr.cottontail.core.queries.functions.math
 
-import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.VectorValue
 
@@ -10,4 +9,6 @@ import org.vitrivr.cottontail.core.values.types.VectorValue
  * @author Ralph Gasser
  * @version 1.2.0
  */
-abstract class MinkowskiDistance<T : VectorValue<*>>(name: Name.FunctionName, type: Types.Vector<T,*>, val p: Int): VectorDistance<T>(name, type)
+abstract class MinkowskiDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): VectorDistance<T>(type) {
+    abstract val p: Int
+}

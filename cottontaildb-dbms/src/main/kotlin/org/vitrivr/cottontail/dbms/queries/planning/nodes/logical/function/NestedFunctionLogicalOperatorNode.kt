@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.function
 
 import org.vitrivr.cottontail.core.database.ColumnDef
-import org.vitrivr.cottontail.core.functions.Function
+import org.vitrivr.cottontail.core.queries.functions.Function
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.UnaryLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.physical.function.NestedFunctionPhysicalOperatorNode
@@ -14,10 +14,17 @@ import org.vitrivr.cottontail.dbms.queries.planning.nodes.physical.function.Nest
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class NestedFunctionLogicalOperatorNode(input: Logical? = null, val function: Function<*>, val arguments: List<Binding>, val out: Binding.Literal) : UnaryLogicalOperatorNode(input) {
+class NestedFunctionLogicalOperatorNode(input: Logical? = null, val function: Function<*>, val out: Binding.Literal, val arguments: List<Binding>) : UnaryLogicalOperatorNode(input) {
 
     companion object {
         private const val NODE_NAME = "NestedFunction"
+    }
+
+    init {
+        require(this.function.signature.returnType == this.out.type) { "Type ${out.type} of output binding is incompatible with function ${function.signature}'s return type." }
+        this.function.signature.arguments.forEachIndexed {  i, arg ->
+            check(arg.type == this.arguments[i].type) { "Type ${this.arguments[i].type} of $i-th argument binding is incompatible with function ${function.signature}'s return type." }
+        }
     }
 
     /** The [NestedFunctionLogicalOperatorNode] requires all [ColumnDef] used in the [Function]. */
@@ -37,14 +44,14 @@ class NestedFunctionLogicalOperatorNode(input: Logical? = null, val function: Fu
      *
      * @return Copy of this [NestedFunctionLogicalOperatorNode].
      */
-    override fun copy() = NestedFunctionLogicalOperatorNode(function = this.function, arguments = this.arguments, out = this.out)
+    override fun copy() = NestedFunctionLogicalOperatorNode(function = this.function.copy(), out = this.out.copy(), arguments = this.arguments.map { it.copy() })
 
     /**
      * Returns a [NestedFunctionLogicalOperatorNode] representation of this [NestedFunctionLogicalOperatorNode]
      *
      * @return [NestedFunctionLogicalOperatorNode]
      */
-    override fun implement() = NestedFunctionPhysicalOperatorNode(this.input?.implement(), this.function, this.arguments, this.out)
+    override fun implement() = NestedFunctionPhysicalOperatorNode(this.input?.implement(), this.function, this.out, this.arguments)
 
     /**
      * Compares this [NestedFunctionLogicalOperatorNode] to the given [Object] and returns true if they're equal and false otherwise.
@@ -53,18 +60,13 @@ class NestedFunctionLogicalOperatorNode(input: Logical? = null, val function: Fu
         if (this === other) return true
         if (other !is NestedFunctionLogicalOperatorNode) return false
         if (this.function != other.function) return false
-        if (this.out != other.out) return false
         return true
     }
 
     /**
      * Generates and returns a hash code for this [NestedFunctionLogicalOperatorNode].
      */
-    override fun hashCode(): Int {
-        var result = this.function.hashCode()
-        result = 31 * result + this.out.hashCode()
-        return result
-    }
+    override fun hashCode(): Int  = 111 * this.function.hashCode()
 
     /** Generates and returns a [String] representation of this [NestedFunctionLogicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.function.signature}]"

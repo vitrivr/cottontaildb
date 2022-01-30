@@ -1,6 +1,6 @@
-package org.vitrivr.cottontail.core.functions.exception
+package org.vitrivr.cottontail.core.queries.functions.exception
 
-import org.vitrivr.cottontail.core.functions.Signature
+import org.vitrivr.cottontail.core.queries.functions.Signature
 
 /**
  * An exception thrown by a [Func] if a function lookup fails.

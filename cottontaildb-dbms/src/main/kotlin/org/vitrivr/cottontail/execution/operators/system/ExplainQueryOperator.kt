@@ -5,7 +5,6 @@ import kotlinx.coroutines.flow.flow
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.BooleanValue
 import org.vitrivr.cottontail.core.values.FloatValue
@@ -13,8 +12,7 @@ import org.vitrivr.cottontail.core.values.LongValue
 import org.vitrivr.cottontail.core.values.StringValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
-import org.vitrivr.cottontail.dbms.queries.OperatorNode
-import org.vitrivr.cottontail.dbms.queries.binding.EmptyBindingContext
+import org.vitrivr.cottontail.dbms.queries.planning.nodes.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.NullaryLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.physical.UnaryPhysicalOperatorNode
 import org.vitrivr.cottontail.execution.TransactionContext
@@ -40,9 +38,6 @@ class ExplainQueryOperator(val candidates: Collection<OperatorNode.Physical>) : 
             ColumnDef(Name.ColumnName("comment"), Types.String, false)
         )
     }
-
-    /** The [BindingContext] used [AbstractDataDefinitionOperator]. */
-    override val binding: BindingContext = EmptyBindingContext
 
     override val columns: List<ColumnDef<*>> = COLUMNS
 

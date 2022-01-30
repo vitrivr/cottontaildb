@@ -13,13 +13,13 @@ import org.vitrivr.cottontail.dbms.index.AbstractIndexTest
 import org.vitrivr.cottontail.dbms.index.IndexTx
 import org.vitrivr.cottontail.dbms.index.IndexType
 import org.vitrivr.cottontail.dbms.queries.binding.DefaultBindingContext
-import org.vitrivr.cottontail.core.queries.predicates.knn.KnnPredicate
+import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
 import org.vitrivr.cottontail.execution.TransactionType
-import org.vitrivr.cottontail.core.functions.Argument
-import org.vitrivr.cottontail.core.functions.Signature
+import org.vitrivr.cottontail.core.queries.functions.Argument
+import org.vitrivr.cottontail.core.queries.functions.Signature
 import org.vitrivr.cottontail.functions.math.distance.Distances
-import org.vitrivr.cottontail.core.functions.math.VectorDistance
+import org.vitrivr.cottontail.core.queries.functions.math.VectorDistance
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.DoubleValue
@@ -75,7 +75,7 @@ class VAFDoubleIndexTest : AbstractIndexTest() {
         val query = DoubleVectorValue.random(this.indexColumn.type.logicalSize, this.random)
         val function = this.catalogue.functions.obtain(Signature.Closed(distance.functionName, arrayOf(Argument.Typed(query.type), Argument.Typed(query.type)), Types.Double)) as VectorDistance<*>
         val context = DefaultBindingContext()
-        val predicate = KnnPredicate(column = this.indexColumn, k = k, distance = function, query = context.bind(query))
+        val predicate = ProximityPredicate.NNS(column = this.indexColumn, k = k, distance = function, query = context.bind(query))
 
 
         /* Obtain necessary transactions. */
@@ -99,9 +99,7 @@ class VAFDoubleIndexTest : AbstractIndexTest() {
             entityTx.scan(arrayOf(this.indexColumn)).forEach {
                 val vector = it[this.indexColumn]
                 if (vector is DoubleVectorValue) {
-                    function.provide(1, query)
-                    function.provide(0, vector)
-                    bruteForceResults.offer(ComparablePair(it.tupleId, function()))
+                    bruteForceResults.offer(ComparablePair(it.tupleId, function(query, vector)))
                 }
             }
         }

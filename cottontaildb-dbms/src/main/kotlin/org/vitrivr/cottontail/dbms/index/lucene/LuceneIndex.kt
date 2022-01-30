@@ -23,9 +23,8 @@ import org.vitrivr.cottontail.dbms.operations.Operation
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
-import org.vitrivr.cottontail.core.queries.predicates.bool.BooleanPredicate
-import org.vitrivr.cottontail.core.queries.predicates.bool.ComparisonOperator
-import org.vitrivr.cottontail.core.queries.predicates.bool.ConnectionOperator
+import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
+import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.TupleId
@@ -244,9 +243,9 @@ class LuceneIndex(path: Path, parent: DefaultEntity, config: LuceneIndexConfig? 
      * @return [Query]
      */
     private fun BooleanPredicate.Compound.toLuceneQuery(): Query {
-        val clause = when (this.connector) {
-            ConnectionOperator.AND -> BooleanClause.Occur.MUST
-            ConnectionOperator.OR -> BooleanClause.Occur.SHOULD
+        val clause = when (this) {
+            is BooleanPredicate.Compound.And -> BooleanClause.Occur.MUST
+            is BooleanPredicate.Compound.Or  -> BooleanClause.Occur.SHOULD
         }
         val builder = BooleanQuery.Builder()
         builder.add(this.p1.toLuceneQuery(), clause)

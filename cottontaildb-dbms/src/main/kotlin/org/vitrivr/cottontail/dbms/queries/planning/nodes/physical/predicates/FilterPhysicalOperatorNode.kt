@@ -1,18 +1,16 @@
 package org.vitrivr.cottontail.dbms.queries.planning.nodes.physical.predicates
 
 import org.vitrivr.cottontail.core.database.ColumnDef
-import org.vitrivr.cottontail.dbms.queries.OperatorNode
+import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.dbms.queries.QueryContext
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.physical.UnaryPhysicalOperatorNode
-import org.vitrivr.cottontail.core.queries.predicates.bool.BooleanPredicate
-import org.vitrivr.cottontail.core.queries.predicates.bool.ComparisonOperator
-import org.vitrivr.cottontail.core.queries.predicates.knn.KnnPredicate
+import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
+import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
+import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
 import org.vitrivr.cottontail.dbms.statistics.selectivity.NaiveSelectivityCalculator
 import org.vitrivr.cottontail.dbms.statistics.selectivity.Selectivity
-import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.execution.operators.predicates.FilterOperator
-import org.vitrivr.cottontail.execution.operators.transform.MergeOperator
 
 /**
  * A [UnaryPhysicalOperatorNode] that represents application of a [BooleanPredicate] on some intermediate result.
@@ -29,7 +27,7 @@ class FilterPhysicalOperatorNode(input: Physical? = null, val predicate: Boolean
     override val name: String
         get() = NODE_NAME
 
-    /** The [FilterPhysicalOperatorNode] requires all [ColumnDef]s used in the [KnnPredicate]. */
+    /** The [FilterPhysicalOperatorNode] requires all [ColumnDef]s used in the [ProximityPredicate]. */
     override val requires: List<ColumnDef<*>> = this.predicate.columns.toList()
 
     /** The [FilterPhysicalOperatorNode] can only be executed if it doesn't contain any [ComparisonOperator.Binary.Match]. */
@@ -48,36 +46,27 @@ class FilterPhysicalOperatorNode(input: Physical? = null, val predicate: Boolean
      *
      * @return Copy of this [FilterPhysicalOperatorNode].
      */
-    override fun copy() = FilterPhysicalOperatorNode(predicate = this.predicate)
+    override fun copy() = FilterPhysicalOperatorNode(predicate = this.predicate.copy())
 
     /**
-     * Partitions this [FilterPhysicalOperatorNode].
+     * Binds the provided [BindingContext] to this [BooleanPredicate].
      *
-     * @param p The number of partitions to create.
-     * @return List of [OperatorNode.Physical], each representing a partition of the original tree.
+     * @param context The new [BindingContext].
      */
-    override fun partition(p: Int): List<Physical> =
-        this.input?.partition(p)?.map { FilterPhysicalOperatorNode(it, this.predicate) } ?: throw IllegalStateException("Cannot partition disconnected OperatorNode (node = $this)")
+    override fun bind(context: BindingContext) {
+        super.bind(context)
+        this.predicate.bind(context)
+    }
 
     /**
      * Converts this [FilterPhysicalOperatorNode] to a [FilterOperator].
      *
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(ctx: QueryContext): Operator {
-        val parallelisation = this.cost.parallelisation()
-        return if (this.canBePartitioned && parallelisation > 1) {
-            val operators = this.input?.partition(parallelisation)?.map {
-                FilterOperator(it.toOperator(ctx), this.predicate)
-            } ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)")
-            MergeOperator(operators)
-        } else {
-            FilterOperator(
-                this.input?.toOperator(ctx) ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)"),
-                this.predicate
-            )
-        }
-    }
+    override fun toOperator(ctx: QueryContext) = FilterOperator(
+        this.input?.toOperator(ctx) ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)"),
+        this.predicate
+    )
 
     /** Generates and returns a [String] representation of this [FilterPhysicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.predicate}]"

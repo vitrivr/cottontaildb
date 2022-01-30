@@ -1,16 +1,18 @@
 package org.vitrivr.cottontail.dbms.queries.planning.nodes.physical.sources
 
 import org.vitrivr.cottontail.core.database.ColumnDef
-import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.core.queries.binding.Binding
+import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
-import org.vitrivr.cottontail.dbms.queries.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.QueryContext
+import org.vitrivr.cottontail.dbms.queries.planning.nodes.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.physical.NullaryPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.nodes.physical.UnaryPhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.planning.nodes.physical.merge.MergePhysicalOperator
 import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
 import org.vitrivr.cottontail.dbms.statistics.entity.RecordStatistics
 import org.vitrivr.cottontail.execution.operators.sources.EntityScanOperator
@@ -19,9 +21,13 @@ import org.vitrivr.cottontail.execution.operators.sources.EntityScanOperator
  * A [UnaryPhysicalOperatorNode] that formalizes a scan of a physical [Entity] in Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 2.4.0
+ * @version 2.5.0
  */
-class EntityScanPhysicalOperatorNode(override val groupId: Int, val entity: EntityTx, val fetch: List<Pair<Name.ColumnName, ColumnDef<*>>>) : NullaryPhysicalOperatorNode() {
+class EntityScanPhysicalOperatorNode(override val groupId: Int,
+                                     val entity: EntityTx,
+                                     val fetch: List<Pair<Binding.Column, ColumnDef<*>>>,
+                                     val partitionIndex: Int = 0,
+                                     val partitions: Int = 1) : NullaryPhysicalOperatorNode() {
 
     companion object {
         private const val NODE_NAME = "ScanEntity"
@@ -35,7 +41,7 @@ class EntityScanPhysicalOperatorNode(override val groupId: Int, val entity: Enti
     override val physicalColumns: List<ColumnDef<*>> = this.fetch.map { it.second }
 
     /** The [ColumnDef] produced by this [EntityScanPhysicalOperatorNode]. */
-    override val columns: List<ColumnDef<*>> = this.fetch.map { it.second.copy(name = it.first) }
+    override val columns: List<ColumnDef<*>> = this.fetch.map { it.first.column }
 
     /** The number of rows returned by this [EntityScanPhysicalOperatorNode] equals to the number of rows in the [Entity]. */
     override val outputSize = this.entity.count()
@@ -49,9 +55,9 @@ class EntityScanPhysicalOperatorNode(override val groupId: Int, val entity: Enti
     /** The [RecordStatistics] is taken from the underlying [Entity]. [RecordStatistics] are used by the query planning for [Cost] estimation. */
     override val statistics: RecordStatistics = this.entity.snapshot.statistics.let { statistics ->
         this.fetch.forEach {
-            val column = it.second.copy(it.first)
+            val column = it.first.column
             if (!statistics.has(column)) {
-                statistics[column] = statistics[it.second] as ValueStatistics<Value>
+                statistics[column] = statistics[it.second]  as ValueStatistics<Value>
             }
         }
         statistics
@@ -71,16 +77,31 @@ class EntityScanPhysicalOperatorNode(override val groupId: Int, val entity: Enti
      *
      * @return Copy of this [EntityScanPhysicalOperatorNode].
      */
-    override fun copy() = EntityScanPhysicalOperatorNode(this.groupId, this.entity, this.fetch)
+    override fun copy() = EntityScanPhysicalOperatorNode(this.groupId, this.entity, this.fetch.map { it.first.copy() to it.second })
 
     /**
-     * Partitions this [EntityScanPhysicalOperatorNode].
+     * Propagates the [bind] call to all [Binding.Column] processed by this [EntityScanPhysicalOperatorNode].
      *
-     * @param p The number of partitions to create.
-     * @return List of [OperatorNode.Physical], each representing a partition of the original tree.
+     * @param context The new [BindingContext]
      */
-    override fun partition(p: Int): List<NullaryPhysicalOperatorNode> {
-        return (0 until p).map { RangedEntityScanPhysicalOperatorNode(this.groupId, this.entity, this.fetch, it, p) }
+    override fun bind(context: BindingContext) {
+        this.fetch.forEach { it.first.bind(context) }
+    }
+
+    /**
+     * Create a partitioned version of this [EntityScanPhysicalOperatorNode].
+     *
+     * @param partitions The number of partitions.
+     * @param p The partition number. If this value is set, then partitioning has already taken place downstream.
+     * @return Array of [OperatorNode.Physical]s.
+     */
+    override fun tryPartition(partitions: Int, p: Int?): Physical? {
+        if (p != null) return EntityScanPhysicalOperatorNode(p, this.entity, this.fetch, p, partitions)
+        val inbound = (0 until partitions).map {
+            EntityScanPhysicalOperatorNode(it, this.entity, this.fetch, it, partitions)
+        }
+        val merge = MergePhysicalOperator(*inbound.toTypedArray())
+        return this.output?.copyWithOutput(merge)
     }
 
     /**
@@ -88,7 +109,7 @@ class EntityScanPhysicalOperatorNode(override val groupId: Int, val entity: Enti
      *
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(ctx: QueryContext) = EntityScanOperator(this.groupId, this.entity, this.fetch, ctx.bindings,0, 1)
+    override fun toOperator(ctx: QueryContext) = EntityScanOperator(this.groupId, this.entity, this.fetch, this.partitionIndex, this.partitions)
 
     /** Generates and returns a [String] representation of this [EntityScanPhysicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.columns.joinToString(",") { it.name.toString() }}]"
