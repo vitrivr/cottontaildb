@@ -73,7 +73,7 @@ sealed class EuclideanDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Min
             val probing = arguments[0] as Complex64VectorValue
             val query = arguments[1] as Complex64VectorValue
             var sum = 0.0
-            for (i in 0 until this.d) {
+            for (i in 0 until 2 * this.d) {
                 sum += (query.data[i] - probing.data[i]).pow(2)
             }
             return DoubleValue(sqrt(sum))
@@ -90,7 +90,7 @@ sealed class EuclideanDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Min
             val probing = arguments[0] as Complex32VectorValue
             val query = arguments[1] as Complex32VectorValue
             var sum = 0.0
-            for (i in 0 until this.d) {
+            for (i in 0 until 2 * this.d) {
                 sum += (query.data[i] - probing.data[i]).pow(2)
             }
             return DoubleValue(sqrt(sum))
