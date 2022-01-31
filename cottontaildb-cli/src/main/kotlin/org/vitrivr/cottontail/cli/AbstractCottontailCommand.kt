@@ -53,7 +53,7 @@ sealed class AbstractCottontailCommand(name: String, help: String, val expand: B
     abstract class Schema(protected val client: SimpleClient, name: String, help: String, expand: Boolean = true): AbstractCottontailCommand(name, help, expand) {
         /** The [Name.SchemaName] affected by this [AbstractCottontailCommand.Schema]. */
         protected val schemaName: Name.SchemaName by argument(name = "schema", help = "The schema name targeted by the command. Has the form of [\"warren\"].<schema>.").convert {
-            Name.SchemaName(*it.split(Name.NAME_COMPONENT_DELIMITER).toTypedArray())
+            Name.SchemaName(it.split(Name.NAME_COMPONENT_DELIMITER).toTypedArray())
         }
     }
 
@@ -63,7 +63,7 @@ sealed class AbstractCottontailCommand(name: String, help: String, val expand: B
     abstract class Entity(protected val client: SimpleClient, name: String, help: String, expand: Boolean = true): AbstractCottontailCommand(name, help, expand) {
         /** The [Name.EntityName] affected by this [AbstractCottontailCommand.Entity]. */
         protected val entityName: Name.EntityName by argument(name = "entity", help = "The fully qualified entity name targeted by the command. Has the form of [\"warren\"].<schema>.<entity>").convert {
-            Name.EntityName(*it.split(Name.NAME_COMPONENT_DELIMITER).toTypedArray())
+            Name.EntityName(it.split(Name.NAME_COMPONENT_DELIMITER).toTypedArray())
         }
     }
 
