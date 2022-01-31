@@ -37,6 +37,6 @@ class EntityCountOperator(groupId: GroupId, val entity: EntityTx, val out: Bindi
     override fun toFlow(context: TransactionContext): Flow<Record> = flow {
         val count = LongValue(this@EntityCountOperator.entity.count())
         this@EntityCountOperator.out.update(count) /* Important: Make value available to binding context. */
-        StandaloneRecord(0L, this@EntityCountOperator.columns.toTypedArray(), arrayOf(LongValue(this@EntityCountOperator.entity.count())))
+        emit(StandaloneRecord(0L, this@EntityCountOperator.columns.toTypedArray(), arrayOf(LongValue(this@EntityCountOperator.entity.count()))))
     }
 }
