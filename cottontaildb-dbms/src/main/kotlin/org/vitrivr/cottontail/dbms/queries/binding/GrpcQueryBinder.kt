@@ -584,12 +584,12 @@ object GrpcQueryBinder {
             }
             Projection.COUNT -> {
                 val columnName = projection.keys.first()
-                val columnDef = ColumnDef(columnName, Types.Long, false)
+                val columnDef = ColumnDef(Name.ColumnName(columnName.components[0], columnName.components[1], "count(${columnName.components[2]})"), Types.Long, false)
                 CountProjectionLogicalOperatorNode(input, context.bindings.bind(columnDef))
             }
             Projection.EXISTS -> {
                 val columnName = projection.keys.first()
-                val columnDef = ColumnDef(columnName, Types.Boolean, false)
+                val columnDef = ColumnDef(Name.ColumnName(columnName.components[0], columnName.components[1], "exists(${columnName.components[2]})"), Types.Long, false)
                 ExistsProjectionLogicalOperatorNode(input, context.bindings.bind(columnDef))
             }
             Projection.SUM,
