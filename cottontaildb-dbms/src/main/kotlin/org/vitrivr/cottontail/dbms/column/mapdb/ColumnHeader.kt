@@ -37,7 +37,7 @@ data class ColumnHeader(
         override fun deserialize(input: DataInput2, available: Int): ColumnHeader {
             val version = DBOVersion.values()[input.unpackInt()]
             if (version != DBOVersion.V2_0) throw DatabaseException.VersionMismatchException(version, DBOVersion.V2_0)
-            val name = Name.ColumnName(*input.readUTF().split('.').toTypedArray())
+            val name = Name.ColumnName(input.readUTF().split('.').toTypedArray())
             val def = ColumnDef(name, Types.forOrdinal(input.unpackInt(), input.unpackInt()), input.readBoolean(), input.readBoolean())
             return ColumnHeader(def, input.readLong(), input.readLong(), input.readLong())
         }

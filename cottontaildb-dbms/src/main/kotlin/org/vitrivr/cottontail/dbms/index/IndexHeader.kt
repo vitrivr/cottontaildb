@@ -47,7 +47,7 @@ data class IndexHeader(
                 input.readUTF(),
                 IndexType.values()[input.unpackInt()],
                 Array(input.unpackInt()) {
-                    val name = Name.ColumnName(*input.readUTF().split('.').toTypedArray())
+                    val name = Name.ColumnName(input.readUTF().split('.').toTypedArray())
                     ColumnDef(name, Types.forOrdinal(input.unpackInt(), input.unpackInt()), input.readBoolean(), input.readBoolean())
                 }
             )
