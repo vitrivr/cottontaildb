@@ -130,7 +130,7 @@ sealed interface ComparisonOperator: Node {
         class Like(override val left: Binding, override val right: Binding) : Binary {
             override fun match() = this.left.value is StringValue && this.right.value is LikePatternValue && (this.right.value as LikePatternValue).matches(this.left.value as StringValue)
             override fun toString(): String = "$left LIKE $right"
-            override fun copy() = Less(this.left.copy(), this.right.copy())
+            override fun copy() = Like(this.left.copy(), this.right.copy())
             override fun digest(): Digest = this.hashCode().toLong()
         }
 
