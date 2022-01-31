@@ -4,6 +4,7 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import org.vitrivr.cottontail.TestConstants
 import org.vitrivr.cottontail.core.values.DoubleVectorValue
+import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.functions.math.distance.binary.EuclideanDistance
 import org.vitrivr.cottontail.functions.math.distance.binary.ManhattanDistance
 import org.vitrivr.cottontail.functions.math.distance.binary.SquaredEuclideanDistance
@@ -36,12 +37,10 @@ class DoubleVectorDistanceTest : AbstractDistanceTest() {
         var time1 = Duration.ZERO
         var time2 = Duration.ZERO
 
-        val kernel = ManhattanDistance.DoubleVector(query.logicalSize)
-        kernel.provide(1, query)
+        val kernel = ManhattanDistance.DoubleVector(query.type as Types.DoubleVector)
         collection.forEach {
             time1 += measureTime {
-                kernel.provide(0, it)
-                sum1 += kernel().value
+                sum1 += kernel(query, it).value
             }
             time2 += measureTime {
                 sum2 += (query - it).abs().sum().value
@@ -72,12 +71,10 @@ class DoubleVectorDistanceTest : AbstractDistanceTest() {
         var time1 = Duration.ZERO
         var time2 = Duration.ZERO
 
-        val kernel = SquaredEuclideanDistance.DoubleVector(query.logicalSize)
-        kernel.provide(1, query)
+        val kernel = SquaredEuclideanDistance.DoubleVector(query.type as Types.DoubleVector)
         collection.forEach {
             time1 += measureTime {
-                kernel.provide(0, it)
-                sum1 += kernel().value
+                sum1 += kernel(query ,it).value
             }
             time2 += measureTime {
                 sum2 += (query - it).pow(2).sum().value
@@ -108,12 +105,10 @@ class DoubleVectorDistanceTest : AbstractDistanceTest() {
         var time1 = Duration.ZERO
         var time2 = Duration.ZERO
 
-        val kernel = EuclideanDistance.DoubleVector(query.logicalSize)
-        kernel.provide(1, query)
+        val kernel = EuclideanDistance.DoubleVector(query.type as Types.DoubleVector)
         collection.forEach {
             time1 += measureTime {
-                kernel.provide(0, it)
-                sum1 += kernel().value
+                sum1 += kernel(query, it).value
             }
             time2 += measureTime {
                 sum2 += (query - it).pow(2).sum().sqrt().value

@@ -112,8 +112,8 @@ abstract class AbstractSerializationTest {
             repeat(TestConstants.collectionSize) {
                 val reference = this.nextRecord(it)
                 val retrieved = entityTx.read(it.toLong(), columns) /* Map DB shift. */
-                retrieved.forEach { c, v ->
-                    Assertions.assertTrue(reference[c]!!.isEqual(v!!))
+                for (i in 0 until retrieved.size) {
+                    Assertions.assertTrue(reference[retrieved.columns[i]]!!.isEqual(retrieved[i]!!))
                 }
             }
         } finally {

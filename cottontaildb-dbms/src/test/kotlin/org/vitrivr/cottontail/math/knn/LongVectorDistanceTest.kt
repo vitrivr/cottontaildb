@@ -8,6 +8,7 @@ import org.vitrivr.cottontail.functions.math.distance.binary.ManhattanDistance
 import org.vitrivr.cottontail.functions.math.distance.binary.SquaredEuclideanDistance
 import org.vitrivr.cottontail.math.isApproximatelyTheSame
 import org.vitrivr.cottontail.core.values.LongVectorValue
+import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.utilities.VectorUtility
 import kotlin.math.abs
 import kotlin.math.pow
@@ -37,12 +38,10 @@ class LongVectorDistanceTest : AbstractDistanceTest() {
         var time1 = Duration.ZERO
         var time2 = Duration.ZERO
 
-        val kernel = ManhattanDistance.LongVector(query.logicalSize)
-        kernel.provide(1, query)
+        val kernel = ManhattanDistance.LongVector(query.type as Types.LongVector)
         collection.forEach {
             time1 += measureTime {
-                kernel.provide(0, it)
-                sum1 += kernel().value
+                sum1 += kernel(query, it).value
             }
             time2 += measureTime {
                 sum2 += (it - query).abs().sum().value
@@ -73,12 +72,10 @@ class LongVectorDistanceTest : AbstractDistanceTest() {
         var time1 = Duration.ZERO
         var time2 = Duration.ZERO
 
-        val kernel = SquaredEuclideanDistance.LongVector(query.logicalSize)
-        kernel.provide(1, query)
+        val kernel = SquaredEuclideanDistance.LongVector(query.type as Types.LongVector)
         collection.forEach {
             time1 += measureTime {
-                kernel.provide(0, it)
-                sum1 += kernel().value
+                sum1 += kernel(query, it).value
             }
             time2 += measureTime {
                 sum2 += (it - query).pow(2).sum().value
@@ -109,12 +106,10 @@ class LongVectorDistanceTest : AbstractDistanceTest() {
         var time1 = Duration.ZERO
         var time2 = Duration.ZERO
 
-        val kernel = EuclideanDistance.LongVector(query.logicalSize)
-        kernel.provide(1, query)
+        val kernel = EuclideanDistance.LongVector(query.type as Types.LongVector)
         collection.forEach {
             time1 += measureTime {
-                kernel.provide(0, it)
-                sum1 += kernel().value
+                sum1 += kernel(query, it).value
             }
             time2 += measureTime {
                 sum2 += (query - it).pow(2).sum().sqrt().value

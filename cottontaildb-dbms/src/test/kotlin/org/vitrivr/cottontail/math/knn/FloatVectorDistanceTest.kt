@@ -8,6 +8,7 @@ import org.vitrivr.cottontail.functions.math.distance.binary.ManhattanDistance
 import org.vitrivr.cottontail.functions.math.distance.binary.SquaredEuclideanDistance
 import org.vitrivr.cottontail.math.isApproximatelyTheSame
 import org.vitrivr.cottontail.core.values.FloatVectorValue
+import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.utilities.VectorUtility
 import kotlin.math.abs
 import kotlin.time.Duration
@@ -36,12 +37,10 @@ class FloatVectorDistanceTest : AbstractDistanceTest() {
         var time1 = Duration.ZERO
         var time2 = Duration.ZERO
 
-        val kernel = ManhattanDistance.FloatVector(query.logicalSize)
-        kernel.provide(1, query)
+        val kernel = ManhattanDistance.FloatVector(query.type as Types.FloatVector)
         collection.forEach {
             time1 += measureTime {
-                kernel.provide(0, it)
-                sum1 += kernel().value.toFloat()
+                sum1 += kernel(query, it).value.toFloat()
             }
             time2 += measureTime {
                 sum2 += (query - it).abs().sum().value
@@ -72,12 +71,10 @@ class FloatVectorDistanceTest : AbstractDistanceTest() {
         var time1 = Duration.ZERO
         var time2 = Duration.ZERO
 
-        val kernel = SquaredEuclideanDistance.FloatVector(query.logicalSize)
-        kernel.provide(1, query)
+        val kernel = SquaredEuclideanDistance.FloatVector(query.type as Types.FloatVector)
         collection.forEach {
             time1 += measureTime {
-                kernel.provide(0, it)
-                sum1 += kernel().value.toFloat()
+                sum1 += kernel(query, it).value.toFloat()
             }
             time2 += measureTime {
                 sum2 += (query - it).pow(2).sum().value
@@ -108,12 +105,10 @@ class FloatVectorDistanceTest : AbstractDistanceTest() {
         var time1 = Duration.ZERO
         var time2 = Duration.ZERO
 
-        val kernel = EuclideanDistance.FloatVector(query.logicalSize)
-        kernel.provide(1, query)
+        val kernel = EuclideanDistance.FloatVector(query.type as Types.FloatVector)
         collection.forEach {
             time1 += measureTime {
-                kernel.provide(0, it)
-                sum1 += kernel().value.toFloat()
+                sum1 += kernel(query, it).value.toFloat()
             }
             time2 += measureTime {
                 sum2 += (query - it).pow(2).sum().sqrt().value

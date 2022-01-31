@@ -4,6 +4,7 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import org.vitrivr.cottontail.TestConstants
 import org.vitrivr.cottontail.core.values.Complex64VectorValue
+import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.functions.math.distance.binary.EuclideanDistance
 import org.vitrivr.cottontail.functions.math.distance.binary.InnerProductDistance
 import org.vitrivr.cottontail.functions.math.distance.binary.ManhattanDistance
@@ -41,12 +42,10 @@ class Complex64VectorDistanceTest : AbstractDistanceTest() {
         var time1 = Duration.ZERO
         var time2 = Duration.ZERO
 
-        val kernel = ManhattanDistance.Complex64Vector(query.logicalSize)
-        kernel.provide(1, query)
+        val kernel = ManhattanDistance.Complex64Vector(query.type as Types.Complex64Vector)
         collection.forEach {
             time1 += measureTime {
-                kernel.provide(0, it)
-                sum1 += kernel().value
+                sum1 += kernel(query , it).value
             }
             time2 += measureTime {
                 sum2 += (query - it).abs().sum().value
@@ -79,12 +78,10 @@ class Complex64VectorDistanceTest : AbstractDistanceTest() {
         var time1 = Duration.ZERO
         var time2 = Duration.ZERO
 
-        val kernel = SquaredEuclideanDistance.Complex64Vector(query.logicalSize)
-        kernel.provide(1, query)
+        val kernel = SquaredEuclideanDistance.Complex64Vector(query.type as Types.Complex64Vector)
         collection.forEach {
             time1 += measureTime {
-                kernel.provide(0, it)
-                sum1 += kernel().value
+                sum1 += kernel(query, it).value
             }
             time2 += measureTime {
                 sum2 += (query - it).abs().pow(2).sum().value
@@ -117,12 +114,10 @@ class Complex64VectorDistanceTest : AbstractDistanceTest() {
         var time1 = Duration.ZERO
         var time2 = Duration.ZERO
 
-        val kernel = EuclideanDistance.Complex64Vector(query.logicalSize)
-        kernel.provide(1, query)
+        val kernel = EuclideanDistance.Complex64Vector(query.type as Types.Complex64Vector)
         collection.forEach {
             time1 += measureTime {
-                kernel.provide(0, it)
-                sum1 += kernel().value
+                sum1 += kernel(query, it).value
             }
             time2 += measureTime {
                 sum2 += (query - it).abs().pow(2).sum().sqrt().value
@@ -154,16 +149,14 @@ class Complex64VectorDistanceTest : AbstractDistanceTest() {
         var time1 = Duration.ZERO
         var time2 = Duration.ZERO
 
-        val kernel = InnerProductDistance.Complex64Vector(query.logicalSize)
-        kernel.provide(1, query)
+        val kernel = InnerProductDistance.Complex64Vector(query.type as Types.Complex64Vector)
         collection.forEach {
             val conjDataitem = conjFromFromComplexFieldVector(arrayFieldVectorFromVectorValue(it))
             time1 += measureTime {
                 sum1 += 1.0 - queryp.dotProduct(conjDataitem).abs()
             }
             time2 += measureTime {
-                kernel.provide(0, it)
-                sum2 += kernel().value
+                sum2 += kernel(query, it).value
             }
         }
 
