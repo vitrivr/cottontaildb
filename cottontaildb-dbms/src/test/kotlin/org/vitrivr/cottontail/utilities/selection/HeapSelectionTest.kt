@@ -1,9 +1,8 @@
-package org.vitrivr.cottontail.utilities
+package org.vitrivr.cottontail.utilities.selection
 
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import org.vitrivr.cottontail.utilities.extensions.nextFloat
-import org.vitrivr.cottontail.utilities.selection.HeapSelection
 import java.lang.Float.max
 import java.lang.Float.min
 import java.util.*
