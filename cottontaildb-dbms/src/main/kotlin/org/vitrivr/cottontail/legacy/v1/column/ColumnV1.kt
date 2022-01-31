@@ -17,7 +17,6 @@ import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.general.DBOVersion
 import org.vitrivr.cottontail.dbms.general.TxAction
 import org.vitrivr.cottontail.dbms.general.TxSnapshot
-import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.storage.serializers.ValueSerializerFactory
 import org.vitrivr.cottontail.utilities.extensions.write
 import java.nio.file.Path
@@ -113,12 +112,12 @@ class ColumnV1<T : Value>(
      *
      * @return A new [ColumnTransaction] object.
      */
-    override fun newTx(context: TransactionContext): ColumnTx<T> = Tx(context)
+    override fun newTx(context: org.vitrivr.cottontail.dbms.execution.TransactionContext): ColumnTx<T> = Tx(context)
 
     /**
      * A [Transaction] that affects this [ColumnV1].
      */
-    inner class Tx constructor(override val context: TransactionContext) : AbstractTx(context), ColumnTx<T> {
+    inner class Tx constructor(override val context: org.vitrivr.cottontail.dbms.execution.TransactionContext) : AbstractTx(context), ColumnTx<T> {
         /**
          * The [ColumnDef] of the [Column] underlying this [ColumnTransaction].
          *

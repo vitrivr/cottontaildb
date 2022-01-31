@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.dbms.general
 
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.execution.TransactionContext
+import org.vitrivr.cottontail.dbms.execution.TransactionContext
 import java.nio.file.Path
 
 /**
@@ -33,5 +33,5 @@ interface DBO : AutoCloseable {
      *
      * @param context [TransactionContext] to create [Tx] for.
      */
-    fun newTx(context: TransactionContext): Tx
+    fun newTx(context: org.vitrivr.cottontail.dbms.execution.TransactionContext): Tx
 }

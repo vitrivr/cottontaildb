@@ -3,29 +3,29 @@ package org.vitrivr.cottontail.dbms.index.gg
 import org.mapdb.HTreeMap
 import org.mapdb.Serializer
 import org.slf4j.LoggerFactory
+import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.database.TupleId
+import org.vitrivr.cottontail.core.queries.functions.Argument
+import org.vitrivr.cottontail.core.queries.functions.Signature
+import org.vitrivr.cottontail.core.queries.functions.math.VectorDistance
+import org.vitrivr.cottontail.core.queries.planning.cost.Cost
+import org.vitrivr.cottontail.core.queries.predicates.Predicate
+import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
+import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.values.DoubleValue
+import org.vitrivr.cottontail.core.values.types.Types
+import org.vitrivr.cottontail.core.values.types.VectorValue
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
+import org.vitrivr.cottontail.dbms.exceptions.QueryException
+import org.vitrivr.cottontail.dbms.execution.TransactionContext
+import org.vitrivr.cottontail.dbms.functions.math.distance.Distances
 import org.vitrivr.cottontail.dbms.index.AbstractIndex
 import org.vitrivr.cottontail.dbms.index.IndexTx
 import org.vitrivr.cottontail.dbms.index.IndexType
 import org.vitrivr.cottontail.dbms.index.pq.PQIndex
 import org.vitrivr.cottontail.dbms.operations.Operation
-import org.vitrivr.cottontail.core.queries.planning.cost.Cost
-import org.vitrivr.cottontail.core.queries.predicates.Predicate
-import org.vitrivr.cottontail.execution.TransactionContext
-import org.vitrivr.cottontail.functions.math.distance.Distances
-import org.vitrivr.cottontail.core.basics.Record
-import org.vitrivr.cottontail.core.database.TupleId
-import org.vitrivr.cottontail.core.queries.functions.Argument
-import org.vitrivr.cottontail.core.queries.functions.Signature
-import org.vitrivr.cottontail.core.queries.functions.math.VectorDistance
-import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
-import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.dbms.exceptions.QueryException
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
-import org.vitrivr.cottontail.core.values.DoubleValue
-import org.vitrivr.cottontail.core.values.types.VectorValue
 import org.vitrivr.cottontail.storage.serializers.ValueSerializerFactory
 import org.vitrivr.cottontail.utilities.math.KnnUtilities
 import org.vitrivr.cottontail.utilities.selection.ComparablePair
@@ -118,12 +118,12 @@ class GGIndex(path: Path, parent: DefaultEntity, config: GGIndexConfig? = null) 
      *
      * @param context The [TransactionContext] to create this [IndexTx] for.
      */
-    override fun newTx(context: TransactionContext): IndexTx = Tx(context)
+    override fun newTx(context: org.vitrivr.cottontail.dbms.execution.TransactionContext): IndexTx = Tx(context)
 
     /**
      * A [IndexTx] that affects this [AbstractIndex].
      */
-    private inner class Tx(context: TransactionContext) : AbstractIndex.Tx(context) {
+    private inner class Tx(context: org.vitrivr.cottontail.dbms.execution.TransactionContext) : AbstractIndex.Tx(context) {
         /**
          * Returns the number of groups in this [GGIndex]
          *
@@ -176,7 +176,7 @@ class GGIndex(path: Path, parent: DefaultEntity, config: GGIndexConfig? = null) 
                         val r = txn.read(tid, this@GGIndex.columns)
                         val queryVector = r[this@GGIndex.columns[0]]
                         if (queryVector is VectorValue<*>) {
-                            val distance = function(groupSeedValue, queryVector)
+                            val distance = function(groupSeedValue, queryVector)!!
                             if (knn.size < groupSize || knn.peek()!!.second > distance) {
                                 knn.offer(ComparablePair(Pair(tid, queryVector), distance))
                             }
@@ -275,7 +275,7 @@ class GGIndex(path: Path, parent: DefaultEntity, config: GGIndexConfig? = null) 
                 LOGGER.debug("Scanning group mean signals.")
                 val query = this.predicate.query.value ?: return queue
                 this@GGIndex.groupsStore.forEach {
-                    groupKnn.offer(ComparablePair(it.value, function(query, it.key)))
+                    groupKnn.offer(ComparablePair(it.value, function(query, it.key)!!))
                 }
 
                 /** Phase 2): Perform kNN on the per-group results. */
@@ -289,7 +289,7 @@ class GGIndex(path: Path, parent: DefaultEntity, config: GGIndexConfig? = null) 
                     for (tupleId in groupKnn[k].first) {
                         val probingArgument = txn.read(tupleId, this@GGIndex.columns)[this@GGIndex.columns[0]] /* Probing argument is dynamic. */
                         if (probingArgument is VectorDistance<*>) {
-                            val distance = function(query, probingArgument)
+                            val distance = function(query, probingArgument)!!
                             if (knn.size < knn.k || knn.peek()!!.second > distance) {
                                 knn.offer(ComparablePair(tupleId, distance))
                             }

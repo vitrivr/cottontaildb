@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.dbms.queries.planning.rules
 
-import org.vitrivr.cottontail.dbms.queries.planning.nodes.OperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.QueryContext
 
 /**
@@ -17,7 +17,7 @@ interface RewriteRule {
      * @param node The input [OperatorNode] to check.
      * @return True if [RewriteRule] can be applied, false otherwise.
      */
-    fun canBeApplied(node: OperatorNode): Boolean
+    fun canBeApplied(node: org.vitrivr.cottontail.dbms.queries.operators.OperatorNode): Boolean
 
     /**
      * Transforms the given [OperatorNode] (and potentially its parents and children) to a new
@@ -28,5 +28,5 @@ interface RewriteRule {
      *
      * @return The output [OperatorNode] or null, if no rewrite was done.
      */
-    fun apply(node: OperatorNode, ctx: QueryContext): OperatorNode?
+    fun apply(node: org.vitrivr.cottontail.dbms.queries.operators.OperatorNode, ctx: QueryContext): org.vitrivr.cottontail.dbms.queries.operators.OperatorNode?
 }

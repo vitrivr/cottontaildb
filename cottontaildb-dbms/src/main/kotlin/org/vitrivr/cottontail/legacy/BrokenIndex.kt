@@ -8,7 +8,6 @@ import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.general.DBOVersion
 import org.vitrivr.cottontail.dbms.index.*
 import org.vitrivr.cottontail.dbms.queries.sort.SortOrder
-import org.vitrivr.cottontail.execution.TransactionContext
 import java.nio.file.Path
 
 /**
@@ -38,7 +37,7 @@ class BrokenIndex(
     override val config: IndexConfig = NoIndexConfig
     override fun canProcess(predicate: Predicate): Boolean = false
     override fun cost(predicate: Predicate): Cost = Cost.INVALID
-    override fun newTx(context: TransactionContext): IndexTx {
+    override fun newTx(context: org.vitrivr.cottontail.dbms.execution.TransactionContext): IndexTx {
         throw UnsupportedOperationException("Operation not supported on legacy DBO.")
     }
 }

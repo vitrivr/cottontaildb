@@ -10,7 +10,7 @@ import org.vitrivr.cottontail.dbms.column.*
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.general.*
-import org.vitrivr.cottontail.execution.TransactionContext
+import org.vitrivr.cottontail.dbms.execution.TransactionContext
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
@@ -109,7 +109,7 @@ class MapDBColumn<T : Value>(override val path: Path, override val parent: Entit
      * @param context The [TransactionContext] to create the [MapDBColumn.Tx] for.
      * @return New [MapDBColumn.Tx]
      */
-    override fun newTx(context: TransactionContext) = Tx(context)
+    override fun newTx(context: org.vitrivr.cottontail.dbms.execution.TransactionContext) = Tx(context)
 
     /**
      * Closes the [MapDBColumn]. Closing an [MapDBColumn] is a delicate matter since ongoing [MapDBColumn.Tx]  are involved.
@@ -127,7 +127,7 @@ class MapDBColumn<T : Value>(override val path: Path, override val parent: Entit
      * @author Ralph Gasser
      * @version 1.4.0
      */
-    inner class Tx constructor(context: TransactionContext) : AbstractTx(context), ColumnTx<T> {
+    inner class Tx constructor(context: org.vitrivr.cottontail.dbms.execution.TransactionContext) : AbstractTx(context), ColumnTx<T> {
 
         /** Reference to the [MapDBColumn] this [MapDBColumn.Tx] belongs to. */
         override val dbo: Column<T>

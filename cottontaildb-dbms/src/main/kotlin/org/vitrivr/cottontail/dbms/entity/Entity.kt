@@ -3,11 +3,11 @@ package org.vitrivr.cottontail.dbms.entity
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.dbms.column.Column
+import org.vitrivr.cottontail.dbms.execution.TransactionContext
 import org.vitrivr.cottontail.dbms.general.DBO
 import org.vitrivr.cottontail.dbms.schema.DefaultSchema
 import org.vitrivr.cottontail.dbms.schema.Schema
 import org.vitrivr.cottontail.dbms.statistics.entity.EntityStatistics
-import org.vitrivr.cottontail.execution.TransactionContext
 
 /**
  * Represents a single entity in the Cottontail DB data model. An [Entity] has name that must remain
@@ -50,5 +50,5 @@ interface Entity : DBO {
      * @param context The [TransactionContext] to create the [EntityTx] for.
      * @return New [EntityTx]
      */
-    override fun newTx(context: TransactionContext): EntityTx
+    override fun newTx(context: org.vitrivr.cottontail.dbms.execution.TransactionContext): EntityTx
 }

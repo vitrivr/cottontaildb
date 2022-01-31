@@ -1,16 +1,16 @@
 package org.vitrivr.cottontail.dbms.index
 
-import org.vitrivr.cottontail.dbms.column.Column
 import org.vitrivr.cottontail.core.database.ColumnDef
-import org.vitrivr.cottontail.dbms.entity.DefaultEntity
-import org.vitrivr.cottontail.dbms.entity.Entity
-import org.vitrivr.cottontail.dbms.general.DBO
+import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
+import org.vitrivr.cottontail.dbms.column.Column
+import org.vitrivr.cottontail.dbms.entity.DefaultEntity
+import org.vitrivr.cottontail.dbms.entity.Entity
+import org.vitrivr.cottontail.dbms.execution.TransactionContext
+import org.vitrivr.cottontail.dbms.general.DBO
 import org.vitrivr.cottontail.dbms.queries.sort.SortOrder
 import org.vitrivr.cottontail.dbms.schema.DefaultSchema
-import org.vitrivr.cottontail.execution.TransactionContext
-import org.vitrivr.cottontail.core.database.Name
 import java.nio.file.Path
 
 /**
@@ -81,5 +81,5 @@ interface Index : DBO {
      *
      * @param context If the [TransactionContext] that requested the [IndexTx].
      */
-    override fun newTx(context: TransactionContext): IndexTx
+    override fun newTx(context: org.vitrivr.cottontail.dbms.execution.TransactionContext): IndexTx
 }

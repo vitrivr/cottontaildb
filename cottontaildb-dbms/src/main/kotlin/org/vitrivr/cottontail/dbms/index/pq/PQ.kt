@@ -185,7 +185,7 @@ class PQ(val type: Types<*>, val codebooks: List<PQCodebook<VectorValue<*>>>) {
                 val queryArgument = query.subvector(k * this.dimensionsPerSubspace, this.dimensionsPerSubspace)
                 DoubleArray(codebook.numberOfCentroids) {
                     val probingArgument = codebook[it]
-                    reshape(queryArgument, probingArgument).value
+                    reshape(queryArgument, probingArgument)!!.value
                 }
             }
         )

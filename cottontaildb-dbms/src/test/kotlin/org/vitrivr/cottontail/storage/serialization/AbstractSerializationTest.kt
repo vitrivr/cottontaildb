@@ -13,12 +13,12 @@ import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.column.ColumnEngine
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
+import org.vitrivr.cottontail.dbms.execution.TransactionManager
+import org.vitrivr.cottontail.dbms.execution.TransactionType
 import org.vitrivr.cottontail.dbms.index.AbstractIndexTest
 import org.vitrivr.cottontail.dbms.index.Index
 import org.vitrivr.cottontail.dbms.schema.Schema
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
-import org.vitrivr.cottontail.execution.TransactionManager
-import org.vitrivr.cottontail.execution.TransactionType
 import org.vitrivr.cottontail.utilities.io.TxFileUtilities
 import java.nio.file.Files
 import java.util.*
@@ -61,7 +61,7 @@ abstract class AbstractSerializationTest {
     protected var random = SplittableRandom(this.seed)
 
     /** The [TransactionManager] used for this [CatalogueTest] instance. */
-    protected val manager = TransactionManager(this.config.execution.transactionTableSize, this.config.execution.transactionHistorySize)
+    protected val manager = org.vitrivr.cottontail.dbms.execution.TransactionManager(this.config.execution.transactionTableSize, this.config.execution.transactionHistorySize)
 
     /** The [ColumnDef]s used for the [AbstractSerializationTest]. */
     protected abstract val columns: Array<Pair<ColumnDef<*>,ColumnEngine>>

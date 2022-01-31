@@ -5,11 +5,10 @@ import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
-import org.vitrivr.cottontail.dbms.queries.planning.nodes.OperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.binding.DefaultBindingContext
 import org.vitrivr.cottontail.dbms.queries.sort.SortOrder
-import org.vitrivr.cottontail.execution.TransactionManager
-import org.vitrivr.cottontail.execution.operators.basics.Operator
+import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
 import org.vitrivr.cottontail.core.values.types.Value
 
@@ -20,20 +19,20 @@ import org.vitrivr.cottontail.core.values.types.Value
  * @author Ralph Gasser
  * @version 1.3.0
  */
-class QueryContext(val queryId: String, val catalogue: Catalogue, val txn: TransactionManager.TransactionImpl) {
+class QueryContext(val queryId: String, val catalogue: Catalogue, val txn: org.vitrivr.cottontail.dbms.execution.TransactionManager.TransactionImpl) {
 
     /** List of bound [Value]s for this [QueryContext]. */
     val bindings: BindingContext = DefaultBindingContext()
 
     /** The individual [OperatorNode.Logical], each representing different sub-queries. */
-    private val nodes: MutableMap<GroupId, OperatorNode.Logical> = Int2ObjectOpenHashMap()
+    private val nodes: MutableMap<GroupId, org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Logical> = Int2ObjectOpenHashMap()
 
     /** The [OperatorNode.Logical] representing the query and the sub-queries held by this [QueryContext]. */
-    val logical: OperatorNode.Logical?
+    val logical: org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Logical?
         get() = this.nodes[0]
 
     /** The [OperatorNode.Physical] representing the query and the sub-queries held by this [QueryContext]. */
-    var physical: OperatorNode.Physical? = null
+    var physical: org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Physical? = null
         internal set
 
     /** Output [ColumnDef] for the query held by this [QueryContext] (as per canonical plan). */
@@ -57,7 +56,7 @@ class QueryContext(val queryId: String, val catalogue: Catalogue, val txn: Trans
     /**
      * Registers an [OperatorNode.Logical] with this [QueryContext] and assigns a new [GroupId] for it.
      */
-    fun register(plan: OperatorNode.Logical) {
+    fun register(plan: org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Logical) {
         this.nodes[plan.groupId] = plan
     }
 
@@ -67,7 +66,7 @@ class QueryContext(val queryId: String, val catalogue: Catalogue, val txn: Trans
      * @param groupId The [GroupId] to return an [OperatorNode.Logical] for.
      * @return [OperatorNode.Logical]
      */
-    operator fun get(groupId: GroupId): OperatorNode.Logical = this.nodes[groupId] ?: throw QueryException.QueryPlannerException("Failed to access sub-query with groupId $groupId")
+    operator fun get(groupId: GroupId): org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Logical = this.nodes[groupId] ?: throw QueryException.QueryPlannerException("Failed to access sub-query with groupId $groupId")
 
     /**
      * Returns an executable [Operator] for this [QueryContext]. Requires a functional, [OperatorNode.Physical]

@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.dbms.queries.planning.exceptions
 
-import org.vitrivr.cottontail.dbms.queries.planning.nodes.OperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
 
 /**
  * Type of [Exception]s that are thrown while processing a [OperatorNode] or a [OperatorNode] tree.
@@ -8,7 +8,7 @@ import org.vitrivr.cottontail.dbms.queries.planning.nodes.OperatorNode
  * @author Ralph Gasser
  * @version 1.0.1
  */
-sealed class NodeExpressionTreeException(val exp: OperatorNode, message: String) :
+sealed class NodeExpressionTreeException(val exp: org.vitrivr.cottontail.dbms.queries.operators.OperatorNode, message: String) :
     Exception(message) {
     /**
      * Thrown when a [OperatorNode] tree is incomplete, i.e. [OperatorNode]s are missing, while trying process it.
@@ -16,7 +16,7 @@ sealed class NodeExpressionTreeException(val exp: OperatorNode, message: String)
      * @param exp The [OperatorNode] that caused the exception.
      * @param message Explanation of the problem.
      */
-    class IncompleteNodeExpressionTreeException(exp: OperatorNode, message: String) :
+    class IncompleteNodeExpressionTreeException(exp: org.vitrivr.cottontail.dbms.queries.operators.OperatorNode, message: String) :
         NodeExpressionTreeException(exp, "NodeExpression $exp seems incomplete: $message")
 
     /**
@@ -25,7 +25,7 @@ sealed class NodeExpressionTreeException(val exp: OperatorNode, message: String)
      * @param exp The [OperatorNode] that caused the exception.
      * @param message Explanation of the problem.
      */
-    class InsatisfiableNodeExpressionException(exp: OperatorNode, message: String) :
+    class InsatisfiableNodeExpressionException(exp: org.vitrivr.cottontail.dbms.queries.operators.OperatorNode, message: String) :
         NodeExpressionTreeException(exp, "NodeExpression $exp seems incomplete: $message")
 }
 

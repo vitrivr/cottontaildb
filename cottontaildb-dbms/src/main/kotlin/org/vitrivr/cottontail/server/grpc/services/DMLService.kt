@@ -10,7 +10,6 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.logical.DeferFetchOnSc
 import org.vitrivr.cottontail.dbms.queries.planning.rules.logical.LeftConjunctionRewriteRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.logical.RightConjunctionRewriteRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index.BooleanIndexScanRule
-import org.vitrivr.cottontail.execution.TransactionManager
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.grpc.DMLGrpc
 import org.vitrivr.cottontail.grpc.DMLGrpcKt
@@ -23,7 +22,7 @@ import kotlin.time.ExperimentalTime
  * @version 2.2.0
  */
 @ExperimentalTime
-class DMLService(override val catalogue: Catalogue, override val manager: TransactionManager) : DMLGrpcKt.DMLCoroutineImplBase(), TransactionalGrpcService {
+class DMLService(override val catalogue: Catalogue, override val manager: org.vitrivr.cottontail.dbms.execution.TransactionManager) : DMLGrpcKt.DMLCoroutineImplBase(), TransactionalGrpcService {
 
     /** [CottontailQueryPlanner] instance used to generate execution plans from query definitions. */
     private val planner = CottontailQueryPlanner(

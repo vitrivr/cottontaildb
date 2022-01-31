@@ -14,7 +14,6 @@ import org.vitrivr.cottontail.dbms.general.DBOVersion
 import org.vitrivr.cottontail.dbms.general.TxAction
 import org.vitrivr.cottontail.dbms.general.TxSnapshot
 import org.vitrivr.cottontail.dbms.queries.sort.SortOrder
-import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.utilities.extensions.write
 import org.vitrivr.cottontail.utilities.io.TxFileUtilities
 import java.io.IOException
@@ -122,7 +121,7 @@ abstract class AbstractIndex(final override val path: Path, final override val p
     /**
      * A [Tx] that affects this [AbstractIndex].
      */
-    protected abstract inner class Tx(context: TransactionContext) : AbstractTx(context), IndexTx {
+    protected abstract inner class Tx(context: org.vitrivr.cottontail.dbms.execution.TransactionContext) : AbstractTx(context), IndexTx {
 
         /** Obtains a global (non-exclusive) read-lock on [AbstractIndex]. Prevents enclosing [AbstractIndex] from being closed. */
         private val closeStamp = this@AbstractIndex.closeLock.readLock()

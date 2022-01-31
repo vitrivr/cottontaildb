@@ -13,7 +13,7 @@ import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.general.*
 import org.vitrivr.cottontail.dbms.schema.Schema
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
-import org.vitrivr.cottontail.execution.TransactionContext
+import org.vitrivr.cottontail.dbms.execution.TransactionContext
 import org.vitrivr.cottontail.legacy.v1.catalogue.CatalogueV1
 import org.vitrivr.cottontail.legacy.v1.entity.EntityV1
 import org.vitrivr.cottontail.core.database.Name
@@ -89,7 +89,7 @@ class SchemaV1(override val name: Name.SchemaName, override val parent: Catalogu
      * @param context The [TransactionContext] to create the [SchemaTx] for.
      * @return New [SchemaTx]
      */
-    override fun newTx(context: TransactionContext): SchemaTx = this.Tx(context)
+    override fun newTx(context: org.vitrivr.cottontail.dbms.execution.TransactionContext): SchemaTx = this.Tx(context)
 
     /**
      * Closes this [Schema] and all the [EntityV1] objects that are contained within.
@@ -115,7 +115,7 @@ class SchemaV1(override val name: Name.SchemaName, override val parent: Catalogu
      * @author Ralph Gasser
      * @version 1.0.0
      */
-    inner class Tx(context: TransactionContext) : AbstractTx(context), SchemaTx {
+    inner class Tx(context: org.vitrivr.cottontail.dbms.execution.TransactionContext) : AbstractTx(context), SchemaTx {
 
         /** Obtains a global (non-exclusive) read-lock on [Schema]. Prevents enclosing [Schema] from being closed. */
         private val closeStamp = this@SchemaV1.closeLock.readLock()

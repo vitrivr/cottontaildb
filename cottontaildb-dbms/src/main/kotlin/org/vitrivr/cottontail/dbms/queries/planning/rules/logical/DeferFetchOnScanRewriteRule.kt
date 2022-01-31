@@ -1,9 +1,8 @@
 package org.vitrivr.cottontail.dbms.queries.planning.rules.logical
 
-import org.vitrivr.cottontail.dbms.queries.planning.nodes.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.QueryContext
-import org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.sources.EntityScanLogicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.transform.FetchLogicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.logical.sources.EntityScanLogicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.logical.transform.FetchLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
 
 /**
@@ -13,8 +12,8 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
  * @version 1.1.0
  */
 object DeferFetchOnScanRewriteRule : RewriteRule {
-    override fun canBeApplied(node: OperatorNode): Boolean = node is EntityScanLogicalOperatorNode
-    override fun apply(node: OperatorNode, ctx: QueryContext): OperatorNode? {
+    override fun canBeApplied(node: org.vitrivr.cottontail.dbms.queries.operators.OperatorNode): Boolean = node is EntityScanLogicalOperatorNode
+    override fun apply(node: org.vitrivr.cottontail.dbms.queries.operators.OperatorNode, ctx: QueryContext): org.vitrivr.cottontail.dbms.queries.operators.OperatorNode? {
         if (node is EntityScanLogicalOperatorNode) {
 
             val candidates = node.fetch.map { it.first to it.second }.toMutableList()
@@ -24,7 +23,7 @@ object DeferFetchOnScanRewriteRule : RewriteRule {
                 return null
             }
             val originalGroupId = node.groupId
-            var next: OperatorNode.Logical? = node.output
+            var next: org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Logical? = node.output
 
             while (next != null && next.groupId == originalGroupId) {
                 /* Check if we encounter a node that requires specific but not all of the original columns. */

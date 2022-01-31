@@ -9,10 +9,10 @@ import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
+import org.vitrivr.cottontail.dbms.execution.TransactionContext
 import org.vitrivr.cottontail.dbms.general.*
 import org.vitrivr.cottontail.dbms.schema.Schema
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
-import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.legacy.v1.schema.SchemaV1
 import org.vitrivr.cottontail.utilities.extensions.read
 import org.vitrivr.cottontail.utilities.extensions.write
@@ -107,7 +107,7 @@ class CatalogueV1(override val config: Config) : Catalogue {
      * @param context The [TransactionContext] to create the [CatalogueV1.Tx] for.
      * @return New [CatalogueV1.Tx]
      */
-    override fun newTx(context: TransactionContext): CatalogueTx = Tx(context)
+    override fun newTx(context: org.vitrivr.cottontail.dbms.execution.TransactionContext): CatalogueTx = Tx(context)
 
     /**
      * Closes the [CatalogueV1] and all objects contained within.
@@ -124,7 +124,7 @@ class CatalogueV1(override val config: Config) : Catalogue {
      * @author Ralph Gasser
      * @version 1.0.0
      */
-    inner class Tx(context: TransactionContext) : AbstractTx(context), CatalogueTx {
+    inner class Tx(context: org.vitrivr.cottontail.dbms.execution.TransactionContext) : AbstractTx(context), CatalogueTx {
 
         /** Reference to the [CatalogueV1] this [CatalogueTx] belongs to. */
         override val dbo: Catalogue

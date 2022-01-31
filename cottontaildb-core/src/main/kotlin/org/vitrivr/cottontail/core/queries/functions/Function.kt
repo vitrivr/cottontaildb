@@ -9,11 +9,6 @@ import org.vitrivr.cottontail.core.values.types.Value
 /**
  * An invokable [Function] is a [Node] that can be used by Cottontail DB to calculate values results.
  *
- * A function is a piece of logic, that takes an arbitrary number of [Binding]s as input returns some [Binding.Literal]
- * as output. The current [Value] of [Function.out] can always be accessed and updated using [Function.invoke]
- *
- * In practice, a [Function] is always tied to a [BindingContext]. It obtains its input from that context and writes its result to that context.
- *
  * @author Ralph Gasser
  * @version 1.2.0
  */
@@ -54,7 +49,7 @@ interface Function<out R: Value>: Node {
      * @param arguments The argument [Value]s.
      * @return [R]
      */
-    operator fun invoke(vararg arguments: Value?): R
+    operator fun invoke(vararg arguments: Value?): R?
 
     /**
      * Obtains the [Digest] for this [Function].

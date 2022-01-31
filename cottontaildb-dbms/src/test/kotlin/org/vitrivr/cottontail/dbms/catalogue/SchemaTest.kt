@@ -13,8 +13,8 @@ import org.vitrivr.cottontail.dbms.column.ColumnEngine
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.schema.Schema
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
-import org.vitrivr.cottontail.execution.TransactionManager
-import org.vitrivr.cottontail.execution.TransactionType
+import org.vitrivr.cottontail.dbms.execution.TransactionManager
+import org.vitrivr.cottontail.dbms.execution.TransactionType
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
@@ -50,7 +50,7 @@ class SchemaTest {
     }
 
     /** The [TransactionManager] used for this [CatalogueTest] instance. */
-    private val manager = TransactionManager(
+    private val manager = org.vitrivr.cottontail.dbms.execution.TransactionManager(
         this.config.execution.transactionTableSize,
         this.config.execution.transactionHistorySize
     )

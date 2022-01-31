@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.dbms.exceptions
 
-import org.vitrivr.cottontail.execution.operators.basics.Operator
+import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 
 /**
  * [Exception] thrown during query execution.

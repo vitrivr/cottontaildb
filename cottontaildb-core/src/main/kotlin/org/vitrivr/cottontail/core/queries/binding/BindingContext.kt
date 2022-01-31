@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.core.queries.binding
 
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.queries.functions.Function
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
 
@@ -33,7 +33,15 @@ interface BindingContext {
     operator fun get(binding: Binding.Column): Value?
 
     /**
-     * Creates and returns a [Binding] for the given [Value].
+     * Returns the [Value] for the given [Binding.Function].
+     *
+     * @param binding The [Binding.Function] to lookup.
+     * @return The bound [Value].
+     */
+    operator fun get(binding: Binding.Function): Value?
+
+    /**
+     * Creates and returns a [Binding.Literal] for the given [Value].
      *
      * @param value The [Value] to bind.
      * @param static True, if [Binding] is expected to change during query execution.
@@ -42,12 +50,21 @@ interface BindingContext {
     fun bind(value: Value, static: Boolean = true): Binding.Literal
 
     /**
-     * Creates and returns a [Binding] for the given [ColumnDef].
+     * Creates and returns a [Binding.Column] for the given [ColumnDef].
      *
      * @param column The [ColumnDef] to bind.
      * @return [Binding.Column]
      */
     fun bind(column: ColumnDef<*>): Binding.Column
+
+    /**
+     * Creates and returns a [Binding.Function] for the given [Function] invocation
+     *
+     * @param function The [Function] to bind.
+     * @param arguments The list of argument [Binding]s for the [Function] invocation
+     * @return [Binding.Function]
+     */
+    fun bind(function: Function<*>, arguments: List<Binding> = emptyList()): Binding.Function
 
     /**
      * Creates and returns a [Binding] for the given [Value].

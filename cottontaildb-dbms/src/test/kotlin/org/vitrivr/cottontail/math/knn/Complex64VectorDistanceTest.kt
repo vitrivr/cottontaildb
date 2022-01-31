@@ -5,10 +5,10 @@ import org.junit.jupiter.params.provider.MethodSource
 import org.vitrivr.cottontail.TestConstants
 import org.vitrivr.cottontail.core.values.Complex64VectorValue
 import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.functions.math.distance.binary.EuclideanDistance
-import org.vitrivr.cottontail.functions.math.distance.binary.InnerProductDistance
-import org.vitrivr.cottontail.functions.math.distance.binary.ManhattanDistance
-import org.vitrivr.cottontail.functions.math.distance.binary.SquaredEuclideanDistance
+import org.vitrivr.cottontail.dbms.functions.math.distance.binary.EuclideanDistance
+import org.vitrivr.cottontail.dbms.functions.math.distance.binary.InnerProductDistance
+import org.vitrivr.cottontail.dbms.functions.math.distance.binary.ManhattanDistance
+import org.vitrivr.cottontail.dbms.functions.math.distance.binary.SquaredEuclideanDistance
 import org.vitrivr.cottontail.math.absFromFromComplexFieldVector
 import org.vitrivr.cottontail.math.arrayFieldVectorFromVectorValue
 import org.vitrivr.cottontail.math.conjFromFromComplexFieldVector

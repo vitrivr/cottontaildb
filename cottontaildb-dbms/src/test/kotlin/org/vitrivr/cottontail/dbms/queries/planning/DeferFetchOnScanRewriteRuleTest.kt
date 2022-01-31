@@ -11,17 +11,17 @@ import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.dbms.AbstractDatabaseTest
 import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.entity.EntityTx
+import org.vitrivr.cottontail.dbms.execution.TransactionType
 import org.vitrivr.cottontail.dbms.queries.QueryContext
 import org.vitrivr.cottontail.dbms.queries.binding.DefaultBindingContext
-import org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.predicates.FilterLogicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.projection.SelectProjectionLogicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.sources.EntitySampleLogicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.sources.EntityScanLogicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.transform.FetchLogicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.logical.predicates.FilterLogicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.logical.projection.SelectProjectionLogicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.logical.sources.EntitySampleLogicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.logical.sources.EntityScanLogicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.logical.transform.FetchLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.rules.logical.DeferFetchOnScanRewriteRule
 import org.vitrivr.cottontail.dbms.queries.projection.Projection
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
-import org.vitrivr.cottontail.execution.TransactionType
 
 /**
  * A collection of test cases for the [DeferFetchOnScanRewriteRule].

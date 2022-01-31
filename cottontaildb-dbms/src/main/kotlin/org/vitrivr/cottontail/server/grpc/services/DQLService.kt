@@ -3,6 +3,7 @@ package org.vitrivr.cottontail.server.grpc.services
 import com.google.protobuf.Empty
 import kotlinx.coroutines.flow.Flow
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
+import org.vitrivr.cottontail.dbms.execution.operators.system.ExplainQueryOperator
 import org.vitrivr.cottontail.dbms.queries.binding.GrpcQueryBinder
 import org.vitrivr.cottontail.dbms.queries.planning.CottontailQueryPlanner
 import org.vitrivr.cottontail.dbms.queries.planning.rules.logical.*
@@ -11,8 +12,6 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index.Fulltex
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index.NNSIndexScanRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.merge.LimitingSortMergeRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.pushdown.CountPushdownRule
-import org.vitrivr.cottontail.execution.TransactionManager
-import org.vitrivr.cottontail.execution.operators.system.ExplainQueryOperator
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.grpc.DQLGrpc
 import org.vitrivr.cottontail.grpc.DQLGrpcKt
@@ -25,7 +24,7 @@ import kotlin.time.ExperimentalTime
  * @version 2.2.0
  */
 @ExperimentalTime
-class DQLService(override val catalogue: Catalogue, override val manager: TransactionManager) : DQLGrpcKt.DQLCoroutineImplBase(), TransactionalGrpcService {
+class DQLService(override val catalogue: Catalogue, override val manager: org.vitrivr.cottontail.dbms.execution.TransactionManager) : DQLGrpcKt.DQLCoroutineImplBase(), TransactionalGrpcService {
 
     /** [CottontailQueryPlanner] used to generate execution plans from a logical query plan. */
     private val planner = CottontailQueryPlanner(

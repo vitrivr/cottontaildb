@@ -24,11 +24,11 @@ import org.vitrivr.cottontail.dbms.statistics.columns.DoubleVectorValueStatistic
 import org.vitrivr.cottontail.dbms.statistics.columns.FloatVectorValueStatistics
 import org.vitrivr.cottontail.dbms.statistics.columns.IntVectorValueStatistics
 import org.vitrivr.cottontail.dbms.statistics.columns.LongVectorValueStatistics
-import org.vitrivr.cottontail.execution.TransactionContext
+import org.vitrivr.cottontail.dbms.execution.TransactionContext
 import org.vitrivr.cottontail.core.queries.functions.math.MinkowskiDistance
-import org.vitrivr.cottontail.functions.math.distance.binary.EuclideanDistance
-import org.vitrivr.cottontail.functions.math.distance.binary.ManhattanDistance
-import org.vitrivr.cottontail.functions.math.distance.binary.SquaredEuclideanDistance
+import org.vitrivr.cottontail.dbms.functions.math.distance.binary.EuclideanDistance
+import org.vitrivr.cottontail.dbms.functions.math.distance.binary.ManhattanDistance
+import org.vitrivr.cottontail.dbms.functions.math.distance.binary.SquaredEuclideanDistance
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
@@ -131,12 +131,12 @@ class VAFIndex(path: Path, parent: DefaultEntity, config: VAFIndexConfig? = null
      *
      * @param context The [TransactionContext] to create this [IndexTx] for.
      */
-    override fun newTx(context: TransactionContext): IndexTx = Tx(context)
+    override fun newTx(context: org.vitrivr.cottontail.dbms.execution.TransactionContext): IndexTx = Tx(context)
 
     /**
      * A [IndexTx] that affects this [AbstractIndex].
      */
-    private inner class Tx(context: TransactionContext) : AbstractIndex.Tx(context) {
+    private inner class Tx(context: org.vitrivr.cottontail.dbms.execution.TransactionContext) : AbstractIndex.Tx(context) {
         /**
          * Returns the number of [VAFSignature]s in this [VAFIndex]
          *
@@ -316,7 +316,8 @@ class VAFIndex(path: Path, parent: DefaultEntity, config: VAFIndexConfig? = null
                         if (knn.size < this.predicate.k || this.bounds.isVASSACandidate(signature, knn.peek()!!.second.value)) {
                             val probingArgument = txn.read(signature.tupleId, this@VAFIndex.columns)[this@VAFIndex.columns[0]]
                             if (probingArgument is VectorValue<*>) {
-                                knn.offer(ComparablePair(signature.tupleId, this.predicate.distance(queryArgument, probingArgument)))
+                                val distance = this.predicate.distance(queryArgument, probingArgument)
+                                knn.offer(ComparablePair(signature.tupleId, distance!!))
                                 read += 1
                             }
                         }

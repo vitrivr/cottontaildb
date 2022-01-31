@@ -9,12 +9,12 @@ import org.vitrivr.cottontail.core.queries.functions.FunctionRegistry
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.exceptions.TxException
+import org.vitrivr.cottontail.dbms.execution.TransactionContext
+import org.vitrivr.cottontail.dbms.functions.initialize
 import org.vitrivr.cottontail.dbms.general.*
 import org.vitrivr.cottontail.dbms.locking.LockMode
 import org.vitrivr.cottontail.dbms.schema.DefaultSchema
 import org.vitrivr.cottontail.dbms.schema.Schema
-import org.vitrivr.cottontail.execution.TransactionContext
-import org.vitrivr.cottontail.functions.initialize
 import org.vitrivr.cottontail.utilities.extensions.read
 import org.vitrivr.cottontail.utilities.extensions.write
 import org.vitrivr.cottontail.utilities.io.TxFileUtilities
@@ -109,7 +109,7 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
      * @param context The [TransactionContext] to create the [DefaultCatalogue.Tx] for.
      * @return New [DefaultCatalogue.Tx]
      */
-    override fun newTx(context: TransactionContext): Tx = Tx(context)
+    override fun newTx(context: org.vitrivr.cottontail.dbms.execution.TransactionContext): Tx = Tx(context)
 
     /**
      * Closes the [DefaultCatalogue] and all objects contained within.
@@ -125,7 +125,7 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
      * @author Ralph Gasser
      * @version 1.0.0
      */
-    inner class Tx(context: TransactionContext) : AbstractTx(context), CatalogueTx {
+    inner class Tx(context: org.vitrivr.cottontail.dbms.execution.TransactionContext) : AbstractTx(context), CatalogueTx {
 
         /** Reference to the [DefaultCatalogue] this [CatalogueTx] belongs to. */
         override val dbo: DefaultCatalogue

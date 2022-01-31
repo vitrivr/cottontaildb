@@ -12,17 +12,16 @@ import org.vitrivr.cottontail.dbms.column.Column
 import org.vitrivr.cottontail.dbms.column.ColumnEngine
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
+import org.vitrivr.cottontail.dbms.execution.TransactionContext
+import org.vitrivr.cottontail.dbms.execution.TransactionManager.TransactionImpl
+import org.vitrivr.cottontail.dbms.execution.TransactionStatus
+import org.vitrivr.cottontail.dbms.execution.TransactionType
+import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.general.DBO
 import org.vitrivr.cottontail.dbms.general.Tx
 import org.vitrivr.cottontail.dbms.locking.LockMode
 import org.vitrivr.cottontail.dbms.operations.Operation
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
-import org.vitrivr.cottontail.execution.Transaction
-import org.vitrivr.cottontail.execution.TransactionContext
-import org.vitrivr.cottontail.execution.TransactionManager.TransactionImpl
-import org.vitrivr.cottontail.execution.TransactionStatus
-import org.vitrivr.cottontail.execution.TransactionType
-import org.vitrivr.cottontail.execution.operators.basics.Operator
 import org.vitrivr.cottontail.utilities.io.TxFileUtilities
 import java.io.BufferedWriter
 import java.nio.file.Files
@@ -249,7 +248,7 @@ abstract class AbstractMigrationManager(val batchSize: Int, logFile: Path) : Mig
      * @author Ralph Gasser
      * @version 1.0.0
      */
-    inner class MigrationContext : TransactionContext, Transaction {
+    inner class MigrationContext : org.vitrivr.cottontail.dbms.execution.TransactionContext, org.vitrivr.cottontail.dbms.execution.Transaction {
         /** The [TransactionId] of the [MigrationContext]. */
         override val txId: TransactionId = transactionIdCounter.getAndIncrement()
 

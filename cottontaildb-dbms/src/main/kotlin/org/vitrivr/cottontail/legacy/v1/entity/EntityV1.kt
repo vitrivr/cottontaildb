@@ -19,6 +19,7 @@ import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.entity.EntityTxSnapshot
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.exceptions.TxException
+import org.vitrivr.cottontail.dbms.execution.TransactionContext
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.general.DBOVersion
 import org.vitrivr.cottontail.dbms.general.TxAction
@@ -28,7 +29,6 @@ import org.vitrivr.cottontail.dbms.index.IndexTx
 import org.vitrivr.cottontail.dbms.index.IndexType
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
 import org.vitrivr.cottontail.dbms.statistics.entity.EntityStatistics
-import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.legacy.BrokenIndex
 import org.vitrivr.cottontail.legacy.v1.column.ColumnV1
 import org.vitrivr.cottontail.legacy.v1.schema.SchemaV1
@@ -152,7 +152,7 @@ class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1
      * @param context The [TransactionContext] to create the [EntityTx] for.
      * @return New [EntityTx]
      */
-    override fun newTx(context: TransactionContext) = this.Tx(context)
+    override fun newTx(context: org.vitrivr.cottontail.dbms.execution.TransactionContext) = this.Tx(context)
 
     /**
      * Closes the [Entity]. Closing an [Entity] is a delicate matter since ongoing [EntityTx] objects as well as all involved [Column]s are involved.
@@ -173,7 +173,7 @@ class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1
      * @author Ralph Gasser
      * @version 1.0.0
      */
-    inner class Tx(context: TransactionContext) : AbstractTx(context), EntityTx {
+    inner class Tx(context: org.vitrivr.cottontail.dbms.execution.TransactionContext) : AbstractTx(context), EntityTx {
 
         /** Obtains a global (non-exclusive) read-lock on [Entity]. Prevents enclosing [Entity] from being closed. */
         private val closeStamp = this@EntityV1.closeLock.readLock()

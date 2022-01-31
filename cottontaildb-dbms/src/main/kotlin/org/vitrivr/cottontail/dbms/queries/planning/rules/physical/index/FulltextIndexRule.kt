@@ -1,17 +1,17 @@
 package org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index
 
-import org.vitrivr.cottontail.dbms.index.IndexTx
-import org.vitrivr.cottontail.dbms.queries.planning.nodes.OperatorNode
-import org.vitrivr.cottontail.dbms.queries.QueryContext
 import org.vitrivr.cottontail.core.queries.binding.Binding
-import org.vitrivr.cottontail.dbms.queries.planning.nodes.physical.function.FunctionPhysicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.planning.nodes.physical.sources.EntityScanPhysicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.planning.nodes.physical.sources.IndexScanPhysicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.planning.nodes.physical.transform.FetchPhysicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
-import org.vitrivr.cottontail.functions.math.score.FulltextScore
+import org.vitrivr.cottontail.dbms.functions.math.score.FulltextScore
+import org.vitrivr.cottontail.dbms.index.IndexTx
+import org.vitrivr.cottontail.dbms.queries.QueryContext
+import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.physical.function.FunctionPhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.physical.sources.EntityScanPhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.physical.sources.IndexScanPhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.physical.transform.FetchPhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
 
 /**
  * A [RewriteRule] that replaces the execution of a [FulltextScore] function by an index scan. Searches
@@ -31,8 +31,8 @@ object FulltextIndexRule : RewriteRule {
      * @param node [OperatorNode] to check.
      * @return True if [FulltextIndexRule] can be applied, false otherwise.
      */
-    override fun canBeApplied(node: OperatorNode): Boolean
-        = node is FunctionPhysicalOperatorNode && node.function is FulltextScore
+    override fun canBeApplied(node: org.vitrivr.cottontail.dbms.queries.operators.OperatorNode): Boolean
+        = node is FunctionPhysicalOperatorNode && node.function.function is FulltextScore
 
     /**
      * Applies this [FulltextIndexRule], transforming the execution of a [FulltextScore] function by an index scan.
@@ -41,12 +41,12 @@ object FulltextIndexRule : RewriteRule {
      * @param ctx The [QueryContext] in which this rule is applied.
      * @return Transformed [OperatorNode] or null, if transformation was not possible.
      */
-    override fun apply(node: OperatorNode, ctx: QueryContext): OperatorNode? {
-        if (node is FunctionPhysicalOperatorNode && node.function is FulltextScore) {
+    override fun apply(node: org.vitrivr.cottontail.dbms.queries.operators.OperatorNode, ctx: QueryContext): org.vitrivr.cottontail.dbms.queries.operators.OperatorNode? {
+        if (node is FunctionPhysicalOperatorNode && node.function.function is FulltextScore) {
             val scan = node.input
             if (scan is EntityScanPhysicalOperatorNode) {
-                val probingArgument = node.arguments.filterIsInstance<Binding.Column>().singleOrNull() ?: return null
-                val queryString = node.arguments.filterIsInstance<Binding.Literal>().singleOrNull() ?: return null
+                val probingArgument = node.function.arguments.filterIsInstance<Binding.Column>().singleOrNull() ?: return null
+                val queryString = node.function.arguments.filterIsInstance<Binding.Literal>().singleOrNull() ?: return null
                 val predicate = BooleanPredicate.Atomic(ComparisonOperator.Binary.Match(probingArgument, queryString), false, scan.groupId)
                 val candidate = scan.entity.listIndexes().find { it.canProcess(predicate) }
                 if (candidate != null) {

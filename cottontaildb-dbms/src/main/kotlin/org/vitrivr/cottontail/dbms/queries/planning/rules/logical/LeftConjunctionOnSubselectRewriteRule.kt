@@ -1,11 +1,11 @@
 package org.vitrivr.cottontail.dbms.queries.planning.rules.logical
 
-import org.vitrivr.cottontail.dbms.queries.planning.nodes.OperatorNode
-import org.vitrivr.cottontail.dbms.queries.QueryContext
-import org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.predicates.FilterLogicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.predicates.FilterOnSubSelectLogicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
+import org.vitrivr.cottontail.dbms.queries.QueryContext
+import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.logical.predicates.FilterLogicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.logical.predicates.FilterOnSubSelectLogicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
 
 /**
  * Decomposes a [FilterOnSubSelectLogicalOperatorNode] that contains a [BooleanPredicate.Compound.And] into a sequence
@@ -24,7 +24,7 @@ object LeftConjunctionOnSubselectRewriteRule : RewriteRule {
      * @param node The input [OperatorNode] to check.
      * @return True if [RewriteRule] can be applied, false otherwise.
      */
-    override fun canBeApplied(node: OperatorNode): Boolean =
+    override fun canBeApplied(node: org.vitrivr.cottontail.dbms.queries.operators.OperatorNode): Boolean =
         node is FilterOnSubSelectLogicalOperatorNode && node.predicate is BooleanPredicate.Compound.And
 
     /**
@@ -37,7 +37,7 @@ object LeftConjunctionOnSubselectRewriteRule : RewriteRule {
      *
      * @return The output [OperatorNode] or null, if no rewrite was done.
      */
-    override fun apply(node: OperatorNode, ctx: QueryContext): OperatorNode? {
+    override fun apply(node: org.vitrivr.cottontail.dbms.queries.operators.OperatorNode, ctx: QueryContext): org.vitrivr.cottontail.dbms.queries.operators.OperatorNode? {
         if (node is FilterOnSubSelectLogicalOperatorNode && node.predicate is BooleanPredicate.Compound.And) {
             val parent = node.inputs[0].copyWithInputs()
             val p1DependsOn = node.predicate.p1.atomics.filter { it.dependsOn > -1 }

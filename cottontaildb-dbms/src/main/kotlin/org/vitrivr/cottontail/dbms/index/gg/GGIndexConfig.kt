@@ -2,8 +2,8 @@ package org.vitrivr.cottontail.dbms.index.gg
 
 import org.mapdb.DataInput2
 import org.mapdb.DataOutput2
+import org.vitrivr.cottontail.dbms.functions.math.distance.Distances
 import org.vitrivr.cottontail.dbms.index.IndexConfig
-import org.vitrivr.cottontail.functions.math.distance.Distances
 
 /**
  * Configuration class for [GGIndex].

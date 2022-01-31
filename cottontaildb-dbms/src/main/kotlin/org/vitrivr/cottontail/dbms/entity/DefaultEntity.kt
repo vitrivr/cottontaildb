@@ -18,6 +18,7 @@ import org.vitrivr.cottontail.dbms.column.ColumnEngine
 import org.vitrivr.cottontail.dbms.column.ColumnTx
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.exceptions.TxException
+import org.vitrivr.cottontail.dbms.execution.TransactionContext
 import org.vitrivr.cottontail.dbms.general.*
 import org.vitrivr.cottontail.dbms.index.Index
 import org.vitrivr.cottontail.dbms.index.IndexTx
@@ -29,7 +30,6 @@ import org.vitrivr.cottontail.dbms.schema.Schema
 import org.vitrivr.cottontail.dbms.statistics.ValueStatisticsFactory
 import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
 import org.vitrivr.cottontail.dbms.statistics.entity.EntityStatistics
-import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.utilities.extensions.write
 import org.vitrivr.cottontail.utilities.io.TxFileUtilities
 import java.io.IOException
@@ -185,7 +185,7 @@ class DefaultEntity(override val path: Path, override val parent: Schema) : Enti
      * @param context The [TransactionContext] to create the [DefaultEntity.Tx] for.
      * @return New [DefaultEntity.Tx]
      */
-    override fun newTx(context: TransactionContext) = this.Tx(context)
+    override fun newTx(context: org.vitrivr.cottontail.dbms.execution.TransactionContext) = this.Tx(context)
 
     /**
      * Closes the [DefaultEntity].
@@ -209,7 +209,7 @@ class DefaultEntity(override val path: Path, override val parent: Schema) : Enti
      * @author Ralph Gasser
      * @version 1.3.0
      */
-    inner class Tx(context: TransactionContext) : AbstractTx(context), EntityTx {
+    inner class Tx(context: org.vitrivr.cottontail.dbms.execution.TransactionContext) : AbstractTx(context), EntityTx {
 
         /** Obtains a global non-exclusive lock on [DefaultEntity]. Prevents [DefaultEntity] from being closed. */
         private val closeStamp = this@DefaultEntity.closeLock.readLock()

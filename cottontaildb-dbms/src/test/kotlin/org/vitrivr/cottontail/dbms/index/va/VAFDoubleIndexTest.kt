@@ -15,10 +15,10 @@ import org.vitrivr.cottontail.dbms.index.IndexType
 import org.vitrivr.cottontail.dbms.queries.binding.DefaultBindingContext
 import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
-import org.vitrivr.cottontail.execution.TransactionType
+import org.vitrivr.cottontail.dbms.execution.TransactionType
 import org.vitrivr.cottontail.core.queries.functions.Argument
 import org.vitrivr.cottontail.core.queries.functions.Signature
-import org.vitrivr.cottontail.functions.math.distance.Distances
+import org.vitrivr.cottontail.dbms.functions.math.distance.Distances
 import org.vitrivr.cottontail.core.queries.functions.math.VectorDistance
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
@@ -99,7 +99,7 @@ class VAFDoubleIndexTest : AbstractIndexTest() {
             entityTx.scan(arrayOf(this.indexColumn)).forEach {
                 val vector = it[this.indexColumn]
                 if (vector is DoubleVectorValue) {
-                    bruteForceResults.offer(ComparablePair(it.tupleId, function(query, vector)))
+                    bruteForceResults.offer(ComparablePair(it.tupleId, function(query, vector)!!))
                 }
             }
         }

@@ -1,9 +1,9 @@
 package org.vitrivr.cottontail.dbms.general
 
 import org.vitrivr.cottontail.dbms.exceptions.TxException
+import org.vitrivr.cottontail.dbms.execution.TransactionContext
 import org.vitrivr.cottontail.dbms.index.AbstractIndex
 import org.vitrivr.cottontail.dbms.locking.LockMode
-import org.vitrivr.cottontail.execution.TransactionContext
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.concurrent.read
 import kotlin.concurrent.write
@@ -14,7 +14,7 @@ import kotlin.concurrent.write
  * @author Ralph Gasser
  * @version 1.4.0
  */
-abstract class AbstractTx(override val context: TransactionContext) : Tx {
+abstract class AbstractTx(override val context: org.vitrivr.cottontail.dbms.execution.TransactionContext) : Tx {
     /** Flag indicating whether or not this [IndexTx] was closed */
     @Volatile
     final override var status: TxStatus = TxStatus.CLEAN

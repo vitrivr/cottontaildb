@@ -6,7 +6,7 @@ import org.vitrivr.cottontail.dbms.general.Placeholder
 import org.vitrivr.cottontail.dbms.general.PlaceholderType
 import org.vitrivr.cottontail.dbms.schema.DefaultSchema
 import org.vitrivr.cottontail.dbms.statistics.entity.EntityStatistics
-import org.vitrivr.cottontail.execution.TransactionContext
+import org.vitrivr.cottontail.dbms.execution.TransactionContext
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
 import java.nio.file.Path
@@ -30,7 +30,7 @@ class PlaceholderEntity(override val path: Path, override val parent: DefaultSch
     override val version: DBOVersion
         get() = this.parent.version
 
-    override fun newTx(context: TransactionContext): EntityTx {
+    override fun newTx(context: org.vitrivr.cottontail.dbms.execution.TransactionContext): EntityTx {
         throw UnsupportedOperationException("Broken entity ${this.name} cannot be used to start a new transaction.")
     }
 

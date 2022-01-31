@@ -7,10 +7,10 @@ import org.vitrivr.cottontail.TestConstants
 import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
+import org.vitrivr.cottontail.dbms.execution.TransactionManager
+import org.vitrivr.cottontail.dbms.execution.TransactionType
 import org.vitrivr.cottontail.dbms.schema.DefaultSchema
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
-import org.vitrivr.cottontail.execution.TransactionManager
-import org.vitrivr.cottontail.execution.TransactionType
 import org.vitrivr.cottontail.utilities.io.TxFileUtilities
 import java.nio.file.Files
 
@@ -40,7 +40,7 @@ class CatalogueTest {
     private val catalogue: DefaultCatalogue = DefaultCatalogue(this.config)
 
     /** The [TransactionManager] used for this [CatalogueTest] instance. */
-    private val manager = TransactionManager(
+    private val manager = org.vitrivr.cottontail.dbms.execution.TransactionManager(
         this.config.execution.transactionTableSize,
         this.config.execution.transactionHistorySize
     )

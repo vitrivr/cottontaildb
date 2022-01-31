@@ -4,12 +4,14 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
+import org.vitrivr.cottontail.core.queries.functions.Function
+import org.vitrivr.cottontail.core.queries.functions.Signature
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
 
 /**
- * A context for late binding of values. Late binding is used during query planning or execution, e.g., when
- * literal values are replaced upon re-use of a query plan or when values used in query execution are dynamically loaded.
+ * A context that manages different types of [Binding]s for binding of [Value]. [Binding]s are used during query planning
+ * and execution as proxies for values (either literal or computed).
  *
  * The [BindingContext] class is NOT thread-safe. When concurrently executing part of a query plan, different copies of
  * the [BindingContext] should be created and used.
@@ -25,10 +27,13 @@ class DefaultBindingContext(startSize: Int = 100) : BindingContext {
     /** List of bound [Value]s used to resolve [Binding.Column] in this [BindingContext]. */
     private val boundColumns = Object2ObjectOpenHashMap<ColumnDef<*>, Value?>()
 
+    /** List of bound [Function]s used to resolve [Binding.Function] in this [BindingContext]. */
+    private val boundFunctions = Object2ObjectOpenHashMap<Signature.Closed<*>, Array<Value?>>()
+
     /**
-     * Returns the [Value] for the given [Binding].
+     * Returns the [Value] for the given [Binding.Literal].
      *
-     * @param binding The [Binding] to lookup.
+     * @param binding The [Binding.Literal] to lookup.
      * @return The bound [Value].
      */
     override operator fun get(binding: Binding.Literal): Value? {
@@ -37,7 +42,7 @@ class DefaultBindingContext(startSize: Int = 100) : BindingContext {
     }
 
     /**
-     * Returns the [Value] for the given [Binding].
+     * Returns the [Value] for the given [Binding.Column].
      *
      * @param binding The [Binding] to lookup.
      * @return The bound [Value].
@@ -45,6 +50,21 @@ class DefaultBindingContext(startSize: Int = 100) : BindingContext {
     override operator fun get(binding: Binding.Column): Value? {
         require(binding.context == this) { "The given binding $binding has not been registered with this binding context." }
         return this.boundColumns[binding.column]
+    }
+
+    /**
+     * Returns the [Value] for the given [Binding.Function].
+     *
+     * @param binding The [Binding] to lookup.
+     * @return The bound [Value].
+     */
+    override operator fun get(binding: Binding.Function): Value? {
+        require(binding.context == this) { "The given binding $binding has not been registered with this binding context." }
+        val arguments = this.boundFunctions[binding.function.signature] ?: throw IllegalStateException("No arguments array registered for function ${binding.function}.")
+        for ((i,a) in binding.arguments.withIndex()) {
+            arguments[i] = a.value
+        }
+        return binding.function(*arguments)
     }
 
     /**
@@ -74,6 +94,28 @@ class DefaultBindingContext(startSize: Int = 100) : BindingContext {
     }
 
     /**
+     * Creates and returns a [Binding.Column] for the given [ColumnDef].
+     *
+     * @param column The [ColumnDef] to bind.
+     * @return [Binding.Column]
+     */
+    override fun bind(column: ColumnDef<*>): Binding.Column =  Binding.Column(column, this)
+
+
+    /**
+     * Creates and returns a [Binding.Function] for the given [Function] invocation
+     *
+     * @param function The [Function] to bind.
+     * @param arguments The list of argument [Binding]s for the [Function] invocation
+     * @return [Binding.Function]
+     */
+    override fun bind(function: Function<*>, arguments: List<Binding>): Binding.Function {
+        check(arguments.all { it.context == this }) { "Failed to create function binding. Cannot combine function call with arguments from different cntext."}
+        this.boundFunctions.putIfAbsent(function.signature, arrayOfNulls(arguments.size))
+        return Binding.Function(function, arguments, this)
+    }
+
+    /**
      * Updates the [Value] for a [Binding.Literal].
      *
      * @param binding The [Binding.Literal] to update.
@@ -98,14 +140,6 @@ class DefaultBindingContext(startSize: Int = 100) : BindingContext {
         require((value == null && binding.column.nullable) || (value != null && binding.type.compatible(value))) { "Value $value cannot be bound to $binding because of type mismatch (${binding.column}."}
         this.boundColumns[binding.column] = value
     }
-
-    /**
-     * Creates and returns a [Binding] for the given [ColumnDef].
-     *
-     * @param column The [ColumnDef] to bind.
-     * @return [Binding.Column]
-     */
-    override fun bind(column: ColumnDef<*>): Binding.Column =  Binding.Column(column, this)
 
     /**
      * Creates a copy of this [DefaultBindingContext].

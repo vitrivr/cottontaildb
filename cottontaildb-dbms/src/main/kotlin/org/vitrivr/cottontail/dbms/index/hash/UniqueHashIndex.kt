@@ -13,7 +13,7 @@ import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
-import org.vitrivr.cottontail.execution.TransactionContext
+import org.vitrivr.cottontail.dbms.execution.TransactionContext
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.dbms.exceptions.TxException
@@ -89,12 +89,12 @@ class UniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path, p
      *
      * @param context [TransactionContext] to open the [AbstractIndex.Tx] for.
      */
-    override fun newTx(context: TransactionContext): IndexTx = Tx(context)
+    override fun newTx(context: org.vitrivr.cottontail.dbms.execution.TransactionContext): IndexTx = Tx(context)
 
     /**
      * An [IndexTx] that affects this [UniqueHashIndex].
      */
-    private inner class Tx(context: TransactionContext) : AbstractIndex.Tx(context) {
+    private inner class Tx(context: org.vitrivr.cottontail.dbms.execution.TransactionContext) : AbstractIndex.Tx(context) {
 
         /**
          * Adds a mapping from the given [Value] to the given [TupleId].

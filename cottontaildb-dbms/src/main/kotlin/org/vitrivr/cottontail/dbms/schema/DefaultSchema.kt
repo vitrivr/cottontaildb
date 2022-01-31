@@ -14,9 +14,9 @@ import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.exceptions.TxException
+import org.vitrivr.cottontail.dbms.execution.TransactionContext
 import org.vitrivr.cottontail.dbms.general.*
 import org.vitrivr.cottontail.dbms.locking.LockMode
-import org.vitrivr.cottontail.execution.TransactionContext
 import org.vitrivr.cottontail.utilities.extensions.write
 import org.vitrivr.cottontail.utilities.io.TxFileUtilities
 import java.io.IOException
@@ -117,7 +117,7 @@ class DefaultSchema(override val path: Path, override val parent: Catalogue) : S
      * @param context The [TransactionContext] to create the [DefaultSchema.Tx] for.
      * @return New [DefaultSchema.Tx]
      */
-    override fun newTx(context: TransactionContext) = this.Tx(context)
+    override fun newTx(context: org.vitrivr.cottontail.dbms.execution.TransactionContext) = this.Tx(context)
 
     /**
      * Closes this [DefaultSchema] and all the [DefaultEntity] objects that are contained within.
@@ -142,7 +142,7 @@ class DefaultSchema(override val path: Path, override val parent: Catalogue) : S
      * @author Ralph Gasser
      * @version 2.0.0
      */
-    inner class Tx(context: TransactionContext) : AbstractTx(context), SchemaTx {
+    inner class Tx(context: org.vitrivr.cottontail.dbms.execution.TransactionContext) : AbstractTx(context), SchemaTx {
 
         /** Obtains a global (non-exclusive) read-lock on [DefaultSchema]. Prevents enclosing [DefaultSchema] from being closed. */
         private val closeStamp = this@DefaultSchema.closeLock.readLock()

@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.dbms.general
 
-import org.vitrivr.cottontail.execution.TransactionContext
+import org.vitrivr.cottontail.dbms.execution.TransactionContext
 
 /**
  * An object that acts as unit of isolation for accesses (read/write) to the underlying [DBO].
@@ -21,7 +21,7 @@ interface Tx {
     val dbo: DBO
 
     /** [TransactionContext] this [Tx] takes place in. */
-    val context: TransactionContext
+    val context: org.vitrivr.cottontail.dbms.execution.TransactionContext
 
     /** The [TxSnapshot] that captures changes made through this [Tx] that may not yet be visible to the surrounding [DBO]. */
     val snapshot: TxSnapshot

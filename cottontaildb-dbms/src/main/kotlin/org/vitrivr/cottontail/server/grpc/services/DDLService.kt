@@ -6,11 +6,10 @@ import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.column.ColumnEngine
+import org.vitrivr.cottontail.dbms.execution.operators.definition.*
+import org.vitrivr.cottontail.dbms.execution.operators.sort.HeapSortOperator
 import org.vitrivr.cottontail.dbms.index.IndexType
 import org.vitrivr.cottontail.dbms.queries.sort.SortOrder
-import org.vitrivr.cottontail.execution.TransactionManager
-import org.vitrivr.cottontail.execution.operators.definition.*
-import org.vitrivr.cottontail.execution.operators.sort.HeapSortOperator
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.grpc.DDLGrpcKt
 import org.vitrivr.cottontail.utilities.extensions.fqn
@@ -23,7 +22,7 @@ import kotlin.time.ExperimentalTime
  * @version 2.2.0
  */
 @ExperimentalTime
-class DDLService(override val catalogue: DefaultCatalogue, override val manager: TransactionManager) : DDLGrpcKt.DDLCoroutineImplBase(), TransactionalGrpcService {
+class DDLService(override val catalogue: DefaultCatalogue, override val manager: org.vitrivr.cottontail.dbms.execution.TransactionManager) : DDLGrpcKt.DDLCoroutineImplBase(), TransactionalGrpcService {
 
     /**
      * gRPC endpoint for creating a new [org.vitrivr.cottontail.dbms.schema.Schema]

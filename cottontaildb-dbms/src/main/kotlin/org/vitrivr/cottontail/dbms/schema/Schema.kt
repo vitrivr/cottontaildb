@@ -4,7 +4,7 @@ import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.column.Column
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.general.DBO
-import org.vitrivr.cottontail.execution.TransactionContext
+import org.vitrivr.cottontail.dbms.execution.TransactionContext
 import org.vitrivr.cottontail.core.database.Name
 import java.nio.file.Path
 
@@ -42,7 +42,7 @@ interface Schema : DBO {
      * @param context The [TransactionContext] to create the [Schema.Tx] for.
      * @return New [SchemaTx]
      */
-    override fun newTx(context: TransactionContext): SchemaTx
+    override fun newTx(context: org.vitrivr.cottontail.dbms.execution.TransactionContext): SchemaTx
 
     /**
      * Closes this [Schema] and all the [Entity] objects that are contained within.

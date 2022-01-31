@@ -3,7 +3,7 @@ package org.vitrivr.cottontail.server.grpc
 import io.grpc.ServerBuilder
 import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
-import org.vitrivr.cottontail.execution.TransactionManager
+import org.vitrivr.cottontail.dbms.execution.TransactionManager
 import org.vitrivr.cottontail.server.grpc.services.DDLService
 import org.vitrivr.cottontail.server.grpc.services.DMLService
 import org.vitrivr.cottontail.server.grpc.services.DQLService
@@ -25,7 +25,7 @@ class CottontailGrpcServer(val config: Config) {
     private val executor = this.config.execution.newExecutor()
 
     /** The [TransactionManager] used by this [CottontailGrpcServer] instance. */
-    private val transactionManager: TransactionManager = TransactionManager(this.config.execution.transactionTableSize, this.config.execution.transactionHistorySize)
+    private val transactionManager: org.vitrivr.cottontail.dbms.execution.TransactionManager = org.vitrivr.cottontail.dbms.execution.TransactionManager(this.config.execution.transactionTableSize, this.config.execution.transactionHistorySize)
 
     /** The [DefaultCatalogue] instance used by this [CottontailGrpcServer]. */
     val catalogue = DefaultCatalogue(this.config)

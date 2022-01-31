@@ -1,11 +1,10 @@
 package org.vitrivr.cottontail.dbms.queries.planning.rules.logical
 
-import org.vitrivr.cottontail.dbms.queries.planning.nodes.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.QueryContext
-import org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.BinaryLogicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.NAryLogicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.UnaryLogicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.planning.nodes.logical.transform.FetchLogicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.logical.NAryLogicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.logical.UnaryLogicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.logical.transform.FetchLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
 
 /**
@@ -15,13 +14,13 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
  * @version 1.2.0
  */
 object DeferFetchOnFetchRewriteRule : RewriteRule {
-    override fun canBeApplied(node: OperatorNode): Boolean = node is FetchLogicalOperatorNode
-    override fun apply(node: OperatorNode, ctx: QueryContext): OperatorNode? {
+    override fun canBeApplied(node: org.vitrivr.cottontail.dbms.queries.operators.OperatorNode): Boolean = node is FetchLogicalOperatorNode
+    override fun apply(node: org.vitrivr.cottontail.dbms.queries.operators.OperatorNode, ctx: QueryContext): org.vitrivr.cottontail.dbms.queries.operators.OperatorNode? {
         if (node is FetchLogicalOperatorNode) {
             /* Copy tree up and until the fetch operation; append reduced FetchLogicalOperatorNode if not fetching of all nodes can be deferred. */
             val candidates = node.fetch.map { it.first to it.second }.toMutableList()
             val originalGroupId = node.groupId
-            var copy: OperatorNode.Logical = node.input!!.copyWithInputs()
+            var copy: org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Logical = node.input!!.copyWithInputs()
 
             /* Check for early abort; if next node requires all candidates. */
             if (candidates.all { node.output?.requires?.contains(it.first.column) == true }) {
@@ -29,7 +28,7 @@ object DeferFetchOnFetchRewriteRule : RewriteRule {
             }
 
             /* Traverse tree and push down FetchLogicalOperatorNode. */
-            var next: OperatorNode.Logical? = node.output
+            var next: org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Logical? = node.output
             while (next != null && next.groupId == originalGroupId) {
                 /* Append FetchLogicalOperatorNode for columns required by next element. */
                 val required = candidates.filter { it.first.column in next!!.requires }
@@ -65,13 +64,13 @@ object DeferFetchOnFetchRewriteRule : RewriteRule {
      * @param next [OperatorNode.Logical]
      * @return [OperatorNode] that is the new current.
      */
-    private fun append(current: OperatorNode.Logical, next: OperatorNode.Logical): OperatorNode.Logical = when (next) {
+    private fun append(current: org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Logical, next: org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Logical): org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Logical = when (next) {
         is UnaryLogicalOperatorNode -> {
             val p = next.copy()
             p.input = current
             p
         }
-        is BinaryLogicalOperatorNode -> {
+        is org.vitrivr.cottontail.dbms.queries.operators.logical.BinaryLogicalOperatorNode -> {
             val p = next.copy()
             p.left = current
             p.right = next.right?.copyWithInputs()

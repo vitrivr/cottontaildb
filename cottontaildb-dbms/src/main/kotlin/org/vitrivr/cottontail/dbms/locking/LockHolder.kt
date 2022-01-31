@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.dbms.locking
 
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet
-import org.vitrivr.cottontail.execution.TransactionManager.TransactionImpl
+import org.vitrivr.cottontail.dbms.execution.TransactionManager.TransactionImpl
 import org.vitrivr.cottontail.core.database.TransactionId
 
 /**

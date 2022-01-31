@@ -12,9 +12,9 @@ import org.vitrivr.cottontail.client.language.basics.Constants
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.locking.DeadlockException
 import org.vitrivr.cottontail.dbms.queries.QueryContext
-import org.vitrivr.cottontail.execution.TransactionManager
-import org.vitrivr.cottontail.execution.TransactionType
-import org.vitrivr.cottontail.execution.operators.basics.Operator
+import org.vitrivr.cottontail.dbms.execution.TransactionManager
+import org.vitrivr.cottontail.dbms.execution.TransactionType
+import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
@@ -42,7 +42,7 @@ internal interface TransactionalGrpcService {
     val catalogue: Catalogue
 
     /** The [TransactionManager] instance used by this [TransactionalGrpcService]. */
-    val manager: TransactionManager
+    val manager: org.vitrivr.cottontail.dbms.execution.TransactionManager
 
     /**
      * Generates and returns a new [QueryContext] for the given [CottontailGrpc.Metadata].

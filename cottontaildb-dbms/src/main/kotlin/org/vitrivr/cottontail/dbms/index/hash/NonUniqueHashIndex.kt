@@ -16,7 +16,7 @@ import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
-import org.vitrivr.cottontail.execution.TransactionContext
+import org.vitrivr.cottontail.dbms.execution.TransactionContext
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.dbms.exceptions.TxException
@@ -111,12 +111,12 @@ class NonUniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path
      *
      * @param context If the [TransactionContext] to create the [IndexTx] for..
      */
-    override fun newTx(context: TransactionContext): IndexTx = Tx(context)
+    override fun newTx(context: org.vitrivr.cottontail.dbms.execution.TransactionContext): IndexTx = Tx(context)
 
     /**
      * An [IndexTx] that affects this [NonUniqueHashIndex].
      */
-    private inner class Tx(context: TransactionContext) : AbstractIndex.Tx(context) {
+    private inner class Tx(context: org.vitrivr.cottontail.dbms.execution.TransactionContext) : AbstractIndex.Tx(context) {
 
         /** The default [TxSnapshot] of this [IndexTx]. Can be overriden! */
         override val snapshot = object : TxSnapshot {
