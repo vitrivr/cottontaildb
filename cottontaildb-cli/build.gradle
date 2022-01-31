@@ -32,3 +32,9 @@ idea {
 //// Change name for distribution to C(arrot)LI.
 distZip.archiveFileName = 'cottontaildb-cli.zip'
 distTar.archiveFileName = 'cottontaildb-cli.tar'
+
+startScripts {
+    doLast {
+        windowsScript.text = windowsScript.text.replaceAll('set CLASSPATH=.*', 'set CLASSPATH=.;%APP_HOME%/lib/*')
+    }
+}
