@@ -93,7 +93,7 @@ class ImportDataCommand(client: SimpleClient) : AbstractCottontailCommand.Entity
             if (it.asString(1) == "COLUMN") {
                 columns.add(
                     ColumnDef(
-                        name = Name.ColumnName(*it.asString(0)!!.split(Name.NAME_COMPONENT_DELIMITER).toTypedArray()),
+                        name = Name.ColumnName(it.asString(0)!!.split(Name.NAME_COMPONENT_DELIMITER).toTypedArray()),
                         type = Types.forName(it.asString(2)!!, it.asInt(4)!!),
                         nullable =  it.asBoolean(5)!!
                     )
