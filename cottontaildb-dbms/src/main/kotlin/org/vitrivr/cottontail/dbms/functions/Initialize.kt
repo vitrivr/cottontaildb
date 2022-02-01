@@ -3,8 +3,7 @@ package org.vitrivr.cottontail.dbms.functions
 import org.vitrivr.cottontail.core.queries.functions.Function
 import org.vitrivr.cottontail.core.queries.functions.FunctionRegistry
 import org.vitrivr.cottontail.core.queries.functions.math.VectorDistance
-import org.vitrivr.cottontail.dbms.functions.math.arithmetics.scalar.Maximum
-import org.vitrivr.cottontail.dbms.functions.math.arithmetics.scalar.Minimum
+import org.vitrivr.cottontail.dbms.functions.math.arithmetics.scalar.*
 import org.vitrivr.cottontail.dbms.functions.math.distance.binary.*
 import org.vitrivr.cottontail.dbms.functions.math.distance.other.HyperplaneDistance
 import org.vitrivr.cottontail.dbms.functions.math.distance.ternary.WeightedManhattanDistance
@@ -25,10 +24,17 @@ fun FunctionRegistry.initialize() {
  * Registers default arithmetics functions.
  */
 private fun FunctionRegistry.initializeArithmetics() {
+    this.register(Addition)
+    this.register(Subtraction)
+    this.register(Multiplication)
+    this.register(Division)
     this.register(Maximum)
     this.register(Minimum)
+
+    /** Vector arithmetics. */
     this.register(org.vitrivr.cottontail.dbms.functions.math.arithmetics.vector.Maximum)
     this.register(org.vitrivr.cottontail.dbms.functions.math.arithmetics.vector.Minimum)
+    this.register(org.vitrivr.cottontail.dbms.functions.math.arithmetics.vector.Sum)
 }
 
 /**

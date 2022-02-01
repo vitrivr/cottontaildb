@@ -12,23 +12,21 @@ import org.vitrivr.cottontail.core.values.IntValue
 import org.vitrivr.cottontail.core.values.LongValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
-import kotlin.math.max
 
 /**
- * A [Function] to calculate the maximum of two scalar values.
+ * A [Function] to multiply two scalar values.
  *
  * @author Ralph Gasser
  * @version 1.0.0
  */
-sealed class Maximum<T : Value>(val type: Types<T>): Function<T> {
-
+sealed class Multiplication<T: Value>(val type: Types<T>): Function<T> {
     companion object: FunctionGenerator<Value> {
-        private val FUNCTION_NAME = Name.FunctionName("max")
+        private val FUNCTION_NAME = Name.FunctionName("mul")
 
         override val signature: Signature.Open
             get() = Signature.Open(FUNCTION_NAME, arrayOf(Argument.Numeric, Argument.Numeric))
 
-        override fun obtain(signature: Signature.SemiClosed): Maximum<*> {
+        override fun obtain(signature: Signature.SemiClosed): Multiplication<*> {
             check(Companion.signature.collides(signature)) { "Provided signature $signature is incompatible with generator signature ${Companion.signature}. This is a programmer's error!"  }
             return when(signature.arguments[0].type) {
                 is Types.Int  -> Int()
@@ -57,46 +55,46 @@ sealed class Maximum<T : Value>(val type: Types<T>): Function<T> {
     override val signature: Signature.Closed<T> = Signature.Closed(FUNCTION_NAME, arrayOf(this.type, this.type), this.type)
 
     /**
-     * [Maximum] for a [IntValue].
+     * Multiplication of two [IntValue].
      */
-    class Int: Maximum<IntValue>(Types.Int) {
+    class Int: Multiplication<IntValue>(Types.Int) {
         override fun invoke(vararg arguments: Value?): IntValue {
             val left = arguments[0] as IntValue
             val right = arguments[1] as IntValue
-            return IntValue(max(left.value, right.value))
+            return IntValue(left.value * right.value)
         }
     }
 
     /**
-     * [Maximum] for a [LongValue].
+     * Multiplication of two [LongValue].
      */
-    class Long: Maximum<LongValue>(Types.Long)  {
+    class Long: Multiplication<LongValue>(Types.Long)  {
         override fun invoke(vararg arguments: Value?): LongValue {
             val left = arguments[0] as LongValue
             val right = arguments[1] as LongValue
-            return LongValue(max(left.value, right.value))
+            return LongValue(left.value * right.value)
         }
     }
 
     /**
-     * [Maximum] for a [FloatValue].
+     * Multiplication of two [FloatValue].
      */
-    class Float: Maximum<FloatValue>(Types.Float) {
+    class Float: Multiplication<FloatValue>(Types.Float) {
         override fun invoke(vararg arguments: Value?): FloatValue {
             val left = arguments[0] as FloatValue
             val right = arguments[1] as FloatValue
-            return FloatValue(max(left.value, right.value))
+            return FloatValue(left.value * right.value)
         }
     }
 
     /**
-     * (Element-wise) [Maximum] for a [IntValue].
+     * Multiplication of two [IntValue]s.
      */
-    class Double: Maximum<DoubleValue>(Types.Double) {
+    class Double: Multiplication<DoubleValue>(Types.Double) {
         override fun invoke(vararg arguments: Value?): DoubleValue {
             val left = arguments[0] as DoubleValue
             val right = arguments[1] as DoubleValue
-            return DoubleValue(max(left.value, right.value))
+            return DoubleValue(left.value * right.value)
         }
     }
 }

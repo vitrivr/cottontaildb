@@ -1,21 +1,21 @@
 package org.vitrivr.cottontail.dbms.functions.math.arithmetics.scalar
 
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.queries.functions.exception.FunctionNotSupportedException
-import org.vitrivr.cottontail.core.queries.functions.math.VectorDistance
-import org.vitrivr.cottontail.core.queries.functions.*
+import org.vitrivr.cottontail.core.queries.functions.Argument
 import org.vitrivr.cottontail.core.queries.functions.Function
+import org.vitrivr.cottontail.core.queries.functions.FunctionGenerator
+import org.vitrivr.cottontail.core.queries.functions.Signature
+import org.vitrivr.cottontail.core.queries.functions.exception.FunctionNotSupportedException
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.FloatValue
 import org.vitrivr.cottontail.core.values.IntValue
 import org.vitrivr.cottontail.core.values.LongValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
-import org.vitrivr.cottontail.core.values.types.VectorValue
 import kotlin.math.min
 
 /**
- * A [VectorDistance] implementation to calculate the Chi^2 distance between two [VectorValue]s.
+ * A [Function] to calculate the minimum of two scalar values.
  *
  * @author Ralph Gasser
  * @version 1.0.0
