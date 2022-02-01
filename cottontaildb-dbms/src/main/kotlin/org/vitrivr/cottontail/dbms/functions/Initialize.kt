@@ -32,6 +32,9 @@ private fun FunctionRegistry.initializeArithmetics() {
     this.register(Minimum)
 
     /** Vector arithmetics. */
+    this.register(org.vitrivr.cottontail.dbms.functions.math.arithmetics.vector.Addition)
+    this.register(org.vitrivr.cottontail.dbms.functions.math.arithmetics.vector.Subtraction)
+    this.register(org.vitrivr.cottontail.dbms.functions.math.arithmetics.vector.Multiplication)
     this.register(org.vitrivr.cottontail.dbms.functions.math.arithmetics.vector.Maximum)
     this.register(org.vitrivr.cottontail.dbms.functions.math.arithmetics.vector.Minimum)
     this.register(org.vitrivr.cottontail.dbms.functions.math.arithmetics.vector.Sum)
