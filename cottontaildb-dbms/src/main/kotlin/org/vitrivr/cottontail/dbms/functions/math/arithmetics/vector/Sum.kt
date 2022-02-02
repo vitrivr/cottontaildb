@@ -24,7 +24,7 @@ sealed class Sum<T : NumericValue<*>>(val type: Types.Vector<*,T>): Function<T> 
         private val FUNCTION_NAME = Name.FunctionName("vsum")
 
         override val signature: Signature.Open
-            get() = Signature.Open(FUNCTION_NAME, arrayOf(Argument.Vector, Argument.Vector))
+            get() = Signature.Open(FUNCTION_NAME, arrayOf(Argument.Vector))
 
         override fun obtain(signature: Signature.SemiClosed): Sum<*> {
             check(Companion.signature.collides(signature)) { "Provided signature $signature is incompatible with generator signature ${Companion.signature}. This is a programmer's error!"  }
