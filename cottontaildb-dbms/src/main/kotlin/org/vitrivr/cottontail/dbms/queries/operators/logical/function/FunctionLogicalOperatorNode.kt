@@ -25,7 +25,7 @@ class FunctionLogicalOperatorNode(input: Logical? = null, val function: Binding.
 
     /** The [FunctionLogicalOperatorNode] requires all [ColumnDef] used in the [Function]. */
     override val requires: List<ColumnDef<*>>
-        get() = this.function.arguments.filterIsInstance<Binding.Column>().map { it.column }
+        get() = this.function.requiredColumns()
 
     /** [FunctionLogicalOperatorNode] can only be executed if [Function] can be executed. */
     override val executable: Boolean

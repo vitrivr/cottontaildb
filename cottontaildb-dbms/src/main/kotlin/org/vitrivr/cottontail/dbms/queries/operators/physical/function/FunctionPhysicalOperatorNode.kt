@@ -28,7 +28,7 @@ class FunctionPhysicalOperatorNode(input: Physical? = null, val function: Bindin
 
     /** The [FunctionPhysicalOperatorNode] requires all [ColumnDef] used in the [Function]. */
     override val requires: List<ColumnDef<*>>
-        get() = this.function.arguments.filterIsInstance<Binding.Column>().map { it.column }
+        get() = this.function.requiredColumns()
 
     /**The [FunctionPhysicalOperatorNode] cannot be partitioned. */
     override val canBePartitioned: Boolean = true
@@ -94,4 +94,6 @@ class FunctionPhysicalOperatorNode(input: Physical? = null, val function: Bindin
 
     /** Generates and returns a [String] representation of this [FunctionOperator]. */
     override fun toString() =  "${super.toString()}[${this.function.function.signature} -> ${this.out.column.name}]"
+
+
 }

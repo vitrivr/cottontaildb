@@ -75,7 +75,7 @@ sealed interface Binding: Node {
 
         init {
             this.function.signature.arguments.forEachIndexed {  i, arg ->
-                check(arg.type == this.arguments[i].type) { "Type ${this.arguments[i].type} of $i-th argument binding is incompatible with function ${function.signature}'s return type." }
+                check(arg.type == this.arguments[i].type) { "Type ${this.arguments[i].type} of argument $i is incompatible with function ${function.signature}." }
             }
         }
 
@@ -92,5 +92,20 @@ sealed interface Binding: Node {
         }
         override fun update(value: Value?) = throw UnsupportedOperationException("Cannot explicitly update the value of a function binding.")
         override fun toString(): String = "${this.function.signature}"
+
+        /**
+         * Tries to resolve all [ColumnDef] that are required by this [Binding.Function] and possible sub-functions.
+         *
+         * @return List of required [ColumnDef].
+         */
+        fun requiredColumns(): List<ColumnDef<*>> = this.arguments.flatMap {
+            val columns = mutableSetOf<ColumnDef<*>>()
+            when (it) {
+                is Column -> columns.add(it.column)
+                is Function -> columns.addAll(it.requiredColumns())
+                else -> {}
+            }
+            columns.toList()
+        }
     }
 }
