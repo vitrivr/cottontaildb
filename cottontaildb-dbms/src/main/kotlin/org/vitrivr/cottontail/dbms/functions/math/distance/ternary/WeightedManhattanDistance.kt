@@ -1,18 +1,21 @@
 package org.vitrivr.cottontail.dbms.functions.math.distance.ternary
 
-import org.vitrivr.cottontail.core.queries.planning.cost.Cost
-import org.vitrivr.cottontail.core.queries.functions.exception.FunctionNotSupportedException
-import org.vitrivr.cottontail.core.queries.functions.math.WeightedVectorDistance
-import org.vitrivr.cottontail.dbms.functions.math.distance.binary.ManhattanDistance
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.functions.Argument
-import org.vitrivr.cottontail.core.queries.functions.Function
 import org.vitrivr.cottontail.core.queries.functions.FunctionGenerator
 import org.vitrivr.cottontail.core.queries.functions.Signature
+import org.vitrivr.cottontail.core.queries.functions.exception.FunctionNotSupportedException
+import org.vitrivr.cottontail.core.queries.functions.math.WeightedVectorDistance
+import org.vitrivr.cottontail.core.queries.planning.cost.Cost
+import org.vitrivr.cottontail.core.values.DoubleValue
+import org.vitrivr.cottontail.core.values.DoubleVectorValue
+import org.vitrivr.cottontail.core.values.FloatValue
+import org.vitrivr.cottontail.core.values.FloatVectorValue
+import org.vitrivr.cottontail.core.values.types.NumericValue
 import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.core.values.*
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.core.values.types.VectorValue
+import org.vitrivr.cottontail.dbms.functions.math.distance.binary.ManhattanDistance
 import kotlin.math.absoluteValue
 
 /**
@@ -21,24 +24,25 @@ import kotlin.math.absoluteValue
  * @author Ralph Gasser
  * @version 1.1.0
  */
-sealed class WeightedManhattanDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): WeightedVectorDistance<T>(type) {
+sealed class WeightedManhattanDistance<R: NumericValue<*>, T : VectorValue<*>>(type: Types.Vector<T,R>): WeightedVectorDistance<R,T>(type) {
 
     /**
      * The [FunctionGenerator] for the [WeightedManhattanDistance].
      */
-    companion object: FunctionGenerator<DoubleValue> {
+    companion object: FunctionGenerator<NumericValue<*>> {
         val FUNCTION_NAME = Name.FunctionName("manhattanw")
 
         override val signature: Signature.Open
             get() = Signature.Open(FUNCTION_NAME, arrayOf(Argument.Vector, Argument.Vector, Argument.Vector))
 
-        override fun obtain(signature: Signature.SemiClosed): Function<DoubleValue> {
+        override fun obtain(signature: Signature.SemiClosed): WeightedVectorDistance<*,*> {
             check(Companion.signature.collides(signature)) { "Provided signature $signature is incompatible with generator signature ${Companion.signature}. This is a programmer's error!"  }
+            if (!signature.arguments.all { it.type == signature.arguments[0].type }) { /* Only if all arguments have the same type, there is an actual match. */
+                throw FunctionNotSupportedException("Function generator ${Companion.signature} cannot generate function with signature $signature.")
+            }
             return when(val type = signature.arguments[0].type) {
                 is Types.DoubleVector -> DoubleVector(type)
                 is Types.FloatVector -> FloatVector(type)
-                is Types.LongVector -> LongVector(type)
-                is Types.IntVector -> IntVector(type)
                 else -> throw FunctionNotSupportedException("Function generator ${Companion.signature} cannot generate function with signature $signature.")
             }
         }
@@ -47,9 +51,7 @@ sealed class WeightedManhattanDistance<T : VectorValue<*>>(type: Types.Vector<T,
             if (Companion.signature != signature) throw FunctionNotSupportedException("Function generator ${Companion.signature} cannot generate function with signature $signature.")
             return listOf(
                 DoubleVector(Types.DoubleVector(1)).signature,
-                FloatVector(Types.FloatVector(1)).signature,
-                LongVector(Types.LongVector(1)).signature,
-                IntVector(Types.IntVector(1)).signature
+                FloatVector(Types.FloatVector(1)).signature
             )
         }
     }
@@ -62,7 +64,7 @@ sealed class WeightedManhattanDistance<T : VectorValue<*>>(type: Types.Vector<T,
     /**
      * [WeightedManhattanDistance] for a [DoubleVectorValue].
      */
-    class DoubleVector(type: Types.Vector<DoubleVectorValue,*>): WeightedManhattanDistance<DoubleVectorValue>(type) {
+    class DoubleVector(type: Types.Vector<DoubleVectorValue,DoubleValue>): WeightedManhattanDistance<DoubleValue,DoubleVectorValue>(type) {
         override val name: Name.FunctionName = FUNCTION_NAME
         override fun invoke(vararg arguments: Value?): DoubleValue {
             val probing = arguments[0] as DoubleVectorValue
@@ -81,54 +83,18 @@ sealed class WeightedManhattanDistance<T : VectorValue<*>>(type: Types.Vector<T,
     /**
      * [WeightedManhattanDistance] for a [FloatVectorValue].
      */
-    class FloatVector(type: Types.Vector<FloatVectorValue,*>): WeightedManhattanDistance<FloatVectorValue>(type) {
+    class FloatVector(type: Types.Vector<FloatVectorValue,FloatValue>): WeightedManhattanDistance<FloatValue,FloatVectorValue>(type) {
         override val name: Name.FunctionName = FUNCTION_NAME
-        override fun invoke(vararg arguments: Value?): DoubleValue {
+        override fun invoke(vararg arguments: Value?): FloatValue {
             val probing = arguments[0] as FloatVectorValue
             val query = arguments[1] as FloatVectorValue
             val weight = arguments[2] as FloatVectorValue
-            var sum = 0.0
+            var sum = 0.0f
             for (i in query.data.indices) {
                 sum += (query.data[i] - probing.data[i]).absoluteValue * weight.data[i]
             }
-            return DoubleValue(sum)
+            return FloatValue(sum)
         }
         override fun copy(d: Int) = FloatVector(Types.FloatVector(d))
-    }
-
-    /**
-     * [WeightedManhattanDistance] for a [LongVectorValue].
-     */
-    class LongVector(type: Types.Vector<LongVectorValue,*>): WeightedManhattanDistance<LongVectorValue>(type) {
-        override val name: Name.FunctionName = FUNCTION_NAME
-        override fun invoke(vararg arguments: Value?): DoubleValue {
-            val probing = arguments[0] as LongVectorValue
-            val query = arguments[1] as LongVectorValue
-            val weight = arguments[2] as LongVectorValue
-            var sum = 0.0
-            for (i in query.data.indices) {
-                sum += (query.data[i] - probing.data[i]).absoluteValue * weight.data[i]
-            }
-            return DoubleValue(sum)
-        }
-        override fun copy(d: Int) = LongVector(Types.LongVector(d))
-    }
-
-    /**
-     * [WeightedManhattanDistance] for a [IntVectorValue].
-     */
-    class IntVector(type: Types.Vector<IntVectorValue,*>): WeightedManhattanDistance<IntVectorValue>(type) {
-        override val name: Name.FunctionName = FUNCTION_NAME
-        override fun invoke(vararg arguments: Value?): DoubleValue {
-            val probing = arguments[0] as IntVectorValue
-            val query = arguments[1] as IntVectorValue
-            val weight = arguments[2] as IntVectorValue
-            var sum = 0.0
-            for (i in query.data.indices) {
-                sum += (query.data[i] - probing.data[i]).absoluteValue * weight.data[i]
-            }
-            return DoubleValue(sum)
-        }
-        override fun copy(d: Int) = IntVector(Types.IntVector(d))
     }
 }
