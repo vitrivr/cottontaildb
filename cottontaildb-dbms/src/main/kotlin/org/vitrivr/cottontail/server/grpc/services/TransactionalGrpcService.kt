@@ -9,16 +9,16 @@ import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.transform
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.client.language.basics.Constants
+import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
-import org.vitrivr.cottontail.dbms.locking.DeadlockException
-import org.vitrivr.cottontail.dbms.queries.QueryContext
+import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
+import org.vitrivr.cottontail.dbms.exceptions.ExecutionException
 import org.vitrivr.cottontail.dbms.execution.TransactionManager
 import org.vitrivr.cottontail.dbms.execution.TransactionType
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
+import org.vitrivr.cottontail.dbms.locking.DeadlockException
+import org.vitrivr.cottontail.dbms.queries.QueryContext
 import org.vitrivr.cottontail.grpc.CottontailGrpc
-import org.vitrivr.cottontail.core.basics.Record
-import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.exceptions.ExecutionException
 import org.vitrivr.cottontail.utilities.extensions.proto
 import org.vitrivr.cottontail.utilities.extensions.toLiteral
 import java.util.*
@@ -125,33 +125,47 @@ internal interface TransactionalGrpcService {
                     if (context.txn.type.autoCommit) context.txn.commit() /* Handle auto-commit. */
                     LOGGER.info("[${context.txn.txId}, ${context.queryId}] Execution of ${context.physical?.name} completed successfully in ${m2.elapsedNow()}.")
                 } else {
-                    val e = context.toStatusException(it)
+                    val e = context.toStatusException(it, true)
                     if (context.txn.type.autoRollback) context.txn.rollback() /* Handle auto-rollback. */
                     LOGGER.error("[${context.txn.txId}, ${context.queryId}] Execution of ${context.physical?.name} failed: ${e.message}")
                     throw e
                 }
             }
         } catch (e: Throwable) {
-            LOGGER.error("[${context.txn.txId}, ${context.queryId}] Preparation of ${context.physical?.name} failed: ${e.message}")
+            LOGGER.error("[${context.txn.txId}, ${context.queryId}] Preparation of query failed: ${e.message}")
             if (context.txn.type.autoRollback) context.txn.rollback() /* Handle auto-rollback. */
-            return flow { throw context.toStatusException(e) }
+            return flow { throw context.toStatusException(e, false) }
         }
     }
 
-    fun QueryContext.toStatusException(e: Throwable): StatusException = when (e) {
-        is DatabaseException.SchemaDoesNotExistException,
-        is DatabaseException.EntityDoesNotExistException,
-        is DatabaseException.ColumnDoesNotExistException,
-        is DatabaseException.IndexDoesNotExistException -> Status.NOT_FOUND.withCause(e)
-        is DatabaseException.SchemaAlreadyExistsException,
-        is DatabaseException.EntityAlreadyExistsException,
-        is DatabaseException.IndexAlreadyExistsException -> Status.ALREADY_EXISTS.withCause(e)
-        is DeadlockException -> Status.ABORTED.withCause(e)
-        is ExecutionException,
-        is DatabaseException -> Status.INTERNAL.withCause(e)
-        is CancellationException -> Status.CANCELLED.withCause(e)
-        else -> Status.UNKNOWN.withCause(e)
-    }.withDescription("[${this.txn.txId}, ${this.queryId}] Execution of ${this.physical?.name} failed: ${e.message}").asException()
+    /**
+     *  Converts the provided [Throwable] to a [StatusException] that can be returned to the caller. The
+     *  exception will contain all the information about this [QueryContext].
+     *
+     *  @param e The [Throwable] to convert.
+     *  @param execution Flag indicating whether error occured during execution.
+     */
+    fun QueryContext.toStatusException(e: Throwable, execution: Boolean): StatusException {
+        val text = if (execution) {
+            "[${this.txn.txId}, ${this.queryId}] Execution of ${this.physical?.name} query failed: ${e.message}"
+        } else {
+            "[${this.txn.txId}, ${this.queryId}] Preparation of query failed: ${e.message}"
+        }
+        return when (e) {
+            is DatabaseException.SchemaDoesNotExistException,
+            is DatabaseException.EntityDoesNotExistException,
+            is DatabaseException.ColumnDoesNotExistException,
+            is DatabaseException.IndexDoesNotExistException -> Status.NOT_FOUND.withCause(e)
+            is DatabaseException.SchemaAlreadyExistsException,
+            is DatabaseException.EntityAlreadyExistsException,
+            is DatabaseException.IndexAlreadyExistsException -> Status.ALREADY_EXISTS.withCause(e)
+            is DeadlockException -> Status.ABORTED.withCause(e)
+            is ExecutionException,
+            is DatabaseException -> Status.INTERNAL.withCause(e)
+            is CancellationException -> Status.CANCELLED.withCause(e)
+            else -> Status.UNKNOWN.withCause(e)
+        }.withDescription(text).asException()
+    }
 
     /**
      * Converts a [Record] to a [CottontailGrpc.QueryResponseMessage.Tuple]
