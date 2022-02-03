@@ -33,34 +33,40 @@ class FetchPhysicalOperatorNode(input: Physical? = null, val entity: EntityTx, v
         get() = NODE_NAME
 
     /** The [FetchPhysicalOperatorNode] accesses the [ColumnDef] of its input + the columns to be fetched. */
-    override val physicalColumns: List<ColumnDef<*>> = super.physicalColumns + this.fetch.map { it.second }
+    override val physicalColumns: List<ColumnDef<*>>
+        get() = super.physicalColumns + this.fetch.map { it.second }
 
     /** The [FetchPhysicalOperatorNode] returns the [ColumnDef] of its input + the columns to be fetched. */
-    override val columns: List<ColumnDef<*>> = super.columns + this.fetch.map { it.first.column }
+    override val columns: List<ColumnDef<*>>
+        get() = super.columns + this.fetch.map { it.first.column }
 
     /** The [RecordStatistics] is taken from the underlying [Entity]. [RecordStatistics] are used by the query planning for [Cost] estimation. */
-    override val statistics: RecordStatistics = super.statistics.let { statistics ->
-        val entityStatistics = this.entity.snapshot.statistics
-        this.fetch.forEach {
-            val column = it.first.column
-            if (!statistics.has(it.second)) {
-                statistics[it.second] = entityStatistics[it.second] as ValueStatistics<Value>
+    override val statistics: RecordStatistics
+        get() = super.statistics.let { statistics ->
+            this.fetch.forEach {
+                val column = it.first.column
+                if (!statistics.has(it.second)) {
+                    statistics[it.second] = this.localStatistics[it.second] as ValueStatistics<Value>
+                }
+                if (!statistics.has(column)) {
+                    statistics[column] = this.localStatistics[it.second] as ValueStatistics<Value>
+                }
             }
-            if (!statistics.has(column)) {
-                statistics[column] = entityStatistics[it.second] as ValueStatistics<Value>
-            }
+            statistics
         }
-        statistics
-    }
 
     /** The [Cost] of a [FetchPhysicalOperatorNode]. */
-    override val cost: Cost = Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_MEMORY_ACCESS) * this.outputSize * this.fetch.sumOf {
+    override val cost: Cost
+        get() = Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_MEMORY_ACCESS) * this.outputSize * this.fetch.sumOf {
             if (it.second.type == Types.String) {
-                this.statistics[it.second].avgWidth * Char.SIZE_BYTES
+                this.localStatistics[it.second].avgWidth * Char.SIZE_BYTES
             } else {
                 it.second.type.physicalSize
             }
         }
+
+    /** Local reference to entity statistics. */
+    private val localStatistics = this.entity.snapshot.statistics
 
     /**
      * Creates and returns a copy of this [FetchPhysicalOperatorNode] without any children or parents.

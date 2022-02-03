@@ -74,7 +74,7 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
         require(logical != null) { QueryException.QueryPlannerException("Cannot perform query planning for a QueryContext that doesn't have a logical query plan.") }
 
         val decomposition = this.decompose(logical)
-        val candidates = Int2ObjectLinkedOpenHashMap<org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Physical>()
+        val candidates = Int2ObjectLinkedOpenHashMap<OperatorNode.Physical>()
         for (d in decomposition) {
             val stage1 = this.optimizeLogical(d.value, context).map { it.implement() }
             val stage2 = stage1.flatMap { this.optimizePhysical(it, context) }
