@@ -1,9 +1,10 @@
 package org.vitrivr.cottontail.core.queries.predicates
 
 import org.vitrivr.cottontail.core.database.ColumnDef
-import org.vitrivr.cottontail.core.queries.functions.math.VectorDistance
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
+import org.vitrivr.cottontail.core.queries.functions.math.VectorDistance
+import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 
 /**
  * The nearest [ProximityPredicate] is a data structure used to bridge the gap between an expressed,
@@ -30,8 +31,8 @@ sealed interface ProximityPredicate: Predicate {
     override val columns: Set<ColumnDef<*>>
         get() = setOf(this.column)
 
-    /** CPU cost required for applying this [ProximityPredicate] to a single record. */
-    override val atomicCpuCost: Float
+    /** The [Cost] required for applying this [ProximityPredicate]. */
+    override val cost: Cost
         get() = this.distance.cost
 
     /**

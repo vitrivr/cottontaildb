@@ -1,9 +1,9 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.transform
 
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
-import org.vitrivr.cottontail.dbms.queries.operators.physical.UnaryPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.execution.TransactionContext
 import org.vitrivr.cottontail.dbms.execution.operators.transform.LimitOperator
+import org.vitrivr.cottontail.dbms.queries.operators.physical.UnaryPhysicalOperatorNode
 import kotlin.math.min
 
 /**
@@ -28,7 +28,7 @@ class LimitPhysicalOperatorNode(input: Physical? = null, val limit: Long, val sk
 
     /** The [Cost] of a [LimitPhysicalOperatorNode]. */
     override val cost: Cost
-        get() = Cost(cpu = this.outputSize * Cost.COST_MEMORY_ACCESS)
+        get() = Cost.MEMORY_ACCESS * this.outputSize
 
     /**
      * Creates and returns a copy of this [LimitPhysicalOperatorNode] without any children or parents.

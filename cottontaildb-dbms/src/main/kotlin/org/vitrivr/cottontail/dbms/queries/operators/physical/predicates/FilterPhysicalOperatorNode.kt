@@ -39,7 +39,7 @@ class FilterPhysicalOperatorNode(input: Physical? = null, val predicate: Boolean
         get() = NaiveSelectivityCalculator.estimate(this.predicate, this.statistics).invoke(this.input?.outputSize ?: 0)
 
     /** The [Cost] of this [FilterPhysicalOperatorNode]. */
-    override val cost: Cost = Cost(cpu = this.predicate.atomicCpuCost) * (this.input?.outputSize ?: 0)
+    override val cost: Cost = this.predicate.cost * (this.input?.outputSize ?: 0)
 
     /**
      * Creates and returns a copy of this [FilterPhysicalOperatorNode] without any children or parents.

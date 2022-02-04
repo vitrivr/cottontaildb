@@ -15,7 +15,6 @@ import org.vitrivr.cottontail.core.values.types.NumericValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.core.values.types.VectorValue
-import org.vitrivr.cottontail.dbms.functions.math.distance.binary.ManhattanDistance
 import kotlin.math.absoluteValue
 
 /**
@@ -57,9 +56,9 @@ sealed class WeightedManhattanDistance<R: NumericValue<*>, T : VectorValue<*>>(t
     }
 
 
-    /** The cost of applying this [ManhattanDistance] to a single [VectorValue]. */
-    override val cost: Float
-        get() = d * (2.0f * Cost.COST_FLOP + 2.0f * Cost.COST_MEMORY_ACCESS)
+    /** The [Cost] of applying this [WeightedManhattanDistance]. */
+    override val cost: Cost
+        get() = ((Cost.FLOP * 3.0f + Cost.MEMORY_ACCESS * 3.0f) * this.d) + Cost.MEMORY_ACCESS
 
     /**
      * [WeightedManhattanDistance] for a [DoubleVectorValue].

@@ -17,13 +17,13 @@ object AtomicCostEstimator {
     /**
      * Estimates the cost of memory access  based on a series of measurements.
      */
-    fun estimateAtomicMemoryAccessCost(): Float {
+    fun estimateAtomicMemoryAccessCost(): Cost {
         val random = SplittableRandom()
         var time = 0L
         repeat(ESTIMATION_REPETITION) {
             var a = random.nextLong()
             var b = random.nextLong()
-            var c = 0L
+            var c: Long
             time += measureNanoTime {
                 c = a
                 a = b
@@ -31,14 +31,14 @@ object AtomicCostEstimator {
             }
             c + b
         }
-        return ((time) / (ESTIMATION_REPETITION * 3)) * 1e-9f
+        return Cost(cpu =((time) / (ESTIMATION_REPETITION * 3)) * 1e-9f)
     }
 
     /**
      * Estimates the cost of a single floating point operation based on a series of measurements
      * for add, subtraction, multiplication and division
      */
-    fun estimateAtomicFlopCost(): Float {
+    fun estimateAtomicFlopCost(): Cost {
         val random = SplittableRandom()
         var timeAdd = 0L
         repeat(ESTIMATION_REPETITION) {
@@ -76,6 +76,6 @@ object AtomicCostEstimator {
             }
         }
 
-        return ((timeAdd + timeSubtract + timeMultiply + timeDivide) / (ESTIMATION_REPETITION * 4)) * 1e-9f
+        return Cost(cpu = ((timeAdd + timeSubtract + timeMultiply + timeDivide) / (ESTIMATION_REPETITION * 4)) * 1e-9f)
     }
 }

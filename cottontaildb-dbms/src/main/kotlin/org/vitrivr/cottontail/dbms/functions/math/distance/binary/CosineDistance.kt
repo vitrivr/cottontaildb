@@ -31,6 +31,7 @@ sealed class CosineDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Vector
 
         override fun obtain(signature: Signature.SemiClosed): Function<DoubleValue> {
             check(Companion.signature.collides(signature)) { "Provided signature $signature is incompatible with generator signature ${Companion.signature}. This is a programmer's error!"  }
+            if (signature.arguments.any { it != signature.arguments[0] }) throw FunctionNotSupportedException("Function generator ${HaversineDistance.signature} cannot generate function with signature $signature.")
             return when(val type = signature.arguments[0].type) {
                 is Types.DoubleVector -> DoubleVector(type)
                 is Types.FloatVector -> FloatVector(type)
@@ -51,9 +52,9 @@ sealed class CosineDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Vector
         }
     }
 
-    /** The cost of applying this [CosineDistance] to a single [VectorValue]. */
-    override val cost: Float
-        get() = d * (6.0f * Cost.COST_FLOP + 4.0f * Cost.COST_MEMORY_ACCESS) + 4.0f * Cost.COST_FLOP + 3.0f * Cost.COST_MEMORY_ACCESS
+    /** The [Cost] of applying this [CosineDistance]. */
+    override val cost: Cost
+        get() = ((Cost.FLOP * 6.0f + Cost.MEMORY_ACCESS * 4.0f) * this.d) + Cost.FLOP * 4.0f + Cost.MEMORY_ACCESS * 3.0f
 
     /**
      * [CosineDistance] for a [DoubleVectorValue].

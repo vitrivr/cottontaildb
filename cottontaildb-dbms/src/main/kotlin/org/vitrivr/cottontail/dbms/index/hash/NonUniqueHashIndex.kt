@@ -3,27 +3,27 @@ package org.vitrivr.cottontail.dbms.index.hash
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
 import org.mapdb.Serializer
 import org.mapdb.serializer.GroupSerializer
+import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.database.TupleId
+import org.vitrivr.cottontail.core.queries.planning.cost.Cost
+import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
+import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
+import org.vitrivr.cottontail.core.queries.predicates.Predicate
+import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.values.StringValue
+import org.vitrivr.cottontail.core.values.pattern.LikePatternValue
+import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
+import org.vitrivr.cottontail.dbms.exceptions.TxException
+import org.vitrivr.cottontail.dbms.execution.TransactionContext
 import org.vitrivr.cottontail.dbms.general.TxAction
 import org.vitrivr.cottontail.dbms.general.TxSnapshot
 import org.vitrivr.cottontail.dbms.index.AbstractIndex
 import org.vitrivr.cottontail.dbms.index.IndexTx
 import org.vitrivr.cottontail.dbms.index.IndexType
 import org.vitrivr.cottontail.dbms.operations.Operation
-import org.vitrivr.cottontail.core.queries.planning.cost.Cost
-import org.vitrivr.cottontail.core.queries.predicates.Predicate
-import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
-import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
-import org.vitrivr.cottontail.dbms.execution.TransactionContext
-import org.vitrivr.cottontail.core.basics.Record
-import org.vitrivr.cottontail.core.database.TupleId
-import org.vitrivr.cottontail.dbms.exceptions.TxException
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
-import org.vitrivr.cottontail.core.values.StringValue
-import org.vitrivr.cottontail.core.values.pattern.LikePatternValue
-import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.storage.serializers.ValueSerializerFactory
 import java.nio.file.Path
 import java.util.*
@@ -97,11 +97,11 @@ class NonUniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path
      */
     override fun cost(predicate: Predicate): Cost = when {
         predicate !is BooleanPredicate.Atomic || predicate.columns.first() != this.columns[0] || predicate.not -> Cost.INVALID
-        predicate.operator is ComparisonOperator.Binary.Equal -> Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_MEMORY_ACCESS, predicate.columns.sumOf { it.type.physicalSize }.toFloat())
-        predicate.operator is ComparisonOperator.Binary.Like -> Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_MEMORY_ACCESS, predicate.columns.sumOf { it.type.physicalSize }.toFloat())
+        predicate.operator is ComparisonOperator.Binary.Equal ||
+        predicate.operator is ComparisonOperator.Binary.Like -> Cost.DISK_ACCESS_READ + Cost.MEMORY_ACCESS + Cost(memory = predicate.columns.sumOf { it.type.physicalSize }.toFloat())
         predicate.operator is ComparisonOperator.In -> {
             val inOp = predicate.operator as ComparisonOperator.In
-            Cost(Cost.COST_DISK_ACCESS_READ * inOp.right.size, Cost.COST_MEMORY_ACCESS * inOp.right.size, predicate.columns.sumOf { it.type.physicalSize }.toFloat())
+            Cost.DISK_ACCESS_READ * inOp.right.size + Cost.MEMORY_ACCESS * inOp.right.size + Cost(memory = predicate.columns.sumOf { it.type.physicalSize }.toFloat())
         }
         else -> Cost.INVALID
     }

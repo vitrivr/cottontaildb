@@ -6,6 +6,7 @@ import org.vitrivr.cottontail.core.queries.functions.Function
 import org.vitrivr.cottontail.core.queries.functions.FunctionGenerator
 import org.vitrivr.cottontail.core.queries.functions.Signature
 import org.vitrivr.cottontail.core.queries.functions.exception.FunctionNotSupportedException
+import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.values.DoubleVectorValue
 import org.vitrivr.cottontail.core.values.FloatVectorValue
 import org.vitrivr.cottontail.core.values.IntVectorValue
@@ -50,13 +51,14 @@ sealed class Addition<T : VectorValue<*>>(val type: Types.Vector<T,*>): Function
         }
     }
 
-    /** The CPU cost of executing this [Minimum] is 1.0. */
-    override val cost = 1.0f * this.d
+    /** The [Cost] of executing this vector [Addition]. */
+    override val cost
+        get() = (Cost.FLOP + Cost.MEMORY_ACCESS * 2) * this.d
 
-    /** The [Signature.Closed] of this [Minimum]. */
+    /** The [Signature.Closed] of this vector [Addition]. */
     override val signature = Signature.Closed(FUNCTION_NAME, arrayOf(this.type, this.type), this.type)
 
-    /** The dimensionality of this [Minimum]. */
+    /** The dimensionality of this vector [Addition]. */
     val d: Int
         get() = this.type.logicalSize
 

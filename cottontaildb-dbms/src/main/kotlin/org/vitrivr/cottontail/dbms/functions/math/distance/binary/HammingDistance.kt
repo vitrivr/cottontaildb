@@ -29,6 +29,7 @@ sealed class HammingDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Vecto
 
         override fun obtain(signature: Signature.SemiClosed): Function<DoubleValue> {
             check(Companion.signature.collides(signature)) { "Provided signature $signature is incompatible with generator signature ${Companion.signature}. This is a programmer's error!"  }
+            if (signature.arguments.any { it != signature.arguments[0] }) throw FunctionNotSupportedException("Function generator ${HaversineDistance.signature} cannot generate function with signature $signature.")
             return when(val type = signature.arguments[0].type) {
                 is Types.BooleanVector -> BooleanVector(type)
                 is Types.DoubleVector -> DoubleVector(type)
@@ -51,9 +52,9 @@ sealed class HammingDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Vecto
         }
     }
 
-    /** The cost of applying this [HammingDistance] to a single [VectorValue]. */
-    override val cost: Float
-        get() = this.d * (Cost.COST_FLOP + Cost.COST_MEMORY_ACCESS)
+    /** The [Cost] of applying this [HammingDistance]. */
+    override val cost: Cost
+        get() = (Cost.FLOP + Cost.MEMORY_ACCESS) * this.d
 
     /**
      * [HammingDistance] for a [DoubleVectorValue].

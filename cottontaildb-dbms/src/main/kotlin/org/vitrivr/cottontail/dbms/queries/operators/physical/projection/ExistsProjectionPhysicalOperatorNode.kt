@@ -29,7 +29,7 @@ class ExistsProjectionPhysicalOperatorNode(input: Physical? = null, val out: Bin
 
     /** The [Cost] of a [ExistsProjectionPhysicalOperatorNode]. */
     override val cost: Cost
-        get() = Cost(cpu = Cost.COST_MEMORY_ACCESS)
+        get() = Cost.MEMORY_ACCESS
 
     /**The [ExistsProjectionPhysicalOperatorNode] cannot be partitioned. */
     override val canBePartitioned: Boolean = false

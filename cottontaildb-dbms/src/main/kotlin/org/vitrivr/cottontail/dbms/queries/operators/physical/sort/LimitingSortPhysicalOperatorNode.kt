@@ -42,7 +42,7 @@ class LimitingSortPhysicalOperatorNode(input: Physical? = null, override val sor
     /** The [Cost] incurred by this [SortPhysicalOperatorNode]. */
     override val cost: Cost
         get() = Cost(
-            cpu = 2 * (this.input?.outputSize ?: 0) * this.sortOn.size * Cost.COST_MEMORY_ACCESS,
+            cpu = 2 * (this.input?.outputSize ?: 0) * this.sortOn.size * Cost.MEMORY_ACCESS.cpu,
             memory = (this.columns.sumOf {
                 if (it.type == Types.String) {
                     this.statistics[it].avgWidth * Char.SIZE_BYTES

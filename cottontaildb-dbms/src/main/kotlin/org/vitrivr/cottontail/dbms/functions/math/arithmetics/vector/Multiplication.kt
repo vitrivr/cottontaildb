@@ -6,6 +6,7 @@ import org.vitrivr.cottontail.core.queries.functions.Function
 import org.vitrivr.cottontail.core.queries.functions.FunctionGenerator
 import org.vitrivr.cottontail.core.queries.functions.Signature
 import org.vitrivr.cottontail.core.queries.functions.exception.FunctionNotSupportedException
+import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.values.*
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
@@ -47,13 +48,14 @@ sealed class Multiplication<T : VectorValue<*>>(val type: Types.Vector<T,*>): Fu
         }
     }
 
-    /** The CPU cost of executing this [Minimum] is 1.0. */
-    override val cost = 1.0f * this.d
+    /** The [Cost] of executing this element-wise vector [Multiplication]. */
+    override val cost: Cost
+        get() = (Cost.FLOP + Cost.MEMORY_ACCESS * 2) * this.d
 
-    /** The [Signature.Closed] of this [Minimum]. */
+    /** The [Signature.Closed] of this element-wise vector [Multiplication]. */
     override val signature = Signature.Closed(FUNCTION_NAME, arrayOf(this.type, this.type.elementType), this.type)
 
-    /** The dimensionality of this [Minimum]. */
+    /** The dimensionality of this element-wise vector [Multiplication]. */
     val d: Int
         get() = this.type.logicalSize
 

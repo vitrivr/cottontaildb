@@ -31,7 +31,7 @@ class CountProjectionPhysicalOperatorNode(input: Physical? = null, val out: Bind
 
     /** The [Cost] of a [CountProjectionPhysicalOperatorNode]. */
     override val cost: Cost
-        get() = Cost(cpu = Cost.COST_MEMORY_ACCESS) * (this.input?.outputSize ?: 0)
+        get() = Cost.MEMORY_ACCESS * (this.input?.outputSize ?: 0)
 
     /**The [ExistsProjectionPhysicalOperatorNode] cannot be partitioned. */
     override val canBePartitioned: Boolean = false

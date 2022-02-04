@@ -7,6 +7,7 @@ import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
+import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.utilities.extensions.toDouble
 
 /**
@@ -52,9 +53,9 @@ sealed interface BooleanPredicate : Predicate {
      */
     data class Atomic(val operator: ComparisonOperator, val not: Boolean, val dependsOn: GroupId = 0) : BooleanPredicate {
 
-        /** The number of operations required by this [Atomic]. */
-        override val atomicCpuCost: Float
-            get() = this.operator.atomicCpuCost
+        /** The [Cost] of evaluating this [Atomic]. */
+        override val cost: Cost
+            get() = this.operator.cost
 
         override val columns: Set<ColumnDef<*>>
             get() {
@@ -89,6 +90,7 @@ sealed interface BooleanPredicate : Predicate {
                 }
                 return set
             }
+
 
         /** The [Atomic]s that make up this [BooleanPredicate]. */
         override val atomics: Set<Atomic>
@@ -174,9 +176,9 @@ sealed interface BooleanPredicate : Predicate {
         /** The right operand of this [Compound] boolean predicate. */
         val p2: BooleanPredicate
 
-        /** The total number of operations required by this [Compound]. */
-        override val atomicCpuCost
-            get() = this.p1.atomicCpuCost + this.p2.atomicCpuCost
+        /** The [Cost] of evaluating this [BooleanPredicate]. */
+        override val cost: Cost
+            get() = this.p1.cost + this.p2.cost
 
         /** The [Atomic]s that make up this [Compound]. */
         override val atomics

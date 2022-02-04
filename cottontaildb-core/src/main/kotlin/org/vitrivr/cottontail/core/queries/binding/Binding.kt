@@ -3,6 +3,7 @@ package org.vitrivr.cottontail.core.queries.binding
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.Node
+import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
 
@@ -38,7 +39,9 @@ sealed interface Binding: Node {
         override val value: Value?
             get() = this.context[this]
         override val static: Boolean
-            get() = false
+            get() = true
+        override val cost: Cost
+            get() = Cost.MEMORY_ACCESS
         override fun copy() = Literal(this.bindingIndex, this.type, this.context)
         override fun digest(): Digest= this.hashCode().toLong()
         override fun bind(context: BindingContext) {
@@ -56,6 +59,8 @@ sealed interface Binding: Node {
             get() = this.column.type
         override val static: Boolean
             get() = false
+        override val cost: Cost
+            get() = Cost.MEMORY_ACCESS
         override fun copy() = Column(this.column, this.context)
         override fun digest(): Digest = this.hashCode().toLong()
         override fun bind(context: BindingContext) {
@@ -77,6 +82,8 @@ sealed interface Binding: Node {
             get() = this.context[this]
         override val type: Types<*>
             get() = this.function.signature.returnType
+        override val cost: Cost
+            get() = this.function.cost + this.arguments.map { it.cost }.reduce { c1, c2 -> c1 + c2}
         override val static: Boolean
             get() = false
         override fun copy() = Function(this.function, this.arguments.map { it.copy() }, this.context)

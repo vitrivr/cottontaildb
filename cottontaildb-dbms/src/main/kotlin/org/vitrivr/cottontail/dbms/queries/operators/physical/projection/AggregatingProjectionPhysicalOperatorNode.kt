@@ -38,7 +38,7 @@ class AggregatingProjectionPhysicalOperatorNode(input: Physical? = null, type: P
 
     /** The [Cost] of a [AggregatingProjectionPhysicalOperatorNode]. */
     override val cost: Cost
-        get() = Cost(cpu = 3 * Cost.COST_MEMORY_ACCESS + Cost.COST_FLOP) * (this.input?.outputSize ?: 0)
+        get() = (Cost.MEMORY_ACCESS + Cost.FLOP) * (3.0f * (this.input?.outputSize ?: 0))
 
     init {
         /* Sanity check. */

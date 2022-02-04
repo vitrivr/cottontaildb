@@ -1,15 +1,15 @@
 package org.vitrivr.cottontail.dbms.functions.math.distance.binary
 
-import org.vitrivr.cottontail.core.queries.planning.cost.Cost
-import org.vitrivr.cottontail.core.queries.functions.Function
-import org.vitrivr.cottontail.core.queries.functions.exception.FunctionNotSupportedException
-import org.vitrivr.cottontail.core.queries.functions.math.MinkowskiDistance
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.functions.Argument
+import org.vitrivr.cottontail.core.queries.functions.Function
 import org.vitrivr.cottontail.core.queries.functions.FunctionGenerator
 import org.vitrivr.cottontail.core.queries.functions.Signature
-import org.vitrivr.cottontail.core.values.types.Types
+import org.vitrivr.cottontail.core.queries.functions.exception.FunctionNotSupportedException
+import org.vitrivr.cottontail.core.queries.functions.math.MinkowskiDistance
+import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.values.*
+import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.core.values.types.VectorValue
 import kotlin.math.absoluteValue
@@ -32,6 +32,7 @@ sealed class ManhattanDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Min
 
         override fun obtain(signature: Signature.SemiClosed): Function<DoubleValue> {
             check(Companion.signature.collides(signature)) { "Provided signature $signature is incompatible with generator signature ${Companion.signature}. This is a programmer's error!"  }
+            if (signature.arguments.any { it != signature.arguments[0] }) throw FunctionNotSupportedException("Function generator ${HaversineDistance.signature} cannot generate function with signature $signature.")
             return when(val type = signature.arguments[0].type) {
                 is Types.Complex64Vector -> Complex64Vector(type)
                 is Types.Complex32Vector -> Complex32Vector(type)
@@ -56,9 +57,9 @@ sealed class ManhattanDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Min
         }
     }
 
-    /** The cost of applying this [ManhattanDistance] to a single [VectorValue]. */
-    override val cost: Float
-        get() = this.d * (2.0f * Cost.COST_FLOP + 2.0f * Cost.COST_MEMORY_ACCESS)
+    /** The [Cost] of applying this [ManhattanDistance]. */
+    override val cost: Cost
+        get() = ((Cost.FLOP * 2.0f + Cost.MEMORY_ACCESS * 2.0f) * this.d) + Cost.MEMORY_ACCESS
 
     /** The [ManhattanDistance] is a [MinkowskiDistance] with p = 1. */
     override val p: Int

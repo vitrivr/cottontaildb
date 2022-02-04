@@ -30,6 +30,7 @@ sealed class ChisquaredDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Ve
 
         override fun obtain(signature: Signature.SemiClosed): Function<DoubleValue> {
             check(Companion.signature.collides(signature)) { "Provided signature $signature is incompatible with generator signature ${Companion.signature}. This is a programmer's error!" }
+            if (signature.arguments.any { it != signature.arguments[0] }) throw FunctionNotSupportedException("Function generator ${HaversineDistance.signature} cannot generate function with signature $signature.")
             return when (val type = signature.arguments[0].type) {
                 is Types.DoubleVector -> DoubleVector(type)
                 is Types.FloatVector -> FloatVector(type)
@@ -50,9 +51,9 @@ sealed class ChisquaredDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Ve
         }
     }
 
-    /** The cost of applying this [ChisquaredDistance] to a single [VectorValue]. */
-    override val cost: Float
-        get() = this.d * (5.0f * Cost.COST_FLOP + 4.0f * Cost.COST_MEMORY_ACCESS)
+    /** The [Cost] of applying this [ChisquaredDistance]. */
+    override val cost: Cost
+        get() = (Cost.FLOP * 5.0f + Cost.MEMORY_ACCESS * 4.0f) * this.d
 
     /**
      * [ChisquaredDistance] for a [DoubleVectorValue].

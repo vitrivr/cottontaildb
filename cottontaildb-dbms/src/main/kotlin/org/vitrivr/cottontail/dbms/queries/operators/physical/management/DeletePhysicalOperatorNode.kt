@@ -36,7 +36,7 @@ class DeletePhysicalOperatorNode(input: Physical? = null, val entity: EntityTx) 
     override val outputSize: Long = 1L
 
     /** The [Cost] of this [DeletePhysicalOperatorNode]. */
-    override val cost: Cost = Cost(io = this.entity.count() * Cost.COST_DISK_ACCESS_WRITE) * (this.input?.outputSize ?: 0)
+    override val cost: Cost = Cost.DISK_ACCESS_WRITE * this.entity.count() * (this.input?.outputSize ?: 0)
 
     /** The [DeletePhysicalOperatorNode]s cannot be partitioned. */
     override val canBePartitioned: Boolean = false

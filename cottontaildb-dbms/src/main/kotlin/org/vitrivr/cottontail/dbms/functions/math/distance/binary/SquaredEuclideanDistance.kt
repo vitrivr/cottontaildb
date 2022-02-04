@@ -1,15 +1,15 @@
 package org.vitrivr.cottontail.dbms.functions.math.distance.binary
 
-import org.vitrivr.cottontail.core.queries.planning.cost.Cost
-import org.vitrivr.cottontail.core.queries.functions.Function
-import org.vitrivr.cottontail.core.queries.functions.exception.FunctionNotSupportedException
-import org.vitrivr.cottontail.core.queries.functions.math.MinkowskiDistance
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.functions.Argument
+import org.vitrivr.cottontail.core.queries.functions.Function
 import org.vitrivr.cottontail.core.queries.functions.FunctionGenerator
 import org.vitrivr.cottontail.core.queries.functions.Signature
-import org.vitrivr.cottontail.core.values.types.Types
+import org.vitrivr.cottontail.core.queries.functions.exception.FunctionNotSupportedException
+import org.vitrivr.cottontail.core.queries.functions.math.MinkowskiDistance
+import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.values.*
+import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.core.values.types.VectorValue
 import kotlin.math.pow
@@ -43,6 +43,7 @@ sealed class SquaredEuclideanDistance<T : VectorValue<*>>(type: Types.Vector<T,*
 
         override fun resolve(signature: Signature.Open): List<Signature.Closed<*>> {
             if (Companion.signature != signature) throw FunctionNotSupportedException("Function generator ${Companion.signature} cannot generate function with signature $signature.")
+            if (signature.arguments.any { it != signature.arguments[0] }) throw FunctionNotSupportedException("Function generator ${HaversineDistance.signature} cannot generate function with signature $signature.")
             return listOf(
                 Complex64Vector(Types.Complex64Vector(1)).signature,
                 Complex32Vector(Types.Complex32Vector(1)).signature,
@@ -54,9 +55,9 @@ sealed class SquaredEuclideanDistance<T : VectorValue<*>>(type: Types.Vector<T,*
         }
     }
 
-    /** The cost of applying this [SquaredEuclideanDistance] to a single [VectorValue]. */
-    override val cost: Float
-        get() = this.d * (3.0f * Cost.COST_FLOP + 2.0f * Cost.COST_MEMORY_ACCESS) + Cost.COST_FLOP + Cost.COST_MEMORY_ACCESS
+    /** The [Cost] of applying this [SquaredEuclideanDistance]. */
+    override val cost: Cost
+        get() = ((Cost.FLOP * 3.0f + Cost.MEMORY_ACCESS * 2.0f) * this.d) + Cost.MEMORY_ACCESS
 
     /** The [SquaredEuclideanDistance] is a [MinkowskiDistance] with p = 2. */
     override val p: Int

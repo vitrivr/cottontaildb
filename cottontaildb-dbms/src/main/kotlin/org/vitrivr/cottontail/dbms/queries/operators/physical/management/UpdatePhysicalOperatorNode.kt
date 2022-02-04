@@ -1,14 +1,14 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.management
 
 import org.vitrivr.cottontail.core.database.ColumnDef
-import org.vitrivr.cottontail.dbms.entity.Entity
-import org.vitrivr.cottontail.dbms.entity.EntityTx
-import org.vitrivr.cottontail.dbms.queries.QueryContext
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
-import org.vitrivr.cottontail.dbms.queries.operators.physical.UnaryPhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.entity.Entity
+import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.operators.management.UpdateOperator
+import org.vitrivr.cottontail.dbms.queries.QueryContext
+import org.vitrivr.cottontail.dbms.queries.operators.physical.UnaryPhysicalOperatorNode
 
 /**
  * A [UpdatePhysicalOperatorNode] that formalizes a UPDATE operation on an [Entity].
@@ -36,10 +36,7 @@ class UpdatePhysicalOperatorNode(input: Physical? = null, val entity: EntityTx, 
 
     /** The [Cost] of this [UpdatePhysicalOperatorNode]. */
     override val cost: Cost
-        get() = Cost(
-            Cost.COST_DISK_ACCESS_WRITE * (this.input?.columns?.sumOf { this.statistics[it].avgWidth } ?: 0), /* Columns that are being written (all input columns). */
-            Cost.COST_MEMORY_ACCESS * this.values.sumOf { this.statistics[it.first].avgWidth }               /* Column values that are being updated because they must be fetched from memory. */
-        ) * (this.input?.outputSize ?: 0)
+        get() = ((Cost.DISK_ACCESS_WRITE + Cost.MEMORY_ACCESS) * (this.input?.columns?.sumOf { this.statistics[it].avgWidth } ?: 0)) * (this.input?.outputSize ?: 0)
 
     /** The [UpdatePhysicalOperatorNode]s cannot be partitioned. */
     override val canBePartitioned: Boolean = false

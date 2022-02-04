@@ -2,24 +2,24 @@ package org.vitrivr.cottontail.dbms.index.pq
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
 import org.slf4j.LoggerFactory
+import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.database.TupleId
+import org.vitrivr.cottontail.core.queries.planning.cost.Cost
+import org.vitrivr.cottontail.core.queries.predicates.Predicate
+import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
+import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.values.DoubleValue
+import org.vitrivr.cottontail.core.values.types.VectorValue
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
+import org.vitrivr.cottontail.dbms.exceptions.QueryException
+import org.vitrivr.cottontail.dbms.execution.TransactionContext
 import org.vitrivr.cottontail.dbms.index.AbstractIndex
 import org.vitrivr.cottontail.dbms.index.IndexTx
 import org.vitrivr.cottontail.dbms.index.IndexType
 import org.vitrivr.cottontail.dbms.index.va.VAFIndex
 import org.vitrivr.cottontail.dbms.operations.Operation
-import org.vitrivr.cottontail.core.queries.planning.cost.Cost
-import org.vitrivr.cottontail.core.queries.predicates.Predicate
-import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
-import org.vitrivr.cottontail.dbms.execution.TransactionContext
-import org.vitrivr.cottontail.core.basics.Record
-import org.vitrivr.cottontail.core.database.TupleId
-import org.vitrivr.cottontail.dbms.exceptions.QueryException
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
-import org.vitrivr.cottontail.core.values.DoubleValue
-import org.vitrivr.cottontail.core.values.types.VectorValue
 import org.vitrivr.cottontail.utilities.math.KnnUtilities
 import org.vitrivr.cottontail.utilities.selection.ComparablePair
 import org.vitrivr.cottontail.utilities.selection.MinHeapSelection
@@ -146,10 +146,10 @@ class PQIndex(path: Path, parent: DefaultEntity, config: PQIndexConfig? = null) 
         if (predicate !is ProximityPredicate) return Cost.INVALID
         if (predicate.column != this.columns[0]) return Cost.INVALID
         return Cost(
-            this.signaturesStore.size * this.config.numSubspaces * Cost.COST_DISK_ACCESS_READ + predicate.k * predicate.column.type.logicalSize * Cost.COST_DISK_ACCESS_READ,
-            this.signaturesStore.size * (4 * Cost.COST_MEMORY_ACCESS + Cost.COST_FLOP) + predicate.k * predicate.atomicCpuCost,
-            (predicate.k * this.produces.map { it.type.physicalSize }.sum()).toFloat()
-        )
+            io = this.signaturesStore.size * this.config.numSubspaces * Cost.DISK_ACCESS_READ.cpu + predicate.k * predicate.column.type.logicalSize * Cost.DISK_ACCESS_READ.cpu,
+            cpu = this.signaturesStore.size * (4 * Cost.MEMORY_ACCESS.cpu + Cost.FLOP.cpu),
+            memory = (predicate.k * this.produces.sumOf { it.type.physicalSize }).toFloat()
+        ) + predicate.distance.cost * predicate.k
     }
 
     /**

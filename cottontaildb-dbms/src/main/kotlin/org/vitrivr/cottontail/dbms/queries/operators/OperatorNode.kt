@@ -95,6 +95,10 @@ sealed class OperatorNode : Node {
         /** [OperatorNode.Logical]s are never executable. */
         override val executable: Boolean = false
 
+        /** An estimation of the [Cost] incurred by this [OperatorNode.Logical], which is always zero, because these nodes cannot be executed. */
+        final override val cost: Cost
+            get() = Cost.ZERO
+
         /**
          * Creates and returns a copy of this [OperatorNode.Logical] without any children or parents.
          *
@@ -167,9 +171,6 @@ sealed class OperatorNode : Node {
 
         /** The estimated number of rows this [OperatorNode.Physical] generates. */
         abstract val outputSize: Long
-
-        /** An estimation of the [Cost] incurred by this [OperatorNode.Physical]. */
-        abstract val cost: Cost
 
         /** An estimation of the [Cost] incurred by the tree up and until this [OperatorNode.Physical]. */
         abstract val totalCost: Cost

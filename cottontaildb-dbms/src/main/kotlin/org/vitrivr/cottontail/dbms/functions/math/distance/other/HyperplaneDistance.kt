@@ -59,13 +59,13 @@ sealed class HyperplaneDistance<T: VectorValue<*>>(val type: Types.Vector<T,*>):
     /** The [Signature.Closed] of this [HyperplaneDistance]. */
     override val signature = Signature.Closed(FUNCTION_NAME, arrayOf(this.type, this.type, Types.Double), Types.Double)
 
-    /** The dimensionality of this [VectorDistance]. */
+    /** The dimensionality of this [HyperplaneDistance]. */
     val d: Int
         get() = this.type.logicalSize
 
-    /** The cost of applying this [InnerProductDistance] to a single [VectorValue]. */
-    override val cost: Float
-        get() = this.d * (3.0f * Cost.COST_FLOP + 2.0f * Cost.COST_MEMORY_ACCESS) + Cost.COST_FLOP
+    /** The [Cost] of applying this [HyperplaneDistance]. */
+    override val cost: Cost
+        get() = ((Cost.FLOP * 4.0f + Cost.MEMORY_ACCESS * 6.0f) * this.d) + Cost.OP_SQRT + Cost.FLOP * 2.0f
 
     /**
      * [HyperplaneDistance] for a [DoubleVectorValue].

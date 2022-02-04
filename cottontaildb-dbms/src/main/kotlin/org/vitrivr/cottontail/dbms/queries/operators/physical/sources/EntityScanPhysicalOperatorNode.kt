@@ -64,7 +64,7 @@ class EntityScanPhysicalOperatorNode(override val groupId: Int,
     }
 
     /** The estimated [Cost] of scanning the [Entity]. */
-    override val cost = Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_MEMORY_ACCESS) * this.outputSize * this.fetch.sumOf {
+    override val cost = (Cost.DISK_ACCESS_READ + Cost.MEMORY_ACCESS) * this.outputSize * this.fetch.sumOf {
         if (it.second.type == Types.String) {
             this.statistics[it.second].avgWidth * Char.SIZE_BYTES
         } else {

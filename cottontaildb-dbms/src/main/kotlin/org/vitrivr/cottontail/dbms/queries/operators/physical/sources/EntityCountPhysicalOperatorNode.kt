@@ -43,7 +43,7 @@ class EntityCountPhysicalOperatorNode(override val groupId: Int, val entity: Ent
     override val canBePartitioned: Boolean = false
 
     /** The estimated [Cost] of sampling the [Entity]. */
-    override val cost = Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_MEMORY_ACCESS)
+    override val cost = Cost.DISK_ACCESS_READ + Cost.MEMORY_ACCESS
 
     /** The [RecordStatistics] is taken from the underlying [Entity]. [RecordStatistics] are used by the query planning for [Cost] estimation. */
     override val statistics: RecordStatistics = this.entity.dbo.statistics

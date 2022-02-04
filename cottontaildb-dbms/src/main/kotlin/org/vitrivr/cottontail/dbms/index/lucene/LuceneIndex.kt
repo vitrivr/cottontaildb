@@ -9,9 +9,23 @@ import org.apache.lucene.search.similarities.SimilarityBase.log2
 import org.apache.lucene.store.Directory
 import org.apache.lucene.store.FSDirectory
 import org.apache.lucene.store.NativeFSLockFactory
+import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.database.TupleId
+import org.vitrivr.cottontail.core.queries.binding.Binding
+import org.vitrivr.cottontail.core.queries.planning.cost.Cost
+import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
+import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
+import org.vitrivr.cottontail.core.queries.predicates.Predicate
+import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.values.DoubleValue
+import org.vitrivr.cottontail.core.values.StringValue
+import org.vitrivr.cottontail.core.values.pattern.LikePatternValue
+import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
+import org.vitrivr.cottontail.dbms.exceptions.QueryException
+import org.vitrivr.cottontail.dbms.execution.TransactionContext
 import org.vitrivr.cottontail.dbms.general.TxAction
 import org.vitrivr.cottontail.dbms.general.TxSnapshot
 import org.vitrivr.cottontail.dbms.index.AbstractIndex
@@ -20,20 +34,6 @@ import org.vitrivr.cottontail.dbms.index.IndexType
 import org.vitrivr.cottontail.dbms.index.hash.UniqueHashIndex
 import org.vitrivr.cottontail.dbms.index.lsh.superbit.SuperBitLSHIndex
 import org.vitrivr.cottontail.dbms.operations.Operation
-import org.vitrivr.cottontail.core.queries.binding.Binding
-import org.vitrivr.cottontail.core.queries.planning.cost.Cost
-import org.vitrivr.cottontail.core.queries.predicates.Predicate
-import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
-import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
-import org.vitrivr.cottontail.dbms.execution.TransactionContext
-import org.vitrivr.cottontail.core.basics.Record
-import org.vitrivr.cottontail.core.database.TupleId
-import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.dbms.exceptions.QueryException
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
-import org.vitrivr.cottontail.core.values.DoubleValue
-import org.vitrivr.cottontail.core.values.StringValue
-import org.vitrivr.cottontail.core.values.pattern.LikePatternValue
 import java.nio.file.Path
 
 /**
@@ -120,7 +120,7 @@ class LuceneIndex(path: Path, parent: DefaultEntity, config: LuceneIndexConfig? 
             val searcher = IndexSearcher(this.indexReader)
             var cost = Cost.ZERO
             repeat(predicate.columns.size) {
-                cost += Cost(Cost.COST_DISK_ACCESS_READ, Cost.COST_MEMORY_ACCESS) * log2(searcher.indexReader.numDocs().toDouble()) /* TODO: This is an assumption. */
+                cost += (Cost.DISK_ACCESS_READ + Cost.MEMORY_ACCESS) * log2(searcher.indexReader.numDocs().toDouble()) /* TODO: This is an assumption. */
             }
             cost
         }

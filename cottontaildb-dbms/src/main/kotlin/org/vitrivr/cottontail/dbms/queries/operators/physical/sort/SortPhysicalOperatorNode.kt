@@ -1,14 +1,14 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.sort
 
 import org.vitrivr.cottontail.core.database.ColumnDef
-import org.vitrivr.cottontail.dbms.queries.QueryContext
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
-import org.vitrivr.cottontail.dbms.queries.operators.physical.UnaryPhysicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.sort.SortOrder
-import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
-import org.vitrivr.cottontail.dbms.execution.operators.sort.HeapSortOperator
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
+import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
+import org.vitrivr.cottontail.dbms.execution.operators.sort.HeapSortOperator
+import org.vitrivr.cottontail.dbms.queries.QueryContext
+import org.vitrivr.cottontail.dbms.queries.operators.physical.UnaryPhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.sort.SortOrder
 
 /**
  * A [UnaryPhysicalOperatorNode] that represents sorting the input by a set of specified [ColumnDef]s. Internally,
@@ -33,7 +33,7 @@ class SortPhysicalOperatorNode(input: Physical? = null, override val sortOn: Lis
     /** The [Cost] incurred by this [SortPhysicalOperatorNode]. */
     override val cost: Cost
         get() = Cost(
-            cpu = 2 * this.sortOn.size * Cost.COST_MEMORY_ACCESS,
+            cpu = 2 * this.sortOn.size * Cost.MEMORY_ACCESS.cpu,
             memory = this.columns.sumOf {
                 if (it.type == Types.String) {
                     this.statistics[it].avgWidth * Char.SIZE_BYTES

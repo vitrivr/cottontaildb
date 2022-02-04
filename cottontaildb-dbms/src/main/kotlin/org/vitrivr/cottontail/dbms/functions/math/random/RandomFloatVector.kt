@@ -1,8 +1,10 @@
 package org.vitrivr.cottontail.dbms.functions.math.random
 
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.queries.functions.*
+import org.vitrivr.cottontail.core.queries.functions.Argument
 import org.vitrivr.cottontail.core.queries.functions.Function
+import org.vitrivr.cottontail.core.queries.functions.Signature
+import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.values.FloatVectorValue
 import org.vitrivr.cottontail.core.values.IntValue
 import org.vitrivr.cottontail.core.values.types.Types
@@ -22,8 +24,8 @@ object RandomFloatVector: Function<FloatVectorValue> {
     /** The [SplittableRandom] backing this [RandomFloatVector]. */
     private val RANDOM = SplittableRandom()
 
-    /** Cost of executing this function */
-    override val cost: Float = 1.0f
+    /** [Cost] of executing this function. TODO: This is probably very much off... */
+    override val cost: Cost = Cost.FLOP
 
     /** This [RandomFloatVector]'s [Function] [Signature]. */
     override val signature: Signature.Closed<out FloatVectorValue>

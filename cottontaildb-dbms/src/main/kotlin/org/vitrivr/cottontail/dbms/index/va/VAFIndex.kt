@@ -3,9 +3,23 @@ package org.vitrivr.cottontail.dbms.index.va
 import org.mapdb.Atomic
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.queries.functions.math.MinkowskiDistance
+import org.vitrivr.cottontail.core.queries.planning.cost.Cost
+import org.vitrivr.cottontail.core.queries.predicates.Predicate
+import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
+import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.values.DoubleValue
+import org.vitrivr.cottontail.core.values.types.RealVectorValue
+import org.vitrivr.cottontail.core.values.types.VectorValue
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
+import org.vitrivr.cottontail.dbms.exceptions.QueryException
+import org.vitrivr.cottontail.dbms.execution.TransactionContext
+import org.vitrivr.cottontail.dbms.functions.math.distance.binary.EuclideanDistance
+import org.vitrivr.cottontail.dbms.functions.math.distance.binary.ManhattanDistance
+import org.vitrivr.cottontail.dbms.functions.math.distance.binary.SquaredEuclideanDistance
 import org.vitrivr.cottontail.dbms.index.AbstractIndex
 import org.vitrivr.cottontail.dbms.index.IndexTx
 import org.vitrivr.cottontail.dbms.index.IndexType
@@ -17,24 +31,10 @@ import org.vitrivr.cottontail.dbms.index.va.signature.Marks
 import org.vitrivr.cottontail.dbms.index.va.signature.MarksGenerator
 import org.vitrivr.cottontail.dbms.index.va.signature.VAFSignature
 import org.vitrivr.cottontail.dbms.operations.Operation
-import org.vitrivr.cottontail.core.queries.planning.cost.Cost
-import org.vitrivr.cottontail.core.queries.predicates.Predicate
-import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
 import org.vitrivr.cottontail.dbms.statistics.columns.DoubleVectorValueStatistics
 import org.vitrivr.cottontail.dbms.statistics.columns.FloatVectorValueStatistics
 import org.vitrivr.cottontail.dbms.statistics.columns.IntVectorValueStatistics
 import org.vitrivr.cottontail.dbms.statistics.columns.LongVectorValueStatistics
-import org.vitrivr.cottontail.dbms.execution.TransactionContext
-import org.vitrivr.cottontail.core.queries.functions.math.MinkowskiDistance
-import org.vitrivr.cottontail.dbms.functions.math.distance.binary.EuclideanDistance
-import org.vitrivr.cottontail.dbms.functions.math.distance.binary.ManhattanDistance
-import org.vitrivr.cottontail.dbms.functions.math.distance.binary.SquaredEuclideanDistance
-import org.vitrivr.cottontail.core.basics.Record
-import org.vitrivr.cottontail.dbms.exceptions.QueryException
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
-import org.vitrivr.cottontail.core.values.DoubleValue
-import org.vitrivr.cottontail.core.values.types.RealVectorValue
-import org.vitrivr.cottontail.core.values.types.VectorValue
 import org.vitrivr.cottontail.utilities.math.KnnUtilities
 import org.vitrivr.cottontail.utilities.selection.ComparablePair
 import org.vitrivr.cottontail.utilities.selection.MinHeapSelection
@@ -112,10 +112,10 @@ class VAFIndex(path: Path, parent: DefaultEntity, config: VAFIndexConfig? = null
         if (predicate.column != this.columns[0]) return Cost.INVALID
         if (predicate.distance !is MinkowskiDistance<*>) return Cost.INVALID
         return Cost(
-            this.signatures.size * this.marksStore.get().d * Cost.COST_DISK_ACCESS_READ + 0.1f * (this.signatures.size * this.columns[0].type.physicalSize * Cost.COST_DISK_ACCESS_READ),
-            this.signatures.size * this.marksStore.get().d * (2 * Cost.COST_MEMORY_ACCESS + Cost.COST_FLOP) + 0.1f * this.signatures.size * predicate.atomicCpuCost,
-            predicate.k * this.produces.sumOf { it.type.physicalSize }.toFloat()
-        )
+            io = this.signatures.size * this.marksStore.get().d * Cost.DISK_ACCESS_READ.cpu + 0.1f * (this.signatures.size * this.columns[0].type.physicalSize * Cost.DISK_ACCESS_READ.cpu),
+            cpu = this.signatures.size * this.marksStore.get().d * (2 * Cost.MEMORY_ACCESS.cpu + Cost.FLOP.cpu),
+            memory = predicate.k * this.produces.sumOf { it.type.physicalSize }.toFloat()
+        ) + predicate.cost * 0.1f * this.signatures.size
     }
 
     /**

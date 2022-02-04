@@ -46,7 +46,7 @@ class FilterOnSubSelectPhysicalOperatorNode(val predicate: BooleanPredicate, var
 
     /** The [Cost] of this [FilterOnSubSelectPhysicalOperatorNode]. */
     override val cost: Cost
-        get() = Cost(cpu = this.predicate.atomicCpuCost) * (this.inputs.firstOrNull()?.outputSize ?: 0)
+        get() = this.predicate.cost * (this.inputs.firstOrNull()?.outputSize ?: 0)
 
     /**
      * Creates and returns a copy of this [FilterOnSubSelectPhysicalOperatorNode] without any children or parents.

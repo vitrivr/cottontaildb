@@ -29,6 +29,7 @@ sealed class InnerProductDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): 
 
         override fun obtain(signature: Signature.SemiClosed): Function<DoubleValue> {
             check(Companion.signature.collides(signature)) { "Provided signature $signature is incompatible with generator signature ${Companion.signature}. This is a programmer's error!"  }
+            if (signature.arguments.any { it != signature.arguments[0] }) throw FunctionNotSupportedException("Function generator ${HaversineDistance.signature} cannot generate function with signature $signature.")
             return when(val type = signature.arguments[0].type) {
                 is Types.Complex64Vector -> Complex64Vector(type)
                 is Types.Complex32Vector -> Complex32Vector(type)
@@ -53,9 +54,9 @@ sealed class InnerProductDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): 
         }
     }
 
-    /** The cost of applying this [InnerProductDistance] to a single [VectorValue]. */
-    override val cost: Float
-        get() = this.d * (3.0f * Cost.COST_FLOP + 2.0f * Cost.COST_MEMORY_ACCESS) + Cost.COST_FLOP
+    /** The [Cost] of applying this [InnerProductDistance]. */
+    override val cost: Cost
+        get() = ((Cost.FLOP * 3.0f + Cost.MEMORY_ACCESS * 2.0f) * this.d) + Cost.FLOP
 
     /**
      * [InnerProductDistance] for a [Complex64VectorValue].

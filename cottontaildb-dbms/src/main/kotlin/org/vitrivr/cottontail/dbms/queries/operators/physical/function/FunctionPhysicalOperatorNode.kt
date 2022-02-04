@@ -33,9 +33,9 @@ class FunctionPhysicalOperatorNode(input: Physical? = null, val function: Bindin
     /**The [FunctionPhysicalOperatorNode] cannot be partitioned. */
     override val canBePartitioned: Boolean = true
 
-    /** The [Cost] of executing this [FunctionPhysicalOperatorNode]. */
+    /** The [Cost] of a [FunctionPhysicalOperatorNode]. */
     override val cost: Cost
-        get() = Cost(cpu = this.outputSize * this.function.function.cost)
+        get() = this.function.function.cost * this.outputSize
 
     /** [FunctionPhysicalOperatorNode] can only be executed if [Function] can be executed. */
     override val executable: Boolean

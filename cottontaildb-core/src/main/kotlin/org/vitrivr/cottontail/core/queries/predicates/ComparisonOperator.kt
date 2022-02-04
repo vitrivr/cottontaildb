@@ -20,10 +20,6 @@ sealed interface ComparisonOperator: Node {
     /** The [Binding] that acts as left operand for this [ComparisonOperator]. */
     val left: Binding
 
-
-    /** The atomic CPU cost of matching this [ComparisonOperator] with a [Value]. */
-    val atomicCpuCost: Float
-
     /**
      * Matches the given [Value] to this [ComparisonOperator] and returns true,
      * if there is a match (i.e. value satisfies operation) and false otherwise.
@@ -43,7 +39,8 @@ sealed interface ComparisonOperator: Node {
      * A [ComparisonOperator] that checks if a value is NULL.
      */
     data class IsNull(override val left: Binding) : ComparisonOperator {
-        override val atomicCpuCost: Float = Cost.COST_MEMORY_ACCESS
+        override val cost: Cost
+            get() = Cost.MEMORY_ACCESS
         override fun match() = (this.left.value == null)
         override fun copy() = IsNull(this.left.copy())
         override fun digest(): Digest = this.hashCode().toLong()
@@ -57,8 +54,9 @@ sealed interface ComparisonOperator: Node {
         /** The [Binding] that acts as right operand for this [ComparisonOperator]. */
         val right: Binding
 
-        override val atomicCpuCost: Float
-            get() = 2 * Cost.COST_MEMORY_ACCESS
+        /** The cost of evaluating a [Binary]. */
+        override val cost: Cost
+            get() = Cost.MEMORY_ACCESS * 2
 
         /**
          * Copies this [Binary], creating a new [Binary] that is initially bound to the same [Binding]s.
@@ -149,7 +147,8 @@ sealed interface ComparisonOperator: Node {
      * A [ComparisonOperator] that expresses a BETWEEN comparison (i.e. lower <= left <= upper).
      */
     data class Between(override val left: Binding, val rightLower: Binding, val rightUpper: Binding) : ComparisonOperator {
-        override val atomicCpuCost: Float = 4.0f * Cost.COST_MEMORY_ACCESS
+        override val cost: Cost
+            get() = Cost.MEMORY_ACCESS * 4
         override fun match() = this.left.value != null && this.rightLower.value != null && this.rightLower.value != null && this.left.value!! in this.rightLower.value!!..this.rightUpper.value!!
         override fun copy(): ComparisonOperator = Between(this.left.copy(), this.rightLower.copy(), this.rightUpper.copy())
         override fun digest(): Digest = this.hashCode().toLong()
@@ -166,7 +165,8 @@ sealed interface ComparisonOperator: Node {
      */
     class In(override val left: Binding, val right: MutableList<Binding.Literal>) : ComparisonOperator {
         private var rightSet: ObjectOpenHashSet<Value>? = null /* To speed-up IN operation. */
-        override val atomicCpuCost: Float = 4.0f * Cost.COST_MEMORY_ACCESS
+        override val cost: Cost
+            get() = Cost.MEMORY_ACCESS * 2 * this.right.size
         override fun match(): Boolean {
             if (this.rightSet == null) {
                 this.rightSet = ObjectOpenHashSet()

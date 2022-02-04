@@ -17,9 +17,6 @@ interface Function<out R: Value>: Node {
     /** Signature of this [Function]. */
     val signature: Signature.Closed<out R>
 
-    /** Cost of calling this [Function]. */
-    val cost: Float
-
     /** Flag indicating, that this [Function] can be executed. Defaults to true. */
     val executable: Boolean
         get() = true

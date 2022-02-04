@@ -2,14 +2,14 @@ package org.vitrivr.cottontail.dbms.queries.operators.physical.projection
 
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.dbms.queries.QueryContext
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
-import org.vitrivr.cottontail.dbms.queries.operators.physical.UnaryPhysicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.projection.Projection
+import org.vitrivr.cottontail.dbms.exceptions.QueryException
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.operators.projection.SelectDistinctProjectionOperator
 import org.vitrivr.cottontail.dbms.execution.operators.projection.SelectProjectionOperator
-import org.vitrivr.cottontail.dbms.exceptions.QueryException
+import org.vitrivr.cottontail.dbms.queries.QueryContext
+import org.vitrivr.cottontail.dbms.queries.operators.physical.UnaryPhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.projection.Projection
 
 /**
  * Formalizes a [UnaryPhysicalOperatorNode] operation in the Cottontail DB query execution engine.
@@ -40,7 +40,7 @@ class SelectProjectionPhysicalOperatorNode(input: Physical? = null, val type: Pr
 
     /** The [Cost] of a [SelectProjectionPhysicalOperatorNode]. */
     override val cost: Cost
-        get() = Cost(cpu = this.outputSize * this.fields.size * Cost.COST_MEMORY_ACCESS)
+        get() = Cost.MEMORY_ACCESS * (this.outputSize * this.fields.size)
 
     init {
         /* Sanity check. */
