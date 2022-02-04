@@ -5,8 +5,8 @@ import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.Node
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
-import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
+import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.UnaryLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.merge.MergePhysicalOperator
 import org.vitrivr.cottontail.dbms.queries.sort.SortOrder
@@ -148,26 +148,19 @@ abstract class UnaryPhysicalOperatorNode(input: Physical? = null) : org.vitrivr.
      */
     override fun tryPartition(partitions: Int, p: Int?): Physical? {
         val input = this.input ?: return null
-
-        /* If p is set, simply copy and propagate upwards. */
-        if (p != null) {
+        if (p != null) { /* If p is set, simply copy and propagate upwards. */
             val copy = this.copy()
             copy.input = (this.input?.tryPartition(partitions, p) ?: throw IllegalStateException("Tried to propagate call to tryPartition($partitions, $p), which returned null. This is a programmer's error!"))
             return copy
-        } else if (this.canBePartitioned) {
+        } else if (input.canBePartitioned) {
             val inbound = (0 until partitions).map {
                 input.tryPartition(partitions, it) ?: throw IllegalStateException("Tried to propagate call to tryPartition($partitions, $it), which returned null. This is a programmer's error!")
             }
             val merge = MergePhysicalOperator(*inbound.toTypedArray())
-            return this.output?.copyWithOutput(merge)
-        } else {
-            val newp = this.totalCost.parallelisation()
-            val partitionedInput = this.input?.tryPartition(newp)
-            if (partitionedInput != null) {
-                return this.copyWithOutput(partitionedInput)
-            }
+            return this.copyWithOutput(merge)
         }
-        return null
+        val newp = this.totalCost.parallelisation()
+        return input.tryPartition(newp)
     }
 
     /**

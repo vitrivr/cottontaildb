@@ -133,7 +133,7 @@ object GrpcQueryBinder {
                 val columnName = insert.elementsList[it].column.fqn()
                 entityTx.columnForName(columnName).columnDef
             }
-            val values = Array<Binding>(insert.elementsCount) {
+            val values = Array(insert.elementsCount) {
                 val literal = insert.elementsList[it].value
                 if (literal.dataCase == CottontailGrpc.Literal.DataCase.DATA_NOT_SET) {
                     context.bindings.bindNull(columns[it].type)

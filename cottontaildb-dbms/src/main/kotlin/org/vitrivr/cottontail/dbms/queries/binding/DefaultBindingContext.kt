@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.dbms.queries.binding
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
+import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
@@ -24,11 +25,11 @@ class DefaultBindingContext(startSize: Int = 100) : BindingContext {
     /** List of bound [Value]s used to resolve [Binding.Literal] in this [BindingContext]. */
     private val boundLiterals = ArrayList<Value?>(startSize)
 
-    /** List of bound [Value]s used to resolve [Binding.Column] in this [BindingContext]. */
-    private val boundColumns = Object2ObjectOpenHashMap<ColumnDef<*>, Value?>()
-
     /** List of bound [Function]s used to resolve [Binding.Function] in this [BindingContext]. */
     private val boundFunctions = Object2ObjectOpenHashMap<Signature.Closed<*>, Array<Value?>>()
+
+    /** The currently bound [Record]. */
+    private var boundRecord: Record? = null
 
     /**
      * Returns the [Value] for the given [Binding.Literal].
@@ -49,7 +50,7 @@ class DefaultBindingContext(startSize: Int = 100) : BindingContext {
      */
     override operator fun get(binding: Binding.Column): Value? {
         require(binding.context == this) { "The given binding $binding has not been registered with this binding context." }
-        return this.boundColumns[binding.column]
+        return this.boundRecord?.get(binding.column)
     }
 
     /**
@@ -71,26 +72,24 @@ class DefaultBindingContext(startSize: Int = 100) : BindingContext {
      * Creates and returns a [Binding] for the given [Value].
      *
      * @param value The [Value] to bind.
-     * @param static True, if [Binding] is expected to change during query execution.
      * @return A value [Binding]
      */
-    override fun bind(value: Value, static: Boolean): Binding.Literal {
+    override fun bind(value: Value): Binding.Literal {
         val bindingIndex = this.boundLiterals.size
         check(this.boundLiterals.add(value)) { "Failed to add $value to list of bound values for index $bindingIndex." }
-        return Binding.Literal(bindingIndex, value.type, this, static)
+        return Binding.Literal(bindingIndex, value.type, this)
     }
 
     /**
      * Creates and returns a [Binding] for the given [Value].
      *
      * @param type The [Types] to bind.
-     * @param static True, if [Binding] is expected to change during query execution.
      * @return A value [Binding]
      */
-    override fun bindNull(type: Types<*>, static: Boolean): Binding.Literal {
+    override fun bindNull(type: Types<*>): Binding.Literal {
         val bindingIndex = this.boundLiterals.size
         check(this.boundLiterals.add(null)) { "Failed to add null to list of bound values for index $bindingIndex." }
-        return Binding.Literal(bindingIndex, type, this, static)
+        return Binding.Literal(bindingIndex, type, this)
     }
 
     /**
@@ -129,16 +128,12 @@ class DefaultBindingContext(startSize: Int = 100) : BindingContext {
     }
 
     /**
-     * Updates the [Value] for a [Binding.Column].
+     * Updates the this [DefaultBindingContext] with a new [Record].
      *
-     * @param binding The [Binding.Column] to update.
-     * @param value The [Value] to bind.
-     * @return A value [Binding]
+     * @param record The new [Record] to bind.
      */
-    override fun update(binding: Binding.Column, value: Value?) {
-        require(binding.context == this) { "The given binding $binding has not been registered with this binding context." }
-        require((value == null && binding.column.nullable) || (value != null && binding.type.compatible(value))) { "Value $value cannot be bound to $binding because of type mismatch (${binding.column}."}
-        this.boundColumns[binding.column] = value
+    override fun update(record: Record) {
+        this.boundRecord = record
     }
 
     /**
@@ -148,12 +143,9 @@ class DefaultBindingContext(startSize: Int = 100) : BindingContext {
      */
     override fun copy(): BindingContext {
         val copy = DefaultBindingContext(this.boundLiterals.size)
-        for ((i,v) in this.boundLiterals.withIndex()) {
-            copy.boundLiterals[i] = v
-        }
-        for ((k,v) in this.boundColumns) {
-            copy.boundColumns[k] = v
-        }
+        copy.boundLiterals.addAll(this.boundLiterals)
+        copy.boundFunctions.putAll(this.boundFunctions)
+        copy.boundRecord = this.boundRecord
         return copy
     }
 }

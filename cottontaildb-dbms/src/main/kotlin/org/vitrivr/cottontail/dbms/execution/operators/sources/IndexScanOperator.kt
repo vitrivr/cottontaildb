@@ -39,7 +39,7 @@ class IndexScanOperator(
      * @param context The [TransactionContext] used for execution.
      * @return [Flow] representing this [IndexScanOperator]
      */
-    override fun toFlow(context: org.vitrivr.cottontail.dbms.execution.TransactionContext): Flow<Record> {
+    override fun toFlow(context: TransactionContext): Flow<Record> {
         return flow {
             val iterator = if (this@IndexScanOperator.partitions == 1) {
                 this@IndexScanOperator.index.filter(this@IndexScanOperator.predicate)
@@ -47,9 +47,7 @@ class IndexScanOperator(
                 this@IndexScanOperator.index.filterRange(this@IndexScanOperator.predicate, this@IndexScanOperator.partitionIndex, this@IndexScanOperator.partitions)
             }
             for (record in iterator) {
-                for (i in 0 until record.size) {
-                    this@IndexScanOperator.fetch[i].first.update(record[i])
-                }
+                this@IndexScanOperator.fetch.first().first.context.update(record)
                 emit(record)
             }
         }

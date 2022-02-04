@@ -30,9 +30,9 @@ class EntityCountOperator(groupId: GroupId, val entity: EntityTx, val out: Bindi
      * @param context The [TransactionContext] used for execution.
      * @return [Flow] representing this [EntityCountOperator]
      */
-    override fun toFlow(context: org.vitrivr.cottontail.dbms.execution.TransactionContext): Flow<Record> = flow {
-        val count = LongValue(this@EntityCountOperator.entity.count())
-        this@EntityCountOperator.out.update(count) /* Important: Make value available to binding context. */
-        emit(StandaloneRecord(0L, this@EntityCountOperator.columns.toTypedArray(), arrayOf(LongValue(this@EntityCountOperator.entity.count()))))
+    override fun toFlow(context: TransactionContext): Flow<Record> = flow {
+        val rec = StandaloneRecord(0L, this@EntityCountOperator.columns.toTypedArray(), arrayOf(LongValue(this@EntityCountOperator.entity.count())))
+        this@EntityCountOperator.out.context.update(rec)
+        emit(rec)
     }
 }

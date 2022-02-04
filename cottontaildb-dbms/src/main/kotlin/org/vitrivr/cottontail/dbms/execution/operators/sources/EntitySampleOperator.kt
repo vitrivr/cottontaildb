@@ -8,6 +8,7 @@ import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
+import org.vitrivr.cottontail.dbms.execution.TransactionContext
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.queries.QueryContext
 import java.util.*
@@ -29,15 +30,13 @@ class EntitySampleOperator(groupId: GroupId, val entity: EntityTx, val fetch: Li
      * @param context The [QueryContext] used for execution.
      * @return [Flow] representing this [EntitySampleOperator].
      */
-    override fun toFlow(context: org.vitrivr.cottontail.dbms.execution.TransactionContext): Flow<Record> {
+    override fun toFlow(context: TransactionContext): Flow<Record> {
         val fetch = this.fetch.map { it.second }.toTypedArray()
         return flow {
             val random = SplittableRandom(this@EntitySampleOperator.seed)
             for (record in this@EntitySampleOperator.entity.scan(fetch)) {
                 if (random.nextDouble(0.0, 1.0) <= this@EntitySampleOperator.p) {
-                    for (i in 0 until record.size) {
-                        this@EntitySampleOperator.fetch[i].first.update(record[i])
-                    }
+                    this@EntitySampleOperator.fetch.first().first.context.update(record)
                     emit(record)
                 }
             }

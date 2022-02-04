@@ -58,7 +58,7 @@ class FunctionPhysicalOperatorNode(input: Physical? = null, val function: Bindin
      * @param context The new [BindingContext].
      */
     override fun bind(context: BindingContext) {
-        super.bind(context)
+        this.input?.bind(context)
         this.function.bind(context)
         this.out.bind(context)
     }

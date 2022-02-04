@@ -13,7 +13,7 @@ import org.vitrivr.cottontail.core.values.types.Value
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class RecordBinding(override var tupleId: TupleId, override val columns: Array<ColumnDef<*>>, private val values: Array<Binding>) : Record {
+class RecordBinding(override var tupleId: TupleId, override val columns: Array<ColumnDef<*>>, private val values: Array<Binding.Literal>) : Record {
 
     /**
      * Creates a copy of this [RecordBinding]

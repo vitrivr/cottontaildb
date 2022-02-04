@@ -2,10 +2,10 @@ package org.vitrivr.cottontail.dbms.queries.operators.physical.merge
 
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
-import org.vitrivr.cottontail.dbms.queries.QueryContext
-import org.vitrivr.cottontail.dbms.queries.operators.physical.NAryPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.operators.transform.MergeOperator
+import org.vitrivr.cottontail.dbms.queries.QueryContext
+import org.vitrivr.cottontail.dbms.queries.operators.physical.NAryPhysicalOperatorNode
 
 /**
  * An [NAryPhysicalOperatorNode] that represents the merging of inputs from different strands of execution.
@@ -48,8 +48,8 @@ class MergePhysicalOperator(vararg inputs: Physical): NAryPhysicalOperatorNode(*
      * @param context [BindingContext] of this [MergePhysicalOperator].
      */
     override fun bind(context: BindingContext) {
-        this.bindingContext = context
         this.inputs.forEach { it.bind(context.copy()) }
+        this.bindingContext = context
     }
 
 

@@ -2,9 +2,11 @@ package org.vitrivr.cottontail.dbms.queries.planning
 
 import it.unimi.dsi.fastutil.ints.Int2ObjectLinkedOpenHashMap
 import org.vitrivr.cottontail.core.queries.GroupId
+import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
 import org.vitrivr.cottontail.dbms.queries.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.logical.BinaryLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.NAryLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.NullaryLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.UnaryLogicalOperatorNode
@@ -13,15 +15,14 @@ import org.vitrivr.cottontail.dbms.queries.operators.physical.NAryPhysicalOperat
 import org.vitrivr.cottontail.dbms.queries.operators.physical.NullaryPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.UnaryPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
-import java.util.*
 
 /**
- * This is a rather simple query planner that optimizes a [OperatorNode] by recursively applying a set of [RewriteRule]s to get more
- * sophisticated yet equivalent [OperatorNode]s. Query planning & optimization takes place in three stages:
+ * This is a rather simple query planner that optimizes a [OperatorNode] tree by recursively applying a set of [RewriteRule]s
+ * to get more sophisticated yet equivalent [OperatorNode] trees. Query planning & optimization takes place in three stages:
  *
- * 1. The logical tree is rewritten by means of other [OperatorNode.Logical]s, to generate several, equivalent representations of the query.
- * 2. The candidate trees are "implemented", i.e., a physical tree is created for each logical tree .
- * 3. The physical tree is rewritten by replacing [OperatorNode.Physical]s by [OperatorNode.Physical] to arrive at an executable query plan.
+ * 1. The planner rewrites the logical tree means of other [OperatorNode.Logical]s, to generate several, equivalent representations of the query.
+ * 2. The candidate trees are "implemented", i.e., the planner creates a physical tree for each logical tree.
+ * 3. The planner rewrites the physical trees by replacing [OperatorNode.Physical]s by [OperatorNode.Physical] to arrive at a better execution plan.
  *
  * Finally, the best plan in terms of [Cost] is selected.
  *
@@ -69,7 +70,7 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
      *
      * @return List of [OperatorNode.Physical] that implement the [OperatorNode.Logical]
      */
-    fun plan(context: QueryContext): Collection<org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Physical> {
+    fun plan(context: QueryContext): Collection<OperatorNode.Physical> {
         val logical = context.logical
         require(logical != null) { QueryException.QueryPlannerException("Cannot perform query planning for a QueryContext that doesn't have a logical query plan.") }
 
@@ -94,11 +95,11 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
      *
      * @param operator [OperatorNode.Logical] That should be decomposed.
      */
-    private fun decompose(operator: org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Logical): Map<Int, org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Logical> {
-        val decomposition = Int2ObjectLinkedOpenHashMap<org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Logical>()
+    private fun decompose(operator: OperatorNode.Logical): Map<Int, OperatorNode.Logical> {
+        val decomposition = Int2ObjectLinkedOpenHashMap<OperatorNode.Logical>()
         decomposition[operator.groupId] = operator.copyWithGroupInputs()
-        var next: org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Logical? = operator
-        var prev: org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Logical? = null
+        var next: OperatorNode.Logical? = operator
+        var prev: OperatorNode.Logical? = null
         while (next != null) {
             prev = next
             when (next) {
@@ -106,7 +107,7 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
                 is UnaryLogicalOperatorNode -> {
                     next = next.input
                 }
-                is org.vitrivr.cottontail.dbms.queries.operators.logical.BinaryLogicalOperatorNode -> {
+                is BinaryLogicalOperatorNode -> {
                     if (next.right != null) decomposition.putAll(this.decompose(next.right!!))
                     next = next.left
                 }
@@ -125,10 +126,10 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
      *
      * @param decomposition The decomposition [Map] that should be recomposed.
      */
-    private fun compose(startGroupId: GroupId = 0, decomposition: Map<Int, org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Physical>): org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Physical {
+    private fun compose(startGroupId: GroupId = 0, decomposition: Map<Int, OperatorNode.Physical>): OperatorNode.Physical {
         val main = decomposition[startGroupId] ?: throw IllegalStateException("Tree composition failed. No entry for desired groupId $startGroupId.")
-        var next: org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Physical? = main
-        var prev: org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Physical? = null
+        var next: OperatorNode.Physical? = main
+        var prev: OperatorNode.Physical? = null
         while (next != null) {
             prev = next
             when (next) {
@@ -157,7 +158,7 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
      * @param operator The [OperatorNode.Logical] that should be optimized. Optimization starts from the given node, regardless of whether it is root or not.
      * @param ctx The [QueryContext] used for optimization.
      */
-    private fun optimizeLogical(operator: org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Logical, ctx: QueryContext): List<org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Logical> {
+    private fun optimizeLogical(operator: OperatorNode.Logical, ctx: QueryContext): List<OperatorNode.Logical> {
         /* List of candidates, objects to explore and digests */
         val candidates = MemoizingOperatorList(operator)
         val explore = MemoizingOperatorList(operator)
@@ -168,7 +169,7 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
             /* Apply rules to node and add results to list for exploration. */
             for (rule in this.logicalRules) {
                 val result = rule.apply(pointer, ctx)
-                if (result is org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Logical) {
+                if (result is OperatorNode.Logical) {
                     explore.enqueue(result)
                     candidates.enqueue(result)
                 }
@@ -177,9 +178,9 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
             /* Add all inputs to operators that need further exploration. */
             when (pointer) {
                 is NAryLogicalOperatorNode -> explore.enqueue(pointer.inputs.firstOrNull() ?: throw IllegalStateException("Encountered null node in logical operator node tree (node = $pointer). This is a programmer's error!"))
-                is org.vitrivr.cottontail.dbms.queries.operators.logical.BinaryLogicalOperatorNode -> explore.enqueue(pointer.left ?: throw IllegalStateException("Encountered null node in logical operator node tree (node = $pointer). This is a programmer's error!"))
+                is BinaryLogicalOperatorNode -> explore.enqueue(pointer.left ?: throw IllegalStateException("Encountered null node in logical operator node tree (node = $pointer). This is a programmer's error!"))
                 is UnaryLogicalOperatorNode -> explore.enqueue(pointer.input ?: throw IllegalStateException("EEncountered null node in logical operator node tree (node = $pointer). This is a programmer's error!"))
-                is org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Physical -> throw IllegalStateException("Encountered physical operator node in logical operator node tree. This is a programmer's error!")
+                else -> { /* No op. */ }
             }
 
             /* Get next in line. */
@@ -194,7 +195,7 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
      * @param operator The [OperatorNode.Physical] that should be optimized. Optimization starts from the given node, regardless of whether it is root or not.
      * @param ctx The [QueryContext] used for optimization.
      */
-    private fun optimizePhysical(operator: org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Physical, ctx: QueryContext): List<org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Physical> {
+    private fun optimizePhysical(operator: OperatorNode.Physical, ctx: QueryContext): List<OperatorNode.Physical> {
         /* List of candidates, objects to explore and digests */
         val candidates = MemoizingOperatorList(operator.root)
         val explore = MemoizingOperatorList(operator.root)
@@ -205,7 +206,7 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
             /* Apply rules to node and add results to list for exploration. */
             for (rule in this.physicalRules) {
                 val result = rule.apply(pointer, ctx)
-                if (result is org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Physical) {
+                if (result is OperatorNode.Physical) {
                     explore.enqueue(result)
                     candidates.enqueue(result)
                 }
@@ -216,7 +217,7 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
                 is NAryPhysicalOperatorNode -> explore.enqueue(pointer.inputs.firstOrNull() ?: throw IllegalStateException("Encountered null node in physical operator node tree (node = $pointer). This is a programmer's error!"))
                 is BinaryPhysicalOperatorNode -> explore.enqueue(pointer.left ?: throw IllegalStateException("Encountered null node in physical operator node tree (node = $pointer). This is a programmer's error!"))
                 is UnaryPhysicalOperatorNode -> explore.enqueue(pointer.input ?: throw IllegalStateException("Encountered null node in physical operator node tree (node = $pointer). This is a programmer's error!"))
-                is org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Logical -> throw IllegalStateException("Encountered logical operator node in physical operator node tree. This is a programmer's error!")
+                else -> { /* No op. */ }
             }
 
             /* Get next in line. */

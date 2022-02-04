@@ -24,14 +24,7 @@ sealed interface Binding: Node {
     val static: Boolean
 
     /** The [BindingContext] associated with this [Binding]. */
-    var context: BindingContext
-
-    /**
-     * Updates this [Binding] with a new [Value].
-     *
-     * @param value The new [Value] to update.
-     */
-    fun update(value: Value?)
+    val context: BindingContext
 
     /**
      * Copies this [Binding], creating a new [Binding] that is initially bound to the same [BindingContext].
@@ -41,15 +34,17 @@ sealed interface Binding: Node {
     override fun copy(): Binding
 
     /** A [Binding] for a literal [Value] without any indirection other than the [Binding] itself. */
-    data class Literal(val bindingIndex: Int, override val type: Types<*>, override var context: BindingContext, override val static: Boolean = true): Binding {
+    data class Literal(val bindingIndex: Int, override val type: Types<*>, override var context: BindingContext): Binding {
         override val value: Value?
             get() = this.context[this]
-        override fun copy() = Literal(this.bindingIndex, this.type, this.context, this.static)
+        override val static: Boolean
+            get() = false
+        override fun copy() = Literal(this.bindingIndex, this.type, this.context)
         override fun digest(): Digest= this.hashCode().toLong()
         override fun bind(context: BindingContext) {
             this.context = context
         }
-        override fun update(value: Value?) = this.context.update(this, value)
+        fun update(value: Value?) = this.context.update(this, value)
         override fun toString(): String = ":$bindingIndex"
     }
 
@@ -66,7 +61,6 @@ sealed interface Binding: Node {
         override fun bind(context: BindingContext) {
             this.context = context
         }
-        override fun update(value: Value?) = this.context.update(this, value)
         override fun toString(): String = "${this.column.name}"
     }
 
@@ -85,12 +79,12 @@ sealed interface Binding: Node {
             get() = this.function.signature.returnType
         override val static: Boolean
             get() = false
-        override fun copy() = Function(this.function.copy(), this.arguments.map { it.copy() }, this.context)
+        override fun copy() = Function(this.function, this.arguments.map { it.copy() }, this.context)
         override fun digest(): Digest = this.hashCode().toLong()
         override fun bind(context: BindingContext) {
             this.context = context
+            this.arguments.forEach { it.bind(context) }
         }
-        override fun update(value: Value?) = throw UnsupportedOperationException("Cannot explicitly update the value of a function binding.")
         override fun toString(): String = "${this.function.signature}"
 
         /**

@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.core.queries.binding
 
+import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.functions.Function
 import org.vitrivr.cottontail.core.values.types.Types
@@ -44,10 +45,9 @@ interface BindingContext {
      * Creates and returns a [Binding.Literal] for the given [Value].
      *
      * @param value The [Value] to bind.
-     * @param static True, if [Binding] is expected to change during query execution.
      * @return A value [Binding]
      */
-    fun bind(value: Value, static: Boolean = true): Binding.Literal
+    fun bind(value: Value): Binding.Literal
 
     /**
      * Creates and returns a [Binding.Column] for the given [ColumnDef].
@@ -70,10 +70,9 @@ interface BindingContext {
      * Creates and returns a [Binding] for the given [Value].
      *
      * @param type The [Types] to bind.
-     * @param static True, if [Binding] is expected to change during query execution.
      * @return A value [Binding]
      */
-    fun bindNull(type: Types<*>, static: Boolean = true): Binding.Literal
+    fun bindNull(type: Types<*>): Binding.Literal
 
     /**
      * Updates the [Value] for a [Binding.Literal].
@@ -84,12 +83,11 @@ interface BindingContext {
     fun update(binding: Binding.Literal, value: Value?)
 
     /**
-     * Updates the [Value] for a [Binding.Column].
+     * Updates the this [BindingContext] with a new [Record].
      *
-     * @param binding The [Binding.Column] to update.
-     * @param value The new [Value] to bind.
+     * @param record The new [Record] to bind.
      */
-    fun update(binding: Binding.Column, value: Value?)
+    fun update(record: Record)
 
     /**
      * Creates a copy of this [BindingContext]. The copy must be fully independent.

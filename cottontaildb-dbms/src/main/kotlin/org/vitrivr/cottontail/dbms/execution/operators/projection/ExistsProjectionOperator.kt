@@ -38,7 +38,7 @@ class ExistsProjectionOperator(parent: Operator, val out: Binding.Column) : Oper
      * @param context The [TransactionContext] used for execution
      * @return [Flow] representing this [ExistsProjectionOperator]
      */
-    override fun toFlow(context: org.vitrivr.cottontail.dbms.execution.TransactionContext): Flow<Record> {
+    override fun toFlow(context: TransactionContext): Flow<Record> {
         val parentFlow = this.parent.toFlow(context)
         return flow {
             var exists = false
@@ -50,8 +50,9 @@ class ExistsProjectionOperator(parent: Operator, val out: Binding.Column) : Oper
             } catch (e: AbortFlowException) {
                 e.checkOwnership(this)
             }
-            this@ExistsProjectionOperator.out.update(BooleanValue(exists))
-            emit(StandaloneRecord(0L, this@ExistsProjectionOperator.columns[0], BooleanValue(exists)))
+            val rec = StandaloneRecord(0L, this@ExistsProjectionOperator.columns[0], BooleanValue(exists))
+            this@ExistsProjectionOperator.out.context.update(rec)
+            emit(rec)
         }
     }
 }

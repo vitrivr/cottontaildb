@@ -45,9 +45,10 @@ class FetchOperator(parent: Operator, val entity: EntityTx, val fetch: List<Pair
             }
             for (i in numberOfInputColumns until values.size) {
                 values[i] = fetched[i-numberOfInputColumns]
-                this@FetchOperator.fetch[i-numberOfInputColumns].first.update(values[i])
             }
-            StandaloneRecord(r.tupleId, columns, values) /* New record is emitted. */
+            val rec = StandaloneRecord(r.tupleId, columns, values) /* New record is emitted. */
+            this@FetchOperator.fetch.first().first.context.update(rec)
+            rec
         }
     }
 }

@@ -44,10 +44,11 @@ class FunctionOperator(parent: Operator, val function: Binding.Function, val out
 
             /* Execute function and update column value. */
             values[values.lastIndex] = this@FunctionOperator.function.value
-            this@FunctionOperator.out.update(values[values.lastIndex])
 
             /* Generate and return record. Important: Make new record available to binding context. */
-            StandaloneRecord(record.tupleId, columns, values)
+            val rec = StandaloneRecord(record.tupleId, columns, values)
+            this.function.context.update(rec)
+            rec
         }
     }
 }

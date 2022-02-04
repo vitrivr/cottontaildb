@@ -96,9 +96,9 @@ class EntityScanPhysicalOperatorNode(override val groupId: Int,
      * @return Array of [OperatorNode.Physical]s.
      */
     override fun tryPartition(partitions: Int, p: Int?): Physical? {
-        if (p != null) return EntityScanPhysicalOperatorNode(p, this.entity, this.fetch, p, partitions)
-        val inbound = (0 until partitions).map {
-            EntityScanPhysicalOperatorNode(it, this.entity, this.fetch, it, partitions)
+        if (p != null) return EntityScanPhysicalOperatorNode(p, this.entity, this.fetch.map { it.first.copy() to it.second }, p, partitions)
+        val inbound = (0 until partitions).map { i ->
+            EntityScanPhysicalOperatorNode(i, this.entity, this.fetch.map { it.first.copy() to it.second }, i, partitions)
         }
         val merge = MergePhysicalOperator(*inbound.toTypedArray())
         return this.output?.copyWithOutput(merge)
