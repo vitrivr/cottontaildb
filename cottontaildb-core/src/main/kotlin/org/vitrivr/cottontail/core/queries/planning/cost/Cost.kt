@@ -26,10 +26,10 @@ value class Cost private constructor(private val cost: FloatArray) : Comparable<
         val OP_SQRT = FLOP * 5.0f
 
         /** The estimated [Cost] for reading from disk (per word). TODO: Better estimate. */
-        val DISK_ACCESS_READ = MEMORY_ACCESS * 1e5f
+        val DISK_ACCESS_READ = Cost(io = MEMORY_ACCESS.cpu * 1e5f)
 
         /** The estimated [Cost] for writing to disk (per word). TODO: Better estimate. */
-        val DISK_ACCESS_WRITE = MEMORY_ACCESS * 4 * 1e5f
+        val DISK_ACCESS_WRITE = Cost(io = MEMORY_ACCESS.cpu * 4e5f)
 
         /** Constant used to estimate, how much parallelization makes sense given CPU [Cost]s. This is a magic number :-) */
         private const val MAX_PARALLELISATION = 4
