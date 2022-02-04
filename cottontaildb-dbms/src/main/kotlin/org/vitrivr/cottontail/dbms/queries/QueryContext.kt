@@ -1,16 +1,16 @@
 package org.vitrivr.cottontail.dbms.queries
 
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap
-import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
-import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
-import org.vitrivr.cottontail.dbms.queries.binding.DefaultBindingContext
-import org.vitrivr.cottontail.dbms.queries.sort.SortOrder
-import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
-import org.vitrivr.cottontail.dbms.exceptions.QueryException
 import org.vitrivr.cottontail.core.values.types.Value
+import org.vitrivr.cottontail.dbms.catalogue.Catalogue
+import org.vitrivr.cottontail.dbms.exceptions.QueryException
+import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
+import org.vitrivr.cottontail.dbms.queries.binding.DefaultBindingContext
+import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
+import org.vitrivr.cottontail.dbms.queries.sort.SortOrder
 
 /**
  * A context for query binding and planning. Tracks logical and physical query plans, enables late binding of [Value]s
@@ -28,11 +28,11 @@ class QueryContext(val queryId: String, val catalogue: Catalogue, val txn: org.v
     private val nodes: MutableMap<GroupId, org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Logical> = Int2ObjectOpenHashMap()
 
     /** The [OperatorNode.Logical] representing the query and the sub-queries held by this [QueryContext]. */
-    val logical: org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Logical?
+    val logical: OperatorNode.Logical?
         get() = this.nodes[0]
 
     /** The [OperatorNode.Physical] representing the query and the sub-queries held by this [QueryContext]. */
-    var physical: org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Physical? = null
+    var physical: OperatorNode.Physical? = null
         internal set
 
     /** Output [ColumnDef] for the query held by this [QueryContext] (as per canonical plan). */
