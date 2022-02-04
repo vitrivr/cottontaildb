@@ -16,6 +16,7 @@ import org.vitrivr.cottontail.dbms.queries.operators.physical.UnaryPhysicalOpera
 import org.vitrivr.cottontail.dbms.queries.operators.physical.merge.MergePhysicalOperator
 import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
 import org.vitrivr.cottontail.dbms.statistics.entity.RecordStatistics
+import java.lang.Math.floorDiv
 
 /**
  * A [UnaryPhysicalOperatorNode] that formalizes a scan of a physical [Entity] in Cottontail DB.
@@ -64,7 +65,7 @@ class EntityScanPhysicalOperatorNode(override val groupId: Int,
     }
 
     /** The estimated [Cost] of scanning the [Entity]. */
-    override val cost = (Cost.DISK_ACCESS_READ + Cost.MEMORY_ACCESS) * this.outputSize * this.fetch.sumOf {
+    override val cost = (Cost.DISK_ACCESS_READ + Cost.MEMORY_ACCESS) * floorDiv(this.outputSize, this.partitions) * this.fetch.sumOf {
         if (it.second.type == Types.String) {
             this.statistics[it.second].avgWidth * Char.SIZE_BYTES
         } else {

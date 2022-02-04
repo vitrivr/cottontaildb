@@ -35,7 +35,7 @@ class FunctionPhysicalOperatorNode(input: Physical? = null, val function: Bindin
 
     /** The [Cost] of a [FunctionPhysicalOperatorNode]. */
     override val cost: Cost
-        get() = this.function.function.cost * this.outputSize
+        get() = this.function.cost * this.outputSize
 
     /** [FunctionPhysicalOperatorNode] can only be executed if [Function] can be executed. */
     override val executable: Boolean
