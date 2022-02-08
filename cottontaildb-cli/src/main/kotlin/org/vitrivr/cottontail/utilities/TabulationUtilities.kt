@@ -38,9 +38,7 @@ object TabulationUtilities {
         body {
             while (result.hasNext()) {
                 val next = result.next()
-                row {
-                    repeat(result.numberOfColumns) { i -> cell("${next[i] ?: "~~N/A~~"}") }
-                }
+                tupleToRow(this, next.raw)
             }
         }
     }
@@ -68,9 +66,7 @@ object TabulationUtilities {
             while (result.hasNext()) {
                 val next = result.next()
                 if (predicate(next)) {
-                    row {
-                        repeat(result.numberOfColumns) { i -> cell("${next[i] ?: "~~N/A~~"}") }
-                    }
+                    tupleToRow(this, next.raw)
                 }
             }
         }
