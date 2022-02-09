@@ -11,6 +11,15 @@ dependencies {
     ///// MapDB dependency
     implementation group: 'org.mapdb', name: 'mapdb', version: version_mapdb
 
+    ///// Xodus dependency
+    implementation group: 'org.jetbrains.xodus', name: 'xodus-openAPI', version: version_xodus
+    implementation group: 'org.jetbrains.xodus', name: 'xodus-environment', version: version_xodus
+    implementation group: 'org.jetbrains.xodus', name: 'xodus-entity-store', version: version_xodus
+    implementation group: 'org.jetbrains.xodus', name: 'xodus-lucene-directory', version: version_xodus
+
+    ///// Snappy
+    implementation group: 'org.xerial.snappy', name: 'snappy-java', version: version_snappy
+
     ///// FastUtil
     implementation group: 'it.unimi.dsi', name: 'fastutil', version: version_fastutil
 

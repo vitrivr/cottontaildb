@@ -4,7 +4,6 @@ import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.dbms.general.DBOVersion
 
 open class DatabaseException(message: String, cause: Throwable? = null) : Throwable(message, cause) {
-
     /**
      * Thrown when trying to access a [DBO] with an older, unsupported [DBOVersion].
      *
@@ -98,6 +97,13 @@ open class DatabaseException(message: String, cause: Throwable? = null) : Throwa
      * @param message Description of the issue.
      */
     class DataCorruptionException(message: String) : DatabaseException(message)
+
+    /**
+     * Thrown when the Cottontail DB engine cannot write data because written value is reserved. Used mainly for nullable columns.
+     *
+     * @param message Description of the issue.
+     */
+    class ReservedValueException(message: String): DatabaseException(message)
 }
 
 
