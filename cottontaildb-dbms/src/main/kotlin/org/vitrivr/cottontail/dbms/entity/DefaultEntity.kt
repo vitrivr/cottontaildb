@@ -523,7 +523,7 @@ class DefaultEntity(override val path: Path, override val parent: Schema) : Enti
          * @throws TxException If some of the [Tx] on [Column] or [Index] level caused an error.
          * @throws DatabaseException If a general database error occurs during the insert.
          */
-        override fun insert(record: Record): TupleId? = this.withWriteLock {
+        override fun insert(record: Record): TupleId = this.withWriteLock {
             try {
                 var lastTupleId: TupleId? = null
                 val inserts = Object2ObjectArrayMap<ColumnDef<*>, Value>(this@DefaultEntity.columns.size)
@@ -542,7 +542,7 @@ class DefaultEntity(override val path: Path, override val parent: Schema) : Enti
                     }
                     val tupleId = tx.insert(value)
                     if (lastTupleId != tupleId && lastTupleId != null) {
-                        throw DatabaseException.DataCorruptionException("Entity '${this@DefaultEntity.name}' is corrupt. Insert did not yield same record ID for all columns involved!")
+                        throw DatabaseException.DataCorruptionException("Entity '${this@DefaultEntity.name}' seems corrupt. Insert did not yield same TID for all columns involved!")
                     }
                     lastTupleId = tupleId
                     inserts[it.columnDef] = value
@@ -554,7 +554,7 @@ class DefaultEntity(override val path: Path, override val parent: Schema) : Enti
                 this.snapshot.statistics.consume(event)
                 this.context.signalEvent(event)
 
-                return lastTupleId
+                return lastTupleId ?: throw DatabaseException.DataCorruptionException("Entity '${this@DefaultEntity.name}' seems corrupt. TID is null for inserted record!")
             } catch (e: DatabaseException) {
                 this.status = TxStatus.ERROR
                 throw e

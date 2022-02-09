@@ -323,7 +323,7 @@ class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1
             return this@EntityV1.header.size
         }
 
-        override fun insert(record: Record): TupleId? {
+        override fun insert(record: Record): TupleId {
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
         }
 
