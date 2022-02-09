@@ -15,8 +15,6 @@ import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.TransactionContext
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
-import kotlin.time.ExperimentalTime
-import kotlin.time.measureTimedValue
 
 /**
  * An [Operator.PipelineOperator] used during query execution. Inserts all incoming entries into an
@@ -43,13 +41,13 @@ class InsertOperator(groupId: GroupId, val entity: EntityTx, val records: List<R
      * @param context The [TransactionContext] used for execution
      * @return [Flow] representing this [InsertOperator]
      */
-    @ExperimentalTime
     override fun toFlow(context: org.vitrivr.cottontail.dbms.execution.TransactionContext): Flow<Record> {
         val columns = this.columns.toTypedArray()
         return flow {
             for (record in this@InsertOperator.records) {
-                val timedTupleId = measureTimedValue { this@InsertOperator.entity.insert(record) }
-                emit(StandaloneRecord(0L, columns, arrayOf(LongValue(timedTupleId.value!!), DoubleValue(timedTupleId.duration.inWholeMilliseconds))))
+                val start = System.currentTimeMillis()
+                val tupleId = this@InsertOperator.entity.insert(record)
+                emit(StandaloneRecord(0L, columns, arrayOf(LongValue(tupleId), DoubleValue(System.currentTimeMillis() - start))))
             }
         }
     }

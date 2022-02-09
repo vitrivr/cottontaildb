@@ -1,7 +1,6 @@
 package org.vitrivr.cottontail.dbms.execution.operators.management
 
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
@@ -15,8 +14,6 @@ import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.TransactionContext
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.operators.predicates.FilterOperator
-import kotlin.time.ExperimentalTime
-import kotlin.time.measureTime
 
 /**
  * An [Operator.MergingPipelineOperator] used during query execution. Deletes all entries in an
@@ -46,19 +43,17 @@ class DeleteOperator(parent: Operator, val entity: EntityTx) : Operator.Pipeline
      * @param context The [TransactionContext] used for execution
      * @return [Flow] representing this [FilterOperator]
      */
-    @ExperimentalTime
     override fun toFlow(context: org.vitrivr.cottontail.dbms.execution.TransactionContext): Flow<Record> {
         var deleted = 0L
         val parent = this.parent.toFlow(context)
         val columns = this.columns.toTypedArray()
         return flow {
-            val time = measureTime {
-                parent.collect {
-                    this@DeleteOperator.entity.delete(it.tupleId) /* Safe, cause tuple IDs are retained for simple queries. */
-                    deleted += 1
-                }
+            val start = System.currentTimeMillis()
+            parent.collect {
+                this@DeleteOperator.entity.delete(it.tupleId) /* Safe, cause tuple IDs are retained for simple queries. */
+                deleted += 1
             }
-            emit(StandaloneRecord(0L, columns, arrayOf(LongValue(deleted), DoubleValue(time.inWholeMilliseconds))))
+            emit(StandaloneRecord(0L, columns, arrayOf(LongValue(deleted), DoubleValue(System.currentTimeMillis()-start))))
         }
     }
 }
