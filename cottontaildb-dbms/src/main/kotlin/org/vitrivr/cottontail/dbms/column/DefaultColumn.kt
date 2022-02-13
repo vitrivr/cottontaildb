@@ -246,7 +246,7 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
         }
 
         /**
-         * Called when a transactions commits. Updates [StatisticsCatalogueEntry].
+         * Called when a transactions commit. Updates [StatisticsCatalogueEntry].
          */
         override fun beforeCommit() {
             /* Update statistics if there have been changes. */

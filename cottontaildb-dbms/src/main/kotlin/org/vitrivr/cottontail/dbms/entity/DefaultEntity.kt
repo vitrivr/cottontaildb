@@ -299,7 +299,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
                 StatisticsCatalogueEntry.write(entry = entry.copy(statistics = statistics[i]), catalogue = this@DefaultEntity.catalogue, transaction = this.context.xodusTx)
             }
 
-            this.indexes.forEach { (t, u) ->  u.rebuild() }
+            this.indexes.forEach { (_, u) ->  u.rebuild() }
 
             /* Close all the opened cursors. */
             cursor.close()
@@ -335,9 +335,6 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
             /** The wrapped [Cursor] to iterate over columns. */
             private val cursors: List<Cursor<out Value?>>
 
-            /** Flag indicating that this [Cursor] has been moved recently but the underlying data has not been fetched yet. */
-            private var dataInvalid: Boolean = true
-
             init {
                 val maxTupleId = this@Tx.maxTupleId()
                 val partitionSize: Long = Math.floorDiv(maxTupleId, partitions.toLong()) + 1L
@@ -356,28 +353,25 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
             /**
              * Returns the [Record] this [Cursor] is currently pointing to.
              */
-            override fun value(): Record {
-                if (this.dataInvalid) {
-                    this.cursors.forEachIndexed { index, cursor -> this.values[index] = cursor.value() }
-                    this.dataInvalid = false
-                }
-                return StandaloneRecord(this.cursors.first().key(), columns, this.values)
-            }
+            override fun value(): Record = StandaloneRecord(this.cursors.first().key(), columns, this.values)
 
             /**
              * Tries to move this [Cursor]. Returns true on success and false otherwise.
              */
             override fun moveNext(): Boolean {
-                val ret = this.cursors.all { it.moveNext() }
-                this.dataInvalid = true
-                return ret
+                if (this.cursors.all { it.moveNext() }) {
+                    for ((i, c) in this.cursors.withIndex()) {
+                        this.values[i] = c.value()
+                    }
+                    return true
+                }
+                return false
             }
 
             /**
              * Closes this [Cursor].
              */
             override fun close() {
-                this.dataInvalid = true
                 this.cursors.forEach { it.close() }
             }
         }
