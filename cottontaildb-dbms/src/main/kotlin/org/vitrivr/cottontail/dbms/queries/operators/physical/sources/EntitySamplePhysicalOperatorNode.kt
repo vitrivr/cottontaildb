@@ -51,21 +51,22 @@ class EntitySamplePhysicalOperatorNode(override val groupId: Int, val entity: En
     override val statistics = Object2ObjectLinkedOpenHashMap<ColumnDef<*>,ValueStatistics<*>>()
 
     /** The estimated [Cost] of sampling the [Entity]. */
-    override val cost = (Cost.DISK_ACCESS_READ + Cost.MEMORY_ACCESS) * this.outputSize * this.fetch.sumOf {
-        if (it.second.type == Types.String) {
-            this.statistics[it.second]!!.avgWidth * Char.SIZE_BYTES
-        } else {
-            it.second.type.physicalSize
-        }
-    }
+    override val cost: Cost
 
     /** Initialize entity statistics. */
     init {
+        var fetchSize = 0
         for ((binding, physical) in this.fetch) {
             if (!this.statistics.containsKey(binding.column)) {
                 this.statistics[binding.column] = (this.entity.context.getTx(this.entity.columnForName(physical.name)) as ColumnTx<*>).statistics() as ValueStatistics<Value>
             }
+            fetchSize += if (binding.type == Types.String) {
+                this.statistics[binding.column]!!.avgWidth * Char.SIZE_BYTES
+            } else {
+                binding.type.physicalSize
+            }
         }
+        this.cost = (Cost.DISK_ACCESS_READ + Cost.MEMORY_ACCESS) * this.outputSize * fetchSize
     }
 
     /**
