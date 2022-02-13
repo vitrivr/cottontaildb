@@ -45,10 +45,10 @@ class VersionProber(val config: Config) {
      * @return [DBOVersion] or [DBOVersion.UNDEFINED], if the path does not contain a valid Cottontail DB catalogue.
      */
     @ExperimentalTime
-    fun migrate(batchSize: Int, log: Path) {
+    fun migrate() {
         when {
-            isV2() -> MigrationManagerV2(batchSize, log).migrate(this.config)
-            isV1() -> MigrationManagerV1(batchSize, log).migrate(this.config)
+            isV2() -> MigrationManagerV2(10000, this.config.root.parent).migrate(this.config)
+            isV1() -> MigrationManagerV1(10000, this.config.root.parent).migrate(this.config)
             else -> throw IllegalStateException("Cannot migrate Cottontail DB from DB version ${probe()}.")
         }
     }

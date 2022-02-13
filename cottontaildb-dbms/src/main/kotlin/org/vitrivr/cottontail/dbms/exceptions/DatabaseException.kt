@@ -10,7 +10,7 @@ open class DatabaseException(message: String, cause: Throwable? = null) : Throwa
      * @param expected: Int Expected [DBOVersion] of [DBO]
      * @param found: Int Found [DBOVersion] of [DBO]
      */
-    class VersionMismatchException(expected: DBOVersion, found: DBOVersion) : DatabaseException("Version mismatch for DBO: Expected $expected but found $found.")
+    class VersionMismatchException(val expected: DBOVersion, val found: DBOVersion) : DatabaseException("Version mismatch for DBO: Expected $expected but found $found.")
 
     /**
      * Thrown when trying to create a [Schema][org.vitrivr.cottontail.dbms.schema.DefaultSchema]

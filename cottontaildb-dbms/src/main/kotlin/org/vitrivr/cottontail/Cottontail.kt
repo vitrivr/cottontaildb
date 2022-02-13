@@ -31,10 +31,6 @@ const val COTTONTAIL_CONFIG_FILE_SYSTEM_PROPERTY_KEY = "org.vitrivr.cottontail.c
  */
 @ExperimentalTime
 fun main(args: Array<String>) {
-
-    /* TODO: Catalogue migration. */
-
-
     /* Try to start Cottontail DB */
     try {
         val config: Config = loadConfig(findConfigPathOrdered(args))
@@ -116,7 +112,17 @@ fun standalone(config: Config) {
     }
 
     /* Start gRPC Server and print message. */
-    val server = embedded(config)
+    val server = try {
+        embedded(config)
+    } catch (e: DatabaseException.VersionMismatchException) {
+        if (migrate(config, e.found, e.expected)) {
+            println("Cottontail DB upgrade to ${e.expected} was successful. Please restart Cottontail DB now!")
+            return
+        } else {
+            throw e
+        }
+    }
+
     println(
         "Cottontail DB server is up and running at port ${config.server.port}! Hop along... (catalogue: ${server.catalogue.version}, pid: ${
             ProcessHandle.current().pid()
@@ -158,4 +164,24 @@ fun embedded(config: Config): CottontailGrpcServer {
 
     /* Start gRPC Server and return it. */
     return CottontailGrpcServer(config)
+}
+
+/**
+ * Tries to migrate the Cottontail DB version.
+ */
+@ExperimentalTime
+fun migrate(config: Config, from: DBOVersion, to: DBOVersion): Boolean {
+    /* Start CLI (if configured); wait for gRPC server to be stopped. */
+    val scanner = Scanner(System.`in`)
+    println("Cottontail DB detected a version mismatch (expected: $to, found: $from). Would you like to perform a upgrade (y/n)?")
+    while (true) {
+        when (scanner.nextLine().lowercase()) {
+            "yes", "y" -> {
+                VersionProber(config).migrate()
+                return true
+            }
+            "no", "n" -> return false
+        }
+        Thread.sleep(100)
+    }
 }
