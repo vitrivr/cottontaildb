@@ -2,12 +2,11 @@ package org.vitrivr.cottontail.dbms.statistics.columns
 
 import com.google.common.primitives.Shorts.max
 import com.google.common.primitives.Shorts.min
-import org.mapdb.DataInput2
-import org.mapdb.DataOutput2
-import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.core.values.IntValue
+import jetbrains.exodus.bindings.ShortBinding
+import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.values.ShortValue
-import org.vitrivr.cottontail.core.values.types.Value
+import org.vitrivr.cottontail.core.values.types.Types
+import java.io.ByteArrayInputStream
 
 /**
  * A [ValueStatistics] implementation for [ShortValue]s.
@@ -18,19 +17,19 @@ import org.vitrivr.cottontail.core.values.types.Value
 class ShortValueStatistics : ValueStatistics<ShortValue>(Types.Short) {
 
     /**
-     * Serializer for [LongValueStatistics].
+     * Xodus serializer for [ShortValueStatistics]
      */
-    companion object Serializer : org.mapdb.Serializer<ShortValueStatistics> {
-        override fun serialize(out: DataOutput2, value: ShortValueStatistics) {
-            out.writeShort(value.min.toInt())
-            out.writeShort(value.max.toInt())
+    object Binding {
+        fun read(stream: ByteArrayInputStream): ShortValueStatistics {
+            val stat = ShortValueStatistics()
+            stat.min = ShortBinding.BINDING.readObject(stream)
+            stat.max = ShortBinding.BINDING.readObject(stream)
+            return stat
         }
 
-        override fun deserialize(input: DataInput2, available: Int): ShortValueStatistics {
-            val stat = ShortValueStatistics()
-            stat.min = input.readShort()
-            stat.max = input.readShort()
-            return stat
+        fun write(output: LightOutputStream, statistics: ShortValueStatistics) {
+            ShortBinding.BINDING.writeObject(output, statistics.min)
+            ShortBinding.BINDING.writeObject(output, statistics.max)
         }
     }
 
@@ -41,9 +40,9 @@ class ShortValueStatistics : ValueStatistics<ShortValue>(Types.Short) {
     var max: Short = Short.MIN_VALUE
 
     /**
-     * Updates this [LongValueStatistics] with an inserted [IntValue]
+     * Updates this [ShortValueStatistics] with an inserted [ShortValue]
      *
-     * @param inserted The [Value] that was deleted.
+     * @param inserted The [ShortValue] that was inserted.
      */
     override fun insert(inserted: ShortValue?) {
         super.insert(inserted)
@@ -54,9 +53,9 @@ class ShortValueStatistics : ValueStatistics<ShortValue>(Types.Short) {
     }
 
     /**
-     * Updates this [LongValueStatistics] with a deleted [IntValue]
+     * Updates this [ShortValueStatistics] with a deleted [ShortValue]
      *
-     * @param deleted The [Value] that was deleted.
+     * @param deleted The [ShortValue] that was deleted.
      */
     override fun delete(deleted: ShortValue?) {
         super.delete(deleted)

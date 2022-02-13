@@ -1,10 +1,10 @@
 package org.vitrivr.cottontail.dbms.statistics.columns
 
-import org.mapdb.DataInput2
-import org.mapdb.DataOutput2
+import jetbrains.exodus.bindings.DoubleBinding
+import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.values.DoubleVectorValue
 import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.core.values.types.Value
+import java.io.ByteArrayInputStream
 
 /**
  * A [ValueStatistics] implementation for [DoubleVectorValue]s.
@@ -29,9 +29,33 @@ class DoubleVectorValueStatistics(type: Types<DoubleVectorValue>) : ValueStatist
         })
 
     /**
+     * Xodus serializer for [DoubleVectorValueStatistics]
+     */
+    object Binding {
+        fun read(stream: ByteArrayInputStream, type: Types<DoubleVectorValue>): DoubleVectorValueStatistics {
+            val stat = DoubleVectorValueStatistics(type)
+            for (i in 0 until type.logicalSize) {
+                stat.min.data[i] = DoubleBinding.BINDING.readObject(stream)
+                stat.max.data[i] = DoubleBinding.BINDING.readObject(stream)
+                stat.sum.data[i] = DoubleBinding.BINDING.readObject(stream)
+            }
+            return stat
+        }
+
+        fun write(output: LightOutputStream, statistics: DoubleVectorValueStatistics) {
+            for (i in 0 until statistics.type.logicalSize) {
+                DoubleBinding.BINDING.writeObject(output, statistics.min.data[i])
+                DoubleBinding.BINDING.writeObject(output, statistics.max.data[i])
+                DoubleBinding.BINDING.writeObject(output, statistics.sum.data[i])
+            }
+        }
+    }
+
+
+    /**
      * Updates this [DoubleVectorValueStatistics] with an inserted [DoubleVectorValue]
      *
-     * @param inserted The [Value] that was deleted.
+     * @param inserted The [DoubleVectorValue] that was inserted.
      */
     override fun insert(inserted: DoubleVectorValue?) {
         super.insert(inserted)
@@ -47,7 +71,7 @@ class DoubleVectorValueStatistics(type: Types<DoubleVectorValue>) : ValueStatist
     /**
      * Updates this [DoubleVectorValueStatistics] with a deleted [DoubleVectorValue]
      *
-     * @param deleted The [Value] that was deleted.
+     * @param deleted The [DoubleVectorValue] that was deleted.
      */
     override fun delete(deleted: DoubleVectorValue?) {
         super.delete(deleted)
@@ -59,28 +83,6 @@ class DoubleVectorValueStatistics(type: Types<DoubleVectorValue>) : ValueStatist
                 }
                 this.sum.data[i] -= d
             }
-        }
-    }
-
-    /**
-     * A [org.mapdb.Serializer] implementation for a [DoubleVectorValueStatistics] object.
-     *
-     * @author Ralph Gasser
-     * @version 1.0.0
-     */
-    class Serializer(val type: Types<DoubleVectorValue>) : org.mapdb.Serializer<DoubleVectorValueStatistics> {
-        override fun serialize(out: DataOutput2, value: DoubleVectorValueStatistics) {
-            value.min.data.forEach { out.writeDouble(it) }
-            value.max.data.forEach { out.writeDouble(it) }
-            value.sum.data.forEach { out.writeDouble(it) }
-        }
-
-        override fun deserialize(input: DataInput2, available: Int): DoubleVectorValueStatistics {
-            val stat = DoubleVectorValueStatistics(this.type)
-            repeat(this.type.logicalSize) { stat.min.data[it] = input.readDouble() }
-            repeat(this.type.logicalSize) { stat.max.data[it] = input.readDouble() }
-            repeat(this.type.logicalSize) { stat.sum.data[it] = input.readDouble() }
-            return stat
         }
     }
 

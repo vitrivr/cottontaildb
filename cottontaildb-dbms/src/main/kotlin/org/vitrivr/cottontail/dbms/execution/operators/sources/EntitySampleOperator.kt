@@ -32,12 +32,15 @@ class EntitySampleOperator(groupId: GroupId, val entity: EntityTx, val fetch: Li
      */
     override fun toFlow(context: TransactionContext): Flow<Record> {
         val fetch = this.fetch.map { it.second }.toTypedArray()
+        val random = SplittableRandom(this@EntitySampleOperator.seed)
         return flow {
-            val random = SplittableRandom(this@EntitySampleOperator.seed)
-            for (record in this@EntitySampleOperator.entity.scan(fetch)) {
-                if (random.nextDouble(0.0, 1.0) <= this@EntitySampleOperator.p) {
-                    this@EntitySampleOperator.fetch.first().first.context.update(record)
-                    emit(record)
+            this@EntitySampleOperator.entity.cursor(fetch).use { cursor ->
+                while (cursor.moveNext()) {
+                    if (random.nextDouble(0.0, 1.0) <= this@EntitySampleOperator.p) {
+                        val record = cursor.value()
+                        this@EntitySampleOperator.fetch.first().first.context.update(record) /* Important: Make new record available to binding context. */
+                        emit(record)
+                    }
                 }
             }
         }

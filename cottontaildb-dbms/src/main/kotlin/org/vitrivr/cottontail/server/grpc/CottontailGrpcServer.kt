@@ -21,14 +21,14 @@ import kotlin.time.ExperimentalTime
 @ExperimentalTime
 class CottontailGrpcServer(val config: Config) {
 
+    /** The [DefaultCatalogue] instance used by this [CottontailGrpcServer]. */
+    val catalogue = DefaultCatalogue(this.config)
+
     /** The [ThreadPoolExecutor] used for handling gRPC calls and executing queries. */
     private val executor = this.config.execution.newExecutor()
 
     /** The [TransactionManager] used by this [CottontailGrpcServer] instance. */
-    private val transactionManager: org.vitrivr.cottontail.dbms.execution.TransactionManager = org.vitrivr.cottontail.dbms.execution.TransactionManager(this.config.execution.transactionTableSize, this.config.execution.transactionHistorySize)
-
-    /** The [DefaultCatalogue] instance used by this [CottontailGrpcServer]. */
-    val catalogue = DefaultCatalogue(this.config)
+    private val transactionManager: TransactionManager = TransactionManager(this.config.execution.transactionTableSize, this.catalogue.environment, this.config.execution.transactionHistorySize)
 
     /** The internal gRPC server; if building that server fails then the [DefaultCatalogue] is closed again! */
     private val server = ServerBuilder.forPort(this.config.server.port)

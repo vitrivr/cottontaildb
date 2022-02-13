@@ -6,6 +6,7 @@ import org.vitrivr.cottontail.core.values.DoubleVectorValue
 import org.vitrivr.cottontail.core.values.FloatVectorValue
 import org.vitrivr.cottontail.core.values.types.ComplexVectorValue
 import org.vitrivr.cottontail.core.values.types.VectorValue
+
 import java.io.Serializable
 import java.util.*
 
@@ -33,9 +34,7 @@ class SuperBit(val N: Int, val L: Int, val seed: Long, val samplingMethod: Sampl
     val d = species.logicalSize
 
     /** List of hyperplanes held by this [SuperBit]. */
-    private val _hyperplanes: Array<VectorValue<*>>
-    val hyperplanes
-        get() = _hyperplanes.copyOf()
+    private val hyperplanes: Array<VectorValue<*>>
 
     /**
      * The K vectors are orthogonalized in L batches of N vectors.
@@ -104,7 +103,7 @@ class SuperBit(val N: Int, val L: Int, val seed: Long, val samplingMethod: Sampl
             }
         }
 
-        this._hyperplanes = w // H ̃
+        this.hyperplanes = w // H ̃
     }
 
     /**
@@ -114,9 +113,9 @@ class SuperBit(val N: Int, val L: Int, val seed: Long, val samplingMethod: Sampl
      * @return The signature.
      */
     fun signature(vector: VectorValue<*>): BooleanArray {
-        val signature = BooleanArray(this._hyperplanes.size)
-        for (i in this._hyperplanes.indices) {
-            signature[i] = this._hyperplanes[i].dot(vector).asInt().value >= 0
+        val signature = BooleanArray(this.hyperplanes.size)
+        for (i in this.hyperplanes.indices) {
+            signature[i] = this.hyperplanes[i].dot(vector).asInt().value >= 0
         }
         return signature
     }
@@ -131,11 +130,11 @@ class SuperBit(val N: Int, val L: Int, val seed: Long, val samplingMethod: Sampl
      * @return The signature.
      */
     fun signatureComplex(vector: ComplexVectorValue<*>): BooleanArray {
-        return BooleanArray(this._hyperplanes.size) {
+        return BooleanArray(this.hyperplanes.size) {
             if (it % 2 == 0) {
-                this._hyperplanes[it].dot(vector).real.asInt().value >= 0
+                this.hyperplanes[it].dot(vector).real.asInt().value >= 0
             } else {
-                this._hyperplanes[it].dot(vector).imaginary.asInt().value >= 0
+                this.hyperplanes[it].dot(vector).imaginary.asInt().value >= 0
             }
         }
     }

@@ -151,7 +151,7 @@ fun embedded(config: Config): CottontailGrpcServer {
     }
 
     /* Check catalogue version. */
-    val detected = VersionProber(config).probe(config.root)
+    val detected = VersionProber(config).probe()
     if (detected != VersionProber.EXPECTED && detected != DBOVersion.UNDEFINED) {
         throw DatabaseException.VersionMismatchException(VersionProber.EXPECTED, detected)
     }

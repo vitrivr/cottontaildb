@@ -45,7 +45,7 @@ class LimitingSortPhysicalOperatorNode(input: Physical? = null, override val sor
             cpu = 2 * (this.input?.outputSize ?: 0) * this.sortOn.size * Cost.MEMORY_ACCESS.cpu,
             memory = (this.columns.sumOf {
                 if (it.type == Types.String) {
-                    this.statistics[it].avgWidth * Char.SIZE_BYTES
+                    this.statistics[it]!!.avgWidth * Char.SIZE_BYTES
                 } else {
                     it.type.physicalSize
                 }

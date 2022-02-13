@@ -1,45 +1,42 @@
 package org.vitrivr.cottontail.dbms.index.va.signature
 
-import org.mapdb.DataInput2
-import org.mapdb.DataOutput2
+import jetbrains.exodus.ByteIterable
+import jetbrains.exodus.util.LightOutputStream
+import org.xerial.snappy.Snappy
+
 
 /**
  * A fixed length [VAFSignature] used for vector approximation.
  *
  * @author Gabriel Zihlmann & Ralph Gasser
- * @version 1.0.1
+ * @version 1.1.0
  */
-data class VAFSignature(val tupleId: Long, val cells: IntArray) {
-    companion object Serializer : org.mapdb.Serializer<VAFSignature> {
-        override fun serialize(out: DataOutput2, value: VAFSignature) {
-            out.packLong(value.tupleId)
-            out.packInt(value.cells.size)
-            for (c in value.cells) {
-                out.packInt(c)
-            }
+@JvmInline
+value class VAFSignature(val cells: IntArray): Comparable<VAFSignature> {
+    /**
+     * Accessor for [VAFSignature].
+     *
+     * @param index The [index] to access.
+     * @return [Int] value at the given [index].
+     */
+    operator fun get(index: Int): Int = this.cells[index]
+
+    companion object {
+        fun entryToValue(entry: ByteIterable): VAFSignature = VAFSignature(Snappy.uncompressIntArray(entry.bytesUnsafe))
+        fun valueToEntry(signature: VAFSignature): ByteIterable {
+            val stream = LightOutputStream()
+            val compressed = Snappy.compress(signature.cells)
+            stream.write(compressed)
+            return stream.asArrayByteIterable()
         }
-
-        override fun deserialize(input: DataInput2, available: Int) = VAFSignature(
-            input.unpackLong(),
-            IntArray(input.unpackInt()) { input.unpackInt() }
-        )
     }
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (javaClass != other?.javaClass) return false
-
-        other as VAFSignature
-
-        if (tupleId != other.tupleId) return false
-        if (!cells.contentEquals(other.cells)) return false
-
-        return true
-    }
-
-    override fun hashCode(): Int {
-        var result = tupleId.hashCode()
-        result = 31 * result + cells.contentHashCode()
-        return result
+    override fun compareTo(other: VAFSignature): Int {
+        for ((i,b) in this.cells.withIndex()) {
+            if (i >= other.cells.size) return Int.MIN_VALUE
+            val comp = b.compareTo(other.cells[i])
+            if (comp != 0)  return comp
+        }
+        return 0
     }
 }

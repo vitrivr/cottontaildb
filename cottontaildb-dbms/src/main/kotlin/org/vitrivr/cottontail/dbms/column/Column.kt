@@ -2,7 +2,6 @@ package org.vitrivr.cottontail.dbms.column
 
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.entity.Entity
@@ -21,9 +20,6 @@ interface Column<T: Value> : DBO {
     /** The [Entity] this [Column] belongs to. */
     override val parent: Entity
 
-    /** The maximum [TupleId] used by this [Column]. */
-    val maxTupleId: TupleId
-
     /** The [Name.ColumnName] of this [Column]. */
     override val name: Name.ColumnName
 
@@ -34,11 +30,8 @@ interface Column<T: Value> : DBO {
      */
     val columnDef: ColumnDef<T>
 
-    /** The [ColumnEngine] that powers this [Column]. */
-    val engine: ColumnEngine
-
     /**
-     * This [Column]'s type.
+     * This [Column]'s [Types].
      *
      * @return The [Types] of this [Column].
      */
@@ -47,18 +40,14 @@ interface Column<T: Value> : DBO {
 
     /**
      * Size of the content of this [Column]. The size is -1 (undefined) for most type of [Column]s.
-     * However, some column types like those holding arrays may have a defined size property
      *
-     * @return size of this [Column].
+     * However, some column types like those holding arrays may have a defined size property
      */
     val size: Int
         get() = this.columnDef.type.logicalSize
 
     /**
-     * Whether or not this [Column] is nullable. Columns that are not nullable, cannot hold any
-     * null values.
-     *
-     * @return Nullability property of this [Column].
+     * Flag indicating whether this [Column] is nullable. Columns that are not nullable, cannot hold any null values.
      */
     val nullable: Boolean
         get() = this.columnDef.nullable
@@ -68,5 +57,5 @@ interface Column<T: Value> : DBO {
      *
      * @param context [TransactionContext] to create [ColumnTx] for.
      */
-    override fun newTx(context: org.vitrivr.cottontail.dbms.execution.TransactionContext): ColumnTx<T>
+    override fun newTx(context: TransactionContext): ColumnTx<T>
 }

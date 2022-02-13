@@ -1,10 +1,10 @@
 package org.vitrivr.cottontail.dbms.statistics.columns
 
-import org.mapdb.DataInput2
-import org.mapdb.DataOutput2
-import org.vitrivr.cottontail.core.values.types.Types
+import jetbrains.exodus.bindings.LongBinding
+import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.values.LongValue
-import org.vitrivr.cottontail.core.values.types.Value
+import org.vitrivr.cottontail.core.values.types.Types
+import java.io.ByteArrayInputStream
 import java.lang.Long.max
 import java.lang.Long.min
 
@@ -17,19 +17,19 @@ import java.lang.Long.min
 class LongValueStatistics : ValueStatistics<LongValue>(Types.Long) {
 
     /**
-     * Serializer for [LongValueStatistics].
+     * Xodus serializer for [LongValueStatistics]
      */
-    companion object Serializer : org.mapdb.Serializer<LongValueStatistics> {
-        override fun serialize(out: DataOutput2, value: LongValueStatistics) {
-            out.writeLong(value.min)
-            out.writeLong(value.max)
+    object Binding {
+        fun read(stream: ByteArrayInputStream): LongValueStatistics {
+            val stat = LongValueStatistics()
+            stat.min = LongBinding.BINDING.readObject(stream)
+            stat.max = LongBinding.BINDING.readObject(stream)
+            return stat
         }
 
-        override fun deserialize(input: DataInput2, available: Int): LongValueStatistics {
-            val stat = LongValueStatistics()
-            stat.min = input.readLong()
-            stat.max = input.readLong()
-            return stat
+        fun write(output: LightOutputStream, statistics: LongValueStatistics) {
+            LongBinding.BINDING.writeObject(output, statistics.min)
+            LongBinding.BINDING.writeObject(output, statistics.max)
         }
     }
 
@@ -42,7 +42,7 @@ class LongValueStatistics : ValueStatistics<LongValue>(Types.Long) {
     /**
      * Updates this [LongValueStatistics] with an inserted [LongValue]
      *
-     * @param inserted The [Value] that was deleted.
+     * @param inserted The [LongValue] that was inserted.
      */
     override fun insert(inserted: LongValue?) {
         super.insert(inserted)
@@ -55,7 +55,7 @@ class LongValueStatistics : ValueStatistics<LongValue>(Types.Long) {
     /**
      * Updates this [LongValueStatistics] with a deleted [LongValue]
      *
-     * @param deleted The [Value] that was deleted.
+     * @param deleted The [LongValue] that was deleted.
      */
     override fun delete(deleted: LongValue?) {
         super.delete(deleted)

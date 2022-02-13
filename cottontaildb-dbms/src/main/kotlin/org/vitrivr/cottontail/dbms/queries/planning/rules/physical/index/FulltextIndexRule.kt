@@ -4,6 +4,7 @@ import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.dbms.functions.math.score.FulltextScore
+import org.vitrivr.cottontail.dbms.index.IndexState
 import org.vitrivr.cottontail.dbms.index.IndexTx
 import org.vitrivr.cottontail.dbms.queries.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
@@ -21,7 +22,7 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
  * - Function: Executed function must be the [FulltextScore] function.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
 object FulltextIndexRule : RewriteRule {
 
@@ -48,7 +49,11 @@ object FulltextIndexRule : RewriteRule {
                 val probingArgument = node.function.arguments.filterIsInstance<Binding.Column>().singleOrNull() ?: return null
                 val queryString = node.function.arguments.filterIsInstance<Binding.Literal>().singleOrNull() ?: return null
                 val predicate = BooleanPredicate.Atomic(ComparisonOperator.Binary.Match(probingArgument, queryString), false, scan.groupId)
-                val candidate = scan.entity.listIndexes().find { it.canProcess(predicate) }
+                val candidate = scan.entity.listIndexes().map {
+                    scan.entity.indexForName(it)
+                }.find {
+                    it.state != IndexState.DIRTY && it.canProcess(predicate)
+                }
                 if (candidate != null) {
                     val indexScan = IndexScanPhysicalOperatorNode(scan.groupId, ctx.txn.getTx(candidate) as IndexTx, predicate, listOf(Pair(node.out, candidate.produces[0])))
                     val fetch = FetchPhysicalOperatorNode(indexScan, scan.entity, scan.fetch.filter { !candidate.produces.contains(it.second) })

@@ -9,7 +9,7 @@ import java.nio.file.Paths
  * Cottontail DB configuration class.
  *
  * @author Ralph Gasser
- * @version 1.4.2
+ * @version 1.5.0
  */
 @Serializable
 data class Config(
@@ -22,6 +22,9 @@ data class Config(
 
         /** Path to a custom Log4j2 config file (XML). Defaults to null! */
         val logConfig: Path? = null,
+
+        /** Reference to [XodusConfig], which contains configuration regarding Xodus. */
+        val xodus: XodusConfig = XodusConfig(),
 
         /** Reference to [MapDBConfig], which contains configuration regarding the memory usage of Cottontail DB. */
         val mapdb: MapDBConfig = MapDBConfig(),

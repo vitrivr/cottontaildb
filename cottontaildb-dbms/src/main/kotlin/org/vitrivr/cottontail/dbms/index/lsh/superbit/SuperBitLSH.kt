@@ -62,10 +62,10 @@ class SuperBitLSH(private val s: Int, private val b: Int, seed: Long, species: V
     }
 
     /**
-     * Hash a signature.
-     * The signature is divided in s stages. Each stage is hashed to one of the b buckets.
+     * Hash a signature. The signature is divided in s stages. Each stage is hashed to one of the b buckets.
      *
-     * @param signature
+     * @param signatureReal Real-valued part of the signature.
+     * @param signatureComplex Complex part of the signature.
      * @return A vector of s integers (between 0 and b - 1)
      */
     private fun hashSignature(signatureReal: BooleanArray, signatureComplex: BooleanArray? = null): IntArray {

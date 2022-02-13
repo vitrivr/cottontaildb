@@ -3,12 +3,10 @@ package org.vitrivr.cottontail.dbms.index.pq.codebook
 import org.apache.commons.math3.stat.correlation.Covariance
 import org.mapdb.DataInput2
 import org.mapdb.DataOutput2
-import org.vitrivr.cottontail.dbms.index.pq.codebook.PQCodebook.Companion.clusterRealData
-import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.core.values.DoubleVectorValue
 import org.vitrivr.cottontail.core.values.FloatVectorValue
-import org.vitrivr.cottontail.core.values.types.VectorValue
-import org.vitrivr.cottontail.storage.serializers.mapdb.FloatVectorMapDBValueSerializer
+import org.vitrivr.cottontail.core.values.types.Types
+import org.vitrivr.cottontail.dbms.index.pq.codebook.PQCodebook.Companion.clusterRealData
+import org.vitrivr.cottontail.storage.serializers.ValueSerializerFactory
 
 /**
  * A [PQCodebook] implementation for [FloatVectorValue]s (single precision).
@@ -31,7 +29,7 @@ class SinglePrecisionPQCodebook(
         override fun serialize(out: DataOutput2, value: SinglePrecisionPQCodebook) {
             /* Serialize logical size of codebook entries. */
             out.packInt(value.logicalSize)
-            val vectorSerializer = FloatVectorMapDBValueSerializer(value.logicalSize)
+            val vectorSerializer = ValueSerializerFactory.mapdb(Types.FloatVector(value.logicalSize))
 
             /* Serialize centroids matrix. */
             out.packInt(value.centroids.size)
@@ -48,7 +46,7 @@ class SinglePrecisionPQCodebook(
 
         override fun deserialize(input: DataInput2, available: Int): SinglePrecisionPQCodebook {
             val logicalSize = input.unpackInt()
-            val vectorSerializer = FloatVectorMapDBValueSerializer(logicalSize)
+            val vectorSerializer = ValueSerializerFactory.mapdb(Types.FloatVector(logicalSize))
             val centroidsSize = input.unpackInt()
             val centroids = ArrayList<FloatVectorValue>(centroidsSize)
             for (i in 0 until centroidsSize) {
@@ -117,10 +115,10 @@ class SinglePrecisionPQCodebook(
         get() = this.centroids[0].logicalSize
 
     /**
-     * Returns the centroid [VectorValue] for the given index.
+     * Returns the centroid [FloatVectorValue] for the given index.
      *
      * @param ci The index of the centroid to return.
-     * @return The [DoubleVectorValue] representing the centroid for the given index.
+     * @return The [FloatVectorValue] representing the centroid for the given index.
      */
     override fun get(ci: Int): FloatVectorValue = this.centroids[ci]
 
@@ -130,9 +128,9 @@ class SinglePrecisionPQCodebook(
      *
      * Due to internal optimizations, parallel invocation of this method is not possible (i.e. method is not thread safe).
      *
-     * @param v The [VectorValue] to quantize.
-     * @param start The index of the first [VectorValue] component to consider for distance calculation.
-     * @return The index of the centroid the given [VectorValue] belongs to.
+     * @param v The [FloatVectorValue] to quantize.
+     * @param start The index of the first [FloatVectorValue] component to consider for distance calculation.
+     * @return The index of the centroid the given [FloatVectorValue] belongs to.
      */
     override fun quantizeSubspaceForVector(v: FloatVectorValue, start: Int): Int {
         var mahIndex = 0

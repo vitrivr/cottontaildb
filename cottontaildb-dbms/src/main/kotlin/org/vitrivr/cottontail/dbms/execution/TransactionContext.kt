@@ -1,12 +1,13 @@
 package org.vitrivr.cottontail.dbms.execution
 
+import jetbrains.exodus.env.Transaction
+import org.vitrivr.cottontail.core.database.TransactionId
 import org.vitrivr.cottontail.dbms.general.DBO
 import org.vitrivr.cottontail.dbms.general.Tx
 import org.vitrivr.cottontail.dbms.locking.Lock
 import org.vitrivr.cottontail.dbms.locking.LockManager
 import org.vitrivr.cottontail.dbms.locking.LockMode
 import org.vitrivr.cottontail.dbms.operations.Operation
-import org.vitrivr.cottontail.core.database.TransactionId
 
 /**
  * A [TransactionContext] used by operators and their sub transactions to execute and obtain necessary locks on database objects.
@@ -18,6 +19,9 @@ interface TransactionContext {
 
     /** The [TransactionId] of this [TransactionContext]. */
     val txId: TransactionId
+
+    /** The Xodus [Transaction] associated with this [TransactionContext]. */
+    val xodusTx: Transaction
 
     /**
      * Obtains a [Tx] for the given [DBO]. This method should make sure, that only one [Tx] per [DBO] is created.

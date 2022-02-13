@@ -5,6 +5,7 @@ import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
+import org.vitrivr.cottontail.dbms.index.IndexState
 import org.vitrivr.cottontail.dbms.index.IndexTx
 import org.vitrivr.cottontail.dbms.queries.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.logical.predicates.FilterLogicalOperatorNode
@@ -20,7 +21,7 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
  * [EntityScanLogicalOperatorNode] through a single [IndexScanPhysicalOperatorNode].
  *
  * @author Ralph Gasser
- * @version 1.2.1
+ * @version 1.3.0
  */
 object BooleanIndexScanRule : RewriteRule {
     override fun canBeApplied(node: org.vitrivr.cottontail.dbms.queries.operators.OperatorNode): Boolean =
@@ -33,7 +34,11 @@ object BooleanIndexScanRule : RewriteRule {
                 val fetch = parent.fetch.toMap()
                 val normalizedPredicate = this.normalize(node.predicate, fetch)
                 val indexes = parent.entity.listIndexes()
-                val candidate = indexes.find { it.canProcess(normalizedPredicate) }
+                val candidate = indexes.map {
+                    parent.entity.indexForName(it)
+                }.find {
+                    it.state != IndexState.DIRTY && it.canProcess(normalizedPredicate)
+                }
                 if (candidate != null) {
                     val newFetch = parent.fetch.filter { candidate.produces.contains(it.second) }
                     val delta = parent.fetch.filter { !candidate.produces.contains(it.second) }

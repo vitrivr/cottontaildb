@@ -1,12 +1,13 @@
 package org.vitrivr.cottontail.dbms.statistics.columns
 
-import org.mapdb.DataInput2
-import org.mapdb.DataOutput2
-import org.vitrivr.cottontail.core.values.types.Types
+import jetbrains.exodus.bindings.IntegerBinding
+import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.values.StringValue
-import org.vitrivr.cottontail.core.values.types.Value
+import org.vitrivr.cottontail.core.values.types.Types
+import java.io.ByteArrayInputStream
 import java.lang.Integer.max
 import java.lang.Integer.min
+import java.lang.Math.floorDiv
 
 /**
  * A specialized [ValueStatistics] for [StringValue]s.
@@ -17,34 +18,38 @@ import java.lang.Integer.min
 class StringValueStatistics : ValueStatistics<StringValue>(Types.String) {
 
     /**
-     * Serializer for [StringValueStatistics].
+     * Xodus serializer for [ShortValueStatistics]
      */
-    companion object Serializer : org.mapdb.Serializer<StringValueStatistics> {
-        override fun serialize(out: DataOutput2, value: StringValueStatistics) {
-            out.packInt(value.minWidth)
-            out.packInt(value.maxWidth)
+    object Binding {
+        fun read(stream: ByteArrayInputStream): StringValueStatistics {
+            val stat = StringValueStatistics()
+            stat.minWidth = IntegerBinding.readCompressed(stream)
+            stat.maxWidth = IntegerBinding.readCompressed(stream)
+            return stat
         }
 
-        override fun deserialize(input: DataInput2, available: Int): StringValueStatistics {
-            val stat = StringValueStatistics()
-            stat.minWidth = input.unpackInt()
-            stat.maxWidth = input.unpackInt()
-            return stat
+        fun write(output: LightOutputStream, statistics: StringValueStatistics) {
+            IntegerBinding.writeCompressed(output, statistics.minWidth)
+            IntegerBinding.writeCompressed(output, statistics.maxWidth)
         }
     }
 
-    /** Smallest [StringValue] seen by this [ValueStatistics] */
+    /** Shortest [StringValue] seen by this [StringValueStatistics] */
     override var minWidth: Int = Int.MAX_VALUE
         private set
 
-    /** Largest [StringValue] seen by this [ValueStatistics] */
+    /** Longest [StringValue] seen by this [StringValueStatistics]. */
     override var maxWidth: Int = Int.MIN_VALUE
         private set
+
+    /** The mean [StringValue] seen by this [StringValueStatistics]. */
+    val meanWidth: Int
+        get() = floorDiv(this.maxWidth - this.minWidth, 2)
 
     /**
      * Updates this [StringValueStatistics] with an inserted [StringValue].
      *
-     * @param inserted The [Value] that was deleted.
+     * @param inserted The [StringValue] that was inserted.
      */
     override fun insert(inserted: StringValue?) {
         super.insert(inserted)
@@ -57,7 +62,7 @@ class StringValueStatistics : ValueStatistics<StringValue>(Types.String) {
     /**
      * Updates this [StringValueStatistics] with a new deleted [StringValue].
      *
-     * @param deleted The [Value] that was deleted.
+     * @param deleted The [StringValue] that was deleted.
      */
     override fun delete(deleted: StringValue?) {
         super.delete(deleted)

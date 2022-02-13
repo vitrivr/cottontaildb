@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.sources
 
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
@@ -9,7 +10,7 @@ import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.operators.sources.EntityCountOperator
 import org.vitrivr.cottontail.dbms.queries.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.physical.NullaryPhysicalOperatorNode
-import org.vitrivr.cottontail.dbms.statistics.entity.RecordStatistics
+import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
 
 /**
  * A [NullaryPhysicalOperatorNode] that formalizes the counting entries in a physical [Entity].
@@ -45,8 +46,8 @@ class EntityCountPhysicalOperatorNode(override val groupId: Int, val entity: Ent
     /** The estimated [Cost] of sampling the [Entity]. */
     override val cost = Cost.DISK_ACCESS_READ + Cost.MEMORY_ACCESS
 
-    /** The [RecordStatistics] is taken from the underlying [Entity]. [RecordStatistics] are used by the query planning for [Cost] estimation. */
-    override val statistics: RecordStatistics = this.entity.dbo.statistics
+    /** [ValueStatistics] are taken from the underlying [Entity]. The query planner uses statistics for [Cost] estimation. */
+    override val statistics = Object2ObjectLinkedOpenHashMap<ColumnDef<*>, ValueStatistics<*>>()
 
     /**
      * Creates and returns a copy of this [EntityCountPhysicalOperatorNode] without any children or parents.

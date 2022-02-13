@@ -36,7 +36,7 @@ class UpdatePhysicalOperatorNode(input: Physical? = null, val entity: EntityTx, 
 
     /** The [Cost] of this [UpdatePhysicalOperatorNode]. */
     override val cost: Cost
-        get() = ((Cost.DISK_ACCESS_WRITE + Cost.MEMORY_ACCESS) * (this.input?.columns?.sumOf { this.statistics[it].avgWidth } ?: 0)) * (this.input?.outputSize ?: 0)
+        get() = ((Cost.DISK_ACCESS_WRITE + Cost.MEMORY_ACCESS) * (this.input?.columns?.sumOf { this.statistics[it]!!.avgWidth } ?: 0 )) * (this.input?.outputSize ?: 0)
 
     /** The [UpdatePhysicalOperatorNode]s cannot be partitioned. */
     override val canBePartitioned: Boolean = false

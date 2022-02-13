@@ -5,7 +5,6 @@ import kotlinx.coroutines.flow.single
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
-import org.vitrivr.cottontail.dbms.column.ColumnEngine
 import org.vitrivr.cottontail.dbms.execution.operators.definition.*
 import org.vitrivr.cottontail.dbms.execution.operators.sort.HeapSortOperator
 import org.vitrivr.cottontail.dbms.index.IndexType
@@ -54,7 +53,7 @@ class DDLService(override val catalogue: DefaultCatalogue, override val manager:
         val columns = request.definition.columnsList.map {
             val type = Types.forName(it.type.name, it.length)
             val name = entityName.column(it.name.name) /* To make sure that columns belongs to entity. */
-            ColumnDef(name, type, it.nullable) to ColumnEngine.valueOf(it.engine.toString())
+            ColumnDef(name, type, it.nullable)
         }.toTypedArray()
         CreateEntityOperator(this.catalogue, entityName, columns)
     }.single()

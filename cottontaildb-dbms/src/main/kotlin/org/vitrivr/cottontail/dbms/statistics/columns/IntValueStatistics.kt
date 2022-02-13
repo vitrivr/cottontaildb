@@ -1,10 +1,10 @@
 package org.vitrivr.cottontail.dbms.statistics.columns
 
-import org.mapdb.DataInput2
-import org.mapdb.DataOutput2
-import org.vitrivr.cottontail.core.values.types.Types
+import jetbrains.exodus.bindings.IntegerBinding
+import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.values.IntValue
-import org.vitrivr.cottontail.core.values.types.Value
+import org.vitrivr.cottontail.core.values.types.Types
+import java.io.ByteArrayInputStream
 import java.lang.Integer.max
 import java.lang.Integer.min
 
@@ -12,24 +12,24 @@ import java.lang.Integer.min
  * A [ValueStatistics] implementation for [IntValue]s.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
 class IntValueStatistics : ValueStatistics<IntValue>(Types.Int) {
 
     /**
-     * Serializer for [LongValueStatistics].
+     * Xodus serializer for [IntValueStatistics]
      */
-    companion object Serializer : org.mapdb.Serializer<IntValueStatistics> {
-        override fun serialize(out: DataOutput2, value: IntValueStatistics) {
-            out.writeInt(value.min)
-            out.writeInt(value.max)
+    object Binding {
+        fun read(stream: ByteArrayInputStream): IntValueStatistics {
+            val stat = IntValueStatistics()
+            stat.min = IntegerBinding.BINDING.readObject(stream)
+            stat.max = IntegerBinding.BINDING.readObject(stream)
+            return stat
         }
 
-        override fun deserialize(input: DataInput2, available: Int): IntValueStatistics {
-            val stat = IntValueStatistics()
-            stat.min = input.readInt()
-            stat.max = input.readInt()
-            return stat
+        fun write(output: LightOutputStream, statistics: IntValueStatistics) {
+            IntegerBinding.BINDING.writeObject(output, statistics.min)
+            IntegerBinding.BINDING.writeObject(output, statistics.max)
         }
     }
 
@@ -40,9 +40,9 @@ class IntValueStatistics : ValueStatistics<IntValue>(Types.Int) {
     var max: Int = Int.MIN_VALUE
 
     /**
-     * Updates this [LongValueStatistics] with an inserted [IntValue]
+     * Updates this [IntValueStatistics] with an inserted [IntValue]
      *
-     * @param inserted The [Value] that was deleted.
+     * @param inserted The [IntValue] that was inserted.
      */
     override fun insert(inserted: IntValue?) {
         super.insert(inserted)
@@ -53,9 +53,9 @@ class IntValueStatistics : ValueStatistics<IntValue>(Types.Int) {
     }
 
     /**
-     * Updates this [LongValueStatistics] with a deleted [IntValue]
+     * Updates this [IntValueStatistics] with a deleted [IntValue]
      *
-     * @param deleted The [Value] that was deleted.
+     * @param deleted The [IntValue] that was deleted.
      */
     override fun delete(deleted: IntValue?) {
         super.delete(deleted)

@@ -9,7 +9,7 @@ import org.vitrivr.cottontail.core.queries.predicates.Predicate
  * @see Record
  *
  * @author Ralph Gasser
- * @version 1.2.1
+ * @version 3.0.0
  */
 interface Filterable {
     /**
@@ -27,7 +27,7 @@ interface Filterable {
      * @param predicate [Predicate] to filter [Record]s.
      * @return New [Iterator]
      */
-    fun filter(predicate: Predicate): Iterator<Record>
+    fun filter(predicate: Predicate): Cursor<Record>
 }
 
 

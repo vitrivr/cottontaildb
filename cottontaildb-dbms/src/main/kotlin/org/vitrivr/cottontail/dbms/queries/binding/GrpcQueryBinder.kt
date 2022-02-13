@@ -281,12 +281,12 @@ object GrpcQueryBinder {
             CottontailGrpc.From.FromCase.SCAN -> {
                 val entity = parseAndBindEntity(from.scan.entity, context)
                 val entityTx = context.txn.getTx(entity) as EntityTx
-                val fetch = entityTx.listColumns().map { ci ->
-                    val name = columns.entries.singleOrNull { c -> c.value is Name.ColumnName && c.value.matches(ci.name) }
+                val fetch = entityTx.listColumns().map { def ->
+                    val name = columns.entries.singleOrNull { c -> c.value is Name.ColumnName && c.value.matches(def.name) }
                     if (name == null || name.key.components[3] == Name.NAME_COMPONENT_WILDCARD) {
-                        context.bindings.bind(ci.columnDef) to ci.columnDef
+                        context.bindings.bind(def) to def
                     } else {
-                        context.bindings.bind(ci.columnDef.copy(name = name.key)) to ci.columnDef
+                        context.bindings.bind(def.copy(name = name.key)) to def
                     }
                 }
                 EntityScanLogicalOperatorNode(context.nextGroupId(), entityTx, fetch)
@@ -294,12 +294,12 @@ object GrpcQueryBinder {
             CottontailGrpc.From.FromCase.SAMPLE -> {
                 val entity = parseAndBindEntity(from.scan.entity, context)
                 val entityTx = context.txn.getTx(entity) as EntityTx
-                val fetch = entityTx.listColumns().map { ci ->
-                    val name = columns.entries.singleOrNull { c -> c.value is Name.ColumnName && c.value.matches(ci.name) }
+                val fetch = entityTx.listColumns().map { def ->
+                    val name = columns.entries.singleOrNull { c -> c.value is Name.ColumnName && c.value.matches(def.name) }
                     if (name == null || name.key.components[3] == Name.NAME_COMPONENT_WILDCARD) {
-                        context.bindings.bind(ci.columnDef) to ci.columnDef
+                        context.bindings.bind(def) to def
                     } else {
-                        context.bindings.bind(ci.columnDef.copy(name = name.key)) to ci.columnDef
+                        context.bindings.bind(def.copy(name = name.key)) to def
                     }
                 }
                 EntitySampleLogicalOperatorNode(context.nextGroupId(), entityTx, fetch, from.sample.probability, from.sample.seed)

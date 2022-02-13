@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.sources
 
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
@@ -7,7 +8,10 @@ import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
 import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
+import org.vitrivr.cottontail.core.values.types.Value
+import org.vitrivr.cottontail.dbms.column.ColumnTx
 import org.vitrivr.cottontail.dbms.entity.Entity
+import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.operators.sources.IndexScanOperator
 import org.vitrivr.cottontail.dbms.index.AbstractIndex
@@ -17,7 +21,7 @@ import org.vitrivr.cottontail.dbms.queries.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.NullaryPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.merge.MergePhysicalOperator
-import org.vitrivr.cottontail.dbms.statistics.entity.RecordStatistics
+import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
 import org.vitrivr.cottontail.dbms.statistics.selectivity.NaiveSelectivityCalculator
 
 /**
@@ -58,8 +62,8 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int,
     /** Whether an [IndexScanPhysicalOperatorNode] can be partitioned depends on the [Index]. */
     override val canBePartitioned: Boolean = this.index.dbo.supportsPartitioning
 
-    /** The [RecordStatistics] is taken from the underlying [Entity]. [RecordStatistics] are used by the query planning for [Cost] estimation. */
-    override val statistics: RecordStatistics = this.index.dbo.parent.statistics
+    /** [ValueStatistics] are taken from the underlying [Entity]. The query planner uses statistics for [Cost] estimation. */
+    override val statistics = Object2ObjectLinkedOpenHashMap<ColumnDef<*>, ValueStatistics<*>>()
 
     /** Cost estimation for [IndexScanPhysicalOperatorNode]s is delegated to the [Index]. */
     override val cost: Cost = this.index.dbo.cost(this.predicate)
@@ -69,6 +73,15 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int,
         is BooleanPredicate -> NaiveSelectivityCalculator.estimate(this.predicate, this.statistics)(this.index.dbo.parent.numberOfRows)
         is ProximityPredicate -> this.predicate.k.toLong()
         else -> this.index.dbo.parent.numberOfRows
+    }
+
+    init {
+        val entityTx = this.index.context.getTx(this.index.dbo.parent) as EntityTx
+        for ((binding, physical) in this.fetch) {
+            if (!this.statistics.containsKey(binding.column)) {
+                this.statistics[binding.column] = (this.index.context.getTx(entityTx.columnForName(physical.name)) as ColumnTx<*>).statistics() as ValueStatistics<Value>
+            }
+        }
     }
 
     /**

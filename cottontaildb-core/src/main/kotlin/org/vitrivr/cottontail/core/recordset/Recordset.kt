@@ -3,13 +3,14 @@ package org.vitrivr.cottontail.core.recordset
 import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2ObjectArrayMap
 import it.unimi.dsi.fastutil.objects.ObjectBigArrayBigList
-import org.vitrivr.cottontail.core.database.ColumnDef
-import org.vitrivr.cottontail.core.queries.predicates.Predicate
-import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
+import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.basics.Filterable
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.basics.Scanable
+import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.TupleId
+import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
+import org.vitrivr.cottontail.core.queries.predicates.Predicate
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.utilities.extensions.read
 import org.vitrivr.cottontail.utilities.extensions.write
@@ -164,9 +165,12 @@ class Recordset(val columns: Array<ColumnDef<*>>, capacity: Long = 250L) : Scana
                 predicate.columns.all { this.columns.contains(it) }
 
     /**
+     * Checks if this [Filterable] can process the provided [Predicate].
      *
+     * @param predicate [Predicate] to check.
+     * @return True if [Predicate] can be processed, false otherwise.
      */
-    override fun filter(predicate: Predicate): Iterator<Record> {
+    override fun filter(predicate: Predicate): Cursor<Record> {
         TODO("Not yet implemented")
     }
 
@@ -195,30 +199,23 @@ class Recordset(val columns: Array<ColumnDef<*>>, capacity: Long = 250L) : Scana
     fun toList(): List<Record> = this.list.toList()
 
     /**
-     * Returns an [Iterator] for this [Recordset]. The [Iterator] is NOT thread safe.
-     *
-     * @return [Iterator] of this [Recordset].
-     */
-    fun iterator() = this.scan(this.columns)
-
-    /**
      * Returns an [Iterator] for this [Recordset] for the given [columns]. The [Iterator] is NOT thread safe.
      *
      * @param columns The [ColumnDef] to include in the iteration.
      * @return [Iterator] of this [Recordset].
      */
-    override fun scan(columns: Array<ColumnDef<*>>): Iterator<Record> = this.scan(columns, 0, 1)
+    override fun cursor(columns: Array<ColumnDef<*>>): Cursor<Record> = this.cursor(columns, 0, 1)
 
     /**
      * Returns an [Iterator] for this [Recordset] for the given [columns] and the given [range].
      * The [Iterator] is NOT thread safe.
      *
      * @param columns The [ColumnDef] to include in the iteration.
-     * @param partitionIndex The [partitionIndex] for this [scan] call.
-     * @param partitions The total number of partitions for this [scan] call.
+     * @param partitionIndex The [partitionIndex] for this [cursor] call.
+     * @param partitions The total number of partitions for this [cursor] call.
      * @return [Iterator] of this [Recordset].
      */
-    override fun scan(columns: Array<ColumnDef<*>>, partitionIndex: Int, partitions: Int) = object : Iterator<Record> {
+    override fun cursor(columns: Array<ColumnDef<*>>, partitionIndex: Int, partitions: Int) = object : Cursor<Record> {
 
         /** The [LongRange] to iterate over. */
         private val range: LongRange
@@ -233,27 +230,29 @@ class Recordset(val columns: Array<ColumnDef<*>>, capacity: Long = 250L) : Scana
 
         /** Internal pointer kept as reference to the next [Record]. */
         @Volatile
-        private var pointer = range.first
+        private var pointer: TupleId = this.range.first
 
         /**
-         * Returns true if the next invocation of [Iterator#next()] returns a value and false otherwise.
-         *
-         * @return Boolean indicating, whether this [Iterator] will return a value.
+         * Returns the [Record] this [Cursor] is currently pointing to.
          */
-        override fun hasNext(): Boolean {
-            return this.pointer < this@Recordset.list.size64()
-        }
+        override fun value(): Record = this@Recordset.list[this.pointer]
 
         /**
-         * Returns the next value of this [Iterator].
-         *
-         * @return Next [Record] of this [Iterator].
+         * Returns the [TupleId] this [Cursor] is currently pointing to.
          */
-        override fun next(): Record {
-            val record = this@Recordset.list[this.pointer]
-            this.pointer += 1
-            return record
-        }
+        override fun key(): TupleId = this.pointer
+
+        /**
+         * Increases this [pointer] by one and checks if it is still within the bounds of the [List].
+         *
+         * @return True, if this [Cursor] has another entry.
+         */
+        override fun moveNext(): Boolean = (++this.pointer) < this@Recordset.list.size64()
+
+        /**
+         * Closes this [Cursor]; this is a no-op.
+         */
+        override fun close() { /* No op. */ }
     }
 
     /**

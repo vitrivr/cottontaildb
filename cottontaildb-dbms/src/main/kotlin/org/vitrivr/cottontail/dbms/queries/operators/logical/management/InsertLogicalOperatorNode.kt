@@ -27,11 +27,10 @@ class InsertLogicalOperatorNode(override val groupId: GroupId, val entity: Entit
         get() = NODE_NAME
 
     /** The physical [ColumnDef] accessed by the [InsertLogicalOperatorNode]. */
-    override val physicalColumns: List<ColumnDef<*>> = this.entity.listColumns().map { it.columnDef }
+    override val physicalColumns: List<ColumnDef<*>> = this.entity.listColumns()
 
     /** The [InsertLogicalOperatorNode] produces the columns defined in the [InsertOperator] */
     override val columns: List<ColumnDef<*>> = InsertOperator.COLUMNS
-
 
     /**
      * Creates and returns a copy of this [InsertLogicalOperatorNode] without any children or parents.

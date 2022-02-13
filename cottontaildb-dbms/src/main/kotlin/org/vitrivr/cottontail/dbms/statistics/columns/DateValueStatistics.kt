@@ -1,11 +1,10 @@
 package org.vitrivr.cottontail.dbms.statistics.columns
 
-import org.mapdb.DataInput2
-import org.mapdb.DataOutput2
+import jetbrains.exodus.bindings.LongBinding
+import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.values.DateValue
-import org.vitrivr.cottontail.core.values.LongValue
 import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.core.values.types.Value
+import java.io.ByteArrayInputStream
 import java.lang.Long.max
 import java.lang.Long.min
 
@@ -13,24 +12,24 @@ import java.lang.Long.min
  * A [ValueStatistics] implementation for [DateValue]s.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
 class DateValueStatistics : ValueStatistics<DateValue>(Types.Date) {
 
     /**
-     * Serializer for [DateValueStatistics].
+     * Xodus serializer for [DateValueStatistics]
      */
-    companion object Serializer : org.mapdb.Serializer<DateValueStatistics> {
-        override fun serialize(out: DataOutput2, value: DateValueStatistics) {
-            out.packLong(value.min)
-            out.packLong(value.max)
+    object Binding {
+        fun read(stream: ByteArrayInputStream): DateValueStatistics {
+            val stat = DateValueStatistics()
+            stat.min = LongBinding.readCompressed(stream)
+            stat.max = LongBinding.readCompressed(stream)
+            return stat
         }
 
-        override fun deserialize(input: DataInput2, available: Int): DateValueStatistics {
-            val stat = DateValueStatistics()
-            stat.min = input.unpackLong()
-            stat.max = input.unpackLong()
-            return stat
+        fun write(output: LightOutputStream, statistics: DateValueStatistics) {
+            LongBinding.writeCompressed(output, statistics.min)
+            LongBinding.writeCompressed(output, statistics.max)
         }
     }
 
@@ -41,9 +40,9 @@ class DateValueStatistics : ValueStatistics<DateValue>(Types.Date) {
     var max: Long = Long.MIN_VALUE
 
     /**
-     * Updates this [LongValueStatistics] with an inserted [LongValue]
+     * Updates this [DateValueStatistics] with an inserted [DateValue]
      *
-     * @param inserted The [Value] that was deleted.
+     * @param inserted The [DateValue] that was inserted.
      */
     override fun insert(inserted: DateValue?) {
         super.insert(inserted)
@@ -54,9 +53,9 @@ class DateValueStatistics : ValueStatistics<DateValue>(Types.Date) {
     }
 
     /**
-     * Updates this [LongValueStatistics] with a deleted [LongValue]
+     * Updates this [DateValueStatistics] with a deleted [DateValue]
      *
-     * @param deleted The [Value] that was deleted.
+     * @param deleted The [DateValue] that was deleted.
      */
     override fun delete(deleted: DateValue?) {
         super.delete(deleted)

@@ -1,10 +1,10 @@
 package org.vitrivr.cottontail.dbms.statistics.columns
 
-import org.mapdb.DataInput2
-import org.mapdb.DataOutput2
-import org.vitrivr.cottontail.core.values.types.Types
+import jetbrains.exodus.bindings.FloatBinding
+import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.values.FloatValue
-import org.vitrivr.cottontail.core.values.types.Value
+import org.vitrivr.cottontail.core.values.types.Types
+import java.io.ByteArrayInputStream
 import java.lang.Float.max
 import java.lang.Float.min
 
@@ -17,21 +17,21 @@ import java.lang.Float.min
 class FloatValueStatistics : ValueStatistics<FloatValue>(Types.Float) {
 
     /**
-     * Serializer for [FloatValueStatistics].
+     * Xodus serializer for [FloatValueStatistics]
      */
-    companion object Serializer : org.mapdb.Serializer<FloatValueStatistics> {
-        override fun serialize(out: DataOutput2, value: FloatValueStatistics) {
-            out.writeFloat(value.min)
-            out.writeFloat(value.max)
-            out.writeFloat(value.sum)
+    object Binding {
+        fun read(stream: ByteArrayInputStream): FloatValueStatistics {
+            val stat = FloatValueStatistics()
+            stat.min = FloatBinding.BINDING.readObject(stream)
+            stat.max = FloatBinding.BINDING.readObject(stream)
+            stat.sum = FloatBinding.BINDING.readObject(stream)
+            return stat
         }
 
-        override fun deserialize(input: DataInput2, available: Int): FloatValueStatistics {
-            val stat = FloatValueStatistics()
-            stat.min = input.readFloat()
-            stat.max = input.readFloat()
-            stat.sum = input.readFloat()
-            return stat
+        fun write(output: LightOutputStream, statistics: FloatValueStatistics) {
+            FloatBinding.BINDING.writeObject(output, statistics.min)
+            FloatBinding.BINDING.writeObject(output, statistics.max)
+            FloatBinding.BINDING.writeObject(output, statistics.sum)
         }
     }
 
@@ -51,7 +51,7 @@ class FloatValueStatistics : ValueStatistics<FloatValue>(Types.Float) {
     /**
      * Updates this [FloatValueStatistics] with an inserted [FloatValue]
      *
-     * @param inserted The [Value] that was deleted.
+     * @param inserted The [FloatValue] that was inserted.
      */
     override fun insert(inserted: FloatValue?) {
         super.insert(inserted)
@@ -65,7 +65,7 @@ class FloatValueStatistics : ValueStatistics<FloatValue>(Types.Float) {
     /**
      * Updates this [FloatValueStatistics] with a deleted [FloatValue]
      *
-     * @param deleted The [Value] that was deleted.
+     * @param deleted The [FloatValue] that was deleted.
      */
     override fun delete(deleted: FloatValue?) {
         super.delete(deleted)

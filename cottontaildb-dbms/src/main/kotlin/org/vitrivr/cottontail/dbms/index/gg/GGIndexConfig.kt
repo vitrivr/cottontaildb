@@ -1,7 +1,5 @@
 package org.vitrivr.cottontail.dbms.index.gg
 
-import org.mapdb.DataInput2
-import org.mapdb.DataOutput2
 import org.vitrivr.cottontail.dbms.functions.math.distance.Distances
 import org.vitrivr.cottontail.dbms.index.IndexConfig
 
@@ -9,42 +7,13 @@ import org.vitrivr.cottontail.dbms.index.IndexConfig
  * Configuration class for [GGIndex].
  *
  * @author Gabriel Zihlmann
- * @version 1.1.0
+ * @version 1.2.0
  */
-data class GGIndexConfig(val numGroups: Int, val seed: Long, val distance: Distances) :
-    IndexConfig {
-    companion object Serializer : org.mapdb.Serializer<GGIndexConfig> {
+data class GGIndexConfig(val numGroups: Int, val seed: Long, val distance: Distances) : IndexConfig {
+    companion object {
         const val NUM_SUBSPACES_KEY = "num_groups"
         const val SEED_KEY = "seed"
         const val DISTANCE_KEY = "distance"
-
-        /**
-         * Serializes the content of the given value into the given
-         * [DataOutput2].
-         *
-         * @param out DataOutput2 to save object into
-         * @param value Object to serialize
-         */
-        override fun serialize(out: DataOutput2, value: GGIndexConfig) {
-            out.packInt(value.numGroups)
-            out.packLong(value.seed)
-            out.packInt(value.distance.ordinal)
-        }
-
-        /**
-         * Deserializes and returns the content of the given [DataInput2].
-         *
-         * @param input DataInput2 to de-serialize data from
-         * @param available how many bytes that are available in the DataInput2 for
-         * reading, may be -1 (in streams) or 0 (null).
-         *
-         * @return the de-serialized content of the given [DataInput2]
-         */
-        override fun deserialize(input: DataInput2, available: Int) = GGIndexConfig(
-            numGroups = input.unpackInt(),
-            seed = input.unpackLong(),
-            distance = Distances.values()[input.unpackInt()]
-        )
 
         /**
          * Constructs a [GGIndexConfig] from a parameter map.

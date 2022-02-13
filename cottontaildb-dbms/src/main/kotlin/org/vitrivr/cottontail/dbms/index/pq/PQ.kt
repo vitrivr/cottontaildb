@@ -1,18 +1,19 @@
 package org.vitrivr.cottontail.dbms.index.pq
 
-import org.mapdb.DataInput2
-import org.mapdb.DataOutput2
+import jetbrains.exodus.bindings.ComparableBinding
+import jetbrains.exodus.util.LightOutputStream
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.queries.functions.math.VectorDistance
+import org.vitrivr.cottontail.core.values.DoubleVectorValue
+import org.vitrivr.cottontail.core.values.FloatVectorValue
+import org.vitrivr.cottontail.core.values.types.Types
+import org.vitrivr.cottontail.core.values.types.VectorValue
+import org.vitrivr.cottontail.dbms.catalogue.entries.IndexStructCatalogueEntry
 import org.vitrivr.cottontail.dbms.index.pq.codebook.DoublePrecisionPQCodebook
 import org.vitrivr.cottontail.dbms.index.pq.codebook.PQCodebook
 import org.vitrivr.cottontail.dbms.index.pq.codebook.SinglePrecisionPQCodebook
-import org.vitrivr.cottontail.core.queries.functions.math.VectorDistance
-import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.core.values.DoubleVectorValue
-import org.vitrivr.cottontail.core.values.FloatVectorValue
-import org.vitrivr.cottontail.core.values.types.VectorValue
+import java.io.ByteArrayInputStream
 import java.util.*
 
 /**
@@ -21,9 +22,9 @@ import java.util.*
  * Roughly following Guo et al. 2015 - Quantization based Fast Inner Product Search
  *
  * @author Gabriel Zihlmann & Ralph Gasser
- * @version 1.0.0
+ * @version 2.0.0
  */
-class PQ(val type: Types<*>, val codebooks: List<PQCodebook<VectorValue<*>>>) {
+class PQ(name: String, val type: Types<*>, val codebooks: List<PQCodebook<VectorValue<*>>>): IndexStructCatalogueEntry(name) {
 
     /** The number of subspaces as defined in this [PQ] implementation. */
     val numberOfSubspaces
@@ -34,62 +35,9 @@ class PQ(val type: Types<*>, val codebooks: List<PQCodebook<VectorValue<*>>>) {
         get() = this.type.logicalSize / this.codebooks.size
 
     /**
-     * Serializer for [PQ]
-     */
-    object Serializer : org.mapdb.Serializer<PQ> {
-        /**
-         * Serializes the content of the given value into the given
-         * [DataOutput2].
-         * todo: figure out why cleaner way via value.type.serializer(size) does not work... it's a generics issue
-         *       wrt. in/out
-         *
-         * @param out DataOutput2 to save object into
-         * @param value Object to serialize
-         */
-        override fun serialize(out: DataOutput2, value: PQ) {
-            out.writeUTF(value.type.name)
-            out.packInt(value.type.logicalSize)
-            out.packInt(value.codebooks.size)
-            value.codebooks.forEach {
-                when (val cast = it as PQCodebook<*>) {
-                    is DoublePrecisionPQCodebook -> DoublePrecisionPQCodebook.Serializer.serialize(out, cast)
-                    is SinglePrecisionPQCodebook -> SinglePrecisionPQCodebook.Serializer.serialize(out, cast)
-                }
-            }
-        }
-
-        /**
-         * Deserializes and returns the content of the given [DataInput2].
-         *
-         * @param input DataInput2 to de-serialize data from
-         * @param available how many bytes that are available in the DataInput2 for
-         * reading, may be -1 (in streams) or 0 (null).
-         *
-         * @return the de-serialized content of the given [DataInput2]
-         */
-        override fun deserialize(input: DataInput2, available: Int): PQ {
-            val type = Types.forName(input.readUTF(), input.unpackInt())
-            val size = input.unpackInt()
-            val codebooks = ArrayList<PQCodebook<VectorValue<*>>>(size)
-            for (i in 0 until size) {
-                codebooks.add(
-                    when (type) {
-                        is Types.FloatVector -> SinglePrecisionPQCodebook.Serializer.deserialize(input, available)
-                        is Types.DoubleVector -> DoublePrecisionPQCodebook.Serializer.deserialize(input, available)
-                        is Types.Complex32Vector -> SinglePrecisionPQCodebook.Serializer.deserialize(input, available)
-                        is Types.Complex64Vector -> DoublePrecisionPQCodebook.Serializer.deserialize(input, available)
-                        else -> throw IllegalStateException("")
-                    } as PQCodebook<VectorValue<*>>
-                )
-            }
-            return PQ(type, codebooks)
-        }
-    }
-
-    /**
      *
      */
-    companion object {
+    companion object: ComparableBinding() {
         /** [Logger] instance used for logging.. */
         private val LOGGER: Logger = LoggerFactory.getLogger(PQ::class.java)
 
@@ -100,20 +48,20 @@ class PQ(val type: Types<*>, val codebooks: List<PQCodebook<VectorValue<*>>>) {
          * Generates a new [PQ] instance for the given [PQIndexConfig]
          */
         @Suppress("UNCHECKED_CAST")
-        fun fromData(config: PQIndexConfig, column: ColumnDef<*>, data: List<VectorValue<*>>): PQ {
+        fun fromData(index: PQIndex, data: List<VectorValue<*>>): PQ {
             LOGGER.debug("Initializing PQ from initial data.")
 
             /* Sanity checks. */
-            require(config.numSubspaces > 0) { "Number of subspaces must be greater than zero for PQIndex." }
-            require(config.numCentroids > 0) { "Number of centroids must be greater than zero for PQIndex." }
-            require(column.type.logicalSize >= config.numSubspaces) { "Logical size of column must be greater or equal to number of subspaces." }
+            require(index.config.numSubspaces > 0) { "Number of subspaces must be greater than zero for PQIndex." }
+            require(index.config.numCentroids > 0) { "Number of centroids must be greater than zero for PQIndex." }
+            require(index.columns[0].type.logicalSize >= index.config.numSubspaces) { "Logical size of column must be greater or equal to number of subspaces." }
 
             /* Calculate some important metrics. */
-            val dimensionsPerSubspace = column.type.logicalSize / config.numSubspaces
+            val dimensionsPerSubspace = index.columns[0].type.logicalSize / index.config.numSubspaces
 
             /* Prepare subspace data. */
             LOGGER.debug("Creating subspace data")
-            val subspaceData = (0 until config.numSubspaces).map { k ->
+            val subspaceData = (0 until index.config.numSubspaces).map { k ->
                 data.map { v -> v.subvector(k * dimensionsPerSubspace, dimensionsPerSubspace) }
             }
 
@@ -121,28 +69,36 @@ class PQ(val type: Types<*>, val codebooks: List<PQCodebook<VectorValue<*>>>) {
             LOGGER.debug("Learning centroids")
             val codebooks = mutableListOf<PQCodebook<VectorValue<*>>>()
             subspaceData.parallelStream().forEach { d ->
-                val codebook: PQCodebook<*> = when (column.type) {
+                val codebook: PQCodebook<*> = when (index.columns[0].type) {
                     is Types.Complex32Vector,
                     is Types.FloatVector -> SinglePrecisionPQCodebook.learnFromData(
                         d as List<FloatVectorValue>,
-                        config.numCentroids,
-                        config.seed,
+                        index.config.numCentroids,
+                        index.config.seed,
                         MAX_ITERATIONS
                     )
                     is Types.Complex64Vector,
                     is Types.DoubleVector -> DoublePrecisionPQCodebook.learnFromData(
                         d as List<DoubleVectorValue>,
-                        config.numCentroids,
-                        config.seed,
+                        index.config.numCentroids,
+                        index.config.seed,
                         MAX_ITERATIONS
                     )
-                    else -> throw IllegalArgumentException("VectorValue of type ${column.type} is not supported for PQ.")
+                    else -> throw IllegalArgumentException("VectorValue of type ${index.columns[0].type} is not supported for PQ.")
                 }
                 codebooks.add(codebook as PQCodebook<VectorValue<*>>)
             }
 
             LOGGER.debug("PQ initialization done.")
-            return PQ(column.type, codebooks)
+            return PQ(index.name.toString() + "_pq", index.columns[0].type, codebooks)
+        }
+
+        override fun readObject(stream: ByteArrayInputStream): Comparable<Nothing> {
+            TODO("Not yet implemented")
+        }
+
+        override fun writeObject(output: LightOutputStream, `object`: Comparable<Nothing>) {
+            TODO("Not yet implemented")
         }
     }
 
@@ -182,11 +138,8 @@ class PQ(val type: Types<*>, val codebooks: List<PQCodebook<VectorValue<*>>>) {
         return PQLookupTable(
             Array(this.numberOfSubspaces) { k ->
                 val codebook = this.codebooks[k]
-                val queryArgument = query.subvector(k * this.dimensionsPerSubspace, this.dimensionsPerSubspace)
-                DoubleArray(codebook.numberOfCentroids) {
-                    val probingArgument = codebook[it]
-                    reshape(queryArgument, probingArgument)!!.value
-                }
+                val subspaceQuery = query.subvector(k * this.dimensionsPerSubspace, this.dimensionsPerSubspace)
+                DoubleArray(codebook.numberOfCentroids) { reshape(subspaceQuery, codebook[it])!!.value }
             }
         )
     }

@@ -2,10 +2,11 @@ package org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index
 
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.queries.functions.math.VectorDistance
 import org.vitrivr.cottontail.core.queries.binding.Binding
+import org.vitrivr.cottontail.core.queries.functions.math.VectorDistance
 import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
 import org.vitrivr.cottontail.core.values.types.Types
+import org.vitrivr.cottontail.dbms.index.IndexState
 import org.vitrivr.cottontail.dbms.index.IndexTx
 import org.vitrivr.cottontail.dbms.queries.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.physical.function.FunctionPhysicalOperatorNode
@@ -24,7 +25,7 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
  * - The function needs to be a VectorDistance operating on a column (vector) and a literal (query)
  *
  * @author Ralph Gasser
- * @version 1.3.0
+ * @version 1.4.0
  */
 object NNSIndexScanRule : RewriteRule {
     override fun canBeApplied(node: org.vitrivr.cottontail.dbms.queries.operators.OperatorNode): Boolean = node is FunctionPhysicalOperatorNode
@@ -45,7 +46,11 @@ object NNSIndexScanRule : RewriteRule {
                     if (limit is LimitPhysicalOperatorNode) {
                         /* Column produced by the kNN. */
                         val predicate = ProximityPredicate.NNS(physicalQueryColumn, limit.limit.toInt(), function, vectorLiteral)
-                        val candidate = scan.entity.listIndexes().find { it.canProcess(predicate) }
+                        val candidate = scan.entity.listIndexes().map {
+                            scan.entity.indexForName(it)
+                        }.find {
+                            it.state != IndexState.DIRTY && it.canProcess(predicate)
+                        }
                         if (candidate != null) {
                             when {
                                 /* Case 1: Index produces distance, hence no distance calculation required! */

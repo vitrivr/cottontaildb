@@ -7,7 +7,7 @@ import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.queries.QueryContext
 import org.vitrivr.cottontail.dbms.queries.sort.SortOrder
-import org.vitrivr.cottontail.dbms.statistics.entity.RecordStatistics
+import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
 import java.io.PrintStream
 
 /**
@@ -166,8 +166,8 @@ sealed class OperatorNode : Node {
         /** The base of this [OperatorNode], i.e., the starting point(s) in terms of operation. Depending on the tree structure, multiple bases may exist. */
         abstract val base: Collection<OperatorNode.Physical>
 
-        /** [RecordStatistics] about the [ColumnDef]s contained in this [OperatorNode.Physical]. */
-        abstract val statistics: RecordStatistics
+        /** Map containing all [ValueStatistics] about the [ColumnDef]s processed in this [OperatorNode.Physical]. */
+        abstract val statistics: Map<ColumnDef<*>, ValueStatistics<*>>
 
         /** The estimated number of rows this [OperatorNode.Physical] generates. */
         abstract val outputSize: Long

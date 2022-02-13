@@ -34,7 +34,7 @@ class CreateIndexOperator(
         val catTxn = context.getTx(this.catalogue) as CatalogueTx
         val schemaTxn = context.getTx(catTxn.schemaForName(this.name.schema())) as SchemaTx
         val entityTxn = context.getTx(schemaTxn.entityForName(this.name.entity())) as EntityTx
-        val columns = this.indexColumns.map { entityTxn.columnForName(it).columnDef }.toTypedArray()
+        val columns = this.indexColumns.map { entityTxn.columnForName(it).columnDef.name }
         return flow {
             val timedTupleId = measureTimedValue {
                 val index = entityTxn.createIndex(

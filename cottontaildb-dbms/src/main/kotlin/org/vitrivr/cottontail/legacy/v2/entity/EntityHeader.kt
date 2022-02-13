@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail.dbms.entity
+package org.vitrivr.cottontail.legacy.v2.entity
 
 import org.mapdb.DataInput2
 import org.mapdb.DataOutput2
@@ -8,9 +8,9 @@ import org.vitrivr.cottontail.dbms.general.DBOVersion
 import org.vitrivr.cottontail.dbms.index.IndexType
 
 /**
- * The header section of the [DefaultEntity] data structure.
+ * The header section of the [EntityV2] data structure.
  *
- * @see DefaultEntity
+ * @see EntityV2
  *
  * @author Ralph Gasser
  * @version 2.0.0

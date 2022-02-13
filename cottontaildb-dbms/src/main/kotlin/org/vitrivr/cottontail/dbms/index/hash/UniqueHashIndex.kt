@@ -1,9 +1,12 @@
 package org.vitrivr.cottontail.dbms.index.hash
 
-import org.mapdb.HTreeMap
-import org.mapdb.Serializer
+import jetbrains.exodus.bindings.LongBinding
+import jetbrains.exodus.bindings.StringBinding
+import jetbrains.exodus.env.StoreConfig
+import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
@@ -11,40 +14,33 @@ import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.types.Value
+import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
+import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.exceptions.TxException
 import org.vitrivr.cottontail.dbms.execution.TransactionContext
-import org.vitrivr.cottontail.dbms.index.AbstractIndex
-import org.vitrivr.cottontail.dbms.index.IndexTx
-import org.vitrivr.cottontail.dbms.index.IndexType
+import org.vitrivr.cottontail.dbms.index.*
 import org.vitrivr.cottontail.dbms.operations.Operation
 import org.vitrivr.cottontail.storage.serializers.ValueSerializerFactory
-import java.nio.file.Path
+import org.vitrivr.cottontail.storage.serializers.xodus.XodusBinding
 import java.util.*
+import kotlin.concurrent.withLock
 
 /**
  * Represents an index in the Cottontail DB data model, that uses a persistent [HashMap] to map a
  * unique [Value] to a [TupleId]. Well suited for equality based lookups of [Value]s.
  *
  * @author Ralph Gasser
- * @version 2.0.2
+ * @version 3.0.0
  */
-class UniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path, parent) {
-
-    /** Index-wide constants. */
-    companion object {
-        const val UQ_INDEX_MAP = "cdb_uq_map"
-    }
+class UniqueHashIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name, parent) {
 
     /** The type of [AbstractIndex] */
-    override val type: IndexType = IndexType.HASH_UQ
+    override val type: IndexType = IndexType.BTREE_UQ
 
     /** The [UniqueHashIndex] implementation returns exactly the columns that is indexed. */
     override val produces: Array<ColumnDef<*>> = this.columns
-
-    /** Map structure used for [UniqueHashIndex]. */
-    private val map: HTreeMap<Value, TupleId> = this.store.hashMap(UQ_INDEX_MAP, ValueSerializerFactory.mapdb(this.columns[0].type), Serializer.LONG_DELTA).createOrOpen() as HTreeMap<Value, TupleId>
 
     /** True since [UniqueHashIndex] supports incremental updates. */
     override val supportsIncrementalUpdate: Boolean = true
@@ -52,9 +48,8 @@ class UniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path, p
     /** False, since [UniqueHashIndex] does not support partitioning. */
     override val supportsPartitioning: Boolean = false
 
-    init {
-        this.store.commit() /* Initial commit. */
-    }
+    /** [UniqueHashIndex] does not have an [IndexConfig]*/
+    override val config: IndexConfig = NoIndexConfig
 
     /**
      * Checks if the provided [Predicate] can be processed by this instance of [UniqueHashIndex]. [UniqueHashIndex] can be used to process IN and EQUALS
@@ -74,14 +69,13 @@ class UniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path, p
      * @param predicate [Predicate] to check.
      * @return Cost estimate for the [Predicate]
      */
-    override fun cost(predicate: Predicate): Cost = when {
-        predicate !is BooleanPredicate.Atomic || predicate.columns.first() != this.columns[0] || predicate.not -> Cost.INVALID
-        predicate.operator is ComparisonOperator.Binary.Equal -> Cost.DISK_ACCESS_READ + Cost.MEMORY_ACCESS + Cost(memory = predicate.columns.sumOf { it.type.physicalSize }.toFloat())
-        predicate.operator is ComparisonOperator.In -> {
-            val inOp = predicate.operator as ComparisonOperator.In
-            Cost.DISK_ACCESS_READ * inOp.right.size + Cost.MEMORY_ACCESS * inOp.right.size + Cost(memory = predicate.columns.sumOf { it.type.physicalSize }.toFloat())
+    override fun cost(predicate: Predicate): Cost {
+        if (predicate !is BooleanPredicate.Atomic || predicate.columns.first() != this.columns[0] || predicate.not) return Cost.INVALID
+        return when (val operator = predicate.operator) {
+            is ComparisonOperator.Binary.Equal -> Cost.DISK_ACCESS_READ + Cost.MEMORY_ACCESS + Cost(memory = predicate.columns.sumOf { it.type.physicalSize }.toFloat())
+            is ComparisonOperator.In -> (Cost.DISK_ACCESS_READ + Cost.MEMORY_ACCESS) * operator.right.size + Cost(memory = predicate.columns.sumOf { it.type.physicalSize }.toFloat())
+            else -> Cost.INVALID
         }
-        else -> Cost.INVALID
     }
 
     /**
@@ -92,9 +86,23 @@ class UniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path, p
     override fun newTx(context: TransactionContext): IndexTx = Tx(context)
 
     /**
+     * Closes this [UniqueHashIndex]
+     */
+    override fun close() {
+        /* No op. */
+    }
+
+    /**
      * An [IndexTx] that affects this [UniqueHashIndex].
      */
     private inner class Tx(context: TransactionContext) : AbstractIndex.Tx(context) {
+
+        /** The internal [XodusBinding] reference used for de-/serialization. */
+        private val binding: XodusBinding<*> = ValueSerializerFactory.xodus(this.columns[0].type, this.columns[0].nullable)
+
+        /** [UniqueHashIndex] does not have an [IndexConfig]*/
+        override val config: IndexConfig
+            get() = this@UniqueHashIndex.config
 
         /**
          * Adds a mapping from the given [Value] to the given [TupleId].
@@ -105,7 +113,13 @@ class UniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path, p
          * This is an internal function and can be used safely with values o
          */
         private fun addMapping(key: Value, tupleId: TupleId): Boolean {
-            return this@UniqueHashIndex.map.putIfAbsentBoolean(key, tupleId)
+            val keyRaw = (this.binding as XodusBinding<Value>).valueToEntry(key)
+            val tupleIdRaw = LongBinding.longToCompressedEntry(tupleId)
+            return if (this.dataStore.get(this.context.xodusTx, keyRaw) != null) {
+                this.dataStore.put(this.context.xodusTx, keyRaw, tupleIdRaw)
+            } else {
+                false
+            }
         }
 
         /**
@@ -116,29 +130,20 @@ class UniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path, p
          * This is an internal function and can be used safely with values o
          */
         private fun removeMapping(key: Value): Boolean {
-            return this@UniqueHashIndex.map.remove(key) != null
-        }
-
-        /**
-         * Returns the number of entries in this [UniqueHashIndex.map] which should correspond
-         * to the number of [TupleId]s it encodes.
-         *
-         * @return Number of [TupleId]s in this [UniqueHashIndex]
-         */
-        override fun count(): Long = this.withReadLock {
-            this@UniqueHashIndex.map.count().toLong()
+            val keyRaw = (this.binding as XodusBinding<Value>).valueToEntry(key)
+            return this.dataStore.delete(this.context.xodusTx, keyRaw)
         }
 
         /**
          * (Re-)builds the [UniqueHashIndex].
          */
-        override fun rebuild() = this.withWriteLock {
+        override fun rebuild() = this.txLatch.withLock {
             /* Obtain Tx for parent [Entity. */
             val entityTx = this.context.getTx(this.dbo.parent) as EntityTx
 
-            /* Recreate entries. */
-            this@UniqueHashIndex.map.clear()
-            entityTx.scan(this@UniqueHashIndex.columns).forEach { record ->
+            /* Truncate, reopen and repopulate store. */
+            this.clear()
+            entityTx.cursor(this@UniqueHashIndex.columns).forEach { record ->
                 val value = record[this.dbo.columns[0]] ?: throw TxException.TxValidationException(this.context.txId, "Value cannot be null for UniqueHashIndex ${this@UniqueHashIndex.name} given value is (value = null, tupleId = ${record.tupleId}).")
                 if (!this.addMapping(value, record.tupleId)) {
                     throw TxException.TxValidationException(this.context.txId, "Value must be unique for UniqueHashIndex ${this@UniqueHashIndex.name} but is not (value = $value, tupleId = ${record.tupleId}).")
@@ -147,12 +152,25 @@ class UniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path, p
         }
 
         /**
+         * Clears the [UniqueHashIndex] underlying this [Tx] and removes all entries it contains.
+         */
+        override fun clear() = this.txLatch.withLock {
+            this@UniqueHashIndex.parent.parent.parent.environment.truncateStore(this@UniqueHashIndex.name.storeName(), this.context.xodusTx)
+            this.dataStore = this@UniqueHashIndex.parent.parent.parent.environment.openStore(
+                this@UniqueHashIndex.name.storeName(),
+                StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING,
+                this.context.xodusTx,
+                false
+            ) ?: throw DatabaseException.DataCorruptionException("Data store for column ${this@UniqueHashIndex.name} is missing.")
+        }
+
+        /**
          * Updates the [UniqueHashIndex] with the provided [Operation.DataManagementOperation]s. This method determines,
          * whether the [Record] affected by the [Operation.DataManagementOperation] should be added or updated
          *
          * @param event [Operation.DataManagementOperation]s to process.
          */
-        override fun update(event: Operation.DataManagementOperation) = this.withWriteLock {
+        override fun update(event: Operation.DataManagementOperation) = this.txLatch.withLock {
             when (event) {
                 is Operation.DataManagementOperation.InsertOperation-> {
                     val value = event.inserts[this.dbo.columns[0]]
@@ -180,70 +198,55 @@ class UniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path, p
         }
 
         /**
-         * Clears the [UniqueHashIndex] underlying this [Tx] and removes all entries it contains.
-         */
-        override fun clear() = this.withWriteLock {
-            this@UniqueHashIndex.dirtyField.compareAndSet(false, true)
-            this@UniqueHashIndex.map.clear()
-        }
-
-        /**
-         * Performs a lookup through this [UniqueHashIndex.Tx] and returns a [Iterator] of
-         * all [Record]s that match the [Predicate]. Only supports [BooleanPredicate.Atomic]s.
+         * Performs a lookup through this [UniqueHashIndex.Tx] and returns a [Cursor] of all [Record]s that match the [Predicate].
+         * Only supports [BooleanPredicate.Atomic]s.
          *
-         * The [Iterator] is not thread safe!
-         **
+         * The [Cursor] is not thread safe!
+         *
          * @param predicate The [Predicate] for the lookup
-         * @return The resulting [Iterator]
+         * @return The resulting [Cursor]
          */
-        override fun filter(predicate: Predicate) = object : Iterator<Record> {
+        override fun filter(predicate: Predicate) = object : Cursor<Record> {
 
             /** Local [BooleanPredicate.Atomic] instance. */
             private val predicate: BooleanPredicate.Atomic
 
-            /** Pre-fetched [Record]s that match the [Predicate]. */
-            private val elements = LinkedList<Value>()
+            /** A [Queue] with values that should be queried. */
+            private val queryValueQueue: Queue<Value> = LinkedList()
+
+            /** The current query [Value]. */
+            private var queryValue: Value
+
+            /** Internal cursor used for navigation. */
+            private var cursor: jetbrains.exodus.env.Cursor
 
             /* Perform initial sanity checks. */
             init {
                 require(predicate is BooleanPredicate.Atomic) { "UniqueHashIndex.filter() does only support Atomic.Literal boolean predicates." }
                 require(!predicate.not) { "UniqueHashIndex.filter() does not support negated statements (i.e. NOT EQUALS or NOT IN)." }
-                this@Tx.withReadLock { /* No op. */ }
                 this.predicate = predicate
                 when (predicate.operator) {
-                    is ComparisonOperator.In -> this.elements.addAll((predicate.operator as ComparisonOperator.In).right.mapNotNull { it.value })
-                    is ComparisonOperator.Binary.Equal -> {
-                        val eqOp = predicate.operator as ComparisonOperator.Binary.Equal
-                        if (eqOp.right.value != null) {
-                            this.elements.add(eqOp.right.value!!)
-                        }
-                    }
+                    is ComparisonOperator.In -> this.queryValueQueue.addAll((predicate.operator as ComparisonOperator.In).right.mapNotNull { it.value })
+                    is ComparisonOperator.Binary.Equal -> this.queryValueQueue.add((predicate.operator as ComparisonOperator.Binary.Equal).right.value ?: throw IllegalArgumentException("UniqueHashIndex.filter() does not support NULL operands."))
                     else -> throw IllegalArgumentException("UniqueHashIndex.filter() does only support EQUAL and IN operators.")
                 }
+
+                /** Initialize cursor. */
+                this.cursor = this@Tx.dataStore.openCursor(this@Tx.context.xodusTx)
+                this.queryValue = this.queryValueQueue.poll() ?: throw IllegalArgumentException("UniqueHashIndex.filter() does not support NULL operands.")
+                this.cursor.getSearchKey(StringBinding.BINDING.objectToEntry(this.queryValue))
             }
 
-            /**
-             * Returns `true` if the iteration has more elements.
-             */
-            override fun hasNext(): Boolean {
-                while (this.elements.isNotEmpty()) {
-                    if (this@UniqueHashIndex.map.contains(this.elements.peek())) {
-                        return true
-                    } else {
-                        this.elements.remove()
-                    }
-                }
-                return false
+            override fun moveNext(): Boolean {
+                this.queryValue = this.queryValueQueue.poll() ?: return false
+                return this.cursor.getSearchKey(StringBinding.BINDING.objectToEntry(this.queryValue)) != null
             }
 
-            /**
-             * Returns the next element in the iteration.
-             */
-            override fun next(): Record {
-                val value = this.elements.poll()
-                val tid = this@UniqueHashIndex.map[value]!!
-                return StandaloneRecord(tid, this@UniqueHashIndex.produces, arrayOf(value))
-            }
+            override fun key(): TupleId = LongBinding.compressedEntryToLong(this.cursor.key)
+
+            override fun value(): Record = StandaloneRecord(this.key(), this@UniqueHashIndex.produces, arrayOf(this@Tx.binding.entryToValue(this.cursor.value)))
+
+            override fun close() = this.cursor.close()
         }
 
         /**
@@ -252,9 +255,9 @@ class UniqueHashIndex(path: Path, parent: DefaultEntity) : AbstractIndex(path, p
          * @param predicate The [Predicate] for the lookup.
          * @param partitionIndex The [partitionIndex] for this [filterRange] call.
          * @param partitions The total number of partitions for this [filterRange] call.
-         * @return The resulting [Iterator].
+         * @return The resulting [Cursor].
          */
-        override fun filterRange(predicate: Predicate, partitionIndex: Int, partitions: Int): Iterator<Record> {
+        override fun filterRange(predicate: Predicate, partitionIndex: Int, partitions: Int): Cursor<Record> {
             throw UnsupportedOperationException("The UniqueHashIndex does not support ranged filtering!")
         }
     }

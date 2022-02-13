@@ -3,12 +3,11 @@ package org.vitrivr.cottontail.dbms.index.pq.codebook
 import org.apache.commons.math3.stat.correlation.Covariance
 import org.mapdb.DataInput2
 import org.mapdb.DataOutput2
-import org.vitrivr.cottontail.core.values.*
+import org.vitrivr.cottontail.core.values.DoubleVectorValue
 import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.core.values.types.VectorValue
 import org.vitrivr.cottontail.dbms.column.*
 import org.vitrivr.cottontail.dbms.index.pq.codebook.PQCodebook.Companion.clusterRealData
-import org.vitrivr.cottontail.storage.serializers.mapdb.DoubleVectorMapDBSerializer
+import org.vitrivr.cottontail.storage.serializers.ValueSerializerFactory
 
 /**
  * A [PQCodebook] implementation for [DoubleVectorValue]s
@@ -31,7 +30,7 @@ class DoublePrecisionPQCodebook(
         override fun serialize(out: DataOutput2, value: DoublePrecisionPQCodebook) {
             /* Serialize logical size of codebook entries. */
             out.packInt(value.logicalSize)
-            val vectorSerializer = DoubleVectorMapDBSerializer(value.logicalSize)
+            val vectorSerializer = ValueSerializerFactory.mapdb(Types.DoubleVector(value.logicalSize))
 
             /* Serialize centroids matrix. */
             out.packInt(value.centroids.size)
@@ -48,7 +47,7 @@ class DoublePrecisionPQCodebook(
 
         override fun deserialize(input: DataInput2, available: Int): DoublePrecisionPQCodebook {
             val logicalSize = input.unpackInt()
-            val vectorSerializer = DoubleVectorMapDBSerializer(logicalSize)
+            val vectorSerializer = ValueSerializerFactory.mapdb(Types.DoubleVector(logicalSize))
             val centroidsSize = input.unpackInt()
             val centroids = ArrayList<DoubleVectorValue>(centroidsSize)
             for (i in 0 until centroidsSize) {
@@ -126,7 +125,7 @@ class DoublePrecisionPQCodebook(
      *
      * @param v The [DoubleVectorValue] to quantize.
      * @param start The index of the first component to consider for distance calculation.
-     * @return The index of the centroid the given [VectorValue] belongs to.
+     * @return The index of the centroid the given [DoubleVectorValue] belongs to.
      */
     override fun quantizeSubspaceForVector(v: DoubleVectorValue, start: Int): Int {
         var mahIndex = 0

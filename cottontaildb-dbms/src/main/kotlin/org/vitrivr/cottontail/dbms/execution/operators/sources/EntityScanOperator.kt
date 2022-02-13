@@ -32,11 +32,12 @@ class EntityScanOperator(groupId: GroupId, val entity: EntityTx, val fetch: List
         val fetch = this.fetch.map { it.second }.toTypedArray()
         val columns = this.fetch.map { it.first.column }.toTypedArray()
         return flow {
-            for (record in this@EntityScanOperator.entity.scan(fetch, this@EntityScanOperator.partitionIndex, this@EntityScanOperator.partitions)) {
-                for (i in record.columns.indices)
-                    record.columns[i] = columns[i]
-                this@EntityScanOperator.fetch.first().first.context.update(record)
-                emit(record)
+            this@EntityScanOperator.entity.cursor(fetch, this@EntityScanOperator.partitionIndex, this@EntityScanOperator.partitions).use { cursor ->
+                while (cursor.moveNext()) {
+                    val record = cursor.value()
+                    this@EntityScanOperator.fetch.first().first.context.update(record) /* Important: Make new record available to binding context. */
+                    emit(record)
+                }
             }
         }
     }

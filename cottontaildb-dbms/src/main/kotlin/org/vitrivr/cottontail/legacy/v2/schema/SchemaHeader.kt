@@ -1,9 +1,9 @@
-package org.vitrivr.cottontail.dbms.schema
+package org.vitrivr.cottontail.legacy.v2.schema
 
 import org.mapdb.DataInput2
 import org.mapdb.DataOutput2
-import org.vitrivr.cottontail.dbms.general.DBOVersion
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
+import org.vitrivr.cottontail.dbms.general.DBOVersion
 import java.util.*
 
 /**

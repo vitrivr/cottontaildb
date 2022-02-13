@@ -7,7 +7,7 @@ import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
-import org.vitrivr.cottontail.dbms.column.ColumnEngine
+import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
 import kotlin.time.ExperimentalTime
@@ -23,7 +23,7 @@ import kotlin.time.measureTimedValue
 class CreateEntityOperator(
     private val catalogue: Catalogue,
     private val name: Name.EntityName,
-    private val cols: Array<Pair<ColumnDef<*>, ColumnEngine>>
+    private val cols: Array<ColumnDef<*>>
 ) : AbstractDataDefinitionOperator(name, "CREATE ENTITY") {
 
     override fun toFlow(context: org.vitrivr.cottontail.dbms.execution.TransactionContext): Flow<Record> {

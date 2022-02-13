@@ -1,10 +1,10 @@
 package org.vitrivr.cottontail.dbms.execution
 
 import kotlinx.coroutines.flow.Flow
-import org.vitrivr.cottontail.dbms.queries.QueryContext
-import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.TransactionId
+import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
+import org.vitrivr.cottontail.dbms.queries.QueryContext
 
 /**
  * A [Transaction] that can be used to execute [Operator]s in a given [QueryContext].
@@ -17,10 +17,10 @@ interface Transaction {
     val txId: TransactionId
 
     /** The [TransactionType] of this [Transaction]. */
-    val type: org.vitrivr.cottontail.dbms.execution.TransactionType
+    val type: TransactionType
 
     /** The [QueryContext] of this [Transaction]. */
-    val state: org.vitrivr.cottontail.dbms.execution.TransactionStatus
+    val state: TransactionStatus
 
     /** Flag indicating, whether this [Transaction] was used to write any data. */
     val readonly: Boolean

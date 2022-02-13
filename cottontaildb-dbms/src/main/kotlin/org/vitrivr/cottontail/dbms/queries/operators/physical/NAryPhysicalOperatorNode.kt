@@ -5,11 +5,11 @@ import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.Node
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
-import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
+import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.NAryLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.sort.SortOrder
-import org.vitrivr.cottontail.dbms.statistics.entity.RecordStatistics
+import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
 import java.io.PrintStream
 import java.util.*
 
@@ -79,9 +79,9 @@ abstract class NAryPhysicalOperatorNode(vararg inputs: Physical) : org.vitrivr.c
     override val columns: List<ColumnDef<*>>
         get() = (this.inputs.firstOrNull()?.columns ?: emptyList())
 
-    /** By default, a [UnaryPhysicalOperatorNode]'s [RecordStatistics] is retained. */
-    override val statistics: RecordStatistics
-        get() = this.inputs.firstOrNull()?.statistics ?: RecordStatistics.EMPTY
+    /** By default, a [UnaryPhysicalOperatorNode]'s statistics are retained. */
+    override val statistics: Map<ColumnDef<*>, ValueStatistics<*>>
+        get() = this.inputs.firstOrNull()?.statistics ?: emptyMap()
 
     init {
         inputs.forEach { this.addInput(it) }

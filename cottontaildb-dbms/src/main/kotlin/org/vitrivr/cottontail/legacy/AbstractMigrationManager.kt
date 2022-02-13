@@ -8,10 +8,11 @@ import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.TransactionId
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
+import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.column.Column
-import org.vitrivr.cottontail.dbms.column.ColumnEngine
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
+import org.vitrivr.cottontail.dbms.execution.Transaction
 import org.vitrivr.cottontail.dbms.execution.TransactionContext
 import org.vitrivr.cottontail.dbms.execution.TransactionManager.TransactionImpl
 import org.vitrivr.cottontail.dbms.execution.TransactionStatus
@@ -36,10 +37,10 @@ import kotlin.time.measureTime
  * An abstract implementation of the [MigrationManager].
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 2.0.0
  */
 @ExperimentalTime
-abstract class AbstractMigrationManager(val batchSize: Int, logFile: Path) : MigrationManager {
+abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Path) : MigrationManager {
 
     /** The internal [TransactionId] counter. */
     private val transactionIdCounter = AtomicLong(0L)
@@ -63,9 +64,9 @@ abstract class AbstractMigrationManager(val batchSize: Int, logFile: Path) : Mig
      * Tries to open the destination [Catalogue] for migration.
      *
      * @param config The [Config] to open the [Catalogue] with.
-     * @return Destination [Catalogue] of null upon failure.
+     * @return Destination [DefaultCatalogue] of null upon failure.
      */
-    abstract fun openDestinationCatalogue(config: Config): Catalogue?
+    abstract fun openDestinationCatalogue(config: Config): DefaultCatalogue?
 
     /**
      * Executes the data migration.
@@ -73,7 +74,7 @@ abstract class AbstractMigrationManager(val batchSize: Int, logFile: Path) : Mig
     override fun migrate(config: Config) {
         /** Opens old catalogue. */
         val duration = measureTime {
-            this.log("Starting catalogue migration from V${this.from} for ${config.root}.\n")
+            this.log("Starting catalogue migration from ${this.from} for ${config.root}.\n")
             val srcCatalogue: Catalogue? = this.openSourceCatalogue(config)
             if (srcCatalogue == null) {
                 this.log("Failed to open source catalogue.\n")
@@ -87,7 +88,7 @@ abstract class AbstractMigrationManager(val batchSize: Int, logFile: Path) : Mig
             if (!Files.exists(migratedDatabaseRoot)) {
                 Files.createDirectories(migratedDatabaseRoot)
             }
-            val dstCatalogue: Catalogue? = this.openDestinationCatalogue(config.copy(root = migratedDatabaseRoot))
+            val dstCatalogue: DefaultCatalogue? = this.openDestinationCatalogue(config.copy(root = migratedDatabaseRoot))
             if (dstCatalogue == null) {
                 this.log("Failed to open destination catalogue.\n")
                 srcCatalogue.close()
@@ -127,41 +128,44 @@ abstract class AbstractMigrationManager(val batchSize: Int, logFile: Path) : Mig
      * This is done in a single transaction!
      *
      * @param source The source [Catalogue].
-     * @param destination The destination [Catalogue].
+     * @param destination The destination [DefaultCatalogue].
      */
-    protected open fun migrateDBOs(source: Catalogue, destination: Catalogue) {
+    protected open fun migrateDBOs(source: Catalogue, destination: DefaultCatalogue) {
         /* Execute actual data migration. */
-        val context = MigrationContext()
-        val srcCatalogueTx = context.getTx(source) as CatalogueTx
-        val dstCatalogueTx = context.getTx(destination) as CatalogueTx
+        val sourceContext = LegacyMigrationContext()
+        val destinationContext = MigrationContext(destination.environment.beginExclusiveTransaction())
+        val srcCatalogueTx = sourceContext.getTx(source) as CatalogueTx
+        val dstCatalogueTx = destinationContext.getTx(destination) as CatalogueTx
 
         /* Migrate schemas. */
         val schemas = srcCatalogueTx.listSchemas()
-        for ((s, srcSchema) in schemas.withIndex()) {
-            this.log("+ Migrating schema ${srcSchema.name} (${s + 1} / ${schemas.size}):\n")
+        for ((s, srcSchemaName) in schemas.withIndex()) {
+            this.log("+ Migrating schema $srcSchemaName (${s + 1} / ${schemas.size}):\n")
 
-            val schema = dstCatalogueTx.createSchema(srcSchema.name)
-            val dstSchemaTx = context.getTx(schema) as SchemaTx
-            val srcSchemaTx = context.getTx(srcSchema) as SchemaTx
+            val schema = dstCatalogueTx.createSchema(srcSchemaName)
+            val dstSchemaTx = destinationContext.getTx(schema) as SchemaTx
+            val srcSchemaTx = sourceContext.getTx(srcCatalogueTx.schemaForName(srcSchemaName)) as SchemaTx
             val entities = srcSchemaTx.listEntities()
 
             /* Migrate entities. */
-            for ((i, srcEntity) in entities.withIndex()) {
-                this.log("-- Migrating entity ${srcEntity.name} (${i + 1} / ${entities.size}):\n")
-                val srcEntityTx = context.getTx(srcEntity) as EntityTx
-                val entity = dstSchemaTx.createEntity(srcEntity.name, *srcEntityTx.listColumns().map { it.columnDef to ColumnEngine.MAPDB }.toTypedArray())
+            for ((i, srcEntityName) in entities.withIndex()) {
+                this.log("-- Migrating entity $srcEntityName (${i + 1} / ${entities.size}):\n")
+                val srcEntityTx = sourceContext.getTx(srcSchemaTx.entityForName(srcEntityName)) as EntityTx
+                val entity = dstSchemaTx.createEntity(srcEntityName, *srcEntityTx.listColumns().toTypedArray())
 
                 /* Migrate indexes. */
-                for (index in srcEntityTx.listIndexes()) {
-                    this.log("---- Migrating index ${index.name}...\n")
-                    val destEntityTx = context.getTx(entity) as EntityTx
-                    destEntityTx.createIndex(index.name, index.type, index.columns, index.config.toMap())
+                for (indexName in srcEntityTx.listIndexes()) {
+                    this.log("---- Migrating index $indexName...\n")
+                    val index = srcEntityTx.indexForName(indexName)
+                    val destEntityTx = destinationContext.getTx(entity) as EntityTx
+                    destEntityTx.createIndex(index.name, index.type, index.columns.map { it.name }, index.config.toMap())
                 }
             }
         }
 
         /* Commit after all DBOs have been rebuilt. */
-        context.commit()
+        sourceContext.commit()
+        destinationContext.commit()
     }
 
     /**
@@ -169,50 +173,52 @@ abstract class AbstractMigrationManager(val batchSize: Int, logFile: Path) : Mig
      *
      * This is just a default implementation that covers the standard case and can be overwritten.
      *
-     * @param source The [CatalogueTx] pointing to the source catalogue.
-     * @param destination The [CatalogueTx] pointing to the destination catalogue.
+     * @param source The [Catalogue] pointing to the source catalogue.
+     * @param destination The [DefaultCatalogue] pointing to the destination catalogue.
      */
-    protected open fun migrateData(source: Catalogue, destination: Catalogue) {
-        val sourceContext = MigrationContext()
+    protected open fun migrateData(source: Catalogue, destination: DefaultCatalogue) {
+        val sourceContext = LegacyMigrationContext()
         val srcCatalogueTx = sourceContext.getTx(source) as CatalogueTx
         val schemas = srcCatalogueTx.listSchemas()
 
-        for ((s, srcSchema) in schemas.withIndex()) {
-            val srcSchemaTx = sourceContext.getTx(srcSchema) as SchemaTx
+        for ((s, srcSchemaName) in schemas.withIndex()) {
+            val srcSchemaTx = sourceContext.getTx(srcCatalogueTx.schemaForName(srcSchemaName)) as SchemaTx
             val entities = srcSchemaTx.listEntities()
-            for (srcEntity in entities) {
-                this.logStdout("+ Migrating data for schema ${srcSchema.name} (${s + 1} / ${schemas.size})...\n")
+            this.logStdout("+ Migrating data for schema $srcSchemaName (${s + 1} / ${schemas.size})...\n")
 
-                val srcEntityTx = sourceContext.getTx(srcEntity) as EntityTx
+            for (srcEntityName in entities) {
+                val srcEntityTx = sourceContext.getTx(srcSchemaTx.entityForName(srcEntityName)) as EntityTx
                 val count = srcEntityTx.count()
                 val maxTupleId = srcEntityTx.maxTupleId()
-                val columns = srcEntityTx.listColumns().map { it.columnDef }.toTypedArray()
+                val columns = srcEntityTx.listColumns().toTypedArray()
 
                 /* Start migrating column data. */
                 if (count > 0) {
                     var i = 0L
-                    val p = Math.floorDiv(maxTupleId, this.batchSize).toInt()
+                    val p = Math.floorDiv(maxTupleId, this.batchSize).toInt() + 1
                     for (j in 0 until p) {
-                        val context = MigrationContext()
-                        val destCatalogueTx = context.getTx(destination) as CatalogueTx
-                        val destSchemaTx = context.getTx(destCatalogueTx.schemaForName(srcSchema.name)) as SchemaTx
-                        val destEntityTx = context.getTx(destSchemaTx.entityForName(srcEntity.name)) as EntityTx
-                        srcEntityTx.scan(columns, j, p).forEach { r ->
-                            this.logStdout("-- Migrating data for ${srcEntity.name}... (${++i} / $count)\r")
+                        val destinationContext = MigrationContext(destination.environment.beginExclusiveTransaction())
+                        val destCatalogueTx = destinationContext.getTx(destination) as CatalogueTx
+                        val destSchemaTx = destinationContext.getTx(destCatalogueTx.schemaForName(srcSchemaName)) as SchemaTx
+                        val destEntityTx = destinationContext.getTx(destSchemaTx.entityForName(srcEntityName)) as EntityTx
+                        val cursor = srcEntityTx.cursor(columns, j, p)
+                        cursor.forEach { r ->
+                            this.logStdout("-- Migrating data for ${srcEntityName}... (${++i} / $count)\r")
                             destEntityTx.insert(r)
                         }
-                        this.log("-- Migrating data for ${srcEntity.name}; committing... (${i} / $count)\r")
-                        context.commit()
+                        cursor.close()
+                        this.log("-- Migrating data for $srcEntityName; committing... (${i} / $count)\r")
+                        destinationContext.commit()
                     }
-                    this.log("-- Data migration for ${srcEntity.name} completed (${i} / $count).\n")
+                    this.log("-- Data migration for $srcEntityName completed (${i} / $count).\n")
                 } else {
-                    this.log("-- Data migration for ${srcEntity.name} skipped (no data).\n")
+                    this.log("-- Data migration for $srcEntityName skipped (no data).\n")
                 }
             }
         }
 
-        /* Finalize source transaction. */
-        sourceContext.commit()
+        /* Commit after all DBOs have been rebuilt. */
+        sourceContext.rollback()
     }
 
     /**
@@ -220,7 +226,7 @@ abstract class AbstractMigrationManager(val batchSize: Int, logFile: Path) : Mig
      *
      * @param message The message to log.
      */
-    protected fun logStdout(message: String) {
+    private fun logStdout(message: String) {
         print(message)
     }
 
@@ -246,26 +252,29 @@ abstract class AbstractMigrationManager(val batchSize: Int, logFile: Path) : Mig
      * A [MigrationContext] is a special type of [TransactionContext] used during data migration.
      *
      * @author Ralph Gasser
-     * @version 1.0.0
+     * @version 2.0.0
      */
-    inner class MigrationContext : org.vitrivr.cottontail.dbms.execution.TransactionContext, org.vitrivr.cottontail.dbms.execution.Transaction {
+    inner class LegacyMigrationContext : TransactionContext, Transaction {
         /** The [TransactionId] of the [MigrationContext]. */
         override val txId: TransactionId = transactionIdCounter.getAndIncrement()
 
+        /** The [TransactionId] of the [MigrationContext]. */
+        override val xodusTx: jetbrains.exodus.env.Transaction
+            get() = throw UnsupportedOperationException("Xodus transaction not available for LegacyMigrationContext.")
+
         /** The [TransactionType] of a [MigrationManager] is always [TransactionType.SYSTEM]. */
         override val type: TransactionType = TransactionType.SYSTEM
+
+        /** [LegacyMigrationContext] are always [readonly]. */
+        override val readonly: Boolean = true
 
         /** The [TransactionStatus] of this [MigrationContext]. */
         @Volatile
         override var state: TransactionStatus = TransactionStatus.IDLE
             private set
 
-        /** The [MigrationContext] are never readonly. */
-        override val readonly: Boolean
-            get() = false
-
         /** Map of all [Tx] that have been created as part of this [MigrationManager]. Used for final COMMIT or ROLLBACK. */
-        protected val txns: MutableMap<DBO, Tx> = Object2ObjectMaps.synchronize(Object2ObjectLinkedOpenHashMap())
+        private val txns: MutableMap<DBO, Tx> = Object2ObjectMaps.synchronize(Object2ObjectLinkedOpenHashMap())
 
         /**
          * Returns the [Tx] for the provided [DBO]. Creating [Tx] through this method makes sure,
@@ -283,27 +292,105 @@ abstract class AbstractMigrationManager(val batchSize: Int, logFile: Path) : Mig
         }
 
         override fun signalEvent(action: Operation.DataManagementOperation) {
-            throw UnsupportedOperationException("Operation signalEvent() not supported for MigrationContext.")
+            throw UnsupportedOperationException("Operation signalEvent() not supported for LegacyMigrationContext.")
+        }
+
+        override fun execute(operator: Operator): Flow<Record> {
+            throw UnsupportedOperationException("Operation execute() not supported for LegacyMigrationContext.")
+        }
+
+        /**
+         * Commits this [Transaction] thus finalizing and persisting all operations executed so far.
+         */
+        override fun commit() {
+            check(this.state === TransactionStatus.IDLE) { "Cannot commit transaction ${this.txId} because it is in wrong state (s = ${this.state})." }
+            this.state = TransactionStatus.FINALIZING
+            this.txns.clear()
+            this.state = TransactionStatus.COMMIT
+        }
+
+        /**
+         * Rolls back this [Transaction] thus reverting all operations executed so far.
+         */
+        override fun rollback() {
+            check(this.state === TransactionStatus.IDLE || this.state === TransactionStatus.ERROR) { "Cannot rollback transaction ${this.txId} because it is in wrong state (s = ${this.state})." }
+            this.state = TransactionStatus.FINALIZING
+            this.txns.clear()
+            this.state = TransactionStatus.ROLLBACK
+        }
+
+        /**
+         * Kills this [MigrationContext] thus reverting all operations executed so far.
+         */
+        override fun kill() {
+            throw UnsupportedOperationException("Operation kill() not supported for LegacyMigrationContext.")
+        }
+    }
+
+    /**
+     * A [MigrationContext] is a special type of [TransactionContext] used during data migration.
+     *
+     * @author Ralph Gasser
+     * @version 2.0.0
+     */
+    inner class MigrationContext(override val xodusTx: jetbrains.exodus.env.Transaction) : TransactionContext, Transaction {
+        /** The [TransactionId] of the [MigrationContext]. */
+        override val txId: TransactionId = transactionIdCounter.getAndIncrement()
+
+        /** The [TransactionType] of a [MigrationManager] is always [TransactionType.SYSTEM]. */
+        override val type: TransactionType = TransactionType.SYSTEM
+
+        /** The [TransactionStatus] of this [MigrationContext]. */
+        @Volatile
+        override var state: TransactionStatus = TransactionStatus.IDLE
+            private set
+
+        /** [MigrationContext]s are never readonly. */
+        override val readonly: Boolean = false
+
+
+        /** Map of all [Tx] that have been created as part of this [MigrationManager]. Used for final COMMIT or ROLLBACK. */
+        private val txns: MutableMap<DBO, Tx> = Object2ObjectMaps.synchronize(Object2ObjectLinkedOpenHashMap())
+
+        /**
+         * Returns the [Tx] for the provided [DBO]. Creating [Tx] through this method makes sure,
+         * that only on [Tx] per [DBO] and [Transaction] is created.
+         *
+         * @param dbo [DBO] to return the [Tx] for.
+         * @return entity [Tx]
+         */
+        override fun getTx(dbo: DBO): Tx = this.txns.computeIfAbsent(dbo) {
+            dbo.newTx(this)
+        }
+
+        override fun requestLock(dbo: DBO, mode: LockMode) {
+            /* No op. */
+        }
+
+        override fun signalEvent(action: Operation.DataManagementOperation) {
+            /* No op. */
         }
 
         override fun execute(operator: Operator): Flow<Record> {
             throw UnsupportedOperationException("Operation execute() not supported for MigrationContext.")
         }
 
-        override fun kill() {
-            throw UnsupportedOperationException("Operation kill() not supported for MigrationContext.")
-        }
-
         /**
-         * Commits this [TransactionImpl] thus finalizing and persisting all operations executed so far.
+         * Commits this [MigrationContext] thus finalizing and persisting all operations executed so far.
          */
         override fun commit() {
             check(this.state === TransactionStatus.IDLE) { "Cannot commit transaction ${this.txId} because it is in wrong state (s = ${this.state})." }
             this.state = TransactionStatus.FINALIZING
             try {
-                this.txns.values.reversed().forEachIndexed { _, txn ->
-                    txn.commit()
+                for (txn in this.txns.values.reversed()) {
+                    try {
+                        txn.beforeCommit()
+                    } catch (e: Throwable) {
+                        this.xodusTx.abort()
+                        throw e
+                    }
                 }
+                this.xodusTx.commit()
             } finally {
                 this.txns.clear()
                 this.state = TransactionStatus.COMMIT
@@ -311,21 +398,32 @@ abstract class AbstractMigrationManager(val batchSize: Int, logFile: Path) : Mig
         }
 
         /**
-         * Rolls back this [TransactionImpl] thus reverting all operations executed so far.
+         * Rolls back this [MigrationContext] thus reverting all operations executed so far.
          */
         override fun rollback() {
             check(this.state === TransactionStatus.IDLE || this.state === TransactionStatus.ERROR) { "Cannot rollback transaction ${this.txId} because it is in wrong state (s = ${this.state})." }
             this.state = TransactionStatus.FINALIZING
             try {
-                this.txns.values.reversed().forEach { txn ->
-                    txn.rollback()
+                for (txn in this.txns.values.reversed()) {
+                    try {
+                        txn.beforeRollback()
+                    } catch (e: Throwable) {
+                        this.xodusTx.abort()
+                        throw e
+                    }
                 }
+                this.xodusTx.abort()
             } finally {
                 this.txns.clear()
-                this.state = TransactionStatus.COMMIT
+                this.state = TransactionStatus.ROLLBACK
             }
         }
 
-
+        /**
+         * Kills this [MigrationContext] thus reverting all operations executed so far.
+         */
+        override fun kill() {
+            throw UnsupportedOperationException("Operation kill() not supported for MigrationContext.")
+        }
     }
 }

@@ -1,11 +1,13 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.sources
 
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
+import org.vitrivr.cottontail.dbms.column.ColumnTx
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.operators.sources.EntityScanOperator
@@ -15,7 +17,6 @@ import org.vitrivr.cottontail.dbms.queries.operators.physical.NullaryPhysicalOpe
 import org.vitrivr.cottontail.dbms.queries.operators.physical.UnaryPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.merge.MergePhysicalOperator
 import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
-import org.vitrivr.cottontail.dbms.statistics.entity.RecordStatistics
 import java.lang.Math.floorDiv
 
 /**
@@ -53,23 +54,24 @@ class EntityScanPhysicalOperatorNode(override val groupId: Int,
     /** [EntityScanPhysicalOperatorNode] can always be partitioned. */
     override val canBePartitioned: Boolean = true
 
-    /** The [RecordStatistics] is taken from the underlying [Entity]. [RecordStatistics] are used by the query planning for [Cost] estimation. */
-    override val statistics: RecordStatistics = this.entity.snapshot.statistics.let { statistics ->
-        this.fetch.forEach {
-            val column = it.first.column
-            if (!statistics.has(column)) {
-                statistics[column] = statistics[it.second]  as ValueStatistics<Value>
-            }
-        }
-        statistics
-    }
+    /** [ValueStatistics] are taken from the underlying [Entity]. The query planner uses statistics for [Cost] estimation. */
+    override val statistics = Object2ObjectLinkedOpenHashMap<ColumnDef<*>,ValueStatistics<*>>()
 
     /** The estimated [Cost] of scanning the [Entity]. */
     override val cost = (Cost.DISK_ACCESS_READ + Cost.MEMORY_ACCESS) * floorDiv(this.outputSize, this.partitions) * this.fetch.sumOf {
         if (it.second.type == Types.String) {
-            this.statistics[it.second].avgWidth * Char.SIZE_BYTES
+            this.statistics[it.second]!!.avgWidth * Char.SIZE_BYTES
         } else {
             it.second.type.physicalSize
+        }
+    }
+
+    /** Initialize entity statistics. */
+    init {
+        for ((binding, physical) in this.fetch) {
+            if (!this.statistics.containsKey(binding.column)) {
+                this.statistics[binding.column] = (this.entity.context.getTx(this.entity.columnForName(physical.name)) as ColumnTx<*>).statistics() as ValueStatistics<Value>
+            }
         }
     }
 

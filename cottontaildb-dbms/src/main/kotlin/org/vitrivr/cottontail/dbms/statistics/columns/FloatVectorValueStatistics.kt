@@ -1,10 +1,10 @@
 package org.vitrivr.cottontail.dbms.statistics.columns
 
-import org.mapdb.DataInput2
-import org.mapdb.DataOutput2
-import org.vitrivr.cottontail.core.values.types.Types
+import jetbrains.exodus.bindings.FloatBinding
+import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.values.FloatVectorValue
-import org.vitrivr.cottontail.core.values.types.Value
+import org.vitrivr.cottontail.core.values.types.Types
+import java.io.ByteArrayInputStream
 import java.lang.Float.max
 import java.lang.Float.min
 
@@ -31,9 +31,32 @@ class FloatVectorValueStatistics(type: Types<FloatVectorValue>) : ValueStatistic
         })
 
     /**
+     * Xodus serializer for [FloatVectorValueStatistics]
+     */
+    object Binding {
+        fun read(stream: ByteArrayInputStream, type: Types<FloatVectorValue>): FloatVectorValueStatistics {
+            val stat = FloatVectorValueStatistics(type)
+            for (i in 0 until type.logicalSize) {
+                stat.min.data[i] = FloatBinding.BINDING.readObject(stream)
+                stat.max.data[i] = FloatBinding.BINDING.readObject(stream)
+                stat.sum.data[i] = FloatBinding.BINDING.readObject(stream)
+            }
+            return stat
+        }
+
+        fun write(output: LightOutputStream, statistics: FloatVectorValueStatistics) {
+            for (i in 0 until statistics.type.logicalSize) {
+                FloatBinding.BINDING.writeObject(output, statistics.min.data[i])
+                FloatBinding.BINDING.writeObject(output, statistics.max.data[i])
+                FloatBinding.BINDING.writeObject(output, statistics.sum.data[i])
+            }
+        }
+    }
+
+    /**
      * Updates this [FloatVectorValueStatistics] with an inserted [FloatVectorValue]
      *
-     * @param inserted The [Value] that was deleted.
+     * @param inserted The [FloatVectorValue] that was inserted.
      */
     override fun insert(inserted: FloatVectorValue?) {
         super.insert(inserted)
@@ -49,7 +72,7 @@ class FloatVectorValueStatistics(type: Types<FloatVectorValue>) : ValueStatistic
     /**
      * Updates this [FloatVectorValueStatistics] with a deleted [FloatVectorValue]
      *
-     * @param deleted The [Value] that was deleted.
+     * @param deleted The [FloatVectorValue] that was deleted.
      */
     override fun delete(deleted: FloatVectorValue?) {
         super.delete(deleted)
@@ -61,28 +84,6 @@ class FloatVectorValueStatistics(type: Types<FloatVectorValue>) : ValueStatistic
                 }
                 this.sum.data[i] -= d
             }
-        }
-    }
-
-    /**
-     * A [org.mapdb.Serializer] implementation for a [FloatVectorValueStatistics] object.
-     *
-     * @author Ralph Gasser
-     * @version 1.0.0
-     */
-    class Serializer(val type: Types<FloatVectorValue>) : org.mapdb.Serializer<FloatVectorValueStatistics> {
-        override fun serialize(out: DataOutput2, value: FloatVectorValueStatistics) {
-            value.min.data.forEach { out.writeFloat(it) }
-            value.max.data.forEach { out.writeFloat(it) }
-            value.sum.data.forEach { out.writeFloat(it) }
-        }
-
-        override fun deserialize(input: DataInput2, available: Int): FloatVectorValueStatistics {
-            val stat = FloatVectorValueStatistics(this.type)
-            repeat(this.type.logicalSize) { stat.min.data[it] = input.readFloat() }
-            repeat(this.type.logicalSize) { stat.max.data[it] = input.readFloat() }
-            repeat(this.type.logicalSize) { stat.sum.data[it] = input.readFloat() }
-            return stat
         }
     }
 

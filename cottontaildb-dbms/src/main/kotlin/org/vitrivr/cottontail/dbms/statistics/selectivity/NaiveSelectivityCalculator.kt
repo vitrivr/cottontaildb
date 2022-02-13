@@ -1,7 +1,8 @@
 package org.vitrivr.cottontail.dbms.statistics.selectivity
 
+import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
-import org.vitrivr.cottontail.dbms.statistics.entity.RecordStatistics
+import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
 
 /**
  * This is a very naive calculator for [Selectivity] values.
@@ -10,16 +11,16 @@ import org.vitrivr.cottontail.dbms.statistics.entity.RecordStatistics
  * the column and then combines these [Selectivity] values as if they were uncorrelated.
  *
  * @author Ralph Gasser
- * @version 1.0.1
+ * @version 1.1.0
  */
 object NaiveSelectivityCalculator {
     /**
      * Estimates the selectivity of a [BooleanPredicate] given the [RecordStatistics].
      *
      * @param predicate The [BooleanPredicate] to evaluate.
-     * @param statistics The [RecordStatistics] to use in the calculation.
+     * @param statistics The map of [ValueStatistics] to use in the calculation.
      */
-    fun estimate(predicate: BooleanPredicate, statistics: RecordStatistics): Selectivity = when (predicate) {
+    fun estimate(predicate: BooleanPredicate, statistics: Map<ColumnDef<*>,ValueStatistics<*>>): Selectivity = when (predicate) {
         is BooleanPredicate.Atomic -> estimateAtomicReference(predicate, statistics)
         is BooleanPredicate.Compound -> estimateCompoundSelectivity(predicate, statistics)
     }
@@ -28,9 +29,9 @@ object NaiveSelectivityCalculator {
      * Estimates the selectivity of a [BooleanPredicate.Atomic] given the [RecordStatistics].
      *
      * @param predicate The [BooleanPredicate.Atomic] to evaluate.
-     * @param statistics The [RecordStatistics] to use in the calculation.
+     * @param statistics The map of [ValueStatistics] to use in the calculation.
      */
-    private fun estimateAtomicReference(predicate: BooleanPredicate.Atomic, statistics: RecordStatistics): Selectivity = Selectivity(1.0f)
+    private fun estimateAtomicReference(predicate: BooleanPredicate.Atomic, statistics: Map<ColumnDef<*>,ValueStatistics<*>>): Selectivity = Selectivity(1.0f)
 
     /**
      * Estimates the selectivity for a [BooleanPredicate.Compound].
@@ -39,9 +40,9 @@ object NaiveSelectivityCalculator {
      * a [BooleanPredicate.Compound] are independent (i.e. there is no correlation between them).
      *
      * @param predicate The [BooleanPredicate.Compound] to evaluate.
-     * @param statistics The [RecordStatistics] to use for the evaluation.
+     * @param statistics The map of [ValueStatistics] to use in the calculation.
      */
-    private fun estimateCompoundSelectivity(predicate: BooleanPredicate.Compound, statistics: RecordStatistics): Selectivity {
+    private fun estimateCompoundSelectivity(predicate: BooleanPredicate.Compound, statistics: Map<ColumnDef<*>,ValueStatistics<*>>): Selectivity {
         val pp1 = estimate(predicate.p1, statistics)
         val pp2 = estimate(predicate.p2, statistics)
         return when (predicate) {

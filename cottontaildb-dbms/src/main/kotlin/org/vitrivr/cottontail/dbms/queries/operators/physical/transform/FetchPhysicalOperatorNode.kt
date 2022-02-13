@@ -1,17 +1,18 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.transform
 
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
+import org.vitrivr.cottontail.dbms.column.ColumnTx
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.operators.transform.FetchOperator
 import org.vitrivr.cottontail.dbms.queries.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.physical.UnaryPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
-import org.vitrivr.cottontail.dbms.statistics.entity.RecordStatistics
 
 /**
  * A [UnaryPhysicalOperatorNode] that represents fetching certain [ColumnDef] from a specific [Entity] and
@@ -40,33 +41,31 @@ class FetchPhysicalOperatorNode(input: Physical? = null, val entity: EntityTx, v
     override val columns: List<ColumnDef<*>>
         get() = super.columns + this.fetch.map { it.first.column }
 
-    /** The [RecordStatistics] is taken from the underlying [Entity]. [RecordStatistics] are used by the query planning for [Cost] estimation. */
-    override val statistics: RecordStatistics
-        get() = super.statistics.let { statistics ->
-            this.fetch.forEach {
-                val column = it.first.column
-                if (!statistics.has(it.second)) {
-                    statistics[it.second] = this.localStatistics[it.second] as ValueStatistics<Value>
-                }
-                if (!statistics.has(column)) {
-                    statistics[column] = this.localStatistics[it.second] as ValueStatistics<Value>
-                }
-            }
-            statistics
-        }
+    /** The map of [ValueStatistics] employed by this [FetchPhysicalOperatorNode]. */
+    override val statistics: Map<ColumnDef<*>, ValueStatistics<*>>
+        get() = super.statistics + this.localStatistics
 
     /** The [Cost] of a [FetchPhysicalOperatorNode]. */
     override val cost: Cost
         get() = (Cost.DISK_ACCESS_READ + Cost.MEMORY_ACCESS) * this.outputSize * this.fetch.sumOf {
             if (it.second.type == Types.String) {
-                this.localStatistics[it.second].avgWidth * Char.SIZE_BYTES
+                this.localStatistics[it.second]!!.avgWidth * Char.SIZE_BYTES
             } else {
                 it.second.type.physicalSize
             }
         }
 
     /** Local reference to entity statistics. */
-    private val localStatistics = this.entity.snapshot.statistics
+    private val localStatistics = Object2ObjectLinkedOpenHashMap<ColumnDef<*>, ValueStatistics<*>>()
+
+    /* Initialize local statistics. */
+    init {
+        for ((binding, physical) in this.fetch) {
+            if (!this.localStatistics.containsKey(binding.column)) {
+                this.localStatistics[binding.column] = (this.entity.context.getTx(this.entity.columnForName(physical.name)) as ColumnTx<*>).statistics() as ValueStatistics<Value>
+            }
+        }
+    }
 
     /**
      * Creates and returns a copy of this [FetchPhysicalOperatorNode] without any children or parents.

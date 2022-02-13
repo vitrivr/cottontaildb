@@ -2,8 +2,8 @@ package org.vitrivr.cottontail.dbms.queries.operators.physical
 
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
-import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
+import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.NullaryLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.sort.SortOrder
 
@@ -13,7 +13,7 @@ import org.vitrivr.cottontail.dbms.queries.sort.SortOrder
  * @author Ralph Gasser
  * @version 2.5.0
  */
-abstract class NullaryPhysicalOperatorNode() : org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Physical() {
+abstract class NullaryPhysicalOperatorNode : OperatorNode.Physical() {
     /** The arity of the [NullaryPhysicalOperatorNode] is always on. */
     final override val inputArity = 0
 

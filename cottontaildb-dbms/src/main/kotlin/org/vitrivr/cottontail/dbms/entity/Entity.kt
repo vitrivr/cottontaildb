@@ -7,7 +7,6 @@ import org.vitrivr.cottontail.dbms.execution.TransactionContext
 import org.vitrivr.cottontail.dbms.general.DBO
 import org.vitrivr.cottontail.dbms.schema.DefaultSchema
 import org.vitrivr.cottontail.dbms.schema.Schema
-import org.vitrivr.cottontail.dbms.statistics.entity.EntityStatistics
 
 /**
  * Represents a single entity in the Cottontail DB data model. An [Entity] has name that must remain
@@ -19,7 +18,7 @@ import org.vitrivr.cottontail.dbms.statistics.entity.EntityStatistics
  * @see EntityTx
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 2.0.0
  */
 interface Entity : DBO {
 
@@ -28,9 +27,6 @@ interface Entity : DBO {
 
     /** The [DefaultSchema] this [Entity] belongs to. */
     override val parent: Schema
-
-    /** The [EntityStatistics] in this [Entity]. This is a snapshot and may change immediately. */
-    val statistics: EntityStatistics
 
     /** Number of [Column]s in this [Entity]. */
     val numberOfColumns: Int
@@ -50,5 +46,5 @@ interface Entity : DBO {
      * @param context The [TransactionContext] to create the [EntityTx] for.
      * @return New [EntityTx]
      */
-    override fun newTx(context: org.vitrivr.cottontail.dbms.execution.TransactionContext): EntityTx
+    override fun newTx(context: TransactionContext): EntityTx
 }

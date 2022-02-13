@@ -2,8 +2,8 @@ package org.vitrivr.cottontail.dbms.statistics.entity
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
 import org.vitrivr.cottontail.core.database.ColumnDef
-import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
 import org.vitrivr.cottontail.core.values.types.Value
+import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
 import java.util.*
 
 /**
@@ -12,6 +12,7 @@ import java.util.*
  * @author Ralph Gasser
  * @version 1.1.0
  */
+@Deprecated("No longer in use as of Cottontail DB version 3.0. Retained to maintain compatibility with legacy format.")
 open class RecordStatistics {
 
     companion object {

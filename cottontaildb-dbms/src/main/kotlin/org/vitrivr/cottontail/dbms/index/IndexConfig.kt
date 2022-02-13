@@ -1,9 +1,10 @@
 package org.vitrivr.cottontail.dbms.index
 
 /**
+ * An [Index] configuration object.
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.0.0
  */
 interface IndexConfig {
     /**

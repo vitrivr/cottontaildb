@@ -1,49 +1,51 @@
 package org.vitrivr.cottontail.dbms.catalogue
 
-import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
-import org.mapdb.DB
-import org.mapdb.StoreWAL
+import jetbrains.exodus.env.Environment
+import jetbrains.exodus.env.Environments
+import jetbrains.exodus.env.forEach
 import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.functions.FunctionRegistry
-import org.vitrivr.cottontail.dbms.entity.DefaultEntity
+import org.vitrivr.cottontail.dbms.catalogue.entries.*
+import org.vitrivr.cottontail.dbms.catalogue.entries.MetadataEntry.Companion.METADATA_ENTRY_DB_VERSION
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.exceptions.TxException
 import org.vitrivr.cottontail.dbms.execution.TransactionContext
 import org.vitrivr.cottontail.dbms.functions.initialize
 import org.vitrivr.cottontail.dbms.general.*
-import org.vitrivr.cottontail.dbms.locking.LockMode
 import org.vitrivr.cottontail.dbms.schema.DefaultSchema
 import org.vitrivr.cottontail.dbms.schema.Schema
-import org.vitrivr.cottontail.utilities.extensions.read
 import org.vitrivr.cottontail.utilities.extensions.write
-import org.vitrivr.cottontail.utilities.io.TxFileUtilities
-import java.nio.file.Files
 import java.nio.file.Path
-import java.nio.file.StandardCopyOption
-import java.util.*
 import java.util.concurrent.locks.StampedLock
+import kotlin.concurrent.withLock
 
 /**
- * The default [Catalogue] implementation based on Map DB.
+ * The default [Catalogue] implementation based on JetBrains Xodus.
+ *
+ * @see Catalogue
+ * @see CatalogueTx
  *
  * @author Ralph Gasser
- * @version 2.1.0
+ * @version 3.0.0
  */
 class DefaultCatalogue(override val config: Config) : Catalogue {
     /**
      * Companion object to [DefaultCatalogue]
      */
     companion object {
-        /** ID of the schema header! */
-        internal const val CATALOGUE_HEADER_FIELD: String = "cdb_catalogue_header"
+        /** Prefix used for actual column stores. */
+        internal const val ENTITY_STORE_PREFIX: String = "ctt_ent"
 
-        /** Filename for the [DefaultEntity] catalogue.  */
-        internal const val FILE_CATALOGUE = "catalogue.db"
+        /** Prefix used for actual column stores. */
+        internal const val COLUMN_STORE_PREFIX: String = "ctt_col"
+
+        /** Prefix used for actual index stores. */
+        internal const val INDEX_STORE_PREFIX: String = "ctt_idx"
     }
 
     /** Root to Cottontail DB root folder. */
-    override val path: Path = config.root
+    val path: Path = this.config.root
 
     /** Constant name of the [DefaultCatalogue] object. */
     override val name: Name.RootName
@@ -51,51 +53,49 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
 
     /** The [DBOVersion] of this [DefaultCatalogue]. */
     override val version: DBOVersion
-        get() = DBOVersion.V2_0
+        get() = DBOVersion.V3_0
 
     /** Constant parent [DBO], which is null in case of the [DefaultCatalogue]. */
     override val parent: DBO? = null
 
-    /** A lock used to mediate access to this [DefaultCatalogue]. */
-    private val closeLock = StampedLock()
-
-    /** The [StoreWAL] that contains the Cottontail DB catalogue. */
-    private val store: DB = this.config.mapdb.db(this.path.resolve(FILE_CATALOGUE))
-
-    /** Reference to the [CatalogueHeader] of the [DefaultCatalogue]. Accessing it will read right from the underlying store. */
-    private val headerField = this.store.atomicVar(CATALOGUE_HEADER_FIELD, CatalogueHeader.Serializer).createOrOpen()
-
-    /** A in-memory registry of all the [Schema]s contained in this [DefaultCatalogue]. When a [Catalogue] is opened, all the [Schema]s will be loaded. */
-    private val registry: MutableMap<Name.SchemaName, Schema> = Collections.synchronizedMap(Object2ObjectOpenHashMap())
-
     /** The [FunctionRegistry] exposed by this [Catalogue]. */
     override val functions: FunctionRegistry = FunctionRegistry()
 
-    /** Size of this [DefaultCatalogue] in terms of [Schema]s it contains. This is a snapshot and may change anytime! */
-    override val size: Int
-        get() = this.closeLock.read { this.headerField.get().schemas.size }
-
     /** Status indicating whether this [DefaultCatalogue] is open or closed. */
     override val closed: Boolean
-        get() = this.store.isClosed()
+        get() = !this.environment.isOpen
+
+    /** A lock used to mediate access to this [DefaultCatalogue]. This is an internal variable and not part of the official interface. */
+    internal val closeLock = StampedLock()
+
+    /** The Xodus environment used for Cottontail DB. This is an internal variable and not part of the official interface. */
+    internal val environment: Environment = Environments.newInstance(
+        this.config.root.resolve("xodus").toFile(),
+        this.config.xodus.toEnvironmentConfig()
+    )
 
     init {
-        /* Initialize empty catalogue */
-        if (this.headerField.get() == null) {
-            this.headerField.set(CatalogueHeader())
-            this.store.commit()
-        }
+        /* Check if catalogue has been initialized and initialize if needed. */
+        this.environment.executeInExclusiveTransaction { tx ->
+            if (this.environment.getAllStoreNames(tx).size == 0) {
+                /* Initialize database metadata. */
+                MetadataEntry.init(this, tx)
+                MetadataEntry.write(MetadataEntry(METADATA_ENTRY_DB_VERSION, this.version.toString()), this, tx)
 
-        /* Initialize schemas. */
-        for (schemaRef in this.headerField.get().schemas) {
-            if (schemaRef.path != null && Files.exists(schemaRef.path)) {
-                this.registry[Name.SchemaName(schemaRef.name)] = DefaultSchema(path, this)
-            } else {
-                val path = this.path.resolve("schema_${schemaRef.name}")
-                if (!Files.exists(path)) {
-                    throw DatabaseException.DataCorruptionException("Broken catalogue entry for schema '${schemaRef.name}'. Path $path does not exist!")
-                }
-                this.registry[Name.SchemaName(schemaRef.name)] = DefaultSchema(path, this)
+                /* Initialize necessary stores. */
+                SchemaCatalogueEntry.init(this, tx)
+                EntityCatalogueEntry.init(this, tx)
+                SequenceCatalogueEntries.init(this, tx)
+                ColumnCatalogueEntry.init(this, tx)
+                StatisticsCatalogueEntry.init(this, tx)
+                IndexCatalogueEntry.init(this, tx)
+                IndexStructCatalogueEntry.init(this, tx)
+            }
+
+            /* Check database version. */
+            val version = MetadataEntry.read(METADATA_ENTRY_DB_VERSION, this, tx)?.let { it -> DBOVersion.valueOf(it.value) } ?: DBOVersion.UNDEFINED
+            if (version != this.version) {
+                throw DatabaseException.VersionMismatchException(this.version, version)
             }
         }
 
@@ -109,15 +109,17 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
      * @param context The [TransactionContext] to create the [DefaultCatalogue.Tx] for.
      * @return New [DefaultCatalogue.Tx]
      */
-    override fun newTx(context: org.vitrivr.cottontail.dbms.execution.TransactionContext): Tx = Tx(context)
+    override fun newTx(context: TransactionContext): Tx = Tx(context)
 
     /**
      * Closes the [DefaultCatalogue] and all objects contained within.
      */
     override fun close() = this.closeLock.write {
-        this.store.close()
-        this.registry.forEach { (_, v) -> v.close() }
+        this.environment.close()
     }
+
+    override val catalogue: Catalogue
+        get() = TODO("Not yet implemented")
 
     /**
      * A [Tx] that affects this [DefaultCatalogue].
@@ -125,73 +127,18 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
      * @author Ralph Gasser
      * @version 1.0.0
      */
-    inner class Tx(context: org.vitrivr.cottontail.dbms.execution.TransactionContext) : AbstractTx(context), CatalogueTx {
+    inner class Tx(context: TransactionContext) : AbstractTx(context), CatalogueTx {
 
         /** Reference to the [DefaultCatalogue] this [CatalogueTx] belongs to. */
         override val dbo: DefaultCatalogue
             get() = this@DefaultCatalogue
 
-        /** Obtains a global (non-exclusive) read-lock on [DefaultCatalogue]. Prevents enclosing [Schema] from being closed. */
-        private val closeStamp = this@DefaultCatalogue.closeLock.readLock()
-
         /**
-         * The [CatalogueTxSnapshot] of this [CatalogueTx].
+         * Obtains a global (non-exclusive) read-lock on [DefaultCatalogue].
          *
-         * Important: The [CatalogueTxSnapshot] is created lazily upon first access, which means that whatever
-         * caller creates it, it holds the necessary locks!
+         * Prevents [DefaultCatalogue] from being closed while transaction is ongoing.
          */
-        override val snapshot by lazy {
-            object : CatalogueTxSnapshot {
-                override val schemas = Object2ObjectOpenHashMap(this@DefaultCatalogue.registry)
-
-                /** A map of all [TxAction] executed by this [CatalogueTxSnapshot]. Can be seen as an in-memory WAL. */
-                override val actions = LinkedList<TxAction>()
-
-                /* Make changes to indexes available to entity and persist them. */
-                override fun commit() {
-                    try {
-                        /* Materialize changes in surrounding schema (in-memory). */
-                        this.actions.forEach { it.commit() }
-
-                        /* Update update header and commit changes. */
-                        val oldHeader = this@DefaultCatalogue.headerField.get()
-                        val newHeader = oldHeader.copy(
-                                modified = System.currentTimeMillis(),
-                                schemas = this.schemas.values.map { CatalogueHeader.SchemaRef(it.name.simple, null) }
-                        )
-                        this@DefaultCatalogue.headerField.compareAndSet(oldHeader, newHeader)
-                        this@DefaultCatalogue.store.commit()
-                    } catch (e: Throwable) {
-                        this@Tx.status = TxStatus.ERROR
-                        this@DefaultCatalogue.store.rollback()
-                        throw DatabaseException("Failed to commit catalogue due to a storage exception: ${e.message}")
-                    }
-                }
-
-                /**
-                 * Rolls back this [CatalogueTx] and reverts all changes made through it.
-                 */
-                override fun rollback() {
-                    this.actions.forEach { it.rollback() }
-                    this@DefaultCatalogue.store.rollback()
-                }
-
-                /**
-                 * Records a [TxAction] with this [TxSnapshot].
-                 *
-                 * @param action The [TxAction] to record.
-                 * @return True on success, false otherwise.
-                 */
-                override fun record(action: TxAction): Boolean = when (action) {
-                    is CreateSchemaTxAction,
-                    is DropSchemaTxAction -> {
-                        this.actions.add(action)
-                        true
-                    }
-                    else -> false
-                }
-            }
-        }
+        private val closeStamp = this@DefaultCatalogue.closeLock.readLock()
 
         /** Checks if DBO is still open. */
         init {
@@ -206,8 +153,14 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
          *
          * @return [List] of all [Name.SchemaName].
          */
-        override fun listSchemas(): List<Schema> = this.withReadLock {
-            this.snapshot.schemas.values.toList()
+        override fun listSchemas(): List<Name.SchemaName> = this.txLatch.withLock {
+            val store = SchemaCatalogueEntry.store(this@DefaultCatalogue, this.context.xodusTx)
+            val list = mutableListOf<Name.SchemaName>()
+            store.openCursor(this.context.xodusTx).forEach {
+                val entry = SchemaCatalogueEntry.entryToObject(this.value) as SchemaCatalogueEntry
+                list.add(entry.name)
+            }
+            return list
         }
 
         /**
@@ -215,8 +168,11 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
          *
          * @param name [Name.SchemaName] to obtain the [Schema] for.
          */
-        override fun schemaForName(name: Name.SchemaName): Schema = this.withReadLock {
-            this.snapshot.schemas[name] ?: throw DatabaseException.SchemaDoesNotExistException(name)
+        override fun schemaForName(name: Name.SchemaName): Schema = this.txLatch.withLock {
+            if (!SchemaCatalogueEntry.exists(name, this@DefaultCatalogue, this.context.xodusTx)) {
+                throw DatabaseException.SchemaDoesNotExistException(name)
+            }
+            return DefaultSchema(name, this@DefaultCatalogue)
         }
 
         /**
@@ -224,21 +180,13 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
          *
          * @param name The [Name.SchemaName] of the new [Schema].
          */
-        override fun createSchema(name: Name.SchemaName): Schema = this.withWriteLock {
-            /* Check if schema with that name exists. */
-            if (this.snapshot.schemas.contains(name)) throw DatabaseException.SchemaAlreadyExistsException(name)
+        override fun createSchema(name: Name.SchemaName): Schema = this.txLatch.withLock {
+            /* Check if schema exists! */
+            if (SchemaCatalogueEntry.exists(name, this@DefaultCatalogue, this.context.xodusTx)) throw DatabaseException.SchemaAlreadyExistsException(name)
 
-            /* Initialize schema on disk */
-            try {
-                val data = DefaultSchema.initialize(name, this@DefaultCatalogue.path, this@DefaultCatalogue.config)
-                val schema = DefaultSchema(data, this@DefaultCatalogue)
-                this.snapshot.record(CreateSchemaTxAction(schema))
-                this.snapshot.schemas[name] = schema
-                return schema
-            } catch (e: DatabaseException) {
-                this.status = TxStatus.ERROR
-                throw e
-            }
+            /* Write schema! */
+            SchemaCatalogueEntry.write(SchemaCatalogueEntry(name), this@DefaultCatalogue, this.context.xodusTx)
+            return DefaultSchema(name, this@DefaultCatalogue)
         }
 
         /**
@@ -246,59 +194,26 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
          *
          * @param name The [Name.SchemaName] of the [Schema] to be dropped.
          */
-        override fun dropSchema(name: Name.SchemaName) = this.withWriteLock {
-            /* Obtain schema and acquire exclusive lock on it. */
-            val schema = this.snapshot.schemas[name] ?: throw DatabaseException.SchemaDoesNotExistException(name)
-            this.context.requestLock(schema, LockMode.EXCLUSIVE)
+        override fun dropSchema(name: Name.SchemaName) = this.txLatch.withLock {
+            /* Check if schema exists! */
+            if (!SchemaCatalogueEntry.exists(name, this@DefaultCatalogue, this.context.xodusTx)) {
+                throw DatabaseException.SchemaDoesNotExistException(name)
+            }
 
+            /* Drop all entities from schema. */
+            val schemaTx = DefaultSchema(name, this@DefaultCatalogue).newTx(this.context)
+            schemaTx.listEntities().forEach { schemaTx.dropEntity(it) }
 
-            /* Remove dropped schema from local snapshot. */
-            this.snapshot.record(DropSchemaTxAction(name))
-            this.snapshot.schemas.remove(name)
+            /* Remove schema from catalogue. */
+            SchemaCatalogueEntry.delete(name, this@DefaultCatalogue, this.context.xodusTx)
             Unit
         }
 
         /**
-         * Releases the [closeLock] on the [DefaultCatalogue].
+         * Called when a transaction finalizes. Releases the lock held on the [DefaultCatalogue].
          */
         override fun cleanup() {
             this@DefaultCatalogue.closeLock.unlockRead(this.closeStamp)
-        }
-
-        /**
-         * A [TxAction] for creating a new [Schema].
-         *
-         * @param schema [Schema] that has been created.
-         */
-        inner class CreateSchemaTxAction(private val schema: Schema) : TxAction {
-            override fun commit() {
-                this.schema.close()
-                val move = Files.move(this.schema.path, TxFileUtilities.plainPath(this.schema.path), StandardCopyOption.ATOMIC_MOVE)
-                this@DefaultCatalogue.registry[this.schema.name] = DefaultSchema(move, this.schema.parent)
-            }
-
-            override fun rollback() {
-                this.schema.close()
-                TxFileUtilities.delete(this.schema.path)
-            }
-        }
-
-        /**
-         * A [TxAction] implementation for dropping an [Schema].
-         *
-         * @param schema [Schema] that has been dropped.
-         */
-        inner class DropSchemaTxAction(private val schema: Name.SchemaName) : TxAction {
-            override fun commit() {
-                val schema = this@DefaultCatalogue.registry.remove(this.schema) ?: throw IllegalStateException("Failed to drop schema $schema because it is unknown to catalogue. This is a programmer's error!")
-                schema.close()
-                if (Files.exists(schema.path)) {
-                    TxFileUtilities.delete(schema.path)
-                }
-            }
-
-            override fun rollback() { /* No op. */
-            }
         }
     }
 }

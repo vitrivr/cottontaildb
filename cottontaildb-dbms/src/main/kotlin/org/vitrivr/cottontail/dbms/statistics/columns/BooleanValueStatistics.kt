@@ -1,10 +1,10 @@
 package org.vitrivr.cottontail.dbms.statistics.columns
 
-import org.mapdb.DataInput2
-import org.mapdb.DataOutput2
+import jetbrains.exodus.bindings.LongBinding
+import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.values.BooleanValue
 import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.core.values.types.Value
+import java.io.ByteArrayInputStream
 
 /**
  * A [ValueStatistics] implementation for [BooleanValue]s.
@@ -15,19 +15,19 @@ import org.vitrivr.cottontail.core.values.types.Value
 class BooleanValueStatistics : ValueStatistics<BooleanValue>(Types.Boolean) {
 
     /**
-     * Serializer for [LongValueStatistics].
+     * Xodus serializer for [BooleanValueStatistics]
      */
-    companion object Serializer : org.mapdb.Serializer<BooleanValueStatistics> {
-        override fun serialize(out: DataOutput2, value: BooleanValueStatistics) {
-            out.packLong(value.numberOfTrueEntries)
-            out.packLong(value.numberOfFalseEntries)
+    object Binding {
+        fun read(stream: ByteArrayInputStream): BooleanValueStatistics {
+            val stat = BooleanValueStatistics()
+            stat.numberOfTrueEntries = LongBinding.readCompressed(stream)
+            stat.numberOfFalseEntries = LongBinding.readCompressed(stream)
+            return stat
         }
 
-        override fun deserialize(input: DataInput2, available: Int): BooleanValueStatistics {
-            val stat = BooleanValueStatistics()
-            stat.numberOfTrueEntries = input.unpackLong()
-            stat.numberOfFalseEntries = input.unpackLong()
-            return stat
+        fun write(output: LightOutputStream, statistics: BooleanValueStatistics) {
+            LongBinding.writeCompressed(output, statistics.numberOfTrueEntries)
+            LongBinding.writeCompressed(output, statistics.numberOfFalseEntries)
         }
     }
 

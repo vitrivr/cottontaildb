@@ -1,24 +1,93 @@
 package org.vitrivr.cottontail.dbms.statistics.columns
 
-import org.mapdb.DataInput2
-import org.mapdb.DataOutput2
-import org.mapdb.Serializer
+import jetbrains.exodus.bindings.BooleanBinding
+import jetbrains.exodus.bindings.IntegerBinding
+import jetbrains.exodus.bindings.LongBinding
+import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
-import org.vitrivr.cottontail.dbms.statistics.selectivity.Selectivity
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
+import org.vitrivr.cottontail.dbms.statistics.selectivity.Selectivity
+import java.io.ByteArrayInputStream
 import java.lang.Math.floorDiv
 
 /**
- * A basic implementation of a [ValueStatistics] object, which is used by Cottontail DB to collect and summary statistics about
- * [Value]s it encounters.
+ * A basic implementation of a [ValueStatistics] object, which is used by Cottontail DB to collect and summary
+ * statistics about [Value]s it encounters.
  *
- * These classes are used to collect statistics about columns, which can then be leveraged by the query planner.
+ * These classes collect statistics about columns, which the query planner can use to make informed decisions
+ * about how to execute a query..
  *
  * @author Ralph Gasser
  * @version 1.1.0
  */
 open class ValueStatistics<T : Value>(val type: Types<T>) {
+
+    companion object {
+
+
+        /**
+         * Reads a [ValueStatistics] object from a [ByteArrayInputStream].
+         *
+         * @param stream The [ByteArrayInputStream] to read the statistics from.
+         */
+        fun read(stream: ByteArrayInputStream): ValueStatistics<*> {
+            val type = Types.forOrdinal(IntegerBinding.readCompressed(stream), IntegerBinding.readCompressed(stream))
+            val stat = when (type) {
+                Types.Complex32,
+                Types.Complex64,
+                is Types.Complex32Vector,
+                is Types.Complex64Vector -> ValueStatistics(type)
+                Types.Boolean -> BooleanValueStatistics.Binding.read(stream)
+                Types.Byte -> ByteValueStatistics.Binding.read(stream)
+                Types.Double -> DoubleValueStatistics.Binding.read(stream)
+                Types.Float -> FloatValueStatistics.Binding.read(stream)
+                Types.Int -> IntValueStatistics.Binding.read(stream)
+                Types.Long -> LongValueStatistics.Binding.read(stream)
+                Types.Short -> ShortValueStatistics.Binding.read(stream)
+                Types.String -> StringValueStatistics.Binding.read(stream)
+                Types.Date -> DateValueStatistics.Binding.read(stream)
+                is Types.BooleanVector -> BooleanVectorValueStatistics.Binding.read(stream, type)
+                is Types.DoubleVector -> DoubleVectorValueStatistics.Binding.read(stream, type)
+                is Types.FloatVector -> FloatVectorValueStatistics.Binding.read(stream, type)
+                is Types.IntVector -> IntVectorValueStatistics.Binding.read(stream, type)
+                is Types.LongVector -> LongVectorValueStatistics.Binding.read(stream, type)
+            }
+            stat.fresh = BooleanBinding.BINDING.readObject(stream)
+            stat.numberOfNullEntries = LongBinding.readCompressed(stream)
+            stat.numberOfNonNullEntries = LongBinding.readCompressed(stream)
+            return stat
+        }
+
+        /**
+         * Writes a [ValueStatistics] object to a [LightOutputStream].
+         *
+         * @param output The [LightOutputStream] to write the statistics to.
+         * @param statistics The [ValueStatistics] to write.
+         */
+        fun write(output: LightOutputStream, statistics: ValueStatistics<*>) {
+            when (statistics) {
+                is BooleanValueStatistics -> BooleanValueStatistics.Binding.write(output, statistics)
+                is ByteValueStatistics -> ByteValueStatistics.Binding.write(output, statistics)
+                is ShortValueStatistics -> ShortValueStatistics.Binding.write(output, statistics)
+                is IntValueStatistics -> IntValueStatistics.Binding.write(output, statistics)
+                is LongValueStatistics -> LongValueStatistics.Binding.write(output, statistics)
+                is FloatValueStatistics -> FloatValueStatistics.Binding.write(output, statistics)
+                is DoubleValueStatistics -> DoubleValueStatistics.Binding.write(output, statistics)
+                is DateValueStatistics -> DateValueStatistics.Binding.write(output, statistics)
+                is StringValueStatistics -> StringValueStatistics.Binding.write(output, statistics)
+                is BooleanVectorValueStatistics -> BooleanVectorValueStatistics.Binding.write(output, statistics)
+                is DoubleVectorValueStatistics -> DoubleVectorValueStatistics.Binding.write(output, statistics)
+                is FloatVectorValueStatistics -> FloatVectorValueStatistics.Binding.write(output, statistics)
+                is LongVectorValueStatistics -> LongVectorValueStatistics.Binding.write(output, statistics)
+                is IntVectorValueStatistics -> IntVectorValueStatistics.Binding.write(output, statistics)
+            }
+            BooleanBinding.BINDING.writeObject(output, statistics.fresh)
+            LongBinding.writeCompressed(output, statistics.numberOfNullEntries)
+            LongBinding.writeCompressed(output, statistics.numberOfNonNullEntries)
+        }
+    }
+
 
     /** Flag indicating that this [ValueStatistics] needs updating. */
     var fresh: Boolean = true
@@ -31,60 +100,6 @@ open class ValueStatistics<T : Value>(val type: Types<T>) {
     /** Number of non-null entries known to this [ValueStatistics]. */
     var numberOfNonNullEntries: Long = 0L
         protected set
-
-    companion object : Serializer<ValueStatistics<*>> {
-        override fun serialize(out: DataOutput2, value: ValueStatistics<*>) {
-            out.packInt(value.type.ordinal)
-            out.packInt(value.type.logicalSize)
-            when (value) {
-                is BooleanValueStatistics -> BooleanValueStatistics.serialize(out, value)
-                is ByteValueStatistics -> ByteValueStatistics.serialize(out, value)
-                is ShortValueStatistics -> ShortValueStatistics.serialize(out, value)
-                is IntValueStatistics -> IntValueStatistics.serialize(out, value)
-                is LongValueStatistics -> LongValueStatistics.serialize(out, value)
-                is FloatValueStatistics -> FloatValueStatistics.serialize(out, value)
-                is DoubleValueStatistics -> DoubleValueStatistics.serialize(out, value)
-                is DateValueStatistics -> DateValueStatistics.serialize(out, value)
-                is StringValueStatistics -> StringValueStatistics.serialize(out, value)
-                is BooleanVectorValueStatistics -> BooleanVectorValueStatistics.Serializer(value.type).serialize(out, value)
-                is DoubleVectorValueStatistics -> DoubleVectorValueStatistics.Serializer(value.type).serialize(out, value)
-                is FloatVectorValueStatistics -> FloatVectorValueStatistics.Serializer(value.type).serialize(out, value)
-                is LongVectorValueStatistics -> LongVectorValueStatistics.Serializer(value.type).serialize(out, value)
-                is IntVectorValueStatistics -> IntVectorValueStatistics.Serializer(value.type).serialize(out, value)
-            }
-            out.writeBoolean(value.fresh)
-            out.packLong(value.numberOfNullEntries)
-            out.packLong(value.numberOfNonNullEntries)
-        }
-
-        override fun deserialize(input: DataInput2, available: Int): ValueStatistics<*> {
-            val stat = when (val type = Types.forOrdinal(input.unpackInt(), input.unpackInt())) {
-                Types.Complex32,
-                Types.Complex64,
-                is Types.Complex32Vector,
-                is Types.Complex64Vector,
-                -> ValueStatistics(type)
-                Types.Boolean -> BooleanValueStatistics.deserialize(input, available)
-                Types.Byte -> ByteValueStatistics.deserialize(input, available)
-                Types.Double -> DoubleValueStatistics.deserialize(input, available)
-                Types.Float -> FloatValueStatistics.deserialize(input, available)
-                Types.Int -> IntValueStatistics.deserialize(input, available)
-                Types.Long -> LongValueStatistics.deserialize(input, available)
-                Types.Short -> ShortValueStatistics.deserialize(input, available)
-                Types.String -> StringValueStatistics.deserialize(input, available)
-                Types.Date -> DateValueStatistics.deserialize(input, available)
-                is Types.BooleanVector -> BooleanVectorValueStatistics.Serializer(type).deserialize(input, available)
-                is Types.DoubleVector -> DoubleVectorValueStatistics.Serializer(type).deserialize(input, available)
-                is Types.FloatVector -> FloatVectorValueStatistics.Serializer(type).deserialize(input, available)
-                is Types.IntVector -> IntVectorValueStatistics.Serializer(type).deserialize(input, available)
-                is Types.LongVector -> LongVectorValueStatistics.Serializer(type).deserialize(input, available)
-            }
-            stat.fresh = input.readBoolean()
-            stat.numberOfNullEntries = input.unpackLong()
-            stat.numberOfNonNullEntries = input.unpackLong()
-            return stat
-        }
-    }
 
     /** Total number of entries known to this [ValueStatistics]. */
     val numberOfEntries
@@ -142,7 +157,7 @@ open class ValueStatistics<T : Value>(val type: Types<T>) {
     }
 
     /**
-     * Resets this [ValueStatistics] and sets all its values to to the default value.
+     * Resets this [ValueStatistics] and sets all its values to the default value.
      */
     open fun reset() {
         this.fresh = true

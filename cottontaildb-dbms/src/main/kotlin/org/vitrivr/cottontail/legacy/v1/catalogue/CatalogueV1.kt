@@ -7,12 +7,12 @@ import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.functions.FunctionRegistry
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
-import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.execution.TransactionContext
-import org.vitrivr.cottontail.dbms.general.*
+import org.vitrivr.cottontail.dbms.general.AbstractTx
+import org.vitrivr.cottontail.dbms.general.DBO
+import org.vitrivr.cottontail.dbms.general.DBOVersion
 import org.vitrivr.cottontail.dbms.schema.Schema
-import org.vitrivr.cottontail.dbms.schema.SchemaTx
 import org.vitrivr.cottontail.legacy.v1.schema.SchemaV1
 import org.vitrivr.cottontail.utilities.extensions.read
 import org.vitrivr.cottontail.utilities.extensions.write
@@ -29,7 +29,7 @@ import java.util.concurrent.locks.StampedLock
  * @see SchemaV1
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 2.0.0
  */
 class CatalogueV1(override val config: Config) : Catalogue {
     /**
@@ -44,12 +44,10 @@ class CatalogueV1(override val config: Config) : Catalogue {
     }
 
     override val functions: FunctionRegistry
-        get() {
-            throw UnsupportedOperationException("Operation not supported on legacy DBO.")
-        }
+        get() = throw UnsupportedOperationException("Operation not supported on legacy DBO.")
 
     /** Root to Cottontail DB root folder. */
-    override val path: Path = config.root
+    val path: Path = config.root
 
     /** Constant name of the [CatalogueV1] object. */
     override val name: Name.RootName = Name.RootName
@@ -74,8 +72,12 @@ class CatalogueV1(override val config: Config) : Catalogue {
         Collections.synchronizedMap(Object2ObjectOpenHashMap())
 
     /** Size of this [CatalogueV1] in terms of [SchemaV1]s it contains. */
-    override val size: Int
+    val size: Int
         get() = this.closeLock.read { this.header.schemas.size }
+
+    /** The [Catalogue] this [CatalogueV1] belongs to. */
+    override val catalogue: Catalogue
+        get() = this
 
     /** The [DBOVersion] of this [CatalogueV1]. */
     override val version: DBOVersion
@@ -107,7 +109,7 @@ class CatalogueV1(override val config: Config) : Catalogue {
      * @param context The [TransactionContext] to create the [CatalogueV1.Tx] for.
      * @return New [CatalogueV1.Tx]
      */
-    override fun newTx(context: org.vitrivr.cottontail.dbms.execution.TransactionContext): CatalogueTx = Tx(context)
+    override fun newTx(context: TransactionContext): CatalogueTx = Tx(context)
 
     /**
      * Closes the [CatalogueV1] and all objects contained within.
@@ -124,19 +126,11 @@ class CatalogueV1(override val config: Config) : Catalogue {
      * @author Ralph Gasser
      * @version 1.0.0
      */
-    inner class Tx(context: org.vitrivr.cottontail.dbms.execution.TransactionContext) : AbstractTx(context), CatalogueTx {
+    inner class Tx(context: TransactionContext) : AbstractTx(context), CatalogueTx {
 
         /** Reference to the [CatalogueV1] this [CatalogueTx] belongs to. */
         override val dbo: Catalogue
             get() = this@CatalogueV1
-
-        /** The [TxSnapshot] of this [SchemaTx]. */
-        override val snapshot = object : TxSnapshot {
-            override val actions: List<TxAction> = emptyList()
-            override fun commit() = throw UnsupportedOperationException("Operation not supported on legacy DBO.")
-            override fun rollback() = throw UnsupportedOperationException("Operation not supported on legacy DBO.")
-            override fun record(action: TxAction): Boolean = throw UnsupportedOperationException("Operation not supported on legacy DBO.")
-        }
 
         /** Obtains a global (non-exclusive) read-lock on [CatalogueV1]. Prevents enclosing [SchemaV1] from being closed. */
         private val closeStamp = this@CatalogueV1.closeLock.readLock()
@@ -146,8 +140,8 @@ class CatalogueV1(override val config: Config) : Catalogue {
          *
          * @return [List] of all [Name.SchemaName].
          */
-        override fun listSchemas(): List<Schema> = this.withReadLock {
-            return this@CatalogueV1.registry.values.toList()
+        override fun listSchemas(): List<Name.SchemaName> {
+            return this@CatalogueV1.registry.values.map { it.name }
         }
 
         /**
@@ -155,10 +149,8 @@ class CatalogueV1(override val config: Config) : Catalogue {
          *
          * @param name [Name.SchemaName] to obtain the [SchemaV1] for.
          */
-        override fun schemaForName(name: Name.SchemaName): SchemaV1 = this.withReadLock {
-            this@CatalogueV1.registry[name] ?: throw DatabaseException.SchemaDoesNotExistException(
-                name
-            )
+        override fun schemaForName(name: Name.SchemaName): SchemaV1 {
+            return this@CatalogueV1.registry[name] ?: throw DatabaseException.SchemaDoesNotExistException(name)
         }
 
         override fun createSchema(name: Name.SchemaName): Schema {

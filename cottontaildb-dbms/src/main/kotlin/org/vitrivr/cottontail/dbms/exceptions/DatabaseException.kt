@@ -7,10 +7,10 @@ open class DatabaseException(message: String, cause: Throwable? = null) : Throwa
     /**
      * Thrown when trying to access a [DBO] with an older, unsupported [DBOVersion].
      *
-     * @param found: Int Found [DBOVersion] of [DBO]
      * @param expected: Int Expected [DBOVersion] of [DBO]
+     * @param found: Int Found [DBOVersion] of [DBO]
      */
-    class VersionMismatchException(found: DBOVersion, expected: DBOVersion) : DatabaseException("Version mismatch for DBO: Expected $expected but found $found.")
+    class VersionMismatchException(expected: DBOVersion, found: DBOVersion) : DatabaseException("Version mismatch for DBO: Expected $expected but found $found.")
 
     /**
      * Thrown when trying to create a [Schema][org.vitrivr.cottontail.dbms.schema.DefaultSchema]
@@ -74,7 +74,7 @@ open class DatabaseException(message: String, cause: Throwable? = null) : Throwa
      * @param entity [Name] of the affected [Entity][org.vitrivr.cottontail.dbms.entity.DefaultEntity]
      * @param columns [Name] of the [Column][org.vitrivr.cottontail.dbms.column.Column]s in the definition.
      */
-    class DuplicateColumnException(entity: Name.EntityName, columns: Collection<Name>) : DatabaseException("Entity '$entity' could not be created because it contains duplicate column names (c=[${columns.joinToString(",")}])!")
+    class DuplicateColumnException(entity: Name.EntityName, name: Name.ColumnName) : DatabaseException("Entity '$entity' could not be created because it contains duplicate column names '$name'.")
 
     /**
      * Thrown whenever trying to access a [Column][org.vitrivr.cottontail.dbms.column.Column]

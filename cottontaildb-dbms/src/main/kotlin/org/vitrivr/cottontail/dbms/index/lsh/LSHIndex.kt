@@ -1,20 +1,15 @@
 package org.vitrivr.cottontail.dbms.index.lsh
 
 import org.vitrivr.cottontail.core.database.ColumnDef
-import org.vitrivr.cottontail.dbms.entity.DefaultEntity
-import org.vitrivr.cottontail.dbms.index.AbstractIndex
-import org.vitrivr.cottontail.dbms.index.IndexType
+import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.values.types.VectorValue
-import java.nio.file.Path
+import org.vitrivr.cottontail.dbms.entity.DefaultEntity
+import org.vitrivr.cottontail.dbms.index.AbstractHDIndex
+import org.vitrivr.cottontail.dbms.index.IndexType
 
-abstract class LSHIndex<T : VectorValue<*>>(path: Path, parent: DefaultEntity) : AbstractIndex(path, parent) {
 
-    /** Index-wide constants. */
-    companion object {
-        const val LSH_MAP_FIELD = "cdb_lsh_map"
-    }
-
-    /** The [LSHIndex] implementation returns exactly the columns that is indexed. */
+abstract class LSHIndex<T : VectorValue<*>>(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(name, parent) {
+    /** The [LSHIndex] implementation usually doesn't return a column. */
     final override val produces: Array<ColumnDef<*>> = emptyArray()
 
     /** The type of [AbstractIndex] */

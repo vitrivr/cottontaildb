@@ -2,35 +2,34 @@ package org.vitrivr.cottontail.dbms.statistics.columns
 
 import com.google.common.primitives.SignedBytes.max
 import com.google.common.primitives.SignedBytes.min
-import org.mapdb.DataInput2
-import org.mapdb.DataOutput2
+import jetbrains.exodus.bindings.ByteBinding
+import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.values.ByteValue
-import org.vitrivr.cottontail.core.values.IntValue
 import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.core.values.types.Value
+import java.io.ByteArrayInputStream
 
 /**
  * A [ValueStatistics] implementation for [ByteValue]s.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
 class ByteValueStatistics : ValueStatistics<ByteValue>(Types.Byte) {
 
     /**
-     * Serializer for [LongValueStatistics].
+     * Xodus serializer for [ByteValueStatistics]
      */
-    companion object Serializer : org.mapdb.Serializer<ByteValueStatistics> {
-        override fun serialize(out: DataOutput2, value: ByteValueStatistics) {
-            out.writeByte(value.min.toInt())
-            out.writeByte(value.max.toInt())
+    object Binding {
+        fun read(stream: ByteArrayInputStream): ByteValueStatistics {
+            val stat = ByteValueStatistics()
+            stat.min = ByteBinding.BINDING.readObject(stream)
+            stat.max = ByteBinding.BINDING.readObject(stream)
+            return stat
         }
 
-        override fun deserialize(input: DataInput2, available: Int): ByteValueStatistics {
-            val stat = ByteValueStatistics()
-            stat.min = input.readByte()
-            stat.max = input.readByte()
-            return stat
+        fun write(output: LightOutputStream, statistics: ByteValueStatistics) {
+            ByteBinding.BINDING.writeObject(output, statistics.min)
+            ByteBinding.BINDING.writeObject(output, statistics.max)
         }
     }
 
@@ -41,9 +40,9 @@ class ByteValueStatistics : ValueStatistics<ByteValue>(Types.Byte) {
     var max: Byte = Byte.MIN_VALUE
 
     /**
-     * Updates this [LongValueStatistics] with an inserted [IntValue]
+     * Updates this [ByteValueStatistics] with an inserted [ByteValue]
      *
-     * @param inserted The [Value] that was deleted.
+     * @param inserted The [ByteValue] that was inserted.
      */
     override fun insert(inserted: ByteValue?) {
         super.insert(inserted)
@@ -54,9 +53,9 @@ class ByteValueStatistics : ValueStatistics<ByteValue>(Types.Byte) {
     }
 
     /**
-     * Updates this [LongValueStatistics] with a deleted [IntValue]
+     * Updates this [ByteValueStatistics] with a deleted [ByteValue]
      *
-     * @param deleted The [Value] that was deleted.
+     * @param deleted The [ByteValue] that was deleted.
      */
     override fun delete(deleted: ByteValue?) {
         super.delete(deleted)

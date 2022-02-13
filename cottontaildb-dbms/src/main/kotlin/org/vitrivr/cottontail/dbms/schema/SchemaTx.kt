@@ -2,7 +2,6 @@ package org.vitrivr.cottontail.dbms.schema
 
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.dbms.column.ColumnEngine
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.general.Tx
 
@@ -12,7 +11,7 @@ import org.vitrivr.cottontail.dbms.general.Tx
  * [Tx]s are a unit of isolation for data operations (read/write).
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 3.0.0
  */
 interface SchemaTx : Tx {
     /**
@@ -20,7 +19,7 @@ interface SchemaTx : Tx {
      *
      * @return [List] of all [Entity].
      */
-    fun listEntities(): List<Entity>
+    fun listEntities(): List<Name.EntityName>
 
     /**
      * Returns an instance of [Entity] if such an instance exists. If the [Entity] has been loaded before,
@@ -35,13 +34,10 @@ interface SchemaTx : Tx {
      * Creates a new [Entity] in this [DefaultSchema].
      *
      * @param name The name of the [Entity] that should be created.
-     * @param columns List of [ColumnDef] to [ColumnEngine] mappings that specify the columns to create.
+     * @param columns List of [ColumnDef] that specify the columns to create.
      * @return Newly created [Entity] for use in context of this [Tx]
      */
-    fun createEntity(
-        name: Name.EntityName,
-        vararg columns: Pair<ColumnDef<*>, ColumnEngine>
-    ): Entity
+    fun createEntity(name: Name.EntityName, vararg columns: ColumnDef<*>): Entity
 
     /**
      * Drops an [Entity] in this [DefaultSchema].

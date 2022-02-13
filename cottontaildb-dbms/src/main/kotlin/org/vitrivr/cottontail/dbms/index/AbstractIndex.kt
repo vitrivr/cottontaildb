@@ -1,25 +1,21 @@
 package org.vitrivr.cottontail.dbms.index
 
-import org.mapdb.DB
-import org.mapdb.DBException
-import org.vitrivr.cottontail.config.Config
+import jetbrains.exodus.env.Store
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
+import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
+import org.vitrivr.cottontail.dbms.catalogue.entries.ColumnCatalogueEntry
+import org.vitrivr.cottontail.dbms.catalogue.entries.IndexCatalogueEntry
+import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
-import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
+import org.vitrivr.cottontail.dbms.exceptions.TxException
+import org.vitrivr.cottontail.dbms.execution.TransactionContext
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.general.DBOVersion
-import org.vitrivr.cottontail.dbms.general.TxAction
-import org.vitrivr.cottontail.dbms.general.TxSnapshot
 import org.vitrivr.cottontail.dbms.queries.sort.SortOrder
-import org.vitrivr.cottontail.utilities.extensions.write
-import org.vitrivr.cottontail.utilities.io.TxFileUtilities
-import java.io.IOException
-import java.nio.file.Files
-import java.nio.file.Path
-import java.util.concurrent.locks.StampedLock
+import kotlin.concurrent.withLock
 
 /**
  * An abstract [Index] implementation that outlines the fundamental structure. Implementations of
@@ -28,106 +24,63 @@ import java.util.concurrent.locks.StampedLock
  * @see Index
  *
  * @author Ralph Gasser
- * @version 2.1.0
+ * @version 3.0.0
  */
-abstract class AbstractIndex(final override val path: Path, final override val parent: Entity) : Index {
-    /**
-     * Companion object of the [DefaultEntity]
-     */
-    companion object {
+abstract class AbstractIndex(final override val name: Name.IndexName, final override val parent: DefaultEntity) : Index {
 
-        /** Field name for the [IndexHeader] entry.  */
-        const val INDEX_HEADER_FIELD = "cdb_index_header"
-
-        /** Field name for the index configuration entries.  */
-        const val INDEX_CONFIG_FIELD = "cdb_index_config"
-
-        /** Field name for the [AbstractIndex]es 'dirty' entry.  */
-        const val INDEX_DIRTY_FIELD = "cdb_index_dirty"
-
-        /**
-         * Initializes a new Cottontail DB [AbstractIndex].
-         *
-         * @param path [Path] to the index.
-         * @param name The [Name] of the index.
-         * @param type The [IndexType] of the [IndexHeader]
-         * @param columns The [ColumnDef] indexed by the [IndexHeader]
-         * @param config The Cottontail DB  configuration
-         */
-        fun initialize(path: Path, name: Name.IndexName, type: IndexType, columns: Array<ColumnDef<*>>, config: Config) {
-            val dataPath = TxFileUtilities.createPath(path.resolve("${name.simple}.idx"))
-            if (Files.exists(path)) throw DatabaseException.InvalidFileException("Failed to create index '$name': A file already exists under $path.")
-            try {
-                val db: DB = config.mapdb.db(path)
-                val header = db.atomicVar(INDEX_HEADER_FIELD, IndexHeader.Serializer).create()
-                header.set(IndexHeader(name.simple, type, columns))
-                db.commit()
-                db.close()
-            } catch (e: DBException) {
-                TxFileUtilities.delete(dataPath) /* Cleanup. */
-                throw DatabaseException("Failed to create index '$name' due to error in the underlying data store: {${e.message}")
-            } catch (e: IOException) {
-                TxFileUtilities.delete(dataPath) /* Cleanup. */
-                throw DatabaseException("Failed to create index '$name' due to an IO exception: {${e.message}")
-            } catch (e: Throwable) {
-                TxFileUtilities.delete(dataPath) /* Cleanup. */
-                throw DatabaseException("Failed to create index '$name' due to an unexpected error: {${e.message}")
-            }
-        }
-    }
-
-    /** An internal lock that is used to synchronize structural changes to an [AbstractIndex] (e.g. closing or deleting) with running [AbstractIndex.Tx]. */
-    protected val closeLock = StampedLock()
-
-    /** The internal [DB] reference for this [AbstractIndex]. */
-    protected val store: DB = this.parent.parent.parent.config.mapdb.db(this.path)
-
-    /** The [IndexHeader] for this [AbstractIndex]. */
-    private val headerField = this.store.atomicVar(INDEX_HEADER_FIELD, IndexHeader.Serializer).createOrOpen()
-
-    /** Internal storage variable for the dirty flag. */
-    protected val dirtyField = this.store.atomicBoolean(INDEX_DIRTY_FIELD).createOrOpen()
-
-    /** The [Name.IndexName] of this [AbstractIndex]. */
-    override val name: Name.IndexName = this.parent.name.index(this.headerField.get().name)
+    /** A [AbstractIndex] belongs to its [DefaultCatalogue]. */
+    final override val catalogue: DefaultCatalogue = this.parent.catalogue
 
     /** The [ColumnDef] that are covered (i.e. indexed) by this [AbstractIndex]. */
-    override val columns: Array<ColumnDef<*>> = this.headerField.get().columns
+    final override val columns: Array<ColumnDef<*>>
+        get() = this.catalogue.environment.computeInTransaction { tx ->
+            IndexCatalogueEntry.read(this.name, this.catalogue, tx)?.columns?.map {
+                ColumnCatalogueEntry.read(it, this.catalogue, tx)?.toColumnDef() ?: throw DatabaseException.DataCorruptionException("Failed to obtain columns for index ${this.name}: Could not read catalogue entry for column ${it}.")
+            }?.toTypedArray() ?: throw DatabaseException.DataCorruptionException("Failed to obtain columns for index ${this.name}: Could not read catalogue entry for index.")
+        }
+
+    /**
+     * Flag indicating, whether this [AbstractIndex] reflects all changes done to the [DefaultEntity] it belongs to.
+     *
+     * This is a snapshot and may change immediately!
+     */
+    final override val state: IndexState
+        get() = this.catalogue.environment.computeInTransaction { tx ->
+            IndexCatalogueEntry.read(this.name, this.catalogue, tx)?.state
+                ?: throw DatabaseException.DataCorruptionException("Failed to obtain state for index ${this.name}: Could not read catalogue entry for index.")
+        }
+
+    /**
+     * Number of entries in this [AbstractIndex].
+     *
+     * This is a snapshot and may change immediately.
+     */
+    final override val count: Long
+        get() = this.catalogue.environment.computeInTransaction { tx ->
+            this.catalogue.environment.openStore(this.name.storeName(), this.type.storeConfig, tx).count(tx)
+        }
 
     /** The order in which results of this [Index] appear. Defaults to an empty array, which indicates no particular order. */
     override val order: Array<Pair<ColumnDef<*>, SortOrder>> = emptyArray()
 
     /** The [DBOVersion] of this [AbstractIndex]. */
-    override val version: DBOVersion = DBOVersion.V2_0
-
-    /** The [IndexConfig] for this [AbstractIndex]. Defaults to [NoIndexConfig]. */
-    override val config: IndexConfig = NoIndexConfig
-
-    /** Flag indicating, if this [AbstractIndex] reflects all changes done to the [DefaultEntity]it belongs to. */
-    override val dirty: Boolean
-        get() = this.dirtyField.get()
+    override val version: DBOVersion = DBOVersion.V3_0
 
     /** Flag indicating if this [AbstractIndex] has been closed. */
     override val closed: Boolean
-        get() = this.store.isClosed()
-
-    /** Closes this [AbstractIndex] and the associated data structures. */
-    override fun close() = this.closeLock.write {
-        if (!this.closed) {
-            this.store.close()
-        }
-    }
+        get() = this.parent.closed
 
     /**
      * A [Tx] that affects this [AbstractIndex].
      */
-    protected abstract inner class Tx(context: org.vitrivr.cottontail.dbms.execution.TransactionContext) : AbstractTx(context), IndexTx {
+    protected abstract inner class Tx(context: TransactionContext) : AbstractTx(context), IndexTx {
 
-        /** Obtains a global (non-exclusive) read-lock on [AbstractIndex]. Prevents enclosing [AbstractIndex] from being closed. */
-        private val closeStamp = this@AbstractIndex.closeLock.readLock()
+        /** Internal data [Store] reference. */
+        protected var dataStore: Store = this@AbstractIndex.catalogue.environment.openStore(this@AbstractIndex.name.storeName(), this@AbstractIndex.type.storeConfig, this.context.xodusTx, false)
+            ?: throw DatabaseException.DataCorruptionException("Data store for index ${this@AbstractIndex.name} (${this@AbstractIndex.type}) is missing.")
 
         /** Reference to the [AbstractIndex] */
-        override val dbo: AbstractIndex
+        final override val dbo: AbstractIndex
             get() = this@AbstractIndex
 
         /** The order in which results of this [IndexTx] appear. Empty array that there is no particular order. */
@@ -138,14 +91,64 @@ abstract class AbstractIndex(final override val path: Path, final override val p
         override val type: IndexType
             get() = this@AbstractIndex.type
 
-        /** The default [TxSnapshot] of this [IndexTx]. Can be overridden! */
-        override val snapshot by lazy {
-            object : TxSnapshot {
-                override val actions: List<TxAction> = emptyList()
-                override fun commit() = this@AbstractIndex.store.commit()
-                override fun rollback() = this@AbstractIndex.store.rollback()
-                override fun record(action: TxAction): Boolean = false
+        /** Flag indicating, if this [AbstractIndex] reflects all changes done to the [DefaultEntity]it belongs to. */
+        override var state: IndexState = IndexCatalogueEntry.read(this@AbstractIndex.name, this@AbstractIndex.catalogue, this.context.xodusTx)?.state
+            ?: throw DatabaseException.DataCorruptionException("Failed to obtain state for index ${this@AbstractIndex.name}: Could not read catalogue entry for index.")
+
+        /** The [ColumnDef] indexed by the [AbstractIndex] this [Tx] belongs to. */
+        override val columns: Array<ColumnDef<*>> = IndexCatalogueEntry.read(this@AbstractIndex.name, this@AbstractIndex.catalogue, this.context.xodusTx)?.columns?.map {
+                ColumnCatalogueEntry.read(it, this@AbstractIndex.catalogue, this.context.xodusTx)?.toColumnDef() ?: throw DatabaseException.DataCorruptionException("Failed to obtain columns for index ${this@AbstractIndex.name}: Could not read catalogue entry for column ${it}.")
+            }?.toTypedArray() ?: throw DatabaseException.DataCorruptionException("Failed to obtain columns for index ${this@AbstractIndex.name}: Could not read catalogue entry for index.")
+
+        /**
+         * Obtains a global (non-exclusive) read-lock on [DefaultCatalogue].
+         *
+         * Prevents [DefaultCatalogue] from being closed while transaction is ongoing.
+         */
+        private val closeStamp = this.dbo.catalogue.closeLock.readLock()
+
+        init {
+            /** Checks if DBO is still open. */
+            if (this.dbo.closed) {
+                this.dbo.catalogue.closeLock.unlockRead(this.closeStamp)
+                throw TxException.TxDBOClosedException(this.context.txId, this.dbo)
             }
+        }
+
+        /**
+         * Returns the number of entries in this [AbstractIndex].
+         *
+         * @return Number of entries in this [AbstractIndex]
+         */
+        override fun count(): Long  = this.txLatch.withLock {
+            this.dataStore.count(this.context.xodusTx)
+        }
+
+        /**
+         * Clears the [AbstractTx] underlying this [Tx] and removes all entries it contains.
+         */
+        override fun clear() = this.txLatch.withLock {
+            /* Truncate and replace store.*/
+            this@AbstractIndex.catalogue.environment.truncateStore(this@AbstractIndex.name.storeName(), this.context.xodusTx)
+            this.dataStore = this@AbstractIndex.catalogue.environment.openStore(this@AbstractIndex.name.storeName(),this@AbstractIndex.type.storeConfig, this.context.xodusTx, false)
+                ?: throw DatabaseException.DataCorruptionException("Data store for index ${this@AbstractIndex.name} (${this@AbstractIndex.type}) is missing.")
+
+            /* Update catalogue entry for index. */
+            this.updateState(IndexState.STALE)
+        }
+
+        /**
+         * Convenience method to update [IndexState] for this [AbstractHDIndex].
+         *
+         * @param state The new [IndexState].
+         */
+        protected fun updateState(state: IndexState) {
+            val entry = IndexCatalogueEntry.read(this@AbstractIndex.name, this@AbstractIndex.catalogue, this.context.xodusTx) ?:
+            throw DatabaseException.DataCorruptionException("Failed to update state for index ${this@AbstractIndex.name}: Could not read catalogue entry for index.")
+            if (!IndexCatalogueEntry.write(entry.copy(state = state), this@AbstractIndex.catalogue, this.context.xodusTx)) {
+                throw DatabaseException.DataCorruptionException("Failed to update state for index ${this@AbstractIndex.name}: Could not update catalogue entry for index.")
+            }
+            this.state = state
         }
 
         /**
@@ -157,10 +160,10 @@ abstract class AbstractIndex(final override val path: Path, final override val p
         override fun canProcess(predicate: Predicate): Boolean = this@AbstractIndex.canProcess(predicate)
 
         /**
-         * Releases the [closeLock] in the [AbstractIndex].
+         * Called when a transaction finalizes. Releases the lock held on the [DefaultCatalogue].
          */
         override fun cleanup() {
-            this@AbstractIndex.closeLock.unlock(this.closeStamp)
+            this.dbo.catalogue.closeLock.unlockRead(this.closeStamp)
         }
     }
 }

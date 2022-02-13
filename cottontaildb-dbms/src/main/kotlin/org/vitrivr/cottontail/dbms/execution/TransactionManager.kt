@@ -4,14 +4,22 @@ import it.unimi.dsi.fastutil.Hash.VERY_FAST_LOAD_FACTOR
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2ObjectMaps
+import jetbrains.exodus.env.Environment
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.cancellable
+import kotlinx.coroutines.flow.onCompletion
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.slf4j.LoggerFactory
+import org.vitrivr.cottontail.core.basics.Record
+import org.vitrivr.cottontail.core.database.TransactionId
+import org.vitrivr.cottontail.dbms.execution.TransactionManager.TransactionImpl
+import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.general.DBO
 import org.vitrivr.cottontail.dbms.general.Tx
 import org.vitrivr.cottontail.dbms.locking.Lock
@@ -19,10 +27,6 @@ import org.vitrivr.cottontail.dbms.locking.LockHolder
 import org.vitrivr.cottontail.dbms.locking.LockManager
 import org.vitrivr.cottontail.dbms.locking.LockMode
 import org.vitrivr.cottontail.dbms.operations.Operation
-import org.vitrivr.cottontail.dbms.execution.TransactionManager.TransactionImpl
-import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
-import org.vitrivr.cottontail.core.basics.Record
-import org.vitrivr.cottontail.core.database.TransactionId
 import java.util.*
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.coroutines.CoroutineContext
@@ -34,10 +38,10 @@ import kotlin.coroutines.CoroutineContext
  * @author Ralph Gasser
  * @version 1.5.0
  */
-class TransactionManager(transactionTableSize: Int, private val transactionHistorySize: Int) {
+class TransactionManager(transactionTableSize: Int, private val environment: Environment, private val transactionHistorySize: Int) {
     /** Logger used for logging the output. */
     companion object {
-        private val LOGGER = LoggerFactory.getLogger(org.vitrivr.cottontail.dbms.execution.TransactionManager::class.java)
+        private val LOGGER = LoggerFactory.getLogger(TransactionManager::class.java)
     }
 
     /** Map of [TransactionImpl]s that are currently PENDING or RUNNING. */
@@ -68,19 +72,22 @@ class TransactionManager(transactionTableSize: Int, private val transactionHisto
      * @author Ralph Gasser
      * @version 1.4.0
      */
-    inner class TransactionImpl(override val type: org.vitrivr.cottontail.dbms.execution.TransactionType) : LockHolder<DBO>(this@TransactionManager.tidCounter.getAndIncrement()), org.vitrivr.cottontail.dbms.execution.Transaction,
-        org.vitrivr.cottontail.dbms.execution.TransactionContext {
+    inner class TransactionImpl(override val type: TransactionType) : LockHolder<DBO>(this@TransactionManager.tidCounter.getAndIncrement()), Transaction, TransactionContext {
 
         /** The [TransactionStatus] of this [TransactionImpl]. */
         @Volatile
-        override var state: org.vitrivr.cottontail.dbms.execution.TransactionStatus = org.vitrivr.cottontail.dbms.execution.TransactionStatus.IDLE
+        override var state: TransactionStatus = TransactionStatus.IDLE
             private set
+
+        /** The Xodus [Transaction] associated with this [TransactionContext]. */
+        override val xodusTx: jetbrains.exodus.env.Transaction = this@TransactionManager.environment.beginTransaction()
 
         /** Map of all [Tx] that have been created as part of this [TransactionImpl]. */
         private val txns: MutableMap<DBO, Tx> = Object2ObjectMaps.synchronize(Object2ObjectLinkedOpenHashMap())
 
         /** A [Mutex] data structure used for synchronisation on the [TransactionImpl]. */
         private val mutex = Mutex()
+
 
         /** Number of [Tx] held by this [TransactionImpl]. */
         val numberOfTxs: Int
@@ -163,7 +170,7 @@ class TransactionManager(transactionTableSize: Int, private val transactionHisto
                 check(this@TransactionImpl.state.canExecute) {
                     "Cannot start execution of transaction ${this@TransactionImpl.txId} because it is in the wrong state (s = ${this@TransactionImpl.state})."
                 }
-                this@TransactionImpl.state = org.vitrivr.cottontail.dbms.execution.TransactionStatus.RUNNING
+                this@TransactionImpl.state = TransactionStatus.RUNNING
                 this@TransactionImpl.activeContexts.add(currentCoroutineContext())
             }
         }.onCompletion {
@@ -171,12 +178,12 @@ class TransactionManager(transactionTableSize: Int, private val transactionHisto
                 this@TransactionImpl.activeContexts.remove(currentCoroutineContext())
                 if (it == null) {
                     this@TransactionImpl.numberOfSuccess += 1
-                    if (this@TransactionImpl.numberOfOngoing == 0 && this@TransactionImpl.state == org.vitrivr.cottontail.dbms.execution.TransactionStatus.RUNNING) {
-                        this@TransactionImpl.state = org.vitrivr.cottontail.dbms.execution.TransactionStatus.IDLE
+                    if (this@TransactionImpl.numberOfOngoing == 0 && this@TransactionImpl.state == TransactionStatus.RUNNING) {
+                        this@TransactionImpl.state = TransactionStatus.IDLE
                     }
                 } else {
                     this@TransactionImpl.numberOfError += 1
-                    this@TransactionImpl.state = org.vitrivr.cottontail.dbms.execution.TransactionStatus.ERROR
+                    this@TransactionImpl.state = TransactionStatus.ERROR
 
                 }
             }
@@ -190,17 +197,22 @@ class TransactionManager(transactionTableSize: Int, private val transactionHisto
                 check(this@TransactionImpl.state.canCommit) {
                     "Unable to commit transaction ${this@TransactionImpl.txId} because it is in wrong state (s = ${this@TransactionImpl.state})."
                 }
-                this@TransactionImpl.state = org.vitrivr.cottontail.dbms.execution.TransactionStatus.FINALIZING
+                this@TransactionImpl.state = TransactionStatus.FINALIZING
+                var commit = false
                 try {
-                    this@TransactionImpl.txns.values.reversed().forEachIndexed { i, txn ->
+                    for ((i, txn) in this@TransactionImpl.txns.values.reversed().withIndex()) {
                         try {
-                            txn.commit()
+                            txn.beforeCommit()
                         } catch (e: Throwable) {
-                            org.vitrivr.cottontail.dbms.execution.TransactionManager.Companion.LOGGER.error("An error occurred while committing Tx $i (${txn.dbo.name}) of transaction ${this@TransactionImpl.txId}. This is serious!", e)
+                            LOGGER.error("An error occurred while preparing Tx $i (${txn.dbo.name}) for commit of transaction ${this@TransactionImpl.txId}. This is serious!", e)
+                            throw e
                         }
                     }
+                    commit = this@TransactionImpl.xodusTx.commit()
+                } catch (e: Throwable) {
+                    this@TransactionImpl.xodusTx.abort()
                 } finally {
-                    this@TransactionImpl.finalize(true)
+                    this@TransactionImpl.finalize(commit)
                 }
             }
         }
@@ -222,7 +234,7 @@ class TransactionManager(transactionTableSize: Int, private val transactionHisto
          */
         override fun kill() = runBlocking {
             this@TransactionImpl.mutex.withLock {
-                if (this@TransactionImpl.state === org.vitrivr.cottontail.dbms.execution.TransactionStatus.RUNNING) {
+                if (this@TransactionImpl.state === TransactionStatus.RUNNING) {
                     this@TransactionImpl.activeContexts.forEach {
                         it.cancel(CancellationException("Transaction ${this@TransactionImpl.txId} was killed by user."))
                     }
@@ -238,15 +250,17 @@ class TransactionManager(transactionTableSize: Int, private val transactionHisto
          * Actually performs transaction rollback.
          */
         private fun performRollback() {
-            this@TransactionImpl.state = org.vitrivr.cottontail.dbms.execution.TransactionStatus.FINALIZING
+            this@TransactionImpl.state = TransactionStatus.FINALIZING
             try {
-                this@TransactionImpl.txns.values.reversed().forEachIndexed { i, txn ->
+                for ((i, txn) in this@TransactionImpl.txns.values.reversed().withIndex()) {
                     try {
-                        txn.rollback()
+                        txn.beforeRollback()
                     } catch (e: Throwable) {
-                        org.vitrivr.cottontail.dbms.execution.TransactionManager.Companion.LOGGER.error("An error occurred while rolling back Tx $i (${txn.dbo.name}) of transaction ${this@TransactionImpl.txId}. This is serious!", e)
+                        LOGGER.error("An error occurred while preparing Tx $i (${txn.dbo.name}) for rollback of transaction ${this@TransactionImpl.txId}. This is serious!", e)
+                        throw e
                     }
                 }
+                this.xodusTx.abort()
             } finally {
                 this@TransactionImpl.finalize(false)
             }
@@ -262,9 +276,9 @@ class TransactionManager(transactionTableSize: Int, private val transactionHisto
             this@TransactionImpl.txns.clear()
             this@TransactionImpl.ended = System.currentTimeMillis()
             this@TransactionImpl.state = if (committed) {
-                org.vitrivr.cottontail.dbms.execution.TransactionStatus.COMMIT
+                TransactionStatus.COMMIT
             } else {
-                org.vitrivr.cottontail.dbms.execution.TransactionStatus.ROLLBACK
+                TransactionStatus.ROLLBACK
             }
             this@TransactionManager.transactions.remove(this@TransactionImpl.txId)
         }
