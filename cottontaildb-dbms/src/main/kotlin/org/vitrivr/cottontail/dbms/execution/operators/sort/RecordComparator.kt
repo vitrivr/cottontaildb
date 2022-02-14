@@ -1,15 +1,15 @@
 package org.vitrivr.cottontail.dbms.execution.operators.sort
 
+import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.dbms.queries.sort.SortOrder
-import org.vitrivr.cottontail.core.basics.Record
 import kotlin.math.sign
 
 /**
  * A set of [Comparator] implementations to compare two [Record]s.
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.2.0
  */
 sealed interface RecordComparator : Comparator<Record> {
 
@@ -33,11 +33,13 @@ sealed interface RecordComparator : Comparator<Record> {
      */
     class SingleNonNullColumnComparator(val sortOn: ColumnDef<*>, val sortOrder: SortOrder) : RecordComparator {
         init {
-            require(!sortOn.nullable) { "Column cannot be nullable for SingleNonNullColumnComparator but is." }
+            require(!this.sortOn.nullable) { "Column cannot be nullable for SingleNonNullColumnComparator but is." }
         }
 
         override fun compare(o1: Record, o2: Record): Int {
-            return this.sortOrder * o1[this.sortOn]!!.compareTo(o2[this.sortOn]!!).sign
+            var sort = o1[this.sortOn]!!.compareTo(o2[this.sortOn]!!).sign
+            if (sort == 0) sort = o1.tupleId.compareTo(o2.tupleId).sign
+            return this.sortOrder * sort
         }
     }
 
@@ -45,11 +47,19 @@ sealed interface RecordComparator : Comparator<Record> {
      * Compares two [Record]s based on a single [ColumnDef] that can be null.
      */
     class SingleNullColumnComparator(val sortOn: ColumnDef<*>, val sortOrder: SortOrder) : RecordComparator {
-        override fun compare(o1: Record, o2: Record): Int = this.sortOrder * when {
-            o1[this.sortOn] == null && o2[this.sortOn] == null -> 0
-            o1[this.sortOn] == null && o2[this.sortOn] != null -> -1
-            o1[this.sortOn] != null && o2[this.sortOn] == null -> 1
-            else -> o1[this.sortOn]!!.compareTo(o2[this.sortOn]!!).sign
+        override fun compare(o1: Record, o2: Record): Int {
+            val left = o1[this.sortOn]
+            val right = o2[this.sortOn]
+            return this.sortOrder * when {
+                left == null && right == null -> o1.tupleId.compareTo(o2.tupleId).sign
+                left != null && right != null -> {
+                    var sort = left.compareTo(right).sign
+                    if (sort == 0) sort = o1.tupleId.compareTo(o2.tupleId).sign
+                    sort
+                }
+                right != null -> -1
+                else -> 1
+            }
         }
     }
 
@@ -62,12 +72,11 @@ sealed interface RecordComparator : Comparator<Record> {
         }
 
         override fun compare(o1: Record, o2: Record): Int {
-            var comparison = 0
             for (c in this.sortOn) {
-                comparison = c.second * (o1[c.first]!!.compareTo(o2[c.first]!!).sign)
-                if (comparison != 0) break
+                val comparison = c.second * (o1[c.first]!!.compareTo(o2[c.first]!!).sign)
+                if (comparison != 0) return comparison
             }
-            return comparison
+            return o1.tupleId.compareTo(o2.tupleId).sign
         }
     }
 
@@ -76,19 +85,18 @@ sealed interface RecordComparator : Comparator<Record> {
      */
     class MultiNullColumnComparator(private val sortOn: List<Pair<ColumnDef<*>, SortOrder>>) : RecordComparator {
         override fun compare(o1: Record, o2: Record): Int {
-            var comparison = 0
             for (c in this.sortOn) {
                 val c1 = o1[c.first]
                 val c2 = o2[c.first]
-                comparison = c.second * when {
+                val comparison = c.second * when {
                     c1 == null && c2 == null -> 0
                     c1 == null && c2 != null -> -1
                     c1 != null && c2 == null -> 1
                     else -> c1!!.compareTo(c2!!).sign
                 }
-                if (comparison != 0) break
+                if (comparison != 0) return comparison
             }
-            return comparison
+            return o1.tupleId.compareTo(o2.tupleId).sign
         }
     }
 }
