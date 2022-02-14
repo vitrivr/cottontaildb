@@ -6,6 +6,7 @@ import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.binding.Binding
+import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.TransactionContext
@@ -32,12 +33,15 @@ class EntitySampleOperator(groupId: GroupId, val entity: EntityTx, val fetch: Li
      */
     override fun toFlow(context: TransactionContext): Flow<Record> {
         val fetch = this.fetch.map { it.second }.toTypedArray()
+        val columns = this.fetch.map { it.first.column }.toTypedArray()
         val random = SplittableRandom(this@EntitySampleOperator.seed)
         return flow {
             this@EntitySampleOperator.entity.cursor(fetch).use { cursor ->
                 while (cursor.moveNext()) {
                     if (random.nextDouble(0.0, 1.0) <= this@EntitySampleOperator.p) {
-                        val record = cursor.value()
+                        val next = cursor.value()
+                        val values = Array(columns.size) { next[it] }
+                        val record = StandaloneRecord(next.tupleId, columns, values)
                         this@EntitySampleOperator.fetch.first().first.context.update(record) /* Important: Make new record available to binding context. */
                         emit(record)
                     }

@@ -7,7 +7,6 @@ import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.functions.Function
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
-import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.queries.QueryContext
 
@@ -37,13 +36,15 @@ class FunctionOperator(parent: Operator, val function: Binding.Function, val out
 
         /* Prepare empty array that acts a holder for values. */
         val columns = this.columns.toTypedArray()
-        val values = Array<Value?>(this.columns.size) { null }
         return parentFlow.map { record ->
-            /* Copy values of incoming record. */
-            for (i in 0 until record.size) values[i] = record[i]
-
-            /* Execute function and update column value. */
-            values[values.lastIndex] = this@FunctionOperator.function.value
+            /* Materialize new values array. */
+            val values = Array(this.columns.size) {
+                if (it < this.columns.size - 1) {
+                    record[it]
+                } else {
+                    this@FunctionOperator.function.value
+                }
+            }
 
             /* Generate and return record. Important: Make new record available to binding context. */
             val rec = StandaloneRecord(record.tupleId, columns, values)

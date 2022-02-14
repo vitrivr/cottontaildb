@@ -15,7 +15,7 @@ import java.io.PrintStream
  * @author Ralph Gasser
  * @version 2.5.0
  */
-abstract class UnaryLogicalOperatorNode(input: Logical? = null) : org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Logical() {
+abstract class UnaryLogicalOperatorNode(input: Logical? = null) : OperatorNode.Logical() {
     /** Input arity of [UnaryLogicalOperatorNode] is always one. */
     final override val inputArity: Int = 1
 

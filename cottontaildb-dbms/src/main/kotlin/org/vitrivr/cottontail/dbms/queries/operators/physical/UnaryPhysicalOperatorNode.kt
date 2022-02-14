@@ -19,7 +19,7 @@ import java.io.PrintStream
  * @author Ralph Gasser
  * @version 2.5.0
  */
-abstract class UnaryPhysicalOperatorNode(input: Physical? = null) : org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Physical() {
+abstract class UnaryPhysicalOperatorNode(input: Physical? = null) : OperatorNode.Physical() {
 
     /** The arity of the [UnaryPhysicalOperatorNode] is always on. */
     final override val inputArity = 1

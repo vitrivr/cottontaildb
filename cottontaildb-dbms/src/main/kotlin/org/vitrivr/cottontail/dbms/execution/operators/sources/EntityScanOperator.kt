@@ -6,6 +6,7 @@ import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.binding.Binding
+import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.TransactionContext
@@ -34,7 +35,9 @@ class EntityScanOperator(groupId: GroupId, val entity: EntityTx, val fetch: List
         return flow {
             this@EntityScanOperator.entity.cursor(fetch, this@EntityScanOperator.partitionIndex, this@EntityScanOperator.partitions).use { cursor ->
                 while (cursor.moveNext()) {
-                    val record = cursor.value()
+                    val next = cursor.value()
+                    val values = Array(columns.size) { next[it] }
+                    val record = StandaloneRecord(next.tupleId, columns, values)
                     this@EntityScanOperator.fetch.first().first.context.update(record) /* Important: Make new record available to binding context. */
                     emit(record)
                 }

@@ -1,7 +1,6 @@
 package org.vitrivr.cottontail.dbms.execution.operators.sort
 
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
@@ -38,7 +37,7 @@ class LimitingHeapSortOperator(parent: Operator, sortOn: List<Pair<ColumnDef<*>,
         val parentFlow = this.parent.toFlow(context)
         return flow {
             val selection = HeapSelection(this@LimitingHeapSortOperator.limit + this@LimitingHeapSortOperator.skip, this@LimitingHeapSortOperator.comparator)
-            parentFlow.collect { selection.offer(it.copy()) } /* Important: Materialization! */
+            parentFlow.collect { selection.offer(it) } /* Important: Materialization! */
             for (i in this@LimitingHeapSortOperator.skip until selection.size) {
                 emit(selection[i])
             }

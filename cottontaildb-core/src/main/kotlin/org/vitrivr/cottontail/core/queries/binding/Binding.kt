@@ -86,7 +86,7 @@ sealed interface Binding: Node {
             get() = this.function.cost + this.arguments.map { it.cost }.reduce { c1, c2 -> c1 + c2}
         override val static: Boolean
             get() = false
-        override fun copy() = Function(this.function, this.arguments.map { it.copy() }, this.context)
+        override fun copy() = Function(this.function.copy(), this.arguments.map { it.copy() }, this.context)
         override fun digest(): Digest = this.hashCode().toLong()
         override fun bind(context: BindingContext) {
             this.context = context

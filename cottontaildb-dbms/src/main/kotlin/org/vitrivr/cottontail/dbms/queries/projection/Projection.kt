@@ -22,5 +22,5 @@ enum class Projection(val aggregating: Boolean) {
      *
      * @return String label.
      */
-    fun label() = this.toString().lowercase().replace("_", "").uppercase()
+    fun label() = this.toString().replace("_", "").lowercase()
 }

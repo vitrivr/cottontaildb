@@ -143,8 +143,8 @@ class DefaultBindingContext(startSize: Int = 100) : BindingContext {
      */
     override fun copy(): BindingContext {
         val copy = DefaultBindingContext(this.boundLiterals.size)
-        copy.boundLiterals.addAll(this.boundLiterals)
-        copy.boundFunctions.putAll(this.boundFunctions)
+        this.boundLiterals.forEach { copy.boundLiterals.add(it) }
+        this.boundFunctions.forEach { (k,v) -> copy.boundFunctions[k] = v.copyOf() }
         copy.boundRecord = this.boundRecord
         return copy
     }
