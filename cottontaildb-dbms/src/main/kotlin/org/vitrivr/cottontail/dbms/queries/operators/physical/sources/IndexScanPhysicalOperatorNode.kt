@@ -96,11 +96,14 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int,
      */
     override fun tryPartition(partitions: Int, p: Int?): Physical? {
         if (p != null) return IndexScanPhysicalOperatorNode(p, this.index, this.predicate, this.fetch, p, partitions)
-        val inbound = (0 until partitions).map {
-            IndexScanPhysicalOperatorNode(it, this.index, this.predicate, this.fetch, it, partitions)
+        if (this.canBePartitioned) {
+            val inbound = (0 until partitions).map {
+                IndexScanPhysicalOperatorNode(it, this.index, this.predicate, this.fetch, it, partitions)
+            }
+            val merge = MergePhysicalOperator(*inbound.toTypedArray())
+            return this.output?.copyWithOutput(merge)
         }
-        val merge = MergePhysicalOperator(*inbound.toTypedArray())
-        return this.output?.copyWithOutput(merge)
+        return null
     }
 
     /**
