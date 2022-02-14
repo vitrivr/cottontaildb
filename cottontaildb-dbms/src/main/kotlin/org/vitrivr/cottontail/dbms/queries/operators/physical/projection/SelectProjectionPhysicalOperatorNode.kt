@@ -17,7 +17,7 @@ import org.vitrivr.cottontail.dbms.queries.projection.Projection
  * @author Ralph Gasser
  * @version 2.3.0
  */
-class SelectProjectionPhysicalOperatorNode(input: Physical? = null, val type: Projection, val fields: List<Name.ColumnName>): UnaryPhysicalOperatorNode(input) {
+class SelectProjectionPhysicalOperatorNode(input: Physical? = null, type: Projection, val fields: List<Name.ColumnName>): AbstractProjectionPhysicalOperatorNode(input, type) {
 
     init {
         /* Sanity check. */
