@@ -29,7 +29,6 @@ class DefaultBindingContext(startSize: Int = 100) : BindingContext {
     private val boundFunctions = Object2ObjectOpenHashMap<Signature.Closed<*>, Array<Value?>>()
 
     /** The currently bound [Record]. */
-    @Volatile
     private var boundRecord: Record? = null
 
     /**
