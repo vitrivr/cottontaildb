@@ -7,6 +7,7 @@ import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
+import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.dbms.execution.TransactionContext
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.index.Index
@@ -40,6 +41,7 @@ class IndexScanOperator(
      * @return [Flow] representing this [IndexScanOperator]
      */
     override fun toFlow(context: TransactionContext): Flow<Record> {
+        val columns = this.fetch.map { it.first.column }.toTypedArray()
         return flow {
             val iterator = if (this@IndexScanOperator.partitions == 1) {
                 this@IndexScanOperator.index.filter(this@IndexScanOperator.predicate)
@@ -47,8 +49,9 @@ class IndexScanOperator(
                 this@IndexScanOperator.index.filterRange(this@IndexScanOperator.predicate, this@IndexScanOperator.partitionIndex, this@IndexScanOperator.partitions)
             }
             for (record in iterator) {
-                this@IndexScanOperator.fetch.first().first.context.update(record)
-                emit(record)
+                val rec = StandaloneRecord(record.tupleId, columns, Array(fetch.size) { record[it] })
+                this@IndexScanOperator.fetch.first().first.context.update(rec)
+                emit(rec)
             }
         }
     }

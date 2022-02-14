@@ -2,7 +2,6 @@ package org.vitrivr.cottontail.dbms.execution.operators.sort
 
 import it.unimi.dsi.fastutil.objects.ObjectHeapPriorityQueue
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
@@ -28,7 +27,7 @@ open class HeapSortOperator(parent: Operator, sortOn: List<Pair<ColumnDef<*>, So
         val parentFlow = this.parent.toFlow(context)
         return flow {
             val queue = ObjectHeapPriorityQueue(this@HeapSortOperator.queueSize, this@HeapSortOperator.comparator)
-            parentFlow.collect { queue.enqueue(it.copy()) } /* Important: Materialization! */
+            parentFlow.collect { queue.enqueue(it) } /* Important: Materialization! */
             while (!queue.isEmpty) {
                 emit(queue.dequeue())
             }
