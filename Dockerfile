@@ -1,11 +1,8 @@
 FROM openjdk:latest AS build
 
 COPY . /cottontail-src
-RUN cd /cottontail-src && \
-  ./gradlew distTar && \
-  cd ./cottontaildb-dbms/build/distributions/ && \
-  tar xf ./cottontaildb-dbms.tar
-
+RUN cd /cottontail-src && ./gradlew distTar
+RUN cd /cottontail-src/cottontaildb-dbms/build/distributions/ && tar xf ./cottontaildb-dbms.tar
 
 FROM openjdk:latest
 
