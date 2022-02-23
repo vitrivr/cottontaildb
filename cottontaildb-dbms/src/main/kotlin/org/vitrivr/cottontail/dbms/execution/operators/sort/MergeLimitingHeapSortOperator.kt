@@ -1,8 +1,9 @@
 package org.vitrivr.cottontail.dbms.execution.operators.sort
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flattenMerge
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.merge
+import kotlinx.coroutines.flow.flowOf
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
@@ -42,7 +43,7 @@ class MergeLimitingHeapSortOperator(parents: List<Operator>, val context: Bindin
         return flow {
             /* Collect incoming flows. */
             val selection = HeapSelection(this@MergeLimitingHeapSortOperator.limit, this@MergeLimitingHeapSortOperator.comparator)
-            merge(*parents).collect {
+            flowOf(*parents).flattenMerge(parents.size).collect {
                 selection.offer(it)
             }
 
