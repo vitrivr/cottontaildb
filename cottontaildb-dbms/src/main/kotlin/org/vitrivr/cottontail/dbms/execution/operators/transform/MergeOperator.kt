@@ -1,8 +1,6 @@
 package org.vitrivr.cottontail.dbms.execution.operators.transform
 
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.merge
-import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.*
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
@@ -16,7 +14,7 @@ import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
  * outgoing [Flow] may be arbitrary.
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.2.1
  */
 
 class MergeOperator(parents: List<Operator>, val context: BindingContext): Operator.MergingPipelineOperator(parents) {
@@ -34,8 +32,10 @@ class MergeOperator(parents: List<Operator>, val context: BindingContext): Opera
      * @return [Flow] representing this [MergeOperator]
      */
     override fun toFlow(context: TransactionContext): Flow<Record> {
-        /* Obtain parent flows amd compose new flow. */
-        val parentFlows = this.parents.map { it.toFlow(context) }.toTypedArray()
-        return merge(*parentFlows).onEach { this@MergeOperator.context.update(it) }
+        /* Obtain parent flows and compose new flow. */
+        val parentFlows = this.parents.map { it.toFlow(context).map(Record::copy) }.toTypedArray()
+        return flowOf(*parentFlows).flattenMerge(parentFlows.size).onEach {
+            this@MergeOperator.context.update(it)
+        }
     }
 }
