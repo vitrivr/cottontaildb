@@ -8,6 +8,7 @@ import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.execution.TransactionContext
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.index.Index
@@ -40,19 +41,19 @@ class IndexScanOperator(
      * @param context The [TransactionContext] used for execution.
      * @return [Flow] representing this [IndexScanOperator]
      */
-    override fun toFlow(context: TransactionContext): Flow<Record> {
-        val columns = this.fetch.map { it.first.column }.toTypedArray()
-        return flow {
-            val iterator = if (this@IndexScanOperator.partitions == 1) {
-                this@IndexScanOperator.index.filter(this@IndexScanOperator.predicate)
-            } else {
-                this@IndexScanOperator.index.filterRange(this@IndexScanOperator.predicate, this@IndexScanOperator.partitionIndex, this@IndexScanOperator.partitions)
-            }
-            for (record in iterator) {
-                val rec = StandaloneRecord(record.tupleId, columns, Array(fetch.size) { record[it] })
-                this@IndexScanOperator.fetch.first().first.context.update(rec)
-                emit(rec)
-            }
+    override fun toFlow(context: TransactionContext): Flow<Record> = flow {
+        val columns = this@IndexScanOperator.fetch.map { it.first.column }.toTypedArray()
+        val values = arrayOfNulls<Value>(columns.size)
+        val iterator = if (this@IndexScanOperator.partitions == 1) {
+            this@IndexScanOperator.index.filter(this@IndexScanOperator.predicate)
+        } else {
+            this@IndexScanOperator.index.filterRange(this@IndexScanOperator.predicate, this@IndexScanOperator.partitionIndex, this@IndexScanOperator.partitions)
+        }
+        for (record in iterator) {
+            for (i in values.indices) values[i] = record[i]
+            val rec = StandaloneRecord(record.tupleId, columns, values)
+            this@IndexScanOperator.fetch.first().first.context.update(rec)
+            emit(rec)
         }
     }
 }

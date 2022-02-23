@@ -38,21 +38,19 @@ class MergeLimitingHeapSortOperator(parents: List<Operator>, val context: Bindin
      * @param context The [TransactionContext] used for execution
      * @return [Flow] representing this [MergeLimitingHeapSortOperator]
      */
-    override fun toFlow(context: TransactionContext): Flow<Record> {
-        val parents = this.parents.map { it.toFlow(context) }.toTypedArray()
-        return flow {
-            /* Collect incoming flows. */
-            val selection = HeapSelection(this@MergeLimitingHeapSortOperator.limit, this@MergeLimitingHeapSortOperator.comparator)
-            flowOf(*parents).flattenMerge(parents.size).collect {
-                selection.offer(it)
-            }
+    override fun toFlow(context: TransactionContext): Flow<Record> = flow {
+        /* Collect incoming flows. */
+        val parents = this@MergeLimitingHeapSortOperator.parents.map { it.toFlow(context) }.toTypedArray()
+        val selection = HeapSelection(this@MergeLimitingHeapSortOperator.limit, this@MergeLimitingHeapSortOperator.comparator)
+        flowOf(*parents).flattenMerge(parents.size).collect {
+            selection.offer(it.copy()) /* Important: Materialization! */
+        }
 
-            /* Emit sorted and limited values. */
-            for (i in 0 until selection.size) {
-                val rec = selection[i]
-                this@MergeLimitingHeapSortOperator.context.update(rec)
-                emit(rec)
-            }
+        /* Emit sorted and limited values. */
+        for (i in 0 until selection.size) {
+            val rec = selection[i]
+            this@MergeLimitingHeapSortOperator.context.update(rec)
+            emit(rec)
         }
     }
 }

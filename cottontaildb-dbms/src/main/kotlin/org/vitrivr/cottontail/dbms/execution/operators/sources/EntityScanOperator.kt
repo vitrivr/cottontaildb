@@ -7,6 +7,7 @@ import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.TransactionContext
@@ -29,15 +30,15 @@ class EntityScanOperator(groupId: GroupId, val entity: EntityTx, val fetch: List
      * @param context The [TransactionContext] used for execution
      * @return [Flow] representing this [EntityScanOperator]
      */
-    override fun toFlow(context: TransactionContext): Flow<Record> {
-        val fetch = this.fetch.map { it.second }.toTypedArray()
-        val columns = this.fetch.map { it.first.column }.toTypedArray()
-        return flow {
-            for (record in this@EntityScanOperator.entity.scan(fetch, this@EntityScanOperator.partitionIndex, this@EntityScanOperator.partitions)) {
-                val rec = StandaloneRecord(record.tupleId, columns, Array(this@EntityScanOperator.fetch.size) { record[it] })
-                this@EntityScanOperator.fetch.first().first.context.update(rec)
-                emit(rec)
-            }
+    override fun toFlow(context: TransactionContext): Flow<Record> = flow {
+        val fetch = this@EntityScanOperator.fetch.map { it.second }.toTypedArray()
+        val columns = this@EntityScanOperator.fetch.map { it.first.column }.toTypedArray()
+        val values = arrayOfNulls<Value>(columns.size)
+        for (record in this@EntityScanOperator.entity.scan(fetch, this@EntityScanOperator.partitionIndex, this@EntityScanOperator.partitions)) {
+            for (i in values.indices) values[i] = record[i]
+            val rec = StandaloneRecord(record.tupleId, columns, values)
+            this@EntityScanOperator.fetch.first().first.context.update(rec)
+            emit(rec)
         }
     }
 }
