@@ -22,14 +22,14 @@ import kotlin.time.measureTime
 @ExperimentalTime
 class DumpEntityCommand(client: SimpleClient) : AbstractCottontailCommand.Entity(client, name = "dump", help = "Dumps the content of an entire entity to disk.") {
 
-    /** Flag indicating, whether query should be executed or explained. */
+    /** Path to the output folder (file name will be determined by entity and format). */
     private val out: Path by option(
         "-o",
         "--out",
         help = "Path to the output folder (file name will be determined by entity and format)."
     ).convert { Paths.get(it) }.required()
 
-    /** Flag indicating, whether query should be executed or explained. */
+    /** Export format. Defaults to PROTO. */
     private val format: Format by option(
         "-f",
         "--format",
