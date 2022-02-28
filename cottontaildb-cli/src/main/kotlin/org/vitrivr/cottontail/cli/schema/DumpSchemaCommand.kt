@@ -1,19 +1,20 @@
 package org.vitrivr.cottontail.cli.schema
 
-import com.github.ajalt.clikt.parameters.options.convert
-import com.github.ajalt.clikt.parameters.options.default
-import com.github.ajalt.clikt.parameters.options.option
-import com.github.ajalt.clikt.parameters.options.required
+import com.github.ajalt.clikt.parameters.options.*
 import org.vitrivr.cottontail.cli.AbstractCottontailCommand
 import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.language.dql.Query
 import org.vitrivr.cottontail.data.Format
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.utilities.extensions.proto
+import java.net.URI
+import java.nio.file.FileSystems
 import java.nio.file.Path
 import java.nio.file.Paths
+import kotlin.io.path.createDirectory
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTime
+
 
 /**
  * Command to dump the content of all entities within a schema into individual files.
@@ -42,15 +43,33 @@ class DumpSchemaCommand(client: SimpleClient) : AbstractCottontailCommand.Schema
         help = "Export format. Defaults to PROTO."
     ).convert { Format.valueOf(it) }.default(Format.PROTO)
 
+    /** Flag indicating whether output should be compressed. */
+    private val compress: Boolean by option(
+        "-c",
+        "--compress",
+        help = "Whether export should be compressed)"
+    ).flag(default = false)
+
+
     override fun exec() {
-        val entities = client.list(CottontailGrpc.ListEntityMessage.newBuilder().setSchema(schemaName.proto()).build())
-            .asSequence().map { x -> x[0].toString() }.toList()
 
-        for (entity in entities) {
-            val qm = Query(entity)
-            val path = this.out.resolve("${entity}.${this.format.suffix}")
-            val dataExporter = this.format.newExporter(path)
+        /* Generate file system. */
+        val out = this.out.resolve(this.schemaName.simple)
+        val root = if (this.compress) {
+            val env = mutableMapOf("create" to "true")
+            val uri = URI.create("jar:file:$out.zip")
+            val fs = FileSystems.newFileSystem(uri, env)
+            fs.getPath("/")
+        } else {
+            out.createDirectory() /* Create directory. */
+            out
+        }
 
+        for (entity in this.client.list(CottontailGrpc.ListEntityMessage.newBuilder().setSchema(schemaName.proto()).build())) {
+            val entityName = entity.asString(0)
+            val qm = Query(entityName)
+            val file = root.resolve("$entityName.${this.format.suffix}")
+            val dataExporter = this.format.newExporter(file)
             try {
                 val duration = measureTime {
                     /* Execute query and export data. */
@@ -65,5 +84,8 @@ class DumpSchemaCommand(client: SimpleClient) : AbstractCottontailCommand.Schema
                 print("A ${e::class.java.simpleName} occurred while executing and exporting query: ${e.message}.")
             }
         }
+
+        /** Close ZIP-file system. */
+        if (compress) root.fileSystem.close()
     }
 }
