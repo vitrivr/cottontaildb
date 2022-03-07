@@ -56,7 +56,7 @@ class EntityDetailsOperator(val catalogue: DefaultCatalogue, val name: Name.Enti
             values[3] = null
             cols.forEach {
                 values[0] = StringValue(it.name.toString())
-                values[2] = StringValue(it.type.toString())
+                values[2] = StringValue(it.type.name)
                 values[4] = IntValue(it.columnDef.type.logicalSize)
                 values[5] =  BooleanValue(it.nullable)
                 emit(StandaloneRecord(rowId++, columns, values))
