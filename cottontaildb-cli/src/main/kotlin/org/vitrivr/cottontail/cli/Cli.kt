@@ -23,10 +23,7 @@ import org.vitrivr.cottontail.cli.query.CountEntityCommand
 import org.vitrivr.cottontail.cli.query.ExecuteQueryCommand
 import org.vitrivr.cottontail.cli.query.FindInEntityCommand
 import org.vitrivr.cottontail.cli.query.PreviewEntityCommand
-import org.vitrivr.cottontail.cli.schema.CreateSchemaCommand
-import org.vitrivr.cottontail.cli.schema.DropSchemaCommand
-import org.vitrivr.cottontail.cli.schema.ListAllSchemaCommand
-import org.vitrivr.cottontail.cli.schema.ListEntitiesCommand
+import org.vitrivr.cottontail.cli.schema.*
 import org.vitrivr.cottontail.cli.system.KillTransactionCommand
 import org.vitrivr.cottontail.cli.system.ListLocksCommand
 import org.vitrivr.cottontail.cli.system.ListTransactionsCommand
@@ -294,6 +291,7 @@ class Cli(private val host: String = "localhost", private val port: Int = 1865) 
                 }.subcommands(
                     CreateSchemaCommand(this@Cli.client),
                     DropSchemaCommand(this@Cli.client),
+                    DumpSchemaCommand(this@Cli.client),
                     ListAllSchemaCommand(this@Cli.client),
                     ListEntitiesCommand(this@Cli.client)
                 ),
