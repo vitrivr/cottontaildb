@@ -1,0 +1,13 @@
+/* Plugins. */
+
+/* dependencies. */
+dependencies {
+    api project(':cottontaildb-dbms')
+    api project(':cottontaildb-core')
+}
+
+idea {
+    module {
+        downloadJavadoc = true
+    }
+}

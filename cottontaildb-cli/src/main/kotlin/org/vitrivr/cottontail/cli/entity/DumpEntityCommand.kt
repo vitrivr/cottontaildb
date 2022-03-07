@@ -7,6 +7,7 @@ import com.github.ajalt.clikt.parameters.options.required
 import org.vitrivr.cottontail.cli.AbstractCottontailCommand
 import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.language.dql.Query
+import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.data.Format
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -37,22 +38,29 @@ class DumpEntityCommand(client: SimpleClient) : AbstractCottontailCommand.Entity
     ).convert { Format.valueOf(it) }.default(Format.PROTO)
 
     override fun exec() {
-        val qm = Query(this.entityName.toString())
-        val path = this.out.resolve("${this.entityName}.${this.format.suffix}")
-        val dataExporter = this.format.newExporter(path)
+        dumpEntity(this.entityName, this.out, this.format, this.client)
+    }
 
-        try {
-            val duration = measureTime {
-                /* Execute query and export data. */
-                val results = this.client.query(qm)
-                for (r in results) {
-                    dataExporter.offer(r)
+    companion object {
+        fun dumpEntity(entityName: Name.EntityName, out: Path, format: Format, client: SimpleClient){
+            val qm = Query(entityName.toString())
+            val path = out.resolve("${entityName}.${format.suffix}")
+            val dataExporter = format.newExporter(path)
+
+            try {
+                val duration = measureTime {
+                    /* Execute query and export data. */
+                    val results = client.query(qm)
+                    for (r in results) {
+                        dataExporter.offer(r)
+                    }
+                    dataExporter.close()
                 }
-                dataExporter.close()
+                println("Dumping ${entityName} took $duration.")
+            } catch (e: Throwable) {
+                print("A ${e::class.java.simpleName} occurred while executing and exporting query: ${e.message}.")
             }
-            println("Dumping ${this.entityName} took $duration.")
-        } catch (e: Throwable) {
-            print("A ${e::class.java.simpleName} occurred while executing and exporting query: ${e.message}.")
         }
     }
+
 }

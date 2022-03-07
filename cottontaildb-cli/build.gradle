@@ -10,6 +10,8 @@ dependencies {
     implementation group: 'org.jline', name: 'jline-terminal-jna', version: version_jline
     implementation group: 'com.github.ajalt.clikt', name: 'clikt', version: version_clikt
     implementation group: 'com.jakewharton.picnic', name: 'picnic', version: version_picnic
+
+    testImplementation project(':cottontaildb-test')
 }
 
 /* General application attributes. */
@@ -27,6 +29,11 @@ idea {
     module {
         downloadJavadoc = true
     }
+}
+
+tasks.withType(Test) {
+    useJUnitPlatform()
+    jvmArgs '--enable-preview'
 }
 
 //// Change name for distribution to C(arrot)LI.

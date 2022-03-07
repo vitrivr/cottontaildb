@@ -28,6 +28,8 @@ dependencies {
     implementation group: 'org.apache.lucene', name: 'lucene-analyzers-phonetic', version: version_lucene
     implementation group: 'org.apache.lucene', name: 'lucene-codecs', version: version_lucene
     implementation group: 'org.apache.lucene', name: 'lucene-queryparser', version: version_lucene
+
+    testImplementation project(':cottontaildb-test')
 }
 
 /* General application attributes. */

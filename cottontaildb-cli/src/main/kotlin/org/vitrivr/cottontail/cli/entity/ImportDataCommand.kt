@@ -39,67 +39,73 @@ class ImportDataCommand(client: SimpleClient) : AbstractCottontailCommand.Entity
     private val input: Path by option(
         "-i",
         "--input",
-        help = "Limits the amount of printed results"
+        help = "Location of the data to be imported"
     ).convert { Paths.get(it) }.required()
 
     /** Flag indicating, whether the import should be executed in a single transaction or not. */
     private val singleTransaction: Boolean by option("-t", "--transaction").flag()
 
     override fun exec() {
-        /* Read schema and prepare Iterator. */
-        val schema = this.readSchema()
-        val iterator = this.format.newImporter(this.input, schema)
-
-        /** Begin transaction (if single transaction option has been set). */
-        val txId = if (this.singleTransaction) {
-            this.client.begin()
-        } else {
-            null
-        }
-
-        try {
-            /* Perform insert. */
-            iterator.forEach {
-                it.from = this.entityName.protoFrom()
-                if (txId != null) {
-                    it.metadataBuilder.transactionId = txId
-                }
-                this.client.insert(it.build())
-            }
-
-            /** Commit transaction, if single transaction option has been set. */
-            if (txId != null) {
-                this.client.commit(txId)
-            }
-        } catch (e: Throwable) {
-            /** Rollback transaction, if single transaction option has been set. */
-            if (txId != null) {
-                this.client.rollback(txId)
-            }
-        } finally {
-            iterator.close()
-        }
+        importData(format, input, client, entityName, singleTransaction)
     }
 
-    /**
-     * Reads the column definitions for the specified schema and returns it.
-     *
-     * @return List of [ColumnDef] for the current [Name.EntityName]
-     */
-    private fun readSchema(): Array<ColumnDef<*>> {
-        val columns = mutableListOf<ColumnDef<*>>()
-        val schemaInfo = this.client.about(AboutEntity(this.entityName.toString()))
-        schemaInfo.forEach {
-            if (it.asString(1) == "COLUMN") {
-                columns.add(
-                    ColumnDef(
-                        name = Name.ColumnName(it.asString(0)!!.split(Name.NAME_COMPONENT_DELIMITER).toTypedArray()),
-                        type = Types.forName(it.asString(2)!!, it.asInt(4)!!),
-                        nullable =  it.asBoolean(5)!!
-                    )
-                )
+    companion object {
+        fun importData(format: Format, input: Path, client: SimpleClient, entityName: Name.EntityName, singleTransaction: Boolean) {
+            /* Read schema and prepare Iterator. */
+            val schema = readSchema(client, entityName)
+            val iterator = format.newImporter(input, schema)
+
+            /** Begin transaction (if single transaction option has been set). */
+            val txId = if (singleTransaction) {
+                client.begin()
+            } else {
+                null
+            }
+
+            try {
+                /* Perform insert. */
+                iterator.forEach {
+                    it.from = entityName.protoFrom()
+                    if (txId != null) {
+                        it.metadataBuilder.transactionId = txId
+                    }
+                    client.insert(it.build())
+                }
+
+                /** Commit transaction, if single transaction option has been set. */
+                if (txId != null) {
+                    client.commit(txId)
+                }
+            } catch (e: Throwable) {
+                /** Rollback transaction, if single transaction option has been set. */
+                if (txId != null) {
+                    client.rollback(txId)
+                }
+            } finally {
+                iterator.close()
             }
         }
-        return columns.toTypedArray()
+
+        /**
+         * Reads the column definitions for the specified schema and returns it.
+         *
+         * @return List of [ColumnDef] for the current [Name.EntityName]
+         */
+        private fun readSchema(client: SimpleClient, entityName: Name.EntityName): Array<ColumnDef<*>> {
+            val columns = mutableListOf<ColumnDef<*>>()
+            val schemaInfo = client.about(AboutEntity(entityName.toString()))
+            schemaInfo.forEach {
+                if (it.asString(1) == "COLUMN") {
+                    columns.add(
+                            ColumnDef(
+                                    name = Name.ColumnName(it.asString(0)!!.split(Name.NAME_COMPONENT_DELIMITER).toTypedArray()),
+                                    type = Types.forName(it.asString(2)!!, it.asInt(4)!!),
+                                    nullable =  it.asBoolean(5)!!
+                            )
+                    )
+                }
+            }
+            return columns.toTypedArray()
+        }
     }
 }
