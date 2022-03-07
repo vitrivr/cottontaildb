@@ -1,5 +1,6 @@
 /* Plugins. */
 apply plugin: 'application'
+apply plugin: 'com.github.johnrengelman.shadow'
 
 /* C(arrot)LI dependencies. */
 dependencies {
