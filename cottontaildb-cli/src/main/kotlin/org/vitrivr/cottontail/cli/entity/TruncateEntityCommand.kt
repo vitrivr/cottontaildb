@@ -7,6 +7,7 @@ import io.grpc.StatusException
 import org.vitrivr.cottontail.cli.AbstractCottontailCommand
 import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.language.ddl.TruncateEntity
+import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.utilities.TabulationUtilities
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTimedValue
@@ -24,22 +25,28 @@ class TruncateEntityCommand(client: SimpleClient) : AbstractCottontailCommand.En
     private val confirm: Boolean by option(
         "-c",
         "--confirm",
-        help = "Directly provides the confirmation option."
+        help = "Directly provides the confirmation option. Set to true, no interactive prompt is given"
     ).flag()
 
     override fun exec() {
-        if (this.confirm || TermUi.confirm("Do you really want to truncate the entity ${this.entityName} [y/N]?", default = false, showDefault = false) == true) {
-            try {
-                val timedTable = measureTimedValue {
-                    TabulationUtilities.tabulate(this.client.truncate(TruncateEntity(this.entityName.toString())))
+        truncate(client, entityName, confirm)
+    }
+
+    companion object{
+        fun truncate(client: SimpleClient, entityName: Name.EntityName, confirm: Boolean) {
+            if (confirm || TermUi.confirm("Do you really want to truncate the entity ${entityName} [y/N]?", default = false, showDefault = false) == true) {
+                try {
+                    val timedTable = measureTimedValue {
+                        TabulationUtilities.tabulate(client.truncate(TruncateEntity(entityName.toString())))
+                    }
+                    println("Successfully truncated entity ${entityName} (took ${timedTable.duration}).")
+                    print(timedTable.value)
+                } catch (e: StatusException) {
+                    println("Failed to truncate entity ${entityName} due to error: ${e.message}.")
                 }
-                println("Successfully truncated entity ${this.entityName} (took ${timedTable.duration}).")
-                print(timedTable.value)
-            } catch (e: StatusException) {
-                println("Failed to truncate entity ${this.entityName} due to error: ${e.message}.")
+            } else {
+                println("Truncate entity aborted.")
             }
-        } else {
-            println("Truncate entity aborted.")
         }
     }
 }

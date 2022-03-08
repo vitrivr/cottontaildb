@@ -8,8 +8,8 @@ import org.junit.jupiter.api.Test
 import org.vitrivr.cottontail.TestConstants
 import org.vitrivr.cottontail.cli.entity.DumpEntityCommand
 import org.vitrivr.cottontail.cli.entity.ImportDataCommand
+import org.vitrivr.cottontail.cli.entity.TruncateEntityCommand
 import org.vitrivr.cottontail.client.SimpleClient
-import org.vitrivr.cottontail.client.language.dml.Delete
 import org.vitrivr.cottontail.client.language.dql.Query
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.data.Format
@@ -88,7 +88,7 @@ class ExportImportCommandTest {
         formats.forEach { format ->
             val exportFile = exportFile(format)
             val count = countElements()
-            this.client.delete(Delete(GrpcTestUtils.TEST_ENTITY_FQN))
+            TruncateEntityCommand.truncate(client, entityName, true)
             ImportDataCommand.importData(format, exportFile, client, entityName, false)
             assert(count == countElements())
         }

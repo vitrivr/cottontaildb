@@ -67,25 +67,28 @@ class ImportDataCommand(client: SimpleClient) : AbstractCottontailCommand.Entity
                 /* Perform insert. */
                 var count = 0
                 val duration = measureTime {
-                iterator.forEach {
-                    it.from = entityName.protoFrom()
-                    if (txId != null) {
-                        it.metadataBuilder.transactionId = txId
+                    iterator.forEach {
+                        it.from = entityName.protoFrom()
+                        if (txId != null) {
+                            it.metadataBuilder.transactionId = txId
+                        }
+                        client.insert(it.build())
+                        count++
+                        if (count % 1_000 == 0) {
+                            println("$count entries done")
+                        }
                     }
-                    this.client.insert(it.build())
-                    count++
-                }
 
-                /** Commit transaction, if single transaction option has been set. */
-                if (txId != null) {
-                    this.client.commit(txId)
+                    /** Commit transaction, if single transaction option has been set. */
+                    if (txId != null) {
+                        client.commit(txId)
+                    }
                 }
-            }
-                println("Importing $count entries into ${this.entityName} took $duration.")
+                println("Importing $count entries into ${entityName} took $duration.")
             } catch (e: Throwable) {
                 /** Rollback transaction, if single transaction option has been set. */
-                if (txId != null) this.client.rollback(txId)
-                println("Importing entries into ${this.entityName} failed due to error: ${e.message}")
+                if (txId != null) client.rollback(txId)
+                println("Importing entries into ${entityName} failed due to error: ${e.message}")
             } finally {
                 iterator.close()
             }
