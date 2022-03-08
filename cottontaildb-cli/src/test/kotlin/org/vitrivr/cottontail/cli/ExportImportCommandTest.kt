@@ -89,7 +89,7 @@ class ExportImportCommandTest {
             val exportFile = exportFile(format)
             val count = countElements()
             TruncateEntityCommand.truncate(client, entityName, true)
-            ImportDataCommand.importData(format, exportFile, client, entityName, false)
+            ImportDataCommand.importData(format, exportFile, client, entityName, true)
             assert(count == countElements())
         }
     }
