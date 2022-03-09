@@ -77,7 +77,7 @@ class QueryContext(val queryId: String, val catalogue: Catalogue, val txn: org.v
         val local = this.physical
         check(local != null) { IllegalStateException("Cannot generate an operator tree without a valid, physical node expression tree.") }
         val parallelisation = local.totalCost.parallelisation()
-        if (local.totalCost.parallelisation(parallelisation) > 1) {
+        if (parallelisation > 1) {
             val partitioned = local.tryPartition(parallelisation) /* TODO: Query hint. */
             if (partitioned != null) {
                 partitioned.bind(context = this.bindings)
