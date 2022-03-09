@@ -12,7 +12,7 @@ allprojects {
     group = 'org.vitrivr'
 
     /* Our current version, on dev branch this should always be release+1-SNAPSHOT */
-    version = '0.14.0'
+    version = '0.14.1'
 
     /* Repositories for build script. */
     buildscript {
@@ -31,8 +31,6 @@ allprojects {
             url "https://oss.sonatype.org/content/repositories/snapshots/"
         }
     }
-
-    apply plugin: 'com.github.johnrengelman.shadow'
 }
 
 subprojects {

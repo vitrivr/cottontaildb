@@ -23,10 +23,7 @@ import org.vitrivr.cottontail.cli.query.CountEntityCommand
 import org.vitrivr.cottontail.cli.query.ExecuteQueryCommand
 import org.vitrivr.cottontail.cli.query.FindInEntityCommand
 import org.vitrivr.cottontail.cli.query.PreviewEntityCommand
-import org.vitrivr.cottontail.cli.schema.CreateSchemaCommand
-import org.vitrivr.cottontail.cli.schema.DropSchemaCommand
-import org.vitrivr.cottontail.cli.schema.ListAllSchemaCommand
-import org.vitrivr.cottontail.cli.schema.ListEntitiesCommand
+import org.vitrivr.cottontail.cli.schema.*
 import org.vitrivr.cottontail.cli.system.KillTransactionCommand
 import org.vitrivr.cottontail.cli.system.ListLocksCommand
 import org.vitrivr.cottontail.cli.system.ListTransactionsCommand
@@ -120,8 +117,8 @@ class Cli(private val host: String = "localhost", private val port: Int = 1865) 
                     is com.github.ajalt.clikt.core.MissingArgument,
                     is com.github.ajalt.clikt.core.MissingOption,
                     is com.github.ajalt.clikt.core.BadParameterValue,
-                    is com.github.ajalt.clikt.core.UsageError,
-                    is com.github.ajalt.clikt.core.NoSuchOption -> println(e.localizedMessage)
+                    is com.github.ajalt.clikt.core.NoSuchOption,
+                    is com.github.ajalt.clikt.core.UsageError -> println(e.localizedMessage)
                     is StatusException, /* Exceptions reported by Cottontail DB via gRPC. */
                     is StatusRuntimeException -> println(e.localizedMessage)
                     else -> println(e.printStackTrace())
@@ -162,11 +159,11 @@ class Cli(private val host: String = "localhost", private val port: Int = 1865) 
         val nodes = this.clikt.registeredSubcommands().map { ocmd -> /* Outer command. */
             node(ocmd.commandName, *ocmd.registeredSubcommands().map { icmd -> /* Inner command. */
                 when {
-                    icmd is org.vitrivr.cottontail.cli.AbstractCottontailCommand.Schema && icmd.expand -> {
+                    icmd is AbstractCottontailCommand.Schema && icmd.expand -> {
                         node(icmd.commandName, *schemata.map { node(it) }.toTypedArray())
                     }
-                    icmd is org.vitrivr.cottontail.cli.AbstractCottontailCommand.Query && icmd.expand ||
-                    icmd is org.vitrivr.cottontail.cli.AbstractCottontailCommand.Entity && icmd.expand -> {
+                    icmd is AbstractCottontailCommand.Query && icmd.expand ||
+                    icmd is AbstractCottontailCommand.Entity && icmd.expand -> {
                         node(icmd.commandName, *entities.map { node(it) }.toTypedArray())
                     }
                     else -> {
@@ -270,11 +267,12 @@ class Cli(private val host: String = "localhost", private val port: Int = 1865) 
                     ClearEntityCommand(this@Cli.client),
                     CreateEntityCommand(this@Cli.client),
                     DropEntityCommand(this@Cli.client),
-                    DumpEntityCommand(this@Cli.client),
+                    TruncateEntityCommand(this@Cli.client),
                     ListAllEntitiesCommand(this@Cli.client),
                     OptimizeEntityCommand(this@Cli.client),
                     CreateIndexCommand(this@Cli.client),
                     DropIndexCommand(this@Cli.client),
+                    DumpEntityCommand(this@Cli.client),
                     ImportDataCommand(this@Cli.client)
                 ),
 
@@ -294,6 +292,7 @@ class Cli(private val host: String = "localhost", private val port: Int = 1865) 
                 }.subcommands(
                     CreateSchemaCommand(this@Cli.client),
                     DropSchemaCommand(this@Cli.client),
+                    DumpSchemaCommand(this@Cli.client),
                     ListAllSchemaCommand(this@Cli.client),
                     ListEntitiesCommand(this@Cli.client)
                 ),

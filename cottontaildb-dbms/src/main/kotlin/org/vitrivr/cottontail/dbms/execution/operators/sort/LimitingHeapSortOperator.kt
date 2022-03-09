@@ -37,7 +37,7 @@ class LimitingHeapSortOperator(parent: Operator, sortOn: List<Pair<ColumnDef<*>,
         val parentFlow = this.parent.toFlow(context)
         return flow {
             val selection = HeapSelection(this@LimitingHeapSortOperator.limit + this@LimitingHeapSortOperator.skip, this@LimitingHeapSortOperator.comparator)
-            parentFlow.collect { selection.offer(it) } /* Important: Materialization! */
+            parentFlow.collect { selection.offer(it.copy()) } /* Important: Materialization! */
             for (i in this@LimitingHeapSortOperator.skip until selection.size) {
                 emit(selection[i])
             }

@@ -126,6 +126,7 @@ class CreateEntityCommand(client: SimpleClient) : AbstractCottontailCommand.Enti
             else -> -1
         }
         def.nullable = TermUi.confirm(text = "Should column be nullable?", default = false) ?: false
+        def.engine = CottontailGrpc.Engine.MAPDB
 
         val tbl = table {
             cellStyle {

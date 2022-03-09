@@ -15,8 +15,10 @@ The entire project is a Gradle project and comes with a Gradle Wrapper so things
 
 ### Building and starting Cottontail DB
 
-You can build an executable JAR with the `./gradlew shadowJar` gradle task. Alternatively -- preferably -- an executable distribution of Cottontail DB can be built from the sources using the Gradle tasks `distTar` or `distZip`. Distributions will be
+A distribution of Cottontail DB can be built from the sources using the Gradle tasks `distTar` or `distZip`. This distribution includes the actual DBMS as well as the CLI. Distributions are
 stored relatively to the project root in `build/distributions` as either TAR or ZIP file.
+
+You can also build an executable JAR of the DBMS and the CLI with the `cottontaildb-dbms:shadowJar` or `cottontaildb-cli:shadowJar` gradle tasks respectively. Those JARs are stored relative to the respective module.
 
 All the details as to how Cottontail DB can be setup and started can be found in the [Wiki](https://github.com/vitrivr/cottontaildb/wiki/Setup).
 
@@ -40,6 +42,9 @@ For Kotlin and Java, there is also a Maven dependency, which includes pre-built 
 ```
 
 More information as to how to connect to and use Cottontail DB can be found in the [Wiki](https://github.com/vitrivr/cottontaildb/wiki/Connecting-to-Cottontail-DB) and the [example repository](https://github.com/vitrivr/cottontaildb-examples).
+
+### CLI / 🥕-LI
+Cottontail DB comes with a CLI application called 🥕-LI. The CLI is bundled with the distribution but can also be built separately using the `cottontaildb-cli:shadowJar` gradle task.
 
 ### Compatibility with vitrivr
 

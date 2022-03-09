@@ -132,10 +132,12 @@ fun standalone(config: Config) {
     /* Start CLI (if configured); wait for gRPC server to be stopped. */
     val scanner = Scanner(System.`in`)
     loop@ while (server.isRunning) {
-        when (scanner.nextLine()) {
-            "exit", "quit", "stop" -> break
+        if (scanner.hasNext()) {
+            when (scanner.nextLine()) {
+                "exit", "quit", "stop" -> break
+            }
         }
-        Thread.sleep(100)
+        Thread.sleep(250)
     }
 
     /* Stop server and print shutdown message. */
