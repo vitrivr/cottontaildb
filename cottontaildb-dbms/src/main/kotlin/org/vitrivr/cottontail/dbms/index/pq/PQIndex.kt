@@ -199,7 +199,21 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
         /**
          *
          */
-        override fun tryApplyToIndex(event: Operation.DataManagementOperation): Boolean {
+        override fun tryApply(operation: Operation.DataManagementOperation.InsertOperation): Boolean {
+            TODO("Not yet implemented")
+        }
+
+        /**
+         *
+         */
+        override fun tryApply(operation: Operation.DataManagementOperation.UpdateOperation): Boolean {
+            TODO("Not yet implemented")
+        }
+
+        /**
+         *
+         */
+        override fun tryApply(operation: Operation.DataManagementOperation.DeleteOperation): Boolean {
             TODO("Not yet implemented")
         }
 

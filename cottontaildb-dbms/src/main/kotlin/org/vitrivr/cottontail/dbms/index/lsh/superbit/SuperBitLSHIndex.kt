@@ -197,11 +197,17 @@ class SuperBitLSHIndex<T : VectorValue<*>>(name: Name.IndexName, parent: Default
             LOGGER.debug("Rebuilding SB-LSH index completed.")
         }
 
-
-        override fun tryApplyToIndex(event: Operation.DataManagementOperation): Boolean {
+        override fun tryApply(event: Operation.DataManagementOperation.InsertOperation): Boolean {
             TODO("Not yet implemented")
         }
 
+        override fun tryApply(event: Operation.DataManagementOperation.UpdateOperation): Boolean {
+            TODO("Not yet implemented")
+        }
+
+        override fun tryApply(event: Operation.DataManagementOperation.DeleteOperation): Boolean {
+            TODO("Not yet implemented")
+        }
 
         /**
          * Clears the [SuperBitLSHIndex] underlying this [Tx] and removes all entries it contains.
@@ -215,8 +221,8 @@ class SuperBitLSHIndex<T : VectorValue<*>>(name: Name.IndexName, parent: Default
         }
 
         /**
-         * Performs a lookup through this [SuperBitLSHIndex] and returns a [Cursor] of all [TupleId]s that match the [Predicate]. O
-         * nly supports [KnnPredicate]s.
+         * Performs a lookup through this [SuperBitLSHIndex] and returns a [Cursor] of all [TupleId]s that match the [Predicate].
+         * O nly supports [ProximityPredicate]s.
          *
          * The [Cursor] is not thread safe!
          *

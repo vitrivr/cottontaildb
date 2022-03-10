@@ -9,9 +9,9 @@ import org.vitrivr.cottontail.dbms.index.va.signature.VAFSignature
  * [1] Weber, R. and Blott, S., 1997. An approximation based data structure for similarity search (No. 9141, p. 416). Technical Report 24, ESPRIT Project HERMES.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.0.1
  */
-interface Bounds {
+sealed interface Bounds {
     /** Lower bound of this [Bounds]. */
     val lb: Double
 
@@ -25,6 +25,12 @@ interface Bounds {
      * @return this
      */
     fun update(signature: VAFSignature): Bounds
+
+
+    /**
+     *
+     */
+
 
     /**
      * Checks if the given [VAFSignature] is a VA-SSA candidate according to [1] by comparing the

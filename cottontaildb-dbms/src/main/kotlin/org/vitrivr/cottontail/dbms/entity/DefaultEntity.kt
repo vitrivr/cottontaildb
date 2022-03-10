@@ -140,6 +140,19 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
         }
 
         /**
+         * Returns true if the [Entity] underpinning this [EntityTx] contains the given [TupleId] and false otherwise.
+         *
+         * If this method returns true, then [EntityTx.read] will return a [Record] for [TupleId]. However, if this method
+         * returns false, then [EntityTx.read] will throw an exception for that [TupleId].
+         *
+         * @param tupleId The [TupleId] of the desired entry
+         * @return True if entry exists, false otherwise,
+         */
+        override fun contains(tupleId: TupleId): Boolean = this.txLatch.withLock {
+            this.columns.values.first().contains(tupleId)
+        }
+
+        /**
          * Reads the values of one or many [Column]s and returns it as a [Record]
          *
          * @param tupleId The [TupleId] of the desired entry.
@@ -401,10 +414,14 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
                 (tx as ColumnTx<Value>).add(nextTupleId, value)
             }
 
-            /* Issue DataChangeEvent.InsertDataChange event and update indexes + statistics. */
-            val event = Operation.DataManagementOperation.InsertOperation(this.context.txId, this@DefaultEntity.name, nextTupleId, inserts)
-            this.indexes.values.forEach { it.update(event) }
-            this.context.signalEvent(event)
+            /* Issue DataChangeEvent.InsertDataChange event and update indexes. */
+            val operation = Operation.DataManagementOperation.InsertOperation(this.context.txId, this@DefaultEntity.name, nextTupleId, inserts)
+            for (index in this.indexes.values) {
+                index.insert(operation)
+            }
+
+            /* Signal event to transaction context. */
+            this.context.signalEvent(operation)
 
             return nextTupleId
         }
@@ -428,9 +445,13 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
             }
 
             /* Issue DataChangeEvent.UpdateDataChangeEvent and update indexes + statistics. */
-            val event = Operation.DataManagementOperation.UpdateOperation(this.context.txId, this@DefaultEntity.name, record.tupleId, updates)
-            this.indexes.values.forEach { it.update(event) }
-            this.context.signalEvent(event)
+            val operation = Operation.DataManagementOperation.UpdateOperation(this.context.txId, this@DefaultEntity.name, record.tupleId, updates)
+            for (index in this.indexes.values) {
+                index.update(operation)
+            }
+
+            /* Signal event to transaction context. */
+            this.context.signalEvent(operation)
         }
 
         /**
@@ -448,9 +469,13 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
             }
 
             /* Issue DataChangeEvent.DeleteDataChangeEvent and update indexes + statistics. */
-            val event = Operation.DataManagementOperation.DeleteOperation(this.context.txId, this@DefaultEntity.name, tupleId, deleted)
-            this.indexes.values.forEach { it.update(event) }
-            this.context.signalEvent(event)
+            val operation = Operation.DataManagementOperation.DeleteOperation(this.context.txId, this@DefaultEntity.name, tupleId, deleted)
+            for (index in this.indexes.values) {
+                index.delete(operation)
+            }
+
+            /* Signal event to transaction context. */
+            this.context.signalEvent(operation)
         }
 
         /**

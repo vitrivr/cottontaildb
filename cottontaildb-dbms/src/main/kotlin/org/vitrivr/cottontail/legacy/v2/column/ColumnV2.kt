@@ -199,6 +199,10 @@ class ColumnV2<T : Value>(val path: Path, override val parent: Entity) : Column<
             override fun next(): TupleId = this.wrapped.next() - RECORD_ID_TUPLE_ID_SHIFT
         }
 
+        override fun contains(tupleId: TupleId): Boolean {
+            throw UnsupportedOperationException("Operation not supported on legacy DBO.")
+        }
+
         override fun add(tupleId: TupleId, value: T?): Boolean {
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
         }

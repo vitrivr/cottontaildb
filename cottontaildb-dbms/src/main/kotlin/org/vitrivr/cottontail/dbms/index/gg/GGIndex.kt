@@ -63,7 +63,7 @@ class GGIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
         GGIndexConfig.fromParamsMap(entry.config)
     }
 
-    /** False since [GGIndex] currently doesn't support incremental updates. */
+    /** False since [GGIndex] doesn't support incremental updates. */
     override val supportsIncrementalUpdate: Boolean = false
 
     /** True since [GGIndex] does not support partitioning. */
@@ -187,14 +187,6 @@ class GGIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
 
         override val auxiliary: AuxiliaryValueCollection
             get() = TODO("Not yet implemented")
-
-        /**
-         *
-         */
-        override fun tryApplyToIndex(event: Operation.DataManagementOperation): Boolean {
-            TODO("Not yet implemented")
-        }
-
         /**
          * Clears the [GGIndex] underlying this [Tx] and removes all entries it contains.
          */
@@ -308,6 +300,27 @@ class GGIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
          */
         override fun filterRange(predicate: Predicate, partitionIndex: Int, partitions: Int): Cursor<Record> {
             throw UnsupportedOperationException("The UniqueHashIndex does not support ranged filtering!")
+        }
+
+        /**
+         * The [GGIndex] does not support incremental updates. Hence, this method will always throw an [UnsupportedOperationException].
+         */
+        override fun tryApply(event: Operation.DataManagementOperation.InsertOperation): Boolean {
+            throw UnsupportedOperationException("GGIndex does not support incremental updates!")
+        }
+
+        /**
+         * The [GGIndex] does not support incremental updates. Hence, this method will always throw an [UnsupportedOperationException].
+         */
+        override fun tryApply(event: Operation.DataManagementOperation.UpdateOperation): Boolean {
+            throw UnsupportedOperationException("GGIndex does not support incremental updates!")
+        }
+
+        /**
+         * The [GGIndex] does not support incremental updates. Hence, this method will always throw an [UnsupportedOperationException].
+         */
+        override fun tryApply(event: Operation.DataManagementOperation.DeleteOperation): Boolean{
+            throw UnsupportedOperationException("GGIndex does not support incremental updates!")
         }
     }
 }

@@ -200,6 +200,10 @@ class ColumnV1<T : Value>(override val name: Name.ColumnName, override val paren
             }
         }
 
+        override fun contains(tupleId: TupleId): Boolean {
+            throw UnsupportedOperationException("Operation not supported on legacy DBO.")
+        }
+
         override fun add(tupleId: TupleId, value: T?): Boolean {
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
         }
@@ -227,5 +231,7 @@ class ColumnV1<T : Value>(override val name: Name.ColumnName, override val paren
         override fun cursor(start: TupleId, end: TupleId): Cursor<T?> {
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
         }
+
+
     }
 }

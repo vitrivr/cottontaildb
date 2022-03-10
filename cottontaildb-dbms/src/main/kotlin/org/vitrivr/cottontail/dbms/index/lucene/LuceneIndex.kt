@@ -37,6 +37,7 @@ import org.vitrivr.cottontail.dbms.index.IndexType
 import org.vitrivr.cottontail.dbms.index.hash.UniqueHashIndex
 import org.vitrivr.cottontail.dbms.index.lsh.superbit.SuperBitLSHIndex
 import org.vitrivr.cottontail.dbms.operations.Operation
+import kotlin.concurrent.withLock
 
 /**
  * An Apache Lucene based [AbstractIndex]. The [LuceneIndex] allows for fast search on text using the EQUAL or LIKE operator.
@@ -70,7 +71,7 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
     }
 
     /** The [Directory] containing the data for this [LuceneIndex]. */
-    private val directory: Directory = TODO()
+    private val directory: Directory = TODO("Xodus backed Directory.")
 
     /**
      * Checks if this [LuceneIndex] can process the given [Predicate].
@@ -279,29 +280,38 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
         }
 
         /**
-         * Updates the [LuceneIndex] with the provided [Operation.DataManagementOperation].
+         * Updates the [LuceneIndex] with the provided [Operation.DataManagementOperation.InsertOperation].
          *
-         * @param event [Operation.DataManagementOperation] to process.
+         * @param operation [Operation.DataManagementOperation.InsertOperation] to apply.
          */
-        override fun update(event: Operation.DataManagementOperation) {
-            when (event) {
-                is Operation.DataManagementOperation.InsertOperation -> {
-                    val new = event.inserts[this.dbo.columns[0]]
-                    if (new is StringValue) {
-                        this.indexWriter.addDocument(this@LuceneIndex.documentFromValue(new, event.tupleId))
-                    }
-                }
-                is Operation.DataManagementOperation.UpdateOperation -> {
-                    this.indexWriter.deleteDocuments(Term(TID_COLUMN, event.tupleId.toString()))
-                    val new = event.updates[this.dbo.columns[0]]?.second
-                    if (new is StringValue) {
-                        this.indexWriter.addDocument(this@LuceneIndex.documentFromValue(new, event.tupleId))
-                    }
-                }
-                is Operation.DataManagementOperation.DeleteOperation -> {
-                    this.indexWriter.deleteDocuments(Term(TID_COLUMN, event.tupleId.toString()))
-                }
+        override fun insert(operation: Operation.DataManagementOperation.InsertOperation) = this.txLatch.withLock {
+            val new = operation.inserts[this.dbo.columns[0]]
+            if (new is StringValue) {
+                this.indexWriter.addDocument(this@LuceneIndex.documentFromValue(new, operation.tupleId))
             }
+        }
+
+        /**
+         * Updates the [LuceneIndex] with the provided [Operation.DataManagementOperation.UpdateOperation].
+         *
+         * @param operation [Operation.DataManagementOperation.UpdateOperation] to apply.
+         */
+        override fun update(operation: Operation.DataManagementOperation.UpdateOperation) = this.txLatch.withLock {
+            this.indexWriter.deleteDocuments(Term(TID_COLUMN, operation.tupleId.toString()))
+            val new = operation.updates[this.dbo.columns[0]]?.second
+            if (new is StringValue) {
+                this.indexWriter.addDocument(this@LuceneIndex.documentFromValue(new, operation.tupleId))
+            }
+        }
+
+        /**
+         * Updates the [LuceneIndex] with the provided [Operation.DataManagementOperation.DeleteOperation].
+         *
+         * @param operation [Operation.DataManagementOperation.DeleteOperation] to apply.
+         */
+        override fun delete(operation: Operation.DataManagementOperation.DeleteOperation) = this.txLatch.withLock {
+            this.indexWriter.deleteDocuments(Term(TID_COLUMN, operation.tupleId.toString()))
+            Unit
         }
 
         /**

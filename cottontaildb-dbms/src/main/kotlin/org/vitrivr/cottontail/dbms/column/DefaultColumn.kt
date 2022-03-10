@@ -126,6 +126,20 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
         override fun count(): Long  = this.txLatch.withLock { this.dataStore.count(this.context.xodusTx) }
 
         /**
+         * Returns true if the [Column] underpinning this [ColumnTx] contains the given [TupleId] and false otherwise.
+         *
+         * This method checks the existence of the [TupleId] within the [Column] If this method returns true,
+         * then [ColumnTx.get] will either return a [Value] or null. However, if this method returns false, then
+         * [ColumnTx.get] will throw an exception for that [TupleId].
+         *
+         * @param tupleId The [TupleId] of the desired entry
+         * @return True if entry exists, false otherwise,
+         */
+        override fun contains(tupleId: TupleId): Boolean = this.txLatch.withLock {
+            this.dataStore.get(this.context.xodusTx, tupleId.toKey()) != null
+        }
+
+        /**
          * Gets and returns an entry from this [Column].
          *
          * @param tupleId The ID of the desired entry

@@ -39,18 +39,21 @@ abstract class AbstractHDIndex(name: Name.IndexName, parent: DefaultEntity) : Ab
     /**
      * A [Tx] that affects this [AbstractIndex].
      */
-    protected abstract inner class Tx(context: TransactionContext) : AbstractIndex.Tx(context) {
+    protected abstract inner class Tx(context: TransactionContext) : AbstractIndex.Tx(context), WriteModel {
 
         /** The [AuxiliaryValueCollection] used by this [AbstractHDIndex.Tx]. */
         protected abstract val auxiliary: AuxiliaryValueCollection
 
         /**
-         * Tries to process an incoming [Operation.DataManagementOperation]. Such [Operation.DataManagementOperation] can
-         * either be appended to the underlying index (if the write-model allows for it) or appended to the auxiliary value list.
+         * Tries to process an incoming [Operation.DataManagementOperation.InsertOperation].
          *
-         * @param event [Operation.DataManagementOperation]
+         * If the [AbstractHDIndex] does not support incremental updates, the [AbstractHDIndex] will be marked as [IndexState.STALE].
+         * Otherwise, the change is either propagated to the [AbstractHDIndex] or to the [AuxiliaryValueCollection] this marking the
+         * [AbstractIndex] as [IndexState.DIRTY].
+         *
+         * @param operation [Operation.DataManagementOperation.UpdateOperation] that should be processed,
          */
-        final override fun update(event: Operation.DataManagementOperation) = this.txLatch.withLock {
+        final override fun insert(operation: Operation.DataManagementOperation.InsertOperation) = this.txLatch.withLock {
             /* If index does not support incremental updating at all. */
             if (!this@AbstractHDIndex.supportsIncrementalUpdate) {
                 this.updateState(IndexState.STALE)
@@ -58,37 +61,66 @@ abstract class AbstractHDIndex(name: Name.IndexName, parent: DefaultEntity) : Ab
             }
 
             /* If write-model does not allow propagation, apply change to auxiliary value collection. */
-            if (!this.tryApplyToIndex(event)) {
-                when (event) {
-                    is Operation.DataManagementOperation.DeleteOperation -> this.auxiliary.applyDelete(event.tupleId)
-                    is Operation.DataManagementOperation.InsertOperation -> {
-                        val value = event.inserts[this@AbstractHDIndex.column]
-                        if (value is VectorValue<*>) this.auxiliary.applyInsert(event.tupleId)
-                    }
-                    is Operation.DataManagementOperation.UpdateOperation -> {
-                        val value = event.updates[this@AbstractHDIndex.column]?.second
-                        if (value is VectorValue<*>) {
-                            this.auxiliary.applyUpdate(event.tupleId)
-                        } else if (value == null) {
-                            this.auxiliary.applyDelete(event.tupleId)
-                        }
-                    }
-                }
+            if (!this.tryApply(operation)) {
+                val value = operation.inserts[this@AbstractHDIndex.column]
+                if (value is VectorValue<*>) this.auxiliary.applyInsert(operation.tupleId)
+
+                /* Update index state. */
                 this.updateState(IndexState.DIRTY)
-                return@withLock
             }
         }
 
         /**
-         * Tries to apply the change applied by this [Operation.DataManagementOperation] to this [AbstractHDIndex]. This is the
-         * implementation of this [AbstractHDIndex]'s write model.
+         * Tries to process an incoming [Operation.DataManagementOperation.UpdateOperation].
          *
-         * This method returns true if, and only if, a change can be applied to an index without impairing its ability to produce correct results.
-         * In such a case the change is applied to the underlying data structure. In all other cases, no changes are applied and the method returns false.
+         * If the [AbstractHDIndex] does not support incremental updates, the [AbstractHDIndex] will be marked as [IndexState.STALE].
+         * Otherwise, the change is either propagated to the [AbstractHDIndex] or to the [AuxiliaryValueCollection] this marking the
+         * [AbstractIndex] as [IndexState.DIRTY].
          *
-         * @param event The [Operation.DataManagementOperation] to apply.
-         * @return True if change could be applied, false otherwise.
+         * @param operation [Operation.DataManagementOperation.UpdateOperation]
          */
-        protected abstract fun tryApplyToIndex(event: Operation.DataManagementOperation): Boolean
+        final override fun update(operation: Operation.DataManagementOperation.UpdateOperation) = this.txLatch.withLock {
+            /* If index does not support incremental updating at all. */
+            if (!this@AbstractHDIndex.supportsIncrementalUpdate) {
+                this.updateState(IndexState.STALE)
+                return@withLock
+            }
+
+            /* If write-model does not allow propagation, apply change to auxiliary value collection. */
+            if (!this.tryApply(operation)) {
+                val value = operation.updates[this@AbstractHDIndex.column]?.second
+                if (value is VectorValue<*>) {
+                    this.auxiliary.applyUpdate(operation.tupleId)
+                } else if (value == null) {
+                    this.auxiliary.applyDelete(operation.tupleId)
+                }
+
+                /* Update index state. */
+                this.updateState(IndexState.DIRTY)
+            }
+        }
+
+        /**
+         * Tries to process an incoming [Operation.DataManagementOperation.DeleteOperation].
+         *
+         * If the [AbstractHDIndex] does not support incremental updates, the [AbstractHDIndex] will be marked as [IndexState.STALE].
+         * Otherwise, the change is either propagated to the [AbstractHDIndex] or to the [AuxiliaryValueCollection] this marking the
+         * [AbstractIndex] as [IndexState.DIRTY].
+         *
+         * @param operation [Operation.DataManagementOperation.DeleteOperation] that should be processed.
+         */
+        final override fun delete(operation: Operation.DataManagementOperation.DeleteOperation) = this.txLatch.withLock {
+            /* If index does not support incremental updating at all. */
+            if (!this@AbstractHDIndex.supportsIncrementalUpdate) {
+                this.updateState(IndexState.STALE)
+                return@withLock
+            }
+
+            /* If write-model does not allow propagation, apply change to auxiliary value collection. */
+            if (!this.tryApply(operation)) {
+                this.auxiliary.applyDelete(operation.tupleId)
+                this.updateState(IndexState.DIRTY)
+            }
+        }
     }
 }

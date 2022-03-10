@@ -15,7 +15,7 @@ import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
  * level of isolation.
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 3.0.0
  */
 interface ColumnTx<T : Value> : Tx {
     /** Reference to the [Column] this [ColumnTx] belongs to. */
@@ -56,9 +56,22 @@ interface ColumnTx<T : Value> : Tx {
     fun cursor(start: TupleId, end: TupleId): Cursor<T?>
 
     /**
+     * Returns true if this [Column] contains the given [TupleId] and false otherwise.
+     *
+     * This method merely checks the existence of the [TupleId] within the [Column], the
+     * [Value] held may still be null. If this method returns true, then [ColumnTx.get] will
+     * either return a [Value] or nul. However, if this method returns false, then [Column.Tx]
+     * will throw an exception for that [TupleId].
+     *
+     * @param tupleId The [TupleId] of the desired entry
+     * @return True if entry exists, false otherwise,
+     */
+    fun contains(tupleId: TupleId): Boolean
+
+    /**
      * Gets and returns an entry from this [Column].
      *
-     * @param tupleId The ID of the desired entry
+     * @param tupleId The [TupleId] of the desired entry
      * @return The desired entry.
      */
     fun get(tupleId: TupleId): T?

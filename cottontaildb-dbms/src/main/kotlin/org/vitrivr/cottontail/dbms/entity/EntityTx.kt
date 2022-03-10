@@ -25,6 +25,17 @@ interface EntityTx : Tx, Scanable, Countable, Modifiable {
     override val dbo: Entity
 
     /**
+     * Returns true if the [Entity] underpinning this [EntityTx]contains the given [TupleId] and false otherwise.
+     *
+     * If this method returns true, then [EntityTx.read] will return a [Record] for [TupleId]. However, if this method
+     * returns false, then [EntityTx.read] will throw an exception for that [TupleId].
+     *
+     * @param tupleId The [TupleId] of the desired entry
+     * @return True if entry exists, false otherwise,
+     */
+    fun contains(tupleId: TupleId): Boolean
+
+    /**
      * Reads the specified [TupleId] and the specified [ColumnDef] through this [EntityTx].
      *
      * @param tupleId The [TupleId] to read.

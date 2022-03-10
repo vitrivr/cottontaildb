@@ -122,6 +122,7 @@ class NonUniqueHashIndex(name: Name.IndexName, parent: DefaultEntity) : Abstract
          *
          * This is an internal function and can be used safely with values o
          */
+        @Suppress("UNCHECKED_CAST")
         private fun addMapping(key: Value, tupleId: TupleId): Boolean {
             val keyRaw = (this.binding as XodusBinding<Value>).valueToEntry(key)
             val tupleIdRaw = LongBinding.longToCompressedEntry(tupleId)
@@ -139,6 +140,7 @@ class NonUniqueHashIndex(name: Name.IndexName, parent: DefaultEntity) : Abstract
          *
          * This is an internal function and can be used safely with values o
          */
+        @Suppress("UNCHECKED_CAST")
         private fun removeMapping(key: Value, tupleId: TupleId): Boolean {
             val keyRaw = (this.binding as XodusBinding<Value>).valueToEntry(key)
             val valueRaw = LongBinding.longToCompressedEntry(tupleId)
@@ -169,6 +171,46 @@ class NonUniqueHashIndex(name: Name.IndexName, parent: DefaultEntity) : Abstract
         }
 
         /**
+         * Updates the [NonUniqueHashIndex] with the provided [Operation.DataManagementOperation.InsertOperation].
+         *
+         * @param operation [Operation.DataManagementOperation.InsertOperation] to apply.
+         */
+        override fun insert(operation: Operation.DataManagementOperation.InsertOperation) = this.txLatch.withLock {
+            val value = operation.inserts[this.dbo.columns[0]]
+            if (value != null) {
+                this.addMapping(value, operation.tupleId)
+            }
+        }
+
+        /**
+         * Updates the [NonUniqueHashIndex] with the provided [Operation.DataManagementOperation.UpdateOperation].
+         *
+         * @param operation [Operation.DataManagementOperation.UpdateOperation] to apply.
+         */
+        override fun update(operation: Operation.DataManagementOperation.UpdateOperation) = this.txLatch.withLock {
+            val old = operation.updates[this.dbo.columns[0]]?.first
+            if (old != null) {
+                this.removeMapping(old, operation.tupleId)
+            }
+            val new = operation.updates[this.dbo.columns[0]]?.second
+            if (new != null) {
+                this.addMapping(new, operation.tupleId)
+            }
+        }
+
+        /**
+         * Updates the [NonUniqueHashIndex] with the provided [Operation.DataManagementOperation.DeleteOperation].
+         *
+         * @param operation [Operation.DataManagementOperation.DeleteOperation] to apply.
+         */
+        override fun delete(operation: Operation.DataManagementOperation.DeleteOperation) = this.txLatch.withLock {
+            val old = operation.deleted[this.dbo.columns[0]]
+            if (old != null) {
+                this.removeMapping(old, operation.tupleId)
+            }
+        }
+
+        /**
          * Clears the [NonUniqueHashIndex] underlying this [Tx] and removes all entries it contains.
          */
         override fun clear() = this.txLatch.withLock {
@@ -179,39 +221,6 @@ class NonUniqueHashIndex(name: Name.IndexName, parent: DefaultEntity) : Abstract
                 this.context.xodusTx,
                 false
             ) ?: throw DatabaseException.DataCorruptionException("Data store for column ${this@NonUniqueHashIndex.name} is missing.")
-        }
-
-        /**
-         * Updates the [NonUniqueHashIndex] with the provided [Record]. This method determines, whether
-         * the [Record] affected by the [Operation.DataManagementOperation] should be added or updated
-         *
-         * @param event [Operation.DataManagementOperation] to process.
-         */
-        override fun update(event: Operation.DataManagementOperation) = this.txLatch.withLock {
-            when (event) {
-                is Operation.DataManagementOperation.InsertOperation -> {
-                    val value = event.inserts[this.dbo.columns[0]]
-                    if (value != null) {
-                        this.addMapping(value, event.tupleId)
-                    }
-                }
-                is Operation.DataManagementOperation.UpdateOperation -> {
-                    val old = event.updates[this.dbo.columns[0]]?.first
-                    if (old != null) {
-                        this.removeMapping(old, event.tupleId)
-                    }
-                    val new = event.updates[this.dbo.columns[0]]?.second
-                    if (new != null) {
-                        this.addMapping(new, event.tupleId)
-                    }
-                }
-                is Operation.DataManagementOperation.DeleteOperation -> {
-                    val old = event.deleted[this.dbo.columns[0]]
-                    if (old != null) {
-                        this.removeMapping(old, event.tupleId)
-                    }
-                }
-            }
         }
 
         /**

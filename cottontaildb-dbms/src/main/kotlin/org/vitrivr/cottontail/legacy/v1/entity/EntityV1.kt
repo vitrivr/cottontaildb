@@ -229,6 +229,10 @@ class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1
             return this@EntityV1.columns.values.first().maxTupleId
         }
 
+        override fun contains(tupleId: TupleId): Boolean {
+            throw UnsupportedOperationException("Operation not supported on legacy DBO.")
+        }
+
         override fun createIndex(name: Name.IndexName, type: IndexType, columns: List<Name.ColumnName>, params: Map<String, String>): Index {
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
         }

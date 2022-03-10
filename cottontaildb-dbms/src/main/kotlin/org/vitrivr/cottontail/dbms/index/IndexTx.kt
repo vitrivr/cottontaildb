@@ -43,13 +43,31 @@ interface IndexTx: Tx, Filterable, Countable {
     fun rebuild()
 
     /**
-     * Updates the [Index] underlying this [IndexTx] based on the provided [Operation.DataManagementOperation].
+     * Inserts a new entry in the [Index] underlying this [IndexTx] based on the provided [Operation.DataManagementOperation.UpdateOperation].
      *
-     * Not all [Index] implementations support incremental updates. Should be indicated by [IndexTransaction#supportsIncrementalUpdate()]
+     * Not all [Index] implementations support incremental updates. Should be indicated by [Index.supportsIncrementalUpdate]
      *
-     * @param event [Operation.DataManagementOperation] that should be processed.
+     * @param operation [Operation.DataManagementOperation.InsertOperation] that should be processed.
      */
-    fun update(event: Operation.DataManagementOperation)
+    fun insert(operation: Operation.DataManagementOperation.InsertOperation)
+
+    /**
+     * Updates an entry in the [Index] underlying this [IndexTx] based on the provided [Operation.DataManagementOperation.UpdateOperation].
+     *
+     * Not all [Index] implementations support incremental updates. Should be indicated by [Index.supportsIncrementalUpdate]
+     *
+     * @param operation [Operation.DataManagementOperation.UpdateOperation] that should be processed.
+     */
+    fun update(operation: Operation.DataManagementOperation.UpdateOperation)
+
+    /**
+     * Deletes an entry from the [Index] underlying this [IndexTx] based on the provided [Operation.DataManagementOperation.DeleteOperation].
+     *
+     * Not all [Index] implementations support incremental updates. Should be indicated by [Index.supportsIncrementalUpdate]
+     *
+     * @param operation [Operation.DataManagementOperation.DeleteOperation] that should be processed.
+     */
+    fun delete(operation: Operation.DataManagementOperation.DeleteOperation)
 
     /**
      * Clears the [Index] underlying this [IndexTx] and removes all entries it contains.
