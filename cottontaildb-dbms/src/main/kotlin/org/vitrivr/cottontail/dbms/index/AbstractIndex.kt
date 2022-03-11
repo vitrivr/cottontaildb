@@ -28,17 +28,24 @@ abstract class AbstractIndex(final override val name: Name.IndexName, final over
     /** A [AbstractIndex] belongs to its [DefaultCatalogue]. */
     final override val catalogue: DefaultCatalogue = this.parent.catalogue
 
-    /** The [ColumnDef] that are covered (i.e. indexed) by this [AbstractIndex]. */
-    final override val columns: Array<ColumnDef<*>> = this.catalogue.environment.computeInTransaction { tx ->
-        IndexCatalogueEntry.read(this.name, this.catalogue, tx)?.columns?.map {
-            ColumnCatalogueEntry.read(it, this.catalogue, tx)?.toColumnDef() ?: throw DatabaseException.DataCorruptionException("Failed to obtain columns for index ${this.name}: Could not read catalogue entry for column ${it}.")
-        }?.toTypedArray() ?: throw DatabaseException.DataCorruptionException("Failed to obtain columns for index ${this.name}: Could not read catalogue entry for index.")
-    }
+    /**
+     * The [ColumnDef] that are covered (i.e. indexed) by this [AbstractIndex].
+     *
+     * <strong>Important:</strong>The value returned is a snapshot generated outside a Cottontail DB transaction context.
+     * Therefore, whatever may be returned by this method, may be outdated immediately!
+     */
+    final override val columns: Array<ColumnDef<*>>
+        get() = this.catalogue.environment.computeInTransaction { tx ->
+            IndexCatalogueEntry.read(this.name, this.catalogue, tx)?.columns?.map {
+                ColumnCatalogueEntry.read(it, this.catalogue, tx)?.toColumnDef() ?: throw DatabaseException.DataCorruptionException("Failed to obtain columns for index ${this.name}: Could not read catalogue entry for column ${it}.")
+            }?.toTypedArray() ?: throw DatabaseException.DataCorruptionException("Failed to obtain columns for index ${this.name}: Could not read catalogue entry for index.")
+        }
 
     /**
      * Flag indicating, whether this [AbstractIndex] reflects all changes done to the [DefaultEntity] it belongs to.
      *
-     * This is a snapshot and may change immediately!
+     * <strong>Important:</strong>The value returned is a snapshot generated outside a Cottontail DB transaction context.
+     * Therefore, whatever may be returned by this method, may be outdated immediately!
      */
     final override val state: IndexState
         get() = this.catalogue.environment.computeInTransaction { tx ->
@@ -75,7 +82,7 @@ abstract class AbstractIndex(final override val name: Name.IndexName, final over
 
         /** The [ColumnDef] indexed by the [AbstractIndex] this [Tx] belongs to. */
         override val columns: Array<ColumnDef<*>> = IndexCatalogueEntry.read(this@AbstractIndex.name, this@AbstractIndex.catalogue, this.context.xodusTx)?.columns?.map {
-                ColumnCatalogueEntry.read(it, this@AbstractIndex.catalogue, this.context.xodusTx)?.toColumnDef() ?: throw DatabaseException.DataCorruptionException("Failed to obtain columns for index ${this@AbstractIndex.name}: Could not read catalogue entry for column ${it}.")
+                ColumnCatalogueEntry.read(it, this@AbstractIndex.catalogue, this.context.xodusTx)?.toColumnDef() ?: throw DatabaseException.DataCorruptionException("Failed to obtain columns for index ${this@AbstractIndex.name} because catalogue entry for column could not be read ${it}.")
             }?.toTypedArray() ?: throw DatabaseException.DataCorruptionException("Failed to obtain columns for index ${this@AbstractIndex.name}: Could not read catalogue entry for index.")
 
         /**

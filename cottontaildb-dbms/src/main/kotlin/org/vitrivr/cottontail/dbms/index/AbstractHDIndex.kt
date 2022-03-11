@@ -20,7 +20,11 @@ import kotlin.concurrent.withLock
  */
 abstract class AbstractHDIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name, parent) {
 
-    /** The [ColumnDef] that is being indexed by this [AbstractHDIndex]. */
+    /**
+     * The [ColumnDef] that is being indexed by this [AbstractHDIndex].
+     *
+     * <strong>Important:</string> Calling this method creates an implicit transaction context. It is thus unsafe to
+     */
     val column: ColumnDef<*>
         get() = this.columns[0]
 
@@ -32,6 +36,10 @@ abstract class AbstractHDIndex(name: Name.IndexName, parent: DefaultEntity) : Ab
      * A [Tx] that affects this [AbstractIndex].
      */
     protected abstract inner class Tx(context: TransactionContext) : AbstractIndex.Tx(context), WriteModel {
+
+        /** The [ColumnDef] that is being indexed by this [AbstractHDIndex]. */
+        val column: ColumnDef<*>
+            get() = this.columns[0]
 
         /**
          * Tries to process an incoming [Operation.DataManagementOperation.InsertOperation].
