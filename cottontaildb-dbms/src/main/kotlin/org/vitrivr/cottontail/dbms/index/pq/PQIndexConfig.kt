@@ -1,86 +1,57 @@
 package org.vitrivr.cottontail.dbms.index.pq
 
-import org.mapdb.DataInput2
-import org.mapdb.DataOutput2
+import jetbrains.exodus.bindings.BooleanBinding
+import jetbrains.exodus.bindings.ComparableBinding
+import jetbrains.exodus.bindings.IntegerBinding
+import jetbrains.exodus.bindings.LongBinding
+import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.dbms.index.IndexConfig
+import java.io.ByteArrayInputStream
 
 /**
  * Configuration class for [PQIndex].
  *
  * @author Gabriel Zihlmann & Ralph Gasser
- * @version 1.1.0
+ * @version 1.2.0
  */
-data class PQIndexConfig(
-    val numSubspaces: Int,
-    val numCentroids: Int,
-    val sampleSize: Int,
-    val seed: Long
-) : IndexConfig {
+data class PQIndexConfig(val numSubspaces: Int, val numCentroids: Int, val sampleSize: Int, val seed: Long, val pq: PQ? = null) : IndexConfig<PQIndex> {
 
-    companion object Serializer : org.mapdb.Serializer<PQIndexConfig> {
-
+    companion object {
         const val AUTO_VALUE = -1
         const val NUM_SUBSPACES_KEY = "num_subspaces"
         const val NUM_CENTROIDS_KEY = "num_centroids"
         const val SAMPLE_SIZE = "sample_size"
         const val SEED_KEY = "seed"
-
-        /**
-         * Serializes the content of the given value into the given
-         * [DataOutput2].
-         *
-         * @param out DataOutput2 to save object into
-         * @param value Object to serialize
-         *
-         * @throws IOException in case of an I/O error
-         */
-        override fun serialize(out: DataOutput2, value: PQIndexConfig) {
-            out.packInt(value.numSubspaces)
-            out.packInt(value.numCentroids)
-            out.packInt(value.sampleSize)
-            out.packLong(value.seed)
-        }
-
-        /**
-         * Deserializes and returns the content of the given [DataInput2].
-         *
-         * @param input DataInput2 to de-serialize data from
-         * @param available how many bytes that are available in the DataInput2 for
-         * reading, may be -1 (in streams) or 0 (null).
-         *
-         * @return the de-serialized content of the given [DataInput2]
-         * @throws IOException in case of an I/O error
-         */
-        override fun deserialize(input: DataInput2, available: Int) = PQIndexConfig(
-            input.unpackInt(),
-            input.unpackInt(),
-            input.unpackInt(),
-            input.unpackLong()
-        )
-
-        /**
-         * Constructs a [PQIndexConfig] from a parameter map.
-         *
-         * @param params The parameter map.
-         * @return [PQIndexConfig]
-         */
-        fun fromParamMap(params: Map<String, String>) = PQIndexConfig(
-            params[NUM_SUBSPACES_KEY]?.toInt() ?: AUTO_VALUE,
-            params[NUM_CENTROIDS_KEY]?.toInt() ?: 100,
-            params[SAMPLE_SIZE]?.toInt() ?: 1500,
-            params[SEED_KEY]?.toLongOrNull() ?: System.currentTimeMillis()
-        )
     }
 
     /**
-     * Converts this [PQIndexConfig] to a [Map] representation.
-     *
-     * @return [Map] representation of this [PQIndexConfig].
+     * [ComparableBinding] for [PQIndexConfig].
      */
-    override fun toMap(): Map<String, String> = mapOf(
-        NUM_SUBSPACES_KEY to this.numSubspaces.toString(),
-        NUM_CENTROIDS_KEY to this.numCentroids.toString(),
-        SAMPLE_SIZE to this.sampleSize.toString(),
-        SEED_KEY to this.seed.toString()
-    )
+    object Binding: ComparableBinding() {
+        override fun readObject(stream: ByteArrayInputStream): Comparable<PQIndexConfig> = PQIndexConfig(
+            IntegerBinding.readCompressed(stream),
+            IntegerBinding.readCompressed(stream),
+            IntegerBinding.readCompressed(stream),
+            LongBinding.readCompressed(stream),
+            if (BooleanBinding.BINDING.readObject(stream)) {
+                PQ.Binding.readObject(stream)
+            } else {
+                null
+            }
+        )
+
+        override fun writeObject(output: LightOutputStream, `object`: Comparable<PQIndexConfig>) {
+            require(`object` is PQIndexConfig) { "PQIndexConfig.Binding can only be used to serialize instances of PQIndexConfig." }
+            IntegerBinding.writeCompressed(output, `object`.numSubspaces)
+            IntegerBinding.writeCompressed(output, `object`.numCentroids)
+            IntegerBinding.writeCompressed(output, `object`.sampleSize)
+            LongBinding.writeCompressed(output, `object`.seed)
+            if (`object`.pq != null) {
+                BooleanBinding.BINDING.writeObject(output, true)
+                PQ.Binding.writeObject(output, `object`.pq)
+            } else {
+                BooleanBinding.BINDING.writeObject(output, false)
+            }
+        }
+    }
 }

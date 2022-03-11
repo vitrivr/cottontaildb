@@ -41,7 +41,7 @@ class CreateIndexOperator(
                     this@CreateIndexOperator.name,
                     this@CreateIndexOperator.type,
                     columns,
-                    this@CreateIndexOperator.params
+                    this@CreateIndexOperator.type.descriptor.buildConfig(this@CreateIndexOperator.params)
                 )
                 if (this@CreateIndexOperator.rebuild) {
                     val indexTxn = context.getTx(index) as IndexTx

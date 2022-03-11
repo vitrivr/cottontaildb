@@ -1,42 +1,46 @@
 package org.vitrivr.cottontail.dbms.index.va
 
-import org.mapdb.DataInput2
-import org.mapdb.DataOutput2
+import jetbrains.exodus.bindings.BooleanBinding
+import jetbrains.exodus.bindings.ComparableBinding
+import jetbrains.exodus.bindings.IntegerBinding
+import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.dbms.index.IndexConfig
+import org.vitrivr.cottontail.dbms.index.va.signature.VAFMarks
+import java.io.ByteArrayInputStream
 
 /**
- * A configuration class for the [VAFIndex].
+ * A [IndexConfig] instance for the [VAFIndex].
  *
  * @author Ralph Gasser
  * @version 1.0.0
  */
-data class VAFIndexConfig(val marksPerDimension: Int) : IndexConfig {
-    companion object Serializer : org.mapdb.Serializer<VAFIndexConfig> {
-        const val MARKS_PER_DIMENSION_KEY = "marks_per_dimension"
-
-        override fun serialize(out: DataOutput2, value: VAFIndexConfig) {
-            out.packInt(value.marksPerDimension)
-        }
-
-        override fun deserialize(input: DataInput2, available: Int) =
-            VAFIndexConfig(input.unpackInt())
-
-        /**
-         * Constructs a [VAFIndexConfig] from a parameter map.
-         *
-         * @param params The parameter map.
-         * @return VAFIndexConfig
-         */
-        fun fromParamMap(params: Map<String, String>) =
-            VAFIndexConfig(params[MARKS_PER_DIMENSION_KEY]?.toIntOrNull() ?: 10)
+data class VAFIndexConfig(val marksPerDimension: Int, val marks: VAFMarks? = null): IndexConfig<VAFIndex> {
+    companion object {
+        val KEY_MARKS_PER_DIMENSION = "marks_per_dimension"
     }
 
     /**
-     * Converts this [VAFIndexConfig] to a [Map] representation.
-     *
-     * @return [Map] representation of this [VAFIndexConfig].
+     * [ComparableBinding] for [VAFIndexConfig].
      */
-    override fun toMap(): Map<String, String> = mapOf(
-        MARKS_PER_DIMENSION_KEY to this.marksPerDimension.toString()
-    )
+    object Binding: ComparableBinding() {
+        override fun readObject(stream: ByteArrayInputStream): Comparable<VAFIndexConfig> = VAFIndexConfig(
+            IntegerBinding.readCompressed(stream),
+            if (BooleanBinding.BINDING.readObject(stream)) {
+                VAFMarks.Binding.readObject(stream)
+            } else {
+                null
+            }
+        )
+
+        override fun writeObject(output: LightOutputStream, `object`: Comparable<VAFIndexConfig>) {
+            require(`object` is VAFIndexConfig) { "VAFIndexConfig.Binding can only be used to serialize instances of VAFIndexConfig." }
+            IntegerBinding.writeCompressed(output, `object`.marksPerDimension)
+            if (`object`.marks != null) {
+                BooleanBinding.BINDING.writeObject(output, true)
+                VAFMarks.Binding.writeObject(output, `object`.marks)
+            } else {
+                BooleanBinding.BINDING.writeObject(output, false)
+            }
+        }
+    }
 }

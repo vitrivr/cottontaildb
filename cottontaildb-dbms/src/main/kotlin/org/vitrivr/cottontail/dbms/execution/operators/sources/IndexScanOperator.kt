@@ -31,7 +31,7 @@ class IndexScanOperator(
 
     /** The [ColumnDef] produced by this [IndexScanOperator]. */
     override val columns: List<ColumnDef<*>> = this.fetch.map {
-        require(this.index.dbo.produces.contains(it.second)) { "The given column $it is not produced by the selected index ${this.index.dbo}. This is a programmer's error!"}
+        require(this.index.dbo.produces(predicate).contains(it.second)) { "The given column $it is not produced by the selected index ${this.index.dbo}. This is a programmer's error!"}
         it.first.column
     }
 
@@ -50,7 +50,7 @@ class IndexScanOperator(
             this@IndexScanOperator.index.filterRange(this@IndexScanOperator.predicate, this@IndexScanOperator.partitionIndex, this@IndexScanOperator.partitions)
         }
         for (record in iterator) {
-            for (i in values.indices) values[i] = record[i]
+            for ((i, f) in this@IndexScanOperator.fetch.withIndex()) values[i] = record[f.second]
             val rec = StandaloneRecord(record.tupleId, columns, values)
             this@IndexScanOperator.fetch.first().first.context.update(rec)
             emit(rec)

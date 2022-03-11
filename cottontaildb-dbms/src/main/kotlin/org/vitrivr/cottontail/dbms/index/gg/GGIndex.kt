@@ -1,5 +1,7 @@
 package org.vitrivr.cottontail.dbms.index.gg
 
+import jetbrains.exodus.bindings.ComparableBinding
+import jetbrains.exodus.env.Store
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.basics.Record
@@ -22,11 +24,10 @@ import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
 import org.vitrivr.cottontail.dbms.execution.TransactionContext
+import org.vitrivr.cottontail.dbms.functions.math.distance.Distances
 import org.vitrivr.cottontail.dbms.index.*
-import org.vitrivr.cottontail.dbms.index.basics.avc.AuxiliaryValueCollection
 import org.vitrivr.cottontail.dbms.index.pq.PQIndex
 import org.vitrivr.cottontail.dbms.operations.Operation
-import org.vitrivr.cottontail.utilities.math.KnnUtilities
 import org.vitrivr.cottontail.utilities.selection.ComparablePair
 import org.vitrivr.cottontail.utilities.selection.MinHeapSelection
 import org.vitrivr.cottontail.utilities.selection.MinSingleSelection
@@ -47,12 +48,55 @@ import kotlin.concurrent.withLock
  * @version 3.0.0
  */
 class GGIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(name, parent) {
-    companion object {
-        val LOGGER = LoggerFactory.getLogger(GGIndex::class.java)!!
-    }
 
-    /** The [PQIndex] implementation returns exactly the columns that is indexed. */
-    override val produces: Array<ColumnDef<*>> = arrayOf(KnnUtilities.distanceColumnDef(this.parent.name))
+    /**
+     * [IndexDescriptor] for [GGIndex].
+     */
+    companion object: IndexDescriptor<GGIndex> {
+        val LOGGER = LoggerFactory.getLogger(GGIndex::class.java)!!
+
+        /**
+         * Opens a [GGIndex] for the given [Name.IndexName] in the given [DefaultEntity].
+         *
+         * @param name The [Name.IndexName] of the [GGIndex].
+         * @param entity The [DefaultEntity] that holds the [GGIndex].
+         * @return The opened [GGIndex]
+         */
+        override fun open(name: Name.IndexName, entity: DefaultEntity): GGIndex = GGIndex(name, entity)
+
+        /**
+         * Tries to initialize the [Store] for a [GGIndex].
+         *
+         * @param name The [Name.IndexName] of the [GGIndex].
+         * @param entity The [DefaultEntity] that holds the [GGIndex].
+         * @return True on success, false otherwise.
+         */
+        override fun initialize(name: Name.IndexName, entity: DefaultEntity.Tx): Boolean {
+            TODO("Not yet implemented")
+        }
+
+        /**
+         * Generates and returns a [GGIndexConfig] for the given [parameters] (or default values, if [parameters] are not set).
+         *
+         * @param parameters The parameters to initialize the default [GGIndexConfig] with.
+         */
+        override fun buildConfig(parameters: Map<String, String>): IndexConfig<GGIndex> = GGIndexConfig(
+            numGroups = parameters[GGIndexConfig.KEY_NUM_SUBSPACES_KEY]?.toIntOrNull() ?: 100,
+            seed = parameters[GGIndexConfig.KEY_SEED_KEY]?.toLongOrNull() ?: System.currentTimeMillis(),
+            distance = try {
+                Distances.valueOf(parameters[GGIndexConfig.KEY_DISTANCE_KEY] ?: "")
+            } catch (e: IllegalArgumentException) {
+                Distances.L2
+            }
+        )
+
+        /**
+         * Returns the [GGIndexConfig.Binding]
+         *
+         * @return [GGIndexConfig.Binding]
+         */
+        override fun configBinding(): ComparableBinding = GGIndexConfig.Binding
+    }
 
     /** The type of [AbstractIndex]. */
     override val type = IndexType.GG
@@ -60,7 +104,7 @@ class GGIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
     /** The [GGIndexConfig] used by this [GGIndex] instance. */
     override val config: GGIndexConfig = this.catalogue.environment.computeInTransaction { tx ->
         val entry = IndexCatalogueEntry.read(this.name, this.parent.parent.parent, tx) ?: throw DatabaseException.DataCorruptionException("Failed to read catalogue entry for index ${this.name}.")
-        GGIndexConfig.fromParamsMap(entry.config)
+        entry.config as GGIndexConfig
     }
 
     /** False since [GGIndex] doesn't support incremental updates. */
@@ -75,7 +119,7 @@ class GGIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
     }
 
     /**
-     * Checks if this [AbstractIndex] can process the provided [Predicate] and returns true if so and false otherwise.
+     * Checks if this [GGIndex] can process the provided [Predicate] and returns true if so and false otherwise.
      *
      * @param predicate [Predicate] to check.
      * @return True if [Predicate] can be processed, false otherwise.
@@ -85,12 +129,14 @@ class GGIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
             && predicate.distance.signature.name == this.config.distance.functionName
 
     /**
-     * Calculates the cost estimate if this [GGIndex] processing the provided [Predicate].
+     * Returns a [List] of the [ColumnDef] produced by this [GGIndex].
      *
-     * @param predicate [Predicate] to check.
-     * @return Cost estimate for the [Predicate]
+     * @return [List] of [ColumnDef].
      */
-    override fun cost(predicate: Predicate) = Cost.ZERO // todo...
+    override fun produces(predicate: Predicate): List<ColumnDef<*>> {
+        require(predicate is ProximityPredicate.NNS) { "GGIndex can only process proximity predicates." }
+        return listOf(predicate.distanceColumn)
+    }
 
     /**
      * Opens and returns a new [IndexTx] object that can be used to interact with this [GGIndex].
@@ -115,8 +161,17 @@ class GGIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
         override val config: GGIndexConfig
             get() {
                 val entry = IndexCatalogueEntry.read(this@GGIndex.name, this@GGIndex.parent.parent.parent, this.context.xodusTx) ?: throw DatabaseException.DataCorruptionException("Failed to read catalogue entry for index ${this@GGIndex.name}.")
-                return GGIndexConfig.fromParamsMap(entry.config)
+                return entry.config as GGIndexConfig
             }
+
+
+        /**
+         * Calculates the cost estimate if this [GGIndex] processing the provided [Predicate].
+         *
+         * @param predicate [Predicate] to check.
+         * @return Cost estimate for the [Predicate]
+         */
+        override fun cost(predicate: Predicate) = Cost.ZERO // todo...
 
         /**
          * Rebuilds the surrounding [PQIndex] from scratch using the following, greedy grouping algorithm:
@@ -132,7 +187,7 @@ class GGIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
         override fun rebuild() = this.txLatch.withLock {
 
             /* Obtain some learning data for training. */
-            PQIndex.LOGGER.debug("Rebuilding GG index {}", this@GGIndex.name)
+            LOGGER.debug("Rebuilding GG index {}", this@GGIndex.name)
 
             /* Load all tuple ids into a set. */
             val txn = this.context.getTx(this.dbo.parent) as EntityTx
@@ -182,11 +237,16 @@ class GGIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
                 }
             }
             this.updateState(IndexState.CLEAN)
-            PQIndex.LOGGER.debug("Rebuilding GGIndex {} complete.", this@GGIndex.name)
+            LOGGER.debug("Rebuilding GGIndex {} complete.", this@GGIndex.name)
         }
 
-        override val auxiliary: AuxiliaryValueCollection
-            get() = TODO("Not yet implemented")
+        /**
+         * Clears the [GGIndex] underlying this [Tx] and removes all entries it contains.
+         */
+        override fun count(): Long = this.txLatch.withLock {
+            TODO("Not yet implemented")
+        }
+
         /**
          * Clears the [GGIndex] underlying this [Tx] and removes all entries it contains.
          */
@@ -284,7 +344,7 @@ class GGIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
                 /* Phase 3: Prepare and return list of results. */
                 val queue = ArrayDeque<StandaloneRecord>(this.predicate.k)
                 for (i in 0 until knn.size) {
-                    queue.add(StandaloneRecord(knn[i].first, this@GGIndex.produces, arrayOf(knn[i].second)))
+                    queue.add(StandaloneRecord(knn[i].first, arrayOf(this.predicate.distanceColumn), arrayOf(knn[i].second)))
                 }
                 return queue
             }
@@ -302,24 +362,26 @@ class GGIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
             throw UnsupportedOperationException("The UniqueHashIndex does not support ranged filtering!")
         }
 
+
+
         /**
          * The [GGIndex] does not support incremental updates. Hence, this method will always throw an [UnsupportedOperationException].
          */
-        override fun tryApply(event: Operation.DataManagementOperation.InsertOperation): Boolean {
+        override fun tryApply(operation: Operation.DataManagementOperation.InsertOperation): Boolean {
             throw UnsupportedOperationException("GGIndex does not support incremental updates!")
         }
 
         /**
          * The [GGIndex] does not support incremental updates. Hence, this method will always throw an [UnsupportedOperationException].
          */
-        override fun tryApply(event: Operation.DataManagementOperation.UpdateOperation): Boolean {
+        override fun tryApply(operation: Operation.DataManagementOperation.UpdateOperation): Boolean {
             throw UnsupportedOperationException("GGIndex does not support incremental updates!")
         }
 
         /**
          * The [GGIndex] does not support incremental updates. Hence, this method will always throw an [UnsupportedOperationException].
          */
-        override fun tryApply(event: Operation.DataManagementOperation.DeleteOperation): Boolean{
+        override fun tryApply(operation: Operation.DataManagementOperation.DeleteOperation): Boolean{
             throw UnsupportedOperationException("GGIndex does not support incremental updates!")
         }
     }

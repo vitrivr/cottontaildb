@@ -42,7 +42,7 @@ object FulltextIndexRule : RewriteRule {
      * @param ctx The [QueryContext] in which this rule is applied.
      * @return Transformed [OperatorNode] or null, if transformation was not possible.
      */
-    override fun apply(node: org.vitrivr.cottontail.dbms.queries.operators.OperatorNode, ctx: QueryContext): org.vitrivr.cottontail.dbms.queries.operators.OperatorNode? {
+    override fun apply(node: OperatorNode, ctx: QueryContext): OperatorNode? {
         if (node is FunctionPhysicalOperatorNode && node.function.function is FulltextScore) {
             val scan = node.input
             if (scan is EntityScanPhysicalOperatorNode) {
@@ -55,8 +55,9 @@ object FulltextIndexRule : RewriteRule {
                     it.state != IndexState.DIRTY && it.canProcess(predicate)
                 }
                 if (candidate != null) {
-                    val indexScan = IndexScanPhysicalOperatorNode(scan.groupId, ctx.txn.getTx(candidate) as IndexTx, predicate, listOf(Pair(node.out, candidate.produces[0])))
-                    val fetch = FetchPhysicalOperatorNode(indexScan, scan.entity, scan.fetch.filter { !candidate.produces.contains(it.second) })
+                    val produces = candidate.produces(predicate)
+                    val indexScan = IndexScanPhysicalOperatorNode(scan.groupId, ctx.txn.getTx(candidate) as IndexTx, predicate, listOf(Pair(node.out, produces[0])))
+                    val fetch = FetchPhysicalOperatorNode(indexScan, scan.entity, scan.fetch.filter { !produces.contains(it.second) })
                     return if (node.output != null) {
                         node.output?.copyWithOutput(fetch)
                     } else {

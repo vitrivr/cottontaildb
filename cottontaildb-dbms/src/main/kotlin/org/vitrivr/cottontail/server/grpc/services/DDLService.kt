@@ -38,6 +38,7 @@ class DDLService(override val catalogue: DefaultCatalogue, override val manager:
         val schemaName = request.schema.fqn()
         DropSchemaOperator(this.catalogue, schemaName)
     }.single()
+
     /**
      * gRPC endpoint listing the available [org.vitrivr.cottontail.dbms.schema.DefaultSchema]s.
      */

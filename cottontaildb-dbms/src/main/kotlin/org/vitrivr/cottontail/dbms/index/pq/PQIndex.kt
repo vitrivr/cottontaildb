@@ -1,6 +1,9 @@
 package org.vitrivr.cottontail.dbms.index.pq
 
-import jetbrains.exodus.bindings.LongBinding
+import jetbrains.exodus.bindings.ComparableBinding
+import jetbrains.exodus.env.Store
+import jetbrains.exodus.env.StoreConfig
+import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.basics.Record
@@ -14,19 +17,15 @@ import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.types.VectorValue
 import org.vitrivr.cottontail.dbms.catalogue.entries.IndexCatalogueEntry
+import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
 import org.vitrivr.cottontail.dbms.execution.TransactionContext
-import org.vitrivr.cottontail.dbms.index.AbstractHDIndex
-import org.vitrivr.cottontail.dbms.index.IndexState
-import org.vitrivr.cottontail.dbms.index.IndexTx
-import org.vitrivr.cottontail.dbms.index.IndexType
-import org.vitrivr.cottontail.dbms.index.basics.avc.AuxiliaryValueCollection
+import org.vitrivr.cottontail.dbms.index.*
 import org.vitrivr.cottontail.dbms.index.va.VAFIndex
 import org.vitrivr.cottontail.dbms.operations.Operation
-import org.vitrivr.cottontail.utilities.math.KnnUtilities
 import org.vitrivr.cottontail.utilities.selection.ComparablePair
 import org.vitrivr.cottontail.utilities.selection.MinHeapSelection
 import org.vitrivr.cottontail.utilities.selection.MinSingleSelection
@@ -48,11 +47,52 @@ import kotlin.concurrent.withLock
  */
 class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(name, parent) {
 
-    companion object {
-        val LOGGER = LoggerFactory.getLogger(PQIndex::class.java)!!
+    /**
+     * The [IndexDescriptor] for the [PQIndex].
+     */
+    companion object: IndexDescriptor<PQIndex> {
+        /** [Logger] instance used by [PQIndex]. */
+        private val LOGGER: Logger = LoggerFactory.getLogger(PQIndex::class.java)
 
-        /** Key to read/write the Marks entry. */
-        val PQ_ENTRY_KEY = LongBinding.longToCompressedEntry(-1L)
+        /**
+         * Opens a [PQIndex] for the given [Name.IndexName] in the given [DefaultEntity].
+         *
+         * @param name The [Name.IndexName] of the [PQIndex].
+         * @param entity The [DefaultEntity] that holds the [PQIndex].
+         * @return The opened [PQIndex]
+         */
+        override fun open(name: Name.IndexName, entity: DefaultEntity): PQIndex = PQIndex(name, entity)
+
+        /**
+         * Tries to initialize the [Store] for a [PQIndex].
+         *
+         * @param name The [Name.IndexName] of the [PQIndex].
+         * @param entity The [DefaultEntity] that holds the [PQIndex].
+         * @return True on success, false otherwise.
+         */
+        override fun initialize(name: Name.IndexName, entity: DefaultEntity.Tx): Boolean {
+            val store = entity.dbo.catalogue.environment.openStore(name.storeName(), StoreConfig.WITHOUT_DUPLICATES, entity.context.xodusTx, true)
+            return store != null
+        }
+
+        /**
+         * Generates and returns a [PQIndexConfig] for the given [parameters] (or default values, if [parameters] are not set).
+         *
+         * @param parameters The parameters to initialize the default [PQIndexConfig] with.
+         */
+        override fun buildConfig(parameters: Map<String, String>): IndexConfig<PQIndex> = PQIndexConfig(
+            parameters[PQIndexConfig.NUM_SUBSPACES_KEY]?.toInt() ?: PQIndexConfig.AUTO_VALUE,
+            parameters[PQIndexConfig.NUM_CENTROIDS_KEY]?.toInt() ?: 100,
+            parameters[PQIndexConfig.SAMPLE_SIZE]?.toInt() ?: 1500,
+            parameters[PQIndexConfig.SEED_KEY]?.toLongOrNull() ?: System.currentTimeMillis()
+        )
+
+        /**
+         * Returns the [PQIndexConfig.Binding]
+         *
+         * @return [PQIndexConfig.Binding]
+         */
+        override fun configBinding(): ComparableBinding = PQIndexConfig.Binding
 
         /**
          * Dynamically determines the number of subspaces for the given dimension.
@@ -82,17 +122,15 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
         }
     }
 
-    /** The [PQIndex] implementation returns exactly the columns that is indexed. */
-    override val produces: Array<ColumnDef<*>> = arrayOf(KnnUtilities.distanceColumnDef(this.parent.name))
-
-    /** The type of [AbstractHDIndex]. */
-    override val type = IndexType.PQ
-
     /** The [PQIndexConfig] used by this [PQIndex] instance. */
     override val config: PQIndexConfig = this.catalogue.environment.computeInTransaction { tx ->
         val entry = IndexCatalogueEntry.read(this.name, this.parent.parent.parent, tx) ?: throw DatabaseException.DataCorruptionException("Failed to read catalogue entry for index ${this.name}.")
-        PQIndexConfig.fromParamMap(entry.config)
+        entry.config as PQIndexConfig
     }
+
+    /** The [IndexType] of this [PQIndex]. */
+    override val type: IndexType
+        get() = IndexType.PQ
 
     init {
         /** Some assumptions and sanity checks. Some are for documentation, some are cheap enough to actually keep and check. */
@@ -115,23 +153,16 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
      * @param predicate [Predicate] to check.
      * @return True if [Predicate] can be processed, false otherwise.
      */
-    override fun canProcess(predicate: Predicate) =
-        predicate is ProximityPredicate && predicate.column == this.columns[0]
+    override fun canProcess(predicate: Predicate) = predicate is ProximityPredicate && predicate.column == this.columns[0]
 
     /**
-     * Calculates the cost estimate if this [AbstractIndex] processing the provided [Predicate].
+     * Returns a [List] of the [ColumnDef] produced by this [PQIndex].
      *
-     * @param predicate [Predicate] to check.
-     * @return [Cost] estimate for the [Predicate]
+     * @return [List] of [ColumnDef].
      */
-    override fun cost(predicate: Predicate): Cost {
-        if (predicate !is ProximityPredicate) return Cost.INVALID
-        if (predicate.column != this.columns[0]) return Cost.INVALID
-        return Cost(
-            this.count * this.config.numSubspaces * Cost.DISK_ACCESS_READ.io + predicate.k * predicate.column.type.logicalSize * Cost.DISK_ACCESS_READ.io,
-            this.count * (4 * Cost.MEMORY_ACCESS.cpu + Cost.FLOP.cpu) + predicate.cost.cpu * predicate.k,
-            (predicate.k * this.produces.sumOf { it.type.physicalSize }).toFloat()
-        )
+    override fun produces(predicate: Predicate): List<ColumnDef<*>> {
+        require(predicate is ProximityPredicate.NNS) { "PQIndex can only process proximity predicates." }
+        return listOf(predicate.distanceColumn)
     }
 
     /**
@@ -152,20 +183,33 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
      * A [IndexTx] that affects this [AbstractIndex].
      */
     private inner class Tx(context: TransactionContext) : AbstractHDIndex.Tx(context) {
-
-        /** Internal [PQ] reference. */
-        private var pq: PQ? = null
-
         /** The [PQIndexConfig] used by this [PQIndex] instance. */
         override val config: PQIndexConfig
             get() {
                 val entry = IndexCatalogueEntry.read(this@PQIndex.name, this@PQIndex.parent.parent.parent, this.context.xodusTx) ?: throw DatabaseException.DataCorruptionException("Failed to read catalogue entry for index ${this@PQIndex.name}.")
-                return PQIndexConfig.fromParamMap(entry.config)
+                return entry.config as PQIndexConfig
             }
 
-        /** Instance of [AuxiliaryValueCollection] held by this [Tx]. */
-        override val auxiliary: AuxiliaryValueCollection
-            get() = TODO("Not yet implemented")
+        /** The Xodus [Store] used to store [PQSignature]s. */
+        private var dataStore: Store = this@PQIndex.catalogue.environment.openStore(this@PQIndex.name.storeName(), StoreConfig.WITHOUT_DUPLICATES, this.context.xodusTx, false)
+            ?: throw DatabaseException.DataCorruptionException("Data store for index ${this@PQIndex.name} is missing.")
+
+        /**
+         * Calculates the cost estimate of this [PQIndex.Tx] processing the provided [Predicate].
+         *
+         * @param predicate [Predicate] to check.
+         * @return [Cost] estimate for the [Predicate]
+         */
+        override fun cost(predicate: Predicate): Cost {
+            if (predicate !is ProximityPredicate) return Cost.INVALID
+            if (predicate.column != this.columns[0]) return Cost.INVALID
+            val count = this.count()
+            return Cost(
+                count * this.config.numSubspaces * Cost.DISK_ACCESS_READ.io + predicate.k * predicate.column.type.logicalSize * Cost.DISK_ACCESS_READ.io,
+                count * (4 * Cost.MEMORY_ACCESS.cpu + Cost.FLOP.cpu) + predicate.cost.cpu * predicate.k,
+                (predicate.k * this@PQIndex.produces(predicate).sumOf { it.type.physicalSize }).toFloat()
+            )
+        }
 
         /**
          * Rebuilds the surrounding [PQIndex] from scratch, thus re-creating the the [PQ] codebook
@@ -197,6 +241,28 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
         }
 
         /**
+         * Returns the number of entries in this [VAFIndex].
+         *
+         * @return Number of entries in this [VAFIndex]
+         */
+        override fun count(): Long  = this.txLatch.withLock {
+            this.dataStore.count(this.context.xodusTx)
+        }
+
+        /**
+         * Clears the [VAFIndex] underlying this [Tx] and removes all entries it contains.
+         */
+        override fun clear() = this.txLatch.withLock {
+            /* Truncate and replace store.*/
+            this@PQIndex.catalogue.environment.truncateStore(this@PQIndex.name.storeName(), this.context.xodusTx)
+            this.dataStore = this@PQIndex.catalogue.environment.openStore(this@PQIndex.name.storeName(), StoreConfig.WITHOUT_DUPLICATES, this.context.xodusTx, false)
+                ?: throw DatabaseException.DataCorruptionException("Data store for index ${this@PQIndex.name} is missing.")
+
+            /* Update catalogue entry for index. */
+            this.updateState(IndexState.STALE)
+        }
+
+        /**
          *
          */
         override fun tryApply(operation: Operation.DataManagementOperation.InsertOperation): Boolean {
@@ -219,7 +285,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
 
         /**
          * Performs a lookup through this [PQIndex.Tx] and returns a [Iterator] of all [Record]s that match the [Predicate].
-         * Only supports [KnnPredicate]s.
+         * Only supports [ProximityPredicate]s.
          *
          * <strong>Important:</strong> The [Iterator] is not thread safe! It remains to the
          * caller to close the [Iterator]
@@ -231,7 +297,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
 
         /**
          * Performs a lookup through this [PQIndex.Tx] and returns a [Cursor] of all [Record]s that match the [Predicate] in the given [LongRange].
-         * Only supports [KnnPredicate]s.
+         * Only supports [ProximityPredicate]s.
          *
          * <strong>Important:</strong> The [Cursor] is not thread safe!
          *
@@ -242,7 +308,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
          */
         override fun filterRange(predicate: Predicate, partitionIndex: Int, partitions: Int) = object : Cursor<Record> {
 
-            /** Cast [KnnPredicate] (if such a cast is possible).  */
+            /** Cast to [ProximityPredicate] (if such a cast is possible).  */
             private val predicate = if (predicate is ProximityPredicate) {
                 predicate
             } else {
@@ -335,7 +401,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
                 /* Phase 3: Prepare and return list of results. */
                 val queue = ArrayDeque<StandaloneRecord>(this.predicate.k)
                 for (i in 0 until knn.size) {
-                    queue.add(StandaloneRecord(knn[i].first, this@PQIndex.produces, arrayOf(knn[i].second)))
+                    queue.add(StandaloneRecord(knn[i].first, arrayOf(this.predicate.distanceColumn), arrayOf(knn[i].second)))
                 }
                 return queue
             }

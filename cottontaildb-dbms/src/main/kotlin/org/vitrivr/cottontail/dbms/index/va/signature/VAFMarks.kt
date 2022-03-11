@@ -5,18 +5,19 @@ import jetbrains.exodus.bindings.DoubleBinding
 import jetbrains.exodus.bindings.IntegerBinding
 import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.values.types.RealVectorValue
+import org.vitrivr.cottontail.dbms.index.va.VAFIndex
 import java.io.ByteArrayInputStream
 
 /**
  * Double precision [VAFMarks] implementation used in [VAFIndex] structures.
  *
  * @author Gabriel Zihlmann & Ralph Gasser
- * @version 1.1.0
+ * @version 1.2.0
  */
 @JvmInline
 value class VAFMarks(val marks: Array<DoubleArray>): Comparable<VAFMarks> {
 
-    companion object: ComparableBinding() {
+    companion object {
         /**
          * Calculates and returns equidistant [VAFMarks]
          *
@@ -34,21 +35,24 @@ value class VAFMarks(val marks: Array<DoubleArray>): Comparable<VAFMarks> {
             a[a.lastIndex] += 1e-9
             a
         })
+    }
 
+    /**
+     * A [ComparableBinding] to serialize and deserialize [VAFMarks].
+     */
+    object Binding: ComparableBinding() {
         /**
          * [ComparableBinding] implementation.
          */
-        override fun readObject(stream: ByteArrayInputStream)= VAFMarks(Array(IntegerBinding.readCompressed(stream)) { i ->
-            DoubleArray(IntegerBinding.readCompressed(stream)) { j ->
-                DoubleBinding.BINDING.readObject(stream)
-            }
+        override fun readObject(stream: ByteArrayInputStream)= VAFMarks(Array(IntegerBinding.readCompressed(stream)) { _ ->
+            DoubleArray(IntegerBinding.readCompressed(stream)) { _ -> DoubleBinding.BINDING.readObject(stream) }
         })
 
         /**
          * [ComparableBinding] implementation.
          */
         override fun writeObject(output: LightOutputStream, `object`: Comparable<Nothing>) {
-            require(`object` is VAFMarks) { }
+            require(`object` is VAFMarks) { "VAFMarks.Binding can only be used to serialize instances of VAFMarks." }
             IntegerBinding.writeCompressed(output,  `object`.marks.size)
             for (d in `object`.marks) {
                 IntegerBinding.writeCompressed(output, d.size)
@@ -62,6 +66,14 @@ value class VAFMarks(val marks: Array<DoubleArray>): Comparable<VAFMarks> {
     /** The dimensionality of this [VAFMarks] object. */
     val d: Int
         get() = this.marks.size
+
+    /** The smallest entry, i.e., the minimum held by this [VAFMarks]. */
+    val minimum: DoubleArray
+        get() = this.marks.first()
+
+    /** The smallest entry, i.e., the maximum held by this [VAFMarks]. */
+    val maximum: DoubleArray
+        get() = this.marks.last()
 
     /**
      * This method calculates the signature of a [RealVectorValue]. It checks for every mark if the

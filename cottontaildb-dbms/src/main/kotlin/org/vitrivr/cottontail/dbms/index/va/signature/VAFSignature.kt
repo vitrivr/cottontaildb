@@ -1,18 +1,25 @@
 package org.vitrivr.cottontail.dbms.index.va.signature
 
 import jetbrains.exodus.ByteIterable
+import jetbrains.exodus.bindings.ComparableBinding
 import jetbrains.exodus.util.LightOutputStream
+import org.vitrivr.cottontail.dbms.index.va.VAFIndex
 import org.xerial.snappy.Snappy
 
-
 /**
- * A fixed length [VAFSignature] used for vector approximation.
+ * A fixed length [VAFSignature] used in [VAFIndex] structures.
  *
  * @author Gabriel Zihlmann & Ralph Gasser
  * @version 1.1.0
  */
 @JvmInline
 value class VAFSignature(val cells: IntArray): Comparable<VAFSignature> {
+
+    companion object {
+        fun invalid(d: Int) = VAFSignature(IntArray(d) { -1 })
+    }
+
+
     /**
      * Accessor for [VAFSignature].
      *
@@ -21,7 +28,18 @@ value class VAFSignature(val cells: IntArray): Comparable<VAFSignature> {
      */
     operator fun get(index: Int): Int = this.cells[index]
 
-    companion object {
+    /**
+     * Checks if this [VAFSignature] is an invalid signature, which is used as a placeholder in cases no
+     * valid [VAFSignature] could be obtained,
+     *
+     * @return True if [VAFSignature] is invalid, false otherwise.
+     */
+    fun invalid(): Boolean = this.cells.any { it < 0 }
+
+    /**
+     * A [ComparableBinding] to serialize and deserialize [VAFSignature].
+     */
+    object Binding {
         fun entryToValue(entry: ByteIterable): VAFSignature = VAFSignature(Snappy.uncompressIntArray(entry.bytesUnsafe))
         fun valueToEntry(signature: VAFSignature): ByteIterable {
             val stream = LightOutputStream()

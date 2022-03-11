@@ -158,7 +158,7 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
                     this.log("---- Migrating index $indexName...\n")
                     val index = srcEntityTx.indexForName(indexName)
                     val destEntityTx = destinationContext.getTx(entity) as EntityTx
-                    destEntityTx.createIndex(index.name, index.type, index.columns.map { it.name }, index.config.toMap())
+                    destEntityTx.createIndex(index.name, index.type, index.columns.map { it.name }, index.config)
                 }
             }
         }

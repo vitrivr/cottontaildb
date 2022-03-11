@@ -1,45 +1,45 @@
 package org.vitrivr.cottontail.dbms.index.gg
 
+import jetbrains.exodus.bindings.ComparableBinding
+import jetbrains.exodus.bindings.IntegerBinding
+import jetbrains.exodus.bindings.LongBinding
+import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.dbms.functions.math.distance.Distances
 import org.vitrivr.cottontail.dbms.index.IndexConfig
+import java.io.ByteArrayInputStream
 
 /**
  * Configuration class for [GGIndex].
  *
  * @author Gabriel Zihlmann
- * @version 1.2.0
+ * @version 1.3.0
  */
-data class GGIndexConfig(val numGroups: Int, val seed: Long, val distance: Distances) : IndexConfig {
-    companion object {
-        const val NUM_SUBSPACES_KEY = "num_groups"
-        const val SEED_KEY = "seed"
-        const val DISTANCE_KEY = "distance"
+data class GGIndexConfig(val numGroups: Int, val seed: Long, val distance: Distances) : IndexConfig<GGIndex> {
 
-        /**
-         * Constructs a [GGIndexConfig] from a parameter map.
-         *
-         * @param params The parameter map.
-         * @return [GGIndexConfig]
-         */
-        fun fromParamsMap(params: Map<String, String>) = GGIndexConfig(
-            numGroups = params[NUM_SUBSPACES_KEY]?.toIntOrNull() ?: 100,
-            seed = params[SEED_KEY]?.toLongOrNull() ?: System.currentTimeMillis(),
-            distance = try {
-                Distances.valueOf(params[DISTANCE_KEY] ?: "")
-            } catch (e: IllegalArgumentException) {
-                Distances.L2
-            }
-        )
+    /**
+     *
+     */
+    companion object {
+        const val KEY_NUM_SUBSPACES_KEY = "num_groups"
+        const val KEY_SEED_KEY = "seed"
+        const val KEY_DISTANCE_KEY = "distance"
     }
 
     /**
-     * Converts this [GGIndexConfig] to a [Map] representation.
-     *
-     * @return [Map] representation of this [GGIndexConfig].
+     * [ComparableBinding] for [GGIndexConfig].
      */
-    override fun toMap(): Map<String, String> = mapOf(
-        NUM_SUBSPACES_KEY to this.numGroups.toString(),
-        SEED_KEY to this.seed.toString(),
-        DISTANCE_KEY to this.distance.toString()
-    )
+    object Binding: ComparableBinding() {
+        override fun readObject(stream: ByteArrayInputStream): Comparable<GGIndexConfig> = GGIndexConfig(
+            IntegerBinding.readCompressed(stream),
+            LongBinding.readCompressed(stream),
+            Distances.values()[IntegerBinding.readCompressed(stream)],
+        )
+
+        override fun writeObject(output: LightOutputStream, `object`: Comparable<GGIndexConfig>) {
+            require(`object` is GGIndexConfig) { "GGIndexConfig.Binding can only be used to serialize instances of GGIndexConfig." }
+            IntegerBinding.writeCompressed(output, `object`.numGroups)
+            LongBinding.writeCompressed(output, `object`.seed)
+            IntegerBinding.writeCompressed(output, `object`.distance.ordinal)
+        }
+    }
 }

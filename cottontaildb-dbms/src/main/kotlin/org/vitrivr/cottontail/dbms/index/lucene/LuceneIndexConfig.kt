@@ -1,47 +1,32 @@
 package org.vitrivr.cottontail.dbms.index.lucene
 
-import org.mapdb.DataInput2
-import org.mapdb.DataOutput2
+import jetbrains.exodus.bindings.ComparableBinding
+import jetbrains.exodus.bindings.IntegerBinding
+import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.dbms.index.IndexConfig
+import java.io.ByteArrayInputStream
 
 /**
  * A configuration class used with [LuceneIndex] instances.
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.2.0
  */
-data class LuceneIndexConfig(val analyzer: LuceneAnalyzerType) : IndexConfig {
-    companion object Serializer : org.mapdb.Serializer<LuceneIndexConfig> {
-        const val ANALYZER_TYPE_KEY = "analyzer_type"
+data class LuceneIndexConfig(val analyzer: LuceneAnalyzerType) : IndexConfig<LuceneIndex> {
 
-        override fun serialize(out: DataOutput2, value: LuceneIndexConfig) {
-            out.packInt(value.analyzer.ordinal)
-        }
-
-        override fun deserialize(input: DataInput2, available: Int) =
-            LuceneIndexConfig(LuceneAnalyzerType.values()[input.unpackInt()])
-
-        /**
-         * Constructs a [LuceneIndexConfig] from a parameter map.
-         *
-         * @param params The parameter map.
-         * @return [LuceneIndexConfig]
-         */
-        fun fromParamMap(params: Map<String, String>) = LuceneIndexConfig(
-            try {
-                LuceneAnalyzerType.valueOf(params[ANALYZER_TYPE_KEY] ?: "")
-            } catch (e: IllegalArgumentException) {
-                LuceneAnalyzerType.STANDARD
-            }
-        )
+    companion object {
+        const val KEY_ANALYZER_TYPE_KEY = "analyzer_type"
     }
 
     /**
-     * Converts this [LuceneIndexConfig] to a [Map] representation.
-     *
-     * @return [Map] representation of this [LuceneIndexConfig].
+     * [ComparableBinding] for [LuceneIndexConfig].
      */
-    override fun toMap(): Map<String, String> = mapOf(
-        ANALYZER_TYPE_KEY to this.analyzer.toString()
-    )
+    object Binding: ComparableBinding() {
+        override fun readObject(stream: ByteArrayInputStream): Comparable<LuceneIndexConfig> = LuceneIndexConfig(LuceneAnalyzerType.values()[IntegerBinding.readCompressed(stream)])
+
+        override fun writeObject(output: LightOutputStream, `object`: Comparable<LuceneIndexConfig>) {
+            require(`object` is LuceneIndexConfig) { "LuceneIndexConfig.Binding can only be used to serialize instances of LuceneIndexConfig." }
+            IntegerBinding.writeCompressed(output, `object`.analyzer.ordinal)
+        }
+    }
 }

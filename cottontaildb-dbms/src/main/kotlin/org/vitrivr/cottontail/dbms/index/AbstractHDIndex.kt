@@ -2,14 +2,11 @@ package org.vitrivr.cottontail.dbms.index
 
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.core.values.types.VectorValue
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.execution.TransactionContext
 import org.vitrivr.cottontail.dbms.index.basics.avc.AuxiliaryValueCollection
 import org.vitrivr.cottontail.dbms.operations.Operation
 import kotlin.concurrent.withLock
-
 
 /**
  * An [Index] implementation that outlines the fundamental structure of a high-dimensional (HD) index.
@@ -23,11 +20,6 @@ import kotlin.concurrent.withLock
  */
 abstract class AbstractHDIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name, parent) {
 
-    init {
-        require(this.columns.size == 1) { "High-dimensional indexes do not support indexing of more than a single column." }
-        require(this.columns[0].type is Types.Vector<*,*>) { "High-dimensional indexes only support indexing of vector columns."}
-    }
-
     /** The [ColumnDef] that is being indexed by this [AbstractHDIndex]. */
     val column: ColumnDef<*>
         get() = this.columns[0]
@@ -40,9 +32,6 @@ abstract class AbstractHDIndex(name: Name.IndexName, parent: DefaultEntity) : Ab
      * A [Tx] that affects this [AbstractIndex].
      */
     protected abstract inner class Tx(context: TransactionContext) : AbstractIndex.Tx(context), WriteModel {
-
-        /** The [AuxiliaryValueCollection] used by this [AbstractHDIndex.Tx]. */
-        protected abstract val auxiliary: AuxiliaryValueCollection
 
         /**
          * Tries to process an incoming [Operation.DataManagementOperation.InsertOperation].
@@ -63,7 +52,8 @@ abstract class AbstractHDIndex(name: Name.IndexName, parent: DefaultEntity) : Ab
             /* If write-model does not allow propagation, apply change to auxiliary value collection. */
             if (!this.tryApply(operation)) {
                 val value = operation.inserts[this@AbstractHDIndex.column]
-                if (value is VectorValue<*>) this.auxiliary.applyInsert(operation.tupleId)
+
+                /* TODO: Process. */
 
                 /* Update index state. */
                 this.updateState(IndexState.DIRTY)
@@ -89,11 +79,8 @@ abstract class AbstractHDIndex(name: Name.IndexName, parent: DefaultEntity) : Ab
             /* If write-model does not allow propagation, apply change to auxiliary value collection. */
             if (!this.tryApply(operation)) {
                 val value = operation.updates[this@AbstractHDIndex.column]?.second
-                if (value is VectorValue<*>) {
-                    this.auxiliary.applyUpdate(operation.tupleId)
-                } else if (value == null) {
-                    this.auxiliary.applyDelete(operation.tupleId)
-                }
+
+                /* TODO: Process. */
 
                 /* Update index state. */
                 this.updateState(IndexState.DIRTY)
@@ -118,7 +105,9 @@ abstract class AbstractHDIndex(name: Name.IndexName, parent: DefaultEntity) : Ab
 
             /* If write-model does not allow propagation, apply change to auxiliary value collection. */
             if (!this.tryApply(operation)) {
-                this.auxiliary.applyDelete(operation.tupleId)
+
+                /* TODO: Process. */
+
                 this.updateState(IndexState.DIRTY)
             }
         }

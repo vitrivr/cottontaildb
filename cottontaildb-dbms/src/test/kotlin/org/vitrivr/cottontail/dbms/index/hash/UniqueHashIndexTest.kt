@@ -3,26 +3,26 @@ package org.vitrivr.cottontail.dbms.index.hash
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.RepeatedTest
-import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
+import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
+import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.values.FloatVectorValue
+import org.vitrivr.cottontail.core.values.StringValue
+import org.vitrivr.cottontail.core.values.types.Types
+import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.entity.EntityTx
+import org.vitrivr.cottontail.dbms.execution.TransactionType
 import org.vitrivr.cottontail.dbms.index.AbstractIndexTest
 import org.vitrivr.cottontail.dbms.index.IndexTx
 import org.vitrivr.cottontail.dbms.index.IndexType
 import org.vitrivr.cottontail.dbms.queries.binding.DefaultBindingContext
-import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
-import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
-import org.vitrivr.cottontail.dbms.execution.TransactionType
-import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
-import org.vitrivr.cottontail.core.values.FloatVectorValue
-import org.vitrivr.cottontail.core.values.StringValue
 import java.util.*
 
 /**
- * This is a collection of test cases to test the correct behaviour of [UniqueHashIndex].
+ * This is a collection of test cases to test the correct behaviour of [UQBTreeIndex].
  *
  * @author Ralph Gasser
  * @param 1.2.2
@@ -41,7 +41,7 @@ class UniqueHashIndexTest : AbstractIndexTest() {
         get() = this.entityName.index("idx_id_unique")
 
     override val indexType: IndexType
-        get() = IndexType.HASH_UQ
+        get() = IndexType.BTREE_UQ
 
     /** List of values stored in this [UniqueHashIndexTest]. */
     private var list = HashMap<StringValue, FloatVectorValue>(100)

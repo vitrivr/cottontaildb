@@ -5,11 +5,11 @@ import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.basics.Filterable
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
 import org.vitrivr.cottontail.dbms.general.Tx
 import org.vitrivr.cottontail.dbms.operations.Operation
 import org.vitrivr.cottontail.dbms.queries.sort.SortOrder
-
 
 /**
  * A [Tx] that operates on a single [Index]. [Tx]s are a unit of isolation for data operations (read/write).
@@ -31,16 +31,26 @@ interface IndexTx: Tx, Filterable, Countable {
     /** The [IndexType] of the [Index] that underpins this [IndexTx]. */
     val state: IndexState
 
-    /** The [IndexType] of the [Index] that underpins this [IndexTx]. */
-    val type: IndexType
-
     /** The configuration map used for the [Index] that underpins this [IndexTx]. */
-    val config: IndexConfig
+    val config: IndexConfig<*>
+
+    /**
+     * Calculates the cost estimate of this [IndexTx] processing the provided [Predicate].
+     *
+     * @param predicate [Predicate] to check.
+     * @return Cost estimate for the [Predicate]
+     */
+    fun cost(predicate: Predicate): Cost
 
     /**
      * (Re-)builds the underlying [Index] completely.
      */
     fun rebuild()
+
+    /**
+     * Clears the [Index] underlying this [IndexTx] and removes all entries it contains.
+     */
+    fun clear()
 
     /**
      * Inserts a new entry in the [Index] underlying this [IndexTx] based on the provided [Operation.DataManagementOperation.UpdateOperation].
@@ -69,12 +79,7 @@ interface IndexTx: Tx, Filterable, Countable {
      */
     fun delete(operation: Operation.DataManagementOperation.DeleteOperation)
 
-    /**
-     * Clears the [Index] underlying this [IndexTx] and removes all entries it contains.
-     *
-     * @throws [TxException.TxValidationException] If update of [Index] fails for some reason.
-     */
-    fun clear()
+
 
     /**
      * Performs a lookup through this [IndexTx] and returns a [Cursor] of all the [Record]s that match the [Predicate].

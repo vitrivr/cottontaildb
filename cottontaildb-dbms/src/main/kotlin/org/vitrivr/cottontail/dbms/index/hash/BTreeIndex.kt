@@ -1,7 +1,9 @@
 package org.vitrivr.cottontail.dbms.index.hash
 
+import jetbrains.exodus.bindings.ComparableBinding
 import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.bindings.StringBinding
+import jetbrains.exodus.env.Store
 import jetbrains.exodus.env.StoreConfig
 import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.basics.Record
@@ -22,6 +24,7 @@ import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.exceptions.TxException
 import org.vitrivr.cottontail.dbms.execution.TransactionContext
 import org.vitrivr.cottontail.dbms.index.*
+import org.vitrivr.cottontail.dbms.index.lucene.LuceneIndex
 import org.vitrivr.cottontail.dbms.operations.Operation
 import org.vitrivr.cottontail.storage.serializers.ValueSerializerFactory
 import org.vitrivr.cottontail.storage.serializers.xodus.XodusBinding
@@ -35,27 +38,60 @@ import kotlin.concurrent.withLock
  * @author Luca Rossetto & Ralph Gasser
  * @version 3.0.0
  */
-class NonUniqueHashIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name, parent) {
+class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name, parent) {
+
+    /**
+     * The [IndexDescriptor] for the [BTreeIndex].
+     */
+    companion object: IndexDescriptor<BTreeIndex> {
+        /**
+         * Opens a [BTreeIndex] for the given [Name.IndexName] in the given [DefaultEntity].
+         *
+         * @param name The [Name.IndexName] of the [BTreeIndex].
+         * @param entity The [DefaultEntity] that holds the [BTreeIndex].
+         * @return The opened [LuceneIndex]
+         */
+        override fun open(name: Name.IndexName, entity: DefaultEntity): BTreeIndex = BTreeIndex(name, entity)
+
+        /**
+         * Tries to initialize the [Store] for a [BTreeIndex].
+         *
+         * @param name The [Name.IndexName] of the [BTreeIndex].
+         * @param entity The [DefaultEntity] that holds the [BTreeIndex].
+         * @return True on success, false otherwise.
+         */
+        override fun initialize(name: Name.IndexName, entity: DefaultEntity.Tx): Boolean {
+            val store = entity.dbo.catalogue.environment.openStore(name.storeName(), StoreConfig.WITH_DUPLICATES_WITH_PREFIXING, entity.context.xodusTx, true)
+            return store != null
+        }
+
+        /**
+         * Generates and returns an empty [IndexConfig].
+         */
+        override fun buildConfig(parameters: Map<String, String>): IndexConfig<BTreeIndex> = object : IndexConfig<BTreeIndex>{}
+
+        /**
+         * Returns the [BTreeIndexConfig]
+         */
+        override fun configBinding(): ComparableBinding = BTreeIndexConfig
+    }
 
     /** The type of [AbstractIndex] */
     override val type: IndexType = IndexType.BTREE
 
-    /** True since [NonUniqueHashIndex] supports incremental updates. */
+    /** True since [BTreeIndex] supports incremental updates. */
     override val supportsIncrementalUpdate: Boolean = true
 
-    /** False, since [NonUniqueHashIndex] does not support partitioning. */
+    /** False, since [BTreeIndex] does not support partitioning. */
     override val supportsPartitioning: Boolean = false
 
-    /** The [NonUniqueHashIndex] implementation returns exactly the columns that is indexed. */
-    override val produces: Array<ColumnDef<*>> = this.columns
-
-    /** [UniqueHashIndex] does not have an [IndexConfig]*/
-    override val config: IndexConfig = NoIndexConfig
+    /** The dummy [BTreeIndexConfig]. */
+    override val config: IndexConfig<BTreeIndex> = BTreeIndexConfig
 
     /**
-     * Checks if the provided [Predicate] can be processed by this instance of [NonUniqueHashIndex].
+     * Checks if the provided [Predicate] can be processed by this instance of [BTreeIndex].
      *
-     * [NonUniqueHashIndex] can be used to process EQUALS, IN AND LIKE comparison operations on the specified column
+     * [BTreeIndex] can be used to process EQUALS, IN AND LIKE comparison operations on the specified column
      *
      * @param predicate The [Predicate] to check.
      * @return True if [Predicate] can be processed, false otherwise.
@@ -73,19 +109,13 @@ class NonUniqueHashIndex(name: Name.IndexName, parent: DefaultEntity) : Abstract
     }
 
     /**
-     * Calculates the cost estimate of this [NonUniqueHashIndex] processing the provided [Predicate].
+     * Returns a [List] of the [ColumnDef] produced by this [BTreeIndex].
      *
-     * @param predicate [Predicate] to check.
-     * @return Cost estimate for the [Predicate]
+     * @return [List] of [ColumnDef].
      */
-    override fun cost(predicate: Predicate): Cost {
-        if (predicate !is BooleanPredicate.Atomic || predicate.columns.first() != this.columns[0] || predicate.not) return Cost.INVALID
-        return when (val operator = predicate.operator) {
-            is ComparisonOperator.Binary.Equal -> Cost.DISK_ACCESS_READ + Cost.MEMORY_ACCESS + Cost(memory = predicate.columns.sumOf { it.type.physicalSize }.toFloat())
-            is ComparisonOperator.Binary.Like -> Cost.DISK_ACCESS_READ + Cost.MEMORY_ACCESS + Cost(memory = predicate.columns.sumOf { it.type.physicalSize }.toFloat())
-            is ComparisonOperator.In -> Cost.DISK_ACCESS_READ + Cost.MEMORY_ACCESS + Cost(memory = predicate.columns.sumOf { it.type.physicalSize }.toFloat()) * operator.right.size
-            else -> Cost.INVALID
-        }
+    override fun produces(predicate: Predicate): List<ColumnDef<*>> {
+        require(predicate is BooleanPredicate) { "BTree index can only process boolean predicates." }
+        return this.columns.toList()
     }
 
     /**
@@ -96,23 +126,27 @@ class NonUniqueHashIndex(name: Name.IndexName, parent: DefaultEntity) : Abstract
     override fun newTx(context: TransactionContext): IndexTx = Tx(context)
 
     /**
-     * Closes this [NonUniqueHashIndex]
+     * Closes this [BTreeIndex]
      */
     override fun close() {
         /* No op. */
     }
 
     /**
-     * An [IndexTx] that affects this [NonUniqueHashIndex].
+     * An [IndexTx] that affects this [BTreeIndex].
      */
     private inner class Tx(context: TransactionContext) : AbstractIndex.Tx(context) {
 
         /** The internal [XodusBinding] reference used for de-/serialization. */
         private val binding: XodusBinding<*> = ValueSerializerFactory.xodus(this.columns[0].type, this.columns[0].nullable)
 
-        /** [NonUniqueHashIndex] does not have an [IndexConfig]*/
-        override val config: IndexConfig
-            get() = this@NonUniqueHashIndex.config
+        /** The Xodus [Store] used to store entries in the [BTreeIndex]. */
+        private var dataStore: Store = this@BTreeIndex.catalogue.environment.openStore(this@BTreeIndex.name.storeName(), StoreConfig.WITH_DUPLICATES_WITH_PREFIXING, this.context.xodusTx, false)
+            ?: throw DatabaseException.DataCorruptionException("Data store for index ${this@BTreeIndex.name} is missing.")
+
+        /** The dummy [BTreeIndexConfig]. */
+        override val config: IndexConfig<BTreeIndex>
+            get() = this@BTreeIndex.config
 
         /**
          * Adds a mapping from the given [Value] to the given [TupleId].
@@ -153,7 +187,23 @@ class NonUniqueHashIndex(name: Name.IndexName, parent: DefaultEntity) : Abstract
         }
 
         /**
-         * (Re-)builds the [NonUniqueHashIndex].
+         * Calculates the cost estimate of this [BTreeIndex.Tx] processing the provided [Predicate].
+         *
+         * @param predicate [Predicate] to check.
+         * @return Cost estimate for the [Predicate]
+         */
+        override fun cost(predicate: Predicate): Cost {
+            if (predicate !is BooleanPredicate.Atomic || predicate.columns.first() != this.columns[0] || predicate.not) return Cost.INVALID
+            return when (val operator = predicate.operator) {
+                is ComparisonOperator.Binary.Equal -> Cost.DISK_ACCESS_READ + Cost.MEMORY_ACCESS + Cost(memory = predicate.columns.sumOf { it.type.physicalSize }.toFloat())
+                is ComparisonOperator.Binary.Like -> Cost.DISK_ACCESS_READ + Cost.MEMORY_ACCESS + Cost(memory = predicate.columns.sumOf { it.type.physicalSize }.toFloat())
+                is ComparisonOperator.In -> Cost.DISK_ACCESS_READ + Cost.MEMORY_ACCESS + Cost(memory = predicate.columns.sumOf { it.type.physicalSize }.toFloat()) * operator.right.size
+                else -> Cost.INVALID
+            }
+        }
+
+        /**
+         * (Re-)builds the [BTreeIndex].
          */
         override fun rebuild() = this.txLatch.withLock {
             /* Obtain Tx for parent [Entity. */
@@ -164,14 +214,14 @@ class NonUniqueHashIndex(name: Name.IndexName, parent: DefaultEntity) : Abstract
             entityTx.cursor(this.dbo.columns).forEach { record ->
                 val value = record[this.dbo.columns[0]] ?: throw TxException.TxValidationException(
                     this.context.txId,
-                    "A value cannot be null for instances of NonUniqueHashIndex ${this@NonUniqueHashIndex.name} but given value is (value = null, tupleId = ${record.tupleId})."
+                    "A value cannot be null for instances of NonUniqueHashIndex ${this@BTreeIndex.name} but given value is (value = null, tupleId = ${record.tupleId})."
                 )
                 this.addMapping(value, record.tupleId)
             }
         }
 
         /**
-         * Updates the [NonUniqueHashIndex] with the provided [Operation.DataManagementOperation.InsertOperation].
+         * Updates the [BTreeIndex] with the provided [Operation.DataManagementOperation.InsertOperation].
          *
          * @param operation [Operation.DataManagementOperation.InsertOperation] to apply.
          */
@@ -183,7 +233,7 @@ class NonUniqueHashIndex(name: Name.IndexName, parent: DefaultEntity) : Abstract
         }
 
         /**
-         * Updates the [NonUniqueHashIndex] with the provided [Operation.DataManagementOperation.UpdateOperation].
+         * Updates the [BTreeIndex] with the provided [Operation.DataManagementOperation.UpdateOperation].
          *
          * @param operation [Operation.DataManagementOperation.UpdateOperation] to apply.
          */
@@ -199,7 +249,7 @@ class NonUniqueHashIndex(name: Name.IndexName, parent: DefaultEntity) : Abstract
         }
 
         /**
-         * Updates the [NonUniqueHashIndex] with the provided [Operation.DataManagementOperation.DeleteOperation].
+         * Updates the [BTreeIndex] with the provided [Operation.DataManagementOperation.DeleteOperation].
          *
          * @param operation [Operation.DataManagementOperation.DeleteOperation] to apply.
          */
@@ -211,20 +261,26 @@ class NonUniqueHashIndex(name: Name.IndexName, parent: DefaultEntity) : Abstract
         }
 
         /**
-         * Clears the [NonUniqueHashIndex] underlying this [Tx] and removes all entries it contains.
+         * Returns the number of entries in this [UQBTreeIndex].
+         *
+         * @return Number of entries in this [UQBTreeIndex]
          */
-        override fun clear() = this.txLatch.withLock {
-            this@NonUniqueHashIndex.parent.parent.parent.environment.truncateStore(this@NonUniqueHashIndex.name.storeName(), this.context.xodusTx)
-            this.dataStore = this@NonUniqueHashIndex.parent.parent.parent.environment.openStore(
-                this@NonUniqueHashIndex.name.storeName(),
-                StoreConfig.WITH_DUPLICATES_WITH_PREFIXING,
-                this.context.xodusTx,
-                false
-            ) ?: throw DatabaseException.DataCorruptionException("Data store for column ${this@NonUniqueHashIndex.name} is missing.")
+        override fun count(): Long  = this.txLatch.withLock {
+            this.dataStore.count(this.context.xodusTx)
         }
 
         /**
-         * Performs a lookup through this [NonUniqueHashIndex.Tx] and returns a [Iterator] of all [Record]s that match the [Predicate].
+         * Clears the [BTreeIndex] underlying this [Tx] and removes all entries it contains.
+         */
+        override fun clear() = this.txLatch.withLock {
+            this@BTreeIndex.parent.parent.parent.environment.truncateStore(this@BTreeIndex.name.storeName(), this.context.xodusTx)
+            this.dataStore = this@BTreeIndex.parent.parent.parent.environment.openStore(
+                this@BTreeIndex.name.storeName(), StoreConfig.WITH_DUPLICATES_WITH_PREFIXING, this.context.xodusTx, false
+            ) ?: throw DatabaseException.DataCorruptionException("Data store for column ${this@BTreeIndex.name} is missing.")
+        }
+
+        /**
+         * Performs a lookup through this [BTreeIndex.Tx] and returns a [Iterator] of all [Record]s that match the [Predicate].
          * Only supports [BooleanPredicate.Atomic]s.
          *
          * The [Iterator] is not thread safe!
@@ -266,13 +322,13 @@ class NonUniqueHashIndex(name: Name.IndexName, parent: DefaultEntity) : Abstract
 
             override fun key(): TupleId = LongBinding.compressedEntryToLong(this.cursor.key)
 
-            override fun value(): Record = StandaloneRecord(this.key(), this@NonUniqueHashIndex.produces, arrayOf(this@Tx.binding.entryToValue(this.cursor.value)))
+            override fun value(): Record = StandaloneRecord(this.key(), this@BTreeIndex.columns, arrayOf(this@Tx.binding.entryToValue(this.cursor.value)))
 
             override fun close() = this.cursor.close()
         }
 
         /**
-         * The [NonUniqueHashIndex] does not support ranged filtering!
+         * The [BTreeIndex] does not support ranged filtering!
          *
          * @param predicate The [Predicate] for the lookup.
          * @param partitionIndex The [partitionIndex] for this [filterRange] call.

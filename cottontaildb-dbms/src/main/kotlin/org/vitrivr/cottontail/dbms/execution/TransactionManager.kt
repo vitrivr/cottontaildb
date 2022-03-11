@@ -88,7 +88,6 @@ class TransactionManager(transactionTableSize: Int, private val environment: Env
         /** A [Mutex] data structure used for synchronisation on the [TransactionImpl]. */
         private val mutex = Mutex()
 
-
         /** Number of [Tx] held by this [TransactionImpl]. */
         val numberOfTxs: Int
             get() = this.txns.size
@@ -137,7 +136,9 @@ class TransactionManager(transactionTableSize: Int, private val environment: Env
          * @param dbo [DBO] to return the [Tx] for.
          * @return entity [Tx]
          */
-        override fun getTx(dbo: DBO): Tx = this.txns.computeIfAbsent(dbo) { dbo.newTx(this) }
+        override fun getTx(dbo: DBO): Tx = this.txns.computeIfAbsent(dbo) {
+            dbo.newTx(this)
+        }
 
         /**
          * Tries to acquire a [Lock] on a [DBO] for the given [LockMode]. This call is delegated to the

@@ -10,6 +10,7 @@ import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.dbms.column.Column
 import org.vitrivr.cottontail.dbms.general.Tx
 import org.vitrivr.cottontail.dbms.index.Index
+import org.vitrivr.cottontail.dbms.index.IndexConfig
 import org.vitrivr.cottontail.dbms.index.IndexTx
 import org.vitrivr.cottontail.dbms.index.IndexType
 
@@ -87,10 +88,10 @@ interface EntityTx : Tx, Scanable, Countable, Modifiable {
      * @param name [Name.IndexName] of the [Index] to create.
      * @param type Type of the [Index] to create.
      * @param columns The list of [Name.ColumnName] to create [Index] for.
-     * @param params Additional parameters for index creation.
+     * @param configuration The [IndexConfig] to initialize the [Index] with.
      * @return Newly created [Index] for use in context of this [Tx]
      */
-    fun createIndex(name: Name.IndexName, type: IndexType, columns: List<Name.ColumnName>, params: Map<String, String>): Index
+    fun createIndex(name: Name.IndexName, type: IndexType, columns: List<Name.ColumnName>, configuration: IndexConfig<*>): Index
 
     /**
      * Drops the [Index] with the given name.

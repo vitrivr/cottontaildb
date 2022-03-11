@@ -2,7 +2,6 @@ package org.vitrivr.cottontail.dbms.index
 
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.execution.TransactionContext
@@ -32,9 +31,6 @@ interface Index : DBO {
     /** The [ColumnDef] that are covered (i.e. indexed) by this [Index]. */
     val columns: Array<ColumnDef<*>>
 
-    /** The [ColumnDef] that are produced by this [Index]. They often differ from the indexed columns. */
-    val produces: Array<ColumnDef<*>>
-
     /** The order in which results of this [Index] appear. Empty array that there is no particular order. */
     val order: Array<Pair<ColumnDef<*>, SortOrder>>
 
@@ -44,17 +40,14 @@ interface Index : DBO {
     /** True, if the [Index] supports querying filtering an indexable range of the data. */
     val supportsPartitioning: Boolean
 
-    /** The type of [Index]. */
-    val type: IndexType
+    /** The [IndexConfig] used for the [Index]. */
+    val config: IndexConfig<*>
 
     /** Flag indicating, if this [Index] reflects all changes done to the [Entity] it belongs to. */
     val state: IndexState
 
-    /** The configuration map used for the [Index]. */
-    val config: IndexConfig
-
-    /** Number of entries in this [Index]. */
-    val count: Long
+    /** The [IndexType] of this [Index]. */
+    val type: IndexType
 
     /**
      * Checks if this [Index] can process the provided [Predicate] and returns true if so and false otherwise.
@@ -65,12 +58,12 @@ interface Index : DBO {
     fun canProcess(predicate: Predicate): Boolean
 
     /**
-     * Calculates the cost estimate if this [Index] processing the provided [Predicate].
+     * Generates and returns a list of [ColumnDef] produced by this [Index] for the given [Predicate].
      *
      * @param predicate [Predicate] to check.
-     * @return Cost estimate for the [Predicate]
+     * @return [List] of [ColumnDef] produced.
      */
-    fun cost(predicate: Predicate): Cost
+    fun produces(predicate: Predicate): List<ColumnDef<*>>
 
     /**
      * Opens and returns a new [IndexTx] object that can be used to interact with this [Index].

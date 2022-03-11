@@ -30,6 +30,7 @@ import org.vitrivr.cottontail.dbms.statistics.selectivity.NaiveSelectivityCalcul
  * @author Ralph Gasser
  * @version 2.5.0
  */
+@Suppress("UNCHECKED_CAST")
 class IndexScanPhysicalOperatorNode(override val groupId: Int,
                                     val index: IndexTx,
                                     val predicate: Predicate,
@@ -45,16 +46,10 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int,
         get() = NODE_NAME
 
     /** The [ColumnDef]s accessed by this [IndexScanPhysicalOperatorNode] depends on the [ColumnDef]s produced by the [Index]. */
-    override val physicalColumns: List<ColumnDef<*>> = this.fetch.map {
-        require(this.index.dbo.produces.contains(it.second)) { "The given column $it is not produced by the selected index ${this.index.dbo}. This is a programmer's error!"}
-        it.second
-    }
+    override val physicalColumns: List<ColumnDef<*>>
 
     /** The [ColumnDef]s produced by this [IndexScanPhysicalOperatorNode] depends on the [ColumnDef]s produced by the [Index]. */
-    override val columns: List<ColumnDef<*>> = this.fetch.map {
-        require(this.index.dbo.produces.contains(it.second)) { "The given column $it is not produced by the selected index ${this.index.dbo}. This is a programmer's error!"}
-        it.first.column
-    }
+    override val columns: List<ColumnDef<*>>
 
     /** [IndexScanPhysicalOperatorNode] are always executable. */
     override val executable: Boolean = true
@@ -66,7 +61,7 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int,
     override val statistics = Object2ObjectLinkedOpenHashMap<ColumnDef<*>, ValueStatistics<*>>()
 
     /** Cost estimation for [IndexScanPhysicalOperatorNode]s is delegated to the [Index]. */
-    override val cost: Cost = this.index.dbo.cost(this.predicate)
+    override val cost: Cost = this.index.cost(this.predicate)
 
     /** The estimated output size of this [IndexScanPhysicalOperatorNode]. */
     override val outputSize: Long = when (this.predicate) {
@@ -77,11 +72,26 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int,
 
     init {
         val entityTx = this.index.context.getTx(this.index.dbo.parent) as EntityTx
+        val columns = mutableListOf<ColumnDef<*>>()
+        val physicalColumns = mutableListOf<ColumnDef<*>>()
+        val indexProduces = this.index.dbo.produces(this.predicate)
+        val entityProduces = entityTx.listColumns()
         for ((binding, physical) in this.fetch) {
-            if (!this.statistics.containsKey(binding.column)) {
+            require(indexProduces.contains(physical)) { "The given column $physical is not produced by the selected index ${this.index.dbo}. This is a programmer's error!"}
+
+            /* Populate list of columns. */
+            columns.add(binding.column)
+            physicalColumns.add(physical)
+
+            /* Populate statistics. */
+            if (!this.statistics.containsKey(binding.column) && entityProduces.contains(physical)) {
                 this.statistics[binding.column] = (this.index.context.getTx(entityTx.columnForName(physical.name)) as ColumnTx<*>).statistics() as ValueStatistics<Value>
             }
         }
+
+        /* Initialize local fields. */
+        this.columns = columns
+        this.physicalColumns = physicalColumns
     }
 
     /**
@@ -127,7 +137,7 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int,
     override fun toOperator(ctx: QueryContext): Operator = IndexScanOperator(this.groupId, this.index, this.predicate, this.fetch, this.partitionIndex, this.partitions)
 
     /** Generates and returns a [String] representation of this [EntityScanPhysicalOperatorNode]. */
-    override fun toString() = "${super.toString()}[${this.index.type},${this.predicate}]"
+    override fun toString() = "${super.toString()}[${this.index.dbo.type},${this.predicate}]"
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

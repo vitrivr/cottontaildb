@@ -6,11 +6,9 @@ package org.vitrivr.cottontail.dbms.index
  * @author Ralph Gasser
  * @version 1.0.0
  */
-interface IndexConfig {
+interface IndexConfig<T: Index> : Comparable<IndexConfig<T>> {
     /**
-     * Converts this [NoIndexConfig] to a [Map] representation.
-     *
-     * @return [Map] representation of this [NoIndexConfig].
+     * Meaningless comparison but required by Xodus.
      */
-    fun toMap(): Map<String, String>
+    override fun compareTo(other: IndexConfig<T>): Int = this.hashCode().compareTo(other.hashCode())
 }

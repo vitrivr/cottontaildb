@@ -2,26 +2,26 @@ package org.vitrivr.cottontail.dbms.index.hash
 
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.RepeatedTest
-import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
+import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
+import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.values.LongValue
+import org.vitrivr.cottontail.core.values.StringValue
+import org.vitrivr.cottontail.core.values.types.Types
+import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.entity.EntityTx
+import org.vitrivr.cottontail.dbms.execution.TransactionType
 import org.vitrivr.cottontail.dbms.index.AbstractIndexTest
 import org.vitrivr.cottontail.dbms.index.IndexTx
 import org.vitrivr.cottontail.dbms.index.IndexType
 import org.vitrivr.cottontail.dbms.queries.binding.DefaultBindingContext
-import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
-import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
-import org.vitrivr.cottontail.dbms.execution.TransactionType
-import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
-import org.vitrivr.cottontail.core.values.LongValue
-import org.vitrivr.cottontail.core.values.StringValue
 import java.util.*
 
 /**
- * This is a collection of test cases to test the correct behaviour of [UniqueHashIndex] with a [StringValue].
+ * This is a collection of test cases to test the correct behaviour of [UQBTreeIndex] with a [StringValue].
  *
  * @author Ralph Gasser
  * @version 1.2.2
@@ -41,7 +41,7 @@ class NonUniqueStringHashIndexTest : AbstractIndexTest() {
         get() = this.entityName.index("non_unique_string")
 
     override val indexType: IndexType
-        get() = IndexType.HASH
+        get() = IndexType.BTREE
 
     /** List of values stored in this [UniqueHashIndexTest]. */
     private var list = HashMap<StringValue, MutableList<LongValue>>(100)

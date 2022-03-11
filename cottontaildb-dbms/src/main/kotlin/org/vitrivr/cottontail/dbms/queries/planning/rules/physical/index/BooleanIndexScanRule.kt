@@ -8,6 +8,7 @@ import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.dbms.index.IndexState
 import org.vitrivr.cottontail.dbms.index.IndexTx
 import org.vitrivr.cottontail.dbms.queries.QueryContext
+import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.predicates.FilterLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.sources.EntityScanLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.predicates.FilterPhysicalOperatorNode
@@ -24,10 +25,10 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
  * @version 1.3.0
  */
 object BooleanIndexScanRule : RewriteRule {
-    override fun canBeApplied(node: org.vitrivr.cottontail.dbms.queries.operators.OperatorNode): Boolean =
+    override fun canBeApplied(node: OperatorNode): Boolean =
         node is FilterPhysicalOperatorNode && node.input is EntityScanPhysicalOperatorNode
 
-    override fun apply(node: org.vitrivr.cottontail.dbms.queries.operators.OperatorNode, ctx: QueryContext): org.vitrivr.cottontail.dbms.queries.operators.OperatorNode? {
+    override fun apply(node: OperatorNode, ctx: QueryContext): OperatorNode? {
         if (node is FilterPhysicalOperatorNode) {
             val parent = node.input
             if (parent is EntityScanPhysicalOperatorNode) {
@@ -40,8 +41,8 @@ object BooleanIndexScanRule : RewriteRule {
                     it.state != IndexState.DIRTY && it.canProcess(normalizedPredicate)
                 }
                 if (candidate != null) {
-                    val newFetch = parent.fetch.filter { candidate.produces.contains(it.second) }
-                    val delta = parent.fetch.filter { !candidate.produces.contains(it.second) }
+                    val newFetch = parent.fetch.filter { candidate.produces(normalizedPredicate).contains(it.second) }
+                    val delta = parent.fetch.filter { !candidate.produces(normalizedPredicate).contains(it.second) }
                     var p: org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Physical = IndexScanPhysicalOperatorNode(node.groupId, ctx.txn.getTx(candidate) as IndexTx, node.predicate, newFetch)
                     if (delta.isNotEmpty()) {
                         p = FetchPhysicalOperatorNode(p, parent.entity, delta)

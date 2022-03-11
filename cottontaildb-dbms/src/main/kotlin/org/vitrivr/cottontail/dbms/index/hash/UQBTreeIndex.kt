@@ -1,7 +1,9 @@
 package org.vitrivr.cottontail.dbms.index.hash
 
+import jetbrains.exodus.bindings.ComparableBinding
 import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.bindings.StringBinding
+import jetbrains.exodus.env.Store
 import jetbrains.exodus.env.StoreConfig
 import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.basics.Record
@@ -21,6 +23,7 @@ import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.exceptions.TxException
 import org.vitrivr.cottontail.dbms.execution.TransactionContext
 import org.vitrivr.cottontail.dbms.index.*
+import org.vitrivr.cottontail.dbms.index.lucene.LuceneIndex
 import org.vitrivr.cottontail.dbms.operations.Operation
 import org.vitrivr.cottontail.storage.serializers.ValueSerializerFactory
 import org.vitrivr.cottontail.storage.serializers.xodus.XodusBinding
@@ -34,25 +37,55 @@ import kotlin.concurrent.withLock
  * @author Ralph Gasser
  * @version 3.0.0
  */
-class UniqueHashIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name, parent) {
+class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name, parent) {
+
+    companion object: IndexDescriptor<UQBTreeIndex> {
+        /**
+         * Opens a [UQBTreeIndex] for the given [Name.IndexName] in the given [DefaultEntity].
+         *
+         * @param name The [Name.IndexName] of the [UQBTreeIndex].
+         * @param entity The [DefaultEntity] that holds the [UQBTreeIndex].
+         * @return The opened [LuceneIndex]
+         */
+        override fun open(name: Name.IndexName, entity: DefaultEntity): UQBTreeIndex = UQBTreeIndex(name, entity)
+
+        /**
+         * Tries to initialize the [Store] for a [UQBTreeIndex].
+         *
+         * @param name The [Name.IndexName] of the [UQBTreeIndex].
+         * @param entity The [DefaultEntity] that holds the [UQBTreeIndex].
+         * @return True on success, false otherwise.
+         */
+        override fun initialize(name: Name.IndexName, entity: DefaultEntity.Tx): Boolean {
+            val store = entity.dbo.catalogue.environment.openStore(name.storeName(), StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, entity.context.xodusTx, true)
+            return store != null
+        }
+
+        /**
+         * Generates and returns an empty [IndexConfig].
+         */
+        override fun buildConfig(parameters: Map<String, String>): IndexConfig<UQBTreeIndex> = object : IndexConfig<UQBTreeIndex>{}
+
+        /**
+         * Returns the [UQBTreeIndexConfig]
+         */
+        override fun configBinding(): ComparableBinding = UQBTreeIndexConfig
+    }
 
     /** The type of [AbstractIndex] */
     override val type: IndexType = IndexType.BTREE_UQ
 
-    /** The [UniqueHashIndex] implementation returns exactly the columns that is indexed. */
-    override val produces: Array<ColumnDef<*>> = this.columns
-
-    /** True since [UniqueHashIndex] supports incremental updates. */
+    /** True since [UQBTreeIndex] supports incremental updates. */
     override val supportsIncrementalUpdate: Boolean = true
 
-    /** False, since [UniqueHashIndex] does not support partitioning. */
+    /** False, since [UQBTreeIndex] does not support partitioning. */
     override val supportsPartitioning: Boolean = false
 
-    /** [UniqueHashIndex] does not have an [IndexConfig]*/
-    override val config: IndexConfig = NoIndexConfig
+    /** The (dummy) [UQBTreeIndexConfig]. */
+    override val config: IndexConfig<UQBTreeIndex> = UQBTreeIndexConfig
 
     /**
-     * Checks if the provided [Predicate] can be processed by this instance of [UniqueHashIndex]. [UniqueHashIndex] can be used to process IN and EQUALS
+     * Checks if the provided [Predicate] can be processed by this instance of [UQBTreeIndex]. [UQBTreeIndex] can be used to process IN and EQUALS
      * comparison operations on the specified column
      *
      * @param predicate The [Predicate] to check.
@@ -64,18 +97,13 @@ class UniqueHashIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractInd
             && (predicate.operator is ComparisonOperator.In || predicate.operator is ComparisonOperator.Binary.Equal)
 
     /**
-     * Calculates the cost estimate of this [UniqueHashIndex] processing the provided [Predicate].
+     * Returns a [List] of the [ColumnDef] produced by this [UQBTreeIndex].
      *
-     * @param predicate [Predicate] to check.
-     * @return Cost estimate for the [Predicate]
+     * @return [List] of [ColumnDef].
      */
-    override fun cost(predicate: Predicate): Cost {
-        if (predicate !is BooleanPredicate.Atomic || predicate.columns.first() != this.columns[0] || predicate.not) return Cost.INVALID
-        return when (val operator = predicate.operator) {
-            is ComparisonOperator.Binary.Equal -> Cost.DISK_ACCESS_READ + Cost.MEMORY_ACCESS + Cost(memory = predicate.columns.sumOf { it.type.physicalSize }.toFloat())
-            is ComparisonOperator.In -> (Cost.DISK_ACCESS_READ + Cost.MEMORY_ACCESS) * operator.right.size + Cost(memory = predicate.columns.sumOf { it.type.physicalSize }.toFloat())
-            else -> Cost.INVALID
-        }
+    override fun produces(predicate: Predicate): List<ColumnDef<*>> {
+        require(predicate is BooleanPredicate) { "Unique BTree index can only process boolean predicates." }
+        return this.columns.toList()
     }
 
     /**
@@ -86,23 +114,27 @@ class UniqueHashIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractInd
     override fun newTx(context: TransactionContext): IndexTx = Tx(context)
 
     /**
-     * Closes this [UniqueHashIndex]
+     * Closes this [UQBTreeIndex]
      */
     override fun close() {
         /* No op. */
     }
 
     /**
-     * An [IndexTx] that affects this [UniqueHashIndex].
+     * An [IndexTx] that affects this [UQBTreeIndex].
      */
     private inner class Tx(context: TransactionContext) : AbstractIndex.Tx(context) {
 
         /** The internal [XodusBinding] reference used for de-/serialization. */
         private val binding: XodusBinding<*> = ValueSerializerFactory.xodus(this.columns[0].type, this.columns[0].nullable)
 
-        /** [UniqueHashIndex] does not have an [IndexConfig]*/
-        override val config: IndexConfig
-            get() = this@UniqueHashIndex.config
+        /** The Xodus [Store] used to store entries in the [BTreeIndex]. */
+        private var dataStore: Store = this@UQBTreeIndex.catalogue.environment.openStore(this@UQBTreeIndex.name.storeName(), StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, this.context.xodusTx, false)
+            ?: throw DatabaseException.DataCorruptionException("Data store for index ${this@UQBTreeIndex.name} is missing.")
+
+        /** The dummy [UQBTreeIndexConfig]. */
+        override val config: IndexConfig<UQBTreeIndex>
+            get() = this@UQBTreeIndex.config
 
         /**
          * Adds a mapping from the given [Value] to the given [TupleId].
@@ -137,7 +169,22 @@ class UniqueHashIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractInd
         }
 
         /**
-         * (Re-)builds the [UniqueHashIndex].
+         * Calculates the cost estimate of this [UQBTreeIndex.Tx] processing the provided [Predicate].
+         *
+         * @param predicate [Predicate] to check.
+         * @return Cost estimate for the [Predicate]
+         */
+        override fun cost(predicate: Predicate): Cost {
+            if (predicate !is BooleanPredicate.Atomic || predicate.columns.first() != this.columns[0] || predicate.not) return Cost.INVALID
+            return when (val operator = predicate.operator) {
+                is ComparisonOperator.Binary.Equal -> Cost.DISK_ACCESS_READ + Cost.MEMORY_ACCESS + Cost(memory = predicate.columns.sumOf { it.type.physicalSize }.toFloat())
+                is ComparisonOperator.In -> (Cost.DISK_ACCESS_READ + Cost.MEMORY_ACCESS) * operator.right.size + Cost(memory = predicate.columns.sumOf { it.type.physicalSize }.toFloat())
+                else -> Cost.INVALID
+            }
+        }
+
+        /**
+         * (Re-)builds the [UQBTreeIndex].
          */
         override fun rebuild() = this.txLatch.withLock {
             /* Obtain Tx for parent [Entity. */
@@ -145,16 +192,16 @@ class UniqueHashIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractInd
 
             /* Truncate, reopen and repopulate store. */
             this.clear()
-            entityTx.cursor(this@UniqueHashIndex.columns).forEach { record ->
-                val value = record[this.dbo.columns[0]] ?: throw TxException.TxValidationException(this.context.txId, "Value cannot be null for UniqueHashIndex ${this@UniqueHashIndex.name} given value is (value = null, tupleId = ${record.tupleId}).")
+            entityTx.cursor(this@UQBTreeIndex.columns).forEach { record ->
+                val value = record[this.dbo.columns[0]] ?: throw TxException.TxValidationException(this.context.txId, "Value cannot be null for UniqueHashIndex ${this@UQBTreeIndex.name} given value is (value = null, tupleId = ${record.tupleId}).")
                 if (!this.addMapping(value, record.tupleId)) {
-                    throw TxException.TxValidationException(this.context.txId, "Value must be unique for UniqueHashIndex ${this@UniqueHashIndex.name} but is not (value = $value, tupleId = ${record.tupleId}).")
+                    throw TxException.TxValidationException(this.context.txId, "Value must be unique for UniqueHashIndex ${this@UQBTreeIndex.name} but is not (value = $value, tupleId = ${record.tupleId}).")
                 }
             }
         }
 
         /**
-         * Updates the [UniqueHashIndex] with the provided [Operation.DataManagementOperation.InsertOperation]
+         * Updates the [UQBTreeIndex] with the provided [Operation.DataManagementOperation.InsertOperation]
          *
          * @param operation [Operation.DataManagementOperation.InsertOperation]s to process.
          */
@@ -166,7 +213,7 @@ class UniqueHashIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractInd
         }
 
         /**
-         * Updates the [UniqueHashIndex] with the provided [Operation.DataManagementOperation.UpdateOperation]s.
+         * Updates the [UQBTreeIndex] with the provided [Operation.DataManagementOperation.UpdateOperation]s.
          *
          * @param operation [Operation.DataManagementOperation.UpdateOperation]s to process.
          */
@@ -182,7 +229,7 @@ class UniqueHashIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractInd
         }
 
         /**
-         * Updates the [UniqueHashIndex] with the provided [Operation.DataManagementOperation.DeleteOperation]s.
+         * Updates the [UQBTreeIndex] with the provided [Operation.DataManagementOperation.DeleteOperation]s.
          *
          * @param operation [Operation.DataManagementOperation.DeleteOperation]s to apply.
          */
@@ -194,20 +241,29 @@ class UniqueHashIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractInd
         }
 
         /**
-         * Clears the [UniqueHashIndex] underlying this [Tx] and removes all entries it contains.
+         * Returns the number of entries in this [UQBTreeIndex].
+         *
+         * @return Number of entries in this [UQBTreeIndex]
          */
-        override fun clear() = this.txLatch.withLock {
-            this@UniqueHashIndex.parent.parent.parent.environment.truncateStore(this@UniqueHashIndex.name.storeName(), this.context.xodusTx)
-            this.dataStore = this@UniqueHashIndex.parent.parent.parent.environment.openStore(
-                this@UniqueHashIndex.name.storeName(),
-                StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING,
-                this.context.xodusTx,
-                false
-            ) ?: throw DatabaseException.DataCorruptionException("Data store for column ${this@UniqueHashIndex.name} is missing.")
+        override fun count(): Long  = this.txLatch.withLock {
+            this.dataStore.count(this.context.xodusTx)
         }
 
         /**
-         * Performs a lookup through this [UniqueHashIndex.Tx] and returns a [Cursor] of all [Record]s that match the [Predicate].
+         * Clears the [UQBTreeIndex] underlying this [Tx] and removes all entries it contains.
+         */
+        override fun clear() = this.txLatch.withLock {
+            this@UQBTreeIndex.parent.parent.parent.environment.truncateStore(this@UQBTreeIndex.name.storeName(), this.context.xodusTx)
+            this.dataStore = this@UQBTreeIndex.parent.parent.parent.environment.openStore(
+                this@UQBTreeIndex.name.storeName(),
+                StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING,
+                this.context.xodusTx,
+                false
+            ) ?: throw DatabaseException.DataCorruptionException("Data store for column ${this@UQBTreeIndex.name} is missing.")
+        }
+
+        /**
+         * Performs a lookup through this [UQBTreeIndex.Tx] and returns a [Cursor] of all [Record]s that match the [Predicate].
          * Only supports [BooleanPredicate.Atomic]s.
          *
          * The [Cursor] is not thread safe!
@@ -253,13 +309,13 @@ class UniqueHashIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractInd
 
             override fun key(): TupleId = LongBinding.compressedEntryToLong(this.cursor.key)
 
-            override fun value(): Record = StandaloneRecord(this.key(), this@UniqueHashIndex.produces, arrayOf(this@Tx.binding.entryToValue(this.cursor.value)))
+            override fun value(): Record = StandaloneRecord(this.key(), this@UQBTreeIndex.columns, arrayOf(this@Tx.binding.entryToValue(this.cursor.value)))
 
             override fun close() = this.cursor.close()
         }
 
         /**
-         * The [UniqueHashIndex] does not support ranged filtering!
+         * The [UQBTreeIndex] does not support ranged filtering!
          *
          * @param predicate The [Predicate] for the lookup.
          * @param partitionIndex The [partitionIndex] for this [filterRange] call.

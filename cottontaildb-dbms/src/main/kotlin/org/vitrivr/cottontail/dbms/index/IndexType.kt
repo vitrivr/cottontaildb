@@ -1,13 +1,9 @@
 package org.vitrivr.cottontail.dbms.index
 
-import jetbrains.exodus.env.StoreConfig
-import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.values.types.VectorValue
-import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.index.gg.GGIndex
-import org.vitrivr.cottontail.dbms.index.hash.NonUniqueHashIndex
-import org.vitrivr.cottontail.dbms.index.hash.UniqueHashIndex
-import org.vitrivr.cottontail.dbms.index.lsh.superbit.SuperBitLSHIndex
+import org.vitrivr.cottontail.dbms.index.hash.BTreeIndex
+import org.vitrivr.cottontail.dbms.index.hash.UQBTreeIndex
+import org.vitrivr.cottontail.dbms.index.lsh.LSHIndex
 import org.vitrivr.cottontail.dbms.index.lucene.LuceneIndex
 import org.vitrivr.cottontail.dbms.index.pq.PQIndex
 import org.vitrivr.cottontail.dbms.index.va.VAFIndex
@@ -20,39 +16,18 @@ import org.vitrivr.cottontail.dbms.index.va.VAFIndex
  * @author Ralph Gasser
  * @version 3.0.0
  */
-enum class IndexType(val inexact: Boolean, val storeConfig: StoreConfig) {
-    BTREE_UQ(false, StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING), /* A hash based index with unique values. */
+enum class IndexType(val descriptor: IndexDescriptor<*>) {
+    BTREE_UQ(UQBTreeIndex), /* A btree-based index with unique values. */
 
-    BTREE(false, StoreConfig.WITH_DUPLICATES_WITH_PREFIXING), /* A hash based index. */
+    BTREE(BTreeIndex), /* A hash based index. */
 
-    LUCENE(false, StoreConfig.WITHOUT_DUPLICATES), /* A Lucene based index (fulltext search). */
+    LUCENE(LuceneIndex), /* An Apache Lucene based index (fulltext search). */
 
-    VAF(false, StoreConfig.WITHOUT_DUPLICATES), /* A VA file based index (for exact kNN lookup). */
+    VAF(VAFIndex), /* A vector approximation file (VAF) based index (for exact nearest neighbour search). */
 
-    PQ(true, StoreConfig.WITHOUT_DUPLICATES), /* A product quantization based index (for approximate kNN lookup). */
+    PQ(PQIndex), /* A product quantization (PQ) based index (for approximate nearest neighbour search). */
 
-    SH(true, StoreConfig.WITHOUT_DUPLICATES), /* A spectral hashing based index (for approximate kNN lookup). */
+    LSH(LSHIndex), /* A locality sensitive hashing (LSH) based index (for approximate nearest neighbour search). */
 
-    LSH(true, StoreConfig.WITHOUT_DUPLICATES), /* A locality sensitive hashing based index for approximate kNN lookup with Lp distance. */
-
-    LSH_SB(true, StoreConfig.WITHOUT_DUPLICATES), /* A super bit locality sensitive hashing based index for approximate kNN lookup with cosine distance. */
-
-    GG(true, StoreConfig.WITHOUT_DUPLICATES);
-
-    /**
-     * Opens an index of this [IndexType] using the given name and [DefaultEntity].
-     *
-     * @param name [Name.IndexName] of the [AbstractIndex]
-     * @param entity The [DefaultEntity] the desired [AbstractIndex] belongs to.
-     */
-    fun open(name: Name.IndexName, entity: DefaultEntity): AbstractIndex = when (this) {
-        BTREE_UQ -> UniqueHashIndex(name, entity)
-        BTREE -> NonUniqueHashIndex(name, entity)
-        LUCENE -> LuceneIndex(name, entity)
-        LSH_SB -> SuperBitLSHIndex<VectorValue<*>>(name, entity)
-        VAF -> VAFIndex(name, entity)
-        PQ -> PQIndex(name, entity)
-        GG -> GGIndex(name, entity)
-        else -> throw NotImplementedError("Index of type $this is not implemented.")
-    }
+    GG(GGIndex);  /* A greedy grouping (GG) based index (for nearest neighbour search). */
 }

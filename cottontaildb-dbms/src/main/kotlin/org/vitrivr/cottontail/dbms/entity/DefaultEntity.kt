@@ -20,10 +20,7 @@ import org.vitrivr.cottontail.dbms.exceptions.TxException
 import org.vitrivr.cottontail.dbms.execution.TransactionContext
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.general.DBOVersion
-import org.vitrivr.cottontail.dbms.index.Index
-import org.vitrivr.cottontail.dbms.index.IndexState
-import org.vitrivr.cottontail.dbms.index.IndexTx
-import org.vitrivr.cottontail.dbms.index.IndexType
+import org.vitrivr.cottontail.dbms.index.*
 import org.vitrivr.cottontail.dbms.operations.Operation
 import org.vitrivr.cottontail.dbms.schema.DefaultSchema
 import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
@@ -135,7 +132,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
             this.indexes = entityEntry.indexes.associateWith {
                 val indexEntry = IndexCatalogueEntry.read(it, this@DefaultEntity.catalogue, this.context.xodusTx)
                     ?: throw DatabaseException.DataCorruptionException("Catalogue entry for index $it is missing.")
-                this.context.getTx(indexEntry.type.open(it, this.dbo)) as IndexTx
+                this.context.getTx(indexEntry.type.descriptor.open(it, this.dbo)) as IndexTx
             }
         }
 
@@ -234,8 +231,10 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
          * @param name [Name.IndexName] of the [Index] to create.
          * @param type Type of the [Index] to create.
          * @param columns The list of [columns] to [Index].
+         * @param configuration The [IndexConfig] to initialize the [Index] with.
+         * @return Newly created [Index] for use in context of this [Tx]
          */
-        override fun createIndex(name: Name.IndexName, type: IndexType, columns: List<Name.ColumnName>, params: Map<String, String>): Index = this.txLatch.withLock {
+        override fun createIndex(name: Name.IndexName, type: IndexType, columns: List<Name.ColumnName>, configuration: IndexConfig<*>): Index = this.txLatch.withLock {
             val entity = EntityCatalogueEntry.read(this@DefaultEntity.name, this@DefaultEntity.catalogue, this.context.xodusTx) ?:  throw DatabaseException.DataCorruptionException("CREATE index $name failed: Failed to read catalogue entry for entity.")
 
             /* Checks if index exists. */
@@ -244,21 +243,19 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
             }
 
             /* Create index catalogue entry. */
-            val indexEntry = IndexCatalogueEntry(name, type, IndexState.DIRTY, columns, params)
+            val indexEntry = IndexCatalogueEntry(name, type, IndexState.DIRTY, columns, configuration)
             if (!IndexCatalogueEntry.write(indexEntry, this@DefaultEntity.catalogue, this.context.xodusTx)) {
                 throw DatabaseException.DataCorruptionException("CREATE index $name failed: Failed to create catalogue entry.")
             }
 
-            /* Create index store entry. */
-            if (this@DefaultEntity.catalogue.environment.openStore(name.storeName(), indexEntry.type.storeConfig, this.context.xodusTx, true) == null) {
-                throw DatabaseException.DataCorruptionException("CREATE index $name failed: Failed to create store.")
-            }
+            /* Initialize index store entry. */
+            if (!type.descriptor.initialize(name, this)) throw DatabaseException.DataCorruptionException("CREATE index $name failed: Failed to create store.")
 
             /* Update entity catalogue entry. */
             EntityCatalogueEntry.write(entity.copy(indexes = (entity.indexes + name)), this@DefaultEntity.catalogue, this.context.xodusTx)
 
-            /* Open index. */
-            return type.open(name, this@DefaultEntity)
+            /* Try to open index. */
+            return type.descriptor.open(name, this@DefaultEntity)
         }
 
         /**

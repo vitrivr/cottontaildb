@@ -12,6 +12,7 @@ import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.index.Index
+import org.vitrivr.cottontail.dbms.index.IndexConfig
 import org.vitrivr.cottontail.dbms.index.IndexState
 import org.vitrivr.cottontail.dbms.index.IndexType
 import java.io.ByteArrayInputStream
@@ -22,7 +23,7 @@ import java.io.ByteArrayInputStream
  * @author Ralph Gasser
  * @version 1.0.0
  */
-data class IndexCatalogueEntry(val name: Name.IndexName, val type: IndexType, val state: IndexState, val columns: List<Name.ColumnName>, val config: Map<String,String>) {
+data class IndexCatalogueEntry(val name: Name.IndexName, val type: IndexType, val state: IndexState, val columns: List<Name.ColumnName>, val config: IndexConfig<*>) {
 
     /**
      * Creates a [Serialized] version of this [IndexCatalogueEntry].
@@ -34,7 +35,7 @@ data class IndexCatalogueEntry(val name: Name.IndexName, val type: IndexType, va
     /**
      * The [Serialized] version of the [IndexCatalogueEntry]. That entry does not include the [Name] objects.
      */
-    private data class Serialized(val type: IndexType, val state: IndexState, val columns: List<String>, val config: Map<String, String>): Comparable<Serialized> {
+    private data class Serialized(val type: IndexType, val state: IndexState, val columns: List<String>, val config: IndexConfig<*>): Comparable<Serialized> {
 
         /**
          * Converts this [Serialized] to an actual [IndexCatalogueEntry].
@@ -55,10 +56,8 @@ data class IndexCatalogueEntry(val name: Name.IndexName, val type: IndexType, va
                 val columns = (0 until IntegerBinding.readCompressed(stream)).map {
                     StringBinding.BINDING.readObject(stream)
                 }
-                val entries = (0 until IntegerBinding.readCompressed(stream)).associate {
-                    StringBinding.BINDING.readObject(stream) to StringBinding.BINDING.readObject(stream)
-                }
-                return Serialized(type, state, columns, entries)
+                val config = type.descriptor.configBinding().readObject(stream) as IndexConfig<*>
+                return Serialized(type, state, columns, config)
             }
 
             /**
@@ -75,12 +74,8 @@ data class IndexCatalogueEntry(val name: Name.IndexName, val type: IndexType, va
                     StringBinding.BINDING.writeObject(output, columnName)
                 }
 
-                /* Write all indexes. */
-                IntegerBinding.writeCompressed(output,`object`.config.size)
-                for (entry in `object`.config) {
-                    StringBinding.BINDING.writeObject(output, entry.key)
-                    StringBinding.BINDING.writeObject(output, entry.value)
-                }
+                /* Write index configuration. */
+                `object`.type.descriptor.configBinding().writeObject(output, `object`.config)
             }
         }
         override fun compareTo(other: Serialized): Int = this.type.ordinal.compareTo(other.type.ordinal)

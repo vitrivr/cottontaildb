@@ -34,10 +34,8 @@ class PQ(name: String, val type: Types<*>, val codebooks: List<PQCodebook<Vector
     val dimensionsPerSubspace
         get() = this.type.logicalSize / this.codebooks.size
 
-    /**
-     *
-     */
-    companion object: ComparableBinding() {
+
+    companion object {
         /** [Logger] instance used for logging.. */
         private val LOGGER: Logger = LoggerFactory.getLogger(PQ::class.java)
 
@@ -92,12 +90,17 @@ class PQ(name: String, val type: Types<*>, val codebooks: List<PQCodebook<Vector
             LOGGER.debug("PQ initialization done.")
             return PQ(index.name.toString() + "_pq", index.columns[0].type, codebooks)
         }
+    }
 
-        override fun readObject(stream: ByteArrayInputStream): Comparable<Nothing> {
+    /**
+     *
+     */
+    object Binding: ComparableBinding() {
+        override fun readObject(stream: ByteArrayInputStream): PQ {
             TODO("Not yet implemented")
         }
 
-        override fun writeObject(output: LightOutputStream, `object`: Comparable<Nothing>) {
+        override fun writeObject(output: LightOutputStream, `object`: Comparable<PQ>) {
             TODO("Not yet implemented")
         }
     }

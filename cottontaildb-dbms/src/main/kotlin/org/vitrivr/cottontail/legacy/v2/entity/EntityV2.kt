@@ -22,6 +22,7 @@ import org.vitrivr.cottontail.dbms.execution.TransactionContext
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.general.DBOVersion
 import org.vitrivr.cottontail.dbms.index.Index
+import org.vitrivr.cottontail.dbms.index.IndexConfig
 import org.vitrivr.cottontail.dbms.index.IndexTx
 import org.vitrivr.cottontail.dbms.index.IndexType
 import org.vitrivr.cottontail.dbms.schema.DefaultSchema
@@ -243,7 +244,7 @@ class EntityV2(val path: Path, override val parent: SchemaV2) : Entity, AutoClos
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
         }
 
-        override fun createIndex(name: Name.IndexName, type: IndexType, columns: List<Name.ColumnName>, params: Map<String, String>): Index {
+        override fun createIndex(name: Name.IndexName, type: IndexType, columns: List<Name.ColumnName>, configuration: IndexConfig<*>): Index {
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
         }
 

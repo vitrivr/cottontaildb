@@ -39,13 +39,10 @@ class CreateIndexCommand(client: SimpleClient) : AbstractCottontailCommand.Entit
         .flag(default = false)
 
     override fun exec() {
-        val entity = entityName.proto()
+        val entity = this.entityName.proto()
         val index = CottontailGrpc.IndexDefinition.newBuilder()
             .setType(this.index)
-            .setName(
-                CottontailGrpc.IndexName.newBuilder().setEntity(entity)
-                    .setName("index-${index.name.lowercase()}-${entityName.schema()}_${entity.name}_${attribute}")
-            )
+            .setName(CottontailGrpc.IndexName.newBuilder().setEntity(entity).setName("index-${index.name.lowercase()}-${this.attribute}"))
             .addColumns(CottontailGrpc.ColumnName.newBuilder().setName(this.attribute))
             .build()
 

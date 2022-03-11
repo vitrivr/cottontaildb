@@ -1,5 +1,7 @@
 package org.vitrivr.cottontail.dbms.index.lucene
 
+import jetbrains.exodus.bindings.ComparableBinding
+import jetbrains.exodus.env.Store
 import org.apache.lucene.analysis.standard.StandardAnalyzer
 import org.apache.lucene.document.*
 import org.apache.lucene.index.*
@@ -30,12 +32,7 @@ import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
 import org.vitrivr.cottontail.dbms.execution.TransactionContext
-import org.vitrivr.cottontail.dbms.index.AbstractIndex
-import org.vitrivr.cottontail.dbms.index.IndexState
-import org.vitrivr.cottontail.dbms.index.IndexTx
-import org.vitrivr.cottontail.dbms.index.IndexType
-import org.vitrivr.cottontail.dbms.index.hash.UniqueHashIndex
-import org.vitrivr.cottontail.dbms.index.lsh.superbit.SuperBitLSHIndex
+import org.vitrivr.cottontail.dbms.index.*
 import org.vitrivr.cottontail.dbms.operations.Operation
 import kotlin.concurrent.withLock
 
@@ -47,15 +44,53 @@ import kotlin.concurrent.withLock
  */
 class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name, parent) {
 
-    companion object {
+    /**
+     * The [IndexDescriptor] for the [LuceneIndex].
+     */
+    companion object: IndexDescriptor<LuceneIndex> {
         /** [ColumnDef] of the _tid column. */
         const val TID_COLUMN = "_tid"
+
+        /**
+         * Opens a [LuceneIndex] for the given [Name.IndexName] in the given [DefaultEntity].
+         *
+         * @param name The [Name.IndexName] of the [LuceneIndex].
+         * @param entity The [DefaultEntity] that holds the [LuceneIndex].
+         * @return The opened [LuceneIndex]
+         */
+        override fun open(name: Name.IndexName, entity: DefaultEntity): LuceneIndex = LuceneIndex(name, entity)
+
+        /**
+         * Tries to initialize the [Store] for a [LuceneIndex]. Always returns true because no specific [Store] is required.
+         *
+         * @param name The [Name.IndexName] of the [LuceneIndex].
+         * @param entity The [DefaultEntity] that holds the [LuceneIndex].
+         * @return True on success, false otherwise.
+         */
+        override fun initialize(name: Name.IndexName, entity: DefaultEntity.Tx): Boolean = true
+
+        /**
+         * Generates and returns a [LuceneIndexConfig] for the given [parameters] (or default values, if [parameters] are not set).
+         *
+         * @param parameters The parameters to initialize the default [LuceneIndexConfig] with.
+         */
+        override fun buildConfig(parameters: Map<String, String>): IndexConfig<LuceneIndex> = LuceneIndexConfig(
+            try {
+                LuceneAnalyzerType.valueOf(parameters[LuceneIndexConfig.KEY_ANALYZER_TYPE_KEY] ?: "")
+            } catch (e: IllegalArgumentException) {
+                LuceneAnalyzerType.STANDARD
+            }
+        )
+
+        /**
+         * Returns the [LuceneIndexConfig.Binding]
+         *
+         * @return [LuceneIndexConfig.Binding]
+         */
+        override fun configBinding(): ComparableBinding = LuceneIndexConfig.Binding
     }
 
-    /** The [LuceneIndex] implementation produces an additional score column. */
-    override val produces: Array<ColumnDef<*>> = arrayOf(ColumnDef(this.parent.name.column("score"), Types.Float))
-
-    /** True since [SuperBitLSHIndex] supports incremental updates. */
+    /** True since [LuceneIndex] supports incremental updates. */
     override val supportsIncrementalUpdate: Boolean = true
 
     /** False, since [LuceneIndex] does not support partitioning. */
@@ -67,11 +102,11 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
     /** The [LuceneIndexConfig] used by this [LuceneIndex] instance. */
     override val config: LuceneIndexConfig = this.catalogue.environment.computeInTransaction { tx ->
         val entry = IndexCatalogueEntry.read(this.name, this.parent.parent.parent, tx) ?: throw DatabaseException.DataCorruptionException("Failed to read catalogue entry for index ${this.name}.")
-        LuceneIndexConfig.fromParamMap(entry.config)
+        entry.config as LuceneIndexConfig
     }
 
     /** The [Directory] containing the data for this [LuceneIndex]. */
-    private val directory: Directory = TODO("Xodus backed Directory.")
+    private val directory: Directory = TODO()
 
     /**
      * Checks if this [LuceneIndex] can process the given [Predicate].
@@ -85,21 +120,13 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
                 predicate.atomics.all { it.operator is ComparisonOperator.Binary.Like || it.operator is ComparisonOperator.Binary.Equal || it.operator is ComparisonOperator.Binary.Match }
 
     /**
-     * Calculates the cost estimate of this [UniqueHashIndex] processing the provided [Predicate].
+     * Returns a [List] of the [ColumnDef] produced by this [LuceneIndex].
      *
-     * @param predicate [Predicate] to check.
-     * @return Cost estimate for the [Predicate]
+     * @return [List] of [ColumnDef].
      */
-    override fun cost(predicate: Predicate): Cost = when {
-        canProcess(predicate) -> {
-            val reader = DirectoryReader.open(this.directory)
-            var cost = Cost.ZERO
-            repeat(predicate.columns.size) {
-                cost += (Cost.DISK_ACCESS_READ +  Cost.MEMORY_ACCESS) * log2(reader.numDocs().toDouble()) /* TODO: This is an assumption. */
-            }
-            cost
-        }
-        else -> Cost.INVALID
+    override fun produces(predicate: Predicate): List<ColumnDef<*>> {
+        require(predicate is BooleanPredicate) { "Lucene can only process boolean predicates." }
+        return listOf(ColumnDef(parent.name.column("score"), Types.Float))
     }
 
     /**
@@ -252,8 +279,26 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
         override val config: LuceneIndexConfig
             get() {
                 val entry = IndexCatalogueEntry.read(this@LuceneIndex.name, this@LuceneIndex.parent.parent.parent, this.context.xodusTx) ?: throw DatabaseException.DataCorruptionException("Failed to read catalogue entry for index ${this@LuceneIndex.name}.")
-                return LuceneIndexConfig.fromParamMap(entry.config)
+                return entry.config as LuceneIndexConfig
             }
+
+        /**
+         * Calculates the cost estimate of this [LuceneIndex.Tx] processing the provided [Predicate].
+         *
+         * @param predicate [Predicate] to check.
+         * @return Cost estimate for the [Predicate]
+         */
+        override fun cost(predicate: Predicate): Cost = when {
+            canProcess(predicate) -> {
+                val reader = DirectoryReader.open(this@LuceneIndex.directory)
+                var cost = Cost.ZERO
+                repeat(predicate.columns.size) {
+                    cost += (Cost.DISK_ACCESS_READ +  Cost.MEMORY_ACCESS) * log2(reader.numDocs().toDouble()) /* TODO: This is an assumption. */
+                }
+                cost
+            }
+            else -> Cost.INVALID
+        }
 
         /**
          * Returns the number of [Document] in this [LuceneIndex], which should roughly correspond
@@ -371,7 +416,7 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
             override fun value(): Record {
                 val scores = this.results.scoreDocs[this.returned++]
                 val doc = this.searcher.doc(scores.doc)
-                return StandaloneRecord(doc[TID_COLUMN].toLong(), this@LuceneIndex.produces, arrayOf(FloatValue(scores.score)))
+                return StandaloneRecord(doc[TID_COLUMN].toLong(), arrayOf(ColumnDef(parent.name.column("score"), Types.Float)), arrayOf(FloatValue(scores.score)))
             }
 
             override fun close() {
