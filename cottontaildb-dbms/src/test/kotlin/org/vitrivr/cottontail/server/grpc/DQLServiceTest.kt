@@ -3,6 +3,7 @@ package org.vitrivr.cottontail.server.grpc
 import io.grpc.ManagedChannel
 import io.grpc.netty.NettyChannelBuilder
 import org.junit.jupiter.api.*
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.vitrivr.cottontail.TestConstants
 import org.vitrivr.cottontail.client.SimpleClient
@@ -142,5 +143,17 @@ class DQLServiceTest {
             assert(distance != null)
             assertTrue(string.last() == 'z')
         }
+    }
+
+    @Test
+    fun previewWithLimit(){
+        val limit = 3L
+        val query = Query(TEST_VECTOR_ENTITY_FQN_INPUT).select("*").limit(limit).skip(0)
+        val result = client.query(query)
+        var count = 0L
+        for(r in result){
+            count++
+        }
+        assertEquals(limit, count)
     }
 }
