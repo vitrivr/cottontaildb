@@ -16,6 +16,7 @@ import org.vitrivr.cottontail.utilities.extensions.protoFrom
 import java.nio.file.Path
 import java.nio.file.Paths
 import kotlin.time.ExperimentalTime
+import kotlin.time.measureTime
 
 /**
  * Command to import data into a specified entity in Cottontail DB.
@@ -64,23 +65,30 @@ class ImportDataCommand(client: SimpleClient) : AbstractCottontailCommand.Entity
 
             try {
                 /* Perform insert. */
-                iterator.forEach {
-                    it.from = entityName.protoFrom()
-                    if (txId != null) {
-                        it.metadataBuilder.transactionId = txId
+                var count = 0
+                val duration = measureTime {
+                    iterator.forEach {
+                        it.from = entityName.protoFrom()
+                        if (txId != null) {
+                            it.metadataBuilder.transactionId = txId
+                        }
+                        client.insert(it.build())
+                        count++
+                        if (count % 1_000 == 0) {
+                            println("$count entries done")
+                        }
                     }
-                    client.insert(it.build())
-                }
 
-                /** Commit transaction, if single transaction option has been set. */
-                if (txId != null) {
-                    client.commit(txId)
+                    /** Commit transaction, if single transaction option has been set. */
+                    if (txId != null) {
+                        client.commit(txId)
+                    }
                 }
+                println("Importing $count entries into ${entityName} took $duration.")
             } catch (e: Throwable) {
                 /** Rollback transaction, if single transaction option has been set. */
-                if (txId != null) {
-                    client.rollback(txId)
-                }
+                if (txId != null) client.rollback(txId)
+                println("Importing entries into ${entityName} failed due to error: ${e.message}")
             } finally {
                 iterator.close()
             }
