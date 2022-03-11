@@ -52,13 +52,13 @@ class LpBounds(query: RealVectorValue<*>, marks: VAFMarks, val p: Int) : Bounds 
             when {
                 ri[j] < this.rq[j] -> {
                     this.lb += this.lat[j][ri[j] + 1][0]
-                    this.ub += this.lat[j][ri[j]][0]
+                    this.ub += this.lat[j][ri[j].toInt()][0]
                 }
                 ri[j] == this.rq[j] -> {
-                    this.ub += max(this.lat[j][ri[j]][0], this.lat[j][ri[j] + 1][1])
+                    this.ub += max(this.lat[j][ri[j].toInt()][0], this.lat[j][ri[j] + 1][1])
                 }
                 ri[j] > this.rq[j] -> {
-                    this.lb += this.lat[j][ri[j]][1]
+                    this.lb += this.lat[j][ri[j].toInt()][1]
                     this.ub += this.lat[j][ri[j] + 1][1]
                 }
             }
@@ -83,7 +83,7 @@ class LpBounds(query: RealVectorValue<*>, marks: VAFMarks, val p: Int) : Bounds 
             if (rij < this.rq[j]) {
                 lb += this.lat[j][rij + 1][0]
             } else if (rij > this.rq[j]) {
-                lb += this.lat[j][rij][1]
+                lb += this.lat[j][rij.toInt()][1]
             }
             if (lb >= tsquared) {
                 return false

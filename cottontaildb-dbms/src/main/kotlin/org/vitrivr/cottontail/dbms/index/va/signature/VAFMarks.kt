@@ -85,12 +85,12 @@ value class VAFMarks(val marks: Array<DoubleArray>): Comparable<VAFMarks> {
      * @param vector The [RealVectorValue] to calculate the cells for.
      * @return An [VAFSignature] containing the signature of the vector.
      */
-    fun getSignature(vector: RealVectorValue<*>): VAFSignature = VAFSignature(IntArray(vector.logicalSize) {
+    fun getSignature(vector: RealVectorValue<*>): VAFSignature = VAFSignature(ByteArray(vector.logicalSize) {
         val index = this.marks[it].indexOfFirst { i -> i > vector[it].value.toDouble() }
         if (index == -1) { // all marks are less or equal than the vector component! last mark is what we're looking for!
-            (this.marks[it].size - 1)
+            (this.marks[it].size - 1).toByte()
         } else {
-            (index - 1)
+            (index - 1).toByte()
         }
     })
 

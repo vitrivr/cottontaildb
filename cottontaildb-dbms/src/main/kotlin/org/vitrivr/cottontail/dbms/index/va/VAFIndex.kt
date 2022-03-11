@@ -16,7 +16,6 @@ import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
 import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
-import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.types.RealVectorValue
 import org.vitrivr.cottontail.core.values.types.VectorValue
 import org.vitrivr.cottontail.dbms.catalogue.entries.IndexCatalogueEntry
@@ -120,7 +119,8 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
         }
 
     /** Results produced by [VAFIndex] are always returned sorted by distance in ascending order.  */
-    override val order: Array<Pair<ColumnDef<*>, SortOrder>> = arrayOf(KnnUtilities.distanceColumnDef(this.parent.name) to SortOrder.ASCENDING)
+    override val order: Array<Pair<ColumnDef<*>, SortOrder>>
+        get() = arrayOf(KnnUtilities.distanceColumnDef(this.parent.name) to SortOrder.ASCENDING)
 
     /** False since [VAFIndex] currently doesn't support incremental updates. */
     override val supportsIncrementalUpdate: Boolean = false
@@ -199,25 +199,26 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
             LOGGER.debug("Rebuilding VAF index {}", this@VAFIndex.name)
 
             /* Obtain component-wise minimum and maximum for the vector held by the entity. */
+            val dimension = this.columns[0].type.logicalSize
             val entityTx = this.context.getTx(this@VAFIndex.parent) as EntityTx
             val columnTx = this.context.getTx(entityTx.columnForName(this.columns[0].name)) as ColumnTx<*>
             val minimum = when (val stat = columnTx.statistics()) {
-                is FloatVectorValueStatistics -> DoubleArray(this@VAFIndex.dimension) { stat.min.data[it].toDouble() }
-                is DoubleVectorValueStatistics -> DoubleArray(this@VAFIndex.dimension) {  stat.min.data[it] }
-                is IntVectorValueStatistics -> DoubleArray(this@VAFIndex.dimension) { stat.min.data[it].toDouble() }
-                is LongVectorValueStatistics -> DoubleArray(this@VAFIndex.dimension) { stat.min.data[it].toDouble() }
+                is FloatVectorValueStatistics -> DoubleArray(dimension) { stat.min.data[it].toDouble() }
+                is DoubleVectorValueStatistics -> DoubleArray(dimension) {  stat.min.data[it] }
+                is IntVectorValueStatistics -> DoubleArray(dimension) { stat.min.data[it].toDouble() }
+                is LongVectorValueStatistics -> DoubleArray(dimension) { stat.min.data[it].toDouble() }
                 else -> throw DatabaseException.DataCorruptionException("Unsupported statistics type.")
             }
             val maximum = when (val stat = columnTx.statistics()) {
-                is FloatVectorValueStatistics -> DoubleArray(this@VAFIndex.dimension) { stat.min.data[it].toDouble() }
-                is DoubleVectorValueStatistics -> DoubleArray(this@VAFIndex.dimension) {  stat.min.data[it] }
-                is IntVectorValueStatistics -> DoubleArray(this@VAFIndex.dimension) { stat.min.data[it].toDouble() }
-                is LongVectorValueStatistics -> DoubleArray(this@VAFIndex.dimension) { stat.min.data[it].toDouble() }
+                is FloatVectorValueStatistics -> DoubleArray(dimension) { stat.max.data[it].toDouble() }
+                is DoubleVectorValueStatistics -> DoubleArray(dimension) {  stat.max.data[it] }
+                is IntVectorValueStatistics -> DoubleArray(dimension) { stat.max.data[it].toDouble() }
+                is LongVectorValueStatistics -> DoubleArray(dimension) { stat.max.data[it].toDouble() }
                 else -> throw DatabaseException.DataCorruptionException("Unsupported statistics type.")
             }
 
             /* Calculate and update marks. */
-            val newMarks = VAFMarks.getEquidistantMarks(minimum, maximum, IntArray(this.columns[0].type.logicalSize) { this.config.marksPerDimension })
+            val newMarks = VAFMarks.getEquidistantMarks(minimum, maximum, IntArray(dimension) { this.config.marksPerDimension })
 
             /* Calculate and update signatures. */
             this.clear()
@@ -405,24 +406,30 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
              * Prepares the result set using the [VAFIndex].
              */
             private fun prepare() {
-                var read = 0L
+                /* Initialize cursor. */
                 val cursor = this@Tx.dataStore.openCursor(this@Tx.context.xodusTx.readonlySnapshot)
                 val end = this.range.last.toKey()
                 cursor.getSearchKey(this.range.first.toKey())
+
+                /* Calculate a few values for future reference. */
+                val columns = this@Tx.columns
+                val produces = this@VAFIndex.produces(predicate).toTypedArray()
+                var threshold = Double.MAX_VALUE
                 while (cursor.next && cursor.key < end) {
                     val signature = VAFSignature.Binding.entryToValue(cursor.value)
-                    if (this.selection.added < this.predicate.k || signature.invalid() || this.bounds.isVASSACandidate(signature, (this.selection.peek()!![0] as DoubleValue).value)) {
-                        read += 1
+                    if (this.selection.added < this.predicate.k || this.bounds.isVASSACandidate(signature, threshold)) {
                         val tupleId = LongBinding.compressedEntryToLong(cursor.key)
-                        val value = this.entityTx.read(tupleId, this@VAFIndex.columns)[this@VAFIndex.column]
-                        if (value is VectorValue<*>) {
-                            val distance =  this.predicate.distance(this.query, value)
-                            if (distance != null) {
-                                this.selection.offer(StandaloneRecord(tupleId, arrayOf(this.predicate.distanceColumn, this@VAFIndex.column), arrayOf(distance, value)))
-                            }
+                        val value = this.entityTx.read(tupleId, columns)[columns[0]] as VectorValue<*>
+                        val distance = this.predicate.distance(this.query, value)
+                        if (distance != null) {
+                            threshold = min(threshold, distance.value)
+                            this.selection.offer(StandaloneRecord(tupleId, produces, arrayOf(distance, value)))
                         }
                     }
                 }
+
+                /* Log efficiency of VAF scan. */
+                LOGGER.info("VAF scan: Skipped over ${(1.0 - (this.selection.added.toDouble() / this@Tx.count())) * 100}% of entries.")
 
                 /* Close Xodus cursor. */
                 cursor.close()

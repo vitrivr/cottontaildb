@@ -53,22 +53,19 @@ class L1Bounds(query: RealVectorValue<*>, marks: VAFMarks) : Bounds {
             when {
                 rij < this.rq[j] -> {
                     this.lb += this.lat[j][rij + 1]
-                    this.ub += this.lat[j][rij]
+                    this.ub += this.lat[j][rij.toInt()]
                 }
                 rij == this.rq[j] -> {
-                    this.ub += max(this.lat[j][rij], this.lat[j][rij + 1])
+                    this.ub += max(this.lat[j][rij.toInt()], this.lat[j][rij + 1])
                 }
                 rij > this.rq[j] -> {
-                    this.lb += this.lat[j][rij]
+                    this.lb += this.lat[j][rij.toInt()]
                     this.ub += this.lat[j][rij + 1]
                 }
             }
         }
         return this
     }
-
-
-
 
     /**
      * Checks if the given [VAFSignature] is a VA-SSA candidate according to [1] by comparing the
@@ -84,12 +81,10 @@ class L1Bounds(query: RealVectorValue<*>, marks: VAFMarks) : Bounds {
             if (rij < this.rq[j]) {
                 lb += this.lat[j][rij + 1]
             } else if (rij > this.rq[j]) {
-                lb += this.lat[j][rij]
+                lb += this.lat[j][rij.toInt()]
             }
-            if (lb >= threshold) {
-                return false
-            }
+            if (lb >= threshold) return false
         }
-        return lb < threshold
+        return true
     }
 }

@@ -55,13 +55,13 @@ class L2Bounds(query: RealVectorValue<*>, marks: VAFMarks) : Bounds {
             when {
                 rij < this.rq[j] -> {
                     this.lb += this.lat[j][rij + 1]
-                    this.ub += this.lat[j][rij]
+                    this.ub += this.lat[j][rij.toInt()]
                 }
                 rij == this.rq[j] -> {
-                    this.ub += max(this.lat[j][rij], this.lat[j][rij + 1])
+                    this.ub += max(this.lat[j][rij.toInt()], this.lat[j][rij + 1])
                 }
                 rij > this.rq[j] -> {
-                    this.lb += this.lat[j][rij]
+                    this.lb += this.lat[j][rij.toInt()]
                     this.ub += this.lat[j][rij + 1]
                 }
             }
@@ -86,7 +86,7 @@ class L2Bounds(query: RealVectorValue<*>, marks: VAFMarks) : Bounds {
             if (rij < this.rq[j]) {
                 lb += this.lat[j][rij + 1]
             } else if (rij > this.rq[j]) {
-                lb += this.lat[j][rij]
+                lb += this.lat[j][rij.toInt()]
             }
             if (lb >= tsquared) {
                 return false
