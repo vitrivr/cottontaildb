@@ -25,9 +25,13 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
  * @version 1.3.0
  */
 object BooleanIndexScanRule : RewriteRule {
-    override fun canBeApplied(node: OperatorNode): Boolean =
+    override fun canBeApplied(node: OperatorNode, ctx: QueryContext): Boolean =
         node is FilterPhysicalOperatorNode && node.input is EntityScanPhysicalOperatorNode
 
+    /**
+     * Applies this [BooleanIndexScanRule] and tries to replace a [EntityScanPhysicalOperatorNode] followed by a [FilterLogicalOperatorNode]
+     *
+     */
     override fun apply(node: OperatorNode, ctx: QueryContext): OperatorNode? {
         if (node is FilterPhysicalOperatorNode) {
             val parent = node.input

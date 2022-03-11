@@ -168,10 +168,12 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
         while (pointer != null) {
             /* Apply rules to node and add results to list for exploration. */
             for (rule in this.logicalRules) {
-                val result = rule.apply(pointer, ctx)
-                if (result is OperatorNode.Logical) {
-                    explore.enqueue(result)
-                    candidates.enqueue(result)
+                if (rule.canBeApplied(pointer, ctx)) {
+                    val result = rule.apply(pointer, ctx)
+                    if (result is OperatorNode.Logical) {
+                        explore.enqueue(result)
+                        candidates.enqueue(result)
+                    }
                 }
             }
 
@@ -205,10 +207,12 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
         while (pointer != null) {
             /* Apply rules to node and add results to list for exploration. */
             for (rule in this.physicalRules) {
-                val result = rule.apply(pointer, ctx)
-                if (result is OperatorNode.Physical) {
-                    explore.enqueue(result)
-                    candidates.enqueue(result)
+                if (rule.canBeApplied(pointer, ctx)) {
+                    val result = rule.apply(pointer, ctx)
+                    if (result is OperatorNode.Physical) {
+                        explore.enqueue(result)
+                        candidates.enqueue(result)
+                    }
                 }
             }
 

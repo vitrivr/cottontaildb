@@ -58,7 +58,7 @@ object GrpcQueryBinder {
     /** Default projection operator (star projection). */
     private val DEFAULT_PROJECTION = CottontailGrpc.Projection.newBuilder()
         .setOp(CottontailGrpc.Projection.ProjectionOperation.SELECT)
-        .addElements(CottontailGrpc.Projection.ProjectionElement.newBuilder().setColumn(CottontailGrpc.ColumnName.newBuilder().setName("*")))
+        .addElements(CottontailGrpc.Projection.ProjectionElement.newBuilder().setExpression(CottontailGrpc.Expression.newBuilder().setColumn(CottontailGrpc.ColumnName.newBuilder().setName("*"))))
         .build()
 
     /**
@@ -70,13 +70,13 @@ object GrpcQueryBinder {
      * @throws QueryException.QuerySyntaxException If [CottontailGrpc.Query] is structurally incorrect.
      */
     @Suppress("UNCHECKED_CAST")
-    fun bind(query: CottontailGrpc.Query, context: QueryContext): org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Logical {
+    fun bind(query: CottontailGrpc.Query, context: QueryContext): OperatorNode.Logical {
         /* Parse SELECT-clause (projection); this clause is important because of aliases. */
         val projection = if (query.hasProjection()) { query.projection } else { DEFAULT_PROJECTION }
         val columns = this.parseProjectionColumns(projection)
 
         /** Parse FROM-clause and take projection into account. */
-        var root: org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Logical = parseAndBindFrom(query.from, columns, context)
+        var root: OperatorNode.Logical = parseAndBindFrom(query.from, columns, context)
 
         /* Parse and bind functions in projection. */
         columns.entries.map {
@@ -84,7 +84,7 @@ object GrpcQueryBinder {
         }.zip(projection.elementsList).filter {
             it.first.first is Name.FunctionName
         }.forEach {
-            root = this.parseAndBindFunction(root, it.second.function, it.first.second, context)
+            root = this.parseAndBindFunction(root, it.second.expression.function, it.first.second, context)
         }
 
         /* Parse and bind WHERE-clause. */
@@ -600,40 +600,41 @@ object GrpcQueryBinder {
     private fun parseProjectionColumns(projection: CottontailGrpc.Projection, simplify: Boolean = false): Map<Name.ColumnName, Name> {
         val map = Object2ObjectLinkedOpenHashMap<Name.ColumnName, Name>()
         projection.elementsList.forEachIndexed { i, e ->
-            when (e.projCase) {
-                CottontailGrpc.Projection.ProjectionElement.ProjCase.COLUMN -> {
+            when (val exp = e.expression.expCase) {
+                CottontailGrpc.Expression.ExpCase.COLUMN -> {
                     /* Sanity check; star projections can't have aliases. */
-                    if (e.column.name == "*" && e.hasAlias()) {
+                    if (e.expression.column.name == "*" && e.hasAlias()) {
                         throw QueryException.QuerySyntaxException("The query lacks a valid SELECT-clause (projection): Cannot assign alias to star-projection at index $i.")
                     }
 
                     /* Determine final name of column. */
                     val finalName = when {
                         e.hasAlias() -> e.alias.fqn()
-                        simplify -> Name.ColumnName(e.column.name)
-                        else -> e.column.fqn()
+                        simplify -> Name.ColumnName(e.expression.column.name)
+                        else -> e.expression.column.fqn()
                     }
 
                     /* Check for uniqueness and assign. */
                     if (map.contains(finalName)) {
                         throw QueryException.QuerySyntaxException("The query lacks a valid SELECT-clause (projection): Duplicate projection element $finalName at index $i.")
                     }
-                    map[finalName] = e.column.fqn()
+                    map[finalName] = e.expression.column.fqn()
                 }
-                CottontailGrpc.Projection.ProjectionElement.ProjCase.FUNCTION -> {
+                CottontailGrpc.Expression.ExpCase.FUNCTION -> {
                     /* Sanity check; star projections can't have aliases. */
                     val finalName = when {
                         e.hasAlias() -> e.alias.fqn()
-                        else -> Name.ColumnName(e.function.name.name)
+                        else -> Name.ColumnName(e.expression.function.name.name)
                     }
 
                     /* Check for uniqueness and assign. */
                     if (map.contains(finalName)) {
                         throw QueryException.QuerySyntaxException("The query lacks a valid SELECT-clause (projection): Duplicate projection element $finalName at index $i.")
                     }
-                    map[finalName] = e.function.name.fqn()
+                    map[finalName] = e.expression.function.name.fqn()
                 }
-                CottontailGrpc.Projection.ProjectionElement.ProjCase.PROJ_NOT_SET,
+                CottontailGrpc.Expression.ExpCase.LITERAL -> TODO()
+                CottontailGrpc.Expression.ExpCase.EXP_NOT_SET,
                 null -> throw QueryException.QuerySyntaxException("The query lacks a valid SELECT-clause (projection): Projection element at index $i is malformed.")
             }
         }

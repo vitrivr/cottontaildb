@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.transform
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.client.language.basics.Constants
 import org.vitrivr.cottontail.core.basics.Record
+import org.vitrivr.cottontail.core.queries.QueryHint
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.exceptions.ExecutionException
@@ -56,6 +57,8 @@ internal interface TransactionalGrpcService {
         } else {
             metadata.queryId
         }
+
+        /* Obtain transaction context. */
         val transactionContext = if (metadata.transactionId <= 0L) {
             this.manager.TransactionImpl(TransactionType.USER_IMPLICIT) /* Start new transaction. */
         } else {
@@ -65,7 +68,19 @@ internal interface TransactionalGrpcService {
             }
             txn
         }
-       return QueryContext(queryId, catalogue, transactionContext)
+
+        /* Parse all the query hints provided by the user. */
+        val hints = metadata.hintList.mapNotNull {
+            when (it.hintCase) {
+                CottontailGrpc.Hint.HintCase.NOINDEXHINT -> QueryHint.NoIndex
+                CottontailGrpc.Hint.HintCase.PARALLELINDEXHINT -> QueryHint.NoParallel
+                CottontailGrpc.Hint.HintCase.POLICYHINT -> QueryHint.CostPolicy(it.policyHint.weightIo, it.policyHint.weightCpu, it.policyHint.weightMemory, it.policyHint.weightAccuracy)
+                CottontailGrpc.Hint.HintCase.NAMEINDEXHINT -> TODO()
+                else -> null
+            }
+        }.toSet()
+
+        return QueryContext(queryId, catalogue, transactionContext, hints)
     }
 
     /**
