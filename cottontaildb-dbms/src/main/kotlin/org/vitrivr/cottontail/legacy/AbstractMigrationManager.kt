@@ -103,7 +103,7 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
                 this.migrateDBOs(srcCatalogue, dstCatalogue)
 
                 /* Migrates all data. */
-                this.migrateData(srcCatalogue, dstCatalogue)
+                //this.migrateData(srcCatalogue, dstCatalogue)
 
                 /* Swap folders. */
                 Files.move(config.root, config.root.parent.resolve("${config.root.fileName}~old"), StandardCopyOption.ATOMIC_MOVE)
@@ -252,7 +252,7 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
      * A [MigrationContext] is a special type of [TransactionContext] used during data migration.
      *
      * @author Ralph Gasser
-     * @version 2.0.0
+     * @version 2.0.1
      */
     inner class LegacyMigrationContext : TransactionContext, Transaction {
         /** The [TransactionId] of the [MigrationContext]. */
@@ -305,6 +305,9 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
         override fun commit() {
             check(this.state === TransactionStatus.IDLE) { "Cannot commit transaction ${this.txId} because it is in wrong state (s = ${this.state})." }
             this.state = TransactionStatus.FINALIZING
+            for (txn in this.txns.values.reversed()) {
+                txn.beforeCommit()
+            }
             this.txns.clear()
             this.state = TransactionStatus.COMMIT
         }
@@ -315,6 +318,9 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
         override fun rollback() {
             check(this.state === TransactionStatus.IDLE || this.state === TransactionStatus.ERROR) { "Cannot rollback transaction ${this.txId} because it is in wrong state (s = ${this.state})." }
             this.state = TransactionStatus.FINALIZING
+            for (txn in this.txns.values.reversed()) {
+                txn.beforeRollback()
+            }
             this.txns.clear()
             this.state = TransactionStatus.ROLLBACK
         }
