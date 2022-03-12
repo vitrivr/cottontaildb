@@ -3,10 +3,11 @@ package org.vitrivr.cottontail.storage.serializers.values.xodus
 import jetbrains.exodus.ByteIterable
 import jetbrains.exodus.bindings.ComparableBinding
 import jetbrains.exodus.bindings.StringBinding
-import jetbrains.exodus.util.ByteArraySizedInputStream
+import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.values.StringValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
+import org.xerial.snappy.Snappy
 import java.util.*
 
 /**
@@ -24,10 +25,12 @@ sealed class StringValueXodusBinding: XodusBinding<StringValue> {
      */
     object NonNullable: StringValueXodusBinding() {
         override val type = Types.String
-        override fun entryToValue(entry: ByteIterable): StringValue = StringValue(StringBinding.BINDING.readObject(ByteArraySizedInputStream(entry.bytesUnsafe)))
+        override fun entryToValue(entry: ByteIterable): StringValue = StringValue(Snappy.uncompressString(entry.bytesUnsafe))
         override fun valueToEntry(value: StringValue?): ByteIterable {
             require(value != null) { "Serialization error: Value cannot be null." }
-            return StringBinding.BINDING.objectToEntry(value.value)
+            val compressed = Snappy.compress(value.value)
+            val stream = LightOutputStream(compressed)
+            return stream.asArrayByteIterable()
         }
     }
 
@@ -45,12 +48,18 @@ sealed class StringValueXodusBinding: XodusBinding<StringValue> {
             return if (Arrays.equals(bytesNull, bytesRead)) {
                 null
             } else {
-                StringValue(StringBinding.BINDING.readObject(ByteArraySizedInputStream(bytesRead)))
+                StringValue(Snappy.uncompressString(entry.bytesUnsafe))
             }
         }
         override fun valueToEntry(value: StringValue?): ByteIterable {
             if (value?.value == NULL_VALUE) throw DatabaseException.ReservedValueException("Cannot serialize value '$value'! Value is reserved for NULL entries for type ${this.type}.")
-            return if (value == null) NULL_VALUE_RAW else StringBinding.BINDING.objectToEntry(value.value)
+            return if (value == null) {
+                NULL_VALUE_RAW
+            } else {
+                val compressed = Snappy.compress(value.value)
+                val stream = LightOutputStream(compressed)
+                return stream.asArrayByteIterable()
+            }
         }
     }
 }
