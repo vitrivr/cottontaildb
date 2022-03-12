@@ -1,29 +1,32 @@
 package org.vitrivr.cottontail.dbms.statistics.columns
 
+import jetbrains.exodus.bindings.BooleanBinding
 import jetbrains.exodus.bindings.DoubleBinding
+import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.values.DoubleVectorValue
 import org.vitrivr.cottontail.core.values.types.Types
+import org.vitrivr.cottontail.storage.serializers.statistics.xodus.XodusBinding
 import java.io.ByteArrayInputStream
 
 /**
  * A [ValueStatistics] implementation for [DoubleVectorValue]s.
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.2.0
  */
-class DoubleVectorValueStatistics(type: Types<DoubleVectorValue>) : ValueStatistics<DoubleVectorValue>(type) {
-    /** Minimum value in this [DoubleVectorValueStatistics]. */
-    val min: DoubleVectorValue = DoubleVectorValue(DoubleArray(this.type.logicalSize) { Double.MAX_VALUE })
+class DoubleVectorValueStatistics(logicalSize: Int) : AbstractValueStatistics<DoubleVectorValue>(Types.DoubleVector(logicalSize)), VectorValueStatistics<DoubleVectorValue> {
+    /** Minimum value seen by this [DoubleVectorValueStatistics]. */
+    override val min: DoubleVectorValue = DoubleVectorValue(DoubleArray(this.type.logicalSize) { Double.MAX_VALUE })
 
-    /** Minimum value in this [DoubleVectorValueStatistics]. */
-    val max: DoubleVectorValue = DoubleVectorValue(DoubleArray(this.type.logicalSize) { Double.MIN_VALUE })
+    /** Minimum value seen by this [DoubleVectorValueStatistics]. */
+    override val max: DoubleVectorValue = DoubleVectorValue(DoubleArray(this.type.logicalSize) { Double.MIN_VALUE })
 
-    /** Sum of all floats values in this [DoubleVectorValueStatistics]. */
-    val sum: DoubleVectorValue = DoubleVectorValue(DoubleArray(this.type.logicalSize))
+    /** Sum of all floats values seen by this [DoubleVectorValueStatistics]. */
+    override val sum: DoubleVectorValue = DoubleVectorValue(DoubleArray(this.type.logicalSize))
 
-    /** The arithmetic for the values seen by this [DoubleVectorValueStatistics]. */
-    val avg: DoubleVectorValue
+    /** The arithmetic mean for the values seen by this [DoubleVectorValueStatistics]. */
+    override val mean: DoubleVectorValue
         get() = DoubleVectorValue(DoubleArray(this.type.logicalSize) {
             this.sum[it].value / this.numberOfNonNullEntries
         })
@@ -31,10 +34,13 @@ class DoubleVectorValueStatistics(type: Types<DoubleVectorValue>) : ValueStatist
     /**
      * Xodus serializer for [DoubleVectorValueStatistics]
      */
-    object Binding {
-        fun read(stream: ByteArrayInputStream, type: Types<DoubleVectorValue>): DoubleVectorValueStatistics {
-            val stat = DoubleVectorValueStatistics(type)
-            for (i in 0 until type.logicalSize) {
+    class Binding(val logicalSize: Int): XodusBinding<DoubleVectorValueStatistics> {
+        override fun read(stream: ByteArrayInputStream): DoubleVectorValueStatistics {
+            val stat = DoubleVectorValueStatistics(this.logicalSize)
+            stat.fresh = BooleanBinding.BINDING.readObject(stream)
+            stat.numberOfNullEntries = LongBinding.readCompressed(stream)
+            stat.numberOfNonNullEntries = LongBinding.readCompressed(stream)
+            for (i in 0 until this.logicalSize) {
                 stat.min.data[i] = DoubleBinding.BINDING.readObject(stream)
                 stat.max.data[i] = DoubleBinding.BINDING.readObject(stream)
                 stat.sum.data[i] = DoubleBinding.BINDING.readObject(stream)
@@ -42,7 +48,10 @@ class DoubleVectorValueStatistics(type: Types<DoubleVectorValue>) : ValueStatist
             return stat
         }
 
-        fun write(output: LightOutputStream, statistics: DoubleVectorValueStatistics) {
+        override fun write(output: LightOutputStream, statistics: DoubleVectorValueStatistics) {
+            BooleanBinding.BINDING.writeObject(output, statistics.fresh)
+            LongBinding.writeCompressed(output, statistics.numberOfNullEntries)
+            LongBinding.writeCompressed(output, statistics.numberOfNonNullEntries)
             for (i in 0 until statistics.type.logicalSize) {
                 DoubleBinding.BINDING.writeObject(output, statistics.min.data[i])
                 DoubleBinding.BINDING.writeObject(output, statistics.max.data[i])
@@ -104,7 +113,7 @@ class DoubleVectorValueStatistics(type: Types<DoubleVectorValue>) : ValueStatist
      * @return Copy of this [DoubleVectorValueStatistics].
      */
     override fun copy(): DoubleVectorValueStatistics {
-        val copy = DoubleVectorValueStatistics(this.type)
+        val copy = DoubleVectorValueStatistics(this.type.logicalSize)
         copy.fresh = this.fresh
         copy.numberOfNullEntries = this.numberOfNullEntries
         copy.numberOfNonNullEntries = this.numberOfNonNullEntries

@@ -12,16 +12,33 @@ import kotlin.math.pow
  * This is an abstraction over a [Float].
  *
  * @author Ralph Gasser
- * @version 1.6.0
+ * @version 1.7.0
  */
 @JvmInline
 value class FloatValue(override val value: Float): RealValue<Float> {
 
     companion object {
+        /**
+         * The minimum value that can be held by a [FloatValue].
+         *
+         * Is larger than [Float.MIN_VALUE] because [Float.MIN_VALUE] is reserved to signify null.
+         */
+        val MIN_VALUE = FloatValue(Float.MIN_VALUE + Float.MIN_VALUE)
+
+        /** The maximum value that can be held by a [FloatValue]. */
+        val MAX_VALUE = FloatValue(Float.MAX_VALUE)
+
+        /** The zero [FloatValue].  */
         val ZERO = FloatValue(0.0f)
+
+        /** The one [FloatValue].  */
         val ONE = FloatValue(1.0f)
-        val NaN = Complex32Value(Float.NaN)
-        val INF = Complex32Value(Float.POSITIVE_INFINITY)
+
+        /** The NaN [FloatValue].  */
+        val NaN = FloatValue(Float.NaN)
+
+        /** The INF [FloatValue].  */
+        val INF = FloatValue(Float.POSITIVE_INFINITY)
 
         /**
          * Generates a random [FloatValue].

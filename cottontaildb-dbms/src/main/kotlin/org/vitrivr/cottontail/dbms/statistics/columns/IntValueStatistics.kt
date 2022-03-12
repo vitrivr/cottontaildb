@@ -1,9 +1,13 @@
 package org.vitrivr.cottontail.dbms.statistics.columns
 
+import jetbrains.exodus.bindings.BooleanBinding
 import jetbrains.exodus.bindings.IntegerBinding
+import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.util.LightOutputStream
+import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.IntValue
 import org.vitrivr.cottontail.core.values.types.Types
+import org.vitrivr.cottontail.storage.serializers.statistics.xodus.XodusBinding
 import java.io.ByteArrayInputStream
 import java.lang.Integer.max
 import java.lang.Integer.min
@@ -12,32 +16,44 @@ import java.lang.Integer.min
  * A [ValueStatistics] implementation for [IntValue]s.
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.2.0
  */
-class IntValueStatistics : ValueStatistics<IntValue>(Types.Int) {
+class IntValueStatistics : AbstractValueStatistics<IntValue>(Types.Int), RealValueStatistics<IntValue> {
 
     /**
      * Xodus serializer for [IntValueStatistics]
      */
-    object Binding {
-        fun read(stream: ByteArrayInputStream): IntValueStatistics {
+    object Binding: XodusBinding<IntValueStatistics> {
+        override fun read(stream: ByteArrayInputStream): IntValueStatistics {
             val stat = IntValueStatistics()
-            stat.min = IntegerBinding.BINDING.readObject(stream)
-            stat.max = IntegerBinding.BINDING.readObject(stream)
+            stat.fresh = BooleanBinding.BINDING.readObject(stream)
+            stat.numberOfNullEntries = LongBinding.readCompressed(stream)
+            stat.numberOfNonNullEntries = LongBinding.readCompressed(stream)
+            stat.min = IntValue(IntegerBinding.BINDING.readObject(stream))
+            stat.max = IntValue(IntegerBinding.BINDING.readObject(stream))
             return stat
         }
 
-        fun write(output: LightOutputStream, statistics: IntValueStatistics) {
+        override fun write(output: LightOutputStream, statistics: IntValueStatistics) {
+            BooleanBinding.BINDING.writeObject(output, statistics.fresh)
+            LongBinding.writeCompressed(output, statistics.numberOfNullEntries)
+            LongBinding.writeCompressed(output, statistics.numberOfNonNullEntries)
             IntegerBinding.BINDING.writeObject(output, statistics.min)
             IntegerBinding.BINDING.writeObject(output, statistics.max)
         }
     }
 
-    /** Minimum value for this [IntValueStatistics]. */
-    var min: Int = Int.MAX_VALUE
+    /** Minimum value seen by this [IntValueStatistics]. */
+    override var min: IntValue = IntValue.MAX_VALUE
+        private set
 
-    /** Minimum value for this [IntValueStatistics]. */
-    var max: Int = Int.MIN_VALUE
+    /** Minimum value seen by this [IntValueStatistics]. */
+    override var max: IntValue = IntValue.MIN_VALUE
+        private set
+
+    /** Sum of all [IntValue]s seen by this [IntValueStatistics]. */
+    override var sum: DoubleValue = DoubleValue.ZERO
+        private set
 
     /**
      * Updates this [IntValueStatistics] with an inserted [IntValue]
@@ -47,8 +63,8 @@ class IntValueStatistics : ValueStatistics<IntValue>(Types.Int) {
     override fun insert(inserted: IntValue?) {
         super.insert(inserted)
         if (inserted != null) {
-            this.min = min(inserted.value, this.min)
-            this.max = max(inserted.value, this.max)
+            this.min = IntValue(min(inserted.value, this.min.value))
+            this.max = IntValue(max(inserted.value, this.max.value))
         }
     }
 
@@ -61,7 +77,7 @@ class IntValueStatistics : ValueStatistics<IntValue>(Types.Int) {
         super.delete(deleted)
 
         /* We cannot create a sensible estimate if a value is deleted. */
-        if (this.min == deleted?.value || this.max == deleted?.value) {
+        if (this.min == deleted || this.max == deleted) {
             this.fresh = false
         }
     }
@@ -71,8 +87,8 @@ class IntValueStatistics : ValueStatistics<IntValue>(Types.Int) {
      */
     override fun reset() {
         super.reset()
-        this.min = Int.MAX_VALUE
-        this.max = Int.MIN_VALUE
+        this.min = IntValue.MAX_VALUE
+        this.max = IntValue.MIN_VALUE
     }
 
     /**

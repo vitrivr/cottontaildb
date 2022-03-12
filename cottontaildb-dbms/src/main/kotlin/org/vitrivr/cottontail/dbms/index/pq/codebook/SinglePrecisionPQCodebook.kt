@@ -6,7 +6,7 @@ import org.mapdb.DataOutput2
 import org.vitrivr.cottontail.core.values.FloatVectorValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.dbms.index.pq.codebook.PQCodebook.Companion.clusterRealData
-import org.vitrivr.cottontail.storage.serializers.ValueSerializerFactory
+import org.vitrivr.cottontail.storage.serializers.values.ValueSerializerFactory
 
 /**
  * A [PQCodebook] implementation for [FloatVectorValue]s (single precision).

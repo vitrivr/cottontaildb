@@ -25,8 +25,8 @@ import org.vitrivr.cottontail.dbms.execution.TransactionContext
 import org.vitrivr.cottontail.dbms.index.*
 import org.vitrivr.cottontail.dbms.index.lucene.LuceneIndex
 import org.vitrivr.cottontail.dbms.operations.Operation
-import org.vitrivr.cottontail.storage.serializers.ValueSerializerFactory
-import org.vitrivr.cottontail.storage.serializers.xodus.XodusBinding
+import org.vitrivr.cottontail.storage.serializers.values.ValueSerializerFactory
+import org.vitrivr.cottontail.storage.serializers.values.xodus.XodusBinding
 import java.util.*
 import kotlin.concurrent.withLock
 

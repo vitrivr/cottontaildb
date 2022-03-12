@@ -22,7 +22,7 @@ import org.vitrivr.cottontail.dbms.execution.TransactionContext
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.general.DBOVersion
 import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
-import org.vitrivr.cottontail.storage.serializers.ValueSerializerFactory
+import org.vitrivr.cottontail.storage.serializers.values.ValueSerializerFactory
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.locks.StampedLock

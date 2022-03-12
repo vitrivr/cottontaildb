@@ -1,8 +1,8 @@
 package org.vitrivr.cottontail.core.values
 
-import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.NumericValue
 import org.vitrivr.cottontail.core.values.types.RealValue
+import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
 import java.util.*
 
@@ -10,13 +10,26 @@ import java.util.*
  * This is an abstraction over a [Long].
  *
  * @author Ralph Gasser
- * @version 1.6.0
+ * @version 1.7.0
  */
 @JvmInline
 value class LongValue(override val value: Long): RealValue<Long> {
 
     companion object {
+        /**
+         * The minimum value that can be held by a [LongValue].
+         *
+         * Is larger than [Long.MIN_VALUE] because [Long.MIN_VALUE] is reserved to signify null.
+         */
+        val MIN_VALUE = LongValue(Long.MIN_VALUE + 1L)
+
+        /** The maximum value that can be held by a [LongValue]. */
+        val MAX_VALUE = LongValue(Long.MAX_VALUE)
+
+        /** The zero [LongValue]. */
         val ZERO = LongValue(0L)
+
+        /** The one [LongValue]. */
         val ONE = LongValue(1L)
 
         /**

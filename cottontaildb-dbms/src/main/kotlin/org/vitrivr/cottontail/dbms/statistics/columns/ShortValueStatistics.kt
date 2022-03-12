@@ -2,42 +2,59 @@ package org.vitrivr.cottontail.dbms.statistics.columns
 
 import com.google.common.primitives.Shorts.max
 import com.google.common.primitives.Shorts.min
+import jetbrains.exodus.bindings.BooleanBinding
+import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.bindings.ShortBinding
 import jetbrains.exodus.util.LightOutputStream
+import org.vitrivr.cottontail.core.values.DoubleValue
+import org.vitrivr.cottontail.core.values.IntValue
 import org.vitrivr.cottontail.core.values.ShortValue
 import org.vitrivr.cottontail.core.values.types.Types
+import org.vitrivr.cottontail.storage.serializers.statistics.xodus.XodusBinding
 import java.io.ByteArrayInputStream
 
 /**
  * A [ValueStatistics] implementation for [ShortValue]s.
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.2.0
  */
-class ShortValueStatistics : ValueStatistics<ShortValue>(Types.Short) {
+class ShortValueStatistics : AbstractValueStatistics<ShortValue>(Types.Short), RealValueStatistics<ShortValue> {
 
     /**
      * Xodus serializer for [ShortValueStatistics]
      */
-    object Binding {
-        fun read(stream: ByteArrayInputStream): ShortValueStatistics {
+    object Binding: XodusBinding<ShortValueStatistics> {
+        override fun read(stream: ByteArrayInputStream): ShortValueStatistics {
             val stat = ShortValueStatistics()
-            stat.min = ShortBinding.BINDING.readObject(stream)
-            stat.max = ShortBinding.BINDING.readObject(stream)
+            stat.fresh = BooleanBinding.BINDING.readObject(stream)
+            stat.numberOfNullEntries = LongBinding.readCompressed(stream)
+            stat.numberOfNonNullEntries = LongBinding.readCompressed(stream)
+            stat.min = ShortValue(ShortBinding.BINDING.readObject(stream))
+            stat.max = ShortValue(ShortBinding.BINDING.readObject(stream))
             return stat
         }
 
-        fun write(output: LightOutputStream, statistics: ShortValueStatistics) {
+        override fun write(output: LightOutputStream, statistics: ShortValueStatistics) {
+            BooleanBinding.BINDING.writeObject(output, statistics.fresh)
+            LongBinding.writeCompressed(output, statistics.numberOfNullEntries)
+            LongBinding.writeCompressed(output, statistics.numberOfNonNullEntries)
             ShortBinding.BINDING.writeObject(output, statistics.min)
             ShortBinding.BINDING.writeObject(output, statistics.max)
         }
     }
 
-    /** Minimum value for this [ShortValueStatistics]. */
-    var min: Short = Short.MAX_VALUE
+    /** Minimum value seen by this [ShortValueStatistics]. */
+    override var min: ShortValue = ShortValue.MAX_VALUE
+        private set
 
-    /** Minimum value for this [ShortValueStatistics]. */
-    var max: Short = Short.MIN_VALUE
+    /** Minimum value seen by this [ShortValueStatistics]. */
+    override var max: ShortValue = ShortValue.MIN_VALUE
+        private set
+
+    /** Sum of all [IntValue]s seen by this [ShortValueStatistics]. */
+    override var sum: DoubleValue = DoubleValue.ZERO
+        private set
 
     /**
      * Updates this [ShortValueStatistics] with an inserted [ShortValue]
@@ -47,8 +64,8 @@ class ShortValueStatistics : ValueStatistics<ShortValue>(Types.Short) {
     override fun insert(inserted: ShortValue?) {
         super.insert(inserted)
         if (inserted != null) {
-            this.min = min(inserted.value, this.min)
-            this.max = max(inserted.value, this.max)
+            this.min = ShortValue(min(inserted.value, this.min.value))
+            this.max = ShortValue(max(inserted.value, this.max.value))
         }
     }
 
@@ -61,7 +78,7 @@ class ShortValueStatistics : ValueStatistics<ShortValue>(Types.Short) {
         super.delete(deleted)
 
         /* We cannot create a sensible estimate if a value is deleted. */
-        if (this.min == deleted?.value || this.max == deleted?.value) {
+        if (this.min == deleted || this.max == deleted) {
             this.fresh = false
         }
     }
@@ -71,8 +88,9 @@ class ShortValueStatistics : ValueStatistics<ShortValue>(Types.Short) {
      */
     override fun reset() {
         super.reset()
-        this.min = Short.MAX_VALUE
-        this.max = Short.MIN_VALUE
+        this.min = ShortValue.MAX_VALUE
+        this.max = ShortValue.MIN_VALUE
+        this.sum = DoubleValue.ZERO
     }
 
     /**

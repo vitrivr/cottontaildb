@@ -1,8 +1,8 @@
 package org.vitrivr.cottontail.core.values
 
-import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.NumericValue
 import org.vitrivr.cottontail.core.values.types.RealValue
+import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
 import java.util.*
 
@@ -10,13 +10,26 @@ import java.util.*
  * This is an abstraction over an [Int].
  *
  * @author Ralph Gasser
- * @version 1.6.0
+ * @version 1.7.0
  */
 @JvmInline
 value class IntValue(override val value: Int): RealValue<Int> {
 
     companion object {
+        /**
+         * The minimum value that can be held by a [IntValue].
+         *
+         * Is larger than [Int.MIN_VALUE] because [Int.MIN_VALUE] is reserved to signify null.
+         */
+        val MIN_VALUE = IntValue(Int.MIN_VALUE + 1)
+
+        /** The maximum value that can be held by a [IntValue]. */
+        val MAX_VALUE = IntValue(Int.MAX_VALUE)
+
+        /** The zero [IntValue]. */
         val ZERO = IntValue(0)
+
+        /** The zero [IntValue]. */
         val ONE = IntValue(1)
 
         /**

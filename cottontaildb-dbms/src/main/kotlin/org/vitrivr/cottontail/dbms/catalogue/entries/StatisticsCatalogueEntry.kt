@@ -14,6 +14,8 @@ import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.column.Column
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.statistics.columns.*
+import org.vitrivr.cottontail.storage.serializers.statistics.StatisticsSerializerFactory
+import org.vitrivr.cottontail.storage.serializers.statistics.xodus.XodusBinding
 import java.io.ByteArrayInputStream
 
 /**
@@ -38,12 +40,15 @@ data class StatisticsCatalogueEntry(val name: Name.ColumnName, val type: Types<*
         Types.Int -> IntValueStatistics()
         Types.Long -> LongValueStatistics()
         Types.String -> StringValueStatistics()
-        is Types.BooleanVector -> BooleanVectorValueStatistics(def.type as Types.BooleanVector)
-        is Types.DoubleVector -> DoubleVectorValueStatistics(def.type as Types.DoubleVector)
-        is Types.FloatVector -> FloatVectorValueStatistics(def.type as Types.FloatVector)
-        is Types.IntVector -> IntVectorValueStatistics(def.type as Types.IntVector)
-        is Types.LongVector -> LongVectorValueStatistics(def.type as Types.LongVector)
-        else -> ValueStatistics(def.type)
+        Types.Complex32 -> Complex32ValueStatistics()
+        Types.Complex64 -> Complex64ValueStatistics()
+        is Types.BooleanVector -> BooleanVectorValueStatistics(def.type.logicalSize)
+        is Types.DoubleVector -> DoubleVectorValueStatistics(def.type.logicalSize)
+        is Types.FloatVector -> FloatVectorValueStatistics(def.type.logicalSize)
+        is Types.IntVector -> IntVectorValueStatistics(def.type.logicalSize)
+        is Types.LongVector -> LongVectorValueStatistics(def.type.logicalSize)
+        is Types.Complex32Vector -> Complex32VectorValueStatistics(def.type.logicalSize)
+        is Types.Complex64Vector -> Complex64VectorValueStatistics(def.type.logicalSize)
     })
 
     /**
@@ -71,18 +76,21 @@ data class StatisticsCatalogueEntry(val name: Name.ColumnName, val type: Types<*
              * De-serializes a [Serialized] from the given [ByteArrayInputStream].
              */
             override fun readObject(stream: ByteArrayInputStream): Serialized {
-                val statistics = ValueStatistics.read(stream)
-                return Serialized(statistics.type, statistics)
+                val type = Types.forOrdinal(IntegerBinding.readCompressed(stream), IntegerBinding.readCompressed(stream))
+                val serializer = StatisticsSerializerFactory.xodus(type)
+                return Serialized(type, serializer.read(stream))
             }
 
             /**
              * Serializes a [Serialized] to the given [LightOutputStream].
              */
-            override fun writeObject(output: LightOutputStream, `object`: Comparable<Nothing>) {
+            @Suppress("UNCHECKED_CAST")
+            override fun writeObject(output: LightOutputStream, `object`: Comparable<Serialized>) {
                 require(`object` is Serialized) { "$`object` cannot be written as statistics entry." }
                 IntegerBinding.writeCompressed(output, `object`.type.ordinal)
                 IntegerBinding.writeCompressed(output, `object`.type.logicalSize)
-                ValueStatistics.write(output, `object`.statistics)
+                val serializer = StatisticsSerializerFactory.xodus(`object`.type) as XodusBinding<ValueStatistics<*>>
+                serializer.write(output, `object`.statistics)
             }
         }
         override fun compareTo(other: Serialized): Int = this.type.ordinal.compareTo(other.type.ordinal)

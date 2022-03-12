@@ -1,9 +1,11 @@
 package org.vitrivr.cottontail.dbms.statistics.columns
 
+import jetbrains.exodus.bindings.BooleanBinding
 import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.values.DateValue
 import org.vitrivr.cottontail.core.values.types.Types
+import org.vitrivr.cottontail.storage.serializers.statistics.xodus.XodusBinding
 import java.io.ByteArrayInputStream
 import java.lang.Long.max
 import java.lang.Long.min
@@ -12,33 +14,40 @@ import java.lang.Long.min
  * A [ValueStatistics] implementation for [DateValue]s.
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.2.0
  */
-class DateValueStatistics : ValueStatistics<DateValue>(Types.Date) {
+class DateValueStatistics : AbstractValueStatistics<DateValue>(Types.Date) {
 
     /**
      * Xodus serializer for [DateValueStatistics]
      */
-    object Binding {
-        fun read(stream: ByteArrayInputStream): DateValueStatistics {
+    object Binding: XodusBinding<DateValueStatistics> {
+        override fun read(stream: ByteArrayInputStream): DateValueStatistics {
             val stat = DateValueStatistics()
-            stat.min = LongBinding.readCompressed(stream)
-            stat.max = LongBinding.readCompressed(stream)
+            stat.fresh = BooleanBinding.BINDING.readObject(stream)
+            stat.numberOfNullEntries = LongBinding.readCompressed(stream)
+            stat.numberOfNonNullEntries = LongBinding.readCompressed(stream)
+            stat.min = DateValue(LongBinding.readCompressed(stream))
+            stat.max = DateValue(LongBinding.readCompressed(stream))
             return stat
         }
 
-        fun write(output: LightOutputStream, statistics: DateValueStatistics) {
-            LongBinding.writeCompressed(output, statistics.min)
-            LongBinding.writeCompressed(output, statistics.max)
+        override fun write(output: LightOutputStream, statistics: DateValueStatistics) {
+            BooleanBinding.BINDING.writeObject(output, statistics.fresh)
+            LongBinding.writeCompressed(output, statistics.numberOfNullEntries)
+            LongBinding.writeCompressed(output, statistics.numberOfNonNullEntries)
+            LongBinding.writeCompressed(output, statistics.min.value)
+            LongBinding.writeCompressed(output, statistics.max.value)
         }
     }
 
-    /** Minimum value for this [DateValueStatistics]. */
-    var min: Long = Long.MAX_VALUE
+    /** Minimum value seen by this [DateValueStatistics]. */
+    var min: DateValue = DateValue(Long.MAX_VALUE)
+        private set
 
-    /** Minimum value for this [DateValueStatistics]. */
-    var max: Long = Long.MIN_VALUE
-
+    /** Minimum value seen by this [DateValueStatistics]. */
+    var max: DateValue = DateValue(Long.MIN_VALUE)
+            private set
     /**
      * Updates this [DateValueStatistics] with an inserted [DateValue]
      *
@@ -47,8 +56,8 @@ class DateValueStatistics : ValueStatistics<DateValue>(Types.Date) {
     override fun insert(inserted: DateValue?) {
         super.insert(inserted)
         if (inserted != null) {
-            this.min = min(inserted.value, this.min)
-            this.max = max(inserted.value, this.max)
+            this.min = DateValue(min(inserted.value, this.min.value))
+            this.max = DateValue(max(inserted.value, this.max.value))
         }
     }
 
@@ -61,7 +70,7 @@ class DateValueStatistics : ValueStatistics<DateValue>(Types.Date) {
         super.delete(deleted)
 
         /* We cannot create a sensible estimate if a value is deleted. */
-        if (this.min == deleted?.value || this.max == deleted?.value) {
+        if (this.min == deleted || this.max == deleted) {
             this.fresh = false
         }
     }
@@ -71,8 +80,8 @@ class DateValueStatistics : ValueStatistics<DateValue>(Types.Date) {
      */
     override fun reset() {
         super.reset()
-        this.min = Long.MAX_VALUE
-        this.max = Long.MIN_VALUE
+        this.min = DateValue(Long.MAX_VALUE)
+        this.max = DateValue(Long.MIN_VALUE)
     }
 
     /**

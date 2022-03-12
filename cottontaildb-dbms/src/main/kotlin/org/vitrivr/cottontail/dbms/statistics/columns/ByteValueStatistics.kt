@@ -2,42 +2,58 @@ package org.vitrivr.cottontail.dbms.statistics.columns
 
 import com.google.common.primitives.SignedBytes.max
 import com.google.common.primitives.SignedBytes.min
+import jetbrains.exodus.bindings.BooleanBinding
 import jetbrains.exodus.bindings.ByteBinding
+import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.values.ByteValue
+import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.types.Types
+import org.vitrivr.cottontail.storage.serializers.statistics.xodus.XodusBinding
 import java.io.ByteArrayInputStream
 
 /**
  * A [ValueStatistics] implementation for [ByteValue]s.
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.2.0
  */
-class ByteValueStatistics : ValueStatistics<ByteValue>(Types.Byte) {
+class ByteValueStatistics : AbstractValueStatistics<ByteValue>(Types.Byte), RealValueStatistics<ByteValue> {
 
     /**
      * Xodus serializer for [ByteValueStatistics]
      */
-    object Binding {
-        fun read(stream: ByteArrayInputStream): ByteValueStatistics {
+    object Binding: XodusBinding<ByteValueStatistics> {
+        override fun read(stream: ByteArrayInputStream): ByteValueStatistics {
             val stat = ByteValueStatistics()
-            stat.min = ByteBinding.BINDING.readObject(stream)
-            stat.max = ByteBinding.BINDING.readObject(stream)
+            stat.fresh = BooleanBinding.BINDING.readObject(stream)
+            stat.numberOfNullEntries = LongBinding.readCompressed(stream)
+            stat.numberOfNonNullEntries = LongBinding.readCompressed(stream)
+            stat.min = ByteValue(ByteBinding.BINDING.readObject(stream))
+            stat.max = ByteValue(ByteBinding.BINDING.readObject(stream))
             return stat
         }
 
-        fun write(output: LightOutputStream, statistics: ByteValueStatistics) {
+        override fun write(output: LightOutputStream, statistics: ByteValueStatistics) {
+            BooleanBinding.BINDING.writeObject(output, statistics.fresh)
+            LongBinding.writeCompressed(output, statistics.numberOfNullEntries)
+            LongBinding.writeCompressed(output, statistics.numberOfNonNullEntries)
             ByteBinding.BINDING.writeObject(output, statistics.min)
             ByteBinding.BINDING.writeObject(output, statistics.max)
         }
     }
 
-    /** Minimum value for this [ByteValueStatistics]. */
-    var min: Byte = Byte.MAX_VALUE
+    /** Minimum value seen by this [ByteValueStatistics]. */
+    override var min: ByteValue = ByteValue.MAX_VALUE
+        private set
 
-    /** Minimum value for this [ByteValueStatistics]. */
-    var max: Byte = Byte.MIN_VALUE
+    /** Minimum value seen by this [ByteValueStatistics]. */
+    override var max: ByteValue = ByteValue.MIN_VALUE
+        private set
+
+    /** Sum of all [ByteValue]s seen by this [ByteValueStatistics]. */
+    override var sum: DoubleValue = DoubleValue.ZERO
+        private set
 
     /**
      * Updates this [ByteValueStatistics] with an inserted [ByteValue]
@@ -47,8 +63,9 @@ class ByteValueStatistics : ValueStatistics<ByteValue>(Types.Byte) {
     override fun insert(inserted: ByteValue?) {
         super.insert(inserted)
         if (inserted != null) {
-            this.min = min(inserted.value, this.min)
-            this.max = max(inserted.value, this.max)
+            this.min = ByteValue(min(inserted.value, this.min.value))
+            this.max = ByteValue(max(inserted.value, this.max.value))
+            this.sum += DoubleValue(inserted.value)
         }
     }
 
@@ -61,10 +78,8 @@ class ByteValueStatistics : ValueStatistics<ByteValue>(Types.Byte) {
         super.delete(deleted)
 
         /* We cannot create a sensible estimate if a value is deleted. */
-        if (deleted != null) {
-            if (this.min == deleted.value || this.max == deleted.value) {
-                this.fresh = false
-            }
+        if (this.min == deleted || this.max == deleted) {
+            this.fresh = false
         }
     }
 
@@ -73,8 +88,9 @@ class ByteValueStatistics : ValueStatistics<ByteValue>(Types.Byte) {
      */
     override fun reset() {
         super.reset()
-        this.min = Byte.MAX_VALUE
-        this.max = Byte.MIN_VALUE
+        this.min = ByteValue.MAX_VALUE
+        this.max = ByteValue.MIN_VALUE
+        this.sum = DoubleValue.ZERO
     }
 
     /**

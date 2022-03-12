@@ -1,8 +1,8 @@
 package org.vitrivr.cottontail.core.values
 
-import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.NumericValue
 import org.vitrivr.cottontail.core.values.types.RealValue
+import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.utilities.extensions.nextShort
 import java.util.*
@@ -11,12 +11,25 @@ import java.util.*
  * This is an abstraction over a [Short].
  *
  * @author Ralph Gasser
- * @version 1.6.0
+ * @version 1.7.0
  */
 @JvmInline
 value class ShortValue(override val value: Short): RealValue<Short> {
     companion object {
+        /**
+         * The minimum value that can be held by a [ShortValue].
+         *
+         * Is larger than [Short.MIN_VALUE] because [Short.MIN_VALUE] is reserved to signify null.
+         */
+        val MIN_VALUE = ShortValue(Short.MIN_VALUE + 1.toShort())
+
+        /** The maximum value that can be held by a [ShortValue]. */
+        val MAX_VALUE = ShortValue(Int.MAX_VALUE)
+
+        /** The zero [ShortValue]. */
         val ZERO = ShortValue(0.toShort())
+
+        /** The one [ShortValue]. */
         val ONE = ShortValue(1.toShort())
 
         /**

@@ -1,31 +1,39 @@
 package org.vitrivr.cottontail.dbms.statistics.columns
 
+import jetbrains.exodus.bindings.BooleanBinding
 import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.values.BooleanValue
 import org.vitrivr.cottontail.core.values.types.Types
+import org.vitrivr.cottontail.storage.serializers.statistics.xodus.XodusBinding
 import java.io.ByteArrayInputStream
 
 /**
  * A [ValueStatistics] implementation for [BooleanValue]s.
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.2.0
  */
-class BooleanValueStatistics : ValueStatistics<BooleanValue>(Types.Boolean) {
+class BooleanValueStatistics: AbstractValueStatistics<BooleanValue>(Types.Boolean) {
 
     /**
      * Xodus serializer for [BooleanValueStatistics]
      */
-    object Binding {
-        fun read(stream: ByteArrayInputStream): BooleanValueStatistics {
+    object Binding: XodusBinding<BooleanValueStatistics> {
+        override fun read(stream: ByteArrayInputStream): BooleanValueStatistics {
             val stat = BooleanValueStatistics()
+            stat.fresh = BooleanBinding.BINDING.readObject(stream)
+            stat.numberOfNullEntries = LongBinding.readCompressed(stream)
+            stat.numberOfNonNullEntries = LongBinding.readCompressed(stream)
             stat.numberOfTrueEntries = LongBinding.readCompressed(stream)
             stat.numberOfFalseEntries = LongBinding.readCompressed(stream)
             return stat
         }
 
-        fun write(output: LightOutputStream, statistics: BooleanValueStatistics) {
+        override fun write(output: LightOutputStream, statistics: BooleanValueStatistics) {
+            BooleanBinding.BINDING.writeObject(output, statistics.fresh)
+            LongBinding.writeCompressed(output, statistics.numberOfNullEntries)
+            LongBinding.writeCompressed(output, statistics.numberOfNonNullEntries)
             LongBinding.writeCompressed(output, statistics.numberOfTrueEntries)
             LongBinding.writeCompressed(output, statistics.numberOfFalseEntries)
         }
@@ -40,9 +48,9 @@ class BooleanValueStatistics : ValueStatistics<BooleanValue>(Types.Boolean) {
         private set
 
     /**
-     * Updates this [LongValueStatistics] with an inserted [BooleanValue]
+     * Updates this [BooleanValueStatistics] with an inserted [BooleanValue]
      *
-     * @param inserted The [Value] that was deleted.
+     * @param inserted The [BooleanValue] that was inserted.
      */
     override fun insert(inserted: BooleanValue?) {
         when (inserted?.value) {
@@ -61,7 +69,7 @@ class BooleanValueStatistics : ValueStatistics<BooleanValue>(Types.Boolean) {
     /**
      * Updates this [LongValueStatistics] with a deleted [BooleanValue]
      *
-     * @param deleted The [Value] that was deleted.
+     * @param deleted The [BooleanValue] that was deleted.
      */
     override fun delete(deleted: BooleanValue?) {
         when (deleted?.value) {

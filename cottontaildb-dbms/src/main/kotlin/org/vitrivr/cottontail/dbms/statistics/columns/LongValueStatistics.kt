@@ -1,9 +1,12 @@
 package org.vitrivr.cottontail.dbms.statistics.columns
 
+import jetbrains.exodus.bindings.BooleanBinding
 import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.util.LightOutputStream
+import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.LongValue
 import org.vitrivr.cottontail.core.values.types.Types
+import org.vitrivr.cottontail.storage.serializers.statistics.xodus.XodusBinding
 import java.io.ByteArrayInputStream
 import java.lang.Long.max
 import java.lang.Long.min
@@ -12,32 +15,44 @@ import java.lang.Long.min
  * A [ValueStatistics] implementation for [LongValue]s.
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.2.0
  */
-class LongValueStatistics : ValueStatistics<LongValue>(Types.Long) {
+class LongValueStatistics : AbstractValueStatistics<LongValue>(Types.Long), RealValueStatistics<LongValue> {
 
     /**
      * Xodus serializer for [LongValueStatistics]
      */
-    object Binding {
-        fun read(stream: ByteArrayInputStream): LongValueStatistics {
+    object Binding: XodusBinding<LongValueStatistics> {
+        override fun read(stream: ByteArrayInputStream): LongValueStatistics {
             val stat = LongValueStatistics()
-            stat.min = LongBinding.BINDING.readObject(stream)
-            stat.max = LongBinding.BINDING.readObject(stream)
+            stat.fresh = BooleanBinding.BINDING.readObject(stream)
+            stat.numberOfNullEntries = LongBinding.readCompressed(stream)
+            stat.numberOfNonNullEntries = LongBinding.readCompressed(stream)
+            stat.min = LongValue(LongBinding.BINDING.readObject(stream))
+            stat.max = LongValue(LongBinding.BINDING.readObject(stream))
             return stat
         }
 
-        fun write(output: LightOutputStream, statistics: LongValueStatistics) {
+        override fun write(output: LightOutputStream, statistics: LongValueStatistics) {
+            BooleanBinding.BINDING.writeObject(output, statistics.fresh)
+            LongBinding.writeCompressed(output, statistics.numberOfNullEntries)
+            LongBinding.writeCompressed(output, statistics.numberOfNonNullEntries)
             LongBinding.BINDING.writeObject(output, statistics.min)
             LongBinding.BINDING.writeObject(output, statistics.max)
         }
     }
 
-    /** Minimum value for this [LongValueStatistics]. */
-    var min: Long = Long.MAX_VALUE
+    /** Minimum value seen by this [LongValueStatistics]. */
+    override var min: LongValue = LongValue.MAX_VALUE
+        private set
 
-    /** Minimum value for this [LongValueStatistics]. */
-    var max: Long = Long.MIN_VALUE
+    /** Minimum value seen by this [LongValueStatistics]. */
+    override var max: LongValue = LongValue.MIN_VALUE
+        private set
+
+    /** Sum of all [LongValue]s seen by this [LongValueStatistics]. */
+    override var sum: DoubleValue = DoubleValue.ZERO
+        private set
 
     /**
      * Updates this [LongValueStatistics] with an inserted [LongValue]
@@ -47,8 +62,8 @@ class LongValueStatistics : ValueStatistics<LongValue>(Types.Long) {
     override fun insert(inserted: LongValue?) {
         super.insert(inserted)
         if (inserted != null) {
-            this.min = min(inserted.value, this.min)
-            this.max = max(inserted.value, this.max)
+            this.min = LongValue(min(inserted.value, this.min.value))
+            this.max = LongValue(max(inserted.value, this.max.value))
         }
     }
 
@@ -61,7 +76,7 @@ class LongValueStatistics : ValueStatistics<LongValue>(Types.Long) {
         super.delete(deleted)
 
         /* We cannot create a sensible estimate if a value is deleted. */
-        if (this.min == deleted?.value || this.max == deleted?.value) {
+        if (this.min == deleted || this.max == deleted) {
             this.fresh = false
         }
     }
@@ -71,8 +86,8 @@ class LongValueStatistics : ValueStatistics<LongValue>(Types.Long) {
      */
     override fun reset() {
         super.reset()
-        this.min = Long.MAX_VALUE
-        this.max = Long.MIN_VALUE
+        this.min = LongValue.MAX_VALUE
+        this.max = LongValue.MIN_VALUE
     }
 
     /**

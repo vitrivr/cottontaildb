@@ -1,9 +1,12 @@
 package org.vitrivr.cottontail.dbms.statistics.columns
 
+import jetbrains.exodus.bindings.BooleanBinding
 import jetbrains.exodus.bindings.IntegerBinding
+import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.values.StringValue
 import org.vitrivr.cottontail.core.values.types.Types
+import org.vitrivr.cottontail.storage.serializers.statistics.xodus.XodusBinding
 import java.io.ByteArrayInputStream
 import java.lang.Integer.max
 import java.lang.Integer.min
@@ -13,22 +16,28 @@ import java.lang.Math.floorDiv
  * A specialized [ValueStatistics] for [StringValue]s.
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.2.0
  */
-class StringValueStatistics : ValueStatistics<StringValue>(Types.String) {
+class StringValueStatistics : AbstractValueStatistics<StringValue>(Types.String) {
 
     /**
-     * Xodus serializer for [ShortValueStatistics]
+     * Xodus serializer for [StringValueStatistics]
      */
-    object Binding {
-        fun read(stream: ByteArrayInputStream): StringValueStatistics {
+    object Binding: XodusBinding<StringValueStatistics> {
+        override fun read(stream: ByteArrayInputStream): StringValueStatistics {
             val stat = StringValueStatistics()
+            stat.fresh = BooleanBinding.BINDING.readObject(stream)
+            stat.numberOfNullEntries = LongBinding.readCompressed(stream)
+            stat.numberOfNonNullEntries = LongBinding.readCompressed(stream)
             stat.minWidth = IntegerBinding.readCompressed(stream)
             stat.maxWidth = IntegerBinding.readCompressed(stream)
             return stat
         }
 
-        fun write(output: LightOutputStream, statistics: StringValueStatistics) {
+        override fun write(output: LightOutputStream, statistics: StringValueStatistics) {
+            BooleanBinding.BINDING.writeObject(output, statistics.fresh)
+            LongBinding.writeCompressed(output, statistics.numberOfNullEntries)
+            LongBinding.writeCompressed(output, statistics.numberOfNonNullEntries)
             IntegerBinding.writeCompressed(output, statistics.minWidth)
             IntegerBinding.writeCompressed(output, statistics.maxWidth)
         }
@@ -68,10 +77,8 @@ class StringValueStatistics : ValueStatistics<StringValue>(Types.String) {
         super.delete(deleted)
 
         /* We cannot create a sensible estimate if a value is deleted. */
-        if (deleted != null) {
-            if (this.minWidth == deleted.logicalSize || this.maxWidth == deleted.logicalSize) {
-                this.fresh = false
-            }
+        if (this.minWidth == deleted?.logicalSize || this.maxWidth == deleted?.logicalSize) {
+            this.fresh = false
         }
     }
 

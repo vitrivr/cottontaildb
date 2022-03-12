@@ -20,8 +20,8 @@ import org.vitrivr.cottontail.dbms.general.DBOVersion
 import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
 
 import org.vitrivr.cottontail.legacy.v1.entity.EntityV1
-import org.vitrivr.cottontail.storage.serializers.ValueSerializerFactory
-import org.vitrivr.cottontail.storage.serializers.mapdb.MapDBSerializer
+import org.vitrivr.cottontail.storage.serializers.values.ValueSerializerFactory
+import org.vitrivr.cottontail.storage.serializers.values.mapdb.MapDBSerializer
 import org.vitrivr.cottontail.utilities.extensions.write
 import java.nio.file.Path
 import java.util.concurrent.locks.StampedLock
