@@ -28,9 +28,8 @@ sealed class IntVectorValueXodusBinding(val size: Int): XodusBinding<IntVectorVa
         override fun entryToValue(entry: ByteIterable): IntVectorValue = IntVectorValue(Snappy.uncompressIntArray(entry.bytesUnsafe))
         override fun valueToEntry(value: IntVectorValue?): ByteIterable {
             require(value != null) { "Serialization error: Value cannot be null." }
-            val stream = LightOutputStream(this.type.physicalSize)
             val compressed = Snappy.compress(value.data)
-            stream.write(compressed)
+            val stream = LightOutputStream(compressed)
             return stream.asArrayByteIterable()
         }
     }
@@ -54,9 +53,8 @@ sealed class IntVectorValueXodusBinding(val size: Int): XodusBinding<IntVectorVa
         override fun valueToEntry(value: IntVectorValue?): ByteIterable = if (value == null) {
             NULL_VALUE
         } else {
-            val stream = LightOutputStream(this.type.physicalSize)
             val compressed = Snappy.compress(value.data)
-            stream.write(compressed)
+            val stream = LightOutputStream(compressed)
             stream.asArrayByteIterable()
         }
     }

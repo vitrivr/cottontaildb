@@ -30,9 +30,8 @@ sealed class Complex64VectorValueXodusBinding(size: Int): XodusBinding<Complex64
 
         override fun valueToEntry(value: Complex64VectorValue?): ByteIterable {
             require(value != null) { "Serialization error: Value cannot be null." }
-            val stream = LightOutputStream(this.type.physicalSize)
             val compressed = Snappy.compress(value.data)
-            stream.write(compressed)
+            val stream = LightOutputStream(compressed)
             return stream.asArrayByteIterable()
         }
     }
@@ -53,9 +52,8 @@ sealed class Complex64VectorValueXodusBinding(size: Int): XodusBinding<Complex64
         override fun valueToEntry(value: Complex64VectorValue?): ByteIterable = if (value == null) {
             NULL_VALUE
         } else {
-            val stream = LightOutputStream(this.type.physicalSize)
             val compressed = Snappy.compress(value.data)
-            stream.write(compressed)
+            val stream = LightOutputStream(compressed)
             stream.asArrayByteIterable()
         }
     }

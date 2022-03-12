@@ -29,9 +29,8 @@ sealed class FloatVectorValueXodusBinding(size: Int): XodusBinding<FloatVectorVa
         override fun entryToValue(entry: ByteIterable): FloatVectorValue = FloatVectorValue(Snappy.uncompressFloatArray(entry.bytesUnsafe))
         override fun valueToEntry(value: FloatVectorValue?): ByteIterable {
             require(value != null) { "Serialization error: Value cannot be null." }
-            val stream = LightOutputStream(this.type.physicalSize)
             val compressed = Snappy.compress(value.data)
-            stream.write(compressed)
+            val stream = LightOutputStream(compressed)
             return stream.asArrayByteIterable()
         }
     }
@@ -55,9 +54,8 @@ sealed class FloatVectorValueXodusBinding(size: Int): XodusBinding<FloatVectorVa
         override fun valueToEntry(value: FloatVectorValue?): ByteIterable = if (value == null) {
             NULL_VALUE
         } else {
-            val stream = LightOutputStream(this.type.physicalSize)
             val compressed = Snappy.compress(value.data)
-            stream.write(compressed)
+            val stream = LightOutputStream(compressed)
             stream.asArrayByteIterable()
         }
     }
