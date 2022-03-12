@@ -39,8 +39,8 @@ class ShortValueStatistics : AbstractValueStatistics<ShortValue>(Types.Short), R
             BooleanBinding.BINDING.writeObject(output, statistics.fresh)
             LongBinding.writeCompressed(output, statistics.numberOfNullEntries)
             LongBinding.writeCompressed(output, statistics.numberOfNonNullEntries)
-            ShortBinding.BINDING.writeObject(output, statistics.min)
-            ShortBinding.BINDING.writeObject(output, statistics.max)
+            ShortBinding.BINDING.writeObject(output, statistics.min.value)
+            ShortBinding.BINDING.writeObject(output, statistics.max.value)
         }
     }
 

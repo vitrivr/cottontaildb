@@ -38,8 +38,8 @@ class ByteValueStatistics : AbstractValueStatistics<ByteValue>(Types.Byte), Real
             BooleanBinding.BINDING.writeObject(output, statistics.fresh)
             LongBinding.writeCompressed(output, statistics.numberOfNullEntries)
             LongBinding.writeCompressed(output, statistics.numberOfNonNullEntries)
-            ByteBinding.BINDING.writeObject(output, statistics.min)
-            ByteBinding.BINDING.writeObject(output, statistics.max)
+            ByteBinding.BINDING.writeObject(output, statistics.min.value)
+            ByteBinding.BINDING.writeObject(output, statistics.max.value)
         }
     }
 

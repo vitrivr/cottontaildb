@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.dbms.statistics.columns
 
 import jetbrains.exodus.bindings.BooleanBinding
+import jetbrains.exodus.bindings.DoubleBinding
 import jetbrains.exodus.bindings.IntegerBinding
 import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.util.LightOutputStream
@@ -38,8 +39,9 @@ class IntValueStatistics : AbstractValueStatistics<IntValue>(Types.Int), RealVal
             BooleanBinding.BINDING.writeObject(output, statistics.fresh)
             LongBinding.writeCompressed(output, statistics.numberOfNullEntries)
             LongBinding.writeCompressed(output, statistics.numberOfNonNullEntries)
-            IntegerBinding.BINDING.writeObject(output, statistics.min)
-            IntegerBinding.BINDING.writeObject(output, statistics.max)
+            IntegerBinding.BINDING.writeObject(output, statistics.min.value)
+            IntegerBinding.BINDING.writeObject(output, statistics.max.value)
+            DoubleBinding.BINDING.writeObject(output, statistics.sum.value)
         }
     }
 

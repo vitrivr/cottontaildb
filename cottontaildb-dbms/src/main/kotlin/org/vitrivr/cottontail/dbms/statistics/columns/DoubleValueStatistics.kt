@@ -38,9 +38,9 @@ class DoubleValueStatistics : AbstractValueStatistics<DoubleValue>(Types.Double)
             BooleanBinding.BINDING.writeObject(output, statistics.fresh)
             LongBinding.writeCompressed(output, statistics.numberOfNullEntries)
             LongBinding.writeCompressed(output, statistics.numberOfNonNullEntries)
-            DoubleBinding.BINDING.writeObject(output, statistics.min)
-            DoubleBinding.BINDING.writeObject(output, statistics.max)
-            DoubleBinding.BINDING.writeObject(output, statistics.sum)
+            DoubleBinding.BINDING.writeObject(output, statistics.min.value)
+            DoubleBinding.BINDING.writeObject(output, statistics.max.value)
+            DoubleBinding.BINDING.writeObject(output, statistics.sum.value)
         }
     }
 

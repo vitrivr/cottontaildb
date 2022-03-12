@@ -40,9 +40,9 @@ class FloatValueStatistics : AbstractValueStatistics<FloatValue>(Types.Float), R
             BooleanBinding.BINDING.writeObject(output, statistics.fresh)
             LongBinding.writeCompressed(output, statistics.numberOfNullEntries)
             LongBinding.writeCompressed(output, statistics.numberOfNonNullEntries)
-            FloatBinding.BINDING.writeObject(output, statistics.min)
-            FloatBinding.BINDING.writeObject(output, statistics.max)
-            DoubleBinding.BINDING.writeObject(output, statistics.sum)
+            FloatBinding.BINDING.writeObject(output, statistics.min.value)
+            FloatBinding.BINDING.writeObject(output, statistics.max.value)
+            DoubleBinding.BINDING.writeObject(output, statistics.sum.value)
         }
     }
 
