@@ -1,8 +1,8 @@
 package org.vitrivr.cottontail.dbms.index.va.signature
 
+import jetbrains.exodus.ArrayByteIterable
 import jetbrains.exodus.ByteIterable
 import jetbrains.exodus.bindings.ComparableBinding
-import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.dbms.index.va.VAFIndex
 import org.xerial.snappy.Snappy
 
@@ -41,10 +41,8 @@ value class VAFSignature(val cells: ByteArray): Comparable<VAFSignature> {
     object Binding {
         fun entryToValue(entry: ByteIterable): VAFSignature = VAFSignature(Snappy.uncompress(entry.bytesUnsafe))
         fun valueToEntry(value: VAFSignature): ByteIterable {
-            val stream = LightOutputStream(value.cells.size)
             val compressed = Snappy.compress(value.cells)
-            stream.write(compressed)
-            return stream.asArrayByteIterable()
+            return ArrayByteIterable(compressed, compressed.size)
         }
     }
 

@@ -1,9 +1,9 @@
 package org.vitrivr.cottontail.storage.serializers.values.xodus
 
+import jetbrains.exodus.ArrayByteIterable
 import jetbrains.exodus.ByteIterable
 import jetbrains.exodus.bindings.ComparableBinding
 import jetbrains.exodus.bindings.StringBinding
-import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.values.StringValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
@@ -29,8 +29,7 @@ sealed class StringValueXodusBinding: XodusBinding<StringValue> {
         override fun valueToEntry(value: StringValue?): ByteIterable {
             require(value != null) { "Serialization error: Value cannot be null." }
             val compressed = Snappy.compress(value.value)
-            val stream = LightOutputStream(compressed)
-            return stream.asArrayByteIterable()
+            return ArrayByteIterable(compressed, compressed.size)
         }
     }
 
@@ -57,8 +56,7 @@ sealed class StringValueXodusBinding: XodusBinding<StringValue> {
                 NULL_VALUE_RAW
             } else {
                 val compressed = Snappy.compress(value.value)
-                val stream = LightOutputStream(compressed)
-                return stream.asArrayByteIterable()
+                return ArrayByteIterable(compressed, compressed.size)
             }
         }
     }

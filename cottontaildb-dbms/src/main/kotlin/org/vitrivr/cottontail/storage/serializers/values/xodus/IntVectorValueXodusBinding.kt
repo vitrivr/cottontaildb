@@ -1,9 +1,9 @@
 package org.vitrivr.cottontail.storage.serializers.values.xodus
 
+import jetbrains.exodus.ArrayByteIterable
 import jetbrains.exodus.ByteIterable
 import jetbrains.exodus.bindings.IntegerBinding
 import jetbrains.exodus.util.ByteIterableUtil
-import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.values.IntVectorValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.xerial.snappy.Snappy
@@ -29,8 +29,7 @@ sealed class IntVectorValueXodusBinding(val size: Int): XodusBinding<IntVectorVa
         override fun valueToEntry(value: IntVectorValue?): ByteIterable {
             require(value != null) { "Serialization error: Value cannot be null." }
             val compressed = Snappy.compress(value.data)
-            val stream = LightOutputStream(compressed)
-            return stream.asArrayByteIterable()
+            return ArrayByteIterable(compressed, compressed.size)
         }
     }
 
@@ -50,12 +49,13 @@ sealed class IntVectorValueXodusBinding(val size: Int): XodusBinding<IntVectorVa
             }
         }
 
-        override fun valueToEntry(value: IntVectorValue?): ByteIterable = if (value == null) {
-            NULL_VALUE
-        } else {
-            val compressed = Snappy.compress(value.data)
-            val stream = LightOutputStream(compressed)
-            stream.asArrayByteIterable()
+        override fun valueToEntry(value: IntVectorValue?): ByteIterable {
+            return if (value == null) {
+                NULL_VALUE
+            } else {
+                val compressed = Snappy.compress(value.data)
+                ArrayByteIterable(compressed, compressed.size)
+            }
         }
     }
 }
