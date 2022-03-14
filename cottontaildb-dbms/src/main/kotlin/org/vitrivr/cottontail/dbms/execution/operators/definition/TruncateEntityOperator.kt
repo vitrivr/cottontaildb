@@ -2,14 +2,15 @@ package org.vitrivr.cottontail.dbms.execution.operators.definition
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import org.vitrivr.cottontail.core.basics.Record
+import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
+import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
-import org.vitrivr.cottontail.dbms.schema.SchemaTx
 import org.vitrivr.cottontail.dbms.execution.TransactionContext
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
-import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.basics.Record
+import org.vitrivr.cottontail.dbms.schema.SchemaTx
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTimedValue
 
@@ -17,20 +18,22 @@ import kotlin.time.measureTimedValue
  * An [Operator.SourceOperator] used during query execution. Truncates an [Entity] (i.e. drops and re-creates it).
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.3.0
  */
 @ExperimentalTime
 class TruncateEntityOperator(val catalogue: Catalogue, val name: Name.EntityName) : AbstractDataDefinitionOperator(name, "TRUNCATE ENTITY") {
-    override fun toFlow(context: org.vitrivr.cottontail.dbms.execution.TransactionContext): Flow<Record> {
+    override fun toFlow(context: TransactionContext): Flow<Record> {
         val catTxn = context.getTx(this.catalogue) as CatalogueTx
         val schemaTxn = context.getTx(catTxn.schemaForName(this.name.schema())) as SchemaTx
         val entityTxn = context.getTx(schemaTxn.entityForName(this.name)) as EntityTx
         return flow {
-            val columns =
-                entityTxn.listColumns().map { Pair(it.columnDef, it.engine) }.toTypedArray()
+            val columns = entityTxn.listColumns().map { Pair(it.columnDef, it.engine) }.toTypedArray()
+            val indexes = entityTxn.listIndexes()
             val timedTupleId = measureTimedValue {
                 schemaTxn.dropEntity(this@TruncateEntityOperator.name)
-                schemaTxn.createEntity(this@TruncateEntityOperator.name, *columns)
+                val newEntity = schemaTxn.createEntity(this@TruncateEntityOperator.name, *columns)
+                val newEntityTx = context.getTx(newEntity) as EntityTx
+                indexes.forEach { newEntityTx.createIndex(it.name, it.type, it.columns, it.config.toMap()) }
             }
             emit(this@TruncateEntityOperator.statusRecord(timedTupleId.duration))
         }
