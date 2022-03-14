@@ -2,13 +2,13 @@ package org.vitrivr.cottontail.dbms.functions
 
 import org.vitrivr.cottontail.core.queries.functions.Function
 import org.vitrivr.cottontail.core.queries.functions.FunctionRegistry
-import org.vitrivr.cottontail.core.queries.functions.math.VectorDistance
-import org.vitrivr.cottontail.dbms.functions.math.arithmetics.scalar.*
-import org.vitrivr.cottontail.dbms.functions.math.distance.binary.*
-import org.vitrivr.cottontail.dbms.functions.math.distance.other.HyperplaneDistance
-import org.vitrivr.cottontail.dbms.functions.math.distance.ternary.WeightedManhattanDistance
-import org.vitrivr.cottontail.dbms.functions.math.random.RandomFloatVector
-import org.vitrivr.cottontail.dbms.functions.math.score.FulltextScore
+import org.vitrivr.cottontail.core.queries.functions.math.arithmetics.scalar.*
+import org.vitrivr.cottontail.core.queries.functions.math.arithmetics.vector.Sum
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.*
+import org.vitrivr.cottontail.core.queries.functions.math.distance.ternary.HyperplaneDistance
+import org.vitrivr.cottontail.core.queries.functions.math.distance.ternary.WeightedManhattanDistance
+import org.vitrivr.cottontail.core.queries.functions.math.random.RandomFloatVector
+import org.vitrivr.cottontail.core.queries.functions.math.score.FulltextScore
 
 /**
  * Registers default [Function]s.
@@ -32,12 +32,12 @@ private fun FunctionRegistry.initializeArithmetics() {
     this.register(Minimum)
 
     /** Vector arithmetics. */
-    this.register(org.vitrivr.cottontail.dbms.functions.math.arithmetics.vector.Addition)
-    this.register(org.vitrivr.cottontail.dbms.functions.math.arithmetics.vector.Subtraction)
-    this.register(org.vitrivr.cottontail.dbms.functions.math.arithmetics.vector.Multiplication)
-    this.register(org.vitrivr.cottontail.dbms.functions.math.arithmetics.vector.Maximum)
-    this.register(org.vitrivr.cottontail.dbms.functions.math.arithmetics.vector.Minimum)
-    this.register(org.vitrivr.cottontail.dbms.functions.math.arithmetics.vector.Sum)
+    this.register(org.vitrivr.cottontail.core.queries.functions.math.arithmetics.vector.Addition)
+    this.register(org.vitrivr.cottontail.core.queries.functions.math.arithmetics.vector.Subtraction)
+    this.register(org.vitrivr.cottontail.core.queries.functions.math.arithmetics.vector.Multiplication)
+    this.register(org.vitrivr.cottontail.core.queries.functions.math.arithmetics.vector.Maximum)
+    this.register(org.vitrivr.cottontail.core.queries.functions.math.arithmetics.vector.Minimum)
+    this.register(Sum)
 }
 
 /**
