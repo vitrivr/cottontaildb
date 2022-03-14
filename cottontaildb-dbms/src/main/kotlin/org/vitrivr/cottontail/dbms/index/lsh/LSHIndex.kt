@@ -4,13 +4,16 @@ import jetbrains.exodus.bindings.ComparableBinding
 import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.env.Store
 import jetbrains.exodus.env.StoreConfig
+
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+
 import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.VectorDistance
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
 import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
@@ -24,7 +27,6 @@ import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
 import org.vitrivr.cottontail.dbms.execution.TransactionContext
-import org.vitrivr.cottontail.dbms.functions.math.distance.Distances
 import org.vitrivr.cottontail.dbms.index.*
 import org.vitrivr.cottontail.dbms.index.lsh.signature.LSHSignature
 import org.vitrivr.cottontail.dbms.index.lsh.signature.LSHSignatureGenerator
@@ -39,7 +41,7 @@ import kotlin.concurrent.withLock
  *
  * This [LSHIndex] is a generalization that basically maps an [LSHSignature] to the [TupleId] that match that [LSHSignature].
  * Generating the [LSHSignature] is delegated to a [LSHSignatureGenerator], which enables different types of LSH algorithms
- * specific for certain [Distances].
+ * specific for certain [VectorDistance].
  *
  * References:
  * [1] Indyk, P. and Motwani, R., 1998. Approximate Nearest Neighbors: Towards Removing the Curse of Dimensionality (p. 604–613). Proceedings of the Thirtieth Annual ACM Symposium on Theory of Computing
@@ -84,10 +86,10 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
          * @param parameters The parameters to initialize the default [LSHIndexConfig] with.
          */
         override fun buildConfig(parameters: Map<String, String>): IndexConfig<LSHIndex> = LSHIndexConfig(
-            buckets = parameters[LSHIndexConfig.KEY_NUM_BUCKETS]!!.toInt(),
-            stages = parameters[LSHIndexConfig.KEY_NUM_STAGES]!!.toInt(),
-            seed = parameters[LSHIndexConfig.KEY_SEED]!!.toLong(),
-            distance = Distances.valueOf(parameters[LSHIndexConfig.KEY_DISTANCES]!!.toString())
+            distance = parameters[LSHIndexConfig.KEY_DISTANCES]?.let { Name.FunctionName(it) } ?: LSHIndexConfig.DEFAULT_DISTANCE,
+            buckets = parameters[LSHIndexConfig.KEY_NUM_BUCKETS]?.toInt() ?: 50,
+            stages = parameters[LSHIndexConfig.KEY_NUM_STAGES]?.toInt() ?: 5,
+            seed = parameters[LSHIndexConfig.KEY_SEED]?.toLong() ?: System.currentTimeMillis()
         )
 
         /**
@@ -327,7 +329,7 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
             /* Performs some sanity checks. */
             init {
                 val config = this@Tx.config
-                if (this.predicate.columns.first() != this@LSHIndex.columns[0] || this.predicate.distance.name != config.distance.functionName) {
+                if (this.predicate.columns.first() != this@LSHIndex.columns[0] || this.predicate.distance.name != config.distance) {
                     throw QueryException.UnsupportedPredicateException("Index '${this@LSHIndex.name}' (lsh-index) does not support the provided predicate.")
                 }
 

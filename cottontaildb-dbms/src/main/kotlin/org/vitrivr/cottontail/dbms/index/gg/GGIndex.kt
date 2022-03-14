@@ -10,7 +10,7 @@ import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.queries.functions.Argument
 import org.vitrivr.cottontail.core.queries.functions.Signature
-import org.vitrivr.cottontail.core.queries.functions.math.VectorDistance
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.VectorDistance
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
 import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
@@ -24,7 +24,6 @@ import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
 import org.vitrivr.cottontail.dbms.execution.TransactionContext
-import org.vitrivr.cottontail.dbms.functions.math.distance.Distances
 import org.vitrivr.cottontail.dbms.index.*
 import org.vitrivr.cottontail.dbms.index.pq.PQIndex
 import org.vitrivr.cottontail.dbms.operations.Operation
@@ -81,13 +80,9 @@ class GGIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
          * @param parameters The parameters to initialize the default [GGIndexConfig] with.
          */
         override fun buildConfig(parameters: Map<String, String>): IndexConfig<GGIndex> = GGIndexConfig(
-            numGroups = parameters[GGIndexConfig.KEY_NUM_SUBSPACES_KEY]?.toIntOrNull() ?: 100,
-            seed = parameters[GGIndexConfig.KEY_SEED_KEY]?.toLongOrNull() ?: System.currentTimeMillis(),
-            distance = try {
-                Distances.valueOf(parameters[GGIndexConfig.KEY_DISTANCE_KEY] ?: "")
-            } catch (e: IllegalArgumentException) {
-                Distances.L2
-            }
+            distance = parameters[GGIndexConfig.KEY_DISTANCE_KEY]?.let { Name.FunctionName(it) } ?: GGIndexConfig.DEFAULT_DISTANCE,
+            numGroups = parameters[GGIndexConfig.KEY_NUM_GROUPS_KEY]?.toInt() ?: 100,
+            seed = parameters[GGIndexConfig.KEY_SEED_KEY]?.toLong() ?: System.currentTimeMillis()
         )
 
         /**
@@ -126,7 +121,7 @@ class GGIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
      */
     override fun canProcess(predicate: Predicate) = predicate is ProximityPredicate
             && predicate.column == this.columns[0]
-            && predicate.distance.signature.name == this.config.distance.functionName
+            && predicate.distance.signature.name == this.config.distance
 
     /**
      * Returns a [List] of the [ColumnDef] produced by this [GGIndex].
@@ -208,7 +203,7 @@ class GGIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
                 val groupSeedValue = txn.read(groupSeedTid, this.columns)[this.columns[0]]
                 if (groupSeedValue is VectorValue<*>) {
                     /* Perform kNN for group. */
-                    val signature = Signature.Closed(this.config.distance.functionName, arrayOf(Argument.Typed(this.columns[0].type)), Types.Double)
+                    val signature = Signature.Closed(this.config.distance, arrayOf(Argument.Typed(this.columns[0].type)), Types.Double)
                     val function = this@GGIndex.parent.parent.parent.functions.obtain(signature)
                     check(function is VectorDistance<*>) { "GGIndex rebuild failed: Function $signature is not a vector distance function." }
                     val knn = MinHeapSelection<ComparablePair<Pair<TupleId, VectorValue<*>>, DoubleValue>>(groupSize)
@@ -267,7 +262,7 @@ class GGIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
         override fun filter(predicate: Predicate): Cursor<Record> = object : Cursor<Record> {
 
             /** Cast [ProximityPredicate] (if such a cast is possible).  */
-            private val predicate = if (predicate is ProximityPredicate && predicate.distance.signature.name == this@Tx.config.distance.functionName) {
+            private val predicate = if (predicate is ProximityPredicate && predicate.distance.signature.name == this@Tx.config.distance) {
                 predicate
             } else {
                 throw QueryException.UnsupportedPredicateException("Index '${this@GGIndex.name}' (GGIndex) does not support predicates of type '${predicate::class.simpleName}'.")
@@ -307,7 +302,7 @@ class GGIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
                 /* Scan >= 10% of entries by default */
                 val considerNumGroups = (this@Tx.config.numGroups + 9) / 10
                 val txn = this@Tx.context.getTx(this@GGIndex.parent) as EntityTx
-                val signature = Signature.Closed(this@Tx.config.distance.functionName, arrayOf(Argument.Typed(this@Tx.columns[0].type)), Types.Double)
+                val signature = Signature.Closed(this@Tx.config.distance, arrayOf(Argument.Typed(this@Tx.columns[0].type)), Types.Double)
                 val function = this@GGIndex.parent.parent.parent.functions.obtain(signature)
                 check (function is VectorDistance<*>) { "Function $signature is not a vector distance function." }
 

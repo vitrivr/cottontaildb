@@ -3,8 +3,11 @@ package org.vitrivr.cottontail.dbms.index.lsh
 import jetbrains.exodus.bindings.ComparableBinding
 import jetbrains.exodus.bindings.IntegerBinding
 import jetbrains.exodus.bindings.LongBinding
+import jetbrains.exodus.bindings.StringBinding
 import jetbrains.exodus.util.LightOutputStream
-import org.vitrivr.cottontail.dbms.functions.math.distance.Distances
+import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.CosineDistance
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.InnerProductDistance
 import org.vitrivr.cottontail.dbms.index.IndexConfig
 import org.vitrivr.cottontail.dbms.index.lsh.signature.LSHSignatureGenerator
 import org.vitrivr.cottontail.dbms.index.lsh.signature.SBLSHSignatureGenerator
@@ -16,16 +19,26 @@ import java.io.ByteArrayInputStream
  * @author Ralph Gasser, Manuel Hürbin & Gabriel Zihlmann
  * @version 1.0.0
  */
-data class LSHIndexConfig(val buckets: Int, val stages: Int, val seed: Long, val distance: Distances, val generator: LSHSignatureGenerator? = null): IndexConfig<LSHIndex> {
+data class LSHIndexConfig(val distance: Name.FunctionName, val buckets: Int, val stages: Int, val seed: Long, val generator: LSHSignatureGenerator? = null): IndexConfig<LSHIndex> {
 
     companion object {
-        const val KEY_SEED = "seed"
-        const val KEY_NUM_STAGES = "stages"
-        const val KEY_NUM_BUCKETS = "buckets"
+        /** Configuration key for name of the distance function. */
         const val KEY_DISTANCES = "distances"
 
-        /** Current list of [Distances] supported by the [LSHIndex]. */
-        val SUPPORTED_DISTANCES = setOf(Distances.COSINE.functionName, Distances.INNERPRODUCT.functionName)
+        /** Configuration key for the number of stages. */
+        const val KEY_NUM_STAGES = "stages"
+
+        /** Configuration key for the number of buckets. */
+        const val KEY_NUM_BUCKETS = "buckets"
+
+        /** Configuration key for the random number generator seed. */
+        const val KEY_SEED = "seed"
+
+        /** The [Name.FunctionName] of the default distance. */
+        val DEFAULT_DISTANCE = CosineDistance.FUNCTION_NAME
+
+        /** Current list of [Name.FunctionName] supported by the [LSHIndex]. */
+        val SUPPORTED_DISTANCES = setOf(CosineDistance.FUNCTION_NAME, InnerProductDistance.FUNCTION_NAME)
     }
 
     /**
@@ -33,18 +46,18 @@ data class LSHIndexConfig(val buckets: Int, val stages: Int, val seed: Long, val
      */
     object Binding: ComparableBinding() {
         override fun readObject(stream: ByteArrayInputStream): Comparable<LSHIndexConfig> = LSHIndexConfig(
+            Name.FunctionName(StringBinding.BINDING.readObject(stream)),
             IntegerBinding.readCompressed(stream),
             IntegerBinding.readCompressed(stream),
-            LongBinding.readCompressed(stream),
-            Distances.values()[IntegerBinding.readCompressed(stream)]
+            LongBinding.readCompressed(stream)
         )
 
         override fun writeObject(output: LightOutputStream, `object`: Comparable<LSHIndexConfig>) {
             require(`object` is LSHIndexConfig) { "LSHIndexConfig.Binding can only be used to serialize instances of LSHIndexConfig." }
+            StringBinding.BINDING.writeObject(output, `object`.distance.simple)
             IntegerBinding.writeCompressed(output, `object`.buckets)
             IntegerBinding.writeCompressed(output, `object`.stages)
             LongBinding.writeCompressed(output, `object`.seed)
-            IntegerBinding.writeCompressed(output, `object`.distance.ordinal)
         }
     }
 
@@ -52,7 +65,15 @@ data class LSHIndexConfig(val buckets: Int, val stages: Int, val seed: Long, val
      * Generates and returns a [LSHSignatureGenerator] for this [LSHIndexConfig].
      */
     fun generator(dimension: Int): LSHSignatureGenerator = when(this.distance) {
-        Distances.COSINE, Distances.INNERPRODUCT -> SBLSHSignatureGenerator(this.stages, this.buckets, this.seed, dimension)
+        CosineDistance.FUNCTION_NAME,
+        InnerProductDistance.FUNCTION_NAME -> SBLSHSignatureGenerator(this.stages, this.buckets, this.seed, dimension)
         else -> throw IllegalStateException("The ${this.distance} distance is currently not supported by the LSH index engine.")
+    }
+
+    init {
+        /* Range of sanity checks. */
+        require(this.buckets > 1) { "LSHIndex requires at least two buckets." }
+        require(this.stages > 0) { "LSHIndex requires at least a single stage." }
+        require(this.distance in SUPPORTED_DISTANCES) { "LSHIndex only support COSINE and INNERPRODUCT distance."}
     }
 }

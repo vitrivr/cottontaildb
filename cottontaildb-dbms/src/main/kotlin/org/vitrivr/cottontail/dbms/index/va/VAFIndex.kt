@@ -11,7 +11,10 @@ import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
-import org.vitrivr.cottontail.core.queries.functions.math.MinkowskiDistance
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.EuclideanDistance
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.ManhattanDistance
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.MinkowskiDistance
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.SquaredEuclideanDistance
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
 import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
@@ -27,9 +30,6 @@ import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.execution.TransactionContext
 import org.vitrivr.cottontail.dbms.execution.operators.sort.RecordComparator
-import org.vitrivr.cottontail.dbms.functions.math.distance.binary.EuclideanDistance
-import org.vitrivr.cottontail.dbms.functions.math.distance.binary.ManhattanDistance
-import org.vitrivr.cottontail.dbms.functions.math.distance.binary.SquaredEuclideanDistance
 import org.vitrivr.cottontail.dbms.index.*
 import org.vitrivr.cottontail.dbms.index.va.bounds.Bounds
 import org.vitrivr.cottontail.dbms.index.va.bounds.L1Bounds
@@ -45,7 +45,6 @@ import org.vitrivr.cottontail.dbms.statistics.columns.IntVectorValueStatistics
 import org.vitrivr.cottontail.dbms.statistics.columns.LongVectorValueStatistics
 import org.vitrivr.cottontail.utilities.math.KnnUtilities
 import org.vitrivr.cottontail.utilities.selection.HeapSelection
-import org.vitrivr.cottontail.utilities.selection.MinHeapSelection
 import java.lang.Math.floorDiv
 import kotlin.concurrent.withLock
 import kotlin.math.min
@@ -199,7 +198,9 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
             LOGGER.debug("Rebuilding VAF index {}", this@VAFIndex.name)
 
             /* Obtain component-wise minimum and maximum for the vector held by the entity. */
-            val dimension = this.columns[0].type.logicalSize
+            val config = this.config
+            val indexedColumn = this.columns[0]
+            val dimension = indexedColumn.type.logicalSize
             val entityTx = this.context.getTx(this@VAFIndex.parent) as EntityTx
             val columnTx = this.context.getTx(entityTx.columnForName(this.columns[0].name)) as ColumnTx<*>
             val minimum = when (val stat = columnTx.statistics()) {
@@ -218,19 +219,20 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
             }
 
             /* Calculate and update marks. */
-            val newMarks = VAFMarks.getEquidistantMarks(minimum, maximum, IntArray(dimension) { this.config.marksPerDimension })
+            val newMarks = VAFMarks.getEquidistantMarks(minimum, maximum, IntArray(dimension) { config.marksPerDimension })
 
             /* Calculate and update signatures. */
             this.clear()
-            entityTx.cursor(this.columns).forEach { r ->
-                val value = r[this.columns[0]]
+            entityTx.cursor(arrayOf(indexedColumn)).forEach { r ->
+                val value = r[indexedColumn]
                 if (value is RealVectorValue<*>) {
                     this.dataStore.put(this.context.xodusTx, r.tupleId.toKey(), VAFSignature.Binding.valueToEntry(newMarks.getSignature(value)))
                 }
             }
 
             /* Update catalogue entry for index. */
-            this.updateState(IndexState.CLEAN, this.config.copy(marks = newMarks))
+            this.updateState(IndexState.CLEAN, config.copy(marks = newMarks))
+            LOGGER.debug("Rebuilding VAF index {} completed!", this@VAFIndex.name)
         }
 
         /**
@@ -341,7 +343,7 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
             /** Internal [EntityTx] used to access actual values. */
             private val entityTx = this@Tx.context.getTx(this@VAFIndex.parent) as EntityTx
 
-            /** The [MinHeapSelection] use for finding the top k entries. */
+            /** The [HeapSelection] use for finding the top k entries. */
             private var selection = HeapSelection(this.predicate.k.toLong(), RecordComparator.SingleNonNullColumnComparator(this.predicate.distanceColumn, SortOrder.ASCENDING))
 
             /** Cached in-memory version of the [VAFMarks] used by this [Cursor]. */

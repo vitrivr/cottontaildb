@@ -51,7 +51,7 @@ value class VAFMarks(val marks: Array<DoubleArray>): Comparable<VAFMarks> {
         /**
          * [ComparableBinding] implementation.
          */
-        override fun writeObject(output: LightOutputStream, `object`: Comparable<Nothing>) {
+        override fun writeObject(output: LightOutputStream, `object`: Comparable<VAFMarks>) {
             require(`object` is VAFMarks) { "VAFMarks.Binding can only be used to serialize instances of VAFMarks." }
             IntegerBinding.writeCompressed(output,  `object`.marks.size)
             for (d in `object`.marks) {

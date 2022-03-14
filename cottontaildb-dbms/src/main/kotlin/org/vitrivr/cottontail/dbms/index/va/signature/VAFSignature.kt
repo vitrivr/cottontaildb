@@ -2,7 +2,6 @@ package org.vitrivr.cottontail.dbms.index.va.signature
 
 import jetbrains.exodus.ArrayByteIterable
 import jetbrains.exodus.ByteIterable
-import jetbrains.exodus.bindings.ComparableBinding
 import org.vitrivr.cottontail.dbms.index.va.VAFIndex
 import org.xerial.snappy.Snappy
 
@@ -17,6 +16,26 @@ value class VAFSignature(val cells: ByteArray): Comparable<VAFSignature> {
 
     companion object {
         fun invalid(d: Int) = VAFSignature(ByteArray(d) { -1 })
+    }
+
+    /**
+     * A Xodus binding to serialize and deserialize [VAFSignature].
+     */
+    object Binding {
+        fun entryToValue(entry: ByteIterable): VAFSignature = VAFSignature(Snappy.uncompress(entry.bytesUnsafe))
+        fun valueToEntry(value: VAFSignature): ByteIterable {
+            val compressed = Snappy.compress(value.cells)
+            return ArrayByteIterable(compressed, compressed.size)
+        }
+    }
+
+    override fun compareTo(other: VAFSignature): Int {
+        for ((i,b) in this.cells.withIndex()) {
+            if (i >= other.cells.size) return Int.MIN_VALUE
+            val comp = b.compareTo(other.cells[i])
+            if (comp != 0) return comp
+        }
+        return 0
     }
 
     /**
@@ -35,23 +54,5 @@ value class VAFSignature(val cells: ByteArray): Comparable<VAFSignature> {
      */
     fun invalid(): Boolean = this.cells.any { it < 0 }
 
-    /**
-     * A [ComparableBinding] to serialize and deserialize [VAFSignature].
-     */
-    object Binding {
-        fun entryToValue(entry: ByteIterable): VAFSignature = VAFSignature(Snappy.uncompress(entry.bytesUnsafe))
-        fun valueToEntry(value: VAFSignature): ByteIterable {
-            val compressed = Snappy.compress(value.cells)
-            return ArrayByteIterable(compressed, compressed.size)
-        }
-    }
 
-    override fun compareTo(other: VAFSignature): Int {
-        for ((i,b) in this.cells.withIndex()) {
-            if (i >= other.cells.size) return Int.MIN_VALUE
-            val comp = b.compareTo(other.cells[i])
-            if (comp != 0) return comp
-        }
-        return 0
-    }
 }
