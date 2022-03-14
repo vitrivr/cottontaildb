@@ -1,5 +1,7 @@
 package org.vitrivr.cottontail.dbms.functions.math.distance.binary
 
+import jdk.incubator.vector.VectorOperators
+import jdk.incubator.vector.VectorSpecies
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.functions.Argument
 import org.vitrivr.cottontail.core.queries.functions.Function
@@ -118,7 +120,7 @@ sealed class EuclideanDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Min
     /**
      * [EuclideanDistance] for a [FloatVectorValue].
      */
-    class FloatVector(type: Types.Vector<FloatVectorValue,*>): EuclideanDistance<FloatVectorValue>(type) {
+    /*class FloatVector(type: Types.Vector<FloatVectorValue,*>): EuclideanDistance<FloatVectorValue>(type) {
         override val name: Name.FunctionName = FUNCTION_NAME
         override fun invoke(vararg arguments: Value?): DoubleValue {
             val probing = arguments[0] as FloatVectorValue
@@ -126,6 +128,28 @@ sealed class EuclideanDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Min
             var sum = 0.0
             for (i in 0 until this.d) {
                 sum += (query.data[i] - probing.data[i]).pow(2)
+            }
+            return DoubleValue(sqrt(sum))
+        }
+        override fun copy(d: Int) = FloatVector(Types.FloatVector(d))
+    }*/
+
+    /**
+     * SIMD implementation: [EuclideanDistance] for a [FloatVectorValue]
+     */
+    class FloatVector(type: Types.Vector<FloatVectorValue,*>): EuclideanDistance<FloatVectorValue>(type) {
+        override val name: Name.FunctionName = FUNCTION_NAME
+        override fun invoke(vararg arguments: Value?): DoubleValue {
+            val SPECIES: VectorSpecies<Float> = jdk.incubator.vector.FloatVector.SPECIES_512
+            val probing = arguments[0] as FloatVectorValue
+            val query = arguments[1] as FloatVectorValue
+            var sum = 0.0
+
+            for (i in 0 until SPECIES.loopBound(this.d) step SPECIES.length()) {
+                val vp = jdk.incubator.vector.FloatVector.fromArray(SPECIES, probing.data, i)
+                val vq = jdk.incubator.vector.FloatVector.fromArray(SPECIES, query.data, i)
+                sum += vp.sub(vq).pow(2f).reduceLanes(VectorOperators.ADD)
+
             }
             return DoubleValue(sqrt(sum))
         }
