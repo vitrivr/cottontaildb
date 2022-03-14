@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.core.values.types
 
 import org.vitrivr.cottontail.core.values.*
+import org.vitrivr.cottontail.core.values.generators.*
 
 /**
  * Specifies the [Types] available in Cottontail DB. This construct is a centerpiece of Cottontail DB's type system
@@ -9,7 +10,7 @@ import org.vitrivr.cottontail.core.values.*
  * Upon serialization, [Types]s can be stored as strings or numeric ordinals and mapped to the respective class using [Types.forName].
  *
  * @author Ralph Gasser
- * @version 1.5.0
+ * @version 1.6.0
  */
 sealed interface Types<T : Value> {
 
@@ -87,6 +88,9 @@ sealed interface Types<T : Value> {
     /** The ordinal value of a [Types] implementation. */
     val ordinal: kotlin.Int
 
+    /** The [ValueGenerator] used to create instances of this [Types]. */
+    val generator: ValueGenerator<T>
+
     /** Checks if the given [Value] is compatible with this [Types].
      *
      * @param value The [Value] to check.
@@ -114,12 +118,15 @@ sealed interface Types<T : Value> {
     /**
      * A [Numeric] type.
      */
-    sealed class  Numeric<T: NumericValue<*>>: Scalar<T>()
+    sealed class Numeric<T: NumericValue<*>>: Scalar<T>() {
+        abstract override val generator: NumericValueGenerator<T>
+        override fun defaultValue() = this.generator.zero()
+    }
 
     /**
      * A [Complex] type.
      */
-    sealed class  Complex<T: ComplexValue<*>>: Numeric<T>()
+    sealed class Complex<T: ComplexValue<*>>: Numeric<T>()
 
     /**
      * A [Vector] type
@@ -127,166 +134,153 @@ sealed interface Types<T : Value> {
     sealed class Vector<T: VectorValue<*>, E: ScalarValue<*>>: Types<T> {
         /** The element type of this [Vector] type. */
         abstract val elementType: Scalar<E>
+        abstract override val generator: VectorValueGenerator<T>
         override fun equals(other: Any?): kotlin.Boolean {
             if (this === other) return true
             if (other !is Vector<*,*>) return false
             return other.ordinal == this.ordinal && other.logicalSize == this.logicalSize
         }
+        override fun defaultValue() = this.generator.zero(this.logicalSize)
         override fun hashCode(): kotlin.Int = 31 * this.ordinal.hashCode() + this.logicalSize.hashCode()
         override fun toString(): kotlin.String = "${this.name}(${this.logicalSize})"
     }
 
-    @Suppress("UNCHECKED_CAST")
-    object Boolean : Scalar<BooleanValue>() {
+    object Boolean: Scalar<BooleanValue>() {
         override val name = "BOOLEAN"
         override val ordinal: kotlin.Int = 0
         override val physicalSize = kotlin.Byte.SIZE_BYTES
-        override fun defaultValue(): BooleanValue = BooleanValue.FALSE
+        override val generator = BooleanValueGenerator
+        override fun defaultValue(): BooleanValue = this.generator.ofTrue()
     }
 
-    @Suppress("UNCHECKED_CAST")
-    object Byte : Numeric<ByteValue>() {
+    object Byte: Numeric<ByteValue>() {
         override val name = "BYTE"
         override val ordinal: kotlin.Int = 1
         override val physicalSize = kotlin.Byte.SIZE_BYTES
-        override fun defaultValue(): ByteValue = ByteValue.ZERO
+        override val generator = ByteValueGenerator
     }
 
-    @Suppress("UNCHECKED_CAST")
-    object Short : Numeric<ShortValue>() {
+    object Short: Numeric<ShortValue>() {
         override val name = "SHORT"
         override val ordinal: kotlin.Int = 2
         override val physicalSize = kotlin.Short.SIZE_BYTES
-        override fun defaultValue(): ShortValue = ShortValue.ZERO
+        override val generator = ShortValueGenerator
     }
 
-    @Suppress("UNCHECKED_CAST")
-    object Int : Numeric<IntValue>(){
+    object Int: Numeric<IntValue>(){
         override val name = "INTEGER"
         override val ordinal: kotlin.Int = 3
         override val physicalSize = kotlin.Int.SIZE_BYTES
-        override fun defaultValue(): IntValue = IntValue.ZERO
+        override val generator = IntValueGenerator
     }
 
-    @Suppress("UNCHECKED_CAST")
-    object Long : Numeric<LongValue>() {
+    object Long: Numeric<LongValue>() {
         override val name = "LONG"
         override val ordinal: kotlin.Int = 4
         override val physicalSize = kotlin.Long.SIZE_BYTES
-        override fun defaultValue(): LongValue = LongValue.ZERO
+        override val generator = LongValueGenerator
     }
 
-    @Suppress("UNCHECKED_CAST")
-    object Date : Scalar<DateValue>() {
+    object Date: Scalar<DateValue>() {
         override val name = "DATE"
         override val ordinal: kotlin.Int = 5
         override val physicalSize = kotlin.Long.SIZE_BYTES
-        override fun defaultValue(): DateValue = DateValue(System.currentTimeMillis())
+        override val generator = DateValueGenerator
+        override fun defaultValue(): DateValue = this.generator.now()
     }
 
-    @Suppress("UNCHECKED_CAST")
-    object Float : Numeric<FloatValue>() {
+    object Float: Numeric<FloatValue>() {
         override val name = "FLOAT"
         override val ordinal: kotlin.Int = 6
         override val physicalSize = kotlin.Int.SIZE_BYTES
-        override fun defaultValue(): FloatValue = FloatValue.ZERO
+        override val generator = FloatValueGenerator
     }
 
-    @Suppress("UNCHECKED_CAST")
-    object Double : Numeric<DoubleValue>() {
+    object Double: Numeric<DoubleValue>() {
         override val name = "DOUBLE"
         override val ordinal: kotlin.Int = 7
         override val physicalSize = kotlin.Long.SIZE_BYTES
-        override fun defaultValue(): DoubleValue = DoubleValue.ZERO
+        override val generator = DoubleValueGenerator
     }
 
-    @Suppress("UNCHECKED_CAST")
-    object String : Scalar<StringValue>() {
+    object String: Scalar<StringValue>() {
         override val name = "STRING"
         override val ordinal: kotlin.Int = 8
         override val logicalSize = LOGICAL_SIZE_UNKNOWN
         override val physicalSize = LOGICAL_SIZE_UNKNOWN * Char.SIZE_BYTES
-        override fun defaultValue(): StringValue = StringValue.EMPTY
+        override val generator = StringValueGenerator
+        override fun defaultValue(): StringValue = this.generator.empty()
     }
 
-    @Suppress("UNCHECKED_CAST")
-    object Complex32 : Complex<Complex32Value>() {
+    object Complex32: Complex<Complex32Value>() {
         override val name = "COMPLEX32"
         override val ordinal: kotlin.Int = 9
         override val logicalSize = 1
         override val physicalSize = 2 * kotlin.Int.SIZE_BYTES
-        override fun defaultValue(): Complex32Value = Complex32Value.ZERO
+        override val generator = Complex32ValueGenerator
     }
 
-    @Suppress("UNCHECKED_CAST")
-    object Complex64 : Complex<Complex64Value>() {
+    object Complex64: Complex<Complex64Value>() {
         override val name = "COMPLEX64"
         override val ordinal: kotlin.Int = 10
         override val logicalSize = 1
         override val physicalSize = 2 * kotlin.Long.SIZE_BYTES
-        override fun defaultValue(): Complex64Value = Complex64Value.ZERO
+        override val generator = Complex64ValueGenerator
     }
 
-    @Suppress("UNCHECKED_CAST")
-    class IntVector(override val logicalSize: kotlin.Int) : Vector<IntVectorValue, IntValue>() {
+    class IntVector(override val logicalSize: kotlin.Int): Vector<IntVectorValue, IntValue>() {
         override val name = "INT_VEC"
         override val ordinal: kotlin.Int = 11
         override val physicalSize = this.logicalSize * kotlin.Int.SIZE_BYTES
         override val elementType = Int
-        override fun defaultValue(): IntVectorValue = IntVectorValue.zero(this.logicalSize)
+        override val generator = IntVectorValueGenerator
     }
 
-    @Suppress("UNCHECKED_CAST")
-    class LongVector(override val logicalSize: kotlin.Int) : Vector<LongVectorValue, LongValue>() {
+    class LongVector(override val logicalSize: kotlin.Int): Vector<LongVectorValue, LongValue>() {
         override val name = "LONG_VEC"
         override val ordinal: kotlin.Int = 12
         override val physicalSize = this.logicalSize * kotlin.Long.SIZE_BYTES
         override val elementType = Long
-        override fun defaultValue(): LongVectorValue = LongVectorValue.zero(this.logicalSize)
+        override val generator = LongVectorValueGenerator
     }
 
-    @Suppress("UNCHECKED_CAST")
-    class FloatVector(override val logicalSize: kotlin.Int) : Vector<FloatVectorValue, FloatValue>() {
+    class FloatVector(override val logicalSize: kotlin.Int): Vector<FloatVectorValue, FloatValue>() {
         override val name = "FLOAT_VEC"
         override val ordinal: kotlin.Int = 13
         override val physicalSize = this.logicalSize * kotlin.Int.SIZE_BYTES
         override val elementType = Float
-        override fun defaultValue(): FloatVectorValue = FloatVectorValue.zero(this.logicalSize)
+        override val generator = FloatVectorValueGenerator
     }
 
-    @Suppress("UNCHECKED_CAST")
-    class DoubleVector(override val logicalSize: kotlin.Int) : Vector<DoubleVectorValue, DoubleValue>() {
+    class DoubleVector(override val logicalSize: kotlin.Int): Vector<DoubleVectorValue, DoubleValue>() {
         override val name = "DOUBLE_VEC"
         override val ordinal: kotlin.Int = 14
         override val physicalSize = this.logicalSize * kotlin.Long.SIZE_BYTES
         override val elementType = Double
-        override fun defaultValue(): DoubleVectorValue = DoubleVectorValue.zero(this.logicalSize)
+        override val generator = DoubleVectorValueGenerator
     }
 
-    @Suppress("UNCHECKED_CAST")
-    class BooleanVector(override val logicalSize: kotlin.Int) : Vector<BooleanVectorValue, BooleanValue>() {
+    class BooleanVector(override val logicalSize: kotlin.Int): Vector<BooleanVectorValue, BooleanValue>() {
         override val name = "BOOL_VEC"
         override val ordinal: kotlin.Int = 15
         override val physicalSize = this.logicalSize * kotlin.Byte.SIZE_BYTES
         override val elementType = Boolean
-        override fun defaultValue(): BooleanVectorValue = BooleanVectorValue.zero(this.logicalSize)
+        override val generator = BooleanVectorValueGenerator
     }
 
-    @Suppress("UNCHECKED_CAST")
-    class Complex32Vector(override val logicalSize: kotlin.Int) : Vector<Complex32VectorValue, Complex32Value>() {
+    class Complex32Vector(override val logicalSize: kotlin.Int): Vector<Complex32VectorValue, Complex32Value>() {
         override val name = "COMPLEX32_VEC"
         override val ordinal: kotlin.Int = 16
         override val physicalSize = this.logicalSize * 2 * kotlin.Int.SIZE_BYTES
         override val elementType = Complex32
-        override fun defaultValue(): Complex32VectorValue = Complex32VectorValue.zero(this.logicalSize)
+        override val generator = Complex32VectorValueGenerator
     }
 
-    @Suppress("UNCHECKED_CAST")
-    class Complex64Vector(override val logicalSize: kotlin.Int) : Vector<Complex64VectorValue, Complex32Value>() {
+    class Complex64Vector(override val logicalSize: kotlin.Int): Vector<Complex64VectorValue, Complex32Value>() {
         override val name = "COMPLEX64_VEC"
         override val ordinal: kotlin.Int = 17
         override val elementType = Complex32
         override val physicalSize = this.logicalSize * 2 * kotlin.Long.SIZE_BYTES
-        override fun defaultValue(): Complex64VectorValue = Complex64VectorValue.zero(this.logicalSize)
+        override val generator = Complex64VectorValueGenerator
     }
 }

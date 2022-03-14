@@ -4,7 +4,6 @@ import org.vitrivr.cottontail.core.values.types.NumericValue
 import org.vitrivr.cottontail.core.values.types.RealValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
-import java.util.*
 
 /**
  * This is an abstraction over a [Long].
@@ -31,14 +30,6 @@ value class LongValue(override val value: Long): RealValue<Long> {
 
         /** The one [LongValue]. */
         val ONE = LongValue(1L)
-
-        /**
-         * Generates a random [LongValue].
-         *
-         * @param rnd A [SplittableRandom] to generate the random numbers.
-         * @return Random [LongValue]
-         */
-        fun random(rnd: SplittableRandom = Value.RANDOM) = LongValue(rnd.nextLong())
     }
 
     /**

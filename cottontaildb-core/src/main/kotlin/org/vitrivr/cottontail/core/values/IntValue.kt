@@ -4,7 +4,6 @@ import org.vitrivr.cottontail.core.values.types.NumericValue
 import org.vitrivr.cottontail.core.values.types.RealValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
-import java.util.*
 
 /**
  * This is an abstraction over an [Int].
@@ -31,14 +30,6 @@ value class IntValue(override val value: Int): RealValue<Int> {
 
         /** The zero [IntValue]. */
         val ONE = IntValue(1)
-
-        /**
-         * Generates a random [IntValue].
-         *
-         * @param rnd A [SplittableRandom] to generate the random numbers.
-         * @return Random [IntValue]
-         */
-        fun random(rnd: SplittableRandom = Value.RANDOM) = IntValue(rnd.nextInt())
     }
 
     /**

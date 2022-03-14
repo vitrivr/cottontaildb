@@ -2,8 +2,6 @@ package org.vitrivr.cottontail.core.values
 
 import org.apache.commons.math3.util.FastMath
 import org.vitrivr.cottontail.core.values.types.*
-import org.vitrivr.cottontail.utilities.extensions.nextFloat
-import java.util.*
 import kotlin.math.atan2
 import kotlin.math.pow
 
@@ -15,38 +13,19 @@ import kotlin.math.pow
  */
 @JvmInline
 value class Complex32VectorValue(val data: FloatArray) : ComplexVectorValue<Float> {
-    companion object {
-        /**
-         * Generates a [Complex32VectorValue] of the given size initialized with random numbers.
-         *
-         * @param size Size of the new [Complex32VectorValue]
-         * @param rnd A [SplittableRandom] to generate the random numbers.
-         * @return Random [Complex32VectorValue]
-         */
-        fun random(size: Int, rnd: SplittableRandom = Value.RANDOM) = Complex32VectorValue(FloatArray(size * 2) { rnd.nextFloat() })
 
-        /**
-         * Generates a [Complex32VectorValue] of the given size initialized with ones (i.e 1.0f + i0.0f).
-         *
-         * @param size Size of the new [Complex32VectorValue]
-         * @return [Complex32VectorValue] filled with ones.
-         */
-        fun one(size: Int) = Complex32VectorValue(FloatArray(size * 2) {
-            if (it % 2 == 0) {
-                1.0f
-            } else {
-                0.0f
-            }
-        })
-
-        /**
-         * Generates a [Complex32VectorValue] of the given size initialized with zeros.
-         *
-         * @param size Size of the new [Complex32VectorValue]
-         * @return [Complex32VectorValue] filled with zeros.
-         */
-        fun zero(size: Int) = Complex32VectorValue(FloatArray(size * 2) { 0.0f })
-    }
+    /**
+     * Constructor given an array of [Number]s
+     *
+     * @param value Array of [Number]s
+     */
+    constructor(value: Array<Number>): this(FloatArray(2 * value.size) {
+        if (it % 2 == 0) {
+            value[it / 2].toFloat()
+        } else {
+            0.0f
+        }
+    })
 
     /**
      * Constructor given an Array of [Complex32Value]s
@@ -115,7 +94,7 @@ value class Complex32VectorValue(val data: FloatArray) : ComplexVectorValue<Floa
      *
      * @return The [DoubleVectorValue] representing the sub-vector.
      */
-    override fun subvector(start: Int, length: Int) = Complex32VectorValue(this.data.copyOfRange(2 * start, 2 * start + 2 * length))
+    override fun slice(start: Int, length: Int) = Complex32VectorValue(this.data.copyOfRange(2 * start, 2 * start + 2 * length))
 
 
     /**

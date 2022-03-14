@@ -1,8 +1,10 @@
 package org.vitrivr.cottontail.core.values
 
 import org.vitrivr.cottontail.core.values.types.*
+import org.vitrivr.cottontail.utilities.extensions.toDouble
 import org.vitrivr.cottontail.utilities.extensions.toInt
 import java.util.*
+import kotlin.math.pow
 
 /**
  * This is an abstraction over a [BooleanArray] and it represents a vector of [Boolean]s.
@@ -12,33 +14,6 @@ import java.util.*
  */
 @JvmInline
 value class BooleanVectorValue(val data: BooleanArray) : RealVectorValue<Int> {
-
-    companion object {
-        /**
-         * Generates a [IntVectorValue] of the given size initialized with random numbers.
-         *
-         * @param size Size of the new [IntVectorValue]
-         * @param rnd A [SplittableRandom] to generate the random numbers.
-         * @return Random [BooleanVectorValue] of size [size]
-         */
-        fun random(size: Int, rnd: SplittableRandom = Value.RANDOM) =
-            org.vitrivr.cottontail.core.values.BooleanVectorValue(BooleanArray(size) { rnd.nextBoolean() })
-
-        /**
-         * Generates a [IntVectorValue] of the given size initialized with ones.
-         *
-         * @param size Size of the new [IntVectorValue]
-         */
-        fun one(size: Int) = org.vitrivr.cottontail.core.values.BooleanVectorValue(BooleanArray(size) { true })
-
-        /**
-         * Generates a [IntVectorValue] of the given size initialized with zeros.
-         *
-         * @param size Size of the new [IntVectorValue]
-         */
-        fun zero(size: Int) = org.vitrivr.cottontail.core.values.BooleanVectorValue(BooleanArray(size))
-    }
-
     constructor(input: List<Number>) : this(BooleanArray(input.size) { input[it].toInt() == 1 })
     constructor(input: Array<Number>) : this(BooleanArray(input.size) { input[it].toInt() == 1 })
     constructor(input: Array<Boolean>) : this(BooleanArray(input.size) { input[it] })
@@ -48,7 +23,7 @@ value class BooleanVectorValue(val data: BooleanArray) : RealVectorValue<Int> {
         get() = this.data.size
 
     /** The [Types] size of this [BooleanVectorValue]. */
-    override val type: Types<*>
+    override val type: Types.Vector<BooleanVectorValue, BooleanValue>
         get() = Types.BooleanVector(this.logicalSize)
 
     /**
@@ -58,7 +33,7 @@ value class BooleanVectorValue(val data: BooleanArray) : RealVectorValue<Int> {
      * @param other [Value] to compare to.
      * @return True if equal, false otherwise.
      */
-    override fun isEqual(other: Value): Boolean = (other is org.vitrivr.cottontail.core.values.BooleanVectorValue) && (this.data.contentEquals(other.data))
+    override fun isEqual(other: Value): Boolean = (other is BooleanVectorValue) && (this.data.contentEquals(other.data))
 
     /**
      * Returns the indices of this [BooleanVectorValue].
@@ -74,7 +49,7 @@ value class BooleanVectorValue(val data: BooleanArray) : RealVectorValue<Int> {
      * @param i Index of the entry.
      * @return The value at index i.
      */
-    override fun get(i: Int): org.vitrivr.cottontail.core.values.IntValue = IntValue(this.data[i].toInt())
+    override fun get(i: Int): IntValue = IntValue(this.data[i].toInt())
 
     /**
      * Returns a sub vector of this [BooleanVectorValue] starting at the component [start] and
@@ -85,8 +60,7 @@ value class BooleanVectorValue(val data: BooleanArray) : RealVectorValue<Int> {
      *
      * @return The [BooleanVectorValue] representing the sub-vector.
      */
-    override fun subvector(start: Int, length: Int) =
-        org.vitrivr.cottontail.core.values.BooleanVectorValue(this.data.copyOfRange(start, start + length))
+    override fun slice(start: Int, length: Int) = BooleanVectorValue(this.data.copyOfRange(start, start + length))
 
     /**
      * Returns the i-th entry of  this [BooleanVectorValue] as [Boolean].
@@ -115,107 +89,98 @@ value class BooleanVectorValue(val data: BooleanArray) : RealVectorValue<Int> {
      *
      * @return Exact copy of this [BooleanVectorValue].
      */
-    override fun copy(): org.vitrivr.cottontail.core.values.BooleanVectorValue =
-        org.vitrivr.cottontail.core.values.BooleanVectorValue(this.data.copyOf())
+    override fun copy():BooleanVectorValue = BooleanVectorValue(this.data.copyOf())
 
     /**
      * Creates and returns a new instance of [BooleanVectorValue] of the same size.
      *
      * @return New instance of [BooleanVectorValue]
      */
-    override fun new(): org.vitrivr.cottontail.core.values.BooleanVectorValue =
-        org.vitrivr.cottontail.core.values.BooleanVectorValue(BooleanArray(this.data.size))
+    override fun new(): BooleanVectorValue = BooleanVectorValue(BooleanArray(this.data.size))
 
     override fun plus(other: VectorValue<*>): VectorValue<Int> = when (other) {
-        is org.vitrivr.cottontail.core.values.BooleanVectorValue -> org.vitrivr.cottontail.core.values.IntVectorValue(
+        is BooleanVectorValue -> IntVectorValue(
             IntArray(this.data.size) {
                 (this.data[it].toInt() + other.data[it].toInt())
             })
-        is org.vitrivr.cottontail.core.values.IntVectorValue -> org.vitrivr.cottontail.core.values.IntVectorValue(
+        is IntVectorValue -> IntVectorValue(
             IntArray(this.data.size) {
                 (this.data[it].toInt() + other.data[it])
             })
-        else -> org.vitrivr.cottontail.core.values.IntVectorValue(IntArray(this.data.size) {
+        else -> IntVectorValue(IntArray(this.data.size) {
             (this.data[it].toInt() + other[it].asInt().value)
         })
     }
 
     override fun minus(other: VectorValue<*>): VectorValue<Int> = when (other) {
-        is org.vitrivr.cottontail.core.values.BooleanVectorValue -> org.vitrivr.cottontail.core.values.IntVectorValue(
+        is BooleanVectorValue -> IntVectorValue(
             IntArray(this.data.size) {
                 (this.data[it].toInt() - other.data[it].toInt())
             })
-        is org.vitrivr.cottontail.core.values.IntVectorValue -> org.vitrivr.cottontail.core.values.IntVectorValue(
+        is IntVectorValue -> IntVectorValue(
             IntArray(this.data.size) {
                 (this.data[it].toInt() - other.data[it])
             })
-        else -> org.vitrivr.cottontail.core.values.IntVectorValue(IntArray(this.data.size) {
+        else -> IntVectorValue(IntArray(this.data.size) {
             (this.data[it].toInt() - other[it].asInt().value)
         })
     }
 
     override fun times(other: VectorValue<*>): VectorValue<Int> = when (other) {
-        is org.vitrivr.cottontail.core.values.BooleanVectorValue -> org.vitrivr.cottontail.core.values.IntVectorValue(
+        is BooleanVectorValue -> IntVectorValue(
             IntArray(this.data.size) {
                 (this.data[it].toInt() * other.data[it].toInt())
             })
-        is org.vitrivr.cottontail.core.values.IntVectorValue -> org.vitrivr.cottontail.core.values.IntVectorValue(
+        is IntVectorValue -> IntVectorValue(
             IntArray(this.data.size) {
                 (this.data[it].toInt() * other.data[it])
             })
-        else -> org.vitrivr.cottontail.core.values.IntVectorValue(IntArray(this.data.size) {
+        else -> IntVectorValue(IntArray(this.data.size) {
             (this.data[it].toInt() * other[it].asInt().value)
         })
     }
 
     override fun div(other: VectorValue<*>): VectorValue<Int> = when (other) {
-        is org.vitrivr.cottontail.core.values.BooleanVectorValue -> org.vitrivr.cottontail.core.values.IntVectorValue(
+        is BooleanVectorValue -> IntVectorValue(
             IntArray(this.data.size) {
                 (this.data[it].toInt() / other.data[it].toInt())
             })
-        is org.vitrivr.cottontail.core.values.IntVectorValue -> org.vitrivr.cottontail.core.values.IntVectorValue(
+        is IntVectorValue -> IntVectorValue(
             IntArray(this.data.size) {
                 (this.data[it].toInt() / other.data[it])
             })
-        else -> org.vitrivr.cottontail.core.values.IntVectorValue(IntArray(this.data.size) {
+        else -> IntVectorValue(IntArray(this.data.size) {
             (this.data[it].toInt() / other[it].asInt().value)
         })
     }
 
     override fun plus(other: NumericValue<*>): VectorValue<Int> =
-        org.vitrivr.cottontail.core.values.IntVectorValue(IntArray(this.logicalSize) {
+        IntVectorValue(IntArray(this.logicalSize) {
             (this.data[it].toInt() + other.asInt().value)
         })
 
     override fun minus(other: NumericValue<*>): VectorValue<Int> =
-        org.vitrivr.cottontail.core.values.IntVectorValue(IntArray(this.logicalSize) {
+        IntVectorValue(IntArray(this.logicalSize) {
             (this.data[it].toInt() - other.asInt().value)
         })
 
     override fun times(other: NumericValue<*>): VectorValue<Int> =
-        org.vitrivr.cottontail.core.values.IntVectorValue(IntArray(this.logicalSize) {
+        IntVectorValue(IntArray(this.logicalSize) {
             (this.data[it].toInt() * other.asInt().value)
         })
 
     override fun div(other: NumericValue<*>): VectorValue<Int> =
-        org.vitrivr.cottontail.core.values.IntVectorValue(IntArray(this.logicalSize) {
+        IntVectorValue(IntArray(this.logicalSize) {
             (this.data[it].toInt() / other.asInt().value)
         })
 
-    override fun pow(x: Int): org.vitrivr.cottontail.core.values.DoubleVectorValue = if (x == 0) {
-        org.vitrivr.cottontail.core.values.DoubleVectorValue.Companion.one(this.data.size)
-    } else {
-        org.vitrivr.cottontail.core.values.DoubleVectorValue(DoubleArray(this.data.size) {
-            if (this.data[it]) {
-                1.0
-            } else {
-                0.0
-            }
+    override fun pow(x: Int): DoubleVectorValue =
+        DoubleVectorValue(DoubleArray(this.data.size) {
+            this.data[it].toDouble().pow(x.toDouble())
         })
-    }
 
-    override fun sqrt(): org.vitrivr.cottontail.core.values.DoubleVectorValue =
-        org.vitrivr.cottontail.core.values.DoubleVectorValue(DoubleArray(this.data.size) {
+    override fun sqrt(): DoubleVectorValue =
+        DoubleVectorValue(DoubleArray(this.data.size) {
             if (this.data[it]) {
                 1.0
             } else {
@@ -225,7 +190,7 @@ value class BooleanVectorValue(val data: BooleanArray) : RealVectorValue<Int> {
 
     override fun abs(): RealVectorValue<Int> = this.copy()
 
-    override fun sum(): org.vitrivr.cottontail.core.values.DoubleValue = DoubleValue(this.data.sumOf {
+    override fun sum(): DoubleValue = DoubleValue(this.data.sumOf {
         if (it) {
             1.0
         } else {
@@ -233,7 +198,7 @@ value class BooleanVectorValue(val data: BooleanArray) : RealVectorValue<Int> {
         }
     })
 
-    override fun norm2(): org.vitrivr.cottontail.core.values.DoubleValue {
+    override fun norm2(): DoubleValue {
         var sum = 0.0
         for (i in this.data) {
             if (i) sum += 1.0
@@ -241,8 +206,8 @@ value class BooleanVectorValue(val data: BooleanArray) : RealVectorValue<Int> {
         return DoubleValue(kotlin.math.sqrt(sum))
     }
 
-    override fun dot(other: VectorValue<*>): org.vitrivr.cottontail.core.values.DoubleValue = when (other) {
-        is org.vitrivr.cottontail.core.values.BooleanVectorValue -> {
+    override fun dot(other: VectorValue<*>): DoubleValue = when (other) {
+        is BooleanVectorValue -> {
             var sum = 0.0
             for (i in this.data.indices) {
                 if (this.data[i] && other.data[i]) sum += 1.0
@@ -258,8 +223,8 @@ value class BooleanVectorValue(val data: BooleanArray) : RealVectorValue<Int> {
         }
     }
 
-    override fun hamming(other: VectorValue<*>): org.vitrivr.cottontail.core.values.IntValue = when (other) {
-        is org.vitrivr.cottontail.core.values.BooleanVectorValue -> {
+    override fun hamming(other: VectorValue<*>): IntValue = when (other) {
+        is BooleanVectorValue -> {
             var sum = 0
             val start = Arrays.mismatch(this.data, other.data)
             for (i in start until other.data.size) {

@@ -1,20 +1,13 @@
 package org.vitrivr.cottontail.core.values.types
 
-import java.util.*
-
 /**
  * This is an abstraction over the existing primitive types provided by Kotlin. It allows for the
  * advanced type system implemented by Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 1.5.0
+ * @version 1.6.0
  */
 interface Value : Comparable<Value> {
-    companion object {
-        /** Internal, [SplittableRandom] instance used for generation of random [Value]s. */
-        @JvmStatic
-        val RANDOM = SplittableRandom(System.currentTimeMillis())
-    }
 
     /** Size of this [Value]. */
     val logicalSize: Int

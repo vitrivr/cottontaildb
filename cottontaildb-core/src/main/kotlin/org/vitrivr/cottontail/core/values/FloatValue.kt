@@ -4,8 +4,6 @@ import org.vitrivr.cottontail.core.values.types.NumericValue
 import org.vitrivr.cottontail.core.values.types.RealValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
-import org.vitrivr.cottontail.utilities.extensions.nextFloat
-import java.util.*
 import kotlin.math.pow
 
 /**
@@ -39,14 +37,6 @@ value class FloatValue(override val value: Float): RealValue<Float> {
 
         /** The INF [FloatValue].  */
         val INF = FloatValue(Float.POSITIVE_INFINITY)
-
-        /**
-         * Generates a random [FloatValue].
-         *
-         * @param rnd A [SplittableRandom] to generate the random numbers.
-         * @return Random [FloatValue]
-         */
-        fun random(rnd: SplittableRandom = Value.RANDOM) = FloatValue(rnd.nextFloat())
     }
 
     /**

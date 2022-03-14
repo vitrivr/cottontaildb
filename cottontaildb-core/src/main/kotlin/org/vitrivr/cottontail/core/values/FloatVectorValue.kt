@@ -1,12 +1,6 @@
 package org.vitrivr.cottontail.core.values
 
-import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.core.values.types.NumericValue
-import org.vitrivr.cottontail.core.values.types.RealVectorValue
-import org.vitrivr.cottontail.core.values.types.Value
-import org.vitrivr.cottontail.core.values.types.Value.Companion.RANDOM
-import org.vitrivr.cottontail.core.values.types.VectorValue
-import org.vitrivr.cottontail.utilities.extensions.nextFloat
+import org.vitrivr.cottontail.core.values.types.*
 import java.util.*
 import kotlin.math.absoluteValue
 import kotlin.math.pow
@@ -19,31 +13,6 @@ import kotlin.math.pow
  */
 @JvmInline
 value class FloatVectorValue(val data: FloatArray) : RealVectorValue<Float> {
-
-    companion object {
-        /**
-         * Generates a [FloatVectorValue] of the given size initialized with random numbers.
-         *
-         * @param size Size of the new [FloatVectorValue]
-         * @param rnd A [SplittableRandom] to generate the random numbers.
-         */
-        fun random(size: Int, rnd: SplittableRandom = RANDOM) = FloatVectorValue(FloatArray(size) { rnd.nextFloat() })
-
-        /**
-         * Generates a [FloatVectorValue] of the given size initialized with ones.
-         *
-         * @param size Size of the new [FloatVectorValue]
-         */
-        fun one(size: Int) = FloatVectorValue(FloatArray(size) { 1.0f })
-
-        /**
-         * Generates a [FloatVectorValue] of the given size initialized with zeros.
-         *
-         * @param size Size of the new [FloatVectorValue]
-         */
-        fun zero(size: Int) = FloatVectorValue(FloatArray(size))
-    }
-
     constructor(input: List<Number>) : this(FloatArray(input.size) { input[it].toFloat() })
     constructor(input: Array<Number>) : this(FloatArray(input.size) { input[it].toFloat() })
     constructor(input: DoubleArray) : this(FloatArray(input.size) { input[it].toFloat() })
@@ -90,7 +59,7 @@ value class FloatVectorValue(val data: FloatArray) : RealVectorValue<Float> {
      *
      * @return The [FloatVectorValue] representing the sub-vector.
      */
-    override fun subvector(start: Int, length: Int) = FloatVectorValue(this.data.copyOfRange(start, start + length))
+    override fun slice(start: Int, length: Int) = FloatVectorValue(this.data.copyOfRange(start, start + length))
 
     /**
      * Returns the i-th entry of  this [FloatVectorValue] as [Boolean].
