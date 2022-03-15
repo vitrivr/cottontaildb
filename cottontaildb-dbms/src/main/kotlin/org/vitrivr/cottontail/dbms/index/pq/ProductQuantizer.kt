@@ -125,8 +125,8 @@ class ProductQuantizer private constructor(private val codebooks: Array<PQCodebo
     fun quantize(v: VectorValue<*>): PQSignature {
         return PQSignature(IntArray(this.numberOfSubspaces) {
             val codebook = this.codebooks[it]
-            val slice = v.slice(it * codebook.subspaceSize, codebook.subspaceSize)
-            this.codebooks[it].quantize(slice)
+            val subvector = v.slice(it * codebook.subspaceSize, codebook.subspaceSize)
+            codebook.quantize(subvector)
         })
     }
 
@@ -140,7 +140,7 @@ class ProductQuantizer private constructor(private val codebooks: Array<PQCodebo
         Array(this.numberOfSubspaces) { k ->
             val codebook = this.codebooks[k]
             val subspaceQuery = query.slice(k * codebook.subspaceSize, codebook.subspaceSize)
-            DoubleArray(codebook.numberOfCentroids) { codebook.distance(subspaceQuery, codebook[it])!!.value }
+            DoubleArray(codebook.numberOfCentroids) { codebook.distance(subspaceQuery, codebook.centroids[it])!!.value }
         }
     )
 
@@ -175,24 +175,16 @@ class ProductQuantizer private constructor(private val codebooks: Array<PQCodebo
             get() = this.centroids.size
 
         /**
-         * Returns the centroid [VectorValue] for the given index.
+         * Quantizes the given subvector [VectorValue] and returns the index of the centroid it belongs to.
          *
-         * @param ci The index of the centroid to return.
-         * @return The [VectorValue] representing the centroid for the given index.
-         */
-        operator fun get(ci: Int): VectorValue<*> = this.centroids[ci]
-
-        /**
-         * Quantizes the given [VectorValue] and returns the index of the centroid it belongs to.
-         *
-         * @param vector The [VectorValue] to quantize.
+         * @param subvector The subvector [VectorValue] to quantize.
          * @return The index of the centroid the given [VectorValue] belongs to.
          */
-        fun quantize(vector: VectorValue<*>): Int {
+        fun quantize(subvector: VectorValue<*>): Int {
             var mahIndex = 0
             var mah = Double.POSITIVE_INFINITY
             for ((i, c) in this.centroids.withIndex()) {
-                val dist = this.distance(c, vector)!!.value
+                val dist = this.distance(c, subvector)!!.value
                 if (dist < mah) {
                     mah = dist
                     mahIndex = i
