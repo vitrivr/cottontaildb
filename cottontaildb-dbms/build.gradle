@@ -110,7 +110,7 @@ test {
 
 tasks.withType(Test) {
     useJUnitPlatform()
-    jvmArgs '--enable-preview'
+    jvmArgs '--enable-preview', '--add-modules', 'jdk.incubator.vector'
 }
 
 ///// Default names for distributions
