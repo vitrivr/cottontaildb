@@ -204,7 +204,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
             this.clear()
 
             /* Iterate over entity and update index with entries. */
-            val cursor = entityTx.cursor(this.columns)
+            val cursor = entityTx.cursor(arrayOf(indexedColumn))
             cursor.forEach { rec ->
                 val value = rec[indexedColumn]
                 if (value is VectorValue<*>) {
@@ -247,21 +247,21 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
          *
          */
         override fun tryApply(operation: Operation.DataManagementOperation.InsertOperation): Boolean {
-            TODO("Not yet implemented")
+            return false
         }
 
         /**
          *
          */
         override fun tryApply(operation: Operation.DataManagementOperation.UpdateOperation): Boolean {
-            TODO("Not yet implemented")
+            return false
         }
 
         /**
          *
          */
         override fun tryApply(operation: Operation.DataManagementOperation.DeleteOperation): Boolean {
-            TODO("Not yet implemented")
+            return false
         }
 
         /**
@@ -274,101 +274,105 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
          * @param predicate The [Predicate] for the lookup
          * @return The resulting [Iterator]
          */
-        override fun filter(predicate: Predicate): Cursor<Record> = object : Cursor<Record> {
-            /** Local [PQIndexConfig] instance. */
-            private val config = this@Tx.config
+        override fun filter(predicate: Predicate): Cursor<Record> = this.txLatch.withLock {
+            object : Cursor<Record> {
+                /** Local [PQIndexConfig] instance. */
+                private val config = this@Tx.config
 
-            /** Cast to [ProximityPredicate] (if such a cast is possible).  */
-            private val predicate = if (predicate is ProximityPredicate) {
-                predicate
-            } else {
-                throw QueryException.UnsupportedPredicateException("Index '${this@PQIndex.name}' (PQ Index) does not support predicates of type '${predicate::class.simpleName}'.")
-            }
-
-            /** The [ProductQuantizer] instance used for this [Cursor]. */
-            private val pq = ProductQuantizer.loadFromConfig(this.predicate.distance, this.config)
-
-            /** Internal [EntityTx] used to access actual values. */
-            private val entityTx = this@Tx.context.getTx(this@PQIndex.parent) as EntityTx
-
-            /** Prepares [PQLookupTable]s for the given query vector(s). */
-            private val lookupTable: PQLookupTable = this.pq.createLookupTable(this.predicate.query.value as VectorValue<*>)
-
-            /** The [HeapSelection] use for finding the top k entries. */
-            private var selection = HeapSelection(this.predicate.k.toLong(), RecordComparator.SingleNonNullColumnComparator(this.predicate.distanceColumn, SortOrder.ASCENDING))
-
-            /** The current [Cursor] position. */
-            private var position = -1L
-
-            init {
-                this.prepare()
-            }
-
-            /**
-             * Moves the internal cursor and return true, as long as new candidates appear.
-             */
-            override fun moveNext(): Boolean = if (this.position < this.selection.size - 1L) {
-                this.position += 1L
-                true
-            } else {
-                false
-            }
-
-            /**
-             * Returns the current [TupleId] this [Cursor] is pointing to.
-             *
-             * @return [TupleId]
-             */
-            override fun key(): TupleId = this.selection[this.position].tupleId
-
-            /**
-             * Returns the current [Record] this [Cursor] is pointing to.
-             *
-             * @return [TupleId]
-             */
-            override fun value(): Record = this.selection[this.position]
-
-            /**
-             *
-             */
-            override fun close() { }
-
-            /**
-             * Executes the kNN and prepares the results to return by this [Iterator].
-             */
-            private fun prepare() {
-                /* Prepare data structures for NNS. */
-                val preKnnSize = (this.predicate.k * 1.15).toLong() /* Pre-kNN size is 15% larger than k. */
-                val preKnn = HeapSelection(preKnnSize, Comparator<Pair<LongArray, Double>> { o1, o2 -> o1.second.compareTo(o2.second) })
-                val produces = this@PQIndex.produces(predicate).toTypedArray()
-
-                /* Phase 1: Perform pre-NNS based on signatures. */
-                val cursor = this@Tx.dataStore.openCursor(this@Tx.context.xodusTx.readonlySnapshot)
-                while (cursor.next) {
-                    val signature = PQSignature.Binding.entryToValue(cursor.key)
-                    val approximation = this.lookupTable.approximateDistance(signature)
-                    if (preKnn.size < this.predicate.k || preKnn.peek()!!.second > approximation) {
-                        val tupleIds = mutableListOf<TupleId>()
-                        do {
-                            tupleIds.add(LongBinding.compressedEntryToLong(cursor.value))
-                        } while (cursor.nextDup) /* Collect all duplicates. */
-                        preKnn.offer(tupleIds.toLongArray() to approximation)
-                    }
+                /** Cast to [ProximityPredicate] (if such a cast is possible).  */
+                private val predicate = if (predicate is ProximityPredicate) {
+                    predicate
+                } else {
+                    throw QueryException.UnsupportedPredicateException("Index '${this@PQIndex.name}' (PQ Index) does not support predicates of type '${predicate::class.simpleName}'.")
                 }
 
-                /* Closes the cursor. */
-                cursor.close()
+                /** The [ProductQuantizer] instance used for this [Cursor]. */
+                private val pq = ProductQuantizer.loadFromConfig(this.predicate.distance, this.config)
 
-                /* Phase 2: Perform exact kNN based on pre-kNN results. */
-                val query = this.predicate.query.value as VectorValue<*>
-                for (j in 0 until preKnn.size) {
-                    val tupleIds = preKnn[j].first
-                    for (tupleId in tupleIds) {
-                        val value = this.entityTx.read(tupleId, this@Tx.columns)[this@Tx.columns[0]]
-                        if (value is VectorValue<*>) {
-                            val distance = this.predicate.distance(query, value)
-                            if (distance != null && (this.selection.added < this.predicate.k || (this.selection.peek()!![this.predicate.distanceColumn] as NumericValue<*>).value.toDouble() > distance.value)) {
-                                this.selection.offer(StandaloneRecord(tupleId, produces, arrayOf(distance)))
+                /** Internal [EntityTx] used to access actual values. */
+                private val entityTx = this@Tx.context.getTx(this@PQIndex.parent) as EntityTx
+
+                /** Prepares [PQLookupTable]s for the given query vector(s). */
+                private val lookupTable: PQLookupTable = this.pq.createLookupTable(this.predicate.query.value as VectorValue<*>)
+
+                /** The [HeapSelection] use for finding the top k entries. */
+                private var selection = HeapSelection(this.predicate.k.toLong(), RecordComparator.SingleNonNullColumnComparator(this.predicate.distanceColumn, SortOrder.ASCENDING))
+
+                /** The current [Cursor] position. */
+                private var position = -1L
+
+                init {
+                    this.prepare()
+                }
+
+                /**
+                 * Moves the internal cursor and return true, as long as new candidates appear.
+                 */
+                override fun moveNext(): Boolean = if (this.position < this.selection.size - 1L) {
+                    this.position += 1L
+                    true
+                } else {
+                    false
+                }
+
+                /**
+                 * Returns the current [TupleId] this [Cursor] is pointing to.
+                 *
+                 * @return [TupleId]
+                 */
+                override fun key(): TupleId = this.selection[this.position].tupleId
+
+                /**
+                 * Returns the current [Record] this [Cursor] is pointing to.
+                 *
+                 * @return [TupleId]
+                 */
+                override fun value(): Record = this.selection[this.position]
+
+                /**
+                 *
+                 */
+                override fun close() { }
+
+                /**
+                 * Executes the kNN and prepares the results to return by this [Iterator].
+                 */
+                private fun prepare() {
+                    /* Prepare data structures for NNS. */
+                    val preKnnSize = (this.predicate.k * 1.15).toLong() /* Pre-kNN size is 15% larger than k. */
+                    val preKnn = HeapSelection(preKnnSize, Comparator<Pair<LongArray, Double>> { o1, o2 -> o1.second.compareTo(o2.second) })
+                    val produces = this@PQIndex.produces(predicate).toTypedArray()
+
+                    /* Phase 1: Perform pre-NNS based on signatures. */
+                    val subTx = this@Tx.context.xodusTx.readonlySnapshot
+                    val cursor = this@Tx.dataStore.openCursor(subTx)
+                    while (cursor.next) {
+                        val signature = PQSignature.Binding.entryToValue(cursor.key)
+                        val approximation = this.lookupTable.approximateDistance(signature)
+                        if (preKnn.size < this.predicate.k || preKnn.peek()!!.second > approximation) {
+                            val tupleIds = mutableListOf<TupleId>()
+                            do {
+                                tupleIds.add(LongBinding.compressedEntryToLong(cursor.value))
+                            } while (cursor.nextDup) /* Collect all duplicates. */
+                            preKnn.offer(tupleIds.toLongArray() to approximation)
+                        }
+                    }
+
+                    /* Closes the cursor. */
+                    cursor.close()
+                    subTx.abort()
+
+                    /* Phase 2: Perform exact kNN based on pre-kNN results. */
+                    val query = this.predicate.query.value as VectorValue<*>
+                    for (j in 0 until preKnn.size) {
+                        val tupleIds = preKnn[j].first
+                        for (tupleId in tupleIds) {
+                            val value = this.entityTx.read(tupleId, this@Tx.columns)[this@Tx.columns[0]]
+                            if (value is VectorValue<*>) {
+                                val distance = this.predicate.distance(query, value)
+                                if (distance != null && (this.selection.added < this.predicate.k || (this.selection.peek()!![this.predicate.distanceColumn] as NumericValue<*>).value.toDouble() > distance.value)) {
+                                    this.selection.offer(StandaloneRecord(tupleId, produces, arrayOf(distance)))
+                                }
                             }
                         }
                     }
@@ -389,7 +393,8 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
         private fun acquireLearningData(txn: EntityTx, random: RandomGenerator): List<VectorValue<*>> {
             val learningData = LinkedList<VectorValue<*>>()
             val learningDataFraction = this@Tx.config.sampleSize.toDouble() / txn.count()
-            txn.cursor(this.columns).forEach {
+            val cursor = txn.cursor(this.columns)
+            cursor.forEach {
                 if (random.nextDouble() <= learningDataFraction) {
                     val value = it[this.columns[0]]
                     if (value is VectorValue<*>) {
@@ -397,6 +402,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
                     }
                 }
             }
+            cursor.close()
             return learningData
         }
     }

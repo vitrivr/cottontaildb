@@ -116,9 +116,7 @@ abstract class AbstractIndex(final override val name: Name.IndexName, final over
             }
 
             /* Write new entry. */
-            if (!IndexCatalogueEntry.write(newEntry, this@AbstractIndex.catalogue, this.context.xodusTx)) {
-                throw DatabaseException.DataCorruptionException("Failed to update state for index ${this@AbstractIndex.name}: Could not update catalogue entry for index.")
-            }
+            IndexCatalogueEntry.write(newEntry, this@AbstractIndex.catalogue, this.context.xodusTx)
         }
 
         /**

@@ -147,7 +147,7 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
         private fun addMapping(key: Value, tupleId: TupleId): Boolean {
             val keyRaw = this.binding.valueToEntry(key)
             val tupleIdRaw = LongBinding.longToCompressedEntry(tupleId)
-            return if (this.dataStore.get(this.context.xodusTx, keyRaw) != null) {
+            return if (this.dataStore.get(this.context.xodusTx, keyRaw) == null) {
                 this.dataStore.put(this.context.xodusTx, keyRaw, tupleIdRaw)
             } else {
                 false
@@ -306,13 +306,19 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
                 }
 
                 override fun moveNext(): Boolean {
-                    val nextQueryValue = this.queryValueQueue.poll()
-                    return nextQueryValue != null && this.cursor.getSearchKey(this@Tx.binding.valueToEntry(nextQueryValue)) != null
+                    var nextQueryValue = this.queryValueQueue.poll()
+                    while (nextQueryValue != null) {
+                        if (this.cursor.getSearchKey(this@Tx.binding.valueToEntry(nextQueryValue)) != null) {
+                            return true
+                        }
+                        nextQueryValue = this.queryValueQueue.poll()
+                    }
+                    return false
                 }
 
-                override fun key(): TupleId = LongBinding.compressedEntryToLong(this.cursor.key)
+                override fun key(): TupleId = LongBinding.compressedEntryToLong(this.cursor.value)
 
-                override fun value(): Record = StandaloneRecord(this.key(), this@UQBTreeIndex.columns, arrayOf(this@Tx.binding.entryToValue(this.cursor.value)))
+                override fun value(): Record = StandaloneRecord(this.key(), this@UQBTreeIndex.columns, arrayOf(this@Tx.binding.entryToValue(this.cursor.key)))
 
                 override fun close() {
                     this.cursor.close()

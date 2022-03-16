@@ -312,18 +312,27 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
                 }
 
                 override fun moveNext(): Boolean {
+                    /* Check for an existing duplicate for the current cursor. */
                     try {
                         if (this.cursor.nextDup) return true
                     } catch (e: IllegalStateException) {
                         /* Note: Cursors has not been initialized; this is the case for the first call OR when getSearchKey doesn't return a result. */
                     }
-                    val next = this.queryValueQueue.poll()
-                    return next != null && this.cursor.getSearchKey(this@Tx.binding.valueToEntry(next)) != null
+
+                    /* Now update cursor and check again. */
+                    var nextQueryValue = this.queryValueQueue.poll()
+                    while (nextQueryValue != null) {
+                        if (this.cursor.getSearchKey(this@Tx.binding.valueToEntry(nextQueryValue)) != null) {
+                            return true
+                        }
+                        nextQueryValue = this.queryValueQueue.poll()
+                    }
+                    return false
                 }
 
                 override fun key(): TupleId = LongBinding.compressedEntryToLong(this.cursor.value)
 
-                override fun value(): Record = StandaloneRecord(this.key(), this@Tx.columns, arrayOf(this@Tx.binding.entryToValue(this.cursor.value)))
+                override fun value(): Record = StandaloneRecord(this.key(), this@Tx.columns, arrayOf(this@Tx.binding.entryToValue(this.cursor.key)))
 
                 override fun close() {
                     this.cursor.close()

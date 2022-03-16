@@ -415,7 +415,8 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
              */
             private fun prepare() {
                 /* Initialize cursor. */
-                val cursor = this@Tx.dataStore.openCursor(this@Tx.context.xodusTx.readonlySnapshot)
+                val subTx = this@Tx.context.xodusTx.readonlySnapshot
+                val cursor = this@Tx.dataStore.openCursor(subTx)
                 val end = this.range.last.toKey()
                 cursor.getSearchKey(this.range.first.toKey())
 
@@ -441,6 +442,7 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
 
                 /* Close Xodus cursor. */
                 cursor.close()
+                subTx.abort()
             }
         }
     }
