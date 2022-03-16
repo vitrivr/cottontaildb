@@ -27,7 +27,7 @@ import org.vitrivr.cottontail.dbms.schema.SchemaTx
  * A collection of test cases for the [DeferFetchOnScanRewriteRule].
  *
  * @author Ralph Gasser
- * @version 1.2.1
+ * @version 1.2.2
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class DeferFetchOnScanRewriteRuleTest : AbstractDatabaseTest() {
@@ -66,7 +66,7 @@ class DeferFetchOnScanRewriteRuleTest : AbstractDatabaseTest() {
             SelectProjectionLogicalOperatorNode(sample0, Projection.SELECT, this.columns.map { it.name })
 
             /* Check DeferFetchOnFetchRewriteRule.canBeApplied and test output for null. */
-            Assertions.assertFalse(DeferFetchOnScanRewriteRule.canBeApplied(sample0))
+            Assertions.assertFalse(DeferFetchOnScanRewriteRule.canBeApplied(sample0, ctx))
             val result1 = DeferFetchOnScanRewriteRule.apply(sample0, ctx)
             Assertions.assertEquals(null, result1)
         } finally {
@@ -93,7 +93,7 @@ class DeferFetchOnScanRewriteRuleTest : AbstractDatabaseTest() {
             SelectProjectionLogicalOperatorNode(scan0, Projection.SELECT, this.columns.map { it.name })
 
             /* Step 1: Execute DeferFetchOnScanRewriteRule and make basic assertions. */
-            Assertions.assertTrue(DeferFetchOnScanRewriteRule.canBeApplied(scan0))
+            Assertions.assertTrue(DeferFetchOnScanRewriteRule.canBeApplied(scan0, ctx))
             val result1 = DeferFetchOnScanRewriteRule.apply(scan0, ctx)
 
             /* Output should be null because no deferral can take place. */
@@ -122,7 +122,7 @@ class DeferFetchOnScanRewriteRuleTest : AbstractDatabaseTest() {
             val projection0 = SelectProjectionLogicalOperatorNode(scan0, Projection.SELECT, listOf(this.columns[0].name, this.columns[1].name))
 
             /* Execute rule, */
-            Assertions.assertTrue(DeferFetchOnScanRewriteRule.canBeApplied(scan0))
+            Assertions.assertTrue(DeferFetchOnScanRewriteRule.canBeApplied(scan0, ctx))
             val result1 = DeferFetchOnScanRewriteRule.apply(scan0, ctx)
 
             /* Check order: SCAN -> PROJECT. */
@@ -160,7 +160,7 @@ class DeferFetchOnScanRewriteRuleTest : AbstractDatabaseTest() {
 
 
             /* Execute rule and make basic assertions. */
-            Assertions.assertTrue(DeferFetchOnScanRewriteRule.canBeApplied(scan0))
+            Assertions.assertTrue(DeferFetchOnScanRewriteRule.canBeApplied(scan0, ctx))
             val result1 = DeferFetchOnScanRewriteRule.apply(scan0, ctx)
 
             /* Check order: SCAN -> FILTER -> FETCH -> PROJECT. */

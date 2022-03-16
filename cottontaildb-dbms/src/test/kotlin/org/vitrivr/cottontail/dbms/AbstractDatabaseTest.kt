@@ -10,7 +10,6 @@ import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.dbms.catalogue.CatalogueTest
 import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
-import org.vitrivr.cottontail.dbms.column.ColumnEngine
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.execution.TransactionManager
 import org.vitrivr.cottontail.dbms.execution.TransactionType
@@ -24,7 +23,7 @@ import java.nio.file.Files
  * Abstract class for unit tests that require a Cottontail DB database.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
 abstract class AbstractDatabaseTest {
     companion object {
@@ -51,8 +50,9 @@ abstract class AbstractDatabaseTest {
     protected var catalogue: DefaultCatalogue = DefaultCatalogue(this.config)
 
     /** The [TransactionManager] used for this [CatalogueTest] instance. */
-    protected val manager = org.vitrivr.cottontail.dbms.execution.TransactionManager(
+    protected val manager = TransactionManager(
         this.config.execution.transactionTableSize,
+        this.catalogue.environment,
         this.config.execution.transactionHistorySize
     )
 
@@ -107,7 +107,7 @@ abstract class AbstractDatabaseTest {
             val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
             val schema = catalogueTx.schemaForName(this.schemaName)
             val schemaTx = txn.getTx(schema) as SchemaTx
-            schemaTx.createEntity(e.first, *e.second.map { it to ColumnEngine.MAPDB }.toTypedArray())
+            schemaTx.createEntity(e.first, *e.second.map { it }.toTypedArray())
         }
         txn.commit()
     }

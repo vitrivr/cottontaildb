@@ -4,31 +4,34 @@ import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import org.vitrivr.cottontail.core.basics.Record
-import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
-import org.vitrivr.cottontail.dbms.entity.EntityTx
-import org.vitrivr.cottontail.dbms.index.AbstractIndexTest
-import org.vitrivr.cottontail.dbms.index.IndexTx
-import org.vitrivr.cottontail.dbms.index.IndexType
-import org.vitrivr.cottontail.dbms.queries.binding.DefaultBindingContext
-import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
-import org.vitrivr.cottontail.dbms.schema.SchemaTx
-import org.vitrivr.cottontail.dbms.execution.TransactionType
 import org.vitrivr.cottontail.core.queries.functions.Argument
 import org.vitrivr.cottontail.core.queries.functions.Signature
-import org.vitrivr.cottontail.dbms.functions.math.distance.Distances
-import org.vitrivr.cottontail.core.queries.functions.math.VectorDistance
-import org.vitrivr.cottontail.core.values.types.Types
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.EuclideanDistance
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.ManhattanDistance
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.SquaredEuclideanDistance
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.VectorDistance
+import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.FloatVectorValue
 import org.vitrivr.cottontail.core.values.LongValue
+import org.vitrivr.cottontail.core.values.generators.FloatVectorValueGenerator
+import org.vitrivr.cottontail.core.values.types.Types
+import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
+import org.vitrivr.cottontail.dbms.entity.EntityTx
+import org.vitrivr.cottontail.dbms.execution.TransactionType
+import org.vitrivr.cottontail.dbms.index.AbstractIndexTest
+import org.vitrivr.cottontail.dbms.index.IndexTx
+import org.vitrivr.cottontail.dbms.index.IndexType
+import org.vitrivr.cottontail.dbms.queries.binding.DefaultBindingContext
+import org.vitrivr.cottontail.dbms.schema.SchemaTx
 import org.vitrivr.cottontail.utilities.math.KnnUtilities
+import org.vitrivr.cottontail.utilities.math.random.nextInt
 import org.vitrivr.cottontail.utilities.selection.ComparablePair
 import org.vitrivr.cottontail.utilities.selection.MinHeapSelection
-import java.util.*
 import java.util.stream.Stream
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTime
@@ -43,11 +46,8 @@ class VAFFloatIndexTest : AbstractIndexTest() {
 
     companion object {
         @JvmStatic
-        fun kernels(): Stream<Distances> = Stream.of(Distances.L1, Distances.L2, Distances.L2SQUARED)
+        fun kernels(): Stream<Name.FunctionName> = Stream.of(ManhattanDistance.FUNCTION_NAME, EuclideanDistance.FUNCTION_NAME, SquaredEuclideanDistance.FUNCTION_NAME)
     }
-
-    /** Random number generator. */
-    private val random = SplittableRandom()
 
     override val columns: Array<ColumnDef<*>> = arrayOf(
         ColumnDef(this.entityName.column("id"), Types.Long),
@@ -69,12 +69,12 @@ class VAFFloatIndexTest : AbstractIndexTest() {
     @ParameterizedTest
     @MethodSource("kernels")
     @ExperimentalTime
-    fun test(distance: Distances) {
+    fun test(distance: Name.FunctionName) {
         val txn = this.manager.TransactionImpl(TransactionType.SYSTEM)
         val k = 100
 
-        val query = FloatVectorValue.random(this.indexColumn.type.logicalSize, this.random)
-        val function = this.catalogue.functions.obtain(Signature.Closed(distance.functionName, arrayOf(Argument.Typed(query.type), Argument.Typed(query.type)), Types.Double)) as VectorDistance<*>
+        val query = FloatVectorValueGenerator.random(this.indexColumn.type.logicalSize, this.random)
+        val function = this.catalogue.functions.obtain(Signature.Closed(distance, arrayOf(Argument.Typed(query.type), Argument.Typed(query.type)), Types.Double)) as VectorDistance<*>
 
         val context = DefaultBindingContext()
         val predicate = ProximityPredicate.NNS(column = this.indexColumn, k = k, distance = function, query = context.bind(query))
@@ -97,7 +97,7 @@ class VAFFloatIndexTest : AbstractIndexTest() {
         /* Fetch results through full table scan. */
         val bruteForceResults = MinHeapSelection<ComparablePair<TupleId, DoubleValue>>(k)
         val bruteForceDuration = measureTime {
-            entityTx.scan(arrayOf(this.indexColumn)).forEach {
+            entityTx.cursor(arrayOf(this.indexColumn)).forEach {
                 val vector = it[this.indexColumn]
                 if (vector is FloatVectorValue) {
                     bruteForceResults.offer(ComparablePair(it.tupleId, function(query, vector)!!))
@@ -120,7 +120,7 @@ class VAFFloatIndexTest : AbstractIndexTest() {
 
     override fun nextRecord(): StandaloneRecord {
         val id = LongValue(this.counter++)
-        val vector = FloatVectorValue.random(this.indexColumn.type.logicalSize, this.random)
+        val vector = FloatVectorValueGenerator.random(this.indexColumn.type.logicalSize, this.random)
         return StandaloneRecord(0L, columns = this.columns, values = arrayOf(id, vector))
     }
 }

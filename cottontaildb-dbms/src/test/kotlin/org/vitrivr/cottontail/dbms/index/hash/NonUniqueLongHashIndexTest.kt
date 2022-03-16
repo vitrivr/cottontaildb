@@ -18,6 +18,7 @@ import org.vitrivr.cottontail.dbms.index.IndexTx
 import org.vitrivr.cottontail.dbms.index.IndexType
 import org.vitrivr.cottontail.dbms.queries.binding.DefaultBindingContext
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
+import org.vitrivr.cottontail.utilities.math.random.nextLong
 import java.util.*
 
 /**
@@ -45,9 +46,6 @@ class NonUniqueLongHashIndexTest : AbstractIndexTest() {
 
     /** List of values stored in this [UniqueHashIndexTest]. */
     private var list = HashMap<LongValue, MutableList<DoubleValue>>(100)
-
-    /** Random number generator. */
-    private val random = SplittableRandom()
 
     /**
      * Tests if Index#filter() returns the values that have been stored.

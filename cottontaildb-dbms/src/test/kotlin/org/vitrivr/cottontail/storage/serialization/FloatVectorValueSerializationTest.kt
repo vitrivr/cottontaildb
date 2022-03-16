@@ -2,27 +2,27 @@ package org.vitrivr.cottontail.storage.serialization
 
 import org.vitrivr.cottontail.TestConstants
 import org.vitrivr.cottontail.core.database.ColumnDef
-import org.vitrivr.cottontail.dbms.column.ColumnEngine
-import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.FloatVectorValue
 import org.vitrivr.cottontail.core.values.IntValue
+import org.vitrivr.cottontail.core.values.generators.FloatVectorValueGenerator
+import org.vitrivr.cottontail.core.values.types.Types
 import java.util.*
 
 /**
  * Test case that tests for correctness of [FloatVectorValue] serialization and deserialization.
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.3.0
  */
 class FloatVectorValueSerializationTest : AbstractSerializationTest() {
     /** Create a random vector between 2 and 2048 dimensions. */
     private val d = SplittableRandom().nextInt(2, TestConstants.largeVectorMaxDimension)
 
     /** Columns tested by this [FloatVectorValueSerializationTest]. */
-    override val columns: Array<Pair<ColumnDef<*>, ColumnEngine>> = arrayOf(
-        ColumnDef(this.entityName.column("id"), Types.Int) to ColumnEngine.MAPDB,
-        ColumnDef(this.entityName.column("vector"), Types.FloatVector(this.d)) to ColumnEngine.MAPDB
+    override val columns: Array<ColumnDef<*>> = arrayOf(
+        ColumnDef(this.entityName.column("id"), Types.Int),
+        ColumnDef(this.entityName.column("vector"), Types.FloatVector(this.d))
     )
 
     /** Name of this [FloatVectorValueSerializationTest]. */
@@ -33,7 +33,7 @@ class FloatVectorValueSerializationTest : AbstractSerializationTest() {
      */
     override fun nextRecord(i: Int): StandaloneRecord {
         val id = IntValue(i)
-        val vector = FloatVectorValue.random(this.d, this.random)
-        return StandaloneRecord(0L, columns = this.columns.map { it.first }.toTypedArray(), values = arrayOf(id, vector))
+        val vector = FloatVectorValueGenerator.random(this.d, this.random)
+        return StandaloneRecord(0L, columns = this.columns, values = arrayOf(id, vector))
     }
 }

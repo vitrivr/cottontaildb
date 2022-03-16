@@ -9,6 +9,7 @@ import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.LongValue
 import org.vitrivr.cottontail.core.values.StringValue
+import org.vitrivr.cottontail.core.values.generators.StringValueGenerator
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.entity.EntityTx
@@ -24,7 +25,7 @@ import java.util.*
  * This is a collection of test cases to test the correct behaviour of [UQBTreeIndex] with a [StringValue].
  *
  * @author Ralph Gasser
- * @version 1.2.2
+ * @version 1.2.3
  */
 class NonUniqueStringHashIndexTest : AbstractIndexTest() {
 
@@ -45,9 +46,6 @@ class NonUniqueStringHashIndexTest : AbstractIndexTest() {
 
     /** List of values stored in this [UniqueHashIndexTest]. */
     private var list = HashMap<StringValue, MutableList<LongValue>>(100)
-
-    /** Random number generator. */
-    private val random = SplittableRandom()
 
     /**
      * Tests if Index#filter() returns the values that have been stored.
@@ -108,7 +106,7 @@ class NonUniqueStringHashIndexTest : AbstractIndexTest() {
      * Generates and returns a new, random [StandaloneRecord] for inserting into the database.
      */
     override fun nextRecord(): StandaloneRecord {
-        val id = StringValue.random(3)
+        val id = StringValueGenerator.random(3)
         val value = LongValue(random.nextLong())
         if (this.random.nextBoolean() && this.list.size <= 1000) {
             this.list.compute(id) { k, v ->

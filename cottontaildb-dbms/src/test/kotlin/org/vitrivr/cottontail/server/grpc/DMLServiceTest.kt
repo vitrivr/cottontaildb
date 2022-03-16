@@ -9,9 +9,9 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.vitrivr.cottontail.TestConstants
 import org.vitrivr.cottontail.client.SimpleClient
+import org.vitrivr.cottontail.client.language.basics.Predicate
 import org.vitrivr.cottontail.client.language.dml.Update
 import org.vitrivr.cottontail.client.language.dql.Query
-import org.vitrivr.cottontail.client.language.extensions.Literal
 import org.vitrivr.cottontail.embedded
 import java.util.concurrent.TimeUnit
 import kotlin.time.ExperimentalTime
@@ -86,7 +86,7 @@ class DMLServiceTest {
             val update = Update()
                 .from(GrpcTestUtils.TEST_ENTITY_FQN)
                 .values(Pair(GrpcTestUtils.INT_COLUMN_NAME, -1))
-                .where(Literal(GrpcTestUtils.STRING_COLUMN_NAME, "=", el1.asString(GrpcTestUtils.STRING_COLUMN_NAME)!!))
+                .where(Predicate.Atomic.Simple(GrpcTestUtils.STRING_COLUMN_NAME, "=", el1.asString(GrpcTestUtils.STRING_COLUMN_NAME)!!))
                 .txId(txId)
             val r2 = this.client.update(update)
             Assertions.assertTrue(r2.hasNext())
@@ -112,7 +112,7 @@ class DMLServiceTest {
         for (el1 in r1) {
             val update = Update().from(GrpcTestUtils.TEST_ENTITY_FQN)
                 .values(Pair(GrpcTestUtils.INT_COLUMN_NAME, -1))
-                .where(Literal(GrpcTestUtils.STRING_COLUMN_NAME, "=", el1.asString(GrpcTestUtils.STRING_COLUMN_NAME)!!))
+                .where(Predicate.Atomic.Simple(GrpcTestUtils.STRING_COLUMN_NAME, "=", el1.asString(GrpcTestUtils.STRING_COLUMN_NAME)!!))
                 .txId(txId)
             val r2 = this.client.update(update)
             Assertions.assertTrue(r2.hasNext())

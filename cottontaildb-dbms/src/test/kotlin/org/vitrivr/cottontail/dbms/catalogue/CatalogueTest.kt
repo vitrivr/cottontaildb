@@ -18,7 +18,7 @@ import java.nio.file.Files
  * A set of unit tests to test basic [DefaultCatalogue] functionality.
  *
  * @author Ralph Gasser
- * @version 1.1.1
+ * @version 1.2.0
  */
 class CatalogueTest {
 
@@ -40,8 +40,9 @@ class CatalogueTest {
     private val catalogue: DefaultCatalogue = DefaultCatalogue(this.config)
 
     /** The [TransactionManager] used for this [CatalogueTest] instance. */
-    private val manager = org.vitrivr.cottontail.dbms.execution.TransactionManager(
+    private val manager = TransactionManager(
         this.config.execution.transactionTableSize,
+        this.catalogue.environment,
         this.config.execution.transactionHistorySize
     )
 
@@ -73,10 +74,6 @@ class CatalogueTest {
             val catalogueTxn2 = txn2.getTx(this.catalogue) as CatalogueTx
             val schema = catalogueTxn2.schemaForName(this.schemaName)
             val schemaTxn2 = txn2.getTx(schema) as SchemaTx
-
-            /* Check if schema directory exists. */
-            Assertions.assertTrue(Files.isReadable(schema.path))
-            Assertions.assertTrue(Files.isDirectory(schema.path))
 
             /* Check if schema contains the expected number of entities (zero). */
             Assertions.assertEquals(0, schemaTxn2.listEntities().size)
@@ -134,23 +131,17 @@ class CatalogueTest {
 
         /* Transaction 2: Read, check and drop schema. */
         val txn2 = this.manager.TransactionImpl(TransactionType.SYSTEM)
-        val path = try {
+        try {
             val catalogueTxn2 = txn2.getTx(this.catalogue) as CatalogueTx
-            val schema = catalogueTxn2.schemaForName(this.schemaName)
-
-            /* Check if schema directory exists. */
-            Assertions.assertTrue(Files.isReadable(schema.path))
-            Assertions.assertTrue(Files.isDirectory(schema.path))
+            catalogueTxn2.schemaForName(this.schemaName)
 
             /* Drop schema. */
             catalogueTxn2.dropSchema(this.schemaName)
             txn2.commit()
-            schema.path
         } catch (t: Throwable) {
             txn2.rollback()
             throw t
         }
-
 
         /* Transaction 3: Read and compare schema. */
         val txn3 = this.manager.TransactionImpl(TransactionType.SYSTEM)
@@ -161,9 +152,6 @@ class CatalogueTest {
             Assertions.assertThrows(DatabaseException.SchemaDoesNotExistException::class.java) {
                 catalogueTxn3.schemaForName(this.schemaName)
             }
-
-            /* File / folder for schema must not exist! */
-            Assertions.assertFalse(Files.exists(path))
         } finally {
             txn3.rollback()
         }
@@ -194,10 +182,6 @@ class CatalogueTest {
             val catalogueTxn2 = txn2.getTx(this.catalogue) as CatalogueTx
             val schema = catalogueTxn2.schemaForName(this.schemaName)
 
-            /* Check if schema directory exists. */
-            Assertions.assertTrue(Files.isReadable(schema.path))
-            Assertions.assertTrue(Files.isDirectory(schema.path))
-
             /* Drop schema. */
             catalogueTxn2.dropSchema(this.schemaName)
         } finally {
@@ -209,9 +193,9 @@ class CatalogueTest {
         val txn3 = this.manager.TransactionImpl(TransactionType.SYSTEM)
         try {
             val catalogueTxn3 = txn3.getTx(this.catalogue) as CatalogueTx
-            val schema = catalogueTxn3.schemaForName(this.schemaName)
-            Assertions.assertNotNull(schema)
-            Assertions.assertTrue(Files.isDirectory(schema.path))
+            Assertions.assertDoesNotThrow {
+                catalogueTxn3.schemaForName(this.schemaName)
+            }
         } finally {
             txn3.rollback()
         }
@@ -230,7 +214,6 @@ class CatalogueTest {
             val catalogueTxn1 = txn1.getTx(this.catalogue) as CatalogueTx
             val schema = catalogueTxn1.createSchema(this.schemaName)
             catalogueTxn1.dropSchema(this.schemaName)
-            schema.path
         } finally {
             txn1.commit()
         }
@@ -244,10 +227,6 @@ class CatalogueTest {
             Assertions.assertThrows(DatabaseException.SchemaDoesNotExistException::class.java) {
                 catalogueTxn3.schemaForName(this.schemaName)
             }
-
-            /* File / folder for schema must not exist! */
-            Assertions.assertFalse(Files.isDirectory(path))
-            Assertions.assertFalse(Files.exists(path))
         } finally {
             txn3.rollback()
         }

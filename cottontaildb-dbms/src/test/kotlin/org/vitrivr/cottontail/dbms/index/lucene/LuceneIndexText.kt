@@ -3,19 +3,18 @@ package org.vitrivr.cottontail.dbms.index.lucene
 import org.junit.jupiter.api.Test
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.dbms.index.AbstractIndexTest
-import org.vitrivr.cottontail.dbms.index.IndexType
-import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.LongValue
-import org.vitrivr.cottontail.core.values.StringValue
-import java.util.*
+import org.vitrivr.cottontail.core.values.generators.StringValueGenerator
+import org.vitrivr.cottontail.core.values.types.Types
+import org.vitrivr.cottontail.dbms.index.AbstractIndexTest
+import org.vitrivr.cottontail.dbms.index.IndexType
 
 /**
  * A set of unit tests to test basic data insert functionality.
  *
  * @author Ralph Gasser & Silvan Heller
- * @version 1.2.0
+ * @version 1.3.0
  */
 class LuceneIndexText : AbstractIndexTest() {
     override val columns: Array<ColumnDef<*>> = arrayOf(
@@ -35,8 +34,6 @@ class LuceneIndexText : AbstractIndexTest() {
     /** */
     private var id = 0L
 
-    /** Random number generator. */
-    private val random = SplittableRandom()
 
     @Test
     fun testLuceneIndex() {
@@ -48,7 +45,7 @@ class LuceneIndexText : AbstractIndexTest() {
      */
     override fun nextRecord(): StandaloneRecord {
         val id = LongValue(this.id++)
-        val value = StringValue.random(128, this.random)
+        val value = StringValueGenerator.random(128, this.random)
         return StandaloneRecord(this.id, columns = this.columns, values = arrayOf(id, value))
     }
 }

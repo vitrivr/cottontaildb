@@ -2,11 +2,14 @@ package org.vitrivr.cottontail.dbms.queries.components
 
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.RepeatedTest
-import org.vitrivr.cottontail.dbms.queries.binding.DefaultBindingContext
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
-import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.*
-import org.vitrivr.cottontail.core.values.types.Value
+import org.vitrivr.cottontail.core.values.generators.*
+import org.vitrivr.cottontail.core.values.types.Types
+import org.vitrivr.cottontail.dbms.queries.binding.DefaultBindingContext
+import org.vitrivr.cottontail.utilities.math.random.nextDouble
+import org.vitrivr.cottontail.utilities.math.random.nextInt
+import org.vitrivr.cottontail.utilities.math.random.nextLong
 
 /**
  * Test case that tests for correctness of [ComparisonOperator]s.
@@ -16,19 +19,18 @@ import org.vitrivr.cottontail.core.values.types.Value
  */
 class NumericValueComparisonOperatorTest {
     /**
-     * Checks correctness of the [ComparisonOperator.ISNULL] operator.
+     * Checks correctness of the [ComparisonOperator.IsNull] operator.
      */
     @RepeatedTest(100)
     fun checkIsNull() {
         val context = DefaultBindingContext()
-        val referenceBoolean = BooleanValue.random()
-        val referenceByte = ByteValue.random()
-        val referenceShort = ShortValue.random()
-        val referenceInt = IntValue.random()
-        val referenceLong = LongValue.random()
-        val referenceFloat = FloatValue.random()
-        val referenceDouble = DoubleValue.random()
-        val referenceNull = null
+        val referenceBoolean = BooleanValueGenerator.random()
+        val referenceByte = ByteValueGenerator.random()
+        val referenceShort = ShortValueGenerator.random()
+        val referenceInt = IntValueGenerator.random()
+        val referenceLong = LongValueGenerator.random()
+        val referenceFloat = FloatValueGenerator.random()
+        val referenceDouble = DoubleValueGenerator.random()
 
         /** Assert ISNULL. */
         Assertions.assertFalse(ComparisonOperator.IsNull(context.bind(referenceBoolean)).match())
@@ -43,22 +45,20 @@ class NumericValueComparisonOperatorTest {
         Assertions.assertTrue(ComparisonOperator.IsNull(context.bindNull(Types.Long)).match())
         Assertions.assertTrue(ComparisonOperator.IsNull(context.bindNull(Types.Float)).match())
         Assertions.assertTrue(ComparisonOperator.IsNull(context.bindNull(Types.Double)).match())
-
-
     }
 
     /**
-     * Checks correctness of the [ComparisonOperator.EQUAL] operator.
+     * Checks correctness of the [ComparisonOperator.Binary.Equal] operator.
      */
     @RepeatedTest(100)
     fun checkEqual() {
-        val referenceBoolean = BooleanValue.random()
-        val referenceByte = ByteValue.random()
-        val referenceShort = ShortValue.random()
-        val referenceInt = IntValue.random()
-        val referenceLong = LongValue.random()
-        val referenceFloat = FloatValue.random()
-        val referenceDouble = DoubleValue.random()
+        val referenceBoolean = BooleanValueGenerator.random()
+        val referenceByte = ByteValueGenerator.random()
+        val referenceShort = ShortValueGenerator.random()
+        val referenceInt = IntValueGenerator.random()
+        val referenceLong = LongValueGenerator.random()
+        val referenceFloat = FloatValueGenerator.random()
+        val referenceDouble = DoubleValueGenerator.random()
 
         val positiveComparisonBoolean = BooleanValue(referenceBoolean.value)
         val positiveComparisonByte = ByteValue(referenceByte.value)
@@ -68,13 +68,13 @@ class NumericValueComparisonOperatorTest {
         val positiveComparisonFloat = FloatValue(referenceFloat.value)
         val positiveComparisonDouble = DoubleValue(referenceDouble.value)
 
-        val negativeComparisonBoolean = BooleanValue.random()
-        val negativeComparisonByte = ByteValue.random()
-        val negativeComparisonShort = ShortValue.random()
-        val negativeComparisonInt = IntValue.random()
-        val negativeComparisonLong = LongValue.random()
-        val negativeComparisonFloat = FloatValue.random()
-        val negativeComparisonDouble = DoubleValue.random()
+        val negativeComparisonBoolean = BooleanValueGenerator.random()
+        val negativeComparisonByte = ByteValueGenerator.random()
+        val negativeComparisonShort = ShortValueGenerator.random()
+        val negativeComparisonInt = IntValueGenerator.random()
+        val negativeComparisonLong = LongValueGenerator.random()
+        val negativeComparisonFloat = FloatValueGenerator.random()
+        val negativeComparisonDouble = DoubleValueGenerator.random()
 
         val context = DefaultBindingContext()
 
@@ -132,21 +132,21 @@ class NumericValueComparisonOperatorTest {
     }
 
     /**
-     * Checks correctness of the [ComparisonOperator.IN] operator.
+     * Checks correctness of the [ComparisonOperator.In] operator.
      */
     @RepeatedTest(100)
     fun checkIn() {
-        val referenceShort = ShortValue.random()
-        val referenceInt = IntValue.random()
-        val referenceLong = LongValue.random()
-        val referenceFloat = FloatValue.random()
-        val referenceDouble = DoubleValue.random()
+        val referenceShort = ShortValueGenerator.random()
+        val referenceInt = IntValueGenerator.random()
+        val referenceLong = LongValueGenerator.random()
+        val referenceFloat = FloatValueGenerator.random()
+        val referenceDouble = DoubleValueGenerator.random()
 
-        val negativeComparisonShort = ShortValue.random()
-        val negativeComparisonInt = IntValue.random()
-        val negativeComparisonLong = LongValue.random()
-        val negativeComparisonFloat = FloatValue.random()
-        val negativeComparisonDouble = DoubleValue.random()
+        val negativeComparisonShort = ShortValueGenerator.random()
+        val negativeComparisonInt = IntValueGenerator.random()
+        val negativeComparisonLong = LongValueGenerator.random()
+        val negativeComparisonFloat = FloatValueGenerator.random()
+        val negativeComparisonDouble = DoubleValueGenerator.random()
 
         val context = DefaultBindingContext()
         val positiveReference = mutableListOf(
@@ -186,23 +186,23 @@ class NumericValueComparisonOperatorTest {
 
 
     /**
-     * Checks correctness of the [ComparisonOperator.GREATER] and [ComparisonOperator.LESS] operator.
+     * Checks correctness of the [ComparisonOperator.Binary.Greater] and [ComparisonOperator.Binary.Less] operator.
      */
     @RepeatedTest(100)
     fun checkGreaterOrLess() {
-        val referenceByte = ByteValue.random()
-        val referenceShort = ShortValue.random()
-        val referenceInt = IntValue.random()
-        val referenceLong = LongValue.random()
-        val referenceFloat = FloatValue.random()
-        val referenceDouble = DoubleValue.random()
+        val referenceByte = ByteValueGenerator.random()
+        val referenceShort = ShortValueGenerator.random()
+        val referenceInt = IntValueGenerator.random()
+        val referenceLong = LongValueGenerator.random()
+        val referenceFloat = FloatValueGenerator.random()
+        val referenceDouble = DoubleValueGenerator.random()
 
-        val comparisonByte = ByteValue.random()
-        val comparisonShort = ShortValue.random()
-        val comparisonInt = IntValue.random()
-        val comparisonLong = LongValue.random()
-        val comparisonFloat = FloatValue.random()
-        val comparisonDouble = DoubleValue.random()
+        val comparisonByte = ByteValueGenerator.random()
+        val comparisonShort = ShortValueGenerator.random()
+        val comparisonInt = IntValueGenerator.random()
+        val comparisonLong = LongValueGenerator.random()
+        val comparisonFloat = FloatValueGenerator.random()
+        val comparisonDouble = DoubleValueGenerator.random()
 
         val context = DefaultBindingContext()
 
@@ -366,28 +366,27 @@ class NumericValueComparisonOperatorTest {
     }
 
     /**
-     * Checks correctness of the [ComparisonOperator.BETWEEN] operator.
+     * Checks correctness of the [ComparisonOperator.Between] operator.
      */
     @RepeatedTest(100)
     fun checkBetween() {
         val context = DefaultBindingContext()
 
         /* Bind values. */
-        val referenceInt = IntValue.random()
-        val referenceLong = LongValue.random()
-        val referenceFloat = FloatValue.random()
-        val referenceDouble = DoubleValue.random()
+        val referenceInt = IntValueGenerator.random()
+        val referenceLong = LongValueGenerator.random()
+        val referenceFloat = FloatValueGenerator.random()
+        val referenceDouble = DoubleValueGenerator.random()
 
-        val comparisonLowerInt = context.bind(IntValue(Value.RANDOM.nextInt(Int.MIN_VALUE, referenceInt.value)))
-        val comparisonLowerLong = context.bind(LongValue(Value.RANDOM.nextLong(Long.MIN_VALUE, referenceLong.value)))
-        val comparisonLowerFloat = context.bind(FloatValue(Value.RANDOM.nextDouble(Double.MIN_VALUE, referenceFloat.value.toDouble())))
-        val comparisonLowerDouble = context.bind(DoubleValue(Value.RANDOM.nextDouble(Double.MIN_VALUE, referenceDouble.value)))
+        val comparisonLowerInt = context.bind(IntValue(ValueGenerator.RANDOM.nextInt(Int.MIN_VALUE, referenceInt.value)))
+        val comparisonLowerLong = context.bind(LongValue(ValueGenerator.RANDOM.nextLong(Long.MIN_VALUE, referenceLong.value)))
+        val comparisonLowerFloat = context.bind(FloatValue(ValueGenerator.RANDOM.nextDouble(Double.MIN_VALUE, referenceFloat.value.toDouble())))
+        val comparisonLowerDouble = context.bind(DoubleValue(ValueGenerator.RANDOM.nextDouble(Double.MIN_VALUE, referenceDouble.value)))
 
-        val comparisonUpperInt = context.bind(IntValue(Value.RANDOM.nextInt(referenceInt.value, Int.MAX_VALUE)))
-        val comparisonUpperLong = context.bind(LongValue(Value.RANDOM.nextLong(referenceLong.value, Long.MAX_VALUE)))
-        val comparisonUpperFloat = context.bind(FloatValue(Value.RANDOM.nextDouble(referenceFloat.value.toDouble(), Double.MAX_VALUE)))
-        val comparisonUpperDouble = context.bind(DoubleValue(Value.RANDOM.nextDouble(referenceDouble.value, Double.MAX_VALUE)))
-
+        val comparisonUpperInt = context.bind(IntValue(ValueGenerator.RANDOM.nextInt(referenceInt.value, Int.MAX_VALUE)))
+        val comparisonUpperLong = context.bind(LongValue(ValueGenerator.RANDOM.nextLong(referenceLong.value, Long.MAX_VALUE)))
+        val comparisonUpperFloat = context.bind(FloatValue(ValueGenerator.RANDOM.nextDouble(referenceFloat.value.toDouble(), Double.MAX_VALUE)))
+        val comparisonUpperDouble = context.bind(DoubleValue(ValueGenerator.RANDOM.nextDouble(referenceDouble.value, Double.MAX_VALUE)))
 
         /** Assert BETWEEN .*/
         Assertions.assertTrue(ComparisonOperator.Between(context.bind(referenceInt), comparisonLowerInt, comparisonUpperInt).match())

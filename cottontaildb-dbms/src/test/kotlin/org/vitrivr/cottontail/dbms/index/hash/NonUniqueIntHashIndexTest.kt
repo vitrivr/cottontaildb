@@ -18,7 +18,8 @@ import org.vitrivr.cottontail.dbms.index.IndexTx
 import org.vitrivr.cottontail.dbms.index.IndexType
 import org.vitrivr.cottontail.dbms.queries.binding.DefaultBindingContext
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
-import org.vitrivr.cottontail.utilities.extensions.nextFloat
+import org.vitrivr.cottontail.utilities.math.random.nextInt
+import org.vitrivr.cottontail.utilities.math.random.nextLong
 import java.util.*
 
 /**
@@ -46,9 +47,6 @@ class NonUniqueIntHashIndexTest : AbstractIndexTest() {
 
     /** List of values stored in this [UniqueHashIndexTest]. */
     private var list = HashMap<IntValue, MutableList<FloatValue>>(100)
-
-    /** Random number generator. */
-    private val random = SplittableRandom()
 
     /**
      * Tests if Index#filter() returns the values that have been stored.
@@ -109,7 +107,7 @@ class NonUniqueIntHashIndexTest : AbstractIndexTest() {
      * Generates and returns a new, random [StandaloneRecord] for inserting into the database.
      */
     override fun nextRecord(): StandaloneRecord {
-        val id = IntValue(this.random.nextLong(0L, 100))
+        val id = IntValue(number = this.random.nextLong(0L, 100))
         val value = FloatValue(this.random.nextFloat())
         if (this.random.nextBoolean() && this.list.size <= 1000) {
             this.list.compute(id) { _, v ->

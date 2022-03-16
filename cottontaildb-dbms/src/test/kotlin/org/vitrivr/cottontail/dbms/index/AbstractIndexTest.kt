@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.dbms.index
 
+import org.apache.commons.math3.random.JDKRandomGenerator
 import org.junit.jupiter.api.*
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.TestConstants
@@ -10,7 +11,6 @@ import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.dbms.catalogue.CatalogueTest
 import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
-import org.vitrivr.cottontail.dbms.column.ColumnEngine
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.TransactionManager
@@ -21,9 +21,10 @@ import org.vitrivr.cottontail.utilities.io.TxFileUtilities
 import java.nio.file.Files
 
 /**
+ * An abstract class that tests [Index] structures in Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 1.1.1
+ * @version 1.2.0
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 abstract class AbstractIndexTest {
@@ -67,9 +68,13 @@ abstract class AbstractIndexTest {
     /** Catalogue used for testing. */
     protected var catalogue: DefaultCatalogue = DefaultCatalogue(this.config)
 
+    /** The [JDKRandomGenerator] random number generator. */
+    protected val random = JDKRandomGenerator()
+
     /** The [TransactionManager] used for this [CatalogueTest] instance. */
-    protected val manager = org.vitrivr.cottontail.dbms.execution.TransactionManager(
+    protected val manager = TransactionManager(
         this.config.execution.transactionTableSize,
+        this.catalogue.environment,
         this.config.execution.transactionHistorySize
     )
 
@@ -121,7 +126,7 @@ abstract class AbstractIndexTest {
         val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
         val schema = catalogueTx.schemaForName(this.schemaName)
         val schemaTx = txn.getTx(schema) as SchemaTx
-        schemaTx.createEntity(this.entityName, *this.columns.map { it to ColumnEngine.MAPDB }.toTypedArray())
+        schemaTx.createEntity(this.entityName, *this.columns)
         txn.commit()
     }
 
@@ -136,7 +141,8 @@ abstract class AbstractIndexTest {
         val schemaTx = txn.getTx(schema) as SchemaTx
         val entity = schemaTx.entityForName(this.entityName)
         val entityTx = txn.getTx(entity) as EntityTx
-        entityTx.createIndex(this.indexName, this.indexType, arrayOf(this.indexColumn), this.indexParams)
+        val config = this.indexType.descriptor.buildConfig(this.indexParams)
+        entityTx.createIndex(this.indexName, this.indexType, listOf(this.indexColumn.name), config)
         txn.commit()
     }
 
@@ -207,7 +213,7 @@ abstract class AbstractIndexTest {
         if (postCount != preCount) {
             Assertions.fail<Unit>("Optimizing caused elements to disappear")
         }
-        countTx.commit()
+        tx2.commit()
     }
 
     /**

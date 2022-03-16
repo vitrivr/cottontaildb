@@ -10,6 +10,7 @@ import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.FloatVectorValue
 import org.vitrivr.cottontail.core.values.StringValue
+import org.vitrivr.cottontail.core.values.generators.FloatVectorValueGenerator
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.entity.EntityTx
@@ -25,7 +26,7 @@ import java.util.*
  * This is a collection of test cases to test the correct behaviour of [UQBTreeIndex].
  *
  * @author Ralph Gasser
- * @param 1.2.2
+ * @param 1.2.3
  */
 class UniqueHashIndexTest : AbstractIndexTest() {
 
@@ -45,9 +46,6 @@ class UniqueHashIndexTest : AbstractIndexTest() {
 
     /** List of values stored in this [UniqueHashIndexTest]. */
     private var list = HashMap<StringValue, FloatVectorValue>(100)
-
-    /** Random number generator. */
-    private val random = SplittableRandom()
 
     /**
      * Tests if Index#filter() returns the values that have been stored.
@@ -109,7 +107,7 @@ class UniqueHashIndexTest : AbstractIndexTest() {
      */
     override fun nextRecord(): StandaloneRecord {
         val uuid = StringValue(UUID.randomUUID().toString())
-        val vector = FloatVectorValue.random(128, random)
+        val vector = FloatVectorValueGenerator.random(128, this.random)
         if (this.random.nextBoolean() && this.list.size <= 1000) {
             this.list[uuid] = vector
         }

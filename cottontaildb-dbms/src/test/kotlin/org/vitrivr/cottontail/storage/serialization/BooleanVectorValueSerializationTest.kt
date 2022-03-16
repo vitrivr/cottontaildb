@@ -5,15 +5,15 @@ import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.BooleanVectorValue
 import org.vitrivr.cottontail.core.values.IntValue
+import org.vitrivr.cottontail.core.values.generators.BooleanVectorValueGenerator
 import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.dbms.column.ColumnEngine
 import java.util.*
 
 /**
  * Test case that tests for correctness of [BooleanVectorValue] serialization and deserialization.
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.3.0
  */
 class BooleanVectorValueSerializationTest : AbstractSerializationTest() {
 
@@ -21,9 +21,9 @@ class BooleanVectorValueSerializationTest : AbstractSerializationTest() {
     private val d = SplittableRandom().nextInt(2, TestConstants.largeVectorMaxDimension)
 
     /** Columns tested by this [BooleanVectorValueSerializationTest]. */
-    override val columns: Array<Pair<ColumnDef<*>, ColumnEngine>> = arrayOf(
-        ColumnDef(this.entityName.column("id"), Types.Int) to ColumnEngine.MAPDB,
-        ColumnDef(this.entityName.column("vector"), Types.BooleanVector(this.d)) to ColumnEngine.MAPDB
+    override val columns: Array<ColumnDef<*>> = arrayOf(
+        ColumnDef(this.entityName.column("id"), Types.Int),
+        ColumnDef(this.entityName.column("vector"), Types.BooleanVector(this.d))
     )
 
     /** Name of this [BooleanVectorValueSerializationTest]. */
@@ -34,7 +34,7 @@ class BooleanVectorValueSerializationTest : AbstractSerializationTest() {
      */
     override fun nextRecord(i: Int): StandaloneRecord {
         val id = IntValue(i)
-        val vector = BooleanVectorValue.random(this.d, this.random)
-        return StandaloneRecord(0L, columns = this.columns.map { it.first }.toTypedArray(), values = arrayOf(id, vector))
+        val vector = BooleanVectorValueGenerator.random(this.d, this.random)
+        return StandaloneRecord(0L, columns = this.columns, values = arrayOf(id, vector))
     }
 }

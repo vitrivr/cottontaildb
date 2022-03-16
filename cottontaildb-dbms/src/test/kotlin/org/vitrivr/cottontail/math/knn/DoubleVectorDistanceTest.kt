@@ -3,11 +3,12 @@ package org.vitrivr.cottontail.math.knn
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import org.vitrivr.cottontail.TestConstants
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.EuclideanDistance
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.ManhattanDistance
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.SquaredEuclideanDistance
 import org.vitrivr.cottontail.core.values.DoubleVectorValue
+import org.vitrivr.cottontail.core.values.generators.DoubleVectorValueGenerator
 import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.dbms.functions.math.distance.binary.EuclideanDistance
-import org.vitrivr.cottontail.dbms.functions.math.distance.binary.ManhattanDistance
-import org.vitrivr.cottontail.dbms.functions.math.distance.binary.SquaredEuclideanDistance
 import org.vitrivr.cottontail.math.isApproximatelyTheSame
 import org.vitrivr.cottontail.utilities.VectorUtility
 import kotlin.math.abs
@@ -19,7 +20,7 @@ import kotlin.time.measureTime
  * Test cases that test for correctness of some basic distance calculations with [DoubleVectorValue].
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.1.0
  */
 class DoubleVectorDistanceTest : AbstractDistanceTest() {
 
@@ -27,7 +28,7 @@ class DoubleVectorDistanceTest : AbstractDistanceTest() {
     @ParameterizedTest
     @MethodSource("dimensions")
     fun testL1Distance(dimension: Int) {
-        val query = DoubleVectorValue.random(dimension, RANDOM)
+        val query = DoubleVectorValueGenerator.random(dimension, RANDOM)
         val collection = VectorUtility.randomDoubleVectorSequence(dimension, TestConstants.collectionSize, RANDOM)
 
         var sum1 = 0.0
@@ -61,7 +62,7 @@ class DoubleVectorDistanceTest : AbstractDistanceTest() {
     @ParameterizedTest
     @MethodSource("dimensions")
     fun testL2SquaredDistance(dimension: Int) {
-        val query = DoubleVectorValue.random(dimension, RANDOM)
+        val query = DoubleVectorValueGenerator.random(dimension, RANDOM)
         val collection = VectorUtility.randomDoubleVectorSequence(dimension, TestConstants.collectionSize, RANDOM)
 
         var sum1 = 0.0
@@ -95,7 +96,7 @@ class DoubleVectorDistanceTest : AbstractDistanceTest() {
     @ParameterizedTest
     @MethodSource("dimensions")
     fun testL2Distance(dimension: Int) {
-        val query = DoubleVectorValue.random(dimension, RANDOM)
+        val query = DoubleVectorValueGenerator.random(dimension, RANDOM)
         val collection = VectorUtility.randomDoubleVectorSequence(dimension, TestConstants.collectionSize, RANDOM)
 
         var sum1 = 0.0

@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.storage.serialization
 
+import org.apache.commons.math3.random.JDKRandomGenerator
 import org.junit.jupiter.api.*
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.TestConstants
@@ -10,7 +11,6 @@ import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.dbms.catalogue.CatalogueTest
 import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
-import org.vitrivr.cottontail.dbms.column.ColumnEngine
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.TransactionManager
@@ -27,7 +27,7 @@ import java.util.*
  * An abstract class for test cases that test for correctness of [Value] serialization
  *
  * @author Ralph Gasser
- * @version 1.2.1
+ * @version 1.3.0
  */
 abstract class AbstractSerializationTest {
     companion object {
@@ -57,14 +57,14 @@ abstract class AbstractSerializationTest {
     /** The [DefaultCatalogue] instance used for the [AbstractSerializationTest]. */
     private val catalogue: DefaultCatalogue = DefaultCatalogue(this.config)
 
-    /** Random seed used by this [AbstractSerializationTest]. */
-    protected var random = SplittableRandom(this.seed)
+    /** [JDKRandomGenerator] used by this [AbstractSerializationTest]. */
+    protected var random = JDKRandomGenerator(this.seed.toInt())
 
     /** The [TransactionManager] used for this [CatalogueTest] instance. */
-    protected val manager = org.vitrivr.cottontail.dbms.execution.TransactionManager(this.config.execution.transactionTableSize, this.config.execution.transactionHistorySize)
+    protected val manager = TransactionManager(this.config.execution.transactionTableSize, this.catalogue.environment, this.config.execution.transactionHistorySize)
 
     /** The [ColumnDef]s used for the [AbstractSerializationTest]. */
-    protected abstract val columns: Array<Pair<ColumnDef<*>,ColumnEngine>>
+    protected abstract val columns: Array<ColumnDef<*>>
 
     /** The printable name of this [AbstractSerializationTest]. */
     protected abstract val name: String
@@ -108,10 +108,9 @@ abstract class AbstractSerializationTest {
             val schemaTx = txn.getTx(schema) as SchemaTx
             val entity = schemaTx.entityForName(this.entityName)
             val entityTx = txn.getTx(entity) as EntityTx
-            val columns = this.columns.map { it.first }.toTypedArray()
             repeat(TestConstants.collectionSize) {
                 val reference = this.nextRecord(it)
-                val retrieved = entityTx.read(it.toLong(), columns) /* Map DB shift. */
+                val retrieved = entityTx.read(it.toLong(), this.columns)
                 for (i in 0 until retrieved.size) {
                     Assertions.assertTrue(reference[retrieved.columns[i]]!!.isEqual(retrieved[i]!!))
                 }
@@ -126,7 +125,7 @@ abstract class AbstractSerializationTest {
      * Resets the [SplittableRandom] for this [AbstractSerializationTest].
      */
     private fun reset() {
-        this.random = SplittableRandom(this.seed)
+        this.random = JDKRandomGenerator(this.seed.toInt())
     }
 
     /**
