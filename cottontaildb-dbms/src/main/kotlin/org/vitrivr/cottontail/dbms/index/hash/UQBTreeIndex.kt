@@ -2,7 +2,6 @@ package org.vitrivr.cottontail.dbms.index.hash
 
 import jetbrains.exodus.bindings.ComparableBinding
 import jetbrains.exodus.bindings.LongBinding
-import jetbrains.exodus.bindings.StringBinding
 import jetbrains.exodus.env.Store
 import jetbrains.exodus.env.StoreConfig
 import org.vitrivr.cottontail.core.basics.Cursor
@@ -126,7 +125,8 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
     private inner class Tx(context: TransactionContext) : AbstractIndex.Tx(context) {
 
         /** The internal [XodusBinding] reference used for de-/serialization. */
-        private val binding: XodusBinding<*> = ValueSerializerFactory.xodus(this.columns[0].type, this.columns[0].nullable)
+        @Suppress("UNCHECKED_CAST")
+        private val binding: XodusBinding<Value> = ValueSerializerFactory.xodus(this.columns[0].type, this.columns[0].nullable) as XodusBinding<Value>
 
         /** The Xodus [Store] used to store entries in the [BTreeIndex]. */
         private var dataStore: Store = this@UQBTreeIndex.catalogue.environment.openStore(this@UQBTreeIndex.name.storeName(), StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, this.context.xodusTx, false)
@@ -144,9 +144,8 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
          *
          * This is an internal function and can be used safely with values o
          */
-        @Suppress("UNCHECKED_CAST")
         private fun addMapping(key: Value, tupleId: TupleId): Boolean {
-            val keyRaw = (this.binding as XodusBinding<Value>).valueToEntry(key)
+            val keyRaw = this.binding.valueToEntry(key)
             val tupleIdRaw = LongBinding.longToCompressedEntry(tupleId)
             return if (this.dataStore.get(this.context.xodusTx, keyRaw) != null) {
                 this.dataStore.put(this.context.xodusTx, keyRaw, tupleIdRaw)
@@ -162,9 +161,8 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
          *
          * This is an internal function and can be used safely with values o
          */
-        @Suppress("UNCHECKED_CAST")
         private fun removeMapping(key: Value): Boolean {
-            val keyRaw = (this.binding as XodusBinding<Value>).valueToEntry(key)
+            val keyRaw = this.binding.valueToEntry(key)
             return this.dataStore.delete(this.context.xodusTx, keyRaw)
         }
 
@@ -285,39 +283,40 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
             /** A [Queue] with values that should be queried. */
             private val queryValueQueue: Queue<Value> = LinkedList()
 
-            /** The current query [Value]. */
-            private var queryValue: Value
+            /** Internal cursor used for navigation. */
+            private val subTransaction = this@Tx.context.xodusTx.readonlySnapshot
 
             /** Internal cursor used for navigation. */
             private var cursor: jetbrains.exodus.env.Cursor
 
             /* Perform initial sanity checks. */
             init {
-                require(predicate is BooleanPredicate.Atomic) { "UniqueHashIndex.filter() does only support Atomic.Literal boolean predicates." }
+                require(predicate is BooleanPredicate.Atomic) { "UQBTreeIndex.filter() does only support Atomic.Literal boolean predicates." }
                 require(!predicate.not) { "UniqueHashIndex.filter() does not support negated statements (i.e. NOT EQUALS or NOT IN)." }
                 this.predicate = predicate
                 when (predicate.operator) {
                     is ComparisonOperator.In -> this.queryValueQueue.addAll((predicate.operator as ComparisonOperator.In).right.mapNotNull { it.value })
-                    is ComparisonOperator.Binary.Equal -> this.queryValueQueue.add((predicate.operator as ComparisonOperator.Binary.Equal).right.value ?: throw IllegalArgumentException("UniqueHashIndex.filter() does not support NULL operands."))
-                    else -> throw IllegalArgumentException("UniqueHashIndex.filter() does only support EQUAL and IN operators.")
+                    is ComparisonOperator.Binary.Equal -> this.queryValueQueue.add((predicate.operator as ComparisonOperator.Binary.Equal).right.value ?: throw IllegalArgumentException("UQBTreeIndex.filter() does not support NULL operands."))
+                    else -> throw IllegalArgumentException("UQBTreeIndex.filter() does only support EQUAL, IN or LIKE operators.")
                 }
 
                 /** Initialize cursor. */
-                this.cursor = this@Tx.dataStore.openCursor(this@Tx.context.xodusTx)
-                this.queryValue = this.queryValueQueue.poll() ?: throw IllegalArgumentException("UniqueHashIndex.filter() does not support NULL operands.")
-                this.cursor.getSearchKey(StringBinding.BINDING.objectToEntry(this.queryValue))
+                this.cursor = this@Tx.dataStore.openCursor(this.subTransaction)
             }
 
             override fun moveNext(): Boolean {
-                this.queryValue = this.queryValueQueue.poll() ?: return false
-                return this.cursor.getSearchKey(StringBinding.BINDING.objectToEntry(this.queryValue)) != null
+                val nextQueryValue = this.queryValueQueue.poll() ?: return false
+                return this.cursor.getSearchKey(this@Tx.binding.valueToEntry(nextQueryValue)) != null
             }
 
             override fun key(): TupleId = LongBinding.compressedEntryToLong(this.cursor.key)
 
             override fun value(): Record = StandaloneRecord(this.key(), this@UQBTreeIndex.columns, arrayOf(this@Tx.binding.entryToValue(this.cursor.value)))
 
-            override fun close() = this.cursor.close()
+            override fun close() {
+                this.cursor.close()
+                this.subTransaction.abort()
+            }
         }
 
         /**

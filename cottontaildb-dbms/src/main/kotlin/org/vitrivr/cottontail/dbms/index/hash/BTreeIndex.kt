@@ -2,7 +2,6 @@ package org.vitrivr.cottontail.dbms.index.hash
 
 import jetbrains.exodus.bindings.ComparableBinding
 import jetbrains.exodus.bindings.LongBinding
-import jetbrains.exodus.bindings.StringBinding
 import jetbrains.exodus.env.Store
 import jetbrains.exodus.env.StoreConfig
 import org.vitrivr.cottontail.core.basics.Cursor
@@ -138,7 +137,8 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
     private inner class Tx(context: TransactionContext) : AbstractIndex.Tx(context) {
 
         /** The internal [XodusBinding] reference used for de-/serialization. */
-        private val binding: XodusBinding<*> = ValueSerializerFactory.xodus(this.columns[0].type, this.columns[0].nullable)
+        @Suppress("UNCHECKED_CAST")
+        private val binding: XodusBinding<Value> = ValueSerializerFactory.xodus(this.columns[0].type, this.columns[0].nullable) as XodusBinding<Value>
 
         /** The Xodus [Store] used to store entries in the [BTreeIndex]. */
         private var dataStore: Store = this@BTreeIndex.catalogue.environment.openStore(this@BTreeIndex.name.storeName(), StoreConfig.WITH_DUPLICATES_WITH_PREFIXING, this.context.xodusTx, false)
@@ -156,15 +156,10 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
          *
          * This is an internal function and can be used safely with values o
          */
-        @Suppress("UNCHECKED_CAST")
         private fun addMapping(key: Value, tupleId: TupleId): Boolean {
-            val keyRaw = (this.binding as XodusBinding<Value>).valueToEntry(key)
+            val keyRaw = this.binding.valueToEntry(key)
             val tupleIdRaw = LongBinding.longToCompressedEntry(tupleId)
-            return if (this.dataStore.exists(this.context.xodusTx, keyRaw, tupleIdRaw)) {
-                this.dataStore.put(this.context.xodusTx, keyRaw, tupleIdRaw)
-            } else {
-                false
-            }
+            return this.dataStore.put(this.context.xodusTx, keyRaw, tupleIdRaw)
         }
 
         /**
@@ -174,16 +169,13 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
          *
          * This is an internal function and can be used safely with values o
          */
-        @Suppress("UNCHECKED_CAST")
         private fun removeMapping(key: Value, tupleId: TupleId): Boolean {
-            val keyRaw = (this.binding as XodusBinding<Value>).valueToEntry(key)
+            val keyRaw = this.binding.valueToEntry(key)
             val valueRaw = LongBinding.longToCompressedEntry(tupleId)
             val cursor = this.dataStore.openCursor(this.context.xodusTx)
-            if (cursor.getSearchBoth(keyRaw, valueRaw)) {
-                return cursor.deleteCurrent()
-            } else {
-                return false
-            }
+            val ret = cursor.getSearchBoth(keyRaw, valueRaw) && cursor.deleteCurrent()
+            cursor.close()
+            return ret
         }
 
         /**
@@ -298,11 +290,11 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
             /** A [Queue] with values that should be queried. */
             private val queryValueQueue: Queue<Value> = LinkedList()
 
-            /** The current query [Value]. */
-            private var queryValue: Value
+            /** Internal cursor used for navigation. */
+            private val subTransaction = this@Tx.context.xodusTx.readonlySnapshot
 
             /** Internal cursor used for navigation. */
-            private var cursor: jetbrains.exodus.env.Cursor
+            private val cursor: jetbrains.exodus.env.Cursor
 
             /* Perform initial sanity checks. */
             init {
@@ -315,22 +307,27 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
                 }
 
                 /** Initialize cursor. */
-                this.cursor = this@Tx.dataStore.openCursor(this@Tx.context.xodusTx)
-                this.queryValue = this.queryValueQueue.poll() ?: throw IllegalArgumentException("UniqueHashIndex.filter() does not support NULL operands.")
-                this.cursor.getSearchKey(StringBinding.BINDING.objectToEntry(this.queryValue))
+                this.cursor = this@Tx.dataStore.openCursor(this.subTransaction)
             }
 
             override fun moveNext(): Boolean {
-                if (this.cursor.nextDup) return true
-                this.queryValue = this.queryValueQueue.poll() ?: return false
-                return this.cursor.getSearchKey(StringBinding.BINDING.objectToEntry(this.queryValue)) != null
+                try {
+                    if (this.cursor.nextDup) return true
+                } catch (e: IllegalStateException) {
+                    /* Note: Cursors has not been initialized; this is the case for the first call OR when getSearchKey doesn't return a result. */
+                }
+                val next = this.queryValueQueue.poll()
+                return this.cursor.getSearchKey(this@Tx.binding.valueToEntry(next)) != null
             }
 
             override fun key(): TupleId = LongBinding.compressedEntryToLong(this.cursor.key)
 
-            override fun value(): Record = StandaloneRecord(this.key(), this@BTreeIndex.columns, arrayOf(this@Tx.binding.entryToValue(this.cursor.value)))
+            override fun value(): Record = StandaloneRecord(this.key(), this@Tx.columns, arrayOf(this@Tx.binding.entryToValue(this.cursor.value)))
 
-            override fun close() = this.cursor.close()
+            override fun close() {
+                this.cursor.close()
+                this.subTransaction.abort()
+            }
         }
 
         /**
