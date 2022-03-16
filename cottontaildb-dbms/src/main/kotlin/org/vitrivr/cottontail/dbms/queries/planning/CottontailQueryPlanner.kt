@@ -56,7 +56,8 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
 
         /* Execute actual query planning and select candidate with lowest cost. */
         val candidates = this.plan(context)
-        context.physical = candidates.minByOrNull { it.totalCost } ?: throw QueryException.QueryPlannerException("Failed to generate a physical execution plan for expression: $logical.")
+        context.physical = candidates.minByOrNull { it.totalCost }
+            ?: throw QueryException.QueryPlannerException("Failed to generate a physical execution plan for query. Maybe there is an index missing?")
 
         /* Update plan cache. */
         if (!cache) this.planCache[digest] = context.physical!!
