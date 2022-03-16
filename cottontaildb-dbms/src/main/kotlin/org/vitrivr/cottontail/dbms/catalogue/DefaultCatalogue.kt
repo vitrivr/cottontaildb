@@ -15,6 +15,7 @@ import org.vitrivr.cottontail.dbms.functions.initialize
 import org.vitrivr.cottontail.dbms.general.*
 import org.vitrivr.cottontail.dbms.schema.DefaultSchema
 import org.vitrivr.cottontail.dbms.schema.Schema
+import org.vitrivr.cottontail.dbms.schema.SchemaTx
 import org.vitrivr.cottontail.utilities.extensions.write
 import java.nio.file.Path
 import java.util.concurrent.locks.StampedLock
@@ -57,6 +58,10 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
 
     /** Constant parent [DBO], which is null in case of the [DefaultCatalogue]. */
     override val parent: DBO? = null
+
+    /** Constant parent [DBO], which is null in case of the [DefaultCatalogue]. */
+    override val catalogue: Catalogue
+        get() = this
 
     /** The [FunctionRegistry] exposed by this [Catalogue]. */
     override val functions: FunctionRegistry = FunctionRegistry()
@@ -118,9 +123,6 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
         this.environment.close()
     }
 
-    override val catalogue: Catalogue
-        get() = TODO("Not yet implemented")
-
     /**
      * A [Tx] that affects this [DefaultCatalogue].
      *
@@ -138,14 +140,14 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
          *
          * Prevents [DefaultCatalogue] from being closed while transaction is ongoing.
          */
-        private val closeStamp = this@DefaultCatalogue.closeLock.readLock()
+        private val closeStamp: Long
 
         /** Checks if DBO is still open. */
         init {
             if (this@DefaultCatalogue.closed) {
-                this@DefaultCatalogue.closeLock.unlockRead(this.closeStamp)
                 throw TxException.TxDBOClosedException(this.context.txId, this@DefaultCatalogue)
             }
+            this.closeStamp = this@DefaultCatalogue.closeLock.readLock()
         }
 
         /**
@@ -200,8 +202,8 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
                 throw DatabaseException.SchemaDoesNotExistException(name)
             }
 
-            /* Drop all entities from schema. */
-            val schemaTx = DefaultSchema(name, this@DefaultCatalogue).newTx(this.context)
+            /* Obtain schema Tx and drop all entities contained in schema. */
+            val schemaTx = this.context.getTx(DefaultSchema(name, this@DefaultCatalogue)) as SchemaTx
             schemaTx.listEntities().forEach { schemaTx.dropEntity(it) }
 
             /* Remove schema from catalogue. */

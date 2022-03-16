@@ -9,6 +9,7 @@ import org.vitrivr.cottontail.dbms.catalogue.entries.*
 import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.Entity
+import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.exceptions.TxException
 import org.vitrivr.cottontail.dbms.execution.TransactionContext
@@ -68,14 +69,14 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
          *
          * Prevents [DefaultCatalogue] from being closed while transaction is ongoing.
          */
-        private val closeStamp = this.dbo.catalogue.closeLock.readLock()
+        private val closeStamp: Long
 
         init {
             /** Checks if DBO is still open. */
             if (this.dbo.closed) {
-                this.dbo.catalogue.closeLock.unlockRead(this.closeStamp)
                 throw TxException.TxDBOClosedException(this.context.txId, this.dbo)
             }
+            this.closeStamp = this.dbo.catalogue.closeLock.readLock()
         }
 
         /**
@@ -173,7 +174,7 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
             val entry = EntityCatalogueEntry.read(name, this@DefaultSchema.catalogue, this.context.xodusTx) ?: throw DatabaseException.EntityDoesNotExistException(name)
 
             /* Drop all indexes from entity. */
-            val entityTx = DefaultEntity(name, this@DefaultSchema).newTx(this.context)
+            val entityTx = this.context.getTx(DefaultEntity(name, this@DefaultSchema)) as EntityTx
             entry.indexes.forEach { entityTx.dropIndex(it) }
 
             /* Drop all columns from entity. */

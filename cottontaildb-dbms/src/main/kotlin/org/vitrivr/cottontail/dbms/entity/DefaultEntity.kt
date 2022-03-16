@@ -108,14 +108,14 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
          *
          * Prevents [DefaultCatalogue] from being closed while transaction is ongoing.
          */
-        private val closeStamp = this.dbo.catalogue.closeLock.readLock()
+        private val closeStamp: Long
 
         init {
             /** Checks if DBO is still open. */
             if (this.dbo.closed) {
-                this.dbo.catalogue.closeLock.unlockRead(this.closeStamp)
                 throw TxException.TxDBOClosedException(this.context.txId, this.dbo)
             }
+            this.closeStamp = this.dbo.catalogue.closeLock.readLock()
 
             /* Load entity entry.  */
             val entityEntry = EntityCatalogueEntry.read(this@DefaultEntity.name, this@DefaultEntity.catalogue, this.context.xodusTx)

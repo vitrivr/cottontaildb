@@ -90,14 +90,14 @@ abstract class AbstractIndex(final override val name: Name.IndexName, final over
          *
          * Prevents [DefaultCatalogue] from being closed while transaction is ongoing.
          */
-        private val closeStamp = this.dbo.catalogue.closeLock.readLock()
+        private val closeStamp: Long
 
         init {
             /** Checks if DBO is still open. */
             if (this.dbo.closed) {
-                this.dbo.catalogue.closeLock.unlockRead(this.closeStamp)
                 throw TxException.TxDBOClosedException(this.context.txId, this.dbo)
             }
+            this.closeStamp = this.dbo.catalogue.closeLock.readLock()
         }
 
         /**
