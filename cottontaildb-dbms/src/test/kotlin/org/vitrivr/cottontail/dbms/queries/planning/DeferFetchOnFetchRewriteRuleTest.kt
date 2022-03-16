@@ -2,7 +2,6 @@ package org.vitrivr.cottontail.dbms.queries.planning
 
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.TestInstance
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
@@ -29,8 +28,8 @@ import org.vitrivr.cottontail.dbms.schema.SchemaTx
  * @author Ralph Gasser
  * @version 1.2.2
  */
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class DeferFetchOnFetchRewriteRuleTest : AbstractDatabaseTest() {
+
     /** [Name.EntityName] of test entity. */
     private val entityName = this.schemaName.entity("test-entity")
 
@@ -42,9 +41,6 @@ class DeferFetchOnFetchRewriteRuleTest : AbstractDatabaseTest() {
         ColumnDef(this.entityName.column("intValue"), Types.Int),
         ColumnDef(this.entityName.column("booleanValue"), Types.Boolean)
     )
-
-    /** Entities used for this [DeferFetchOnScanRewriteRuleTest]. */
-    override val entities: List<Pair<Name.EntityName, List<ColumnDef<*>>>> = listOf(this.entityName to this.columns)
 
     /**
      * Makes a basic test whether [DeferFetchOnFetchRewriteRule.canBeApplied] works as expected and generates output accordingly.
@@ -181,7 +177,4 @@ class DeferFetchOnFetchRewriteRuleTest : AbstractDatabaseTest() {
             txn.rollback()
         }
     }
-
-
-    override fun populateDatabase() { /* No op. */ }
 }

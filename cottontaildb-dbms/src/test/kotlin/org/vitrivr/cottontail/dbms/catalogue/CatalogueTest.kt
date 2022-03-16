@@ -1,13 +1,11 @@
 package org.vitrivr.cottontail.dbms.catalogue
 
-import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import org.vitrivr.cottontail.TestConstants
 import org.vitrivr.cottontail.config.Config
-import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.dbms.AbstractDatabaseTest
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.execution.TransactionManager
 import org.vitrivr.cottontail.dbms.execution.TransactionType
 import org.vitrivr.cottontail.dbms.schema.DefaultSchema
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
@@ -20,10 +18,7 @@ import java.nio.file.Files
  * @author Ralph Gasser
  * @version 1.2.0
  */
-class CatalogueTest {
-
-    /** [Name.SchemaName] used for this [CatalogueTest]. */
-    private val schemaName = Name.SchemaName("catalogue-test")
+class CatalogueTest: AbstractDatabaseTest() {
 
     /** [Config] used for this [CatalogueTest]. */
     private val config: Config = TestConstants.testConfig()
@@ -34,22 +29,6 @@ class CatalogueTest {
             TxFileUtilities.delete(this.config.root)
         }
         Files.createDirectories(this.config.root)
-    }
-
-    /** The [DefaultCatalogue] object to run the test with. */
-    private val catalogue: DefaultCatalogue = DefaultCatalogue(this.config)
-
-    /** The [TransactionManager] used for this [CatalogueTest] instance. */
-    private val manager = TransactionManager(
-        this.config.execution.transactionTableSize,
-        this.catalogue.environment,
-        this.config.execution.transactionHistorySize
-    )
-
-    @AfterEach
-    fun teardown() {
-        this.catalogue.close()
-        TxFileUtilities.delete(this.config.root)
     }
 
     /**
@@ -180,7 +159,9 @@ class CatalogueTest {
         val txn2 = this.manager.TransactionImpl(TransactionType.SYSTEM)
         try {
             val catalogueTxn2 = txn2.getTx(this.catalogue) as CatalogueTx
-            val schema = catalogueTxn2.schemaForName(this.schemaName)
+            Assertions.assertDoesNotThrow {
+                catalogueTxn2.schemaForName(this.schemaName)
+            }
 
             /* Drop schema. */
             catalogueTxn2.dropSchema(this.schemaName)
@@ -210,10 +191,12 @@ class CatalogueTest {
     fun createAndDropSchemaSingleTransactionTest() {
         /* Transaction 1: Create schema. */
         val txn1 = this.manager.TransactionImpl(TransactionType.SYSTEM)
-        val path = try {
+        try {
             val catalogueTxn1 = txn1.getTx(this.catalogue) as CatalogueTx
-            val schema = catalogueTxn1.createSchema(this.schemaName)
-            catalogueTxn1.dropSchema(this.schemaName)
+            Assertions.assertDoesNotThrow {
+                catalogueTxn1.createSchema(this.schemaName)
+                catalogueTxn1.dropSchema(this.schemaName)
+            }
         } finally {
             txn1.commit()
         }

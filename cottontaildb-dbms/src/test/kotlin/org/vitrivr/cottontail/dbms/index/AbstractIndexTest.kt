@@ -1,24 +1,20 @@
 package org.vitrivr.cottontail.dbms.index
 
 import org.apache.commons.math3.random.JDKRandomGenerator
-import org.junit.jupiter.api.*
-import org.slf4j.LoggerFactory
+import org.junit.jupiter.api.Assertions
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
 import org.vitrivr.cottontail.TestConstants
-import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
-import org.vitrivr.cottontail.dbms.catalogue.CatalogueTest
+import org.vitrivr.cottontail.dbms.AbstractDatabaseTest
 import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
-import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
-import org.vitrivr.cottontail.dbms.execution.TransactionManager
 import org.vitrivr.cottontail.dbms.execution.TransactionType
 import org.vitrivr.cottontail.dbms.schema.Schema
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
-import org.vitrivr.cottontail.utilities.io.TxFileUtilities
-import java.nio.file.Files
 
 /**
  * An abstract class that tests [Index] structures in Cottontail DB.
@@ -26,26 +22,7 @@ import java.nio.file.Files
  * @author Ralph Gasser
  * @version 1.2.0
  */
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
-abstract class AbstractIndexTest {
-
-    companion object {
-        private val LOGGER = LoggerFactory.getLogger(AbstractIndexTest::class.java)
-    }
-
-    /** [Config] used for this [AbstractIndexTest]. */
-    private val config: Config = TestConstants.testConfig()
-
-    init {
-        /* Assure that root folder is empty! */
-        if (Files.exists(this.config.root)) {
-            TxFileUtilities.delete(this.config.root)
-        }
-        Files.createDirectories(this.config.root)
-    }
-
-    /** [Name.SchemaName] of the test schema. */
-    protected val schemaName = Name.SchemaName("test")
+abstract class AbstractIndexTest: AbstractDatabaseTest() {
 
     /** [Name.EntityName] of the test schema. */
     protected val entityName = schemaName.entity("index")
@@ -65,24 +42,16 @@ abstract class AbstractIndexTest {
     /** [IndexType] of the the test [Index]. */
     protected val indexParams: Map<String, String> = emptyMap()
 
-    /** Catalogue used for testing. */
-    protected var catalogue: DefaultCatalogue = DefaultCatalogue(this.config)
-
     /** The [JDKRandomGenerator] random number generator. */
     protected val random = JDKRandomGenerator()
-
-    /** The [TransactionManager] used for this [CatalogueTest] instance. */
-    protected val manager = TransactionManager(
-        this.config.execution.transactionTableSize,
-        this.catalogue.environment,
-        this.config.execution.transactionHistorySize
-    )
 
     /**
      * Initializes this [AbstractIndexTest] and prepares required [Entity] and [Index].
      */
-    @BeforeAll
-    protected fun initialize() {
+    @BeforeEach
+    override fun initialize() {
+        super.initialize()
+
         /* Prepare data structures. */
         prepareSchema()
         prepareEntity()
@@ -94,15 +63,6 @@ abstract class AbstractIndexTest {
         /* Update the index. */
         this.updateIndex()
         log("Starting test...")
-    }
-
-    /**
-     * Tears down this [AbstractIndexTest].
-     */
-    @AfterAll
-    protected fun teardown() {
-        this.catalogue.close()
-        TxFileUtilities.delete(this.config.root)
     }
 
     /**
@@ -186,7 +146,7 @@ abstract class AbstractIndexTest {
     /**
      * Logs an information message regarding this [AbstractIndexTest].
      */
-    fun log(message: String) = LOGGER.info("Index test (${this.indexType}): $message")
+    fun log(message: String) = this.logger.info("Index test (${this.indexType}): $message")
 
     /**
      * Tests for correct optimization of index.

@@ -1,23 +1,17 @@
 package org.vitrivr.cottontail.dbms.catalogue
 
-import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import org.vitrivr.cottontail.TestConstants
-import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.core.database.ColumnDef
-import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.values.types.Types
+import org.vitrivr.cottontail.dbms.AbstractDatabaseTest
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.execution.TransactionManager
 import org.vitrivr.cottontail.dbms.execution.TransactionType
 import org.vitrivr.cottontail.dbms.schema.Schema
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
-import org.vitrivr.cottontail.utilities.io.TxFileUtilities
-import java.nio.file.Files
 
 /**
  * A set of unit tests to test basic [Schema] functionality.
@@ -25,9 +19,7 @@ import java.nio.file.Files
  * @author Ralph Gasser
  * @version 1.2.0
  */
-class SchemaTest {
-    /** [Name.SchemaName] of the test schema. */
-    private val schemaName = Name.SchemaName("schema-test")
+class SchemaTest: AbstractDatabaseTest() {
 
     /** List of [DefaultEntity] to create. */
     private val entityNames = arrayOf(
@@ -35,33 +27,6 @@ class SchemaTest {
         this.schemaName.entity("two"),
         this.schemaName.entity("three")
     )
-
-    /** [Config] used for this [SchemaTest]. */
-    private val config: Config = TestConstants.testConfig()
-
-    init {
-        /* Assure that root folder is empty! */
-        if (Files.exists(this.config.root)) {
-            TxFileUtilities.delete(this.config.root)
-        }
-        Files.createDirectories(this.config.root)
-    }
-
-    /** The [DefaultCatalogue] object to run the test with. */
-    private val catalogue: DefaultCatalogue = DefaultCatalogue(this.config)
-
-    /** The [TransactionManager] used for this [CatalogueTest] instance. */
-    private val manager = TransactionManager(
-        this.config.execution.transactionTableSize,
-        this.catalogue.environment,
-        this.config.execution.transactionHistorySize
-    )
-
-    @AfterEach
-    fun teardown() {
-        this.catalogue.close()
-        TxFileUtilities.delete(this.config.root)
-    }
 
     /**
      * Creates a new [Schema] and runs some basic tests on the existence of the required files and initialization of the correct attributes.
