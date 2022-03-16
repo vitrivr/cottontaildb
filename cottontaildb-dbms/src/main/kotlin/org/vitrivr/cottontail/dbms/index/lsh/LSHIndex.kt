@@ -215,21 +215,25 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
             LOGGER.debug("Rebuilding SB-LSH index {}", this@LSHIndex.name)
 
             /* Initialize SignatureGenerator. */
-            val tx = this.context.getTx(this.dbo.parent) as EntityTx
-            val specimen = this.acquireSpecimen(tx)
+            val entityTx = this.context.getTx(this.dbo.parent) as EntityTx
+            val specimen = this.acquireSpecimen(entityTx)
             if (specimen != null) {
                 /* Clears this index. */
                 this.clear()
 
                 /* Generate a new LSHSignature for each entry in the entity and adds it to the index. */
                 val generator = this.config.generator(specimen.logicalSize)
-                tx.cursor(this.columns).forEach {
+                val cursor = entityTx.cursor(this.columns)
+                cursor.forEach {
                     val value = it[this.columns[0]] ?: throw DatabaseException("Could not find column for entry in index $this") // todo: what if more columns? This should never happen -> need to change type and sort this out on index creation
                     if (value is VectorValue<*>) {
                         val signature = generator.generate(value)
                         this.addMapping(signature, it.tupleId)
                     }
                 }
+
+                /* Close cursor. */
+                cursor.close()
 
                 /* Update state of index. */
                 this.updateState(IndexState.CLEAN, this.config.copy(generator = generator))

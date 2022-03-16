@@ -191,24 +191,30 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
             /* Obtain some learning data for training. */
             LOGGER.debug("Rebuilding PQ index {}", this@PQIndex.name)
             val random = JDKRandomGenerator(System.currentTimeMillis().toInt())
-            val txn = this.context.getTx(this.dbo.parent) as EntityTx
+            val entityTx = this.context.getTx(this.dbo.parent) as EntityTx
 
             /* Obtain PQ data structure. */
             val config = this.config
             val indexedColumn = this.columns[0]
             val type = indexedColumn.type as Types.Vector<*,*>
             val distanceFunction = this@PQIndex.catalogue.functions.obtain(Signature.SemiClosed(config.distance, arrayOf(Argument.Typed(type), Argument.Typed(type)))) as VectorDistance<*>
-            val newPq = ProductQuantizer.learnFromData(distanceFunction, this.acquireLearningData(txn, random), config)
+            val newPq = ProductQuantizer.learnFromData(distanceFunction, this.acquireLearningData(entityTx, random), config)
 
-            /* Clear and re-generate signatures. */
+            /* Clear old signatures. */
             this.clear()
-            txn.cursor(arrayOf(indexedColumn)).forEach { rec ->
+
+            /* Iterate over entity and update index with entries. */
+            val cursor = entityTx.cursor(this.columns)
+            cursor.forEach { rec ->
                 val value = rec[indexedColumn]
                 if (value is VectorValue<*>) {
                     val sig = newPq.quantize(value)
                     this.dataStore.put(this.context.xodusTx, PQSignature.Binding.valueToEntry(sig), rec.tupleId.toKey())
                 }
             }
+
+            /* Close cursor. */
+            cursor.close()
 
             /* Update index state for index. */
             this.updateState(IndexState.CLEAN, this.config.copy(centroids = newPq.centroids()))

@@ -221,14 +221,20 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
             /* Calculate and update marks. */
             val newMarks = VAFMarks.getEquidistantMarks(minimum, maximum, IntArray(dimension) { config.marksPerDimension })
 
-            /* Calculate and update signatures. */
+            /* Clear old signatures. */
             this.clear()
-            entityTx.cursor(arrayOf(indexedColumn)).forEach { r ->
+
+            /* Iterate over entity and update index with entries. */
+            val cursor = entityTx.cursor(arrayOf(indexedColumn))
+            cursor.forEach { r ->
                 val value = r[indexedColumn]
                 if (value is RealVectorValue<*>) {
                     this.dataStore.put(this.context.xodusTx, r.tupleId.toKey(), VAFSignature.Binding.valueToEntry(newMarks.getSignature(value)))
                 }
             }
+
+            /* Close cursor. */
+            cursor.close()
 
             /* Update catalogue entry for index. */
             this.updateState(IndexState.CLEAN, config.copy(marks = newMarks))

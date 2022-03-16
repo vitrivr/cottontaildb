@@ -211,13 +211,19 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
 
             /* Truncate and reopen old store. */
             this.clear()
-            entityTx.cursor(this.dbo.columns).forEach { record ->
+
+            /* Iterate over entity and update index with entries. */
+            val cursor = entityTx.cursor(this.columns)
+            cursor.forEach { record ->
                 val value = record[this.dbo.columns[0]] ?: throw TxException.TxValidationException(
                     this.context.txId,
                     "A value cannot be null for instances of NonUniqueHashIndex ${this@BTreeIndex.name} but given value is (value = null, tupleId = ${record.tupleId})."
                 )
                 this.addMapping(value, record.tupleId)
             }
+
+            /* Close cursor. */
+            cursor.close()
         }
 
         /**

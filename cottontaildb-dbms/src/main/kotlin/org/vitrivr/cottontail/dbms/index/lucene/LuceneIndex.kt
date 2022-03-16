@@ -319,9 +319,15 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
 
             /* Recreate entries. */
             this.indexWriter.deleteAll()
-            entityTx.cursor(this.columns).forEach { record ->
+
+            /* Iterate over entity and update index with entries. */
+            val cursor = entityTx.cursor(this.columns)
+            cursor.forEach { record ->
                 this.indexWriter.addDocument(documentFromRecord(record))
             }
+
+            /* Close cursor. */
+            cursor.close()
         }
 
         /**
