@@ -301,6 +301,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
                     statistics[i].insert(value[c])
                 }
             }
+            cursor.close()
 
             /* Write new statistics values. */
             this.columns.values.forEachIndexed { i, c ->
@@ -310,9 +311,6 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
             }
 
             this.indexes.forEach { (_, u) ->  u.rebuild() }
-
-            /* Close all the opened cursors. */
-            cursor.close()
         }
 
         /**
