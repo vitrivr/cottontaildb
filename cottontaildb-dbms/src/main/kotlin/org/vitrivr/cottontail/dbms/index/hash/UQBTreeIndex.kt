@@ -305,8 +305,8 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
             }
 
             override fun moveNext(): Boolean {
-                val nextQueryValue = this.queryValueQueue.poll() ?: return false
-                return this.cursor.getSearchKey(this@Tx.binding.valueToEntry(nextQueryValue)) != null
+                val nextQueryValue = this.queryValueQueue.poll()
+                return nextQueryValue != null && this.cursor.getSearchKey(this@Tx.binding.valueToEntry(nextQueryValue)) != null
             }
 
             override fun key(): TupleId = LongBinding.compressedEntryToLong(this.cursor.key)

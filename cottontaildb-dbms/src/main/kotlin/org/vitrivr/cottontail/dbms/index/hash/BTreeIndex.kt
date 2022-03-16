@@ -317,12 +317,12 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
                     /* Note: Cursors has not been initialized; this is the case for the first call OR when getSearchKey doesn't return a result. */
                 }
                 val next = this.queryValueQueue.poll()
-                return this.cursor.getSearchKey(this@Tx.binding.valueToEntry(next)) != null
+                return next != null && this.cursor.getSearchKey(this@Tx.binding.valueToEntry(next)) != null
             }
 
-            override fun key(): TupleId = LongBinding.compressedEntryToLong(this.cursor.key)
+            override fun key(): TupleId = LongBinding.compressedEntryToLong(this.cursor.value)
 
-            override fun value(): Record = StandaloneRecord(this.key(), this@Tx.columns, arrayOf(this@Tx.binding.entryToValue(this.cursor.value)))
+            override fun value(): Record = StandaloneRecord(this.key(), this@Tx.columns, arrayOf(this@Tx.binding.entryToValue(this.cursor.key)))
 
             override fun close() {
                 this.cursor.close()
