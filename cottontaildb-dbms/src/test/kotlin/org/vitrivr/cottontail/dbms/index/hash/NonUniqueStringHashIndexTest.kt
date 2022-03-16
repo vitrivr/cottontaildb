@@ -67,8 +67,8 @@ class NonUniqueStringHashIndexTest : AbstractIndexTest() {
             val predicate = BooleanPredicate.Atomic(ComparisonOperator.Binary.Equal(context.bind(this.columns[0]), context.bind(entry.key)), false)
             var found = false
             val cursor = indexTx.filter(predicate)
-            cursor.forEach { r ->
-                val rec = entityTx.read(r.tupleId, this.columns)
+            while (cursor.moveNext() && !found) {
+                val rec = entityTx.read(cursor.key(), this.columns)
                 val id = rec[this.columns[0]] as StringValue
                 Assertions.assertEquals(entry.key, id)
                 if (entry.value.contains(rec[this.columns[1]])) {

@@ -286,47 +286,49 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
          * @param predicate The [Predicate] for the lookup
          * @return The resulting [Iterator]
          */
-        override fun filter(predicate: Predicate) = object : Cursor<Record> {
-            /** A [Queue] with values that should be queried. */
-            private val queryValueQueue: Queue<Value> = LinkedList()
+        override fun filter(predicate: Predicate) = this.txLatch.withLock {
+            object : Cursor<Record> {
+                /** A [Queue] with values that should be queried. */
+                private val queryValueQueue: Queue<Value> = LinkedList()
 
-            /** Internal cursor used for navigation. */
-            private val subTransaction = this@Tx.context.xodusTx.readonlySnapshot
+                /** Internal cursor used for navigation. */
+                private val subTransaction = this@Tx.context.xodusTx.readonlySnapshot
 
-            /** Internal cursor used for navigation. */
-            private val cursor: jetbrains.exodus.env.Cursor
+                /** Internal cursor used for navigation. */
+                private val cursor: jetbrains.exodus.env.Cursor
 
-            /* Perform initial sanity checks. */
-            init {
-                require(predicate is BooleanPredicate.Atomic) { "NonUniqueHashIndex.filter() does only support Atomic.Literal boolean predicates." }
-                require(!predicate.not) { "NonUniqueHashIndex.filter() does not support negated statements (i.e. NOT EQUALS or NOT IN)." }
-                when (predicate.operator) {
-                    is ComparisonOperator.In -> this.queryValueQueue.addAll((predicate.operator as ComparisonOperator.In).right.mapNotNull { it.value })
-                    is ComparisonOperator.Binary.Equal -> this.queryValueQueue.add((predicate.operator as ComparisonOperator.Binary.Equal).right.value ?: throw IllegalArgumentException("UniqueHashIndex.filter() does not support NULL operands."))
-                    else -> throw IllegalArgumentException("UniqueHashIndex.filter() does only support EQUAL and IN operators.")
+                /* Perform initial sanity checks. */
+                init {
+                    require(predicate is BooleanPredicate.Atomic) { "NonUniqueHashIndex.filter() does only support Atomic.Literal boolean predicates." }
+                    require(!predicate.not) { "NonUniqueHashIndex.filter() does not support negated statements (i.e. NOT EQUALS or NOT IN)." }
+                    when (predicate.operator) {
+                        is ComparisonOperator.In -> this.queryValueQueue.addAll((predicate.operator as ComparisonOperator.In).right.mapNotNull { it.value })
+                        is ComparisonOperator.Binary.Equal -> this.queryValueQueue.add((predicate.operator as ComparisonOperator.Binary.Equal).right.value ?: throw IllegalArgumentException("UniqueHashIndex.filter() does not support NULL operands."))
+                        else -> throw IllegalArgumentException("UniqueHashIndex.filter() does only support EQUAL and IN operators.")
+                    }
+
+                    /** Initialize cursor. */
+                    this.cursor = this@Tx.dataStore.openCursor(this.subTransaction)
                 }
 
-                /** Initialize cursor. */
-                this.cursor = this@Tx.dataStore.openCursor(this.subTransaction)
-            }
-
-            override fun moveNext(): Boolean {
-                try {
-                    if (this.cursor.nextDup) return true
-                } catch (e: IllegalStateException) {
-                    /* Note: Cursors has not been initialized; this is the case for the first call OR when getSearchKey doesn't return a result. */
+                override fun moveNext(): Boolean {
+                    try {
+                        if (this.cursor.nextDup) return true
+                    } catch (e: IllegalStateException) {
+                        /* Note: Cursors has not been initialized; this is the case for the first call OR when getSearchKey doesn't return a result. */
+                    }
+                    val next = this.queryValueQueue.poll()
+                    return next != null && this.cursor.getSearchKey(this@Tx.binding.valueToEntry(next)) != null
                 }
-                val next = this.queryValueQueue.poll()
-                return next != null && this.cursor.getSearchKey(this@Tx.binding.valueToEntry(next)) != null
-            }
 
-            override fun key(): TupleId = LongBinding.compressedEntryToLong(this.cursor.value)
+                override fun key(): TupleId = LongBinding.compressedEntryToLong(this.cursor.value)
 
-            override fun value(): Record = StandaloneRecord(this.key(), this@Tx.columns, arrayOf(this@Tx.binding.entryToValue(this.cursor.key)))
+                override fun value(): Record = StandaloneRecord(this.key(), this@Tx.columns, arrayOf(this@Tx.binding.entryToValue(this.cursor.value)))
 
-            override fun close() {
-                this.cursor.close()
-                this.subTransaction.abort()
+                override fun close() {
+                    this.cursor.close()
+                    this.subTransaction.abort()
+                }
             }
         }
 

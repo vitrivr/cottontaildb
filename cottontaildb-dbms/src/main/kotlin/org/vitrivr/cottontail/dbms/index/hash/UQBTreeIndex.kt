@@ -275,47 +275,49 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
          * @param predicate The [Predicate] for the lookup
          * @return The resulting [Cursor]
          */
-        override fun filter(predicate: Predicate) = object : Cursor<Record> {
+        override fun filter(predicate: Predicate)  = this.txLatch.withLock {
+            object : Cursor<Record> {
 
-            /** Local [BooleanPredicate.Atomic] instance. */
-            private val predicate: BooleanPredicate.Atomic
+                /** Local [BooleanPredicate.Atomic] instance. */
+                private val predicate: BooleanPredicate.Atomic
 
-            /** A [Queue] with values that should be queried. */
-            private val queryValueQueue: Queue<Value> = LinkedList()
+                /** A [Queue] with values that should be queried. */
+                private val queryValueQueue: Queue<Value> = LinkedList()
 
-            /** Internal cursor used for navigation. */
-            private val subTransaction = this@Tx.context.xodusTx.readonlySnapshot
+                /** Internal cursor used for navigation. */
+                private val subTransaction = this@Tx.context.xodusTx.readonlySnapshot
 
-            /** Internal cursor used for navigation. */
-            private var cursor: jetbrains.exodus.env.Cursor
+                /** Internal cursor used for navigation. */
+                private var cursor: jetbrains.exodus.env.Cursor
 
-            /* Perform initial sanity checks. */
-            init {
-                require(predicate is BooleanPredicate.Atomic) { "UQBTreeIndex.filter() does only support Atomic.Literal boolean predicates." }
-                require(!predicate.not) { "UniqueHashIndex.filter() does not support negated statements (i.e. NOT EQUALS or NOT IN)." }
-                this.predicate = predicate
-                when (predicate.operator) {
-                    is ComparisonOperator.In -> this.queryValueQueue.addAll((predicate.operator as ComparisonOperator.In).right.mapNotNull { it.value })
-                    is ComparisonOperator.Binary.Equal -> this.queryValueQueue.add((predicate.operator as ComparisonOperator.Binary.Equal).right.value ?: throw IllegalArgumentException("UQBTreeIndex.filter() does not support NULL operands."))
-                    else -> throw IllegalArgumentException("UQBTreeIndex.filter() does only support EQUAL, IN or LIKE operators.")
+                /* Perform initial sanity checks. */
+                init {
+                    require(predicate is BooleanPredicate.Atomic) { "UQBTreeIndex.filter() does only support Atomic.Literal boolean predicates." }
+                    require(!predicate.not) { "UniqueHashIndex.filter() does not support negated statements (i.e. NOT EQUALS or NOT IN)." }
+                    this.predicate = predicate
+                    when (predicate.operator) {
+                        is ComparisonOperator.In -> this.queryValueQueue.addAll((predicate.operator as ComparisonOperator.In).right.mapNotNull { it.value })
+                        is ComparisonOperator.Binary.Equal -> this.queryValueQueue.add((predicate.operator as ComparisonOperator.Binary.Equal).right.value ?: throw IllegalArgumentException("UQBTreeIndex.filter() does not support NULL operands."))
+                        else -> throw IllegalArgumentException("UQBTreeIndex.filter() does only support EQUAL, IN or LIKE operators.")
+                    }
+
+                    /** Initialize cursor. */
+                    this.cursor = this@Tx.dataStore.openCursor(this.subTransaction)
                 }
 
-                /** Initialize cursor. */
-                this.cursor = this@Tx.dataStore.openCursor(this.subTransaction)
-            }
+                override fun moveNext(): Boolean {
+                    val nextQueryValue = this.queryValueQueue.poll()
+                    return nextQueryValue != null && this.cursor.getSearchKey(this@Tx.binding.valueToEntry(nextQueryValue)) != null
+                }
 
-            override fun moveNext(): Boolean {
-                val nextQueryValue = this.queryValueQueue.poll()
-                return nextQueryValue != null && this.cursor.getSearchKey(this@Tx.binding.valueToEntry(nextQueryValue)) != null
-            }
+                override fun key(): TupleId = LongBinding.compressedEntryToLong(this.cursor.key)
 
-            override fun key(): TupleId = LongBinding.compressedEntryToLong(this.cursor.key)
+                override fun value(): Record = StandaloneRecord(this.key(), this@UQBTreeIndex.columns, arrayOf(this@Tx.binding.entryToValue(this.cursor.value)))
 
-            override fun value(): Record = StandaloneRecord(this.key(), this@UQBTreeIndex.columns, arrayOf(this@Tx.binding.entryToValue(this.cursor.value)))
-
-            override fun close() {
-                this.cursor.close()
-                this.subTransaction.abort()
+                override fun close() {
+                    this.cursor.close()
+                    this.subTransaction.abort()
+                }
             }
         }
 
