@@ -16,6 +16,7 @@ import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.Vector
 import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.DoubleValue
+import org.vitrivr.cottontail.core.values.DoubleVectorValue
 import org.vitrivr.cottontail.core.values.FloatVectorValue
 import org.vitrivr.cottontail.core.values.LongValue
 import org.vitrivr.cottontail.core.values.generators.FloatVectorValueGenerator
@@ -91,18 +92,22 @@ class VAFFloatIndexTest : AbstractIndexTest() {
         /* Fetch results through index. */
         val indexResults = ArrayList<Record>(k)
         val indexDuration = measureTime {
-            indexTx.filter(predicate).forEach { indexResults.add(it) }
+            val cursor = indexTx.filter(predicate)
+            cursor.forEach { indexResults.add(it) }
+            cursor.close()
         }
 
         /* Fetch results through full table scan. */
         val bruteForceResults = MinHeapSelection<ComparablePair<TupleId, DoubleValue>>(k)
         val bruteForceDuration = measureTime {
-            entityTx.cursor(arrayOf(this.indexColumn)).forEach {
+            val cursor = entityTx.cursor(arrayOf(this.indexColumn))
+            cursor.forEach {
                 val vector = it[this.indexColumn]
-                if (vector is FloatVectorValue) {
+                if (vector is DoubleVectorValue) {
                     bruteForceResults.offer(ComparablePair(it.tupleId, function(query, vector)!!))
                 }
             }
+            cursor.close()
         }
 
         /* Compare results. */

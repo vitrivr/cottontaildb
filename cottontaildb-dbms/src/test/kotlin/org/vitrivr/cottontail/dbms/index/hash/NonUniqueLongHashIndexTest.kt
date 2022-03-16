@@ -66,7 +66,8 @@ class NonUniqueLongHashIndexTest : AbstractIndexTest() {
         for (entry in this.list.entries) {
             val predicate = BooleanPredicate.Atomic(ComparisonOperator.Binary.Equal(context.bind(this.columns[0]), context.bind(entry.key)), false)
             var found = false
-            indexTx.filter(predicate).forEach { r ->
+            val cursor = indexTx.filter(predicate)
+            cursor.forEach { r ->
                 val rec = entityTx.read(r.tupleId, this.columns)
                 val id = rec[this.columns[0]] as LongValue
                 Assertions.assertEquals(entry.key, id)
@@ -74,6 +75,8 @@ class NonUniqueLongHashIndexTest : AbstractIndexTest() {
                     found = true
                 }
             }
+            cursor.close()
+
             Assertions.assertTrue(found)
         }
         txn.commit()
@@ -97,7 +100,9 @@ class NonUniqueLongHashIndexTest : AbstractIndexTest() {
         var count = 0
         val context = DefaultBindingContext()
         val predicate = BooleanPredicate.Atomic(ComparisonOperator.Binary.Equal(context.bind(this.columns[0]), context.bind(LongValue(this.random.nextLong(100L, Long.MAX_VALUE)))), false)
-        indexTx.filter(predicate).forEach { count += 1 }
+        val cursor = indexTx.filter(predicate)
+        cursor.forEach { count += 1 }
+        cursor.close()
         Assertions.assertEquals(0, count)
         txn.commit()
     }

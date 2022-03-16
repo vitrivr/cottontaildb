@@ -66,7 +66,8 @@ class UniqueHashIndexTest : AbstractIndexTest() {
         val context = DefaultBindingContext()
         for (entry in this.list.entries) {
             val predicate = BooleanPredicate.Atomic(ComparisonOperator.Binary.Equal(context.bind(this.columns[0]), context.bind(entry.key)), false,)
-            indexTx.filter(predicate).forEach { r ->
+            val cursor = indexTx.filter(predicate)
+                cursor.forEach { r ->
                 val rec = entityTx.read(r.tupleId, this.columns)
                 assertEquals(entry.key, rec[this.columns[0]])
                 assertArrayEquals(
@@ -74,6 +75,7 @@ class UniqueHashIndexTest : AbstractIndexTest() {
                     (rec[this.columns[1]] as FloatVectorValue).data
                 )
             }
+            cursor.close()
         }
         txn.commit()
     }
@@ -97,7 +99,9 @@ class UniqueHashIndexTest : AbstractIndexTest() {
         var count = 0
         val context = DefaultBindingContext()
         val predicate = BooleanPredicate.Atomic(ComparisonOperator.Binary.Equal(context.bind(this.columns[0]), context.bind(StringValue(UUID.randomUUID().toString()))), false)
-        indexTx.filter(predicate).forEach { count += 1 }
+        val cursor = indexTx.filter(predicate)
+        cursor.forEach { count += 1 }
+        cursor.close()
         assertEquals(0, count)
         txn.commit()
     }
