@@ -26,7 +26,7 @@ data class ColumnCatalogueEntry(val name: Name.ColumnName, val type: Types<*>, v
      *
      * @param [ColumnDef] to convert.
      */
-    constructor(def: ColumnDef<*>) : this(def.name, def.type, def.primary, def.nullable)
+    constructor(def: ColumnDef<*>) : this(def.name, def.type, def.nullable, def.primary)
 
     /**
      * Creates a [Serialized] version of this [ColumnCatalogueEntry].
