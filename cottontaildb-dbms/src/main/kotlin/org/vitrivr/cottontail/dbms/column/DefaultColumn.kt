@@ -234,27 +234,31 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
             object : Cursor<T?> {
 
                 /** Creates a read-only snapshot of the enclosing Tx. */
-                private val subTx = this@Tx.context.xodusTx.readonlySnapshot
+                private val subTransaction = this@Tx.context.xodusTx.readonlySnapshot
 
                 /** The per-[Cursor] [XodusBinding] instance. */
                 private val binding: XodusBinding<T> = ValueSerializerFactory.xodus(this@DefaultColumn.columnDef.type, this@DefaultColumn.nullable)
 
                 /** Internal [Cursor] used for iteration. */
-                private val cursor: jetbrains.exodus.env.Cursor = this@Tx.dataStore.openCursor(this.subTx)
+                private val cursor: jetbrains.exodus.env.Cursor = this@Tx.dataStore.openCursor(this.subTransaction)
+
+                /** Serialize the start value to a [ArrayByteIterable]. */
+                private val start: ArrayByteIterable = start.toKey()
 
                 /** Serialize the start value to a [ArrayByteIterable]. */
                 private val end: ArrayByteIterable = end.toKey()
 
-                init {
-                    if (start > -1L) this.cursor.getSearchKeyRange(start.toKey())
+                override fun moveNext(): Boolean {
+                    if (this.cursor.key < this.start) {
+                        return (this.cursor.getSearchKeyRange(this.start) != null)
+                    }
+                    return this.cursor.next && this.cursor.key < this.end
                 }
-
-                override fun moveNext(): Boolean = this.cursor.next && this.cursor.key < this.end
                 override fun key(): TupleId = LongBinding.compressedEntryToLong(this.cursor.key)
                 override fun value(): T? = this.binding.entryToValue(this.cursor.value)
                 override fun close() {
                     this.cursor.close()
-                    this.subTx.abort()
+                    this.subTransaction.abort()
                 }
             }
         }
