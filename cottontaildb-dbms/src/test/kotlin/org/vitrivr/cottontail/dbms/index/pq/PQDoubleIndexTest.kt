@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.dbms.index.pq
 
+import org.apache.commons.math3.primes.Primes
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import org.vitrivr.cottontail.core.basics.Record
@@ -24,7 +25,6 @@ import org.vitrivr.cottontail.dbms.index.IndexTx
 import org.vitrivr.cottontail.dbms.index.IndexType
 import org.vitrivr.cottontail.dbms.queries.binding.DefaultBindingContext
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
-import org.vitrivr.cottontail.utilities.math.random.nextInt
 import org.vitrivr.cottontail.utilities.selection.ComparablePair
 import org.vitrivr.cottontail.utilities.selection.MinHeapSelection
 import java.util.stream.Stream
@@ -41,15 +41,30 @@ class PQDoubleIndexTest : AbstractIndexTest() {
 
     companion object {
         @JvmStatic
-        fun kernels(): Stream<Name.FunctionName> = Stream.of(ManhattanDistance.FUNCTION_NAME, EuclideanDistance.FUNCTION_NAME, SquaredEuclideanDistance.FUNCTION_NAME, CosineDistance.FUNCTION_NAME)
+        fun kernels(): Stream<Name.FunctionName> = Stream.of(
+            ManhattanDistance.FUNCTION_NAME,
+            EuclideanDistance.FUNCTION_NAME,
+            SquaredEuclideanDistance.FUNCTION_NAME,
+            CosineDistance.FUNCTION_NAME
+        )
     }
+
+    private val dimension: Int
+
+    init {
+        while (true) {
+            val dim = 1024
+            if (!Primes.isPrime(dim)) {
+                this.dimension = dim
+                break
+            }
+        }
+    }
+
 
     override val columns: Array<ColumnDef<*>> = arrayOf(
         ColumnDef(this.entityName.column("id"), Types.Long),
-        ColumnDef(
-            this.entityName.column("feature"),
-            Types.DoubleVector(this.random.nextInt(128, 2048))
-        )
+        ColumnDef(this.entityName.column("feature"), Types.DoubleVector(this.dimension))
     )
 
     override val indexColumn: ColumnDef<DoubleVectorValue>

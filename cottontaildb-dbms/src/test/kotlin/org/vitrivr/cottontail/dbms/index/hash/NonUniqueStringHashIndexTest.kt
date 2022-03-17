@@ -9,6 +9,7 @@ import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.LongValue
 import org.vitrivr.cottontail.core.values.StringValue
+import org.vitrivr.cottontail.core.values.generators.LongValueGenerator
 import org.vitrivr.cottontail.core.values.generators.StringValueGenerator
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
@@ -31,8 +32,8 @@ class NonUniqueStringHashIndexTest : AbstractIndexTest() {
 
     /** List of columns for this [NonUniqueStringHashIndexTest]. */
     override val columns: Array<ColumnDef<*>> = arrayOf(
-        ColumnDef(this.entityName.column("id"), Types.String),
-        ColumnDef(this.entityName.column("feature"), Types.Long)
+        ColumnDef(this.entityName.column("id"), Types.String, false),
+        ColumnDef(this.entityName.column("feature"), Types.Long, false)
     )
 
     override val indexColumn: ColumnDef<*>
@@ -54,31 +55,40 @@ class NonUniqueStringHashIndexTest : AbstractIndexTest() {
     fun testFilterEqualPositive() {
         /* Obtain necessary transactions. */
         val txn = this.manager.TransactionImpl(TransactionType.SYSTEM)
-        val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
-        val schema = catalogueTx.schemaForName(this.schemaName)
-        val schemaTx = txn.getTx(schema) as SchemaTx
-        val entity = schemaTx.entityForName(this.entityName)
-        val entityTx = txn.getTx(entity) as EntityTx
-        val index = entityTx.indexForName(this.indexName)
-        val indexTx = txn.getTx(index) as IndexTx
+        try {
+            val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
+            val schema = catalogueTx.schemaForName(this.schemaName)
+            val schemaTx = txn.getTx(schema) as SchemaTx
+            val entity = schemaTx.entityForName(this.entityName)
+            val entityTx = txn.getTx(entity) as EntityTx
+            val index = entityTx.indexForName(this.indexName)
+            val indexTx = txn.getTx(index) as IndexTx
 
-        val context = DefaultBindingContext()
-        for (entry in this.list.entries) {
-            val predicate = BooleanPredicate.Atomic(ComparisonOperator.Binary.Equal(context.bind(this.columns[0]), context.bind(entry.key)), false)
-            var found = false
-            val cursor = indexTx.filter(predicate)
-            while (cursor.moveNext() && !found) {
-                val rec = entityTx.read(cursor.key(), this.columns)
-                val id = rec[this.columns[0]] as StringValue
-                Assertions.assertEquals(entry.key, id)
-                if (entry.value.contains(rec[this.columns[1]])) {
-                    found = true
+            /* Prepare binding context and predicate. */
+            val context = DefaultBindingContext()
+            val columnBinding = context.bind(this.columns[0])
+            val valueBinding = context.bindNull(Types.String)
+            val predicate = BooleanPredicate.Atomic(ComparisonOperator.Binary.Equal(columnBinding, valueBinding), false)
+
+            /* Check all entries. */
+            for (entry in this.list.entries) {
+                valueBinding.update(entry.key) /* Update value binding. */
+                var found = false
+                val cursor = indexTx.filter(predicate)
+                while (cursor.moveNext() && !found) {
+                    val rec = entityTx.read(cursor.key(), this.columns)
+                    val id = rec[this.columns[0]] as StringValue
+                    Assertions.assertEquals(entry.key, id)
+                    if (entry.value.contains(rec[this.columns[1]])) {
+                        found = true
+                    }
                 }
+                cursor.close()
+                Assertions.assertTrue(found)
             }
-            cursor.close()
-            Assertions.assertTrue(found)
+        } finally {
+            txn.commit()
         }
-        txn.commit()
     }
 
     /**
@@ -111,9 +121,9 @@ class NonUniqueStringHashIndexTest : AbstractIndexTest() {
      */
     override fun nextRecord(): StandaloneRecord {
         val id = StringValueGenerator.random(3)
-        val value = LongValue(random.nextLong())
+        val value = LongValueGenerator.random(this.random)
         if (this.random.nextBoolean() && this.list.size <= 1000) {
-            this.list.compute(id) { k, v ->
+            this.list.compute(id) { _, v ->
                 val list = v ?: LinkedList()
                 list.add(value)
                 list

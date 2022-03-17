@@ -32,8 +32,8 @@ class UniqueHashIndexTest : AbstractIndexTest() {
 
     /** List of columns for this [UniqueHashIndexTest]. */
     override val columns = arrayOf(
-        ColumnDef(this.entityName.column("id"), Types.String),
-        ColumnDef(this.entityName.column("feature"), Types.FloatVector(128))
+        ColumnDef(this.entityName.column("id"), Types.String, false),
+        ColumnDef(this.entityName.column("feature"), Types.FloatVector(128), false)
     )
     override val indexColumn: ColumnDef<*>
         get() = this.columns.first()
@@ -63,17 +63,20 @@ class UniqueHashIndexTest : AbstractIndexTest() {
         val index = entityTx.indexForName(this.indexName)
         val indexTx = txn.getTx(index) as IndexTx
 
+        /* Prepare binding context and predicate. */
         val context = DefaultBindingContext()
+        val columnBinding = context.bind(this.columns[0])
+        val valueBinding = context.bindNull(Types.String)
+        val predicate = BooleanPredicate.Atomic(ComparisonOperator.Binary.Equal(columnBinding, valueBinding), false)
+
+        /* Check all entries. */
         for (entry in this.list.entries) {
-            val predicate = BooleanPredicate.Atomic(ComparisonOperator.Binary.Equal(context.bind(this.columns[0]), context.bind(entry.key)), false,)
+            valueBinding.update(entry.key) /* Update value binding. */
             val cursor = indexTx.filter(predicate)
-                cursor.forEach { r ->
+            cursor.forEach { r ->
                 val rec = entityTx.read(r.tupleId, this.columns)
                 assertEquals(entry.key, rec[this.columns[0]])
-                assertArrayEquals(
-                    entry.value.data,
-                    (rec[this.columns[1]] as FloatVectorValue).data
-                )
+                assertArrayEquals(entry.value.data, (rec[this.columns[1]] as FloatVectorValue).data)
             }
             cursor.close()
         }

@@ -5,10 +5,9 @@ import org.junit.jupiter.api.RepeatedTest
 import org.vitrivr.cottontail.core.values.Complex64Value
 import org.vitrivr.cottontail.core.values.generators.Complex64ValueGenerator
 import org.vitrivr.cottontail.core.values.generators.FloatValueGenerator
-import java.util.*
 
 /**
- * Some basic test cases that test for correctness fo [_root_ide_package_.org.vitrivr.cottontail.core.values.Complex64Value] arithmetic operations.
+ * Some basic test cases that test for correctness fo [Complex64Value] arithmetic operations.
  *
  * @author Ralph Gasser
  * @version 1.1.0

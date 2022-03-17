@@ -54,32 +54,40 @@ class NonUniqueLongHashIndexTest : AbstractIndexTest() {
     fun testFilterEqualPositive() {
         /* Obtain necessary transactions. */
         val txn = this.manager.TransactionImpl(TransactionType.SYSTEM)
-        val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
-        val schema = catalogueTx.schemaForName(this.schemaName)
-        val schemaTx = txn.getTx(schema) as SchemaTx
-        val entity = schemaTx.entityForName(this.entityName)
-        val entityTx = txn.getTx(entity) as EntityTx
-        val index = entityTx.indexForName(this.indexName)
-        val indexTx = txn.getTx(index) as IndexTx
+        try {
+            val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
+            val schema = catalogueTx.schemaForName(this.schemaName)
+            val schemaTx = txn.getTx(schema) as SchemaTx
+            val entity = schemaTx.entityForName(this.entityName)
+            val entityTx = txn.getTx(entity) as EntityTx
+            val index = entityTx.indexForName(this.indexName)
+            val indexTx = txn.getTx(index) as IndexTx
 
-        val context = DefaultBindingContext()
-        for (entry in this.list.entries) {
-            val predicate = BooleanPredicate.Atomic(ComparisonOperator.Binary.Equal(context.bind(this.columns[0]), context.bind(entry.key)), false)
-            var found = false
-            val cursor = indexTx.filter(predicate)
-            cursor.forEach { r ->
-                val rec = entityTx.read(r.tupleId, this.columns)
-                val id = rec[this.columns[0]] as LongValue
-                Assertions.assertEquals(entry.key, id)
-                if (entry.value.contains(rec[this.columns[1]])) {
-                    found = true
+            /* Prepare binding context and predicate. */
+            val context = DefaultBindingContext()
+            val columnBinding = context.bind(this.columns[0])
+            val valueBinding = context.bindNull(Types.Long)
+            val predicate = BooleanPredicate.Atomic(ComparisonOperator.Binary.Equal(columnBinding, valueBinding), false)
+
+            /* Check all entries. */
+            for (entry in this.list.entries) {
+                valueBinding.update(entry.key) /* Update value binding. */
+                var found = false
+                val cursor = indexTx.filter(predicate)
+                while (cursor.moveNext() && !found) {
+                    val rec = entityTx.read(cursor.key(), this.columns)
+                    val id = rec[this.columns[0]] as LongValue
+                    Assertions.assertEquals(entry.key, id)
+                    if (entry.value.contains(rec[this.columns[1]])) {
+                        found = true
+                    }
                 }
+                cursor.close()
+                Assertions.assertTrue(found)
             }
-            cursor.close()
-
-            Assertions.assertTrue(found)
+        } finally {
+            txn.commit()
         }
-        txn.commit()
     }
 
     /**
