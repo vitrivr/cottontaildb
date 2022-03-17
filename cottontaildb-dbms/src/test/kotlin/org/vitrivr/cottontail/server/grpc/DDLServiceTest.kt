@@ -132,7 +132,7 @@ class DDLServiceTest {
     fun createAndListEntity() {
         try {
             client.create(CreateSchema(TEST_SCHEMA))
-            client.create(CreateEntity(GrpcTestUtils.TEST_ENTITY_FQN))
+            client.create(CreateEntity(GrpcTestUtils.TEST_ENTITY_FQN).column("id", Type.STRING))
             val names = entityNames()
             assert(names.contains(GrpcTestUtils.TEST_ENTITY_FQN_WITH_WARREN)) { "Returned entity names do not contain ${GrpcTestUtils.TEST_ENTITY_FQN_WITH_WARREN}." }
         } catch (e: StatusRuntimeException) {
@@ -173,7 +173,7 @@ class DDLServiceTest {
     fun createAndDropEntity() {
         try {
             client.create(CreateSchema(TEST_SCHEMA))
-            client.create(CreateEntity(GrpcTestUtils.TEST_ENTITY_FQN))
+            client.create(CreateEntity(GrpcTestUtils.TEST_ENTITY_FQN).column("id", Type.STRING))
             client.drop(DropEntity(GrpcTestUtils.TEST_ENTITY_FQN))
             val names = entityNames()
             assert(!names.contains(GrpcTestUtils.TEST_ENTITY_FQN)) { "Returned entity names do not contain ${GrpcTestUtils.TEST_ENTITY_FQN_WITH_WARREN}." }
@@ -196,7 +196,7 @@ class DDLServiceTest {
     fun createAndDropEntityWithWarren() {
         try {
             client.create(CreateSchema(TEST_SCHEMA))
-            client.create(CreateEntity(GrpcTestUtils.TEST_ENTITY_FQN))
+            client.create(CreateEntity(GrpcTestUtils.TEST_ENTITY_FQN).column("id", Type.STRING))
             client.drop(DropEntity(GrpcTestUtils.TEST_ENTITY_FQN))
             val names = entityNames()
             assert(!names.contains(GrpcTestUtils.TEST_ENTITY_FQN_WITH_WARREN)) { "Returned entity names do not contain ${GrpcTestUtils.TEST_ENTITY_FQN_WITH_WARREN}." }
