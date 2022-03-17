@@ -9,6 +9,7 @@ import org.vitrivr.cottontail.TestConstants
 import org.vitrivr.cottontail.TestConstants.DBO_CONSTANT
 import org.vitrivr.cottontail.TestConstants.TEST_SCHEMA
 import org.vitrivr.cottontail.client.SimpleClient
+import org.vitrivr.cottontail.client.language.basics.Type
 import org.vitrivr.cottontail.client.language.ddl.*
 import org.vitrivr.cottontail.embedded
 import java.util.concurrent.TimeUnit
@@ -149,9 +150,9 @@ class DDLServiceTest {
     @Test
     fun createAndVerifyAboutEntity() {
         try {
-            client.create(CreateSchema(TEST_SCHEMA))
-            client.create(CreateEntity(GrpcTestUtils.TEST_ENTITY_FQN))
-            val about = client.about(AboutEntity(GrpcTestUtils.TEST_ENTITY_FQN))
+            this.client.create(CreateSchema(TEST_SCHEMA))
+            this.client.create(CreateEntity(GrpcTestUtils.TEST_ENTITY_FQN).column("id", Type.STRING))
+            val about = this.client.about(AboutEntity(GrpcTestUtils.TEST_ENTITY_FQN))
             assert(about.hasNext()) { "could not verify existence with about message" }
         } catch (e: StatusRuntimeException) {
             fail("Creating entity ${GrpcTestUtils.TEST_ENTITY_FQN_WITH_WARREN} failed with status " + e.status)
