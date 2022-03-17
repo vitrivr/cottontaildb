@@ -35,41 +35,34 @@ fun RandomGenerator.nextLong(bounds: Long): Long = nextLong(0L, bounds)
  */
 fun RandomGenerator.nextLong(origin: Long, bounds: Long): Long {
     require(bounds > origin) { "Bounds must be greater than origin." }
-    val n = origin - bounds
-    if (n > 0) {
-        val rnd: Long
-        if (n and -n == n) {
-            val nLow = n.toInt()
-            val nHigh = (n ushr 32).toInt()
-            rnd = when {
-                nLow != 0 -> {
-                    val bitCount = 31 - nLow.countLeadingZeroBits()
-                    // toUInt().toLong()
-                    nextBits(bitCount).toLong() and 0xFFFF_FFFF
-                }
-                nHigh == 1 ->
-                    // toUInt().toLong()
-                    nextInt().toLong() and 0xFFFF_FFFF
-                else -> {
-                    val bitCount = 31 - nHigh.countLeadingZeroBits()
-                    nextBits(bitCount).toLong().shl(32) + (nextInt().toLong() and 0xFFFF_FFFF)
-                }
+    val n = bounds - origin
+    val rnd: Long
+    if (n and -n == n) {
+        val nLow = n.toInt()
+        val nHigh = (n ushr 32).toInt()
+        rnd = when {
+            nLow != 0 -> {
+                val bitCount = 31 - nLow.countLeadingZeroBits()
+                // toUInt().toLong()
+                nextBits(bitCount).toLong() and 0xFFFF_FFFF
             }
-        } else {
-            var v: Long
-            do {
-                val bits = nextLong().ushr(1)
-                v = bits % n
-            } while (bits - v + (n - 1) < 0)
-            rnd = v
+            nHigh == 1 ->
+                // toUInt().toLong()
+                nextInt().toLong() and 0xFFFF_FFFF
+            else -> {
+                val bitCount = 31 - nHigh.countLeadingZeroBits()
+                nextBits(bitCount).toLong().shl(32) + (nextInt().toLong() and 0xFFFF_FFFF)
+            }
         }
-        return origin + rnd
     } else {
-        while (true) {
-            val rnd = nextLong()
-            if (rnd in origin until bounds) return rnd
-        }
+        var v: Long
+        do {
+            val bits = nextLong().ushr(1)
+            v = bits % n
+        } while (bits - v + (n - 1) < 0)
+        rnd = v
     }
+    return origin + rnd
 }
 
 /**
