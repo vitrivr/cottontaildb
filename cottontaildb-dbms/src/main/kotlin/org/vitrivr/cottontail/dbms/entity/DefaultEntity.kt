@@ -204,7 +204,8 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
          * @return [ColumnDef] of the [Column].
          */
         override fun columnForName(name: Name.ColumnName): Column<*> = this.txLatch.withLock {
-            return this.columns[name]?.dbo ?: throw DatabaseException.ColumnDoesNotExistException(name)
+            val fqn = this@DefaultEntity.name.column(name.simple)
+            this.columns[fqn]?.dbo ?: throw DatabaseException.ColumnDoesNotExistException(fqn)
         }
 
         /**
