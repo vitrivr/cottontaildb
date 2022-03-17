@@ -39,14 +39,14 @@ class InsertPhysicalOperatorNode(override val groupId: GroupId, val entity: Enti
     /** The [InsertPhysicalOperatorNode] produces the [ColumnDef]s defined in the [UpdateOperator]. */
     override val columns: List<ColumnDef<*>> = InsertOperator.COLUMNS
 
-    /** The [RecordStatistics] for this [InsertPhysicalOperatorNode]. */
+    /** The statistics for this [InsertPhysicalOperatorNode]. */
     override val statistics = Object2ObjectLinkedOpenHashMap<ColumnDef<*>, ValueStatistics<*>>()
 
     /** The [InsertPhysicalOperatorNode] produces a single record. */
     override val outputSize: Long = 1L
 
     /** The [Cost] of this [InsertPhysicalOperatorNode]. */
-    override val cost: Cost = (Cost.DISK_ACCESS_WRITE * (this.records.sumOf { r -> r.columns.sumOf { c -> this.statistics[c]!!.avgWidth } })) + Cost.MEMORY_ACCESS * this.records.size
+    override val cost: Cost
 
     /** The [InsertPhysicalOperatorNode] cannot be partitioned. */
     override val canBePartitioned: Boolean = false
@@ -59,6 +59,8 @@ class InsertPhysicalOperatorNode(override val groupId: GroupId, val entity: Enti
         this.entity.listColumns().forEach { columnDef ->
             this.statistics[columnDef] = (this.entity.context.getTx(this.entity.columnForName(columnDef.name)) as ColumnTx<*>).statistics() as ValueStatistics<Value>
         }
+        val cummulativeAvgRecordSize = this.records.sumOf { r -> r.columns.sumOf { c -> r[c]!!.logicalSize }}
+        this.cost = (Cost.DISK_ACCESS_WRITE + Cost.MEMORY_ACCESS) * cummulativeAvgRecordSize
     }
 
     /**
