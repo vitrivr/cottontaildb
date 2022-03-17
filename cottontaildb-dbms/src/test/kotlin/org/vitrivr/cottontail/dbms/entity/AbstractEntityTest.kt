@@ -1,20 +1,22 @@
-package org.vitrivr.cottontail.dbms
+package org.vitrivr.cottontail.dbms.entity
 
+import org.junit.jupiter.api.BeforeEach
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.dbms.AbstractDatabaseTest
 import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
-import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.execution.TransactionType
+import org.vitrivr.cottontail.dbms.index.AbstractIndexTest
 import org.vitrivr.cottontail.dbms.index.Index
 import org.vitrivr.cottontail.dbms.schema.Schema
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
 
 /**
+ * An [AbstractDatabaseTest] that tests entities with toy data.
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.0.0
  */
-
 abstract class AbstractEntityTest: AbstractDatabaseTest() {
 
     /** [Name.EntityName] of the test schema. */
@@ -23,22 +25,33 @@ abstract class AbstractEntityTest: AbstractDatabaseTest() {
     /**
      * Initializes this [AbstractDatabaseTest] and prepares required [Entity] and [Index].
      */
+    @BeforeEach
     override fun initialize() {
         super.initialize() /* Call super. */
 
         /* Update the index. */
         this.logger.info("Preparing database...")
 
-        /* Prepare data structures. */
-        prepareSchema()
-        prepareEntity()
+        try {
+            /* Prepare data structures. */
+            prepareSchema()
+            prepareEntity()
 
-        /* Populate database with data. */
-        this.populateDatabase()
+            /* Populate database with data. */
+            this.populateDatabase()
+        } catch (e: Throwable) {
+            this.log("Failed to prepare test due to exception: ${e.message}")
+            throw e
+         }
 
         /* Update the index. */
         this.logger.info("Starting test...")
     }
+
+    /**
+     * Logs an information message regarding this [AbstractIndexTest].
+     */
+    fun log(message: String) = this.logger.info("Entity test: $message")
 
     /**
      * Prepares and returns an empty test [Schema].

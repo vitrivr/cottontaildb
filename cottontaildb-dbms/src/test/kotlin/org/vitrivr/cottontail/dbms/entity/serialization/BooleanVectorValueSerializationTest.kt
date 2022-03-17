@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail.storage.serialization
+package org.vitrivr.cottontail.dbms.entity.serialization
 
 import org.vitrivr.cottontail.TestConstants
 import org.vitrivr.cottontail.core.database.ColumnDef
@@ -13,7 +13,7 @@ import java.util.*
  * Test case that tests for correctness of [BooleanVectorValue] serialization and deserialization.
  *
  * @author Ralph Gasser
- * @version 1.3.0
+ * @version 1.4.0
  */
 class BooleanVectorValueSerializationTest : AbstractSerializationTest() {
 

@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail.storage.serialization
+package org.vitrivr.cottontail.dbms.entity.serialization
 
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
@@ -10,7 +10,7 @@ import org.vitrivr.cottontail.core.values.types.Value
  * Test case that tests for correctness of [LongVectorValue] serialization and deserialization.
  *
  * @author Ralph Gasser
- * @version 1.3.0
+ * @version 1.4.0
  */
 class ScalarValueSerializationTest : AbstractSerializationTest() {
 
