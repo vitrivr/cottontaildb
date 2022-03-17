@@ -219,7 +219,7 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
             }
 
             /* Calculate and update marks. */
-            val newMarks = VAFMarks.getEquidistantMarks(minimum, maximum, IntArray(dimension) { config.marksPerDimension })
+            val newMarks = VAFMarks.getEquidistantMarks(minimum, maximum, config.marksPerDimension)
 
             /* Clear old signatures. */
             this.clear()
@@ -429,16 +429,14 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
                     if (this.selection.added < this.predicate.k || this.bounds.isVASSACandidate(signature, threshold)) {
                         val tupleId = LongBinding.compressedEntryToLong(cursor.key)
                         val value = this.entityTx.read(tupleId, columns)[columns[0]] as VectorValue<*>
-                        val distance = this.predicate.distance(this.query, value)
-                        if (distance != null) {
-                            threshold = min(threshold, distance.value)
-                            this.selection.offer(StandaloneRecord(tupleId, produces, arrayOf(distance, value)))
-                        }
+                        val distance = this.predicate.distance(this.query, value)!!
+                        threshold = min(threshold, distance.value)
+                        this.selection.offer(StandaloneRecord(tupleId, produces, arrayOf(distance, value)))
                     }
                 }
 
                 /* Log efficiency of VAF scan. */
-                LOGGER.info("VAF scan: Skipped over ${(1.0 - (this.selection.added.toDouble() / this@Tx.count())) * 100}% of entries.")
+                LOGGER.info("VAF scan: Skipped over ${(1.0 - this.selection.added.toDouble() / this@Tx.count()) * 100}% of entries.")
 
                 /* Close Xodus cursor. */
                 cursor.close()

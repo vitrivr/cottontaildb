@@ -25,10 +25,10 @@ value class VAFMarks(val marks: Array<DoubleArray>): Comparable<VAFMarks> {
          * @param max [DoubleArray] containing the per-dimension maxima.
          * @param marksPerDimension The number of marks per dimension.
          */
-        fun getEquidistantMarks(min: DoubleArray, max: DoubleArray, marksPerDimension: IntArray): VAFMarks = VAFMarks(Array(min.size) { i ->
-            require(marksPerDimension[i] > 2) { "Need to request more than 2 mark per dimension! (Faulty dimension: $i)" }
-            val a = DoubleArray(marksPerDimension[i]) {
-                min[i] + it * (max[i] - min[i]) / (marksPerDimension[i] - 1)
+        fun getEquidistantMarks(min: DoubleArray, max: DoubleArray, marksPerDimension: Int): VAFMarks = VAFMarks(Array(min.size) { i ->
+            require(marksPerDimension> 2) { "Need to request more than 2 mark per dimension! (Faulty dimension: $i)" }
+            val a = DoubleArray(marksPerDimension) {
+                min[i] + it * (max[i] - min[i]) / (marksPerDimension - 1)
             }
             /* Subtract and add small amount Epsilon to ensure min is included to avoid problems with FP approximations. */
             a[0] -= 1e-9
