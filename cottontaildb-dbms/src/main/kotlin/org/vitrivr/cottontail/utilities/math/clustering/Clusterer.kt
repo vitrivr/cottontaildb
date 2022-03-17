@@ -18,7 +18,7 @@ interface Clusterer {
     /**
      * Clusters a [List] of points [VectorValue] with this [Clusterer].
      *
-     * @param points The [List] of points [T].
+     * @param points The [List] of [VectorValue]s to cluster.
      * @return List of resulting [Cluster]s.
      */
     fun cluster(points: List<VectorValue<*>>): List<Cluster>

@@ -5,7 +5,6 @@ import org.apache.commons.math3.exception.util.LocalizedFormats
 import org.apache.commons.math3.random.RandomGenerator
 import org.apache.commons.math3.stat.descriptive.moment.Variance
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.VectorDistance
-import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.IntValue
 import org.vitrivr.cottontail.core.values.types.VectorValue
 import java.util.*
@@ -19,20 +18,27 @@ import kotlin.math.pow
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class KMeansClusterer(val k: Int, override val distance: VectorDistance<*>, private val random: RandomGenerator, private val maxIterations: Int = MAX_ITERATIONS): Clusterer {
+class KMeansClusterer(val k: Int, override val distance: VectorDistance<*>, private val random: RandomGenerator, private val iterations: Int = MAX_ITERATIONS): Clusterer {
 
     companion object {
         /** Maximum number of iterations to use for k means clustering. */
         private const val MAX_ITERATIONS = 250
     }
 
+
+    init {
+        require(this.k > 0) { "The number of cluster centers must be greater than zero." }
+        require(this.iterations > 0) { "The number of iterations must be greater than zero." }
+    }
+
     /**
+     * Clusters a [List] of [VectorValue]s using the k-means++ algorithm.
      *
+     * @param points The [List] of [VectorValue]s to cluster.
+     * @return List of resulting [Cluster]s.
      */
     override fun cluster(points: List<VectorValue<*>>): List<Cluster> {
-
-
-        // number of clusters has to be smaller or equal the number of data points
+        /* Number of clusters has to be smaller or equal the number of data points. */
         require(points.size >= k) { "Number of points must be larger than the desired number of cluster centers!" }
         var clusters: List<KMeansCluster> = chooseInitialCenters(points)
 
@@ -41,8 +47,7 @@ class KMeansClusterer(val k: Int, override val distance: VectorDistance<*>, priv
         assignPointsToClusters(clusters, points, assignments)
 
         /* Iterate through updating the centers until we're done. */
-        val max = if (maxIterations < 0) Int.MAX_VALUE else maxIterations
-        for (count in 0 until max) {
+        for (i in 0 until this.iterations) {
             var emptyCluster = false
             val newClusters: MutableList<KMeansCluster> = ArrayList<KMeansCluster>(this.k)
             for (cluster in clusters) {
@@ -57,14 +62,13 @@ class KMeansClusterer(val k: Int, override val distance: VectorDistance<*>, priv
             val changes: Int = assignPointsToClusters(newClusters, points, assignments)
             clusters = newClusters
 
-            /* If there were no more changes in the point-to-cluster assignmen, and there are no empty clusters left, return the current clusters. */
+            /* If there were no more changes in the point-to-cluster assignment, and there are no empty clusters left, return the current clusters. */
             if (changes == 0 && !emptyCluster) {
                 return clusters
             }
         }
         return clusters
     }
-
 
     /**
      * Adds the given points to the closest [Cluster].
@@ -99,7 +103,7 @@ class KMeansClusterer(val k: Int, override val distance: VectorDistance<*>, priv
         var minDistance = Double.MAX_VALUE
         var minCluster = 0
         for ((clusterIndex, c) in clusters.withIndex()) {
-            val distance: Double = c.distance(point).value
+            val distance: Double = this.distance(c.center, point)!!.value
             if (distance < minDistance) {
                 minDistance = distance
                 minCluster = clusterIndex
@@ -109,22 +113,21 @@ class KMeansClusterer(val k: Int, override val distance: VectorDistance<*>, priv
     }
 
     /**
+     * Choses initial [KMeansCluster] for the given list of [VectorValue]s. This method is used to initialize the algorithm.
      *
+     * @param points The list of [VectorValue]s to pick the [KMeansCluster] for.
+     * @return List of initial [KMeansCluster].
      */
     private fun chooseInitialCenters(points: List<VectorValue<*>>): MutableList<KMeansCluster> {
-
-        // Set the corresponding element in this array to indicate when
-        // elements of pointList are no longer available.
+        /* Set the corresponding element in this array to indicate when elements of points are no longer available. */
         val taken = BooleanArray(points.size)
 
-        // The resulting list of initial centers.
+        /* The list of KMeansCluster. */
         val resultSet: MutableList<KMeansCluster> = ArrayList(this.k)
 
-        // Choose one center uniformly at random from among the data points.
+        /* Choose one center uniformly at random from among the data points. */
         val firstPointIndex = this.random.nextInt(points.size)
         resultSet.add(KMeansCluster(points[firstPointIndex]))
-
-        // Must mark it as taken
         taken[firstPointIndex] = true
 
         /* To keep track of the minimum distance squared of elements of pointList to elements of resultSet. */
@@ -134,14 +137,13 @@ class KMeansClusterer(val k: Int, override val distance: VectorDistance<*>, priv
 
         /* Initialize the elements. Since the only point in resultSet is firstPoint, this is very easy. */
         while (resultSet.size < this.k) {
-
             /* Sum up the squared distances for the points in pointList not already taken. */
             val distSqSum = minDistSquared.filterIndexed { index, _ -> !taken[index] }.sum()
 
             /* Add one new data point as a center. Each point x is chosen with probability proportional to D(x)2. */
             val r = this.random.nextDouble() * distSqSum
 
-            // The index of the next point to be added to the resultSet.
+            /* The index of the next point to be added to the resultSet.. */
             var nextPointIndex = -1
 
             /* Sum through the squared min distances again, stopping when sum >= r. */
@@ -156,7 +158,10 @@ class KMeansClusterer(val k: Int, override val distance: VectorDistance<*>, priv
                 }
             }
 
-            /* If it's not set to >= 0, the point wasn't found in the previous for loop, probably because distances are extremely small. Just pick the last available point. */
+            /*
+             * If it's not set to >= 0, the point couldn't be found in the previous for loop, probably because distances are
+             * extremely small. Just pick the last available point.
+             */
             if (nextPointIndex == -1) {
                 for (i in points.size - 1 downTo 0) {
                     if (!taken[i]) {
@@ -202,8 +207,7 @@ class KMeansClusterer(val k: Int, override val distance: VectorDistance<*>, priv
         var selected: Cluster? = null
         for (cluster in clusters) {
             if (cluster.points.isNotEmpty()) {
-
-                // compute the distance variance of the current cluster
+                /* Compute the distance variance of the current cluster. */
                 val center = cluster.center
                 val stat = Variance()
                 for (point in cluster.points) {
@@ -211,7 +215,7 @@ class KMeansClusterer(val k: Int, override val distance: VectorDistance<*>, priv
                 }
                 val variance = stat.result
 
-                // select the cluster with the largest variance
+                /* Select the cluster with the largest variance. */
                 if (variance > maxVariance) {
                     maxVariance = variance
                     selected = cluster
@@ -246,7 +250,7 @@ class KMeansClusterer(val k: Int, override val distance: VectorDistance<*>, priv
     /**
      * A [Cluster] that is generated as a result of this [KMeansCluster].
      */
-    inner class KMeansCluster(override val center: VectorValue<*>): Cluster {
+    data class KMeansCluster(override val center: VectorValue<*>): Cluster {
 
         /** The [List] of [VectorValue] held by this [KMeansCluster]. */
         override val points: List<VectorValue<*>> = LinkedList()
@@ -259,13 +263,5 @@ class KMeansClusterer(val k: Int, override val distance: VectorDistance<*>, priv
         override fun addPoint(point: VectorValue<*>) {
             (this.points as LinkedList).add(point)
         }
-
-        /**
-         * Calculates the distance between this [KMeansCluster] and the given [VectorValue].
-         *
-         * @param vector The [VectorValue].
-         * @return The calculated distance.
-         */
-        fun distance(vector: VectorValue<*>): DoubleValue = this@KMeansClusterer.distance(vector, this.center)!!
     }
 }
