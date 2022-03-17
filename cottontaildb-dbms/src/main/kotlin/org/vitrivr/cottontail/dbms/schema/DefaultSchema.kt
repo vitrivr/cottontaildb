@@ -120,6 +120,11 @@ class DefaultSchema(override val name: Name.SchemaName, override val parent: Def
          * @param columns The [ColumnDef] of the columns the new [DefaultEntity] should have
          */
         override fun createEntity(name: Name.EntityName, vararg columns: ColumnDef<*>): Entity = this.txLatch.withLock {
+            /* Check if there is at least one column. */
+            if (columns.isEmpty()) {
+                throw DatabaseException.NoColumnException(name)
+            }
+
             /* Check if entity already exists. */
             if (EntityCatalogueEntry.exists(name, this@DefaultSchema.catalogue, this.context.xodusTx)) {
                 throw DatabaseException.EntityAlreadyExistsException(name)

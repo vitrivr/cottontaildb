@@ -1,6 +1,8 @@
 package org.vitrivr.cottontail.dbms.exceptions
 
 import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.dbms.column.Column
+import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.general.DBOVersion
 
 open class DatabaseException(message: String, cause: Throwable? = null) : Throwable(message, cause) {
@@ -68,11 +70,17 @@ open class DatabaseException(message: String, cause: Throwable? = null) : Throwa
     class IndexNotSupportedException(val index: Name.IndexName, val reason: String) : DatabaseException("Index '$index' could not be created: $reason")
 
     /**
-     * Thrown upon creation of an [Entity][org.vitrivr.cottontail.dbms.entity.DefaultEntity]
-     * if the definition contains duplicate column names.
+     * Thrown upon creation of an [Entity] if the definition contains no column.
      *
      * @param entity [Name] of the affected [Entity][org.vitrivr.cottontail.dbms.entity.DefaultEntity]
-     * @param columns [Name] of the [Column][org.vitrivr.cottontail.dbms.column.Column]s in the definition.
+     */
+    class NoColumnException(entity: Name.EntityName) : DatabaseException("Entity '$entity' could not be created because it does not contain a column.")
+
+    /**
+     * Thrown upon creation of an [Entity] if the definition contains duplicate column names.
+     *
+     * @param entity [Name.EntityName] of the affected [Entity]
+     * @param name [Name.ColumnName] of the duplicate [Column] in the definition.
      */
     class DuplicateColumnException(entity: Name.EntityName, name: Name.ColumnName) : DatabaseException("Entity '$entity' could not be created because it contains duplicate column names '$name'.")
 
