@@ -16,13 +16,13 @@ class ScalarValueSerializationTest : AbstractSerializationTest() {
 
     /** Columns tested by this [DoubleVectorValueSerializationTest]. */
     override val columns: Array<ColumnDef<*>> = arrayOf(
-        ColumnDef(this.entityName.column("id"), Types.Int),
-        ColumnDef(this.entityName.column("int"), Types.Int),
-        ColumnDef(this.entityName.column("long"), Types.Long),
-        ColumnDef(this.entityName.column("double"), Types.Double),
-        ColumnDef(this.entityName.column("float"), Types.Float),
-        ColumnDef(this.entityName.column("byte"), Types.Byte),
-        ColumnDef(this.entityName.column("short"), Types.Short),
+        ColumnDef(this.entityName.column("id"), Types.Int, false),
+        ColumnDef(this.entityName.column("int"), Types.Int, true),
+        ColumnDef(this.entityName.column("long"), Types.Long, true),
+        ColumnDef(this.entityName.column("double"), Types.Double, true),
+        ColumnDef(this.entityName.column("float"), Types.Float, true),
+        ColumnDef(this.entityName.column("byte"), Types.Byte, false),
+        ColumnDef(this.entityName.column("short"), Types.Short, false),
     )
 
     /** Name of this [LongVectorValueSerializationTest]. */

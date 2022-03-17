@@ -37,7 +37,7 @@ class KMeansClustererTest {
     fun testWithDoubleVectors() {
         /** Determine seed. */
         val seed = System.currentTimeMillis().toInt()
-        println("Trying to find ${this.k} clusters by k-means clustering for ${this.vectors} vectors ($d = ${this.d}).")
+        println("Trying to find ${this.k} clusters by k-means clustering for ${this.vectors} vectors (d = ${this.d}).")
 
         /** Prepare list of vectors. */
         val list = mutableListOf<DoubleVectorValue>()

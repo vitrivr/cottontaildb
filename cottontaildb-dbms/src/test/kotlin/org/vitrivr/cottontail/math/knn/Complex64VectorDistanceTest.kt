@@ -91,7 +91,7 @@ class Complex64VectorDistanceTest : AbstractDistanceTest() {
             sum3 += absFromFromComplexFieldVector(queryp.subtract(dataitem)).norm.pow(2)
         }
 
-        println("Calculating L2^2 distance for collection (s=$TestConstants.collectionSize, d=$dimension) took ${time1 / TestConstants.collectionSize} (optimized) resp. ${time2 / TestConstants.collectionSize}  per vector on average.")
+        println("Calculating L2^2 distance for collection (s=${TestConstants.collectionSize}, d=$dimension) took ${time1 / TestConstants.collectionSize} (optimized) resp. ${time2 / TestConstants.collectionSize}  per vector on average.")
 
         if (time1 > time2) {
             LOGGER.warn("Optimized version of L1 is slower than default version!")
