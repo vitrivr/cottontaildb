@@ -233,11 +233,11 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
         override fun cursor(start: TupleId, end: TupleId): Cursor<T?> = this.txLatch.withLock {
             object : Cursor<T?> {
 
-                /** Creates a read-only snapshot of the enclosing Tx. */
-                private val subTransaction = this@Tx.context.xodusTx.readonlySnapshot
-
                 /** The per-[Cursor] [XodusBinding] instance. */
                 private val binding: XodusBinding<T> = ValueSerializerFactory.xodus(this@DefaultColumn.columnDef.type, this@DefaultColumn.nullable)
+
+                /** Creates a read-only snapshot of the enclosing Tx. */
+                private val subTransaction = this@Tx.context.xodusTx.readonlySnapshot
 
                 /** Internal [Cursor] used for iteration. */
                 private val cursor: jetbrains.exodus.env.Cursor = this@Tx.dataStore.openCursor(this.subTransaction)
@@ -252,7 +252,7 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
                     if (this.cursor.key < this.start) {
                         return (this.cursor.getSearchKeyRange(this.start) != null)
                     }
-                    return this.cursor.next && this.cursor.key < this.end
+                    return this.cursor.next && this.cursor.key <= this.end
                 }
                 override fun key(): TupleId = LongBinding.compressedEntryToLong(this.cursor.key)
                 override fun value(): T? = this.binding.entryToValue(this.cursor.value)
