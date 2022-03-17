@@ -368,13 +368,11 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
              * Tries to move this [Cursor]. Returns true on success and false otherwise.
              */
             override fun moveNext(): Boolean {
-                if (this.cursors.all { it.moveNext() }) {
-                    for ((i, c) in this.cursors.withIndex()) {
-                        this.values[i] = c.value()
-                    }
-                    return true
+                for ((i, c) in this.cursors.withIndex()) {
+                    if (!c.moveNext()) return false
+                    this.values[i] = c.value()
                 }
-                return false
+                return true
             }
 
             /**
