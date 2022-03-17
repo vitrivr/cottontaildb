@@ -2,7 +2,6 @@ package org.vitrivr.cottontail.utilities.math.random
 
 import org.apache.commons.math3.random.RandomGenerator
 import kotlin.math.abs
-import kotlin.math.nextDown
 import kotlin.random.Random.Default.nextBits
 
 
@@ -36,31 +35,36 @@ fun RandomGenerator.nextLong(bounds: Long): Long = nextLong(0L, bounds)
 fun RandomGenerator.nextLong(origin: Long, bounds: Long): Long {
     require(bounds > origin) { "Bounds must be greater than origin." }
     val n = bounds - origin
-    val rnd: Long
-    if (n and -n == n) {
-        val nLow = n.toInt()
-        val nHigh = (n ushr 32).toInt()
-        rnd = when {
-            nLow != 0 -> {
-                val bitCount = 31 - nLow.countLeadingZeroBits()
-                // toUInt().toLong()
-                nextBits(bitCount).toLong() and 0xFFFF_FFFF
+    var rnd: Long = 0L
+    if (n > 0) {
+        if (n and -n == n) {
+            val nLow = n.toInt()
+            val nHigh = (n ushr 32).toInt()
+            rnd = when {
+                nLow != 0 -> {
+                    val bitCount = 31 - nLow.countLeadingZeroBits()
+                    nextBits(bitCount).toLong() and 0xFFFF_FFFF
+                }
+                nHigh == 1 ->
+                    nextInt().toLong() and 0xFFFF_FFFF
+                else -> {
+                    val bitCount = 31 - nHigh.countLeadingZeroBits()
+                    nextBits(bitCount).toLong().shl(32) + (nextInt().toLong() and 0xFFFF_FFFF)
+                }
             }
-            nHigh == 1 ->
-                // toUInt().toLong()
-                nextInt().toLong() and 0xFFFF_FFFF
-            else -> {
-                val bitCount = 31 - nHigh.countLeadingZeroBits()
-                nextBits(bitCount).toLong().shl(32) + (nextInt().toLong() and 0xFFFF_FFFF)
-            }
+        } else {
+            var v: Long
+            do {
+                val bits = nextLong().ushr(1)
+                v = bits % n
+            } while (bits - v + (n - 1) < 0)
+            rnd = v
         }
     } else {
-        var v: Long
-        do {
-            val bits = nextLong().ushr(1)
-            v = bits % n
-        } while (bits - v + (n - 1) < 0)
-        rnd = v
+        while (true) {
+            rnd = nextLong()
+            if (rnd in origin until bounds) return rnd
+        }
     }
     return origin + rnd
 }
@@ -82,12 +86,11 @@ fun RandomGenerator.nextDouble(bounds: Double): Double = nextDouble(0.0, bounds)
  */
 fun RandomGenerator.nextDouble(origin: Double, bounds: Double): Double {
     require(bounds > origin) { "Bounds must be greater than origin." }
-    val size = bounds - origin
-    val r = if (size.isInfinite() && origin.isFinite() && bounds.isFinite()) {
-        val r1 = nextDouble() * (origin / 2 - bounds / 2)
-        origin + r1 + r1
-    } else {
-        origin + this.nextDouble() * size
+    var r = (nextLong() ushr 11) *  (1.0 / (1L.shl(53)));
+    if (origin < bounds) {
+        r = r * (bounds - origin) + origin
+        if (r >= bounds) // correct for rounding
+            r = java.lang.Double.longBitsToDouble(java.lang.Double.doubleToLongBits(bounds) - 1)
     }
-    return if (r >= origin) origin.nextDown() else r
+    return r
 }
