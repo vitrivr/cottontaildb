@@ -90,24 +90,23 @@ class ProductQuantizer private constructor(private val codebooks: Array<PQCodebo
          * @return Number of subspaces to use.
          */
         fun defaultNumberOfSubspaces(d: Int): Int {
-            val start: Int = when {
-                d == 1 -> 1
-                d == 2 -> 2
-                d <= 8 -> 4
-                d <= 64 -> 4
-                d <= 256 -> 8
-                d <= 1024 -> 16
-                d <= 4096 -> 32
-                else -> 64
+            val maximum: Int = when {
+                d <= 8 -> 2
+                d <= 64 -> 8
+                d <= 256 -> 16
+                d <= 1024 -> 32
+                d <= 4096 -> 64
+                else -> 128
             }
-            var subspaces = start
-            while (subspaces < d && subspaces < Byte.MAX_VALUE) {
+            var subspaces = 1
+            var candidate = subspaces
+            while (subspaces < maximum && subspaces < Byte.MAX_VALUE) {
                 if (d % subspaces == 0) {
-                    return subspaces
+                    candidate = subspaces
                 }
                 subspaces++
             }
-            return start
+            return candidate
         }
     }
 
