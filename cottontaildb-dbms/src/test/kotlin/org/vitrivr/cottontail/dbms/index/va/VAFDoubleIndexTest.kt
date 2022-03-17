@@ -28,7 +28,6 @@ import org.vitrivr.cottontail.dbms.index.IndexTx
 import org.vitrivr.cottontail.dbms.index.IndexType
 import org.vitrivr.cottontail.dbms.queries.binding.DefaultBindingContext
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
-import org.vitrivr.cottontail.utilities.math.KnnUtilities
 import org.vitrivr.cottontail.utilities.math.random.nextInt
 import org.vitrivr.cottontail.utilities.selection.ComparablePair
 import org.vitrivr.cottontail.utilities.selection.MinHeapSelection
@@ -51,7 +50,7 @@ class VAFDoubleIndexTest : AbstractIndexTest() {
 
     override val columns: Array<ColumnDef<*>> = arrayOf(
         ColumnDef(this.entityName.column("id"), Types.Long),
-        ColumnDef(this.entityName.column("feature"), Types.DoubleVector(this.random.nextInt(128, 2048)))
+        ColumnDef(this.entityName.column("feature"), Types.DoubleVector(this.random.nextInt(512, 2048)))
     )
 
     override val indexColumn: ColumnDef<DoubleVectorValue>
@@ -107,18 +106,14 @@ class VAFDoubleIndexTest : AbstractIndexTest() {
             }
             cursor.close()
         }
+        txn.commit()
 
         /* Compare results. */
         for ((i, e) in indexResults.withIndex()) {
             Assertions.assertEquals(bruteForceResults[i].first, e.tupleId)
-            Assertions.assertEquals(
-                bruteForceResults[i].second,
-                e[KnnUtilities.distanceColumnDef(this.entityName)]
-            )
+            Assertions.assertEquals(bruteForceResults[i].second, e[predicate.distanceColumn])
         }
-
-        log("Test done for ${distance::class.java.simpleName}! VAF took $indexDuration, brute-force took $bruteForceDuration.")
-        txn.commit()
+        this.log("Test done for ${function.name} and d=${this.indexColumn.type.logicalSize}! VAF took $indexDuration, brute-force took $bruteForceDuration.")
     }
 
     override fun nextRecord(): StandaloneRecord {

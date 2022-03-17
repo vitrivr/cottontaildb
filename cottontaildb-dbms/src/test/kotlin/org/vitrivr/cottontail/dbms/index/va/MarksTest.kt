@@ -14,9 +14,9 @@ import java.lang.Double.min
  * @author Gabriel Zihlmann
  * @version 1.1.0
  */
-internal class MarksTest {
+class MarksTest {
     private val random = JDKRandomGenerator()
-    private val numVecs = 100
+    private val numVecs = 1000
     private val numDim = 20
     private val marksPerDim = 100
     private val realdata = Array(this.numVecs) {
@@ -26,10 +26,10 @@ internal class MarksTest {
     private val max  = DoubleArray(this.numDim)
 
     init {
-        for (d in realdata) {
+        for (d in this.realdata) {
             for (i in 0 until this.numDim) {
-                min[i] = min(d.data[i], min[i])
-                max[i] = max(d.data[i], max[i])
+                this.min[i] = min(d.data[i], min[i])
+                this.max[i] = max(d.data[i], max[i])
             }
         }
 
@@ -37,7 +37,7 @@ internal class MarksTest {
 
     @Test
     fun getCells() {
-        val marks: VAFMarks = VAFMarks.getEquidistantMarks(min, max, IntArray(this.marksPerDim))
+        val marks: VAFMarks = VAFMarks.getEquidistantMarks(this.min, this.max, this.marksPerDim)
         this.realdata.forEach {
             marks.getSignature(it).cells.forEachIndexed { i, m ->
                 assertTrue(it.data[i] >= marks.marks[i][m.toInt()])

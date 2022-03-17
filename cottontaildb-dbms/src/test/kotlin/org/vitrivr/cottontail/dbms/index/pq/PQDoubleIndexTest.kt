@@ -25,6 +25,7 @@ import org.vitrivr.cottontail.dbms.index.IndexTx
 import org.vitrivr.cottontail.dbms.index.IndexType
 import org.vitrivr.cottontail.dbms.queries.binding.DefaultBindingContext
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
+import org.vitrivr.cottontail.utilities.math.random.nextInt
 import org.vitrivr.cottontail.utilities.selection.ComparablePair
 import org.vitrivr.cottontail.utilities.selection.MinHeapSelection
 import java.util.stream.Stream
@@ -49,18 +50,17 @@ class PQDoubleIndexTest : AbstractIndexTest() {
         )
     }
 
+    /** Determine a number of dimension that allows for equally sized subspaces. */
     private val dimension: Int
-
     init {
         while (true) {
-            val dim = 1024
+            val dim = this.random.nextInt(256, 2048)
             if (!Primes.isPrime(dim)) {
                 this.dimension = dim
                 break
             }
         }
     }
-
 
     override val columns: Array<ColumnDef<*>> = arrayOf(
         ColumnDef(this.entityName.column("id"), Types.Long),
@@ -119,6 +119,7 @@ class PQDoubleIndexTest : AbstractIndexTest() {
             }
             cursor.close()
         }
+        txn.commit()
 
         /*
         * Calculate an error score for results (since this is an inexact index)
@@ -133,8 +134,7 @@ class PQDoubleIndexTest : AbstractIndexTest() {
             }
         }
         val foundRatio = (found / k)
-        log("Test done for $function and d=${this.indexColumn.type.logicalSize}! PQ took $indexDuration, brute-force took $bruteForceDuration. Found ratio: $foundRatio")
-        txn.commit()
+        log("Test done for ${function.name} and d=${this.indexColumn.type.logicalSize}! PQ took $indexDuration, brute-force took $bruteForceDuration. Found ratio: $foundRatio")
     }
 
     override fun nextRecord(): StandaloneRecord {

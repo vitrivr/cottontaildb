@@ -51,17 +51,21 @@ abstract class AbstractIndexTest: AbstractDatabaseTest() {
     @BeforeEach
     override fun initialize() {
         super.initialize()
+        try {
+            /* Prepare data structures. */
+            prepareSchema()
+            prepareEntity()
+            prepareIndex()
 
-        /* Prepare data structures. */
-        prepareSchema()
-        prepareEntity()
-        prepareIndex()
+            /* Add entries. */
+            this.populateDatabase()
 
-        /* Populate database with data. */
-        this.populateDatabase()
-
-        /* Update the index. */
-        this.updateIndex()
+            /* Update the index. */
+            this.updateIndex()
+        } catch (e: Throwable) {
+            this.log("Failed to prepare test due to exception: ${e.message}")
+            throw e
+        }
         log("Starting test...")
     }
 

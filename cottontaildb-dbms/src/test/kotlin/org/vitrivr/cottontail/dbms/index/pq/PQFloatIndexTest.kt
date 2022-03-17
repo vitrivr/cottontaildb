@@ -1,5 +1,6 @@
 package org.vitrivr.cottontail.dbms.index.pq
 
+import org.apache.commons.math3.primes.Primes
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import org.vitrivr.cottontail.core.basics.Record
@@ -44,12 +45,21 @@ class PQFloatIndexTest : AbstractIndexTest() {
         fun kernels(): Stream<Name.FunctionName> = Stream.of(ManhattanDistance.FUNCTION_NAME, EuclideanDistance.FUNCTION_NAME, SquaredEuclideanDistance.FUNCTION_NAME, CosineDistance.FUNCTION_NAME)
     }
 
+    /** Determine a number of dimension that allows for equally sized subspaces. */
+    private val dimension: Int
+    init {
+        while (true) {
+            val dim = this.random.nextInt(256, 2048)
+            if (!Primes.isPrime(dim)) {
+                this.dimension = dim
+                break
+            }
+        }
+    }
+
     override val columns: Array<ColumnDef<*>> = arrayOf(
         ColumnDef(this.entityName.column("id"), Types.Long),
-        ColumnDef(
-            this.entityName.column("feature"),
-            Types.FloatVector(this.random.nextInt(128, 2048))
-        )
+        ColumnDef(this.entityName.column("feature"), Types.FloatVector(this.dimension))
     )
 
     override val indexColumn: ColumnDef<FloatVectorValue>
@@ -104,6 +114,7 @@ class PQFloatIndexTest : AbstractIndexTest() {
             }
             cursor.close()
         }
+        txn.commit()
 
         /*
         * Calculate an error score for results (since this is an inexact index).
@@ -112,14 +123,11 @@ class PQFloatIndexTest : AbstractIndexTest() {
         var found = 0.0f
         for (i in 0 until k) {
             val hit = bruteForceResults[i]
-            val idx = indexResults.indexOfFirst { it.tupleId == hit.first }
-            if (idx != -1) {
+            if (indexResults.any { it.tupleId == hit.first })
                 found += 1.0f
-            }
         }
         val foundRatio = (found / k)
-        log("Test done for $function and d=${this.indexColumn.type.logicalSize}! PQ took $indexDuration, brute-force took $bruteForceDuration. Found ratio: $foundRatio")
-        txn.commit()
+        log("Test done for ${function.name} and d=${this.indexColumn.type.logicalSize}! PQ took $indexDuration, brute-force took $bruteForceDuration. Found ratio: $foundRatio")
     }
 
     override fun nextRecord(): StandaloneRecord {
