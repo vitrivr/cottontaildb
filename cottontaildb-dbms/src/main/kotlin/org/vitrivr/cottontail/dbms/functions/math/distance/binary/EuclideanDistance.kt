@@ -143,15 +143,23 @@ sealed class EuclideanDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Min
             val SPECIES: VectorSpecies<Float> = jdk.incubator.vector.FloatVector.SPECIES_256
             val probing = arguments[0] as FloatVectorValue
             val query = arguments[1] as FloatVectorValue
-            var sum = jdk.incubator.vector.FloatVector.zero(SPECIES)
+            var vectorSum = jdk.incubator.vector.FloatVector.zero(SPECIES)
 
+            //Vectorized calculation
             for (i in 0 until SPECIES.loopBound(this.d) step SPECIES.length()) {
                 val vp = jdk.incubator.vector.FloatVector.fromArray(SPECIES, probing.data, i)
                 val vq = jdk.incubator.vector.FloatVector.fromArray(SPECIES, query.data, i)
-                sum = sum.add(vp.sub(vq).pow(2f))
-
+                vectorSum = vectorSum.lanewise(VectorOperators.ADD, vp.lanewise(VectorOperators.SUB, vq).pow(2f))
             }
-            return DoubleValue(sqrt(sum.reduceLanes(VectorOperators.ADD)))
+
+            var sum = vectorSum.reduceLanes(VectorOperators.ADD)
+
+            // Scalar calculation for the remaining lanes, since SPECIES.loopBound(this.d) <= this.d
+            for (i in SPECIES.loopBound(this.d) until this.d) {
+                sum += (query.data[i] - probing.data[i]).pow(2)
+            }
+
+            return DoubleValue(sqrt(sum))
         }
         override fun copy(d: Int) = FloatVector(Types.FloatVector(d))
     }

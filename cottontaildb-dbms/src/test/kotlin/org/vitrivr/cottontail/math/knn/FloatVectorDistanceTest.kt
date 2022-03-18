@@ -125,6 +125,38 @@ class FloatVectorDistanceTest : AbstractDistanceTest() {
         isApproximatelyTheSame(sum3, sum2)
     }
 
+    @ExperimentalTime
+    @ParameterizedTest
+    @MethodSource("dimensions")
+    fun testL2DistancePerformance(dimension: Int) {
+        val query = FloatVectorValue.random(dimension, RANDOM)
+        val collection = VectorUtility.randomFloatVectorSequence(dimension, TestConstants.collectionSize, RANDOM)
+
+        var sum1 = 0.0f
+        var sum2 = 0.0f
+        var sum3 = 0.0f
+
+        var time1 = Duration.ZERO
+        var time2 = Duration.ZERO
+
+        val kernel = EuclideanDistance.FloatVector(query.type as Types.FloatVector)
+        collection.forEach {
+            time1 += measureTime {
+                sum1 += kernel(query, it).value.toFloat()
+            }
+            time2 += measureTime {
+                sum2 += (query - it).pow(2).sum().sqrt().value
+            }
+            sum3 += l2(it.data, query.data)
+        }
+
+        println("Optimized: ${time1}")
+        println("Standard: ${time2}")
+
+        isApproximatelyTheSame(sum3, sum1)
+        isApproximatelyTheSame(sum3, sum2)
+    }
+
     /**
      * Calculates the L<sub>1</sub> (sum of abs) distance between two points.
      *
