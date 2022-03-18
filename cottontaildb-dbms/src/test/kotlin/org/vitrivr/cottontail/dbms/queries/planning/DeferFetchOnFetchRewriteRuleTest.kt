@@ -7,8 +7,8 @@ import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.dbms.AbstractDatabaseTest
 import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
+import org.vitrivr.cottontail.dbms.entity.AbstractEntityTest
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.TransactionType
 import org.vitrivr.cottontail.dbms.queries.QueryContext
@@ -26,9 +26,9 @@ import org.vitrivr.cottontail.dbms.schema.SchemaTx
  * A collection of test cases for the [DeferFetchOnScanRewriteRule].
  *
  * @author Ralph Gasser
- * @version 1.2.2
+ * @version 1.3.0
  */
-class DeferFetchOnFetchRewriteRuleTest : AbstractDatabaseTest() {
+class DeferFetchOnFetchRewriteRuleTest : AbstractEntityTest() {
 
     /** [Name.EntityName] of test entity. */
     private val entityName = this.schemaName.entity("test-entity")
@@ -40,6 +40,11 @@ class DeferFetchOnFetchRewriteRuleTest : AbstractDatabaseTest() {
         ColumnDef(this.entityName.column("stringValue"), Types.String),
         ColumnDef(this.entityName.column("intValue"), Types.Int),
         ColumnDef(this.entityName.column("booleanValue"), Types.Boolean)
+    )
+
+    /** List of entities that should be prepared for this test. */
+    override val entities: List<Pair<Name.EntityName, List<ColumnDef<*>>>> = listOf(
+        this.entityName to this.columns
     )
 
     /**
@@ -62,8 +67,9 @@ class DeferFetchOnFetchRewriteRuleTest : AbstractDatabaseTest() {
 
             /* Check DeferFetchOnFetchRewriteRule.canBeApplied and test output for null. */
             Assertions.assertFalse(DeferFetchOnFetchRewriteRule.canBeApplied(scan0, ctx))
-            val result1 = DeferFetchOnFetchRewriteRule.apply(scan0, ctx)
-            Assertions.assertEquals(null, result1)
+            Assertions.assertThrows(IllegalArgumentException::class.java) {
+                DeferFetchOnFetchRewriteRule.apply(scan0, ctx)
+            }
         } finally {
             txn.rollback()
         }
@@ -176,5 +182,12 @@ class DeferFetchOnFetchRewriteRuleTest : AbstractDatabaseTest() {
         } finally {
             txn.rollback()
         }
+    }
+
+    /**
+     * We don't need data for this test.
+     */
+    override fun populateDatabase() {
+        /* No op. */
     }
 }

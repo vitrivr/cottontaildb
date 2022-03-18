@@ -7,8 +7,8 @@ import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.dbms.AbstractDatabaseTest
 import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
+import org.vitrivr.cottontail.dbms.entity.AbstractEntityTest
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.TransactionType
 import org.vitrivr.cottontail.dbms.queries.QueryContext
@@ -18,6 +18,7 @@ import org.vitrivr.cottontail.dbms.queries.operators.logical.projection.SelectPr
 import org.vitrivr.cottontail.dbms.queries.operators.logical.sources.EntitySampleLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.sources.EntityScanLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.transform.FetchLogicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.planning.rules.logical.DeferFetchOnFetchRewriteRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.logical.DeferFetchOnScanRewriteRule
 import org.vitrivr.cottontail.dbms.queries.projection.Projection
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
@@ -26,9 +27,9 @@ import org.vitrivr.cottontail.dbms.schema.SchemaTx
  * A collection of test cases for the [DeferFetchOnScanRewriteRule].
  *
  * @author Ralph Gasser
- * @version 1.2.2
+ * @version 1.3.0
  */
-class DeferFetchOnScanRewriteRuleTest : AbstractDatabaseTest() {
+class DeferFetchOnScanRewriteRuleTest : AbstractEntityTest() {
 
     /** [Name.EntityName] of test entity. */
     private val entityName = this.schemaName.entity("test-entity")
@@ -41,6 +42,12 @@ class DeferFetchOnScanRewriteRuleTest : AbstractDatabaseTest() {
         ColumnDef(this.entityName.column("intValue"), Types.Int),
         ColumnDef(this.entityName.column("booleanValue"), Types.Boolean)
     )
+
+    /** List of entities that should be prepared for this test. */
+    override val entities: List<Pair<Name.EntityName, List<ColumnDef<*>>>> = listOf(
+        this.entityName to this.columns
+    )
+
 
     /**
      * Makes a basic test whether [DeferFetchOnScanRewriteRule.canBeApplied] works as expected and generates output accordingly.
@@ -62,8 +69,9 @@ class DeferFetchOnScanRewriteRuleTest : AbstractDatabaseTest() {
 
             /* Check DeferFetchOnFetchRewriteRule.canBeApplied and test output for null. */
             Assertions.assertFalse(DeferFetchOnScanRewriteRule.canBeApplied(sample0, ctx))
-            val result1 = DeferFetchOnScanRewriteRule.apply(sample0, ctx)
-            Assertions.assertEquals(null, result1)
+            Assertions.assertThrows(IllegalArgumentException::class.java) {
+                DeferFetchOnFetchRewriteRule.apply(sample0, ctx)
+            }
         } finally {
             txn.rollback()
         }
@@ -178,5 +186,12 @@ class DeferFetchOnScanRewriteRuleTest : AbstractDatabaseTest() {
         } finally {
             txn.rollback()
         }
+    }
+
+    /**
+     * We don't need data for this test.
+     */
+    override fun populateDatabase() {
+        /* No op. */
     }
 }
