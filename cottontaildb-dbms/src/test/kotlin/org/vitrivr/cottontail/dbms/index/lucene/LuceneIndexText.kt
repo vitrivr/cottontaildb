@@ -1,6 +1,5 @@
 package org.vitrivr.cottontail.dbms.index.lucene
 
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
@@ -17,7 +16,6 @@ import org.vitrivr.cottontail.dbms.index.IndexType
  * @author Ralph Gasser & Silvan Heller
  * @version 1.3.0
  */
-@Disabled
 class LuceneIndexText : AbstractIndexTest() {
     override val columns: Array<ColumnDef<*>> = arrayOf(
         ColumnDef(this.entityName.column("id"), Types.Long),

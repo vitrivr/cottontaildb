@@ -36,10 +36,10 @@ abstract class AbstractIndexTest: AbstractDatabaseTest() {
     /** [Name.IndexName] of the test [Index]. */
     protected abstract val indexName: Name.IndexName
 
-    /** [IndexType] of the the test [Index]. */
+    /** [IndexType] of the test [Index]. */
     protected abstract val indexType: IndexType
 
-    /** [IndexType] of the the test [Index]. */
+    /** [IndexType] of the test [Index]. */
     protected val indexParams: Map<String, String> = emptyMap()
 
     /** The [JDKRandomGenerator] random number generator. */

@@ -3,6 +3,9 @@ package org.vitrivr.cottontail.dbms.catalogue
 import jetbrains.exodus.env.Environment
 import jetbrains.exodus.env.Environments
 import jetbrains.exodus.env.forEach
+import jetbrains.exodus.vfs.ClusteringStrategy
+import jetbrains.exodus.vfs.VfsConfig
+import jetbrains.exodus.vfs.VirtualFileSystem
 import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.functions.FunctionRegistry
@@ -73,15 +76,19 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
     /** A lock used to mediate access to this [DefaultCatalogue]. This is an internal variable and not part of the official interface. */
     internal val closeLock = StampedLock()
 
-    /** The Xodus environment used for Cottontail DB. This is an internal variable and not part of the official interface. */
+    /** The Xodus [Environment] used by Cottontail DB. This is an internal variable and not part of the official interface. */
     internal val environment: Environment = Environments.newInstance(
         this.config.root.resolve("xodus").toFile(),
         this.config.xodus.toEnvironmentConfig()
     )
 
+    /** The Xodus [VirtualFileSystem] used by Cottontail DB. This is an internal variable and not part of the official interface. */
+    internal val vfs: VirtualFileSystem
+
     init {
         /* Check if catalogue has been initialized and initialize if needed. */
-        this.environment.executeInExclusiveTransaction { tx ->
+        val tx = this.environment.beginExclusiveTransaction()
+        try {
             if (this.environment.getAllStoreNames(tx).size == 0) {
                 /* Initialize database metadata. */
                 MetadataEntry.init(this, tx)
@@ -97,11 +104,24 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
                 IndexStructCatalogueEntry.init(this, tx)
             }
 
+            /** Initialize virtual file system. */
+            val config = VfsConfig()
+            config.clusteringStrategy = ClusteringStrategy.QuadraticClusteringStrategy(65536)
+            config.clusteringStrategy.maxClusterSize = 65536 * 16
+            this.vfs = VirtualFileSystem(this.environment, config, tx)
+
+
             /* Check database version. */
             val version = MetadataEntry.read(METADATA_ENTRY_DB_VERSION, this, tx)?.let { it -> DBOVersion.valueOf(it.value) } ?: DBOVersion.UNDEFINED
             if (version != this.version) {
                 throw DatabaseException.VersionMismatchException(this.version, version)
             }
+
+            /** Commit transaction. */
+            tx.commit()
+        } catch (e: Throwable) {
+            tx.abort()
+            throw e
         }
 
         /* Initialize function registry. */

@@ -34,6 +34,7 @@ import org.vitrivr.cottontail.dbms.exceptions.QueryException
 import org.vitrivr.cottontail.dbms.execution.TransactionContext
 import org.vitrivr.cottontail.dbms.index.*
 import org.vitrivr.cottontail.dbms.operations.Operation
+import org.vitrivr.cottontail.storage.lucene.XodusDirectory
 import kotlin.concurrent.withLock
 
 /**
@@ -67,7 +68,20 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
          * @param entity The [DefaultEntity] that holds the [LuceneIndex].
          * @return True on success, false otherwise.
          */
-        override fun initialize(name: Name.IndexName, entity: DefaultEntity.Tx): Boolean = true
+        override fun initialize(name: Name.IndexName, entity: DefaultEntity.Tx): Boolean {
+            return try {
+                val directory = XodusDirectory(entity.dbo.catalogue.vfs, name.toString(), entity.context.xodusTx)
+                val config = IndexWriterConfig()
+                    .setOpenMode(IndexWriterConfig.OpenMode.CREATE)
+                    .setCommitOnClose(true)
+                val writer = IndexWriter(directory, config)
+                writer.close()
+                directory.close()
+                true
+            } catch (e: Throwable) {
+                false
+            }
+        }
 
         /**
          * Generates and returns a [LuceneIndexConfig] for the given [parameters] (or default values, if [parameters] are not set).
@@ -100,13 +114,11 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
     override val type: IndexType = IndexType.LUCENE
 
     /** The [LuceneIndexConfig] used by this [LuceneIndex] instance. */
-    override val config: LuceneIndexConfig = this.catalogue.environment.computeInTransaction { tx ->
+    override val config: LuceneIndexConfig
+        get() = this.catalogue.environment.computeInTransaction { tx ->
         val entry = IndexCatalogueEntry.read(this.name, this.parent.parent.parent, tx) ?: throw DatabaseException.DataCorruptionException("Failed to read catalogue entry for index ${this.name}.")
         entry.config as LuceneIndexConfig
     }
-
-    /** The [Directory] containing the data for this [LuceneIndex]. */
-    private val directory: Directory = TODO()
 
     /**
      * Checks if this [LuceneIndex] can process the given [Predicate].
@@ -269,11 +281,17 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
      */
     private inner class Tx(context: TransactionContext) : AbstractIndex.Tx(context) {
 
+        /** The [Directory] containing the data for this [LuceneIndex]. */
+        private val directory: Directory = XodusDirectory(this@LuceneIndex.catalogue.vfs, this@LuceneIndex.name.toString(), this.context.xodusTx)
+
         /** The [IndexReader] instance used for accessing the [LuceneIndex]. */
-        private val indexReader = DirectoryReader.open(this@LuceneIndex.directory)
+        private val indexReader = DirectoryReader.open(this.directory)
 
         /** The [IndexWriter] instance used for accessing the [LuceneIndex]. */
-        private val indexWriter = IndexWriter(this@LuceneIndex.directory, IndexWriterConfig(this.config.analyzer.get()).setOpenMode(IndexWriterConfig.OpenMode.CREATE_OR_APPEND).setCommitOnClose(true))
+        private val indexWriter: IndexWriter by lazy {
+            val config = IndexWriterConfig().setOpenMode(IndexWriterConfig.OpenMode.APPEND).setCommitOnClose(true)
+            IndexWriter(this.directory, config)
+        }
 
         /** The [LuceneIndexConfig] used by this [LuceneIndex] instance. */
         override val config: LuceneIndexConfig
@@ -290,7 +308,7 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
          */
         override fun cost(predicate: Predicate): Cost = when {
             canProcess(predicate) -> {
-                val reader = DirectoryReader.open(this@LuceneIndex.directory)
+                val reader = DirectoryReader.open(this.directory)
                 var cost = Cost.ZERO
                 repeat(predicate.columns.size) {
                     cost += (Cost.DISK_ACCESS_READ +  Cost.MEMORY_ACCESS) * log2(reader.numDocs().toDouble()) /* TODO: This is an assumption. */
@@ -306,15 +324,15 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
          *
          * @return Number of [Document]s in this [LuceneIndex]
          */
-        override fun count(): Long {
+        override fun count(): Long = this.txLatch.withLock {
             return this.indexReader.numDocs().toLong()
         }
 
         /**
          * (Re-)builds the [LuceneIndex].
          */
-        override fun rebuild() {
-            /* Obtain Tx for parent [Entity. */
+        override fun rebuild() = this.txLatch.withLock {
+            /* Obtain Tx for parent entity. */
             val entityTx = this.context.getTx(this.dbo.parent) as EntityTx
 
             /* Recreate entries. */
@@ -368,7 +386,7 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
         /**
          * Clears the [LuceneIndex] underlying this [Tx] and removes all entries it contains.
          */
-        override fun clear() {
+        override fun clear() = this.txLatch.withLock {
             this.indexWriter.deleteAll()
             this.updateState(IndexState.STALE)
         }
@@ -382,51 +400,51 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
          * @param predicate The [Predicate] for the lookup*
          * @return The resulting [Iterator]
          */
-        override fun filter(predicate: Predicate) = object : Cursor<Record> {
+        override fun filter(predicate: Predicate) = this.txLatch.withLock {
+            object : Cursor<Record> {
 
-            /** Cast [BooleanPredicate] (if such a cast is possible). */
-            private val predicate = if (predicate !is BooleanPredicate) {
-                throw QueryException.UnsupportedPredicateException("Index '${this@LuceneIndex.name}' (lucene index) does not support predicates of type '${predicate::class.simpleName}'.")
-            } else {
-                predicate
-            }
-
-            /* Performs some sanity checks. */
-            init {
-                if (!this@LuceneIndex.canProcess(predicate)) {
-                    throw QueryException.UnsupportedPredicateException("Index '${this@LuceneIndex.name}' (lucene-index) cannot process the provided predicate.")
+                /** Cast [BooleanPredicate] (if such a cast is possible). */
+                private val predicate = if (predicate !is BooleanPredicate) {
+                    throw QueryException.UnsupportedPredicateException("Index '${this@LuceneIndex.name}' (lucene index) does not support predicates of type '${predicate::class.simpleName}'.")
+                } else {
+                    predicate
                 }
-            }
 
-            /** Number of [TupleId]s returned by this [Iterator]. */
-            @Volatile
-            private var returned = 0
+                /* Performs some sanity checks. */
+                init {
+                    if (!this@LuceneIndex.canProcess(predicate)) {
+                        throw QueryException.UnsupportedPredicateException("Index '${this@LuceneIndex.name}' (lucene-index) cannot process the provided predicate.")
+                    }
+                }
 
-            /** Lucene [Query] representation of [BooleanPredicate] . */
-            private val query: Query = this.predicate.toLuceneQuery()
+                /** Number of [TupleId]s returned by this [Iterator]. */
+                @Volatile
+                private var returned = 0
 
-            /** [IndexSearcher] instance used for lookup. */
-            private val searcher = IndexSearcher(this@Tx.indexReader)
+                /** Lucene [Query] representation of [BooleanPredicate] . */
+                private val query: Query = this.predicate.toLuceneQuery()
 
-            /* Execute query and add results. */
-            private val results = this.searcher.search(this.query, Integer.MAX_VALUE)
+                /** [IndexSearcher] instance used for lookup. */
+                private val searcher = IndexSearcher(this@Tx.indexReader)
 
-            override fun moveNext(): Boolean = this.returned < this.results.totalHits.value
+                /* Execute query and add results. */
+                private val results = this.searcher.search(this.query, Integer.MAX_VALUE)
 
-            override fun key(): TupleId {
-                val scores = this.results.scoreDocs[this.returned]
-                val doc = this.searcher.doc(scores.doc)
-                return doc[TID_COLUMN].toLong()
-            }
+                override fun moveNext(): Boolean = this.returned < this.results.totalHits.value
 
-            override fun value(): Record {
-                val scores = this.results.scoreDocs[this.returned++]
-                val doc = this.searcher.doc(scores.doc)
-                return StandaloneRecord(doc[TID_COLUMN].toLong(), arrayOf(ColumnDef(parent.name.column("score"), Types.Float)), arrayOf(FloatValue(scores.score)))
-            }
+                override fun key(): TupleId {
+                    val scores = this.results.scoreDocs[this.returned]
+                    val doc = this.searcher.doc(scores.doc)
+                    return doc[TID_COLUMN].toLong()
+                }
 
-            override fun close() {
-                /* No op. */
+                override fun value(): Record {
+                    val scores = this.results.scoreDocs[this.returned++]
+                    val doc = this.searcher.doc(scores.doc)
+                    return StandaloneRecord(doc[TID_COLUMN].toLong(), arrayOf(ColumnDef(parent.name.column("score"), Types.Float)), arrayOf(FloatValue(scores.score)))
+                }
+
+                override fun close() {}
             }
         }
 
@@ -446,19 +464,29 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
          * Commits changes made through the [IndexWriter]
          */
         override fun beforeCommit() {
+            /* Call super. */
+            super.beforeCommit()
+
+            /* Commit and close writer. */
             if (this.indexWriter.hasUncommittedChanges()) {
                 this.indexWriter.commit()
             }
 
-            /* Close reader and writer. */
+            /* Close reader, writer and directory. */
             this.indexReader.close()
             this.indexWriter.close()
+            this.directory.close()
         }
 
         /**
          * Rolls back changes made through the [IndexWriter]
          */
         override fun beforeRollback() {
+            /* Call super. */
+            super.beforeCommit()
+
+
+            /* Rollback and close writer. */
             if (this.indexWriter.hasUncommittedChanges()) {
                 this.indexWriter.rollback()
             }
@@ -466,6 +494,7 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
             /* Close reader and writer. */
             this.indexReader.close()
             this.indexWriter.close()
+            this.directory.close()
         }
     }
 }
