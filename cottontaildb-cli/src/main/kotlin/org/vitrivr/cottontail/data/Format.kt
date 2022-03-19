@@ -32,13 +32,9 @@ enum class Format(val suffix: String) {
      * @param schema Optional list of [ColumnDef]s that should be imported (not required).
      * @return [DataImporter]
      */
-    fun newImporter(file: Path, schema: Array<ColumnDef<*>>? = null): DataImporter = when (this) {
-        PROTO -> ProtoDataImporter(file)
-        JSON -> JsonDataImporter(
-            file,
-            schema
-                ?: throw IllegalArgumentException("Schema is required to create an instance of JsonDataImporter.")
-        )
+    fun newImporter(file: Path, schema: List<ColumnDef<*>>): DataImporter = when (this) {
+        PROTO -> ProtoDataImporter(file, schema)
+        JSON -> JsonDataImporter(file, schema)
         CSV -> TODO()
     }
 
