@@ -32,7 +32,7 @@ data class MetadataEntry(val key: String, val value: String) {
          */
         internal fun init(catalogue: DefaultCatalogue, transaction: Transaction = catalogue.environment.beginTransaction()) {
             catalogue.environment.openStore(CATALOGUE_METADATA_STORE_NAME, StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, transaction, true)
-                ?: throw DatabaseException.DataCorruptionException("Failed to create entity catalogue store.")
+                ?: throw DatabaseException.DataCorruptionException("Failed to create catalogue metadata store.")
         }
 
         /**
@@ -44,7 +44,7 @@ data class MetadataEntry(val key: String, val value: String) {
          */
         internal fun store(catalogue: DefaultCatalogue, transaction: Transaction = catalogue.environment.beginTransaction()): Store =
             catalogue.environment.openStore(CATALOGUE_METADATA_STORE_NAME, StoreConfig.USE_EXISTING, transaction, false)
-                ?: throw DatabaseException.DataCorruptionException("Failed to open store for column catalogue.")
+                ?: throw DatabaseException.DataCorruptionException("Failed to open catalogue metadata store.")
 
         /**
          * Reads the [MetadataEntry] for the given [Name.ColumnName] from the given [DefaultCatalogue].
