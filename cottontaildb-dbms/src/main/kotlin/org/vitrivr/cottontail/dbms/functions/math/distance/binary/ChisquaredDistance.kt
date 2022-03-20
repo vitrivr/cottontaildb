@@ -1,5 +1,7 @@
 package org.vitrivr.cottontail.dbms.functions.math.distance.binary
 
+import jdk.incubator.vector.VectorOperators
+import jdk.incubator.vector.VectorSpecies
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.functions.Argument
 import org.vitrivr.cottontail.core.queries.functions.Function
@@ -75,7 +77,7 @@ sealed class ChisquaredDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Ve
     /**
      * [ChisquaredDistance] for a [FloatVectorValue].
      */
-    class FloatVector(type: Types.Vector<FloatVectorValue,*>): ChisquaredDistance<FloatVectorValue>(type) {
+    /*class FloatVector(type: Types.Vector<FloatVectorValue,*>): ChisquaredDistance<FloatVectorValue>(type) {
         override val name: Name.FunctionName = FUNCTION_NAME
         override fun invoke(vararg arguments: Value?): DoubleValue {
             val probing = arguments[0] as FloatVectorValue
@@ -84,6 +86,38 @@ sealed class ChisquaredDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Ve
             for (i in query.data.indices) {
                 sum += ((query.data[i] - probing.data[i]).pow(2)) / (query.data[i] + probing.data[i])
             }
+            return DoubleValue(sum)
+        }
+        override fun copy(d: Int) = FloatVector(Types.FloatVector(d))
+    }*/
+
+    /**
+     * SIMD implementation: [ChisquaredDistance] for a [FloatVectorValue]
+     */
+    class FloatVector(type: Types.Vector<FloatVectorValue,*>): EuclideanDistance<FloatVectorValue>(type) {
+        override val name: Name.FunctionName = FUNCTION_NAME
+        override fun invoke(vararg arguments: Value?): DoubleValue {
+            // Changing SPECIES to SPECIES.PREFERRED results in a HUGE performance decrease
+            val species: VectorSpecies<Float> = jdk.incubator.vector.FloatVector.SPECIES_PREFERRED
+            val probing = arguments[0] as FloatVectorValue
+            val query = arguments[1] as FloatVectorValue
+            var vectorSum = jdk.incubator.vector.FloatVector.zero(species)
+
+            //Vectorized calculation
+            for (i in 0 until species.loopBound(this.d) step species.length()) {
+                val vp = jdk.incubator.vector.FloatVector.fromArray(species, probing.data, i)
+                val vq = jdk.incubator.vector.FloatVector.fromArray(species, query.data, i)
+                vectorSum = vectorSum.lanewise(VectorOperators.ADD, vp.lanewise(VectorOperators.SUB, vq).pow(2f)
+                    .div(vp.lanewise(VectorOperators.ADD, vq)))
+            }
+
+            var sum = vectorSum.reduceLanes(VectorOperators.ADD)
+
+            // Scalar calculation for the remaining lanes, since SPECIES.loopBound(this.d) <= this.d
+            for (i in species.loopBound(this.d) until this.d) {
+                sum += ((query.data[i] - probing.data[i]).pow(2)) / (query.data[i] + probing.data[i])
+            }
+
             return DoubleValue(sum)
         }
         override fun copy(d: Int) = FloatVector(Types.FloatVector(d))

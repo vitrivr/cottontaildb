@@ -140,23 +140,24 @@ sealed class EuclideanDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Min
     class FloatVector(type: Types.Vector<FloatVectorValue,*>): EuclideanDistance<FloatVectorValue>(type) {
         override val name: Name.FunctionName = FUNCTION_NAME
         override fun invoke(vararg arguments: Value?): DoubleValue {
-            val SPECIES: VectorSpecies<Float> = jdk.incubator.vector.FloatVector.SPECIES_256
+            // Changing SPECIES to SPECIES.PREFERRED results in a HUGE performance decrease
+            val species: VectorSpecies<Float> = jdk.incubator.vector.FloatVector.SPECIES_256
             val probing = arguments[0] as FloatVectorValue
             val query = arguments[1] as FloatVectorValue
-            var vectorSum = jdk.incubator.vector.FloatVector.zero(SPECIES)
+            var vectorSum = jdk.incubator.vector.FloatVector.zero(species)
 
             //Vectorized calculation
-            for (i in 0 until SPECIES.loopBound(this.d) step SPECIES.length()) {
-                val vp = jdk.incubator.vector.FloatVector.fromArray(SPECIES, probing.data, i)
-                val vq = jdk.incubator.vector.FloatVector.fromArray(SPECIES, query.data, i)
+            for (i in 0 until species.loopBound(this.d) step species.length()) {
+                val vp = jdk.incubator.vector.FloatVector.fromArray(species, probing.data, i)
+                val vq = jdk.incubator.vector.FloatVector.fromArray(species, query.data, i)
                 vectorSum = vectorSum.lanewise(VectorOperators.ADD, vp.lanewise(VectorOperators.SUB, vq).pow(2f))
             }
 
             var sum = vectorSum.reduceLanes(VectorOperators.ADD)
 
             // Scalar calculation for the remaining lanes, since SPECIES.loopBound(this.d) <= this.d
-            for (i in SPECIES.loopBound(this.d) until this.d) {
-                sum += (query.data[i] - probing.data[i]).pow(2)
+            for (i in species.loopBound(this.d) until this.d) {
+                sum += (query.data[i] - probing.data[i]).pow(2f)
             }
 
             return DoubleValue(sqrt(sum))
