@@ -11,6 +11,7 @@ import org.vitrivr.cottontail.TestConstants.TEST_SCHEMA
 import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.language.ddl.*
 import org.vitrivr.cottontail.embedded
+import org.vitrivr.cottontail.grpc.CottontailGrpc
 import java.util.concurrent.TimeUnit
 import kotlin.time.ExperimentalTime
 
@@ -25,7 +26,7 @@ class DDLServiceTest {
     @BeforeAll
     fun startCottontail() {
         this.embedded = embedded(TestConstants.testConfig())
-        this.channel =  NettyChannelBuilder.forAddress("localhost", 1865).usePlaintext().build()
+        this.channel = NettyChannelBuilder.forAddress("localhost", 1865).usePlaintext().build()
         this.client = SimpleClient(this.channel)
 
         /** Drop and (re-)create test schema. */
@@ -54,6 +55,22 @@ class DDLServiceTest {
         assert(client.ping())
     }
 
+    @AfterEach
+    fun teardown() {
+        try {
+            client.drop(DropSchema(TEST_SCHEMA))
+        } catch (e: StatusRuntimeException) {
+            if (e.status.code != Status.NOT_FOUND.code) {
+                fail("Status was " + e.status + " instead of NOT_FOUND")
+            }
+        }
+
+        /* Make sure, that no transaction or locks are dangling. */
+        val locks = this.client.locks()
+        Assertions.assertFalse(locks.hasNext())
+        locks.close()
+    }
+
     @Test
     fun pingTest() {
         assert(client.ping()) { "ping unsuccessful" }
@@ -71,28 +88,14 @@ class DDLServiceTest {
             if (e.status.code != Status.NOT_FOUND.code) {
                 fail("Status was " + e.status + " instead of NOT_FOUND")
             }
-
-            /* Make sure, that no transaction or locks are dangling. */
-            val locks = this.client.locks()
-            Assertions.assertFalse(locks.hasNext())
-            locks.close()
         }
     }
 
     @Test
     fun createAndListSchema() {
-        try {
-            client.create(CreateSchema(TEST_SCHEMA))
-            val names = schemaNames()
-            assert(names.contains("warren.$TEST_SCHEMA")) { "returned schema names were $names instead of expected $TEST_SCHEMA" }
-        } finally {
-            client.drop(DropSchema(TEST_SCHEMA))
-
-            /* Make sure, that no transaction or locks are dangling. */
-            val locks = this.client.locks()
-            Assertions.assertFalse(locks.hasNext())
-            locks.close()
-        }
+        client.create(CreateSchema(TEST_SCHEMA))
+        val names = schemaNames()
+        assert(names.contains("warren.$TEST_SCHEMA")) { "returned schema names were $names instead of expected $TEST_SCHEMA" }
     }
 
     @Test
@@ -101,11 +104,6 @@ class DDLServiceTest {
         client.drop(DropSchema(TEST_SCHEMA))
         val names = schemaNames()
         assert(!names.contains("warren.$TEST_SCHEMA")) { "Schema $TEST_SCHEMA was not dropped" }
-
-        /* Make sure, that no transaction or locks are dangling. */
-        val locks = this.client.locks()
-        Assertions.assertFalse(locks.hasNext())
-        locks.close()
     }
 
     @Test
@@ -117,13 +115,6 @@ class DDLServiceTest {
             if (e.status.code != Status.NOT_FOUND.code) {
                 fail("status was " + e.status + " instead of NOT_FOUND")
             }
-        } finally {
-            client.drop(DropSchema(TEST_SCHEMA))
-
-            /* Make sure, that no transaction or locks are dangling. */
-            val locks = this.client.locks()
-            Assertions.assertFalse(locks.hasNext())
-            locks.close()
         }
     }
 
@@ -136,15 +127,9 @@ class DDLServiceTest {
             assert(names.contains(GrpcTestUtils.TEST_ENTITY_FQN_WITH_WARREN)) { "Returned entity names do not contain ${GrpcTestUtils.TEST_ENTITY_FQN_WITH_WARREN}." }
         } catch (e: StatusRuntimeException) {
             fail("Creating entity ${GrpcTestUtils.TEST_ENTITY_FQN_WITH_WARREN} failed with status " + e.status)
-        } finally {
-            client.drop(DropSchema(TEST_SCHEMA))
-
-            /* Make sure, that no transaction or locks are dangling. */
-            val locks = this.client.locks()
-            Assertions.assertFalse(locks.hasNext())
-            locks.close()
         }
     }
+
 
     @Test
     fun createAndVerifyAboutEntity() {
@@ -155,13 +140,6 @@ class DDLServiceTest {
             assert(about.hasNext()) { "could not verify existence with about message" }
         } catch (e: StatusRuntimeException) {
             fail("Creating entity ${GrpcTestUtils.TEST_ENTITY_FQN_WITH_WARREN} failed with status " + e.status)
-        } finally {
-            client.drop(DropSchema(TEST_SCHEMA))
-
-            /* Make sure, that no transaction or locks are dangling. */
-            val locks = this.client.locks()
-            Assertions.assertFalse(locks.hasNext())
-            locks.close()
         }
     }
 
@@ -178,13 +156,6 @@ class DDLServiceTest {
             assert(!names.contains(GrpcTestUtils.TEST_ENTITY_FQN)) { "Returned entity names do not contain ${GrpcTestUtils.TEST_ENTITY_FQN_WITH_WARREN}." }
         } catch (e: StatusRuntimeException) {
             fail("Creating entity ${GrpcTestUtils.TEST_ENTITY_FQN} failed with status " + e.status)
-        } finally {
-            client.drop(DropSchema(TEST_SCHEMA))
-
-            /* Make sure, that no transaction or locks are dangling. */
-            val locks = this.client.locks()
-            Assertions.assertFalse(locks.hasNext())
-            locks.close()
         }
     }
 
@@ -201,13 +172,6 @@ class DDLServiceTest {
             assert(!names.contains(GrpcTestUtils.TEST_ENTITY_FQN_WITH_WARREN)) { "Returned entity names do not contain ${GrpcTestUtils.TEST_ENTITY_FQN_WITH_WARREN}." }
         } catch (e: StatusRuntimeException) {
             fail("Creating entity ${GrpcTestUtils.TEST_ENTITY_FQN_WITH_WARREN} failed with status " + e.status)
-        } finally {
-            client.drop(DropSchema(TEST_SCHEMA))
-
-            /* Make sure, that no transaction or locks are dangling. */
-            val locks = this.client.locks()
-            Assertions.assertFalse(locks.hasNext())
-            locks.close()
         }
     }
 
@@ -216,13 +180,6 @@ class DDLServiceTest {
         Assertions.assertThrows(StatusRuntimeException::class.java) {
             this.client.about(AboutEntity(GrpcTestUtils.TEST_ENTITY_FQN))
         }
-
-        /* Make sure, that no transaction or locks are dangling. */
-        val locks = this.client.locks()
-        Assertions.assertFalse(locks.hasNext())
-
-        /* Close iterator. */
-        locks.close()
     }
 
     private fun schemaNames(): List<String> {
