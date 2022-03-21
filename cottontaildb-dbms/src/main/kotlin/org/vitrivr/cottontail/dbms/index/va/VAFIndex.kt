@@ -125,7 +125,7 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
     override val supportsIncrementalUpdate: Boolean = false
 
     /** True since [VAFIndex] supports partitioning. */
-    override val supportsPartitioning: Boolean = false
+    override val supportsPartitioning: Boolean = true
 
     /**
      * Checks if the provided [Predicate] can be processed by this instance of [VAFIndex].
@@ -355,8 +355,11 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
             /** Cached in-memory version of the [VAFMarks] used by this [Cursor]. */
             private val marks = this@Tx.marks ?: throw IllegalStateException("VAFMarks could not be obtained. This is a programmer's error!")
 
-            /** The [TupleId] range this [Cursor] covers. */
-            private val range: LongRange
+            /** First [TupleId] this [Cursor] covers. */
+            private val start: Long
+
+            /** Last [TupleId] this [Cursor] covers. */
+            private val end: Long
 
             /** The current [Cursor] position. */
             private var position = -1L
@@ -375,7 +378,8 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
                 /* Calculate partition size and create iterator. */
                 val maximumTupleId = this.entityTx.maxTupleId()
                 val partitionSize = floorDiv(maximumTupleId, partitions) + 1
-                this.range = (partitionSize * partitionIndex) until min(partitionSize * (partitionIndex + 1), maximumTupleId)
+                this.start = partitionSize * partitionIndex
+                this.end = min(partitionSize * (partitionIndex + 1), maximumTupleId)
 
                 /* Prepares the result set. */
                 this.prepare()
@@ -417,26 +421,26 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
                 /* Initialize cursor. */
                 val subTx = this@Tx.context.xodusTx.readonlySnapshot
                 val cursor = this@Tx.dataStore.openCursor(subTx)
-                val end = this.range.last.toKey()
-                cursor.getSearchKey(this.range.first.toKey())
+                cursor.getSearchKey(this.start.toKey())
 
                 /* Calculate a few values for future reference. */
                 val columns = this@Tx.columns
                 val produces = this@VAFIndex.produces(predicate).toTypedArray()
+                var tupleId: TupleId
                 var threshold = Double.MAX_VALUE
-                while (cursor.next && cursor.key < end) {
+                while (cursor.next) {
+                    tupleId = LongBinding.compressedEntryToLong(cursor.key)
+                    if (tupleId > this.end) break
                     val signature = VAFSignature.Binding.entryToValue(cursor.value)
                     if (this.selection.added < this.predicate.k || this.bounds.isVASSACandidate(signature, threshold)) {
-                        val tupleId = LongBinding.compressedEntryToLong(cursor.key)
-                        val value = this.entityTx.read(tupleId, columns)[columns[0]] as VectorValue<*>
+                        val value = this.entityTx.read(tupleId, columns)[0] as VectorValue<*>
                         val distance = this.predicate.distance(this.query, value)!!
                         threshold = min(threshold, distance.value)
                         this.selection.offer(StandaloneRecord(tupleId, produces, arrayOf(distance, value)))
                     }
                 }
-
                 /* Log efficiency of VAF scan. */
-                LOGGER.info("VAF scan: Skipped over ${(1.0 - this.selection.added.toDouble() / this@Tx.count()) * 100}% of entries.")
+                LOGGER.debug("VAF scan: Read ${this.selection.added} and skipped over ${(1.0 - this.selection.added.toDouble() / this@Tx.count()) * 100}% of entries.")
 
                 /* Close Xodus cursor. */
                 cursor.close()
