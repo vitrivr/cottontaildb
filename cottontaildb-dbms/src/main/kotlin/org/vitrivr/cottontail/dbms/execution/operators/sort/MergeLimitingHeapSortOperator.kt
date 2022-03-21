@@ -43,7 +43,7 @@ class MergeLimitingHeapSortOperator(parents: List<Operator>, val context: Bindin
         val parents = this@MergeLimitingHeapSortOperator.parents.map { it.toFlow(context) }.toTypedArray()
         val selection = HeapSelection(this@MergeLimitingHeapSortOperator.limit, this@MergeLimitingHeapSortOperator.comparator)
         flowOf(*parents).flattenMerge(parents.size).collect {
-            selection.offer(it.copy()) /* Important: Materialization! */
+            selection.offer(it)
         }
 
         /* Emit sorted and limited values. */
