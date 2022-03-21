@@ -335,116 +335,119 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
          * @param partitions The total number of partitions for this [filterRange] call.
          * @return The resulting [Iterator].
          */
-        override fun filterRange(predicate: Predicate, partitionIndex: Int, partitions: Int) = object : Cursor<Record> {
+        override fun filterRange(predicate: Predicate, partitionIndex: Int, partitions: Int) = this.txLatch.withLock {
+            object : Cursor<Record> {
 
-            /** Cast to [ProximityPredicate] (if such a cast is possible).  */
-            private val predicate = predicate as ProximityPredicate
+                /** Cast to [ProximityPredicate] (if such a cast is possible).  */
+                private val predicate = predicate as ProximityPredicate
 
-            /** [VectorValue] used for query. Must be prepared before using the [Iterator]. */
-            private val query: RealVectorValue<*>
+                /** [VectorValue] used for query. Must be prepared before using the [Iterator]. */
+                private val query: RealVectorValue<*>
 
-            /** The [Bounds] objects used for filtering. */
-            private val bounds: Bounds
+                /** The [Bounds] objects used for filtering. */
+                private val bounds: Bounds
 
-            /** Internal [EntityTx] used to access actual values. */
-            private val entityTx = this@Tx.context.getTx(this@VAFIndex.parent) as EntityTx
+                /** Internal [EntityTx] used to access actual values. */
+                private val entityTx = this@Tx.context.getTx(this@VAFIndex.parent) as EntityTx
 
-            /** The [HeapSelection] use for finding the top k entries. */
-            private var selection = HeapSelection(this.predicate.k.toLong(), RecordComparator.SingleNonNullColumnComparator(this.predicate.distanceColumn, SortOrder.ASCENDING))
-
-            /** Cached in-memory version of the [VAFMarks] used by this [Cursor]. */
-            private val marks = this@Tx.marks ?: throw IllegalStateException("VAFMarks could not be obtained. This is a programmer's error!")
-
-            /** First [TupleId] this [Cursor] covers. */
-            private val start: Long
-
-            /** Last [TupleId] this [Cursor] covers. */
-            private val end: Long
-
-            /** The current [Cursor] position. */
-            private var position = -1L
-
-            init {
-                val value = this.predicate.query.value
-                check(value is RealVectorValue<*>) { "Bound value for query vector has wrong type (found = ${value?.type})." }
-                this.query = value
-                this.bounds = when (this.predicate.distance) {
-                    is ManhattanDistance<*> -> L1Bounds(this.query, this.marks)
-                    is EuclideanDistance<*> -> L2Bounds(this.query, this.marks)
-                    is SquaredEuclideanDistance<*> -> L2SBounds(this.query, this.marks)
-                    else -> throw IllegalArgumentException("The ${this.predicate.distance} distance kernel is not supported by VAFIndex.")
+                /** The [HeapSelection] use for finding the top k entries. */
+                private var selection = when (this.predicate) {
+                    is ProximityPredicate.NNS -> HeapSelection(this.predicate.k.toLong(), RecordComparator.SingleNonNullColumnComparator(this.predicate.distanceColumn, SortOrder.ASCENDING))
+                    is ProximityPredicate.FNS -> HeapSelection(this.predicate.k.toLong(), RecordComparator.SingleNonNullColumnComparator(this.predicate.distanceColumn, SortOrder.ASCENDING))
                 }
 
-                /* Calculate partition size and create iterator. */
-                val maximumTupleId = this.entityTx.maxTupleId()
-                val partitionSize = floorDiv(maximumTupleId, partitions) + 1
-                this.start = partitionSize * partitionIndex
-                this.end = min(partitionSize * (partitionIndex + 1), maximumTupleId)
+                /** Cached in-memory version of the [VAFMarks] used by this [Cursor]. */
+                private val marks = this@Tx.marks ?: throw IllegalStateException("VAFMarks could not be obtained. This is a programmer's error!")
 
-                /* Prepares the result set. */
-                this.prepare()
-            }
+                /** First [TupleId] this [Cursor] covers. */
+                private val start: Long
 
-            /**
-             * Moves the internal cursor and return true, as long as new candidates appear.
-             */
-            override fun moveNext(): Boolean = if (this.position < this.selection.size - 1L) {
-                this.position += 1L
-                true
-            } else {
-                false
-            }
+                /** Last [TupleId] this [Cursor] covers. */
+                private val end: Long
 
-            /**
-             * Returns the current [TupleId] this [Cursor] is pointing to.
-             *
-             * @return [TupleId]
-             */
-            override fun key(): TupleId = this.selection[this.position].tupleId
+                /** The current [Cursor] position. */
+                private var position = -1L
 
-            /**
-             * Returns the current [Record] this [Cursor] is pointing to.
-             *
-             * @return [TupleId]
-             */
-            override fun value(): Record = this.selection[this.position]
-
-            /**
-             * Closes this [Cursor]
-             */
-            override fun close() { }
-
-            /**
-             * Prepares the result set using the [VAFIndex].
-             */
-            private fun prepare() {
-                /* Initialize cursor. */
-                val subTx = this@Tx.context.xodusTx.readonlySnapshot
-                val cursor = this@Tx.dataStore.openCursor(subTx)
-                cursor.getSearchKey(this.start.toKey())
-
-                /* Calculate a few values for future reference. */
-                val columns = this@Tx.columns
-                val produces = this@VAFIndex.produces(predicate).toTypedArray()
-                var tupleId: TupleId
-                var threshold = Double.MAX_VALUE
-                while (cursor.next) {
-                    tupleId = LongBinding.compressedEntryToLong(cursor.key)
-                    if (tupleId > this.end) break
-                    val signature = VAFSignature.Binding.entryToValue(cursor.value)
-                    if (this.selection.added < this.predicate.k || this.bounds.isVASSACandidate(signature, threshold)) {
-                        val value = this.entityTx.read(tupleId, columns)[0] as VectorValue<*>
-                        val distance = this.predicate.distance(this.query, value)!!
-                        threshold = min(threshold, distance.value)
-                        this.selection.offer(StandaloneRecord(tupleId, produces, arrayOf(distance, value)))
+                init {
+                    val value = this.predicate.query.value
+                    check(value is RealVectorValue<*>) { "Bound value for query vector has wrong type (found = ${value?.type})." }
+                    this.query = value
+                    this.bounds = when (this.predicate.distance) {
+                        is ManhattanDistance<*> -> L1Bounds(this.query, this.marks)
+                        is EuclideanDistance<*> -> L2Bounds(this.query, this.marks)
+                        is SquaredEuclideanDistance<*> -> L2SBounds(this.query, this.marks)
+                        else -> throw IllegalArgumentException("The ${this.predicate.distance} distance kernel is not supported by VAFIndex.")
                     }
-                }
-                /* Log efficiency of VAF scan. */
-                LOGGER.debug("VAF scan: Read ${this.selection.added} and skipped over ${(1.0 - this.selection.added.toDouble() / this@Tx.count()) * 100}% of entries.")
 
-                /* Close Xodus cursor. */
-                cursor.close()
-                subTx.abort()
+                    /* Calculate partition size and create iterator. */
+                    val maximumTupleId = this.entityTx.maxTupleId()
+                    val partitionSize = floorDiv(maximumTupleId, partitions) + 1
+                    this.start = partitionSize * partitionIndex
+                    this.end = min(partitionSize * (partitionIndex + 1), maximumTupleId)
+                }
+
+                /**
+                 * Moves the internal cursor and return true, as long as new candidates appear.
+                 */
+                override fun moveNext(): Boolean {
+                    if (this.selection.added == 0L) this.prepare()
+                    return (++this.position) < this.selection.size
+                }
+
+                /**
+                 * Returns the current [TupleId] this [Cursor] is pointing to.
+                 *
+                 * @return [TupleId]
+                 */
+                override fun key(): TupleId = this.selection[this.position].tupleId
+
+                /**
+                 * Returns the current [Record] this [Cursor] is pointing to.
+                 *
+                 * @return [TupleId]
+                 */
+                override fun value(): Record = this.selection[this.position]
+
+                /**
+                 * Closes this [Cursor]
+                 */
+                override fun close() { }
+
+                /**
+                 * Prepares the result set using the [VAFIndex].
+                 */
+                private fun prepare() {
+                    /* Initialize cursor. */
+                    val subTx = this@Tx.context.xodusTx.readonlySnapshot
+                    val cursor = this@Tx.dataStore.openCursor(subTx)
+                    cursor.getSearchKey(this.start.toKey())
+
+                    /* Calculate a few values for future reference. */
+                    val columns = this@Tx.columns
+                    val produces = this@VAFIndex.produces(predicate).toTypedArray()
+                    var tupleId: TupleId
+                    var threshold = Double.MAX_VALUE
+                    while (cursor.next) {
+                        tupleId = LongBinding.compressedEntryToLong(cursor.key)
+                        if (tupleId > this.end) break
+                        val signature = VAFSignature.Binding.entryToValue(cursor.value)
+                        if (this.selection.added < this.predicate.k || this.bounds.isVASSACandidate(signature, threshold)) {
+                            val value = this.entityTx.read(tupleId, columns)[0] as VectorValue<*>
+                            val distance = this.predicate.distance(this.query, value)!!
+                            threshold = when (this.predicate) {
+                                is ProximityPredicate.NNS -> kotlin.math.min(threshold, distance.value)
+                                is ProximityPredicate.FNS -> kotlin.math.max(threshold, distance.value)
+                            }
+                            this.selection.offer(StandaloneRecord(tupleId, produces, arrayOf(distance, value)))
+                        }
+                    }
+                    /* Log efficiency of VAF scan. */
+                    LOGGER.debug("VAF scan: Read ${this.selection.added} and skipped over ${(1.0 - this.selection.added.toDouble() / this@Tx.count()) * 100}% of entries.")
+
+                    /* Close Xodus cursor. */
+                    cursor.close()
+                    subTx.abort()
+                }
             }
         }
     }
