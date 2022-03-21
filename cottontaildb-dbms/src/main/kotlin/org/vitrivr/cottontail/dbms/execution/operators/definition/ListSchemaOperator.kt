@@ -9,7 +9,6 @@ import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.StringValue
 import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.execution.TransactionContext
@@ -26,7 +25,7 @@ class ListSchemaOperator(val catalogue: DefaultCatalogue) : Operator.SourceOpera
     companion object {
         val COLUMNS: List<ColumnDef<*>> = listOf(
             ColumnDef(Name.ColumnName(Constants.COLUMN_NAME_DBO), Types.String, false),
-            ColumnDef(Name.ColumnName(Constants.COLUMN_NAME_CLASS), Types.String, false)
+            ColumnDef(Name.ColumnName(Constants.COLUMN_NAME_CLASS), Types.String, false),
         )
     }
 
@@ -35,13 +34,10 @@ class ListSchemaOperator(val catalogue: DefaultCatalogue) : Operator.SourceOpera
     override fun toFlow(context: TransactionContext): Flow<Record> {
         val txn = context.getTx(this.catalogue) as CatalogueTx
         val columns = this@ListSchemaOperator.columns.toTypedArray()
-        val values = arrayOfNulls<Value?>(columns.size)
-        values[1] = StringValue("SCHEMA")
         return flow {
             var i = 0L
             for (schema in txn.listSchemas()) {
-                values[0] = StringValue(schema.toString())
-                emit(StandaloneRecord(i++, columns, values))
+                emit(StandaloneRecord(i++, columns, arrayOf(StringValue(schema.fqn), StringValue("SCHEMA"))))
             }
         }
     }

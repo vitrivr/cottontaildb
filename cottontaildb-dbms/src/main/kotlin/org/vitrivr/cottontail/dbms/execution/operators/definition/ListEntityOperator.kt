@@ -9,7 +9,6 @@ import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.StringValue
 import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.entity.Entity
@@ -40,15 +39,12 @@ class ListEntityOperator(val catalogue: DefaultCatalogue, val schema: Name.Schem
             txn.listSchemas().map { txn.schemaForName(it) }
         }
         val columns = this.columns.toTypedArray()
-        val values = arrayOfNulls<Value?>(columns.size)
-        values[1] = StringValue("ENTITY")
         return flow {
             var i = 0L
             for (schema in schemas) {
                 val schemaTxn = context.getTx(schema) as SchemaTx
                 for (entity in schemaTxn.listEntities()) {
-                    values[0] = StringValue(entity.toString())
-                    emit(StandaloneRecord(i++, columns, values))
+                    emit(StandaloneRecord(i++, columns, arrayOf(StringValue(entity.fqn),StringValue("ENTITY"))))
                 }
             }
         }
