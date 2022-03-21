@@ -91,12 +91,6 @@ sealed interface Types<T : Value> {
     /** The [ValueGenerator] used to create instances of this [Types]. */
     val generator: ValueGenerator<T>
 
-    /** Checks if the given [Value] is compatible with this [Types].
-     *
-     * @param value The [Value] to check.
-     */
-    fun compatible(value: Value) = this == value.type
-
     /** Returns the default value for this [Types]. */
     fun defaultValue(): T
 
@@ -106,11 +100,8 @@ sealed interface Types<T : Value> {
     sealed class Scalar<T: ScalarValue<*>>: Types<T> {
         override val logicalSize
             get() = 1
-        override fun equals(other: Any?): kotlin.Boolean {
-            if (this === other) return true
-            if (other !is Scalar<*>) return false
-            return other.ordinal == this.ordinal
-        }
+        override fun equals(other: Any?): kotlin.Boolean
+            = (this === other) || (other is Scalar<*> && other.ordinal == this.ordinal)
         override fun hashCode(): kotlin.Int = this.ordinal.hashCode()
         override fun toString(): kotlin.String = this.name
     }
@@ -135,12 +126,9 @@ sealed interface Types<T : Value> {
         /** The element type of this [Vector] type. */
         abstract val elementType: Scalar<E>
         abstract override val generator: VectorValueGenerator<T>
-        override fun equals(other: Any?): kotlin.Boolean {
-            if (this === other) return true
-            if (other !is Vector<*,*>) return false
-            return other.ordinal == this.ordinal && other.logicalSize == this.logicalSize
-        }
         override fun defaultValue() = this.generator.zero(this.logicalSize)
+        override fun equals(other: Any?): kotlin.Boolean =
+            (this === other) || (other is Vector<*,*> && other.ordinal == this.ordinal && other.logicalSize == this.logicalSize)
         override fun hashCode(): kotlin.Int = 31 * this.ordinal.hashCode() + this.logicalSize.hashCode()
         override fun toString(): kotlin.String = "${this.name}(${this.logicalSize})"
     }
