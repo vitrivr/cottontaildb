@@ -82,20 +82,26 @@ class LimitingSortPhysicalOperatorNode(input: Physical? = null, override val sor
      * @return Array of [OperatorNode.Physical]s.
      */
     override fun tryPartition(partitions: Int, p: Int?): Physical? {
-        val input = this.input ?: return null
-        if (p != null) { /* If p is set, simply copy and propagate upwards. */
-            val copy = this.copy()
-            copy.input = (this.input?.tryPartition(partitions, p) ?: throw IllegalStateException("Tried to propagate call to tryPartition($partitions, $p), which returned null. This is a programmer's error!"))
-            return copy
-        } else if (input.canBePartitioned) {
-            val inbound = (0 until partitions).map {
-                input.tryPartition(partitions, it) ?: throw IllegalStateException("Tried to propagate call to tryPartition($partitions, $it), which returned null. This is a programmer's error!")
+        val input = this.input
+        if (input != null) {
+            if (p != null) { /* If p is set, simply copy and propagate upwards. */
+                val copy = this.copy()
+                copy.input = (this.input?.tryPartition(partitions, p) ?: throw IllegalStateException("Tried to propagate call to tryPartition($partitions, $p), which returned null. This is a programmer's error!"))
+                return copy
             }
-            val merge = MergeLimitingSortPhysicalOperator(inputs = inbound.toTypedArray(), sortOn = this.sortOn, limit = this.limit)
-            return this.output?.copyWithOutput(merge)
+            val newp = input.totalCost.parallelisation()
+            if (newp > 1) {
+                return if (input.canBePartitioned) {
+                    val inbound = (0 until newp).map {
+                        input.tryPartition(newp, it) ?: throw IllegalStateException("Tried to propagate call to tryPartition($partitions, $it), which returned null. This is a programmer's error!")
+                    }
+                    this.output?.copyWithOutput(MergeLimitingSortPhysicalOperator(inputs = inbound.toTypedArray(), sortOn = this.sortOn, limit = this.limit))
+                } else {
+                    input.tryPartition(newp)
+                }
+            }
         }
-        val newp = this.totalCost.parallelisation()
-        return input.tryPartition(newp)
+        return null
     }
 
     /** Generates and returns a [String] representation of this [SortPhysicalOperatorNode]. */
