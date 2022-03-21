@@ -11,7 +11,7 @@ import org.vitrivr.cottontail.core.values.types.Value
  * This class acts as a level of indirection for [Value]'s used during query planning, optimization and execution.
  *
  * @author Ralph Gasser
- * @version 1.3.0
+ * @version 1.4.0
  */
 sealed interface Binding: Node {
 
@@ -20,6 +20,9 @@ sealed interface Binding: Node {
 
     /** The [Types] held by this [Binding]. */
     val type: Types<*>
+
+    /** Flag indicating whether [Binding] can return a NULL value. */
+    val canBeNull: Boolean
 
     /** Flag indicating whether [Binding] remains static in the context of a query. */
     val static: Boolean
@@ -35,14 +38,14 @@ sealed interface Binding: Node {
     override fun copy(): Binding
 
     /** A [Binding] for a literal [Value] without any indirection other than the [Binding] itself. */
-    data class Literal(val bindingIndex: Int, override val type: Types<*>, override var context: BindingContext): Binding {
+    data class Literal(val bindingIndex: Int, override val canBeNull: Boolean, override val type: Types<*>, override var context: BindingContext): Binding {
         override val value: Value?
             get() = this.context[this]
         override val static: Boolean
             get() = true
         override val cost: Cost
             get() = Cost.MEMORY_ACCESS
-        override fun copy() = Literal(this.bindingIndex, this.type, this.context)
+        override fun copy() = Literal(this.bindingIndex, this.canBeNull, this.type, this.context)
         override fun digest(): Digest= this.hashCode().toLong()
         override fun bind(context: BindingContext) {
             this.context = context
@@ -57,6 +60,8 @@ sealed interface Binding: Node {
             get() = this.context[this]
         override val type: Types<*>
             get() = this.column.type
+        override val canBeNull: Boolean
+            get() = this.column.nullable
         override val static: Boolean
             get() = false
         override val cost: Cost
@@ -81,6 +86,8 @@ sealed interface Binding: Node {
             get() = this.context[this]
         override val type: Types<*>
             get() = this.function.signature.returnType
+        override val canBeNull: Boolean
+            get() = this.arguments.any { it.canBeNull }
         override val cost: Cost
             get() = this.function.cost + this.arguments.map { it.cost }.reduce { c1, c2 -> c1 + c2}
         override val static: Boolean

@@ -254,7 +254,7 @@ object GrpcQueryBinder {
             throw QueryException.QueryBindException("Failed to bind query. UPDATES only support entity sources as FROM-clause.")
         }
         val entity: EntityTx = from.entity
-        var root: org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Logical = from
+        var root: OperatorNode.Logical = from
 
         /* Create WHERE-clause. */
         root = if (delete.hasWhere()) {
@@ -276,7 +276,7 @@ object GrpcQueryBinder {
      *
      * @return The resulting [OperatorNode.Logical].
      */
-    private fun parseAndBindFrom(from: CottontailGrpc.From, columns: Map<Name.ColumnName, Name>, context: QueryContext): org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Logical = try {
+    private fun parseAndBindFrom(from: CottontailGrpc.From, columns: Map<Name.ColumnName, Name>, context: QueryContext): OperatorNode.Logical = try {
         when (from.fromCase) {
             CottontailGrpc.From.FromCase.SCAN -> {
                 val entity = parseAndBindEntity(from.scan.entity, context)
@@ -339,7 +339,7 @@ object GrpcQueryBinder {
      *
      * @return The resulting [BooleanPredicate].
      */
-    private fun parseAndBindBooleanPredicate(input: org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Logical, where: CottontailGrpc.Where, context: QueryContext): org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Logical {
+    private fun parseAndBindBooleanPredicate(input:OperatorNode.Logical, where: CottontailGrpc.Where, context: QueryContext): OperatorNode.Logical {
         val predicate = when (where.predicateCase) {
             CottontailGrpc.Where.PredicateCase.ATOMIC -> parseAndBindAtomicBooleanPredicate(input, where.atomic, context)
             CottontailGrpc.Where.PredicateCase.COMPOUND -> parseAndBindCompoundBooleanPredicate(input, where.compound, context)
@@ -366,7 +366,7 @@ object GrpcQueryBinder {
 
      * @return The resulting [BooleanPredicate.Compound].
      */
-    private fun parseAndBindCompoundBooleanPredicate(input: org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Logical, compound: CottontailGrpc.CompoundBooleanPredicate, context: QueryContext): BooleanPredicate.Compound {
+    private fun parseAndBindCompoundBooleanPredicate(input: OperatorNode.Logical, compound: CottontailGrpc.CompoundBooleanPredicate, context: QueryContext): BooleanPredicate.Compound {
         val left = when (compound.leftCase) {
             CottontailGrpc.CompoundBooleanPredicate.LeftCase.ALEFT -> parseAndBindAtomicBooleanPredicate(input, compound.aleft, context)
             CottontailGrpc.CompoundBooleanPredicate.LeftCase.CLEFT -> parseAndBindCompoundBooleanPredicate(input, compound.cleft, context)
@@ -395,7 +395,7 @@ object GrpcQueryBinder {
      *
      * @return The resulting [BooleanPredicate.Atomic].
      */
-    private fun parseAndBindAtomicBooleanPredicate(input: org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Logical, atomic: CottontailGrpc.AtomicBooleanPredicate, context: QueryContext): BooleanPredicate.Atomic {
+    private fun parseAndBindAtomicBooleanPredicate(input: OperatorNode.Logical, atomic: CottontailGrpc.AtomicBooleanPredicate, context: QueryContext): BooleanPredicate.Atomic {
         /* Parse and bind column name to input */
         val left = context.bindings.bind(input.findUniqueColumnForName(atomic.left.fqn()))
         var dependsOn = 0
@@ -475,7 +475,7 @@ object GrpcQueryBinder {
      *
      * @return The resulting [SortLogicalOperatorNode].
      */
-    private fun parseAndBindFunction(input: org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Logical, function: CottontailGrpc.Function, name: Name.ColumnName, context: QueryContext): org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Logical {
+    private fun parseAndBindFunction(input: OperatorNode.Logical, function: CottontailGrpc.Function, name: Name.ColumnName, context: QueryContext): OperatorNode.Logical {
         val arguments = function.argumentsList.mapIndexed { i, a ->
             when (a.expCase) {
                 CottontailGrpc.Expression.ExpCase.LITERAL -> context.bindings.bind(a.literal.toValue())
@@ -493,7 +493,7 @@ object GrpcQueryBinder {
             throw QueryException.QueryBindException("Desired function $signature could not be found.")
         }
         val functionBinding = context.bindings.bind(functionInstance, arguments)
-        val outBinding = context.bindings.bind(ColumnDef(name, functionInstance.signature.returnType))
+        val outBinding = context.bindings.bind(ColumnDef(name, functionInstance.signature.returnType, functionBinding.canBeNull))
         return FunctionLogicalOperatorNode(input, functionBinding, outBinding)
     }
 
@@ -506,7 +506,7 @@ object GrpcQueryBinder {
      *
      * @return The resulting [SortLogicalOperatorNode].
      */
-    private fun parseAndBindNestedFunction(input: org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Logical, function: CottontailGrpc.Function, context: QueryContext): Binding.Function {
+    private fun parseAndBindNestedFunction(input: OperatorNode.Logical, function: CottontailGrpc.Function, context: QueryContext): Binding.Function {
         val arguments = function.argumentsList.mapIndexed { i, a ->
             when (a.expCase) {
                 CottontailGrpc.Expression.ExpCase.LITERAL -> context.bindings.bind(a.literal.toValue())
@@ -535,7 +535,7 @@ object GrpcQueryBinder {
      *
      * @return The resulting [SortLogicalOperatorNode].
      */
-    private fun parseAndBindOrder(input: org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Logical, order: CottontailGrpc.Order, context: QueryContext): org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Logical {
+    private fun parseAndBindOrder(input: OperatorNode.Logical, order: CottontailGrpc.Order, context: QueryContext): OperatorNode.Logical {
         val sortOn = order.componentsList.map { input.findUniqueColumnForName(it.column.fqn()) to SortOrder.valueOf(it.direction.toString()) }
         return SortLogicalOperatorNode(input, sortOn)
     }
@@ -546,11 +546,10 @@ object GrpcQueryBinder {
      * @param input The [OperatorNode.Logical] on which to perform projection.
      * @param projection Map of output [Name.ColumnName] to input [Name].
      * @param context The [QueryContext] used for query binding.
-     * @param simplify Flag indicating, that only simple names should be used (i.e. not FQNs).
      *
      * @return The resulting [SelectProjectionLogicalOperatorNode].
      */
-    private fun parseAndBindProjection(input: org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Logical, projection: Map<Name.ColumnName, Name>, op: Projection, context: QueryContext, simplify: Boolean = false): org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Logical = try {
+    private fun parseAndBindProjection(input: OperatorNode.Logical, projection: Map<Name.ColumnName, Name>, op: Projection, context: QueryContext): OperatorNode.Logical = try {
         when (op) {
             Projection.SELECT,
             Projection.SELECT_DISTINCT -> {
@@ -600,7 +599,7 @@ object GrpcQueryBinder {
     private fun parseProjectionColumns(projection: CottontailGrpc.Projection, simplify: Boolean = false): Map<Name.ColumnName, Name> {
         val map = Object2ObjectLinkedOpenHashMap<Name.ColumnName, Name>()
         projection.elementsList.forEachIndexed { i, e ->
-            when (val exp = e.expression.expCase) {
+            when (e.expression.expCase) {
                 CottontailGrpc.Expression.ExpCase.COLUMN -> {
                     /* Sanity check; star projections can't have aliases. */
                     if (e.expression.column.name == "*" && e.hasAlias()) {
@@ -648,7 +647,7 @@ object GrpcQueryBinder {
      * @param name [Name.ColumnName] to look for.
      * @return [ColumnDef] that uniquely matches the [Name.ColumnName]
      */
-    private fun org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Logical.findUniqueColumnForName(name: Name.ColumnName): ColumnDef<*> {
+    private fun OperatorNode.Logical.findUniqueColumnForName(name: Name.ColumnName): ColumnDef<*> {
         val candidates = this.findColumnsForName(name)
         if (candidates.isEmpty()) throw QueryException.QueryBindException("Could not find column '$name' in input.")
         if (candidates.size > 1) throw QueryException.QueryBindException("Multiple candidates for column '$name' in input.")
@@ -661,6 +660,6 @@ object GrpcQueryBinder {
      * @param name [Name.ColumnName] to look for.
      * @return List of [ColumnDef] that  match the [Name.ColumnName]
      */
-    private fun org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Logical.findColumnsForName(name: Name.ColumnName): List<ColumnDef<*>> =
+    private fun OperatorNode.Logical.findColumnsForName(name: Name.ColumnName): List<ColumnDef<*>> =
         this.columns.filter { name.matches(it.name) }
 }

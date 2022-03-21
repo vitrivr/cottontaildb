@@ -75,7 +75,7 @@ class DefaultBindingContext(): BindingContext {
     override fun bind(value: Value): Binding.Literal {
         val bindingIndex = this.boundLiterals.size
         check(this.boundLiterals.add(value)) { "Failed to add $value to list of bound values for index $bindingIndex." }
-        return Binding.Literal(bindingIndex, value.type, this)
+        return Binding.Literal(bindingIndex, false, value.type, this)
     }
 
     /**
@@ -87,7 +87,7 @@ class DefaultBindingContext(): BindingContext {
     override fun bindNull(type: Types<*>): Binding.Literal {
         val bindingIndex = this.boundLiterals.size
         check(this.boundLiterals.add(null)) { "Failed to add null to list of bound values for index $bindingIndex." }
-        return Binding.Literal(bindingIndex, type, this)
+        return Binding.Literal(bindingIndex, true, type, this)
     }
 
     /**
