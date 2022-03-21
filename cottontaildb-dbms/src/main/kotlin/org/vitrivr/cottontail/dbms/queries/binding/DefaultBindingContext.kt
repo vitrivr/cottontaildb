@@ -1,12 +1,10 @@
 package org.vitrivr.cottontail.dbms.queries.binding
 
-import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.functions.Function
-import org.vitrivr.cottontail.core.queries.functions.Signature
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
 
@@ -20,13 +18,13 @@ import org.vitrivr.cottontail.core.values.types.Value
  * @author Ralph Gasser
  * @version 1.2.0
  */
-class DefaultBindingContext(startSize: Int = 100) : BindingContext {
+class DefaultBindingContext(): BindingContext {
 
     /** List of bound [Value]s used to resolve [Binding.Literal] in this [BindingContext]. */
-    private val boundLiterals = ArrayList<Value?>(startSize)
+    private val boundLiterals = ArrayList<Value?>(100)
 
     /** List of bound [Function]s used to resolve [Binding.Function] in this [BindingContext]. */
-    private val boundFunctions = Object2ObjectOpenHashMap<Signature.Closed<*>, Array<Value?>>()
+    private val boundFunctions = ArrayList<Array<Value?>>(10)
 
     /** The currently bound [Record]. */
     private var boundRecord: Record? = null
@@ -61,7 +59,7 @@ class DefaultBindingContext(startSize: Int = 100) : BindingContext {
      */
     override operator fun get(binding: Binding.Function): Value? {
         require(binding.context == this) { "The given binding $binding has not been registered with this binding context." }
-        val arguments = this.boundFunctions[binding.function.signature] ?: throw IllegalStateException("No arguments array registered for function ${binding.function}.")
+        val arguments = this.boundFunctions[binding.bindingIndex]
         for ((i,a) in binding.arguments.withIndex()) {
             arguments[i] = a.value
         }
@@ -110,8 +108,9 @@ class DefaultBindingContext(startSize: Int = 100) : BindingContext {
      */
     override fun bind(function: Function<*>, arguments: List<Binding>): Binding.Function {
         check(arguments.all { it.context == this }) { "Failed to create function binding. Cannot combine function call with arguments from different cntext."}
-        this.boundFunctions.putIfAbsent(function.signature, arrayOfNulls(arguments.size))
-        return Binding.Function(function, arguments, this)
+        val bindingIndex = this.boundFunctions.size
+        check(this.boundFunctions.add(arrayOfNulls(arguments.size))) { "Failed to add $function to list of bound functions for index $bindingIndex." }
+        return Binding.Function(bindingIndex, function, arguments, this)
     }
 
     /**
@@ -123,7 +122,7 @@ class DefaultBindingContext(startSize: Int = 100) : BindingContext {
      */
     override fun update(binding: Binding.Literal, value: Value?) {
         require(binding.context == this) { "The given binding $binding has not been registered with this binding context." }
-        require(value == null || binding.type.compatible(value)) { "Value $value cannot be bound to $binding because of type mismatch (${binding.type})."}
+        require(value == null || binding.type == value.type) { "Value $value cannot be bound to $binding because of type mismatch (${binding.type})."}
         this.boundLiterals[binding.bindingIndex] = value
     }
 
@@ -142,9 +141,9 @@ class DefaultBindingContext(startSize: Int = 100) : BindingContext {
      * @return Copy of this [DefaultBindingContext].
      */
     override fun copy(): BindingContext {
-        val copy = DefaultBindingContext(this.boundLiterals.size)
+        val copy = DefaultBindingContext()
         this.boundLiterals.forEach { copy.boundLiterals.add(it) }
-        this.boundFunctions.forEach { (k,v) -> copy.boundFunctions[k] = v.copyOf() }
+        this.boundFunctions.forEach { copy.boundFunctions.add(it.copyOf()) }
         copy.boundRecord = this.boundRecord
         return copy
     }
