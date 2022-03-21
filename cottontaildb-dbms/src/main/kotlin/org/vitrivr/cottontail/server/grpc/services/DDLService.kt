@@ -92,7 +92,7 @@ class DDLService(override val catalogue: DefaultCatalogue, override val manager:
         } else {
             null
         }
-        HeapSortOperator(ListEntityOperator(this.catalogue, schemaName), listOf(Pair(ListSchemaOperator.COLUMNS[0], SortOrder.ASCENDING)), 100)
+        HeapSortOperator(ListEntityOperator(this.catalogue, schemaName), listOf(Pair(ListEntityOperator.COLUMNS[0], SortOrder.ASCENDING)), 100)
     }
 
     /**
