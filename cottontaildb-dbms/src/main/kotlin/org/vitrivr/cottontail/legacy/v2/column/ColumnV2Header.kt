@@ -38,8 +38,9 @@ data class ColumnV2Header(
             val version = DBOVersion.values()[input.unpackInt()]
             if (version != DBOVersion.V2_0)
                 throw DatabaseException.VersionMismatchException(version, DBOVersion.V2_0)
+            val names = input.readUTF().split('.').toTypedArray()
             val def = ColumnDef(
-                Name.ColumnName(input.readUTF().split('.').toTypedArray()),
+                Name.ColumnName(names[1], names[2], names[3]),
                 Types.forOrdinal(input.unpackInt(), input.unpackInt()),
                 input.readBoolean(),
                 input.readBoolean()

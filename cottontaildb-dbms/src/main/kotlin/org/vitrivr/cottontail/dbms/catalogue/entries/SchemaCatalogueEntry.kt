@@ -1,7 +1,6 @@
 package org.vitrivr.cottontail.dbms.catalogue.entries
 
 import jetbrains.exodus.bindings.ComparableBinding
-import jetbrains.exodus.bindings.StringBinding
 import jetbrains.exodus.env.Store
 import jetbrains.exodus.env.StoreConfig
 import jetbrains.exodus.env.Transaction
@@ -99,10 +98,10 @@ data class SchemaCatalogueEntry(val name: Name.SchemaName): Comparable<SchemaCat
         internal fun delete(name: Name.SchemaName, catalogue: DefaultCatalogue, transaction: Transaction): Boolean
             = store(catalogue, transaction).delete(transaction, NameBinding.Schema.objectToEntry(name))
 
-        override fun readObject(stream: ByteArrayInputStream) = SchemaCatalogueEntry(Name.SchemaName(StringBinding.BINDING.readObject(stream)))
+        override fun readObject(stream: ByteArrayInputStream) = SchemaCatalogueEntry(NameBinding.Schema.readObject(stream))
         override fun writeObject(output: LightOutputStream, `object`: Comparable<Nothing>) {
             require(`object` is SchemaCatalogueEntry) { "$`object` cannot be written as schema entry." }
-            StringBinding.BINDING.writeObject(output, `object`.name.components[1])
+            NameBinding.Schema.writeObject(output, `object`.name)
         }
     }
     override fun compareTo(other: SchemaCatalogueEntry): Int = this.name.toString().compareTo(other.name.toString())
