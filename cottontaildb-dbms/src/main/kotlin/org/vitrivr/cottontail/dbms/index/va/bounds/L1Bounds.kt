@@ -76,14 +76,14 @@ class L1Bounds(query: RealVectorValue<*>, marks: VAFMarks) : Bounds {
      * @return True if [VAFSignature] is a candidate, false otherwise.
      */
     override fun isVASSACandidate(signature: VAFSignature, threshold: Double): Boolean {
-        var lb = 0.0
+        var lb = threshold
         for ((j, rij) in signature.cells.withIndex()) {
             if (rij < this.rq[j]) {
-                lb += this.lat[j][rij + 1]
+                lb -= this.lat[j][rij + 1]
             } else if (rij > this.rq[j]) {
-                lb += this.lat[j][rij.toInt()]
+                lb -= this.lat[j][rij.toInt()]
             }
-            if (lb >= threshold) return false
+            if (lb <= 0) return false
         }
         return true
     }
