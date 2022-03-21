@@ -2,6 +2,8 @@ package org.vitrivr.cottontail.dbms.execution.operators.sources
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.GroupId
@@ -20,6 +22,11 @@ import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
  */
 class EntityScanOperator(groupId: GroupId, val entity: EntityTx, val fetch: List<Pair<Binding.Column, ColumnDef<*>>>, val partitionIndex: Int, val partitions: Int) : Operator.SourceOperator(groupId) {
 
+    companion object {
+        /** [Logger] instance used by [EntityScanOperator]. */
+        private val LOGGER: Logger = LoggerFactory.getLogger(EntityScanOperator::class.java)
+    }
+
     /** The [ColumnDef] fetched by this [EntityScanOperator]. */
     override val columns: List<ColumnDef<*>> = this.fetch.map { it.first.column }
 
@@ -33,15 +40,19 @@ class EntityScanOperator(groupId: GroupId, val entity: EntityTx, val fetch: List
         val fetch = this.fetch.map { it.second }.toTypedArray()
         val columns = this.fetch.map { it.first.column }.toTypedArray()
         return flow {
-            this@EntityScanOperator.entity.cursor(fetch, this@EntityScanOperator.partitionIndex, this@EntityScanOperator.partitions).use { cursor ->
-                while (cursor.moveNext()) {
-                    val next = cursor.value()
-                    val values = Array(columns.size) { next[it] }
-                    val record = StandaloneRecord(next.tupleId, columns, values)
-                    this@EntityScanOperator.fetch.first().first.context.update(record) /* Important: Make new record available to binding context. */
-                    emit(record)
+            val cursor = this@EntityScanOperator.entity.cursor(fetch, this@EntityScanOperator.partitionIndex, this@EntityScanOperator.partitions)
+            var read = 0
+            while (cursor.moveNext()) {
+                val next = cursor.value() as StandaloneRecord
+                for ((i,c) in columns.withIndex()) { /* Replace column designations. */
+                    next.columns[i] = c
                 }
+                this@EntityScanOperator.fetch.first().first.context.update(next) /* Important: Make new record available to binding context. */
+                emit(next)
+                read += 1
             }
+            cursor.close()
+            LOGGER.debug("Read $read entries from ${this@EntityScanOperator.entity.dbo.name}.")
         }
     }
 }

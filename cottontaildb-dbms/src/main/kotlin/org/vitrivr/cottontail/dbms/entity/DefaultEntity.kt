@@ -287,6 +287,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
         /**
          * Optimizes the [DefaultEntity] underlying this [Tx]. Optimization involves rebuilding of [Index]es and statistics.
          */
+        @Suppress("UNCHECKED_CAST")
         override fun optimize() = this.txLatch.withLock {
             val statistics = this.columns.values.map { /* Reset column statistics. */
                 val stat = it.statistics() as ValueStatistics<Value>
@@ -337,12 +338,8 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
          * @return [Cursor]
          */
         override fun cursor(columns: Array<ColumnDef<*>>, partitionIndex: Int, partitions: Int) = object : Cursor<Record> {
-
-            /** Array of [Value]s emitted by this [Iterator]. */
-            private val values = arrayOfNulls<Value?>(columns.size)
-
             /** The wrapped [Cursor] to iterate over columns. */
-            private val cursors: List<Cursor<out Value?>>
+            private val cursors: Array<Cursor<out Value?>>
 
             init {
                 val maxTupleId = this@Tx.maxTupleId()
@@ -351,7 +348,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
                 val endTupleId = min(((partitionIndex + 1) * partitionSize), maxTupleId)
                 this.cursors = columns.map {
                     this@Tx.columns[it.name]?.cursor(startTupleId, endTupleId) ?: throw IllegalStateException("Column $it missing in transaction.")
-                }
+                }.toTypedArray()
             }
 
             /**
@@ -362,25 +359,17 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
             /**
              * Returns the [Record] this [Cursor] is currently pointing to.
              */
-            override fun value(): Record = StandaloneRecord(this.cursors.first().key(), columns, this.values)
+            override fun value(): Record = StandaloneRecord(this.key(), columns, Array(columns.size) { this.cursors[it].value() })
 
             /**
              * Tries to move this [Cursor]. Returns true on success and false otherwise.
              */
-            override fun moveNext(): Boolean {
-                for ((i, c) in this.cursors.withIndex()) {
-                    if (!c.moveNext()) return false
-                    this.values[i] = c.value()
-                }
-                return true
-            }
+            override fun moveNext(): Boolean = this.cursors.all { it.moveNext() }
 
             /**
              * Closes this [Cursor].
              */
-            override fun close() {
-                this.cursors.forEach { it.close() }
-            }
+            override fun close() = this.cursors.forEach { it.close() }
         }
 
         /**
@@ -392,6 +381,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
          * @throws TxException If some of the [Tx] on [Column] or [Index] level caused an error.
          * @throws DatabaseException If a general database error occurs during the insert.
          */
+        @Suppress("UNCHECKED_CAST")
         override fun insert(record: Record): TupleId = this.txLatch.withLock {
             /* Execute INSERT on entity level. */
             val nextTupleId = SequenceCatalogueEntries.next(this@DefaultEntity.sequenceName, this@DefaultEntity.catalogue, this.context.xodusTx)
@@ -428,6 +418,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
          *
          * @throws DatabaseException If an error occurs during the insert.
          */
+        @Suppress("UNCHECKED_CAST")
         override fun update(record: Record) = this.txLatch.withLock {
             /* Execute UPDATE on column level. */
             val updates = Object2ObjectArrayMap<ColumnDef<*>, Pair<Value?, Value?>>(record.columns.size)

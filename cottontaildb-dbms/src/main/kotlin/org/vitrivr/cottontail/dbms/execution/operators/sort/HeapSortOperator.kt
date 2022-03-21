@@ -27,7 +27,7 @@ open class HeapSortOperator(parent: Operator, sortOn: List<Pair<ColumnDef<*>, So
         val parentFlow = this.parent.toFlow(context)
         return flow {
             val queue = ObjectHeapPriorityQueue(this@HeapSortOperator.queueSize, this@HeapSortOperator.comparator)
-            parentFlow.collect { queue.enqueue(it.copy()) } /* Important: Materialization! */
+            parentFlow.collect { queue.enqueue(it) }
             while (!queue.isEmpty) {
                 emit(queue.dequeue())
             }

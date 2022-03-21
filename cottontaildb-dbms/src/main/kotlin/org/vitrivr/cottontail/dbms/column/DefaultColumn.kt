@@ -1,6 +1,5 @@
 package org.vitrivr.cottontail.dbms.column
 
-import jetbrains.exodus.ArrayByteIterable
 import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.env.Store
 import jetbrains.exodus.env.StoreConfig
@@ -81,6 +80,7 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
         private val binding: XodusBinding<T> = ValueSerializerFactory.xodus(this@DefaultColumn.columnDef.type, this@DefaultColumn.nullable)
 
         /** Internal reference to the [ValueStatistics] for this [DefaultColumn]. */
+        @Suppress("UNCHECKED_CAST")
         private val statistics: ValueStatistics<T> = (StatisticsCatalogueEntry.read(this@DefaultColumn.name, this@DefaultColumn.catalogue, this.context.xodusTx)?.statistics
             ?: throw DatabaseException.DataCorruptionException("Failed to PUT value from ${this@DefaultColumn.name}: Reading column statistics failed.")) as ValueStatistics<T>
 
@@ -242,20 +242,52 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
                 /** Internal [Cursor] used for iteration. */
                 private val cursor: jetbrains.exodus.env.Cursor = this@Tx.dataStore.openCursor(this.subTransaction)
 
-                /** Serialize the start value to a [ArrayByteIterable]. */
-                private val start: ArrayByteIterable = start.toKey()
+                /** The [TupleId] this [Cursor] is currently pointing to. -1L is equivalent to BOF. */
+                private var tupleId: TupleId = -1L
 
-                /** Serialize the start value to a [ArrayByteIterable]. */
-                private val end: ArrayByteIterable = end.toKey()
+                /** The [TupleId] this [Cursor] is currently pointing to. -1L is equivalent to BOF. */
+                private var value: T? = null
 
+                /** Flag indicating, that data must be read from store. */
+                private var dirty: Boolean = true
+
+                /**
+                 * Tries to move this [Cursor] to the next entry.
+                 *
+                 * @return True on success, false otherwise,
+                 */
                 override fun moveNext(): Boolean {
-                    if (this.cursor.key < this.start) {
-                        return (this.cursor.getSearchKeyRange(this.start) != null)
+                    check(!this.subTransaction.isFinished) { "Cursor cannot be moved because associated transaction has completed!" }
+                    this.dirty = if (this.tupleId == -1L) {
+                        (this.cursor.getSearchKeyRange(start.toKey()) != null)
+                    } else {
+                        this.cursor.next
                     }
-                    return this.cursor.next && this.cursor.key <= this.end
+                    if (this.dirty) {
+                        this.tupleId = LongBinding.compressedEntryToLong(this.cursor.key)
+                    }
+                    return this.dirty && this.tupleId < end
                 }
-                override fun key(): TupleId = LongBinding.compressedEntryToLong(this.cursor.key)
-                override fun value(): T? = this.binding.entryToValue(this.cursor.value)
+
+                /**
+                 *
+                 */
+                override fun key(): TupleId = this.tupleId
+
+                /**
+                 *
+                 */
+                override fun value(): T? {
+                    if (this.dirty) {
+                        this.value = this.binding.entryToValue(this.cursor.value)
+                        this.dirty = false
+                    }
+                    return this.value
+                }
+
+                /**
+                 * Closes this [Cursor] and invalidates the associated sub transaction.
+                 */
                 override fun close() {
                     this.cursor.close()
                     this.subTransaction.abort()
