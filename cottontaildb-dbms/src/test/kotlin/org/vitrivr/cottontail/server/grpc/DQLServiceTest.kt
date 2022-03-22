@@ -8,7 +8,7 @@ import org.vitrivr.cottontail.TestConstants
 import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.language.basics.Direction
 import org.vitrivr.cottontail.client.language.basics.Distances
-import org.vitrivr.cottontail.client.language.basics.Predicate
+import org.vitrivr.cottontail.client.language.basics.predicate.Expression
 import org.vitrivr.cottontail.client.language.dql.Query
 import org.vitrivr.cottontail.embedded
 import org.vitrivr.cottontail.server.grpc.GrpcTestUtils.STRING_COLUMN_NAME
@@ -114,7 +114,7 @@ class DQLServiceTest {
             .select("*")
             .from(TEST_VECTOR_ENTITY_FQN_INPUT)
             .distance(TWOD_COLUMN_NAME, arrayOf(5f, 10f), Distances.L2, "distance")
-            .where(Predicate.Atomic.Simple(STRING_COLUMN_NAME, "LIKE", "a%"))
+            .where(Expression(STRING_COLUMN_NAME, "LIKE", "a%"))
             .order("distance", Direction.ASC)
             .limit(500)
 
@@ -132,7 +132,7 @@ class DQLServiceTest {
         val query = Query().from(TEST_VECTOR_ENTITY_FQN_INPUT)
             .select("*")
             .distance(TWOD_COLUMN_NAME, arrayOf(5f, 10f), Distances.L2, "distance")
-            .where(Predicate.Atomic.Simple(STRING_COLUMN_NAME, "LIKE", "%z"))
+            .where(Expression(STRING_COLUMN_NAME, "LIKE", "%z"))
             .order("distance", Direction.ASC)
             .limit(500)
         val result = client.query(query)

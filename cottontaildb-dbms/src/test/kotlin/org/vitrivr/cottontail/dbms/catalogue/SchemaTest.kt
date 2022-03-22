@@ -8,6 +8,7 @@ import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.dbms.AbstractDatabaseTest
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
+import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.execution.TransactionType
 import org.vitrivr.cottontail.dbms.schema.Schema
@@ -196,7 +197,8 @@ class SchemaTest: AbstractDatabaseTest() {
             val schemaTx2 = txn2.getTx(schema) as SchemaTx
             for (name in this.entityNames) {
                 val entity = schemaTx2.entityForName(name)
-                assertEquals(1, entity.numberOfColumns)
+                val entityTx = txn2.getTx(entity) as EntityTx
+                assertEquals(1, entityTx.listColumns().size)
                 schemaTx2.dropEntity(name)
                 schemaTx2.createEntity(
                         name,
@@ -216,7 +218,8 @@ class SchemaTest: AbstractDatabaseTest() {
             val schemaTx3 = txn3.getTx(schema) as SchemaTx
             for (name in this.entityNames) {
                 val entity = schemaTx3.entityForName(name)
-                assertEquals(2, entity.numberOfColumns)
+                val entityTx3 = txn3.getTx(entity) as EntityTx
+                assertEquals(2, entityTx3.listColumns().size)
             }
         } finally {
             txn3.commit()
