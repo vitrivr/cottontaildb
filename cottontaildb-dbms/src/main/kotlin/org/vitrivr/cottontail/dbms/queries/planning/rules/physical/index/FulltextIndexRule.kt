@@ -60,13 +60,13 @@ object FulltextIndexRule : RewriteRule {
         val queryString = node.function.arguments.filterIsInstance<Binding.Literal>().singleOrNull() ?: return null
         val predicate = BooleanPredicate.Atomic(ComparisonOperator.Binary.Match(probingArgument, queryString), false, scan.groupId)
         val candidate = scan.entity.listIndexes().map {
-            scan.entity.indexForName(it)
+            scan.entity.context.getTx(scan.entity.indexForName(it)) as IndexTx
         }.find {
             it.state != IndexState.DIRTY && it.canProcess(predicate)
         }
         if (candidate != null) {
-            val produces = candidate.produces(predicate)
-            val indexScan = IndexScanPhysicalOperatorNode(scan.groupId, ctx.txn.getTx(candidate) as IndexTx, predicate, listOf(Pair(node.out, produces[0])))
+            val produces = candidate.columnsFor(predicate)
+            val indexScan = IndexScanPhysicalOperatorNode(scan.groupId, candidate, predicate, listOf(Pair(node.out, produces[0])))
             val fetch = FetchPhysicalOperatorNode(indexScan, scan.entity, scan.fetch.filter { !produces.contains(it.second) })
             return if (node.output != null) {
                 node.output?.copyWithOutput(fetch)

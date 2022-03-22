@@ -14,7 +14,7 @@ import org.vitrivr.cottontail.dbms.schema.Schema
  * @see Schema
  *
  * @author Ralph Gasser
- * @version 2.1.0
+ * @version 3.0.0
  */
 interface Catalogue : DBO {
     /** Reference to [Config] object. */
@@ -28,9 +28,6 @@ interface Catalogue : DBO {
 
     /** Constant parent [DBO], which is null in case of the [Catalogue]. */
     override val parent: DBO?
-
-    /** Status indicating whether this [Catalogue] is open or closed. */
-    override val closed: Boolean
 
     /**
      * Creates and returns a new [CatalogueTx] for the given [TransactionContext].

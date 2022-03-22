@@ -1,7 +1,6 @@
 package org.vitrivr.cottontail.dbms.entity
 
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.dbms.column.Column
 import org.vitrivr.cottontail.dbms.execution.TransactionContext
 import org.vitrivr.cottontail.dbms.general.DBO
@@ -18,7 +17,7 @@ import org.vitrivr.cottontail.dbms.schema.Schema
  * @see EntityTx
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 3.0.0
  */
 interface Entity : DBO {
 
@@ -27,18 +26,6 @@ interface Entity : DBO {
 
     /** The [DefaultSchema] this [Entity] belongs to. */
     override val parent: Schema
-
-    /** Number of [Column]s in this [Entity]. */
-    val numberOfColumns: Int
-
-    /** Number of entries in this [Entity]. This is a snapshot and may change immediately. */
-    val numberOfRows: Long
-
-    /** Estimated maximum [TupleId]s for this [Entity].  This is a snapshot and may change immediately. */
-    val maxTupleId: TupleId
-
-    /** Status indicating whether this [Entity] is open or closed and hence can be used or not. */
-    override val closed: Boolean
 
     /**
      * Creates and returns a new [EntityTx] for the given [TransactionContext].

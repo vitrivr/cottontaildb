@@ -5,6 +5,7 @@ import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.basics.Filterable
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
 import org.vitrivr.cottontail.dbms.general.Tx
@@ -22,11 +23,14 @@ interface IndexTx: Tx, Filterable, Countable {
     /** Reference to the [Index] this [IndexTx] belongs to. */
     override val dbo: Index
 
-    /** The [ColumnDef]s indexed by the [Index] this [IndexTx] belongs to. */
+    /** The [ColumnDef]s indexed by the [Index] backing this [IndexTx]. */
     val columns: Array<ColumnDef<*>>
 
-    /** The order in which results of this [IndexTx] appear. Empty array that there is no particular order. */
-    val order: Array<Pair<ColumnDef<*>, SortOrder>>
+    /** True, if the [Index] backing this [IndexTx] supports incremental updates, and false otherwise. */
+    val supportsIncrementalUpdate: Boolean
+
+    /** True, if the [Index] backing this [IndexTx] supports querying filtering a partition. */
+    override val supportsPartitioning: Boolean
 
     /** The [IndexType] of the [Index] that underpins this [IndexTx]. */
     val state: IndexState
@@ -40,7 +44,23 @@ interface IndexTx: Tx, Filterable, Countable {
      * @param predicate [Predicate] to check.
      * @return Cost estimate for the [Predicate]
      */
-    fun cost(predicate: Predicate): Cost
+    fun costFor(predicate: Predicate): Cost
+
+    /**
+     * Returns the order of the results returned by this [IndexTx] for the given [Predicate].
+     *
+     * @param predicate [Predicate] to check.
+     * @return List of pairs for every [ColumnDef] that is being sorted on.
+     */
+    fun orderFor(predicate: Predicate): List<Pair<ColumnDef<*>, SortOrder>>
+
+    /**
+     * Returns the [ColumnDef] produced by this [IndexTx] for the given [Predicate].
+     *
+     * @param predicate [Predicate] to obtain columns for.
+     * @return List of [ColumnDef] produced by this [IndexTx]
+     */
+    fun columnsFor(predicate: Predicate): List<ColumnDef<*>>
 
     /**
      * (Re-)builds the underlying [Index] completely.
@@ -79,8 +99,6 @@ interface IndexTx: Tx, Filterable, Countable {
      */
     fun delete(operation: Operation.DataManagementOperation.DeleteOperation)
 
-
-
     /**
      * Performs a lookup through this [IndexTx] and returns a [Cursor] of all the [Record]s that match the [Predicate].
      *
@@ -96,9 +114,8 @@ interface IndexTx: Tx, Filterable, Countable {
      * Not all [Index] implementations support range filtering.
      *
      * @param predicate The [Predicate] to perform the lookup.
-     * @param partitionIndex The [partitionIndex] for this [filterRange] call.
-     * @param partitions The total number of partitions for this [filterRange] call.
+     * @param partition The [LongRange] specifying the [TupleId]s that should be considered.
      * @return The resulting [Cursor].
      */
-    fun filterRange(predicate: Predicate, partitionIndex: Int, partitions: Int): Cursor<Record>
+    override fun filter(predicate: Predicate, partition: LongRange): Cursor<Record>
 }

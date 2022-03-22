@@ -33,7 +33,6 @@ import org.vitrivr.cottontail.utilities.extensions.write
 import java.nio.file.Path
 import java.util.concurrent.locks.StampedLock
 import kotlin.concurrent.withLock
-import kotlin.math.min
 
 /**
  * Represents a single entity in the Cottontail DB data model. An [Entity] has name that must remain
@@ -48,7 +47,7 @@ import kotlin.math.min
  * @see EntityTx
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.0.1
  */
 class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1) : Entity, AutoCloseable {
     /**
@@ -97,18 +96,7 @@ class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1
         this.header.indexes.forEach { idx ->
             val indexEntry = this.store.get(idx, IndexV1Entry.Serializer) ?: throw DatabaseException.DataCorruptionException("Failed to open entity '$name': Could not read index definition at position $idx!")
             val indexName = this.name.index(indexEntry.name)
-            val columns = indexEntry.columns.map { col ->
-                val split = col.split(".").last()
-                this.columns[this.name.column(split)]?.columnDef
-                    ?: throw DatabaseException.DataCorruptionException("Column '$col' does not exist on the entity!")
-            }.toTypedArray()
-            this.indexes[indexName] = BrokenIndex(
-                this.name.index(indexEntry.name),
-                this,
-                this.path.resolve(indexEntry.name),
-                indexEntry.type,
-                columns
-            )
+            this.indexes[indexName] = BrokenIndex(this.name.index(indexEntry.name), this, this.path.resolve(indexEntry.name), indexEntry.type)
         }
     }
 
@@ -119,17 +107,6 @@ class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1
     /** The [DBOVersion] of this [EntityV1]. */
     override val version: DBOVersion
         get() = DBOVersion.V1_0
-
-    override val numberOfColumns: Int
-        get() = this.header.columns.size
-
-    override val numberOfRows: Long
-        get() = this.header.size
-
-    override val maxTupleId: TupleId
-        get() {
-            throw UnsupportedOperationException("Operation not supported on legacy DBO.")
-        }
 
     /**
      * Status indicating whether this [Entity] is open or closed.
@@ -171,6 +148,8 @@ class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1
         /** Reference to the surrounding [Entity]. */
         override val dbo: Entity
             get() = this@EntityV1
+
+
 
         /** Tries to acquire a global read-lock on this entity. */
         init {
@@ -226,8 +205,14 @@ class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1
             return this@EntityV1.indexes[name] ?: throw DatabaseException.IndexDoesNotExistException(name)
         }
 
-        override fun maxTupleId(): TupleId {
-            return this@EntityV1.columns.values.first().maxTupleId
+        override fun smallestTupleId(): TupleId {
+            val columnTx = this@Tx.context.getTx(this@EntityV1.columns.values.first()) as ColumnV1<*>.Tx
+            return columnTx.smallestTupleId()
+        }
+
+        override fun largestTupleId(): TupleId {
+            val columnTx = this@Tx.context.getTx(this@EntityV1.columns.values.first()) as ColumnV1<*>.Tx
+            return columnTx.largestTupleId()
         }
 
         override fun contains(tupleId: TupleId): Boolean {
@@ -250,23 +235,12 @@ class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
         }
 
-        override fun cursor(columns: Array<ColumnDef<*>>): Cursor<Record> = cursor(columns, 0, 1)
+        override fun cursor(columns: Array<ColumnDef<*>>): Cursor<Record> = cursor(columns, this.smallestTupleId() .. this.largestTupleId())
 
-        override fun cursor(columns: Array<ColumnDef<*>>, partitionIndex: Int, partitions: Int): Cursor<Record> = object : Cursor<Record> {
-
-            /** The [LongRange] to iterate over. */
-            private val range: LongRange
-
-            init {
-                val maximum: Long = this@Tx.maxTupleId()
-                val partitionSize: Long = Math.floorDiv(maximum, partitions.toLong()) + 1L
-                val start: Long = partitionIndex * partitionSize
-                val end = min(((partitionIndex + 1) * partitionSize), maximum)
-                this.range = start until end
-            }
+        override fun cursor(columns: Array<ColumnDef<*>>, partition: LongRange): Cursor<Record> = object : Cursor<Record> {
 
             /** The wrapped [Iterator] of the first (primary) column. */
-            private val wrapped = (this@Tx.context.getTx(this@EntityV1.columns.values.first()) as ColumnV1<*>.Tx).scan(range)
+            private val wrapped = (this@Tx.context.getTx(this@EntityV1.columns.values.first()) as ColumnV1<*>.Tx).scan(partition)
 
             override fun value(): Record {
                 /* Read values from underlying columns. */

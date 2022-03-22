@@ -18,10 +18,8 @@ import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.VectorValue
-import org.vitrivr.cottontail.dbms.catalogue.entries.IndexCatalogueEntry
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
-import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
 import org.vitrivr.cottontail.dbms.execution.TransactionContext
 import org.vitrivr.cottontail.dbms.index.*
@@ -96,42 +94,11 @@ class GGIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
     /** The type of [AbstractIndex]. */
     override val type = IndexType.GG
 
-    /** The [GGIndexConfig] used by this [GGIndex] instance. */
-    override val config: GGIndexConfig = this.catalogue.environment.computeInTransaction { tx ->
-        val entry = IndexCatalogueEntry.read(this.name, this.parent.parent.parent, tx) ?: throw DatabaseException.DataCorruptionException("Failed to read catalogue entry for index ${this.name}.")
-        entry.config as GGIndexConfig
-    }
-
     /** False since [GGIndex] doesn't support incremental updates. */
     override val supportsIncrementalUpdate: Boolean = false
 
     /** True since [GGIndex] does not support partitioning. */
     override val supportsPartitioning: Boolean = false
-
-    init {
-        require(this.columns.size == 1) { "GGIndex only supports indexing a single column." }
-        require(this.columns[0].type is Types.Vector<*,*>) { "GGIndex only supports indexing of vector columns." }
-    }
-
-    /**
-     * Checks if this [GGIndex] can process the provided [Predicate] and returns true if so and false otherwise.
-     *
-     * @param predicate [Predicate] to check.
-     * @return True if [Predicate] can be processed, false otherwise.
-     */
-    override fun canProcess(predicate: Predicate) = predicate is ProximityPredicate
-            && predicate.column == this.columns[0]
-            && predicate.distance.signature.name == this.config.distance
-
-    /**
-     * Returns a [List] of the [ColumnDef] produced by this [GGIndex].
-     *
-     * @return [List] of [ColumnDef].
-     */
-    override fun produces(predicate: Predicate): List<ColumnDef<*>> {
-        require(predicate is ProximityPredicate.NNS) { "GGIndex can only process proximity predicates." }
-        return listOf(predicate.distanceColumn)
-    }
 
     /**
      * Opens and returns a new [IndexTx] object that can be used to interact with this [GGIndex].
@@ -154,11 +121,15 @@ class GGIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
 
         /** The [GGIndexConfig] used by this [GGIndex] instance. */
         override val config: GGIndexConfig
-            get() {
-                val entry = IndexCatalogueEntry.read(this@GGIndex.name, this@GGIndex.parent.parent.parent, this.context.xodusTx) ?: throw DatabaseException.DataCorruptionException("Failed to read catalogue entry for index ${this@GGIndex.name}.")
-                return entry.config as GGIndexConfig
-            }
+            get() = super.config as GGIndexConfig
 
+        /** The set of supported [VectorDistance]s. */
+        override val supportedDistances: Set<Signature.Closed<*>>
+
+        init {
+            val config = this.config
+            this.supportedDistances = setOf( Signature.Closed(config.distance, arrayOf(this.column.type, this.column.type), Types.Double))
+        }
 
         /**
          * Calculates the cost estimate if this [GGIndex] processing the provided [Predicate].
@@ -166,7 +137,17 @@ class GGIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
          * @param predicate [Predicate] to check.
          * @return Cost estimate for the [Predicate]
          */
-        override fun cost(predicate: Predicate) = Cost.ZERO // todo...
+        override fun costFor(predicate: Predicate) = Cost.ZERO // todo...
+
+        /**
+         * Returns a [List] of the [ColumnDef] produced by this [GGIndex].
+         *
+         * @return [List] of [ColumnDef].
+         */
+        override fun columnsFor(predicate: Predicate): List<ColumnDef<*>> {
+            require(predicate is ProximityPredicate.NNS) { "GGIndex can only process proximity predicates." }
+            return listOf(predicate.distanceColumn)
+        }
 
         /**
          * Rebuilds the surrounding [PQIndex] from scratch using the following, greedy grouping algorithm:
@@ -309,7 +290,7 @@ class GGIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
                 check (function is VectorDistance<*>) { "Function $signature is not a vector distance function." }
 
                 /** Phase 1): Perform kNN on the groups. */
-                require(this.predicate.k < txn.maxTupleId() / this@Tx.config.numGroups * considerNumGroups) { "Value of k is too large for this index considering $considerNumGroups groups." }
+                require(this.predicate.k < txn.largestTupleId() / this@Tx.config.numGroups * considerNumGroups) { "Value of k is too large for this index considering $considerNumGroups groups." }
                 val groupKnn = MinHeapSelection<ComparablePair<LongArray, DoubleValue>>(considerNumGroups)
 
                 LOGGER.debug("Scanning group mean signals.")
@@ -351,15 +332,12 @@ class GGIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
          * Range filtering is not supported [GGIndex]
          *
          * @param predicate The [Predicate] for the lookup.
-         * @param partitionIndex The [partitionIndex] for this [filterRange] call.
-         * @param partitions The total number of partitions for this [filterRange] call.
+         * @param partition The [LongRange] specifying the [TupleId]s that should be considered.
          * @return The resulting [Cursor].
          */
-        override fun filterRange(predicate: Predicate, partitionIndex: Int, partitions: Int): Cursor<Record> {
+        override fun filter(predicate: Predicate, partition: LongRange): Cursor<Record> {
             throw UnsupportedOperationException("The UniqueHashIndex does not support ranged filtering!")
         }
-
-
 
         /**
          * The [GGIndex] does not support incremental updates. Hence, this method will always throw an [UnsupportedOperationException].

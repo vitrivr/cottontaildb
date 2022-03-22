@@ -32,7 +32,6 @@ import org.vitrivr.cottontail.legacy.v2.schema.SchemaV2
 import org.vitrivr.cottontail.utilities.extensions.write
 import java.nio.file.Path
 import java.util.concurrent.locks.StampedLock
-import kotlin.math.min
 
 /**
  * Represents a single entity in the Cottontail DB data model. An [EntityV2] has name that must remain unique within a [DefaultSchema].
@@ -92,18 +91,6 @@ class EntityV2(val path: Path, override val parent: SchemaV2) : Entity, AutoClos
     /** The [DBOVersion] of this [EntityV2]. */
     override val version: DBOVersion
         get() = DBOVersion.V2_0
-
-    /** Number of [Column]s in this [EntityV2]. */
-    override val numberOfColumns: Int
-        get() = this.columns.size
-
-    /** Number of entries in this [EntityV2]. This is a snapshot and may change immediately. */
-    override val numberOfRows: Long
-        get() = this.statisticsField.get().count
-
-    /** Estimated maximum [TupleId]s for this [EntityV2]. This is a snapshot and may change immediately. */
-    override val maxTupleId: TupleId
-        get() = this.statisticsField.get().maximumTupleId
 
     /** Status indicating whether this [EntityV2] is open or closed. */
     override val closed: Boolean
@@ -191,16 +178,23 @@ class EntityV2(val path: Path, override val parent: SchemaV2) : Entity, AutoClos
          * @return The number of entries in this [EntityV2].
          */
         override fun count(): Long {
-            return this@EntityV2.numberOfRows
+            return this@EntityV2.statisticsField.get().count
         }
 
         /**
-         * Returns the maximum tuple ID occupied by entries in this [EntityV2].
+         * Returns the minimum [TupleId] occupied by entries in this [EntityV2].
          *
-         * @return The maximum tuple ID occupied by entries in this [EntityV2].
+         * @return The minimum [TupleId] occupied by entries in this [EntityV2].
          */
-        override fun maxTupleId(): TupleId {
-            return this@EntityV2.maxTupleId
+        override fun smallestTupleId(): TupleId = 0L
+
+        /**
+         * Returns the maximum [TupleId] occupied by entries in this [EntityV2].
+         *
+         * @return The maximum [TupleId] occupied by entries in this [EntityV2].
+         */
+        override fun largestTupleId(): TupleId {
+            return this@EntityV2.statisticsField.get().maximumTupleId
         }
 
         /**
@@ -266,29 +260,18 @@ class EntityV2(val path: Path, override val parent: SchemaV2) : Entity, AutoClos
          *
          * @return [Iterator]
          */
-        override fun cursor(columns: Array<ColumnDef<*>>): Cursor<Record> = cursor(columns, 0, 1)
+        override fun cursor(columns: Array<ColumnDef<*>>): Cursor<Record> = cursor(columns, this.smallestTupleId() .. this.largestTupleId())
 
         /**
          * Creates and returns a new [Iterator] for this [EntityV2.Tx] that returns all [TupleId]s
          * contained within the surrounding [EntityV2] and a certain range.
          *
          * @param columns The [ColumnDef]s that should be scanned.
-         * @param partitionIndex The [partitionIndex] for this [cursor] call.
-         * @param partitions The total number of partitions for this [cursor] call.
+         * @param partition The [LongRange] that describes the partition to open a [Cursor] for.
          *
          * @return [Iterator]
          */
-        override fun cursor(columns: Array<ColumnDef<*>>, partitionIndex: Int, partitions: Int) = object : Cursor<Record> {
-            /** The [LongRange] to iterate over. */
-            private val range: LongRange
-
-            init {
-                val maximum: Long = this@Tx.maxTupleId()
-                val partitionSize: Long = Math.floorDiv(maximum, partitions.toLong()) + 1L
-                val start: Long = partitionIndex * partitionSize
-                val end = min(((partitionIndex + 1) * partitionSize), maximum)
-                this.range = start..end
-            }
+        override fun cursor(columns: Array<ColumnDef<*>>, partition: LongRange) = object : Cursor<Record> {
 
             /** List of [ColumnTx]s used by  this [Iterator]. */
             private val txs = columns.map {
@@ -297,7 +280,7 @@ class EntityV2(val path: Path, override val parent: SchemaV2) : Entity, AutoClos
             }
 
             /** The wrapped [Iterator] of the first column. */
-            private val wrapped = this.txs.first().scan(this.range)
+            private val wrapped = this.txs.first().scan(partition)
 
             /** Array of [Value]s emitted by this [EntityV2]. */
             private val values = arrayOfNulls<Value?>(columns.size)

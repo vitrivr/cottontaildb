@@ -13,13 +13,14 @@ import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
+import org.vitrivr.cottontail.core.queries.functions.Signature
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.VectorDistance
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
 import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.VectorValue
-import org.vitrivr.cottontail.dbms.catalogue.entries.IndexCatalogueEntry
 import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.catalogue.toKey
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
@@ -100,12 +101,6 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
         override fun configBinding(): ComparableBinding = LSHIndexConfig.Binding
     }
 
-    /** The [LSHIndexConfig] used by this [LSHIndex] instance. */
-    override val config: LSHIndexConfig = this.catalogue.environment.computeInTransaction { tx ->
-        val entry = IndexCatalogueEntry.read(this.name, this.parent.parent.parent, tx) ?: throw DatabaseException.DataCorruptionException("Failed to read catalogue entry for index ${this.name}.")
-        entry.config as LSHIndexConfig
-    }
-
     /** The [IndexType] of this [LSHIndex]. */
     override val type: IndexType = IndexType.LSH
 
@@ -114,28 +109,6 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
 
     /** False since [LSHIndex] does not support partitioning. */
     override val supportsPartitioning: Boolean = false
-
-    /**
-     * Checks if the provided [Predicate] can be processed by this instance of [LSHIndex].
-     * note: only use the inner product distances with normalized vectors!
-     *
-     * @param predicate The [Predicate] to check.
-     * @return True if [Predicate] can be processed, false otherwise.
-     */
-    override fun canProcess(predicate: Predicate): Boolean =
-        predicate is ProximityPredicate
-            && predicate.columns.first() == this.columns[0]
-            && predicate.distance.signature.name in LSHIndexConfig.SUPPORTED_DISTANCES
-
-    /**
-     * Returns a [List] of the [ColumnDef] produced by this [LSHIndex].
-     *
-     * @return [List] of [ColumnDef].
-     */
-    override fun produces(predicate: Predicate): List<ColumnDef<*>> {
-        require(predicate is ProximityPredicate) { "LSHIndex can only process proximity predicates." }
-        return listOf()
-    }
 
     /**
      * Opens and returns a new [IndexTx] object that can be used to interact with this [LSHIndex].
@@ -158,18 +131,19 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
 
         /** The [LSHIndexConfig] used by this [LSHIndex.Tx] instance. */
         override val config: LSHIndexConfig
-            get() {
-                val entry = IndexCatalogueEntry.read(this@LSHIndex.name, this@LSHIndex.catalogue, this.context.xodusTx) ?: throw DatabaseException.DataCorruptionException("Failed to read catalogue entry for index ${this@LSHIndex.name}.")
-                return entry.config as LSHIndexConfig
-            }
+            get() = super.config as LSHIndexConfig
 
-        override fun cost(predicate: Predicate): Cost {
-            TODO("Not yet implemented")
-        }
+        /** The set of supported [VectorDistance]s. */
+        override val supportedDistances: Set<Signature.Closed<*>>
 
         /** The Xodus [Store] used to store [PQSignature]s. */
         private var dataStore: Store = this@LSHIndex.catalogue.environment.openStore(this@LSHIndex.name.storeName(), StoreConfig.WITH_DUPLICATES_WITH_PREFIXING, this.context.xodusTx, false)
             ?: throw DatabaseException.DataCorruptionException("Data store for index ${this@LSHIndex.name} is missing.")
+
+        init {
+            val config = this.config
+            this.supportedDistances = setOf(Signature.Closed(config.distance, arrayOf(this.column.type, this.column.type), Types.Double))
+        }
 
         /**
          * Adds a mapping from the bucket [IntArray] to the given [TupleId].
@@ -209,6 +183,20 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
         }
 
         /**
+         * [LSHIndex] only produced candidate [TupleId]s and no columns.
+         *
+         * @return [List] of [ColumnDef].
+         */
+        override fun columnsFor(predicate: Predicate): List<ColumnDef<*>> {
+            require(predicate is ProximityPredicate) { "LSHIndex can only process proximity predicates." }
+            return emptyList()
+        }
+
+        override fun costFor(predicate: Predicate): Cost {
+            TODO("Not yet implemented")
+        }
+
+        /**
          * (Re-)builds the [LSHIndex].
          */
         override fun rebuild() {
@@ -216,28 +204,27 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
 
             /* Initialize SignatureGenerator. */
             val entityTx = this.context.getTx(this.dbo.parent) as EntityTx
-            val specimen = this.acquireSpecimen(entityTx)
-            if (specimen != null) {
-                /* Clears this index. */
-                this.clear()
+            val specimen = entityTx.read(entityTx.smallestTupleId(), this@Tx.columns)[this@Tx.columns[0]] as VectorValue<*>
 
-                /* Generate a new LSHSignature for each entry in the entity and adds it to the index. */
-                val generator = this.config.generator(specimen.logicalSize)
-                val cursor = entityTx.cursor(this.columns)
-                cursor.forEach {
-                    val value = it[this.columns[0]] ?: throw DatabaseException("Could not find column for entry in index $this") // todo: what if more columns? This should never happen -> need to change type and sort this out on index creation
-                    if (value is VectorValue<*>) {
-                        val signature = generator.generate(value)
-                        this.addMapping(signature, it.tupleId)
-                    }
+            /* Clears this index. */
+            this.clear()
+
+            /* Generate a new LSHSignature for each entry in the entity and adds it to the index. */
+            val generator = this.config.generator(specimen.logicalSize)
+            val cursor = entityTx.cursor(this.columns)
+            cursor.forEach {
+                val value = it[this.columns[0]] ?: throw DatabaseException("Could not find column for entry in index $this") // todo: what if more columns? This should never happen -> need to change type and sort this out on index creation
+                if (value is VectorValue<*>) {
+                    val signature = generator.generate(value)
+                    this.addMapping(signature, it.tupleId)
                 }
-
-                /* Close cursor. */
-                cursor.close()
-
-                /* Update state of index. */
-                this.updateState(IndexState.CLEAN, this.config.copy(generator = generator))
             }
+
+            /* Close cursor. */
+            cursor.close()
+
+            /* Update state of index. */
+            this.updateState(IndexState.CLEAN, this.config.copy(generator = generator))
         }
 
         /**
@@ -250,7 +237,7 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
          */
         override fun tryApply(operation: Operation.DataManagementOperation.InsertOperation): Boolean = this.txLatch.withLock {
             val generator = this.config.generator ?: throw IllegalStateException("Failed to obtain LSHSignatureGenerator for index ${this@LSHIndex.name}. This is a programmer's error!")
-            val value = operation.inserts[this.dbo.columns[0]]
+            val value = operation.inserts[this.columns[0]]
             check(value is VectorValue<*>) { "Failed to add $value to LSHIndex. Incoming value is not a vector! This is a programmer's error!"}
             return this.addMapping(generator.generate(value), operation.tupleId)
         }
@@ -264,7 +251,7 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
          */
         override fun tryApply(operation: Operation.DataManagementOperation.UpdateOperation): Boolean {
             val generator = this.config.generator ?: throw IllegalStateException("Failed to obtain LSHSignatureGenerator for index ${this@LSHIndex.name}. This is a programmer's error!")
-            val value = operation.updates[this.dbo.columns[0]]
+            val value = operation.updates[this.columns[0]]
             check(value?.first is VectorValue<*>) { "Failed to add $value to LSHIndex. Incoming value is not a vector! This is a programmer's error!"}
             check(value?.second is VectorValue<*>) { "Failed to add $value to LSHIndex. Incoming value is not a vector! This is a programmer's error!"}
             return this.removeMapping(generator.generate(value!!.first as VectorValue<*>), operation.tupleId) && this.addMapping(generator.generate(value.second as VectorValue<*>), operation.tupleId)
@@ -280,7 +267,7 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
          */
         override fun tryApply(operation: Operation.DataManagementOperation.DeleteOperation): Boolean {
             val generator = this.config.generator ?: throw IllegalStateException("Failed to obtain LSHSignatureGenerator for index ${this@LSHIndex.name}. This is a programmer's error!")
-            val value = operation.deleted[this.dbo.columns[0]]
+            val value = operation.deleted[this.columns[0]]
             check(value is VectorValue<*>) { "Failed to add $value to LSHIndex. Incoming value is not a vector! This is a programmer's error!"}
             return this.removeMapping(generator.generate(value), operation.tupleId)
         }
@@ -333,7 +320,7 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
             /* Performs some sanity checks. */
             init {
                 val config = this@Tx.config
-                if (this.predicate.columns.first() != this@LSHIndex.columns[0] || this.predicate.distance.name != config.distance) {
+                if (this.predicate.columns.first() != this@Tx.columns[0] || this.predicate.distance.name != config.distance) {
                     throw QueryException.UnsupportedPredicateException("Index '${this@LSHIndex.name}' (lsh-index) does not support the provided predicate.")
                 }
 
@@ -388,28 +375,11 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
          * The [LSHIndex] does not support ranged filtering!
          *
          * @param predicate The [Predicate] for the lookup.
-         * @param partitionIndex The [partitionIndex] for this [filterRange] call.
-         * @param partitions The total number of partitions for this [filterRange] call.
+         * @param partition The [LongRange] specifying the [TupleId]s that should be considered.
          * @return The resulting [Cursor].
          */
-        override fun filterRange(predicate: Predicate, partitionIndex: Int, partitions: Int): Cursor<Record> {
+        override fun filter(predicate: Predicate, partition: LongRange): Cursor<Record> {
             throw UnsupportedOperationException("The LSHIndex does not support ranged filtering!")
-        }
-
-        /**
-         * Tries to find a specimen of the [VectorValue] in the [DefaultEntity] underpinning this [LSHIndex]
-         *
-         * @param tx [DefaultEntity.Tx] used to read from [DefaultEntity]
-         * @return A specimen of the [VectorValue] that should be indexed.
-         */
-        private fun acquireSpecimen(tx: EntityTx): VectorValue<*>? {
-            for (index in 0L until tx.maxTupleId()) {
-                val read = tx.read(index, this@Tx.columns)[this@Tx.columns[0]]
-                if (read is VectorValue<*>) {
-                    return read
-                }
-            }
-            return null
         }
     }
 }

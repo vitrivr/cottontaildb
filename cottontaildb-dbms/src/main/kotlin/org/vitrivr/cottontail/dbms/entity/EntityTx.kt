@@ -26,6 +26,20 @@ interface EntityTx : Tx, Scanable, Countable, Modifiable {
     override val dbo: Entity
 
     /**
+     * Returns the smallest [TupleId] managed by the [Entity] backing this [EntityTx].
+     *
+     * @return The smallest [TupleId] in the [Entity] backing this [EntityTx]
+     */
+    fun smallestTupleId(): TupleId
+
+    /**
+     * Returns the largest [TupleId] managed by the [Entity] backing this [EntityTx].
+     *
+     * @return The largest [TupleId] in the [Entity] backing this [EntityTx]
+     */
+    fun largestTupleId(): TupleId
+
+    /**
      * Returns true if the [Entity] underpinning this [EntityTx]contains the given [TupleId] and false otherwise.
      *
      * If this method returns true, then [EntityTx.read] will return a [Record] for [TupleId]. However, if this method
@@ -43,13 +57,6 @@ interface EntityTx : Tx, Scanable, Countable, Modifiable {
      * @param columns The [ColumnDef] to read.
      */
     fun read(tupleId: TupleId, columns: Array<ColumnDef<*>>): Record
-
-    /**
-     * Returns the maximum [TupleId] known by this [EntityTx].
-     *
-     * @return Maximum [TupleId] known by this [EntityTx]
-     */
-    fun maxTupleId(): TupleId
 
     /**
      * Lists all [ColumnDef]s for the [Entity] associated with this [EntityTx].

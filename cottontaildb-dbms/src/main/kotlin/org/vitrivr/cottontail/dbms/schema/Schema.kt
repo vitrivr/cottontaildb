@@ -26,9 +26,6 @@ interface Schema : DBO {
     /** The [Name.SchemaName] of this [Schema]. */
     override val name: Name.SchemaName
 
-    /** Flag indicating whether this [Schema] has been closed. */
-    override val closed: Boolean
-
     /**
      * Creates and returns a new [SchemaTx] for the given [TransactionContext].
      *

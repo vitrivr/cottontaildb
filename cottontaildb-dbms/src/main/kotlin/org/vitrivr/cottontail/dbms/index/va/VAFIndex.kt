@@ -11,17 +11,15 @@ import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
-import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.EuclideanDistance
-import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.ManhattanDistance
-import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.MinkowskiDistance
-import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.SquaredEuclideanDistance
+import org.vitrivr.cottontail.core.queries.functions.Signature
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.*
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
 import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.types.RealVectorValue
+import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.VectorValue
-import org.vitrivr.cottontail.dbms.catalogue.entries.IndexCatalogueEntry
 import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.catalogue.toKey
 import org.vitrivr.cottontail.dbms.column.ColumnTx
@@ -43,10 +41,9 @@ import org.vitrivr.cottontail.dbms.statistics.columns.DoubleVectorValueStatistic
 import org.vitrivr.cottontail.dbms.statistics.columns.FloatVectorValueStatistics
 import org.vitrivr.cottontail.dbms.statistics.columns.IntVectorValueStatistics
 import org.vitrivr.cottontail.dbms.statistics.columns.LongVectorValueStatistics
-import org.vitrivr.cottontail.utilities.math.KnnUtilities
 import org.vitrivr.cottontail.utilities.selection.HeapSelection
-import java.lang.Math.floorDiv
 import kotlin.concurrent.withLock
+import kotlin.math.max
 import kotlin.math.min
 
 /**
@@ -110,40 +107,11 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
     override val type
         get() = IndexType.VAF
 
-    /** The [VAFIndexConfig] used by this [VAFIndex] instance. */
-    override val config: VAFIndexConfig
-        get() = this.catalogue.environment.computeInTransaction { tx ->
-            val entry = IndexCatalogueEntry.read(this.name, this.catalogue, tx) ?: throw DatabaseException.DataCorruptionException("Failed to read configuration entry for index ${this.name}.")
-            entry.config as VAFIndexConfig
-        }
-
-    /** Results produced by [VAFIndex] are always returned sorted by distance in ascending order.  */
-    override val order: Array<Pair<ColumnDef<*>, SortOrder>>
-        get() = arrayOf(KnnUtilities.distanceColumnDef(this.parent.name) to SortOrder.ASCENDING)
-
     /** False since [VAFIndex] currently doesn't support incremental updates. */
     override val supportsIncrementalUpdate: Boolean = false
 
     /** True since [VAFIndex] supports partitioning. */
     override val supportsPartitioning: Boolean = true
-
-    /**
-     * Checks if the provided [Predicate] can be processed by this instance of [VAFIndex].
-     *
-     * @param predicate The [Predicate] to check.
-     * @return True if [Predicate] can be processed, false otherwise.
-     */
-    override fun canProcess(predicate: Predicate) = predicate is ProximityPredicate && predicate.column == this.columns[0]
-
-    /**
-     * Returns a [List] of the [ColumnDef] produced by this [VAFIndex].
-     *
-     * @return [List] of [ColumnDef].
-     */
-    override fun produces(predicate: Predicate): List<ColumnDef<*>> {
-        require(predicate is ProximityPredicate) { "VAFIndex can only process proximity predicates." }
-        return listOf(predicate.distanceColumn, this.column)
-    }
 
     /**
      * Opens and returns a new [IndexTx] object that can be used to interact with this [VAFIndex].
@@ -162,12 +130,14 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
      */
     private inner class Tx(context: TransactionContext) : AbstractHDIndex.Tx(context) {
 
-        /** The configuration map used for the [Index] that underpins this [IndexTx]. */
+        /** The [VAFIndexConfig] used by this [VAFIndex] instance. */
         override val config: VAFIndexConfig
-            get() {
-                val entry = IndexCatalogueEntry.read(this@VAFIndex.name, this@VAFIndex.parent.parent.parent, this.context.xodusTx) ?: throw DatabaseException.DataCorruptionException("Failed to read catalogue entry for index ${this@VAFIndex.name}.")
-                return entry.config as VAFIndexConfig
-            }
+            get() = super.config as VAFIndexConfig
+
+        /** The set of supported [VectorDistance]s. */
+        override val supportedDistances: Set<Signature.Closed<*>> = listOf(ManhattanDistance, EuclideanDistance, SquaredEuclideanDistance).map {
+            Signature.Closed(it.signature.name, arrayOf(this.column.type, this.column.type), Types.Double)
+        }.toSet()
 
         /** The [VAFMarks] object used by this [VAFIndex.Tx]. */
         private val marks: VAFMarks?
@@ -183,12 +153,22 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
          * @param predicate [Predicate] to check.
          * @return Cost estimate for the [Predicate]
          */
-        override fun cost(predicate: Predicate): Cost {
+        override fun costFor(predicate: Predicate): Cost {
             if (predicate !is ProximityPredicate) return Cost.INVALID
             if (predicate.column != this.columns[0]) return Cost.INVALID
             if (predicate.distance !is MinkowskiDistance<*>) return Cost.INVALID
             return (Cost.DISK_ACCESS_READ * (0.9f + 0.1f * this.columns[0].type.physicalSize) +
                     (Cost.MEMORY_ACCESS * 2.0f + Cost.FLOP) * 0.9f + predicate.cost * 0.1f) * this.count()
+        }
+
+        /**
+         * Returns a [List] of the [ColumnDef] produced by this [VAFIndex].
+         *
+         * @return [List] of [ColumnDef].
+         */
+        override fun columnsFor(predicate: Predicate): List<ColumnDef<*>> {
+            require(predicate is ProximityPredicate) { "VAFIndex can only process proximity predicates." }
+            return listOf(predicate.distanceColumn, this.column)
         }
 
         /**
@@ -271,7 +251,7 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
          * @return True if change could be applied, false otherwise.
          */
         override fun tryApply(operation: Operation.DataManagementOperation.InsertOperation): Boolean {
-            val value = operation.inserts[this@VAFIndex.column]
+            val value = operation.inserts[this.column]
             require(value is RealVectorValue<*>) { "Only real vector values can be stored in a VAFIndex. This is a programmer's error!" }
             for (i in value.indices) {
                 if (value[i].value.toDouble() < this.marks!!.minimum[i] || value[i].value.toDouble() > this.marks!!.maximum[i]) {
@@ -290,7 +270,7 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
          * @return True if change could be applied, false otherwise.
          */
         override fun tryApply(operation: Operation.DataManagementOperation.UpdateOperation): Boolean {
-            val value = operation.updates[this@VAFIndex.column]?.second
+            val value = operation.updates[this.column]?.second
             require(value is RealVectorValue<*>) { "Only real vector values can be stored in a VAFIndex. This is a programmer's error!" }
             for (i in value.indices) {
                 if (value[i].value.toDouble() < this.marks!!.minimum[i] || value[i].value.toDouble() >  this.marks!!.maximum[i]) {
@@ -322,7 +302,10 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
          * @param predicate The [Predicate] for the lookup
          * @return The resulting [Iterator]
          */
-        override fun filter(predicate: Predicate) = filterRange(predicate, 0, 1)
+        override fun filter(predicate: Predicate) = this.txLatch.withLock {
+            val entityTx = this.context.getTx(this@VAFIndex.parent) as EntityTx
+            filter(predicate,entityTx.smallestTupleId() .. entityTx.largestTupleId())
+        }
 
         /**
          * Performs a lookup through this [VAFIndex.Tx] and returns a [Iterator] of all [Record]s
@@ -331,11 +314,10 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
          * <strong>Important:</strong> The [Iterator] is not thread safe!
          *
          * @param predicate The [Predicate] for the lookup.
-         * @param partitionIndex The [partitionIndex] for this [filterRange] call.
-         * @param partitions The total number of partitions for this [filterRange] call.
+         * @param partition The [LongRange] specifying the [TupleId]s that should be considered.
          * @return The resulting [Iterator].
          */
-        override fun filterRange(predicate: Predicate, partitionIndex: Int, partitions: Int) = this.txLatch.withLock {
+        override fun filter(predicate: Predicate, partition: LongRange) = this.txLatch.withLock {
             object : Cursor<Record> {
 
                 /** Cast to [ProximityPredicate] (if such a cast is possible).  */
@@ -359,12 +341,6 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
                 /** Cached in-memory version of the [VAFMarks] used by this [Cursor]. */
                 private val marks = this@Tx.marks ?: throw IllegalStateException("VAFMarks could not be obtained. This is a programmer's error!")
 
-                /** First [TupleId] this [Cursor] covers. */
-                private val start: Long
-
-                /** Last [TupleId] this [Cursor] covers. */
-                private val end: Long
-
                 /** The current [Cursor] position. */
                 private var position = -1L
 
@@ -378,12 +354,6 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
                         is SquaredEuclideanDistance<*> -> L2SBounds(this.query, this.marks)
                         else -> throw IllegalArgumentException("The ${this.predicate.distance} distance kernel is not supported by VAFIndex.")
                     }
-
-                    /* Calculate partition size and create iterator. */
-                    val maximumTupleId = this.entityTx.maxTupleId()
-                    val partitionSize = floorDiv(maximumTupleId, partitions) + 1
-                    this.start = partitionSize * partitionIndex
-                    this.end = min(partitionSize * (partitionIndex + 1), maximumTupleId)
                 }
 
                 /**
@@ -420,23 +390,23 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
                     /* Initialize cursor. */
                     val subTx = this@Tx.context.xodusTx.readonlySnapshot
                     val cursor = this@Tx.dataStore.openCursor(subTx)
-                    cursor.getSearchKey(this.start.toKey())
+                    cursor.getSearchKey(partition.first.toKey())
 
                     /* Calculate a few values for future reference. */
                     val columns = this@Tx.columns
-                    val produces = this@VAFIndex.produces(predicate).toTypedArray()
+                    val produces = this@Tx.columnsFor(predicate).toTypedArray()
                     var tupleId: TupleId
                     var threshold = Double.MAX_VALUE
                     while (cursor.next) {
                         tupleId = LongBinding.compressedEntryToLong(cursor.key)
-                        if (tupleId > this.end) break
+                        if (tupleId > partition.last) break
                         val signature = VAFSignature.Binding.entryToValue(cursor.value)
                         if (this.selection.added < this.predicate.k || this.bounds.isVASSACandidate(signature, threshold)) {
                             val value = this.entityTx.read(tupleId, columns)[0] as VectorValue<*>
                             val distance = this.predicate.distance(this.query, value)!!
                             threshold = when (this.predicate) {
-                                is ProximityPredicate.NNS -> kotlin.math.min(threshold, distance.value)
-                                is ProximityPredicate.FNS -> kotlin.math.max(threshold, distance.value)
+                                is ProximityPredicate.NNS -> min(threshold, distance.value)
+                                is ProximityPredicate.FNS -> max(threshold, distance.value)
                             }
                             this.selection.offer(StandaloneRecord(tupleId, produces, arrayOf(distance, value)))
                         }

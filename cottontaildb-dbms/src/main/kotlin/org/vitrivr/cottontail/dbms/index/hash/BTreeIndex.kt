@@ -25,6 +25,7 @@ import org.vitrivr.cottontail.dbms.execution.TransactionContext
 import org.vitrivr.cottontail.dbms.index.*
 import org.vitrivr.cottontail.dbms.index.lucene.LuceneIndex
 import org.vitrivr.cottontail.dbms.operations.Operation
+import org.vitrivr.cottontail.dbms.queries.sort.SortOrder
 import org.vitrivr.cottontail.storage.serializers.values.ValueSerializerFactory
 import org.vitrivr.cottontail.storage.serializers.values.xodus.XodusBinding
 import java.util.*
@@ -84,39 +85,6 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
     /** False, since [BTreeIndex] does not support partitioning. */
     override val supportsPartitioning: Boolean = false
 
-    /** The dummy [BTreeIndexConfig]. */
-    override val config: IndexConfig<BTreeIndex> = BTreeIndexConfig
-
-    /**
-     * Checks if the provided [Predicate] can be processed by this instance of [BTreeIndex].
-     *
-     * [BTreeIndex] can be used to process EQUALS, IN AND LIKE comparison operations on the specified column
-     *
-     * @param predicate The [Predicate] to check.
-     * @return True if [Predicate] can be processed, false otherwise.
-     */
-    override fun canProcess(predicate: Predicate): Boolean {
-        if (predicate !is BooleanPredicate.Atomic) return false
-        if (predicate.not) return false
-        if (!predicate.columns.contains(this.columns[0])) return false
-        return when (predicate.operator) {
-            is ComparisonOperator.Binary.Equal,
-            is ComparisonOperator.In -> true
-            is ComparisonOperator.Binary.Like -> ((predicate.operator as ComparisonOperator.Binary.Like).right.value is LikePatternValue.StartsWith)
-            else -> false
-        }
-    }
-
-    /**
-     * Returns a [List] of the [ColumnDef] produced by this [BTreeIndex].
-     *
-     * @return [List] of [ColumnDef].
-     */
-    override fun produces(predicate: Predicate): List<ColumnDef<*>> {
-        require(predicate is BooleanPredicate) { "BTree index can only process boolean predicates." }
-        return this.columns.toList()
-    }
-
     /**
      * Opens and returns a new [IndexTx] object that can be used to interact with this [AbstractIndex].
      *
@@ -146,7 +114,7 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
 
         /** The dummy [BTreeIndexConfig]. */
         override val config: IndexConfig<BTreeIndex>
-            get() = this@BTreeIndex.config
+            get() = BTreeIndexConfig
 
         /**
          * Adds a mapping from the given [Value] to the given [TupleId].
@@ -179,12 +147,53 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
         }
 
         /**
+         * Checks if the provided [Predicate] can be processed by this instance of [BTreeIndex].
+         *
+         * [BTreeIndex] can be used to process EQUALS, IN AND LIKE comparison operations on the specified column
+         *
+         * @param predicate The [Predicate] to check.
+         * @return True if [Predicate] can be processed, false otherwise.
+         */
+        override fun canProcess(predicate: Predicate): Boolean {
+            if (predicate !is BooleanPredicate.Atomic) return false
+            if (predicate.not) return false
+            if (!predicate.columns.contains(this.columns[0])) return false
+            return when (predicate.operator) {
+                is ComparisonOperator.Binary.Equal,
+                is ComparisonOperator.In -> true
+                is ComparisonOperator.Binary.Like -> ((predicate.operator as ComparisonOperator.Binary.Like).right.value is LikePatternValue.StartsWith)
+                else -> false
+            }
+        }
+
+        /**
+         * Returns a [List] of the [ColumnDef] produced by this [BTreeIndex.Tx].
+         *
+         * @return [List] of [ColumnDef].
+         */
+        override fun columnsFor(predicate: Predicate): List<ColumnDef<*>> = this.txLatch.withLock {
+            require(predicate is BooleanPredicate) { "BTree index can only process boolean predicates." }
+            return this.columns.toList()
+        }
+
+        /**
+         * The [BTreeIndex] does not return results in a particular order.
+         *
+         * @param predicate [Predicate] to check.
+         * @return List that describes the sort order of the values returned by the [BTreeIndex]
+         */
+        override fun orderFor(predicate: Predicate): List<Pair<ColumnDef<*>, SortOrder>>  = this.txLatch.withLock {
+            require(predicate is BooleanPredicate) { "BTree index can only process boolean predicates." }
+            emptyList()
+        }
+
+        /**
          * Calculates the cost estimate of this [BTreeIndex.Tx] processing the provided [Predicate].
          *
          * @param predicate [Predicate] to check.
          * @return Cost estimate for the [Predicate]
          */
-        override fun cost(predicate: Predicate): Cost {
+        override fun costFor(predicate: Predicate): Cost = this.txLatch.withLock {
             if (predicate !is BooleanPredicate.Atomic || predicate.columns.first() != this.columns[0] || predicate.not) return Cost.INVALID
             return when (val operator = predicate.operator) {
                 is ComparisonOperator.Binary.Equal -> Cost.DISK_ACCESS_READ + Cost.MEMORY_ACCESS + Cost(memory = predicate.columns.sumOf { it.type.physicalSize }.toFloat())
@@ -224,7 +233,7 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
          * @param operation [Operation.DataManagementOperation.InsertOperation] to apply.
          */
         override fun insert(operation: Operation.DataManagementOperation.InsertOperation) = this.txLatch.withLock {
-            val value = operation.inserts[this.dbo.columns[0]]
+            val value = operation.inserts[this.columns[0]]
             if (value != null) {
                 this.addMapping(value, operation.tupleId)
             }
@@ -236,11 +245,11 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
          * @param operation [Operation.DataManagementOperation.UpdateOperation] to apply.
          */
         override fun update(operation: Operation.DataManagementOperation.UpdateOperation) = this.txLatch.withLock {
-            val old = operation.updates[this.dbo.columns[0]]?.first
+            val old = operation.updates[this.columns[0]]?.first
             if (old != null) {
                 this.removeMapping(old, operation.tupleId)
             }
-            val new = operation.updates[this.dbo.columns[0]]?.second
+            val new = operation.updates[this.columns[0]]?.second
             if (new != null) {
                 this.addMapping(new, operation.tupleId)
             }
@@ -252,7 +261,7 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
          * @param operation [Operation.DataManagementOperation.DeleteOperation] to apply.
          */
         override fun delete(operation: Operation.DataManagementOperation.DeleteOperation) = this.txLatch.withLock {
-            val old = operation.deleted[this.dbo.columns[0]]
+            val old = operation.deleted[this.columns[0]]
             if (old != null) {
                 this.removeMapping(old, operation.tupleId)
             }
@@ -345,11 +354,10 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
          * The [BTreeIndex] does not support ranged filtering!
          *
          * @param predicate The [Predicate] for the lookup.
-         * @param partitionIndex The [partitionIndex] for this [filterRange] call.
-         * @param partitions The total number of partitions for this [filterRange] call.
+         * @param partition The [LongRange] specifying the [TupleId]s that should be considered.
          * @return The resulting [Cursor].
          */
-        override fun filterRange(predicate: Predicate, partitionIndex: Int, partitions: Int): Cursor<Record> {
+        override fun filter(predicate: Predicate, partition: LongRange): Cursor<Record> {
             throw UnsupportedOperationException("The NonUniqueHashIndex does not support ranged filtering!")
         }
     }

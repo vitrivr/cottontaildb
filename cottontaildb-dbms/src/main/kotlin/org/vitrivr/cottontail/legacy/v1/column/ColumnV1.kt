@@ -86,12 +86,6 @@ class ColumnV1<T : Value>(override val name: Name.ColumnName, override val paren
         get() = ColumnEngine.MAPDB
 
     /**
-     * The maximum tuple ID used by this [Column].
-     */
-    val maxTupleId: Long
-        get() = this.store.maxRecid
-
-    /**
      * Status indicating whether this [ColumnV1] is open or closed.
      */
     @Volatile
@@ -166,12 +160,26 @@ class ColumnV1<T : Value>(override val name: Name.ColumnName, override val paren
         }
 
         /**
+         * The smallest [TupleId] contained in this [ColumnV1].
+         *
+         * @return [TupleId]
+         */
+        override fun smallestTupleId(): TupleId = 1L
+
+        /**
+         * The largest [TupleId] contained in this [ColumnV1].
+         *
+         * @return [TupleId]
+         */
+        override fun largestTupleId(): TupleId = this@ColumnV1.store.maxRecid
+
+        /**
          * Creates and returns a new [Iterator] for this [ColumnV1.Tx] that returns
          * all [TupleId]s contained within the surrounding [ColumnV1].
          *
          * @return [Iterator]
          */
-        fun scan() = this.scan(1L..this@ColumnV1.maxTupleId)
+        fun scan() = this.scan(this.smallestTupleId()..this.largestTupleId())
 
         /**
          * Creates and returns a new [Iterator] for this [ColumnV1.Tx] that returns
@@ -228,10 +236,8 @@ class ColumnV1<T : Value>(override val name: Name.ColumnName, override val paren
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
         }
 
-        override fun cursor(start: TupleId, end: TupleId): Cursor<T?> {
+        override fun cursor(partition: LongRange): Cursor<T?> {
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
         }
-
-
     }
 }

@@ -4,6 +4,7 @@ import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.env.Store
 import jetbrains.exodus.env.StoreConfig
 import org.vitrivr.cottontail.core.basics.Cursor
+import org.vitrivr.cottontail.core.database.BOC
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
@@ -119,6 +120,41 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
         }
 
         /**
+         * Returns the smallest [TupleId] held by the [Column] backing this [ColumnTx].
+         *
+         * @return [TupleId] The smallest [TupleId] held by the [Column] backing this [ColumnTx].
+         */
+        override fun smallestTupleId(): TupleId = this.txLatch.withLock {
+            val cursor = this.dataStore.openCursor(this.context.xodusTx)
+            val ret = if (cursor.next) {
+                LongBinding.compressedEntryToLong(cursor.key)
+            } else {
+                BOC
+            }
+            cursor.close()
+            ret
+        }
+
+        /**
+         * Returns the largest [TupleId] held by the [Column] backing this [Tx].
+         *
+         * @return [TupleId] The largest [TupleId] held by the [Column] backing this [Tx].
+         */
+        override fun largestTupleId(): TupleId = this.txLatch.withLock {
+            val cursor = this.dataStore.openCursor(this.context.xodusTx)
+            val ret = if (cursor.last) {
+                LongBinding.compressedEntryToLong(cursor.key)
+            } else {
+                BOC
+            }
+            cursor.close()
+            ret
+        }
+
+
+
+
+        /**
          * Returns the number of entries in this [DefaultColumn].
          *
          * @return Number of entries in this [DefaultColumn].
@@ -222,15 +258,17 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
          *
          * @return [Cursor]
          */
-        override fun cursor(): Cursor<T?> = this.cursor(-1L, Long.MAX_VALUE)
+        override fun cursor(): Cursor<T?> = this.txLatch.withLock {
+            this.cursor(this.smallestTupleId()..this.largestTupleId())
+        }
 
         /**
          * Opens a new [Cursor] for this [DefaultColumn.Tx].
          *
-         * @param start The [TupleId] to start the [Cursor] at.
+         * @param partition The [LongRange] specifying the [TupleId]s that should be scanned.
          * @return [Cursor]
          */
-        override fun cursor(start: TupleId, end: TupleId): Cursor<T?> = this.txLatch.withLock {
+        override fun cursor(partition: LongRange): Cursor<T?> = this.txLatch.withLock {
             object : Cursor<T?> {
 
                 /** The per-[Cursor] [XodusBinding] instance. */
@@ -259,14 +297,14 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
                 override fun moveNext(): Boolean {
                     check(!this.subTransaction.isFinished) { "Cursor cannot be moved because associated transaction has completed!" }
                     this.dirty = if (this.tupleId == -1L) {
-                        (this.cursor.getSearchKeyRange(start.toKey()) != null)
+                        (this.cursor.getSearchKeyRange(partition.first.toKey()) != null)
                     } else {
                         this.cursor.next
                     }
                     if (this.dirty) {
                         this.tupleId = LongBinding.compressedEntryToLong(this.cursor.key)
                     }
-                    return this.dirty && this.tupleId < end
+                    return this.dirty && this.tupleId < partition.last
                 }
 
                 /**

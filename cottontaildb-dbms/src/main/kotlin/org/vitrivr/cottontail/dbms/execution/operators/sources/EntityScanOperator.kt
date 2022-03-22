@@ -40,7 +40,8 @@ class EntityScanOperator(groupId: GroupId, val entity: EntityTx, val fetch: List
         val fetch = this.fetch.map { it.second }.toTypedArray()
         val columns = this.fetch.map { it.first.column }.toTypedArray()
         return flow {
-            val cursor = this@EntityScanOperator.entity.cursor(fetch, this@EntityScanOperator.partitionIndex, this@EntityScanOperator.partitions)
+            val partition = this@EntityScanOperator.entity.partitionFor(this@EntityScanOperator.partitionIndex, this@EntityScanOperator.partitions)
+            val cursor = this@EntityScanOperator.entity.cursor(fetch, partition)
             var read = 0
             while (cursor.moveNext()) {
                 val next = cursor.value() as StandaloneRecord

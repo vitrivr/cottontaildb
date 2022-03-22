@@ -24,7 +24,6 @@ import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.types.NumericValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.VectorValue
-import org.vitrivr.cottontail.dbms.catalogue.entries.IndexCatalogueEntry
 import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.catalogue.toKey
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
@@ -101,13 +100,6 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
         override fun configBinding(): ComparableBinding = PQIndexConfig.Binding
     }
 
-    /** The [PQIndexConfig] used by this [PQIndex] instance. */
-    override val config: PQIndexConfig
-        get() = this.catalogue.environment.computeInTransaction { tx ->
-        val entry = IndexCatalogueEntry.read(this.name, this.parent.parent.parent, tx) ?: throw DatabaseException.DataCorruptionException("Failed to read catalogue entry for index ${this.name}.")
-        entry.config as PQIndexConfig
-    }
-
     /** The [IndexType] of this [PQIndex]. */
     override val type: IndexType
         get() = IndexType.PQ
@@ -117,24 +109,6 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
 
     /** True since [PQIndex] supports partitioning. */
     override val supportsPartitioning: Boolean = false
-
-    /**
-     * Checks if this [AbstractIndex] can process the provided [Predicate] and returns true if so and false otherwise.
-     *
-     * @param predicate [Predicate] to check.
-     * @return True if [Predicate] can be processed, false otherwise.
-     */
-    override fun canProcess(predicate: Predicate) = predicate is ProximityPredicate && predicate.column == this.columns[0]
-
-    /**
-     * Returns a [List] of the [ColumnDef] produced by this [PQIndex].
-     *
-     * @return [List] of [ColumnDef].
-     */
-    override fun produces(predicate: Predicate): List<ColumnDef<*>> {
-        require(predicate is ProximityPredicate.NNS) { "PQIndex can only process proximity predicates." }
-        return listOf(predicate.distanceColumn)
-    }
 
     /**
      * Opens and returns a new [IndexTx] object that can be used to interact with this [PQIndex].
@@ -154,16 +128,32 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
      * A [IndexTx] that affects this [AbstractIndex].
      */
     private inner class Tx(context: TransactionContext) : AbstractHDIndex.Tx(context) {
+
         /** The [PQIndexConfig] used by this [PQIndex] instance. */
         override val config: PQIndexConfig
-            get() {
-                val entry = IndexCatalogueEntry.read(this@PQIndex.name, this@PQIndex.parent.parent.parent, this.context.xodusTx) ?: throw DatabaseException.DataCorruptionException("Failed to read catalogue entry for index ${this@PQIndex.name}.")
-                return entry.config as PQIndexConfig
-            }
+            get() = super.config as PQIndexConfig
+
+        /** The set of supported [VectorDistance]s. */
+        override val supportedDistances: Set<Signature.Closed<*>>
+
+        init {
+            val config = this.config
+            this.supportedDistances = setOf(Signature.Closed(config.distance, arrayOf(this.column.type, this.column.type), Types.Double))
+        }
 
         /** The Xodus [Store] used to store [PQSignature]s. */
         private var dataStore: Store = this@PQIndex.catalogue.environment.openStore(this@PQIndex.name.storeName(), StoreConfig.WITH_DUPLICATES, this.context.xodusTx, false)
             ?: throw DatabaseException.DataCorruptionException("Data store for index ${this@PQIndex.name} is missing.")
+
+        /**
+         * Returns a [List] of the [ColumnDef] produced by this [PQIndex].
+         *
+         * @return [List] of [ColumnDef].
+         */
+        override fun columnsFor(predicate: Predicate): List<ColumnDef<*>> = this.txLatch.withLock {
+            require(predicate is ProximityPredicate) { "PQIndex can only process proximity predicates." }
+            return listOf(predicate.distanceColumn)
+        }
 
         /**
          * Calculates the cost estimate of this [PQIndex.Tx] processing the provided [Predicate].
@@ -171,7 +161,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
          * @param predicate [Predicate] to check.
          * @return [Cost] estimate for the [Predicate]
          */
-        override fun cost(predicate: Predicate): Cost {
+        override fun costFor(predicate: Predicate): Cost = this.txLatch.withLock {
             if (predicate !is ProximityPredicate) return Cost.INVALID
             if (predicate.column != this.columns[0]) return Cost.INVALID
             if (predicate.distance.name != this.config.distance) return Cost.INVALID
@@ -180,7 +170,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
             return Cost(
                 count * subspaces * Cost.DISK_ACCESS_READ.io + predicate.k * predicate.column.type.logicalSize * Cost.DISK_ACCESS_READ.io,
                 count * (4 * Cost.MEMORY_ACCESS.cpu + Cost.FLOP.cpu) + predicate.cost.cpu * predicate.k,
-                (predicate.k * this@PQIndex.produces(predicate).sumOf { it.type.physicalSize }).toFloat()
+                (predicate.k * this.columnsFor(predicate).sumOf { it.type.physicalSize }).toFloat()
             )
         }
 
@@ -301,18 +291,12 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
                 /** The current [Cursor] position. */
                 private var position = -1L
 
-                init {
-                    this.prepare()
-                }
-
                 /**
                  * Moves the internal cursor and return true, as long as new candidates appear.
                  */
-                override fun moveNext(): Boolean = if (this.position < this.selection.size - 1L) {
-                    this.position += 1L
-                    true
-                } else {
-                    false
+                override fun moveNext(): Boolean {
+                    if (this.selection.added == 0L) this.prepare()
+                    return (++this.position) < this.selection.size
                 }
 
                 /**
@@ -341,7 +325,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
                     /* Prepare data structures for NNS. */
                     val preKnnSize = (this.predicate.k * 1.15).toLong() /* Pre-kNN size is 15% larger than k. */
                     val preKnn = HeapSelection(preKnnSize, Comparator<Pair<LongArray, Double>> { o1, o2 -> o1.second.compareTo(o2.second) })
-                    val produces = this@PQIndex.produces(predicate).toTypedArray()
+                    val produces = this@Tx.columnsFor(predicate).toTypedArray()
 
                     /* Phase 1: Perform pre-NNS based on signatures. */
                     val subTx = this@Tx.context.xodusTx.readonlySnapshot
@@ -380,7 +364,14 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
             }
         }
 
-        override fun filterRange(predicate: Predicate, partitionIndex: Int, partitions: Int): Cursor<Record> {
+        /**
+         * Partitioned filtering is not supported by [PQIndex].
+         *
+         * @param predicate The [Predicate] for the lookup
+         * @param partition The [LongRange] specifying the [TupleId]s that should be considered.
+         * @return The resulting [Iterator]
+         */
+        override fun filter(predicate: Predicate, partition: LongRange): Cursor<Record> {
             throw UnsupportedOperationException("The PQIndex does not support ranged filtering!")
         }
 

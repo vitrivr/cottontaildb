@@ -40,14 +40,14 @@ object BooleanIndexScanRule : RewriteRule {
                 val normalizedPredicate = this.normalize(node.predicate, fetch)
                 val indexes = parent.entity.listIndexes()
                 val candidate = indexes.map {
-                    parent.entity.indexForName(it)
+                    parent.entity.context.getTx(parent.entity.indexForName(it)) as IndexTx
                 }.find {
                     it.state != IndexState.DIRTY && it.canProcess(normalizedPredicate)
                 }
                 if (candidate != null) {
-                    val newFetch = parent.fetch.filter { candidate.produces(normalizedPredicate).contains(it.second) }
-                    val delta = parent.fetch.filter { !candidate.produces(normalizedPredicate).contains(it.second) }
-                    var p: org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Physical = IndexScanPhysicalOperatorNode(node.groupId, ctx.txn.getTx(candidate) as IndexTx, node.predicate, newFetch)
+                    val newFetch = parent.fetch.filter { candidate.columnsFor(normalizedPredicate).contains(it.second) }
+                    val delta = parent.fetch.filter { !candidate.columnsFor(normalizedPredicate).contains(it.second) }
+                    var p: OperatorNode.Physical = IndexScanPhysicalOperatorNode(node.groupId, candidate, node.predicate, newFetch)
                     if (delta.isNotEmpty()) {
                         p = FetchPhysicalOperatorNode(p, parent.entity, delta)
                     }
@@ -96,7 +96,7 @@ object BooleanIndexScanRule : RewriteRule {
                         }
                     )
                 }
-                else -> emptyList<Binding>()
+                else -> emptyList()
             }
 
             /* Return new operator. */

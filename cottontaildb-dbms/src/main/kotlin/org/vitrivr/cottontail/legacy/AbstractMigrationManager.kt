@@ -18,13 +18,16 @@ import org.vitrivr.cottontail.dbms.execution.TransactionManager.TransactionImpl
 import org.vitrivr.cottontail.dbms.execution.TransactionStatus
 import org.vitrivr.cottontail.dbms.execution.TransactionType
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
+import org.vitrivr.cottontail.dbms.execution.operators.sources.partitionFor
 import org.vitrivr.cottontail.dbms.general.DBO
 import org.vitrivr.cottontail.dbms.general.Tx
+import org.vitrivr.cottontail.dbms.index.IndexTx
 import org.vitrivr.cottontail.dbms.locking.LockMode
 import org.vitrivr.cottontail.dbms.operations.Operation
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
 import org.vitrivr.cottontail.utilities.io.TxFileUtilities
 import java.io.BufferedWriter
+import java.lang.Math.floorDiv
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
@@ -157,8 +160,9 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
                 for (indexName in srcEntityTx.listIndexes()) {
                     this.log("---- Migrating index $indexName...\n")
                     val index = srcEntityTx.indexForName(indexName)
+                    val srcIndexTx = sourceContext.getTx(index) as IndexTx
                     val destEntityTx = destinationContext.getTx(entity) as EntityTx
-                    destEntityTx.createIndex(index.name, index.type, index.columns.map { it.name }, index.config)
+                    destEntityTx.createIndex(index.name, index.type, srcIndexTx.columns.map { it.name }, srcIndexTx.config)
                 }
             }
         }
@@ -189,19 +193,19 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
             for (srcEntityName in entities) {
                 val srcEntityTx = sourceContext.getTx(srcSchemaTx.entityForName(srcEntityName)) as EntityTx
                 val count = srcEntityTx.count()
-                val maxTupleId = srcEntityTx.maxTupleId()
-                val columns = srcEntityTx.listColumns().toTypedArray()
 
                 /* Start migrating column data. */
                 if (count > 0) {
+                    val size = srcEntityTx.largestTupleId() - srcEntityTx.smallestTupleId()
+                    val partitions = floorDiv(size, this.batchSize).toInt() + 1
+                    val columns = srcEntityTx.listColumns().toTypedArray()
                     var i = 0L
-                    val p = Math.floorDiv(maxTupleId, this.batchSize).toInt() + 1
-                    for (j in 0 until p) {
+                    for (p in 0 until partitions) {
                         val destinationContext = MigrationContext(destination.environment.beginExclusiveTransaction())
                         val destCatalogueTx = destinationContext.getTx(destination) as CatalogueTx
                         val destSchemaTx = destinationContext.getTx(destCatalogueTx.schemaForName(srcSchemaName)) as SchemaTx
                         val destEntityTx = destinationContext.getTx(destSchemaTx.entityForName(srcEntityName)) as EntityTx
-                        val cursor = srcEntityTx.cursor(columns, j, p)
+                        val cursor = srcEntityTx.cursor(columns, srcEntityTx.partitionFor(p, partitions))
                         cursor.forEach { r ->
                             this.logStdout("-- Migrating data for ${srcEntityName}... (${++i} / $count)\r")
                             destEntityTx.insert(r)

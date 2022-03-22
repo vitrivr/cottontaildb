@@ -1,7 +1,6 @@
 package org.vitrivr.cottontail.dbms.entity
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectArrayMap
-import jetbrains.exodus.env.StoreConfig
 import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
@@ -25,7 +24,6 @@ import org.vitrivr.cottontail.dbms.operations.Operation
 import org.vitrivr.cottontail.dbms.schema.DefaultSchema
 import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
 import kotlin.concurrent.withLock
-import kotlin.math.min
 
 /**
  * The default [Entity] implementation based on JetBrains Xodus.
@@ -45,28 +43,6 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
     /** The [DBOVersion] of this [DefaultEntity]. */
     override val version: DBOVersion
         get() = DBOVersion.V3_0
-
-    /** Number of [Column]s in this [DefaultEntity]. */
-    override val numberOfColumns: Int
-        get() = this.catalogue.environment.computeInTransaction { tx ->
-            EntityCatalogueEntry.read(this.name, this.catalogue, tx)?.columns?.size
-                ?: throw DatabaseException.DataCorruptionException("Catalogue entry for entity ${this@DefaultEntity.name} is missing.")
-        }
-
-    /** Estimated maximum [TupleId]s for this [DefaultEntity]. This is a snapshot and may change immediately after calling this method. */
-    override val maxTupleId: TupleId
-        get() = this.catalogue.environment.computeInTransaction { tx ->
-            SequenceCatalogueEntries.read(this.sequenceName, this.catalogue, tx)
-                ?: throw DatabaseException.DataCorruptionException("Sequence entry for entity ${this@DefaultEntity.name} is missing.")
-        }
-
-    /** Number of entries in this [DefaultEntity]. This is a snapshot and may change immediately. */
-    override val numberOfRows: Long
-        get() = this.catalogue.environment.computeInTransaction { tx ->
-            val entityStore = this.catalogue.environment.openStore(this.name.storeName(), StoreConfig.WITHOUT_DUPLICATES, tx, false)
-                ?: throw DatabaseException.DataCorruptionException("Failed to open entity store for entity ${this.name}.")
-            entityStore.count(tx)
-        }
 
     /** Status indicating whether this [DefaultEntity] is open or closed. */
     override val closed: Boolean
@@ -183,9 +159,17 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
          *
          * @return The maximum tuple ID occupied by entries in this [DefaultEntity].
          */
-        override fun maxTupleId(): TupleId = this.txLatch.withLock {
-            SequenceCatalogueEntries.read(this@DefaultEntity.sequenceName, this@DefaultEntity.catalogue, this.context.xodusTx)
-                ?: throw DatabaseException.DataCorruptionException("Sequence entry for entity ${this@DefaultEntity.name} is missing.")
+        override fun smallestTupleId(): TupleId = this.txLatch.withLock {
+            this.columns.values.first().smallestTupleId()
+        }
+
+        /**
+         * Returns the maximum tuple ID occupied by entries in this [DefaultEntity].
+         *
+         * @return The maximum tuple ID occupied by entries in this [DefaultEntity].
+         */
+        override fun largestTupleId(): TupleId = this.txLatch.withLock {
+            this.columns.values.first().largestTupleId()
         }
 
         /**
@@ -325,51 +309,46 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
          *
          * @return [Cursor]
          */
-        override fun cursor(columns: Array<ColumnDef<*>>): Cursor<Record> = cursor(columns, 0, 1)
+        override fun cursor(columns: Array<ColumnDef<*>>): Cursor<Record> = this.txLatch.withLock {
+            return cursor(columns, this.smallestTupleId()..this.largestTupleId())
+        }
 
         /**
          * Creates and returns a new [Iterator] for this [DefaultEntity.Tx] that returns all [TupleId]s
          * contained within the surrounding [DefaultEntity] and a certain range.
          *
          * @param columns The [ColumnDef]s that should be scanned.
-         * @param partitionIndex The [partitionIndex] for this [cursor] call.
-         * @param partitions The total number of partitions for this [cursor] call.
+         * @param partition The [LongRange] specifying the [TupleId]s that should be scanned.
          *
          * @return [Cursor]
          */
-        override fun cursor(columns: Array<ColumnDef<*>>, partitionIndex: Int, partitions: Int) = object : Cursor<Record> {
-            /** The wrapped [Cursor] to iterate over columns. */
-            private val cursors: Array<Cursor<out Value?>>
-
-            init {
-                val maxTupleId = this@Tx.maxTupleId()
-                val partitionSize: Long = Math.floorDiv(maxTupleId, partitions.toLong()) + 1L
-                val startTupleId = partitionIndex * partitionSize
-                val endTupleId = min(((partitionIndex + 1) * partitionSize), maxTupleId)
-                this.cursors = columns.map {
-                    this@Tx.columns[it.name]?.cursor(startTupleId, endTupleId) ?: throw IllegalStateException("Column $it missing in transaction.")
+        override fun cursor(columns: Array<ColumnDef<*>>, partition: LongRange) = this.txLatch.withLock {
+            object : Cursor<Record> {
+                /** The wrapped [Cursor] to iterate over columns. */
+                private val cursors: Array<Cursor<out Value?>> = columns.map {
+                    this@Tx.columns[it.name]?.cursor(partition) ?: throw IllegalStateException("Column $it missing in transaction.")
                 }.toTypedArray()
+
+                /**
+                 * Returns the [TupleId] this [Cursor] is currently pointing to.
+                 */
+                override fun key(): TupleId = this.cursors.first().key()
+
+                /**
+                 * Returns the [Record] this [Cursor] is currently pointing to.
+                 */
+                override fun value(): Record = StandaloneRecord(this.key(), columns, Array(columns.size) { this.cursors[it].value() })
+
+                /**
+                 * Tries to move this [Cursor]. Returns true on success and false otherwise.
+                 */
+                override fun moveNext(): Boolean = this.cursors.all { it.moveNext() }
+
+                /**
+                 * Closes this [Cursor].
+                 */
+                override fun close() = this.cursors.forEach { it.close() }
             }
-
-            /**
-             * Returns the [TupleId] this [Cursor] is currently pointing to.
-             */
-            override fun key(): TupleId = this.cursors.first().key()
-
-            /**
-             * Returns the [Record] this [Cursor] is currently pointing to.
-             */
-            override fun value(): Record = StandaloneRecord(this.key(), columns, Array(columns.size) { this.cursors[it].value() })
-
-            /**
-             * Tries to move this [Cursor]. Returns true on success and false otherwise.
-             */
-            override fun moveNext(): Boolean = this.cursors.all { it.moveNext() }
-
-            /**
-             * Closes this [Cursor].
-             */
-            override fun close() = this.cursors.forEach { it.close() }
         }
 
         /**

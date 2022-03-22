@@ -2,10 +2,15 @@ package org.vitrivr.cottontail.dbms.index
 
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.core.queries.functions.Signature
+import org.vitrivr.cottontail.core.queries.predicates.Predicate
+import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.execution.TransactionContext
 import org.vitrivr.cottontail.dbms.index.basics.avc.AuxiliaryValueCollection
+import org.vitrivr.cottontail.dbms.index.gg.GGIndex
 import org.vitrivr.cottontail.dbms.operations.Operation
+import org.vitrivr.cottontail.dbms.queries.sort.SortOrder
 import kotlin.concurrent.withLock
 
 /**
@@ -21,18 +26,6 @@ import kotlin.concurrent.withLock
 abstract class AbstractHDIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name, parent) {
 
     /**
-     * The [ColumnDef] that is being indexed by this [AbstractHDIndex].
-     *
-     * <strong>Important:</string> Calling this method creates an implicit transaction context. It is thus unsafe to
-     */
-    val column: ColumnDef<*>
-        get() = this.columns[0]
-
-    /** The dimensionality of this [AbstractHDIndex]. */
-    val dimension: Int
-        get() = this.column.type.logicalSize
-
-    /**
      * A [Tx] that affects this [AbstractIndex].
      */
     protected abstract inner class Tx(context: TransactionContext) : AbstractIndex.Tx(context), WriteModel {
@@ -40,6 +33,32 @@ abstract class AbstractHDIndex(name: Name.IndexName, parent: DefaultEntity) : Ab
         /** The [ColumnDef] that is being indexed by this [AbstractHDIndex]. */
         val column: ColumnDef<*>
             get() = this.columns[0]
+
+        /** Set of supported [Name.FunctionName] that can act as distance functions. */
+        protected abstract val supportedDistances: Set<Signature.Closed<*>>
+
+        /**
+         * Checks if this [GGIndex] can process the provided [Predicate] and returns true if so and false otherwise.
+         *
+         * @param predicate [Predicate] to check.
+         * @return True if [Predicate] can be processed, false otherwise.
+         */
+        override fun canProcess(predicate: Predicate): Boolean {
+            return predicate is ProximityPredicate
+                    && predicate.column == this.column && predicate.distance.signature in this.supportedDistances
+        }
+
+        /**
+         * Calculates the cost estimate if this [GGIndex] processing the provided [Predicate].
+         *
+         * @param predicate [Predicate] to check.
+         * @return Cost estimate for the [Predicate]
+         */
+        override fun orderFor(predicate: Predicate): List<Pair<ColumnDef<*>, SortOrder>> = when (predicate) {
+            is ProximityPredicate.NNS -> listOf(predicate.distanceColumn to SortOrder.ASCENDING)
+            is ProximityPredicate.FNS -> listOf(predicate.distanceColumn to SortOrder.DESCENDING)
+            else -> throw IllegalArgumentException("Unsupported predicate for HD-index. This is a programmer's error!")
+        }
 
         /**
          * Tries to process an incoming [Operation.DataManagementOperation.InsertOperation].
@@ -59,7 +78,7 @@ abstract class AbstractHDIndex(name: Name.IndexName, parent: DefaultEntity) : Ab
 
             /* If write-model does not allow propagation, apply change to auxiliary value collection. */
             if (!this.tryApply(operation)) {
-                val value = operation.inserts[this@AbstractHDIndex.column]
+                val value = operation.inserts[this.column]
 
                 /* TODO: Process. */
 
@@ -86,7 +105,7 @@ abstract class AbstractHDIndex(name: Name.IndexName, parent: DefaultEntity) : Ab
 
             /* If write-model does not allow propagation, apply change to auxiliary value collection. */
             if (!this.tryApply(operation)) {
-                val value = operation.updates[this@AbstractHDIndex.column]?.second
+                val value = operation.updates[this.column]?.second
 
                 /* TODO: Process. */
 

@@ -24,6 +24,7 @@ import org.vitrivr.cottontail.dbms.execution.TransactionContext
 import org.vitrivr.cottontail.dbms.index.*
 import org.vitrivr.cottontail.dbms.index.lucene.LuceneIndex
 import org.vitrivr.cottontail.dbms.operations.Operation
+import org.vitrivr.cottontail.dbms.queries.sort.SortOrder
 import org.vitrivr.cottontail.storage.serializers.values.ValueSerializerFactory
 import org.vitrivr.cottontail.storage.serializers.values.xodus.XodusBinding
 import java.util.*
@@ -80,31 +81,6 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
     /** False, since [UQBTreeIndex] does not support partitioning. */
     override val supportsPartitioning: Boolean = false
 
-    /** The (dummy) [UQBTreeIndexConfig]. */
-    override val config: IndexConfig<UQBTreeIndex> = UQBTreeIndexConfig
-
-    /**
-     * Checks if the provided [Predicate] can be processed by this instance of [UQBTreeIndex]. [UQBTreeIndex] can be used to process IN and EQUALS
-     * comparison operations on the specified column
-     *
-     * @param predicate The [Predicate] to check.
-     * @return True if [Predicate] can be processed, false otherwise.
-     */
-    override fun canProcess(predicate: Predicate): Boolean = predicate is BooleanPredicate.Atomic
-            && !predicate.not
-            && predicate.columns.contains(this.columns[0])
-            && (predicate.operator is ComparisonOperator.In || predicate.operator is ComparisonOperator.Binary.Equal)
-
-    /**
-     * Returns a [List] of the [ColumnDef] produced by this [UQBTreeIndex].
-     *
-     * @return [List] of [ColumnDef].
-     */
-    override fun produces(predicate: Predicate): List<ColumnDef<*>> {
-        require(predicate is BooleanPredicate) { "Unique BTree index can only process boolean predicates." }
-        return this.columns.toList()
-    }
-
     /**
      * Opens and returns a new [IndexTx] object that can be used to interact with this [AbstractIndex].
      *
@@ -133,8 +109,7 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
             ?: throw DatabaseException.DataCorruptionException("Data store for index ${this@UQBTreeIndex.name} is missing.")
 
         /** The dummy [UQBTreeIndexConfig]. */
-        override val config: IndexConfig<UQBTreeIndex>
-            get() = this@UQBTreeIndex.config
+        override val config: IndexConfig<UQBTreeIndex> = UQBTreeIndexConfig
 
         /**
          * Adds a mapping from the given [Value] to the given [TupleId].
@@ -167,14 +142,47 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
         }
 
         /**
+         * Checks if the provided [Predicate] can be processed by this instance of [UQBTreeIndex]. [UQBTreeIndex] can be used to process IN and EQUALS
+         * comparison operations on the specified column
+         *
+         * @param predicate The [Predicate] to check.
+         * @return True if [Predicate] can be processed, false otherwise.
+         */
+        override fun canProcess(predicate: Predicate): Boolean = predicate is BooleanPredicate.Atomic
+                && !predicate.not
+                && predicate.columns.contains(this.columns[0])
+                && (predicate.operator is ComparisonOperator.In || predicate.operator is ComparisonOperator.Binary.Equal)
+
+        /**
+         * Returns a [List] of the [ColumnDef] produced by this [UQBTreeIndex].
+         *
+         * @return [List] of [ColumnDef].
+         */
+        override fun columnsFor(predicate: Predicate): List<ColumnDef<*>> = this.txLatch.withLock {
+            require(predicate is BooleanPredicate) { "Unique BTree index can only process boolean predicates." }
+            this.columns.toList()
+        }
+
+        /**
+         * The [UQBTreeIndex] does not return results in a particular order.
+         *
+         * @param predicate [Predicate] to check.
+         * @return List that describes the sort order of the values returned by the [BTreeIndex]
+         */
+        override fun orderFor(predicate: Predicate): List<Pair<ColumnDef<*>, SortOrder>> = this.txLatch.withLock {
+            require(predicate is BooleanPredicate) { "Unique BTree index can only process boolean predicates." }
+            emptyList()
+        }
+
+        /**
          * Calculates the cost estimate of this [UQBTreeIndex.Tx] processing the provided [Predicate].
          *
          * @param predicate [Predicate] to check.
          * @return Cost estimate for the [Predicate]
          */
-        override fun cost(predicate: Predicate): Cost {
+        override fun costFor(predicate: Predicate): Cost = this.txLatch.withLock {
             if (predicate !is BooleanPredicate.Atomic || predicate.columns.first() != this.columns[0] || predicate.not) return Cost.INVALID
-            return when (val operator = predicate.operator) {
+            when (val operator = predicate.operator) {
                 is ComparisonOperator.Binary.Equal -> Cost.DISK_ACCESS_READ + Cost.MEMORY_ACCESS + Cost(memory = predicate.columns.sumOf { it.type.physicalSize }.toFloat())
                 is ComparisonOperator.In -> (Cost.DISK_ACCESS_READ + Cost.MEMORY_ACCESS) * operator.right.size + Cost(memory = predicate.columns.sumOf { it.type.physicalSize }.toFloat())
                 else -> Cost.INVALID
@@ -210,7 +218,7 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
          * @param operation [Operation.DataManagementOperation.InsertOperation]s to process.
          */
         override fun insert(operation: Operation.DataManagementOperation.InsertOperation) = this.txLatch.withLock {
-            val value = operation.inserts[this.dbo.columns[0]]
+            val value = operation.inserts[this.columns[0]]
             if (value != null) {
                 this.addMapping(value, operation.tupleId)
             }
@@ -222,11 +230,11 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
          * @param operation [Operation.DataManagementOperation.UpdateOperation]s to process.
          */
         override fun update(operation: Operation.DataManagementOperation.UpdateOperation) = this.txLatch.withLock {
-            val old = operation.updates[this.dbo.columns[0]]?.first
+            val old = operation.updates[this.columns[0]]?.first
             if (old != null) {
                 this.removeMapping(old)
             }
-            val new = operation.updates[this.dbo.columns[0]]?.second
+            val new = operation.updates[this.columns[0]]?.second
             if (new != null) {
                 this.addMapping(new, operation.tupleId)
             }
@@ -238,7 +246,7 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
          * @param operation [Operation.DataManagementOperation.DeleteOperation]s to apply.
          */
         override fun delete(operation: Operation.DataManagementOperation.DeleteOperation) = this.txLatch.withLock {
-            val old = operation.deleted[this.dbo.columns[0]]
+            val old = operation.deleted[this.columns[0]]
             if (old != null) {
                 this.removeMapping(old)
             }
@@ -318,7 +326,7 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
 
                 override fun key(): TupleId = LongBinding.compressedEntryToLong(this.cursor.value)
 
-                override fun value(): Record = StandaloneRecord(this.key(), this@UQBTreeIndex.columns, arrayOf(this@Tx.binding.entryToValue(this.cursor.key)))
+                override fun value(): Record = StandaloneRecord(this.key(), this@Tx.columns, arrayOf(this@Tx.binding.entryToValue(this.cursor.key)))
 
                 override fun close() {
                     this.cursor.close()
@@ -331,11 +339,10 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
          * The [UQBTreeIndex] does not support ranged filtering!
          *
          * @param predicate The [Predicate] for the lookup.
-         * @param partitionIndex The [partitionIndex] for this [filterRange] call.
-         * @param partitions The total number of partitions for this [filterRange] call.
+         * @param partition The [LongRange] specifying the [TupleId]s that should be considered.
          * @return The resulting [Cursor].
          */
-        override fun filterRange(predicate: Predicate, partitionIndex: Int, partitions: Int): Cursor<Record> {
+        override fun filter(predicate: Predicate, partition: LongRange): Cursor<Record> {
             throw UnsupportedOperationException("The UniqueHashIndex does not support ranged filtering!")
         }
     }

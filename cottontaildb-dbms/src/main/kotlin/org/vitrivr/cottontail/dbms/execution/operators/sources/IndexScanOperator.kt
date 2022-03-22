@@ -10,6 +10,7 @@ import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.TransactionContext
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.index.Index
@@ -37,7 +38,7 @@ class IndexScanOperator(
 
     /** The [ColumnDef] produced by this [IndexScanOperator]. */
     override val columns: List<ColumnDef<*>> = this.fetch.map {
-        require(this.index.dbo.produces(predicate).contains(it.second)) { "The given column $it is not produced by the selected index ${this.index.dbo}. This is a programmer's error!"}
+        require(this.index.columnsFor(this.predicate).contains(it.second)) { "The given column $it is not produced by the selected index ${this.index.dbo}. This is a programmer's error!"}
         it.first.column
     }
 
@@ -52,7 +53,8 @@ class IndexScanOperator(
         val cursor = if (this@IndexScanOperator.partitions == 1) {
             this@IndexScanOperator.index.filter(this@IndexScanOperator.predicate)
         } else {
-            this@IndexScanOperator.index.filterRange(this@IndexScanOperator.predicate, this@IndexScanOperator.partitionIndex, this@IndexScanOperator.partitions)
+            val entityTx = this@IndexScanOperator.index.context.getTx(this@IndexScanOperator.index.dbo.parent) as EntityTx
+            this@IndexScanOperator.index.filter(this@IndexScanOperator.predicate, entityTx.partitionFor(this@IndexScanOperator.partitionIndex, this@IndexScanOperator.partitions))
         }
         var read = 0
         while (cursor.moveNext()) {

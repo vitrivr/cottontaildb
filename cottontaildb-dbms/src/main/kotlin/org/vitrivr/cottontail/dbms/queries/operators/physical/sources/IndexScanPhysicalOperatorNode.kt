@@ -20,7 +20,9 @@ import org.vitrivr.cottontail.dbms.index.IndexTx
 import org.vitrivr.cottontail.dbms.queries.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.NullaryPhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.physical.merge.MergeLimitingSortPhysicalOperator
 import org.vitrivr.cottontail.dbms.queries.operators.physical.merge.MergePhysicalOperator
+import org.vitrivr.cottontail.dbms.queries.sort.SortOrder
 import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
 import org.vitrivr.cottontail.dbms.statistics.selectivity.NaiveSelectivityCalculator
 
@@ -61,20 +63,23 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int,
     override val statistics = Object2ObjectLinkedOpenHashMap<ColumnDef<*>, ValueStatistics<*>>()
 
     /** Cost estimation for [IndexScanPhysicalOperatorNode]s is delegated to the [Index]. */
-    override val cost: Cost = this.index.cost(this.predicate)
+    override val cost: Cost = this.index.costFor(this.predicate)
 
     /** The estimated output size of this [IndexScanPhysicalOperatorNode]. */
     override val outputSize: Long = when (this.predicate) {
-        is BooleanPredicate -> NaiveSelectivityCalculator.estimate(this.predicate, this.statistics)(this.index.dbo.parent.numberOfRows)
         is ProximityPredicate -> this.predicate.k.toLong()
-        else -> this.index.dbo.parent.numberOfRows
+        is BooleanPredicate -> {
+            val selectivity = NaiveSelectivityCalculator.estimate(this.predicate, this.statistics)
+            val entityTx = this.index.context.getTx(this.index.dbo.parent) as EntityTx
+            selectivity(entityTx.count())
+        }
     }
 
     init {
         val entityTx = this.index.context.getTx(this.index.dbo.parent) as EntityTx
         val columns = mutableListOf<ColumnDef<*>>()
         val physicalColumns = mutableListOf<ColumnDef<*>>()
-        val indexProduces = this.index.dbo.produces(this.predicate)
+        val indexProduces = this.index.columnsFor(this.predicate)
         val entityProduces = entityTx.listColumns()
         for ((binding, physical) in this.fetch) {
             require(indexProduces.contains(physical)) { "The given column $physical is not produced by the selected index ${this.index.dbo}. This is a programmer's error!"}
@@ -123,7 +128,11 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int,
             val inbound = (0 until partitions).map {
                 IndexScanPhysicalOperatorNode(it, this.index, this.predicate, this.fetch, it, partitions)
             }
-            val merge = MergePhysicalOperator(*inbound.toTypedArray())
+            val merge = when(this.predicate) {
+                is ProximityPredicate.NNS -> MergeLimitingSortPhysicalOperator(*inbound.toTypedArray(), sortOn = listOf(this.predicate.distanceColumn to SortOrder.ASCENDING), limit = this.predicate.k.toLong())
+                is ProximityPredicate.FNS -> MergeLimitingSortPhysicalOperator(*inbound.toTypedArray(), sortOn = listOf(this.predicate.distanceColumn to SortOrder.DESCENDING), limit = this.predicate.k.toLong())
+                else -> MergePhysicalOperator(*inbound.toTypedArray())
+            }
             return this.output?.copyWithOutput(merge)
         }
         return null

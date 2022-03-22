@@ -13,7 +13,7 @@ import org.vitrivr.cottontail.dbms.general.DBO
  * of a given type, as specified by the [ColumnDef].
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 3.0.0
  */
 interface Column<T: Value> : DBO {
 

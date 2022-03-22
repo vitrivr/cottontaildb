@@ -22,6 +22,7 @@ import org.vitrivr.cottontail.dbms.execution.TransactionContext
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.general.DBOVersion
 import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
+import org.vitrivr.cottontail.legacy.v1.column.ColumnV1
 import org.vitrivr.cottontail.storage.serializers.values.ValueSerializerFactory
 import java.nio.file.Files
 import java.nio.file.Path
@@ -102,10 +103,6 @@ class ColumnV2<T : Value>(val path: Path, override val parent: Entity) : Column<
     val engine: ColumnEngine
         get() = ColumnEngine.MAPDB
 
-    /** The maximum tuple ID used by this [Column]. */
-    val maxTupleId: Long
-        get() = this.store.maxRecid
-
     /** Status indicating whether this [ColumnV2] is open or closed. */
     override val closed: Boolean
         get() = this.store.isClosed
@@ -179,12 +176,26 @@ class ColumnV2<T : Value>(val path: Path, override val parent: Entity) : Column<
         }
 
         /**
+         * The smallest [TupleId] contained in this [ColumnV1].
+         *
+         * @return [TupleId]
+         */
+        override fun smallestTupleId(): TupleId = 1L
+
+        /**
+         * The largest [TupleId] contained in this [ColumnV1].
+         *
+         * @return [TupleId]
+         */
+        override fun largestTupleId(): TupleId = this@ColumnV2.store.maxRecid
+
+        /**
          * Creates and returns a new [Iterator] for this [ColumnV2.Tx] that returns
          * all [TupleId]s contained within the surrounding [ColumnV2].
          *
          * @return [Iterator]
          */
-        fun scan() = this.scan(0L..this@ColumnV2.maxTupleId)
+        fun scan() = this.scan(this.smallestTupleId()..this.largestTupleId())
 
         /**
          * Creates and returns a new [Iterator] for this [ColumnV2.Tx] that returns
@@ -230,7 +241,7 @@ class ColumnV2<T : Value>(val path: Path, override val parent: Entity) : Column<
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
         }
 
-        override fun cursor(start: TupleId, end: TupleId): Cursor<T?> {
+        override fun cursor(partition: LongRange): Cursor<T?> {
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
         }
     }

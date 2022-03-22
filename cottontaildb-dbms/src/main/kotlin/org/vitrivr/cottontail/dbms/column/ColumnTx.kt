@@ -26,6 +26,20 @@ interface ColumnTx<T : Value> : Tx {
         get() = this.dbo.columnDef
 
     /**
+     * Returns the smallest [TupleId] held by the [Column] backing this [ColumnTx].
+     *
+     * @return [TupleId] The smallest [TupleId] held by the [Column] backing this [ColumnTx].
+     */
+    fun smallestTupleId(): TupleId
+
+    /**
+     * Returns the largest [TupleId] held by the [Column] backing this [ColumnTx].
+     *
+     * @return [TupleId] The largest [TupleId] held by the [Column] backing this [ColumnTx].
+     */
+    fun largestTupleId(): TupleId
+
+    /**
      * Gets and returns [ValueStatistics] for the [Column] backing this [ColumnTx]
      *
      * @return [ValueStatistics].
@@ -49,18 +63,17 @@ interface ColumnTx<T : Value> : Tx {
     /**
      * Opens a new [Cursor] for this [ColumnTx].
      *
-     * @param start The [TupleId] to start the [Cursor] at.
-     * @param end The [TupleId] to end the [Cursor] at.
+     * @param partition The [LongRange] specifying the [TupleId]s that should be scanned.
      * @return [Cursor]
      */
-    fun cursor(start: TupleId, end: TupleId): Cursor<T?>
+    fun cursor(partition: LongRange): Cursor<T?>
 
     /**
      * Returns true if this [Column] contains the given [TupleId] and false otherwise.
      *
      * This method merely checks the existence of the [TupleId] within the [Column], the
      * [Value] held may still be null. If this method returns true, then [ColumnTx.get] will
-     * either return a [Value] or nul. However, if this method returns false, then [Column.Tx]
+     * either return a [Value] or nul. However, if this method returns false, then [ColumnTx]
      * will throw an exception for that [TupleId].
      *
      * @param tupleId The [TupleId] of the desired entry
