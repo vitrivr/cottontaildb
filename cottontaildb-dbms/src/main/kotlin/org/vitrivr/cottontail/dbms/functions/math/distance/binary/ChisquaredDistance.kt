@@ -34,10 +34,10 @@ sealed class ChisquaredDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Ve
             check(Companion.signature.collides(signature)) { "Provided signature $signature is incompatible with generator signature ${Companion.signature}. This is a programmer's error!" }
             if (signature.arguments.any { it != signature.arguments[0] }) throw FunctionNotSupportedException("Function generator ${HaversineDistance.signature} cannot generate function with signature $signature.")
             return when (val type = signature.arguments[0].type) {
-                is Types.DoubleVector -> DoubleVector(type)
-                is Types.FloatVector -> FloatVector(type)
-                is Types.LongVector -> LongVector(type)
-                is Types.IntVector -> IntVector(type)
+                is Types.DoubleVector -> DoubleVector(type).vectorized()
+                is Types.FloatVector -> FloatVector(type).vectorized()
+                is Types.LongVector -> LongVector(type).vectorized()
+                is Types.IntVector -> IntVector(type).vectorized()
                 else -> throw FunctionNotSupportedException("Function generator ${Companion.signature} cannot generate function with signature $signature.")
             }
         }
@@ -72,12 +72,17 @@ sealed class ChisquaredDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Ve
             return DoubleValue(sum)
         }
         override fun copy(d: Int) = DoubleVector(Types.DoubleVector(d))
+
+        override fun vectorized(): VectorDistance<DoubleVectorValue> {
+            return this
+            //TODO @Colin("Not yet implemented")
+        }
     }
 
     /**
      * [ChisquaredDistance] for a [FloatVectorValue].
      */
-    /*class FloatVector(type: Types.Vector<FloatVectorValue,*>): ChisquaredDistance<FloatVectorValue>(type) {
+    class FloatVector(type: Types.Vector<FloatVectorValue,*>): ChisquaredDistance<FloatVectorValue>(type) {
         override val name: Name.FunctionName = FUNCTION_NAME
         override fun invoke(vararg arguments: Value?): DoubleValue {
             val probing = arguments[0] as FloatVectorValue
@@ -89,16 +94,20 @@ sealed class ChisquaredDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Ve
             return DoubleValue(sum)
         }
         override fun copy(d: Int) = FloatVector(Types.FloatVector(d))
-    }*/
+
+        override fun vectorized(): VectorDistance<FloatVectorValue> {
+            return FloatVectorVectorized(this.type)
+        }
+    }
 
     /**
      * SIMD implementation: [ChisquaredDistance] for a [FloatVectorValue]
      */
-    class FloatVector(type: Types.Vector<FloatVectorValue,*>): EuclideanDistance<FloatVectorValue>(type) {
+    class FloatVectorVectorized(type: Types.Vector<FloatVectorValue,*>): EuclideanDistance<FloatVectorValue>(type) {
         override val name: Name.FunctionName = FUNCTION_NAME
         override fun invoke(vararg arguments: Value?): DoubleValue {
             // Changing SPECIES to SPECIES.PREFERRED results in a HUGE performance decrease
-            val species: VectorSpecies<Float> = jdk.incubator.vector.FloatVector.SPECIES_PREFERRED
+            val species: VectorSpecies<Float> = jdk.incubator.vector.FloatVector.SPECIES_256
             val probing = arguments[0] as FloatVectorValue
             val query = arguments[1] as FloatVectorValue
             var vectorSum = jdk.incubator.vector.FloatVector.zero(species)
@@ -121,6 +130,10 @@ sealed class ChisquaredDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Ve
             return DoubleValue(sum)
         }
         override fun copy(d: Int) = FloatVector(Types.FloatVector(d))
+
+        override fun vectorized(): VectorDistance<FloatVectorValue> {
+            return this
+        }
     }
 
     /**
@@ -138,6 +151,11 @@ sealed class ChisquaredDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Ve
             return DoubleValue(sum)
         }
         override fun copy(d: Int) = LongVector(Types.LongVector(d))
+
+        override fun vectorized(): VectorDistance<LongVectorValue> {
+            return this
+            //TODO @Colin("Not yet implemented")
+        }
     }
 
     /**
@@ -155,5 +173,10 @@ sealed class ChisquaredDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Ve
             return DoubleValue(sum)
         }
         override fun copy(d: Int) = IntVector(Types.IntVector(d))
+
+        override fun vectorized(): VectorDistance<IntVectorValue> {
+            return this
+            //TODO @Colin("Not yet implemented")
+        }
     }
 }

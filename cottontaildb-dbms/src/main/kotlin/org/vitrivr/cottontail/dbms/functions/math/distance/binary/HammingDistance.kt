@@ -1,5 +1,7 @@
 package org.vitrivr.cottontail.dbms.functions.math.distance.binary
 
+import jdk.incubator.vector.VectorOperators
+import jdk.incubator.vector.VectorSpecies
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.functions.Argument
 import org.vitrivr.cottontail.core.queries.functions.Function
@@ -31,11 +33,11 @@ sealed class HammingDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Vecto
             check(Companion.signature.collides(signature)) { "Provided signature $signature is incompatible with generator signature ${Companion.signature}. This is a programmer's error!"  }
             if (signature.arguments.any { it != signature.arguments[0] }) throw FunctionNotSupportedException("Function generator ${HaversineDistance.signature} cannot generate function with signature $signature.")
             return when(val type = signature.arguments[0].type) {
-                is Types.BooleanVector -> BooleanVector(type)
-                is Types.DoubleVector -> DoubleVector(type)
-                is Types.FloatVector -> FloatVector(type)
-                is Types.LongVector -> LongVector(type)
-                is Types.IntVector -> IntVector(type)
+                is Types.BooleanVector -> BooleanVector(type).vectorized()
+                is Types.DoubleVector -> DoubleVector(type).vectorized()
+                is Types.FloatVector -> FloatVector(type).vectorized()
+                is Types.LongVector -> LongVector(type).vectorized()
+                is Types.IntVector -> IntVector(type).vectorized()
                 else -> throw FunctionNotSupportedException("Function generator ${Companion.signature} cannot generate function with signature $signature.")
             }
         }
@@ -73,6 +75,11 @@ sealed class HammingDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Vecto
             return DoubleValue(sum)
         }
         override fun copy(d: Int) = DoubleVector(Types.DoubleVector(d))
+
+        override fun vectorized(): VectorDistance<DoubleVectorValue> {
+            return this
+            //TODO @Colin("Not yet implemented")
+        }
     }
 
     /**
@@ -92,6 +99,44 @@ sealed class HammingDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Vecto
             return DoubleValue(sum)
         }
         override fun copy(d: Int) = FloatVector(Types.FloatVector(d))
+
+        override fun vectorized(): VectorDistance<FloatVectorValue> {
+            return FloatVectorVectorized(type)
+            //TODO @Colin("Not yet implemented")
+        }
+    }
+
+    /**
+     * SIMD Implementation: [HammingDistance] for a [FloatVectorValue].
+     */
+    class FloatVectorVectorized(type: Types.Vector<FloatVectorValue,*>): HammingDistance<FloatVectorValue>(type) {
+        override val name: Name.FunctionName = FUNCTION_NAME
+        override fun invoke(vararg arguments: Value?): DoubleValue {
+            val species: VectorSpecies<Float> = jdk.incubator.vector.FloatVector.SPECIES_256
+            val probing = arguments[0] as FloatVectorValue
+            val query = arguments[1] as FloatVectorValue
+            var sum = 0.0
+
+            //Vectorized calculation
+            for (i in 0 until species.loopBound(this.d) step species.length()) {
+                val vp = jdk.incubator.vector.FloatVector.fromArray(species, probing.data, i)
+                val vq = jdk.incubator.vector.FloatVector.fromArray(species, query.data, i)
+                sum += vp.compare(VectorOperators.NE, vq).trueCount()
+            }
+
+            // Scalar calculation for the remaining lanes, since SPECIES.loopBound(this.d) <= this.d
+            for (i in species.loopBound(this.d) until this.d) {
+                if (query.data[i] != probing.data[i]) {
+                    sum += 1.0
+                }
+            }
+            return DoubleValue(sum)
+        }
+        override fun copy(d: Int) = FloatVector(Types.FloatVector(d))
+
+        override fun vectorized(): VectorDistance<FloatVectorValue> {
+            return this
+        }
     }
 
     /**
@@ -111,6 +156,11 @@ sealed class HammingDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Vecto
             return DoubleValue(sum)
         }
         override fun copy(d: Int) = LongVector(Types.LongVector(d))
+
+        override fun vectorized(): VectorDistance<LongVectorValue> {
+            return this
+            //TODO @Colin("Not yet implemented")
+        }
     }
 
     /**
@@ -130,6 +180,11 @@ sealed class HammingDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Vecto
             return DoubleValue(sum)
         }
         override fun copy(d: Int) = IntVector(Types.IntVector(d))
+
+        override fun vectorized(): VectorDistance<IntVectorValue> {
+            return this
+            //TODO @Colin("Not yet implemented")
+        }
     }
 
     /**
@@ -149,5 +204,10 @@ sealed class HammingDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Vecto
             return DoubleValue(sum)
         }
         override fun copy(d: Int) = BooleanVector(Types.BooleanVector(d))
+
+        override fun vectorized(): VectorDistance<BooleanVectorValue> {
+            return this
+            //TODO @Colin("Not yet implemented")
+        }
     }
 }

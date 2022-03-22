@@ -35,7 +35,7 @@ dependencies {
 application {
     applicationName = 'cottontaildb'
     mainClassName = 'org.vitrivr.cottontail.CottontailKt'
-    applicationDefaultJvmArgs = ["-Xms2G", "-Xmx4G"]
+    applicationDefaultJvmArgs = ["-Xms2G", "-Xmx4G", "--add-modules", "jdk.incubator.vector"]
 }
 
 /* Publication of Cottontail DB to Maven Central. */

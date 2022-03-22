@@ -37,10 +37,10 @@ sealed class HyperplaneDistance<T: VectorValue<*>>(val type: Types.Vector<T,*>):
         override fun obtain(signature: Signature.SemiClosed): Function<DoubleValue> {
             check(Companion.signature.collides(signature)) { "Provided signature $signature is incompatible with generator signature ${Companion.signature}. This is a programmer's error!" }
             return when (val type = signature.arguments[0].type) {
-                is Types.DoubleVector -> ChisquaredDistance.DoubleVector(type)
-                is Types.FloatVector -> ChisquaredDistance.FloatVector(type)
-                is Types.LongVector -> ChisquaredDistance.LongVector(type)
-                is Types.IntVector -> ChisquaredDistance.IntVector(type)
+                is Types.DoubleVector -> DoubleVector(type)
+                is Types.FloatVector -> FloatVector(type)
+                is Types.LongVector -> LongVector(type)
+                is Types.IntVector -> IntVector(type)
                 else -> throw FunctionNotSupportedException("Function generator ${Companion.signature} cannot generate function with signature $signature.")
             }
         }

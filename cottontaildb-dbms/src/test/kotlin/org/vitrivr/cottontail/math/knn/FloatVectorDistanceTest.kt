@@ -38,7 +38,7 @@ class FloatVectorDistanceTest : AbstractDistanceTest() {
         var time2 = Duration.ZERO
         var time3= Duration.ZERO
 
-        val kernel = ManhattanDistance.FloatVector(query.type as Types.FloatVector)
+        val kernel = ManhattanDistance.FloatVectorVectorized(query.type as Types.FloatVector)
         collection.forEach {
             time1 += measureTime {
                 sum1 += kernel(query, it).value.toFloat()
@@ -319,7 +319,8 @@ class FloatVectorDistanceTest : AbstractDistanceTest() {
         var sum = 0.0f
         for (i in p1.indices) {
             val sub = p1[i] - p2[i]
-            sum += (sub * sub) / (p1[i] + p2[1])
+            val add = p1[i] + p2[i]
+            sum += (sub * sub) / (add)
         }
         return sum
     }

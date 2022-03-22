@@ -35,10 +35,10 @@ sealed class CosineDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Vector
             check(Companion.signature.collides(signature)) { "Provided signature $signature is incompatible with generator signature ${Companion.signature}. This is a programmer's error!"  }
             if (signature.arguments.any { it != signature.arguments[0] }) throw FunctionNotSupportedException("Function generator ${HaversineDistance.signature} cannot generate function with signature $signature.")
             return when(val type = signature.arguments[0].type) {
-                is Types.DoubleVector -> DoubleVector(type)
-                is Types.FloatVector -> FloatVector(type)
-                is Types.LongVector -> LongVector(type)
-                is Types.IntVector -> IntVector(type)
+                is Types.DoubleVector -> DoubleVector(type).vectorized()
+                is Types.FloatVector -> FloatVector(type).vectorized()
+                is Types.LongVector -> LongVector(type).vectorized()
+                is Types.IntVector -> IntVector(type).vectorized()
                 else -> throw FunctionNotSupportedException("Function generator ${Companion.signature} cannot generate function with signature $signature.")
             }
         }
@@ -77,12 +77,17 @@ sealed class CosineDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Vector
             return DoubleValue(dotp / (sqrt(normq) * sqrt(normv)))
         }
         override fun copy(d: Int) = DoubleVector(Types.DoubleVector(d))
+
+        override fun vectorized(): VectorDistance<DoubleVectorValue> {
+            return this
+            //TODO @Colin("Not yet implemented")
+        }
     }
 
     /**
      * [CosineDistance] for a [FloatVectorValue].
      */
-    /*class FloatVector(type: Types.Vector<FloatVectorValue,*>): CosineDistance<FloatVectorValue>(type) {
+    class FloatVector(type: Types.Vector<FloatVectorValue,*>): CosineDistance<FloatVectorValue>(type) {
         override val name: Name.FunctionName = FUNCTION_NAME
         override fun invoke(vararg arguments: Value?): DoubleValue {
             val probing = arguments[0] as FloatVectorValue
@@ -98,12 +103,16 @@ sealed class CosineDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Vector
             return DoubleValue(dotp / (sqrt(normq) * sqrt(normv)))
         }
         override fun copy(d: Int) = FloatVector(Types.FloatVector(d))
-    }*/
+
+        override fun vectorized(): VectorDistance<FloatVectorValue> {
+            return FloatVectorVectorized(type)
+        }
+    }
 
     /**
      * [CosineDistance] for a [FloatVectorValue].
      */
-    class FloatVector(type: Types.Vector<FloatVectorValue,*>): CosineDistance<FloatVectorValue>(type) {
+    class FloatVectorVectorized(type: Types.Vector<FloatVectorValue,*>): CosineDistance<FloatVectorValue>(type) {
         override val name: Name.FunctionName = FUNCTION_NAME
         override fun invoke(vararg arguments: Value?): DoubleValue {
             val species: VectorSpecies<Float> = jdk.incubator.vector.FloatVector.SPECIES_PREFERRED
@@ -135,6 +144,10 @@ sealed class CosineDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Vector
             return DoubleValue(dotp / (sqrt(normq) * sqrt(normv)))
         }
         override fun copy(d: Int) = FloatVector(Types.FloatVector(d))
+
+        override fun vectorized(): VectorDistance<FloatVectorValue> {
+            return this
+        }
     }
 
     /**
@@ -156,6 +169,11 @@ sealed class CosineDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Vector
             return DoubleValue(dotp / (sqrt(normq) * sqrt(normv)))
         }
         override fun copy(d: Int) = LongVector(Types.LongVector(d))
+
+        override fun vectorized(): VectorDistance<LongVectorValue> {
+            return this
+            //TODO @Colin("Not yet implemented")
+        }
     }
 
     /**
@@ -177,5 +195,10 @@ sealed class CosineDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Vector
             return DoubleValue(dotp / (sqrt(normq) * sqrt(normv)))
         }
         override fun copy(d: Int) = IntVector(Types.IntVector(d))
+
+        override fun vectorized(): VectorDistance<IntVectorValue> {
+            return this
+            //TODO @Colin("Not yet implemented")
+        }
     }
 }
