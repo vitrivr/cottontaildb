@@ -3,6 +3,7 @@ package org.vitrivr.cottontail.server.grpc
 import io.grpc.ManagedChannel
 import io.grpc.netty.NettyChannelBuilder
 import org.junit.jupiter.api.*
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.vitrivr.cottontail.TestConstants
 import org.vitrivr.cottontail.client.SimpleClient
@@ -30,7 +31,7 @@ class DQLServiceTest {
     fun startCottontail() {
         this.embedded = embedded(TestConstants.testConfig())
         val builder = NettyChannelBuilder.forAddress("localhost", 1865)
-        builder.usePlaintext()
+        builder.usePlaintext() /* */
         this.channel = builder.build()
         this.client = SimpleClient(this.channel)
         assert(client.ping())
@@ -72,8 +73,16 @@ class DQLServiceTest {
     @Test
     fun count() {
         val countQuery = Query(GrpcTestUtils.TEST_ENTITY_FQN).count()
-        val count = client.query(countQuery).next()
-        assert(count.asLong(0)!! == GrpcTestUtils.TEST_ENTITY_TUPLE_COUNT)
+        val count = this.client.query(countQuery).next()
+        assertEquals(count.asLong(0)!!, GrpcTestUtils.TEST_ENTITY_TUPLE_COUNT)
+
+        /* Now scan the same entity; count should be the same. */
+        val scanQuery = Query(GrpcTestUtils.TEST_ENTITY_FQN).select("*")
+        var bruteForceCount = 0
+        this.client.query(scanQuery).forEachRemaining {
+            bruteForceCount += 1
+        }
+        assertEquals(bruteForceCount, GrpcTestUtils.TEST_ENTITY_TUPLE_COUNT)
     }
 
     @Test
