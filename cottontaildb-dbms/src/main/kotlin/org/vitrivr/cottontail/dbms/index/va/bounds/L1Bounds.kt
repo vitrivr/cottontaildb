@@ -3,7 +3,7 @@ package org.vitrivr.cottontail.dbms.index.va.bounds
 import org.vitrivr.cottontail.core.values.types.RealVectorValue
 import org.vitrivr.cottontail.dbms.index.va.signature.VAFMarks
 import org.vitrivr.cottontail.dbms.index.va.signature.VAFSignature
-import kotlin.math.abs
+import kotlin.math.absoluteValue
 import kotlin.math.max
 
 /**
@@ -38,7 +38,8 @@ class L1Bounds(query: RealVectorValue<*>, marks: VAFMarks) : Bounds {
      */
     private val lat = Array(marks.marks.size) { j ->
         val qj = query[j].value.toDouble()
-        Array(marks.marks[j].size) { m -> abs(qj - marks.marks[j][m]) }
+
+        Array(marks.marks[j].size) { m -> (qj - marks.marks[j][m]).absoluteValue }
     }
 
     /**
@@ -78,12 +79,12 @@ class L1Bounds(query: RealVectorValue<*>, marks: VAFMarks) : Bounds {
     override fun isVASSACandidate(signature: VAFSignature, threshold: Double): Boolean {
         var lb = threshold
         for ((j, rij) in signature.cells.withIndex()) {
-            if (rij < this.rq[j]) {
+            if (rij < this.rq.cells[j]) {
                 lb -= this.lat[j][rij + 1]
-            } else if (rij > this.rq[j]) {
+            } else if (rij > this.rq.cells[j]) {
                 lb -= this.lat[j][rij.toInt()]
             }
-            if (lb <= 0) return false
+            if (lb < 0) return false
         }
         return true
     }
