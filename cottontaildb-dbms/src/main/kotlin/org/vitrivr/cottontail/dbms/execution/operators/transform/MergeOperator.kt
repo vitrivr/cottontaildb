@@ -1,6 +1,10 @@
 package org.vitrivr.cottontail.dbms.execution.operators.transform
 
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
@@ -14,7 +18,7 @@ import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
  * outgoing [Flow] may be arbitrary.
  *
  * @author Ralph Gasser
- * @version 1.2.1
+ * @version 1.3.0
  */
 
 class MergeOperator(parents: List<Operator>, val context: BindingContext): Operator.MergingPipelineOperator(parents) {
@@ -31,11 +35,17 @@ class MergeOperator(parents: List<Operator>, val context: BindingContext): Opera
      * @param context The [TransactionContext] used for execution
      * @return [Flow] representing this [MergeOperator]
      */
-    override fun toFlow(context: TransactionContext): Flow<Record> {
-        /* Obtain parent flows and compose new flow. */
-        val parentFlows = this.parents.map { it.toFlow(context).map(Record::copy) }.toTypedArray()
-        return flowOf(*parentFlows).flattenMerge(parentFlows.size).onEach {
-            this@MergeOperator.context.update(it)
+    override fun toFlow(context: TransactionContext): Flow<Record> = channelFlow {
+        val mutex = Mutex(false) /* Mutext to prevent multiple flows from updating the context. */
+        this@MergeOperator.parents.map { p ->
+            launch {
+                p.toFlow(context).collect {
+                    mutex.withLock {
+                        this@MergeOperator.context.update(it)
+                        send(it)
+                    }
+                }
+            }
         }
     }
 }
