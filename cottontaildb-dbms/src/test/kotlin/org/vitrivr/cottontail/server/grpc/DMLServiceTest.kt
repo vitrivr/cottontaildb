@@ -17,9 +17,10 @@ import java.util.concurrent.TimeUnit
 import kotlin.time.ExperimentalTime
 
 /**
+ * Integration tests that test the DML endpoint of Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.0.0
  */
 @ExperimentalTime
 class DMLServiceTest {

@@ -18,6 +18,12 @@ import org.vitrivr.cottontail.server.grpc.GrpcTestUtils.TWOD_COLUMN_NAME
 import java.util.concurrent.TimeUnit
 import kotlin.time.ExperimentalTime
 
+/**
+ * Integration tests that test the DQL endpoint of Cottontail DB.
+ *
+ * @author Ralph Gasser
+ * @version 1.0.0
+ */
 @ExperimentalTime
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class DQLServiceTest {
@@ -78,9 +84,9 @@ class DQLServiceTest {
 
         /* Now scan the same entity; count should be the same. */
         val scanQuery = Query(GrpcTestUtils.TEST_ENTITY_FQN).select("*")
-        var bruteForceCount = 0
+        var bruteForceCount = 0L
         this.client.query(scanQuery).forEachRemaining {
-            bruteForceCount += 1
+            bruteForceCount += 1L
         }
         assertEquals(bruteForceCount, GrpcTestUtils.TEST_ENTITY_TUPLE_COUNT)
     }
