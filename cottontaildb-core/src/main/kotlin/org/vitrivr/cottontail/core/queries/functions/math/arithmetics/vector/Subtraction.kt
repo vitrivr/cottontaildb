@@ -69,7 +69,7 @@ sealed class Subtraction<T : VectorValue<*>>(val type: Types.Vector<T,*>): Funct
         override fun invoke(vararg arguments: Value?): IntVectorValue {
             val left = arguments[0] as IntVectorValue
             val right = arguments[1] as IntVectorValue
-            return IntVectorValue(IntArray(this.d) { left[it].value - right[it].value })
+            return IntVectorValue(IntArray(this.d) { left.data[it] - right.data[it] })
         }
     }
 
@@ -80,7 +80,7 @@ sealed class Subtraction<T : VectorValue<*>>(val type: Types.Vector<T,*>): Funct
         override fun invoke(vararg arguments: Value?): LongVectorValue {
             val left = arguments[0] as LongVectorValue
             val right = arguments[1] as LongVectorValue
-            return LongVectorValue(LongArray(this.d) { left[it].value - right[it].value })
+            return LongVectorValue(LongArray(this.d) { left.data[it] - right.data[it] })
         }
     }
 
@@ -91,7 +91,7 @@ sealed class Subtraction<T : VectorValue<*>>(val type: Types.Vector<T,*>): Funct
         override fun invoke(vararg arguments: Value?): FloatVectorValue {
             val left = arguments[0] as FloatVectorValue
             val right = arguments[1] as FloatVectorValue
-            return FloatVectorValue(FloatArray(this.d) { left[it].value - right[it].value })
+            return FloatVectorValue(FloatArray(this.d) { left.data[it] - right.data[it] })
         }
     }
 
@@ -102,7 +102,7 @@ sealed class Subtraction<T : VectorValue<*>>(val type: Types.Vector<T,*>): Funct
         override fun invoke(vararg arguments: Value?): DoubleVectorValue {
             val left = arguments[0] as DoubleVectorValue
             val right = arguments[1] as DoubleVectorValue
-            return DoubleVectorValue(DoubleArray(this.d) { left[it].value - right[it].value })
+            return DoubleVectorValue(DoubleArray(this.d) { left.data[it] - right.data[it] })
         }
     }
 }

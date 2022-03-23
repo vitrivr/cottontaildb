@@ -68,10 +68,9 @@ sealed class WeightedManhattanDistance<R: NumericValue<*>, T : VectorValue<*>>(t
             val probing = arguments[0] as DoubleVectorValue
             val query = arguments[1] as DoubleVectorValue
             val weight = arguments[2] as DoubleVectorValue
-
             var sum = 0.0
             for (i in query.data.indices) {
-                sum += (query.data[i] - probing.data[i]).absoluteValue * weight.data[i]
+                sum = Math.fma((query.data[i] - probing.data[i]).absoluteValue, weight.data[i], sum)
             }
             return DoubleValue(sum)
         }
@@ -89,7 +88,7 @@ sealed class WeightedManhattanDistance<R: NumericValue<*>, T : VectorValue<*>>(t
             val weight = arguments[2] as FloatVectorValue
             var sum = 0.0f
             for (i in query.data.indices) {
-                sum += (query.data[i] - probing.data[i]).absoluteValue * weight.data[i]
+                sum = Math.fma((query.data[i] - probing.data[i]).absoluteValue, weight.data[i], sum)
             }
             return FloatValue(sum)
         }

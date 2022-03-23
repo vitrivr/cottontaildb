@@ -71,7 +71,7 @@ sealed class Maximum<T : VectorValue<*>>(val type: Types.Vector<T,*>): Function<
             val left = arguments[0] as IntVectorValue
             val right = arguments[1] as IntVectorValue
             return IntVectorValue(IntArray(this.d) {
-                max(left[it].value, right[it].value)
+                max(left.data[it], right.data[it])
             })
         }
     }
@@ -84,7 +84,7 @@ sealed class Maximum<T : VectorValue<*>>(val type: Types.Vector<T,*>): Function<
             val left = arguments[0] as LongVectorValue
             val right = arguments[1] as LongVectorValue
             return LongVectorValue(LongArray(this.d) {
-                max(left[it].value, right[it].value)
+                max(left.data[it], right.data[it])
             })
         }
     }
@@ -97,7 +97,7 @@ sealed class Maximum<T : VectorValue<*>>(val type: Types.Vector<T,*>): Function<
             val left = arguments[0] as FloatVectorValue
             val right = arguments[1] as FloatVectorValue
             return FloatVectorValue(FloatArray(this.d) {
-                max(left[it].value, right[it].value)
+                max(left.data[it], right.data[it])
             })
         }
     }
@@ -110,7 +110,7 @@ sealed class Maximum<T : VectorValue<*>>(val type: Types.Vector<T,*>): Function<
             val left = arguments[0] as DoubleVectorValue
             val right = arguments[1] as DoubleVectorValue
             return DoubleVectorValue(DoubleArray(this.d) {
-                max(left[it].value, right[it].value)
+                max(left.data[it], right.data[it])
             })
         }
     }

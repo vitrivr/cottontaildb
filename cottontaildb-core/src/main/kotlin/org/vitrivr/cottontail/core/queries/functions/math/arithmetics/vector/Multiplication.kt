@@ -66,7 +66,7 @@ sealed class Multiplication<T : VectorValue<*>>(val type: Types.Vector<T,*>): Fu
         override fun invoke(vararg arguments: Value?): IntVectorValue {
             val left = arguments[0] as IntVectorValue
             val right = arguments[1] as IntValue
-            return IntVectorValue(IntArray(this.d) { left[it].value * right.value })
+            return IntVectorValue(IntArray(this.d) { left.data[it] * right.value })
         }
     }
 
@@ -77,7 +77,7 @@ sealed class Multiplication<T : VectorValue<*>>(val type: Types.Vector<T,*>): Fu
         override fun invoke(vararg arguments: Value?): LongVectorValue {
             val left = arguments[0] as LongVectorValue
             val right = arguments[1] as LongValue
-            return LongVectorValue(LongArray(this.d) { left[it].value * right.value })
+            return LongVectorValue(LongArray(this.d) { left.data[it] * right.value })
         }
     }
 
@@ -88,7 +88,7 @@ sealed class Multiplication<T : VectorValue<*>>(val type: Types.Vector<T,*>): Fu
         override fun invoke(vararg arguments: Value?): FloatVectorValue {
             val left = arguments[0] as FloatVectorValue
             val right = arguments[1] as FloatValue
-            return FloatVectorValue(FloatArray(this.d) { left[it].value * right.value })
+            return FloatVectorValue(FloatArray(this.d) { left.data[it] * right.value })
         }
     }
 
@@ -99,7 +99,7 @@ sealed class Multiplication<T : VectorValue<*>>(val type: Types.Vector<T,*>): Fu
         override fun invoke(vararg arguments: Value?): DoubleVectorValue {
             val left = arguments[0] as DoubleVectorValue
             val right = arguments[1] as DoubleValue
-            return DoubleVectorValue(DoubleArray(this.d) { left[it].value * right.value })
+            return DoubleVectorValue(DoubleArray(this.d) { left.data[it] * right.value })
         }
     }
 }
