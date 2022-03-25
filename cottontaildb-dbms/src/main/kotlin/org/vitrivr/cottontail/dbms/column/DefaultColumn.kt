@@ -297,6 +297,7 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
                 override fun moveNext(): Boolean {
                     check(!this.subTransaction.isFinished) { "Cursor cannot be moved because associated transaction has completed!" }
                     this.dirty = if (this.tupleId == BOC) {
+                        if (partition.first == BOC) return false
                         this.cursor.getSearchKeyRange(partition.first.toKey()) != null
                     } else {
                         this.cursor.next
