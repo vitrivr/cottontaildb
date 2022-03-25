@@ -13,6 +13,7 @@ import org.vitrivr.cottontail.client.language.basics.predicate.Expression
 import org.vitrivr.cottontail.client.language.dml.Update
 import org.vitrivr.cottontail.client.language.dql.Query
 import org.vitrivr.cottontail.embedded
+import org.vitrivr.cottontail.server.CottontailServer
 import java.util.concurrent.TimeUnit
 import kotlin.time.ExperimentalTime
 
@@ -26,7 +27,7 @@ import kotlin.time.ExperimentalTime
 class DMLServiceTest {
     private lateinit var client: SimpleClient
     private lateinit var channel: ManagedChannel
-    private lateinit var embedded: CottontailGrpcServer
+    private lateinit var embedded: CottontailServer
 
     @BeforeEach
     fun startCottontail() {
@@ -55,7 +56,7 @@ class DMLServiceTest {
         this.channel.awaitTermination(5000, TimeUnit.MILLISECONDS)
 
         /* Stop embedded server. */
-        this.embedded.stop()
+        this.embedded.shutdownAndWait()
     }
 
     @Test

@@ -3,11 +3,8 @@ package org.vitrivr.cottontail.dbms.queries.operators.physical
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
-import org.vitrivr.cottontail.core.queries.Node
-import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
-import org.vitrivr.cottontail.dbms.queries.sort.SortOrder
 import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
 import java.io.PrintStream
 
@@ -15,9 +12,9 @@ import java.io.PrintStream
  * An abstract [OperatorNode.Physical] implementation that has exactly two [OperatorNode.Physical]s as input.
  *
  * @author Ralph Gasser
- * @version 2.5.0
+ * @version 2.6.0
  */
-abstract class BinaryPhysicalOperatorNode(left: Physical? = null, right: Physical? = null) : org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Physical() {
+abstract class BinaryPhysicalOperatorNode(left: Physical? = null, right: Physical? = null) : OperatorNode.Physical() {
 
     /** Input arity of [BinaryPhysicalOperatorNode] is always two. */
     final override val inputArity: Int = 2
@@ -82,10 +79,6 @@ abstract class BinaryPhysicalOperatorNode(left: Physical? = null, right: Physica
     override val outputSize: Long
         get() = (this.left?.outputSize ?: 0)
 
-    /** By default, a [BinaryPhysicalOperatorNode]'s order is inherited from the left branch of of the tree. */
-    override val sortOn: List<Pair<ColumnDef<*>, SortOrder>>
-        get() = this.left?.sortOn ?: emptyList()
-
     /** By default, a [BinaryPhysicalOperatorNode]'s has no specific requirements. */
     override val requires: List<ColumnDef<*>>
         get() = emptyList()
@@ -142,18 +135,6 @@ abstract class BinaryPhysicalOperatorNode(left: Physical? = null, right: Physica
         copy.left = input.getOrNull(0)
         copy.right = input.getOrNull(1)
         return (this.output?.copyWithOutput(copy) ?: copy).root
-    }
-
-    /**
-     * By default, the [BinaryPhysicalOperatorNode] simply propagates [bind] calls to its inpus.
-     *
-     * However, some implementations must propagate the call to inner [Node]s.
-     *
-     * @param context The [BindingContext] to bind this [BinaryPhysicalOperatorNode] to.
-     */
-    override fun bind(context: BindingContext) {
-        this.left?.bind(context)
-        this.right?.bind(context)
     }
 
     /**

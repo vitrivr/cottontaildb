@@ -4,7 +4,7 @@ import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.column.Column
 import org.vitrivr.cottontail.dbms.entity.Entity
-import org.vitrivr.cottontail.dbms.execution.TransactionContext
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.general.DBO
 
 /**

@@ -11,8 +11,8 @@ import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
-import org.vitrivr.cottontail.dbms.execution.TransactionContext
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 
 /**
  * An [Operator.SourceOperator] that scans an [Entity] and streams all [Record]s found within.
@@ -36,24 +36,22 @@ class EntityScanOperator(groupId: GroupId, val entity: EntityTx, val fetch: List
      * @param context The [TransactionContext] used for execution
      * @return [Flow] representing this [EntityScanOperator]
      */
-    override fun toFlow(context: TransactionContext): Flow<Record> {
-        val fetch = this.fetch.map { it.second }.toTypedArray()
-        val columns = this.fetch.map { it.first.column }.toTypedArray()
-        return flow {
-            val partition = this@EntityScanOperator.entity.partitionFor(this@EntityScanOperator.partitionIndex, this@EntityScanOperator.partitions)
-            val cursor = this@EntityScanOperator.entity.cursor(fetch, partition)
-            var read = 0
-            while (cursor.moveNext()) {
-                val next = cursor.value() as StandaloneRecord
-                for ((i,c) in columns.withIndex()) { /* Replace column designations. */
-                    next.columns[i] = c
-                }
-                this@EntityScanOperator.fetch.first().first.context.update(next) /* Important: Make new record available to binding context. */
-                emit(next)
-                read += 1
+    override fun toFlow(context: TransactionContext): Flow<Record> = flow {
+        val fetch = this@EntityScanOperator.fetch.map { it.second }.toTypedArray()
+        val columns = this@EntityScanOperator.fetch.map { it.first.column }.toTypedArray()
+        val partition = this@EntityScanOperator.entity.partitionFor(this@EntityScanOperator.partitionIndex, this@EntityScanOperator.partitions)
+        var read = 0
+        val cursor = this@EntityScanOperator.entity.cursor(fetch, partition)
+        while (cursor.moveNext()) {
+            val next = cursor.value() as StandaloneRecord
+            for ((i, c) in columns.withIndex()) { /* Replace column designations. */
+                next.columns[i] = c
             }
-            cursor.close()
-            LOGGER.debug("Read $read entries from ${this@EntityScanOperator.entity.dbo.name}.")
+            this@EntityScanOperator.fetch.first().first.context.update(next) /* Important: Make new record available to binding context. */
+            emit(next)
+            read += 1
         }
+        cursor.close()
+        LOGGER.debug("Read $read entries from ${this@EntityScanOperator.entity.dbo.name}.")
     }
 }

@@ -1,11 +1,11 @@
 package org.vitrivr.cottontail.dbms.execution.operators.basics
 
 import kotlinx.coroutines.flow.Flow
+import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.GroupId
-import org.vitrivr.cottontail.dbms.execution.TransactionContext
 import org.vitrivr.cottontail.dbms.execution.exceptions.OperatorSetupException
-import org.vitrivr.cottontail.core.basics.Record
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 
 /**
  * An [Operator] used during query execution and processing.
@@ -26,7 +26,7 @@ sealed class Operator {
      * @param context The [TransactionContext] used for execution.
      * @return Resulting [Flow]
      */
-    abstract fun toFlow(context: org.vitrivr.cottontail.dbms.execution.TransactionContext): Flow<Record>
+    abstract fun toFlow(context: TransactionContext): Flow<Record>
 
     /**
      * An [Operator] that can be pipelined, i.e., has a parent [Operator] and no materialization of

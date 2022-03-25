@@ -1,7 +1,7 @@
-package org.vitrivr.cottontail.dbms.locking
+package org.vitrivr.cottontail.dbms.execution.locking
 
-import org.vitrivr.cottontail.dbms.general.DBO
 import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.dbms.general.DBO
 import java.util.concurrent.ConcurrentHashMap
 
 /**

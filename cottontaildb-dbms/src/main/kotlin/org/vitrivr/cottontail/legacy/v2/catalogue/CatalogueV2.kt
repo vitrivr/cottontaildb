@@ -11,7 +11,7 @@ import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.exceptions.TxException
-import org.vitrivr.cottontail.dbms.execution.TransactionContext
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.general.*
 import org.vitrivr.cottontail.dbms.schema.Schema
 import org.vitrivr.cottontail.legacy.v2.schema.SchemaV2

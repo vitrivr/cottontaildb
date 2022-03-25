@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.dbms.queries.planning.rules
 
-import org.vitrivr.cottontail.dbms.queries.QueryContext
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
 
 /**

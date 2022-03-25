@@ -11,6 +11,7 @@ import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.dbms.exceptions.ExecutionException
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.operators.basics.take
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 
 /**
  * An [Operator.MergingPipelineOperator] used during query execution.
@@ -30,7 +31,7 @@ class FilterOnSubselectOperator(val parent: Operator, val bindingContext: Bindin
     override val columns: List<ColumnDef<*>>
         get() = this.parent.columns
 
-    override fun toFlow(context: org.vitrivr.cottontail.dbms.execution.TransactionContext): Flow<Record> {
+    override fun toFlow(context: TransactionContext): Flow<Record> {
         /* Prepare main branch of query execution + sub-select branches. */
         val query = this.parent.toFlow(context)
         val subSelects = this.subSelects.map { it.groupId to it.toFlow(context) }

@@ -27,7 +27,7 @@ import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
-import org.vitrivr.cottontail.dbms.execution.TransactionContext
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.index.*
 import org.vitrivr.cottontail.dbms.index.lsh.signature.LSHSignature
 import org.vitrivr.cottontail.dbms.index.lsh.signature.LSHSignatureGenerator

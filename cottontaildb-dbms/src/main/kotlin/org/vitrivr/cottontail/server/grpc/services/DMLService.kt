@@ -3,6 +3,7 @@ package org.vitrivr.cottontail.server.grpc.services
 import kotlinx.coroutines.flow.single
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager
 import org.vitrivr.cottontail.dbms.queries.binding.GrpcQueryBinder
 import org.vitrivr.cottontail.dbms.queries.planning.CottontailQueryPlanner
 import org.vitrivr.cottontail.dbms.queries.planning.rules.logical.DeferFetchOnFetchRewriteRule
@@ -19,10 +20,10 @@ import kotlin.time.ExperimentalTime
  * Implementation of [DMLGrpc.DMLImplBase], the gRPC endpoint for inserting data into Cottontail DB [DefaultEntity]s.
  *
  * @author Ralph Gasser
- * @version 2.2.0
+ * @version 2.3.0
  */
 @ExperimentalTime
-class DMLService(override val catalogue: Catalogue, override val manager: org.vitrivr.cottontail.dbms.execution.TransactionManager) : DMLGrpcKt.DMLCoroutineImplBase(), TransactionalGrpcService {
+class DMLService(override val catalogue: Catalogue, override val manager: TransactionManager) : DMLGrpcKt.DMLCoroutineImplBase(), TransactionalGrpcService {
 
     /** [CottontailQueryPlanner] instance used to generate execution plans from query definitions. */
     private val planner = CottontailQueryPlanner(
@@ -44,7 +45,7 @@ class DMLService(override val catalogue: Catalogue, override val manager: org.vi
         GrpcQueryBinder.bind(request, ctx)
 
         /* Plan query and create execution plan. */
-        this.planner.planAndSelect(ctx)
+        ctx.plan(this.planner)
 
         /* Generate operator tree. */
         ctx.toOperatorTree()
@@ -58,7 +59,7 @@ class DMLService(override val catalogue: Catalogue, override val manager: org.vi
         GrpcQueryBinder.bind(request, ctx)
 
         /* Plan query and create execution plan. */
-        this.planner.planAndSelect(ctx)
+        ctx.plan(this.planner)
 
         /* Generate operator tree. */
         ctx.toOperatorTree()
@@ -71,9 +72,8 @@ class DMLService(override val catalogue: Catalogue, override val manager: org.vi
         /* Bind query and create logical plan. */
         GrpcQueryBinder.bind(request, ctx)
 
-        /* Bind query and create logical + physical plan (bypass query planner). */
-        GrpcQueryBinder.bind(request, ctx)
-        ctx.physical = ctx.logical?.implement()
+        /* Implement physical plan. */
+        ctx.implement()
 
         /* Generate operator tree. */
         ctx.toOperatorTree()
@@ -86,9 +86,8 @@ class DMLService(override val catalogue: Catalogue, override val manager: org.vi
         /* Bind query and create logical plan. */
         GrpcQueryBinder.bind(request, ctx)
 
-        /* Bind query and create logical + physical plan (bypass query planner). */
-        GrpcQueryBinder.bind(request, ctx)
-        ctx.physical = ctx.logical?.implement()
+        /* Implement physical plan. */
+        ctx.implement()
 
         /* Generate operator tree. */
         ctx.toOperatorTree()

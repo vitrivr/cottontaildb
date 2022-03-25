@@ -15,6 +15,7 @@ import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
 
 /**
@@ -38,7 +39,7 @@ class EntityDetailsOperator(val catalogue: DefaultCatalogue, val name: Name.Enti
 
     override val columns: List<ColumnDef<*>> = COLUMNS
 
-    override fun toFlow(context: org.vitrivr.cottontail.dbms.execution.TransactionContext): Flow<Record> {
+    override fun toFlow(context: TransactionContext): Flow<Record> {
         val catTxn = context.getTx(this.catalogue) as CatalogueTx
         val schemaTxn = context.getTx(catTxn.schemaForName(this.name.schema())) as SchemaTx
         val entityTxn = context.getTx(schemaTxn.entityForName(this.name)) as EntityTx

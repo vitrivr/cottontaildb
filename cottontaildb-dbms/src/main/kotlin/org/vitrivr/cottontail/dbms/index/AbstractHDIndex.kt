@@ -5,12 +5,12 @@ import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.functions.Signature
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
 import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
+import org.vitrivr.cottontail.core.queries.sort.SortOrder
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
-import org.vitrivr.cottontail.dbms.execution.TransactionContext
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.index.basics.avc.AuxiliaryValueCollection
 import org.vitrivr.cottontail.dbms.index.gg.GGIndex
 import org.vitrivr.cottontail.dbms.operations.Operation
-import org.vitrivr.cottontail.dbms.queries.sort.SortOrder
 import kotlin.concurrent.withLock
 
 /**

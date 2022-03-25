@@ -2,18 +2,18 @@ package org.vitrivr.cottontail.dbms.execution.operators.system
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import org.vitrivr.cottontail.core.database.ColumnDef
-import org.vitrivr.cottontail.dbms.general.DBO
-import org.vitrivr.cottontail.dbms.locking.LockManager
-import org.vitrivr.cottontail.dbms.execution.TransactionContext
-import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
-import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.basics.Record
-import org.vitrivr.cottontail.core.values.types.Types
+import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.IntValue
 import org.vitrivr.cottontail.core.values.StringValue
+import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
+import org.vitrivr.cottontail.dbms.execution.locking.LockManager
+import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
+import org.vitrivr.cottontail.dbms.general.DBO
 
 /**
  * An [Operator.SourceOperator] used during query execution. Used to list all locks.
@@ -33,7 +33,7 @@ class ListLocksOperator(val manager: LockManager<DBO>) : Operator.SourceOperator
 
     override val columns: List<ColumnDef<*>> = COLUMNS
 
-    override fun toFlow(context: org.vitrivr.cottontail.dbms.execution.TransactionContext): Flow<Record> {
+    override fun toFlow(context: TransactionContext): Flow<Record> {
         val columns = this.columns.toTypedArray()
         val values = Array<Value?>(this@ListLocksOperator.columns.size) { null }
         return flow {

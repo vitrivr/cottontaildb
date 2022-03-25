@@ -1,21 +1,24 @@
-package org.vitrivr.cottontail.dbms.execution
+package org.vitrivr.cottontail.dbms.execution.transactions
 
 import jetbrains.exodus.env.Transaction
 import org.vitrivr.cottontail.core.database.TransactionId
+import org.vitrivr.cottontail.dbms.execution.ExecutionContext
+import org.vitrivr.cottontail.dbms.execution.locking.Lock
+import org.vitrivr.cottontail.dbms.execution.locking.LockManager
+import org.vitrivr.cottontail.dbms.execution.locking.LockMode
 import org.vitrivr.cottontail.dbms.general.DBO
 import org.vitrivr.cottontail.dbms.general.Tx
-import org.vitrivr.cottontail.dbms.locking.Lock
-import org.vitrivr.cottontail.dbms.locking.LockManager
-import org.vitrivr.cottontail.dbms.locking.LockMode
 import org.vitrivr.cottontail.dbms.operations.Operation
 
 /**
- * A [TransactionContext] used by operators and their sub transactions to execute and obtain necessary locks on database objects.
+ * A [TransactionContext] can be used to query and interact with a [Transaction].
+ *
+ * This is the view of a [Transaction] that is available to the operators that execute a query.
  *
  * @author Ralph Gasser
  * @version 1.5.0
  */
-interface TransactionContext {
+interface TransactionContext: ExecutionContext {
 
     /** The [TransactionId] of this [TransactionContext]. */
     val txId: TransactionId

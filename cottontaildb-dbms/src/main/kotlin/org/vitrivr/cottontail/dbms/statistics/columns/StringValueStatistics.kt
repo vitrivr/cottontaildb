@@ -10,7 +10,6 @@ import org.vitrivr.cottontail.storage.serializers.statistics.xodus.XodusBinding
 import java.io.ByteArrayInputStream
 import java.lang.Integer.max
 import java.lang.Integer.min
-import java.lang.Math.floorDiv
 
 /**
  * A specialized [ValueStatistics] for [StringValue]s.
@@ -50,10 +49,6 @@ class StringValueStatistics : AbstractValueStatistics<StringValue>(Types.String)
     /** Longest [StringValue] seen by this [StringValueStatistics]. */
     override var maxWidth: Int = Int.MIN_VALUE
         private set
-
-    /** The mean [StringValue] seen by this [StringValueStatistics]. */
-    val meanWidth: Int
-        get() = floorDiv(this.maxWidth - this.minWidth, 2)
 
     /**
      * Updates this [StringValueStatistics] with an inserted [StringValue].

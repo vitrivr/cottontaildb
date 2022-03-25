@@ -3,11 +3,11 @@ package org.vitrivr.cottontail.dbms.queries.operators.physical.sources
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.binding.Binding
-import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
 import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
+import org.vitrivr.cottontail.core.queries.sort.SortOrder
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.column.ColumnTx
 import org.vitrivr.cottontail.dbms.entity.Entity
@@ -17,12 +17,11 @@ import org.vitrivr.cottontail.dbms.execution.operators.sources.IndexScanOperator
 import org.vitrivr.cottontail.dbms.index.AbstractIndex
 import org.vitrivr.cottontail.dbms.index.Index
 import org.vitrivr.cottontail.dbms.index.IndexTx
-import org.vitrivr.cottontail.dbms.queries.QueryContext
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.NullaryPhysicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.operators.physical.merge.MergeLimitingSortPhysicalOperator
+import org.vitrivr.cottontail.dbms.queries.operators.physical.merge.MergeLimitingSortPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.merge.MergePhysicalOperator
-import org.vitrivr.cottontail.dbms.queries.sort.SortOrder
 import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
 import org.vitrivr.cottontail.dbms.statistics.selectivity.NaiveSelectivityCalculator
 
@@ -30,7 +29,7 @@ import org.vitrivr.cottontail.dbms.statistics.selectivity.NaiveSelectivityCalcul
  * A [IndexScanPhysicalOperatorNode] that represents a predicated lookup using an [AbstractIndex].
  *
  * @author Ralph Gasser
- * @version 2.5.0
+ * @version 2.6.0
  */
 @Suppress("UNCHECKED_CAST")
 class IndexScanPhysicalOperatorNode(override val groupId: Int,
@@ -57,13 +56,20 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int,
     override val executable: Boolean = true
 
     /** Whether an [IndexScanPhysicalOperatorNode] can be partitioned depends on the [Index]. */
-    override val canBePartitioned: Boolean = this.index.dbo.supportsPartitioning
+    override val canBePartitioned: Boolean = this.index.dbo.supportsPartitioning && this.partitions == 1
 
     /** [ValueStatistics] are taken from the underlying [Entity]. The query planner uses statistics for [Cost] estimation. */
     override val statistics = Object2ObjectLinkedOpenHashMap<ColumnDef<*>, ValueStatistics<*>>()
 
     /** Cost estimation for [IndexScanPhysicalOperatorNode]s is delegated to the [Index]. */
     override val cost: Cost = this.index.costFor(this.predicate)
+
+    /** Cost estimation for [IndexScanPhysicalOperatorNode]s is delegated to the [Index]. */
+    override val parallelizableCost: Cost = if (this.canBePartitioned) {
+        this.cost
+    } else {
+        Cost.ZERO
+    }
 
     /** The estimated output size of this [IndexScanPhysicalOperatorNode]. */
     override val outputSize: Long = when (this.predicate) {
@@ -74,6 +80,7 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int,
             selectivity(entityTx.count())
         }
     }
+
 
     init {
         val entityTx = this.index.context.getTx(this.index.dbo.parent) as EntityTx
@@ -107,30 +114,19 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int,
     override fun copy() = IndexScanPhysicalOperatorNode(this.groupId, this.index, this.predicate, this.fetch)
 
     /**
-     * Propagates the [bind] call to all [Binding.Column] processed by this [IndexScanPhysicalOperatorNode].
-     *
-     * @param context The new [BindingContext]
-     */
-    override fun bind(context: BindingContext) {
-        this.fetch.forEach { it.first.bind(context) }
-    }
-
-    /**
      * Create a partitioned version of this [EntityScanPhysicalOperatorNode].
      *
      * @param partitions The number of partitions.
-     * @param p The partition number. If this value is set, then partitioning has already taken place downstream.
      * @return Array of [OperatorNode.Physical]s.
      */
-    override fun tryPartition(partitions: Int, p: Int?): Physical? {
-        if (p != null) return IndexScanPhysicalOperatorNode(p, this.index, this.predicate, this.fetch, p, partitions)
+    override fun tryPartition(partitions: Int): Physical? {
         if (this.canBePartitioned) {
             val inbound = (0 until partitions).map {
                 IndexScanPhysicalOperatorNode(it, this.index, this.predicate, this.fetch, it, partitions)
             }
             val merge = when(this.predicate) {
-                is ProximityPredicate.NNS -> MergeLimitingSortPhysicalOperator(*inbound.toTypedArray(), sortOn = listOf(this.predicate.distanceColumn to SortOrder.ASCENDING), limit = this.predicate.k.toLong())
-                is ProximityPredicate.FNS -> MergeLimitingSortPhysicalOperator(*inbound.toTypedArray(), sortOn = listOf(this.predicate.distanceColumn to SortOrder.DESCENDING), limit = this.predicate.k.toLong())
+                is ProximityPredicate.NNS -> MergeLimitingSortPhysicalOperatorNode(*inbound.toTypedArray(), sortOn = listOf(this.predicate.distanceColumn to SortOrder.ASCENDING), limit = this.predicate.k.toLong())
+                is ProximityPredicate.FNS -> MergeLimitingSortPhysicalOperatorNode(*inbound.toTypedArray(), sortOn = listOf(this.predicate.distanceColumn to SortOrder.DESCENDING), limit = this.predicate.k.toLong())
                 else -> MergePhysicalOperator(*inbound.toTypedArray())
             }
             return this.output?.copyWithOutput(merge)
@@ -139,11 +135,29 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int,
     }
 
     /**
+     * Generates a partitioned version of this [IndexScanPhysicalOperatorNode].
+     *
+     * @param partitions The total number of partitions.
+     * @param p The partition index.
+     * @return Partitioned [IndexScanPhysicalOperatorNode]
+     */
+    override fun partition(partitions: Int, p: Int): Physical {
+        check(this.canBePartitioned) { }
+        return IndexScanPhysicalOperatorNode(p, this.index, this.predicate, this.fetch, p, partitions)
+    }
+
+    /**
      * Converts this [IndexScanPhysicalOperatorNode] to a [IndexScanOperator].
      *
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(ctx: QueryContext): Operator = IndexScanOperator(this.groupId, this.index, this.predicate, this.fetch, this.partitionIndex, this.partitions)
+    override fun toOperator(ctx: QueryContext): Operator {
+        /** Bind all column bindings to context. */
+        this.fetch.forEach { it.first.bind(ctx.bindings) }
+
+        /** Generate and return IndexScanOperator. */
+        return IndexScanOperator(this.groupId, this.index, this.predicate, this.fetch, this.partitionIndex, this.partitions)
+    }
 
     /** Generates and returns a [String] representation of this [EntityScanPhysicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.index.dbo.type},${this.predicate}]"

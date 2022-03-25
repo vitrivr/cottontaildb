@@ -2,7 +2,9 @@ package org.vitrivr.cottontail.core.queries.predicates
 
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
-import org.vitrivr.cottontail.core.queries.Node
+import org.vitrivr.cottontail.core.queries.nodes.BindableNode
+import org.vitrivr.cottontail.core.queries.nodes.Node
+import org.vitrivr.cottontail.core.queries.nodes.NodeWithCost
 
 /**
  * A [Predicate] is a [Node] that is being evaluated as part of a Cottontail DB query.
@@ -12,7 +14,7 @@ import org.vitrivr.cottontail.core.queries.Node
  * @author Ralph Gasser
  * @version 1.3.0
  */
-sealed interface Predicate : Node {
+sealed interface Predicate : BindableNode, NodeWithCost {
     /** Set of [ColumnDef] that are accessed by this [Predicate]. */
     val columns: Set<ColumnDef<*>>
 

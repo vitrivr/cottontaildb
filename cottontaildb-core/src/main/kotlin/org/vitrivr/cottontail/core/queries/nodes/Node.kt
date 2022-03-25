@@ -1,8 +1,6 @@
-package org.vitrivr.cottontail.core.queries
+package org.vitrivr.cottontail.core.queries.nodes
 
-import org.vitrivr.cottontail.core.queries.binding.Binding
-import org.vitrivr.cottontail.core.queries.binding.BindingContext
-import org.vitrivr.cottontail.core.queries.planning.cost.Cost
+import org.vitrivr.cottontail.core.queries.Digest
 
 /**
  * A [Node] is an object in the tree-like structure of a query plan.
@@ -11,10 +9,6 @@ import org.vitrivr.cottontail.core.queries.planning.cost.Cost
  * @version 1.3.0
  */
 interface Node {
-
-    /** The atomic [Cost] of this [Node]. */
-    val cost: Cost
-
     /**
      * Creates a copy of this [Node]. The copy must be built in such a ways, that all relevant data structures
      * that may be accessed concurrently, are copied.
@@ -33,11 +27,4 @@ interface Node {
      * @return  [Digest] of this [Node]
      */
     fun digest(): Digest
-
-    /**
-     * Binds all [Binding]s contained in this [Node] to the new [BindingContext].
-     *
-     * @param context The new [BindingContext] to bind [Binding]s to.
-     */
-    fun bind(context: BindingContext)
 }

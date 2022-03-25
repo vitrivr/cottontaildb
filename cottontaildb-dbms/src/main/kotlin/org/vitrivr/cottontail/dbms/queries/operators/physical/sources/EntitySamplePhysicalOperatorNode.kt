@@ -3,7 +3,6 @@ package org.vitrivr.cottontail.dbms.queries.operators.physical.sources
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.binding.Binding
-import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
@@ -11,7 +10,7 @@ import org.vitrivr.cottontail.dbms.column.ColumnTx
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.operators.sources.EntitySampleOperator
-import org.vitrivr.cottontail.dbms.queries.QueryContext
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.physical.NullaryPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
 
@@ -19,8 +18,9 @@ import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
  * A [NullaryPhysicalOperatorNode] that formalizes the random sampling of a physical [Entity] in Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 2.5.0
+ * @version 2.6.0
  */
+@Suppress("UNCHECKED_CAST")
 class EntitySamplePhysicalOperatorNode(override val groupId: Int, val entity: EntityTx, val fetch: List<Pair<Binding.Column, ColumnDef<*>>>, val p: Float, val seed: Long = System.currentTimeMillis()) : NullaryPhysicalOperatorNode() {
 
     companion object {
@@ -50,8 +50,11 @@ class EntitySamplePhysicalOperatorNode(override val groupId: Int, val entity: En
     /** [ValueStatistics] are taken from the underlying [Entity]. The query planner uses statistics for [Cost] estimation. */
     override val statistics = Object2ObjectLinkedOpenHashMap<ColumnDef<*>,ValueStatistics<*>>()
 
-    /** The estimated [Cost] of sampling the [Entity]. */
+    /** The estimated [Cost] incurred by this [EntitySamplePhysicalOperatorNode]. */
     override val cost: Cost
+
+    /** The parallelizable portion of the [Cost] of [EntitySamplePhysicalOperatorNode] is always [Cost.ZERO]. */
+    override val parallelizableCost: Cost = Cost.ZERO
 
     /** Initialize entity statistics. */
     init {
@@ -77,26 +80,20 @@ class EntitySamplePhysicalOperatorNode(override val groupId: Int, val entity: En
     override fun copy() = EntitySamplePhysicalOperatorNode(this.groupId, this.entity, this.fetch, this.p, this.seed)
 
     /**
-     * Propagates the [bind] call to all [Binding.Column] processed by this [EntitySamplePhysicalOperatorNode].
-     *
-     * @param context The new [BindingContext]
-     */
-    override fun bind(context: BindingContext) {
-        this.fetch.forEach { it.first.bind(context) }
-    }
-
-    /**
      * Converts this [EntitySamplePhysicalOperatorNode] to a [EntitySampleOperator].
      *
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(ctx: QueryContext) = EntitySampleOperator(this.groupId, this.entity, this.fetch, this.p, this.seed)
+    override fun toOperator(ctx: QueryContext): EntitySampleOperator {
+        /* Bind all column bindings to context. */
+        this.fetch.forEach { it.first.bind(ctx.bindings) }
+
+        /* Generate and return EntitySampleOperator. */
+        return EntitySampleOperator(this.groupId, this.entity, this.fetch, this.p, this.seed)
+    }
 
     /** Generates and returns a [String] representation of this [EntitySamplePhysicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.columns.joinToString(",") { it.name.toString() }}]"
-
-
-
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

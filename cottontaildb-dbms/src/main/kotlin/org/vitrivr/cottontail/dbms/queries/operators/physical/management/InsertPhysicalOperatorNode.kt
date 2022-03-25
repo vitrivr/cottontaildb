@@ -4,7 +4,6 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.GroupId
-import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.column.ColumnTx
@@ -13,7 +12,7 @@ import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.operators.management.InsertOperator
 import org.vitrivr.cottontail.dbms.execution.operators.management.UpdateOperator
-import org.vitrivr.cottontail.dbms.queries.QueryContext
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.logical.management.InsertLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.NullaryPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
@@ -22,8 +21,9 @@ import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
  * A [InsertPhysicalOperatorNode] that formalizes a INSERT operation on an [Entity].
  *
  * @author Ralph Gasser
- * @version 2.5.0
+ * @version 2.6.0
  */
+@Suppress("UNCHECKED_CAST")
 class InsertPhysicalOperatorNode(override val groupId: GroupId, val entity: EntityTx, val records: MutableList<Record>) : NullaryPhysicalOperatorNode() {
     companion object {
         private const val NODE_NAME = "Insert"
@@ -45,8 +45,11 @@ class InsertPhysicalOperatorNode(override val groupId: GroupId, val entity: Enti
     /** The [InsertPhysicalOperatorNode] produces a single record. */
     override val outputSize: Long = 1L
 
-    /** The [Cost] of this [InsertPhysicalOperatorNode]. */
+    /** The [Cost] incurred by this [InsertPhysicalOperatorNode]. */
     override val cost: Cost
+
+    /** The parallelizable portion of the [Cost] incurred by this [InsertPhysicalOperatorNode]. */
+    override val parallelizableCost: Cost = Cost.ZERO
 
     /** The [InsertPhysicalOperatorNode] cannot be partitioned. */
     override val canBePartitioned: Boolean = false
@@ -69,13 +72,6 @@ class InsertPhysicalOperatorNode(override val groupId: GroupId, val entity: Enti
      * @return Copy of this [InsertLogicalOperatorNode].
      */
     override fun copy() = InsertPhysicalOperatorNode(this.groupId, this.entity, this.records)
-
-    /**
-     * Bind calls have no effect on [InsertPhysicalOperatorNode]
-     *
-     * @param context The new [BindingContext]
-     */
-    override fun bind(context: BindingContext) { /* No op. */ }
 
     /**
      * Converts this [InsertPhysicalOperatorNode] to a [InsertOperator].

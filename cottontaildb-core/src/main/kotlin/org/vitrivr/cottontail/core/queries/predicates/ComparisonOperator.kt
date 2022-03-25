@@ -2,9 +2,10 @@ package org.vitrivr.cottontail.core.queries.predicates
 
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet
 import org.vitrivr.cottontail.core.queries.Digest
-import org.vitrivr.cottontail.core.queries.Node
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
+import org.vitrivr.cottontail.core.queries.nodes.BindableNode
+import org.vitrivr.cottontail.core.queries.nodes.NodeWithCost
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.values.StringValue
 import org.vitrivr.cottontail.core.values.pattern.LikePatternValue
@@ -14,9 +15,9 @@ import org.vitrivr.cottontail.core.values.types.Value
  * A [ComparisonOperator] is used as part of a [BooleanPredicate] to
  *
  * @author Ralph Gasser
- * @version 1.3.0
+ * @version 1.5.0
  */
-sealed interface ComparisonOperator: Node {
+sealed interface ComparisonOperator: BindableNode, NodeWithCost {
     /** The [Binding] that acts as left operand for this [ComparisonOperator]. */
     val left: Binding
 

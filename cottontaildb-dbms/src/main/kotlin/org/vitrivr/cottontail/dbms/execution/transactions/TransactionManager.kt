@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail.dbms.execution
+package org.vitrivr.cottontail.dbms.execution.transactions
 
 import it.unimi.dsi.fastutil.Hash.VERY_FAST_LOAD_FACTOR
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
@@ -8,24 +8,22 @@ import jetbrains.exodus.env.Environment
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.cancellable
-import kotlinx.coroutines.flow.onCompletion
-import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.TransactionId
-import org.vitrivr.cottontail.dbms.execution.TransactionManager.TransactionImpl
+import org.vitrivr.cottontail.dbms.execution.ExecutionManager
+import org.vitrivr.cottontail.dbms.execution.locking.Lock
+import org.vitrivr.cottontail.dbms.execution.locking.LockHolder
+import org.vitrivr.cottontail.dbms.execution.locking.LockManager
+import org.vitrivr.cottontail.dbms.execution.locking.LockMode
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager.TransactionImpl
 import org.vitrivr.cottontail.dbms.general.DBO
 import org.vitrivr.cottontail.dbms.general.Tx
-import org.vitrivr.cottontail.dbms.locking.Lock
-import org.vitrivr.cottontail.dbms.locking.LockHolder
-import org.vitrivr.cottontail.dbms.locking.LockManager
-import org.vitrivr.cottontail.dbms.locking.LockMode
 import org.vitrivr.cottontail.dbms.operations.Operation
 import java.util.*
 import java.util.concurrent.atomic.AtomicLong
@@ -38,7 +36,7 @@ import kotlin.coroutines.CoroutineContext
  * @author Ralph Gasser
  * @version 1.5.0
  */
-class TransactionManager(transactionTableSize: Int, private val environment: Environment, private val transactionHistorySize: Int) {
+class TransactionManager(val executionManager: ExecutionManager, transactionTableSize: Int, val transactionHistorySize: Int, private val environment: Environment) {
     /** Logger used for logging the output. */
     companion object {
         private val LOGGER = LoggerFactory.getLogger(TransactionManager::class.java)
@@ -49,6 +47,7 @@ class TransactionManager(transactionTableSize: Int, private val environment: Env
 
     /** Internal counter to generate [TransactionId]s. Starts with 1 */
     private val tidCounter = AtomicLong(1L)
+
 
     /** The [LockManager] instance used by this [TransactionManager]. */
     val lockManager = LockManager<DBO>()
@@ -116,6 +115,14 @@ class TransactionManager(transactionTableSize: Int, private val environment: Env
         val numberOfOngoing: Int
             get() = this.activeContexts.size
 
+        /** The number of available workers for query execution. */
+        override val availableQueryWorkers: Int
+            get() = this@TransactionManager.executionManager.availableQueryWorkers()
+
+        /** The number of available workers for intra-query execution. */
+        override val availableIntraQueryWorkers: Int
+            get() = this@TransactionManager.executionManager.availableIntraQueryWorkers()
+
         /** Flag indicating, that this [Transaction] was used to write data. */
         override var readonly: Boolean = true
             private set
@@ -166,7 +173,7 @@ class TransactionManager(transactionTableSize: Int, private val environment: Env
          *
          * @param operator The [Operator.SinkOperator] that should be executed.
          */
-        override fun execute(operator: Operator): Flow<Record> = operator.toFlow(this).onStart {
+        override fun execute(operator: Operator): Flow<Record>  = operator.toFlow(this).flowOn(this@TransactionManager.executionManager.queryDispatcher).onStart {
             this@TransactionImpl.mutex.withLock {  /* Update transaction state; synchronise with ongoing COMMITS or ROLLBACKS. */
                 check(this@TransactionImpl.state.canExecute) {
                     "Cannot start execution of transaction ${this@TransactionImpl.txId} because it is in the wrong state (s = ${this@TransactionImpl.state})."

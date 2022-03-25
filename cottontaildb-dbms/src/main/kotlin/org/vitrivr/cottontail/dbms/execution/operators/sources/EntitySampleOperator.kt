@@ -10,9 +10,9 @@ import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
-import org.vitrivr.cottontail.dbms.execution.TransactionContext
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
-import org.vitrivr.cottontail.dbms.queries.QueryContext
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
+import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
 import java.util.*
 
 /**
@@ -34,7 +34,7 @@ class EntitySampleOperator(groupId: GroupId, val entity: EntityTx, val fetch: Li
     /**
      * Converts this [EntitySampleOperator] to a [Flow] and returns it.
      *
-     * @param context The [QueryContext] used for execution.
+     * @param context The [DefaultQueryContext] used for execution.
      * @return [Flow] representing this [EntitySampleOperator].
      */
     override fun toFlow(context: TransactionContext): Flow<Record> {

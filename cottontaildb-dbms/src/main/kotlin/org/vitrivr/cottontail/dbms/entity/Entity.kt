@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.dbms.entity
 
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.dbms.column.Column
-import org.vitrivr.cottontail.dbms.execution.TransactionContext
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.general.DBO
 import org.vitrivr.cottontail.dbms.schema.DefaultSchema
 import org.vitrivr.cottontail.dbms.schema.Schema

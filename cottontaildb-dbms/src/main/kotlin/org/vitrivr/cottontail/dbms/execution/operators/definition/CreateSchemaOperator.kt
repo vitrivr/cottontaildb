@@ -7,6 +7,7 @@ import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTimedValue
 
@@ -19,7 +20,7 @@ import kotlin.time.measureTimedValue
 @ExperimentalTime
 class CreateSchemaOperator(val catalogue: DefaultCatalogue, val name: Name.SchemaName) : AbstractDataDefinitionOperator(name, "CREATE SCHEMA") {
 
-    override fun toFlow(context: org.vitrivr.cottontail.dbms.execution.TransactionContext): Flow<Record> {
+    override fun toFlow(context: TransactionContext): Flow<Record> {
         val txn = context.getTx(this.catalogue) as CatalogueTx
         return flow {
             val timedTupleId = measureTimedValue {

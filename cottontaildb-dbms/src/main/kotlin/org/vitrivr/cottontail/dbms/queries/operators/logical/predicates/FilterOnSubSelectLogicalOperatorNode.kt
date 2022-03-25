@@ -1,6 +1,8 @@
 package org.vitrivr.cottontail.dbms.queries.operators.logical.predicates
 
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
+import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.dbms.queries.operators.logical.BinaryLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.NAryLogicalOperatorNode
@@ -30,6 +32,10 @@ class FilterOnSubSelectLogicalOperatorNode(val predicate: BooleanPredicate, vara
 
     /** The [FilterOnSubSelectLogicalOperatorNode] requires all [ColumnDef]s used in the [BooleanPredicate]. */
     override val requires: List<ColumnDef<*>> = this.predicate.columns.toList()
+
+    /** The [FilterOnSubSelectLogicalOperatorNode] inherits its traits from its left most input. */
+    override val traits: Map<TraitType<*>, Trait>
+        get() = super.inputs[0].traits
 
     /**
      * Creates and returns a copy of this [FilterOnSubSelectLogicalOperatorNode] without any children or parents.

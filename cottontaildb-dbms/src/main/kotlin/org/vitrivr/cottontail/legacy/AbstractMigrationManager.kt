@@ -12,17 +12,17 @@ import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.column.Column
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
-import org.vitrivr.cottontail.dbms.execution.Transaction
-import org.vitrivr.cottontail.dbms.execution.TransactionContext
-import org.vitrivr.cottontail.dbms.execution.TransactionManager.TransactionImpl
-import org.vitrivr.cottontail.dbms.execution.TransactionStatus
-import org.vitrivr.cottontail.dbms.execution.TransactionType
+import org.vitrivr.cottontail.dbms.execution.locking.LockMode
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.operators.sources.partitionFor
+import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager.TransactionImpl
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionStatus
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
 import org.vitrivr.cottontail.dbms.general.DBO
 import org.vitrivr.cottontail.dbms.general.Tx
 import org.vitrivr.cottontail.dbms.index.IndexTx
-import org.vitrivr.cottontail.dbms.locking.LockMode
 import org.vitrivr.cottontail.dbms.operations.Operation
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
 import org.vitrivr.cottontail.utilities.io.TxFileUtilities
@@ -258,7 +258,7 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
      * @author Ralph Gasser
      * @version 2.0.1
      */
-    inner class LegacyMigrationContext : TransactionContext, Transaction {
+    inner class LegacyMigrationContext() : TransactionContext, Transaction {
         /** The [TransactionId] of the [MigrationContext]. */
         override val txId: TransactionId = transactionIdCounter.getAndIncrement()
 
@@ -271,6 +271,12 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
 
         /** [LegacyMigrationContext] are always [readonly]. */
         override val readonly: Boolean = true
+
+        /** [LegacyMigrationContext] do not provide any query workers. */
+        override val availableQueryWorkers = 0
+
+        /** [LegacyMigrationContext] do not provide any intra query workers. */
+        override val availableIntraQueryWorkers = 0
 
         /** The [TransactionStatus] of this [MigrationContext]. */
         @Volatile
@@ -358,6 +364,11 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
         /** [MigrationContext]s are never readonly. */
         override val readonly: Boolean = false
 
+        /** [MigrationContext] do not provide any query workers. */
+        override val availableQueryWorkers = 0
+
+        /** [MigrationContext] do not provide any intra query workers. */
+        override val availableIntraQueryWorkers = 0
 
         /** Map of all [Tx] that have been created as part of this [MigrationManager]. Used for final COMMIT or ROLLBACK. */
         private val txns: MutableMap<DBO, Tx> = Object2ObjectMaps.synchronize(Object2ObjectLinkedOpenHashMap())

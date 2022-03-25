@@ -9,7 +9,7 @@ import java.nio.file.Paths
  * Cottontail DB configuration class.
  *
  * @author Ralph Gasser
- * @version 1.5.0
+ * @version 1.6.0
  */
 @Serializable
 data class Config(
@@ -36,5 +36,8 @@ data class Config(
         val execution: ExecutionConfig = ExecutionConfig(),
 
         /** Reference to [CacheConfig], which contains configuration regarding caches in Cottontail DB. */
-        val cache: CacheConfig = CacheConfig()
+        val cache: CacheConfig = CacheConfig(),
+
+        /** Reference to [CostConfig], which contains configuration regarding  Cottontail DB's cost model. */
+        val cost: CostConfig = CostConfig()
 )

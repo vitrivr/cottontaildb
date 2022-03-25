@@ -1,13 +1,12 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.predicates
 
 import org.vitrivr.cottontail.core.database.ColumnDef
-import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
 import org.vitrivr.cottontail.dbms.execution.operators.predicates.FilterOperator
-import org.vitrivr.cottontail.dbms.queries.QueryContext
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.physical.UnaryPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.statistics.selectivity.NaiveSelectivityCalculator
 import org.vitrivr.cottontail.dbms.statistics.selectivity.Selectivity
@@ -16,7 +15,7 @@ import org.vitrivr.cottontail.dbms.statistics.selectivity.Selectivity
  * A [UnaryPhysicalOperatorNode] that represents application of a [BooleanPredicate] on some intermediate result.
  *
  * @author Ralph Gasser
- * @version 2.2.0
+ * @version 2.3.0
  */
 class FilterPhysicalOperatorNode(input: Physical? = null, val predicate: BooleanPredicate) : UnaryPhysicalOperatorNode(input) {
     companion object {
@@ -49,24 +48,17 @@ class FilterPhysicalOperatorNode(input: Physical? = null, val predicate: Boolean
     override fun copy() = FilterPhysicalOperatorNode(predicate = this.predicate.copy())
 
     /**
-     * Binds the provided [BindingContext] to this [BooleanPredicate].
-     *
-     * @param context The new [BindingContext].
-     */
-    override fun bind(context: BindingContext) {
-        super.bind(context)
-        this.predicate.bind(context)
-    }
-
-    /**
      * Converts this [FilterPhysicalOperatorNode] to a [FilterOperator].
      *
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(ctx: QueryContext) = FilterOperator(
-        this.input?.toOperator(ctx) ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)"),
-        this.predicate
-    )
+    override fun toOperator(ctx: QueryContext): FilterOperator {
+        /* Bind predicate to context. */
+        this.predicate.bind(ctx.bindings)
+
+        /* Generate and return FilterOperator. */
+        return FilterOperator(this.input?.toOperator(ctx) ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)"), this.predicate)
+    }
 
     /** Generates and returns a [String] representation of this [FilterPhysicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.predicate}]"

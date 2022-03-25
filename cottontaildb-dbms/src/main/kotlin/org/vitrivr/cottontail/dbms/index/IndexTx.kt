@@ -8,9 +8,9 @@ import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
+import org.vitrivr.cottontail.core.queries.sort.SortOrder
 import org.vitrivr.cottontail.dbms.general.Tx
 import org.vitrivr.cottontail.dbms.operations.Operation
-import org.vitrivr.cottontail.dbms.queries.sort.SortOrder
 
 /**
  * A [Tx] that operates on a single [Index]. [Tx]s are a unit of isolation for data operations (read/write).

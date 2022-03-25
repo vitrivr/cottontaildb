@@ -16,6 +16,7 @@ import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.*
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
 import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
+import org.vitrivr.cottontail.core.queries.sort.SortOrder
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.types.RealVectorValue
 import org.vitrivr.cottontail.core.values.types.Types
@@ -26,8 +27,8 @@ import org.vitrivr.cottontail.dbms.column.ColumnTx
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.execution.TransactionContext
 import org.vitrivr.cottontail.dbms.execution.operators.sort.RecordComparator
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.index.*
 import org.vitrivr.cottontail.dbms.index.va.bounds.Bounds
 import org.vitrivr.cottontail.dbms.index.va.bounds.L1Bounds
@@ -36,7 +37,6 @@ import org.vitrivr.cottontail.dbms.index.va.bounds.L2SBounds
 import org.vitrivr.cottontail.dbms.index.va.signature.VAFMarks
 import org.vitrivr.cottontail.dbms.index.va.signature.VAFSignature
 import org.vitrivr.cottontail.dbms.operations.Operation
-import org.vitrivr.cottontail.dbms.queries.sort.SortOrder
 import org.vitrivr.cottontail.dbms.statistics.columns.DoubleVectorValueStatistics
 import org.vitrivr.cottontail.dbms.statistics.columns.FloatVectorValueStatistics
 import org.vitrivr.cottontail.dbms.statistics.columns.IntVectorValueStatistics

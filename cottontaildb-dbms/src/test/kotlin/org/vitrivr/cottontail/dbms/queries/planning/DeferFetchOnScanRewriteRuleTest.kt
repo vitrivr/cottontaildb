@@ -10,9 +10,9 @@ import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.entity.AbstractEntityTest
 import org.vitrivr.cottontail.dbms.entity.EntityTx
-import org.vitrivr.cottontail.dbms.execution.TransactionType
-import org.vitrivr.cottontail.dbms.queries.QueryContext
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
 import org.vitrivr.cottontail.dbms.queries.binding.DefaultBindingContext
+import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.logical.predicates.FilterLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.projection.SelectProjectionLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.sources.EntitySampleLogicalOperatorNode
@@ -56,7 +56,7 @@ class DeferFetchOnScanRewriteRuleTest : AbstractEntityTest() {
     fun testNoMatch() {
         val txn = this.manager.TransactionImpl(TransactionType.SYSTEM)
         try {
-            val ctx = QueryContext("test", this.catalogue, txn)
+            val ctx = DefaultQueryContext("test", this.catalogue, txn)
             val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
             val schema = catalogueTx.schemaForName(this.schemaName)
             val schemaTx = txn.getTx(schema) as SchemaTx
@@ -84,7 +84,7 @@ class DeferFetchOnScanRewriteRuleTest : AbstractEntityTest() {
     fun testNoDefer() {
         val txn = this.manager.TransactionImpl(TransactionType.SYSTEM)
         try {
-            val ctx = QueryContext("test", this.catalogue, txn)
+            val ctx = DefaultQueryContext("test", this.catalogue, txn)
             val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
             val schema = catalogueTx.schemaForName(this.schemaName)
             val schemaTx = txn.getTx(schema) as SchemaTx
@@ -113,7 +113,7 @@ class DeferFetchOnScanRewriteRuleTest : AbstractEntityTest() {
     fun testDeferAndDrop() {
         val txn = this.manager.TransactionImpl(TransactionType.SYSTEM)
         try {
-            val ctx = QueryContext("test", this.catalogue, txn)
+            val ctx = DefaultQueryContext("test", this.catalogue, txn)
             val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
             val schema = catalogueTx.schemaForName(this.schemaName)
             val schemaTx = txn.getTx(schema) as SchemaTx
@@ -148,7 +148,7 @@ class DeferFetchOnScanRewriteRuleTest : AbstractEntityTest() {
     fun testDeferAfterFilter() {
         val txn = this.manager.TransactionImpl(TransactionType.SYSTEM)
         try {
-            val ctx = QueryContext("test", this.catalogue, txn)
+            val ctx = DefaultQueryContext("test", this.catalogue, txn)
             val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
             val schema = catalogueTx.schemaForName(this.schemaName)
             val schemaTx = txn.getTx(schema) as SchemaTx

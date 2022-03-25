@@ -2,16 +2,16 @@ package org.vitrivr.cottontail.dbms.execution.operators.system
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import org.vitrivr.cottontail.core.database.ColumnDef
-import org.vitrivr.cottontail.dbms.execution.TransactionContext
-import org.vitrivr.cottontail.dbms.execution.TransactionManager
-import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
-import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.basics.Record
-import org.vitrivr.cottontail.core.values.types.Types
+import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.*
+import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
+import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager
 
 /**
  * An [Operator.SourceOperator] used during query execution. Used to list all ongoing transactions.
@@ -19,7 +19,7 @@ import org.vitrivr.cottontail.core.values.types.Value
  * @author Ralph Gasser
  * @version 1.2.0
  */
-class ListTransactionsOperator(val manager: org.vitrivr.cottontail.dbms.execution.TransactionManager) : Operator.SourceOperator() {
+class ListTransactionsOperator(val manager: TransactionManager) : Operator.SourceOperator() {
     companion object {
         val COLUMNS: List<ColumnDef<*>> = listOf(
             ColumnDef(Name.ColumnName("txId"), Types.Long, false),
@@ -36,7 +36,7 @@ class ListTransactionsOperator(val manager: org.vitrivr.cottontail.dbms.executio
 
     override val columns: List<ColumnDef<*>> = COLUMNS
 
-    override fun toFlow(context: org.vitrivr.cottontail.dbms.execution.TransactionContext): Flow<Record> {
+    override fun toFlow(context: TransactionContext): Flow<Record> {
         val values = Array<Value?>(this@ListTransactionsOperator.columns.size) { null }
         val columns = this.columns.toTypedArray()
         return flow {

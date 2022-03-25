@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail.dbms.locking
+package org.vitrivr.cottontail.dbms.execution.locking
 
 /**
  * Types of [Lock]s available to Cottontail DB.

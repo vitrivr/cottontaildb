@@ -12,6 +12,7 @@ import org.vitrivr.cottontail.client.language.basics.Distances
 import org.vitrivr.cottontail.client.language.basics.predicate.Expression
 import org.vitrivr.cottontail.client.language.dql.Query
 import org.vitrivr.cottontail.embedded
+import org.vitrivr.cottontail.server.CottontailServer
 import org.vitrivr.cottontail.server.grpc.GrpcTestUtils.STRING_COLUMN_NAME
 import org.vitrivr.cottontail.server.grpc.GrpcTestUtils.TEST_VECTOR_ENTITY_FQN_INPUT
 import org.vitrivr.cottontail.server.grpc.GrpcTestUtils.TWOD_COLUMN_NAME
@@ -30,7 +31,7 @@ class DQLServiceTest {
 
     private lateinit var client: SimpleClient
     private lateinit var channel: ManagedChannel
-    private lateinit var embedded: CottontailGrpcServer
+    private lateinit var embedded: CottontailServer
 
 
     @BeforeAll
@@ -58,7 +59,7 @@ class DQLServiceTest {
         this.channel.awaitTermination(5000, TimeUnit.MILLISECONDS)
 
         /* Stop embedded server. */
-        this.embedded.stop()
+        this.embedded.shutdownAndWait()
     }
 
     @BeforeEach

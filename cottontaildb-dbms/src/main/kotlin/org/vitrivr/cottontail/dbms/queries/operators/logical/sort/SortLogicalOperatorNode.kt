@@ -1,11 +1,14 @@
 package org.vitrivr.cottontail.dbms.queries.operators.logical.sort
 
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.queries.nodes.traits.OrderTrait
+import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
+import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
+import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
+import org.vitrivr.cottontail.core.queries.sort.SortOrder
+import org.vitrivr.cottontail.dbms.exceptions.QueryException
 import org.vitrivr.cottontail.dbms.queries.operators.logical.UnaryLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.sort.SortPhysicalOperatorNode
-import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
-import org.vitrivr.cottontail.dbms.queries.sort.SortOrder
-import org.vitrivr.cottontail.dbms.exceptions.QueryException
 
 /**
  * A [UnaryLogicalOperatorNode] that represents sorting the input by a set of specified [ColumnDef]s.
@@ -13,7 +16,7 @@ import org.vitrivr.cottontail.dbms.exceptions.QueryException
  * @author Ralph Gasser
  * @version 2.2.0
  */
-class SortLogicalOperatorNode(input: Logical? = null, override val sortOn: List<Pair<ColumnDef<*>, SortOrder>>) : UnaryLogicalOperatorNode(input) {
+class SortLogicalOperatorNode(input: Logical? = null, val sortOn: List<Pair<ColumnDef<*>, SortOrder>>) : UnaryLogicalOperatorNode(input) {
 
     companion object {
         private const val NODE_NAME = "Order"
@@ -25,6 +28,10 @@ class SortLogicalOperatorNode(input: Logical? = null, override val sortOn: List<
 
     /** The [SortLogicalOperatorNode] requires all [ColumnDef]s used in the [ProximityPredicate]. */
     override val requires: List<ColumnDef<*>> = this.sortOn.map { it.first }
+
+    /** The [SortLogicalOperatorNode] overwrites/sets the [OrderTrait].  */
+    override val traits: Map<TraitType<*>, Trait>
+        get() = super.traits + listOf(OrderTrait to OrderTrait(this.sortOn))
 
     init {
         /* Sanity check. */

@@ -1,10 +1,12 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.merge
 
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
+import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
+import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.operators.transform.MergeOperator
-import org.vitrivr.cottontail.dbms.queries.QueryContext
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.physical.NAryPhysicalOperatorNode
 
 /**
@@ -16,7 +18,7 @@ import org.vitrivr.cottontail.dbms.queries.operators.physical.NAryPhysicalOperat
  * [BindingContext] instances.
  *
  * @author Ralph Gasser
- * @version 2.2.0
+ * @version 2.3.0
  */
 class MergePhysicalOperator(vararg inputs: Physical): NAryPhysicalOperatorNode(*inputs) {
 
@@ -27,11 +29,16 @@ class MergePhysicalOperator(vararg inputs: Physical): NAryPhysicalOperatorNode(*
     override val outputSize: Long
         get() = this.inputs.sumOf { it.outputSize }
 
-    /** The [Cost] incurred by merging is usually negligible. */
+    /** The [Cost] incurred by the [MergePhysicalOperator] is usually negligible. */
     override val cost: Cost = Cost.ZERO
 
-    /** [BindingContext] of this [MergePhysicalOperator]. */
-    private var bindingContext: BindingContext? = null
+    /** The parallelizable portion of the [Cost] incurred by the [MergePhysicalOperator] is the sum of the [Cost]s of all inputs. */
+    override val parallelizableCost: Cost
+        get() = this.inputs.map { it.totalCost }.reduce {c1, c2 -> c1 + c2}
+
+    /* The [MergePhysicalOperator] eliminates all traits from the incoming nodes. */
+    override val traits: Map<TraitType<*>, Trait>
+        get() = emptyMap()
 
     /**
      * Creates and returns a copy of this [MergePhysicalOperator] without any children or parents.
@@ -40,26 +47,11 @@ class MergePhysicalOperator(vararg inputs: Physical): NAryPhysicalOperatorNode(*
      */
     override fun copy() = MergePhysicalOperator()
 
-    /**
-     * Propagates the [bind] call up the tree.
-     *
-     * All input operators receive their own [BindingContext], since [MergePhysicalOperator] allows for parallelisation.
-     *
-     * @param context [BindingContext] of this [MergePhysicalOperator].
-     */
-    override fun bind(context: BindingContext) {
-        this.inputs.forEach { it.bind(context.copy()) }
-        this.bindingContext = context
-    }
-
 
     /**
      * Converts this [MergePhysicalOperator] to a [MergeOperator].
      *
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(ctx: QueryContext): Operator = MergeOperator(
-        this.inputs.map { it.toOperator(ctx) },
-        this.bindingContext ?: throw IllegalStateException("Cannot create MergeOperator without valid binding context.")
-    )
+    override fun toOperator(ctx: QueryContext): Operator = MergeOperator(this.inputs.map { it.toOperator(ctx.split()) }, ctx.bindings)
 }

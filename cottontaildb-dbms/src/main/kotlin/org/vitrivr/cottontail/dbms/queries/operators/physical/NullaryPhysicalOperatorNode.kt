@@ -2,16 +2,17 @@ package org.vitrivr.cottontail.dbms.queries.operators.physical
 
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
+import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
+import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.NullaryLogicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.sort.SortOrder
 
 /**
  * An abstract [OperatorNode.Physical] implementation that has no input node, i.e., acts as a source.
  *
  * @author Ralph Gasser
- * @version 2.5.0
+ * @version 2.6.0
  */
 abstract class NullaryPhysicalOperatorNode : OperatorNode.Physical() {
     /** The arity of the [NullaryPhysicalOperatorNode] is always on. */
@@ -28,10 +29,6 @@ abstract class NullaryPhysicalOperatorNode : OperatorNode.Physical() {
     final override val totalCost: Cost
         get() = this.cost
 
-    /** By default, a [NullaryPhysicalOperatorNode] has no specific order. */
-    override val sortOn: List<Pair<ColumnDef<*>, SortOrder>>
-        get() = emptyList()
-
     /** By default, a [NullaryPhysicalOperatorNode] does not have specific requirements. */
     override val requires: List<ColumnDef<*>>
         get() = emptyList()
@@ -39,6 +36,10 @@ abstract class NullaryPhysicalOperatorNode : OperatorNode.Physical() {
     /** By default, a [NullaryPhysicalOperatorNode] does not support partitioning. */
     override val canBePartitioned: Boolean
         get() = false
+
+    /** By default, a [NullaryPhysicalOperatorNode] has an empty set of [Trait]s. */
+    override val traits: Map<TraitType<*>,Trait>
+        get() = emptyMap()
 
     /**
      * Creates and returns a copy of this [NullaryPhysicalOperatorNode] without any children or parents.
@@ -74,11 +75,22 @@ abstract class NullaryPhysicalOperatorNode : OperatorNode.Physical() {
     }
 
     /**
-     * By default, a [NullaryPhysicalOperatorNode] cannot be partitioned.
+     * By default, a [NullaryPhysicalOperatorNode] cannot be partitioned and hence this method returns null.
      *
      * Must be overridden in order to support partitioning.
      */
-    override fun tryPartition(partitions: Int, p: Int? ): Physical? = null
+    override fun tryPartition(partitions: Int): Physical? = null
+
+    /**
+     * By default, [NullaryPhysicalOperatorNode] cannot be partitioned and hence calling this method throws an exception.
+     *
+     * @param partitions The total number of partitions.
+     * @param p The partition index.
+     * @return null
+     */
+    override fun partition(partitions: Int, p: Int): Physical {
+        throw UnsupportedOperationException("NullaryPhysicalOperatorNode cannot be partitioned!")
+    }
 
     /**
      * Calculates and returns the digest for this [NullaryPhysicalOperatorNode].

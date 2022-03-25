@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail.dbms.locking
+package org.vitrivr.cottontail.dbms.execution.locking
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet

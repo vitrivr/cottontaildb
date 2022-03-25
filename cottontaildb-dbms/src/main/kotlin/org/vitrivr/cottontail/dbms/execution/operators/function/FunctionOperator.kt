@@ -8,7 +8,8 @@ import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.functions.Function
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
-import org.vitrivr.cottontail.dbms.queries.QueryContext
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
+import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
 
 /**
  * A [Operator.PipelineOperator] used during query execution. It executes a defined [Function] and generates a new [ColumnDef] from its results.
@@ -27,10 +28,10 @@ class FunctionOperator(parent: Operator, val function: Binding.Function, val out
     /**
      * Converts this [FunctionOperator] to a [Flow] and returns it.
      *
-     * @param context The [QueryContext] used for execution
+     * @param context The [DefaultQueryContext] used for execution
      * @return [Flow] representing this [FunctionOperator]
      */
-    override fun toFlow(context: org.vitrivr.cottontail.dbms.execution.TransactionContext): Flow<Record> {
+    override fun toFlow(context: TransactionContext): Flow<Record> {
         /* Obtain parent flow. */
         val parentFlow = this.parent.toFlow(context)
 

@@ -1,34 +1,30 @@
-package org.vitrivr.cottontail.dbms.execution
+package org.vitrivr.cottontail.dbms.execution.transactions
 
 import kotlinx.coroutines.flow.Flow
 import org.vitrivr.cottontail.core.basics.Record
-import org.vitrivr.cottontail.core.database.TransactionId
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
-import org.vitrivr.cottontail.dbms.queries.QueryContext
+import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
 
 /**
- * A [Transaction] that can be used to execute [Operator]s in a given [QueryContext].
+ * A [Transaction] that can be used to execute [Operator]s in a given [DefaultQueryContext].
  *
  * @author Ralph Gasser
  * @version 1.0.0
  */
-interface Transaction {
-    /** The [TransactionId] of this [Transaction]. */
-    val txId: TransactionId
+interface Transaction: TransactionContext {
 
     /** The [TransactionType] of this [Transaction]. */
     val type: TransactionType
 
-    /** The [QueryContext] of this [Transaction]. */
+    /** The [DefaultQueryContext] of this [Transaction]. */
     val state: TransactionStatus
 
     /** Flag indicating, whether this [Transaction] was used to write any data. */
     val readonly: Boolean
 
     /**
-     * Schedules an [Operator] for execution in this [Transaction] and blocks, until execution has completed.
+     * Schedules an [Operator] in the context of this [Transaction] and blocks, until execution has completed.
      *
-     * @param context The [QueryContext] to execute the [Operator] in.
      * @return Resulting [Flow] of [Record]s
      */
     fun execute(operator: Operator): Flow<Record>

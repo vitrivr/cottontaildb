@@ -9,7 +9,8 @@ import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.dbms.catalogue.CatalogueTest
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
-import org.vitrivr.cottontail.dbms.execution.TransactionManager
+import org.vitrivr.cottontail.dbms.execution.ExecutionManager
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager
 import org.vitrivr.cottontail.utilities.io.TxFileUtilities
 import java.nio.file.Files
 
@@ -41,11 +42,15 @@ abstract class AbstractDatabaseTest {
     /** Catalogue used for testing. */
     protected var catalogue: DefaultCatalogue = DefaultCatalogue(this.config)
 
+    /** The [ExecutionManager] used for tests. */
+    private val execution = ExecutionManager(this.config)
+
     /** The [TransactionManager] used for this [CatalogueTest] instance. */
     protected val manager = TransactionManager(
+        this.execution,
         this.config.execution.transactionTableSize,
-        this.catalogue.environment,
-        this.config.execution.transactionHistorySize
+        this.config.execution.transactionHistorySize,
+        this.catalogue.environment
     )
 
     /** The [Logger] instance used by this [AbstractDatabaseTest]. */
@@ -66,5 +71,6 @@ abstract class AbstractDatabaseTest {
     protected open fun teardown() {
         this.catalogue.close()
         TxFileUtilities.delete(this.config.root)
+        this.execution.shutdownAndWait()
     }
 }

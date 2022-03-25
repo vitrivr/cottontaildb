@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.dbms.general
 
-import org.vitrivr.cottontail.dbms.execution.TransactionContext
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import java.util.concurrent.locks.ReentrantLock
 
 /**

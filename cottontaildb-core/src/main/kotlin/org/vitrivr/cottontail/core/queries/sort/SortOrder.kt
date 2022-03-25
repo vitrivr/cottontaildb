@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail.dbms.queries.sort
+package org.vitrivr.cottontail.core.queries.sort
 
 /**
  * Enumeration that describes the sort order.

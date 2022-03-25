@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail.dbms.execution
+package org.vitrivr.cottontail.dbms.execution.transactions
 
 /**
  * Type of [TransactionManager.TransactionImpl].

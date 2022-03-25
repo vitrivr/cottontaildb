@@ -3,12 +3,9 @@ package org.vitrivr.cottontail.dbms.queries.operators.physical
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
-import org.vitrivr.cottontail.core.queries.Node
-import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.NAryLogicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.sort.SortOrder
 import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
 import java.io.PrintStream
 import java.util.*
@@ -17,9 +14,9 @@ import java.util.*
  * An abstract [OperatorNode.Physical] implementation that has multiple [OperatorNode.Physical]s as input.
  *
  * @author Ralph Gasser
- * @version 2.5.0
+ * @version 2.6.0
  */
-abstract class NAryPhysicalOperatorNode(vararg inputs: Physical) : org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Physical() {
+abstract class NAryPhysicalOperatorNode(vararg inputs: Physical): OperatorNode.Physical() {
 
     /** The inputs to this [NAryLogicalOperatorNode]. The first input belongs to the same group. */
     private val _inputs: MutableList<Physical> = LinkedList<Physical>()
@@ -56,10 +53,6 @@ abstract class NAryPhysicalOperatorNode(vararg inputs: Physical) : org.vitrivr.c
             return cost
         }
 
-    /** By default, a [NAryPhysicalOperatorNode]'s order is unspecified. */
-    override val sortOn: List<Pair<ColumnDef<*>, SortOrder>>
-        get() = emptyList()
-
     /** By default, a [NAryPhysicalOperatorNode]'s requirements are empty. */
     override val requires: List<ColumnDef<*>>
         get() =  emptyList()
@@ -79,9 +72,13 @@ abstract class NAryPhysicalOperatorNode(vararg inputs: Physical) : org.vitrivr.c
     override val columns: List<ColumnDef<*>>
         get() = (this.inputs.firstOrNull()?.columns ?: emptyList())
 
-    /** By default, a [UnaryPhysicalOperatorNode]'s statistics are retained. */
+    /** By default, a [NAryPhysicalOperatorNode]'s statistics are retained. */
     override val statistics: Map<ColumnDef<*>, ValueStatistics<*>>
         get() = this.inputs.firstOrNull()?.statistics ?: emptyMap()
+
+    /** By default, a [NAryPhysicalOperatorNode]'s parallelizable costs are [Cost.ZERO]. */
+    override val parallelizableCost: Cost
+        get() = Cost.ZERO
 
     init {
         inputs.forEach { this.addInput(it) }
@@ -148,23 +145,22 @@ abstract class NAryPhysicalOperatorNode(vararg inputs: Physical) : org.vitrivr.c
     }
 
     /**
-     * By default, [NAryPhysicalOperatorNode] cannot be partitioned.
+     * By default, [NAryPhysicalOperatorNode] cannot be partitioned and hence this method returns null.
      *
      * @param partitions The desired number of partitions.
+     * @return null
+     */
+    override fun tryPartition(partitions: Int): Physical? = null
+
+    /**
+     * By default, [NAryPhysicalOperatorNode] cannot be partitioned and hence calling this method throws an exception.
+     *
+     * @param partitions The total number of partitions.
      * @param p The partition index.
      * @return null
      */
-    override fun tryPartition(partitions: Int, p: Int?): Physical? = null
-
-    /**
-     * By default, the [NAryPhysicalOperatorNode] simply propagates [bind] calls to its inpus.
-     *
-     * However, some implementations must propagate the call to inner [Node]s.
-     *
-     * @param context The [BindingContext] to bind this [NAryPhysicalOperatorNode] to.
-     */
-    override fun bind(context: BindingContext) {
-        this.inputs.forEach { it.bind(context) }
+    override fun partition(partitions: Int, p: Int): Physical {
+        throw UnsupportedOperationException("NAryPhysicalOperatorNodes cannot be partitioned!")
     }
 
     /**

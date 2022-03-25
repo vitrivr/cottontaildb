@@ -13,8 +13,8 @@ import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
-import org.vitrivr.cottontail.dbms.execution.TransactionContext
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 
 /**
  * An [Operator.PipelineOperator] used during query execution. Inserts all incoming entries into an
@@ -41,7 +41,7 @@ class InsertOperator(groupId: GroupId, val entity: EntityTx, val records: List<R
      * @param context The [TransactionContext] used for execution
      * @return [Flow] representing this [InsertOperator]
      */
-    override fun toFlow(context: org.vitrivr.cottontail.dbms.execution.TransactionContext): Flow<Record> {
+    override fun toFlow(context: TransactionContext): Flow<Record> {
         val columns = this.columns.toTypedArray()
         return flow {
             for (record in this@InsertOperator.records) {

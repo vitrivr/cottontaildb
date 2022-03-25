@@ -4,7 +4,6 @@ import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.statistics.selectivity.Selectivity
-import java.lang.Math.floorDiv
 
 /**
  * A basic implementation of a [AbstractValueStatistics] object, which is used by Cottontail DB to collect and summary
@@ -44,7 +43,7 @@ sealed class AbstractValueStatistics<T : Value>(override val type: Types<T>): Va
 
     /** Mean [Value] in terms of space requirement (logical size) known to this [AbstractValueStatistics] */
     override val avgWidth: Int
-        get() = floorDiv(this.minWidth + this.maxWidth, 2)
+        get() = (this.minWidth + this.maxWidth) / 2
 
     /**
      * Updates this [AbstractValueStatistics] with an inserted [Value]

@@ -1,13 +1,16 @@
 package org.vitrivr.cottontail.dbms.statistics.selectivity
 
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
+import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
+import org.vitrivr.cottontail.dbms.statistics.selectivity.Selectivity.Companion.DEFAULT_SELECTIVITY
 
 /**
  * This is a very naive calculator for [Selectivity] values.
  *
- * It simply delegates [Selectivity] calculation for [BooleanPredicate.Atomic]to the [RecordStatistics] object of
+ * It simply delegates [Selectivity] calculation for [BooleanPredicate.Atomic]to the [ValueStatistics] object of
  * the column and then combines these [Selectivity] values as if they were uncorrelated.
  *
  * @author Ralph Gasser
@@ -15,7 +18,7 @@ import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
  */
 object NaiveSelectivityCalculator {
     /**
-     * Estimates the selectivity of a [BooleanPredicate] given the [RecordStatistics].
+     * Estimates the selectivity of a [BooleanPredicate] given the [ValueStatistics].
      *
      * @param predicate The [BooleanPredicate] to evaluate.
      * @param statistics The map of [ValueStatistics] to use in the calculation.
@@ -26,12 +29,35 @@ object NaiveSelectivityCalculator {
     }
 
     /**
-     * Estimates the selectivity of a [BooleanPredicate.Atomic] given the [RecordStatistics].
+     * Estimates the selectivity of a [BooleanPredicate.Atomic] given the [ValueStatistics].
      *
      * @param predicate The [BooleanPredicate.Atomic] to evaluate.
      * @param statistics The map of [ValueStatistics] to use in the calculation.
      */
-    private fun estimateAtomicReference(predicate: BooleanPredicate.Atomic, statistics: Map<ColumnDef<*>,ValueStatistics<*>>): Selectivity = Selectivity(1.0f)
+    private fun estimateAtomicReference(predicate: BooleanPredicate.Atomic, statistics: Map<ColumnDef<*>,ValueStatistics<*>>): Selectivity {
+        val left = predicate.operator.left
+        if (left !is Binding.Column) {
+            return DEFAULT_SELECTIVITY
+        }
+        val stat = statistics[left.column] ?: return DEFAULT_SELECTIVITY
+        return when(val op = predicate.operator) {
+            /* Assumption: All elements in IN are matches. */
+            is ComparisonOperator.In ->  if (predicate.not) {
+                Selectivity((stat.numberOfEntries - op.right.size).toFloat() / stat.numberOfEntries.toFloat())
+            } else {
+                Selectivity(op.right.size / stat.numberOfEntries.toFloat())
+            }
+
+            /* Assumption: Number of NULL / NON-NULL values can be derived directly from statistics. */
+            is ComparisonOperator.IsNull -> if (predicate.not) {
+                Selectivity(stat.numberOfNonNullEntries.toFloat() / stat.numberOfEntries.toFloat())
+            } else {
+                Selectivity(stat.numberOfNullEntries.toFloat() / stat.numberOfEntries.toFloat())
+            }
+
+            else -> DEFAULT_SELECTIVITY
+        }
+    }
 
     /**
      * Estimates the selectivity for a [BooleanPredicate.Compound].

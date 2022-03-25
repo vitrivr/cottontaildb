@@ -2,7 +2,8 @@ package org.vitrivr.cottontail.core.queries.binding
 
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
-import org.vitrivr.cottontail.core.queries.Node
+import org.vitrivr.cottontail.core.queries.nodes.BindableNode
+import org.vitrivr.cottontail.core.queries.nodes.NodeWithCost
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
@@ -11,9 +12,9 @@ import org.vitrivr.cottontail.core.values.types.Value
  * This class acts as a level of indirection for [Value]'s used during query planning, optimization and execution.
  *
  * @author Ralph Gasser
- * @version 1.4.0
+ * @version 1.5.0
  */
-sealed interface Binding: Node {
+sealed interface Binding: BindableNode, NodeWithCost {
 
     /** The [Value]. */
     val value: Value?

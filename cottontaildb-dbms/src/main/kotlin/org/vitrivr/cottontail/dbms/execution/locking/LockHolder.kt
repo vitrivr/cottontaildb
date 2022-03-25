@@ -1,8 +1,8 @@
-package org.vitrivr.cottontail.dbms.locking
+package org.vitrivr.cottontail.dbms.execution.locking
 
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet
-import org.vitrivr.cottontail.dbms.execution.TransactionManager.TransactionImpl
 import org.vitrivr.cottontail.core.database.TransactionId
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager.TransactionImpl
 
 /**
  * Represents a holder of one or multiple [Lock]s.

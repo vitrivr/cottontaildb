@@ -1,11 +1,12 @@
 package org.vitrivr.cottontail
 
+import kotlinx.coroutines.Dispatchers
 import kotlinx.serialization.json.Json
 import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.general.DBOVersion
 import org.vitrivr.cottontail.legacy.VersionProber
-import org.vitrivr.cottontail.server.grpc.CottontailGrpcServer
+import org.vitrivr.cottontail.server.CottontailServer
 import java.io.FileNotFoundException
 import java.nio.file.Files
 import java.nio.file.Paths
@@ -40,7 +41,11 @@ fun main(args: Array<String>) {
         System.err.println(e.printStackTrace())
         exitProcess(1)
     }
+
+    Dispatchers.Default
 }
+
+
 
 /**
  * Looks in the following places for a config path (ordered, fifo):
@@ -141,7 +146,7 @@ fun standalone(config: Config) {
     }
 
     /* Stop server and print shutdown message. */
-    server.stop()
+    server.shutdownAndWait()
     println("Cottontail DB was shut down. Have a binky day!")
 }
 
@@ -149,10 +154,10 @@ fun standalone(config: Config) {
  * Cottontail DB server startup method for embedded mode.
  *
  * @param config The [Config] object to start Cottontail DB with.
- * @return [CottontailGrpcServer] instance.
+ * @return [CottontailServer] instance.
  */
 @ExperimentalTime
-fun embedded(config: Config): CottontailGrpcServer {
+fun embedded(config: Config): CottontailServer {
     /* Create root-folder, if it doesn't exist yet. */
     if (!Files.exists(config.root)) {
         Files.createDirectories(config.root)
@@ -165,7 +170,7 @@ fun embedded(config: Config): CottontailGrpcServer {
     }
 
     /* Start gRPC Server and return it. */
-    return CottontailGrpcServer(config)
+    return CottontailServer(config)
 }
 
 /**

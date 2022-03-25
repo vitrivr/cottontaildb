@@ -1,6 +1,6 @@
 package org.vitrivr.cottontail.dbms.general
 
-import org.vitrivr.cottontail.dbms.execution.TransactionContext
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 
 /**
  * An object that acts as unit of isolation for accesses (read/write) to the underlying [DBO].

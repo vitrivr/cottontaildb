@@ -8,8 +8,8 @@ import kotlinx.coroutines.sync.withLock
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
-import org.vitrivr.cottontail.dbms.execution.TransactionContext
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 
 /**
  * A [MergeOperator] merges the results of multiple incoming operators into a single [Flow].
@@ -36,7 +36,7 @@ class MergeOperator(parents: List<Operator>, val context: BindingContext): Opera
      * @return [Flow] representing this [MergeOperator]
      */
     override fun toFlow(context: TransactionContext): Flow<Record> = channelFlow {
-        val mutex = Mutex(false) /* Mutext to prevent multiple flows from updating the context. */
+        val mutex = Mutex(false) /* Mutex to prevent multiple flows from updating the context. */
         this@MergeOperator.parents.map { p ->
             launch {
                 p.toFlow(context).collect {
