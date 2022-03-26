@@ -132,7 +132,7 @@ sealed class HammingDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Vecto
             }
             return DoubleValue(sum)
         }
-        override fun copy(d: Int) = FloatVector(Types.FloatVector(d))
+        override fun copy(d: Int) = FloatVectorVectorized(Types.FloatVector(d))
 
         override fun vectorized(): VectorDistance<FloatVectorValue> {
             return this

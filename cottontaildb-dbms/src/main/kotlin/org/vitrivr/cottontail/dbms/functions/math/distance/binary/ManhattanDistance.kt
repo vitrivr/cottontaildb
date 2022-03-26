@@ -164,13 +164,12 @@ sealed class ManhattanDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Min
      */
     class FloatVectorVectorized(type: Types.Vector<FloatVectorValue,*>): ManhattanDistance<FloatVectorValue>(type) {
         override val name: Name.FunctionName = FUNCTION_NAME
-        val species: VectorSpecies<Float> = jdk.incubator.vector.FloatVector.SPECIES_PREFERRED
-        var vectorSum = jdk.incubator.vector.FloatVector.zero(species)
 
         override fun invoke(vararg arguments: Value?): DoubleValue {
-
+            val species: VectorSpecies<Float> = jdk.incubator.vector.FloatVector.SPECIES_PREFERRED
             val probing = arguments[0] as FloatVectorValue
             val query = arguments[1] as FloatVectorValue
+            var vectorSum = jdk.incubator.vector.FloatVector.zero(species)
 
             for (i in 0 until species.loopBound(this.d) step species.length()) {
                 val vp = jdk.incubator.vector.FloatVector.fromArray(species, probing.data, i)
@@ -185,10 +184,9 @@ sealed class ManhattanDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Min
                 sum += (query.data[i] - probing.data[i]).absoluteValue
             }
 
-            vectorSum = vectorSum.broadcast(0f)
             return DoubleValue(sum)
         }
-        override fun copy(d: Int) = FloatVector(Types.FloatVector(d))
+        override fun copy(d: Int) = FloatVectorVectorized(Types.FloatVector(d))
 
         override fun vectorized(): VectorDistance<FloatVectorValue> {
             return this

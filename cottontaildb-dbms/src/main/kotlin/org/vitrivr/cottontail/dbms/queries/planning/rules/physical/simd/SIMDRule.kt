@@ -15,18 +15,22 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
  */
 object SIMDRule : RewriteRule {
     override fun canBeApplied(node: OperatorNode): Boolean {
-        if (node is FunctionPhysicalOperatorNode) {
-            if (node.function.function is VectorDistance<*>) {
-                if ((node.function.function as VectorDistance<*>).vectorized() != null) {
-                    return true
-                }
-            }
+        if (node is FunctionPhysicalOperatorNode && node.function.function is VectorDistance<*>) {
+            return true
         }
         return false
     }
 
     override fun apply(node: OperatorNode, ctx: QueryContext): OperatorNode? {
-        TODO("Not yet implemented")
+        // TODO @Colin("Not yet implemented")
+        if (node is FunctionPhysicalOperatorNode && node.function.function is VectorDistance<*>) {
+            var bindingFunction = node.out.context.bind((node.function.function as VectorDistance<*>).vectorized(), node.function.arguments)
+            if ((node.function.function as VectorDistance<*>).type.logicalSize >= 250) {
+                val p = FunctionPhysicalOperatorNode(node.input?.copyWithOutput(), bindingFunction, node.out.copy())
+                return p
+            }
+        }
+        return null
     }
 
 }

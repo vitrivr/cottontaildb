@@ -129,7 +129,7 @@ sealed class ChisquaredDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Ve
 
             return DoubleValue(sum)
         }
-        override fun copy(d: Int) = FloatVector(Types.FloatVector(d))
+        override fun copy(d: Int) = FloatVectorVectorized(Types.FloatVector(d))
 
         override fun vectorized(): VectorDistance<FloatVectorValue> {
             return this

@@ -181,7 +181,7 @@ sealed class SquaredEuclideanDistance<T : VectorValue<*>>(type: Types.Vector<T,*
 
             return DoubleValue(sum)
         }
-        override fun copy(d: Int) = FloatVector(Types.FloatVector(d))
+        override fun copy(d: Int) = FloatVectorVectorized(Types.FloatVector(d))
 
         override fun vectorized(): VectorDistance<FloatVectorValue> {
             return this

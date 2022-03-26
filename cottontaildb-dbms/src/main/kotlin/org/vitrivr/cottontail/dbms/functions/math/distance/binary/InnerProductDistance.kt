@@ -142,7 +142,7 @@ sealed class InnerProductDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): 
             val query = arguments[1] as FloatVectorValue
             var dotp = 0.0
             for (i in 0 until this.d) {
-                dotp += query.data[i] * probing.data[i]
+                dotp += (query.data[i] * probing.data[i])
             }
             return DoubleValue(dotp)
         }
@@ -173,12 +173,13 @@ sealed class InnerProductDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): 
 
             var dotp = vectorSum.reduceLanes(VectorOperators.ADD)
 
-            for (i in 0 until this.d) {
-                dotp += query.data[i] * probing.data[i]
+            for (i in species.loopBound(this.d) until this.d) {
+                dotp += (query.data[i] * probing.data[i])
             }
+
             return DoubleValue(dotp)
         }
-        override fun copy(d: Int) = FloatVector(Types.FloatVector(d))
+        override fun copy(d: Int) = FloatVectorVectorized(Types.FloatVector(d))
 
         override fun vectorized(): VectorDistance<FloatVectorValue> {
             return this
@@ -217,7 +218,7 @@ sealed class InnerProductDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): 
             val query = arguments[1] as IntVectorValue
             var dotp = 0.0
             for (i in 0 until this.d) {
-                dotp += query.data[i] * probing.data[i]
+                dotp += (query.data[i] * probing.data[i])
             }
             return DoubleValue(dotp)
         }

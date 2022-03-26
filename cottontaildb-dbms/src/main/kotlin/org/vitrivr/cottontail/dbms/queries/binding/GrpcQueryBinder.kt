@@ -493,26 +493,28 @@ object GrpcQueryBinder {
             //TODO @Colin manually select either vectorized or scalar version of the function with if statement
             val type = signature.arguments[0].type
             if (type is Types.FloatVector) {
-                when(signature.name.components[1]) {
+                /*when(signature.name.components[1]) {
                     "manhattan" -> ManhattanDistance.FloatVectorVectorized(type)
                     "euclidean" -> EuclideanDistance.FloatVectorVectorized(type)
+                    "chisquared" -> ChisquaredDistance.FloatVectorVectorized(type)
                     "hamming" -> HammingDistance.FloatVectorVectorized(type)
                     "squaredeuclidean" -> SquaredEuclideanDistance.FloatVectorVectorized(type)
-                    "dtop" -> InnerProductDistance.FloatVectorVectorized(type)
+                    "dotp" -> InnerProductDistance.FloatVectorVectorized(type)
                     "cosine" -> CosineDistance.FloatVectorVectorized(type)
                     else -> throw FunctionNotSupportedException("Function generator ${ManhattanDistance.signature} cannot generate function with signature $signature.")
-                }
+                }*/
 
                 //For the scalar versions.
-                /*when(signature.name.components[1]) {
+                when(signature.name.components[1]) {
                     "manhattan" -> ManhattanDistance.FloatVector(type)
                     "euclidean" -> EuclideanDistance.FloatVector(type)
+                    "chisquared" -> ChisquaredDistance.FloatVector(type)
                     "hamming" -> HammingDistance.FloatVector(type)
                     "squaredeuclidean" -> SquaredEuclideanDistance.FloatVector(type)
-                    "dtop" -> InnerProductDistance.FloatVector(type)
+                    "dotp" -> InnerProductDistance.FloatVector(type)
                     "cosine" -> CosineDistance.FloatVector(type)
                     else -> throw FunctionNotSupportedException("Function generator ${ManhattanDistance.signature} cannot generate function with signature $signature.")
-                }*/
+                }
 
             } else {
                 context.catalogue.functions.obtain(signature)

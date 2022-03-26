@@ -79,7 +79,7 @@ class FloatVectorDistanceTest : AbstractDistanceTest() {
         var time2 = Duration.ZERO
         var time3 = Duration.ZERO
 
-        val kernel = SquaredEuclideanDistance.FloatVector(query.type as Types.FloatVector)
+        val kernel = SquaredEuclideanDistance.FloatVectorVectorized(query.type as Types.FloatVector)
         collection.forEach {
             time1 += measureTime {
                 sum1 += kernel(query, it).value.toFloat()
@@ -120,7 +120,7 @@ class FloatVectorDistanceTest : AbstractDistanceTest() {
         var time2 = Duration.ZERO
         var time3 = Duration.ZERO
 
-        val kernel = EuclideanDistance.FloatVector(query.type as Types.FloatVector)
+        val kernel = EuclideanDistance.FloatVectorVectorized(query.type as Types.FloatVector)
         collection.forEach {
             time1 += measureTime {
                 sum1 += kernel(query, it).value.toFloat()
@@ -161,7 +161,7 @@ class FloatVectorDistanceTest : AbstractDistanceTest() {
         var time2 = Duration.ZERO
         var time3 = Duration.ZERO
 
-        val kernel = CosineDistance.FloatVector(query.type as Types.FloatVector)
+        val kernel = CosineDistance.FloatVectorVectorized(query.type as Types.FloatVector)
         collection.forEach {
             time1 += measureTime {
                 sum1 += kernel(query, it).value.toFloat()
@@ -211,7 +211,7 @@ class FloatVectorDistanceTest : AbstractDistanceTest() {
         var time2 = Duration.ZERO
         var time3 = Duration.ZERO
 
-        val kernel = ChisquaredDistance.FloatVector(query.type as Types.FloatVector)
+        val kernel = ChisquaredDistance.FloatVectorVectorized(query.type as Types.FloatVector)
         collection.forEach {
             time1 += measureTime {
                 sum1 += kernel(query, it).value.toFloat()
@@ -236,6 +236,94 @@ class FloatVectorDistanceTest : AbstractDistanceTest() {
         isApproximatelyTheSame(sum3, sum1)
         isApproximatelyTheSame(sum3, sum2)
     }
+
+    @ExperimentalTime
+    @ParameterizedTest
+    @MethodSource("dimensions")
+    fun testHammingDistance(dimension: Int) {
+        val query = FloatVectorValue.random(dimension, RANDOM)
+        val collection = VectorUtility.randomFloatVectorSequence(dimension, TestConstants.collectionSize, RANDOM)
+
+        var sum1 = 0.0
+        var sum2 = 0.0
+        var sum3 = 0.0
+
+        var time1 = Duration.ZERO
+        var time2 = Duration.ZERO
+        var time3 = Duration.ZERO
+
+        val kernel = HammingDistance.FloatVectorVectorized(query.type as Types.FloatVector)
+        collection.forEach {
+            time1 += measureTime {
+                sum1 += kernel(query, it).value.toFloat()
+            }
+            time2 += measureTime {
+                for (i in query.data.indices) {
+                    if (query.data[i] != it.data[i]) {
+                        sum2 += 1.0
+                    }
+                }
+            }
+            time3 += measureTime {
+                sum3 += hamming(it.data, query.data)
+            }
+        }
+
+        println("Calculating L2 distance for collection (s=${TestConstants.collectionSize}, d=$dimension) took ${time1 / TestConstants.collectionSize} (optimized) resp. ${time2 / TestConstants.collectionSize} per vector on average.")
+
+        if (time1 > time2) {
+            LOGGER.warn("Optimized version of L2 is slower than default version!")
+        }
+        println("Optimized: $time1")
+        println("Standard: $time2")
+        println("Test method: $time3")
+
+        isApproximatelyTheSame(sum3, sum2)
+        isApproximatelyTheSame(sum3, sum1)
+    }
+
+    @ExperimentalTime
+    @ParameterizedTest
+    @MethodSource("dimensions")
+    fun testInnerProductDistance(dimension: Int) {
+        val query = FloatVectorValue.random(dimension, RANDOM)
+        val collection = VectorUtility.randomFloatVectorSequence(dimension, TestConstants.collectionSize, RANDOM)
+
+        var sum1 = 0.0f
+        var sum2 = 0.0f
+        var sum3 = 0.0f
+
+        var time1 = Duration.ZERO
+        var time2 = Duration.ZERO
+        var time3 = Duration.ZERO
+
+        val kernel = InnerProductDistance.FloatVectorVectorized(query.type as Types.FloatVector)
+        collection.forEach {
+            time1 += measureTime {
+                sum1 += kernel(query, it).value.toFloat()
+            }
+            time2 += measureTime {
+                sum2 += query.dot(it).value
+            }
+            time3 += measureTime {
+                sum3 += dotp(it.data, query.data)
+            }
+        }
+
+        println("Calculating L2 distance for collection (s=${TestConstants.collectionSize}, d=$dimension) took ${time1 / TestConstants.collectionSize} (optimized) resp. ${time2 / TestConstants.collectionSize} per vector on average.")
+
+        if (time1 > time2) {
+            LOGGER.warn("Optimized version of L2 is slower than default version!")
+        }
+        println("Optimized: $time1")
+        println("Standard: $time2")
+        println("Test method: $time3")
+
+        isApproximatelyTheSame(sum3, sum1)
+        isApproximatelyTheSame(sum3, sum2)
+    }
+
+    //TODO @Colin Tests for Hamming, Innerproduct and (Haversine)
 
     /**
      * Calculates the L<sub>1</sub> (sum of abs) distance between two points.
@@ -321,6 +409,40 @@ class FloatVectorDistanceTest : AbstractDistanceTest() {
             val sub = p1[i] - p2[i]
             val add = p1[i] + p2[i]
             sum += (sub * sub) / (add)
+        }
+        return sum
+    }
+
+    /**
+     * Calculates the Hamming distance between two points.
+     *
+     * @param p1 the first point
+     * @param p2 the second point
+     * @return the chisquared distance between the two points
+     */
+    private fun hamming(p1: FloatArray, p2: FloatArray):Float {
+        require(p1.size == p2.size) { "Dimension mismatch!" }
+        var sum = 0.0f
+        for (i in p1.indices) {
+            if (p1[i] != p2[i]) {
+                sum += 1
+            }
+        }
+        return sum
+    }
+
+    /**
+     * Calculates the InnerProduct distance between two points.
+     *
+     * @param p1 the first point
+     * @param p2 the second point
+     * @return the chisquared distance between the two points
+     */
+    private fun dotp(p1: FloatArray, p2: FloatArray):Float {
+        require(p1.size == p2.size) { "Dimension mismatch!" }
+        var sum = 0.0f
+        for (i in p1.indices) {
+            sum += (p1[i] * p2[i])
         }
         return sum
     }

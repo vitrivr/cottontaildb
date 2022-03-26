@@ -12,6 +12,7 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index.Fulltex
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.index.NNSIndexScanRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.merge.LimitingSortMergeRule
 import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.pushdown.CountPushdownRule
+import org.vitrivr.cottontail.dbms.queries.planning.rules.physical.simd.SIMDRule
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.grpc.DQLGrpc
 import org.vitrivr.cottontail.grpc.DQLGrpcKt
@@ -37,7 +38,7 @@ class DQLService(override val catalogue: Catalogue, override val manager: org.vi
             DeferFetchOnFetchRewriteRule
         ),
         //TODO @Colin add your newly implemented rule here
-        physicalRules = listOf(BooleanIndexScanRule, NNSIndexScanRule, FulltextIndexRule, CountPushdownRule, LimitingSortMergeRule),
+        physicalRules = listOf(BooleanIndexScanRule, NNSIndexScanRule, FulltextIndexRule, CountPushdownRule, LimitingSortMergeRule, SIMDRule),
         this.catalogue.config.cache.planCacheSize
     )
 
