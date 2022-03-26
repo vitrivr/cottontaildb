@@ -23,6 +23,7 @@ import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
  * @author Ralph Gasser
  * @version 2.4.0
  */
+@Suppress("UNCHECKED_CAST")
 class FetchPhysicalOperatorNode(input: Physical? = null, val entity: EntityTx, val fetch: List<Pair<Binding.Column, ColumnDef<*>>>) : UnaryPhysicalOperatorNode(input) {
 
     companion object {
@@ -47,7 +48,7 @@ class FetchPhysicalOperatorNode(input: Physical? = null, val entity: EntityTx, v
 
     /** The [Cost] of a [FetchPhysicalOperatorNode]. */
     override val cost: Cost
-        get() = (Cost.DISK_ACCESS_READ + Cost.MEMORY_ACCESS) * this.outputSize * this.fetch.sumOf { (b, c) ->
+        get() = (Cost.DISK_ACCESS_READ + Cost.MEMORY_ACCESS) * this.outputSize * this.fetch.sumOf { (b, _) ->
             if (b.type == Types.String) {
                 this.localStatistics[b.column]!!.avgWidth * Char.SIZE_BYTES
             } else {
@@ -79,11 +80,14 @@ class FetchPhysicalOperatorNode(input: Physical? = null, val entity: EntityTx, v
      *
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(ctx: QueryContext) = FetchOperator(
-        this.input?.toOperator(ctx) ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)"),
-        this.entity,
-        this.fetch
-    )
+    override fun toOperator(ctx: QueryContext): FetchOperator {
+        /* Bind predicate to context. */
+        this.fetch.forEach { it.first.bind(ctx.bindings) }
+
+        /* Generate and return FetchOperator. */
+        val input = this.input?.toOperator(ctx) ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)")
+        return FetchOperator(input, this.entity, this.fetch)
+    }
 
     /** Generates and returns a [String] representation of this [FetchPhysicalOperatorNode]. */
     override fun toString() = "${this.groupId}:Fetch[${this.fetch.joinToString(",") { it.second.name.toString() }}]"
