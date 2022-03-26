@@ -6,7 +6,6 @@ import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
-import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 
@@ -14,10 +13,8 @@ import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
  * An [Operator.PipelineOperator] used during query execution. It generates new [Record]s for
  * each incoming [Record] and removes field not required by the query.
  *
- * Only produces a single [Record].
- *
  * @author Ralph Gasser
- * @version 1.4.0
+ * @version 1.6.0
  */
 class SelectProjectionOperator(parent: Operator, fields: List<Name.ColumnName>) : Operator.PipelineOperator(parent) {
 
@@ -37,10 +34,8 @@ class SelectProjectionOperator(parent: Operator, fields: List<Name.ColumnName>) 
      */
     override fun toFlow(context: TransactionContext): Flow<Record> {
         val columns = this.columns.toTypedArray()
-        val values = arrayOfNulls<Value?>(columns.size)
         return this.parent.toFlow(context).map { r ->
-            columns.forEachIndexed { i, c -> values[i] = r[c]  }
-            StandaloneRecord(r.tupleId, columns, values)
+            StandaloneRecord(r.tupleId, columns, Array(columns.size) { r[columns[it]]})
         }
     }
 }
