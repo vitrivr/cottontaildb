@@ -51,16 +51,18 @@ interface CostPolicy: Comparator<Cost> {
     override fun compare(o1: Cost, o2: Cost): Int = this.toScore(o1).compareTo(this.toScore(o2))
 
     /**
-     * Estimates, how much parallelization makes sense given the parallelisable portion of a [Cost]
+     * Estimates, how much parallelization makes sense given the parallelisable portion vs the total [Cost]. The estimation
+     * is done by applying Amdahl's law. See https://en.wikipedia.org/wiki/Amdahl%27s_law
      *
-     * The estimation is done by applying Amdahl's law. See https://en.wikipedia.org/wiki/Amdahl%27s_law
-     *
+     * @param parallelisableCost The parallelisable portion of the total [Cost]
+     * @param totalCost The total [Cost]
+     * @param pmax The maximum amount of parallelisation.
      * @return parallelization estimation for this [Cost].
      */
     fun parallelisation(parallelisableCost: Cost, totalCost: Cost, pmax: Int): Int {
         if (pmax <= 2) return 1
         val sp = this.wcpu * parallelisableCost.cpu + this.wio * parallelisableCost.io * this.nonParallelisableIO /* Parallelisable portion of the cost. */
-        val ss = this.wcpu * (totalCost.cpu - parallelisableCost.cpu) + this.wio *( totalCost.io - parallelisableCost.io * this.nonParallelisableIO ) /* Serial portion of the cost. */
+        val ss = this.wcpu * (totalCost.cpu - parallelisableCost.cpu) + this.wio *(totalCost.io - parallelisableCost.io * this.nonParallelisableIO) /* Serial portion of the cost. */
         val ov = 0.01f * parallelisableCost.cpu /* Overhead = 1% of the parallel cost. */
         var prevSpeedup = 0.0f
         for (p in 2 .. pmax) {
