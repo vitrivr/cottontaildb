@@ -32,12 +32,9 @@ class FunctionOperator(parent: Operator, val function: Binding.Function, val out
      * @return [Flow] representing this [FunctionOperator]
      */
     override fun toFlow(context: TransactionContext): Flow<Record> {
-        /* Obtain parent flow. */
-        val parentFlow = this.parent.toFlow(context)
-
         /* Prepare empty array that acts a holder for values. */
         val columns = this.columns.toTypedArray()
-        return parentFlow.map { record ->
+        return this.parent.toFlow(context).map { record ->
             /* Materialize new values array. */
             val values = Array(this.columns.size) {
                 if (it < this.columns.size - 1) {

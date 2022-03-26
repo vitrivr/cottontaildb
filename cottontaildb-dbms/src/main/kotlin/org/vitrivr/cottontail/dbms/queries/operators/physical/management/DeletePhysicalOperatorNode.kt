@@ -1,6 +1,9 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.management
 
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
+import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
+import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
@@ -38,8 +41,8 @@ class DeletePhysicalOperatorNode(input: Physical? = null, val entity: EntityTx) 
     /** The [Cost] of this [DeletePhysicalOperatorNode]. */
     override val cost: Cost = Cost.DISK_ACCESS_WRITE * this.entity.count() * (this.input?.outputSize ?: 0)
 
-    /** The [DeletePhysicalOperatorNode]s cannot be partitioned. */
-    override val canBePartitioned: Boolean = false
+    /** The [DeletePhysicalOperatorNode] cannot be partitioned. */
+    override val traits: Map<TraitType<*>, Trait> = mapOf(NotPartitionableTrait to NotPartitionableTrait)
 
     /**
      * Creates and returns a copy of this [DeletePhysicalOperatorNode] without any children or parents.

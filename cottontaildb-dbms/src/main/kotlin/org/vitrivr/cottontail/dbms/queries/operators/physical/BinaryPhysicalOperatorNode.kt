@@ -64,9 +64,6 @@ abstract class BinaryPhysicalOperatorNode(left: Physical? = null, right: Physica
     override val executable: Boolean
         get() = (this.left?.executable ?: false) && (this.right?.executable ?: false)
 
-    /** By default, [BinaryPhysicalOperatorNode]s cannot be partitioned. */
-    override val canBePartitioned: Boolean = false
-
     /** By default, the [BinaryPhysicalOperatorNode] outputs the physical [ColumnDef] of its left input. */
     override val physicalColumns: List<ColumnDef<*>>
         get() = (this.left?.physicalColumns ?: emptyList())

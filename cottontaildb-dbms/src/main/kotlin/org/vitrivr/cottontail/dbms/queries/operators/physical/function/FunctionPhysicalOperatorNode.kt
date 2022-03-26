@@ -29,9 +29,6 @@ class FunctionPhysicalOperatorNode(input: Physical? = null, val function: Bindin
     override val requires: List<ColumnDef<*>>
         get() = this.function.requiredColumns()
 
-    /**The [FunctionPhysicalOperatorNode] cannot be partitioned. */
-    override val canBePartitioned: Boolean = true
-
     /** The [Cost] of a [FunctionPhysicalOperatorNode]. */
     override val cost: Cost
         get() = this.function.cost * this.outputSize

@@ -3,14 +3,14 @@ package org.vitrivr.cottontail.dbms.queries.operators.physical
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
-import org.vitrivr.cottontail.core.queries.nodes.traits.LimitTrait
-import org.vitrivr.cottontail.core.queries.nodes.traits.OrderTrait
-import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
-import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
+import org.vitrivr.cottontail.core.queries.nodes.traits.*
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
+import org.vitrivr.cottontail.core.queries.planning.cost.CostPolicy
 import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.UnaryLogicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.operators.physical.merge.MergePhysicalOperator
+import org.vitrivr.cottontail.dbms.queries.operators.physical.merge.MergeLimitingSortPhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.physical.merge.MergePhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.physical.transform.LimitPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
 import java.io.PrintStream
 
@@ -55,7 +55,7 @@ abstract class UnaryPhysicalOperatorNode(input: Physical? = null) : OperatorNode
     final override val parallelizableCost: Cost
         get() {
             val input = this.input ?: return Cost.ZERO
-            return if (this.canBePartitioned) {
+            return if (this.hasTrait(NotPartitionableTrait)) {
                 this.totalCost
             } else {
                 input.parallelizableCost
@@ -68,10 +68,6 @@ abstract class UnaryPhysicalOperatorNode(input: Physical? = null) : OperatorNode
     /** By default, [UnaryPhysicalOperatorNode]s are executable if their input is executable. */
     override val executable: Boolean
         get() = this.input?.executable ?: false
-
-    /** By default, [UnaryPhysicalOperatorNode]s can be partitioned, if their parent can be partitioned. */
-    override val canBePartitioned: Boolean
-        get() = this.input?.canBePartitioned ?: false
 
     /** By default, the [UnaryPhysicalOperatorNode] outputs the physical [ColumnDef] of its input. */
     override val physicalColumns: List<ColumnDef<*>>
@@ -140,22 +136,37 @@ abstract class UnaryPhysicalOperatorNode(input: Physical? = null) : OperatorNode
     /**
      * Tries to create a partitioned version of this [UnaryPhysicalOperatorNode] and its parents.
      *
-     * In general, partitioning is only possible if there isn't an inherent [OrderTrait] or [LimitTrait]
-     * on the upstream portion of the tree. Otherwise, [UnaryPhysicalOperatorNode] propagates this call up
-     * a tree until a [OperatorNode.Physical] that allows for partitioning (see [canBePartitioned]) or the
-     * end of the tree has been reached. In the former case, this method return a partitioned copy of
-     * this [OperatorNode.Physical].
+     * In general, partitioning is only possible if the [input] doesn't have a [NotPartitionableTrait]. In absence of the
+     * trait, partitioning is implemented using different strategies depending on the [OrderTrait] and [LimitTrait] of the
+     * incoming tree.
+     *
+     * Otherwise, [UnaryPhysicalOperatorNode] propagates this call up a tree until a [OperatorNode.Physical]
+     * that does not have this trait is reached.
      *
      * @return Array of [OperatorNode.Physical]s.
      */
-    override fun tryPartition(partitions: Int): Physical? {
-        require(partitions > 1) { "Expected number of partitions to be greater than one but encountered $partitions." }
-        val input = this.input ?: throw IllegalStateException("Tried to propagate call to tryPartition($partitions) to an absent input. This is a programmer's error!")
-        return if (input.canBePartitioned && !input.hasTrait(OrderTrait) && !input.hasTrait(LimitTrait)) {
-            val inbound = (0 until partitions).map { this.partition(partitions, it) }
-            this.copyWithOutput(MergePhysicalOperator(*inbound.toTypedArray()))
+    override fun tryPartition(policy: CostPolicy, max: Int): Physical? {
+        require(max > 1) { "Expected number of partitions to be greater than one but encountered $max." }
+        val input = this.input ?: throw IllegalStateException("Tried to propagate call to tryPartition to an absent input. This is a programmer's error!")
+        return if (!input.hasTrait(NotPartitionableTrait)) {
+            val partitions = policy.parallelisation(this.parallelizableCost, this.totalCost, max)
+            if (partitions <= 1) return null
+            val inbound = (0 until partitions).map { input.partition(partitions, it) }
+            when {
+                input.hasTrait(LimitTrait) && input.hasTrait(OrderTrait) -> {
+                    val order = input[OrderTrait]!!
+                    val limit = input[LimitTrait]!!
+                    this.copyWithOutput(MergeLimitingSortPhysicalOperatorNode(*inbound.toTypedArray(), sortOn = order.order, limit = limit.limit))
+                }
+                input.hasTrait(OrderTrait) -> TODO()
+                input.hasTrait(LimitTrait) -> {
+                    val limit = input[LimitTrait]!!
+                    this.copyWithOutput(LimitPhysicalOperatorNode(MergePhysicalOperatorNode(*inbound.toTypedArray()), limit = limit.limit, skip = 0L))
+                }
+                else -> this.copyWithOutput(MergePhysicalOperatorNode(*inbound.toTypedArray()))
+            }
         } else {
-            input.tryPartition(partitions)
+            input.tryPartition(policy, max)
         }
     }
 

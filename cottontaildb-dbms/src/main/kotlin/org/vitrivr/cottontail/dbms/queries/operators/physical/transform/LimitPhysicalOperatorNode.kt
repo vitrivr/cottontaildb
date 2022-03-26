@@ -31,9 +31,7 @@ class LimitPhysicalOperatorNode(input: Physical? = null, val limit: Long, val sk
     override val cost: Cost
         get() = Cost.MEMORY_ACCESS * this.outputSize
 
-    /** The [LimitPhysicalOperatorNode] does not allow for partitioning. */
-    override val canBePartitioned: Boolean
-        get() = false
+
 
 
     /**

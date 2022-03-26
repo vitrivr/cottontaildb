@@ -7,7 +7,6 @@ import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.planning.cost.CostPolicy
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
-import org.vitrivr.cottontail.core.values.BooleanValue
 import org.vitrivr.cottontail.core.values.FloatValue
 import org.vitrivr.cottontail.core.values.LongValue
 import org.vitrivr.cottontail.core.values.StringValue
@@ -36,7 +35,8 @@ class ExplainQueryOperator(private val candidates: Collection<OperatorNode.Physi
             ColumnDef(Name.ColumnName("cost_cpu"), Types.Float, false),
             ColumnDef(Name.ColumnName("cost_io"), Types.Float, false),
             ColumnDef(Name.ColumnName("cost_memory"), Types.Float, false),
-            ColumnDef(Name.ColumnName("partitionable"), Types.Boolean, false),
+            ColumnDef(Name.ColumnName("cost_accuracy"), Types.Float, false),
+            ColumnDef(Name.ColumnName("traits"), Types.String, false),
             ColumnDef(Name.ColumnName("comment"), Types.String, false)
         )
     }
@@ -58,8 +58,9 @@ class ExplainQueryOperator(private val candidates: Collection<OperatorNode.Physi
                 values[3] = FloatValue(node.cost.cpu)
                 values[4] = FloatValue(node.cost.io)
                 values[5] = FloatValue(node.cost.memory)
-                values[6] = BooleanValue(node.canBePartitioned)
-                values[7] = StringValue(node.toString())
+                values[6] = FloatValue(node.cost.accuracy)
+                values[7] = StringValue(node.traits.map { it.value.toString() }.joinToString(","))
+                values[8] = StringValue(node.toString())
                 emit(StandaloneRecord(row++, columns, values))
             }
         }

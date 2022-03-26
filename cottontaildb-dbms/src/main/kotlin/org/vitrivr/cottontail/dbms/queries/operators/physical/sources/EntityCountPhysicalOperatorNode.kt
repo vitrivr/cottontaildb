@@ -3,6 +3,9 @@ package org.vitrivr.cottontail.dbms.queries.operators.physical.sources
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.binding.Binding
+import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
+import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
+import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
@@ -39,17 +42,14 @@ class EntityCountPhysicalOperatorNode(override val groupId: Int, val entity: Ent
     /** [EntityCountPhysicalOperatorNode] is always executable. */
     override val executable: Boolean = true
 
-    /** [EntityCountPhysicalOperatorNode] cannot be partitioned. */
-    override val canBePartitioned: Boolean = false
-
     /** The estimated [Cost] of incurred by this [EntityCountPhysicalOperatorNode]. */
     override val cost = Cost.DISK_ACCESS_READ + Cost.MEMORY_ACCESS
 
-    /** The parallelizable portion of the [Cost] of [EntityCountPhysicalOperatorNode] is always [Cost.ZERO]. */
-    override val parallelizableCost: Cost = Cost.ZERO
-
     /** [ValueStatistics] are taken from the underlying [Entity]. The query planner uses statistics for [Cost] estimation. */
     override val statistics = Object2ObjectLinkedOpenHashMap<ColumnDef<*>, ValueStatistics<*>>()
+
+    /** The [EntityCountOperator] cannot be partitioned. */
+    override val traits: Map<TraitType<*>, Trait> = mapOf(NotPartitionableTrait to NotPartitionableTrait)
 
     /**
      * Creates and returns a copy of this [EntityCountPhysicalOperatorNode] without any children or parents.

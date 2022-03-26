@@ -110,12 +110,9 @@ class DefaultQueryContext(override val queryId: String, override val catalogue: 
         check(local != null) { IllegalStateException("Cannot generate an operator tree without a valid, physical node expression tree.") }
         if (!this.hints.contains(QueryHint.NoParallel)) {
             val availableWorkers = this.txn.availableIntraQueryWorkers
-            val iqp = this.costPolicy.parallelisation(local.parallelizableCost, local.totalCost, availableWorkers)
-            if (iqp > 1) {
-                val partitioned = local.tryPartition(iqp)
-                if (partitioned != null) {
-                    return partitioned.toOperator(this)
-                }
+            val partitioned = local.tryPartition(this.costPolicy, availableWorkers)
+            if (partitioned != null) {
+                return partitioned.toOperator(this)
             }
         }
         return local.toOperator(this)

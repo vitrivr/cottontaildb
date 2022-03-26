@@ -57,7 +57,8 @@ class FilterPhysicalOperatorNode(input: Physical? = null, val predicate: Boolean
         this.predicate.bind(ctx.bindings)
 
         /* Generate and return FilterOperator. */
-        return FilterOperator(this.input?.toOperator(ctx) ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)"), this.predicate)
+        val input = this.input?.toOperator(ctx) ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)")
+        return FilterOperator(input, this.predicate)
     }
 
     /** Generates and returns a [String] representation of this [FilterPhysicalOperatorNode]. */

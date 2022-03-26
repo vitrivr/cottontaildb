@@ -3,6 +3,9 @@ package org.vitrivr.cottontail.dbms.queries.operators.physical.sources
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.binding.Binding
+import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
+import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
+import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
@@ -53,8 +56,8 @@ class EntitySamplePhysicalOperatorNode(override val groupId: Int, val entity: En
     /** The estimated [Cost] incurred by this [EntitySamplePhysicalOperatorNode]. */
     override val cost: Cost
 
-    /** The parallelizable portion of the [Cost] of [EntitySamplePhysicalOperatorNode] is always [Cost.ZERO]. */
-    override val parallelizableCost: Cost = Cost.ZERO
+    /** The [EntitySampleOperator] cannot be partitioned. */
+    override val traits: Map<TraitType<*>, Trait> = mapOf(NotPartitionableTrait to NotPartitionableTrait)
 
     /** Initialize entity statistics. */
     init {

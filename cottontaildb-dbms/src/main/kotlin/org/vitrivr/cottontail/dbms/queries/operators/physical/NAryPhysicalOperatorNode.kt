@@ -4,6 +4,7 @@ import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
+import org.vitrivr.cottontail.core.queries.planning.cost.CostPolicy
 import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.NAryLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
@@ -60,9 +61,6 @@ abstract class NAryPhysicalOperatorNode(vararg inputs: Physical): OperatorNode.P
     /** [NAryPhysicalOperatorNode]s are executable if all their inputs are executable. */
     override val executable: Boolean
         get() = (this.inputs.size == this.inputArity) && this.inputs.all { it.executable }
-
-    /** [NAryPhysicalOperatorNode] usually cannot be partitioned. */
-    override val canBePartitioned: Boolean = false
 
     /** By default, the [NAryPhysicalOperatorNode] outputs the physical [ColumnDef] of its input. */
     override val physicalColumns: List<ColumnDef<*>>
@@ -145,12 +143,11 @@ abstract class NAryPhysicalOperatorNode(vararg inputs: Physical): OperatorNode.P
     }
 
     /**
-     * By default, [NAryPhysicalOperatorNode] cannot be partitioned and hence this method returns null.
+     * By default, a [NAryPhysicalOperatorNode] cannot be partitioned and hence this method returns null.
      *
-     * @param partitions The desired number of partitions.
-     * @return null
+     * Must be overridden in order to support partitioning.
      */
-    override fun tryPartition(partitions: Int): Physical? = null
+    override fun tryPartition(policy: CostPolicy, max: Int): Physical? = null
 
     /**
      * By default, [NAryPhysicalOperatorNode] cannot be partitioned and hence calling this method throws an exception.

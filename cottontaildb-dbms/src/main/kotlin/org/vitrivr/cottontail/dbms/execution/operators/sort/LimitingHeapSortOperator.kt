@@ -16,9 +16,9 @@ import org.vitrivr.cottontail.utilities.selection.HeapSelection
  * Acts as pipeline breaker.
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.3.0
  */
-class LimitingHeapSortOperator(parent: Operator, sortOn: List<Pair<ColumnDef<*>, SortOrder>>, private val limit: Long, private val skip: Long) : AbstractSortOperator(parent, sortOn) {
+class LimitingHeapSortOperator(parent: Operator, sortOn: List<Pair<ColumnDef<*>, SortOrder>>, private val limit: Long) : AbstractSortOperator(parent, sortOn) {
 
     /** The [HeapSortOperator] retains the [ColumnDef] of the input. */
     override val columns: List<ColumnDef<*>>
@@ -36,9 +36,9 @@ class LimitingHeapSortOperator(parent: Operator, sortOn: List<Pair<ColumnDef<*>,
     override fun toFlow(context: TransactionContext): Flow<Record> {
         val parentFlow = this.parent.toFlow(context)
         return flow {
-            val selection = HeapSelection(this@LimitingHeapSortOperator.limit + this@LimitingHeapSortOperator.skip, this@LimitingHeapSortOperator.comparator)
+            val selection = HeapSelection(this@LimitingHeapSortOperator.limit, this@LimitingHeapSortOperator.comparator)
             parentFlow.collect { selection.offer(it) }
-            for (i in this@LimitingHeapSortOperator.skip until selection.size) {
+            for (i in 0 until selection.size) {
                 emit(selection[i])
             }
         }

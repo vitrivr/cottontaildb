@@ -15,11 +15,12 @@ import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.queries.binding.Binding
+import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
+import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
-import org.vitrivr.cottontail.core.queries.sort.SortOrder
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.FloatValue
 import org.vitrivr.cottontail.core.values.StringValue
@@ -34,6 +35,7 @@ import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.index.*
+import org.vitrivr.cottontail.dbms.index.hash.BTreeIndex
 import org.vitrivr.cottontail.dbms.operations.Operation
 import org.vitrivr.cottontail.storage.lucene.XodusDirectory
 import kotlin.concurrent.withLock
@@ -295,13 +297,14 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
         }
 
         /**
-         * [LuceneIndex] currently doesn't support ordering.
+         * The [LuceneIndex] does not return results in a particular order.
          *
-         * @return Empty [List]
+         * @param predicate [Predicate] to check.
+         * @return List that describes the sort order of the values returned by the [BTreeIndex]
          */
-        override fun orderFor(predicate: Predicate): List<Pair<ColumnDef<*>, SortOrder>> = this.txLatch.withLock {
-            require(predicate is BooleanPredicate) { "Lucene can only process boolean predicates." }
-            return emptyList()
+        override fun traitsFor(predicate: Predicate): Map<TraitType<*>, Trait> = this.txLatch.withLock {
+            require(predicate is BooleanPredicate) { "Lucene index can only process boolean predicates." }
+            emptyMap()
         }
 
         /**

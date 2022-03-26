@@ -6,9 +6,10 @@ import org.vitrivr.cottontail.core.basics.Filterable
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.TupleId
+import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
+import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
-import org.vitrivr.cottontail.core.queries.sort.SortOrder
 import org.vitrivr.cottontail.dbms.general.Tx
 import org.vitrivr.cottontail.dbms.operations.Operation
 
@@ -47,20 +48,20 @@ interface IndexTx: Tx, Filterable, Countable {
     fun costFor(predicate: Predicate): Cost
 
     /**
-     * Returns the order of the results returned by this [IndexTx] for the given [Predicate].
-     *
-     * @param predicate [Predicate] to check.
-     * @return List of pairs for every [ColumnDef] that is being sorted on.
-     */
-    fun orderFor(predicate: Predicate): List<Pair<ColumnDef<*>, SortOrder>>
-
-    /**
      * Returns the [ColumnDef] produced by this [IndexTx] for the given [Predicate].
      *
      * @param predicate [Predicate] to obtain columns for.
      * @return List of [ColumnDef] produced by this [IndexTx]
      */
     fun columnsFor(predicate: Predicate): List<ColumnDef<*>>
+
+    /**
+     * Returns the list of [Trait]s for the given [Predicate].
+     *
+     * @param predicate [Predicate] to obtain [Trait]s for.
+     * @return List of [Trait]s produced by this [IndexTx]
+     */
+    fun traitsFor(predicate: Predicate): Map<TraitType<*>,Trait>
 
     /**
      * (Re-)builds the underlying [Index] completely.

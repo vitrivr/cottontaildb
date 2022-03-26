@@ -2,6 +2,9 @@ package org.vitrivr.cottontail.dbms.queries.operators.physical.management
 
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.binding.Binding
+import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
+import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
+import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
@@ -38,8 +41,8 @@ class UpdatePhysicalOperatorNode(input: Physical? = null, val entity: EntityTx, 
     override val cost: Cost
         get() = ((Cost.DISK_ACCESS_WRITE + Cost.MEMORY_ACCESS) * (this.input?.columns?.sumOf { this.statistics[it]!!.avgWidth } ?: 0 )) * (this.input?.outputSize ?: 0)
 
-    /** The [UpdatePhysicalOperatorNode]s cannot be partitioned. */
-    override val canBePartitioned: Boolean = false
+    /** The [UpdatePhysicalOperatorNode] cannot be partitioned. */
+    override val traits: Map<TraitType<*>, Trait> = mapOf(NotPartitionableTrait to NotPartitionableTrait)
 
 
     /**

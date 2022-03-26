@@ -5,7 +5,9 @@ import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.nodes.Node
 import org.vitrivr.cottontail.core.queries.nodes.NodeWithCost
 import org.vitrivr.cottontail.core.queries.nodes.NodeWithTrait
+import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
+import org.vitrivr.cottontail.core.queries.planning.cost.CostPolicy
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
@@ -179,9 +181,6 @@ sealed class OperatorNode : NodeWithTrait {
         /** Most [OperatorNode.Physical]s are executable by default. */
         override val executable: Boolean = true
 
-        /** True, if this [OperatorNode.Physical] can be partitioned, false otherwise. */
-        abstract val canBePartitioned: Boolean
-
         /**
          * Creates and returns a copy of this [OperatorNode.Physical] with all its inputs reaching up to the [base] of the tree.
          *
@@ -216,16 +215,16 @@ sealed class OperatorNode : NodeWithTrait {
         abstract fun toOperator(ctx: QueryContext): Operator
 
         /**
-         * Tries to create a partitioned version of this [OperatorNode.Physical].
+         * Tries to create a partitioned version of the query plan by using this [OperatorNode.Physical] as partition point.
          *
          * By default, a call to this method propagates up a tree until a [OperatorNode.Physical] that allows for
-         * partitioning (see [canBePartitioned]) or the end of the tree has been reached. In the former case,
-         * this method return a partitioned copy of this [OperatorNode.Physical].
+         * partitioning (i.e. lacks the [NotPartitionableTrait]) or the end of the tree has been reached.
          *
-         * @param partitions The number of partitions.
-         * @return Partitioned version of this [OperatorNode.Physical] and its parents or null, if partitioning wasn't possible.
+         * @param policy The [CostPolicy] to use for partitioning.
+         * @param max The maximum number of partitions. Usually determined by the available threads.
+         * @return [OperatorNode.Physical] that represents the base of a new, partitioned query plan or null.
          */
-        abstract fun tryPartition(partitions: Int): Physical?
+        abstract fun tryPartition(policy: CostPolicy, max: Int): Physical?
 
         /**
          * Generates a partitioned version of this [OperatorNode.Physical].

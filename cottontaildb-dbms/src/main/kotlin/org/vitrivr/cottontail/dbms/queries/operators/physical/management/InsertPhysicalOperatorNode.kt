@@ -4,6 +4,9 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.GroupId
+import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
+import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
+import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.column.ColumnTx
@@ -48,14 +51,11 @@ class InsertPhysicalOperatorNode(override val groupId: GroupId, val entity: Enti
     /** The [Cost] incurred by this [InsertPhysicalOperatorNode]. */
     override val cost: Cost
 
-    /** The parallelizable portion of the [Cost] incurred by this [InsertPhysicalOperatorNode]. */
-    override val parallelizableCost: Cost = Cost.ZERO
-
-    /** The [InsertPhysicalOperatorNode] cannot be partitioned. */
-    override val canBePartitioned: Boolean = false
-
     /** The [InsertPhysicalOperatorNode] is always executable. */
     override val executable: Boolean = true
+
+    /** The [InsertPhysicalOperatorNode] cannot be partitioned. */
+    override val traits: Map<TraitType<*>, Trait> = mapOf(NotPartitionableTrait to NotPartitionableTrait)
 
     init {
         /* Obtain statistics costs. */

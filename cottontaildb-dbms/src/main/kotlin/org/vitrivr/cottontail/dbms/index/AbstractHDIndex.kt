@@ -3,6 +3,10 @@ package org.vitrivr.cottontail.dbms.index
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.functions.Signature
+import org.vitrivr.cottontail.core.queries.nodes.traits.LimitTrait
+import org.vitrivr.cottontail.core.queries.nodes.traits.OrderTrait
+import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
+import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
 import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
 import org.vitrivr.cottontail.core.queries.sort.SortOrder
@@ -54,9 +58,15 @@ abstract class AbstractHDIndex(name: Name.IndexName, parent: DefaultEntity) : Ab
          * @param predicate [Predicate] to check.
          * @return Cost estimate for the [Predicate]
          */
-        override fun orderFor(predicate: Predicate): List<Pair<ColumnDef<*>, SortOrder>> = when (predicate) {
-            is ProximityPredicate.NNS -> listOf(predicate.distanceColumn to SortOrder.ASCENDING)
-            is ProximityPredicate.FNS -> listOf(predicate.distanceColumn to SortOrder.DESCENDING)
+        override fun traitsFor(predicate: Predicate): Map<TraitType<*>, Trait> = when (predicate) {
+            is ProximityPredicate.NNS -> mapOf(
+                OrderTrait to OrderTrait(listOf(predicate.distanceColumn to SortOrder.ASCENDING)),
+                LimitTrait to LimitTrait(predicate.k.toLong())
+            )
+            is ProximityPredicate.FNS -> mapOf(
+                OrderTrait to OrderTrait(listOf(predicate.distanceColumn to SortOrder.DESCENDING)),
+                LimitTrait to LimitTrait(predicate.k.toLong())
+            )
             else -> throw IllegalArgumentException("Unsupported predicate for HD-index. This is a programmer's error!")
         }
 

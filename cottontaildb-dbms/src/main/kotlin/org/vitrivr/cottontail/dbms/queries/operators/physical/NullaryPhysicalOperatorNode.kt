@@ -2,9 +2,11 @@ package org.vitrivr.cottontail.dbms.queries.operators.physical
 
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
+import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
 import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
 import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
+import org.vitrivr.cottontail.core.queries.planning.cost.CostPolicy
 import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.NullaryLogicalOperatorNode
 
@@ -29,13 +31,19 @@ abstract class NullaryPhysicalOperatorNode : OperatorNode.Physical() {
     final override val totalCost: Cost
         get() = this.cost
 
+    /** The [parallelizableCost] of a [NullaryPhysicalOperatorNode] is either [Cost.ZERO] or [cost]. */
+    final override val parallelizableCost: Cost
+        get() {
+            return if (this.hasTrait(NotPartitionableTrait)) {
+                Cost.ZERO
+            } else {
+                this.cost
+            }
+        }
+
     /** By default, a [NullaryPhysicalOperatorNode] does not have specific requirements. */
     override val requires: List<ColumnDef<*>>
         get() = emptyList()
-
-    /** By default, a [NullaryPhysicalOperatorNode] does not support partitioning. */
-    override val canBePartitioned: Boolean
-        get() = false
 
     /** By default, a [NullaryPhysicalOperatorNode] has an empty set of [Trait]s. */
     override val traits: Map<TraitType<*>,Trait>
@@ -79,7 +87,7 @@ abstract class NullaryPhysicalOperatorNode : OperatorNode.Physical() {
      *
      * Must be overridden in order to support partitioning.
      */
-    override fun tryPartition(partitions: Int): Physical? = null
+    override fun tryPartition(policy: CostPolicy, max: Int): Physical? = null
 
     /**
      * By default, [NullaryPhysicalOperatorNode] cannot be partitioned and hence calling this method throws an exception.

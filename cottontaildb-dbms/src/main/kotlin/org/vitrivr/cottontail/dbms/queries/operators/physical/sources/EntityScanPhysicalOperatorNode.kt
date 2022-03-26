@@ -3,18 +3,23 @@ package org.vitrivr.cottontail.dbms.queries.operators.physical.sources
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.binding.Binding
+import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
+import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
+import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
+import org.vitrivr.cottontail.core.queries.planning.cost.CostPolicy
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.column.ColumnTx
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
+import org.vitrivr.cottontail.dbms.execution.operators.sources.EntitySampleOperator
 import org.vitrivr.cottontail.dbms.execution.operators.sources.EntityScanOperator
 import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.NullaryPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.UnaryPhysicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.operators.physical.merge.MergePhysicalOperator
+import org.vitrivr.cottontail.dbms.queries.operators.physical.merge.MergePhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
 import java.lang.Math.floorDiv
 
@@ -47,17 +52,18 @@ class EntityScanPhysicalOperatorNode(override val groupId: Int, val entity: Enti
     /** [EntityScanPhysicalOperatorNode] is always executable. */
     override val executable: Boolean = true
 
-    /** [EntityScanPhysicalOperatorNode] can always be partitioned. */
-    override val canBePartitioned: Boolean = (this.partitions == 1)
-
     /** [ValueStatistics] are taken from the underlying [Entity]. The query planner uses statistics for [Cost] estimation. */
     override val statistics = Object2ObjectLinkedOpenHashMap<ColumnDef<*>,ValueStatistics<*>>()
 
     /** The estimated [Cost] incurred by scanning the [Entity]. */
     override val cost: Cost
 
-    /** The parallelizable portion of the [Cost] incurred by scanning the [Entity]. */
-    override val parallelizableCost: Cost
+    /** The [EntitySampleOperator] cannot be partitioned. */
+    override val traits: Map<TraitType<*>, Trait> = if (this.partitions > 1) {
+        mapOf(NotPartitionableTrait to NotPartitionableTrait)
+    } else {
+        emptyMap()
+    }
 
     /** Initialize entity statistics and cost. */
     init {
@@ -73,11 +79,6 @@ class EntityScanPhysicalOperatorNode(override val groupId: Int, val entity: Enti
             }
         }
         this.cost = (Cost.DISK_ACCESS_READ + Cost.MEMORY_ACCESS) * this.outputSize * fetchSize
-        this.parallelizableCost = if (this.canBePartitioned) {
-            this.cost
-        } else {
-            Cost.ZERO
-        }
     }
 
     /**
@@ -88,16 +89,17 @@ class EntityScanPhysicalOperatorNode(override val groupId: Int, val entity: Enti
     override fun copy() = EntityScanPhysicalOperatorNode(this.groupId, this.entity, this.fetch.map { it.first.copy() to it.second })
 
     /**
-     * Create a partitioned version of this [EntityScanPhysicalOperatorNode].
+     * [EntityScanPhysicalOperatorNode] can be partitioned simply by creating the desired number of partitions and merging the output using the [MergePhysicalOperatorNode]
      *
-     * @param partitions The number of partitions.
-     * @return Array of [OperatorNode.Physical]s.
+     * @param policy The [CostPolicy] to use when determining the optimal number of partitions.
+     * @param max The maximum number of partitions to create.
+     * @return [OperatorNode.Physical] operator at the based of the new query plan.
      */
-    override fun tryPartition(partitions: Int): Physical? {
-        val inbound = (0 until partitions).map { i ->
-            EntityScanPhysicalOperatorNode(i, this.entity, this.fetch.map { it.first.copy() to it.second }, i, partitions)
-        }
-        val merge = MergePhysicalOperator(*inbound.toTypedArray())
+    override fun tryPartition(policy: CostPolicy, max: Int): Physical? {
+        val partitions = policy.parallelisation(this.parallelizableCost, this.totalCost, max)
+        if (partitions <= 1) return null
+        val inbound = (0 until partitions).map { this.partition(partitions, it) }
+        val merge = MergePhysicalOperatorNode(*inbound.toTypedArray())
         return this.output?.copyWithOutput(merge)
     }
 

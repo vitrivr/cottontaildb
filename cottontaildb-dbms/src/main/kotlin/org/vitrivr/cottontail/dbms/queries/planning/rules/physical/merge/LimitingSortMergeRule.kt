@@ -36,7 +36,7 @@ object LimitingSortMergeRule : RewriteRule {
 
         /* Perform rewrite. */
         val input = sort.input?.copyWithInputs() ?: throw IllegalStateException("Encountered null node in physical operator node tree (node = $node). This is a programmer's error!")
-        val p = LimitingSortPhysicalOperatorNode(input, sort.sortOn, node.limit, node.skip)
+        val p = LimitingSortPhysicalOperatorNode(input, sort.sortOn, node.limit)
         return node.output?.copyWithOutput(p) ?: p
     }
 }

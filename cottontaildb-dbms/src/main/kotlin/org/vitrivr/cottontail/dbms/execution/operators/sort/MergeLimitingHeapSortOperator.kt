@@ -12,6 +12,7 @@ import org.vitrivr.cottontail.core.queries.sort.SortOrder
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.utilities.selection.HeapSelection
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * A [MergeLimitingHeapSortOperator] merges the results of multiple incoming operators into a single [Flow],
@@ -47,14 +48,17 @@ class MergeLimitingHeapSortOperator(parents: List<Operator>, val context: Bindin
     override fun toFlow(context: TransactionContext): Flow<Record> =  channelFlow {
         /* Collect incoming flows into dedicated HeapSelection objects (one per flow). */
         val selection = HeapSelection(this@MergeLimitingHeapSortOperator.limit, this@MergeLimitingHeapSortOperator.comparator)
+        val collected = AtomicLong(0L)
         val jobs = this@MergeLimitingHeapSortOperator.parents.map { p ->
             launch {
                 p.toFlow(context).collect {
+                    collected.incrementAndGet()
                     selection.offer(it)
                 }
             }
         }
         jobs.forEach { it.join() } /* Wait for jobs to complete. */
+        LOGGER.debug("Collection of ${collected.get()} records from ${jobs.size} partitions completed! ")
 
         /* Emit sorted and limited values. */
         for (i in 0 until selection.size) {
