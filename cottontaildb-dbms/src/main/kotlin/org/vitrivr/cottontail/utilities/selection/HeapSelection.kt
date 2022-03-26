@@ -69,19 +69,22 @@ class HeapSelection<T>(val k: Long, val comparator: Comparator<T>) {
      * @param i The index of the value to return
      * @return The i-th smallest value retained by this [MinHeapSelection]
      */
-    operator fun get(i: Long): T = this.lock.read {
-        val maxIdx = this.heap.size64() - 1
-        require(i <= maxIdx) { "Index $i is out of bounds for this HeapSelect." }
-
+    operator fun get(i: Long): T {
         if (i == this.k - 1) {
-            return this.heap[0]
+            this.lock.read { return this.heap[0] }
         }
-
-        if (!this.sorted) {
-            this.sort()
+        return if (!this.sorted) {
+            this.lock.write {
+                val maxIdx = this.heap.size64() - 1
+                this.sort()
+                this.heap[maxIdx - i]
+            }
+        } else {
+            this.lock.read {
+                val maxIdx = this.heap.size64() - 1
+                this.heap[maxIdx - i]
+            }
         }
-
-        return this.heap[maxIdx - i]
     }
 
 
