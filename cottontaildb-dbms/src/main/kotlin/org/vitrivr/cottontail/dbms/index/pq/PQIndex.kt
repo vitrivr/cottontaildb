@@ -196,7 +196,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
             /* Iterate over entity and update index with entries. */
             val cursor = entityTx.cursor(arrayOf(indexedColumn))
             cursor.forEach { rec ->
-                val value = rec[indexedColumn]
+                val value = rec[0] /* Optimisation: It must always be the fist column. */
                 if (value is VectorValue<*>) {
                     val sig = newPq.quantize(value)
                     this.dataStore.put(this.context.xodusTx, PQSignature.Binding.valueToEntry(sig), rec.tupleId.toKey())
