@@ -68,14 +68,13 @@ class ProductQuantizer private constructor(private val codebooks: Array<PQCodebo
             val dimensionsPerSubspace = logicalSize / numSubspaces
 
             val reshaped = distance.copy(dimensionsPerSubspace)
-            val codebooks = Array(numSubspaces) { _ ->
-                PQCodebook(reshaped, Array(config.centroids.size) { j ->
-                    require(dimensionsPerSubspace == config.centroids[j].size) { "Reconstruction of product quantizer not possible; dimension per subspace doesn't match with size of stored centroids."}
+            val codebooks = Array(numSubspaces) { i ->
+                PQCodebook(reshaped, Array(config.numCentroids) { j ->
                     when(distance.type) {
-                        is Types.DoubleVector -> DoubleVectorValue(config.centroids[j])
-                        is Types.FloatVector -> FloatVectorValue(config.centroids[j])
-                        is Types.LongVector -> LongVectorValue(config.centroids[j].toList())
-                        is Types.IntVector -> IntVectorValue(config.centroids[j].toList())
+                        is Types.DoubleVector -> DoubleVectorValue(config.centroids[j * i + j])
+                        is Types.FloatVector -> FloatVectorValue(config.centroids[j * i + j])
+                        is Types.LongVector -> LongVectorValue(config.centroids[j * i + j].toList())
+                        is Types.IntVector -> IntVectorValue(config.centroids[j * i + j].toList())
                         else -> throw IllegalArgumentException("Reconstruction of product quantizer not possible; type ${distance.type} not supported.")
                     }
                 })
@@ -139,7 +138,9 @@ class ProductQuantizer private constructor(private val codebooks: Array<PQCodebo
         Array(this.numberOfSubspaces) { k ->
             val codebook = this.codebooks[k]
             val subspaceQuery = query.slice(k * codebook.subspaceSize, codebook.subspaceSize)
-            DoubleArray(codebook.numberOfCentroids) { codebook.distance(subspaceQuery, codebook.centroids[it])!!.value }
+            DoubleArray(codebook.numberOfCentroids) {
+                codebook.distance(subspaceQuery, codebook.centroids[it])!!.value
+            }
         }
     )
 

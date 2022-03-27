@@ -53,7 +53,7 @@ data class PQIndexConfig(val distance: Name.FunctionName, val sampleSize: Int, v
             val centroids = (0 until actualNumberOfCentroids).map {
                 Snappy.uncompressDoubleArray(stream.readNBytes(IntegerBinding.readCompressed(stream)))
             }
-            return PQIndexConfig(distance, sampleSize, numCentroids, if (numSubspaces == -1) { null } else {numSubspaces }, seed, centroids)
+            return PQIndexConfig(distance, sampleSize, numCentroids, if (numSubspaces == -1) { null } else { numSubspaces }, seed, centroids)
         }
 
         override fun writeObject(output: LightOutputStream, `object`: Comparable<PQIndexConfig>) {
