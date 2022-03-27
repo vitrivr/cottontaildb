@@ -69,7 +69,7 @@ object NNSIndexScanRule : RewriteRule {
             val limit = sort.output
             if (limit is LimitPhysicalOperatorNode) {
                 /* Column produced by the kNN. */
-                val predicate = ProximityPredicate.NNS(physicalQueryColumn, limit.limit.toInt(), function, vectorLiteral)
+                val predicate = ProximityPredicate.NNS(physicalQueryColumn, limit.limit, function, vectorLiteral)
                 val candidate = scan.entity.listIndexes().map {
                     scan.entity.context.getTx(scan.entity.indexForName(it)) as IndexTx
                 }.find {

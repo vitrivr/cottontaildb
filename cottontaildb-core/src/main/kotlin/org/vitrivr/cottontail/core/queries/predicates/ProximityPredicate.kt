@@ -14,7 +14,7 @@ import org.vitrivr.cottontail.core.values.types.Types
  * proximity based query (through a function invocation) and an equivalent index lookup
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 2.1.0
  */
 sealed interface ProximityPredicate: Predicate {
 
@@ -25,7 +25,7 @@ sealed interface ProximityPredicate: Predicate {
     val distance: VectorDistance<*>
 
     /** The limiting predicate for this [ProximityPredicate]. */
-    val k: Int
+    val k: Long
 
     /** The [Binding] that represents the query vector. */
     val query: Binding
@@ -45,7 +45,7 @@ sealed interface ProximityPredicate: Predicate {
     /**
      * A [ProximityPredicate] that expresses a k nearest neighbour search.
      */
-    data class NNS(override val column: ColumnDef<*>, override val k: Int, override val distance: VectorDistance<*>, override val query: Binding): ProximityPredicate {
+    data class NNS(override val column: ColumnDef<*>, override val k: Long, override val distance: VectorDistance<*>, override val query: Binding): ProximityPredicate {
         override fun copy() = NNS(this.column, this.k, this.distance.copy(), this.query.copy())
         override fun digest(): Long = 13L * this.hashCode()
         override fun bind(context: BindingContext) = this.query.bind(context)
@@ -55,7 +55,7 @@ sealed interface ProximityPredicate: Predicate {
     /**
      * A [ProximityPredicate] that expresses a k farthest neighbour search.
      */
-    data class FNS(override val column: ColumnDef<*>, override val k: Int, override val distance: VectorDistance<*>, override val query: Binding): ProximityPredicate {
+    data class FNS(override val column: ColumnDef<*>, override val k: Long, override val distance: VectorDistance<*>, override val query: Binding): ProximityPredicate {
         override fun copy() = NNS(this.column, this.k, this.distance.copy(), this.query.copy())
         override fun digest(): Long = 7L * this.hashCode()
         override fun bind(context: BindingContext) = this.query.bind(context)

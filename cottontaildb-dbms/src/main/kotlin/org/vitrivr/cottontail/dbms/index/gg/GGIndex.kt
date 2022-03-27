@@ -300,10 +300,10 @@ class GGIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
 
 
                 /** Phase 2): Perform kNN on the per-group results. */
-                val knn = if (this.predicate.k == 1) {
+                val knn = if (this.predicate.k == 1L) {
                     MinSingleSelection<ComparablePair<Long, DoubleValue>>()
                 } else {
-                    MinHeapSelection(this.predicate.k)
+                   MinHeapSelection(this.predicate.k.toInt())
                 }
                 LOGGER.debug("Scanning group members.")
                 for (k in 0 until groupKnn.size) {
@@ -320,7 +320,7 @@ class GGIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
                 }
 
                 /* Phase 3: Prepare and return list of results. */
-                val queue = ArrayDeque<StandaloneRecord>(this.predicate.k)
+                val queue = ArrayDeque<StandaloneRecord>(this.predicate.k.toInt())
                 for (i in 0 until knn.size) {
                     queue.add(StandaloneRecord(knn[i].first, arrayOf(this.predicate.distanceColumn), arrayOf(knn[i].second)))
                 }
