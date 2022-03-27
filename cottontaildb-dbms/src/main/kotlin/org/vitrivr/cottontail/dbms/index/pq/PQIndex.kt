@@ -22,7 +22,6 @@ import org.vitrivr.cottontail.core.queries.predicates.Predicate
 import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
 import org.vitrivr.cottontail.core.queries.sort.SortOrder
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
-import org.vitrivr.cottontail.core.values.types.NumericValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.VectorValue
 import org.vitrivr.cottontail.dbms.catalogue.storeName
@@ -286,7 +285,10 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
                 private val lookupTable: PQLookupTable = this.pq.createLookupTable(this.predicate.query.value as VectorValue<*>)
 
                 /** The [HeapSelection] use for finding the top k entries. */
-                private var selection = HeapSelection(this.predicate.k.toLong(), RecordComparator.SingleNonNullColumnComparator(this.predicate.distanceColumn, SortOrder.ASCENDING))
+                private var selection = when(this.predicate) {
+                    is ProximityPredicate.NNS -> HeapSelection(this.predicate.k, RecordComparator.SingleNonNullColumnComparator(this.predicate.distanceColumn, SortOrder.ASCENDING))
+                    is ProximityPredicate.FNS -> HeapSelection(this.predicate.k, RecordComparator.SingleNonNullColumnComparator(this.predicate.distanceColumn, SortOrder.DESCENDING))
+                }
 
                 /** The current [Cursor] position. */
                 private var position = -1L
@@ -323,8 +325,12 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
                  */
                 private fun prepare() {
                     /* Prepare data structures for NNS. */
-                    val preKnnSize = (this.predicate.k * 1.15).toLong() /* Pre-kNN size is 15% larger than k. */
-                    val preKnn = HeapSelection(preKnnSize, Comparator<Pair<LongArray, Double>> { o1, o2 -> o1.second.compareTo(o2.second) })
+                    val preNNSSize = (this.predicate.k * 1.15).toLong() /* Pre-kNN size is 10% larger than k. */
+                    val comparator = when (this.predicate) {
+                        is ProximityPredicate.NNS -> Comparator<Pair<LongArray, Double>> { o1, o2 -> o1.second.compareTo(o2.second) }
+                        is ProximityPredicate.FNS -> Comparator<Pair<LongArray, Double>> { o1, o2 -> -o1.second.compareTo(o2.second) }
+                    }
+                    val preNNSSelection = HeapSelection(preNNSSize, comparator)
                     val produces = this@Tx.columnsFor(predicate).toTypedArray()
 
                     /* Phase 1: Perform pre-NNS based on signatures. */
@@ -333,12 +339,12 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
                     while (cursor.next) {
                         val signature = PQSignature.Binding.entryToValue(cursor.key)
                         val approximation = this.lookupTable.approximateDistance(signature)
-                        if (preKnn.size < this.predicate.k || preKnn.peek()!!.second > approximation) {
+                        if (preNNSSelection.added < preNNSSize || preNNSSelection.peek()!!.second > approximation) {
                             val tupleIds = mutableListOf<TupleId>()
                             do {
                                 tupleIds.add(LongBinding.compressedEntryToLong(cursor.value))
                             } while (cursor.nextDup) /* Collect all duplicates. */
-                            preKnn.offer(tupleIds.toLongArray() to approximation)
+                            preNNSSelection.offer(tupleIds.toLongArray() to approximation)
                         }
                     }
 
@@ -348,16 +354,12 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
 
                     /* Phase 2: Perform exact kNN based on pre-kNN results. */
                     val query = this.predicate.query.value as VectorValue<*>
-                    for (j in 0 until preKnn.size) {
-                        val tupleIds = preKnn[j].first
+                    for (j in 0 until preNNSSelection.size) {
+                        val tupleIds = preNNSSelection[j].first
                         for (tupleId in tupleIds) {
-                            val value = this.entityTx.read(tupleId, this@Tx.columns)[this@Tx.columns[0]]
-                            if (value is VectorValue<*>) {
-                                val distance = this.predicate.distance(query, value)
-                                if (distance != null && (this.selection.added < this.predicate.k || (this.selection.peek()!![this.predicate.distanceColumn] as NumericValue<*>).value.toDouble() > distance.value)) {
-                                    this.selection.offer(StandaloneRecord(tupleId, produces, arrayOf(distance)))
-                                }
-                            }
+                            val value = this.entityTx.read(tupleId, this@Tx.columns)[0] as VectorValue<*>
+                            val distance = this.predicate.distance(query, value)
+                            this.selection.offer(StandaloneRecord(tupleId, produces, arrayOf(distance)))
                         }
                     }
                 }
