@@ -325,7 +325,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
                  */
                 private fun prepare() {
                     /* Prepare data structures for NNS. */
-                    val preNNSSize = (this.predicate.k * 1.15).toLong() /* Pre-kNN size is 10% larger than k. */
+                    val preNNSSize = (this.predicate.k * 1.15).toLong() /* Pre-kNN size is 15% larger than k. */
                     val comparator = when (this.predicate) {
                         is ProximityPredicate.NNS -> Comparator<Pair<LongArray, Double>> { o1, o2 -> o1.second.compareTo(o2.second) }
                         is ProximityPredicate.FNS -> Comparator<Pair<LongArray, Double>> { o1, o2 -> -o1.second.compareTo(o2.second) }
