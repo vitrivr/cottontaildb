@@ -10,7 +10,6 @@ import org.vitrivr.cottontail.core.values.BooleanValue
 import org.vitrivr.cottontail.core.values.IntValue
 import org.vitrivr.cottontail.core.values.StringValue
 import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.entity.EntityTx
@@ -43,36 +42,46 @@ class EntityDetailsOperator(val catalogue: DefaultCatalogue, val name: Name.Enti
         val catTxn = context.getTx(this.catalogue) as CatalogueTx
         val schemaTxn = context.getTx(catTxn.schemaForName(this.name.schema())) as SchemaTx
         val entityTxn = context.getTx(schemaTxn.entityForName(this.name)) as EntityTx
+        val count = entityTxn.count()
         val columns = this.columns.toTypedArray()
-        val values = arrayOfNulls<Value?>(this.columns.size)
         return flow {
             var rowId = 0L
-            values[0] = StringValue(this@EntityDetailsOperator.name.toString())
-            values[1] = StringValue("ENTITY")
-            values[3] =  IntValue(entityTxn.count())
-            emit(StandaloneRecord(rowId++, columns, values))
 
+            /* Describe entity. */
+            emit(StandaloneRecord(rowId++, columns, arrayOf(
+                StringValue(this@EntityDetailsOperator.name.toString()),
+                StringValue("ENTITY"),
+                null,
+                IntValue(count),
+                null,
+                null
+            )))
+
+            /* Describe columns. */
             val cols = entityTxn.listColumns()
-            values[1] =  StringValue("COLUMN")
-            values[3] = null
             cols.forEach {
-                values[0] = StringValue(it.name.toString())
-                values[2] = StringValue(it.type.toString())
-                values[4] = IntValue(it.type.logicalSize)
-                values[5] = BooleanValue(it.nullable)
-                emit(StandaloneRecord(rowId++, columns, values))
+                emit(StandaloneRecord(rowId++, columns, arrayOf(
+                    StringValue(it.name.toString()),
+                    StringValue("COLUMN"),
+                    null,
+                    IntValue(count),
+                    IntValue(it.type.logicalSize),
+                    BooleanValue(it.nullable)
+                )))
             }
 
+            /* Describe indexes. */
             val indexes = entityTxn.listIndexes()
-            values[1] =  StringValue("INDEX")
-            values[3] = null
-            values[4] = null
-            values[5] = null
             indexes.forEach {
                 val index = entityTxn.indexForName(it)
-                values[0] = StringValue(it.toString())
-                values[2] = StringValue(index.type.toString())
-                emit(StandaloneRecord(rowId++, columns, values))
+                emit(StandaloneRecord(rowId++, columns, arrayOf(
+                    StringValue(it.toString()),
+                    StringValue("INDEX"),
+                    StringValue(index.type.toString()),
+                    null,
+                    null,
+                    null
+                )))
             }
         }
     }
