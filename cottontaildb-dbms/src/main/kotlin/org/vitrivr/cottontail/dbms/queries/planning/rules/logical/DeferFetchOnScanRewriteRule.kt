@@ -58,7 +58,7 @@ object DeferFetchOnScanRewriteRule: RewriteRule {
             }
         }
 
-        /* This should not happen because essentially, this means that no useful output can be produced by query and hence no columns need to be fetched at all. */
-        return node.output?.copyWithOutput(EntityScanLogicalOperatorNode(originalGroupId, node.entity, emptyList()))
+        /* This usually only happens for count(*) or exists (*) queries. */
+        return node.output?.copyWithOutput(EntityScanLogicalOperatorNode(originalGroupId, node.entity, listOf(node.fetch.first())))
     }
 }
