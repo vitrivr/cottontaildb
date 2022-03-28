@@ -9,12 +9,15 @@ import org.apache.lucene.queryparser.flexible.standard.QueryParserUtil
 import org.apache.lucene.search.*
 import org.apache.lucene.search.similarities.SimilarityBase.log2
 import org.apache.lucene.store.Directory
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.queries.binding.Binding
+import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
 import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
 import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
@@ -22,10 +25,9 @@ import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
-import org.vitrivr.cottontail.core.values.FloatValue
+import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.StringValue
 import org.vitrivr.cottontail.core.values.pattern.LikePatternValue
-import org.vitrivr.cottontail.core.values.pattern.LucenePatternValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.catalogue.entries.IndexCatalogueEntry
@@ -52,6 +54,9 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
      * The [IndexDescriptor] for the [LuceneIndex].
      */
     companion object: IndexDescriptor<LuceneIndex> {
+        /** [Logger] instance used by [LuceneIndex]. */
+        private val LOGGER: Logger = LoggerFactory.getLogger(LuceneIndex::class.java)
+
         /** [ColumnDef] of the _tid column. */
         const val TID_COLUMN = "_tid"
 
@@ -236,7 +241,7 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
                 }
                 is ComparisonOperator.Binary.Like -> {
                     when (literal) {
-                        is LucenePatternValue -> QueryParserUtil.parse(
+                        is StringValue -> QueryParserUtil.parse(
                             arrayOf(literal.value),
                             arrayOf("${column.name}_txt"),
                             StandardAnalyzer()
@@ -246,14 +251,14 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
                             arrayOf("${column.name}_txt"),
                             StandardAnalyzer()
                         )
-                        else -> throw throw QueryException("Conversion to Lucene query failed: LIKE queries require a LucenePatternValue OR LikePatternValue as second operand!")
+                        else -> throw throw QueryException("Conversion to Lucene query failed: LIKE queries require a StringValue OR LikePatternValue as second operand!")
                     }
                 }
                 is ComparisonOperator.Binary.Match -> {
-                    if (literal is LucenePatternValue) {
+                    if (literal is StringValue) {
                         QueryParserUtil.parse(arrayOf(literal.value), arrayOf("${column.name}_txt"), StandardAnalyzer())
                     } else {
-                        throw throw QueryException("Conversion to Lucene query failed: MATCH queries strictly require a LucenePatternValue as second operand!")
+                        throw throw QueryException("Conversion to Lucene query failed: MATCH queries strictly require a StringValue as second operand!")
                     }
                 }
                 else -> throw QueryException("Lucene Query Conversion failed: Only EQUAL, MATCH and LIKE queries can be mapped to a Apache Lucene!")
@@ -293,7 +298,7 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
          */
         override fun columnsFor(predicate: Predicate): List<ColumnDef<*>> = this.txLatch.withLock {
             require(predicate is BooleanPredicate) { "Lucene can only process boolean predicates." }
-            return listOf(ColumnDef(this@LuceneIndex.parent.name.column("score"), Types.Float))
+            return listOf(ColumnDef(this@LuceneIndex.parent.name.column("score"), Types.Double))
         }
 
         /**
@@ -304,7 +309,7 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
          */
         override fun traitsFor(predicate: Predicate): Map<TraitType<*>, Trait> = this.txLatch.withLock {
             require(predicate is BooleanPredicate) { "Lucene index can only process boolean predicates." }
-            emptyMap()
+            mapOf(NotPartitionableTrait to NotPartitionableTrait)
         }
 
         /**
@@ -341,6 +346,8 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
          * (Re-)builds the [LuceneIndex].
          */
         override fun rebuild() = this.txLatch.withLock {
+            LOGGER.debug("Rebuilding Lucene Index {}", this@LuceneIndex.name)
+
             /* Obtain Tx for parent entity. */
             val entityTx = this.context.getTx(this.dbo.parent) as EntityTx
 
@@ -355,6 +362,10 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
 
             /* Close cursor. */
             cursor.close()
+
+            /* Update index state for index. */
+            this.updateState(IndexState.CLEAN)
+            LOGGER.debug("Rebuilding Lucene Index {} completed!", this@LuceneIndex.name)
         }
 
         /**
@@ -419,6 +430,9 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
                     predicate
                 }
 
+                /** The [ColumnDef] generated by this [Cursor]. */
+                private val columns = this@Tx.columnsFor(predicate).toTypedArray()
+
                 /** Number of [TupleId]s returned by this [Iterator]. */
                 @Volatile
                 private var returned = 0
@@ -432,7 +446,9 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
                 /* Execute query and add results. */
                 private val results = this.searcher.search(this.query, Integer.MAX_VALUE)
 
-                override fun moveNext(): Boolean = this.returned < this.results.totalHits.value
+                override fun moveNext(): Boolean {
+                    return this.returned < this.results.totalHits.value
+                }
 
                 override fun key(): TupleId {
                     val scores = this.results.scoreDocs[this.returned]
@@ -443,7 +459,7 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
                 override fun value(): Record {
                     val scores = this.results.scoreDocs[this.returned++]
                     val doc = this.searcher.doc(scores.doc)
-                    return StandaloneRecord(doc[TID_COLUMN].toLong(), arrayOf(ColumnDef(parent.name.column("score"), Types.Float)), arrayOf(FloatValue(scores.score)))
+                    return StandaloneRecord(doc[TID_COLUMN].toLong(), this.columns, arrayOf(DoubleValue(scores.score)))
                 }
 
                 override fun close() {}
