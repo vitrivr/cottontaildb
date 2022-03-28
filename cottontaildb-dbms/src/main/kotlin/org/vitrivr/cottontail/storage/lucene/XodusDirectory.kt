@@ -185,7 +185,7 @@ class XodusDirectory(private val vfs: VirtualFileSystem, private val name: Strin
         private var currentPosition = 0L
 
         /** The [VfsInputStream] instance used by this [IndexInput]*/
-        private var input: VfsInputStream = this@XodusDirectory.vfs.readFile(this@XodusDirectory.txn, this.file, this.currentPosition)
+        private var input: VfsInputStream = this@XodusDirectory.vfs.readFile(this@XodusDirectory.txn, this.file)
 
         /**
          * Clones and returns this [IndexInput].
@@ -211,7 +211,9 @@ class XodusDirectory(private val vfs: VirtualFileSystem, private val name: Strin
          * @param b The [ByteBuffer] to read into.
          */
         override fun readInternal(b: ByteBuffer) {
-            require(b.hasArray()) { "IndexInput.readInternal(ByteBuffer) expects a buffer with accessible array"}
+            /* Sanity checks. */
+            require(b.hasArray()) { "IndexInput.readInternal() expects a byte buffer with accessible array."}
+            require(!this.input.isObsolete) { "IndexInput.readInternal() expects input stream to not be obsolete."}
             val offset = b.position()
             val read = this.input.read(b.array(), offset, b.limit() - offset)
             b.position(offset + read)
@@ -225,20 +227,24 @@ class XodusDirectory(private val vfs: VirtualFileSystem, private val name: Strin
          * @param pos The position to seek to.
          */
         override fun seekInternal(pos: Long) {
-            if (pos != this.currentPosition) {
-                if (pos > this.currentPosition) {
-                    val clusteringStrategy = this@XodusDirectory.vfs.config.clusteringStrategy
-                    val bytesToSkip = pos - this.currentPosition
-                    val clusterSize = clusteringStrategy.firstClusterSize
-                    if ((!clusteringStrategy.isLinear || this.currentPosition % clusterSize + bytesToSkip < clusterSize) // or we are within single cluster
-                        && this.input.skip(bytesToSkip) == bytesToSkip) {
-                        this.currentPosition = pos
-                        return
-                    }
+            require(!this.input.isObsolete) { "IndexInput.seekInternal() expects input stream to not be obsolete."}
+            if (pos == this.currentPosition) return
+            if (pos > this.currentPosition) {
+                val clusteringStrategy = this@XodusDirectory.vfs.config.clusteringStrategy
+                val bytesToSkip = pos - this.currentPosition
+                val clusterSize = clusteringStrategy.firstClusterSize
+                if ((!clusteringStrategy.isLinear || this.currentPosition % clusterSize + bytesToSkip < clusterSize) // or we are within single cluster
+                    && this.input.skip(bytesToSkip) == bytesToSkip) {
+                    this.currentPosition = pos
+                    return
                 }
-                this.currentPosition = pos
             }
-        }
+
+            /* Worst-case: Reopen and re-position input. */
+            this.input.close()
+            this.input = this@XodusDirectory.vfs.readFile(this@XodusDirectory.txn, this.file, pos)
+            this.currentPosition = pos
+    }
 
         /**
          * Creates a sliced version of this [IndexInput].
