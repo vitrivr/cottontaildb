@@ -1,5 +1,7 @@
 package org.vitrivr.cottontail.dbms.functions.math.distance.other
 
+import jdk.incubator.vector.VectorOperators
+import jdk.incubator.vector.VectorSpecies
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.functions.Argument
 import org.vitrivr.cottontail.core.queries.functions.Function
@@ -99,6 +101,38 @@ sealed class HyperplaneDistance<T: VectorValue<*>>(val type: Types.Vector<T,*>):
                 dotp += probing.data[i] * query.data[i]
                 norm += query.data[i] * query.data[i]
             }
+            return DoubleValue(dotp + bias.value / norm)
+        }
+    }
+
+    /**
+     * SIMD Implementation: [HyperplaneDistance] for a [FloatVectorValue].
+     */
+    class FloatVectorVectorized(type: Types.FloatVector): HyperplaneDistance<FloatVectorValue>(type) {
+        override fun invoke(vararg arguments: Value?): DoubleValue {
+            val species: VectorSpecies<Float> = jdk.incubator.vector.FloatVector.SPECIES_PREFERRED
+            val probing = arguments[0] as FloatVectorValue
+            val query = arguments[1] as FloatVectorValue
+            val bias = arguments[2] as FloatValue
+            var vectorDotp = jdk.incubator.vector.FloatVector.zero(species)
+            var vectorNorm = jdk.incubator.vector.FloatVector.zero(species)
+
+            for (i in 0 until species.loopBound(this.d) step species.length()) {
+                val vp = jdk.incubator.vector.FloatVector.fromArray(species, probing.data, i)
+                val vq = jdk.incubator.vector.FloatVector.fromArray(species, query.data, i)
+
+                vectorDotp = vp.fma(vq, vectorDotp)
+                vectorNorm = vectorNorm.lanewise(VectorOperators.ADD, vq.pow(2f))
+            }
+
+            var dotp = vectorDotp.reduceLanes(VectorOperators.ADD)
+            var norm = vectorNorm.reduceLanes(VectorOperators.ADD)
+
+            for (i in species.loopBound(this.d) until this.d) {
+                dotp += probing.data[i] * query.data[i]
+                norm += query.data[i] * query.data[i]
+            }
+
             return DoubleValue(dotp + bias.value / norm)
         }
     }

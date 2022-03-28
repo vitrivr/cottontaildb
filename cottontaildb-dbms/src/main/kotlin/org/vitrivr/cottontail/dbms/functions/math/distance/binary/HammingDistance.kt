@@ -33,11 +33,11 @@ sealed class HammingDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Vecto
             check(Companion.signature.collides(signature)) { "Provided signature $signature is incompatible with generator signature ${Companion.signature}. This is a programmer's error!"  }
             if (signature.arguments.any { it != signature.arguments[0] }) throw FunctionNotSupportedException("Function generator ${HaversineDistance.signature} cannot generate function with signature $signature.")
             return when(val type = signature.arguments[0].type) {
-                is Types.BooleanVector -> BooleanVector(type).vectorized()
-                is Types.DoubleVector -> DoubleVector(type).vectorized()
-                is Types.FloatVector -> FloatVector(type).vectorized()
-                is Types.LongVector -> LongVector(type).vectorized()
-                is Types.IntVector -> IntVector(type).vectorized()
+                is Types.BooleanVector -> BooleanVector(type)
+                is Types.DoubleVector -> DoubleVector(type)
+                is Types.FloatVector -> FloatVector(type)
+                is Types.LongVector -> LongVector(type)
+                is Types.IntVector -> IntVector(type)
                 else -> throw FunctionNotSupportedException("Function generator ${Companion.signature} cannot generate function with signature $signature.")
             }
         }
@@ -112,7 +112,7 @@ sealed class HammingDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Vecto
     class FloatVectorVectorized(type: Types.Vector<FloatVectorValue,*>): HammingDistance<FloatVectorValue>(type) {
         override val name: Name.FunctionName = FUNCTION_NAME
         override fun invoke(vararg arguments: Value?): DoubleValue {
-            val species: VectorSpecies<Float> = jdk.incubator.vector.FloatVector.SPECIES_256
+            val species: VectorSpecies<Float> = jdk.incubator.vector.FloatVector.SPECIES_PREFERRED
             val probing = arguments[0] as FloatVectorValue
             val query = arguments[1] as FloatVectorValue
             var sum = 0.0

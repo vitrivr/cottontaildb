@@ -37,7 +37,7 @@ class DQLService(override val catalogue: Catalogue, override val manager: org.vi
             DeferFetchOnScanRewriteRule,
             DeferFetchOnFetchRewriteRule
         ),
-        //TODO @Colin add your newly implemented rule here
+
         physicalRules = listOf(BooleanIndexScanRule, NNSIndexScanRule, FulltextIndexRule, CountPushdownRule, LimitingSortMergeRule, SIMDRule),
         this.catalogue.config.cache.planCacheSize
     )

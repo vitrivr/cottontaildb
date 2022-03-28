@@ -35,10 +35,10 @@ sealed class CosineDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Vector
             check(Companion.signature.collides(signature)) { "Provided signature $signature is incompatible with generator signature ${Companion.signature}. This is a programmer's error!"  }
             if (signature.arguments.any { it != signature.arguments[0] }) throw FunctionNotSupportedException("Function generator ${HaversineDistance.signature} cannot generate function with signature $signature.")
             return when(val type = signature.arguments[0].type) {
-                is Types.DoubleVector -> DoubleVector(type).vectorized()
-                is Types.FloatVector -> FloatVector(type).vectorized()
-                is Types.LongVector -> LongVector(type).vectorized()
-                is Types.IntVector -> IntVector(type).vectorized()
+                is Types.DoubleVector -> DoubleVector(type)
+                is Types.FloatVector -> FloatVector(type)
+                is Types.LongVector -> LongVector(type)
+                is Types.IntVector -> IntVector(type)
                 else -> throw FunctionNotSupportedException("Function generator ${Companion.signature} cannot generate function with signature $signature.")
             }
         }

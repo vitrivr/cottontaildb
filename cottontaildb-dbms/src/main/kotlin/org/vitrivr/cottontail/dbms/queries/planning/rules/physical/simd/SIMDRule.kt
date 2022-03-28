@@ -22,12 +22,16 @@ object SIMDRule : RewriteRule {
     }
 
     override fun apply(node: OperatorNode, ctx: QueryContext): OperatorNode? {
-        // TODO @Colin("Not yet implemented")
+        // TODO @Colin - Optimize rule based on the performance evaluation
         if (node is FunctionPhysicalOperatorNode && node.function.function is VectorDistance<*>) {
-            var bindingFunction = node.out.context.bind((node.function.function as VectorDistance<*>).vectorized(), node.function.arguments)
-            if ((node.function.function as VectorDistance<*>).type.logicalSize >= 250) {
-                val p = FunctionPhysicalOperatorNode(node.input?.copyWithOutput(), bindingFunction, node.out.copy())
-                return p
+            val input = node.input?.copy() ?: return null
+            val out = node.out
+            val bindFunction = out.context.bind((node.function.function as VectorDistance<*>).vectorized(), node.function.arguments)
+
+            // Provisional heuristic
+            if ((node.function.function as VectorDistance<*>).type.logicalSize >= 256) {
+                val p = FunctionPhysicalOperatorNode(input as OperatorNode.Physical, bindFunction, out)
+                return node.output?.copyWithOutput(p) ?: p
             }
         }
         return null

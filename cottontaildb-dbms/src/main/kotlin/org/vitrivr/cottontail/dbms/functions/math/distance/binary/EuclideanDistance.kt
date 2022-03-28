@@ -36,12 +36,12 @@ sealed class EuclideanDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Min
             check(Companion.signature.collides(signature)) { "Provided signature $signature is incompatible with generator signature ${Companion.signature}. This is a programmer's error!"  }
             if (signature.arguments.any { it != signature.arguments[0] }) throw FunctionNotSupportedException("Function generator ${HaversineDistance.signature} cannot generate function with signature $signature.")
             return when(val type = signature.arguments[0].type) {
-                is Types.Complex64Vector -> Complex64Vector(type).vectorized()
-                is Types.Complex32Vector -> Complex32Vector(type).vectorized()
-                is Types.DoubleVector -> DoubleVector(type).vectorized()
-                is Types.FloatVector -> FloatVector(type).vectorized()
-                is Types.LongVector -> LongVector(type).vectorized()
-                is Types.IntVector -> IntVector(type).vectorized()
+                is Types.Complex64Vector -> Complex64Vector(type)
+                is Types.Complex32Vector -> Complex32Vector(type)
+                is Types.DoubleVector -> DoubleVector(type)
+                is Types.FloatVector -> FloatVector(type)
+                is Types.LongVector -> LongVector(type)
+                is Types.IntVector -> IntVector(type)
                 else -> throw FunctionNotSupportedException("Function generator ${Companion.signature} cannot generate function with signature $signature.")
             }
         }
@@ -161,7 +161,7 @@ sealed class EuclideanDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Min
         override val name: Name.FunctionName = FUNCTION_NAME
         override fun invoke(vararg arguments: Value?): DoubleValue {
             // Changing SPECIES to SPECIES.PREFERRED results in a HUGE performance decrease
-            val species: VectorSpecies<Float> = jdk.incubator.vector.FloatVector.SPECIES_256
+            val species: VectorSpecies<Float> = jdk.incubator.vector.FloatVector.SPECIES_PREFERRED
             val probing = arguments[0] as FloatVectorValue
             val query = arguments[1] as FloatVectorValue
             var vectorSum = jdk.incubator.vector.FloatVector.zero(species)
