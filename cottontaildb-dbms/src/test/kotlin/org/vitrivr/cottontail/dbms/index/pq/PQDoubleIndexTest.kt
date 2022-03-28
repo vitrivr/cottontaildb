@@ -38,6 +38,7 @@ import kotlin.time.measureTime
  * @author Ralph Gasser
  * @param 1.3.0
  */
+@Suppress("UNCHECKED_CAST")
 class PQDoubleIndexTest : AbstractIndexTest() {
 
     companion object {
@@ -84,7 +85,7 @@ class PQDoubleIndexTest : AbstractIndexTest() {
     @ExperimentalTime
     fun test(distance: Name.FunctionName) {
         val txn = this.manager.TransactionImpl(TransactionType.SYSTEM)
-        val k = 5000
+        val k = 5000L
         val query = DoubleVectorValueGenerator.random(this.indexColumn.type.logicalSize, this.random)
         val function = this.catalogue.functions.obtain(Signature.Closed(distance, arrayOf(Argument.Typed(query.type), Argument.Typed(query.type)), Types.Double)) as VectorDistance<*>
         val context = DefaultBindingContext()
@@ -100,7 +101,7 @@ class PQDoubleIndexTest : AbstractIndexTest() {
         val indexTx = txn.getTx(index) as IndexTx
 
         /* Fetch results through index. */
-        val indexResults = ArrayList<Record>(k)
+        val indexResults = ArrayList<Record>(k.toInt())
         val indexDuration = measureTime {
             val cursor = indexTx.filter(predicate)
             cursor.forEach { indexResults.add(it) }
@@ -108,7 +109,7 @@ class PQDoubleIndexTest : AbstractIndexTest() {
         }
 
         /* Fetch results through full table scan. */
-        val bruteForceResults = MinHeapSelection<ComparablePair<TupleId, DoubleValue>>(k)
+        val bruteForceResults = MinHeapSelection<ComparablePair<TupleId, DoubleValue>>(k.toInt())
         val bruteForceDuration = measureTime {
             val cursor = entityTx.cursor(arrayOf(this.indexColumn))
             cursor.forEach {
@@ -126,7 +127,7 @@ class PQDoubleIndexTest : AbstractIndexTest() {
         * TODO: Good metric for testing.
         */
         var found = 0.0f
-        for (i in 0 until k) {
+        for (i in 0 until k.toInt()) {
             val hit = bruteForceResults[i]
             val idx = indexResults.indexOfFirst { it.tupleId == hit.first }
             if (idx != -1) {

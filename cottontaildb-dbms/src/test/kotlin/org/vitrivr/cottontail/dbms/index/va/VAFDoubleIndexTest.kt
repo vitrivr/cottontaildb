@@ -41,6 +41,7 @@ import kotlin.time.measureTime
  * @author Ralph Gasser
  * @param 1.3.1
  */
+@Suppress("UNCHECKED_CAST")
 class VAFDoubleIndexTest : AbstractIndexTest() {
 
     companion object {
@@ -70,7 +71,7 @@ class VAFDoubleIndexTest : AbstractIndexTest() {
     @ExperimentalTime
     fun test(distance: Name.FunctionName) {
         val txn = this.manager.TransactionImpl(TransactionType.SYSTEM)
-        val k = 100
+        val k = 100L
         val query = DoubleVectorValueGenerator.random(this.indexColumn.type.logicalSize, this.random)
         val function = this.catalogue.functions.obtain(Signature.Closed(distance, arrayOf(Argument.Typed(query.type), Argument.Typed(query.type)), Types.Double)) as VectorDistance<*>
         val context = DefaultBindingContext()
@@ -87,7 +88,7 @@ class VAFDoubleIndexTest : AbstractIndexTest() {
         val indexTx = txn.getTx(index) as IndexTx
 
         /* Fetch results through index. */
-        val indexResults = ArrayList<Record>(k)
+        val indexResults = ArrayList<Record>(k.toInt())
         val indexDuration = measureTime {
             val cursor = indexTx.filter(predicate)
             cursor.forEach { indexResults.add(it) }
@@ -95,7 +96,7 @@ class VAFDoubleIndexTest : AbstractIndexTest() {
         }
 
         /* Fetch results through full table scan. */
-        val bruteForceResults = MinHeapSelection<ComparablePair<TupleId, DoubleValue>>(k)
+        val bruteForceResults = MinHeapSelection<ComparablePair<TupleId, DoubleValue>>(k.toInt())
         val bruteForceDuration = measureTime {
             val cursor = entityTx.cursor(arrayOf(this.indexColumn))
             cursor.forEach {
