@@ -1,7 +1,6 @@
 package org.vitrivr.cottontail.dbms.index.lucene
 
 import jetbrains.exodus.bindings.ComparableBinding
-import jetbrains.exodus.env.Store
 import org.apache.lucene.analysis.standard.StandardAnalyzer
 import org.apache.lucene.document.*
 import org.apache.lucene.index.*
@@ -64,16 +63,16 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
          * Opens a [LuceneIndex] for the given [Name.IndexName] in the given [DefaultEntity].
          *
          * @param name The [Name.IndexName] of the [LuceneIndex].
-         * @param entity The [DefaultEntity] that holds the [LuceneIndex].
+         * @param entity The [DefaultEntity.Tx] that executes the operation.
          * @return The opened [LuceneIndex]
          */
         override fun open(name: Name.IndexName, entity: DefaultEntity): LuceneIndex = LuceneIndex(name, entity)
 
         /**
-         * Tries to initialize the [Store] for a [LuceneIndex]. Always returns true because no specific [Store] is required.
+         * Initialize the [XodusDirectory] for a [LuceneIndex].
          *
          * @param name The [Name.IndexName] of the [LuceneIndex].
-         * @param entity The [DefaultEntity] that holds the [LuceneIndex].
+         * @param entity The [DefaultEntity.Tx] that executes the operation.
          * @return True on success, false otherwise.
          */
         override fun initialize(name: Name.IndexName, entity: DefaultEntity.Tx): Boolean {
@@ -87,8 +86,28 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
                 directory.close()
                 true
             } catch (e: Throwable) {
+                LOGGER.error("Failed to initialize Lucene Index $name due to an exception: ${e.message}.")
                 false
             }
+        }
+
+        /**
+         * De-initializes the [XodusDirectory] for a [LuceneIndex].
+         *
+         * @param name The [Name.IndexName] of the [LuceneIndex].
+         * @param entity The [DefaultEntity] that holds the [LuceneIndex].
+         * @return True on success, false otherwise.
+         */
+        override fun deinitialize(name: Name.IndexName, entity: DefaultEntity.Tx): Boolean = try {
+            val directory = XodusDirectory(entity.dbo.catalogue.vfs, name.toString(), entity.context.xodusTx)
+            for (file in directory.listAll()) {
+                directory.deleteFile(file)
+            }
+            directory.close()
+            true
+        } catch (e: Throwable) {
+            LOGGER.error("Failed to de-initialize Lucene Index $name due to an exception: ${e.message}.")
+            false
         }
 
         /**
@@ -110,6 +129,7 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
          * @return [LuceneIndexConfig.Binding]
          */
         override fun configBinding(): ComparableBinding = LuceneIndexConfig.Binding
+
     }
 
     /** True since [LuceneIndex] supports incremental updates. */

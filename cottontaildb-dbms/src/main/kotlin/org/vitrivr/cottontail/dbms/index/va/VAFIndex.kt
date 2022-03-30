@@ -76,15 +76,33 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
         override fun open(name: Name.IndexName, entity: DefaultEntity): VAFIndex = VAFIndex(name, entity)
 
         /**
-         * Tries to initialize the [Store] for a [VAFIndex].
+         * Initializes the [Store] for a [VAFIndex].
          *
          * @param name The [Name.IndexName] of the [VAFIndex].
-         * @param entity The [DefaultEntity] that holds the [VAFIndex].
+         * @param entity The [DefaultEntity.Tx] that executes the operation.
          * @return True on success, false otherwise.
          */
-        override fun initialize(name: Name.IndexName, entity: DefaultEntity.Tx): Boolean {
+        override fun initialize(name: Name.IndexName, entity: DefaultEntity.Tx): Boolean = try {
             val store = entity.dbo.catalogue.environment.openStore(name.storeName(), StoreConfig.WITHOUT_DUPLICATES, entity.context.xodusTx, true)
-            return store != null
+            store != null
+        } catch (e:Throwable) {
+            LOGGER.error("Failed to initialize VAF index $name due to an exception: ${e.message}.")
+            false
+        }
+
+        /**
+         * De-initializes the [Store] for associated with a [VAFIndex].
+         *
+         * @param name The [Name.IndexName] of the [VAFIndex].
+         * @param entity The [DefaultEntity.Tx] that executes the operation.
+         * @return True on success, false otherwise.
+         */
+        override fun deinitialize(name: Name.IndexName, entity: DefaultEntity.Tx): Boolean = try {
+            entity.dbo.catalogue.environment.removeStore(name.storeName(), entity.context.xodusTx)
+            true
+        } catch (e:Throwable) {
+            LOGGER.error("Failed to de-initialize VAF index $name due to an exception: ${e.message}.")
+            false
         }
 
         /**
@@ -101,6 +119,7 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
          * @return [VAFIndexConfig.Binding]
          */
         override fun configBinding(): ComparableBinding = VAFIndexConfig.Binding
+
     }
 
     /** The [IndexType] of this [VAFIndex]. */
@@ -144,7 +163,7 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
             get() = this.config.marks
 
         /** The Xodus [Store] used to store [VAFSignature]s. */
-        private var dataStore: Store = this@VAFIndex.catalogue.environment.openStore(this@VAFIndex.name.storeName(), StoreConfig.WITHOUT_DUPLICATES, this.context.xodusTx, false)
+        private var dataStore: Store = this@VAFIndex.catalogue.environment.openStore(this@VAFIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.xodusTx, false)
             ?: throw DatabaseException.DataCorruptionException("Data store for index ${this@VAFIndex.name} is missing.")
 
         /**
@@ -236,7 +255,7 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
         override fun clear() = this.txLatch.withLock {
             /* Truncate and replace store.*/
             this@VAFIndex.catalogue.environment.truncateStore(this@VAFIndex.name.storeName(), this.context.xodusTx)
-            this.dataStore = this@VAFIndex.catalogue.environment.openStore(this@VAFIndex.name.storeName(), StoreConfig.WITHOUT_DUPLICATES, this.context.xodusTx, false)
+            this.dataStore = this@VAFIndex.catalogue.environment.openStore(this@VAFIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.xodusTx, false)
                 ?: throw DatabaseException.DataCorruptionException("Data store for index ${this@VAFIndex.name} is missing.")
 
             /* Update catalogue entry for index. */

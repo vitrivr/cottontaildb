@@ -33,6 +33,7 @@ import org.vitrivr.cottontail.dbms.exceptions.QueryException
 import org.vitrivr.cottontail.dbms.execution.operators.sort.RecordComparator
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.index.*
+import org.vitrivr.cottontail.dbms.index.lucene.LuceneIndex
 import org.vitrivr.cottontail.dbms.index.va.VAFIndex
 import org.vitrivr.cottontail.dbms.operations.Operation
 import org.vitrivr.cottontail.utilities.selection.HeapSelection
@@ -68,15 +69,33 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
         override fun open(name: Name.IndexName, entity: DefaultEntity): PQIndex = PQIndex(name, entity)
 
         /**
-         * Tries to initialize the [Store] for a [PQIndex].
+         * Initializes the [Store] for a [VAFIndex].
          *
-         * @param name The [Name.IndexName] of the [PQIndex].
-         * @param entity The [DefaultEntity] that holds the [PQIndex].
+         * @param name The [Name.IndexName] of the [VAFIndex].
+         * @param entity The [DefaultEntity] that executes the operation.
          * @return True on success, false otherwise.
          */
-        override fun initialize(name: Name.IndexName, entity: DefaultEntity.Tx): Boolean {
+        override fun initialize(name: Name.IndexName, entity: DefaultEntity.Tx): Boolean = try {
             val store = entity.dbo.catalogue.environment.openStore(name.storeName(), StoreConfig.WITH_DUPLICATES, entity.context.xodusTx, true)
-            return store != null
+            store != null
+        } catch (e:Throwable) {
+            LOGGER.error("Failed to initialize PQ index $name due to an exception: ${e.message}.")
+            false
+        }
+
+        /**
+         * De-initializes the [Store] for associated with a [VAFIndex].
+         *
+         * @param name The [Name.IndexName] of the [LuceneIndex].
+         * @param entity The [DefaultEntity.Tx] that executes the operation.
+         * @return True on success, false otherwise.
+         */
+        override fun deinitialize(name: Name.IndexName, entity: DefaultEntity.Tx): Boolean = try {
+            entity.dbo.catalogue.environment.removeStore(name.storeName(), entity.context.xodusTx)
+            true
+        } catch (e:Throwable) {
+            LOGGER.error("Failed to de-initialize PQ index $name due to an exception: ${e.message}.")
+            false
         }
 
         /**
@@ -141,7 +160,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
         }
 
         /** The Xodus [Store] used to store [PQSignature]s. */
-        private var dataStore: Store = this@PQIndex.catalogue.environment.openStore(this@PQIndex.name.storeName(), StoreConfig.WITH_DUPLICATES, this.context.xodusTx, false)
+        private var dataStore: Store = this@PQIndex.catalogue.environment.openStore(this@PQIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.xodusTx, false)
             ?: throw DatabaseException.DataCorruptionException("Data store for index ${this@PQIndex.name} is missing.")
 
         /**
@@ -225,7 +244,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
         override fun clear() = this.txLatch.withLock {
             /* Truncate and replace store.*/
             this@PQIndex.catalogue.environment.truncateStore(this@PQIndex.name.storeName(), this.context.xodusTx)
-            this.dataStore = this@PQIndex.catalogue.environment.openStore(this@PQIndex.name.storeName(), StoreConfig.WITH_DUPLICATES, this.context.xodusTx, false)
+            this.dataStore = this@PQIndex.catalogue.environment.openStore(this@PQIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.xodusTx, false)
                 ?: throw DatabaseException.DataCorruptionException("Data store for index ${this@PQIndex.name} is missing.")
 
             /* Update catalogue entry for index. */

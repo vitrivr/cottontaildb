@@ -4,6 +4,8 @@ import jetbrains.exodus.bindings.ComparableBinding
 import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.env.Store
 import jetbrains.exodus.env.StoreConfig
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
@@ -41,6 +43,9 @@ import kotlin.concurrent.withLock
 class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(name, parent) {
 
     companion object: IndexDescriptor<UQBTreeIndex> {
+        /** [Logger] instance used by [BTreeIndex]. */
+        private val LOGGER: Logger = LoggerFactory.getLogger(UQBTreeIndex::class.java)
+
         /**
          * Opens a [UQBTreeIndex] for the given [Name.IndexName] in the given [DefaultEntity].
          *
@@ -51,15 +56,33 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
         override fun open(name: Name.IndexName, entity: DefaultEntity): UQBTreeIndex = UQBTreeIndex(name, entity)
 
         /**
-         * Tries to initialize the [Store] for a [UQBTreeIndex].
+         * Initializes the [Store] for a [UQBTreeIndex].
          *
          * @param name The [Name.IndexName] of the [UQBTreeIndex].
-         * @param entity The [DefaultEntity] that holds the [UQBTreeIndex].
+         * @param entity The [DefaultEntity.Tx] that executes the operation.
          * @return True on success, false otherwise.
          */
-        override fun initialize(name: Name.IndexName, entity: DefaultEntity.Tx): Boolean {
+        override fun initialize(name: Name.IndexName, entity: DefaultEntity.Tx): Boolean = try {
             val store = entity.dbo.catalogue.environment.openStore(name.storeName(), StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, entity.context.xodusTx, true)
-            return store != null
+            store != null
+        } catch (e:Throwable) {
+            LOGGER.error("Failed to initialize BTREE index $name due to an exception: ${e.message}.")
+            false
+        }
+
+        /**
+         * De-initializes the [Store] for associated with a [UQBTreeIndex].
+         *
+         * @param name The [Name.IndexName] of the [UQBTreeIndex].
+         * @param entity The [DefaultEntity.Tx] that executes the operation.
+         * @return True on success, false otherwise.
+         */
+        override fun deinitialize(name: Name.IndexName, entity: DefaultEntity.Tx): Boolean = try {
+            entity.dbo.catalogue.environment.removeStore(name.storeName(), entity.context.xodusTx)
+            true
+        } catch (e:Throwable) {
+            LOGGER.error("Failed to de-initialize BTREE index $name due to an exception: ${e.message}.")
+            false
         }
 
         /**
@@ -106,7 +129,7 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
         private val binding: XodusBinding<Value> = ValueSerializerFactory.xodus(this.columns[0].type, this.columns[0].nullable) as XodusBinding<Value>
 
         /** The Xodus [Store] used to store entries in the [BTreeIndex]. */
-        private var dataStore: Store = this@UQBTreeIndex.catalogue.environment.openStore(this@UQBTreeIndex.name.storeName(), StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING, this.context.xodusTx, false)
+        private var dataStore: Store = this@UQBTreeIndex.catalogue.environment.openStore(this@UQBTreeIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.xodusTx, false)
             ?: throw DatabaseException.DataCorruptionException("Data store for index ${this@UQBTreeIndex.name} is missing.")
 
         /** The dummy [UQBTreeIndexConfig]. */
@@ -267,12 +290,8 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
          */
         override fun clear() = this.txLatch.withLock {
             this@UQBTreeIndex.parent.parent.parent.environment.truncateStore(this@UQBTreeIndex.name.storeName(), this.context.xodusTx)
-            this.dataStore = this@UQBTreeIndex.parent.parent.parent.environment.openStore(
-                this@UQBTreeIndex.name.storeName(),
-                StoreConfig.WITHOUT_DUPLICATES_WITH_PREFIXING,
-                this.context.xodusTx,
-                false
-            ) ?: throw DatabaseException.DataCorruptionException("Data store for column ${this@UQBTreeIndex.name} is missing.")
+            this.dataStore = this@UQBTreeIndex.parent.parent.parent.environment.openStore(this@UQBTreeIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.xodusTx, false)
+                ?: throw DatabaseException.DataCorruptionException("Data store for column ${this@UQBTreeIndex.name} is missing.")
         }
 
         /**

@@ -4,6 +4,8 @@ import jetbrains.exodus.bindings.ComparableBinding
 import jetbrains.exodus.bindings.LongBinding
 import jetbrains.exodus.env.Store
 import jetbrains.exodus.env.StoreConfig
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
@@ -45,6 +47,9 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
      * The [IndexDescriptor] for the [BTreeIndex].
      */
     companion object: IndexDescriptor<BTreeIndex> {
+        /** [Logger] instance used by [BTreeIndex]. */
+        private val LOGGER: Logger = LoggerFactory.getLogger(BTreeIndex::class.java)
+
         /**
          * Opens a [BTreeIndex] for the given [Name.IndexName] in the given [DefaultEntity].
          *
@@ -55,15 +60,33 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
         override fun open(name: Name.IndexName, entity: DefaultEntity): BTreeIndex = BTreeIndex(name, entity)
 
         /**
-         * Tries to initialize the [Store] for a [BTreeIndex].
+         * Initializes the [Store] for a [BTreeIndex].
          *
          * @param name The [Name.IndexName] of the [BTreeIndex].
-         * @param entity The [DefaultEntity] that holds the [BTreeIndex].
+         * @param entity The [DefaultEntity.Tx] that executes the operation.
          * @return True on success, false otherwise.
          */
-        override fun initialize(name: Name.IndexName, entity: DefaultEntity.Tx): Boolean {
+        override fun initialize(name: Name.IndexName, entity: DefaultEntity.Tx): Boolean = try {
             val store = entity.dbo.catalogue.environment.openStore(name.storeName(), StoreConfig.WITH_DUPLICATES_WITH_PREFIXING, entity.context.xodusTx, true)
-            return store != null
+            store != null
+        } catch (e:Throwable) {
+            LOGGER.error("Failed to initialize BTREE index $name due to an exception: ${e.message}.")
+            false
+        }
+
+        /**
+         * De-initializes the [Store] for associated with a [BTreeIndex].
+         *
+         * @param name The [Name.IndexName] of the [BTreeIndex].
+         * @param entity The [DefaultEntity.Tx] that executes the operation.
+         * @return True on success, false otherwise.
+         */
+        override fun deinitialize(name: Name.IndexName, entity: DefaultEntity.Tx): Boolean = try {
+            entity.dbo.catalogue.environment.removeStore(name.storeName(), entity.context.xodusTx)
+            true
+        } catch (e:Throwable) {
+            LOGGER.error("Failed to de-initialize BTREE index $name due to an exception: ${e.message}.")
+            false
         }
 
         /**
@@ -110,7 +133,7 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
         private val binding: XodusBinding<Value> = ValueSerializerFactory.xodus(this.columns[0].type, this.columns[0].nullable) as XodusBinding<Value>
 
         /** The Xodus [Store] used to store entries in the [BTreeIndex]. */
-        private var dataStore: Store = this@BTreeIndex.catalogue.environment.openStore(this@BTreeIndex.name.storeName(), StoreConfig.WITH_DUPLICATES_WITH_PREFIXING, this.context.xodusTx, false)
+        private var dataStore: Store = this@BTreeIndex.catalogue.environment.openStore(this@BTreeIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.xodusTx, false)
             ?: throw DatabaseException.DataCorruptionException("Data store for index ${this@BTreeIndex.name} is missing.")
 
         /** The dummy [BTreeIndexConfig]. */
@@ -283,7 +306,7 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
         override fun clear() = this.txLatch.withLock {
             this@BTreeIndex.parent.parent.parent.environment.truncateStore(this@BTreeIndex.name.storeName(), this.context.xodusTx)
             this.dataStore = this@BTreeIndex.parent.parent.parent.environment.openStore(
-                this@BTreeIndex.name.storeName(), StoreConfig.WITH_DUPLICATES_WITH_PREFIXING, this.context.xodusTx, false
+                this@BTreeIndex.name.storeName(), StoreConfig.USE_EXISTING, this.context.xodusTx, false
             ) ?: throw DatabaseException.DataCorruptionException("Data store for column ${this@BTreeIndex.name} is missing.")
         }
 

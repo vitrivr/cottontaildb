@@ -70,15 +70,33 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
         override fun open(name: Name.IndexName, entity: DefaultEntity) = LSHIndex(name, entity)
 
         /**
-         * Tries to initialize the [Store] for a [LSHIndex].
+         * Initializes the [Store] for a [LSHIndex].
          *
          * @param name The [Name.IndexName] of the [LSHIndex].
-         * @param entity The [DefaultEntity] that holds the [LSHIndex].
+         * @param entity The [DefaultEntity.Tx] that executes the operation.
          * @return True on success, false otherwise.
          */
-        override fun initialize(name: Name.IndexName, entity: DefaultEntity.Tx): Boolean {
+        override fun initialize(name: Name.IndexName, entity: DefaultEntity.Tx): Boolean = try {
             val store = entity.dbo.catalogue.environment.openStore(name.storeName(), StoreConfig.WITH_DUPLICATES_WITH_PREFIXING, entity.context.xodusTx, true)
-            return store != null
+            store != null
+        } catch (e:Throwable) {
+            LOGGER.error("Failed to initialize LSH index $name due to an exception: ${e.message}.")
+            false
+        }
+
+        /**
+         * De-initializes the [Store] for associated with a [LSHIndex].
+         *
+         * @param name The [Name.IndexName] of the [LSHIndex].
+         * @param entity The [DefaultEntity.Tx] that executes the operation.
+         * @return True on success, false otherwise.
+         */
+        override fun deinitialize(name: Name.IndexName, entity: DefaultEntity.Tx): Boolean = try {
+            entity.dbo.catalogue.environment.removeStore(name.storeName(), entity.context.xodusTx)
+            true
+        } catch (e:Throwable) {
+            LOGGER.error("Failed to de-initialize LSH index $name due to an exception: ${e.message}.")
+            false
         }
 
         /**

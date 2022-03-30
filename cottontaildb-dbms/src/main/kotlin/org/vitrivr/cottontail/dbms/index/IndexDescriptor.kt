@@ -24,8 +24,19 @@ interface IndexDescriptor<T: Index> {
      * Initializes the necessary data structures for an [Index] with the given [Name.IndexName] and the given [DefaultEntity].
      *
      * @param name The [Name.IndexName] of the [Index].
+     * @param entity The [DefaultEntity.Tx] to perform the transaction with.
+     * @return true on success, false otherwise.
      */
     fun initialize(name: Name.IndexName, entity: DefaultEntity.Tx): Boolean
+
+    /**
+     * Deinitializes the data structures associated with an [Index] with the given [Name.IndexName] and the given [DefaultEntity].
+     *
+     * @param name The [Name.IndexName] of the [Index].
+     * @param entity The [DefaultEntity.Tx] to perform the transaction with.
+     * @return true on success, false otherwise.
+     */
+    fun deinitialize(name: Name.IndexName, entity: DefaultEntity.Tx): Boolean
 
     /**
      * Creates and returns a default [IndexConfig], optionally, initialized with the provided [parameters].

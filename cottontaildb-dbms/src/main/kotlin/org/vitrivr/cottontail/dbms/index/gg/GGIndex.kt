@@ -62,13 +62,24 @@ class GGIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
         override fun open(name: Name.IndexName, entity: DefaultEntity): GGIndex = GGIndex(name, entity)
 
         /**
-         * Tries to initialize the [Store] for a [GGIndex].
+         * Initializes the [Store] for a [GGIndex].
          *
          * @param name The [Name.IndexName] of the [GGIndex].
-         * @param entity The [DefaultEntity] that holds the [GGIndex].
+         * @param entity The [DefaultEntity.Tx] that tries to execute the operation.
          * @return True on success, false otherwise.
          */
         override fun initialize(name: Name.IndexName, entity: DefaultEntity.Tx): Boolean {
+            TODO("Not yet implemented")
+        }
+
+        /**
+         * De-initializes the [Store] associated with a [GGIndex].
+         *
+         * @param name The [Name.IndexName] of the [GGIndex].
+         * @param entity The [DefaultEntity.Tx] that holds the [GGIndex].
+         * @return True on success, false otherwise.
+         */
+        override fun deinitialize(name: Name.IndexName, entity: DefaultEntity.Tx): Boolean {
             TODO("Not yet implemented")
         }
 
@@ -89,6 +100,7 @@ class GGIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
          * @return [GGIndexConfig.Binding]
          */
         override fun configBinding(): ComparableBinding = GGIndexConfig.Binding
+
     }
 
     /** The type of [AbstractIndex]. */
