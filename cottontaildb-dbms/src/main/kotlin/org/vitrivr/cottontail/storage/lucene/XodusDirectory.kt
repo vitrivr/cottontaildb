@@ -182,6 +182,7 @@ class XodusDirectory(private val vfs: VirtualFileSystem, private val name: Strin
     open inner class IndexInput constructor(val file: File, bufferSize: Int):  BufferedIndexInput("XodusDirectory.IndexInput[$name]", bufferSize) {
 
         /** The current position of this [IndexOutput]. */
+        @Volatile
         private var currentPosition = 0L
 
         /** The [VfsInputStream] instance used by this [IndexInput]*/
@@ -210,6 +211,7 @@ class XodusDirectory(private val vfs: VirtualFileSystem, private val name: Strin
          *
          * @param b The [ByteBuffer] to read into.
          */
+        @Synchronized
         override fun readInternal(b: ByteBuffer) {
             /* Sanity checks. */
             require(b.hasArray()) { "IndexInput.readInternal() expects a byte buffer with accessible array."}
@@ -218,7 +220,6 @@ class XodusDirectory(private val vfs: VirtualFileSystem, private val name: Strin
             val read = this.input.read(b.array(), offset, b.limit() - offset)
             b.position(offset + read)
             this.currentPosition += read
-            return
         }
 
         /**
@@ -226,6 +227,7 @@ class XodusDirectory(private val vfs: VirtualFileSystem, private val name: Strin
          *
          * @param pos The position to seek to.
          */
+        @Synchronized
         override fun seekInternal(pos: Long) {
             require(!this.input.isObsolete) { "IndexInput.seekInternal() expects input stream to not be obsolete."}
             if (pos == this.currentPosition) return
@@ -240,11 +242,11 @@ class XodusDirectory(private val vfs: VirtualFileSystem, private val name: Strin
                 }
             }
 
-            /* Worst-case: Reopen and re-position input. */
+            /* Worst-case: Reopen and re-position input. This needs an exclusive lock! */
             this.input.close()
             this.input = this@XodusDirectory.vfs.readFile(this@XodusDirectory.txn, this.file, pos)
             this.currentPosition = pos
-    }
+        }
 
         /**
          * Creates a sliced version of this [IndexInput].
