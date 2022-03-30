@@ -202,19 +202,12 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
             val dimension = indexedColumn.type.logicalSize
             val entityTx = this.context.getTx(this@VAFIndex.parent) as EntityTx
             val columnTx = this.context.getTx(entityTx.columnForName(this.columns[0].name)) as ColumnTx<*>
-            val minimum = when (val stat = columnTx.statistics()) {
-                is FloatVectorValueStatistics -> DoubleArray(dimension) { stat.min.data[it].toDouble() }
-                is DoubleVectorValueStatistics -> DoubleArray(dimension) {  stat.min.data[it] }
-                is IntVectorValueStatistics -> DoubleArray(dimension) { stat.min.data[it].toDouble() }
-                is LongVectorValueStatistics -> DoubleArray(dimension) { stat.min.data[it].toDouble() }
-                else -> throw DatabaseException.DataCorruptionException("Unsupported statistics type.")
-            }
-            val maximum = when (val stat = columnTx.statistics()) {
-                is FloatVectorValueStatistics -> DoubleArray(dimension) { stat.max.data[it].toDouble() }
-                is DoubleVectorValueStatistics -> DoubleArray(dimension) {  stat.max.data[it] }
-                is IntVectorValueStatistics -> DoubleArray(dimension) { stat.max.data[it].toDouble() }
-                is LongVectorValueStatistics -> DoubleArray(dimension) { stat.max.data[it].toDouble() }
-                else -> throw DatabaseException.DataCorruptionException("Unsupported statistics type.")
+            val (minimum, maximum) = when (val stat = columnTx.statistics()) {
+                is FloatVectorValueStatistics -> DoubleArray(dimension) { stat.min.data[it].toDouble() } to DoubleArray(dimension) { stat.max.data[it].toDouble() }
+                is DoubleVectorValueStatistics -> DoubleArray(dimension) {  stat.min.data[it] } to DoubleArray(dimension) {  stat.max.data[it] }
+                is IntVectorValueStatistics -> DoubleArray(dimension) { stat.min.data[it].toDouble() } to DoubleArray(dimension) { stat.max.data[it].toDouble() }
+                is LongVectorValueStatistics -> DoubleArray(dimension) { stat.min.data[it].toDouble() } to DoubleArray(dimension) { stat.max.data[it].toDouble() }
+                else -> throw DatabaseException("Column type not supported for VAF index.")
             }
 
             /* Calculate and update marks. */
@@ -353,8 +346,8 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
 
                 /** The [HeapSelection] use for finding the top k entries. */
                 private var selection = when (this.predicate) {
-                    is ProximityPredicate.NNS -> HeapSelection(this.predicate.k.toLong(), RecordComparator.SingleNonNullColumnComparator(this.predicate.distanceColumn, SortOrder.ASCENDING))
-                    is ProximityPredicate.FNS -> HeapSelection(this.predicate.k.toLong(), RecordComparator.SingleNonNullColumnComparator(this.predicate.distanceColumn, SortOrder.ASCENDING))
+                    is ProximityPredicate.NNS -> HeapSelection(this.predicate.k, RecordComparator.SingleNonNullColumnComparator(this.predicate.distanceColumn, SortOrder.ASCENDING))
+                    is ProximityPredicate.FNS -> HeapSelection(this.predicate.k, RecordComparator.SingleNonNullColumnComparator(this.predicate.distanceColumn, SortOrder.ASCENDING))
                 }
 
                 /** Cached in-memory version of the [VAFMarks] used by this [Cursor]. */
