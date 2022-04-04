@@ -1,7 +1,6 @@
 package org.vitrivr.cottontail.storage.serializers.values.xodus
 
 import jetbrains.exodus.ByteIterable
-import jetbrains.exodus.bindings.BindingUtils
 import jetbrains.exodus.bindings.ByteBinding
 import jetbrains.exodus.bindings.DoubleBinding
 import org.vitrivr.cottontail.core.values.DoubleValue
@@ -42,14 +41,14 @@ sealed class DoubleValueXodusBinding: XodusBinding<DoubleValue> {
             return if (Arrays.equals(bytesNull, bytesRead)) {
                 null
             } else {
-                DoubleValue(BindingUtils.readDouble(ByteArrayInputStream(bytesRead)))
+                DoubleValue(DoubleBinding.entryToDouble(entry))
             }
         }
 
         override fun valueToEntry(value: DoubleValue?): ByteIterable {
             if (value == null) return NULL_VALUE
             if (value.value == Double.MIN_VALUE) throw DatabaseException.ReservedValueException("Cannot serialize value '$value'! Value is reserved for NULL entries for type ${this.type}.")
-            return DoubleBinding.BINDING.objectToEntry(value.value)
+            return DoubleBinding.doubleToEntry(value.value)
         }
     }
 }
