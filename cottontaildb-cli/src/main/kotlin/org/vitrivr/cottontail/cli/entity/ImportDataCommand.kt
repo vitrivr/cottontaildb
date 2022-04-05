@@ -51,21 +51,16 @@ class ImportDataCommand(client: SimpleClient) : AbstractCottontailCommand.Entity
     private val singleTransaction: Boolean by option("-t", "--transaction").flag()
 
     override fun exec() {
-        importData(format, input, client, entityName, singleTransaction)
-    }
+        /* Read schema and prepare Iterator. */
+        val schema = this.readSchema()
+        val iterator = this.format.newImporter(this.input, schema)
 
-    companion object {
-        fun importData(format: Format, input: Path, client: SimpleClient, entityName: Name.EntityName, singleTransaction: Boolean) {
-            /* Read schema and prepare Iterator. */
-            val schema = readSchema(client, entityName)
-            val iterator = format.newImporter(input, schema)
-
-            /** Begin transaction (if single transaction option has been set). */
-            val txId = if (singleTransaction) {
-                client.begin()
-            } else {
-                null
-            }
+        /** Begin transaction (if single transaction option has been set). */
+        val txId = if (this.singleTransaction) {
+            this.client.begin()
+        } else {
+            null
+        }
 
         try {
             /* Prepare batch insert message. */
