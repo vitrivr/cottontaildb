@@ -51,86 +51,93 @@ class ImportDataCommand(client: SimpleClient) : AbstractCottontailCommand.Entity
     private val singleTransaction: Boolean by option("-t", "--transaction").flag()
 
     override fun exec() {
-        /* Read schema and prepare Iterator. */
-        val schema = this.readSchema()
-        val iterator = this.format.newImporter(this.input, schema)
-
-        /** Begin transaction (if single transaction option has been set). */
-        val txId = if (this.singleTransaction) {
-            this.client.begin()
-        } else {
-            null
-        }
-
-        try {
-            /* Prepare batch insert message. */
-            val batchedInsert = BatchInsertMessage.newBuilder()
-            if (txId != null) {
-                batchedInsert.metadataBuilder.transactionId = txId
-            }
-            batchedInsert.from = this.entityName.protoFrom()
-            for (c in schema) {
-                batchedInsert.addColumns(c.name.proto())
-            }
-            var count = 0L
-            val headerSize = batchedInsert.build().serializedSize
-            var cummulativeSize = headerSize
-            val duration = measureTime {
-                iterator.forEach {
-                    val element = BatchInsertMessage.Insert.newBuilder()
-                    for (c in schema) {
-                        element.addValues(it[c]?.toLiteral())
-                    }
-                    val built = element.build()
-                    if ((cummulativeSize + built.serializedSize) >= Constants.MAX_PAGE_SIZE_BYTES) {
-                        this.client.insert(batchedInsert.build())
-                        batchedInsert.clearInserts()
-                        cummulativeSize = headerSize
-                    }
-                    cummulativeSize += built.serializedSize
-                    batchedInsert.addInserts(built)
-                    count+= 1
-                }
-
-                /** Insert remainder. */
-                if (batchedInsert.insertsCount > 0) {
-                    this.client.insert(batchedInsert.build())
-                }
-
-                /** Commit transaction, if single transaction option has been set. */
-                if (txId != null) {
-                    this.client.commit(txId)
-                }
-            }
-            println("Importing $count entries into ${this.entityName} took $duration.")
-        } catch (e: Throwable) {
-            /** Rollback transaction, if single transaction option has been set. */
-            if (txId != null) this.client.rollback(txId)
-            println("Importing entries into ${this.entityName} failed due to error: ${e.message}")
-        } finally {
-            iterator.close()
-        }
+        importData(format, input, client, entityName, singleTransaction)
     }
+    
+    companion object{
+        
+        fun importData(format: Format, input: Path, client: SimpleClient, entityName: Name.EntityName, singleTransaction: Boolean) {
+            /* Read schema and prepare Iterator. */
+            val schema = readSchema(client, entityName)
+            val iterator = format.newImporter(input, schema)
 
-    /**
-     * Reads the column definitions for the specified schema and returns it.
-     *
-     * @return List of [ColumnDef] for the current [Name.EntityName]
-     */
-    private fun readSchema(): List<ColumnDef<*>> {
-        val columns = mutableListOf<ColumnDef<*>>()
-        val schemaInfo = this.client.about(AboutEntity(this.entityName.toString()))
-        schemaInfo.forEach {
-            if (it.asString(1) == "COLUMN") {
-                columns.add(
-                    ColumnDef(
-                        name = Name.ColumnName(it.asString(0)!!.split(Name.NAME_COMPONENT_DELIMITER).toTypedArray()),
-                        type = Types.forName(it.asString(2)!!, it.asInt(4)!!),
-                        nullable =  it.asBoolean(5)!!
-                    )
-                )
+            /** Begin transaction (if single transaction option has been set). */
+            val txId = if (singleTransaction) {
+                client.begin()
+            } else {
+                null
+            }
+
+            try {
+                /* Prepare batch insert message. */
+                val batchedInsert = BatchInsertMessage.newBuilder()
+                if (txId != null) {
+                    batchedInsert.metadataBuilder.transactionId = txId
+                }
+                batchedInsert.from = entityName.protoFrom()
+                for (c in schema) {
+                    batchedInsert.addColumns(c.name.proto())
+                }
+                var count = 0L
+                val headerSize = batchedInsert.build().serializedSize
+                var cummulativeSize = headerSize
+                val duration = measureTime {
+                    iterator.forEach {
+                        val element = BatchInsertMessage.Insert.newBuilder()
+                        for (c in schema) {
+                            element.addValues(it[c]?.toLiteral())
+                        }
+                        val built = element.build()
+                        if ((cummulativeSize + built.serializedSize) >= Constants.MAX_PAGE_SIZE_BYTES) {
+                            client.insert(batchedInsert.build())
+                            batchedInsert.clearInserts()
+                            cummulativeSize = headerSize
+                        }
+                        cummulativeSize += built.serializedSize
+                        batchedInsert.addInserts(built)
+                        count+= 1
+                    }
+
+                    /** Insert remainder. */
+                    if (batchedInsert.insertsCount > 0) {
+                        client.insert(batchedInsert.build())
+                    }
+
+                    /** Commit transaction, if single transaction option has been set. */
+                    if (txId != null) {
+                        client.commit(txId)
+                    }
+                }
+                println("Importing $count entries into ${entityName} took $duration.")
+            } catch (e: Throwable) {
+                /** Rollback transaction, if single transaction option has been set. */
+                if (txId != null) client.rollback(txId)
+                println("Importing entries into ${entityName} failed due to error: ${e.message}")
+            } finally {
+                iterator.close()
             }
         }
-        return columns
+        
+        /**
+         * Reads the column definitions for the specified schema and returns it.
+         *
+         * @return List of [ColumnDef] for the current [Name.EntityName]
+         */
+        private fun readSchema(client: SimpleClient, entityName: Name.EntityName): List<ColumnDef<*>> {
+            val columns = mutableListOf<ColumnDef<*>>()
+            val schemaInfo = client.about(AboutEntity(entityName.toString()))
+            schemaInfo.forEach {
+                if (it.asString(1) == "COLUMN") {
+                    columns.add(
+                            ColumnDef(
+                                    name = Name.ColumnName(it.asString(0)!!.split(Name.NAME_COMPONENT_DELIMITER).toTypedArray()),
+                                    type = Types.forName(it.asString(2)!!, it.asInt(4)!!),
+                                    nullable =  it.asBoolean(5)!!
+                            )
+                    )
+                }
+            }
+            return columns
+        }
     }
 }
