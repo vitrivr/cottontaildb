@@ -69,7 +69,7 @@ class FilterOnSubSelectPhysicalOperatorNode(val predicate: BooleanPredicate, var
         this.predicate.bind(ctx.bindings)
 
         /* Generate and return FilterOnSubselectOperator. */
-        return FilterOnSubselectOperator(this.inputs[0].toOperator(ctx), ctx.bindings, this.inputs.drop(1).map { it.toOperator(ctx) }, this.predicate)
+        return FilterOnSubselectOperator(this.inputs[0].toOperator(ctx), this.inputs.drop(1).map { it.toOperator(ctx) }, this.predicate)
     }
 
     /** Generates and returns a [String] representation of this [FilterOnSubSelectPhysicalOperatorNode]. */
