@@ -46,7 +46,9 @@ class DQLService(override val catalogue: Catalogue, override val manager: Transa
      */
     override fun query(request: CottontailGrpc.QueryMessage): Flow<CottontailGrpc.QueryResponseMessage> = prepareAndExecute(request.metadata) { ctx ->
         /* Bind query and create logical plan. */
-        GrpcQueryBinder.bind(request.query, ctx)
+        val canonical = GrpcQueryBinder.bind(request.query, ctx)
+        ctx.assign(canonical)
+
 
         /* Plan query and create execution plan. */
         ctx.plan(this.planner)
@@ -59,8 +61,9 @@ class DQLService(override val catalogue: Catalogue, override val manager: Transa
      * gRPC endpoint for explaining queries.
      */
     override fun explain(request: CottontailGrpc.QueryMessage): Flow<CottontailGrpc.QueryResponseMessage> = prepareAndExecute(request.metadata) { ctx ->
-        /* Bind query and create logical plan. */
-        GrpcQueryBinder.bind(request.query, ctx)
+        /* Bind query and create canonical, logical plan. */
+        val canonical = GrpcQueryBinder.bind(request.query, ctx)
+        ctx.assign(canonical)
 
         /* Plan query and create execution plan. */
         val candidates = this.planner.plan(ctx)

@@ -1,6 +1,5 @@
 package org.vitrivr.cottontail.dbms.queries.context
 
-import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.QueryHint
@@ -10,7 +9,6 @@ import org.vitrivr.cottontail.core.queries.planning.cost.CostPolicy
 import org.vitrivr.cottontail.core.queries.sort.SortOrder
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
-import org.vitrivr.cottontail.dbms.exceptions.QueryException
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.transactions.Transaction
 import org.vitrivr.cottontail.dbms.queries.binding.DefaultBindingContext
@@ -29,12 +27,9 @@ class DefaultQueryContext(override val queryId: String, override val catalogue: 
     /** List of bound [Value]s for this [DefaultQueryContext]. */
     override val bindings: BindingContext = DefaultBindingContext()
 
-    /** The individual [OperatorNode.Logical], each representing different sub-queries. */
-    private val nodes: MutableMap<GroupId, OperatorNode.Logical> = Int2ObjectOpenHashMap()
-
     /** The [OperatorNode.Logical] representing the query and the sub-queries held by this [DefaultQueryContext]. */
-    override val logical: OperatorNode.Logical?
-        get() = this.nodes[0]
+    override var logical: OperatorNode.Logical? = null
+        private set
 
     /** The [OperatorNode.Physical] representing the query and the sub-queries held by this [DefaultQueryContext]. */
     override var physical: OperatorNode.Physical? = null
@@ -42,30 +37,49 @@ class DefaultQueryContext(override val queryId: String, override val catalogue: 
 
     /** Output [ColumnDef] for the query held by this [DefaultQueryContext] (as per canonical plan). */
     override val output: List<ColumnDef<*>>?
-        get() = this.nodes[0]?.columns
+        get() = this.logical?.columns
 
     /** Output order for the query held by this [DefaultQueryContext] (as per canonical plan). */
     override val order: List<Pair<ColumnDef<*>, SortOrder>>
-        get() = this.nodes[0]?.get(OrderTrait)?.order ?: emptyList()
+        get() = this.logical?.get(OrderTrait)?.order ?: emptyList()
 
     /** [CostPolicy] is derived from [QueryHint] or global setting in that order. */
     override val costPolicy: CostPolicy = this.hints.filterIsInstance(QueryHint.CostPolicy::class.java).singleOrNull() ?: this.catalogue.config.cost
 
+    /** Internal counter used to obtain the next [GroupId]. */
     @Volatile
     private var groupIdCounter: GroupId = 0
 
     /**
      * Returns the next available [GroupId].
      *
-     * @return
+     * @return Next available [GroupId].
      */
-    fun nextGroupId(): GroupId = this.groupIdCounter++
+    override fun nextGroupId(): GroupId = this.groupIdCounter++
 
     /**
-     * Registers an [OperatorNode.Logical] with this [DefaultQueryContext] and assigns a new [GroupId] for it.
+     * Assigns a new [OperatorNode.Logical] to this [QueryContext] overwriting the existing [OperatorNode.Logical].
+     *
+     * Invalidates all existing [OperatorNode.Logical] and [OperatorNode.Physical] held by this [QueryContext].
+     *
+     * @param plan The [OperatorNode.Logical] to assign.
      */
-    fun register(plan: OperatorNode.Logical) {
-        this.nodes[plan.groupId] = plan
+    override fun assign(plan: OperatorNode.Logical) {
+        this.logical = plan
+        this.physical = null
+    }
+
+    /**
+     * Assigns a new [OperatorNode.Physical] to this [QueryContext] overwriting the existing [OperatorNode.Physical].
+     * This can be used to bypass query planning and/or implementation steps
+     *
+     * Invalidates all existing [OperatorNode.Logical] and [OperatorNode.Physical] held by this [QueryContext].
+     *
+     * @param plan The [OperatorNode.Logical] to assign.
+     */
+    override fun assign(plan: OperatorNode.Physical) {
+        this.logical = null
+        this.physical = plan
     }
 
     /**
@@ -84,14 +98,6 @@ class DefaultQueryContext(override val queryId: String, override val catalogue: 
     override fun implement() {
         this.physical = this.logical?.implement()
     }
-
-    /**
-     * Returns the [OperatorNode.Logical] for the given [GroupId].
-     *
-     * @param groupId The [GroupId] to return an [OperatorNode.Logical] for.
-     * @return [OperatorNode.Logical]
-     */
-    operator fun get(groupId: GroupId): OperatorNode.Logical = this.nodes[groupId] ?: throw QueryException.QueryPlannerException("Failed to access sub-query with groupId $groupId")
 
     /**
      * Creates a [Subcontext] for this [DefaultQueryContext].
@@ -142,6 +148,9 @@ class DefaultQueryContext(override val queryId: String, override val catalogue: 
             get() = this@DefaultQueryContext.output
         override val order: List<Pair<ColumnDef<*>, SortOrder>>
             get() = this@DefaultQueryContext.order
+        override fun nextGroupId(): GroupId = this@DefaultQueryContext.nextGroupId()
+        override fun assign(plan: OperatorNode.Logical) = this@DefaultQueryContext.assign(plan)
+        override fun assign(plan: OperatorNode.Physical) = this@DefaultQueryContext.assign(plan)
         override fun plan(planner: CottontailQueryPlanner) = this@DefaultQueryContext.plan(planner)
         override fun implement() = this@DefaultQueryContext.implement()
         override fun split(): QueryContext = this@DefaultQueryContext.split()

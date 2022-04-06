@@ -99,8 +99,8 @@ class DDLServiceTest {
 
     @Test
     fun createAndDropSchema() {
-        client.create(CreateSchema(TEST_SCHEMA))
-        client.drop(DropSchema(TEST_SCHEMA))
+        this.client.create(CreateSchema(TEST_SCHEMA))
+        this.client.drop(DropSchema(TEST_SCHEMA))
         val names = schemaNames()
         assert(!names.contains("warren.$TEST_SCHEMA")) { "Schema $TEST_SCHEMA was not dropped" }
 

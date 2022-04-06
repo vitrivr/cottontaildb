@@ -112,7 +112,7 @@ object BooleanIndexScanRule : RewriteRule {
                 is ComparisonOperator.In -> op /* IN operators only support literal bindings. */
                 is ComparisonOperator.IsNull -> ComparisonOperator.IsNull(left)
             }
-            BooleanPredicate.Atomic(newOp, predicate.not, predicate.dependsOn)
+            BooleanPredicate.Atomic(newOp, predicate.not)
         }
         is BooleanPredicate.Compound.And -> BooleanPredicate.Compound.And(normalize(predicate.p1, fetch), normalize(predicate.p2, fetch))
         is BooleanPredicate.Compound.Or -> BooleanPredicate.Compound.Or(normalize(predicate.p1, fetch), normalize(predicate.p2, fetch))

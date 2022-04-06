@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.dbms.queries.context
 
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.QueryHint
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.planning.cost.CostPolicy
@@ -51,6 +52,31 @@ interface QueryContext {
 
     /** Output order for the query held by this [QueryContext] (as per canonical plan). */
     val order: List<Pair<ColumnDef<*>, SortOrder>>
+
+    /**
+     * Returns the next available [GroupId].
+     *
+     * @return Next available [GroupId].
+     */
+    fun nextGroupId(): GroupId
+
+    /**
+     * Assigns a new [OperatorNode.Logical] to this [QueryContext] overwriting the existing [OperatorNode.Logical].
+     *
+     * Invalidates all existing [OperatorNode.Logical] and [OperatorNode.Physical] held by this [QueryContext].
+     *
+     * @param plan The [OperatorNode.Logical] to assign.
+     */
+    fun assign(plan: OperatorNode.Logical)
+
+    /**
+     * Assigns a new [OperatorNode.Physical] to this [QueryContext] overwriting the existing [OperatorNode.Physical].
+     *
+     * Invalidates all existing [OperatorNode.Logical] and [OperatorNode.Physical] held by this [QueryContext].
+     *
+     * @param plan The [OperatorNode.Physical] to assign.
+     */
+    fun assign(plan: OperatorNode.Physical)
 
     /**
      * Starts the query planning processing using the given [CottontailQueryPlanner]. The query planning

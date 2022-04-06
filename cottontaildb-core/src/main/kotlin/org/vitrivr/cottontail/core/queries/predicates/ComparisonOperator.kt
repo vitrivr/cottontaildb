@@ -162,28 +162,40 @@ sealed interface ComparisonOperator: BindableNode, NodeWithCost {
     }
 
     /**
-     * A [ComparisonOperator] that expresses a IN comparison (i.e. left IN right).
+     * A [ComparisonOperator] that expresses an IN comparison (i.e. left IN right).
      */
-    class In(override val left: Binding, val right: MutableList<Binding.Literal>) : ComparisonOperator {
-        private var rightSet: ObjectOpenHashSet<Value>? = null /* To speed-up IN operation. */
+    class In(override val left: Binding, val right: List<Binding>) : ComparisonOperator {
+
+        /** Internal [ObjectOpenHashSet] used to speed-up actual comparison.*/
+        private var lookupSet: ObjectOpenHashSet<Value>? = null
+
+        /** Cost of executing this [ComparisonOperator.In]*/
         override val cost: Cost
             get() = Cost.MEMORY_ACCESS * 2 * this.right.size
-        override fun match(): Boolean {
-            if (this.rightSet == null) {
-                this.rightSet = ObjectOpenHashSet()
-                this.right.forEach { this.rightSet!!.add(it.value) }
-            }
-            return this.left.value in this.rightSet!!
+
+        init {
+            /* Sanity check + initialization of values list. */
+            require(this.right.isNotEmpty()) { "Right-hand side of IN operator cannot be empty." }
+            require(this.right.all { it !is Binding.Column }) { "Right-hand side of IN operator cannot be a column reference." }
         }
 
         /**
-         * Adds a [Binding.Literal] to this [In] operator.
+         * Compares [left] to [right] for this [ComparisonOperator.In] and returns true on match and false otherwise,
          *
-         * @param ref [Binding.Literal] to add.
+         * @return True on match, false otherwise.
          */
-        fun addRef(ref: Binding.Literal) {
-            this.right.add(ref)
-            this.rightSet = null
+        override fun match(): Boolean {
+            if (this.lookupSet == null) {
+                this.lookupSet = ObjectOpenHashSet()
+                for (r in this.right) {
+                    if (r is Binding.Subquery) {
+                        this.lookupSet!!.addAll(r.values)
+                    } else {
+                        this.lookupSet!!.add(r.value)
+                    }
+                }
+            }
+            return this.left.value in this.lookupSet!!
         }
 
         /**
@@ -194,7 +206,7 @@ sealed interface ComparisonOperator: BindableNode, NodeWithCost {
         override fun bind(context: BindingContext) {
             this.left.bind(context)
             this.right.forEach { it.bind(context) }
-            this.rightSet = null
+            this.lookupSet = null
         }
 
         override fun copy() = In(this.left.copy(), this.right.map { it.copy() }.toMutableList())

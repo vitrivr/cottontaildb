@@ -45,7 +45,7 @@ class MergeLimitingHeapSortOperator(parents: List<Operator>, val context: Bindin
      * @param context The [TransactionContext] used for execution
      * @return [Flow] representing this [MergeLimitingHeapSortOperator]
      */
-    override fun toFlow(context: TransactionContext): Flow<Record> =  channelFlow {
+    override fun toFlow(context: TransactionContext): Flow<Record> = channelFlow {
         /* Collect incoming flows into dedicated HeapSelection objects (one per flow). */
         val selection = HeapSelection(this@MergeLimitingHeapSortOperator.limit, this@MergeLimitingHeapSortOperator.comparator)
         val collected = AtomicLong(0L)

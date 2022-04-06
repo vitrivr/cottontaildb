@@ -39,7 +39,7 @@ class SortPhysicalOperatorNode(input: Physical? = null, val sortOn: List<Pair<Co
             cpu = 2 * this.sortOn.size * Cost.MEMORY_ACCESS.cpu,
             memory = this.columns.sumOf {
                 if (it.type == Types.String) {
-                    this.statistics[it]!!.avgWidth * Char.SIZE_BYTES
+                    (this.statistics[it]?.avgWidth ?: 1) * Char.SIZE_BYTES
                 } else {
                     it.type.physicalSize
                 }

@@ -42,7 +42,8 @@ class DMLService(override val catalogue: Catalogue, override val manager: Transa
      */
     override suspend fun update(request: CottontailGrpc.UpdateMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata) { ctx ->
         /* Bind query and create logical plan. */
-        GrpcQueryBinder.bind(request, ctx)
+        val canonical = GrpcQueryBinder.bind(request, ctx)
+        ctx.assign(canonical)
 
         /* Plan query and create execution plan. */
         ctx.plan(this.planner)
@@ -56,7 +57,8 @@ class DMLService(override val catalogue: Catalogue, override val manager: Transa
      */
     override suspend fun delete(request: CottontailGrpc.DeleteMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata) { ctx ->
         /* Bind query and create logical plan. */
-        GrpcQueryBinder.bind(request, ctx)
+        val canonical = GrpcQueryBinder.bind(request, ctx)
+        ctx.assign(canonical)
 
         /* Plan query and create execution plan. */
         ctx.plan(this.planner)
@@ -70,7 +72,8 @@ class DMLService(override val catalogue: Catalogue, override val manager: Transa
      */
     override suspend fun insert(request: CottontailGrpc.InsertMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata) { ctx ->
         /* Bind query and create logical plan. */
-        GrpcQueryBinder.bind(request, ctx)
+        val canonical = GrpcQueryBinder.bind(request, ctx)
+        ctx.assign(canonical)
 
         /* Implement physical plan. */
         ctx.implement()
@@ -84,7 +87,8 @@ class DMLService(override val catalogue: Catalogue, override val manager: Transa
      */
     override suspend fun insertBatch(request: CottontailGrpc.BatchInsertMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata) { ctx ->
         /* Bind query and create logical plan. */
-        GrpcQueryBinder.bind(request, ctx)
+        val canonical = GrpcQueryBinder.bind(request, ctx)
+        ctx.assign(canonical)
 
         /* Implement physical plan. */
         ctx.implement()

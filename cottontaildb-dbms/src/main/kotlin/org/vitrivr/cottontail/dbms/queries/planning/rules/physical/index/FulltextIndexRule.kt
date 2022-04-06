@@ -58,7 +58,7 @@ object FulltextIndexRule : RewriteRule {
 
         val probingArgument = node.function.arguments.filterIsInstance<Binding.Column>().singleOrNull() ?: return null
         val queryString = node.function.arguments.filterIsInstance<Binding.Literal>().singleOrNull() ?: return null
-        val predicate = BooleanPredicate.Atomic(ComparisonOperator.Binary.Match(probingArgument, queryString), false, scan.groupId)
+        val predicate = BooleanPredicate.Atomic(ComparisonOperator.Binary.Match(probingArgument, queryString), false)
         val candidate = scan.entity.listIndexes().map {
             scan.entity.context.getTx(scan.entity.indexForName(it)) as IndexTx
         }.find {
