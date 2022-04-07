@@ -1,8 +1,8 @@
 package org.vitrivr.cottontail.dbms.index.va.signature
 
 import jetbrains.exodus.bindings.ComparableBinding
-import jetbrains.exodus.bindings.DoubleBinding
 import jetbrains.exodus.bindings.IntegerBinding
+import jetbrains.exodus.bindings.SignedDoubleBinding
 import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.values.types.RealVectorValue
 import org.vitrivr.cottontail.dbms.index.va.VAFIndex
@@ -45,7 +45,7 @@ value class VAFMarks(val marks: Array<DoubleArray>): Comparable<VAFMarks> {
          * [ComparableBinding] implementation.
          */
         override fun readObject(stream: ByteArrayInputStream)= VAFMarks(Array(IntegerBinding.readCompressed(stream)) { _ ->
-            DoubleArray(IntegerBinding.readCompressed(stream)) { _ -> DoubleBinding.BINDING.readObject(stream) }
+            DoubleArray(IntegerBinding.readCompressed(stream)) { SignedDoubleBinding.BINDING.readObject(stream) }
         })
 
         /**
@@ -57,7 +57,7 @@ value class VAFMarks(val marks: Array<DoubleArray>): Comparable<VAFMarks> {
             for (d in `object`.marks) {
                 IntegerBinding.writeCompressed(output, d.size)
                 for (v in d) {
-                    DoubleBinding.BINDING.writeObject(output, v)
+                    SignedDoubleBinding.BINDING.writeObject(output, v)
                 }
             }
         }

@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.storage.serializers.values.xodus
 
 import jetbrains.exodus.ArrayByteIterable
 import jetbrains.exodus.ByteIterable
-import jetbrains.exodus.bindings.FloatBinding
+import jetbrains.exodus.bindings.SignedFloatBinding
 import org.vitrivr.cottontail.core.values.FloatVectorValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.xerial.snappy.Snappy
@@ -17,7 +17,7 @@ sealed class FloatVectorValueXodusBinding(size: Int): XodusBinding<FloatVectorVa
 
     companion object {
         /** The NULL value for [FloatVectorValueXodusBinding]s. */
-        private val NULL_VALUE = FloatBinding.BINDING.objectToEntry(Float.MIN_VALUE)
+        private val NULL_VALUE = SignedFloatBinding.floatToEntry(Float.MIN_VALUE)
     }
 
     init {

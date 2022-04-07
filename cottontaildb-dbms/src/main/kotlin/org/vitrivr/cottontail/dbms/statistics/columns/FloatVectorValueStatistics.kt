@@ -1,8 +1,8 @@
 package org.vitrivr.cottontail.dbms.statistics.columns
 
 import jetbrains.exodus.bindings.BooleanBinding
-import jetbrains.exodus.bindings.FloatBinding
 import jetbrains.exodus.bindings.LongBinding
+import jetbrains.exodus.bindings.SignedFloatBinding
 import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.values.FloatVectorValue
 import org.vitrivr.cottontail.core.values.types.Types
@@ -43,9 +43,9 @@ class FloatVectorValueStatistics(logicalSize: Int) : AbstractValueStatistics<Flo
             stat.numberOfNullEntries = LongBinding.readCompressed(stream)
             stat.numberOfNonNullEntries = LongBinding.readCompressed(stream)
             for (i in 0 until this.logicalSize) {
-                stat.min.data[i] = FloatBinding.BINDING.readObject(stream)
-                stat.max.data[i] = FloatBinding.BINDING.readObject(stream)
-                stat.sum.data[i] = FloatBinding.BINDING.readObject(stream)
+                stat.min.data[i] = SignedFloatBinding.BINDING.readObject(stream)
+                stat.max.data[i] = SignedFloatBinding.BINDING.readObject(stream)
+                stat.sum.data[i] = SignedFloatBinding.BINDING.readObject(stream)
             }
             return stat
         }
@@ -55,9 +55,9 @@ class FloatVectorValueStatistics(logicalSize: Int) : AbstractValueStatistics<Flo
             LongBinding.writeCompressed(output, statistics.numberOfNullEntries)
             LongBinding.writeCompressed(output, statistics.numberOfNonNullEntries)
             for (i in 0 until statistics.type.logicalSize) {
-                FloatBinding.BINDING.writeObject(output, statistics.min.data[i])
-                FloatBinding.BINDING.writeObject(output, statistics.max.data[i])
-                FloatBinding.BINDING.writeObject(output, statistics.sum.data[i])
+                SignedFloatBinding.BINDING.writeObject(output, statistics.min.data[i])
+                SignedFloatBinding.BINDING.writeObject(output, statistics.max.data[i])
+                SignedFloatBinding.BINDING.writeObject(output, statistics.sum.data[i])
             }
         }
     }

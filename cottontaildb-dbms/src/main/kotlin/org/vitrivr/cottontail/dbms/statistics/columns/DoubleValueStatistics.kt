@@ -1,8 +1,8 @@
 package org.vitrivr.cottontail.dbms.statistics.columns
 
 import jetbrains.exodus.bindings.BooleanBinding
-import jetbrains.exodus.bindings.DoubleBinding
 import jetbrains.exodus.bindings.LongBinding
+import jetbrains.exodus.bindings.SignedDoubleBinding
 import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.types.Types
@@ -28,9 +28,9 @@ class DoubleValueStatistics : AbstractValueStatistics<DoubleValue>(Types.Double)
             stat.fresh = BooleanBinding.BINDING.readObject(stream)
             stat.numberOfNullEntries = LongBinding.readCompressed(stream)
             stat.numberOfNonNullEntries = LongBinding.readCompressed(stream)
-            stat.min = DoubleValue(DoubleBinding.BINDING.readObject(stream))
-            stat.max = DoubleValue(DoubleBinding.BINDING.readObject(stream))
-            stat.sum = DoubleValue(DoubleBinding.BINDING.readObject(stream))
+            stat.min = DoubleValue(SignedDoubleBinding.BINDING.readObject(stream))
+            stat.max = DoubleValue(SignedDoubleBinding.BINDING.readObject(stream))
+            stat.sum = DoubleValue(SignedDoubleBinding.BINDING.readObject(stream))
             return stat
         }
 
@@ -38,9 +38,9 @@ class DoubleValueStatistics : AbstractValueStatistics<DoubleValue>(Types.Double)
             BooleanBinding.BINDING.writeObject(output, statistics.fresh)
             LongBinding.writeCompressed(output, statistics.numberOfNullEntries)
             LongBinding.writeCompressed(output, statistics.numberOfNonNullEntries)
-            DoubleBinding.BINDING.writeObject(output, statistics.min.value)
-            DoubleBinding.BINDING.writeObject(output, statistics.max.value)
-            DoubleBinding.BINDING.writeObject(output, statistics.sum.value)
+            SignedDoubleBinding.BINDING.writeObject(output, statistics.min.value)
+            SignedDoubleBinding.BINDING.writeObject(output, statistics.max.value)
+            SignedDoubleBinding.BINDING.writeObject(output, statistics.sum.value)
         }
     }
 

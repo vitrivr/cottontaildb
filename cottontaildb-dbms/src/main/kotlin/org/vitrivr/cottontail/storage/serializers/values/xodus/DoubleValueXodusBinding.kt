@@ -1,12 +1,10 @@
 package org.vitrivr.cottontail.storage.serializers.values.xodus
 
 import jetbrains.exodus.ByteIterable
-import jetbrains.exodus.bindings.ByteBinding
 import jetbrains.exodus.bindings.SignedDoubleBinding
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import java.util.*
 
 /**
  * A [XodusBinding] for [DoubleValue] serialization and deserialization.
@@ -32,16 +30,10 @@ sealed class DoubleValueXodusBinding: XodusBinding<DoubleValue> {
      * [DoubleValueXodusBinding] used for nullable values.
      */
     object Nullable: DoubleValueXodusBinding() {
-        private val NULL_VALUE = ByteBinding.BINDING.objectToEntry(Byte.MIN_VALUE)
-
+        private val NULL_VALUE = SignedDoubleBinding.doubleToEntry(Double.MIN_VALUE)
         override fun entryToValue(entry: ByteIterable): DoubleValue? {
-            val bytesRead = entry.bytesUnsafe
-            val bytesNull = NULL_VALUE.bytesUnsafe
-            return if (Arrays.equals(bytesNull, bytesRead)) {
-                null
-            } else {
-                DoubleValue(SignedDoubleBinding.entryToDouble(entry))
-            }
+            if (entry == NULL_VALUE) return null
+            return DoubleValue(SignedDoubleBinding.entryToDouble(entry))
         }
 
         override fun valueToEntry(value: DoubleValue?): ByteIterable {

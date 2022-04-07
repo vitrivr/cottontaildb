@@ -1,8 +1,8 @@
 package org.vitrivr.cottontail.dbms.statistics.columns
 
 import jetbrains.exodus.bindings.BooleanBinding
-import jetbrains.exodus.bindings.DoubleBinding
 import jetbrains.exodus.bindings.LongBinding
+import jetbrains.exodus.bindings.SignedDoubleBinding
 import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.values.DoubleVectorValue
 import org.vitrivr.cottontail.core.values.types.Types
@@ -41,9 +41,9 @@ class DoubleVectorValueStatistics(logicalSize: Int) : AbstractValueStatistics<Do
             stat.numberOfNullEntries = LongBinding.readCompressed(stream)
             stat.numberOfNonNullEntries = LongBinding.readCompressed(stream)
             for (i in 0 until this.logicalSize) {
-                stat.min.data[i] = DoubleBinding.BINDING.readObject(stream)
-                stat.max.data[i] = DoubleBinding.BINDING.readObject(stream)
-                stat.sum.data[i] = DoubleBinding.BINDING.readObject(stream)
+                stat.min.data[i] = SignedDoubleBinding.BINDING.readObject(stream)
+                stat.max.data[i] = SignedDoubleBinding.BINDING.readObject(stream)
+                stat.sum.data[i] = SignedDoubleBinding.BINDING.readObject(stream)
             }
             return stat
         }
@@ -53,9 +53,9 @@ class DoubleVectorValueStatistics(logicalSize: Int) : AbstractValueStatistics<Do
             LongBinding.writeCompressed(output, statistics.numberOfNullEntries)
             LongBinding.writeCompressed(output, statistics.numberOfNonNullEntries)
             for (i in 0 until statistics.type.logicalSize) {
-                DoubleBinding.BINDING.writeObject(output, statistics.min.data[i])
-                DoubleBinding.BINDING.writeObject(output, statistics.max.data[i])
-                DoubleBinding.BINDING.writeObject(output, statistics.sum.data[i])
+                SignedDoubleBinding.BINDING.writeObject(output, statistics.min.data[i])
+                SignedDoubleBinding.BINDING.writeObject(output, statistics.max.data[i])
+                SignedDoubleBinding.BINDING.writeObject(output, statistics.sum.data[i])
             }
         }
     }

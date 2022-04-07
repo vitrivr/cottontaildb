@@ -38,19 +38,13 @@ sealed class StringValueXodusBinding: XodusBinding<StringValue> {
         private val NULL_VALUE_RAW = StringBinding.stringToEntry(NULL_VALUE)
 
         override fun entryToValue(entry: ByteIterable): StringValue? {
-            return if (NULL_VALUE_RAW == entry) {
-                null
-            } else {
-                StringValue(StringBinding.entryToString(entry))
-            }
+            if (NULL_VALUE_RAW == entry) return null
+            return StringValue(StringBinding.entryToString(entry))
         }
         override fun valueToEntry(value: StringValue?): ByteIterable {
             if (value?.value == NULL_VALUE) throw DatabaseException.ReservedValueException("Cannot serialize value '$value'! Value is reserved for NULL entries for type ${this.type}.")
-            return if (value == null) {
-                NULL_VALUE_RAW
-            } else {
-                return StringBinding.stringToEntry(value.value)
-            }
+            if (value == null) return NULL_VALUE_RAW
+            return StringBinding.stringToEntry(value.value)
         }
     }
 }

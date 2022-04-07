@@ -1,9 +1,9 @@
 package org.vitrivr.cottontail.dbms.statistics.columns
 
 import jetbrains.exodus.bindings.BooleanBinding
-import jetbrains.exodus.bindings.DoubleBinding
 import jetbrains.exodus.bindings.IntegerBinding
 import jetbrains.exodus.bindings.LongBinding
+import jetbrains.exodus.bindings.SignedDoubleBinding
 import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.IntValue
@@ -32,6 +32,7 @@ class IntValueStatistics : AbstractValueStatistics<IntValue>(Types.Int), RealVal
             stat.numberOfNonNullEntries = LongBinding.readCompressed(stream)
             stat.min = IntValue(IntegerBinding.BINDING.readObject(stream))
             stat.max = IntValue(IntegerBinding.BINDING.readObject(stream))
+            stat.sum = DoubleValue(SignedDoubleBinding.BINDING.readObject(stream))
             return stat
         }
 
@@ -41,7 +42,7 @@ class IntValueStatistics : AbstractValueStatistics<IntValue>(Types.Int), RealVal
             LongBinding.writeCompressed(output, statistics.numberOfNonNullEntries)
             IntegerBinding.BINDING.writeObject(output, statistics.min.value)
             IntegerBinding.BINDING.writeObject(output, statistics.max.value)
-            DoubleBinding.BINDING.writeObject(output, statistics.sum.value)
+            SignedDoubleBinding.BINDING.writeObject(output, statistics.sum.value)
         }
     }
 
