@@ -2,11 +2,10 @@ package org.vitrivr.cottontail.storage.serializers.values.xodus
 
 import jetbrains.exodus.ByteIterable
 import jetbrains.exodus.bindings.ByteBinding
-import jetbrains.exodus.bindings.DoubleBinding
+import jetbrains.exodus.bindings.SignedDoubleBinding
 import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import java.io.ByteArrayInputStream
 import java.util.*
 
 /**
@@ -22,10 +21,10 @@ sealed class DoubleValueXodusBinding: XodusBinding<DoubleValue> {
      * [DoubleValueXodusBinding] used for non-nullable values.
      */
     object NonNullable: DoubleValueXodusBinding() {
-        override fun entryToValue(entry: ByteIterable): DoubleValue = DoubleValue(DoubleBinding.BINDING.readObject(ByteArrayInputStream(entry.bytesUnsafe)))
+        override fun entryToValue(entry: ByteIterable): DoubleValue = DoubleValue(SignedDoubleBinding.entryToDouble(entry))
         override fun valueToEntry(value: DoubleValue?): ByteIterable {
             require(value != null) { "Serialization error: Value cannot be null." }
-            return DoubleBinding.BINDING.objectToEntry(value.value)
+            return SignedDoubleBinding.doubleToEntry(value.value)
         }
     }
 
@@ -41,14 +40,14 @@ sealed class DoubleValueXodusBinding: XodusBinding<DoubleValue> {
             return if (Arrays.equals(bytesNull, bytesRead)) {
                 null
             } else {
-                DoubleValue(DoubleBinding.entryToDouble(entry))
+                DoubleValue(SignedDoubleBinding.entryToDouble(entry))
             }
         }
 
         override fun valueToEntry(value: DoubleValue?): ByteIterable {
             if (value == null) return NULL_VALUE
             if (value.value == Double.MIN_VALUE) throw DatabaseException.ReservedValueException("Cannot serialize value '$value'! Value is reserved for NULL entries for type ${this.type}.")
-            return DoubleBinding.doubleToEntry(value.value)
+            return SignedDoubleBinding.doubleToEntry(value.value)
         }
     }
 }
