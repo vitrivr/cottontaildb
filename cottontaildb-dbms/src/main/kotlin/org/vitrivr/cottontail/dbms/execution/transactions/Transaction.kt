@@ -16,7 +16,7 @@ interface Transaction: TransactionContext {
     /** The [TransactionType] of this [Transaction]. */
     val type: TransactionType
 
-    /** The [DefaultQueryContext] of this [Transaction]. */
+    /** The [TransactionStatus] of this [Transaction]. */
     val state: TransactionStatus
 
     /** Flag indicating, whether this [Transaction] was used to write any data. */
@@ -25,6 +25,7 @@ interface Transaction: TransactionContext {
     /**
      * Schedules an [Operator] in the context of this [Transaction] and blocks, until execution has completed.
      *
+     * @param operator The [Operator] to execute.
      * @return Resulting [Flow] of [Record]s
      */
     fun execute(operator: Operator): Flow<Record>

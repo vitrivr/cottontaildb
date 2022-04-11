@@ -2,11 +2,14 @@ package org.vitrivr.cottontail.data.importer
 
 import com.google.gson.stream.JsonReader
 import com.google.gson.stream.JsonToken
+import it.unimi.dsi.fastutil.objects.Object2ObjectArrayMap
+import org.vitrivr.cottontail.client.iterators.Tuple
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.core.values.*
 import org.vitrivr.cottontail.core.values.types.Types
+import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.data.Format
-import org.vitrivr.cottontail.grpc.CottontailGrpc
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -16,10 +19,9 @@ import java.nio.file.Path
  * fields must occur in order of definition.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
-class JsonDataImporter(override val path: Path, private val schema: Array<ColumnDef<*>>) :
-    DataImporter {
+class JsonDataImporter(override val path: Path, override val schema: List<ColumnDef<*>>) : DataImporter {
 
     /** The [JsonReader] instance used to read the JSON file. */
     private val reader = JsonReader(Files.newBufferedReader(this.path))
@@ -36,28 +38,27 @@ class JsonDataImporter(override val path: Path, private val schema: Array<Column
         private set
 
     /**
-     * Returns the next [CottontailGrpc.InsertMessage] from the data.
+     * Returns the next [Tuple] from the data.
      *
-     * @return [CottontailGrpc.InsertMessage]
+     * @return [Tuple]
      */
-    override fun next(): CottontailGrpc.InsertMessage.Builder {
+    override fun next(): Map<ColumnDef<*>,Value?> {
         this.reader.beginObject()
-        val message = CottontailGrpc.InsertMessage.newBuilder()
+        val value = Object2ObjectArrayMap<ColumnDef<*>, Value?>(this.schema.size)
         for (column in this.schema) {
             val parsed = this.reader.nextName().split('.')
             val name = Name.ColumnName(parsed[0], parsed[1], parsed[2])
             check(name == column.name) { "$name does not match the expected column name ${column.name}." }
-            val element = CottontailGrpc.InsertMessage.InsertElement.newBuilder()
-            val value = when (column.type) {
-                is Types.Boolean -> CottontailGrpc.Literal.newBuilder().setBooleanData(this.reader.nextBoolean())
-                is Types.Byte,
-                is Types.Short,
-                is Types.Int -> CottontailGrpc.Literal.newBuilder().setIntData(this.reader.nextInt())
-                is Types.Long -> CottontailGrpc.Literal.newBuilder().setLongData(this.reader.nextLong())
-                is Types.Float -> CottontailGrpc.Literal.newBuilder().setFloatData(this.reader.nextDouble().toFloat())
-                is Types.Double -> CottontailGrpc.Literal.newBuilder().setDoubleData(this.reader.nextDouble())
-                is Types.Date -> CottontailGrpc.Literal.newBuilder().setDateData(CottontailGrpc.Date.newBuilder().setUtcTimestamp(this.reader.nextLong()))
-                is Types.String ->  CottontailGrpc.Literal.newBuilder().setStringData(this.reader.nextString())
+            value[column] = when (column.type) {
+                is Types.Boolean -> BooleanValue(this.reader.nextBoolean())
+                is Types.Byte -> ByteValue(this.reader.nextInt())
+                is Types.Short -> ShortValue(this.reader.nextInt())
+                is Types.Int -> IntValue(this.reader.nextInt())
+                is Types.Long -> LongValue(this.reader.nextLong())
+                is Types.Float -> FloatValue(this.reader.nextDouble().toFloat())
+                is Types.Double -> DoubleValue(this.reader.nextDouble())
+                is Types.Date -> DateValue(this.reader.nextLong())
+                is Types.String ->  StringValue(this.reader.nextString())
                 is Types.Complex32 -> this.readComplex32Value()
                 is Types.Complex64 -> this.readComplex64Value()
                 is Types.IntVector -> this.readIntVector(column.type.logicalSize)
@@ -68,12 +69,9 @@ class JsonDataImporter(override val path: Path, private val schema: Array<Column
                 is Types.Complex32Vector -> this.readComplex32Vector(column.type.logicalSize)
                 is Types.Complex64Vector -> this.readComplex64Vector(column.type.logicalSize)
             }
-            element.setColumn(CottontailGrpc.ColumnName.newBuilder().setName(column.name.simple))
-            element.setValue(value)
-            message.addElements(element)
         }
         this.reader.endObject()
-        return message
+        return value
     }
 
     /**
@@ -85,154 +83,124 @@ class JsonDataImporter(override val path: Path, private val schema: Array<Column
         this.reader.hasNext() && this.reader.peek() == JsonToken.BEGIN_OBJECT
 
     /**
-     * Reads a complex 32 value from the JSON file.
+     * Reads a [Complex32Value] value from the JSON file.
      *
-     * @return [CottontailGrpc.Literal.Builder] containing the value.
+     * @return [Complex32Value] containing the value.
      */
-    private fun readComplex32Value(): CottontailGrpc.Literal.Builder {
-        val value = CottontailGrpc.Complex32.newBuilder()
+    private fun readComplex32Value(): Complex32Value {
         this.reader.beginObject()
         this.reader.nextName()
-        value.real = this.reader.nextDouble().toFloat()
+        val real = this.reader.nextDouble().toFloat()
         this.reader.nextName()
-        value.imaginary = this.reader.nextDouble().toFloat()
+        val imaginary = this.reader.nextDouble().toFloat()
         this.reader.endObject()
-        return CottontailGrpc.Literal.newBuilder().setComplex32Data(value)
+        return Complex32Value(real, imaginary)
     }
 
     /**
-     * Reads a complex 32 value from the JSON file.
+     * Reads a [Complex64Value] value from the JSON file.
      *
-     * @return [CottontailGrpc.Literal.Builder] containing the value.
+     * @return [Complex64Value] containing the value.
      */
-    private fun readComplex64Value(): CottontailGrpc.Literal.Builder {
-        val value = CottontailGrpc.Complex64.newBuilder()
+    private fun readComplex64Value(): Complex64Value {
         this.reader.beginObject()
         this.reader.nextName()
-        value.real = this.reader.nextDouble()
+        val real = this.reader.nextDouble()
         this.reader.nextName()
-        value.imaginary = this.reader.nextDouble()
+        val imaginary = this.reader.nextDouble()
         this.reader.endObject()
-        return CottontailGrpc.Literal.newBuilder().setComplex64Data(value)
+        return Complex64Value(real, imaginary)
     }
 
     /**
      * Reads a boolean vector of the given size from the JSON file.
      *
      * @param size The size of the boolean vector.
-     * @return [CottontailGrpc.Literal.Builder] containing the vector.
+     * @return [BooleanVectorValue] containing the vector.
      */
-    private fun readBooleanVector(size: Int): CottontailGrpc.Literal.Builder {
-        val vector = CottontailGrpc.BoolVector.newBuilder()
+    private fun readBooleanVector(size: Int): BooleanVectorValue {
         this.reader.beginArray()
-        for (i in 0 until size) {
-            vector.addVector(this.reader.nextBoolean())
-        }
+        val vector = BooleanVectorValue(BooleanArray(size) { this.reader.nextBoolean() })
         this.reader.endArray()
-        return CottontailGrpc.Literal.newBuilder()
-            .setVectorData(CottontailGrpc.Vector.newBuilder().setBoolVector(vector))
+        return vector
     }
 
     /**
      * Reads a int vector of the given size from the JSON file.
      *
      * @param size The size of the int vector.
-     * @return [CottontailGrpc.Literal.Builder] containing the vector.
+     * @return [IntVectorValue] containing the vector.
      */
-    private fun readIntVector(size: Int): CottontailGrpc.Literal.Builder {
-        val vector = CottontailGrpc.IntVector.newBuilder()
+    private fun readIntVector(size: Int): IntVectorValue {
         this.reader.beginArray()
-        for (i in 0 until size) {
-            vector.addVector(this.reader.nextInt())
-        }
+        val vector = IntVectorValue(IntArray(size) { this.reader.nextInt() })
         this.reader.endArray()
-        return CottontailGrpc.Literal.newBuilder()
-            .setVectorData(CottontailGrpc.Vector.newBuilder().setIntVector(vector))
+        return vector
     }
 
     /**
      * Reads a long vector of the given size from the JSON file.
      *
      * @param size The size of the long vector.
-     * @return [CottontailGrpc.Literal.Builder] containing the vector.
+     * @return [LongVectorValue] containing the vector.
      */
-    private fun readLongVector(size: Int): CottontailGrpc.Literal.Builder {
-        val vector = CottontailGrpc.LongVector.newBuilder()
+    private fun readLongVector(size: Int): LongVectorValue {
         this.reader.beginArray()
-        for (i in 0 until size) {
-            vector.addVector(this.reader.nextLong())
-        }
+        val vector = LongVectorValue(LongArray(size) { this.reader.nextLong() })
         this.reader.endArray()
-        return CottontailGrpc.Literal.newBuilder()
-            .setVectorData(CottontailGrpc.Vector.newBuilder().setLongVector(vector))
+        return vector
     }
 
     /**
      * Reads a float vector of the given size from the JSON file.
      *
      * @param size The size of the float vector.
-     * @return [CottontailGrpc.Literal.Builder] containing the vector.
+     * @return [FloatVectorValue] containing the vector.
      */
-    private fun readFloatVector(size: Int): CottontailGrpc.Literal.Builder {
-        val vector = CottontailGrpc.FloatVector.newBuilder()
+    private fun readFloatVector(size: Int): FloatVectorValue {
         this.reader.beginArray()
-        for (i in 0 until size) {
-            vector.addVector(this.reader.nextDouble().toFloat())
-        }
+        val vector = FloatVectorValue(FloatArray(size) { this.reader.nextDouble().toFloat() })
         this.reader.endArray()
-        return CottontailGrpc.Literal.newBuilder()
-            .setVectorData(CottontailGrpc.Vector.newBuilder().setFloatVector(vector))
+        return vector
     }
 
     /**
      * Reads a double vector of the given size from the JSON file.
      *
      * @param size The size of the double vector.
-     * @return [CottontailGrpc.Literal.Builder] containing the vector.
+     * @return [DoubleVectorValue] containing the vector.
      */
-    private fun readDoubleVector(size: Int): CottontailGrpc.Literal.Builder {
-        val vector = CottontailGrpc.DoubleVector.newBuilder()
+    private fun readDoubleVector(size: Int): DoubleVectorValue {
         this.reader.beginArray()
-        for (i in 0 until size) {
-            vector.addVector(this.reader.nextDouble())
-        }
+        val vector = DoubleVectorValue(DoubleArray(size) { this.reader.nextDouble() })
         this.reader.endArray()
-        return CottontailGrpc.Literal.newBuilder()
-            .setVectorData(CottontailGrpc.Vector.newBuilder().setDoubleVector(vector))
+        return vector
     }
 
     /**
      * Reads a complex 32 vector of the given size from the JSON file.
      *
      * @param size The size of the double vector.
-     * @return [CottontailGrpc.Literal.Builder] containing the vector.
+     * @return [Complex32VectorValue] containing the vector.
      */
-    private fun readComplex32Vector(size: Int): CottontailGrpc.Literal.Builder {
-        val vector = CottontailGrpc.Complex32Vector.newBuilder()
+    private fun readComplex32Vector(size: Int): Complex32VectorValue {
         this.reader.beginArray()
-        for (i in 0 until size) {
-            vector.addVector(this.readComplex32Value().complex32Data)
-        }
+        val vector = Complex32VectorValue(Array(size) { this.readComplex32Value() })
         this.reader.endArray()
-        return CottontailGrpc.Literal.newBuilder()
-            .setVectorData(CottontailGrpc.Vector.newBuilder().setComplex32Vector(vector))
+        return vector
     }
 
     /**
      * Reads a complex64 vector of the given size from the JSON file.
      *
      * @param size The size of the complex64 vector.
-     * @return [CottontailGrpc.Literal.Builder] containing the vector.
+     * @return [Complex64VectorValue] containing the vector.
      */
-    private fun readComplex64Vector(size: Int): CottontailGrpc.Literal.Builder {
-        val vector = CottontailGrpc.Complex64Vector.newBuilder()
+    private fun readComplex64Vector(size: Int): Complex64VectorValue {
         this.reader.beginArray()
-        for (i in 0 until size) {
-            vector.addVector(this.readComplex64Value().complex64Data)
-        }
+        val vector = Complex64VectorValue(Array(size) { this.readComplex64Value() })
         this.reader.endArray()
-        return CottontailGrpc.Literal.newBuilder()
-            .setVectorData(CottontailGrpc.Vector.newBuilder().setComplex64Vector(vector))
+        return vector
     }
 
     /**

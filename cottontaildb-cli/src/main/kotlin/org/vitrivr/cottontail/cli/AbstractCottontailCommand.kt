@@ -108,8 +108,8 @@ sealed class AbstractCottontailCommand(name: String, help: String, val expand: B
         private val format: Format? by option(
             "-f",
             "--format",
-            help = "Only for option --out; export format. Defaults to PROTO"
-        ).convert { Format.valueOf(it) }
+            help = "Only for option --out; export format. Defaults to PROTO."
+        ).convert { Format.valueOf(it) }.default(Format.PROTO)
 
         /** Flag indicating, whether query should written to file or console. */
         protected val toFile: Boolean

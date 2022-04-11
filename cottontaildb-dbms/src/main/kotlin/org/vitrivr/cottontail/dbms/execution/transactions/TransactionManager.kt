@@ -50,10 +50,10 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
 
 
     /** The [LockManager] instance used by this [TransactionManager]. */
-    val lockManager = LockManager<DBO>()
+    internal val lockManager = LockManager<DBO>()
 
     /** List of ongoing or past transactions (limited to [transactionHistorySize] entries). */
-    val transactionHistory = Collections.synchronizedList(LinkedList<TransactionImpl>())
+    internal val transactionHistory: MutableList<TransactionImpl> = Collections.synchronizedList(ArrayList(this.transactionHistorySize))
 
     /**
      * Returns the [TransactionImpl] for the provided [TransactionId].
@@ -212,8 +212,7 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
                         try {
                             txn.beforeCommit()
                         } catch (e: Throwable) {
-                            LOGGER.error("An error occurred while preparing Tx $i (${txn.dbo.name}) for commit of transaction ${this@TransactionImpl.txId}. This is serious!", e)
-                            throw e
+                            LOGGER.error("An error occurred while committing Tx $i (${txn.dbo.name}) of transaction ${this@TransactionImpl.txId}. This is serious!", e)
                         }
                     }
                     commit = this@TransactionImpl.xodusTx.commit()
@@ -264,8 +263,7 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
                     try {
                         txn.beforeRollback()
                     } catch (e: Throwable) {
-                        LOGGER.error("An error occurred while preparing Tx $i (${txn.dbo.name}) for rollback of transaction ${this@TransactionImpl.txId}. This is serious!", e)
-                        throw e
+                        LOGGER.error("An error occurred while rolling back Tx $i (${txn.dbo.name}) of transaction ${this@TransactionImpl.txId}. This is serious!", e)
                     }
                 }
                 this.xodusTx.abort()

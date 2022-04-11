@@ -18,25 +18,25 @@ import kotlin.time.measureTimedValue
  * Command to create a index on a specified entities column from Cottontail DB.
  *
  * @author Loris Sauter & Ralph Gasser
- * @version 2.0.0
+ * @version 2.0.1
  */
 @ExperimentalTime
 class CreateIndexCommand(client: SimpleClient) : AbstractCottontailCommand.Entity(client, name = "create-index", help = "Creates an index on the given entity and rebuilds the newly created index. Usage: entity createIndex <schema>.<entity> <column> <index>") {
 
     private val attribute by argument(
         name = "column",
-        help = "The column name to create the index for"
+        help = "The name of the column to create the index for."
     )
     private val index by argument(
         name = "index",
-        help = "The index to create"
+        help = "The type of index to create."
     ).enum<CottontailGrpc.IndexType>()
-    private val rebuild: Boolean by option(
-        "-r",
-        "--rebuild",
-        help = "Limits the amount of printed results"
-    )
-        .flag(default = false)
+
+    private val skipBuild: Boolean by option(
+        "-s",
+        "--skip-build",
+        help = "Skips the build step for the newly created index. Such an index cannot be used!"
+    ).flag(default = false)
 
     override fun exec() {
         val entity = this.entityName.proto()
@@ -48,7 +48,7 @@ class CreateIndexCommand(client: SimpleClient) : AbstractCottontailCommand.Entit
 
         try {
             val timedTable = measureTimedValue {
-                TabulationUtilities.tabulate(this.client.create(CottontailGrpc.CreateIndexMessage.newBuilder().setRebuild(this.rebuild).setDefinition(index).build()))
+                TabulationUtilities.tabulate(this.client.create(CottontailGrpc.CreateIndexMessage.newBuilder().setRebuild(!this.skipBuild).setDefinition(index).build()))
             }
             println("Successfully created index ${index.name.fqn()} (took ${timedTable.duration}).")
             print(timedTable.value)
