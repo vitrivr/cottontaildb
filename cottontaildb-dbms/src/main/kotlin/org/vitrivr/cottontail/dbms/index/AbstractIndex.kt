@@ -6,6 +6,7 @@ import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.catalogue.entries.ColumnCatalogueEntry
 import org.vitrivr.cottontail.dbms.catalogue.entries.IndexCatalogueEntry
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
+import org.vitrivr.cottontail.dbms.events.IndexEvent
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.exceptions.TxException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
@@ -106,6 +107,9 @@ abstract class AbstractIndex(final override val name: Name.IndexName, final over
 
             /* ... and write it to catalogue. */
             IndexCatalogueEntry.write(newEntry, this@AbstractIndex.catalogue, this.context.xodusTx)
+
+            /* Signal event to transaction context. */
+            this.context.signalEvent(IndexEvent.State(this@AbstractIndex.name, state))
         }
 
         /**
