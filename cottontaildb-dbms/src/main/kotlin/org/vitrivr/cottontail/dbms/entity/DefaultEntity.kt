@@ -390,7 +390,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
             }
 
             /* Issue DataChangeEvent.InsertDataChange event and update indexes. */
-            val event = DataEvent.Insert(this.context.txId, this@DefaultEntity.name, nextTupleId, inserts)
+            val event = DataEvent.Insert(this@DefaultEntity.name, nextTupleId, inserts)
             for (index in this.indexes.values) {
                 (this.context.getTx(index) as IndexTx).insert(event)
             }
@@ -422,7 +422,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
             }
 
             /* Issue DataChangeEvent.UpdateDataChangeEvent and update indexes + statistics. */
-            val event = DataEvent.Update(this.context.txId, this@DefaultEntity.name, record.tupleId, updates)
+            val event = DataEvent.Update(this@DefaultEntity.name, record.tupleId, updates)
             for (index in this.indexes.values) {
                 (this.context.getTx(index) as IndexTx).update(event)
             }
@@ -446,7 +446,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
             }
 
             /* Issue DataChangeEvent.DeleteDataChangeEvent and update indexes + statistics. */
-            val event = DataEvent.Delete(this.context.txId, this@DefaultEntity.name, tupleId, deleted)
+            val event = DataEvent.Delete(this@DefaultEntity.name, tupleId, deleted)
             for (index in this.indexes.values) {
                 (this.context.getTx(index) as IndexTx).delete(event)
             }

@@ -2,7 +2,6 @@ package org.vitrivr.cottontail.dbms.events
 
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.database.TransactionId
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.entity.Entity
@@ -26,15 +25,15 @@ interface DataEvent: Event {
     /**
      * A [DataEvent] that signals an INSERT into an [Entity]
      */
-    data class Insert(override val txId: TransactionId, override val entity: Name.EntityName, override val tupleId: TupleId, override val data: Map<ColumnDef<*>, Value?>): DataEvent
+    data class Insert(override val entity: Name.EntityName, override val tupleId: TupleId, override val data: Map<ColumnDef<*>, Value?>): DataEvent
 
     /**
      * A [DataEvent] that signals an UPDATE in an [Entity]
      */
-    data class Update(override val txId: TransactionId, override val entity: Name.EntityName, override val tupleId: TupleId, override val data: Map<ColumnDef<*>, Pair<Value?, Value?>>): DataEvent
+    data class Update(override val entity: Name.EntityName, override val tupleId: TupleId, override val data: Map<ColumnDef<*>, Pair<Value?, Value?>>): DataEvent
 
     /**
      * A [DataEvent] that signals a DELETE from an [Entity]
      */
-    data class Delete(override val txId: TransactionId, override val entity: Name.EntityName, override val tupleId: TupleId, override val data: Map<ColumnDef<*>, Value?>): DataEvent
+    data class Delete(override val entity: Name.EntityName, override val tupleId: TupleId, override val data: Map<ColumnDef<*>, Value?>): DataEvent
 }
