@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.dbms.index.pq
 
 /**
- * A lookup table like data structure used by [PQIndex] to obtain approximate distances from [PQShortSignature]s
+ * A lookup table like data structure used by [PQIndex] to obtain approximate distances from [PQSignature]s
  *
  * @author Gabriel Zihlmann & Ralph Gasser
  * @version 1.0.1

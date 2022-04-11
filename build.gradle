@@ -55,6 +55,12 @@ subprojects {
         withSourcesJar()
     }
 
+    /** Increase heap size for all unit tests. */
+    test {
+        minHeapSize = "256M"
+        maxHeapSize = "2G"
+    }
+
     javadoc {
         options.addStringOption("Xdoclint:none", "-quiet")
         options.memberLevel = JavadocMemberLevel.PRIVATE

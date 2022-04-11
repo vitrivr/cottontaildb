@@ -2,7 +2,6 @@ package org.vitrivr.cottontail.core.values
 
 import org.apache.commons.math3.util.FastMath
 import org.vitrivr.cottontail.core.values.types.*
-import java.util.*
 import kotlin.math.atan2
 import kotlin.math.pow
 
@@ -14,38 +13,19 @@ import kotlin.math.pow
  */
 @JvmInline
 value class Complex64VectorValue(val data: DoubleArray) : ComplexVectorValue<Double> {
-    companion object {
-        /**
-         * Generates a [Complex64VectorValue] of the given size initialized with random numbers.
-         *
-         * @param size Size of the new [Complex64VectorValue]
-         * @param rnd A [SplittableRandom] to generate the random numbers.
-         * @return Random [Complex64VectorValue]
-         */
-        fun random(size: Int, rnd: SplittableRandom = Value.RANDOM) = Complex64VectorValue(DoubleArray(2 * size) { rnd.nextDouble() })
 
-        /**
-         * Generates a [Complex64VectorValue] of the given size initialized with ones (i.e 1.0f + i0.0f).
-         *
-         * @param size Size of the new [Complex64VectorValue]
-         * @return [Complex64VectorValue] filled with ones.
-         */
-        fun one(size: Int) = Complex64VectorValue(DoubleArray(size * 2) {
-            if (it % 2 == 0) {
-                1.0
-            } else {
-                0.0
-            }
-        })
-
-        /**
-         * Generates a [Complex64VectorValue] of the given size initialized with zeros.
-         *
-         * @param size Size of the new [Complex64VectorValue]
-         * @return [Complex64VectorValue] filled with zeros.
-         */
-        fun zero(size: Int) = Complex64VectorValue(DoubleArray(size * 2) { 0.0 })
-    }
+    /**
+     * Constructor given an array of [Number]s
+     *
+     * @param value Array of [Number]s
+     */
+    constructor(value: Array<Number>): this(DoubleArray(2 * value.size) {
+        if (it % 2 == 0) {
+            value[it / 2].toDouble()
+        } else {
+            0.0
+        }
+    })
 
     /**
      * Constructor given an Array of [Complex32Value]s
@@ -103,7 +83,7 @@ value class Complex64VectorValue(val data: DoubleArray) : ComplexVectorValue<Dou
      *
      * @return The [DoubleVectorValue] representing the sub-vector.
      */
-    override fun subvector(start: Int, length: Int) = Complex64VectorValue(this.data.copyOfRange(2 * start, 2 * start + 2 * length))
+    override fun slice(start: Int, length: Int) = Complex64VectorValue(this.data.copyOfRange(2 * start, 2 * start + 2 * length))
 
     /**
      * Checks for equality between this [Complex64VectorValue] and the other [Value]. Equality can only be

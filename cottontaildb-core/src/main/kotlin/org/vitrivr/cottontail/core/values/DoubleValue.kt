@@ -4,31 +4,39 @@ import org.vitrivr.cottontail.core.values.types.NumericValue
 import org.vitrivr.cottontail.core.values.types.RealValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
-import java.util.*
 import kotlin.math.pow
 
 /**
  * This is an abstraction over a [Double].
  *
  * @author Ralph Gasser
- * @version 1.6.0
+ * @version 1.7.0
  */
 @JvmInline
 value class DoubleValue(override val value: Double): RealValue<Double> {
 
     companion object {
-        val ZERO = DoubleValue(0.0)
-        val ONE = DoubleValue(1.0)
-        val NaN = DoubleValue(Double.NaN)
-        val INF = DoubleValue(Double.POSITIVE_INFINITY)
-
         /**
-         * Generates a random [DoubleValue].
+         * The minimum value that can be held by a [DoubleValue].
          *
-         * @param rnd A [SplittableRandom] to generate the random numbers.
-         * @return Random [FloatValue]
+         * Is larger than [Double.MIN_VALUE] because [Double.MIN_VALUE] is reserved to signify null.
          */
-        fun random(rnd: SplittableRandom = Value.RANDOM) = DoubleValue(rnd.nextDouble())
+        val MIN_VALUE = DoubleValue(Double.MIN_VALUE + Double.MIN_VALUE)
+
+        /** The maximum value that can be held by a [DoubleValue]. */
+        val MAX_VALUE = DoubleValue(Float.MAX_VALUE)
+
+        /** The zero [DoubleValue]. */
+        val ZERO = DoubleValue(0.0)
+
+        /** The one [DoubleValue]. */
+        val ONE = DoubleValue(1.0)
+
+        /** The NaN [DoubleValue]. */
+        val NaN = DoubleValue(Double.NaN)
+
+        /** The infinity [DoubleValue]. */
+        val INF = DoubleValue(Double.POSITIVE_INFINITY)
     }
 
     /**

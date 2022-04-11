@@ -3,21 +3,18 @@ package org.vitrivr.cottontail.dbms.queries.operators.physical
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
-import org.vitrivr.cottontail.core.queries.Node
-import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
-import org.vitrivr.cottontail.dbms.queries.sort.SortOrder
-import org.vitrivr.cottontail.dbms.statistics.entity.RecordStatistics
+import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
 import java.io.PrintStream
 
 /**
  * An abstract [OperatorNode.Physical] implementation that has exactly two [OperatorNode.Physical]s as input.
  *
  * @author Ralph Gasser
- * @version 2.5.0
+ * @version 2.6.0
  */
-abstract class BinaryPhysicalOperatorNode(left: Physical? = null, right: Physical? = null) : org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Physical() {
+abstract class BinaryPhysicalOperatorNode(left: Physical? = null, right: Physical? = null) : OperatorNode.Physical() {
 
     /** Input arity of [BinaryPhysicalOperatorNode] is always two. */
     final override val inputArity: Int = 2
@@ -67,9 +64,6 @@ abstract class BinaryPhysicalOperatorNode(left: Physical? = null, right: Physica
     override val executable: Boolean
         get() = (this.left?.executable ?: false) && (this.right?.executable ?: false)
 
-    /** By default, [BinaryPhysicalOperatorNode]s cannot be partitioned. */
-    override val canBePartitioned: Boolean = false
-
     /** By default, the [BinaryPhysicalOperatorNode] outputs the physical [ColumnDef] of its left input. */
     override val physicalColumns: List<ColumnDef<*>>
         get() = (this.left?.physicalColumns ?: emptyList())
@@ -82,17 +76,13 @@ abstract class BinaryPhysicalOperatorNode(left: Physical? = null, right: Physica
     override val outputSize: Long
         get() = (this.left?.outputSize ?: 0)
 
-    /** By default, a [BinaryPhysicalOperatorNode]'s order is inherited from the left branch of of the tree. */
-    override val sortOn: List<Pair<ColumnDef<*>, SortOrder>>
-        get() = this.left?.sortOn ?: emptyList()
-
     /** By default, a [BinaryPhysicalOperatorNode]'s has no specific requirements. */
     override val requires: List<ColumnDef<*>>
         get() = emptyList()
 
-    /** By default, a [BinaryPhysicalOperatorNode]'s [RecordStatistics] is retained from its left inpu. */
-    override val statistics: RecordStatistics
-        get() = this.left?.statistics ?: RecordStatistics.EMPTY
+    /** By default, a [BinaryPhysicalOperatorNode]'s statistics are retained from its left input. */
+    override val statistics: Map<ColumnDef<*>,ValueStatistics<*>>
+        get() = this.left?.statistics ?: emptyMap()
 
     init {
         this.left = left
@@ -142,18 +132,6 @@ abstract class BinaryPhysicalOperatorNode(left: Physical? = null, right: Physica
         copy.left = input.getOrNull(0)
         copy.right = input.getOrNull(1)
         return (this.output?.copyWithOutput(copy) ?: copy).root
-    }
-
-    /**
-     * By default, the [BinaryPhysicalOperatorNode] simply propagates [bind] calls to its inpus.
-     *
-     * However, some implementations must propagate the call to inner [Node]s.
-     *
-     * @param context The [BindingContext] to bind this [BinaryPhysicalOperatorNode] to.
-     */
-    override fun bind(context: BindingContext) {
-        this.left?.bind(context)
-        this.right?.bind(context)
     }
 
     /**

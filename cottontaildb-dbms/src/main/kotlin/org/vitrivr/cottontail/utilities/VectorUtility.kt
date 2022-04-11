@@ -1,14 +1,15 @@
 package org.vitrivr.cottontail.utilities
 
+import org.apache.commons.math3.random.JDKRandomGenerator
 import org.vitrivr.cottontail.core.values.*
+import org.vitrivr.cottontail.core.values.generators.*
 import org.vitrivr.cottontail.core.values.types.VectorValue
-import java.util.*
 
 /**
  * Utility class used to generate a stream of [VectorValue]s.
  *
  * @author Ralph Gasser
- * @version 1.2
+ * @version 1.3.0
  */
 object VectorUtility {
 
@@ -18,12 +19,12 @@ object VectorUtility {
      * @param size The size of the random vectors.
      * @param items The number of items to return from the [Iterator]
      */
-    fun randomBoolVectorSequence(size: Int, items: Int = Int.MAX_VALUE, random: SplittableRandom = SplittableRandom()): Iterator<BooleanVectorValue> = object : Iterator<BooleanVectorValue> {
+    fun randomBoolVectorSequence(size: Int, items: Int = Int.MAX_VALUE, random: JDKRandomGenerator = JDKRandomGenerator()): Iterator<BooleanVectorValue> = object : Iterator<BooleanVectorValue> {
         var left = items
         override fun hasNext(): Boolean = this.left > 0
         override fun next(): BooleanVectorValue {
             this.left -= 1
-            return BooleanVectorValue.random(size, random)
+            return BooleanVectorValueGenerator.random(size, random)
         }
     }
 
@@ -33,12 +34,12 @@ object VectorUtility {
      * @param size The size of the random vectors.
      * @param items The number of items to return from the [Iterator]
      */
-    fun randomIntVectorSequence(size: Int, items: Int = Int.MAX_VALUE, random: SplittableRandom = SplittableRandom()): Iterator<IntVectorValue> = object : Iterator<IntVectorValue> {
+    fun randomIntVectorSequence(size: Int, items: Int = Int.MAX_VALUE, random: JDKRandomGenerator = JDKRandomGenerator()): Iterator<IntVectorValue> = object : Iterator<IntVectorValue> {
         var left = items
         override fun hasNext(): Boolean = this.left > 0
         override fun next(): IntVectorValue {
             this.left -= 1
-            return IntVectorValue.random(size, random)
+            return IntVectorValueGenerator.random(size, random)
         }
     }
 
@@ -48,12 +49,12 @@ object VectorUtility {
      * @param size The size of the random vectors.
      * @param items The number of items to return from the [Iterator]
      */
-    fun randomLongVectorSequence(size: Int, items: Int = Int.MAX_VALUE, random: SplittableRandom = SplittableRandom()): Iterator<LongVectorValue> = object : Iterator<LongVectorValue> {
+    fun randomLongVectorSequence(size: Int, items: Int = Int.MAX_VALUE, random: JDKRandomGenerator = JDKRandomGenerator()): Iterator<LongVectorValue> = object : Iterator<LongVectorValue> {
         var left = items
         override fun hasNext(): Boolean = this.left > 0
         override fun next(): LongVectorValue {
             this.left -= 1
-            return LongVectorValue.random(size, random)
+            return LongVectorValueGenerator.random(size, random)
         }
     }
 
@@ -63,12 +64,12 @@ object VectorUtility {
      * @param size The size of the random vectors.
      * @param items The number of items to return from the [Iterator]
      */
-    fun randomFloatVectorSequence(size: Int, items: Int = Int.MAX_VALUE, random: SplittableRandom = SplittableRandom()): Iterator<FloatVectorValue> = object : Iterator<FloatVectorValue> {
+    fun randomFloatVectorSequence(size: Int, items: Int = Int.MAX_VALUE, random: JDKRandomGenerator = JDKRandomGenerator()): Iterator<FloatVectorValue> = object : Iterator<FloatVectorValue> {
         var left = items
         override fun hasNext(): Boolean = this.left > 0
         override fun next(): FloatVectorValue {
             this.left -= 1
-            return FloatVectorValue.random(size, random)
+            return FloatVectorValueGenerator.random(size, random)
         }
     }
 
@@ -78,12 +79,12 @@ object VectorUtility {
      * @param size The size of the random vectors.
      * @param items The number of items to return from the [Iterator]
      */
-    fun randomDoubleVectorSequence(size: Int, items: Int = Int.MAX_VALUE, random: SplittableRandom = SplittableRandom()): Iterator<DoubleVectorValue> = object : Iterator<DoubleVectorValue> {
+    fun randomDoubleVectorSequence(size: Int, items: Int = Int.MAX_VALUE, random: JDKRandomGenerator = JDKRandomGenerator()): Iterator<DoubleVectorValue> = object : Iterator<DoubleVectorValue> {
         var left = items
         override fun hasNext(): Boolean = this.left > 0
         override fun next(): DoubleVectorValue {
             this.left -= 1
-            return DoubleVectorValue.random(size, random)
+            return DoubleVectorValueGenerator.random(size, random)
         }
     }
 
@@ -93,12 +94,12 @@ object VectorUtility {
      * @param size The size of the random vectors.
      * @param items The number of items to return from the [Iterator]
      */
-    fun randomComplex32VectorSequence(size: Int, items: Int = Int.MAX_VALUE, random: SplittableRandom = SplittableRandom()): Iterator<Complex32VectorValue> = object : Iterator<Complex32VectorValue> {
+    fun randomComplex32VectorSequence(size: Int, items: Int = Int.MAX_VALUE, random: JDKRandomGenerator = JDKRandomGenerator()): Iterator<Complex32VectorValue> = object : Iterator<Complex32VectorValue> {
         var left = items
         override fun hasNext(): Boolean = this.left > 0
         override fun next(): Complex32VectorValue {
             this.left -= 1
-            return Complex32VectorValue.random(size, random)
+            return Complex32VectorValueGenerator.random(size, random)
         }
     }
 
@@ -108,12 +109,12 @@ object VectorUtility {
      * @param size The size of the random vectors.
      * @param items The number of items to return from the [Iterator]
      */
-    fun randomComplex64VectorSequence(size: Int, items: Int = Int.MAX_VALUE, random: SplittableRandom = SplittableRandom()): Iterator<Complex64VectorValue> = object : Iterator<Complex64VectorValue> {
+    fun randomComplex64VectorSequence(size: Int, items: Int = Int.MAX_VALUE, random: JDKRandomGenerator = JDKRandomGenerator()): Iterator<Complex64VectorValue> = object : Iterator<Complex64VectorValue> {
         var left = items
         override fun hasNext(): Boolean = this.left > 0
         override fun next(): Complex64VectorValue {
             this.left -= 1
-            return Complex64VectorValue.random(size, random)
+            return Complex64VectorValueGenerator.random(size, random)
         }
     }
 }

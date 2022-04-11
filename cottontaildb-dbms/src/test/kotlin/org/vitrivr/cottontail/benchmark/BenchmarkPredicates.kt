@@ -50,7 +50,7 @@ class BenchmarkPredicates {
 
     @AfterAll
     fun teardown() {
-        this.embedded.stop()
+        this.embedded.shutdownAndWait()
         TxFileUtilities.delete(this.config.root)
     }
 

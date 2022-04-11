@@ -1,7 +1,6 @@
 package org.vitrivr.cottontail.core.values
 
 import org.vitrivr.cottontail.core.values.types.*
-import java.util.*
 import kotlin.math.atan2
 
 /**
@@ -18,16 +17,6 @@ value class Complex64Value(val data: DoubleArray): ComplexValue<Double> {
         val ONE = Complex64Value(doubleArrayOf(1.0, 0.0))
         val NaN = Complex64Value(doubleArrayOf(Double.NaN, Double.NaN))
         val INF = Complex64Value(doubleArrayOf(Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY))
-
-        /**
-         * Generates a [Complex32VectorValue] initialized with random numbers.
-         *
-         * @param rnd A [SplittableRandom] to generate the random numbers.
-         * @return Random [Complex64Value]
-         */
-        fun random(rnd: SplittableRandom = Value.RANDOM) = Complex64Value(DoubleArray(2) {
-            rnd.nextDouble()
-        })
     }
 
     /**

@@ -1,132 +1,54 @@
 package org.vitrivr.cottontail.dbms.statistics.columns
 
-import org.mapdb.DataInput2
-import org.mapdb.DataOutput2
-import org.mapdb.Serializer
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
-import org.vitrivr.cottontail.dbms.statistics.selectivity.Selectivity
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
-import java.lang.Math.floorDiv
+import org.vitrivr.cottontail.dbms.statistics.selectivity.Selectivity
 
 /**
- * A basic implementation of a [ValueStatistics] object, which is used by Cottontail DB to collect and summary statistics about
- * [Value]s it encounters.
- *
- * These classes are used to collect statistics about columns, which can then be leveraged by the query planner.
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.0.0
  */
-open class ValueStatistics<T : Value>(val type: Types<T>) {
+sealed interface ValueStatistics<T : Value> {
+
+    /** The [Types] of [ValueStatistics]. */
+    val type: Types<T>
 
     /** Flag indicating that this [ValueStatistics] needs updating. */
-    var fresh: Boolean = true
-        protected set
+    val fresh: Boolean
 
     /** Number of null entries known to this [ValueStatistics]. */
-    var numberOfNullEntries: Long = 0L
-        protected set
+    val numberOfNullEntries: Long
 
     /** Number of non-null entries known to this [ValueStatistics]. */
-    var numberOfNonNullEntries: Long = 0L
-        protected set
-
-    companion object : Serializer<ValueStatistics<*>> {
-        override fun serialize(out: DataOutput2, value: ValueStatistics<*>) {
-            out.packInt(value.type.ordinal)
-            out.packInt(value.type.logicalSize)
-            when (value) {
-                is BooleanValueStatistics -> BooleanValueStatistics.serialize(out, value)
-                is ByteValueStatistics -> ByteValueStatistics.serialize(out, value)
-                is ShortValueStatistics -> ShortValueStatistics.serialize(out, value)
-                is IntValueStatistics -> IntValueStatistics.serialize(out, value)
-                is LongValueStatistics -> LongValueStatistics.serialize(out, value)
-                is FloatValueStatistics -> FloatValueStatistics.serialize(out, value)
-                is DoubleValueStatistics -> DoubleValueStatistics.serialize(out, value)
-                is DateValueStatistics -> DateValueStatistics.serialize(out, value)
-                is StringValueStatistics -> StringValueStatistics.serialize(out, value)
-                is BooleanVectorValueStatistics -> BooleanVectorValueStatistics.Serializer(value.type).serialize(out, value)
-                is DoubleVectorValueStatistics -> DoubleVectorValueStatistics.Serializer(value.type).serialize(out, value)
-                is FloatVectorValueStatistics -> FloatVectorValueStatistics.Serializer(value.type).serialize(out, value)
-                is LongVectorValueStatistics -> LongVectorValueStatistics.Serializer(value.type).serialize(out, value)
-                is IntVectorValueStatistics -> IntVectorValueStatistics.Serializer(value.type).serialize(out, value)
-            }
-            out.writeBoolean(value.fresh)
-            out.packLong(value.numberOfNullEntries)
-            out.packLong(value.numberOfNonNullEntries)
-        }
-
-        override fun deserialize(input: DataInput2, available: Int): ValueStatistics<*> {
-            val stat = when (val type = Types.forOrdinal(input.unpackInt(), input.unpackInt())) {
-                Types.Complex32,
-                Types.Complex64,
-                is Types.Complex32Vector,
-                is Types.Complex64Vector,
-                -> ValueStatistics(type)
-                Types.Boolean -> BooleanValueStatistics.deserialize(input, available)
-                Types.Byte -> ByteValueStatistics.deserialize(input, available)
-                Types.Double -> DoubleValueStatistics.deserialize(input, available)
-                Types.Float -> FloatValueStatistics.deserialize(input, available)
-                Types.Int -> IntValueStatistics.deserialize(input, available)
-                Types.Long -> LongValueStatistics.deserialize(input, available)
-                Types.Short -> ShortValueStatistics.deserialize(input, available)
-                Types.String -> StringValueStatistics.deserialize(input, available)
-                Types.Date -> DateValueStatistics.deserialize(input, available)
-                is Types.BooleanVector -> BooleanVectorValueStatistics.Serializer(type).deserialize(input, available)
-                is Types.DoubleVector -> DoubleVectorValueStatistics.Serializer(type).deserialize(input, available)
-                is Types.FloatVector -> FloatVectorValueStatistics.Serializer(type).deserialize(input, available)
-                is Types.IntVector -> IntVectorValueStatistics.Serializer(type).deserialize(input, available)
-                is Types.LongVector -> LongVectorValueStatistics.Serializer(type).deserialize(input, available)
-            }
-            stat.fresh = input.readBoolean()
-            stat.numberOfNullEntries = input.unpackLong()
-            stat.numberOfNonNullEntries = input.unpackLong()
-            return stat
-        }
-    }
+    val numberOfNonNullEntries: Long
 
     /** Total number of entries known to this [ValueStatistics]. */
-    val numberOfEntries
-        get() = this.numberOfNullEntries + this.numberOfNonNullEntries
+    val numberOfEntries: Long
 
     /** Smallest [Value] seen in terms of space requirement (logical size) known to this [ValueStatistics]. */
-    open val minWidth: Int
-        get() = this.type.logicalSize
+    val minWidth: Int
 
     /** Largest [Value] in terms of space requirement (logical size) known to this [ValueStatistics] */
-    open val maxWidth: Int
-        get() = this.type.logicalSize
+    val maxWidth: Int
 
     /** Mean [Value] in terms of space requirement (logical size) known to this [ValueStatistics] */
     val avgWidth: Int
-        get() = floorDiv(this.minWidth + this.maxWidth, 2)
 
     /**
      * Updates this [ValueStatistics] with an inserted [Value]
      *
      * @param inserted The [Value] that was deleted.
      */
-    open fun insert(inserted: T?) {
-        if (inserted == null) {
-            this.numberOfNullEntries += 1
-        } else {
-            this.numberOfNonNullEntries += 1
-        }
-    }
+    fun insert(inserted: T?)
 
     /**
      * Updates this [ValueStatistics] with a deleted [Value]
      *
      * @param deleted The [Value] that was deleted.
      */
-    open fun delete(deleted: T?) {
-        if (deleted == null) {
-            this.numberOfNullEntries -= 1
-        } else {
-            this.numberOfNonNullEntries -= 1
-        }
-    }
+    fun delete(deleted: T?)
 
     /**
      * Updates this [ValueStatistics] with a new updated value [T].
@@ -136,32 +58,19 @@ open class ValueStatistics<T : Value>(val type: Types<T>) {
      * @param old The [Value] before the update.
      * @param new The [Value] after the update.
      */
-    open fun update(old: T?, new: T?) {
-        this.delete(old)
-        this.insert(new)
-    }
+    fun update(old: T?, new: T?)
 
     /**
-     * Resets this [ValueStatistics] and sets all its values to to the default value.
+     * Resets this [ValueStatistics] and sets all its values to the default value.
      */
-    open fun reset() {
-        this.fresh = true
-        this.numberOfNullEntries = 0L
-        this.numberOfNonNullEntries = 0L
-    }
+    fun reset()
 
     /**
      * Copies this [ValueStatistics] and returns it.
      *
      * @return Copy of this [ValueStatistics].
      */
-    open fun copy(): ValueStatistics<T> {
-        val copy = ValueStatistics(this.type)
-        copy.fresh = this.fresh
-        copy.numberOfNullEntries = this.numberOfNullEntries
-        copy.numberOfNonNullEntries = this.numberOfNonNullEntries
-        return copy
-    }
+    fun copy(): ValueStatistics<T>
 
     /**
      * Estimates [Selectivity] of the given [BooleanPredicate.Atomic], i.e., the percentage of [Record]s that match it.
@@ -170,5 +79,5 @@ open class ValueStatistics<T : Value>(val type: Types<T>) {
      * @param predicate [BooleanPredicate.Atomic] To estimate [Selectivity] for.
      * @return [Selectivity] estimate.
      */
-    open fun estimateSelectivity(predicate: BooleanPredicate.Atomic): Selectivity = Selectivity.DEFAULT_SELECTIVITY
+    fun estimateSelectivity(predicate: BooleanPredicate.Atomic): Selectivity
 }

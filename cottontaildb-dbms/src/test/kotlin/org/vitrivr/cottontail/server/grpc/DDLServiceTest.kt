@@ -9,8 +9,10 @@ import org.vitrivr.cottontail.TestConstants
 import org.vitrivr.cottontail.TestConstants.DBO_CONSTANT
 import org.vitrivr.cottontail.TestConstants.TEST_SCHEMA
 import org.vitrivr.cottontail.client.SimpleClient
+import org.vitrivr.cottontail.client.language.basics.Type
 import org.vitrivr.cottontail.client.language.ddl.*
 import org.vitrivr.cottontail.embedded
+import org.vitrivr.cottontail.server.CottontailServer
 import java.util.concurrent.TimeUnit
 import kotlin.time.ExperimentalTime
 
@@ -20,7 +22,7 @@ class DDLServiceTest {
 
     private lateinit var client: SimpleClient
     private lateinit var channel: ManagedChannel
-    private lateinit var embedded: CottontailGrpcServer
+    private lateinit var embedded: CottontailServer
 
     @BeforeAll
     fun startCottontail() {
@@ -45,7 +47,7 @@ class DDLServiceTest {
         this.channel.awaitTermination(25000, TimeUnit.MILLISECONDS)
 
         /* Stop embedded server. */
-        this.embedded.stop()
+        this.embedded.shutdownAndWait()
 
     }
 
@@ -97,8 +99,8 @@ class DDLServiceTest {
 
     @Test
     fun createAndDropSchema() {
-        client.create(CreateSchema(TEST_SCHEMA))
-        client.drop(DropSchema(TEST_SCHEMA))
+        this.client.create(CreateSchema(TEST_SCHEMA))
+        this.client.drop(DropSchema(TEST_SCHEMA))
         val names = schemaNames()
         assert(!names.contains("warren.$TEST_SCHEMA")) { "Schema $TEST_SCHEMA was not dropped" }
 
@@ -131,7 +133,7 @@ class DDLServiceTest {
     fun createAndListEntity() {
         try {
             client.create(CreateSchema(TEST_SCHEMA))
-            client.create(CreateEntity(GrpcTestUtils.TEST_ENTITY_FQN))
+            client.create(CreateEntity(GrpcTestUtils.TEST_ENTITY_FQN).column("id", Type.STRING))
             val names = entityNames()
             assert(names.contains(GrpcTestUtils.TEST_ENTITY_FQN_WITH_WARREN)) { "Returned entity names do not contain ${GrpcTestUtils.TEST_ENTITY_FQN_WITH_WARREN}." }
         } catch (e: StatusRuntimeException) {
@@ -149,9 +151,9 @@ class DDLServiceTest {
     @Test
     fun createAndVerifyAboutEntity() {
         try {
-            client.create(CreateSchema(TEST_SCHEMA))
-            client.create(CreateEntity(GrpcTestUtils.TEST_ENTITY_FQN))
-            val about = client.about(AboutEntity(GrpcTestUtils.TEST_ENTITY_FQN))
+            this.client.create(CreateSchema(TEST_SCHEMA))
+            this.client.create(CreateEntity(GrpcTestUtils.TEST_ENTITY_FQN).column("id", Type.STRING))
+            val about = this.client.about(AboutEntity(GrpcTestUtils.TEST_ENTITY_FQN))
             assert(about.hasNext()) { "could not verify existence with about message" }
         } catch (e: StatusRuntimeException) {
             fail("Creating entity ${GrpcTestUtils.TEST_ENTITY_FQN_WITH_WARREN} failed with status " + e.status)
@@ -172,7 +174,7 @@ class DDLServiceTest {
     fun createAndDropEntity() {
         try {
             client.create(CreateSchema(TEST_SCHEMA))
-            client.create(CreateEntity(GrpcTestUtils.TEST_ENTITY_FQN))
+            client.create(CreateEntity(GrpcTestUtils.TEST_ENTITY_FQN).column("id", Type.STRING))
             client.drop(DropEntity(GrpcTestUtils.TEST_ENTITY_FQN))
             val names = entityNames()
             assert(!names.contains(GrpcTestUtils.TEST_ENTITY_FQN)) { "Returned entity names do not contain ${GrpcTestUtils.TEST_ENTITY_FQN_WITH_WARREN}." }
@@ -195,7 +197,7 @@ class DDLServiceTest {
     fun createAndDropEntityWithWarren() {
         try {
             client.create(CreateSchema(TEST_SCHEMA))
-            client.create(CreateEntity(GrpcTestUtils.TEST_ENTITY_FQN))
+            client.create(CreateEntity(GrpcTestUtils.TEST_ENTITY_FQN).column("id", Type.STRING))
             client.drop(DropEntity(GrpcTestUtils.TEST_ENTITY_FQN))
             val names = entityNames()
             assert(!names.contains(GrpcTestUtils.TEST_ENTITY_FQN_WITH_WARREN)) { "Returned entity names do not contain ${GrpcTestUtils.TEST_ENTITY_FQN_WITH_WARREN}." }

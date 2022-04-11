@@ -1,45 +1,58 @@
 package org.vitrivr.cottontail.dbms.index.va.signature
 
-import org.mapdb.DataInput2
-import org.mapdb.DataOutput2
+import jetbrains.exodus.ArrayByteIterable
+import jetbrains.exodus.ByteIterable
+import org.vitrivr.cottontail.dbms.index.va.VAFIndex
+import org.xerial.snappy.Snappy
 
 /**
- * A fixed length [VAFSignature] used for vector approximation.
+ * A fixed length [VAFSignature] used in [VAFIndex] structures.
  *
  * @author Gabriel Zihlmann & Ralph Gasser
- * @version 1.0.1
+ * @version 1.1.0
  */
-data class VAFSignature(val tupleId: Long, val cells: IntArray) {
-    companion object Serializer : org.mapdb.Serializer<VAFSignature> {
-        override fun serialize(out: DataOutput2, value: VAFSignature) {
-            out.packLong(value.tupleId)
-            out.packInt(value.cells.size)
-            for (c in value.cells) {
-                out.packInt(c)
-            }
+@JvmInline
+value class VAFSignature(val cells: ByteArray): Comparable<VAFSignature> {
+
+    companion object {
+        fun invalid(d: Int) = VAFSignature(ByteArray(d) { -1 })
+    }
+
+    /**
+     * A Xodus binding to serialize and deserialize [VAFSignature].
+     */
+    object Binding {
+        fun entryToValue(entry: ByteIterable): VAFSignature = VAFSignature(Snappy.uncompress(entry.bytesUnsafe))
+        fun valueToEntry(value: VAFSignature): ByteIterable {
+            val compressed = Snappy.compress(value.cells)
+            return ArrayByteIterable(compressed, compressed.size)
         }
-
-        override fun deserialize(input: DataInput2, available: Int) = VAFSignature(
-            input.unpackLong(),
-            IntArray(input.unpackInt()) { input.unpackInt() }
-        )
     }
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (javaClass != other?.javaClass) return false
-
-        other as VAFSignature
-
-        if (tupleId != other.tupleId) return false
-        if (!cells.contentEquals(other.cells)) return false
-
-        return true
+    override fun compareTo(other: VAFSignature): Int {
+        for ((i,b) in this.cells.withIndex()) {
+            if (i >= other.cells.size) return Int.MIN_VALUE
+            val comp = b.compareTo(other.cells[i])
+            if (comp != 0) return comp
+        }
+        return 0
     }
 
-    override fun hashCode(): Int {
-        var result = tupleId.hashCode()
-        result = 31 * result + cells.contentHashCode()
-        return result
-    }
+    /**
+     * Accessor for [VAFSignature].
+     *
+     * @param index The [index] to access.
+     * @return [Int] value at the given [index].
+     */
+    operator fun get(index: Int): Byte = this.cells[index]
+
+    /**
+     * Checks if this [VAFSignature] is an invalid signature, which is used as a placeholder in cases no
+     * valid [VAFSignature] could be obtained,
+     *
+     * @return True if [VAFSignature] is invalid, false otherwise.
+     */
+    fun invalid(): Boolean = this.cells.any { it < 0 }
+
+
 }

@@ -10,6 +10,7 @@ import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.dbms.column.Column
 import org.vitrivr.cottontail.dbms.general.Tx
 import org.vitrivr.cottontail.dbms.index.Index
+import org.vitrivr.cottontail.dbms.index.IndexConfig
 import org.vitrivr.cottontail.dbms.index.IndexTx
 import org.vitrivr.cottontail.dbms.index.IndexType
 
@@ -17,34 +18,56 @@ import org.vitrivr.cottontail.dbms.index.IndexType
  * A [Tx] that operates on a single [Entity]. [Tx]s are a unit of isolation for data operations (read/write).
  *
  * @author Ralph Gasser
- * @version 1.3.1
+ * @version 3.0.0
  */
-interface EntityTx : Tx, Scanable, Countable,
-    Modifiable {
-
-    /** Reference to the [EntityTxSnapshot] held by this [EntityTx]. */
-    override val snapshot: EntityTxSnapshot
+interface EntityTx : Tx, Scanable, Countable, Modifiable {
 
     /** Reference to the [Entity] this [EntityTx] belongs to. */
     override val dbo: Entity
 
     /**
-     * Returns the maximum [TupleId] known by this [EntityTx].
+     * Returns the smallest [TupleId] managed by the [Entity] backing this [EntityTx].
      *
-     * @return Maximum [TupleId] known by this [EntityTx]
+     * @return The smallest [TupleId] in the [Entity] backing this [EntityTx]
      */
-    fun maxTupleId(): TupleId
+    fun smallestTupleId(): TupleId
+
+    /**
+     * Returns the largest [TupleId] managed by the [Entity] backing this [EntityTx].
+     *
+     * @return The largest [TupleId] in the [Entity] backing this [EntityTx]
+     */
+    fun largestTupleId(): TupleId
+
+    /**
+     * Returns true if the [Entity] underpinning this [EntityTx]contains the given [TupleId] and false otherwise.
+     *
+     * If this method returns true, then [EntityTx.read] will return a [Record] for [TupleId]. However, if this method
+     * returns false, then [EntityTx.read] will throw an exception for that [TupleId].
+     *
+     * @param tupleId The [TupleId] of the desired entry
+     * @return True if entry exists, false otherwise,
+     */
+    fun contains(tupleId: TupleId): Boolean
+
+    /**
+     * Reads the specified [TupleId] and the specified [ColumnDef] through this [EntityTx].
+     *
+     * @param tupleId The [TupleId] to read.
+     * @param columns The [ColumnDef] to read.
+     */
+    fun read(tupleId: TupleId, columns: Array<ColumnDef<*>>): Record
 
     /**
      * Lists all [ColumnDef]s for the [Entity] associated with this [EntityTx].
      *
      * @return List of all [ColumnDef]s.
      */
-    fun listColumns(): List<Column<*>>
+    fun listColumns(): List<ColumnDef<*>>
 
     /**
      * Returns the [Column] for the specified [Name.ColumnName]. Should be able to handle
-     * both simple names and fully qualified names.
+     * both simple names as well as fully qualified names.
      *
      * @param name The [Name.ColumnName] of the [Column].
      * @return [Column].
@@ -56,7 +79,7 @@ interface EntityTx : Tx, Scanable, Countable,
      *
      * @return List of [Name.IndexName] managed by this [EntityTx]
      */
-    fun listIndexes(): List<Index>
+    fun listIndexes(): List<Name.IndexName>
 
     /**
      * Returns the [IndexTx] for the given [Name.IndexName].
@@ -71,11 +94,11 @@ interface EntityTx : Tx, Scanable, Countable,
      *
      * @param name [Name.IndexName] of the [Index] to create.
      * @param type Type of the [Index] to create.
-     * @param columns The list of [columns] to [Index].
-     * @param params Additional parameters for index creation.
+     * @param columns The list of [Name.ColumnName] to create [Index] for.
+     * @param configuration The [IndexConfig] to initialize the [Index] with.
      * @return Newly created [Index] for use in context of this [Tx]
      */
-    fun createIndex(name: Name.IndexName, type: IndexType, columns: Array<ColumnDef<*>>, params: Map<String, String>): Index
+    fun createIndex(name: Name.IndexName, type: IndexType, columns: List<Name.ColumnName>, configuration: IndexConfig<*>): Index
 
     /**
      * Drops the [Index] with the given name.
@@ -88,12 +111,4 @@ interface EntityTx : Tx, Scanable, Countable,
      * Optimizes the [Entity] underlying this [EntityTx]. Optimization involves rebuilding of [Index]es and statistics.
      */
     fun optimize()
-
-    /**
-     * Reads the specified [TupleId] and the specified [ColumnDef] through this [EntityTx].
-     *
-     * @param tupleId The [TupleId] to read.
-     * @param columns The [ColumnDef] to read.
-     */
-    fun read(tupleId: TupleId, columns: Array<ColumnDef<*>>): Record
 }

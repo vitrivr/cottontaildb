@@ -10,6 +10,7 @@ import org.vitrivr.cottontail.core.queries.functions.Signature
 import org.vitrivr.cottontail.core.queries.functions.exception.FunctionNotFoundException
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
+import org.vitrivr.cottontail.core.queries.sort.SortOrder
 import org.vitrivr.cottontail.core.values.StringValue
 import org.vitrivr.cottontail.core.values.pattern.LikePatternValue
 import org.vitrivr.cottontail.core.values.types.Types
@@ -18,7 +19,7 @@ import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
-import org.vitrivr.cottontail.dbms.queries.QueryContext
+import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.function.FunctionLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.management.DeleteLogicalOperatorNode
@@ -35,7 +36,6 @@ import org.vitrivr.cottontail.dbms.queries.operators.logical.sources.EntitySampl
 import org.vitrivr.cottontail.dbms.queries.operators.logical.sources.EntityScanLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.transform.LimitLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.projection.Projection
-import org.vitrivr.cottontail.dbms.queries.sort.SortOrder
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.utilities.extensions.fqn
@@ -51,26 +51,26 @@ import org.vitrivr.cottontail.utilities.extensions.toValue
  * 3) Construction of a [OperatorNode.Logical] tree from the internal query objects.
  *
  * @author Ralph Gasser
- * @version 2.0.5
+ * @version 2.1.0
  */
 object GrpcQueryBinder {
 
     /** Default projection operator (star projection). */
     private val DEFAULT_PROJECTION = CottontailGrpc.Projection.newBuilder()
         .setOp(CottontailGrpc.Projection.ProjectionOperation.SELECT)
-        .addElements(CottontailGrpc.Projection.ProjectionElement.newBuilder().setColumn(CottontailGrpc.ColumnName.newBuilder().setName("*")))
+        .addElements(CottontailGrpc.Projection.ProjectionElement.newBuilder().setExpression(CottontailGrpc.Expression.newBuilder().setColumn(CottontailGrpc.ColumnName.newBuilder().setName("*"))))
         .build()
 
     /**
      * Binds the given [CottontailGrpc.Query] to the database objects and thereby creates a tree of [OperatorNode.Logical]s.
      *
      * @param query The [CottontailGrpc.Query] that should be bound.
-     * @param context The [QueryContext] used for binding.
+     * @param context The [DefaultQueryContext] used for binding.
      * @return [OperatorNode.Logical]
      * @throws QueryException.QuerySyntaxException If [CottontailGrpc.Query] is structurally incorrect.
      */
     @Suppress("UNCHECKED_CAST")
-    fun bind(query: CottontailGrpc.Query, context: QueryContext): OperatorNode.Logical {
+    fun bind(query: CottontailGrpc.Query, context: DefaultQueryContext): OperatorNode.Logical {
         /* Parse SELECT-clause (projection); this clause is important because of aliases. */
         val projection = if (query.hasProjection()) { query.projection } else { DEFAULT_PROJECTION }
         val columns = this.parseProjectionColumns(projection)
@@ -84,7 +84,7 @@ object GrpcQueryBinder {
         }.zip(projection.elementsList).filter {
             it.first.first is Name.FunctionName
         }.forEach {
-            root = this.parseAndBindFunction(root, it.second.function, it.first.second, context)
+            root = this.parseAndBindFunction(root, it.second.expression.function, it.first.second, context)
         }
 
         /* Parse and bind WHERE-clause. */
@@ -109,9 +109,7 @@ object GrpcQueryBinder {
         }
 
         /* Process SELECT-clause (projection). */
-        root = parseAndBindProjection(root, columns, Projection.valueOf(projection.op.toString()), context)
-        context.register(root)
-        return root
+        return parseAndBindProjection(root, columns, Projection.valueOf(projection.op.toString()), context)
     }
 
     /**
@@ -119,10 +117,10 @@ object GrpcQueryBinder {
      * a tree of [OperatorNode.Logical]s.
      *
      * @param insert The [ CottontailGrpc.InsertMessage] that should be bound.
-     * @param context The [QueryContext] used for binding.
-     * @throws QueryException.QuerySyntaxException If [CottontailGrpc.Query] is structurally incorrect.
+     * @param context The [DefaultQueryContext] used for binding.
+     * @return [InsertLogicalOperatorNode].
      */
-    fun bind(insert: CottontailGrpc.InsertMessage, context: QueryContext) {
+    fun bind(insert: CottontailGrpc.InsertMessage, context: DefaultQueryContext): InsertLogicalOperatorNode {
         try {
             /* Parse entity for INSERT. */
             val entity = parseAndBindEntity(insert.from.scan.entity, context)
@@ -144,7 +142,7 @@ object GrpcQueryBinder {
 
             /* Create and return INSERT-clause. */
             val record = RecordBinding(-1L, columns, values)
-            context.register(InsertLogicalOperatorNode(context.nextGroupId(), entityTx, mutableListOf(record)))
+            return InsertLogicalOperatorNode(context.nextGroupId(), entityTx, mutableListOf(record))
         } catch (e: DatabaseException.ColumnDoesNotExistException) {
             throw QueryException.QueryBindException("Failed to bind '${e.column}'. Column does not exist!")
         }
@@ -155,10 +153,10 @@ object GrpcQueryBinder {
      * a tree of [OperatorNode.Logical]s.
      *
      * @param insert The [ CottontailGrpc.InsertMessage] that should be bound.
-     * @param context The [QueryContext] used for binding.
-     * @throws QueryException.QuerySyntaxException If [CottontailGrpc.Query] is structurally incorrect.
+     * @param context The [DefaultQueryContext] used for binding.
+     * @return [InsertLogicalOperatorNode]
      */
-    fun bind(insert: CottontailGrpc.BatchInsertMessage, context: QueryContext) {
+    fun bind(insert: CottontailGrpc.BatchInsertMessage, context: DefaultQueryContext): InsertLogicalOperatorNode {
         try {
             /* Parse entity for BATCH INSERT. */
             val entity = parseAndBindEntity(insert.from.scan.entity, context)
@@ -181,7 +179,7 @@ object GrpcQueryBinder {
                     }
                 })
             }.toMutableList()
-            context.register(InsertLogicalOperatorNode(context.nextGroupId(), entityTx, records))
+            return InsertLogicalOperatorNode(context.nextGroupId(), entityTx, records)
         } catch (e: DatabaseException.ColumnDoesNotExistException) {
             throw QueryException.QueryBindException("Failed to bind '${e.column}'. Column does not exist!")
         }
@@ -192,10 +190,10 @@ object GrpcQueryBinder {
      * a tree of [OperatorNode.Logical]s.
      *
      * @param update The [CottontailGrpc.UpdateMessage] that should be bound.
-     * @param context The [QueryContext] used for binding.
-     * @throws QueryException.QuerySyntaxException If [CottontailGrpc.Query] is structurally incorrect.
+     * @param context The [DefaultQueryContext] used for binding.
+     * @return [UpdateLogicalOperatorNode]
      */
-    fun bind(update: CottontailGrpc.UpdateMessage, context: QueryContext) {
+    fun bind(update: CottontailGrpc.UpdateMessage, context: DefaultQueryContext): UpdateLogicalOperatorNode {
         try {
             /* Parse FROM-clause. */
             var root = parseAndBindFrom(update.from, parseProjectionColumns(DEFAULT_PROJECTION), context)
@@ -231,7 +229,7 @@ object GrpcQueryBinder {
             }
 
             /* Create and return UPDATE-clause. */
-            context.register(UpdateLogicalOperatorNode(root, entity, values))
+            return UpdateLogicalOperatorNode(root, entity, values)
         } catch (e: DatabaseException.ColumnDoesNotExistException) {
             throw QueryException.QueryBindException("Failed to bind '${e.column}'. Column does not exist!")
         }
@@ -242,12 +240,11 @@ object GrpcQueryBinder {
      * a tree of [OperatorNode.Logical]s.
      *
      * @param delete The [CottontailGrpc.DeleteMessage] that should be bound.
-     * @param context The [QueryContext] used for binding.
+     * @param context The [DefaultQueryContext] used for binding.
      *
-     * @return [OperatorNode.Logical]
-     * @throws QueryException.QuerySyntaxException If [CottontailGrpc.Query] is structurally incorrect.
+     * @return [DeleteLogicalOperatorNode]
      */
-    fun bind(delete: CottontailGrpc.DeleteMessage, context: QueryContext) {
+    fun bind(delete: CottontailGrpc.DeleteMessage, context: DefaultQueryContext): DeleteLogicalOperatorNode {
         /* Parse FROM-clause. */
         val from = parseAndBindFrom(delete.from, parseProjectionColumns(DEFAULT_PROJECTION), context)
         if (from !is EntityScanLogicalOperatorNode) {
@@ -264,7 +261,7 @@ object GrpcQueryBinder {
         }
 
         /* Create and return DELETE-clause. */
-        context.register(DeleteLogicalOperatorNode(root, entity))
+        return DeleteLogicalOperatorNode(root, entity)
     }
 
     /**
@@ -272,21 +269,21 @@ object GrpcQueryBinder {
      *
      * @param from The [CottontailGrpc.From] object.
      * @param columns The list of [Name.ColumnName] as per parsed projection-clause. Used to determine aliases.
-     * @param context The [QueryContext] used for binding.
+     * @param context The [DefaultQueryContext] used for binding.
      *
      * @return The resulting [OperatorNode.Logical].
      */
-    private fun parseAndBindFrom(from: CottontailGrpc.From, columns: Map<Name.ColumnName, Name>, context: QueryContext): OperatorNode.Logical = try {
+    private fun parseAndBindFrom(from: CottontailGrpc.From, columns: Map<Name.ColumnName, Name>, context: DefaultQueryContext): OperatorNode.Logical = try {
         when (from.fromCase) {
             CottontailGrpc.From.FromCase.SCAN -> {
                 val entity = parseAndBindEntity(from.scan.entity, context)
                 val entityTx = context.txn.getTx(entity) as EntityTx
-                val fetch = entityTx.listColumns().map { ci ->
-                    val name = columns.entries.singleOrNull { c -> c.value is Name.ColumnName && c.value.matches(ci.name) }
-                    if (name == null || name.key.components[3] == Name.NAME_COMPONENT_WILDCARD) {
-                        context.bindings.bind(ci.columnDef) to ci.columnDef
+                val fetch = entityTx.listColumns().map { def ->
+                    val name = columns.entries.singleOrNull { c -> c.value is Name.ColumnName && c.value.matches(def.name) }
+                    if (name == null || name.key.columnName == Name.WILDCARD) {
+                        context.bindings.bind(def) to def
                     } else {
-                        context.bindings.bind(ci.columnDef.copy(name = name.key)) to ci.columnDef
+                        context.bindings.bind(def.copy(name = name.key)) to def
                     }
                 }
                 EntityScanLogicalOperatorNode(context.nextGroupId(), entityTx, fetch)
@@ -294,12 +291,12 @@ object GrpcQueryBinder {
             CottontailGrpc.From.FromCase.SAMPLE -> {
                 val entity = parseAndBindEntity(from.scan.entity, context)
                 val entityTx = context.txn.getTx(entity) as EntityTx
-                val fetch = entityTx.listColumns().map { ci ->
-                    val name = columns.entries.singleOrNull { c -> c.value is Name.ColumnName && c.value.matches(ci.name) }
-                    if (name == null || name.key.components[3] == Name.NAME_COMPONENT_WILDCARD) {
-                        context.bindings.bind(ci.columnDef) to ci.columnDef
+                val fetch = entityTx.listColumns().map { def ->
+                    val name = columns.entries.singleOrNull { c -> c.value is Name.ColumnName && c.value.matches(def.name) }
+                    if (name == null || name.key.columnName == Name.WILDCARD) {
+                        context.bindings.bind(def) to def
                     } else {
-                        context.bindings.bind(ci.columnDef.copy(name = name.key)) to ci.columnDef
+                        context.bindings.bind(def.copy(name = name.key)) to def
                     }
                 }
                 EntitySampleLogicalOperatorNode(context.nextGroupId(), entityTx, fetch, from.sample.probability, from.sample.seed)
@@ -315,11 +312,11 @@ object GrpcQueryBinder {
      * Parses the given [CottontailGrpc.EntityName] and returns the corresponding [Entity].
      *
      * @param entity [CottontailGrpc.EntityName] to parse.
-     * @param context The [QueryContext] used for query binding.
+     * @param context The [DefaultQueryContext] used for query binding.
 
      * @return [Entity] that matches [CottontailGrpc.EntityName]
      */
-    private fun parseAndBindEntity(entity: CottontailGrpc.EntityName, context: QueryContext): Entity = try {
+    private fun parseAndBindEntity(entity: CottontailGrpc.EntityName, context: DefaultQueryContext): Entity = try {
         val name = entity.fqn()
         val catalogueTx = context.txn.getTx(context.catalogue) as CatalogueTx
         val schemaTx = context.txn.getTx(catalogueTx.schemaForName(name.schema())) as SchemaTx
@@ -335,22 +332,22 @@ object GrpcQueryBinder {
      *
      * @param input The [OperatorNode.Logical] which to filter
      * @param where The [CottontailGrpc.Where] object.
-     * @param context The [QueryContext] used for query binding.
+     * @param context The [DefaultQueryContext] used for query binding.
      *
      * @return The resulting [BooleanPredicate].
      */
-    private fun parseAndBindBooleanPredicate(input: OperatorNode.Logical, where: CottontailGrpc.Where, context: QueryContext): OperatorNode.Logical {
+    private fun parseAndBindBooleanPredicate(input:OperatorNode.Logical, where: CottontailGrpc.Where, context: DefaultQueryContext): OperatorNode.Logical {
+        val subqueries = mutableListOf<OperatorNode.Logical>()
         val predicate = when (where.predicateCase) {
-            CottontailGrpc.Where.PredicateCase.ATOMIC -> parseAndBindAtomicBooleanPredicate(input, where.atomic, context)
-            CottontailGrpc.Where.PredicateCase.COMPOUND -> parseAndBindCompoundBooleanPredicate(input, where.compound, context)
+            CottontailGrpc.Where.PredicateCase.ATOMIC -> parseAndBindAtomicBooleanPredicate(input, where.atomic, context, subqueries)
+            CottontailGrpc.Where.PredicateCase.COMPOUND -> parseAndBindCompoundBooleanPredicate(input, where.compound, context, subqueries)
             CottontailGrpc.Where.PredicateCase.PREDICATE_NOT_SET -> throw QueryException.QuerySyntaxException("WHERE clause without a predicate is invalid!")
             null -> throw QueryException.QuerySyntaxException("WHERE clause without a predicate is invalid!")
         }
 
         /* Generate FilterLogicalNodeExpression and return it. */
-        val subQuery = predicate.atomics.filter { it.dependsOn > 0 }.map { context[it.dependsOn] }
-        return if (subQuery.isNotEmpty()) {
-            FilterOnSubSelectLogicalOperatorNode(predicate, input, *subQuery.toTypedArray())
+        return if (subqueries.isNotEmpty()) {
+            FilterOnSubSelectLogicalOperatorNode(predicate, input, *subqueries.toTypedArray())
         } else {
             FilterLogicalOperatorNode(input, predicate)
         }
@@ -362,20 +359,20 @@ object GrpcQueryBinder {
      *
      * @param input The [OperatorNode.Logical] which to filter
      * @param compound The [CottontailGrpc.CompoundBooleanPredicate] object.
-     * @param context The [QueryContext] used for query binding.
+     * @param context The [DefaultQueryContext] used for query binding.
 
      * @return The resulting [BooleanPredicate.Compound].
      */
-    private fun parseAndBindCompoundBooleanPredicate(input: OperatorNode.Logical, compound: CottontailGrpc.CompoundBooleanPredicate, context: QueryContext): BooleanPredicate.Compound {
+    private fun parseAndBindCompoundBooleanPredicate(input: OperatorNode.Logical, compound: CottontailGrpc.CompoundBooleanPredicate, context: DefaultQueryContext, subqueries: MutableList<OperatorNode.Logical>): BooleanPredicate.Compound {
         val left = when (compound.leftCase) {
-            CottontailGrpc.CompoundBooleanPredicate.LeftCase.ALEFT -> parseAndBindAtomicBooleanPredicate(input, compound.aleft, context)
-            CottontailGrpc.CompoundBooleanPredicate.LeftCase.CLEFT -> parseAndBindCompoundBooleanPredicate(input, compound.cleft, context)
+            CottontailGrpc.CompoundBooleanPredicate.LeftCase.ALEFT -> parseAndBindAtomicBooleanPredicate(input, compound.aleft, context, subqueries)
+            CottontailGrpc.CompoundBooleanPredicate.LeftCase.CLEFT -> parseAndBindCompoundBooleanPredicate(input, compound.cleft, context, subqueries)
             else -> throw QueryException.QuerySyntaxException("Unbalanced predicate! A compound boolean predicate must have a left and a right side.")
         }
 
         val right = when (compound.rightCase) {
-            CottontailGrpc.CompoundBooleanPredicate.RightCase.ARIGHT -> parseAndBindAtomicBooleanPredicate(input, compound.aright, context)
-            CottontailGrpc.CompoundBooleanPredicate.RightCase.CRIGHT -> parseAndBindCompoundBooleanPredicate(input, compound.cright, context)
+            CottontailGrpc.CompoundBooleanPredicate.RightCase.ARIGHT -> parseAndBindAtomicBooleanPredicate(input, compound.aright, context, subqueries)
+            CottontailGrpc.CompoundBooleanPredicate.RightCase.CRIGHT -> parseAndBindCompoundBooleanPredicate(input, compound.cright, context, subqueries)
             else -> throw QueryException.QuerySyntaxException("Unbalanced predicate! A compound boolean predicate must have a left and a right side.")
         }
 
@@ -391,14 +388,13 @@ object GrpcQueryBinder {
      *
      * @param input The [OperatorNode.Logical] which to filter
      * @param atomic The [CottontailGrpc.AtomicBooleanPredicate] object.
-     * @param context The [QueryContext] used for query binding.
+     * @param context The [DefaultQueryContext] used for query binding.
      *
      * @return The resulting [BooleanPredicate.Atomic].
      */
-    private fun parseAndBindAtomicBooleanPredicate(input: OperatorNode.Logical, atomic: CottontailGrpc.AtomicBooleanPredicate, context: QueryContext): BooleanPredicate.Atomic {
+    private fun parseAndBindAtomicBooleanPredicate(input: OperatorNode.Logical, atomic: CottontailGrpc.AtomicBooleanPredicate, context: DefaultQueryContext, subqueries: MutableList<OperatorNode.Logical>): BooleanPredicate.Atomic {
         /* Parse and bind column name to input */
         val left = context.bindings.bind(input.findUniqueColumnForName(atomic.left.fqn()))
-        var dependsOn = 0
         val right: List<Binding> = when (atomic.right.operandCase) {
             CottontailGrpc.AtomicBooleanOperand.OperandCase.EXPRESSIONS -> atomic.right.expressions.expressionList.map {
                 when(it.expCase) {
@@ -409,17 +405,13 @@ object GrpcQueryBinder {
                 }
             }
             CottontailGrpc.AtomicBooleanOperand.OperandCase.QUERY -> {
-                val subQuery = this.bind(atomic.right.query, context)
-                dependsOn = subQuery.groupId
-                if (atomic.op == CottontailGrpc.ComparisonOperator.IN) {
-                    emptyList()
-                } else {
-                    listOf(context.bindings.bindNull(left.type))
-                }
+                val subquery = this.bind(atomic.right.query, context)
+                subqueries.add(subquery)
+                listOf(context.bindings.bind(subquery.groupId, subquery.columns.first()))
             }
             else -> throw QueryException.QuerySyntaxException("Failed to parse operand for atomic boolean predicate.")
         }
-        return BooleanPredicate.Atomic(bindOperator(atomic.op, left, right), atomic.not, dependsOn)
+        return BooleanPredicate.Atomic(bindOperator(atomic.op, left, right), atomic.not)
     }
 
     /**
@@ -471,11 +463,11 @@ object GrpcQueryBinder {
      * @param input The [OperatorNode.Logical] on which to perform the [Function].
      * @param function The (unparsed) [CottontailGrpc.Function] object.
      * @param name The [Name.ColumnName] of the resulting column
-     * @param context The [QueryContext] used for query binding.
+     * @param context The [DefaultQueryContext] used for query binding.
      *
      * @return The resulting [SortLogicalOperatorNode].
      */
-    private fun parseAndBindFunction(input: OperatorNode.Logical, function: CottontailGrpc.Function, name: Name.ColumnName, context: QueryContext): OperatorNode.Logical {
+    private fun parseAndBindFunction(input: OperatorNode.Logical, function: CottontailGrpc.Function, name: Name.ColumnName, context: DefaultQueryContext): OperatorNode.Logical {
         val arguments = function.argumentsList.mapIndexed { i, a ->
             when (a.expCase) {
                 CottontailGrpc.Expression.ExpCase.LITERAL -> context.bindings.bind(a.literal.toValue())
@@ -493,7 +485,7 @@ object GrpcQueryBinder {
             throw QueryException.QueryBindException("Desired function $signature could not be found.")
         }
         val functionBinding = context.bindings.bind(functionInstance, arguments)
-        val outBinding = context.bindings.bind(ColumnDef(name, functionInstance.signature.returnType))
+        val outBinding = context.bindings.bind(ColumnDef(name, functionInstance.signature.returnType, functionBinding.canBeNull))
         return FunctionLogicalOperatorNode(input, functionBinding, outBinding)
     }
 
@@ -502,11 +494,11 @@ object GrpcQueryBinder {
      *
      * @param input The [OperatorNode.Logical] on which to perform the [Function].
      * @param function The (unparsed) [CottontailGrpc.Function] object.
-     * @param context The [QueryContext] used for query binding.
+     * @param context The [DefaultQueryContext] used for query binding.
      *
      * @return The resulting [SortLogicalOperatorNode].
      */
-    private fun parseAndBindNestedFunction(input: OperatorNode.Logical, function: CottontailGrpc.Function, context: QueryContext): Binding.Function {
+    private fun parseAndBindNestedFunction(input: OperatorNode.Logical, function: CottontailGrpc.Function, context: DefaultQueryContext): Binding.Function {
         val arguments = function.argumentsList.mapIndexed { i, a ->
             when (a.expCase) {
                 CottontailGrpc.Expression.ExpCase.LITERAL -> context.bindings.bind(a.literal.toValue())
@@ -531,11 +523,11 @@ object GrpcQueryBinder {
      *
      * @param input The [OperatorNode.Logical] on which to perform projection.
      * @param order The [CottontailGrpc.Order] object.
-     * @param context The [QueryContext] used for query binding.
+     * @param context The [DefaultQueryContext] used for query binding.
      *
      * @return The resulting [SortLogicalOperatorNode].
      */
-    private fun parseAndBindOrder(input: OperatorNode.Logical, order: CottontailGrpc.Order, context: QueryContext): OperatorNode.Logical {
+    private fun parseAndBindOrder(input: OperatorNode.Logical, order: CottontailGrpc.Order, context: DefaultQueryContext): OperatorNode.Logical {
         val sortOn = order.componentsList.map { input.findUniqueColumnForName(it.column.fqn()) to SortOrder.valueOf(it.direction.toString()) }
         return SortLogicalOperatorNode(input, sortOn)
     }
@@ -545,12 +537,11 @@ object GrpcQueryBinder {
      *
      * @param input The [OperatorNode.Logical] on which to perform projection.
      * @param projection Map of output [Name.ColumnName] to input [Name].
-     * @param context The [QueryContext] used for query binding.
-     * @param simplify Flag indicating, that only simple names should be used (i.e. not FQNs).
+     * @param context The [DefaultQueryContext] used for query binding.
      *
      * @return The resulting [SelectProjectionLogicalOperatorNode].
      */
-    private fun parseAndBindProjection(input: OperatorNode.Logical, projection: Map<Name.ColumnName, Name>, op: Projection, context: QueryContext, simplify: Boolean = false): OperatorNode.Logical = try {
+    private fun parseAndBindProjection(input: OperatorNode.Logical, projection: Map<Name.ColumnName, Name>, op: Projection, context: DefaultQueryContext): OperatorNode.Logical = try {
         when (op) {
             Projection.SELECT,
             Projection.SELECT_DISTINCT -> {
@@ -563,12 +554,12 @@ object GrpcQueryBinder {
             }
             Projection.COUNT -> {
                 val columnName = projection.keys.first()
-                val columnDef = ColumnDef(Name.ColumnName(columnName.components[0], columnName.components[1], "count(${columnName.components[2]})"), Types.Long, false)
+                val columnDef = ColumnDef(Name.ColumnName(columnName.schemaName, columnName.entityName,"count(${columnName.columnName})"), Types.Long, false)
                 CountProjectionLogicalOperatorNode(input, context.bindings.bind(columnDef))
             }
             Projection.EXISTS -> {
                 val columnName = projection.keys.first()
-                val columnDef = ColumnDef(Name.ColumnName(columnName.components[0], columnName.components[1], "exists(${columnName.components[2]})"), Types.Long, false)
+                val columnDef = ColumnDef(Name.ColumnName(columnName.schemaName, columnName.entityName, "exists(${columnName.columnName})"), Types.Long, false)
                 ExistsProjectionLogicalOperatorNode(input, context.bindings.bind(columnDef))
             }
             Projection.SUM,
@@ -600,40 +591,41 @@ object GrpcQueryBinder {
     private fun parseProjectionColumns(projection: CottontailGrpc.Projection, simplify: Boolean = false): Map<Name.ColumnName, Name> {
         val map = Object2ObjectLinkedOpenHashMap<Name.ColumnName, Name>()
         projection.elementsList.forEachIndexed { i, e ->
-            when (e.projCase) {
-                CottontailGrpc.Projection.ProjectionElement.ProjCase.COLUMN -> {
+            when (e.expression.expCase) {
+                CottontailGrpc.Expression.ExpCase.COLUMN -> {
                     /* Sanity check; star projections can't have aliases. */
-                    if (e.column.name == "*" && e.hasAlias()) {
+                    if (e.expression.column.name == "*" && e.hasAlias()) {
                         throw QueryException.QuerySyntaxException("The query lacks a valid SELECT-clause (projection): Cannot assign alias to star-projection at index $i.")
                     }
 
                     /* Determine final name of column. */
                     val finalName = when {
                         e.hasAlias() -> e.alias.fqn()
-                        simplify -> Name.ColumnName(e.column.name)
-                        else -> e.column.fqn()
+                        simplify -> Name.ColumnName(e.expression.column.name)
+                        else -> e.expression.column.fqn()
                     }
 
                     /* Check for uniqueness and assign. */
                     if (map.contains(finalName)) {
                         throw QueryException.QuerySyntaxException("The query lacks a valid SELECT-clause (projection): Duplicate projection element $finalName at index $i.")
                     }
-                    map[finalName] = e.column.fqn()
+                    map[finalName] = e.expression.column.fqn()
                 }
-                CottontailGrpc.Projection.ProjectionElement.ProjCase.FUNCTION -> {
+                CottontailGrpc.Expression.ExpCase.FUNCTION -> {
                     /* Sanity check; star projections can't have aliases. */
                     val finalName = when {
                         e.hasAlias() -> e.alias.fqn()
-                        else -> Name.ColumnName(e.function.name.name)
+                        else -> Name.ColumnName(e.expression.function.name.name)
                     }
 
                     /* Check for uniqueness and assign. */
                     if (map.contains(finalName)) {
                         throw QueryException.QuerySyntaxException("The query lacks a valid SELECT-clause (projection): Duplicate projection element $finalName at index $i.")
                     }
-                    map[finalName] = e.function.name.fqn()
+                    map[finalName] = e.expression.function.name.fqn()
                 }
-                CottontailGrpc.Projection.ProjectionElement.ProjCase.PROJ_NOT_SET,
+                CottontailGrpc.Expression.ExpCase.LITERAL -> TODO()
+                CottontailGrpc.Expression.ExpCase.EXP_NOT_SET,
                 null -> throw QueryException.QuerySyntaxException("The query lacks a valid SELECT-clause (projection): Projection element at index $i is malformed.")
             }
         }

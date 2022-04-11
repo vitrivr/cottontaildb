@@ -3,36 +3,37 @@ package org.vitrivr.cottontail.dbms.index.hash
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.RepeatedTest
-import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
+import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
+import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.values.FloatVectorValue
+import org.vitrivr.cottontail.core.values.StringValue
+import org.vitrivr.cottontail.core.values.generators.FloatVectorValueGenerator
+import org.vitrivr.cottontail.core.values.types.Types
+import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.entity.EntityTx
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
 import org.vitrivr.cottontail.dbms.index.AbstractIndexTest
 import org.vitrivr.cottontail.dbms.index.IndexTx
 import org.vitrivr.cottontail.dbms.index.IndexType
 import org.vitrivr.cottontail.dbms.queries.binding.DefaultBindingContext
-import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
-import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
-import org.vitrivr.cottontail.dbms.execution.TransactionType
-import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
-import org.vitrivr.cottontail.core.values.FloatVectorValue
-import org.vitrivr.cottontail.core.values.StringValue
 import java.util.*
 
 /**
- * This is a collection of test cases to test the correct behaviour of [UniqueHashIndex].
+ * This is a collection of test cases to test the correct behaviour of [UQBTreeIndex].
  *
  * @author Ralph Gasser
- * @param 1.2.2
+ * @param 1.2.3
  */
 class UniqueHashIndexTest : AbstractIndexTest() {
 
     /** List of columns for this [UniqueHashIndexTest]. */
     override val columns = arrayOf(
-        ColumnDef(this.entityName.column("id"), Types.String),
-        ColumnDef(this.entityName.column("feature"), Types.FloatVector(128))
+        ColumnDef(this.entityName.column("id"), Types.String, false),
+        ColumnDef(this.entityName.column("feature"), Types.FloatVector(128), false)
     )
     override val indexColumn: ColumnDef<*>
         get() = this.columns.first()
@@ -41,13 +42,10 @@ class UniqueHashIndexTest : AbstractIndexTest() {
         get() = this.entityName.index("idx_id_unique")
 
     override val indexType: IndexType
-        get() = IndexType.HASH_UQ
+        get() = IndexType.BTREE_UQ
 
     /** List of values stored in this [UniqueHashIndexTest]. */
     private var list = HashMap<StringValue, FloatVectorValue>(100)
-
-    /** Random number generator. */
-    private val random = SplittableRandom()
 
     /**
      * Tests if Index#filter() returns the values that have been stored.
@@ -65,17 +63,22 @@ class UniqueHashIndexTest : AbstractIndexTest() {
         val index = entityTx.indexForName(this.indexName)
         val indexTx = txn.getTx(index) as IndexTx
 
+        /* Prepare binding context and predicate. */
         val context = DefaultBindingContext()
+        val columnBinding = context.bind(this.columns[0])
+        val valueBinding = context.bindNull(Types.String)
+        val predicate = BooleanPredicate.Atomic(ComparisonOperator.Binary.Equal(columnBinding, valueBinding), false)
+
+        /* Check all entries. */
         for (entry in this.list.entries) {
-            val predicate = BooleanPredicate.Atomic(ComparisonOperator.Binary.Equal(context.bind(this.columns[0]), context.bind(entry.key)), false,)
-            indexTx.filter(predicate).forEach { r ->
+            valueBinding.update(entry.key) /* Update value binding. */
+            val cursor = indexTx.filter(predicate)
+            cursor.forEach { r ->
                 val rec = entityTx.read(r.tupleId, this.columns)
                 assertEquals(entry.key, rec[this.columns[0]])
-                assertArrayEquals(
-                    entry.value.data,
-                    (rec[this.columns[1]] as FloatVectorValue).data
-                )
+                assertArrayEquals(entry.value.data, (rec[this.columns[1]] as FloatVectorValue).data)
             }
+            cursor.close()
         }
         txn.commit()
     }
@@ -99,7 +102,9 @@ class UniqueHashIndexTest : AbstractIndexTest() {
         var count = 0
         val context = DefaultBindingContext()
         val predicate = BooleanPredicate.Atomic(ComparisonOperator.Binary.Equal(context.bind(this.columns[0]), context.bind(StringValue(UUID.randomUUID().toString()))), false)
-        indexTx.filter(predicate).forEach { count += 1 }
+        val cursor = indexTx.filter(predicate)
+        cursor.forEach { count += 1 }
+        cursor.close()
         assertEquals(0, count)
         txn.commit()
     }
@@ -109,7 +114,7 @@ class UniqueHashIndexTest : AbstractIndexTest() {
      */
     override fun nextRecord(): StandaloneRecord {
         val uuid = StringValue(UUID.randomUUID().toString())
-        val vector = FloatVectorValue.random(128, random)
+        val vector = FloatVectorValueGenerator.random(128, this.random)
         if (this.random.nextBoolean() && this.list.size <= 1000) {
             this.list[uuid] = vector
         }

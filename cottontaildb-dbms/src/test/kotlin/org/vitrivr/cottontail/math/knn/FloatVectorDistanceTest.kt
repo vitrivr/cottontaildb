@@ -3,8 +3,12 @@ package org.vitrivr.cottontail.math.knn
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import org.vitrivr.cottontail.TestConstants
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.EuclideanDistance
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.ManhattanDistance
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.SquaredEuclideanDistance
 import org.vitrivr.cottontail.core.values.FloatValue
 import org.vitrivr.cottontail.core.values.FloatVectorValue
+import org.vitrivr.cottontail.core.values.generators.FloatVectorValueGenerator
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.dbms.functions.math.distance.binary.*
 import org.vitrivr.cottontail.dbms.functions.math.distance.other.HyperplaneDistance
@@ -23,7 +27,7 @@ import kotlin.time.measureTime
  * Test cases that test for correctness of some basic distance calculations with [FloatVectorValue].
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
 class FloatVectorDistanceTest : AbstractDistanceTest() {
 
@@ -31,7 +35,7 @@ class FloatVectorDistanceTest : AbstractDistanceTest() {
     @ParameterizedTest
     @MethodSource("dimensions")
     fun testL1Distance(dimension: Int) {
-        val query = FloatVectorValue.random(dimension, RANDOM)
+        val query = FloatVectorValueGenerator.random(dimension, RANDOM)
         val collection = VectorUtility.randomFloatVectorSequence(dimension, TestConstants.collectionSize, RANDOM)
 
         var sum1 = 0.0f
@@ -72,7 +76,7 @@ class FloatVectorDistanceTest : AbstractDistanceTest() {
     @ParameterizedTest
     @MethodSource("dimensions")
     fun testL2SquaredDistance(dimension: Int) {
-        val query = FloatVectorValue.random(dimension, RANDOM)
+        val query = FloatVectorValueGenerator.random(dimension, RANDOM)
         val collection = VectorUtility.randomFloatVectorSequence(dimension, TestConstants.collectionSize, RANDOM)
 
         var sum1 = 0.0f
@@ -113,7 +117,7 @@ class FloatVectorDistanceTest : AbstractDistanceTest() {
     @ParameterizedTest
     @MethodSource("dimensions")
     fun testL2Distance(dimension: Int) {
-        val query = FloatVectorValue.random(dimension, RANDOM)
+        val query = FloatVectorValueGenerator.random(dimension, RANDOM)
         val collection = VectorUtility.randomFloatVectorSequence(dimension, TestConstants.collectionSize, RANDOM)
 
         var sum1 = 0.0f

@@ -1,15 +1,16 @@
 import org.apache.commons.math3.complex.Complex
+import org.apache.commons.math3.random.JDKRandomGenerator
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.RepeatedTest
 import org.vitrivr.cottontail.core.values.Complex64Value
-import org.vitrivr.cottontail.core.values.FloatValue
-import java.util.*
+import org.vitrivr.cottontail.core.values.generators.Complex64ValueGenerator
+import org.vitrivr.cottontail.core.values.generators.FloatValueGenerator
 
 /**
- * Some basic test cases that test for correctness fo [_root_ide_package_.org.vitrivr.cottontail.core.values.Complex64Value] arithmetic operations.
+ * Some basic test cases that test for correctness fo [Complex64Value] arithmetic operations.
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.1.0
  */
 class Complex64ValueTest {
 
@@ -27,12 +28,12 @@ class Complex64ValueTest {
         }
     }
 
-    private val random = SplittableRandom()
+    private val random = JDKRandomGenerator()
 
     @RepeatedTest(25)
     fun testAdd() {
-        val c1 = Complex64Value.random(random)
-        val c2 = Complex64Value.random(random)
+        val c1 = Complex64ValueGenerator.random(random)
+        val c2 = Complex64ValueGenerator.random(random)
 
         val c1p = Complex(c1.real.value, c1.imaginary.value)
         val c2p = Complex(c2.real.value, c2.imaginary.value)
@@ -47,8 +48,8 @@ class Complex64ValueTest {
 
     @RepeatedTest(25)
     fun testMinus() {
-        val c1 = Complex64Value.random(random)
-        val c2 = Complex64Value.random(random)
+        val c1 = Complex64ValueGenerator.random(random)
+        val c2 = Complex64ValueGenerator.random(random)
 
         val c1p = Complex(c1.real.value, c1.imaginary.value)
         val c2p = Complex(c2.real.value, c2.imaginary.value)
@@ -61,8 +62,8 @@ class Complex64ValueTest {
 
     @RepeatedTest(25)
     fun testMultiply() {
-        val c1 = Complex64Value.random(random)
-        val c2 = Complex64Value.random(random)
+        val c1 = Complex64ValueGenerator.random(random)
+        val c2 = Complex64ValueGenerator.random(random)
 
         val c1p = Complex(c1.real.value, c1.imaginary.value)
         val c2p = Complex(c2.real.value, c2.imaginary.value)
@@ -76,8 +77,8 @@ class Complex64ValueTest {
 
     @RepeatedTest(25)
     fun testMultiplyReal() {
-        val c1 = Complex64Value.random(random)
-        val c2 = FloatValue.random(random)
+        val c1 = Complex64ValueGenerator.random(random)
+        val c2 = FloatValueGenerator.random(random)
 
         val c1p = Complex(c1.real.value, c1.imaginary.value)
         val c2p = c2.value
@@ -91,8 +92,8 @@ class Complex64ValueTest {
 
     @RepeatedTest(25)
     fun testDivision() {
-        val c1 = Complex64Value.random(random)
-        val c2 = Complex64Value.random(random)
+        val c1 = Complex64ValueGenerator.random(random)
+        val c2 = Complex64ValueGenerator.random(random)
 
         val c1p = Complex(c1.real.value, c1.imaginary.value)
         val c2p = Complex(c2.real.value, c2.imaginary.value)
@@ -105,8 +106,8 @@ class Complex64ValueTest {
 
     @RepeatedTest(25)
     fun testDivReal() {
-        val c1 = Complex64Value.random(random)
-        val c2 = FloatValue.random(random)
+        val c1 = Complex64ValueGenerator.random(random)
+        val c2 = FloatValueGenerator.random(random)
 
         val c1p = Complex(c1.real.value, c1.imaginary.value)
         val c2p = c2.value
@@ -119,7 +120,7 @@ class Complex64ValueTest {
 
     @RepeatedTest(25)
     fun testInverse() {
-        val c1 = Complex64Value.random(random)
+        val c1 = Complex64ValueGenerator.random(random)
         val c1p = Complex(c1.real.value, c1.imaginary.value)
 
         val inv = c1.inverse()
@@ -130,7 +131,7 @@ class Complex64ValueTest {
 
     @RepeatedTest(25)
     fun testConjugate() {
-        val c1 = Complex64Value.random(random)
+        val c1 = Complex64ValueGenerator.random(random)
         val c1p = Complex(c1.real.value, c1.imaginary.value)
 
         val conj = c1.conjugate()
@@ -141,7 +142,7 @@ class Complex64ValueTest {
 
     @RepeatedTest(25)
     fun testExp() {
-        val c1 = Complex64Value.random(random)
+        val c1 = Complex64ValueGenerator.random(random)
         val c1p = Complex(c1.real.value, c1.imaginary.value)
 
         val exp = c1.exp()
@@ -152,7 +153,7 @@ class Complex64ValueTest {
 
     @RepeatedTest(25)
     fun testLn() {
-        val c1 = Complex64Value.random(random)
+        val c1 = Complex64ValueGenerator.random(random)
         val c1p = Complex(c1.real.value, c1.imaginary.value)
 
         val ln = c1.ln()
@@ -164,7 +165,7 @@ class Complex64ValueTest {
 
     @RepeatedTest(25)
     fun testPow() {
-        val c1 = Complex64Value.random(random)
+        val c1 = Complex64ValueGenerator.random(random)
         val c1p = Complex(c1.real.value, c1.imaginary.value)
         val e = random.nextDouble()
 
@@ -176,7 +177,7 @@ class Complex64ValueTest {
 
     @RepeatedTest(25)
     fun testSqrt() {
-        val c1 = Complex64Value.random(random)
+        val c1 = Complex64ValueGenerator.random(random)
         val c1p = Complex(c1.real.value, c1.imaginary.value)
 
 
@@ -188,7 +189,7 @@ class Complex64ValueTest {
 
     @RepeatedTest(25)
     fun testCos() {
-        val c1 = Complex64Value.random(random)
+        val c1 = Complex64ValueGenerator.random(random)
         val c1p = Complex(c1.real.value, c1.imaginary.value)
 
         val cos = c1.cos()
@@ -199,7 +200,7 @@ class Complex64ValueTest {
 
     @RepeatedTest(25)
     fun testSin() {
-        val c1 = Complex64Value.random(random)
+        val c1 = Complex64ValueGenerator.random(random)
         val c1p = Complex(c1.real.value, c1.imaginary.value)
 
         val sin = c1.sin()
@@ -210,7 +211,7 @@ class Complex64ValueTest {
 
     @RepeatedTest(25)
     fun testTan() {
-        val c1 = Complex64Value.random(random)
+        val c1 = Complex64ValueGenerator.random(random)
         val c1p = Complex(c1.real.value, c1.imaginary.value)
 
         val tan = c1.tan()
@@ -221,7 +222,7 @@ class Complex64ValueTest {
 
     @RepeatedTest(25)
     fun testAtan() {
-        val c1 = Complex64Value.random(random)
+        val c1 = Complex64ValueGenerator.random(random)
         val c1p = Complex(c1.real.value, c1.imaginary.value)
 
         val atan = c1.atan()
@@ -232,7 +233,7 @@ class Complex64ValueTest {
 
     @RepeatedTest(25)
     fun testAddConjugate() {
-        val c1 = Complex64Value.random(random)
+        val c1 = Complex64ValueGenerator.random(random)
         val c2 = c1.conjugate()
 
         val add = c1 + c2

@@ -1,7 +1,6 @@
 package org.vitrivr.cottontail.core.values
 
 import org.vitrivr.cottontail.core.values.types.*
-import org.vitrivr.cottontail.core.values.types.Value.Companion.RANDOM
 import java.util.*
 import kotlin.math.absoluteValue
 import kotlin.math.pow
@@ -14,31 +13,6 @@ import kotlin.math.pow
  */
 @JvmInline
 value class DoubleVectorValue(val data: DoubleArray) : RealVectorValue<Double> {
-
-    companion object {
-        /**
-         * Generates a [DoubleVectorValue] of the given size initialized with random numbers.
-         *
-         * @param size Size of the new [DoubleVectorValue]
-         * @param rnd A [SplittableRandom] to generate the random numbers.
-         */
-        fun random(size: Int, rnd: SplittableRandom = RANDOM) = DoubleVectorValue(DoubleArray(size) { rnd.nextDouble() })
-
-        /**
-         * Generates a [Complex32VectorValue] of the given size initialized with ones.
-         *
-         * @param size Size of the new [DoubleVectorValue]
-         */
-        fun one(size: Int) = DoubleVectorValue(DoubleArray(size) { 1.0 })
-
-        /**
-         * Generates a [DoubleVectorValue] of the given size initialized with zeros.
-         *
-         * @param size Size of the new [DoubleVectorValue]
-         */
-        fun zero(size: Int) = DoubleVectorValue(DoubleArray(size))
-    }
-
     constructor(input: List<Number>) : this(DoubleArray(input.size) { input[it].toDouble() })
     constructor(input: Array<Number>) : this(DoubleArray(input.size) { input[it].toDouble() })
 
@@ -84,7 +58,7 @@ value class DoubleVectorValue(val data: DoubleArray) : RealVectorValue<Double> {
      *
      * @return The [DoubleVectorValue] representing the sub-vector.
      */
-    override fun subvector(start: Int, length: Int) = DoubleVectorValue(this.data.copyOfRange(start, start + length))
+    override fun slice(start: Int, length: Int) = DoubleVectorValue(this.data.copyOfRange(start, start + length))
 
     /**
      * Returns the i-th entry of  this [DoubleVectorValue] as [Boolean].

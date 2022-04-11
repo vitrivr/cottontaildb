@@ -1,10 +1,15 @@
 package org.vitrivr.cottontail.dbms.statistics.columns
 
-import org.mapdb.DataInput2
-import org.mapdb.DataOutput2
-import org.vitrivr.cottontail.core.values.types.Types
+import jetbrains.exodus.bindings.BooleanBinding
+import jetbrains.exodus.bindings.LongBinding
+import jetbrains.exodus.bindings.SignedDoubleBinding
+import jetbrains.exodus.bindings.SignedFloatBinding
+import jetbrains.exodus.util.LightOutputStream
+import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.FloatValue
-import org.vitrivr.cottontail.core.values.types.Value
+import org.vitrivr.cottontail.core.values.types.Types
+import org.vitrivr.cottontail.storage.serializers.statistics.xodus.XodusBinding
+import java.io.ByteArrayInputStream
 import java.lang.Float.max
 import java.lang.Float.min
 
@@ -12,68 +17,73 @@ import java.lang.Float.min
  * A [ValueStatistics] implementation for [FloatValue]s.
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.2.0
  */
-class FloatValueStatistics : ValueStatistics<FloatValue>(Types.Float) {
+class FloatValueStatistics : AbstractValueStatistics<FloatValue>(Types.Float), RealValueStatistics<FloatValue> {
 
     /**
-     * Serializer for [FloatValueStatistics].
+     * Xodus serializer for [FloatValueStatistics]
      */
-    companion object Serializer : org.mapdb.Serializer<FloatValueStatistics> {
-        override fun serialize(out: DataOutput2, value: FloatValueStatistics) {
-            out.writeFloat(value.min)
-            out.writeFloat(value.max)
-            out.writeFloat(value.sum)
+    object Binding: XodusBinding<FloatValueStatistics> {
+        override fun read(stream: ByteArrayInputStream): FloatValueStatistics {
+            val stat = FloatValueStatistics()
+            stat.fresh = BooleanBinding.BINDING.readObject(stream)
+            stat.numberOfNullEntries = LongBinding.readCompressed(stream)
+            stat.numberOfNonNullEntries = LongBinding.readCompressed(stream)
+            stat.min = FloatValue(SignedFloatBinding.BINDING.readObject(stream))
+            stat.max = FloatValue(SignedFloatBinding.BINDING.readObject(stream))
+            stat.sum = DoubleValue(SignedDoubleBinding.BINDING.readObject(stream))
+            return stat
         }
 
-        override fun deserialize(input: DataInput2, available: Int): FloatValueStatistics {
-            val stat = FloatValueStatistics()
-            stat.min = input.readFloat()
-            stat.max = input.readFloat()
-            stat.sum = input.readFloat()
-            return stat
+        override fun write(output: LightOutputStream, statistics: FloatValueStatistics) {
+            BooleanBinding.BINDING.writeObject(output, statistics.fresh)
+            LongBinding.writeCompressed(output, statistics.numberOfNullEntries)
+            LongBinding.writeCompressed(output, statistics.numberOfNonNullEntries)
+            SignedFloatBinding.BINDING.writeObject(output, statistics.min.value)
+            SignedFloatBinding.BINDING.writeObject(output, statistics.max.value)
+            SignedDoubleBinding.BINDING.writeObject(output, statistics.sum.value)
         }
     }
 
-    /** Minimum value in this [FloatValueStatistics]. */
-    var min: Float = Float.MAX_VALUE
+    /** Minimum value seen by this [FloatValueStatistics]. */
+    override var min: FloatValue = FloatValue.MAX_VALUE
+        private set
 
-    /** Minimum value in this [FloatValueStatistics]. */
-    var max: Float = Float.MIN_VALUE
+    /** Minimum value seen by this [FloatValueStatistics]. */
+    override var max: FloatValue = FloatValue.MIN_VALUE
+        private set
 
-    /** Sum of all floats values in this [FloatValueStatistics]. */
-    var sum: Float = 0.0f
-
-    /** The arithmetic mean for the values seen by this [FloatValueStatistics]. */
-    val mean: Float
-        get() = (this.sum / this.numberOfNonNullEntries)
+    /** Sum of all [DoubleValue]s seen by this [FloatValueStatistics]. */
+    override var sum: DoubleValue = DoubleValue.ZERO
+        private set
 
     /**
      * Updates this [FloatValueStatistics] with an inserted [FloatValue]
      *
-     * @param inserted The [Value] that was deleted.
+     * @param inserted The [FloatValue] that was inserted.
      */
     override fun insert(inserted: FloatValue?) {
         super.insert(inserted)
         if (inserted != null) {
-            this.min = min(inserted.value, this.min)
-            this.max = max(inserted.value, this.max)
-            this.sum += inserted.value
+            this.min = FloatValue(min(inserted.value, this.min.value))
+            this.max = FloatValue(max(inserted.value, this.max.value))
+            this.sum += DoubleValue(inserted.value)
         }
     }
 
     /**
      * Updates this [FloatValueStatistics] with a deleted [FloatValue]
      *
-     * @param deleted The [Value] that was deleted.
+     * @param deleted The [FloatValue] that was deleted.
      */
     override fun delete(deleted: FloatValue?) {
         super.delete(deleted)
         if (deleted != null) {
-            this.sum -= deleted.value
+            this.sum -= deleted
 
             /* We cannot create a sensible estimate if a value is deleted. */
-            if (this.min == deleted.value || this.max == deleted.value) {
+            if (this.min == deleted || this.max == deleted) {
                 this.fresh = false
             }
         }
@@ -84,9 +94,9 @@ class FloatValueStatistics : ValueStatistics<FloatValue>(Types.Float) {
      */
     override fun reset() {
         super.reset()
-        this.min = Float.MAX_VALUE
-        this.max = Float.MIN_VALUE
-        this.sum = 0.0f
+        this.min = FloatValue.MAX_VALUE
+        this.max = FloatValue.MIN_VALUE
+        this.sum = DoubleValue.ZERO
     }
 
     /**

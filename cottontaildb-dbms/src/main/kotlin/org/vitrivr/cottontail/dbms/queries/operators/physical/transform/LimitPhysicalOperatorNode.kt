@@ -1,8 +1,9 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.transform
 
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
-import org.vitrivr.cottontail.dbms.execution.TransactionContext
 import org.vitrivr.cottontail.dbms.execution.operators.transform.LimitOperator
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.physical.UnaryPhysicalOperatorNode
 import kotlin.math.min
 
@@ -30,9 +31,7 @@ class LimitPhysicalOperatorNode(input: Physical? = null, val limit: Long, val sk
     override val cost: Cost
         get() = Cost.MEMORY_ACCESS * this.outputSize
 
-    /** The [LimitPhysicalOperatorNode] does not allow for partitioning. */
-    override val canBePartitioned: Boolean
-        get() = false
+
 
 
     /**
@@ -47,7 +46,7 @@ class LimitPhysicalOperatorNode(input: Physical? = null, val limit: Long, val sk
      *
      * @param ctx The [TransactionContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(ctx: org.vitrivr.cottontail.dbms.queries.QueryContext) = LimitOperator(
+    override fun toOperator(ctx: QueryContext) = LimitOperator(
         this.input?.toOperator(ctx) ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)"),
         this.skip, this.limit
     )

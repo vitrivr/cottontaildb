@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.core.queries.binding
 
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.functions.Function
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
@@ -14,9 +15,10 @@ import org.vitrivr.cottontail.core.values.types.Value
  * the [BindingContext] should be created and used.
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.2.0
  */
 interface BindingContext {
+
     /**
      * Returns the [Value] for the given [Binding.Literal].
      *
@@ -42,12 +44,30 @@ interface BindingContext {
     operator fun get(binding: Binding.Function): Value?
 
     /**
+     * Returns the [Value]s for the given [Binding.Subquery].
+     *
+     * @param binding The [Binding.Subquery] to lookup.
+     * @return A [Collection] of the bound [Value]s.
+     */
+    operator fun get(binding: Binding.Subquery): Collection<Value?>
+
+    /**
      * Creates and returns a [Binding.Literal] for the given [Value].
      *
      * @param value The [Value] to bind.
+     * @param static True for [Binding.Literal] that cannot be updated.
      * @return A value [Binding]
      */
-    fun bind(value: Value): Binding.Literal
+    fun bind(value: Value, static: Boolean = true): Binding.Literal
+
+    /**
+     * Creates and returns a [Binding] for the given [Value].
+     *
+     * @param type The [Types] to bind.
+     * @param static True for [Binding.Literal] that cannot be updated.
+     * @return [Binding.Literal]
+     */
+    fun bindNull(type: Types<*>, static: Boolean = true): Binding.Literal
 
     /**
      * Creates and returns a [Binding.Column] for the given [ColumnDef].
@@ -67,12 +87,28 @@ interface BindingContext {
     fun bind(function: Function<*>, arguments: List<Binding> = emptyList()): Binding.Function
 
     /**
-     * Creates and returns a [Binding] for the given [Value].
+     * Creates and returns a [Binding.Subquery] for the given [GroupId] invocation
      *
-     * @param type The [Types] to bind.
-     * @return A value [Binding]
+     * @param dependsOn The [GroupId] of the query plan that generates the values.
+     * @param column The[ColumnDef] that should be extracted from the results.
+     * @return [: Binding.Subquery]
      */
-    fun bindNull(type: Types<*>): Binding.Literal
+    fun bind(dependsOn: GroupId, column: ColumnDef<*>): Binding.Subquery
+
+    /**
+     * Appends a [Value] for a [Binding.Subquery].
+     *
+     * @param binding The [Binding.Subquery] to append value to.
+     * @param value The new [Value] to append.
+     */
+    fun append(binding: Binding.Subquery, value: Value)
+
+    /**
+     * Clears all [Value]s for a [Binding.Subquery].
+     *
+     * @param binding The [Binding.Subquery] to clear.
+     */
+    fun clear(binding: Binding.Subquery)
 
     /**
      * Updates the [Value] for a [Binding.Literal].

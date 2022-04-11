@@ -10,14 +10,15 @@ import kotlinx.coroutines.flow.transform
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.client.language.basics.Constants
 import org.vitrivr.cottontail.core.basics.Record
+import org.vitrivr.cottontail.core.queries.QueryHint
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.exceptions.ExecutionException
-import org.vitrivr.cottontail.dbms.execution.TransactionManager
-import org.vitrivr.cottontail.dbms.execution.TransactionType
+import org.vitrivr.cottontail.dbms.execution.locking.DeadlockException
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
-import org.vitrivr.cottontail.dbms.locking.DeadlockException
-import org.vitrivr.cottontail.dbms.queries.QueryContext
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
+import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import org.vitrivr.cottontail.utilities.extensions.proto
 import org.vitrivr.cottontail.utilities.extensions.toLiteral
@@ -29,33 +30,35 @@ import kotlin.time.TimeSource
  * A facility common to all service that handle [TransactionManager.TransactionImpl]s over gRPC.
  *
  * @author Ralph Gasser
- * @version 1.3.1
+ * @version 1.4.0
  */
 @ExperimentalTime
 internal interface TransactionalGrpcService {
 
     companion object {
-        val LOGGER = LoggerFactory.getLogger(TransactionalGrpcService::class.java)
+        private val LOGGER = LoggerFactory.getLogger(TransactionalGrpcService::class.java)
     }
 
     /** The [Catalogue] instance used by this [TransactionalGrpcService]. */
     val catalogue: Catalogue
 
     /** The [TransactionManager] instance used by this [TransactionalGrpcService]. */
-    val manager: org.vitrivr.cottontail.dbms.execution.TransactionManager
+    val manager: TransactionManager
 
     /**
-     * Generates and returns a new [QueryContext] for the given [CottontailGrpc.Metadata].
+     * Generates and returns a new [DefaultQueryContext] for the given [CottontailGrpc.Metadata].
      *
      * @param metadata The [CottontailGrpc.Metadata] to process.
-     * @return [QueryContext]
+     * @return [DefaultQueryContext]
      */
-    fun queryContextFromMetadata(metadata: CottontailGrpc.Metadata): QueryContext? {
+    fun queryContextFromMetadata(metadata: CottontailGrpc.Metadata): DefaultQueryContext? {
         val queryId = if (metadata.queryId.isNullOrEmpty()) {
             UUID.randomUUID().toString()
         } else {
             metadata.queryId
         }
+
+        /* Obtain transaction context. */
         val transactionContext = if (metadata.transactionId <= 0L) {
             this.manager.TransactionImpl(TransactionType.USER_IMPLICIT) /* Start new transaction. */
         } else {
@@ -65,17 +68,36 @@ internal interface TransactionalGrpcService {
             }
             txn
         }
-       return QueryContext(queryId, catalogue, transactionContext)
+
+        /* Parse all the query hints provided by the user. */
+        val hints = metadata.hintList.mapNotNull {
+            when (it.hintCase) {
+                CottontailGrpc.Hint.HintCase.NOINDEXHINT -> QueryHint.NoIndex
+                CottontailGrpc.Hint.HintCase.PARALLELINDEXHINT -> QueryHint.NoParallel
+                CottontailGrpc.Hint.HintCase.POLICYHINT -> QueryHint.CostPolicy(
+                    it.policyHint.weightIo,
+                    it.policyHint.weightCpu,
+                    it.policyHint.weightMemory,
+                    it.policyHint.weightAccuracy,
+                    this.catalogue.config.cost.speedupPerWorker, /* Setting is inherited from global config. */
+                    this.catalogue.config.cost.nonParallelisableIO /* Setting is inherited from global config. */
+                )
+                CottontailGrpc.Hint.HintCase.NAMEINDEXHINT -> TODO()
+                else -> null
+            }
+        }.toSet()
+
+        return DefaultQueryContext(queryId, this.catalogue, transactionContext, hints)
     }
 
     /**
-     * Prepares and executes a query using the [QueryContext] specified by the [CottontailGrpc.Metadata] object.
+     * Prepares and executes a query using the [DefaultQueryContext] specified by the [CottontailGrpc.Metadata] object.
      *
-     * @param metadata The [CottontailGrpc.Metadata] that identifies the [QueryContext]
+     * @param metadata The [CottontailGrpc.Metadata] that identifies the [DefaultQueryContext]
      * @param prepare The action that prepares the query [Operator]
      * @return [Flow] of [CottontailGrpc.QueryResponseMessage]
      */
-    fun prepareAndExecute(metadata: CottontailGrpc.Metadata, prepare: (ctx: QueryContext) -> Operator): Flow<CottontailGrpc.QueryResponseMessage> {
+    fun prepareAndExecute(metadata: CottontailGrpc.Metadata, prepare: (ctx: DefaultQueryContext) -> Operator): Flow<CottontailGrpc.QueryResponseMessage> {
         /* Phase 1a: Obtain query context. */
         val m1 = TimeSource.Monotonic.markNow()
         val context = this.queryContextFromMetadata(metadata) ?: return flow {
@@ -140,12 +162,12 @@ internal interface TransactionalGrpcService {
 
     /**
      *  Converts the provided [Throwable] to a [StatusException] that can be returned to the caller. The
-     *  exception will contain all the information about this [QueryContext].
+     *  exception will contain all the information about this [DefaultQueryContext].
      *
      *  @param e The [Throwable] to convert.
      *  @param execution Flag indicating whether error occured during execution.
      */
-    fun QueryContext.toStatusException(e: Throwable, execution: Boolean): StatusException {
+    fun DefaultQueryContext.toStatusException(e: Throwable, execution: Boolean): StatusException {
         val text = if (execution) {
             "[${this.txn.txId}, ${this.queryId}] Execution of ${this.physical?.name} query failed: ${e.message}"
         } else {
@@ -159,6 +181,8 @@ internal interface TransactionalGrpcService {
             is DatabaseException.SchemaAlreadyExistsException,
             is DatabaseException.EntityAlreadyExistsException,
             is DatabaseException.IndexAlreadyExistsException -> Status.ALREADY_EXISTS.withCause(e)
+            is DatabaseException.NoColumnException,
+            is DatabaseException.DuplicateColumnException -> Status.INVALID_ARGUMENT.withCause(e)
             is DeadlockException -> Status.ABORTED.withCause(e)
             is ExecutionException,
             is DatabaseException -> Status.INTERNAL.withCause(e)

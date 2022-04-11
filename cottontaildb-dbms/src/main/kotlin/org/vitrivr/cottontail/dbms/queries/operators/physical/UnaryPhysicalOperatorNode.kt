@@ -3,21 +3,22 @@ package org.vitrivr.cottontail.dbms.queries.operators.physical
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
-import org.vitrivr.cottontail.core.queries.Node
-import org.vitrivr.cottontail.core.queries.binding.BindingContext
+import org.vitrivr.cottontail.core.queries.nodes.traits.*
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
+import org.vitrivr.cottontail.core.queries.planning.cost.CostPolicy
 import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.UnaryLogicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.operators.physical.merge.MergePhysicalOperator
-import org.vitrivr.cottontail.dbms.queries.sort.SortOrder
-import org.vitrivr.cottontail.dbms.statistics.entity.RecordStatistics
+import org.vitrivr.cottontail.dbms.queries.operators.physical.merge.MergeLimitingSortPhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.physical.merge.MergePhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.physical.transform.LimitPhysicalOperatorNode
+import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
 import java.io.PrintStream
 
 /**
  * An abstract [OperatorNode.Physical] implementation that has a single [OperatorNode] as input.
  *
  * @author Ralph Gasser
- * @version 2.5.0
+ * @version 2.6.0
  */
 abstract class UnaryPhysicalOperatorNode(input: Physical? = null) : OperatorNode.Physical() {
 
@@ -50,16 +51,23 @@ abstract class UnaryPhysicalOperatorNode(input: Physical? = null) : OperatorNode
     final override val totalCost: Cost
         get() = (this.input?.totalCost ?: Cost.ZERO) + this.cost
 
+    /** The [parallelizableCost] of a [UnaryPhysicalOperatorNode] is always the sum of its own and its input cost. */
+    final override val parallelizableCost: Cost
+        get() {
+            val input = this.input ?: return Cost.ZERO
+            return if (this.hasTrait(NotPartitionableTrait)) {
+                this.totalCost
+            } else {
+                input.parallelizableCost
+            }
+        }
+
     /** By default, a [UnaryPhysicalOperatorNode] has no specific requirements. */
     override val requires: List<ColumnDef<*>> = emptyList()
 
     /** By default, [UnaryPhysicalOperatorNode]s are executable if their input is executable. */
     override val executable: Boolean
         get() = this.input?.executable ?: false
-
-    /** By default, [UnaryPhysicalOperatorNode]s can be partitioned, if their parent can be partitioned. */
-    override val canBePartitioned: Boolean
-        get() = this.input?.canBePartitioned ?: false
 
     /** By default, the [UnaryPhysicalOperatorNode] outputs the physical [ColumnDef] of its input. */
     override val physicalColumns: List<ColumnDef<*>>
@@ -73,13 +81,13 @@ abstract class UnaryPhysicalOperatorNode(input: Physical? = null) : OperatorNode
     override val outputSize: Long
         get() = (this.input?.outputSize ?: 0)
 
-    /** By default, a [UnaryPhysicalOperatorNode]'s order is the same as its input's order. */
-    override val sortOn: List<Pair<ColumnDef<*>, SortOrder>>
-        get() = this.input?.sortOn ?: emptyList()
+    /** By default, a [UnaryLogicalOperatorNode] inherits its traits from its parent. */
+    override val traits: Map<TraitType<*>,Trait>
+        get() = this.input?.traits ?: emptyMap()
 
-    /** By default, a [UnaryPhysicalOperatorNode]'s [RecordStatistics] is the same as its input's [RecordStatistics].*/
-    override val statistics: RecordStatistics
-        get() = this.input?.statistics ?: RecordStatistics.EMPTY
+    /** By default, a [UnaryPhysicalOperatorNode]'s statistics are retained from its input.*/
+    override val statistics:Map<ColumnDef<*>, ValueStatistics<*>>
+        get() = this.input?.statistics ?: emptyMap()
 
     init {
         this.input = input
@@ -126,41 +134,59 @@ abstract class UnaryPhysicalOperatorNode(input: Physical? = null) : OperatorNode
     }
 
     /**
-     * By default, the [UnaryPhysicalOperatorNode] simply propagates [bind] calls to its input.
+     * Tries to create a partitioned version of this [UnaryPhysicalOperatorNode] and its parents.
      *
-     * However, some implementations must propagate the call to inner [Node]s.
+     * In general, partitioning is only possible if the [input] doesn't have a [NotPartitionableTrait]. In absence of the
+     * trait, partitioning is implemented using different strategies depending on the [OrderTrait] and [LimitTrait] of the
+     * incoming tree.
      *
-     * @param context The [BindingContext] to bind this [UnaryPhysicalOperatorNode] to.
+     * Otherwise, [UnaryPhysicalOperatorNode] propagates this call up a tree until a [OperatorNode.Physical]
+     * that does not have this trait is reached.
+     *
+     * @return Array of [OperatorNode.Physical]s.
      */
-    override fun bind(context: BindingContext) {
-        this.input?.bind(context)
+    override fun tryPartition(policy: CostPolicy, max: Int): Physical? {
+        require(max > 1) { "Expected number of partitions to be greater than one but encountered $max." }
+        val input = this.input ?: throw IllegalStateException("Tried to propagate call to tryPartition to an absent input. This is a programmer's error!")
+        return if (!input.hasTrait(NotPartitionableTrait)) {
+            val partitions = policy.parallelisation(this.parallelizableCost, this.totalCost, max)
+            if (partitions <= 1) return null
+            val inbound = (0 until partitions).map { input.partition(partitions, it) }
+            when {
+                input.hasTrait(LimitTrait) && input.hasTrait(OrderTrait) -> {
+                    val order = input[OrderTrait]!!
+                    val limit = input[LimitTrait]!!
+                    this.copyWithOutput(MergeLimitingSortPhysicalOperatorNode(*inbound.toTypedArray(), sortOn = order.order, limit = limit.limit))
+                }
+                input.hasTrait(OrderTrait) -> TODO()
+                input.hasTrait(LimitTrait) -> {
+                    val limit = input[LimitTrait]!!
+                    this.copyWithOutput(LimitPhysicalOperatorNode(MergePhysicalOperatorNode(*inbound.toTypedArray()), limit = limit.limit, skip = 0L))
+                }
+                else -> this.copyWithOutput(MergePhysicalOperatorNode(*inbound.toTypedArray()))
+            }
+        } else {
+            input.tryPartition(policy, max)
+        }
     }
 
     /**
-     * Tries to create a partitioned version of this [OperatorNode.Physical] and its parents.
+     * Generates a partitioned version of this [UnaryPhysicalOperatorNode].
      *
-     * A [UnaryPhysicalOperatorNode] propagates this call up a tree until a [OperatorNode.Physical]
-     * that allows for partitioning (see [canBePartitioned]) or the end of the tree has been reached.
-     * In the former case, this method return a partitioned copy of this [OperatorNode.Physical].
+     * By default, this call is simply propagated for [UnaryPhysicalOperatorNode], because
+     * partitioning usually takes place close to the root of the tree (i.e. the source).
      *
-     * @param p The desired number of partitions. If null, the value will be determined automatically.
-     * @return Array of [OperatorNode.Physical]s.
+     * Not to be confused with [tryPartition].
+     *
+     * @param partitions The total number of partitions.
+     * @param p The partition number.
+     * @return [OperatorNode.Physical]
      */
-    override fun tryPartition(partitions: Int, p: Int?): Physical? {
-        val input = this.input ?: return null
-        if (p != null) { /* If p is set, simply copy and propagate upwards. */
-            val copy = this.copy()
-            copy.input = (this.input?.tryPartition(partitions, p) ?: throw IllegalStateException("Tried to propagate call to tryPartition($partitions, $p), which returned null. This is a programmer's error!"))
-            return copy
-        } else if (input.canBePartitioned) {
-            val inbound = (0 until partitions).map {
-                input.tryPartition(partitions, it) ?: throw IllegalStateException("Tried to propagate call to tryPartition($partitions, $it), which returned null. This is a programmer's error!")
-            }
-            val merge = MergePhysicalOperator(*inbound.toTypedArray())
-            return this.copyWithOutput(merge)
-        }
-        val newp = this.totalCost.parallelisation()
-        return input.tryPartition(newp)
+    override fun partition(partitions: Int, p: Int): Physical {
+        val input = this.input ?: throw IllegalStateException("Tried to propagate call to partition($partitions, $p) to an absent input. This is a programmer's error!")
+        val copy = this.copy()
+        copy.input = input.partition(partitions, p)
+        return copy
     }
 
     /**

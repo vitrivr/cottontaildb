@@ -1,12 +1,12 @@
 package org.vitrivr.cottontail.dbms.execution.operators.transform
 
 import kotlinx.coroutines.flow.Flow
+import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
-import org.vitrivr.cottontail.dbms.execution.TransactionContext
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.operators.basics.drop
 import org.vitrivr.cottontail.dbms.execution.operators.basics.take
-import org.vitrivr.cottontail.core.basics.Record
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 
 /**
  * An [Operator.PipelineOperator] used during query execution. Limit the number of outgoing [Record]s.
@@ -29,7 +29,7 @@ class LimitOperator(parent: Operator, val skip: Long, val limit: Long) : Operato
      * @param context The [TransactionContext] used for execution
      * @return [Flow] representing this [LimitOperator]
      */
-    override fun toFlow(context: org.vitrivr.cottontail.dbms.execution.TransactionContext): Flow<Record> {
+    override fun toFlow(context: TransactionContext): Flow<Record> {
         var ret = this.parent.toFlow(context)
         if (this.skip > 0)
             ret = ret.drop(this.skip)

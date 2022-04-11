@@ -1,10 +1,6 @@
 package org.vitrivr.cottontail.core.values
 
-import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.core.values.types.NumericValue
-import org.vitrivr.cottontail.core.values.types.RealVectorValue
-import org.vitrivr.cottontail.core.values.types.Value
-import org.vitrivr.cottontail.core.values.types.VectorValue
+import org.vitrivr.cottontail.core.values.types.*
 import java.util.*
 import kotlin.math.pow
 
@@ -16,31 +12,6 @@ import kotlin.math.pow
  */
 @JvmInline
 value class IntVectorValue(val data: IntArray) : RealVectorValue<Int> {
-
-    companion object {
-        /**
-         * Generates a [IntVectorValue] of the given size initialized with random numbers.
-         *
-         * @param size Size of the new [IntVectorValue]
-         * @param rnd A [SplittableRandom] to generate the random numbers.
-         */
-        fun random(size: Int, rnd: SplittableRandom = Value.RANDOM) = IntVectorValue(IntArray(size) { rnd.nextInt() })
-
-        /**
-         * Generates a [IntVectorValue] of the given size initialized with ones.
-         *
-         * @param size Size of the new [IntVectorValue]
-         */
-        fun one(size: Int) = IntVectorValue(IntArray(size) { 1 })
-
-        /**
-         * Generates a [IntVectorValue] of the given size initialized with zeros.
-         *
-         * @param size Size of the new [IntVectorValue]
-         */
-        fun zero(size: Int) = IntVectorValue(IntArray(size))
-    }
-
     constructor(input: List<Number>) : this(IntArray(input.size) { input[it].toInt() })
     constructor(input: Array<Number>) : this(IntArray(input.size) { input[it].toInt() })
 
@@ -280,5 +251,5 @@ value class IntVectorValue(val data: IntArray) : RealVectorValue<Int> {
      *
      * @return The [IntVectorValue] representing the sub-vector.
      */
-    override fun subvector(start: Int, length: Int) = IntVectorValue(this.data.copyOfRange(start, start + length))
+    override fun slice(start: Int, length: Int) = IntVectorValue(this.data.copyOfRange(start, start + length))
 }

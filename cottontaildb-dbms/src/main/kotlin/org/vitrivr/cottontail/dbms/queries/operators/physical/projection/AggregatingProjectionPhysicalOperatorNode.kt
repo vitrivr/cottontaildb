@@ -7,7 +7,7 @@ import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.operators.projection.*
-import org.vitrivr.cottontail.dbms.queries.QueryContext
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.physical.UnaryPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.projection.Projection
 

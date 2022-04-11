@@ -1,76 +1,64 @@
 package org.vitrivr.cottontail.dbms.index.gg
 
-import org.mapdb.DataInput2
-import org.mapdb.DataOutput2
-import org.vitrivr.cottontail.dbms.functions.math.distance.Distances
+import jetbrains.exodus.bindings.ComparableBinding
+import jetbrains.exodus.bindings.IntegerBinding
+import jetbrains.exodus.bindings.LongBinding
+import jetbrains.exodus.bindings.StringBinding
+import jetbrains.exodus.util.LightOutputStream
+import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.CosineDistance
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.EuclideanDistance
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.ManhattanDistance
 import org.vitrivr.cottontail.dbms.index.IndexConfig
+import org.vitrivr.cottontail.dbms.index.lsh.LSHIndex
+import java.io.ByteArrayInputStream
 
 /**
  * Configuration class for [GGIndex].
  *
  * @author Gabriel Zihlmann
- * @version 1.1.0
+ * @version 1.3.0
  */
-data class GGIndexConfig(val numGroups: Int, val seed: Long, val distance: Distances) :
-    IndexConfig {
-    companion object Serializer : org.mapdb.Serializer<GGIndexConfig> {
-        const val NUM_SUBSPACES_KEY = "num_groups"
-        const val SEED_KEY = "seed"
-        const val DISTANCE_KEY = "distance"
+data class GGIndexConfig(val distance: Name.FunctionName, val numGroups: Int, val seed: Long) : IndexConfig<GGIndex> {
 
-        /**
-         * Serializes the content of the given value into the given
-         * [DataOutput2].
-         *
-         * @param out DataOutput2 to save object into
-         * @param value Object to serialize
-         */
-        override fun serialize(out: DataOutput2, value: GGIndexConfig) {
-            out.packInt(value.numGroups)
-            out.packLong(value.seed)
-            out.packInt(value.distance.ordinal)
-        }
+    companion object {
+        /** Configuration key for name of the distance function. */
+        const val KEY_DISTANCE_KEY = "distance"
 
-        /**
-         * Deserializes and returns the content of the given [DataInput2].
-         *
-         * @param input DataInput2 to de-serialize data from
-         * @param available how many bytes that are available in the DataInput2 for
-         * reading, may be -1 (in streams) or 0 (null).
-         *
-         * @return the de-serialized content of the given [DataInput2]
-         */
-        override fun deserialize(input: DataInput2, available: Int) = GGIndexConfig(
-            numGroups = input.unpackInt(),
-            seed = input.unpackLong(),
-            distance = Distances.values()[input.unpackInt()]
-        )
+        /** Configuration key for number of groups. */
+        const val KEY_NUM_GROUPS_KEY = "num_groups"
 
-        /**
-         * Constructs a [GGIndexConfig] from a parameter map.
-         *
-         * @param params The parameter map.
-         * @return [GGIndexConfig]
-         */
-        fun fromParamsMap(params: Map<String, String>) = GGIndexConfig(
-            numGroups = params[NUM_SUBSPACES_KEY]?.toIntOrNull() ?: 100,
-            seed = params[SEED_KEY]?.toLongOrNull() ?: System.currentTimeMillis(),
-            distance = try {
-                Distances.valueOf(params[DISTANCE_KEY] ?: "")
-            } catch (e: IllegalArgumentException) {
-                Distances.L2
-            }
-        )
+        /** Configuration key for the random number generator seed. */
+        const val KEY_SEED_KEY = "seed"
+
+        /** The [Name.FunctionName] of the default distance. */
+        val DEFAULT_DISTANCE = EuclideanDistance.FUNCTION_NAME
+
+        /** Current list of [Name.FunctionName] supported by the [LSHIndex]. */
+        val SUPPORTED_DISTANCES = setOf(ManhattanDistance.FUNCTION_NAME, EuclideanDistance.FUNCTION_NAME, CosineDistance.FUNCTION_NAME)
     }
 
     /**
-     * Converts this [GGIndexConfig] to a [Map] representation.
-     *
-     * @return [Map] representation of this [GGIndexConfig].
+     * [ComparableBinding] for [GGIndexConfig].
      */
-    override fun toMap(): Map<String, String> = mapOf(
-        NUM_SUBSPACES_KEY to this.numGroups.toString(),
-        SEED_KEY to this.seed.toString(),
-        DISTANCE_KEY to this.distance.toString()
-    )
+    object Binding: ComparableBinding() {
+        override fun readObject(stream: ByteArrayInputStream): Comparable<GGIndexConfig> = GGIndexConfig(
+            Name.FunctionName(StringBinding.BINDING.readObject(stream)),
+            IntegerBinding.readCompressed(stream),
+            LongBinding.readCompressed(stream)
+        )
+
+        override fun writeObject(output: LightOutputStream, `object`: Comparable<GGIndexConfig>) {
+            require(`object` is GGIndexConfig) { "GGIndexConfig.Binding can only be used to serialize instances of GGIndexConfig." }
+            StringBinding.BINDING.writeObject(output, `object`.distance.simple)
+            IntegerBinding.writeCompressed(output, `object`.numGroups)
+            LongBinding.writeCompressed(output, `object`.seed)
+        }
+    }
+
+    init {
+        /* Range of sanity checks. */
+        require(this.numGroups > 1) { "GGIndex requires at least a single group." }
+        require(this.distance in SUPPORTED_DISTANCES) { "GGIndex only support COSINE and INNERPRODUCT distance."}
+    }
 }

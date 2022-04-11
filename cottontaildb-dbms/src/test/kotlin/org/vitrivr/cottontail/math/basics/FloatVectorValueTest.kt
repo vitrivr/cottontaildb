@@ -1,28 +1,29 @@
 package org.vitrivr.cottontail.math.basics
 
 import org.apache.commons.math3.linear.ArrayRealVector
+import org.apache.commons.math3.random.JDKRandomGenerator
 import org.junit.jupiter.api.RepeatedTest
-import org.vitrivr.cottontail.math.isApproximatelyTheSame
 import org.vitrivr.cottontail.core.values.FloatVectorValue
-import java.util.*
+import org.vitrivr.cottontail.core.values.generators.FloatVectorValueGenerator
+import org.vitrivr.cottontail.math.isApproximatelyTheSame
 import kotlin.math.pow
 
 /**
  * Some basic test cases that test for correctness fot [FloatVectorValue] arithmetic operations.
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.1.0
  */
 class FloatVectorValueTest {
 
-    private val random = SplittableRandom()
+    private val random = JDKRandomGenerator()
 
     @RepeatedTest(25)
     fun testAdd() {
-        val size = random.nextInt(2048)
+        val size = this.random.nextInt(2048)
 
-        val c1 = FloatVectorValue.random(size, this.random)
-        val c2 = FloatVectorValue.random(size, this.random)
+        val c1 = FloatVectorValueGenerator.random(size, this.random)
+        val c2 = FloatVectorValueGenerator.random(size, this.random)
 
         val c1p = ArrayRealVector(DoubleArray(c1.data.size) { c1.data[it].toDouble() })
         val c2p = ArrayRealVector(DoubleArray(c2.data.size) { c2.data[it].toDouble() })
@@ -37,10 +38,10 @@ class FloatVectorValueTest {
 
     @RepeatedTest(25)
     fun testSub() {
-        val size = random.nextInt(2048)
+        val size = this.random.nextInt(2048)
 
-        val c1 = FloatVectorValue.random(size, this.random)
-        val c2 = FloatVectorValue.random(size, this.random)
+        val c1 = FloatVectorValueGenerator.random(size, this.random)
+        val c2 = FloatVectorValueGenerator.random(size, this.random)
 
         val c1p = ArrayRealVector(DoubleArray(c1.data.size) { c1.data[it].toDouble() })
         val c2p = ArrayRealVector(DoubleArray(c2.data.size) { c2.data[it].toDouble() })
@@ -55,10 +56,10 @@ class FloatVectorValueTest {
 
     @RepeatedTest(25)
     fun testMul() {
-        val size = random.nextInt(2048)
+        val size = this.random.nextInt(2048)
 
-        val c1 = FloatVectorValue.random(size, this.random)
-        val c2 = FloatVectorValue.random(size, this.random)
+        val c1 = FloatVectorValueGenerator.random(size, this.random)
+        val c2 = FloatVectorValueGenerator.random(size, this.random)
 
         val c1p = ArrayRealVector(DoubleArray(c1.data.size) { c1.data[it].toDouble() })
         val c2p = ArrayRealVector(DoubleArray(c2.data.size) { c2.data[it].toDouble() })
@@ -73,10 +74,10 @@ class FloatVectorValueTest {
 
     @RepeatedTest(25)
     fun testDiv() {
-        val size = random.nextInt(2048)
+        val size = this.random.nextInt(2048)
 
-        val c1 = FloatVectorValue.random(size, this.random)
-        val c2 = FloatVectorValue.random(size, this.random)
+        val c1 = FloatVectorValueGenerator.random(size, this.random)
+        val c2 = FloatVectorValueGenerator.random(size, this.random)
 
         val c1p = ArrayRealVector(DoubleArray(c1.data.size) { c1.data[it].toDouble() })
         val c2p = ArrayRealVector(DoubleArray(c2.data.size) { c2.data[it].toDouble() })
@@ -91,10 +92,10 @@ class FloatVectorValueTest {
 
     @RepeatedTest(25)
     fun testPow() {
-        val size = random.nextInt(2048)
-        val exp = random.nextInt(10)
+        val size = this.random.nextInt(2048)
+        val exp = this.random.nextInt(10)
 
-        val c1 = FloatVectorValue.random(size, this.random)
+        val c1 = FloatVectorValueGenerator.random(size, this.random)
         val c1p = ArrayRealVector(DoubleArray(c1.data.size) { c1.data[it].toDouble() })
 
         val pow = c1.pow(exp)
@@ -107,9 +108,9 @@ class FloatVectorValueTest {
 
     @RepeatedTest(25)
     fun testSqrt() {
-        val size = random.nextInt(2048)
+        val size = this.random.nextInt(2048)
 
-        val c1 = FloatVectorValue.random(size, this.random)
+        val c1 = FloatVectorValueGenerator.random(size, this.random)
         val c1p = ArrayRealVector(DoubleArray(c1.data.size) { c1.data[it].toDouble() })
 
         val sqrt = c1.sqrt()
@@ -122,10 +123,10 @@ class FloatVectorValueTest {
 
     @RepeatedTest(25)
     fun testL1() {
-        val size = random.nextInt(2048)
+        val size = this.random.nextInt(2048)
 
-        val c1 = FloatVectorValue.random(size, this.random)
-        val c2 = FloatVectorValue.random(size, this.random)
+        val c1 = FloatVectorValueGenerator.random(size, this.random)
+        val c2 = FloatVectorValueGenerator.random(size, this.random)
 
         val c1p = ArrayRealVector(DoubleArray(c1.data.size) { c1.data[it].toDouble() })
         val c2p = ArrayRealVector(DoubleArray(c2.data.size) { c2.data[it].toDouble() })
@@ -138,10 +139,10 @@ class FloatVectorValueTest {
 
     @RepeatedTest(25)
     fun testL2() {
-        val size = random.nextInt(2048)
+        val size = this.random.nextInt(2048)
 
-        val c1 = FloatVectorValue.random(size, this.random)
-        val c2 = FloatVectorValue.random(size, this.random)
+        val c1 = FloatVectorValueGenerator.random(size, this.random)
+        val c2 = FloatVectorValueGenerator.random(size, this.random)
 
         val c1p = ArrayRealVector(DoubleArray(c1.data.size) { c1.data[it].toDouble() })
         val c2p = ArrayRealVector(DoubleArray(c2.data.size) { c2.data[it].toDouble() })
@@ -154,10 +155,10 @@ class FloatVectorValueTest {
 
     @RepeatedTest(25)
     fun testDot() {
-        val size = random.nextInt(2048)
+        val size = this.random.nextInt(2048)
 
-        val c1 = FloatVectorValue.random(size, this.random)
-        val c2 = FloatVectorValue.random(size, this.random)
+        val c1 = FloatVectorValueGenerator.random(size, this.random)
+        val c2 = FloatVectorValueGenerator.random(size, this.random)
 
         val c1p = ArrayRealVector(DoubleArray(c1.data.size) { c1.data[it].toDouble() })
         val c2p = ArrayRealVector(DoubleArray(c2.data.size) { c2.data[it].toDouble() })
@@ -170,9 +171,9 @@ class FloatVectorValueTest {
 
     @RepeatedTest(25)
     fun testNorm2() {
-        val size = random.nextInt(2048)
+        val size = this.random.nextInt(2048)
 
-        val c1 = FloatVectorValue.random(size, this.random)
+        val c1 = FloatVectorValueGenerator.random(size, this.random)
 
         val c1p = ArrayRealVector(DoubleArray(c1.data.size) { c1.data[it].toDouble() })
 

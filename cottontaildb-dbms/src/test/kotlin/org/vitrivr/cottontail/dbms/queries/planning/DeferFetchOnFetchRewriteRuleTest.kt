@@ -2,18 +2,17 @@ package org.vitrivr.cottontail.dbms.queries.planning
 
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.TestInstance
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.dbms.AbstractDatabaseTest
 import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
+import org.vitrivr.cottontail.dbms.entity.AbstractEntityTest
 import org.vitrivr.cottontail.dbms.entity.EntityTx
-import org.vitrivr.cottontail.dbms.execution.TransactionType
-import org.vitrivr.cottontail.dbms.queries.QueryContext
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
 import org.vitrivr.cottontail.dbms.queries.binding.DefaultBindingContext
+import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.logical.predicates.FilterLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.projection.SelectProjectionLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.sources.EntityScanLogicalOperatorNode
@@ -27,10 +26,10 @@ import org.vitrivr.cottontail.dbms.schema.SchemaTx
  * A collection of test cases for the [DeferFetchOnScanRewriteRule].
  *
  * @author Ralph Gasser
- * @version 1.2.1
+ * @version 1.3.0
  */
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class DeferFetchOnFetchRewriteRuleTest : AbstractDatabaseTest() {
+class DeferFetchOnFetchRewriteRuleTest : AbstractEntityTest() {
+
     /** [Name.EntityName] of test entity. */
     private val entityName = this.schemaName.entity("test-entity")
 
@@ -43,8 +42,10 @@ class DeferFetchOnFetchRewriteRuleTest : AbstractDatabaseTest() {
         ColumnDef(this.entityName.column("booleanValue"), Types.Boolean)
     )
 
-    /** Entities used for this [DeferFetchOnScanRewriteRuleTest]. */
-    override val entities: List<Pair<Name.EntityName, List<ColumnDef<*>>>> = listOf(this.entityName to this.columns)
+    /** List of entities that should be prepared for this test. */
+    override val entities: List<Pair<Name.EntityName, List<ColumnDef<*>>>> = listOf(
+        this.entityName to this.columns
+    )
 
     /**
      * Makes a basic test whether [DeferFetchOnFetchRewriteRule.canBeApplied] works as expected and generates output accordingly.
@@ -53,7 +54,7 @@ class DeferFetchOnFetchRewriteRuleTest : AbstractDatabaseTest() {
     fun testNoMatch() {
         val txn = this.manager.TransactionImpl(TransactionType.SYSTEM)
         try {
-            val ctx = QueryContext("test", this.catalogue, txn)
+            val ctx = DefaultQueryContext("test", this.catalogue, txn)
             val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
             val schema = catalogueTx.schemaForName(this.schemaName)
             val schemaTx = txn.getTx(schema) as SchemaTx
@@ -65,9 +66,10 @@ class DeferFetchOnFetchRewriteRuleTest : AbstractDatabaseTest() {
             SelectProjectionLogicalOperatorNode(scan0, Projection.SELECT, this.columns.map { it.name })
 
             /* Check DeferFetchOnFetchRewriteRule.canBeApplied and test output for null. */
-            Assertions.assertFalse(DeferFetchOnFetchRewriteRule.canBeApplied(scan0))
-            val result1 = DeferFetchOnFetchRewriteRule.apply(scan0, ctx)
-            Assertions.assertEquals(null, result1)
+            Assertions.assertFalse(DeferFetchOnFetchRewriteRule.canBeApplied(scan0, ctx))
+            Assertions.assertThrows(IllegalArgumentException::class.java) {
+                DeferFetchOnFetchRewriteRule.apply(scan0, ctx)
+            }
         } finally {
             txn.rollback()
         }
@@ -80,7 +82,7 @@ class DeferFetchOnFetchRewriteRuleTest : AbstractDatabaseTest() {
     fun testDeferAfterFilter() {
         val txn = this.manager.TransactionImpl(TransactionType.SYSTEM)
         try {
-            val ctx = QueryContext("test", this.catalogue, txn)
+            val ctx = DefaultQueryContext("test", this.catalogue, txn)
             val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
             val schema = catalogueTx.schemaForName(this.schemaName)
             val schemaTx = txn.getTx(schema) as SchemaTx
@@ -94,8 +96,8 @@ class DeferFetchOnFetchRewriteRuleTest : AbstractDatabaseTest() {
             val projection0 = SelectProjectionLogicalOperatorNode(filter0, Projection.SELECT, listOf(this.columns[0].name, this.columns[1].name))
 
             /* Step 1: Execute DeferFetchOnScanRewriteRule and make basic assertions. */
-            Assertions.assertFalse(DeferFetchOnFetchRewriteRule.canBeApplied(scan0))
-            Assertions.assertTrue(DeferFetchOnScanRewriteRule.canBeApplied(scan0))
+            Assertions.assertFalse(DeferFetchOnFetchRewriteRule.canBeApplied(scan0, ctx))
+            Assertions.assertTrue(DeferFetchOnScanRewriteRule.canBeApplied(scan0, ctx))
             val result1 = DeferFetchOnScanRewriteRule.apply(scan0, ctx)
 
             /* Check order: SCAN -> FILTER -> FETCH -> PROJECT. */
@@ -117,7 +119,7 @@ class DeferFetchOnFetchRewriteRuleTest : AbstractDatabaseTest() {
             Assertions.assertTrue(scan1.columns == filter0.predicate.columns.toList()) /* Columns SCANNED should only contain the columns used by FILTER. */
 
             /* Step 2: Execute DeferFetchOnFetchRewriteRule and make basic assertions. */
-            Assertions.assertTrue(DeferFetchOnFetchRewriteRule.canBeApplied(result1.input!!))
+            Assertions.assertTrue(DeferFetchOnFetchRewriteRule.canBeApplied(result1.input!!, ctx))
             val result2 = DeferFetchOnFetchRewriteRule.apply(result1.input!!, ctx)
 
             /* Check order: SCAN -> FILTER -> FETCH -> PROJECT. */
@@ -145,7 +147,7 @@ class DeferFetchOnFetchRewriteRuleTest : AbstractDatabaseTest() {
     fun testRemoveUnnecessaryFetch() {
         val txn = this.manager.TransactionImpl(TransactionType.SYSTEM)
         try {
-            val ctx = QueryContext("test", this.catalogue, txn)
+            val ctx = DefaultQueryContext("test", this.catalogue, txn)
             val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
             val schema = catalogueTx.schemaForName(this.schemaName)
             val schemaTx = txn.getTx(schema) as SchemaTx
@@ -163,8 +165,8 @@ class DeferFetchOnFetchRewriteRuleTest : AbstractDatabaseTest() {
             val projection0 = SelectProjectionLogicalOperatorNode(filter0, Projection.SELECT, listOf(this.columns[0].name, this.columns[1].name))
 
             /* Step 1: Execute DeferFetchOnFetchRewriteRule and make basic assertions. */
-            Assertions.assertTrue(DeferFetchOnFetchRewriteRule.canBeApplied(fetch0))
-            Assertions.assertFalse(DeferFetchOnScanRewriteRule.canBeApplied(fetch0))
+            Assertions.assertTrue(DeferFetchOnFetchRewriteRule.canBeApplied(fetch0, ctx))
+            Assertions.assertFalse(DeferFetchOnScanRewriteRule.canBeApplied(fetch0, ctx))
             val result1 = DeferFetchOnFetchRewriteRule.apply(fetch0, ctx)
 
             /* Check order: SCAN -> FILTER -> PROJECT. */
@@ -182,6 +184,10 @@ class DeferFetchOnFetchRewriteRuleTest : AbstractDatabaseTest() {
         }
     }
 
-
-    override fun populateDatabase() { /* No op. */ }
+    /**
+     * We don't need data for this test.
+     */
+    override fun populateDatabase() {
+        /* No op. */
+    }
 }

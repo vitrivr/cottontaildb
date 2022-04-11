@@ -1,7 +1,6 @@
 package org.vitrivr.cottontail.core.queries.functions
 
 import org.vitrivr.cottontail.core.queries.functions.exception.FunctionNotSupportedException
-import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
 
 /**
