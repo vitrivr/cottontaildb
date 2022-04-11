@@ -4,6 +4,7 @@ import it.unimi.dsi.fastutil.Hash.VERY_FAST_LOAD_FACTOR
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2ObjectMaps
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet
 import jetbrains.exodus.env.Environment
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.cancel
@@ -15,6 +16,7 @@ import kotlinx.coroutines.sync.withLock
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.TransactionId
+import org.vitrivr.cottontail.dbms.events.DataEvent
 import org.vitrivr.cottontail.dbms.events.Event
 import org.vitrivr.cottontail.dbms.execution.ExecutionManager
 import org.vitrivr.cottontail.dbms.execution.locking.Lock
@@ -34,7 +36,7 @@ import kotlin.coroutines.CoroutineContext
  * create and execute queries within different [TransactionImpl]s.
  *
  * @author Ralph Gasser
- * @version 1.5.0
+ * @version 1.6.0
  */
 class TransactionManager(val executionManager: ExecutionManager, transactionTableSize: Int, val transactionHistorySize: Int, private val environment: Environment) {
     /** Logger used for logging the output. */
@@ -45,9 +47,11 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
     /** Map of [TransactionImpl]s that are currently PENDING or RUNNING. */
     private val transactions = Collections.synchronizedMap(Long2ObjectOpenHashMap<TransactionImpl>(transactionTableSize, VERY_FAST_LOAD_FACTOR))
 
+    /** Set of [TransactionObserver]s registered with this [TransactionManager]. */
+    private val observers = Collections.synchronizedSet(ObjectOpenHashSet<TransactionObserver>())
+
     /** Internal counter to generate [TransactionId]s. Starts with 1 */
     private val tidCounter = AtomicLong(1L)
-
 
     /** The [LockManager] instance used by this [TransactionManager]. */
     internal val lockManager = LockManager<DBO>()
@@ -62,6 +66,22 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
      * @return [TransactionImpl] or null
      */
     operator fun get(txId: TransactionId): TransactionImpl? = this.transactions[txId]
+
+    /**
+     * Registers a [TransactionObserver] with this.
+     *
+     * @param observer [TransactionObserver] to register.
+     * @return True on success, false otherwise.
+     */
+    fun register(observer: TransactionObserver) = this.observers.add(observer)
+
+    /**
+     * De-registers the given [TransactionObserver] with this [TransactionManager].
+     *
+     * @param observer [TransactionObserver] to de-register.
+     * @return True on success, false otherwise.
+     */
+    fun deregister(observer: TransactionObserver) = this.observers.remove(observer)
 
     /**
      * A concrete [TransactionImpl] used for executing a query.
@@ -111,6 +131,9 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
 
         /** A [HashSet] containing ALL [CoroutineContext] instances associated with execution in this [TransactionImpl], */
         private val activeContexts = HashSet<CoroutineContext>()
+
+        /** List of [Event]s that were collected in the context of this [TransactionImpl]. */
+        private val events: MutableList<Event> = Collections.synchronizedList(LinkedList())
 
         /** Number of ongoing queries in this [TransactionImpl]. */
         val numberOfOngoing: Int
@@ -163,7 +186,9 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
          * @param event The [Event] that has been reported.
          */
         override fun signalEvent(event: Event) {
-            /* ToDo: Do something with the events. */
+            if (event !is DataEvent) { /* TODO: DataEvents are not collected because this would use too much memory. */
+                this.events.add(event)
+            }
         }
 
         /**
@@ -190,7 +215,6 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
                 } else {
                     this@TransactionImpl.numberOfError += 1
                     this@TransactionImpl.state = TransactionStatus.ERROR
-
                 }
             }
         }.cancellable()
@@ -279,12 +303,18 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
             this@TransactionImpl.allLocks().forEach { this@TransactionManager.lockManager.unlock(this@TransactionImpl, it.obj) }
             this@TransactionImpl.txns.clear()
             this@TransactionImpl.ended = System.currentTimeMillis()
-            this@TransactionImpl.state = if (committed) {
-                TransactionStatus.COMMIT
-            } else {
-                TransactionStatus.ROLLBACK
-            }
             this@TransactionManager.transactions.remove(this@TransactionImpl.txId)
+            if (committed) {
+                this@TransactionImpl.state = TransactionStatus.COMMIT
+                for (observer in this@TransactionManager.observers) { /* Signal COMMIT to observers. */
+                    observer.didCommit(this.txId, this.events)
+                }
+            } else {
+                this@TransactionImpl.state = TransactionStatus.ROLLBACK
+                for (observer in this@TransactionManager.observers) { /* Signal ROLLBACK to observers. */
+                    observer.didAbort(this.txId, this.events)
+                }
+            }
         }
     }
 }
