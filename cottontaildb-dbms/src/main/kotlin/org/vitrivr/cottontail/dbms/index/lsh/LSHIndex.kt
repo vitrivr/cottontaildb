@@ -25,6 +25,7 @@ import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.catalogue.toKey
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
+import org.vitrivr.cottontail.dbms.events.DataEvent
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
@@ -34,7 +35,6 @@ import org.vitrivr.cottontail.dbms.index.lsh.signature.LSHSignatureGenerator
 import org.vitrivr.cottontail.dbms.index.pq.PQIndex
 import org.vitrivr.cottontail.dbms.index.pq.PQSignature
 import org.vitrivr.cottontail.dbms.index.va.VAFIndex
-import org.vitrivr.cottontail.dbms.operations.Operation
 import kotlin.concurrent.withLock
 
 /**
@@ -246,48 +246,48 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
         }
 
         /**
-         * Tries to apply the change applied by this [Operation.DataManagementOperation.InsertOperation] to the [LSHIndex] underlying this [LSHIndex.Tx].
+         * Tries to apply the change applied by this [DataEvent.Insert] to the [LSHIndex] underlying this [LSHIndex.Tx].
          *
          * This method implements the [LSHIndex]'es write model. TODO: True for all types of LSH algorithms?
          *
-         * @param operation The [Operation.DataManagementOperation.InsertOperation] to apply.
+         * @param event The [DataEvent.Insert] to apply.
          * @return True if change could be applied, false otherwise.
          */
-        override fun tryApply(operation: Operation.DataManagementOperation.InsertOperation): Boolean = this.txLatch.withLock {
+        override fun tryApply(event: DataEvent.Insert): Boolean = this.txLatch.withLock {
             val generator = this.config.generator ?: throw IllegalStateException("Failed to obtain LSHSignatureGenerator for index ${this@LSHIndex.name}. This is a programmer's error!")
-            val value = operation.inserts[this.columns[0]]
+            val value = event.data[this.columns[0]]
             check(value is VectorValue<*>) { "Failed to add $value to LSHIndex. Incoming value is not a vector! This is a programmer's error!"}
-            return this.addMapping(generator.generate(value), operation.tupleId)
+            return this.addMapping(generator.generate(value), event.tupleId)
         }
 
         /**
-         * Tries to apply the change applied by this [Operation.DataManagementOperation.UpdateOperation] to the [LSHIndex] underlying this [LSHIndex.Tx]. This method
+         * Tries to apply the change applied by this [DataEvent.Update] to the [LSHIndex] underlying this [LSHIndex.Tx]. This method
          * implements the [VAFIndex]'es [WriteModel].  TODO: True for all types of LSH algorithms?
          *
-         * @param operation The [Operation.DataManagementOperation.UpdateOperation] to apply.
+         * @param event The [DataEvent.Update] to apply.
          * @return True if change could be applied, false otherwise.
          */
-        override fun tryApply(operation: Operation.DataManagementOperation.UpdateOperation): Boolean {
+        override fun tryApply(event: DataEvent.Update): Boolean {
             val generator = this.config.generator ?: throw IllegalStateException("Failed to obtain LSHSignatureGenerator for index ${this@LSHIndex.name}. This is a programmer's error!")
-            val value = operation.updates[this.columns[0]]
+            val value = event.data[this.columns[0]]
             check(value?.first is VectorValue<*>) { "Failed to add $value to LSHIndex. Incoming value is not a vector! This is a programmer's error!"}
             check(value?.second is VectorValue<*>) { "Failed to add $value to LSHIndex. Incoming value is not a vector! This is a programmer's error!"}
-            return this.removeMapping(generator.generate(value!!.first as VectorValue<*>), operation.tupleId) && this.addMapping(generator.generate(value.second as VectorValue<*>), operation.tupleId)
+            return this.removeMapping(generator.generate(value!!.first as VectorValue<*>), event.tupleId) && this.addMapping(generator.generate(value.second as VectorValue<*>), event.tupleId)
 
         }
 
         /**
-         * Tries to apply the change applied by this [Operation.DataManagementOperation.DeleteOperation] to the [LSHIndex] underlying this [LSHIndex.Tx]. This method
+         * Tries to apply the change applied by this [DataEvent.Delete] to the [LSHIndex] underlying this [LSHIndex.Tx]. This method
          * implements the [VAFIndex]'es [WriteModel]: DELETES can always be applied.
          *
-         * @param operation The [Operation.DataManagementOperation.DeleteOperation] to apply.
+         * @param event The [DataEvent.Delete] to apply.
          * @return True if change could be applied, false otherwise.
          */
-        override fun tryApply(operation: Operation.DataManagementOperation.DeleteOperation): Boolean {
+        override fun tryApply(event: DataEvent.Delete): Boolean {
             val generator = this.config.generator ?: throw IllegalStateException("Failed to obtain LSHSignatureGenerator for index ${this@LSHIndex.name}. This is a programmer's error!")
-            val value = operation.deleted[this.columns[0]]
+            val value = event.data[this.columns[0]]
             check(value is VectorValue<*>) { "Failed to add $value to LSHIndex. Incoming value is not a vector! This is a programmer's error!"}
-            return this.removeMapping(generator.generate(value), operation.tupleId)
+            return this.removeMapping(generator.generate(value), event.tupleId)
         }
 
         /**

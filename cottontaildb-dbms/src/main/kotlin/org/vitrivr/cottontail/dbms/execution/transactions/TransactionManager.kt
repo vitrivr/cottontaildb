@@ -15,6 +15,7 @@ import kotlinx.coroutines.sync.withLock
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.TransactionId
+import org.vitrivr.cottontail.dbms.events.Event
 import org.vitrivr.cottontail.dbms.execution.ExecutionManager
 import org.vitrivr.cottontail.dbms.execution.locking.Lock
 import org.vitrivr.cottontail.dbms.execution.locking.LockHolder
@@ -24,7 +25,6 @@ import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager.TransactionImpl
 import org.vitrivr.cottontail.dbms.general.DBO
 import org.vitrivr.cottontail.dbms.general.Tx
-import org.vitrivr.cottontail.dbms.operations.Operation
 import java.util.*
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.coroutines.CoroutineContext
@@ -92,7 +92,8 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
             get() = this.txns.size
 
         /** Timestamp of when this [TransactionImpl] was created. */
-        val created = System.currentTimeMillis()
+        val created
+            get() = this.xodusTx.startTime
 
         /** Timestamp of when this [TransactionImpl] was either COMMITTED or ABORTED. */
         var ended: Long? = null
@@ -157,14 +158,11 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
         override fun requestLock(dbo: DBO, mode: LockMode) = this@TransactionManager.lockManager.lock(this, dbo, mode)
 
         /**
-         * Signals a [Operation.DataManagementOperation] to this [TransactionImpl].
+         * Signals an [Event to this [TransactionImpl].s
          *
-         * Implementing methods must process these [Operation.DataManagementOperation]s quickly, since they are usually
-         * triggered during an ongoing transaction.
-         *
-         * @param action The [Operation.DataManagementOperation] that has been reported.
+         * @param event The [Event] that has been reported.
          */
-        override fun signalEvent(action: Operation.DataManagementOperation) {
+        override fun signalEvent(event: Event) {
             /* ToDo: Do something with the events. */
         }
 

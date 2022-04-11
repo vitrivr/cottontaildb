@@ -26,6 +26,7 @@ import org.vitrivr.cottontail.dbms.catalogue.toKey
 import org.vitrivr.cottontail.dbms.column.ColumnTx
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
+import org.vitrivr.cottontail.dbms.events.DataEvent
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.execution.operators.sort.RecordComparator
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
@@ -36,7 +37,6 @@ import org.vitrivr.cottontail.dbms.index.va.bounds.L2Bounds
 import org.vitrivr.cottontail.dbms.index.va.bounds.L2SBounds
 import org.vitrivr.cottontail.dbms.index.va.signature.VAFMarks
 import org.vitrivr.cottontail.dbms.index.va.signature.VAFSignature
-import org.vitrivr.cottontail.dbms.operations.Operation
 import org.vitrivr.cottontail.dbms.statistics.columns.DoubleVectorValueStatistics
 import org.vitrivr.cottontail.dbms.statistics.columns.FloatVectorValueStatistics
 import org.vitrivr.cottontail.dbms.statistics.columns.IntVectorValueStatistics
@@ -256,52 +256,52 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
         }
 
         /**
-         * Tries to apply the change applied by this [Operation.DataManagementOperation.InsertOperation] to the [VAFIndex] underlying this [VAFIndex.Tx]. This method
-         * implements the [VAFIndex]'es write model: INSERTS can be applied, if inserted vector lies within the grid obtained upon creation of the index.
+         * Tries to apply the change applied by this [DataEvent.Insert] to the [VAFIndex] underlying this [VAFIndex.Tx]. This method implements the
+         * [VAFIndex]'es write model: INSERTS can be applied, if inserted vector lies within the grid obtained upon creation of the index.
          *
-         * @param operation The [Operation.DataManagementOperation.InsertOperation] to apply.
+         * @param event The [DataEvent.Insert] to apply.
          * @return True if change could be applied, false otherwise.
          */
-        override fun tryApply(operation: Operation.DataManagementOperation.InsertOperation): Boolean {
-            val value = operation.inserts[this.column]
+        override fun tryApply(event: DataEvent.Insert): Boolean {
+            val value = event.data[this.column]
             require(value is RealVectorValue<*>) { "Only real vector values can be stored in a VAFIndex. This is a programmer's error!" }
             for (i in value.indices) {
                 if (value[i].value.toDouble() < this.marks!!.minimum[i] || value[i].value.toDouble() > this.marks!!.maximum[i]) {
-                    this.dataStore.put(this.context.xodusTx, operation.tupleId.toKey(), VAFSignature.Binding.valueToEntry(VAFSignature.invalid(value.logicalSize)))
+                    this.dataStore.put(this.context.xodusTx, event.tupleId.toKey(), VAFSignature.Binding.valueToEntry(VAFSignature.invalid(value.logicalSize)))
                     return false
                 }
             }
-            return this.dataStore.add(this.context.xodusTx, operation.tupleId.toKey(), VAFSignature.Binding.valueToEntry(this.marks!!.getSignature(value)))
+            return this.dataStore.add(this.context.xodusTx, event.tupleId.toKey(), VAFSignature.Binding.valueToEntry(this.marks!!.getSignature(value)))
         }
 
         /**
-         * Tries to apply the change applied by this [Operation.DataManagementOperation.UpdateOperation] to the [VAFIndex] underlying this [VAFIndex.Tx]. This method
-         * implements the [VAFIndex]'es [WriteModel]: UPDATES can be applied, if updated vector lies within the grid obtained upon creation of the index.
+         * Tries to apply the change applied by this [DataEvent.Update] to the [VAFIndex] underlying this [VAFIndex.Tx]. This method implements
+         * the [VAFIndex]'es [WriteModel]: UPDATES can be applied, if updated vector lies within the grid obtained upon creation of the index.
          *
-         * @param operation The [Operation.DataManagementOperation.UpdateOperation] to apply.
+         * @param event The [DataEvent.Update] to apply.
          * @return True if change could be applied, false otherwise.
          */
-        override fun tryApply(operation: Operation.DataManagementOperation.UpdateOperation): Boolean {
-            val value = operation.updates[this.column]?.second
+        override fun tryApply(event: DataEvent.Update): Boolean {
+            val value = event.data[this.column]?.second
             require(value is RealVectorValue<*>) { "Only real vector values can be stored in a VAFIndex. This is a programmer's error!" }
             for (i in value.indices) {
                 if (value[i].value.toDouble() < this.marks!!.minimum[i] || value[i].value.toDouble() >  this.marks!!.maximum[i]) {
-                    this.dataStore.put(this.context.xodusTx, operation.tupleId.toKey(), VAFSignature.Binding.valueToEntry(VAFSignature.invalid(value.logicalSize)))
+                    this.dataStore.put(this.context.xodusTx, event.tupleId.toKey(), VAFSignature.Binding.valueToEntry(VAFSignature.invalid(value.logicalSize)))
                     return false
                 }
             }
-            return this.dataStore.put(this.context.xodusTx, operation.tupleId.toKey(), VAFSignature.Binding.valueToEntry(this.marks!!.getSignature(value)))
+            return this.dataStore.put(this.context.xodusTx, event.tupleId.toKey(), VAFSignature.Binding.valueToEntry(this.marks!!.getSignature(value)))
         }
 
         /**
-         * Tries to apply the change applied by this [Operation.DataManagementOperation.DeleteOperation] to the [VAFIndex] underlying this [VAFIndex.Tx]. This method
-         * implements the [VAFIndex]'es [WriteModel]: DELETES can always be applied.
+         * Tries to apply the change applied by this [DataEvent.Delete] to the [VAFIndex] underlying this [VAFIndex.Tx].
+         * This method implements the [VAFIndex]'es [WriteModel]: DELETES can always be applied.
          *
-         * @param operation The [Operation.DataManagementOperation.DeleteOperation] to apply.
+         * @param event The [DataEvent.Delete to apply.
          * @return True if change could be applied, false otherwise.
          */
-        override fun tryApply(operation: Operation.DataManagementOperation.DeleteOperation): Boolean {
-            return this.dataStore.delete(this.context.xodusTx, operation.tupleId.toKey())
+        override fun tryApply(event: DataEvent.Delete): Boolean {
+            return this.dataStore.delete(this.context.xodusTx, event.tupleId.toKey())
         }
 
         /**

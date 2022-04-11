@@ -10,8 +10,8 @@ import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
 import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
+import org.vitrivr.cottontail.dbms.events.DataEvent
 import org.vitrivr.cottontail.dbms.general.Tx
-import org.vitrivr.cottontail.dbms.operations.Operation
 
 /**
  * A [Tx] that operates on a single [Index]. [Tx]s are a unit of isolation for data operations (read/write).
@@ -74,31 +74,31 @@ interface IndexTx: Tx, Filterable, Countable {
     fun clear()
 
     /**
-     * Inserts a new entry in the [Index] underlying this [IndexTx] based on the provided [Operation.DataManagementOperation.UpdateOperation].
+     * Inserts a new entry in the [Index] underlying this [IndexTx] based on the provided [DataEvent.Insert].
      *
      * Not all [Index] implementations support incremental updates. Should be indicated by [Index.supportsIncrementalUpdate]
      *
-     * @param operation [Operation.DataManagementOperation.InsertOperation] that should be processed.
+     * @param event [DataEvent.Insert] that should be processed.
      */
-    fun insert(operation: Operation.DataManagementOperation.InsertOperation)
+    fun insert(event: DataEvent.Insert)
 
     /**
-     * Updates an entry in the [Index] underlying this [IndexTx] based on the provided [Operation.DataManagementOperation.UpdateOperation].
+     * Updates an entry in the [Index] underlying this [IndexTx] based on the provided [DataEvent.Update].
      *
      * Not all [Index] implementations support incremental updates. Should be indicated by [Index.supportsIncrementalUpdate]
      *
-     * @param operation [Operation.DataManagementOperation.UpdateOperation] that should be processed.
+     * @param event [DataEvent.Update] that should be processed.
      */
-    fun update(operation: Operation.DataManagementOperation.UpdateOperation)
+    fun update(event: DataEvent.Update)
 
     /**
-     * Deletes an entry from the [Index] underlying this [IndexTx] based on the provided [Operation.DataManagementOperation.DeleteOperation].
+     * Deletes an entry from the [Index] underlying this [IndexTx] based on the provided [DataEvent.Delete].
      *
      * Not all [Index] implementations support incremental updates. Should be indicated by [Index.supportsIncrementalUpdate]
      *
-     * @param operation [Operation.DataManagementOperation.DeleteOperation] that should be processed.
+     * @param event [DataEvent.Delete] that should be processed.
      */
-    fun delete(operation: Operation.DataManagementOperation.DeleteOperation)
+    fun delete(event: DataEvent.Delete)
 
     /**
      * Performs a lookup through this [IndexTx] and returns a [Cursor] of all the [Record]s that match the [Predicate].

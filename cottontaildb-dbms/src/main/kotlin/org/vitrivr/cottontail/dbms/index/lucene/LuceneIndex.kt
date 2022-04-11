@@ -32,12 +32,12 @@ import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.catalogue.entries.IndexCatalogueEntry
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
+import org.vitrivr.cottontail.dbms.events.DataEvent
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.index.*
 import org.vitrivr.cottontail.dbms.index.hash.BTreeIndex
-import org.vitrivr.cottontail.dbms.operations.Operation
 import org.vitrivr.cottontail.storage.lucene.XodusDirectory
 import kotlin.concurrent.withLock
 
@@ -389,37 +389,37 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
         }
 
         /**
-         * Updates the [LuceneIndex] with the provided [Operation.DataManagementOperation.InsertOperation].
+         * Updates the [LuceneIndex] with the provided [DataEvent.Insert].
          *
-         * @param operation [Operation.DataManagementOperation.InsertOperation] to apply.
+         * @param event [DataEvent.Insert] to apply.
          */
-        override fun insert(operation: Operation.DataManagementOperation.InsertOperation) = this.txLatch.withLock {
-            val new = operation.inserts[this.columns[0]]
+        override fun insert(event: DataEvent.Insert) = this.txLatch.withLock {
+            val new = event.data[this.columns[0]]
             if (new is StringValue) {
-                this.indexWriter.addDocument(this@Tx.documentFromValue(new, operation.tupleId))
+                this.indexWriter.addDocument(this@Tx.documentFromValue(new, event.tupleId))
             }
         }
 
         /**
-         * Updates the [LuceneIndex] with the provided [Operation.DataManagementOperation.UpdateOperation].
+         * Updates the [LuceneIndex] with the provided [DataEvent.Update].
          *
-         * @param operation [Operation.DataManagementOperation.UpdateOperation] to apply.
+         * @param event [DataEvent.Update] to apply.
          */
-        override fun update(operation: Operation.DataManagementOperation.UpdateOperation) = this.txLatch.withLock {
-            this.indexWriter.deleteDocuments(Term(TID_COLUMN, operation.tupleId.toString()))
-            val new = operation.updates[this.columns[0]]?.second
+        override fun update(event: DataEvent.Update) = this.txLatch.withLock {
+            this.indexWriter.deleteDocuments(Term(TID_COLUMN, event.tupleId.toString()))
+            val new = event.data[this.columns[0]]?.second
             if (new is StringValue) {
-                this.indexWriter.addDocument(this@Tx.documentFromValue(new, operation.tupleId))
+                this.indexWriter.addDocument(this@Tx.documentFromValue(new, event.tupleId))
             }
         }
 
         /**
-         * Updates the [LuceneIndex] with the provided [Operation.DataManagementOperation.DeleteOperation].
+         * Updates the [LuceneIndex] with the provided [DataEvent.Delete].
          *
-         * @param operation [Operation.DataManagementOperation.DeleteOperation] to apply.
+         * @param event [DataEvent.Delete] to apply.
          */
-        override fun delete(operation: Operation.DataManagementOperation.DeleteOperation) = this.txLatch.withLock {
-            this.indexWriter.deleteDocuments(Term(TID_COLUMN, operation.tupleId.toString()))
+        override fun delete(event: DataEvent.Delete) = this.txLatch.withLock {
+            this.indexWriter.deleteDocuments(Term(TID_COLUMN, event.tupleId.toString()))
             Unit
         }
 

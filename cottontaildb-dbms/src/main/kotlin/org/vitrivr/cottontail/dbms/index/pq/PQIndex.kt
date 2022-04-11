@@ -28,6 +28,7 @@ import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.catalogue.toKey
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
+import org.vitrivr.cottontail.dbms.events.DataEvent
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
 import org.vitrivr.cottontail.dbms.execution.operators.sort.RecordComparator
@@ -35,7 +36,6 @@ import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.index.*
 import org.vitrivr.cottontail.dbms.index.lucene.LuceneIndex
 import org.vitrivr.cottontail.dbms.index.va.VAFIndex
-import org.vitrivr.cottontail.dbms.operations.Operation
 import org.vitrivr.cottontail.utilities.selection.HeapSelection
 import java.util.*
 import kotlin.concurrent.withLock
@@ -254,21 +254,21 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
         /**
          *
          */
-        override fun tryApply(operation: Operation.DataManagementOperation.InsertOperation): Boolean {
+        override fun tryApply(event: DataEvent.Insert): Boolean {
             return false
         }
 
         /**
          *
          */
-        override fun tryApply(operation: Operation.DataManagementOperation.UpdateOperation): Boolean {
+        override fun tryApply(event: DataEvent.Update): Boolean {
             return false
         }
 
         /**
          *
          */
-        override fun tryApply(operation: Operation.DataManagementOperation.DeleteOperation): Boolean {
+        override fun tryApply(event: DataEvent.Delete): Boolean {
             return false
         }
 

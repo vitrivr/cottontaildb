@@ -20,11 +20,11 @@ import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.VectorValue
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
+import org.vitrivr.cottontail.dbms.events.DataEvent
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.index.*
 import org.vitrivr.cottontail.dbms.index.pq.PQIndex
-import org.vitrivr.cottontail.dbms.operations.Operation
 import org.vitrivr.cottontail.utilities.selection.ComparablePair
 import org.vitrivr.cottontail.utilities.selection.MinHeapSelection
 import org.vitrivr.cottontail.utilities.selection.MinSingleSelection
@@ -354,21 +354,21 @@ class GGIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
         /**
          * The [GGIndex] does not support incremental updates. Hence, this method will always throw an [UnsupportedOperationException].
          */
-        override fun tryApply(operation: Operation.DataManagementOperation.InsertOperation): Boolean {
+        override fun tryApply(event: DataEvent.Insert): Boolean {
             throw UnsupportedOperationException("GGIndex does not support incremental updates!")
         }
 
         /**
          * The [GGIndex] does not support incremental updates. Hence, this method will always throw an [UnsupportedOperationException].
          */
-        override fun tryApply(operation: Operation.DataManagementOperation.UpdateOperation): Boolean {
+        override fun tryApply(event: DataEvent.Update): Boolean {
             throw UnsupportedOperationException("GGIndex does not support incremental updates!")
         }
 
         /**
          * The [GGIndex] does not support incremental updates. Hence, this method will always throw an [UnsupportedOperationException].
          */
-        override fun tryApply(operation: Operation.DataManagementOperation.DeleteOperation): Boolean{
+        override fun tryApply(event: DataEvent.Delete): Boolean{
             throw UnsupportedOperationException("GGIndex does not support incremental updates!")
         }
     }

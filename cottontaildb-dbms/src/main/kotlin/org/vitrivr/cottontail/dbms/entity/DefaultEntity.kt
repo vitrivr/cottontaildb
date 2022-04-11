@@ -14,13 +14,13 @@ import org.vitrivr.cottontail.dbms.catalogue.entries.*
 import org.vitrivr.cottontail.dbms.column.Column
 import org.vitrivr.cottontail.dbms.column.ColumnTx
 import org.vitrivr.cottontail.dbms.column.DefaultColumn
+import org.vitrivr.cottontail.dbms.events.DataEvent
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.exceptions.TxException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.general.DBOVersion
 import org.vitrivr.cottontail.dbms.index.*
-import org.vitrivr.cottontail.dbms.operations.Operation
 import org.vitrivr.cottontail.dbms.schema.DefaultSchema
 import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
 import kotlin.concurrent.withLock
@@ -390,13 +390,13 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
             }
 
             /* Issue DataChangeEvent.InsertDataChange event and update indexes. */
-            val operation = Operation.DataManagementOperation.InsertOperation(this.context.txId, this@DefaultEntity.name, nextTupleId, inserts)
+            val event = DataEvent.Insert(this.context.txId, this@DefaultEntity.name, nextTupleId, inserts)
             for (index in this.indexes.values) {
-                (this.context.getTx(index) as IndexTx).insert(operation)
+                (this.context.getTx(index) as IndexTx).insert(event)
             }
 
             /* Signal event to transaction context. */
-            this.context.signalEvent(operation)
+            this.context.signalEvent(event)
 
             return nextTupleId
         }
@@ -422,13 +422,13 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
             }
 
             /* Issue DataChangeEvent.UpdateDataChangeEvent and update indexes + statistics. */
-            val operation = Operation.DataManagementOperation.UpdateOperation(this.context.txId, this@DefaultEntity.name, record.tupleId, updates)
+            val event = DataEvent.Update(this.context.txId, this@DefaultEntity.name, record.tupleId, updates)
             for (index in this.indexes.values) {
-                (this.context.getTx(index) as IndexTx).update(operation)
+                (this.context.getTx(index) as IndexTx).update(event)
             }
 
             /* Signal event to transaction context. */
-            this.context.signalEvent(operation)
+            this.context.signalEvent(event)
         }
 
         /**
@@ -446,13 +446,13 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
             }
 
             /* Issue DataChangeEvent.DeleteDataChangeEvent and update indexes + statistics. */
-            val operation = Operation.DataManagementOperation.DeleteOperation(this.context.txId, this@DefaultEntity.name, tupleId, deleted)
+            val event = DataEvent.Delete(this.context.txId, this@DefaultEntity.name, tupleId, deleted)
             for (index in this.indexes.values) {
-                (this.context.getTx(index) as IndexTx).delete(operation)
+                (this.context.getTx(index) as IndexTx).delete(event)
             }
 
             /* Signal event to transaction context. */
-            this.context.signalEvent(operation)
+            this.context.signalEvent(event)
         }
 
         /**

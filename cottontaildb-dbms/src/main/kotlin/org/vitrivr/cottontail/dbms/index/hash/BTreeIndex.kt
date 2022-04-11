@@ -23,12 +23,12 @@ import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
+import org.vitrivr.cottontail.dbms.events.DataEvent
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.exceptions.TxException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.index.*
 import org.vitrivr.cottontail.dbms.index.lucene.LuceneIndex
-import org.vitrivr.cottontail.dbms.operations.Operation
 import org.vitrivr.cottontail.storage.serializers.values.ValueSerializerFactory
 import org.vitrivr.cottontail.storage.serializers.values.xodus.XodusBinding
 import java.util.*
@@ -252,42 +252,42 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
         }
 
         /**
-         * Updates the [BTreeIndex] with the provided [Operation.DataManagementOperation.InsertOperation].
+         * Updates the [BTreeIndex] with the provided [DataEvent.Insert].
          *
-         * @param operation [Operation.DataManagementOperation.InsertOperation] to apply.
+         * @param event [DataEvent.Insert] to apply.
          */
-        override fun insert(operation: Operation.DataManagementOperation.InsertOperation) = this.txLatch.withLock {
-            val value = operation.inserts[this.columns[0]]
+        override fun insert(event: DataEvent.Insert) = this.txLatch.withLock {
+            val value = event.data[this.columns[0]]
             if (value != null) {
-                this.addMapping(value, operation.tupleId)
+                this.addMapping(value, event.tupleId)
             }
         }
 
         /**
-         * Updates the [BTreeIndex] with the provided [Operation.DataManagementOperation.UpdateOperation].
+         * Updates the [BTreeIndex] with the provided [DataEvent.Update].
          *
-         * @param operation [Operation.DataManagementOperation.UpdateOperation] to apply.
+         * @param event [DataEvent.Update] to apply.
          */
-        override fun update(operation: Operation.DataManagementOperation.UpdateOperation) = this.txLatch.withLock {
-            val old = operation.updates[this.columns[0]]?.first
+        override fun update(event: DataEvent.Update) = this.txLatch.withLock {
+            val old = event.data[this.columns[0]]?.first
             if (old != null) {
-                this.removeMapping(old, operation.tupleId)
+                this.removeMapping(old, event.tupleId)
             }
-            val new = operation.updates[this.columns[0]]?.second
+            val new = event.data[this.columns[0]]?.second
             if (new != null) {
-                this.addMapping(new, operation.tupleId)
+                this.addMapping(new, event.tupleId)
             }
         }
 
         /**
-         * Updates the [BTreeIndex] with the provided [Operation.DataManagementOperation.DeleteOperation].
+         * Updates the [BTreeIndex] with the provided [DataEvent.Delete].
          *
-         * @param operation [Operation.DataManagementOperation.DeleteOperation] to apply.
+         * @param event [DataEvent.Delete] to apply.
          */
-        override fun delete(operation: Operation.DataManagementOperation.DeleteOperation) = this.txLatch.withLock {
-            val old = operation.deleted[this.columns[0]]
+        override fun delete(event: DataEvent.Delete) = this.txLatch.withLock {
+            val old = event.data[this.columns[0]]
             if (old != null) {
-                this.removeMapping(old, operation.tupleId)
+                this.removeMapping(old, event.tupleId)
             }
         }
 

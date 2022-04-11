@@ -110,7 +110,6 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
             config.clusteringStrategy.maxClusterSize = 65536 * 16
             this.vfs = VirtualFileSystem(this.environment, config, tx)
 
-
             /* Check database version. */
             val version = MetadataEntry.read(METADATA_ENTRY_DB_VERSION, this, tx)?.let { it -> DBOVersion.valueOf(it.value) } ?: DBOVersion.UNDEFINED
             if (version != this.version) {

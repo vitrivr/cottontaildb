@@ -8,10 +8,10 @@ import org.vitrivr.cottontail.core.queries.predicates.Predicate
 import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
 import org.vitrivr.cottontail.core.queries.sort.SortOrder
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
+import org.vitrivr.cottontail.dbms.events.DataEvent
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.index.basics.avc.AuxiliaryValueCollection
 import org.vitrivr.cottontail.dbms.index.gg.GGIndex
-import org.vitrivr.cottontail.dbms.operations.Operation
 import kotlin.concurrent.withLock
 
 /**
@@ -59,11 +59,11 @@ abstract class AbstractHDIndex(name: Name.IndexName, parent: DefaultEntity) : Ab
             val traits = when (predicate) {
                 is ProximityPredicate.NNS -> mutableMapOf(
                     OrderTrait to OrderTrait(listOf(predicate.distanceColumn to SortOrder.ASCENDING)),
-                    LimitTrait to LimitTrait(predicate.k.toLong())
+                    LimitTrait to LimitTrait(predicate.k)
                 )
                 is ProximityPredicate.FNS -> mutableMapOf(
                     OrderTrait to OrderTrait(listOf(predicate.distanceColumn to SortOrder.DESCENDING)),
-                    LimitTrait to LimitTrait(predicate.k.toLong())
+                    LimitTrait to LimitTrait(predicate.k)
                 )
                 else -> throw IllegalArgumentException("Unsupported predicate for HD-index. This is a programmer's error!")
             }
@@ -74,15 +74,15 @@ abstract class AbstractHDIndex(name: Name.IndexName, parent: DefaultEntity) : Ab
         }
 
         /**
-         * Tries to process an incoming [Operation.DataManagementOperation.InsertOperation].
+         * Tries to process an incoming [DataEvent.Insert].
          *
          * If the [AbstractHDIndex] does not support incremental updates, the [AbstractHDIndex] will be marked as [IndexState.STALE].
          * Otherwise, the change is either propagated to the [AbstractHDIndex] or to the [AuxiliaryValueCollection] this marking the
          * [AbstractIndex] as [IndexState.DIRTY].
          *
-         * @param operation [Operation.DataManagementOperation.UpdateOperation] that should be processed,
+         * @param operation [DataEvent.Insert] that should be processed,
          */
-        final override fun insert(operation: Operation.DataManagementOperation.InsertOperation) = this.txLatch.withLock {
+        final override fun insert(operation: DataEvent.Insert) = this.txLatch.withLock {
             /* If index does not support incremental updating at all. */
             if (!this@AbstractHDIndex.supportsIncrementalUpdate) {
                 this.updateState(IndexState.STALE)
@@ -91,7 +91,7 @@ abstract class AbstractHDIndex(name: Name.IndexName, parent: DefaultEntity) : Ab
 
             /* If write-model does not allow propagation, apply change to auxiliary value collection. */
             if (!this.tryApply(operation)) {
-                val value = operation.inserts[this.column]
+                val value = operation.data[this.column]
 
                 /* TODO: Process. */
 
@@ -101,15 +101,15 @@ abstract class AbstractHDIndex(name: Name.IndexName, parent: DefaultEntity) : Ab
         }
 
         /**
-         * Tries to process an incoming [Operation.DataManagementOperation.UpdateOperation].
+         * Tries to process an incoming [DataEvent.Update].
          *
          * If the [AbstractHDIndex] does not support incremental updates, the [AbstractHDIndex] will be marked as [IndexState.STALE].
          * Otherwise, the change is either propagated to the [AbstractHDIndex] or to the [AuxiliaryValueCollection] this marking the
          * [AbstractIndex] as [IndexState.DIRTY].
          *
-         * @param operation [Operation.DataManagementOperation.UpdateOperation]
+         * @param operation [DataEvent.Update]
          */
-        final override fun update(operation: Operation.DataManagementOperation.UpdateOperation) = this.txLatch.withLock {
+        final override fun update(operation: DataEvent.Update) = this.txLatch.withLock {
             /* If index does not support incremental updating at all. */
             if (!this@AbstractHDIndex.supportsIncrementalUpdate) {
                 this.updateState(IndexState.STALE)
@@ -118,7 +118,7 @@ abstract class AbstractHDIndex(name: Name.IndexName, parent: DefaultEntity) : Ab
 
             /* If write-model does not allow propagation, apply change to auxiliary value collection. */
             if (!this.tryApply(operation)) {
-                val value = operation.updates[this.column]?.second
+                val value = operation.data[this.column]?.second
 
                 /* TODO: Process. */
 
@@ -128,15 +128,15 @@ abstract class AbstractHDIndex(name: Name.IndexName, parent: DefaultEntity) : Ab
         }
 
         /**
-         * Tries to process an incoming [Operation.DataManagementOperation.DeleteOperation].
+         * Tries to process an incoming [DataEvent.Delete].
          *
          * If the [AbstractHDIndex] does not support incremental updates, the [AbstractHDIndex] will be marked as [IndexState.STALE].
          * Otherwise, the change is either propagated to the [AbstractHDIndex] or to the [AuxiliaryValueCollection] this marking the
          * [AbstractIndex] as [IndexState.DIRTY].
          *
-         * @param operation [Operation.DataManagementOperation.DeleteOperation] that should be processed.
+         * @param operation [DataEvent.Delete] that should be processed.
          */
-        final override fun delete(operation: Operation.DataManagementOperation.DeleteOperation) = this.txLatch.withLock {
+        final override fun delete(operation: DataEvent.Delete) = this.txLatch.withLock {
             /* If index does not support incremental updating at all. */
             if (!this@AbstractHDIndex.supportsIncrementalUpdate) {
                 this.updateState(IndexState.STALE)
