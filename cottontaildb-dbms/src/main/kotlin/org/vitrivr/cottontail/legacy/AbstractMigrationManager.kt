@@ -12,6 +12,7 @@ import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.column.Column
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
+import org.vitrivr.cottontail.dbms.events.Event
 import org.vitrivr.cottontail.dbms.execution.locking.LockMode
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.operators.sources.partitionFor
@@ -23,7 +24,6 @@ import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
 import org.vitrivr.cottontail.dbms.general.DBO
 import org.vitrivr.cottontail.dbms.general.Tx
 import org.vitrivr.cottontail.dbms.index.IndexTx
-import org.vitrivr.cottontail.dbms.operations.Operation
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
 import org.vitrivr.cottontail.utilities.io.TxFileUtilities
 import java.io.BufferedWriter
@@ -301,7 +301,7 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
             /* No op. */
         }
 
-        override fun signalEvent(action: Operation.DataManagementOperation) {
+        override fun signalEvent(event: Event) {
             throw UnsupportedOperationException("Operation signalEvent() not supported for LegacyMigrationContext.")
         }
 
@@ -388,7 +388,7 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
             /* No op. */
         }
 
-        override fun signalEvent(action: Operation.DataManagementOperation) {
+        override fun signalEvent(event: Event) {
             /* No op. */
         }
 
