@@ -10,11 +10,15 @@ import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
-import org.vitrivr.cottontail.dbms.catalogue.entries.*
+import org.vitrivr.cottontail.dbms.catalogue.entries.ColumnCatalogueEntry
+import org.vitrivr.cottontail.dbms.catalogue.entries.EntityCatalogueEntry
+import org.vitrivr.cottontail.dbms.catalogue.entries.IndexCatalogueEntry
+import org.vitrivr.cottontail.dbms.catalogue.entries.SequenceCatalogueEntries
 import org.vitrivr.cottontail.dbms.column.Column
 import org.vitrivr.cottontail.dbms.column.ColumnTx
 import org.vitrivr.cottontail.dbms.column.DefaultColumn
 import org.vitrivr.cottontail.dbms.events.DataEvent
+import org.vitrivr.cottontail.dbms.events.IndexEvent
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.exceptions.TxException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
@@ -22,7 +26,6 @@ import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.general.DBOVersion
 import org.vitrivr.cottontail.dbms.index.*
 import org.vitrivr.cottontail.dbms.schema.DefaultSchema
-import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
 import kotlin.concurrent.withLock
 
 /**
@@ -245,6 +248,11 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
             /* Try to open index. */
             val ret = type.descriptor.open(name, this@DefaultEntity)
             this.indexes[name] = ret
+
+            /* Signal event to transaction context. */
+            this.context.signalEvent(IndexEvent.Created(name))
+
+            /* Return index. */
             return ret
         }
 
@@ -273,41 +281,9 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
 
             /* Update entity catalogue entry. */
             EntityCatalogueEntry.write(entity.copy(indexes = (entity.indexes - name)), this@DefaultEntity.catalogue, this.context.xodusTx)
-            Unit
-        }
 
-        /**
-         * Optimizes the [DefaultEntity] underlying this [Tx]. Optimization involves rebuilding of [Index]es and statistics.
-         */
-        @Suppress("UNCHECKED_CAST")
-        override fun optimize() = this.txLatch.withLock {
-            val statistics = this.columns.values.map { /* Reset column statistics. */
-                val stat = (this.context.getTx(it) as ColumnTx<*>).statistics() as ValueStatistics<Value>
-                stat.reset()
-                stat
-            }
-
-            /* Iterate over all entries and update indexes and statistics. */
-            val cursor = this.cursor(this.columns.values.map { it.columnDef }.toTypedArray())
-            while (cursor.moveNext()) {
-                val value = cursor.value()
-                for ((i,c) in value.columns.withIndex()) {
-                    statistics[i].insert(value[c])
-                }
-            }
-            cursor.close()
-
-            /* Write new statistics values. */
-            this.columns.values.forEachIndexed { i, c ->
-                val entry = StatisticsCatalogueEntry.read(c.columnDef.name, this@DefaultEntity.catalogue, this.context.xodusTx)
-                    ?: throw DatabaseException.DataCorruptionException("Failed to DELETE value from ${c.columnDef.name}: Reading column statistics failed.")
-                StatisticsCatalogueEntry.write(entry = entry.copy(statistics = statistics[i]), catalogue = this@DefaultEntity.catalogue, transaction = this.context.xodusTx)
-            }
-
-            /* Rebuild all indexes. */
-            for (index in this.indexes.values) {
-                (this.context.getTx(index) as IndexTx).rebuild()
-            }
+            /* Signal event to transaction context. */
+            this.context.signalEvent(IndexEvent.Dropped(name))
         }
 
         /**

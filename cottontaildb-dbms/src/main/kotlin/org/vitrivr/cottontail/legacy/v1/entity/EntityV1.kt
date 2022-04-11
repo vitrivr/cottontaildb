@@ -227,10 +227,6 @@ class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
         }
 
-        override fun optimize() {
-            throw UnsupportedOperationException("Operation not supported on legacy DBO.")
-        }
-
         override fun read(tupleId: TupleId, columns: Array<ColumnDef<*>>): Record {
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
         }

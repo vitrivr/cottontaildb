@@ -226,6 +226,10 @@ class ColumnV2<T : Value>(val path: Path, override val parent: Entity) : Column<
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
         }
 
+        override fun analyse() {
+            throw UnsupportedOperationException("Operation not supported on legacy DBO.")
+        }
+
         override fun statistics(): ValueStatistics<T> {
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
         }

@@ -246,10 +246,6 @@ class EntityV2(val path: Path, override val parent: SchemaV2) : Entity, AutoClos
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
         }
 
-        override fun optimize() {
-            throw UnsupportedOperationException("Operation not supported on legacy DBO.")
-        }
-
         /**
          * Creates and returns a new [Iterator] for this [EntityV2.Tx] that returns
          * all [TupleId]s contained within the surrounding [EntityV2].

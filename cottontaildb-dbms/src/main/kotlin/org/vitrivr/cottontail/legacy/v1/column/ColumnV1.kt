@@ -224,6 +224,10 @@ class ColumnV1<T : Value>(override val name: Name.ColumnName, override val paren
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
         }
 
+        override fun analyse() {
+            throw UnsupportedOperationException("Operation not supported on legacy DBO.")
+        }
+
         override fun statistics(): ValueStatistics<T> {
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
         }

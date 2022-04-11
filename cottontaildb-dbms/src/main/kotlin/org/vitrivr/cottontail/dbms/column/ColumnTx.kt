@@ -40,6 +40,11 @@ interface ColumnTx<T : Value> : Tx {
     fun largestTupleId(): TupleId
 
     /**
+     * Refreshes the [ValueStatistics] for this [DefaultColumn].
+     */
+    fun analyse()
+
+    /**
      * Gets and returns [ValueStatistics] for the [Column] backing this [ColumnTx]
      *
      * @return [ValueStatistics].
