@@ -14,12 +14,8 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
  * @version 1.3.0
  */
 object SIMDRule : RewriteRule {
-    override fun canBeApplied(node: OperatorNode): Boolean {
-        if (node is FunctionPhysicalOperatorNode && node.function.function is VectorDistance<*>) {
-            return true
-        }
-        return false
-    }
+    override fun canBeApplied(node: OperatorNode): Boolean = node is FunctionPhysicalOperatorNode &&
+            node.function.function is VectorDistance<*>
 
     override fun apply(node: OperatorNode, ctx: QueryContext): OperatorNode? {
         // TODO @Colin - Optimize rule based on the performance evaluation
@@ -29,12 +25,11 @@ object SIMDRule : RewriteRule {
             val bindFunction = out.context.bind((node.function.function as VectorDistance<*>).vectorized(), node.function.arguments)
 
             // Provisional heuristic
-            if ((node.function.function as VectorDistance<*>).type.logicalSize >= 256) {
+            if ((node.function.function as VectorDistance<*>).type.logicalSize >= 0) {
                 val p = FunctionPhysicalOperatorNode(input as OperatorNode.Physical, bindFunction, out)
                 return node.output?.copyWithOutput(p) ?: p
             }
         }
         return null
     }
-
 }

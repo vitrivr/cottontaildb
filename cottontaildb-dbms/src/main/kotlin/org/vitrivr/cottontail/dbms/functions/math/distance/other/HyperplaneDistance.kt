@@ -101,7 +101,7 @@ sealed class HyperplaneDistance<T: VectorValue<*>>(val type: Types.Vector<T,*>):
                 dotp += probing.data[i] * query.data[i]
                 norm += query.data[i] * query.data[i]
             }
-            return DoubleValue(dotp + bias.value / norm)
+            return DoubleValue((dotp + bias.value) / sqrt(norm))
         }
     }
 
@@ -133,7 +133,7 @@ sealed class HyperplaneDistance<T: VectorValue<*>>(val type: Types.Vector<T,*>):
                 norm += query.data[i] * query.data[i]
             }
 
-            return DoubleValue(dotp + bias.value / norm)
+            return DoubleValue((dotp + bias.value) / sqrt(norm))
         }
     }
 

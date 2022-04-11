@@ -43,6 +43,10 @@ abstract class VectorDistance<T: VectorValue<*>>(val type: Types.Vector<T,*>): F
      */
     abstract fun copy(d: Int): VectorDistance<T>
 
-    //TODO @Colin Look whether this works
+    /**
+     * Returns the vectorized Version of the [VectorDistance].
+     *
+     * @return Vectorized [VectorDistance]
+     */
     abstract fun vectorized(): VectorDistance<T>
 }
