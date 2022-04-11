@@ -12,7 +12,7 @@ import org.vitrivr.cottontail.dbms.events.Event
  * @author Ralph Gasser
  * @version 1.0.0
  */
-sealed interface TransactionObserver {
+interface TransactionObserver {
     /**
      * Called when the [Transaction] with the [TransactionId] committed and all [Event]s have manifested.
      *
