@@ -49,7 +49,7 @@ class AboutEntityOperator(private val tx: CatalogueTx, private val name: Name.En
             emit(StandaloneRecord(rowId++, columns, arrayOf(
                 StringValue(it.name.toString()),
                 StringValue("COLUMN"),
-                null,
+                StringValue(it.type.name),
                 IntValue(count),
                 IntValue(it.type.logicalSize),
                 BooleanValue(it.nullable)
