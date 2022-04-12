@@ -39,7 +39,7 @@ class ExecutionManager(config: Config) {
     }
 
     /** The thread pool used by this [ExecutionManager] for the execution of service tasks. */
-    private val serviceWorkerPool = Executors.newScheduledThreadPool(2) {
+    internal val serviceWorkerPool = Executors.newScheduledThreadPool(2) {
         val thread = Thread(it, "cottontaildb-service-worker-${this.serviceWorkerCounter.getAndIncrement()}")
         thread.priority = Thread.MIN_PRIORITY
         thread
