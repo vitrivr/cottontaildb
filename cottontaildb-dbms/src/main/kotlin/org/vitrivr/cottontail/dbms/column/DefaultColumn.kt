@@ -14,6 +14,7 @@ import org.vitrivr.cottontail.dbms.catalogue.entries.StatisticsCatalogueEntry
 import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.catalogue.toKey
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
+import org.vitrivr.cottontail.dbms.events.ColumnEvent
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.exceptions.TxException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
@@ -362,6 +363,11 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
                 val entry = StatisticsCatalogueEntry.read(this@DefaultColumn.name, this@DefaultColumn.catalogue, this.context.xodusTx)
                     ?: throw DatabaseException.DataCorruptionException("Failed to finalize transaction for column ${this@DefaultColumn.name}: Reading column statistics failed.")
                 StatisticsCatalogueEntry.write(entry.copy(statistics = this.statistics), this@DefaultColumn.catalogue, this.context.xodusTx)
+
+                /* If statistics are no longer fresh, then issue event. */
+                if (!this.statistics.fresh) {
+                    this.context.signalEvent(ColumnEvent.Stale(this@DefaultColumn.name))
+                }
             }
             super.beforeCommit()
         }
