@@ -24,6 +24,7 @@ import org.vitrivr.cottontail.cli.query.ExecuteQueryCommand
 import org.vitrivr.cottontail.cli.query.FindInEntityCommand
 import org.vitrivr.cottontail.cli.query.PreviewEntityCommand
 import org.vitrivr.cottontail.cli.schema.*
+import org.vitrivr.cottontail.cli.system.EvaluateSIMDCommand
 import org.vitrivr.cottontail.cli.system.KillTransactionCommand
 import org.vitrivr.cottontail.cli.system.ListLocksCommand
 import org.vitrivr.cottontail.cli.system.ListTransactionsCommand
@@ -330,7 +331,8 @@ class Cli(private val host: String = "localhost", private val port: Int = 1865) 
                 }.subcommands(
                     ListTransactionsCommand(this@Cli.client),
                     ListLocksCommand(this@Cli.client),
-                    KillTransactionCommand(this@Cli.client)
+                    KillTransactionCommand(this@Cli.client),
+                    EvaluateSIMDCommand()
                 ),
 
                 /* General commands. */

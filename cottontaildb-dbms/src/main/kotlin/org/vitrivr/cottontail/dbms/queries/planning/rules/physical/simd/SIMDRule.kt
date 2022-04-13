@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.dbms.queries.planning.rules.physical.simd
 
-import org.vitrivr.cottontail.core.queries.functions.math.VectorDistance
-import org.vitrivr.cottontail.dbms.queries.QueryContext
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.VectorDistance
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.function.FunctionPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
@@ -11,11 +11,11 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
  * The rule will be based on empiric data measurements.
  *
  * @author Colin Saladin
- * @version 1.3.0
+ * @version 1.0.0
  */
 object SIMDRule : RewriteRule {
-    override fun canBeApplied(node: OperatorNode): Boolean = node is FunctionPhysicalOperatorNode &&
-            node.function.function is VectorDistance<*>
+    override fun canBeApplied(node: OperatorNode, ctx: QueryContext): Boolean = node is FunctionPhysicalOperatorNode &&
+    node.function.function is VectorDistance<*>
 
     override fun apply(node: OperatorNode, ctx: QueryContext): OperatorNode? {
         // TODO @Colin - Optimize rule based on the performance evaluation

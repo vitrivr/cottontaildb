@@ -163,7 +163,7 @@ sealed class ManhattanDistance<T : VectorValue<*>>(type: Types.Vector<T,*>): Min
         override val name: Name.FunctionName = FUNCTION_NAME
 
         override fun invoke(vararg arguments: Value?): DoubleValue {
-            val species: VectorSpecies<Float> = jdk.incubator.vector.FloatVector.SPECIES_PREFERRED
+            val species: VectorSpecies<Float> = jdk.incubator.vector.FloatVector.SPECIES_512
             val probing = arguments[0] as FloatVectorValue
             val query = arguments[1] as FloatVectorValue
             var vectorSum = jdk.incubator.vector.FloatVector.zero(species)
