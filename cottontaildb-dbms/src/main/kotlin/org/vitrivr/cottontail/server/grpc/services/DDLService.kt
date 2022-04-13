@@ -7,6 +7,7 @@ import org.vitrivr.cottontail.core.queries.sort.SortOrder
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
+import org.vitrivr.cottontail.dbms.exceptions.QueryException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager
 import org.vitrivr.cottontail.dbms.index.IndexType
 import org.vitrivr.cottontail.dbms.queries.operators.ColumnSets
@@ -115,12 +116,19 @@ class DDLService(override val catalogue: DefaultCatalogue, override val manager:
      * gRPC endpoint for creating a particular [org.vitrivr.cottontail.dbms.index.Index]
      */
     override suspend fun createIndex(request: CottontailGrpc.CreateIndexMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata) { ctx ->
-        val indexName = request.definition.name.fqn()
-        val columns = request.definition.columnsList.map {
-            indexName.entity().column(it.name)
+        val entityName = request.entity.fqn()
+        val columns = request.columnsList.map {
+            if (it.contains('.')) throw QueryException.QuerySyntaxException("Column name '$it' must not contain dots for CREATE INDEX command.")
+            entityName.column(it)
         }
-        val indexType = IndexType.valueOf(request.definition.type.toString())
-        val params = request.definition.paramsMap
+        val indexType = IndexType.valueOf(request.type.toString())
+        val params = request.paramsMap
+        val indexName = if (request.indexName != null) {
+            if (request.indexName.contains('.')) throw QueryException.QuerySyntaxException("Index name '${request.indexName}' must not contain dots for CREATE INDEX command.")
+            entityName.index(request.indexName)
+        } else {
+            entityName.index("${request.columnsList.joinToString("-")}_$indexType")
+        }
         ctx.assign(CreateIndexPhysicalOperatorNode(ctx.txn.getTx(this.catalogue) as CatalogueTx, indexName, indexType, columns, params, request.rebuild))
         ctx.toOperatorTree()
     }.single()
