@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.core.queries.nodes.traits
 
 /**
- * A [Trait] indicating, that the resultset of the query plan is deliberately limited.
+ * A [Trait] indicating, that the result set of the query plan is deliberately limited.
  *
  * @author Ralph Gasser
  * @version 1.0.0

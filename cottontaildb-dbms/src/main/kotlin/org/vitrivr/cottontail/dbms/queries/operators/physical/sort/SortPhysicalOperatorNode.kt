@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.sort
 
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.queries.nodes.traits.MaterializedTrait
 import org.vitrivr.cottontail.core.queries.nodes.traits.OrderTrait
 import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
 import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
@@ -49,7 +50,10 @@ class SortPhysicalOperatorNode(input: Physical? = null, val sortOn: List<Pair<Co
 
     /** The [SortPhysicalOperatorNode] overwrites/sets the [OrderTrait].  */
     override val traits: Map<TraitType<*>,Trait>
-        get() = super.traits + listOf(OrderTrait to OrderTrait(this.sortOn))
+        get() = super.traits + listOf(
+            OrderTrait to OrderTrait(this.sortOn),
+            MaterializedTrait to MaterializedTrait
+        )
 
     init {
         if (this.sortOn.isEmpty()) throw QueryException.QuerySyntaxException("At least one column must be specified for sorting.")

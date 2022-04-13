@@ -161,7 +161,7 @@ abstract class UnaryPhysicalOperatorNode(input: Physical? = null) : OperatorNode
                 input.hasTrait(OrderTrait) -> TODO()
                 input.hasTrait(LimitTrait) -> {
                     val limit = input[LimitTrait]!!
-                    this.copyWithOutput(LimitPhysicalOperatorNode(MergePhysicalOperatorNode(*inbound.toTypedArray()), limit = limit.limit, skip = 0L))
+                    this.copyWithOutput(LimitPhysicalOperatorNode(MergePhysicalOperatorNode(*inbound.toTypedArray()), limit = limit.limit))
                 }
                 else -> this.copyWithOutput(MergePhysicalOperatorNode(*inbound.toTypedArray()))
             }
