@@ -10,10 +10,28 @@ import kotlin.time.ExperimentalTime
  */
 @OptIn(ExperimentalTime::class)
 fun main(args: Array<String>) {
-    /* Extract host and port (if provided). */
-    val host = if (args.isNotEmpty()) { args[0] } else { "127.0.0.1" }
-    val port = if (args.size > 1) { args[1].toInt() } else { 1865 }
+    /* Parse custom host name. */
+    val hostArgument = args.find { s -> s.startsWith("--host=") }
+    val host = if (hostArgument != null) {
+        hostArgument.split('=')[1]
+    } else {
+        "127.0.0.1"
+    }
 
-    /* Start CLI. */
-    Cli(host, port).loop()
+    /* Parse custom port argument. */
+    val portArgument = args.find { s -> s.startsWith("--port=") }
+    val port = if (portArgument != null) {
+        portArgument.split('=')[1].toInt()
+    } else {
+        1865
+    }
+
+    /* Parse custom command. */
+    val commandArgument = args.find { s -> s.startsWith("--command=") }
+    if (commandArgument != null) {
+        val command = commandArgument.subSequence(commandArgument.indexOf('=') + 1, commandArgument.length).toString()
+        Cli(host, port).execute(command)
+    } else {
+        Cli(host, port).loop()
+    }
 }
