@@ -5,7 +5,6 @@ import io.grpc.netty.NettyChannelBuilder
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.vitrivr.cottontail.TestConstants
 import org.vitrivr.cottontail.cli.entity.DumpEntityCommand
 import org.vitrivr.cottontail.cli.entity.ImportDataCommand
 import org.vitrivr.cottontail.cli.entity.TruncateEntityCommand
@@ -13,9 +12,9 @@ import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.language.dql.Query
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.data.Format
-import org.vitrivr.cottontail.embedded
-import org.vitrivr.cottontail.server.grpc.CottontailGrpcServer
-import org.vitrivr.cottontail.server.grpc.GrpcTestUtils
+import org.vitrivr.cottontail.test.EmbeddedCottontailGrpcServer
+import org.vitrivr.cottontail.test.GrpcTestUtils
+import org.vitrivr.cottontail.test.TestConstants
 import java.nio.file.Path
 import java.util.concurrent.TimeUnit
 import kotlin.io.path.Path
@@ -26,19 +25,21 @@ import kotlin.time.ExperimentalTime
 class ExportImportCommandTest {
 
     private val entityName: Name.EntityName = Name.EntityName(TestConstants.TEST_SCHEMA, TestConstants.TEST_ENTITY)
-    private lateinit var client: SimpleClient
-    private lateinit var channel: ManagedChannel
-    private lateinit var embedded: CottontailGrpcServer
+
+    /** The [EmbeddedCottontailGrpcServer] used for this unit test. */
+    private val embedded = EmbeddedCottontailGrpcServer(TestConstants.testConfig())
+
+    /** The [ManagedChannel] used for this unit test. */
+    private val channel: ManagedChannel = NettyChannelBuilder.forAddress("localhost", 1865).usePlaintext().build()
+
+    /** The [SimpleClient] used for this unit test. */
+    private var client: SimpleClient = SimpleClient(this.channel)
+
 
     private val formats = listOf(Format.JSON)
 
     @BeforeEach
     fun startCottontail() {
-        this.embedded = embedded(TestConstants.testConfig())
-        val builder = NettyChannelBuilder.forAddress("localhost", 1865)
-        builder.usePlaintext()
-        this.channel = builder.build()
-        this.client = SimpleClient(this.channel)
         assert(client.ping())
         GrpcTestUtils.dropTestSchema(client)
         GrpcTestUtils.createTestSchema(client)
@@ -99,5 +100,4 @@ class ExportImportCommandTest {
         val res = this.client.query(query)
         return res.next().asLong(0)
     }
-
 }

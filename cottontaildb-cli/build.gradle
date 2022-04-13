@@ -12,7 +12,8 @@ dependencies {
     implementation group: 'com.github.ajalt.clikt', name: 'clikt', version: version_clikt
     implementation group: 'com.jakewharton.picnic', name: 'picnic', version: version_picnic
 
-    testImplementation project(':cottontaildb-test')
+    ////// Test Fixtures from Cottontail DB core.
+    testImplementation(testFixtures(project(":cottontaildb-dbms")))
 }
 
 /* General application attributes. */

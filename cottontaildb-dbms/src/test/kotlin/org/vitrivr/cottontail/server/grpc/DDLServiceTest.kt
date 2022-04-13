@@ -5,13 +5,13 @@ import io.grpc.Status
 import io.grpc.StatusRuntimeException
 import io.grpc.netty.NettyChannelBuilder
 import org.junit.jupiter.api.*
-import org.vitrivr.cottontail.TestConstants
-import org.vitrivr.cottontail.TestConstants.DBO_CONSTANT
-import org.vitrivr.cottontail.TestConstants.TEST_SCHEMA
 import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.language.ddl.*
-import org.vitrivr.cottontail.embedded
-import org.vitrivr.cottontail.grpc.CottontailGrpc
+import org.vitrivr.cottontail.test.EmbeddedCottontailGrpcServer
+import org.vitrivr.cottontail.test.GrpcTestUtils
+import org.vitrivr.cottontail.test.TestConstants
+import org.vitrivr.cottontail.test.TestConstants.DBO_CONSTANT
+import org.vitrivr.cottontail.test.TestConstants.TEST_SCHEMA
 import java.util.concurrent.TimeUnit
 import kotlin.time.ExperimentalTime
 
@@ -21,11 +21,11 @@ class DDLServiceTest {
 
     private lateinit var client: SimpleClient
     private lateinit var channel: ManagedChannel
-    private lateinit var embedded: CottontailGrpcServer
+    private lateinit var embedded: EmbeddedCottontailGrpcServer
 
     @BeforeAll
     fun startCottontail() {
-        this.embedded = embedded(TestConstants.testConfig())
+        this.embedded = EmbeddedCottontailGrpcServer(TestConstants.testConfig())
         this.channel = NettyChannelBuilder.forAddress("localhost", 1865).usePlaintext().build()
         this.client = SimpleClient(this.channel)
 

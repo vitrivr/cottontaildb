@@ -1,23 +1,22 @@
 package org.vitrivr.cottontail.dbms.catalogue
 
-import org.junit.Assert
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import org.vitrivr.cottontail.TestConstants
 import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.core.database.ColumnDef
-import org.vitrivr.cottontail.dbms.column.ColumnEngine
-import org.vitrivr.cottontail.dbms.entity.DefaultEntity
-import org.vitrivr.cottontail.dbms.schema.Schema
-import org.vitrivr.cottontail.dbms.schema.SchemaTx
-import org.vitrivr.cottontail.dbms.execution.TransactionManager
-import org.vitrivr.cottontail.dbms.execution.TransactionType
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.values.types.Types
+import org.vitrivr.cottontail.dbms.column.ColumnEngine
+import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
+import org.vitrivr.cottontail.dbms.execution.TransactionManager
+import org.vitrivr.cottontail.dbms.execution.TransactionType
+import org.vitrivr.cottontail.dbms.schema.Schema
+import org.vitrivr.cottontail.dbms.schema.SchemaTx
+import org.vitrivr.cottontail.test.TestConstants
 import org.vitrivr.cottontail.utilities.io.TxFileUtilities
 import java.nio.file.Files
 
@@ -50,7 +49,7 @@ class SchemaTest {
     }
 
     /** The [TransactionManager] used for this [CatalogueTest] instance. */
-    private val manager = org.vitrivr.cottontail.dbms.execution.TransactionManager(
+    private val manager = TransactionManager(
         this.config.execution.transactionTableSize,
         this.config.execution.transactionHistorySize
     )
@@ -232,7 +231,7 @@ class SchemaTest {
             val schemaTx2 = txn2.getTx(schema) as SchemaTx
             for (name in this.entityNames) {
                 val entity = schemaTx2.entityForName(name)
-                Assert.assertEquals(1, entity.numberOfColumns)
+                assertEquals(1, entity.numberOfColumns)
                 schemaTx2.dropEntity(name)
                 schemaTx2.createEntity(
                         name,
@@ -252,7 +251,7 @@ class SchemaTest {
             val schemaTx3 = txn3.getTx(schema) as SchemaTx
             for (name in this.entityNames) {
                 val entity = schemaTx3.entityForName(name)
-                Assert.assertEquals(2, entity.numberOfColumns)
+                assertEquals(2, entity.numberOfColumns)
             }
         } finally {
             txn3.commit()

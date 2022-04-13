@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.math.knn
 
 import org.junit.jupiter.params.provider.Arguments
 import org.slf4j.LoggerFactory
-import org.vitrivr.cottontail.TestConstants
+import org.vitrivr.cottontail.test.TestConstants
 import java.util.*
 import java.util.stream.Stream
 

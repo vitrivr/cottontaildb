@@ -1,9 +1,10 @@
-package org.vitrivr.cottontail.server.grpc
+package org.vitrivr.cottontail.test
 
 import io.grpc.ServerBuilder
 import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.execution.TransactionManager
+import org.vitrivr.cottontail.server.grpc.CottontailGrpcServer
 import org.vitrivr.cottontail.server.grpc.services.DDLService
 import org.vitrivr.cottontail.server.grpc.services.DMLService
 import org.vitrivr.cottontail.server.grpc.services.DQLService
@@ -13,13 +14,13 @@ import java.util.concurrent.TimeUnit
 import kotlin.time.ExperimentalTime
 
 /**
- * Main server class for the gRPC endpoint provided by Cottontail DB.
+ * Server class for the gRPC endpoint provided by Cottontail DB used in unit tests.
  *
  * @author Ralph Gasser
  * @version 1.2.0
  */
 @ExperimentalTime
-class CottontailGrpcServer(val config: Config) {
+class EmbeddedCottontailGrpcServer(val config: Config) {
 
     /** The [ThreadPoolExecutor] used for handling gRPC calls and executing queries. */
     private val executor = this.config.execution.newExecutor()
@@ -28,7 +29,7 @@ class CottontailGrpcServer(val config: Config) {
     private val transactionManager: TransactionManager = TransactionManager(this.config.execution.transactionTableSize, this.config.execution.transactionHistorySize)
 
     /** The [DefaultCatalogue] instance used by this [CottontailGrpcServer]. */
-    val catalogue = DefaultCatalogue(this.config)
+    private val catalogue = DefaultCatalogue(this.config)
 
     /** The internal gRPC server; if building that server fails then the [DefaultCatalogue] is closed again! */
     private val server = ServerBuilder.forPort(this.config.server.port)
@@ -54,6 +55,7 @@ class CottontailGrpcServer(val config: Config) {
             this.server.start()
         } catch (e: Throwable) {
             this.catalogue.close()
+            throw e
         }
     }
 

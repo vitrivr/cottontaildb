@@ -7,12 +7,13 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.vitrivr.cottontail.TestConstants
 import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.language.dml.Update
 import org.vitrivr.cottontail.client.language.dql.Query
 import org.vitrivr.cottontail.client.language.extensions.Literal
-import org.vitrivr.cottontail.embedded
+import org.vitrivr.cottontail.test.EmbeddedCottontailGrpcServer
+import org.vitrivr.cottontail.test.GrpcTestUtils
+import org.vitrivr.cottontail.test.TestConstants
 import java.util.concurrent.TimeUnit
 import kotlin.time.ExperimentalTime
 
@@ -25,11 +26,11 @@ import kotlin.time.ExperimentalTime
 class DMLServiceTest {
     private lateinit var client: SimpleClient
     private lateinit var channel: ManagedChannel
-    private lateinit var embedded: CottontailGrpcServer
+    private lateinit var embedded: EmbeddedCottontailGrpcServer
 
     @BeforeEach
     fun startCottontail() {
-        this.embedded = embedded(TestConstants.testConfig())
+        this.embedded = EmbeddedCottontailGrpcServer(TestConstants.testConfig())
         val builder = NettyChannelBuilder.forAddress("localhost", 1865)
         builder.usePlaintext()
         this.channel = builder.build()
