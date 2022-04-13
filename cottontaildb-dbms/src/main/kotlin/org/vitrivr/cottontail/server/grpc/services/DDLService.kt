@@ -123,7 +123,7 @@ class DDLService(override val catalogue: DefaultCatalogue, override val manager:
         }
         val indexType = IndexType.valueOf(request.type.toString())
         val params = request.paramsMap
-        val indexName = if (request.indexName != null) {
+        val indexName = if (request.indexName != null && request.indexName.isNotEmpty()) {
             if (request.indexName.contains('.')) throw QueryException.QuerySyntaxException("Index name '${request.indexName}' must not contain dots for CREATE INDEX command.")
             entityName.index(request.indexName)
         } else {
