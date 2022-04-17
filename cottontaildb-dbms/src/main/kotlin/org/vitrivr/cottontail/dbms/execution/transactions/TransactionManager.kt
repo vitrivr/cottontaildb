@@ -4,7 +4,6 @@ import it.unimi.dsi.fastutil.Hash.VERY_FAST_LOAD_FACTOR
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2ObjectMaps
-import jetbrains.exodus.env.Environment
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.currentCoroutineContext
@@ -15,6 +14,7 @@ import kotlinx.coroutines.sync.withLock
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.TransactionId
+import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.execution.ExecutionManager
 import org.vitrivr.cottontail.dbms.execution.locking.Lock
 import org.vitrivr.cottontail.dbms.execution.locking.LockHolder
@@ -36,7 +36,7 @@ import kotlin.coroutines.CoroutineContext
  * @author Ralph Gasser
  * @version 1.5.0
  */
-class TransactionManager(val executionManager: ExecutionManager, transactionTableSize: Int, val transactionHistorySize: Int, private val environment: Environment) {
+class TransactionManager(val executionManager: ExecutionManager, transactionTableSize: Int, val transactionHistorySize: Int, private val catalogue: DefaultCatalogue) {
     /** Logger used for logging the output. */
     companion object {
         private val LOGGER = LoggerFactory.getLogger(TransactionManager::class.java)
@@ -47,7 +47,6 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
 
     /** Internal counter to generate [TransactionId]s. Starts with 1 */
     private val tidCounter = AtomicLong(1L)
-
 
     /** The [LockManager] instance used by this [TransactionManager]. */
     internal val lockManager = LockManager<DBO>()
@@ -79,7 +78,7 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
             private set
 
         /** The Xodus [Transaction] associated with this [TransactionContext]. */
-        override val xodusTx: jetbrains.exodus.env.Transaction = this@TransactionManager.environment.beginTransaction()
+        override val xodusTx: jetbrains.exodus.env.Transaction = this@TransactionManager.catalogue.environment.beginTransaction()
 
         /** Map of all [Tx] that have been created as part of this [TransactionImpl]. */
         private val txns: MutableMap<DBO, Tx> = Object2ObjectMaps.synchronize(Object2ObjectLinkedOpenHashMap())

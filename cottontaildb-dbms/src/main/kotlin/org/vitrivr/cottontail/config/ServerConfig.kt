@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.config
 
 import kotlinx.serialization.Serializable
-import org.vitrivr.cottontail.utilities.serializers.PathSerializer
+import org.vitrivr.cottontail.utilities.serializers.json.PathSerializer
 import java.nio.file.Path
 
 /**

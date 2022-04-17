@@ -1,12 +1,12 @@
 package org.vitrivr.cottontail.dbms.entity.serialization
 
-import org.vitrivr.cottontail.TestConstants
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.IntValue
 import org.vitrivr.cottontail.core.values.LongVectorValue
 import org.vitrivr.cottontail.core.values.generators.LongVectorValueGenerator
 import org.vitrivr.cottontail.core.values.types.Types
+import org.vitrivr.cottontail.test.TestConstants
 import java.util.*
 
 /**

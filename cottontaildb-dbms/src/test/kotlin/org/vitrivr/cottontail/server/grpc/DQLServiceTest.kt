@@ -5,7 +5,6 @@ import io.grpc.netty.NettyChannelBuilder
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
-import org.vitrivr.cottontail.TestConstants
 import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.language.basics.Direction
 import org.vitrivr.cottontail.client.language.basics.Distances
@@ -13,9 +12,11 @@ import org.vitrivr.cottontail.client.language.basics.predicate.Expression
 import org.vitrivr.cottontail.client.language.dql.Query
 import org.vitrivr.cottontail.embedded
 import org.vitrivr.cottontail.server.CottontailServer
-import org.vitrivr.cottontail.server.grpc.GrpcTestUtils.STRING_COLUMN_NAME
-import org.vitrivr.cottontail.server.grpc.GrpcTestUtils.TEST_VECTOR_ENTITY_FQN_INPUT
-import org.vitrivr.cottontail.server.grpc.GrpcTestUtils.TWOD_COLUMN_NAME
+import org.vitrivr.cottontail.test.GrpcTestUtils
+import org.vitrivr.cottontail.test.GrpcTestUtils.STRING_COLUMN_NAME
+import org.vitrivr.cottontail.test.GrpcTestUtils.TEST_VECTOR_ENTITY_FQN_INPUT
+import org.vitrivr.cottontail.test.GrpcTestUtils.TWOD_COLUMN_NAME
+import org.vitrivr.cottontail.test.TestConstants
 import java.util.concurrent.TimeUnit
 import kotlin.time.ExperimentalTime
 

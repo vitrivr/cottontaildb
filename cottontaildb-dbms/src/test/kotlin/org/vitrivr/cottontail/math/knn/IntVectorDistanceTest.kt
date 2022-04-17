@@ -2,13 +2,13 @@ package org.vitrivr.cottontail.math.knn
 
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
-import org.vitrivr.cottontail.TestConstants
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.EuclideanDistance
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.ManhattanDistance
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.SquaredEuclideanDistance
 import org.vitrivr.cottontail.core.values.generators.IntVectorValueGenerator
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.math.isApproximatelyTheSame
+import org.vitrivr.cottontail.test.TestConstants
 import org.vitrivr.cottontail.utilities.VectorUtility
 import kotlin.math.abs
 import kotlin.math.pow

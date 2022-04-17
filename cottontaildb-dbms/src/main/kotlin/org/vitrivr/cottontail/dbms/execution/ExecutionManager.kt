@@ -32,16 +32,16 @@ class ExecutionManager(config: Config) {
     })
 
     /** The thread pool used by this [ExecutionManager] for the execution of service tasks. */
-    internal val connectionWorkerPool = Executors.newFixedThreadPool(config.server.connectionThreads) {
-        val thread = Thread(it, "cottontaildb-connection-handler-${this.connectionWorkerCounter.getAndIncrement()}")
-        thread.priority = Thread.MAX_PRIORITY
+    private val serviceWorkerPool = Executors.newScheduledThreadPool(2) {
+        val thread = Thread(it, "cottontaildb-service-worker-${this.serviceWorkerCounter.getAndIncrement()}")
+        thread.priority = Thread.MIN_PRIORITY
         thread
     }
 
     /** The thread pool used by this [ExecutionManager] for the execution of service tasks. */
-    private val serviceWorkerPool = Executors.newScheduledThreadPool(2) {
-        val thread = Thread(it, "cottontaildb-service-worker-${this.serviceWorkerCounter.getAndIncrement()}")
-        thread.priority = Thread.MIN_PRIORITY
+    val connectionWorkerPool = Executors.newFixedThreadPool(config.server.connectionThreads) {
+        val thread = Thread(it, "cottontaildb-connection-handler-${this.connectionWorkerCounter.getAndIncrement()}")
+        thread.priority = Thread.MAX_PRIORITY
         thread
     }
 

@@ -3,7 +3,6 @@ package org.vitrivr.cottontail.dbms.entity.serialization
 import org.apache.commons.math3.random.JDKRandomGenerator
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.RepeatedTest
-import org.vitrivr.cottontail.TestConstants
 import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
@@ -13,6 +12,7 @@ import org.vitrivr.cottontail.dbms.entity.AbstractEntityTest
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
+import org.vitrivr.cottontail.test.TestConstants
 import org.vitrivr.cottontail.utilities.io.TxFileUtilities
 import java.nio.file.Files
 

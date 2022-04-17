@@ -2,13 +2,13 @@ package org.vitrivr.cottontail.benchmark
 
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
-import org.vitrivr.cottontail.TestConstants
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.index.AbstractIndexTest
 import org.vitrivr.cottontail.dbms.index.Index
 import org.vitrivr.cottontail.dbms.schema.Schema
 import org.vitrivr.cottontail.embedded
+import org.vitrivr.cottontail.test.TestConstants
 import org.vitrivr.cottontail.utilities.io.TxFileUtilities
 import kotlin.time.ExperimentalTime
 

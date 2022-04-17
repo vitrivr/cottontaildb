@@ -11,6 +11,9 @@ dependencies {
     implementation group: 'org.jline', name: 'jline-terminal-jna', version: version_jline
     implementation group: 'com.github.ajalt.clikt', name: 'clikt', version: version_clikt
     implementation group: 'com.jakewharton.picnic', name: 'picnic', version: version_picnic
+
+    ////// Test Fixtures from Cottontail DB core.
+    testImplementation(testFixtures(project(":cottontaildb-dbms")))
 }
 
 /* General application attributes. */
@@ -28,6 +31,11 @@ idea {
     module {
         downloadJavadoc = true
     }
+}
+
+tasks.withType(Test) {
+    useJUnitPlatform()
+    jvmArgs '--enable-preview'
 }
 
 //// Change name for distribution to C(arrot)LI.

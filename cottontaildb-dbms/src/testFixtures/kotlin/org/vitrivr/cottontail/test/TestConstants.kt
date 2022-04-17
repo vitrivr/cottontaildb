@@ -1,4 +1,4 @@
-package org.vitrivr.cottontail
+package org.vitrivr.cottontail.test
 
 import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.config.ExecutionConfig

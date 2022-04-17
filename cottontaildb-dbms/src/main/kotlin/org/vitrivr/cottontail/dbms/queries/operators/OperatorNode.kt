@@ -16,7 +16,7 @@ import java.io.PrintStream
 /**
  * [OperatorNode]s are [Node]s in a Cottontail DB query execution plan and represent flow and processing of information a query gets executed.
  *
- * Conceptually, [OperatorNode]s take [Record]s as input and transform them into [Record] output. The relationship of input to output can be m to n.
+ * Conceptually, [OperatorNode]s take [org.vitrivr.cottontail.core.basics.Record]s as input and transform them into [org.vitrivr.cottontail.core.basics.Record] output. The relationship of input to output can be m to n.
  *
  * [OperatorNode]s allow for reasoning and transformation of the execution plan during query optimization and are manipulated by the query planner.
  *
