@@ -1,7 +1,6 @@
 package org.vitrivr.cottontail.core.values
 
 import org.vitrivr.cottontail.core.values.types.*
-import java.util.*
 
 /**
  * Represents a complex number backed by single-precision (32bit) [Float]s
@@ -18,16 +17,6 @@ value class Complex32Value(val data: FloatArray): ComplexValue<Float> {
         val ONE = Complex32Value(floatArrayOf(1.0f, 0.0f))
         val NaN = Complex32Value(floatArrayOf(Float.NaN, Float.NaN))
         val INF = Complex32Value(floatArrayOf(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY))
-
-        /**
-         * Generates a [Complex32VectorValue] initialized with random numbers.
-         *
-         * @param rnd A [SplittableRandom] to generate the random numbers.
-         * @return Random [Complex32Value]
-         */
-        fun random(rnd: SplittableRandom = Value.RANDOM) = Complex32Value(FloatArray(2) {
-            rnd.nextDouble().toFloat()
-        })
     }
 
     /**
@@ -40,7 +29,7 @@ value class Complex32Value(val data: FloatArray): ComplexValue<Float> {
     /**
      * Constructor for an arbitrary [Number].
      *
-     * @param real The [Number] that should be converted to a [DoubleValue]
+     * @param number The [Number] that should be converted to a [DoubleValue]
      */
     constructor(number: Number) : this(floatArrayOf(number.toFloat(), 0.0f))
 

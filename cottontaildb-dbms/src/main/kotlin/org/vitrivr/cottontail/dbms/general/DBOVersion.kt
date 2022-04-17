@@ -14,5 +14,8 @@ enum class DBOVersion {
     V1_0,
 
     /** The second, iteration of the Cottontail DB file organisation which was introduced in preparation of the HARE column format. */
-    V2_0
+    V2_0,
+
+    /** The second, iteration of the Cottontail DB file organisation which was introduced in preparation of the HARE column format. */
+    V3_0
 }

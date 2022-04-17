@@ -1,14 +1,18 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.sort
 
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.queries.nodes.traits.MaterializedTrait
+import org.vitrivr.cottontail.core.queries.nodes.traits.OrderTrait
+import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
+import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
+import org.vitrivr.cottontail.core.queries.sort.SortOrder
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.operators.sort.HeapSortOperator
-import org.vitrivr.cottontail.dbms.queries.QueryContext
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.physical.UnaryPhysicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.sort.SortOrder
 
 /**
  * A [UnaryPhysicalOperatorNode] that represents sorting the input by a set of specified [ColumnDef]s. Internally,
@@ -17,7 +21,7 @@ import org.vitrivr.cottontail.dbms.queries.sort.SortOrder
  * @author Ralph Gasser
  * @version 2.2.0
  */
-class SortPhysicalOperatorNode(input: Physical? = null, override val sortOn: List<Pair<ColumnDef<*>, SortOrder>>) : UnaryPhysicalOperatorNode(input) {
+class SortPhysicalOperatorNode(input: Physical? = null, val sortOn: List<Pair<ColumnDef<*>, SortOrder>>) : UnaryPhysicalOperatorNode(input) {
 
     companion object {
         private const val NODE_NAME = "Order"
@@ -36,12 +40,20 @@ class SortPhysicalOperatorNode(input: Physical? = null, override val sortOn: Lis
             cpu = 2 * this.sortOn.size * Cost.MEMORY_ACCESS.cpu,
             memory = this.columns.sumOf {
                 if (it.type == Types.String) {
-                    this.statistics[it].avgWidth * Char.SIZE_BYTES
+                    (this.statistics[it]?.avgWidth ?: 1) * Char.SIZE_BYTES
                 } else {
                     it.type.physicalSize
                 }
             }.toFloat()
         ) * this.outputSize
+
+
+    /** The [SortPhysicalOperatorNode] overwrites/sets the [OrderTrait].  */
+    override val traits: Map<TraitType<*>,Trait>
+        get() = super.traits + listOf(
+            OrderTrait to OrderTrait(this.sortOn),
+            MaterializedTrait to MaterializedTrait
+        )
 
     init {
         if (this.sortOn.isEmpty()) throw QueryException.QuerySyntaxException("At least one column must be specified for sorting.")

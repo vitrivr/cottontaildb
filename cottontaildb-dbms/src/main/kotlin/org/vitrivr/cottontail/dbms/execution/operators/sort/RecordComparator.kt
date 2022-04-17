@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.dbms.execution.operators.sort
 
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
-import org.vitrivr.cottontail.dbms.queries.sort.SortOrder
+import org.vitrivr.cottontail.core.queries.sort.SortOrder
 import kotlin.math.sign
 
 /**

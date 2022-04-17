@@ -2,26 +2,27 @@ package org.vitrivr.cottontail.dbms.index.hash
 
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.RepeatedTest
-import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
+import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
+import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.values.DoubleValue
+import org.vitrivr.cottontail.core.values.LongValue
+import org.vitrivr.cottontail.core.values.types.Types
+import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.entity.EntityTx
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
 import org.vitrivr.cottontail.dbms.index.AbstractIndexTest
 import org.vitrivr.cottontail.dbms.index.IndexTx
 import org.vitrivr.cottontail.dbms.index.IndexType
 import org.vitrivr.cottontail.dbms.queries.binding.DefaultBindingContext
-import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
-import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
-import org.vitrivr.cottontail.dbms.execution.TransactionType
-import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
-import org.vitrivr.cottontail.core.values.DoubleValue
-import org.vitrivr.cottontail.core.values.LongValue
+import org.vitrivr.cottontail.utilities.math.random.nextLong
 import java.util.*
 
 /**
- * This is a collection of test cases to test the correct behaviour of [UniqueHashIndex] with a [LongValue] keys.
+ * This is a collection of test cases to test the correct behaviour of [UQBTreeIndex] with a [LongValue] keys.
  *
  * @author Ralph Gasser
  * @version 1.2.2
@@ -41,13 +42,10 @@ class NonUniqueLongHashIndexTest : AbstractIndexTest() {
         get() = this.entityName.index("non_unique_long")
 
     override val indexType: IndexType
-        get() = IndexType.HASH
+        get() = IndexType.BTREE
 
     /** List of values stored in this [UniqueHashIndexTest]. */
     private var list = HashMap<LongValue, MutableList<DoubleValue>>(100)
-
-    /** Random number generator. */
-    private val random = SplittableRandom()
 
     /**
      * Tests if Index#filter() returns the values that have been stored.
@@ -56,29 +54,40 @@ class NonUniqueLongHashIndexTest : AbstractIndexTest() {
     fun testFilterEqualPositive() {
         /* Obtain necessary transactions. */
         val txn = this.manager.TransactionImpl(TransactionType.SYSTEM)
-        val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
-        val schema = catalogueTx.schemaForName(this.schemaName)
-        val schemaTx = txn.getTx(schema) as SchemaTx
-        val entity = schemaTx.entityForName(this.entityName)
-        val entityTx = txn.getTx(entity) as EntityTx
-        val index = entityTx.indexForName(this.indexName)
-        val indexTx = txn.getTx(index) as IndexTx
+        try {
+            val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
+            val schema = catalogueTx.schemaForName(this.schemaName)
+            val schemaTx = txn.getTx(schema) as SchemaTx
+            val entity = schemaTx.entityForName(this.entityName)
+            val entityTx = txn.getTx(entity) as EntityTx
+            val index = entityTx.indexForName(this.indexName)
+            val indexTx = txn.getTx(index) as IndexTx
 
-        val context = DefaultBindingContext()
-        for (entry in this.list.entries) {
-            val predicate = BooleanPredicate.Atomic(ComparisonOperator.Binary.Equal(context.bind(this.columns[0]), context.bind(entry.key)), false)
-            var found = false
-            indexTx.filter(predicate).forEach { r ->
-                val rec = entityTx.read(r.tupleId, this.columns)
-                val id = rec[this.columns[0]] as LongValue
-                Assertions.assertEquals(entry.key, id)
-                if (entry.value.contains(rec[this.columns[1]])) {
-                    found = true
+            /* Prepare binding context and predicate. */
+            val context = DefaultBindingContext()
+            val columnBinding = context.bind(this.columns[0])
+            val valueBinding = context.bindNull(Types.Long)
+            val predicate = BooleanPredicate.Atomic(ComparisonOperator.Binary.Equal(columnBinding, valueBinding), false)
+
+            /* Check all entries. */
+            for (entry in this.list.entries) {
+                valueBinding.update(entry.key) /* Update value binding. */
+                var found = false
+                val cursor = indexTx.filter(predicate)
+                while (cursor.moveNext() && !found) {
+                    val rec = entityTx.read(cursor.key(), this.columns)
+                    val id = rec[this.columns[0]] as LongValue
+                    Assertions.assertEquals(entry.key, id)
+                    if (entry.value.contains(rec[this.columns[1]])) {
+                        found = true
+                    }
                 }
+                cursor.close()
+                Assertions.assertTrue(found)
             }
-            Assertions.assertTrue(found)
+        } finally {
+            txn.commit()
         }
-        txn.commit()
     }
 
     /**
@@ -99,7 +108,9 @@ class NonUniqueLongHashIndexTest : AbstractIndexTest() {
         var count = 0
         val context = DefaultBindingContext()
         val predicate = BooleanPredicate.Atomic(ComparisonOperator.Binary.Equal(context.bind(this.columns[0]), context.bind(LongValue(this.random.nextLong(100L, Long.MAX_VALUE)))), false)
-        indexTx.filter(predicate).forEach { count += 1 }
+        val cursor = indexTx.filter(predicate)
+        cursor.forEach { count += 1 }
+        cursor.close()
         Assertions.assertEquals(0, count)
         txn.commit()
     }

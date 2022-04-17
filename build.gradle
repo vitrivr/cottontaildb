@@ -12,7 +12,7 @@ allprojects {
     group = 'org.vitrivr'
 
     /* Our current version, on dev branch this should always be release+1-SNAPSHOT */
-    version = '0.14.1'
+    version = '0.15.0-SNAPSHOT'
 
     /* Repositories for build script. */
     buildscript {
@@ -54,6 +54,12 @@ subprojects {
     java {
         withJavadocJar()
         withSourcesJar()
+    }
+
+    /** Increase heap size for all unit tests. */
+    test {
+        minHeapSize = "256M"
+        maxHeapSize = "2G"
     }
 
     javadoc {

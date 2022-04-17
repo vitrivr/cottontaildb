@@ -4,32 +4,39 @@ import org.vitrivr.cottontail.core.values.types.NumericValue
 import org.vitrivr.cottontail.core.values.types.RealValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
-import org.vitrivr.cottontail.utilities.extensions.nextFloat
-import java.util.*
 import kotlin.math.pow
 
 /**
  * This is an abstraction over a [Float].
  *
  * @author Ralph Gasser
- * @version 1.6.0
+ * @version 1.7.0
  */
 @JvmInline
 value class FloatValue(override val value: Float): RealValue<Float> {
 
     companion object {
-        val ZERO = FloatValue(0.0f)
-        val ONE = FloatValue(1.0f)
-        val NaN = Complex32Value(Float.NaN)
-        val INF = Complex32Value(Float.POSITIVE_INFINITY)
-
         /**
-         * Generates a random [FloatValue].
+         * The minimum value that can be held by a [FloatValue].
          *
-         * @param rnd A [SplittableRandom] to generate the random numbers.
-         * @return Random [FloatValue]
+         * Is larger than [Float.MIN_VALUE] because [Float.MIN_VALUE] is reserved to signify null.
          */
-        fun random(rnd: SplittableRandom = Value.RANDOM) = FloatValue(rnd.nextFloat())
+        val MIN_VALUE = FloatValue(Float.MIN_VALUE + Float.MIN_VALUE)
+
+        /** The maximum value that can be held by a [FloatValue]. */
+        val MAX_VALUE = FloatValue(Float.MAX_VALUE)
+
+        /** The zero [FloatValue].  */
+        val ZERO = FloatValue(0.0f)
+
+        /** The one [FloatValue].  */
+        val ONE = FloatValue(1.0f)
+
+        /** The NaN [FloatValue].  */
+        val NaN = FloatValue(Float.NaN)
+
+        /** The INF [FloatValue].  */
+        val INF = FloatValue(Float.POSITIVE_INFINITY)
     }
 
     /**

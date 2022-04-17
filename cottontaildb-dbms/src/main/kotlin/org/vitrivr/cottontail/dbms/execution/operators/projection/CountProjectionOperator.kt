@@ -9,8 +9,8 @@ import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.LongValue
 import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.dbms.execution.TransactionContext
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.queries.projection.Projection
 
 /**
@@ -40,7 +40,7 @@ class CountProjectionOperator(parent: Operator) : Operator.PipelineOperator(pare
      * @param context The [TransactionContext] used for execution
      * @return [Flow] representing this [CountProjectionOperator]
      */
-    override fun toFlow(context: org.vitrivr.cottontail.dbms.execution.TransactionContext): Flow<Record> {
+    override fun toFlow(context: TransactionContext): Flow<Record> {
         val parentFlow = this.parent.toFlow(context)
         return flow {
             emit(StandaloneRecord(0L, this@CountProjectionOperator.columns[0], LongValue(parentFlow.count())))

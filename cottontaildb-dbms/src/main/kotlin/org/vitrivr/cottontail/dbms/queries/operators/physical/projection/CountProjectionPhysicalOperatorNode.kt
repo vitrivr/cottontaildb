@@ -2,9 +2,12 @@ package org.vitrivr.cottontail.dbms.queries.operators.physical.projection
 
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.binding.Binding
+import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
+import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
+import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.dbms.execution.operators.projection.CountProjectionOperator
-import org.vitrivr.cottontail.dbms.queries.QueryContext
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.logical.projection.CountProjectionLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.UnaryPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.projection.Projection
@@ -33,8 +36,9 @@ class CountProjectionPhysicalOperatorNode(input: Physical? = null, val out: Bind
     override val cost: Cost
         get() = Cost.MEMORY_ACCESS * (this.input?.outputSize ?: 0)
 
-    /**The [ExistsProjectionPhysicalOperatorNode] cannot be partitioned. */
-    override val canBePartitioned: Boolean = false
+    /** The [CountProjectionPhysicalOperatorNode] cannot be partitioned. */
+    override val traits: Map<TraitType<*>, Trait>
+        get() = (this.input?.traits ?: emptyMap()) + (NotPartitionableTrait to NotPartitionableTrait)
 
     /**
      * Creates and returns a copy of this [CountProjectionPhysicalOperatorNode] without any children or parents.

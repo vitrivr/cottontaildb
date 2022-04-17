@@ -2,12 +2,13 @@ package org.vitrivr.cottontail.math.knn
 
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.EuclideanDistance
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.InnerProductDistance
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.ManhattanDistance
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.SquaredEuclideanDistance
 import org.vitrivr.cottontail.core.values.Complex64VectorValue
+import org.vitrivr.cottontail.core.values.generators.Complex64VectorValueGenerator
 import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.dbms.functions.math.distance.binary.EuclideanDistance
-import org.vitrivr.cottontail.dbms.functions.math.distance.binary.InnerProductDistance
-import org.vitrivr.cottontail.dbms.functions.math.distance.binary.ManhattanDistance
-import org.vitrivr.cottontail.dbms.functions.math.distance.binary.SquaredEuclideanDistance
 import org.vitrivr.cottontail.math.absFromFromComplexFieldVector
 import org.vitrivr.cottontail.math.arrayFieldVectorFromVectorValue
 import org.vitrivr.cottontail.math.conjFromFromComplexFieldVector
@@ -31,7 +32,7 @@ class Complex64VectorDistanceTest : AbstractDistanceTest() {
     @ParameterizedTest
     @MethodSource("dimensions")
     fun testL1Distance(dimension: Int) {
-        val query = Complex64VectorValue.random(dimension, RANDOM)
+        val query = Complex64VectorValueGenerator.random(dimension, RANDOM)
         val queryp = arrayFieldVectorFromVectorValue(query)
         val collection = VectorUtility.randomComplex64VectorSequence(dimension, TestConstants.collectionSize, RANDOM)
 
@@ -67,7 +68,7 @@ class Complex64VectorDistanceTest : AbstractDistanceTest() {
     @ParameterizedTest
     @MethodSource("dimensions")
     fun testL2SquaredDistance(dimension: Int) {
-        val query = Complex64VectorValue.random(dimension, RANDOM)
+        val query = Complex64VectorValueGenerator.random(dimension, RANDOM)
         val collection = VectorUtility.randomComplex64VectorSequence(dimension, TestConstants.collectionSize, RANDOM)
         val queryp = arrayFieldVectorFromVectorValue(query)
 
@@ -90,7 +91,7 @@ class Complex64VectorDistanceTest : AbstractDistanceTest() {
             sum3 += absFromFromComplexFieldVector(queryp.subtract(dataitem)).norm.pow(2)
         }
 
-        println("Calculating L2^2 distance for collection (s=$TestConstants.collectionSize, d=$dimension) took ${time1 / TestConstants.collectionSize} (optimized) resp. ${time2 / TestConstants.collectionSize}  per vector on average.")
+        println("Calculating L2^2 distance for collection (s=${TestConstants.collectionSize}, d=$dimension) took ${time1 / TestConstants.collectionSize} (optimized) resp. ${time2 / TestConstants.collectionSize}  per vector on average.")
 
         if (time1 > time2) {
             LOGGER.warn("Optimized version of L1 is slower than default version!")
@@ -103,7 +104,7 @@ class Complex64VectorDistanceTest : AbstractDistanceTest() {
     @ParameterizedTest
     @MethodSource("dimensions")
     fun testL2Distance(dimension: Int) {
-        val query = Complex64VectorValue.random(dimension, RANDOM)
+        val query = Complex64VectorValueGenerator.random(dimension, RANDOM)
         val queryp = arrayFieldVectorFromVectorValue(query)
         val collection = VectorUtility.randomComplex64VectorSequence(dimension, TestConstants.collectionSize, RANDOM)
 
@@ -139,7 +140,7 @@ class Complex64VectorDistanceTest : AbstractDistanceTest() {
     @ParameterizedTest
     @MethodSource("dimensions")
     fun testInnerProduct(dimension: Int) {
-        val query = Complex64VectorValue.random(dimension, RANDOM)
+        val query = Complex64VectorValueGenerator.random(dimension, RANDOM)
         val queryp = arrayFieldVectorFromVectorValue(query)
         val collection = VectorUtility.randomComplex64VectorSequence(dimension, TestConstants.collectionSize, RANDOM)
 

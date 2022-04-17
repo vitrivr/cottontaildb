@@ -22,26 +22,15 @@ import kotlin.time.measureTime
  */
 @ExperimentalTime
 class DumpEntityCommand(client: SimpleClient) : AbstractCottontailCommand.Entity(client, name = "dump", help = "Dumps the content of an entire entity to disk.") {
-
-    /** Path to the output folder (file name will be determined by entity and format). */
-    private val out: Path by option(
-        "-o",
-        "--out",
-        help = "Path to the output folder (file name will be determined by entity and format)."
-    ).convert { Paths.get(it) }.required()
-
-    /** Export format. Defaults to PROTO. */
-    private val format: Format by option(
-        "-f",
-        "--format",
-        help = "Export format. Defaults to PROTO."
-    ).convert { Format.valueOf(it) }.default(Format.PROTO)
-
-    override fun exec() {
-        dumpEntity(this.entityName, this.out, this.format, this.client)
-    }
-
     companion object {
+        /**
+         * Dumps the content entity into a file. This method has been separated from the [AboutEntityCommand] instance for testability.
+         *
+         * @param entityName The [Name.EntityName] of the entity to dump.
+         * @param out The path to the file the entity should be dumped to.
+         * @param format The [Format] to export the data.
+         * @param client The [SimpleClient] to use.
+         */
         fun dumpEntity(entityName: Name.EntityName, out: Path, format: Format, client: SimpleClient){
             val qm = Query(entityName.toString())
             val path = out.resolve("${entityName}.${format.suffix}")
@@ -63,4 +52,19 @@ class DumpEntityCommand(client: SimpleClient) : AbstractCottontailCommand.Entity
         }
     }
 
+    /** Path to the output folder (file name will be determined by entity and format). */
+    private val out: Path by option(
+        "-o",
+        "--out",
+        help = "Path to the output folder (file name will be determined by entity and format)."
+    ).convert { Paths.get(it) }.required()
+
+    /** Export format. Defaults to PROTO. */
+    private val format: Format by option(
+        "-f",
+        "--format",
+        help = "Export format. Defaults to PROTO."
+    ).convert { Format.valueOf(it) }.default(Format.PROTO)
+
+    override fun exec() = dumpEntity(this.entityName, this.out, this.format, this.client)
 }

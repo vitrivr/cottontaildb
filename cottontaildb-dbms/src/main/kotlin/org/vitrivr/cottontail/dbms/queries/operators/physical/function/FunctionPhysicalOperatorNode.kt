@@ -2,12 +2,11 @@ package org.vitrivr.cottontail.dbms.queries.operators.physical.function
 
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.binding.Binding
-import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.functions.Function
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.operators.function.FunctionOperator
-import org.vitrivr.cottontail.dbms.queries.QueryContext
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.physical.UnaryPhysicalOperatorNode
 
 /**
@@ -30,9 +29,6 @@ class FunctionPhysicalOperatorNode(input: Physical? = null, val function: Bindin
     override val requires: List<ColumnDef<*>>
         get() = this.function.requiredColumns()
 
-    /**The [FunctionPhysicalOperatorNode] cannot be partitioned. */
-    override val canBePartitioned: Boolean = true
-
     /** The [Cost] of a [FunctionPhysicalOperatorNode]. */
     override val cost: Cost
         get() = this.function.cost * this.outputSize
@@ -53,22 +49,16 @@ class FunctionPhysicalOperatorNode(input: Physical? = null, val function: Bindin
     override fun copy() = FunctionPhysicalOperatorNode(function = this.function.copy(), out = this.out.copy())
 
     /**
-     * Binds the provided [BindingContext] to this [Function], the output [Binding.Column] and the argument [Binding]s.
-     *
-     * @param context The new [BindingContext].
-     */
-    override fun bind(context: BindingContext) {
-        this.input?.bind(context)
-        this.function.bind(context)
-        this.out.bind(context)
-    }
-
-    /**
      * Converts this [FunctionPhysicalOperatorNode] to a [FunctionOperator].
      *
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
     override fun toOperator(ctx: QueryContext): Operator {
+        /* Bind relevant objects to binding context. */
+        this.function.bind(ctx.bindings)
+        this.out.bind(ctx.bindings)
+
+        /* Convert input and append FunctionOperator. */
         val input = this.input?.toOperator(ctx) ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)")
         return FunctionOperator(input, this.function, this.out)
     }

@@ -1,11 +1,12 @@
 package org.vitrivr.cottontail
 
+import kotlinx.coroutines.Dispatchers
 import kotlinx.serialization.json.Json
 import org.vitrivr.cottontail.config.Config
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.general.DBOVersion
 import org.vitrivr.cottontail.legacy.VersionProber
-import org.vitrivr.cottontail.server.grpc.CottontailGrpcServer
+import org.vitrivr.cottontail.server.CottontailServer
 import java.io.FileNotFoundException
 import java.nio.file.Files
 import java.nio.file.Paths
@@ -31,10 +32,6 @@ const val COTTONTAIL_CONFIG_FILE_SYSTEM_PROPERTY_KEY = "org.vitrivr.cottontail.c
  */
 @ExperimentalTime
 fun main(args: Array<String>) {
-
-    /* TODO: Catalogue migration. */
-
-
     /* Try to start Cottontail DB */
     try {
         val config: Config = loadConfig(findConfigPathOrdered(args))
@@ -44,7 +41,11 @@ fun main(args: Array<String>) {
         System.err.println(e.printStackTrace())
         exitProcess(1)
     }
+
+    Dispatchers.Default
 }
+
+
 
 /**
  * Looks in the following places for a config path (ordered, fifo):
@@ -116,7 +117,17 @@ fun standalone(config: Config) {
     }
 
     /* Start gRPC Server and print message. */
-    val server = embedded(config)
+    val server = try {
+        embedded(config)
+    } catch (e: DatabaseException.VersionMismatchException) {
+        if (migrate(config, e.found, e.expected)) {
+            println("Cottontail DB upgrade to ${e.expected} was successful. Please restart Cottontail DB now!")
+            return
+        } else {
+            throw e
+        }
+    }
+
     println(
         "Cottontail DB server is up and running at port ${config.server.port}! Hop along... (catalogue: ${server.catalogue.version}, pid: ${
             ProcessHandle.current().pid()
@@ -135,7 +146,7 @@ fun standalone(config: Config) {
     }
 
     /* Stop server and print shutdown message. */
-    server.stop()
+    server.shutdownAndWait()
     println("Cottontail DB was shut down. Have a binky day!")
 }
 
@@ -143,21 +154,41 @@ fun standalone(config: Config) {
  * Cottontail DB server startup method for embedded mode.
  *
  * @param config The [Config] object to start Cottontail DB with.
- * @return [CottontailGrpcServer] instance.
+ * @return [CottontailServer] instance.
  */
 @ExperimentalTime
-fun embedded(config: Config): CottontailGrpcServer {
+fun embedded(config: Config): CottontailServer {
     /* Create root-folder, if it doesn't exist yet. */
     if (!Files.exists(config.root)) {
         Files.createDirectories(config.root)
     }
 
     /* Check catalogue version. */
-    val detected = VersionProber(config).probe(config.root)
+    val detected = VersionProber(config).probe()
     if (detected != VersionProber.EXPECTED && detected != DBOVersion.UNDEFINED) {
         throw DatabaseException.VersionMismatchException(VersionProber.EXPECTED, detected)
     }
 
     /* Start gRPC Server and return it. */
-    return CottontailGrpcServer(config)
+    return CottontailServer(config)
+}
+
+/**
+ * Tries to migrate the Cottontail DB version.
+ */
+@ExperimentalTime
+fun migrate(config: Config, from: DBOVersion, to: DBOVersion): Boolean {
+    /* Start CLI (if configured); wait for gRPC server to be stopped. */
+    val scanner = Scanner(System.`in`)
+    println("Cottontail DB detected a version mismatch (expected: $to, found: $from). Would you like to perform a upgrade (y/n)?")
+    while (true) {
+        when (scanner.nextLine().lowercase()) {
+            "yes", "y" -> {
+                VersionProber(config).migrate()
+                return true
+            }
+            "no", "n" -> return false
+        }
+        Thread.sleep(100)
+    }
 }

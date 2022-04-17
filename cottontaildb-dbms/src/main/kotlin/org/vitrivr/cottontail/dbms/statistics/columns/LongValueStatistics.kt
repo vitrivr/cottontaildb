@@ -1,10 +1,14 @@
 package org.vitrivr.cottontail.dbms.statistics.columns
 
-import org.mapdb.DataInput2
-import org.mapdb.DataOutput2
-import org.vitrivr.cottontail.core.values.types.Types
+import jetbrains.exodus.bindings.BooleanBinding
+import jetbrains.exodus.bindings.LongBinding
+import jetbrains.exodus.bindings.SignedDoubleBinding
+import jetbrains.exodus.util.LightOutputStream
+import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.LongValue
-import org.vitrivr.cottontail.core.values.types.Value
+import org.vitrivr.cottontail.core.values.types.Types
+import org.vitrivr.cottontail.storage.serializers.statistics.xodus.XodusBinding
+import java.io.ByteArrayInputStream
 import java.lang.Long.max
 import java.lang.Long.min
 
@@ -12,56 +16,70 @@ import java.lang.Long.min
  * A [ValueStatistics] implementation for [LongValue]s.
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.2.0
  */
-class LongValueStatistics : ValueStatistics<LongValue>(Types.Long) {
+class LongValueStatistics : AbstractValueStatistics<LongValue>(Types.Long), RealValueStatistics<LongValue> {
 
     /**
-     * Serializer for [LongValueStatistics].
+     * Xodus serializer for [LongValueStatistics]
      */
-    companion object Serializer : org.mapdb.Serializer<LongValueStatistics> {
-        override fun serialize(out: DataOutput2, value: LongValueStatistics) {
-            out.writeLong(value.min)
-            out.writeLong(value.max)
+    object Binding: XodusBinding<LongValueStatistics> {
+        override fun read(stream: ByteArrayInputStream): LongValueStatistics {
+            val stat = LongValueStatistics()
+            stat.fresh = BooleanBinding.BINDING.readObject(stream)
+            stat.numberOfNullEntries = LongBinding.readCompressed(stream)
+            stat.numberOfNonNullEntries = LongBinding.readCompressed(stream)
+            stat.min = LongValue(LongBinding.BINDING.readObject(stream))
+            stat.max = LongValue(LongBinding.BINDING.readObject(stream))
+            stat.sum = DoubleValue(SignedDoubleBinding.BINDING.readObject(stream))
+            return stat
         }
 
-        override fun deserialize(input: DataInput2, available: Int): LongValueStatistics {
-            val stat = LongValueStatistics()
-            stat.min = input.readLong()
-            stat.max = input.readLong()
-            return stat
+        override fun write(output: LightOutputStream, statistics: LongValueStatistics) {
+            BooleanBinding.BINDING.writeObject(output, statistics.fresh)
+            LongBinding.writeCompressed(output, statistics.numberOfNullEntries)
+            LongBinding.writeCompressed(output, statistics.numberOfNonNullEntries)
+            LongBinding.BINDING.writeObject(output, statistics.min.value)
+            LongBinding.BINDING.writeObject(output, statistics.max.value)
+            SignedDoubleBinding.BINDING.writeObject(output, statistics.sum.value)
         }
     }
 
-    /** Minimum value for this [LongValueStatistics]. */
-    var min: Long = Long.MAX_VALUE
+    /** Minimum value seen by this [LongValueStatistics]. */
+    override var min: LongValue = LongValue.MAX_VALUE
+        private set
 
-    /** Minimum value for this [LongValueStatistics]. */
-    var max: Long = Long.MIN_VALUE
+    /** Minimum value seen by this [LongValueStatistics]. */
+    override var max: LongValue = LongValue.MIN_VALUE
+        private set
+
+    /** Sum of all [LongValue]s seen by this [LongValueStatistics]. */
+    override var sum: DoubleValue = DoubleValue.ZERO
+        private set
 
     /**
      * Updates this [LongValueStatistics] with an inserted [LongValue]
      *
-     * @param inserted The [Value] that was deleted.
+     * @param inserted The [LongValue] that was inserted.
      */
     override fun insert(inserted: LongValue?) {
         super.insert(inserted)
         if (inserted != null) {
-            this.min = min(inserted.value, this.min)
-            this.max = max(inserted.value, this.max)
+            this.min = LongValue(min(inserted.value, this.min.value))
+            this.max = LongValue(max(inserted.value, this.max.value))
         }
     }
 
     /**
      * Updates this [LongValueStatistics] with a deleted [LongValue]
      *
-     * @param deleted The [Value] that was deleted.
+     * @param deleted The [LongValue] that was deleted.
      */
     override fun delete(deleted: LongValue?) {
         super.delete(deleted)
 
         /* We cannot create a sensible estimate if a value is deleted. */
-        if (this.min == deleted?.value || this.max == deleted?.value) {
+        if (this.min == deleted || this.max == deleted) {
             this.fresh = false
         }
     }
@@ -71,8 +89,8 @@ class LongValueStatistics : ValueStatistics<LongValue>(Types.Long) {
      */
     override fun reset() {
         super.reset()
-        this.min = Long.MAX_VALUE
-        this.max = Long.MIN_VALUE
+        this.min = LongValue.MAX_VALUE
+        this.max = LongValue.MIN_VALUE
     }
 
     /**

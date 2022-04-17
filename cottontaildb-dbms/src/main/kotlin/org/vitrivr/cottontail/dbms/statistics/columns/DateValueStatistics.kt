@@ -1,11 +1,12 @@
 package org.vitrivr.cottontail.dbms.statistics.columns
 
-import org.mapdb.DataInput2
-import org.mapdb.DataOutput2
+import jetbrains.exodus.bindings.BooleanBinding
+import jetbrains.exodus.bindings.LongBinding
+import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.values.DateValue
-import org.vitrivr.cottontail.core.values.LongValue
 import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.core.values.types.Value
+import org.vitrivr.cottontail.storage.serializers.statistics.xodus.XodusBinding
+import java.io.ByteArrayInputStream
 import java.lang.Long.max
 import java.lang.Long.min
 
@@ -13,56 +14,63 @@ import java.lang.Long.min
  * A [ValueStatistics] implementation for [DateValue]s.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.2.0
  */
-class DateValueStatistics : ValueStatistics<DateValue>(Types.Date) {
+class DateValueStatistics : AbstractValueStatistics<DateValue>(Types.Date) {
 
     /**
-     * Serializer for [DateValueStatistics].
+     * Xodus serializer for [DateValueStatistics]
      */
-    companion object Serializer : org.mapdb.Serializer<DateValueStatistics> {
-        override fun serialize(out: DataOutput2, value: DateValueStatistics) {
-            out.packLong(value.min)
-            out.packLong(value.max)
+    object Binding: XodusBinding<DateValueStatistics> {
+        override fun read(stream: ByteArrayInputStream): DateValueStatistics {
+            val stat = DateValueStatistics()
+            stat.fresh = BooleanBinding.BINDING.readObject(stream)
+            stat.numberOfNullEntries = LongBinding.readCompressed(stream)
+            stat.numberOfNonNullEntries = LongBinding.readCompressed(stream)
+            stat.min = DateValue(LongBinding.readCompressed(stream))
+            stat.max = DateValue(LongBinding.readCompressed(stream))
+            return stat
         }
 
-        override fun deserialize(input: DataInput2, available: Int): DateValueStatistics {
-            val stat = DateValueStatistics()
-            stat.min = input.unpackLong()
-            stat.max = input.unpackLong()
-            return stat
+        override fun write(output: LightOutputStream, statistics: DateValueStatistics) {
+            BooleanBinding.BINDING.writeObject(output, statistics.fresh)
+            LongBinding.writeCompressed(output, statistics.numberOfNullEntries)
+            LongBinding.writeCompressed(output, statistics.numberOfNonNullEntries)
+            LongBinding.writeCompressed(output, statistics.min.value)
+            LongBinding.writeCompressed(output, statistics.max.value)
         }
     }
 
-    /** Minimum value for this [DateValueStatistics]. */
-    var min: Long = Long.MAX_VALUE
+    /** Minimum value seen by this [DateValueStatistics]. */
+    var min: DateValue = DateValue(Long.MAX_VALUE)
+        private set
 
-    /** Minimum value for this [DateValueStatistics]. */
-    var max: Long = Long.MIN_VALUE
-
+    /** Minimum value seen by this [DateValueStatistics]. */
+    var max: DateValue = DateValue(Long.MIN_VALUE)
+            private set
     /**
-     * Updates this [LongValueStatistics] with an inserted [LongValue]
+     * Updates this [DateValueStatistics] with an inserted [DateValue]
      *
-     * @param inserted The [Value] that was deleted.
+     * @param inserted The [DateValue] that was inserted.
      */
     override fun insert(inserted: DateValue?) {
         super.insert(inserted)
         if (inserted != null) {
-            this.min = min(inserted.value, this.min)
-            this.max = max(inserted.value, this.max)
+            this.min = DateValue(min(inserted.value, this.min.value))
+            this.max = DateValue(max(inserted.value, this.max.value))
         }
     }
 
     /**
-     * Updates this [LongValueStatistics] with a deleted [LongValue]
+     * Updates this [DateValueStatistics] with a deleted [DateValue]
      *
-     * @param deleted The [Value] that was deleted.
+     * @param deleted The [DateValue] that was deleted.
      */
     override fun delete(deleted: DateValue?) {
         super.delete(deleted)
 
         /* We cannot create a sensible estimate if a value is deleted. */
-        if (this.min == deleted?.value || this.max == deleted?.value) {
+        if (this.min == deleted || this.max == deleted) {
             this.fresh = false
         }
     }
@@ -72,8 +80,8 @@ class DateValueStatistics : ValueStatistics<DateValue>(Types.Date) {
      */
     override fun reset() {
         super.reset()
-        this.min = Long.MAX_VALUE
-        this.max = Long.MIN_VALUE
+        this.min = DateValue(Long.MAX_VALUE)
+        this.max = DateValue(Long.MIN_VALUE)
     }
 
     /**

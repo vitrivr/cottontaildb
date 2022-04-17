@@ -1,18 +1,17 @@
 package org.vitrivr.cottontail.core.queries.functions
 
 import org.vitrivr.cottontail.core.queries.Digest
-import org.vitrivr.cottontail.core.queries.Node
-import org.vitrivr.cottontail.core.queries.binding.Binding
-import org.vitrivr.cottontail.core.queries.binding.BindingContext
+import org.vitrivr.cottontail.core.queries.nodes.Node
+import org.vitrivr.cottontail.core.queries.nodes.NodeWithCost
 import org.vitrivr.cottontail.core.values.types.Value
 
 /**
  * An invokable [Function] is a [Node] that can be used by Cottontail DB to calculate values results.
  *
  * @author Ralph Gasser
- * @version 1.2.0
+ * @version 1.3.0
  */
-interface Function<out R: Value>: Node {
+interface Function<out R: Value>: NodeWithCost {
 
     /** Signature of this [Function]. */
     val signature: Signature.Closed<out R>
@@ -30,15 +29,6 @@ interface Function<out R: Value>: Node {
      * @return [Function]
      */
     override fun copy(): Function<R> = this
-
-    /**
-     * Since [Function]s do not hold [Binding]s directly, this method has no effect by default.
-     *
-     * Can be overridden to enforce a different behaviour for stateful [Function] implementations.
-     *
-     * @param context The new [BindingContext] to bind [Binding]s to.
-     */
-    override fun bind(context: BindingContext) { /* No op. */ }
 
     /**
      * Invokes this [Function] with the given argument [Value]s and returns the output.

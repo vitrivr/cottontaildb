@@ -59,7 +59,7 @@ class ExportImportCommandTest {
         this.channel.awaitTermination(5000, TimeUnit.MILLISECONDS)
 
         /* Stop embedded server. */
-        this.embedded.stop()
+        this.embedded.shutdownAndWait()
     }
 
     fun exportFolder(): Path {
@@ -89,8 +89,8 @@ class ExportImportCommandTest {
         formats.forEach { format ->
             val exportFile = exportFile(format)
             val count = countElements()
-            TruncateEntityCommand.truncate(client, entityName, true)
-            ImportDataCommand.importData(format, exportFile, client, entityName, true)
+            TruncateEntityCommand.truncate(this.entityName, this.client, true)
+            ImportDataCommand.importData(this.entityName, exportFile, format, this.client, true)
             assert(count == countElements())
         }
     }

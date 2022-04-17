@@ -1,26 +1,32 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.management
 
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.GroupId
-import org.vitrivr.cottontail.core.queries.binding.BindingContext
+import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
+import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
+import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
+import org.vitrivr.cottontail.core.values.types.Value
+import org.vitrivr.cottontail.dbms.column.ColumnTx
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.operators.management.InsertOperator
 import org.vitrivr.cottontail.dbms.execution.operators.management.UpdateOperator
-import org.vitrivr.cottontail.dbms.queries.QueryContext
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.logical.management.InsertLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.NullaryPhysicalOperatorNode
-import org.vitrivr.cottontail.dbms.statistics.entity.RecordStatistics
+import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
 
 /**
  * A [InsertPhysicalOperatorNode] that formalizes a INSERT operation on an [Entity].
  *
  * @author Ralph Gasser
- * @version 2.5.0
+ * @version 2.6.0
  */
+@Suppress("UNCHECKED_CAST")
 class InsertPhysicalOperatorNode(override val groupId: GroupId, val entity: EntityTx, val records: MutableList<Record>) : NullaryPhysicalOperatorNode() {
     companion object {
         private const val NODE_NAME = "Insert"
@@ -31,25 +37,34 @@ class InsertPhysicalOperatorNode(override val groupId: GroupId, val entity: Enti
         get() = NODE_NAME
 
     /** The physical [ColumnDef] accessed by the [InsertPhysicalOperatorNode]. */
-    override val physicalColumns: List<ColumnDef<*>> = this.entity.listColumns().map { it.columnDef }
+    override val physicalColumns: List<ColumnDef<*>> = this.entity.listColumns()
 
     /** The [InsertPhysicalOperatorNode] produces the [ColumnDef]s defined in the [UpdateOperator]. */
     override val columns: List<ColumnDef<*>> = InsertOperator.COLUMNS
 
-    /** The [RecordStatistics] for this [InsertPhysicalOperatorNode]. */
-    override val statistics: RecordStatistics = this.entity.snapshot.statistics
+    /** The statistics for this [InsertPhysicalOperatorNode]. */
+    override val statistics = Object2ObjectLinkedOpenHashMap<ColumnDef<*>, ValueStatistics<*>>()
 
     /** The [InsertPhysicalOperatorNode] produces a single record. */
     override val outputSize: Long = 1L
 
-    /** The [Cost] of this [InsertPhysicalOperatorNode]. */
-    override val cost: Cost = (Cost.DISK_ACCESS_WRITE * (this.records.sumOf { it.columns.sumOf { this.statistics[it].avgWidth } })) + Cost.MEMORY_ACCESS * this.records.size
-
-    /** The [InsertPhysicalOperatorNode] cannot be partitioned. */
-    override val canBePartitioned: Boolean = false
+    /** The [Cost] incurred by this [InsertPhysicalOperatorNode]. */
+    override val cost: Cost
 
     /** The [InsertPhysicalOperatorNode] is always executable. */
     override val executable: Boolean = true
+
+    /** The [InsertPhysicalOperatorNode] cannot be partitioned. */
+    override val traits: Map<TraitType<*>, Trait> = mapOf(NotPartitionableTrait to NotPartitionableTrait)
+
+    init {
+        /* Obtain statistics costs. */
+        this.entity.listColumns().forEach { columnDef ->
+            this.statistics[columnDef] = (this.entity.context.getTx(this.entity.columnForName(columnDef.name)) as ColumnTx<*>).statistics() as ValueStatistics<Value>
+        }
+        val cummulativeAvgRecordSize = this.records.sumOf { r -> r.columns.sumOf { c -> r[c]!!.logicalSize }}
+        this.cost = (Cost.DISK_ACCESS_WRITE + Cost.MEMORY_ACCESS) * cummulativeAvgRecordSize
+    }
 
     /**
      * Creates and returns a copy of this [InsertLogicalOperatorNode] without any children or parents.
@@ -57,13 +72,6 @@ class InsertPhysicalOperatorNode(override val groupId: GroupId, val entity: Enti
      * @return Copy of this [InsertLogicalOperatorNode].
      */
     override fun copy() = InsertPhysicalOperatorNode(this.groupId, this.entity, this.records)
-
-    /**
-     * Bind calls have no effect on [InsertPhysicalOperatorNode]
-     *
-     * @param context The new [BindingContext]
-     */
-    override fun bind(context: BindingContext) { /* No op. */ }
 
     /**
      * Converts this [InsertPhysicalOperatorNode] to a [InsertOperator].

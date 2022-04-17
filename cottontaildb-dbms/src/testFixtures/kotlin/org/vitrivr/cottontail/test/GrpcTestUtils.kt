@@ -103,7 +103,7 @@ object GrpcTestUtils {
         repeat(TEST_ENTITY_TUPLE_COUNT.toInt()) {
             val lat = random.nextFloat() + random.nextInt(0, 50)
             val lon = random.nextFloat() + random.nextInt(0, 50)
-            val arr = arrayOf(lat, lon)
+            val arr = floatArrayOf(lat, lon)
             batch.append(
                 RandomStringUtils.randomAlphabetic(5),
                 random.nextInt(0, 10),

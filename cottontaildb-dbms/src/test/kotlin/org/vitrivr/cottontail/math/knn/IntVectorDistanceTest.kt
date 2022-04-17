@@ -2,11 +2,11 @@ package org.vitrivr.cottontail.math.knn
 
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
-import org.vitrivr.cottontail.core.values.IntVectorValue
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.EuclideanDistance
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.ManhattanDistance
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.SquaredEuclideanDistance
+import org.vitrivr.cottontail.core.values.generators.IntVectorValueGenerator
 import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.dbms.functions.math.distance.binary.EuclideanDistance
-import org.vitrivr.cottontail.dbms.functions.math.distance.binary.ManhattanDistance
-import org.vitrivr.cottontail.dbms.functions.math.distance.binary.SquaredEuclideanDistance
 import org.vitrivr.cottontail.math.isApproximatelyTheSame
 import org.vitrivr.cottontail.test.TestConstants
 import org.vitrivr.cottontail.utilities.VectorUtility
@@ -20,7 +20,7 @@ import kotlin.time.measureTime
  * Test cases that test for correctness of some basic distance calculations with [IntVectorDistanceTest].
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
 class IntVectorDistanceTest : AbstractDistanceTest() {
 
@@ -28,7 +28,7 @@ class IntVectorDistanceTest : AbstractDistanceTest() {
     @ParameterizedTest
     @MethodSource("dimensions")
     fun testL1Distance(dimensions: Int) {
-        val query = IntVectorValue.random(dimensions, RANDOM)
+        val query = IntVectorValueGenerator.random(dimensions, RANDOM)
         val collection = VectorUtility.randomIntVectorSequence(dimensions, TestConstants.collectionSize, RANDOM)
 
         var sum1 = 0.0f
@@ -62,7 +62,7 @@ class IntVectorDistanceTest : AbstractDistanceTest() {
     @ParameterizedTest
     @MethodSource("dimensions")
     fun testL2SquaredDistance(dimensions: Int) {
-        val query = IntVectorValue.random(dimensions, RANDOM)
+        val query = IntVectorValueGenerator.random(dimensions, RANDOM)
         val collection = VectorUtility.randomIntVectorSequence(dimensions, TestConstants.collectionSize, RANDOM)
 
         var sum1 = 0.0f
@@ -96,7 +96,7 @@ class IntVectorDistanceTest : AbstractDistanceTest() {
     @ParameterizedTest
     @MethodSource("dimensions")
     fun testL2Distance(dimensions: Int) {
-        val query = IntVectorValue.random(dimensions, RANDOM)
+        val query = IntVectorValueGenerator.random(dimensions, RANDOM)
         val collection = VectorUtility.randomIntVectorSequence(dimensions, TestConstants.collectionSize, RANDOM)
 
         var sum1 = 0.0f

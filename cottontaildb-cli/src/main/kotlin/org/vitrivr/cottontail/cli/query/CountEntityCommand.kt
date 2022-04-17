@@ -18,11 +18,14 @@ import kotlin.time.ExperimentalTime
 class CountEntityCommand(client: SimpleClient): AbstractCottontailCommand.Query(client, name = "count", help = "Counts the number of entries in the given entity. Usage: entity count <schema>.<entity>") {
 
     private val entityName: Name.EntityName by argument(name = "entity", help = "The fully qualified entity name targeted by the command. Has the form of [\"warren\"].<schema>.<entity>").convert {
-        val split = it.split(Name.NAME_COMPONENT_DELIMITER)
+        val split = it.split(Name.DELIMITER)
         when(split.size) {
             1 -> throw IllegalArgumentException("'$it' is not a valid entity name. Entity name must contain schema specified.")
             2 -> Name.EntityName(split[0], split[1])
-            3 -> Name.EntityName(split[0], split[1], split[2])
+            3 -> {
+                require(split[0] == Name.ROOT) { "Invalid root qualifier ${split[0]}!" }
+                Name.EntityName(split[1], split[2])
+            }
             else -> throw IllegalArgumentException("'$it' is not a valid entity name.")
         }
     }

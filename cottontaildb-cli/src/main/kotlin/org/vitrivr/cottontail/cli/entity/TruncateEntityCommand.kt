@@ -21,19 +21,15 @@ import kotlin.time.measureTimedValue
 @ExperimentalTime
 class TruncateEntityCommand(client: SimpleClient) : AbstractCottontailCommand.Entity(client, name = "truncate", help = "Truncates the given entity. Usage: entity truncate <schema>.<entity>") {
 
-    /** Flag that can be used to directly provide confirmation. */
-    private val confirm: Boolean by option(
-        "-c",
-        "--confirm",
-        help = "Directly provides the confirmation option. Set to true, no interactive prompt is given"
-    ).flag()
-
-    override fun exec() {
-        truncate(client, entityName, confirm)
-    }
-
     companion object{
-        fun truncate(client: SimpleClient, entityName: Name.EntityName, confirm: Boolean) {
+        /**
+         * Truncates an entity. This method has been separated from the [AboutEntityCommand] instance for testability.
+         *
+         * @param entityName The [Name.EntityName] of the entity to truncate.
+         * @param client The [SimpleClient] to use.
+         * @param confirm Flag indicating whether confirmation is required (CLI only, not testable).
+         */
+        fun truncate(entityName: Name.EntityName, client: SimpleClient, confirm: Boolean) {
             if (confirm || TermUi.confirm("Do you really want to truncate the entity ${entityName} [y/N]?", default = false, showDefault = false) == true) {
                 try {
                     val timedTable = measureTimedValue {
@@ -49,4 +45,13 @@ class TruncateEntityCommand(client: SimpleClient) : AbstractCottontailCommand.En
             }
         }
     }
+
+    /** Flag that can be used to directly provide confirmation. */
+    private val confirm: Boolean by option(
+        "-c",
+        "--confirm",
+        help = "Directly provides the confirmation option. Set to true, no interactive prompt is given"
+    ).flag()
+
+    override fun exec() = truncate(this.entityName, this.client, this.confirm)
 }

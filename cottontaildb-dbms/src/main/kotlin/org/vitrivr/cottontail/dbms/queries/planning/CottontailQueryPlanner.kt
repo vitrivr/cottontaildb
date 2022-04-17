@@ -4,7 +4,7 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectLinkedOpenHashMap
 import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.dbms.exceptions.QueryException
-import org.vitrivr.cottontail.dbms.queries.QueryContext
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.BinaryLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.NAryLogicalOperatorNode
@@ -27,7 +27,7 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
  * Finally, the best plan in terms of [Cost] is selected.
  *
  * @author Ralph Gasser
- * @version 2.1.0
+ * @version 2.2.0
  */
 class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, private val physicalRules: Collection<RewriteRule>, planCacheSize: Int = 100) {
 
@@ -42,25 +42,22 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
      *
      * @throws QueryException.QueryPlannerException If planner fails to generate a valid execution plan.
      */
-    fun planAndSelect(context: QueryContext, bypassCache: Boolean = false, cache: Boolean = false) {
+    fun planAndSelect(context: QueryContext, bypassCache: Boolean = false, cache: Boolean = false): OperatorNode.Physical {
         /* Try to obtain PhysicalNodeExpression from plan cache, unless bypassCache has been set to true. */
         val logical = context.logical
         require(logical != null) { "Cannot plan for a QueryContext that doesn't have a valid logical query representation." }
         val digest = logical.digest()
-        if (!bypassCache) {
-            context.physical = this.planCache[digest]
-            if (context.physical != null) {
-                return
-            }
+        if (!bypassCache && this.planCache[digest] != null) {
+            return this.planCache[digest]!!
         }
 
         /* Execute actual query planning and select candidate with lowest cost. */
         val candidates = this.plan(context)
-        context.physical = candidates.minByOrNull { it.totalCost }
-            ?: throw QueryException.QueryPlannerException("Failed to generate a physical execution plan for query. Maybe there is an index missing?")
+        val selected = candidates.minByOrNull { context.costPolicy.toScore(it.totalCost) } ?: throw QueryException.QueryPlannerException("Failed to generate a physical execution plan for query. Maybe there is an index missing?")
 
         /* Update plan cache. */
-        if (!cache) this.planCache[digest] = context.physical!!
+        if (!cache) this.planCache[digest] = selected
+        return selected
     }
 
     /**
@@ -83,7 +80,7 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
             val candidate = stage2.filter {
                 it.executable /* Filter-out plans that cannot be executed. */
             }.minByOrNull {
-                it.totalCost
+                context.costPolicy.toScore(it.totalCost)
             } ?: throw QueryException.QueryPlannerException("Failed to generate a physical execution plan for expression: $logical.")
             candidates[d.key] = candidate
         }
@@ -169,10 +166,12 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
         while (pointer != null) {
             /* Apply rules to node and add results to list for exploration. */
             for (rule in this.logicalRules) {
-                val result = rule.apply(pointer, ctx)
-                if (result is OperatorNode.Logical) {
-                    explore.enqueue(result)
-                    candidates.enqueue(result)
+                if (rule.canBeApplied(pointer, ctx)) {
+                    val result = rule.apply(pointer, ctx)
+                    if (result is OperatorNode.Logical) {
+                        explore.enqueue(result)
+                        candidates.enqueue(result)
+                    }
                 }
             }
 
@@ -206,10 +205,12 @@ class CottontailQueryPlanner(private val logicalRules: Collection<RewriteRule>, 
         while (pointer != null) {
             /* Apply rules to node and add results to list for exploration. */
             for (rule in this.physicalRules) {
-                val result = rule.apply(pointer, ctx)
-                if (result is OperatorNode.Physical) {
-                    explore.enqueue(result)
-                    candidates.enqueue(result)
+                if (rule.canBeApplied(pointer, ctx)) {
+                    val result = rule.apply(pointer, ctx)
+                    if (result is OperatorNode.Physical) {
+                        explore.enqueue(result)
+                        candidates.enqueue(result)
+                    }
                 }
             }
 

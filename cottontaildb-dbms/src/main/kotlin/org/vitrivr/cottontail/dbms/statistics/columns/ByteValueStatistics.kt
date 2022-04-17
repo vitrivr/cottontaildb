@@ -2,70 +2,84 @@ package org.vitrivr.cottontail.dbms.statistics.columns
 
 import com.google.common.primitives.SignedBytes.max
 import com.google.common.primitives.SignedBytes.min
-import org.mapdb.DataInput2
-import org.mapdb.DataOutput2
+import jetbrains.exodus.bindings.BooleanBinding
+import jetbrains.exodus.bindings.ByteBinding
+import jetbrains.exodus.bindings.LongBinding
+import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.values.ByteValue
-import org.vitrivr.cottontail.core.values.IntValue
+import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.core.values.types.Value
+import org.vitrivr.cottontail.storage.serializers.statistics.xodus.XodusBinding
+import java.io.ByteArrayInputStream
 
 /**
  * A [ValueStatistics] implementation for [ByteValue]s.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.2.0
  */
-class ByteValueStatistics : ValueStatistics<ByteValue>(Types.Byte) {
+class ByteValueStatistics : AbstractValueStatistics<ByteValue>(Types.Byte), RealValueStatistics<ByteValue> {
 
     /**
-     * Serializer for [LongValueStatistics].
+     * Xodus serializer for [ByteValueStatistics]
      */
-    companion object Serializer : org.mapdb.Serializer<ByteValueStatistics> {
-        override fun serialize(out: DataOutput2, value: ByteValueStatistics) {
-            out.writeByte(value.min.toInt())
-            out.writeByte(value.max.toInt())
+    object Binding: XodusBinding<ByteValueStatistics> {
+        override fun read(stream: ByteArrayInputStream): ByteValueStatistics {
+            val stat = ByteValueStatistics()
+            stat.fresh = BooleanBinding.BINDING.readObject(stream)
+            stat.numberOfNullEntries = LongBinding.readCompressed(stream)
+            stat.numberOfNonNullEntries = LongBinding.readCompressed(stream)
+            stat.min = ByteValue(ByteBinding.BINDING.readObject(stream))
+            stat.max = ByteValue(ByteBinding.BINDING.readObject(stream))
+            return stat
         }
 
-        override fun deserialize(input: DataInput2, available: Int): ByteValueStatistics {
-            val stat = ByteValueStatistics()
-            stat.min = input.readByte()
-            stat.max = input.readByte()
-            return stat
+        override fun write(output: LightOutputStream, statistics: ByteValueStatistics) {
+            BooleanBinding.BINDING.writeObject(output, statistics.fresh)
+            LongBinding.writeCompressed(output, statistics.numberOfNullEntries)
+            LongBinding.writeCompressed(output, statistics.numberOfNonNullEntries)
+            ByteBinding.BINDING.writeObject(output, statistics.min.value)
+            ByteBinding.BINDING.writeObject(output, statistics.max.value)
         }
     }
 
-    /** Minimum value for this [ByteValueStatistics]. */
-    var min: Byte = Byte.MAX_VALUE
+    /** Minimum value seen by this [ByteValueStatistics]. */
+    override var min: ByteValue = ByteValue.MAX_VALUE
+        private set
 
-    /** Minimum value for this [ByteValueStatistics]. */
-    var max: Byte = Byte.MIN_VALUE
+    /** Minimum value seen by this [ByteValueStatistics]. */
+    override var max: ByteValue = ByteValue.MIN_VALUE
+        private set
+
+    /** Sum of all [ByteValue]s seen by this [ByteValueStatistics]. */
+    override var sum: DoubleValue = DoubleValue.ZERO
+        private set
 
     /**
-     * Updates this [LongValueStatistics] with an inserted [IntValue]
+     * Updates this [ByteValueStatistics] with an inserted [ByteValue]
      *
-     * @param inserted The [Value] that was deleted.
+     * @param inserted The [ByteValue] that was inserted.
      */
     override fun insert(inserted: ByteValue?) {
         super.insert(inserted)
         if (inserted != null) {
-            this.min = min(inserted.value, this.min)
-            this.max = max(inserted.value, this.max)
+            this.min = ByteValue(min(inserted.value, this.min.value))
+            this.max = ByteValue(max(inserted.value, this.max.value))
+            this.sum += DoubleValue(inserted.value)
         }
     }
 
     /**
-     * Updates this [LongValueStatistics] with a deleted [IntValue]
+     * Updates this [ByteValueStatistics] with a deleted [ByteValue]
      *
-     * @param deleted The [Value] that was deleted.
+     * @param deleted The [ByteValue] that was deleted.
      */
     override fun delete(deleted: ByteValue?) {
         super.delete(deleted)
 
         /* We cannot create a sensible estimate if a value is deleted. */
-        if (deleted != null) {
-            if (this.min == deleted.value || this.max == deleted.value) {
-                this.fresh = false
-            }
+        if (this.min == deleted || this.max == deleted) {
+            this.fresh = false
         }
     }
 
@@ -74,8 +88,9 @@ class ByteValueStatistics : ValueStatistics<ByteValue>(Types.Byte) {
      */
     override fun reset() {
         super.reset()
-        this.min = Byte.MAX_VALUE
-        this.max = Byte.MIN_VALUE
+        this.min = ByteValue.MAX_VALUE
+        this.max = ByteValue.MIN_VALUE
+        this.sum = DoubleValue.ZERO
     }
 
     /**

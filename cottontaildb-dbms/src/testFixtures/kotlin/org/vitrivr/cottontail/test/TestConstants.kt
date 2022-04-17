@@ -1,6 +1,8 @@
 package org.vitrivr.cottontail.test
 
 import org.vitrivr.cottontail.config.Config
+import org.vitrivr.cottontail.config.ExecutionConfig
+import org.vitrivr.cottontail.config.ServerConfig
 import java.nio.file.Files
 import java.util.*
 
@@ -38,5 +40,9 @@ object TestConstants {
      *
      * @return [Config]
      */
-    fun testConfig() = Config(root = Files.createTempDirectory("cottontaildb-test-${UUID.randomUUID()}"),)
+    fun testConfig() = Config(
+        root = Files.createTempDirectory("cottontaildb-test-${UUID.randomUUID()}"),
+        execution = ExecutionConfig(coreThreads = 2, maxThreads = 4),
+        server = ServerConfig(connectionThreads = 2)
+    )
 }
