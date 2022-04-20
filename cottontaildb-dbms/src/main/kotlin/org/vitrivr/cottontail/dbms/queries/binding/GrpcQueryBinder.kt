@@ -35,6 +35,7 @@ import org.vitrivr.cottontail.dbms.queries.operators.logical.sort.SortLogicalOpe
 import org.vitrivr.cottontail.dbms.queries.operators.logical.sources.EntitySampleLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.sources.EntityScanLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.transform.LimitLogicalOperatorNode
+import org.vitrivr.cottontail.dbms.queries.operators.logical.transform.SkipLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.projection.Projection
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
 import org.vitrivr.cottontail.grpc.CottontailGrpc
@@ -88,24 +89,23 @@ object GrpcQueryBinder {
         }
 
         /* Parse and bind WHERE-clause. */
-        root = if (query.hasWhere()) {
-            parseAndBindBooleanPredicate(root, query.where, context)
-        } else {
-            root
+        if (query.hasWhere()) {
+            root = parseAndBindBooleanPredicate(root, query.where, context)
         }
 
         /* Parse and bind ORDER-clause. */
-        root = if (query.hasOrder()) {
-            parseAndBindOrder(root, query.order, context)
-        } else {
-            root
+        if (query.hasOrder()) {
+            root = parseAndBindOrder(root, query.order, context)
         }
 
-        /* Process LIMIT and SKIP. */
-        root = if (query.limit > 0L || query.skip > 0L) {
-            LimitLogicalOperatorNode(root, query.limit, query.skip)
-        } else {
-            root
+        /* Process SKIP. */
+        if (query.skip > 0L) {
+            root = SkipLogicalOperatorNode(root, query.skip)
+        }
+
+        /* Process LIMIT. */
+        if (query.limit > 0L) {
+            root = LimitLogicalOperatorNode(root, query.limit)
         }
 
         /* Process SELECT-clause (projection). */

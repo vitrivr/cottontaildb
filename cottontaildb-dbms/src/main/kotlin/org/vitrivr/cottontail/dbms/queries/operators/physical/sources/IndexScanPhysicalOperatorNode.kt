@@ -68,7 +68,7 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int,
 
     /** The estimated output size of this [IndexScanPhysicalOperatorNode]. */
     override val outputSize: Long = when (this.predicate) {
-        is ProximityPredicate -> this.predicate.k.toLong()
+        is ProximityPredicate -> this.predicate.k
         is BooleanPredicate -> {
             val selectivity = NaiveSelectivityCalculator.estimate(this.predicate, this.statistics)
             val entityTx = this.index.context.getTx(this.index.dbo.parent) as EntityTx
@@ -146,10 +146,12 @@ class IndexScanPhysicalOperatorNode(override val groupId: Int,
                 val limit = this[LimitTrait]!!
                 MergeLimitingSortPhysicalOperatorNode(*inbound.toTypedArray(), sortOn = order.order, limit = limit.limit)
             }
-            this.hasTrait(OrderTrait) -> TODO()
             this.hasTrait(LimitTrait) -> {
                 val limit = this[LimitTrait]!!
-                LimitPhysicalOperatorNode(MergePhysicalOperatorNode(*inbound.toTypedArray()), limit = limit.limit, skip = 0L)
+                LimitPhysicalOperatorNode(MergePhysicalOperatorNode(*inbound.toTypedArray()), limit = limit.limit)
+            }
+            this.hasTrait(OrderTrait) -> {
+                TODO()
             }
             else -> MergePhysicalOperatorNode(*inbound.toTypedArray())
         }

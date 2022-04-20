@@ -3,7 +3,7 @@ package org.vitrivr.cottontail.math.knn
 import org.apache.commons.math3.random.JDKRandomGenerator
 import org.junit.jupiter.params.provider.Arguments
 import org.slf4j.LoggerFactory
-import org.vitrivr.cottontail.TestConstants
+import org.vitrivr.cottontail.test.TestConstants
 import java.util.stream.Stream
 
 /**

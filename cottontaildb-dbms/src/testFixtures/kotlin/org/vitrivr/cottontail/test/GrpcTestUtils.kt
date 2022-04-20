@@ -1,7 +1,6 @@
-package org.vitrivr.cottontail.server.grpc
+package org.vitrivr.cottontail.test
 
 import org.apache.commons.lang3.RandomStringUtils
-import org.vitrivr.cottontail.TestConstants
 import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.language.basics.Type
 import org.vitrivr.cottontail.client.language.ddl.CreateEntity

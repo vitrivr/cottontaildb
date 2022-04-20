@@ -4,12 +4,12 @@ import org.vitrivr.cottontail.dbms.queries.operators.logical.UnaryLogicalOperato
 import org.vitrivr.cottontail.dbms.queries.operators.physical.transform.LimitPhysicalOperatorNode
 
 /**
- * A [UnaryLogicalOperatorNode] that represents the application of a LIMIT and/or SKIP clause on the final result.
+ * A [UnaryLogicalOperatorNode] that represents the application of a LIMIT clause on the final result.
  *
  * @author Ralph Gasser
- * @version 2.2.0
+ * @version 2.3.0
  */
-class LimitLogicalOperatorNode(input: Logical? = null, val limit: Long, val skip: Long) : UnaryLogicalOperatorNode(input) {
+class LimitLogicalOperatorNode(input: Logical? = null, val limit: Long) : UnaryLogicalOperatorNode(input) {
 
     companion object {
         private const val NODE_NAME = "Limit"
@@ -24,32 +24,25 @@ class LimitLogicalOperatorNode(input: Logical? = null, val limit: Long, val skip
      *
      * @return Copy of this [LimitLogicalOperatorNode].
      */
-    override fun copy() = LimitLogicalOperatorNode(limit = this.limit, skip = this.skip)
+    override fun copy() = LimitLogicalOperatorNode(limit = this.limit)
 
     /**
      * Returns a [LimitPhysicalOperatorNode] representation of this [LimitLogicalOperatorNode]
      *
      * @return [LimitPhysicalOperatorNode]
      */
-    override fun implement(): Physical = LimitPhysicalOperatorNode(this.input?.implement(), this.limit, this.skip)
+    override fun implement(): Physical = LimitPhysicalOperatorNode(this.input?.implement(), this.limit)
+
+    /** Generates and returns a hash code for this [LimitLogicalOperatorNode]. */
+    override fun hashCode(): Int = this.limit.hashCode() + 1
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is LimitLogicalOperatorNode) return false
-
         if (limit != other.limit) return false
-        if (skip != other.skip) return false
-
         return true
     }
 
-    /** Generates and returns a hash code for this [LimitLogicalOperatorNode]. */
-    override fun hashCode(): Int {
-        var result = limit.hashCode()
-        result = 27 * result + skip.hashCode()
-        return result
-    }
-
     /** Generates and returns a [String] representation of this [LimitLogicalOperatorNode]. */
-    override fun toString() = "${super.toString()}[${this.skip},${this.limit}]"
+    override fun toString() = "${super.toString()}[${this.limit}]"
 }
