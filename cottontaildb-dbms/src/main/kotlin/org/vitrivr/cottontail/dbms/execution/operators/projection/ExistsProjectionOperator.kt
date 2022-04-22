@@ -26,7 +26,7 @@ import org.vitrivr.cottontail.dbms.queries.projection.Projection
 class ExistsProjectionOperator(parent: Operator, val out: Binding.Column) : Operator.PipelineOperator(parent) {
 
     /** Column returned by [ExistsProjectionOperator]. */
-    override val columns: List<ColumnDef<*>> = listOf(ColumnDef(Name.ColumnName(Projection.EXISTS.label()), Types.Boolean))
+    override val columns: List<ColumnDef<*>> = listOf(ColumnDef(Name.ColumnName(Projection.EXISTS.column()), Types.Boolean))
 
     /** [ExistsProjectionOperator] does act as a pipeline breaker. */
     override val breaker: Boolean = true
