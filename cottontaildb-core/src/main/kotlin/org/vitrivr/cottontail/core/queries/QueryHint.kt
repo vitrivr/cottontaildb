@@ -1,5 +1,7 @@
 package org.vitrivr.cottontail.core.queries
 
+import kotlin.math.abs
+
 /**
  * A [QueryHint] as provided by the user that issues a query.
  *
@@ -29,9 +31,9 @@ interface QueryHint {
         override val nonParallelisableIO: Float
     ): QueryHint, org.vitrivr.cottontail.core.queries.planning.cost.CostPolicy {
         init {
-            require((this.wio + this.wcpu + this.wmemory + this.waccuracy) == 1.0f) { "All cost weights must add-up to 1.0 but add up to ${this.wio + this.wcpu + this.wmemory + this.waccuracy}."}
             require(this.speedupPerWorker in 0.0f .. 1.0f) { "The speedup per worker must lie between 0.0 and 1.0 bit is ${this.speedupPerWorker}."}
             require(this.nonParallelisableIO in 0.0f .. 1.0f) { "The fraction of non-parallelisable IO must lie between 0.0 and 1.0 bit is ${this.nonParallelisableIO}."}
+            require( abs((this.wio + this.wcpu + this.wmemory + this.waccuracy) - 1.0f) < 1e-5 ) { "All cost weights must add-up to 1.0 but add up to ${this.wio + this.wcpu + this.wmemory + this.waccuracy}."}
         }
     }
 }
