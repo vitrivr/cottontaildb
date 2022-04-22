@@ -26,7 +26,6 @@ import org.vitrivr.cottontail.dbms.general.DBOVersion
 import org.vitrivr.cottontail.dbms.index.Index
 import org.vitrivr.cottontail.dbms.index.IndexConfig
 import org.vitrivr.cottontail.dbms.index.IndexType
-import org.vitrivr.cottontail.legacy.BrokenIndex
 import org.vitrivr.cottontail.legacy.v1.column.ColumnV1
 import org.vitrivr.cottontail.legacy.v1.schema.SchemaV1
 import org.vitrivr.cottontail.utilities.extensions.write
@@ -96,7 +95,7 @@ class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1
         this.header.indexes.forEach { idx ->
             val indexEntry = this.store.get(idx, IndexV1Entry.Serializer) ?: throw DatabaseException.DataCorruptionException("Failed to open entity '$name': Could not read index definition at position $idx!")
             val indexName = this.name.index(indexEntry.name)
-            this.indexes[indexName] = BrokenIndex(this.name.index(indexEntry.name), this, this.path.resolve(indexEntry.name), indexEntry.type)
+            this.indexes[indexName] = BrokenIndexV1(this.name.index(indexEntry.name), this, this.path.resolve(indexEntry.name), indexEntry.type)
         }
     }
 
