@@ -106,7 +106,7 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
                 this.migrateDBOs(srcCatalogue, dstCatalogue)
 
                 /* Migrates all data. */
-                //this.migrateData(srcCatalogue, dstCatalogue)
+                this.migrateData(srcCatalogue, dstCatalogue)
 
                 /* Swap folders. */
                 Files.move(config.root, config.root.parent.resolve("${config.root.fileName}~old"), StandardCopyOption.ATOMIC_MOVE)
