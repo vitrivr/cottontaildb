@@ -231,6 +231,8 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
          * (Re-)builds the [BTreeIndex].
          */
         override fun rebuild() = this.txLatch.withLock {
+            LOGGER.debug("Rebuilding BTree index {}", this@BTreeIndex.name)
+
             /* Obtain Tx for parent [Entity. */
             val entityTx = this.context.getTx(this.dbo.parent) as EntityTx
 
@@ -249,6 +251,10 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
 
             /* Close cursor. */
             cursor.close()
+
+            /* Update state of this index. */
+            this.updateState(IndexState.CLEAN)
+            LOGGER.debug("Rebuilding BTree index {} completed!", this@BTreeIndex.name)
         }
 
         /**

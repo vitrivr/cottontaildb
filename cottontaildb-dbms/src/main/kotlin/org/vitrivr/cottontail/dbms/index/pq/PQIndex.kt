@@ -226,7 +226,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
 
             /* Update index state for index. */
             this.updateState(IndexState.CLEAN, this.config.copy(centroids = newPq.centroids()))
-            LOGGER.debug("Rebuilding PQIndex {} completed!", this@PQIndex.name)
+            LOGGER.debug("Rebuilding PQ index {} completed!", this@PQIndex.name)
         }
 
         /**
