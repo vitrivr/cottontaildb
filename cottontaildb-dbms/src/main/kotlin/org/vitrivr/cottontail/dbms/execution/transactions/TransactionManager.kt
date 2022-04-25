@@ -14,6 +14,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.core.basics.Record
+import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TransactionId
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.events.DataEvent
@@ -36,7 +37,7 @@ import kotlin.coroutines.CoroutineContext
  * create and execute queries within different [TransactionImpl]s.
  *
  * @author Ralph Gasser
- * @version 1.6.0
+ * @version 1.7.0
  */
 class TransactionManager(val executionManager: ExecutionManager, transactionTableSize: Int, val transactionHistorySize: Int, private val catalogue: DefaultCatalogue) {
     /** Logger used for logging the output. */
@@ -89,9 +90,9 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
      * A [TransactionImpl] can be of different [TransactionType]s. Their execution semantics may differ slightly.
      *
      * @author Ralph Gasser
-     * @version 1.4.0
+     * @version 1.5.0
      */
-    inner class TransactionImpl(override val type: TransactionType) : LockHolder<DBO>(this@TransactionManager.tidCounter.getAndIncrement()), Transaction, TransactionContext {
+    inner class TransactionImpl(override val type: TransactionType, private val trackDataEventFor: Set<Name.EntityName> = emptySet()) : LockHolder<DBO>(this@TransactionManager.tidCounter.getAndIncrement()), Transaction, TransactionContext {
 
         /** The [TransactionStatus] of this [TransactionImpl]. */
         @Volatile
@@ -99,7 +100,11 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
             private set
 
         /** The Xodus [Transaction] associated with this [TransactionContext]. */
-        override val xodusTx: jetbrains.exodus.env.Transaction = this@TransactionManager.catalogue.environment.beginTransaction()
+        override val xodusTx: jetbrains.exodus.env.Transaction = if (this.type.readonly) {
+            this@TransactionManager.catalogue.environment.beginReadonlyTransaction()
+        } else {
+            this@TransactionManager.catalogue.environment.beginTransaction()
+        }
 
         /** Map of all [Tx] that have been created as part of this [TransactionImpl]. */
         private val txns: MutableMap<DBO, Tx> = Object2ObjectMaps.synchronize(Object2ObjectLinkedOpenHashMap())
@@ -147,10 +152,6 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
         override val availableIntraQueryWorkers: Int
             get() = this@TransactionManager.executionManager.availableIntraQueryWorkers()
 
-        /** Flag indicating, that this [Transaction] was used to write data. */
-        override var readonly: Boolean = true
-            private set
-
         init {
             /** Add this to transaction history and transaction table. */
             this@TransactionManager.transactions[this.txId] = this
@@ -186,8 +187,8 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
          * @param event The [Event] that has been reported.
          */
         override fun signalEvent(event: Event) {
-            if (event !is DataEvent) { /* TODO: DataEvents are not collected because this would use too much memory. */
-                this.events.add(event)
+            if (event !is DataEvent || event.entity in this.trackDataEventFor) {
+                this.events.add(event) /* TODO: Collection of DataEvents can use a lot of memory! */
             }
         }
 

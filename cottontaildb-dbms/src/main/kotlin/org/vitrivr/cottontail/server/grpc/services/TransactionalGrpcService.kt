@@ -49,9 +49,10 @@ internal interface TransactionalGrpcService {
      * Generates and returns a new [DefaultQueryContext] for the given [CottontailGrpc.Metadata].
      *
      * @param metadata The [CottontailGrpc.Metadata] to process.
+     * @param readOnly Flag indicating whether the query that requested the [DefaultQueryContext] is a readonly query.
      * @return [DefaultQueryContext]
      */
-    fun queryContextFromMetadata(metadata: CottontailGrpc.Metadata): DefaultQueryContext? {
+    fun queryContextFromMetadata(metadata: CottontailGrpc.Metadata, readOnly: Boolean): DefaultQueryContext? {
         val queryId = if (metadata.queryId.isNullOrEmpty()) {
             UUID.randomUUID().toString()
         } else {
@@ -60,9 +61,13 @@ internal interface TransactionalGrpcService {
 
         /* Obtain transaction context. */
         val transactionContext = if (metadata.transactionId <= 0L) {
-            this.manager.TransactionImpl(TransactionType.USER_IMPLICIT) /* Start new transaction. */
-        } else {
-            val txn = this.manager[metadata.transactionId] /* Reuse existing transaction. */
+            if (readOnly) { /* Start new transaction. */
+                this.manager.TransactionImpl(TransactionType.USER_IMPLICIT_READONLY)
+            } else {
+                this.manager.TransactionImpl(TransactionType.USER_IMPLICIT)
+            }
+        } else { /* Reuse existing transaction. */
+            val txn = this.manager[metadata.transactionId]
             if (txn === null || txn.type !== TransactionType.USER) {
                 return null
             }
@@ -94,13 +99,14 @@ internal interface TransactionalGrpcService {
      * Prepares and executes a query using the [DefaultQueryContext] specified by the [CottontailGrpc.Metadata] object.
      *
      * @param metadata The [CottontailGrpc.Metadata] that identifies the [DefaultQueryContext]
+     * @param readOnly Flag indicating, whether the query prepared is a read-only query.
      * @param prepare The action that prepares the query [Operator]
      * @return [Flow] of [CottontailGrpc.QueryResponseMessage]
      */
-    fun prepareAndExecute(metadata: CottontailGrpc.Metadata, prepare: (ctx: DefaultQueryContext) -> Operator): Flow<CottontailGrpc.QueryResponseMessage> {
+    fun prepareAndExecute(metadata: CottontailGrpc.Metadata, readOnly: Boolean, prepare: (ctx: DefaultQueryContext) -> Operator): Flow<CottontailGrpc.QueryResponseMessage> {
         /* Phase 1a: Obtain query context. */
         val m1 = TimeSource.Monotonic.markNow()
-        val context = this.queryContextFromMetadata(metadata) ?: return flow {
+        val context = this.queryContextFromMetadata(metadata, readOnly) ?: return flow {
             val message = "Execution failed because transaction ${metadata.transactionId} could not be resumed."
             LOGGER.warn(message)
             throw Status.FAILED_PRECONDITION.withDescription(message).asException()

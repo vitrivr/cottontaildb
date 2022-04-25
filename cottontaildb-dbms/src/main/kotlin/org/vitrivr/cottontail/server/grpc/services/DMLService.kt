@@ -20,7 +20,7 @@ import kotlin.time.ExperimentalTime
  * Implementation of [DMLGrpc.DMLImplBase], the gRPC endpoint for inserting data into Cottontail DB [DefaultEntity]s.
  *
  * @author Ralph Gasser
- * @version 2.3.0
+ * @version 2.3.1
  */
 @ExperimentalTime
 class DMLService(override val catalogue: Catalogue, override val manager: TransactionManager) : DMLGrpcKt.DMLCoroutineImplBase(), TransactionalGrpcService {
@@ -40,7 +40,7 @@ class DMLService(override val catalogue: Catalogue, override val manager: Transa
     /**
      * gRPC endpoint for handling UPDATE queries.
      */
-    override suspend fun update(request: CottontailGrpc.UpdateMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata) { ctx ->
+    override suspend fun update(request: CottontailGrpc.UpdateMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata, false) { ctx ->
         /* Bind query and create logical plan. */
         val canonical = GrpcQueryBinder.bind(request, ctx)
         ctx.assign(canonical)
@@ -55,7 +55,7 @@ class DMLService(override val catalogue: Catalogue, override val manager: Transa
     /**
      * gRPC endpoint for handling DELETE queries.
      */
-    override suspend fun delete(request: CottontailGrpc.DeleteMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata) { ctx ->
+    override suspend fun delete(request: CottontailGrpc.DeleteMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata, false) { ctx ->
         /* Bind query and create logical plan. */
         val canonical = GrpcQueryBinder.bind(request, ctx)
         ctx.assign(canonical)
@@ -70,7 +70,7 @@ class DMLService(override val catalogue: Catalogue, override val manager: Transa
     /**
      * gRPC endpoint for handling INSERT queries.
      */
-    override suspend fun insert(request: CottontailGrpc.InsertMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata) { ctx ->
+    override suspend fun insert(request: CottontailGrpc.InsertMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata, false) { ctx ->
         /* Bind query and create logical plan. */
         val canonical = GrpcQueryBinder.bind(request, ctx)
         ctx.assign(canonical)
@@ -85,7 +85,7 @@ class DMLService(override val catalogue: Catalogue, override val manager: Transa
     /**
      * gRPC endpoint for handling INSERT BATCH queries.
      */
-    override suspend fun insertBatch(request: CottontailGrpc.BatchInsertMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata) { ctx ->
+    override suspend fun insertBatch(request: CottontailGrpc.BatchInsertMessage): CottontailGrpc.QueryResponseMessage = prepareAndExecute(request.metadata, false) { ctx ->
         /* Bind query and create logical plan. */
         val canonical = GrpcQueryBinder.bind(request, ctx)
         ctx.assign(canonical)

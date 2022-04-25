@@ -268,9 +268,6 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
         /** The [TransactionType] of a [MigrationManager] is always [TransactionType.SYSTEM]. */
         override val type: TransactionType = TransactionType.SYSTEM
 
-        /** [LegacyMigrationContext] are always [readonly]. */
-        override val readonly: Boolean = true
-
         /** [LegacyMigrationContext] do not provide any query workers. */
         override val availableQueryWorkers = 0
 
@@ -359,9 +356,6 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
         @Volatile
         override var state: TransactionStatus = TransactionStatus.IDLE
             private set
-
-        /** [MigrationContext]s are never readonly. */
-        override val readonly: Boolean = false
 
         /** [MigrationContext] do not provide any query workers. */
         override val availableQueryWorkers = 0

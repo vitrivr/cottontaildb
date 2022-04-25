@@ -19,9 +19,6 @@ interface Transaction: TransactionContext {
     /** The [TransactionStatus] of this [Transaction]. */
     val state: TransactionStatus
 
-    /** Flag indicating, whether this [Transaction] was used to write any data. */
-    val readonly: Boolean
-
     /**
      * Schedules an [Operator] in the context of this [Transaction] and blocks, until execution has completed.
      *

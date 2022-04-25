@@ -17,7 +17,7 @@ import kotlin.time.ExperimentalTime
  * Implementation of [TXNGrpc.TXNImplBase], the gRPC endpoint for managing [TransactionManager.TransactionImpl]s in Cottontail DB
  *
  * @author Ralph Gasser
- * @version 2.2.0
+ * @version 2.2.1
  */
 @ExperimentalTime
 class TXNService constructor(override val catalogue: Catalogue, override val manager: TransactionManager) : TXNGrpcKt.TXNCoroutineImplBase(), TransactionalGrpcService {
@@ -36,8 +36,7 @@ class TXNService constructor(override val catalogue: Catalogue, override val man
     override suspend fun commit(request: CottontailGrpc.Metadata): Empty {
         if (request.transactionId <= 0L)
             throw Status.INVALID_ARGUMENT.withDescription("Failed to execute COMMIT: Invalid transaction identifier ${request.transactionId }!").asException()
-        val ctx = this.queryContextFromMetadata(request) ?:
-            throw Status.FAILED_PRECONDITION.withDescription("Failed to execute COMMIT: Transaction ${request.transactionId} could not be resumed.").asException()
+        val ctx = this.queryContextFromMetadata(request, false) ?: throw Status.FAILED_PRECONDITION.withDescription("Failed to execute COMMIT: Transaction ${request.transactionId} could not be resumed.").asException()
         try {
             ctx.txn.commit()
             return Empty.getDefaultInstance()
@@ -52,8 +51,7 @@ class TXNService constructor(override val catalogue: Catalogue, override val man
     override suspend fun rollback(request: CottontailGrpc.Metadata): Empty {
         if (request.transactionId <= 0L)
             throw Status.INVALID_ARGUMENT.withDescription("Failed to execute ROLLBACK: Invalid transaction identifier ${request.transactionId }!").asException()
-        val ctx = this.queryContextFromMetadata(request) ?:
-            throw Status.FAILED_PRECONDITION.withDescription("Failed to execute ROLLBACK: Transaction ${request.transactionId} could not be resumed.").asException()
+        val ctx = this.queryContextFromMetadata(request, false) ?: throw Status.FAILED_PRECONDITION.withDescription("Failed to execute ROLLBACK: Transaction ${request.transactionId} could not be resumed.").asException()
         try {
             ctx.txn.rollback()
             return Empty.getDefaultInstance()
@@ -68,8 +66,7 @@ class TXNService constructor(override val catalogue: Catalogue, override val man
     override suspend fun kill(request: CottontailGrpc.Metadata): Empty {
         if (request.transactionId <= 0L)
             throw Status.INVALID_ARGUMENT.withDescription("Failed to execute KILL: Invalid transaction identifier ${request.transactionId }!").asException()
-        val ctx = this.queryContextFromMetadata(request)    ?:
-            throw Status.FAILED_PRECONDITION.withDescription("Failed to execute KILL: Transaction ${request.transactionId} could not be resumed.").asException()
+        val ctx = this.queryContextFromMetadata(request, false) ?: throw Status.FAILED_PRECONDITION.withDescription("Failed to execute KILL: Transaction ${request.transactionId} could not be resumed.").asException()
         try {
             ctx.txn.kill()
             return Empty.getDefaultInstance()
@@ -81,7 +78,7 @@ class TXNService constructor(override val catalogue: Catalogue, override val man
     /**
      * gRPC for listing all [TransactionManager.TransactionImpl]s.
      */
-    override fun listTransactions(request: Empty): Flow<CottontailGrpc.QueryResponseMessage> = prepareAndExecute(CottontailGrpc.Metadata.getDefaultInstance()) { ctx ->
+    override fun listTransactions(request: Empty): Flow<CottontailGrpc.QueryResponseMessage> = prepareAndExecute(CottontailGrpc.Metadata.getDefaultInstance(), true) { ctx ->
         ctx.assign(ListTransactionsPhysicalOperatorNode(this.manager))
         ctx.toOperatorTree()
     }
@@ -89,7 +86,7 @@ class TXNService constructor(override val catalogue: Catalogue, override val man
     /**
      * gRPC for listing all active locks.
      */
-    override fun listLocks(request: Empty): Flow<CottontailGrpc.QueryResponseMessage> = prepareAndExecute(CottontailGrpc.Metadata.getDefaultInstance()) { ctx ->
+    override fun listLocks(request: Empty): Flow<CottontailGrpc.QueryResponseMessage> = prepareAndExecute(CottontailGrpc.Metadata.getDefaultInstance(), true) { ctx ->
         ctx.assign(ListLocksPhysicalOperatorNode(this.manager.lockManager))
         ctx.toOperatorTree()
     }

@@ -22,7 +22,7 @@ import kotlin.time.ExperimentalTime
  * Implementation of [DQLGrpc.DQLImplBase], the gRPC endpoint for querying data in Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 2.3.0
+ * @version 2.3.1
  */
 @ExperimentalTime
 class DQLService(override val catalogue: Catalogue, override val manager: TransactionManager) : DQLGrpcKt.DQLCoroutineImplBase(), TransactionalGrpcService {
@@ -44,7 +44,7 @@ class DQLService(override val catalogue: Catalogue, override val manager: Transa
     /**
      * gRPC endpoint for executing queries.
      */
-    override fun query(request: CottontailGrpc.QueryMessage): Flow<CottontailGrpc.QueryResponseMessage> = prepareAndExecute(request.metadata) { ctx ->
+    override fun query(request: CottontailGrpc.QueryMessage): Flow<CottontailGrpc.QueryResponseMessage> = prepareAndExecute(request.metadata, true) { ctx ->
         /* Bind query and create logical plan. */
         val canonical = GrpcQueryBinder.bind(request.query, ctx)
         ctx.assign(canonical)
@@ -60,7 +60,7 @@ class DQLService(override val catalogue: Catalogue, override val manager: Transa
     /**
      * gRPC endpoint for explaining queries.
      */
-    override fun explain(request: CottontailGrpc.QueryMessage): Flow<CottontailGrpc.QueryResponseMessage> = prepareAndExecute(request.metadata) { ctx ->
+    override fun explain(request: CottontailGrpc.QueryMessage): Flow<CottontailGrpc.QueryResponseMessage> = prepareAndExecute(request.metadata, true) { ctx ->
         /* Bind query and create canonical, logical plan. */
         val canonical = GrpcQueryBinder.bind(request.query, ctx)
         ctx.assign(canonical)
