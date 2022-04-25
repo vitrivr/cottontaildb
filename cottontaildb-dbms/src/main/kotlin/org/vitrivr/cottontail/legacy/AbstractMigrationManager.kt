@@ -23,8 +23,8 @@ import org.vitrivr.cottontail.dbms.execution.transactions.TransactionStatus
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
 import org.vitrivr.cottontail.dbms.general.DBO
 import org.vitrivr.cottontail.dbms.general.Tx
-import org.vitrivr.cottontail.dbms.index.IndexTx
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
+import org.vitrivr.cottontail.legacy.v2.entity.BrokenIndexV2
 import org.vitrivr.cottontail.utilities.io.TxFileUtilities
 import java.io.BufferedWriter
 import java.lang.Math.floorDiv
@@ -159,10 +159,9 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
                 /* Migrate indexes. */
                 for (indexName in srcEntityTx.listIndexes()) {
                     this.log("---- Migrating index $indexName...\n")
-                    val index = srcEntityTx.indexForName(indexName)
-                    val srcIndexTx = sourceContext.getTx(index) as IndexTx
+                    val index = srcEntityTx.indexForName(indexName) as BrokenIndexV2
                     val destEntityTx = destinationContext.getTx(entity) as EntityTx
-                    destEntityTx.createIndex(index.name, index.type, srcIndexTx.columns.map { it.name }, srcIndexTx.config)
+                    destEntityTx.createIndex(index.name, index.type, index.columns.map { it.name }, index.type.descriptor.buildConfig())
                 }
             }
         }
