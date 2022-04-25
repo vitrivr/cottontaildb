@@ -51,7 +51,7 @@ data class EntityHeader(
     /**
      * Reference pointing to a column.
      */
-    data class ColumnRef(val name: String, val type: ColumnEngine) {
+    data class ColumnRef(val name: String, private val type: ColumnEngine) {
         companion object Serializer : org.mapdb.Serializer<ColumnRef> {
             override fun serialize(out: DataOutput2, value: ColumnRef) {
                 out.writeUTF(value.name)
@@ -68,7 +68,7 @@ data class EntityHeader(
     /**
      * Reference pointing to an index.
      */
-    data class IndexRef(val name: String, val type: IndexType) {
+    data class IndexRef(val name: String, private val type: IndexType) {
         companion object Serializer : org.mapdb.Serializer<IndexRef> {
             override fun serialize(out: DataOutput2, value: IndexRef) {
                 out.writeUTF(value.name)

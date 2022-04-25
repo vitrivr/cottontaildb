@@ -23,7 +23,7 @@ import java.nio.file.Path
  * @author Ralph Gasser
  * @version 1.2.0
  */
-class BrokenIndexV2(override val name: Name.IndexName, override val parent: Entity, val path: Path, override val type: IndexType) : Index {
+class BrokenIndexV2(override val name: Name.IndexName, override val parent: Entity, val path: Path) : Index {
     companion object {
         /** Field name for the [IndexHeader] entry.  */
         const val INDEX_HEADER_FIELD = "cdb_index_header"
@@ -42,6 +42,9 @@ class BrokenIndexV2(override val name: Name.IndexName, override val parent: Enti
     override val version: DBOVersion = DBOVersion.UNDEFINED
     override val supportsIncrementalUpdate: Boolean = false
     override val supportsPartitioning: Boolean = false
+    override val type: IndexType
+        get() = this.headerField.get().type
+
     override fun newTx(context: TransactionContext): IndexTx = throw UnsupportedOperationException("Operation not supported on legacy DBO.")
     override fun close() {
         this.store.close()
@@ -77,7 +80,7 @@ class BrokenIndexV2(override val name: Name.IndexName, override val parent: Enti
                     throw DatabaseException.VersionMismatchException(version, DBOVersion.V2_0)
                 return IndexHeader(
                     input.readUTF(),
-                    IndexType.values()[input.unpackInt()],
+                    IndexTypeV2.values()[input.unpackInt()].toIndexType(),
                     Array(input.unpackInt()) {
                         val components = input.readUTF().split('.').toTypedArray()
                         val name = Name.ColumnName(components[1], components[2], components[3])
@@ -86,6 +89,41 @@ class BrokenIndexV2(override val name: Name.IndexName, override val parent: Enti
                 )
             }
         }
-    }
+        /**
+         * The enum list of [IndexType]s.
+         *
+         * @author Ralph Gasser
+         * @version 2.0.0
+         */
+        private enum class IndexTypeV2() {
+            HASH_UQ,
+            HASH,
+            BTREE,
+            LUCENE,
+            VAF,
+            PQ,
+            SH,
+            LSH,
+            LSH_SB,
+            GG;
 
+            /**
+             * Converts this [IndexTypeV2] to [IndexType].
+             *
+             * @return [IndexType]
+             */
+            fun toIndexType(): IndexType = when(this) {
+                HASH_UQ -> IndexType.BTREE_UQ
+                HASH,
+                BTREE -> IndexType.BTREE
+                LUCENE -> IndexType.LUCENE
+                VAF -> IndexType.VAF
+                PQ -> IndexType.PQ
+                LSH,
+                LSH_SB -> IndexType.LSH
+                GG -> IndexType.GG
+                else -> throw UnsupportedOperationException("The index type ${this} is no longer supported by Cottontail DB. ")
+            }
+        }
+    }
 }

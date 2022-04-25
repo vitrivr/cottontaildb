@@ -112,7 +112,7 @@ class EntityV2(val path: Path, override val parent: SchemaV2) : Entity, AutoClos
         header.indexes.forEach {
             val indexName = this.name.index(it.name)
             val path = this.path.resolve("${it.name}.idx")
-            this.indexes[indexName] = BrokenIndexV2(indexName, this, path, it.type)
+            this.indexes[indexName] = BrokenIndexV2(indexName, this, path)
         }
     }
 
