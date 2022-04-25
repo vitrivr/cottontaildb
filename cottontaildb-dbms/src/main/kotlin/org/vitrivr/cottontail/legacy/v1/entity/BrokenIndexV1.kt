@@ -22,6 +22,7 @@ class BrokenIndexV1(override val name: Name.IndexName, override val parent: Enti
     override val catalogue: Catalogue = this.parent.catalogue
     override val version: DBOVersion = DBOVersion.UNDEFINED
     override val supportsIncrementalUpdate: Boolean = false
+    override val supportsAsyncRebuild: Boolean = false
     override val supportsPartitioning: Boolean = false
     override fun newTx(context: TransactionContext): IndexTx = throw UnsupportedOperationException("Operation not supported on legacy DBO.")
     override fun close() = throw UnsupportedOperationException("Operation not supported on legacy DBO.")

@@ -31,6 +31,7 @@ import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.execution.operators.sort.RecordComparator
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.index.*
+import org.vitrivr.cottontail.dbms.index.pq.PQIndex
 import org.vitrivr.cottontail.dbms.index.va.bounds.Bounds
 import org.vitrivr.cottontail.dbms.index.va.bounds.L1Bounds
 import org.vitrivr.cottontail.dbms.index.va.bounds.L2Bounds
@@ -65,6 +66,15 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
     companion object: IndexDescriptor<VAFIndex> {
         /** [Logger] instance used by [VAFIndex]. */
         private val LOGGER: Logger = LoggerFactory.getLogger(VAFIndex::class.java)
+
+        /** False since [VAFIndex] currently doesn't support incremental updates. */
+        override val supportsIncrementalUpdate: Boolean = false
+
+        /** False since [VAFIndex] doesn't support asynchronous rebuilds. */
+        override val supportsAsyncRebuild: Boolean = false
+
+        /** True since [VAFIndex] supports partitioning. */
+        override val supportsPartitioning: Boolean = true
 
         /**
          * Opens a [VAFIndex] for the given [Name.IndexName] in the given [DefaultEntity].
@@ -123,14 +133,7 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
     }
 
     /** The [IndexType] of this [VAFIndex]. */
-    override val type
-        get() = IndexType.VAF
-
-    /** False since [VAFIndex] currently doesn't support incremental updates. */
-    override val supportsIncrementalUpdate: Boolean = false
-
-    /** True since [VAFIndex] supports partitioning. */
-    override val supportsPartitioning: Boolean = true
+    override val type = IndexType.VAF
 
     /**
      * Opens and returns a new [IndexTx] object that can be used to interact with this [VAFIndex].
@@ -232,6 +235,11 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
             this.updateState(IndexState.CLEAN, config.copy(marks = newMarks))
             LOGGER.debug("Rebuilding VAF index {} completed!", this@VAFIndex.name)
         }
+
+        /**
+         * Always throws an [UnsupportedOperationException], since [PQIndex] does not support asynchronous rebuilds.
+         */
+        override fun asyncRebuild() = throw UnsupportedOperationException("VAFIndex does not support asynchronous rebuild.")
 
         /**
          * Returns the number of entries in this [VAFIndex].

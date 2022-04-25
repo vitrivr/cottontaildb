@@ -2,6 +2,7 @@ package org.vitrivr.cottontail.dbms.index.gg
 
 import jetbrains.exodus.bindings.ComparableBinding
 import jetbrains.exodus.env.Store
+import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.basics.Record
@@ -50,7 +51,16 @@ class GGIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
      * [IndexDescriptor] for [GGIndex].
      */
     companion object: IndexDescriptor<GGIndex> {
-        val LOGGER = LoggerFactory.getLogger(GGIndex::class.java)!!
+        private val LOGGER: Logger = LoggerFactory.getLogger(GGIndex::class.java)
+
+        /** False since [GGIndex] doesn't support incremental updates. */
+        override val supportsIncrementalUpdate: Boolean = false
+
+        /** False since [GGIndex] doesn't support asynchronous rebuilds. */
+        override val supportsAsyncRebuild: Boolean = false
+
+        /** True since [GGIndex] does not support partitioning. */
+        override val supportsPartitioning: Boolean = false
 
         /**
          * Opens a [GGIndex] for the given [Name.IndexName] in the given [DefaultEntity].
@@ -105,12 +115,6 @@ class GGIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
 
     /** The type of [AbstractIndex]. */
     override val type = IndexType.GG
-
-    /** False since [GGIndex] doesn't support incremental updates. */
-    override val supportsIncrementalUpdate: Boolean = false
-
-    /** True since [GGIndex] does not support partitioning. */
-    override val supportsPartitioning: Boolean = false
 
     /**
      * Opens and returns a new [IndexTx] object that can be used to interact with this [GGIndex].
@@ -229,6 +233,11 @@ class GGIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
             this.updateState(IndexState.CLEAN)
             LOGGER.debug("Rebuilding GGIndex {} complete.", this@GGIndex.name)
         }
+
+        /**
+         * Always throws an [UnsupportedOperationException], since [GGIndex] does not support asynchronous rebuilds.
+         */
+        override fun asyncRebuild() = throw UnsupportedOperationException("GGIndex does not support asynchronous rebuild.")
 
         /**
          * Clears the [GGIndex] underlying this [Tx] and removes all entries it contains.

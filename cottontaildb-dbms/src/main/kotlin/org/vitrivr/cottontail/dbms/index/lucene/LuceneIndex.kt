@@ -56,6 +56,15 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
         /** [Logger] instance used by [LuceneIndex]. */
         private val LOGGER: Logger = LoggerFactory.getLogger(LuceneIndex::class.java)
 
+        /** True since [LuceneIndex] supports incremental updates. */
+        override val supportsIncrementalUpdate: Boolean = true
+
+        /** False since [LuceneIndex] doesn't support asynchronous rebuilds. */
+        override val supportsAsyncRebuild: Boolean = false
+
+        /** False, since [LuceneIndex] does not support partitioning. */
+        override val supportsPartitioning: Boolean = false
+
         /** [ColumnDef] of the _tid column. */
         const val TID_COLUMN = "_tid"
 
@@ -131,12 +140,6 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
         override fun configBinding(): ComparableBinding = LuceneIndexConfig.Binding
 
     }
-
-    /** True since [LuceneIndex] supports incremental updates. */
-    override val supportsIncrementalUpdate: Boolean = true
-
-    /** False, since [LuceneIndex] does not support partitioning. */
-    override val supportsPartitioning: Boolean = false
 
     /** The type of this [AbstractIndex]. */
     override val type: IndexType = IndexType.LUCENE
@@ -387,6 +390,11 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
             this.updateState(IndexState.CLEAN)
             LOGGER.debug("Rebuilding Lucene Index {} completed!", this@LuceneIndex.name)
         }
+
+        /**
+         * Always throws an [UnsupportedOperationException], since [LuceneIndex] does not support asynchronous rebuilds.
+         */
+        override fun asyncRebuild() = throw UnsupportedOperationException("LuceneIndex does not support asynchronous rebuild.")
 
         /**
          * Updates the [LuceneIndex] with the provided [DataEvent.Insert].

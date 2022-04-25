@@ -46,6 +46,15 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
         /** [Logger] instance used by [BTreeIndex]. */
         private val LOGGER: Logger = LoggerFactory.getLogger(UQBTreeIndex::class.java)
 
+        /** True since [UQBTreeIndex] supports incremental updates. */
+        override val supportsIncrementalUpdate: Boolean = true
+
+        /** False since [UQBTreeIndex] doesn't support asynchronous rebuilds. */
+        override val supportsAsyncRebuild: Boolean = false
+
+        /** False, since [UQBTreeIndex] does not support partitioning. */
+        override val supportsPartitioning: Boolean = false
+
         /**
          * Opens a [UQBTreeIndex] for the given [Name.IndexName] in the given [DefaultEntity].
          *
@@ -98,12 +107,6 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
 
     /** The type of [AbstractIndex] */
     override val type: IndexType = IndexType.BTREE_UQ
-
-    /** True since [UQBTreeIndex] supports incremental updates. */
-    override val supportsIncrementalUpdate: Boolean = true
-
-    /** False, since [UQBTreeIndex] does not support partitioning. */
-    override val supportsPartitioning: Boolean = false
 
     /**
      * Opens and returns a new [IndexTx] object that can be used to interact with this [AbstractIndex].
@@ -235,6 +238,11 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
             /* Close cursor. */
             cursor.close()
         }
+
+        /**
+         * Always throws an [UnsupportedOperationException], since [UQBTreeIndex] does not support asynchronous rebuilds.
+         */
+        override fun asyncRebuild() = throw UnsupportedOperationException("UQBTreeIndex does not support asynchronous rebuild.")
 
         /**
          * Updates the [UQBTreeIndex] with the provided [DataEvent.Insert]

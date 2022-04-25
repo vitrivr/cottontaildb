@@ -27,6 +27,18 @@ abstract class AbstractIndex(final override val name: Name.IndexName, final over
     /** A [AbstractIndex] belongs to its [DefaultCatalogue]. */
     final override val catalogue: DefaultCatalogue = this.parent.catalogue
 
+    /** True, if the [Index] supports incremental updates, i.e., can be updated tuple by tuple. Determined by its [IndexDescriptor]. */
+    final override val supportsIncrementalUpdate: Boolean
+        get() = this.type.descriptor.supportsIncrementalUpdate
+
+    /** True, if the [Index] backing this [IndexTx] supports asynchronous rebuilds. Determined by its [IndexDescriptor] */
+    final override val supportsAsyncRebuild: Boolean
+        get() = this.type.descriptor.supportsAsyncRebuild
+
+    /** True, if the [Index] supports filtering an index-able range of the data. Determined by its [IndexDescriptor] */
+    final override val supportsPartitioning: Boolean
+        get() = this.type.descriptor.supportsPartitioning
+
     /** The [DBOVersion] of this [AbstractIndex]. */
     override val version: DBOVersion = DBOVersion.V3_0
 
@@ -43,9 +55,13 @@ abstract class AbstractIndex(final override val name: Name.IndexName, final over
         final override val dbo: AbstractIndex
             get() = this@AbstractIndex
 
-        /** True, if the [AbstractIndex] backing this [Tx] supports incremental updates, and false otherwise. */
+        /** True, if the [AbstractIndex] backing this [Tx] supports incremental updates, i.e., can be updated tuple by tuple. */
         override val supportsIncrementalUpdate: Boolean
             get() = this@AbstractIndex.supportsIncrementalUpdate
+
+        /** True, if the [Index] backing this [Tx] supports asynchronous rebuilds. */
+        override val supportsAsyncRebuild: Boolean
+            get() = this@AbstractIndex.supportsAsyncRebuild
 
         /** True, if the [AbstractIndex] backing this [Tx] supports filtering an index-able range of the data. */
         override val supportsPartitioning: Boolean
@@ -109,7 +125,7 @@ abstract class AbstractIndex(final override val name: Name.IndexName, final over
             IndexCatalogueEntry.write(newEntry, this@AbstractIndex.catalogue, this.context.xodusTx)
 
             /* Signal event to transaction context. */
-            this.context.signalEvent(IndexEvent.State(this@AbstractIndex.name, state))
+            this.context.signalEvent(IndexEvent.State(this@AbstractIndex.name, this@AbstractIndex.type, state))
         }
 
         /**

@@ -60,6 +60,15 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
         /** The [Logger] instance used by [LSHIndex]. */
         private val LOGGER: Logger = LoggerFactory.getLogger(LSHIndex::class.java)
 
+        /** True since [LSHIndex] supports incremental updates. */
+        override val supportsIncrementalUpdate: Boolean = true
+
+        /** False since [LSHIndex] doesn't support asynchronous rebuilds. */
+        override val supportsAsyncRebuild: Boolean = false
+
+        /** False since [LSHIndex] does not support partitioning. */
+        override val supportsPartitioning: Boolean = false
+
         /**
          * Opens a [PQIndex] for the given [Name.IndexName] in the given [DefaultEntity].
          *
@@ -121,12 +130,6 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
 
     /** The [IndexType] of this [LSHIndex]. */
     override val type: IndexType = IndexType.LSH
-
-    /** True since [LSHIndex] supports incremental updates. */
-    override val supportsIncrementalUpdate: Boolean = true
-
-    /** False since [LSHIndex] does not support partitioning. */
-    override val supportsPartitioning: Boolean = false
 
     /**
      * Opens and returns a new [IndexTx] object that can be used to interact with this [LSHIndex].
@@ -244,6 +247,11 @@ class LSHIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
             /* Update state of index. */
             this.updateState(IndexState.CLEAN, this.config.copy(generator = generator))
         }
+
+        /**
+         * Always throws an [UnsupportedOperationException], since [LSHIndex] does not support asynchronous rebuilds.
+         */
+        override fun asyncRebuild() = throw UnsupportedOperationException("LSHIndex does not support asynchronous rebuild.")
 
         /**
          * Tries to apply the change applied by this [DataEvent.Insert] to the [LSHIndex] underlying this [LSHIndex.Tx].

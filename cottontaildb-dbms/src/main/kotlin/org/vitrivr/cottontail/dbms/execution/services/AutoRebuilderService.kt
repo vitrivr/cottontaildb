@@ -16,6 +16,7 @@ import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
 import org.vitrivr.cottontail.dbms.index.Index
 import org.vitrivr.cottontail.dbms.index.IndexState
 import org.vitrivr.cottontail.dbms.index.IndexTx
+import org.vitrivr.cottontail.dbms.index.IndexType
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
 import java.util.concurrent.TimeUnit
 import kotlin.system.measureTimeMillis
@@ -39,23 +40,23 @@ class AutoRebuilderService(val catalogue: Catalogue, val manager: TransactionMan
      * @param events The list of [Event]s in order at which they were applied.
      */
     override fun didCommit(txId: TransactionId, events: List<Event>) {
-        val set = ObjectOpenHashSet<Name.IndexName>()
+        val set = ObjectOpenHashSet<Pair<Name.IndexName, IndexType>>()
         for (event in events) {
             when (event) {
                 is IndexEvent.State -> if (event.state == IndexState.STALE) {
-                    set.add(event.index)
+                    set.add(event.index to event.type)
                 } else {
-                    set.remove(event.index)
+                    set.remove(event.index to event.type)
                 }
-                is IndexEvent.Created -> set.add(event.index)
-                is IndexEvent.Dropped -> set.remove(event.index)
+                is IndexEvent.Created -> set.add(event.index to event.type)
+                is IndexEvent.Dropped -> set.remove(event.index to event.type)
                 else -> { /* No op. */ }
             }
         }
 
         /* Schedule task for each index that needs rebuilding. */
-        for (index in set) {
-            this.manager.executionManager.serviceWorkerPool.schedule(Task(index), 100L, TimeUnit.MILLISECONDS)
+        for ((index, type) in set) {
+            this.manager.executionManager.serviceWorkerPool.schedule(Task(index, type), 100L, TimeUnit.MILLISECONDS)
         }
     }
 
@@ -68,33 +69,94 @@ class AutoRebuilderService(val catalogue: Catalogue, val manager: TransactionMan
     /**
      * The actual [Runnable] that rebuilds an [Index].
      */
-    inner class Task(private val index: Name.IndexName): Runnable {
+    inner class Task(private val index: Name.IndexName, private val type: IndexType): Runnable {
         override fun run() {
+            val duration = measureTimeMillis {
+                if (this.type.descriptor.supportsAsyncRebuild && this.type.descriptor.supportsIncrementalUpdate) {
+                    LOGGER.info("Starting index auto-rebuilding for $index.")
+                    this.performSynchronousRebuild()
+                } else {
+                    LOGGER.info("Starting asynchronous index auto-rebuilding for $index.")
+                    this.performAsynchronousRebuild()
+                }
+            }
+            LOGGER.info("Index auto-rebuilding for $index completed (took ${duration}ms).")
+
+
+        }
+
+        /**
+         * Synchronous [Index] rebuilding.
+         */
+        private fun performSynchronousRebuild() {
             val transaction = this@AutoRebuilderService.manager.TransactionImpl(TransactionType.SYSTEM)
             try {
-                LOGGER.info("Starting index auto-rebuilding for $index.")
-                val duration = measureTimeMillis {
-                    val catalogueTx = transaction.getTx(this@AutoRebuilderService.catalogue) as CatalogueTx
-                    val schema = catalogueTx.schemaForName(index.schema())
-                    val schemaTx = transaction.getTx(schema) as SchemaTx
-                    val entity = schemaTx.entityForName(index.entity())
-                    val entityTx = transaction.getTx(entity) as EntityTx
-                    val index = entityTx.indexForName(index)
-                    val indexTx = transaction.getTx(index) as IndexTx
-                    if (indexTx.state == IndexState.DIRTY) {
-                        indexTx.rebuild()
-                    }
-                    transaction.commit()
+                val catalogueTx = transaction.getTx(this@AutoRebuilderService.catalogue) as CatalogueTx
+                val schema = catalogueTx.schemaForName(this.index.schema())
+                val schemaTx = transaction.getTx(schema) as SchemaTx
+                val entity = schemaTx.entityForName(this.index.entity())
+                val entityTx = transaction.getTx(entity) as EntityTx
+                val index = entityTx.indexForName(this.index)
+                val indexTx = transaction.getTx(index) as IndexTx
+                if (indexTx.state != IndexState.CLEAN) {
+                    indexTx.rebuild()
                 }
-                LOGGER.info("Index auto-rebuilding for $index completed (took ${duration}ms).")
+                transaction.commit()
             } catch (e: Throwable) {
                 when (e) {
                     is DatabaseException.SchemaDoesNotExistException,
                     is DatabaseException.EntityAlreadyExistsException,
-                    is DatabaseException.IndexDoesNotExistException -> LOGGER.error("Index auto-rebuilding for $index failed because DBO no longer exists.")
+                    is DatabaseException.IndexDoesNotExistException -> LOGGER.warn("Index auto-rebuilding for $index failed because DBO no longer exists.")
                     else -> LOGGER.error("Index auto-rebuilding for $index failed due to exception: ${e.message}.")
                 }
                 transaction.rollback()
+            }
+        }
+
+        /**
+         * Performs asynchronous index rebuilding in two steps (SCAN -> MERGE).
+         */
+        private fun performAsynchronousRebuild() {
+            /* Step 1: Scan index (read-only). */
+            val transaction1 = this@AutoRebuilderService.manager.TransactionImpl(TransactionType.SYSTEM_READONLY)
+            val rebuilder = try {
+                val catalogueTx = transaction1.getTx(this@AutoRebuilderService.catalogue) as CatalogueTx
+                val schema = catalogueTx.schemaForName(this.index.schema())
+                val schemaTx = transaction1.getTx(schema) as SchemaTx
+                val entity = schemaTx.entityForName(this.index.entity())
+                val entityTx = transaction1.getTx(entity) as EntityTx
+                val index = entityTx.indexForName(this.index)
+                val indexTx = transaction1.getTx(index) as IndexTx
+                if (indexTx.state != IndexState.CLEAN) {
+                    indexTx.asyncRebuild()
+                } else {
+                    return
+                }
+            } catch (e: Throwable) {
+                when (e) {
+                    is DatabaseException.SchemaDoesNotExistException,
+                    is DatabaseException.EntityAlreadyExistsException,
+                    is DatabaseException.IndexDoesNotExistException -> LOGGER.warn("Index auto-rebuilding for $index failed because DBO no longer exists.")
+                    else -> LOGGER.error("Index auto-rebuilding (scan) for $index failed due to exception: ${e.message}.")
+                }
+                return
+            } finally {
+                transaction1.rollback()
+            }
+
+            /* Step 2: Merge index (write). */
+            val transaction2 = this@AutoRebuilderService.manager.TransactionImpl(TransactionType.SYSTEM)
+            try {
+                rebuilder.merge(transaction2)
+                transaction2.commit()
+            } catch (e: Throwable) {
+                when (e) {
+                    is DatabaseException.SchemaDoesNotExistException,
+                    is DatabaseException.EntityAlreadyExistsException,
+                    is DatabaseException.IndexDoesNotExistException -> LOGGER.warn("Index auto-rebuilding for $index failed because DBO no longer exists.")
+                    else -> LOGGER.error("Index auto-rebuilding (merge) for $index failed due to exception: ${e.message}.")
+                }
+                transaction2.rollback()
             }
         }
     }

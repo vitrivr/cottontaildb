@@ -254,7 +254,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
             this.indexes[name] = ret
 
             /* Signal event to transaction context. */
-            this.context.signalEvent(IndexEvent.Created(name))
+            this.context.signalEvent(IndexEvent.Created(name, type))
 
             /* Return index. */
             return ret
@@ -287,7 +287,7 @@ class DefaultEntity(override val name: Name.EntityName, override val parent: Def
             EntityCatalogueEntry.write(entity.copy(indexes = (entity.indexes - name)), this@DefaultEntity.catalogue, this.context.xodusTx)
 
             /* Signal event to transaction context. */
-            this.context.signalEvent(IndexEvent.Dropped(name))
+            this.context.signalEvent(IndexEvent.Dropped(name, indexEntry.type))
         }
 
         /**

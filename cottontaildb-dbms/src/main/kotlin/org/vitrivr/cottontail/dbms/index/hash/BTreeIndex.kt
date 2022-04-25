@@ -50,6 +50,15 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
         /** [Logger] instance used by [BTreeIndex]. */
         private val LOGGER: Logger = LoggerFactory.getLogger(BTreeIndex::class.java)
 
+        /** True since [BTreeIndex] supports incremental updates. */
+        override val supportsIncrementalUpdate: Boolean = true
+
+        /** False since [BTreeIndex] doesn't support asynchronous rebuilds. */
+        override val supportsAsyncRebuild: Boolean = false
+
+        /** False, since [BTreeIndex] does not support partitioning. */
+        override val supportsPartitioning: Boolean = false
+
         /**
          * Opens a [BTreeIndex] for the given [Name.IndexName] in the given [DefaultEntity].
          *
@@ -102,12 +111,6 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
 
     /** The type of [AbstractIndex] */
     override val type: IndexType = IndexType.BTREE
-
-    /** True since [BTreeIndex] supports incremental updates. */
-    override val supportsIncrementalUpdate: Boolean = true
-
-    /** False, since [BTreeIndex] does not support partitioning. */
-    override val supportsPartitioning: Boolean = false
 
     /**
      * Opens and returns a new [IndexTx] object that can be used to interact with this [AbstractIndex].
@@ -250,6 +253,11 @@ class BTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(na
             /* Close cursor. */
             cursor.close()
         }
+
+        /**
+         * Always throws an [UnsupportedOperationException], since [BTreeIndex] does not support asynchronous rebuilds.
+         */
+        override fun asyncRebuild() = throw UnsupportedOperationException("BTreeIndex does not support asynchronous rebuild.")
 
         /**
          * Updates the [BTreeIndex] with the provided [DataEvent.Insert].

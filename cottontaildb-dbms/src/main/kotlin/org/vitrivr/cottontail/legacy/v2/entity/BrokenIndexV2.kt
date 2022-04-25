@@ -41,6 +41,7 @@ class BrokenIndexV2(override val name: Name.IndexName, override val parent: Enti
     override val catalogue: Catalogue = this.parent.catalogue
     override val version: DBOVersion = DBOVersion.UNDEFINED
     override val supportsIncrementalUpdate: Boolean = false
+    override val supportsAsyncRebuild: Boolean = false
     override val supportsPartitioning: Boolean = false
     override val type: IndexType
         get() = this.headerField.get().type

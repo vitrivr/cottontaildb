@@ -27,8 +27,11 @@ interface IndexTx: Tx, Filterable, Countable {
     /** The [ColumnDef]s indexed by the [Index] backing this [IndexTx]. */
     val columns: Array<ColumnDef<*>>
 
-    /** True, if the [Index] backing this [IndexTx] supports incremental updates, and false otherwise. */
+    /** True, if the [Index] backing this [IndexTx] supports incremental updates, i.e., can be updated tuple by tuple. */
     val supportsIncrementalUpdate: Boolean
+
+    /** True, if the [Index] backing this [IndexTx] supports asynchronous rebuilds, i.e., updates, and false otherwise. */
+    val supportsAsyncRebuild: Boolean
 
     /** True, if the [Index] backing this [IndexTx] supports querying filtering a partition. */
     override val supportsPartitioning: Boolean
@@ -64,9 +67,16 @@ interface IndexTx: Tx, Filterable, Countable {
     fun traitsFor(predicate: Predicate): Map<TraitType<*>,Trait>
 
     /**
-     * (Re-)builds the underlying [Index] completely.
+     * (Re-)builds the underlying [Index].
      */
     fun rebuild()
+
+    /**
+     * (Re-)builds the underlying [Index] in an asynchronous, non-blocking manner.
+     *
+     * @return [AbstractIndexRebuilder] that can be used to merge the updated index at a later stage.
+     */
+    fun asyncRebuild(): AbstractIndexRebuilder
 
     /**
      * Clears the [Index] underlying this [IndexTx] and removes all entries it contains.

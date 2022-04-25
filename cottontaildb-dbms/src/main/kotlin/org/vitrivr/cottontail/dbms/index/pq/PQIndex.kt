@@ -59,6 +59,15 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
         /** [Logger] instance used by [PQIndex]. */
         private val LOGGER: Logger = LoggerFactory.getLogger(PQIndex::class.java)
 
+        /** False since [PQIndex] currently doesn't support incremental updates. */
+        override val supportsIncrementalUpdate: Boolean = false
+
+        /** False since [PQIndex] doesn't support asynchronous rebuilds. */
+        override val supportsAsyncRebuild: Boolean = false
+
+        /** True since [PQIndex] supports partitioning. */
+        override val supportsPartitioning: Boolean = false
+
         /**
          * Opens a [PQIndex] for the given [Name.IndexName] in the given [DefaultEntity].
          *
@@ -119,14 +128,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
     }
 
     /** The [IndexType] of this [PQIndex]. */
-    override val type: IndexType
-        get() = IndexType.PQ
-
-    /** False since [PQIndex] currently doesn't support incremental updates. */
-    override val supportsIncrementalUpdate: Boolean = false
-
-    /** True since [PQIndex] supports partitioning. */
-    override val supportsPartitioning: Boolean = false
+    override val type: IndexType = IndexType.PQ
 
     /**
      * Opens and returns a new [IndexTx] object that can be used to interact with this [PQIndex].
@@ -228,6 +230,11 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
             this.updateState(IndexState.CLEAN, this.config.copy(centroids = newPq.centroids()))
             LOGGER.debug("Rebuilding PQIndex {} completed!", this@PQIndex.name)
         }
+
+        /**
+         * Always throws an [UnsupportedOperationException], since [PQIndex] does not support asynchronous rebuilds.
+         */
+        override fun asyncRebuild() = throw UnsupportedOperationException("PQIndex does not support asynchronous rebuild.")
 
         /**
          * Returns the number of entries in this [VAFIndex].

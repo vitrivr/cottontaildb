@@ -11,6 +11,16 @@ import org.vitrivr.cottontail.dbms.entity.DefaultEntity
  * @version 1.0.0
  */
 interface IndexDescriptor<T: Index> {
+
+    /** True, if the [Index] described by this [IndexDescriptor] supports incremental updates, i.e., can be updated tuple by tuple. */
+    val supportsIncrementalUpdate: Boolean
+
+    /** True, if the [Index] described by this [IndexDescriptor] backing this [IndexTx] supports asynchronous rebuilds. */
+    val supportsAsyncRebuild: Boolean
+
+    /** True, if the [Index] described by this [IndexDescriptor] supports filtering an index-able range of the data. */
+    val supportsPartitioning: Boolean
+
     /**
      * Tries to open an [Index] with the given [Name.IndexName] for the given [DefaultEntity].
      *

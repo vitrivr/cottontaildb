@@ -16,7 +16,7 @@ import org.vitrivr.cottontail.dbms.general.DBO
  * @see IndexTx
  *
  * @author Ralph Gasser
- * @version 3.0.0
+ * @version 3.1.0
  */
 interface Index : DBO {
 
@@ -26,8 +26,11 @@ interface Index : DBO {
     /** The [Name.IndexName] of this [Index]. */
     override val name: Name.IndexName
 
-    /** True, if the [Index] supports incremental updates, and false otherwise. */
+    /** True, if the [Index] supports incremental updates, i.e., can be updated tuple by tuple. */
     val supportsIncrementalUpdate: Boolean
+
+    /** True, if the [Index] backing this [IndexTx] supports asynchronous rebuilds. */
+    val supportsAsyncRebuild: Boolean
 
     /** True, if the [Index] supports filtering an index-able range of the data. */
     val supportsPartitioning: Boolean
