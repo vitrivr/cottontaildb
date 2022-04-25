@@ -7,10 +7,9 @@ import com.github.ajalt.clikt.parameters.types.enum
 import io.grpc.StatusException
 import org.vitrivr.cottontail.cli.AbstractCottontailCommand
 import org.vitrivr.cottontail.client.SimpleClient
-import org.vitrivr.cottontail.grpc.CottontailGrpc
+import org.vitrivr.cottontail.client.language.ddl.CreateIndex
+import org.vitrivr.cottontail.grpc.CottontailGrpc.IndexType
 import org.vitrivr.cottontail.utilities.TabulationUtilities
-import org.vitrivr.cottontail.utilities.extensions.fqn
-import org.vitrivr.cottontail.utilities.extensions.proto
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTimedValue
 
@@ -30,7 +29,7 @@ class CreateIndexCommand(client: SimpleClient) : AbstractCottontailCommand.Entit
     private val index by argument(
         name = "index",
         help = "The type of index to create."
-    ).enum<CottontailGrpc.IndexType>()
+    ).enum<IndexType>()
 
     private val skipBuild: Boolean by option(
         "-s",
@@ -39,21 +38,18 @@ class CreateIndexCommand(client: SimpleClient) : AbstractCottontailCommand.Entit
     ).flag(default = false)
 
     override fun exec() {
-        val entity = this.entityName.proto()
-        val index = CottontailGrpc.IndexDefinition.newBuilder()
-            .setType(this.index)
-            .setName(CottontailGrpc.IndexName.newBuilder().setEntity(entity).setName("index-${index.name.lowercase()}-${this.attribute}"))
-            .addColumns(CottontailGrpc.ColumnName.newBuilder().setName(this.attribute))
-            .build()
-
         try {
-            val timedTable = measureTimedValue {
-                TabulationUtilities.tabulate(this.client.create(CottontailGrpc.CreateIndexMessage.newBuilder().setRebuild(!this.skipBuild).setDefinition(index).build()))
+            val create = CreateIndex(this.entityName.fqn, this.attribute, this.index)
+            if (!this.skipBuild) {
+                create.rebuild()
             }
-            println("Successfully created index ${index.name.fqn()} (took ${timedTable.duration}).")
+            val timedTable = measureTimedValue {
+                TabulationUtilities.tabulate(this.client.create(create.rebuild()))
+            }
+            println("Successfully created index for ${this.entityName.fqn} (took ${timedTable.duration}).")
             print(timedTable.value)
         } catch (e: StatusException) {
-            println("Error while creating index ${index.name.fqn()}: ${e.message}.")
+            println("Error while creating index ${this.entityName.fqn}: ${e.message}.")
         }
     }
 }

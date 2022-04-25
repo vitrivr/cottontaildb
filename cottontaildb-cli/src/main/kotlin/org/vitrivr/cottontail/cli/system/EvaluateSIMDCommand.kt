@@ -22,9 +22,9 @@ class EvaluateSIMDCommand : AbstractCottontailCommand.System(name = "simd", help
 
     private val randomVector = JDKRandomGenerator(123456789)
     private val randomQuery = JDKRandomGenerator(987654321)
-    private val numberOfNNSQueries = 100
+    private val numberOfNNSQueries = 10
     private val numberOfVectors = 500000
-    private val toBeEvaluated = "Manhattan_Vectorized_PREFERRED"
+    private val toBeEvaluated = "Manhattan_Vectorized_Optimized"
 
     private val vectorList = mutableListOf<FloatVectorValue>()
     private val queryList = mutableListOf<FloatVectorValue>()
@@ -48,7 +48,7 @@ class EvaluateSIMDCommand : AbstractCottontailCommand.System(name = "simd", help
         vectorInit(2048)
         queryInit(2048)
 
-        for (i in 0 until 5) {
+        for (i in 0 until 2) {
             val distanceFunction = ManhattanDistance.FloatVectorVectorized(queryList[0].type as Types.FloatVector)
             distanceFunction(queryList[i], vectorList[i])
         }
@@ -57,7 +57,7 @@ class EvaluateSIMDCommand : AbstractCottontailCommand.System(name = "simd", help
     override fun exec() {
         warmUp()
 
-        for (i in 2 until 2048) {
+        for (i in 2 until 2049) {
             vectorInit(i)
             queryInit(i)
 
@@ -86,6 +86,5 @@ class EvaluateSIMDCommand : AbstractCottontailCommand.System(name = "simd", help
             }
             println(", \"TotalDimensionTime\": ${totalDimensionTime.toDouble(DurationUnit.SECONDS)}},")
         }
-        println("]}")
     }
 }
