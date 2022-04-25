@@ -220,11 +220,11 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
             this.clear()
 
             /* Iterate over entity and update index with entries. */
-            val cursor = entityTx.cursor(arrayOf(indexedColumn))
-            cursor.forEach { r ->
-                val value = r[0] /* Optimisation: It must always be the fist column. */
+            val cursor = columnTx.cursor()
+            while (cursor.hasNext()) {
+                val value = cursor.value()
                 if (value is RealVectorValue<*>) {
-                    this.dataStore.put(this.context.xodusTx, r.tupleId.toKey(), VAFSignature.Binding.valueToEntry(newMarks.getSignature(value)))
+                    this.dataStore.put(this.context.xodusTx, cursor.key().toKey(), VAFSignature.Binding.valueToEntry(newMarks.getSignature(value)))
                 }
             }
 

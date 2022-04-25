@@ -26,6 +26,7 @@ import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.VectorValue
 import org.vitrivr.cottontail.dbms.catalogue.storeName
 import org.vitrivr.cottontail.dbms.catalogue.toKey
+import org.vitrivr.cottontail.dbms.column.ColumnTx
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.events.DataEvent
@@ -205,21 +206,22 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
 
             /* Obtain PQ data structure. */
             val config = this.config
-            val indexedColumn = this.columns[0]
-            val type = indexedColumn.type as Types.Vector<*,*>
+            val column = this.columns[0]
+            val type = column.type as Types.Vector<*,*>
+            val columnTx = this.context.getTx(entityTx.columnForName(this.columns[0].name)) as ColumnTx<*>
             val distanceFunction = this@PQIndex.catalogue.functions.obtain(Signature.SemiClosed(config.distance, arrayOf(Argument.Typed(type), Argument.Typed(type)))) as VectorDistance<*>
-            val newPq = ProductQuantizer.learnFromData(distanceFunction, this.acquireLearningData(entityTx, random), config)
+            val quantizer = ProductQuantizer.learnFromData(distanceFunction, this.acquireLearningData(columnTx, random), config)
 
             /* Clear old signatures. */
             this.clear()
 
-            /* Iterate over entity and update index with entries. */
-            val cursor = entityTx.cursor(arrayOf(indexedColumn))
-            cursor.forEach { rec ->
-                val value = rec[0] /* Optimisation: It must always be the fist column. */
+            /* Iterate over column and update index with entries. */
+            val cursor = columnTx.cursor()
+            while (cursor.moveNext()) {
+                val value = cursor.value()
                 if (value is VectorValue<*>) {
-                    val sig = newPq.quantize(value)
-                    this.dataStore.put(this.context.xodusTx, PQSignature.Binding.valueToEntry(sig), rec.tupleId.toKey())
+                    val sig = quantizer.quantize(value)
+                    this.dataStore.put(this.context.xodusTx, PQSignature.Binding.valueToEntry(sig), cursor.key().toKey())
                 }
             }
 
@@ -227,7 +229,7 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
             cursor.close()
 
             /* Update index state for index. */
-            this.updateState(IndexState.CLEAN, this.config.copy(centroids = newPq.centroids()))
+            this.updateState(IndexState.CLEAN, this.config.copy(centroids = quantizer.centroids()))
             LOGGER.debug("Rebuilding PQIndex {} completed!", this@PQIndex.name)
         }
 
@@ -409,13 +411,13 @@ class PQIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(nam
          * @param txn The [EntityTx] used to obtain the learning data.
          * @return List of [Record]s used for learning.
          */
-        private fun acquireLearningData(txn: EntityTx, random: RandomGenerator): List<VectorValue<*>> {
+        private fun acquireLearningData(txn: ColumnTx<*>, random: RandomGenerator): List<VectorValue<*>> {
             val learningData = LinkedList<VectorValue<*>>()
             val learningDataFraction = this@Tx.config.sampleSize.toDouble() / txn.count()
-            val cursor = txn.cursor(this.columns)
-            cursor.forEach {
+            val cursor = txn.cursor()
+            while (cursor.hasNext()) {
                 if (random.nextDouble() <= learningDataFraction) {
-                    val value = it[this.columns[0]]
+                    val value = cursor.value()
                     if (value is VectorValue<*>) {
                         learningData.add(value)
                     }
