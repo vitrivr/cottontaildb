@@ -9,11 +9,13 @@ import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.language.basics.Direction
 import org.vitrivr.cottontail.client.language.basics.Distances
 import org.vitrivr.cottontail.client.language.basics.predicate.Expression
+import org.vitrivr.cottontail.client.language.ddl.TruncateEntity
 import org.vitrivr.cottontail.client.language.dql.Query
 import org.vitrivr.cottontail.embedded
 import org.vitrivr.cottontail.server.CottontailServer
 import org.vitrivr.cottontail.test.GrpcTestUtils
 import org.vitrivr.cottontail.test.GrpcTestUtils.STRING_COLUMN_NAME
+import org.vitrivr.cottontail.test.GrpcTestUtils.TEST_ENTITY_FQN
 import org.vitrivr.cottontail.test.GrpcTestUtils.TEST_VECTOR_ENTITY_FQN_INPUT
 import org.vitrivr.cottontail.test.GrpcTestUtils.TWOD_COLUMN_NAME
 import org.vitrivr.cottontail.test.TestConstants
@@ -80,12 +82,10 @@ class DQLServiceTest {
 
     @Test
     fun count() {
-        val countQuery = Query(GrpcTestUtils.TEST_ENTITY_FQN).count()
-        val count = this.client.query(countQuery).next()
-        assertEquals(count.asLong(0)!!, GrpcTestUtils.TEST_ENTITY_TUPLE_COUNT)
+        assertEquals(0, GrpcTestUtils.countElements(client, TEST_ENTITY_FQN))
 
         /* Now scan the same entity; count should be the same. */
-        val scanQuery = Query(GrpcTestUtils.TEST_ENTITY_FQN).select("*")
+        val scanQuery = Query(TEST_ENTITY_FQN).select("*")
         var bruteForceCount = 0L
         this.client.query(scanQuery).forEachRemaining {
             bruteForceCount += 1L
@@ -94,8 +94,21 @@ class DQLServiceTest {
     }
 
     @Test
+    fun truncateEntity() {
+        this.client.truncate(TruncateEntity(TEST_ENTITY_FQN))
+        assertEquals(0, GrpcTestUtils.countElements(client, TEST_ENTITY_FQN))
+    }
+
+    @Test
+    fun truncateEntityWithLucene() {
+        GrpcTestUtils.createLuceneIndexOnTestEntity(this.client)
+        this.client.truncate(TruncateEntity(TEST_ENTITY_FQN))
+        assertEquals(0, GrpcTestUtils.countElements(client, TEST_ENTITY_FQN))
+    }
+
+    @Test
     fun queryColumn() {
-        val query = Query().from(GrpcTestUtils.TEST_ENTITY_FQN).select(STRING_COLUMN_NAME)
+        val query = Query().from(TEST_ENTITY_FQN).select(STRING_COLUMN_NAME)
         val result = client.query(query)
         assert(result.numberOfColumns == 1)
         val el = result.next()

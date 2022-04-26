@@ -3,10 +3,11 @@ package org.vitrivr.cottontail.test
 import org.apache.commons.lang3.RandomStringUtils
 import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.language.basics.Type
-import org.vitrivr.cottontail.client.language.ddl.CreateEntity
-import org.vitrivr.cottontail.client.language.ddl.CreateSchema
-import org.vitrivr.cottontail.client.language.ddl.DropSchema
+import org.vitrivr.cottontail.client.language.ddl.*
 import org.vitrivr.cottontail.client.language.dml.BatchInsert
+import org.vitrivr.cottontail.client.language.dql.Query
+import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.grpc.CottontailGrpc
 import kotlin.random.Random
 
 
@@ -46,6 +47,10 @@ object GrpcTestUtils {
         }
     }
 
+    fun toEn(entityName: String): Name.EntityName {
+        return Name.EntityName(TestConstants.TEST_SCHEMA, entityName)
+    }
+
     /**
      * Creates test entity.
      *
@@ -53,9 +58,9 @@ object GrpcTestUtils {
      */
     fun createTestEntity(client: SimpleClient) {
         val create = CreateEntity(TEST_ENTITY_FQN)
-            .column(STRING_COLUMN_NAME, Type.STRING)
-            .column(INT_COLUMN_NAME, Type.INTEGER)
-            .column(DOUBLE_COLUMN_NAME, Type.DOUBLE)
+                .column(STRING_COLUMN_NAME, Type.STRING)
+                .column(INT_COLUMN_NAME, Type.INTEGER)
+                .column(DOUBLE_COLUMN_NAME, Type.DOUBLE)
         client.create(create)
     }
 
@@ -66,9 +71,9 @@ object GrpcTestUtils {
      */
     fun createTestVectorEntity(client: SimpleClient) {
         val create = CreateEntity(TEST_VECTOR_ENTITY_FQN_INPUT)
-            .column(STRING_COLUMN_NAME, Type.STRING)
-            .column(INT_COLUMN_NAME, Type.INTEGER)
-            .column(TWOD_COLUMN_NAME, Type.FLOAT_VECTOR, 2)
+                .column(STRING_COLUMN_NAME, Type.STRING)
+                .column(INT_COLUMN_NAME, Type.INTEGER)
+                .column(TWOD_COLUMN_NAME, Type.FLOAT_VECTOR, 2)
         client.create(create)
     }
 
@@ -79,16 +84,21 @@ object GrpcTestUtils {
      */
     fun populateTestEntity(client: SimpleClient) {
         val batch = BatchInsert().into(TEST_ENTITY_FQN)
-            .columns(STRING_COLUMN_NAME, INT_COLUMN_NAME, DOUBLE_COLUMN_NAME)
+                .columns(STRING_COLUMN_NAME, INT_COLUMN_NAME, DOUBLE_COLUMN_NAME)
         val random = Random.Default
         repeat(TEST_ENTITY_TUPLE_COUNT.toInt()) {
             batch.append(
-                RandomStringUtils.randomAlphabetic(5),
-                random.nextInt(0, 100),
-                random.nextDouble(1.0)
+                    RandomStringUtils.randomAlphabetic(5),
+                    random.nextInt(0, 100),
+                    random.nextDouble(1.0)
             )
         }
         client.insert(batch)
+    }
+
+    fun createLuceneIndexOnTestEntity(client: SimpleClient) {
+        client.create(CreateIndex(TEST_ENTITY_FQN, STRING_COLUMN_NAME, CottontailGrpc.IndexType.LUCENE))
+        client.optimize(OptimizeEntity(TEST_ENTITY_FQN))
     }
 
     /**
@@ -98,18 +108,31 @@ object GrpcTestUtils {
      */
     fun populateVectorEntity(client: SimpleClient) {
         val batch = BatchInsert().into(TEST_VECTOR_ENTITY_FQN_INPUT)
-            .columns(STRING_COLUMN_NAME, INT_COLUMN_NAME, TWOD_COLUMN_NAME)
+                .columns(STRING_COLUMN_NAME, INT_COLUMN_NAME, TWOD_COLUMN_NAME)
         val random = Random.Default
         repeat(TEST_ENTITY_TUPLE_COUNT.toInt()) {
             val lat = random.nextFloat() + random.nextInt(0, 50)
             val lon = random.nextFloat() + random.nextInt(0, 50)
             val arr = floatArrayOf(lat, lon)
             batch.append(
-                RandomStringUtils.randomAlphabetic(5),
-                random.nextInt(0, 10),
-                arr
+                    RandomStringUtils.randomAlphabetic(5),
+                    random.nextInt(0, 10),
+                    arr
             )
         }
         client.insert(batch)
     }
+
+    fun countElements(client: SimpleClient, entityName: String): Long? {
+        val query = Query(toEn(entityName).toString()).count()
+        val res = client.query(query)
+        return res.next().asLong(0)
+    }
+
+    fun countElements(client: SimpleClient, entityName: Name.EntityName): Long? {
+        val query = Query(entityName.toString()).count()
+        val res = client.query(query)
+        return res.next().asLong(0)
+    }
+
 }

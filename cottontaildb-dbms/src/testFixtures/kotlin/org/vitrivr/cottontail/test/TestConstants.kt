@@ -32,6 +32,11 @@ object TestConstants {
     const val TEST_ENTITY = "test-entity"
     const val TEST_VECTOR_ENTITY = "test-vector-entity"
 
+    val entityNames = listOf(TEST_ENTITY, TEST_VECTOR_ENTITY)
+
+    val entityNamesProto = entityNames.map { GrpcTestUtils.toEn(it) }
+
+
     /** Database Object name from the gRPC API */
     const val DBO_CONSTANT = "dbo"
 
@@ -41,8 +46,8 @@ object TestConstants {
      * @return [Config]
      */
     fun testConfig() = Config(
-        root = Files.createTempDirectory("cottontaildb-test-${UUID.randomUUID()}"),
-        execution = ExecutionConfig(coreThreads = 2, maxThreads = 4),
-        server = ServerConfig(connectionThreads = 2)
+            root = Files.createTempDirectory("cottontaildb-test-${UUID.randomUUID()}"),
+            execution = ExecutionConfig(coreThreads = 2, maxThreads = 4),
+            server = ServerConfig(connectionThreads = 2)
     )
 }

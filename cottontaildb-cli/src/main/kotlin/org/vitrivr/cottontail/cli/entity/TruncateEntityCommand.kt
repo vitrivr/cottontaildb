@@ -27,7 +27,7 @@ class TruncateEntityCommand(client: SimpleClient) : AbstractCottontailCommand.En
          *
          * @param entityName The [Name.EntityName] of the entity to truncate.
          * @param client The [SimpleClient] to use.
-         * @param confirm Flag indicating whether confirmation is required (CLI only, not testable).
+         * @param confirm Flag indicating whether confirmation is already given (CLI only, not testable).
          */
         fun truncate(entityName: Name.EntityName, client: SimpleClient, confirm: Boolean) {
             if (confirm || TermUi.confirm("Do you really want to truncate the entity ${entityName} [y/N]?", default = false, showDefault = false) == true) {
