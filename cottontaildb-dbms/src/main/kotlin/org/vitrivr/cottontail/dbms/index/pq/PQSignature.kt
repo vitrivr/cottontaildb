@@ -1,41 +1,35 @@
 package org.vitrivr.cottontail.dbms.index.pq
 
-import org.mapdb.DataInput2
-import org.mapdb.DataOutput2
+import jetbrains.exodus.ArrayByteIterable
+import jetbrains.exodus.ByteIterable
+import org.vitrivr.cottontail.dbms.index.va.signature.VAFSignature
+import org.xerial.snappy.Snappy
 
 /**
  * A [PQSignature] as used by the [PQIndex]. Wraps an [IntArray].
  *
  * @author Gabriel Zihlmann & Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
-class PQSignature(val cells: IntArray) {
-    companion object Serializer : org.mapdb.Serializer<PQSignature> {
-        override fun serialize(out: DataOutput2, value: PQSignature) {
-            out.packInt(value.cells.size)
-            for (i in value.cells) {
-                out.packInt(i)
-            }
-        }
-
-        override fun deserialize(input: DataInput2, available: Int): PQSignature {
-            val array = IntArray(input.unpackInt()) {
-                input.unpackInt()
-            }
-            return PQSignature(array)
+@JvmInline
+value class PQSignature(val cells: IntArray): Comparable<PQSignature> {
+    /**
+     * A Xodus binding to serialize and deserialize [VAFSignature].
+     */
+    object Binding {
+        fun entryToValue(entry: ByteIterable): PQSignature = PQSignature(Snappy.uncompressIntArray(entry.bytesUnsafe))
+        fun valueToEntry(value: PQSignature): ByteIterable {
+            val compressed = Snappy.compress(value.cells)
+            return ArrayByteIterable(compressed, compressed.size)
         }
     }
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (javaClass != other?.javaClass) return false
-
-        other as PQSignature
-
-        if (!this.cells.contentEquals(other.cells)) return false
-
-        return true
+    override fun compareTo(other: PQSignature): Int {
+        for ((i,b) in this.cells.withIndex()) {
+            if (i >= other.cells.size) return Int.MIN_VALUE
+            val comp = b.compareTo(other.cells[i])
+            if (comp != 0) return comp
+        }
+        return 0
     }
-
-    override fun hashCode(): Int = this.cells.contentHashCode()
 }

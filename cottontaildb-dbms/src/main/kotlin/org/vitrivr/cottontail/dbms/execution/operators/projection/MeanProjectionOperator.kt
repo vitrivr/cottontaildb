@@ -4,19 +4,19 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.onEach
+import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.dbms.queries.QueryContext
-import org.vitrivr.cottontail.dbms.queries.projection.Projection
-import org.vitrivr.cottontail.dbms.execution.TransactionContext
-import org.vitrivr.cottontail.dbms.execution.exceptions.OperatorSetupException
-import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
-import org.vitrivr.cottontail.core.basics.Record
-import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.*
+import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.dbms.exceptions.ExecutionException
+import org.vitrivr.cottontail.dbms.execution.exceptions.OperatorSetupException
+import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
+import org.vitrivr.cottontail.dbms.queries.context.DefaultQueryContext
+import org.vitrivr.cottontail.dbms.queries.projection.Projection
 
 /**
  * An [Operator.PipelineOperator] used during query execution. It calculates the MEAN of all values
@@ -50,10 +50,10 @@ class MeanProjectionOperator(parent: Operator, fields: List<Name.ColumnName>) : 
     /**
      * Converts this [MeanProjectionOperator] to a [Flow] and returns it.
      *
-     * @param context The [QueryContext] used for execution
+     * @param context The [DefaultQueryContext] used for execution
      * @return [Flow] representing this [MeanProjectionOperator]
      */
-    override fun toFlow(context: org.vitrivr.cottontail.dbms.execution.TransactionContext): Flow<Record> {
+    override fun toFlow(context: TransactionContext): Flow<Record> {
         val parentFlow = this.parent.toFlow(context)
         val columns = this.columns.toTypedArray()
         return flow {

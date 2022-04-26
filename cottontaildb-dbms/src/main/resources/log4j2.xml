@@ -9,5 +9,8 @@
     <Root level="info">
       <AppenderRef ref="STDOUT"/>
     </Root>
+    <Logger name="org.vitrivr.cottontail" level="debug" additivity="false">
+      <AppenderRef ref="STDOUT"/>
+    </Logger>
   </Loggers>
 </Configuration>

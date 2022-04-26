@@ -7,25 +7,28 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.vitrivr.cottontail.TestConstants
 import org.vitrivr.cottontail.client.SimpleClient
+import org.vitrivr.cottontail.client.language.basics.predicate.Expression
 import org.vitrivr.cottontail.client.language.dml.Update
 import org.vitrivr.cottontail.client.language.dql.Query
-import org.vitrivr.cottontail.client.language.extensions.Literal
 import org.vitrivr.cottontail.embedded
+import org.vitrivr.cottontail.server.CottontailServer
+import org.vitrivr.cottontail.test.GrpcTestUtils
+import org.vitrivr.cottontail.test.TestConstants
 import java.util.concurrent.TimeUnit
 import kotlin.time.ExperimentalTime
 
 /**
+ * Integration tests that test the DML endpoint of Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.0.0
  */
 @ExperimentalTime
 class DMLServiceTest {
     private lateinit var client: SimpleClient
     private lateinit var channel: ManagedChannel
-    private lateinit var embedded: CottontailGrpcServer
+    private lateinit var embedded: CottontailServer
 
     @BeforeEach
     fun startCottontail() {
@@ -54,7 +57,7 @@ class DMLServiceTest {
         this.channel.awaitTermination(5000, TimeUnit.MILLISECONDS)
 
         /* Stop embedded server. */
-        this.embedded.stop()
+        this.embedded.shutdownAndWait()
     }
 
     @Test
@@ -86,7 +89,7 @@ class DMLServiceTest {
             val update = Update()
                 .from(GrpcTestUtils.TEST_ENTITY_FQN)
                 .values(Pair(GrpcTestUtils.INT_COLUMN_NAME, -1))
-                .where(Literal(GrpcTestUtils.STRING_COLUMN_NAME, "=", el1.asString(GrpcTestUtils.STRING_COLUMN_NAME)!!))
+                .where(Expression(GrpcTestUtils.STRING_COLUMN_NAME, "=", el1.asString(GrpcTestUtils.STRING_COLUMN_NAME)!!))
                 .txId(txId)
             val r2 = this.client.update(update)
             Assertions.assertTrue(r2.hasNext())
@@ -112,7 +115,7 @@ class DMLServiceTest {
         for (el1 in r1) {
             val update = Update().from(GrpcTestUtils.TEST_ENTITY_FQN)
                 .values(Pair(GrpcTestUtils.INT_COLUMN_NAME, -1))
-                .where(Literal(GrpcTestUtils.STRING_COLUMN_NAME, "=", el1.asString(GrpcTestUtils.STRING_COLUMN_NAME)!!))
+                .where(Expression(GrpcTestUtils.STRING_COLUMN_NAME, "=", el1.asString(GrpcTestUtils.STRING_COLUMN_NAME)!!))
                 .txId(txId)
             val r2 = this.client.update(update)
             Assertions.assertTrue(r2.hasNext())

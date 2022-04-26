@@ -5,31 +5,26 @@ import kotlinx.coroutines.flow.flow
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
-import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
+import org.vitrivr.cottontail.dbms.index.Index
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
-import kotlin.time.ExperimentalTime
-import kotlin.time.measureTimedValue
+import kotlin.system.measureTimeMillis
 
 /**
  * An [Operator.SourceOperator] used during query execution. Drops an [Index]
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.2.0
  */
-@ExperimentalTime
-class DropIndexOperator(val catalogue: DefaultCatalogue, val name: Name.IndexName) :
-    AbstractDataDefinitionOperator(name, "DROP INDEX") {
-    override fun toFlow(context: org.vitrivr.cottontail.dbms.execution.TransactionContext): Flow<Record> {
-        val catTxn = context.getTx(this.catalogue) as CatalogueTx
-        val schemaTxn = context.getTx(catTxn.schemaForName(this.name.schema())) as SchemaTx
-        val entityTxn = context.getTx(schemaTxn.entityForName(this.name.entity())) as EntityTx
-        return flow {
-            val timedTupleId = measureTimedValue {
-                entityTxn.dropIndex(this@DropIndexOperator.name)
-            }
-            emit(this@DropIndexOperator.statusRecord(timedTupleId.duration))
+class DropIndexOperator(private val tx: CatalogueTx, private val name: Name.IndexName): AbstractDataDefinitionOperator(name, "DROP INDEX") {
+    override fun toFlow(context: TransactionContext): Flow<Record> = flow {
+        val schemaTxn = context.getTx(this@DropIndexOperator.tx.schemaForName(this@DropIndexOperator.name.schema())) as SchemaTx
+        val entityTxn = context.getTx(schemaTxn.entityForName(this@DropIndexOperator.name.entity())) as EntityTx
+        val time = measureTimeMillis {
+            entityTxn.dropIndex(this@DropIndexOperator.name)
         }
+        emit(this@DropIndexOperator.statusRecord(time))
     }
 }

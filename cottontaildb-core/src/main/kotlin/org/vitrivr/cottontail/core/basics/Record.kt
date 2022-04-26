@@ -15,7 +15,7 @@ import org.vitrivr.cottontail.core.values.types.Value
 interface Record {
 
     /** The [TupleId] of this [Record]. Can be updated! */
-    var tupleId: TupleId
+    val tupleId: TupleId
 
     /** [Array] of [ColumnDef]s contained in this [Record]. */
     val columns: Array<ColumnDef<*>>

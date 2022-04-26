@@ -4,31 +4,23 @@ import org.vitrivr.cottontail.core.values.types.NumericValue
 import org.vitrivr.cottontail.core.values.types.ScalarValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
-import java.util.*
 
 /**
  * This is an abstraction over a [Boolean].
  *
  * @author Ralph Gasser
- * @version 1.6.0
+ * @version 1.7.0
  */
 @JvmInline
 value class BooleanValue(override val value: Boolean): ScalarValue<Boolean> {
 
     companion object {
-        val TRUE = org.vitrivr.cottontail.core.values.BooleanValue(true)
-        val FALSE = org.vitrivr.cottontail.core.values.BooleanValue(false)
+        /** The true [BooleanValue]. */
+        val TRUE = BooleanValue(true)
 
-        /**
-         * Generates a random [BooleanValue].
-         *
-         * @param rnd A [SplittableRandom] to generate the random numbers.
-         * @return Random [BooleanValue]
-         */
-        fun random(rnd: SplittableRandom = Value.RANDOM) =
-            org.vitrivr.cottontail.core.values.BooleanValue(rnd.nextBoolean())
+        /** The false [BooleanValue]. */
+        val FALSE = BooleanValue(false)
     }
-
     /** The logical size of this [BooleanValue]. */
     override val logicalSize: Int
         get() = 1
@@ -45,7 +37,7 @@ value class BooleanValue(override val value: Boolean): ScalarValue<Boolean> {
      * @return -1, 0 or 1 of other value is smaller, equal or greater than this value
      */
     override fun compareTo(other: Value): Int = when (other) {
-        is org.vitrivr.cottontail.core.values.BooleanValue -> when {
+        is BooleanValue -> when {
             this.value == other.value -> 0
             this.value -> 1
             else -> -1
@@ -60,5 +52,5 @@ value class BooleanValue(override val value: Boolean): ScalarValue<Boolean> {
      * @param other [Value] to compare to.
      * @return True if equal, false otherwise.
      */
-    override fun isEqual(other: Value): Boolean = (other is org.vitrivr.cottontail.core.values.BooleanValue) && (other.value == this.value)
+    override fun isEqual(other: Value): Boolean = (other is BooleanValue) && (other.value == this.value)
 }

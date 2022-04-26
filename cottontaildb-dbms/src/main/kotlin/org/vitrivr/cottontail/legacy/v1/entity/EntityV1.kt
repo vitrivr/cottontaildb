@@ -6,36 +6,32 @@ import org.mapdb.CottontailStoreWAL
 import org.mapdb.DBException
 import org.mapdb.Serializer
 import org.mapdb.StoreWAL
+import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.types.Value
+import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.column.Column
 import org.vitrivr.cottontail.dbms.column.ColumnTx
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
-import org.vitrivr.cottontail.dbms.entity.EntityTxSnapshot
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.exceptions.TxException
-import org.vitrivr.cottontail.dbms.execution.TransactionContext
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.general.DBOVersion
-import org.vitrivr.cottontail.dbms.general.TxAction
-import org.vitrivr.cottontail.dbms.general.TxSnapshot
 import org.vitrivr.cottontail.dbms.index.Index
-import org.vitrivr.cottontail.dbms.index.IndexTx
+import org.vitrivr.cottontail.dbms.index.IndexConfig
 import org.vitrivr.cottontail.dbms.index.IndexType
-import org.vitrivr.cottontail.dbms.schema.SchemaTx
-import org.vitrivr.cottontail.dbms.statistics.entity.EntityStatistics
-import org.vitrivr.cottontail.legacy.BrokenIndex
 import org.vitrivr.cottontail.legacy.v1.column.ColumnV1
 import org.vitrivr.cottontail.legacy.v1.schema.SchemaV1
 import org.vitrivr.cottontail.utilities.extensions.write
 import java.nio.file.Path
 import java.util.concurrent.locks.StampedLock
-import kotlin.math.min
+import kotlin.concurrent.withLock
 
 /**
  * Represents a single entity in the Cottontail DB data model. An [Entity] has name that must remain
@@ -50,9 +46,9 @@ import kotlin.math.min
  * @see EntityTx
  *
  * @author Ralph Gasser
- * @version 1.7.0
+ * @version 2.0.1
  */
-class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1) : Entity {
+class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1) : Entity, AutoCloseable {
     /**
      * Companion object of the [Entity]
      */
@@ -65,7 +61,7 @@ class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1
     }
 
     /** The [Path] to the [Entity]'s main folder. */
-    override val path: Path = this.parent.path.resolve("entity_${name.simple}")
+    val path: Path = this.parent.path.resolve("entity_${name.simple}")
 
     /** Internal reference to the [StoreWAL] underpinning this [Entity]. */
     private val store: CottontailStoreWAL = try {
@@ -83,7 +79,7 @@ class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1
     private val closeLock = StampedLock()
 
     /** List of all the [Column]s associated with this [Entity]; Iteration order of entries as defined in schema! */
-    private val columns: MutableMap<Name.ColumnName, Column<*>> = Object2ObjectLinkedOpenHashMap()
+    private val columns: MutableMap<Name.ColumnName, ColumnV1<*>> = Object2ObjectLinkedOpenHashMap()
 
     /** List of all the [Index]es associated with this [Entity]. */
     private val indexes: MutableMap<Name.IndexName, Index> = Object2ObjectOpenHashMap()
@@ -91,53 +87,25 @@ class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1
     init {
         /* Initialize columns. */
         this.header.columns.map {
-            val columnName = this.name.column(
-                this.store.get(it, Serializer.STRING)
-                    ?: throw DatabaseException.DataCorruptionException("Failed to open entity '$name': Could not read column definition at position $it!")
-            )
-            this.columns[columnName] =
-                ColumnV1<Value>(columnName, this)
+            val columnName = this.name.column(this.store.get(it, Serializer.STRING) ?: throw DatabaseException.DataCorruptionException("Failed to open entity '$name': Could not read column definition at position $it!"))
+            this.columns[columnName] = ColumnV1<Value>(columnName, this)
         }
 
         /* Initialize indexes (broken). */
         this.header.indexes.forEach { idx ->
-            val indexEntry = this.store.get(idx, IndexV1Entry.Serializer)
-                ?: throw DatabaseException.DataCorruptionException("Failed to open entity '$name': Could not read index definition at position $idx!")
+            val indexEntry = this.store.get(idx, IndexV1Entry.Serializer) ?: throw DatabaseException.DataCorruptionException("Failed to open entity '$name': Could not read index definition at position $idx!")
             val indexName = this.name.index(indexEntry.name)
-            val columns = indexEntry.columns.map { col ->
-                val split = col.split(".").last()
-                this.columns[this.name.column(split)]?.columnDef
-                    ?: throw DatabaseException.DataCorruptionException("Column '$col' does not exist on the entity!")
-            }.toTypedArray()
-            this.indexes[indexName] = BrokenIndex(
-                this.name.index(indexEntry.name),
-                this,
-                this.path.resolve(indexEntry.name),
-                indexEntry.type,
-                columns
-            )
+            this.indexes[indexName] = BrokenIndexV1(this.name.index(indexEntry.name), this, this.path.resolve(indexEntry.name), indexEntry.type)
         }
     }
+
+    /** The [Catalogue] this [EntityV1] belongs to. */
+    override val catalogue: Catalogue
+        get() = this.parent.catalogue
 
     /** The [DBOVersion] of this [EntityV1]. */
     override val version: DBOVersion
         get() = DBOVersion.V1_0
-
-    override val numberOfColumns: Int
-        get() = this.header.columns.size
-
-    override val numberOfRows: Long
-        get() = this.header.size
-
-    override val statistics: EntityStatistics
-        get() {
-            throw UnsupportedOperationException("Operation not supported on legacy DBO.")
-        }
-
-    override val maxTupleId: TupleId
-        get() {
-            throw UnsupportedOperationException("Operation not supported on legacy DBO.")
-        }
 
     /**
      * Status indicating whether this [Entity] is open or closed.
@@ -152,7 +120,7 @@ class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1
      * @param context The [TransactionContext] to create the [EntityTx] for.
      * @return New [EntityTx]
      */
-    override fun newTx(context: org.vitrivr.cottontail.dbms.execution.TransactionContext) = this.Tx(context)
+    override fun newTx(context: TransactionContext) = this.Tx(context)
 
     /**
      * Closes the [Entity]. Closing an [Entity] is a delicate matter since ongoing [EntityTx] objects as well as all involved [Column]s are involved.
@@ -167,13 +135,11 @@ class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1
     }
 
     /**
-     * A [Tx] that affects this [Entity]. Opening a [EntityTx] will automatically spawn [ColumnTx]
-     * and [IndexTx] for every [Column] and [IndexTx] associated with this [Entity].
+     * A [Tx] that affects this [Entity].
      *
-     * @author Ralph Gasser
-     * @version 1.0.0
+     * Opening a [EntityTx] will automatically spawn [ColumnTx] for every [Column] that belongs to this [Entity].
      */
-    inner class Tx(context: org.vitrivr.cottontail.dbms.execution.TransactionContext) : AbstractTx(context), EntityTx {
+    inner class Tx(context: TransactionContext) : AbstractTx(context), EntityTx {
 
         /** Obtains a global (non-exclusive) read-lock on [Entity]. Prevents enclosing [Entity] from being closed. */
         private val closeStamp = this@EntityV1.closeLock.readLock()
@@ -182,16 +148,7 @@ class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1
         override val dbo: Entity
             get() = this@EntityV1
 
-        /** The [TxSnapshot] of this [SchemaTx]. */
-        override val snapshot = object : EntityTxSnapshot {
-            override val statistics: EntityStatistics
-                get() = throw UnsupportedOperationException("Operation not supported on legacy DBO.")
-            override val indexes: MutableMap<Name.IndexName, Index> = mutableMapOf()
-            override val actions: List<TxAction> = emptyList()
-            override fun commit() = throw UnsupportedOperationException("Operation not supported on legacy DBO.")
-            override fun rollback() = throw UnsupportedOperationException("Operation not supported on legacy DBO.")
-            override fun record(action: TxAction): Boolean = throw UnsupportedOperationException("Operation not supported on legacy DBO.")
-        }
+
 
         /** Tries to acquire a global read-lock on this entity. */
         init {
@@ -206,8 +163,8 @@ class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1
          *
          * @return List of all [Column]s.
          */
-        override fun listColumns(): List<Column<*>> = this.withReadLock {
-            return this@EntityV1.columns.values.toList()
+        override fun listColumns(): List<ColumnDef<*>> {
+            return this@EntityV1.columns.values.map { it.columnDef }.toList()
         }
 
         /**
@@ -216,7 +173,7 @@ class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1
          * @param name The [Name.ColumnName] of the [Column].
          * @return [ColumnDef] of the [Column].
          */
-        override fun columnForName(name: Name.ColumnName): Column<*> = this.withReadLock {
+        override fun columnForName(name: Name.ColumnName): Column<*> = this.txLatch.withLock {
             if (!name.wildcard) {
                 this@EntityV1.columns[name] ?: throw DatabaseException.ColumnDoesNotExistException(
                     name
@@ -234,8 +191,8 @@ class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1
          *
          * @return List of [Name.IndexName] managed by this [EntityTx]
          */
-        override fun listIndexes(): List<Index> = this.withReadLock {
-            return this@EntityV1.indexes.values.toList()
+        override fun listIndexes(): List<Name.IndexName> {
+            return this@EntityV1.indexes.keys.toList()
         }
 
         /**
@@ -243,21 +200,25 @@ class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1
          *
          * @return List of [Name.IndexName] managed by this [EntityTx]
          */
-        override fun indexForName(name: Name.IndexName): Index = this.withReadLock {
-            this@EntityV1.indexes[name] ?: throw DatabaseException.IndexDoesNotExistException(name)
+        override fun indexForName(name: Name.IndexName): Index {
+            return this@EntityV1.indexes[name] ?: throw DatabaseException.IndexDoesNotExistException(name)
         }
 
-        override fun maxTupleId(): TupleId = this.withReadLock {
-            return this@EntityV1.columns.values.first().maxTupleId
+        override fun smallestTupleId(): TupleId {
+            val columnTx = this@Tx.context.getTx(this@EntityV1.columns.values.first()) as ColumnV1<*>.Tx
+            return columnTx.smallestTupleId()
         }
 
+        override fun largestTupleId(): TupleId {
+            val columnTx = this@Tx.context.getTx(this@EntityV1.columns.values.first()) as ColumnV1<*>.Tx
+            return columnTx.largestTupleId()
+        }
 
-        override fun createIndex(
-            name: Name.IndexName,
-            type: IndexType,
-            columns: Array<ColumnDef<*>>,
-            params: Map<String, String>
-        ): Index {
+        override fun contains(tupleId: TupleId): Boolean {
+            throw UnsupportedOperationException("Operation not supported on legacy DBO.")
+        }
+
+        override fun createIndex(name: Name.IndexName, type: IndexType, columns: List<Name.ColumnName>, configuration: IndexConfig<*>): Index {
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
         }
 
@@ -273,50 +234,30 @@ class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
         }
 
-        override fun scan(columns: Array<ColumnDef<*>>): Iterator<Record> = scan(columns, 0, 1)
+        override fun cursor(columns: Array<ColumnDef<*>>): Cursor<Record> = cursor(columns, this.smallestTupleId() .. this.largestTupleId())
 
-        override fun scan(columns: Array<ColumnDef<*>>, partitionIndex: Int, partitions: Int): Iterator<Record> = object : Iterator<Record> {
-
-            /** The [LongRange] to iterate over. */
-            private val range: LongRange
-
-            init {
-                val maximum: Long = this@Tx.maxTupleId()
-                val partitionSize: Long = Math.floorDiv(maximum, partitions.toLong()) + 1L
-                val start: Long = partitionIndex * partitionSize
-                val end = min(((partitionIndex + 1) * partitionSize), maximum)
-                this.range = start until end
-            }
+        override fun cursor(columns: Array<ColumnDef<*>>, partition: LongRange): Cursor<Record> = object : Cursor<Record> {
 
             /** The wrapped [Iterator] of the first (primary) column. */
-            private val wrapped = this@Tx.withReadLock {
-                (this@Tx.context.getTx(this@EntityV1.columns.values.first()) as ColumnTx<*>).scan(
-                    range
-                )
-            }
+            private val wrapped = (this@Tx.context.getTx(this@EntityV1.columns.values.first()) as ColumnV1<*>.Tx).scan(partition)
 
-            /**
-             * Returns the next element in the iteration.
-             */
-            override fun next(): Record {
+            override fun value(): Record {
                 /* Read values from underlying columns. */
                 val tupleId = this.wrapped.next()
                 val values = columns.map {
                     val column = this@EntityV1.columns[it.name]
                         ?: throw IllegalArgumentException("Column $it does not exist on entity ${this@EntityV1.name}.")
-                    (this@Tx.context.getTx(column) as ColumnTx<*>).read(tupleId)
+                    (this@Tx.context.getTx(column) as ColumnTx<*>).get(tupleId)
                 }.toTypedArray()
 
                 /* Return value of all the desired columns. */
                 return StandaloneRecord(tupleId, columns, values)
             }
-
-            /**
-             * Returns `true` if the iteration has more elements.
-             */
-            override fun hasNext(): Boolean {
+            override fun key(): TupleId = this.wrapped.next()
+            override fun moveNext(): Boolean {
                 return this.wrapped.hasNext()
             }
+            override fun close() { /* No op. */ }
         }
 
         override fun count(): Long {
@@ -336,7 +277,7 @@ class EntityV1(override val name: Name.EntityName, override val parent: SchemaV1
         }
 
         /**
-         * Closes all the [ColumnTx] and [IndexTx] and releases the [closeLock] on the [Entity].
+         * Closes all the [ColumnTx] and releases the [closeLock] on the [Entity].
          */
         override fun cleanup() {
             this@EntityV1.closeLock.unlockRead(this.closeStamp)

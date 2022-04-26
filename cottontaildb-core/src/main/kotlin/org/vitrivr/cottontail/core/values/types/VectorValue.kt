@@ -3,8 +3,9 @@ package org.vitrivr.cottontail.core.values.types
 import org.vitrivr.cottontail.core.values.IntValue
 
 /**
- * Represents a vector value of any type, i.e. a value that consists only more than one entry. Vector
- * values are always numeric! This  is an abstraction over the existing primitive array types provided
+ * Represents a vector value of any type, i.e., a value that consists only more than one entry.
+ *
+ * [VectorValue] are always numeric! This is an abstraction over the existing primitive array types provided
  * by Kotlin. It allows for the advanced type system implemented by Cottontail DB.
  *
  * @version 1.4.0
@@ -50,7 +51,7 @@ interface VectorValue<T : Number> : Value {
      *
      * @return The [VectorValue] representing the sub-vector.
      */
-    fun subvector(start: Int, length: Int): VectorValue<T>
+    fun slice(start: Int, length: Int): VectorValue<T>
 
     /**
      * Returns true, if this [VectorValue] consists of all zeroes, i.e. [0, 0, ... 0]

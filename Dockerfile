@@ -1,4 +1,4 @@
-FROM openjdk:11 AS build
+FROM openjdk:17 AS build
 
 COPY . /cottontail-src
 WORKDIR /cottontail-src
@@ -6,7 +6,7 @@ RUN ./gradlew distTar
 WORKDIR /cottontail-src/cottontaildb-dbms/build/distributions/
 RUN tar xf ./cottontaildb-dbms.tar
 
-FROM openjdk:11
+FROM openjdk:17
 
 RUN mkdir /cottontaildb-data /cottontaildb-config
 COPY config.json /cottontaildb-config/

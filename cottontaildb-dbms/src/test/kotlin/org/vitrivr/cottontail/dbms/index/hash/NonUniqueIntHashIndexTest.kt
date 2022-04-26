@@ -2,27 +2,27 @@ package org.vitrivr.cottontail.dbms.index.hash
 
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.RepeatedTest
-import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
+import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
+import org.vitrivr.cottontail.core.recordset.StandaloneRecord
+import org.vitrivr.cottontail.core.values.FloatValue
+import org.vitrivr.cottontail.core.values.IntValue
+import org.vitrivr.cottontail.core.values.types.Types
+import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.entity.EntityTx
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionType
 import org.vitrivr.cottontail.dbms.index.AbstractIndexTest
 import org.vitrivr.cottontail.dbms.index.IndexTx
 import org.vitrivr.cottontail.dbms.index.IndexType
 import org.vitrivr.cottontail.dbms.queries.binding.DefaultBindingContext
-import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
-import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.dbms.schema.SchemaTx
-import org.vitrivr.cottontail.dbms.execution.TransactionType
-import org.vitrivr.cottontail.core.values.types.Types
-import org.vitrivr.cottontail.core.recordset.StandaloneRecord
-import org.vitrivr.cottontail.core.values.FloatValue
-import org.vitrivr.cottontail.core.values.IntValue
-import org.vitrivr.cottontail.utilities.extensions.nextFloat
+import org.vitrivr.cottontail.utilities.math.random.nextInt
 import java.util.*
 
 /**
- * This is a collection of test cases to test the correct behaviour of [UniqueHashIndex] with a [IntValue] keys.
+ * This is a collection of test cases to test the correct behaviour of [UQBTreeIndex] with a [IntValue] keys.
  *
  * @author Ralph Gasser
  * @param 1.0.2
@@ -42,13 +42,10 @@ class NonUniqueIntHashIndexTest : AbstractIndexTest() {
         get() = this.entityName.index("non_unique_int")
 
     override val indexType: IndexType
-        get() = IndexType.HASH
+        get() = IndexType.BTREE
 
     /** List of values stored in this [UniqueHashIndexTest]. */
     private var list = HashMap<IntValue, MutableList<FloatValue>>(100)
-
-    /** Random number generator. */
-    private val random = SplittableRandom()
 
     /**
      * Tests if Index#filter() returns the values that have been stored.
@@ -65,18 +62,26 @@ class NonUniqueIntHashIndexTest : AbstractIndexTest() {
         val index = entityTx.indexForName(this.indexName)
         val indexTx = txn.getTx(index) as IndexTx
 
+        /* Prepare binding context and predicate. */
         val context = DefaultBindingContext()
+        val columnBinding = context.bind(this.columns[0])
+        val valueBinding = context.bindNull(Types.Int)
+        val predicate = BooleanPredicate.Atomic(ComparisonOperator.Binary.Equal(columnBinding, valueBinding), false)
+
+        /* Check all entries. */
         for (entry in this.list.entries) {
-            val predicate = BooleanPredicate.Atomic(ComparisonOperator.Binary.Equal(context.bind(this.columns[0]), context.bind(entry.key)), false)
+            valueBinding.update(entry.key) /* Update value binding. */
             var found = false
-            indexTx.filter(predicate).forEach { r ->
-                val rec = entityTx.read(r.tupleId, this.columns)
+            val cursor = indexTx.filter(predicate)
+            while (cursor.moveNext() && !found) {
+                val rec = entityTx.read(cursor.key(), this.columns)
                 val id = rec[this.columns[0]] as IntValue
                 Assertions.assertEquals(entry.key, id)
                 if (entry.value.contains(rec[this.columns[1]])) {
                     found = true
                 }
             }
+            cursor.close()
             Assertions.assertTrue(found)
         }
         txn.commit()
@@ -100,7 +105,9 @@ class NonUniqueIntHashIndexTest : AbstractIndexTest() {
         var count = 0
         val context = DefaultBindingContext()
         val predicate = BooleanPredicate.Atomic(ComparisonOperator.Binary.Equal(context.bind(this.columns[0]), context.bind(IntValue(this.random.nextInt(100, Int.MAX_VALUE)))), false)
-        indexTx.filter(predicate).forEach { count += 1 }
+        val cursor = indexTx.filter(predicate)
+        cursor.forEach { count += 1 }
+        cursor.close()
         Assertions.assertEquals(0, count)
         txn.commit()
     }
@@ -109,7 +116,7 @@ class NonUniqueIntHashIndexTest : AbstractIndexTest() {
      * Generates and returns a new, random [StandaloneRecord] for inserting into the database.
      */
     override fun nextRecord(): StandaloneRecord {
-        val id = IntValue(this.random.nextLong(0L, 100))
+        val id = IntValue(number = this.random.nextInt(0, 100))
         val value = FloatValue(this.random.nextFloat())
         if (this.random.nextBoolean() && this.list.size <= 1000) {
             this.list.compute(id) { _, v ->

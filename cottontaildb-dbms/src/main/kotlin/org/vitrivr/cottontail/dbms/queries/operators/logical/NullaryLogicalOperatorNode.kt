@@ -2,8 +2,9 @@ package org.vitrivr.cottontail.dbms.queries.operators.logical
 
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
+import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
+import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
-import org.vitrivr.cottontail.dbms.queries.sort.SortOrder
 
 /**
  * An abstract [OperatorNode.Logical] implementation that has no input.
@@ -22,13 +23,13 @@ abstract class NullaryLogicalOperatorNode() : org.vitrivr.cottontail.dbms.querie
     final override val base: Collection<Logical>
         get() = listOf(this)
 
-    /** By default, a [NullaryLogicalOperatorNode]'s output is unordered. */
-    override val sortOn: List<Pair<ColumnDef<*>, SortOrder>>
-        get() = emptyList()
-
     /** By default, a [NullaryLogicalOperatorNode] doesn't have any requirement. */
     override val requires: List<ColumnDef<*>>
         get() = emptyList()
+
+    /** By default, a [NullaryLogicalOperatorNode] has an empty set of [Trait]s. */
+    override val traits: Map<TraitType<*>,Trait>
+        get() = emptyMap()
 
     /**
      * Creates and returns a copy of this [NullaryLogicalOperatorNode] without any children or parents.

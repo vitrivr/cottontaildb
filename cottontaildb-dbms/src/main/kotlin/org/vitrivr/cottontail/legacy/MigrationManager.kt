@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.legacy
 
 import org.vitrivr.cottontail.config.Config
+import org.vitrivr.cottontail.dbms.general.DBOVersion
 
 /**
  * A [MigrationManager] can be used to migrate  Cottontail DB from older to newer versions.
@@ -10,11 +11,11 @@ import org.vitrivr.cottontail.config.Config
  * a fresh instance of Cottontail DB.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.0.1
  */
 interface MigrationManager : AutoCloseable {
     /** The version this [MigrationManager] migrates from. */
-    val from: Short
+    val from: DBOVersion
 
     /**
      * Executes the actual data migration.

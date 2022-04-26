@@ -1,22 +1,12 @@
 package org.vitrivr.cottontail.dbms.index
 
-import org.vitrivr.cottontail.core.database.ColumnDef
-import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.index.gg.GGIndex
-import org.vitrivr.cottontail.dbms.index.gg.GGIndexConfig
-import org.vitrivr.cottontail.dbms.index.hash.NonUniqueHashIndex
-import org.vitrivr.cottontail.dbms.index.hash.UniqueHashIndex
-import org.vitrivr.cottontail.dbms.index.lsh.superbit.SuperBitLSHIndex
-import org.vitrivr.cottontail.dbms.index.lsh.superbit.SuperBitLSHIndexConfig
+import org.vitrivr.cottontail.dbms.index.hash.BTreeIndex
+import org.vitrivr.cottontail.dbms.index.hash.UQBTreeIndex
+import org.vitrivr.cottontail.dbms.index.lsh.LSHIndex
 import org.vitrivr.cottontail.dbms.index.lucene.LuceneIndex
-import org.vitrivr.cottontail.dbms.index.lucene.LuceneIndexConfig
 import org.vitrivr.cottontail.dbms.index.pq.PQIndex
-import org.vitrivr.cottontail.dbms.index.pq.PQIndexConfig
 import org.vitrivr.cottontail.dbms.index.va.VAFIndex
-import org.vitrivr.cottontail.dbms.index.va.VAFIndexConfig
-import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.values.types.VectorValue
-import java.nio.file.Path
 
 /**
  * A final list of types of [AbstractIndex] implementation.
@@ -24,66 +14,20 @@ import java.nio.file.Path
  * TODO: This could actually be more of a 'registry' type of facility, which would allow for extensions
  *
  * @author Ralph Gasser
- * @version 2.0.0
+ * @version 3.0.0
  */
-enum class IndexType(val inexact: Boolean) {
+enum class IndexType(val descriptor: IndexDescriptor<*>) {
+    BTREE_UQ(UQBTreeIndex), /* A btree-based index with unique values. */
 
-    HASH_UQ(false), /* A hash based index with unique values. */
+    BTREE(BTreeIndex), /* A hash based index. */
 
-    HASH(false), /* A hash based index. */
+    LUCENE(LuceneIndex), /* An Apache Lucene based index (fulltext search). */
 
-    BTREE(false), /* A BTree based index. */
+    VAF(VAFIndex), /* A vector approximation file (VAF) based index (for exact nearest neighbour search). */
 
-    LUCENE(false), /* A Lucene based index (fulltext search). */
+    PQ(PQIndex), /* A product quantization (PQ) based index (for approximate nearest neighbour search). */
 
-    VAF(false), /* A VA file based index (for exact kNN lookup). */
+    LSH(LSHIndex), /* A locality sensitive hashing (LSH) based index (for approximate nearest neighbour search). */
 
-    PQ(true), /* A product quantization based index (for approximate kNN lookup). */
-
-    SH(true), /* A spectral hashing based index (for approximate kNN lookup). */
-
-    LSH(true), /* A locality sensitive hashing based index for approximate kNN lookup with Lp distance. */
-
-    LSH_SB(true), /* A super bit locality sensitive hashing based index for approximate kNN lookup with cosine distance. */
-
-    GG(true);
-
-    /**
-     * Opens an index of this [IndexType] using the given name and [DefaultEntity].
-     *
-     * @param path [Name.IndexName] of the [AbstractIndex]
-     * @param entity The [DefaultEntity] the desired [AbstractIndex] belongs to.
-     */
-    fun open(path: Path, entity: DefaultEntity): AbstractIndex = when (this) {
-        HASH_UQ -> UniqueHashIndex(path, entity)
-        HASH -> NonUniqueHashIndex(path, entity)
-        LUCENE -> LuceneIndex(path, entity)
-        LSH_SB -> SuperBitLSHIndex<VectorValue<*>>(path, entity)
-        VAF -> VAFIndex(path, entity)
-        PQ -> PQIndex(path, entity)
-        GG -> GGIndex(path, entity)
-        else -> throw NotImplementedError("Index of type $this is not implemented.")
-    }
-
-    /**
-     * Creates an index of this [IndexType] using the given name and [DefaultEntity].
-     *
-     * @param name [Name.IndexName] of the [AbstractIndex]
-     * @param entity The [DefaultEntity] the desired [AbstractIndex] belongs to.
-     * @param columns The [ColumnDef] for which to create the [AbstractIndex]
-     * @param params Additions configuration params.
-     */
-    fun create(path: Path, entity: DefaultEntity, name: Name.IndexName, columns: Array<ColumnDef<*>>, params: Map<String, String> = emptyMap()): AbstractIndex {
-        AbstractIndex.initialize(path, name, this, columns, entity.parent.parent.config)
-        return when (this) {
-            HASH_UQ -> UniqueHashIndex(path, entity)
-            HASH -> NonUniqueHashIndex(path, entity)
-            LUCENE -> LuceneIndex(path, entity, LuceneIndexConfig.fromParamMap(params))
-            LSH_SB -> SuperBitLSHIndex<VectorValue<*>>(path, entity, SuperBitLSHIndexConfig.fromParamMap(params))
-            VAF -> VAFIndex(path, entity, VAFIndexConfig.fromParamMap(params))
-            PQ -> PQIndex(path, entity, PQIndexConfig.fromParamMap(params))
-            GG -> GGIndex(path, entity, GGIndexConfig.fromParamsMap(params))
-            else -> throw NotImplementedError("Index of type $this is not implemented.")
-        }
-    }
+    GG(GGIndex);  /* A greedy grouping (GG) based index (for nearest neighbour search). */
 }

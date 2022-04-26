@@ -4,14 +4,14 @@ import com.google.common.hash.BloomFilter
 import com.google.common.hash.Funnel
 import com.google.common.hash.PrimitiveSink
 import kotlinx.coroutines.flow.*
+import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.dbms.execution.TransactionContext
-import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
-import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.core.values.*
 import org.vitrivr.cottontail.core.values.types.Value
+import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import java.nio.charset.Charset
 
 /**
@@ -75,7 +75,7 @@ class SelectDistinctProjectionOperator(parent: Operator, fields: List<Name.Colum
      * @param context The [TransactionContext] used for execution
      * @return [Flow] representing this [SelectProjectionOperator]
      */
-    override fun toFlow(context: org.vitrivr.cottontail.dbms.execution.TransactionContext): Flow<Record> {
+    override fun toFlow(context: TransactionContext): Flow<Record> {
         val columns = this.columns.toTypedArray()
         val values = arrayOfNulls<Value?>(columns.size)
         return this.parent.toFlow(context).mapNotNull { r ->

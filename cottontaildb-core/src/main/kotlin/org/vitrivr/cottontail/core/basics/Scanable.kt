@@ -1,6 +1,7 @@
 package org.vitrivr.cottontail.core.basics
 
 import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.database.TupleId
 
 /**
  * An objects that holds [Record] values and allows for scanning operation on those [Record] values.
@@ -8,25 +9,23 @@ import org.vitrivr.cottontail.core.database.ColumnDef
  * @see Record
  *
  * @author Ralph Gasser
- * @version 1.4.0
+ * @version 3.0.0
  */
 interface Scanable {
     /**
-     * Returns an [Iterator] for all the [Record]s in this [Scanable].
+     * Returns a [Cursor] for all the entries in this [Scanable].
      *
      * @param columns The [ColumnDef]s that should be scanned.
-     * @return [Iterator]
+     * @return [Cursor]
      */
-    fun scan(columns: Array<ColumnDef<*>>): Iterator<Record>
+    fun cursor(columns: Array<ColumnDef<*>>): Cursor<Record>
 
     /**
-     * Returns an [Iterator] for all the [TupleId]s contained in the provide [LongRange]
-     * and this [Scanable]. Can be used for partitioning.
+     * Returns a [Cursor] for all the entries contained in the specified partition of [Scanable].
      *
      * @param columns The [ColumnDef]s that should be scanned.
-     * @param partitionIndex The [partitionIndex] for this [scan] call.
-     * @param partitions The total number of partitions for this [scan] call.
-     * @return [Iterator]
+     * @param partition The [LongRange] specifying the [TupleId]s that should be scanned.
+     * @return [Cursor]
      */
-    fun scan(columns: Array<ColumnDef<*>>, partitionIndex: Int, partitions: Int): Iterator<Record>
+    fun cursor(columns: Array<ColumnDef<*>>, partition: LongRange): Cursor<Record>
 }

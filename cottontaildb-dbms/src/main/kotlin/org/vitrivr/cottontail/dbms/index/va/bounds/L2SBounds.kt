@@ -1,8 +1,8 @@
 package org.vitrivr.cottontail.dbms.index.va.bounds
 
-import org.vitrivr.cottontail.dbms.index.va.signature.Marks
-import org.vitrivr.cottontail.dbms.index.va.signature.VAFSignature
 import org.vitrivr.cottontail.core.values.types.RealVectorValue
+import org.vitrivr.cottontail.dbms.index.va.signature.VAFMarks
+import org.vitrivr.cottontail.dbms.index.va.signature.VAFSignature
 import kotlin.math.max
 import kotlin.math.pow
 
@@ -15,7 +15,7 @@ import kotlin.math.pow
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class L2SBounds(query: RealVectorValue<*>, marks: Marks) : Bounds {
+class L2SBounds(query: RealVectorValue<*>, marks: VAFMarks) : Bounds {
 
     /** Lower bound of this [L2Bounds]. */
     override var lb = 0.0
@@ -26,7 +26,7 @@ class L2SBounds(query: RealVectorValue<*>, marks: Marks) : Bounds {
         private set
 
     /** Cells for the query [RealVectorValue]. */
-    private val rq = marks.getCells(query)
+    private val rq = marks.getSignature(query)
 
     /** Internal lookup table for pre-calculated values used in bounds calculation. */
     private val lat = Array(marks.marks.size) { j ->
@@ -53,13 +53,13 @@ class L2SBounds(query: RealVectorValue<*>, marks: Marks) : Bounds {
             when {
                 rij < this.rq[j] -> {
                     this.lb += this.lat[j][rij + 1]
-                    this.ub += this.lat[j][rij]
+                    this.ub += this.lat[j][rij.toInt()]
                 }
                 rij == this.rq[j] -> {
-                    this.ub += max(this.lat[j][rij], this.lat[j][rij + 1])
+                    this.ub += max(this.lat[j][rij.toInt()], this.lat[j][rij + 1])
                 }
                 rij > this.rq[j] -> {
-                    this.lb += this.lat[j][rij]
+                    this.lb += this.lat[j][rij.toInt()]
                     this.ub += this.lat[j][rij + 1]
                 }
             }
@@ -81,7 +81,7 @@ class L2SBounds(query: RealVectorValue<*>, marks: Marks) : Bounds {
             if (rij < this.rq[j]) {
                 lb += this.lat[j][rij + 1]
             } else if (rij > this.rq[j]) {
-                lb += this.lat[j][rij]
+                lb += this.lat[j][rij.toInt()]
             }
             if (lb >= threshold) {
                 return false

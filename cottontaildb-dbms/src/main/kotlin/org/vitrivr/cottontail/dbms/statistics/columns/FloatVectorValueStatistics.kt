@@ -1,10 +1,13 @@
 package org.vitrivr.cottontail.dbms.statistics.columns
 
-import org.mapdb.DataInput2
-import org.mapdb.DataOutput2
-import org.vitrivr.cottontail.core.values.types.Types
+import jetbrains.exodus.bindings.BooleanBinding
+import jetbrains.exodus.bindings.LongBinding
+import jetbrains.exodus.bindings.SignedFloatBinding
+import jetbrains.exodus.util.LightOutputStream
 import org.vitrivr.cottontail.core.values.FloatVectorValue
-import org.vitrivr.cottontail.core.values.types.Value
+import org.vitrivr.cottontail.core.values.types.Types
+import org.vitrivr.cottontail.storage.serializers.statistics.xodus.XodusBinding
+import java.io.ByteArrayInputStream
 import java.lang.Float.max
 import java.lang.Float.min
 
@@ -12,28 +15,57 @@ import java.lang.Float.min
  * A [ValueStatistics] implementation for [FloatVectorValue]s.
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.2.0
  */
-class FloatVectorValueStatistics(type: Types<FloatVectorValue>) : ValueStatistics<FloatVectorValue>(type) {
+class FloatVectorValueStatistics(logicalSize: Int) : AbstractValueStatistics<FloatVectorValue>(Types.FloatVector(logicalSize)), VectorValueStatistics<FloatVectorValue> {
     /** Minimum value in this [FloatVectorValueStatistics]. */
-    val min: FloatVectorValue = FloatVectorValue(FloatArray(this.type.logicalSize) { Float.MAX_VALUE })
+    override val min: FloatVectorValue = FloatVectorValue(FloatArray(this.type.logicalSize) { Float.MAX_VALUE })
 
     /** Minimum value in this [FloatVectorValueStatistics]. */
-    val max: FloatVectorValue = FloatVectorValue(FloatArray(this.type.logicalSize) { Float.MIN_VALUE })
+    override val max: FloatVectorValue = FloatVectorValue(FloatArray(this.type.logicalSize) { Float.MIN_VALUE })
 
     /** Sum of all floats values in this [FloatVectorValueStatistics]. */
-    val sum: FloatVectorValue = FloatVectorValue(FloatArray(this.type.logicalSize))
+    override val sum: FloatVectorValue = FloatVectorValue(FloatArray(this.type.logicalSize))
 
     /** The arithmetic for the values seen by this [DoubleVectorValueStatistics]. */
-    val avg: FloatVectorValue
+    override val mean: FloatVectorValue
         get() = FloatVectorValue(FloatArray(this.type.logicalSize) {
             this.sum[it].value / this.numberOfNonNullEntries
         })
 
     /**
+     * Xodus serializer for [FloatVectorValueStatistics]
+     */
+    class Binding(val logicalSize: Int): XodusBinding<FloatVectorValueStatistics> {
+        override fun read(stream: ByteArrayInputStream): FloatVectorValueStatistics {
+            val stat = FloatVectorValueStatistics(logicalSize)
+            stat.fresh = BooleanBinding.BINDING.readObject(stream)
+            stat.numberOfNullEntries = LongBinding.readCompressed(stream)
+            stat.numberOfNonNullEntries = LongBinding.readCompressed(stream)
+            for (i in 0 until this.logicalSize) {
+                stat.min.data[i] = SignedFloatBinding.BINDING.readObject(stream)
+                stat.max.data[i] = SignedFloatBinding.BINDING.readObject(stream)
+                stat.sum.data[i] = SignedFloatBinding.BINDING.readObject(stream)
+            }
+            return stat
+        }
+
+        override fun write(output: LightOutputStream, statistics: FloatVectorValueStatistics) {
+            BooleanBinding.BINDING.writeObject(output, statistics.fresh)
+            LongBinding.writeCompressed(output, statistics.numberOfNullEntries)
+            LongBinding.writeCompressed(output, statistics.numberOfNonNullEntries)
+            for (i in 0 until statistics.type.logicalSize) {
+                SignedFloatBinding.BINDING.writeObject(output, statistics.min.data[i])
+                SignedFloatBinding.BINDING.writeObject(output, statistics.max.data[i])
+                SignedFloatBinding.BINDING.writeObject(output, statistics.sum.data[i])
+            }
+        }
+    }
+
+    /**
      * Updates this [FloatVectorValueStatistics] with an inserted [FloatVectorValue]
      *
-     * @param inserted The [Value] that was deleted.
+     * @param inserted The [FloatVectorValue] that was inserted.
      */
     override fun insert(inserted: FloatVectorValue?) {
         super.insert(inserted)
@@ -49,7 +81,7 @@ class FloatVectorValueStatistics(type: Types<FloatVectorValue>) : ValueStatistic
     /**
      * Updates this [FloatVectorValueStatistics] with a deleted [FloatVectorValue]
      *
-     * @param deleted The [Value] that was deleted.
+     * @param deleted The [FloatVectorValue] that was deleted.
      */
     override fun delete(deleted: FloatVectorValue?) {
         super.delete(deleted)
@@ -61,28 +93,6 @@ class FloatVectorValueStatistics(type: Types<FloatVectorValue>) : ValueStatistic
                 }
                 this.sum.data[i] -= d
             }
-        }
-    }
-
-    /**
-     * A [org.mapdb.Serializer] implementation for a [FloatVectorValueStatistics] object.
-     *
-     * @author Ralph Gasser
-     * @version 1.0.0
-     */
-    class Serializer(val type: Types<FloatVectorValue>) : org.mapdb.Serializer<FloatVectorValueStatistics> {
-        override fun serialize(out: DataOutput2, value: FloatVectorValueStatistics) {
-            value.min.data.forEach { out.writeFloat(it) }
-            value.max.data.forEach { out.writeFloat(it) }
-            value.sum.data.forEach { out.writeFloat(it) }
-        }
-
-        override fun deserialize(input: DataInput2, available: Int): FloatVectorValueStatistics {
-            val stat = FloatVectorValueStatistics(this.type)
-            repeat(this.type.logicalSize) { stat.min.data[it] = input.readFloat() }
-            repeat(this.type.logicalSize) { stat.max.data[it] = input.readFloat() }
-            repeat(this.type.logicalSize) { stat.sum.data[it] = input.readFloat() }
-            return stat
         }
     }
 
@@ -104,7 +114,7 @@ class FloatVectorValueStatistics(type: Types<FloatVectorValue>) : ValueStatistic
      * @return Copy of this [FloatVectorValueStatistics].
      */
     override fun copy(): FloatVectorValueStatistics {
-        val copy = FloatVectorValueStatistics(this.type)
+        val copy = FloatVectorValueStatistics(this.type.logicalSize)
         copy.fresh = this.fresh
         copy.numberOfNullEntries = this.numberOfNullEntries
         copy.numberOfNonNullEntries = this.numberOfNonNullEntries

@@ -3,7 +3,6 @@ package org.vitrivr.cottontail.legacy.v1.catalogue
 import org.mapdb.DataInput2
 import org.mapdb.DataOutput2
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.schema.DefaultSchema
 
 /**
  * The header section of the [CatalogueV1] data structure.

@@ -2,24 +2,28 @@ package org.vitrivr.cottontail.math.basics
 
 import org.apache.commons.math3.complex.Complex
 import org.apache.commons.math3.exception.DimensionMismatchException
+import org.apache.commons.math3.random.JDKRandomGenerator
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.RepeatedTest
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.vitrivr.cottontail.core.values.*
+import org.vitrivr.cottontail.core.values.generators.Complex64ValueGenerator
+import org.vitrivr.cottontail.core.values.generators.Complex64VectorValueGenerator
+import org.vitrivr.cottontail.core.values.generators.DoubleVectorValueGenerator
 import org.vitrivr.cottontail.math.*
-import java.util.*
+import org.vitrivr.cottontail.utilities.math.random.nextInt
 
 /**
  * Some basic test cases that test for correctness of [Complex64VectorValue] arithmetic operations.
  *
  * @author Ralph Gasser
- * @version 1.0.1
+ * @version 1.1.0
  */
 @Disabled
 class Complex64VectorValueTest {
 
-    private val random = SplittableRandom()
+    private val random = JDKRandomGenerator()
 
     companion object;
 
@@ -27,10 +31,10 @@ class Complex64VectorValueTest {
     fun testAdd() {
         val size = random.nextInt(2048)
 
-        val c1 = Complex64VectorValue.random(size, this.random)
-        val c2 = Complex64VectorValue.random(size, this.random)
+        val c1 = Complex64VectorValueGenerator.random(size, this.random)
+        val c2 = Complex64VectorValueGenerator.random(size, this.random)
         val c232 = Complex32VectorValue(c2.data.map { it.toFloat() }.toFloatArray())
-        val c3 = DoubleVectorValue.random(size, this.random)
+        val c3 = DoubleVectorValueGenerator.random(size, this.random)
 
         val c1p = arrayFieldVectorFromVectorValue(c1)
         val c2p = arrayFieldVectorFromVectorValue(c2)
@@ -50,10 +54,10 @@ class Complex64VectorValueTest {
     @RepeatedTest(25)
     fun testAddScalar() {
         val size = random.nextInt(2048)
-        val inc = Complex64Value.random(random)
+        val inc = Complex64ValueGenerator.random(random)
         val real = inc.real
 
-        val c1 = Complex64VectorValue.random(size, this.random)
+        val c1 = Complex64VectorValueGenerator.random(size, this.random)
 
         val c1p = arrayFieldVectorFromVectorValue(c1)
 
@@ -70,10 +74,10 @@ class Complex64VectorValueTest {
     fun testSub() {
         val size = random.nextInt(2048)
 
-        val c1 = Complex64VectorValue.random(size, this.random)
-        val c2 = Complex64VectorValue.random(size, this.random)
+        val c1 = Complex64VectorValueGenerator.random(size, this.random)
+        val c2 = Complex64VectorValueGenerator.random(size, this.random)
         val c232 = Complex32VectorValue(c2.data.map { it.toFloat() }.toFloatArray())
-        val c3 = DoubleVectorValue.random(size, this.random)
+        val c3 = DoubleVectorValueGenerator.random(size, this.random)
 
         val c1p = arrayFieldVectorFromVectorValue(c1)
         val c2p = arrayFieldVectorFromVectorValue(c2)
@@ -93,10 +97,10 @@ class Complex64VectorValueTest {
     @RepeatedTest(25)
     fun testSubScalar() {
         val size = random.nextInt(2048)
-        val number = Complex64Value.random(random)
+        val number = Complex64ValueGenerator.random(random)
         val real = number.real
 
-        val c1 = Complex64VectorValue.random(size, this.random)
+        val c1 = Complex64VectorValueGenerator.random(size, this.random)
 
         val c1p = arrayFieldVectorFromVectorValue(c1)
 
@@ -113,10 +117,10 @@ class Complex64VectorValueTest {
     fun testMult() {
         val size = random.nextInt(2048)
 
-        val c1 = Complex64VectorValue.random(size, this.random)
-        val c2 = Complex64VectorValue.random(size, this.random)
+        val c1 = Complex64VectorValueGenerator.random(size, this.random)
+        val c2 = Complex64VectorValueGenerator.random(size, this.random)
         val c232 = Complex32VectorValue(c2.data.map { it.toFloat() }.toFloatArray())
-        val c3 = DoubleVectorValue.random(size, this.random)
+        val c3 = DoubleVectorValueGenerator.random(size, this.random)
 
         val c1p = arrayFieldVectorFromVectorValue(c1)
         val c2p = arrayFieldVectorFromVectorValue(c2)
@@ -136,10 +140,10 @@ class Complex64VectorValueTest {
     @RepeatedTest(25)
     fun testMultScalar() {
         val size = random.nextInt(2048)
-        val fac = Complex64Value.random(random)
+        val fac = Complex64ValueGenerator.random(random)
         val real = fac.real
 
-        val c1 = Complex64VectorValue.random(size, this.random)
+        val c1 = Complex64VectorValueGenerator.random(size, this.random)
 
         val c1p = arrayFieldVectorFromVectorValue(c1)
 
@@ -156,10 +160,10 @@ class Complex64VectorValueTest {
     fun testDiv() {
         val size = random.nextInt(2048)
 
-        val c1 = Complex64VectorValue.random(size, this.random)
-        val c2 = Complex64VectorValue.random(size, this.random)
+        val c1 = Complex64VectorValueGenerator.random(size, this.random)
+        val c2 = Complex64VectorValueGenerator.random(size, this.random)
         val c232 = Complex32VectorValue(c2.data.map { it.toFloat() }.toFloatArray())
-        val c3 = DoubleVectorValue.random(size, this.random)
+        val c3 = DoubleVectorValueGenerator.random(size, this.random)
 
         val c1p = arrayFieldVectorFromVectorValue(c1)
         val c2p = arrayFieldVectorFromVectorValue(c2)
@@ -179,10 +183,10 @@ class Complex64VectorValueTest {
     @RepeatedTest(25)
     fun testDivScalar() {
         val size = random.nextInt(2048)
-        val number = Complex64Value.random(random)
+        val number = Complex64ValueGenerator.random(random)
         val real = number.real
 
-        val c1 = Complex64VectorValue.random(size, this.random)
+        val c1 = Complex64VectorValueGenerator.random(size, this.random)
 
         val c1p = arrayFieldVectorFromVectorValue(c1)
 
@@ -199,7 +203,7 @@ class Complex64VectorValueTest {
     fun testPow() {
         val size = random.nextInt(2048)
         val exp = random.nextInt(10)
-        val c1 = Complex64VectorValue.random(size, this.random)
+        val c1 = Complex64VectorValueGenerator.random(size, this.random)
 
         val pow: Complex64VectorValue = c1.pow(exp)
 
@@ -213,7 +217,7 @@ class Complex64VectorValueTest {
     @RepeatedTest(25)
     fun testAbs() {
         val size = random.nextInt(2048)
-        val c1 = Complex64VectorValue.random(size, this.random)
+        val c1 = Complex64VectorValueGenerator.random(size, this.random)
         val abs: DoubleVectorValue = c1.abs()
 
         for (i in 0 until size) {
@@ -225,7 +229,7 @@ class Complex64VectorValueTest {
     @RepeatedTest(25)
     fun testSqrt() {
         val size = random.nextInt(2048)
-        val c1 = Complex64VectorValue.random(size, this.random)
+        val c1 = Complex64VectorValueGenerator.random(size, this.random)
 
         val sqrt: Complex64VectorValue = c1.sqrt()
 
@@ -240,10 +244,10 @@ class Complex64VectorValueTest {
     fun testDot() {
         val size = random.nextInt(2048)
 
-        val c1 = Complex64VectorValue.random(size, this.random)
-        val c2 = Complex64VectorValue.random(size, this.random)
+        val c1 = Complex64VectorValueGenerator.random(size, this.random)
+        val c2 = Complex64VectorValueGenerator.random(size, this.random)
         val c232 = Complex32VectorValue(c2.data.map { it.toFloat() }.toFloatArray())
-        val r1 = DoubleVectorValue.random(size, this.random)
+        val r1 = DoubleVectorValueGenerator.random(size, this.random)
 
         val c1p = arrayFieldVectorFromVectorValue(c1)
         val c2p = arrayFieldVectorFromVectorValue(c2)
@@ -281,7 +285,7 @@ class Complex64VectorValueTest {
     @RepeatedTest(25)
     fun testSum() {
         val size = random.nextInt(2048)
-        val c1 = Complex64VectorValue.random(size, this.random)
+        val c1 = Complex64VectorValueGenerator.random(size, this.random)
         val sum: Complex64Value = c1.sum()
 
         var sump = Complex64Value(0.0, 0.0)
@@ -296,8 +300,8 @@ class Complex64VectorValueTest {
     @RepeatedTest(25)
     fun testL1() {
         val size = random.nextInt(2048)
-        val c1 = Complex64VectorValue.random(size, this.random)
-        val c2 = Complex64VectorValue.random(size, this.random)
+        val c1 = Complex64VectorValueGenerator.random(size, this.random)
+        val c2 = Complex64VectorValueGenerator.random(size, this.random)
         val c232 = Complex32VectorValue(c2.data.map { it.toFloat() }.toFloatArray())
 
         val c1p = arrayFieldVectorFromVectorValue(c1)
@@ -317,8 +321,8 @@ class Complex64VectorValueTest {
     @RepeatedTest(25)
     fun testL2() {
         val size = random.nextInt(2048)
-        val c1 = Complex64VectorValue.random(size, this.random)
-        val c2 = Complex64VectorValue.random(size, this.random)
+        val c1 = Complex64VectorValueGenerator.random(size, this.random)
+        val c2 = Complex64VectorValueGenerator.random(size, this.random)
         val c232 = Complex32VectorValue(c2.data.map { it.toFloat() }.toFloatArray())
 
         val c1p = arrayFieldVectorFromVectorValue(c1)
@@ -338,9 +342,9 @@ class Complex64VectorValueTest {
     @RepeatedTest(25)
     fun testLp() {
         val size = random.nextInt(2048)
-        val p = random.nextInt(2, 10)
-        val c1 = Complex64VectorValue.random(size, this.random)
-        val c2 = Complex64VectorValue.random(size, this.random)
+        val p = this.random.nextInt(2, 10)
+        val c1 = Complex64VectorValueGenerator.random(size, this.random)
+        val c2 = Complex64VectorValueGenerator.random(size, this.random)
         val c232 = Complex32VectorValue(c2.data.map { it.toFloat() }.toFloatArray())
 
         val lp: DoubleValue = c1.lp(c2, p).asDouble()
@@ -355,10 +359,10 @@ class Complex64VectorValueTest {
 
     @RepeatedTest(25)
     fun testRealLp() {
-        val size = random.nextInt(2048)
-        val p = random.nextInt(2, 10)
-        val c1p = DoubleVectorValue.random(size, this.random)
-        val c2p = DoubleVectorValue.random(size, this.random)
+        val size = this.random.nextInt(2048)
+        val p = this.random.nextInt(2, 10)
+        val c1p = DoubleVectorValueGenerator.random(size, this.random)
+        val c2p = DoubleVectorValueGenerator.random(size, this.random)
 
         val c1 = Complex64VectorValue(DoubleArray(2 * size) {
             if (it % 2 == 0) {
@@ -393,8 +397,8 @@ class Complex64VectorValueTest {
     @Test
     fun testSizeMismatchFails() {
         val size = random.nextInt(2048)
-        val c1 = Complex64VectorValue.random(size, random)
-        val c2 = Complex64VectorValue.random(size + 1, random)
+        val c1 = Complex64VectorValueGenerator.random(size, random)
+        val c2 = Complex64VectorValueGenerator.random(size + 1, random)
 
         val c1p = arrayFieldVectorFromVectorValue(c1)
         val c2p = arrayFieldVectorFromVectorValue(c2)

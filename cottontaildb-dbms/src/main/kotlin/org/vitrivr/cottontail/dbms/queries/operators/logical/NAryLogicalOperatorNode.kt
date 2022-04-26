@@ -3,11 +3,8 @@ package org.vitrivr.cottontail.dbms.queries.operators.logical
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
-import org.vitrivr.cottontail.core.queries.Node
-import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.BinaryPhysicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.sort.SortOrder
 import java.io.PrintStream
 import java.util.*
 
@@ -15,7 +12,7 @@ import java.util.*
  * An abstract [OperatorNode.Logical] implementation that has multiple [OperatorNode.Logical]s as input.
  *
  * @author Ralph Gasser
- * @version 2.5.0
+ * @version 2.6.0
  */
 abstract class NAryLogicalOperatorNode(vararg inputs: Logical) : org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Logical() {
 
@@ -47,10 +44,6 @@ abstract class NAryLogicalOperatorNode(vararg inputs: Logical) : org.vitrivr.cot
     /** By default, the [NAryLogicalOperatorNode] outputs the [ColumnDef] of its input. */
     override val columns: List<ColumnDef<*>>
         get() = (this.inputs.firstOrNull()?.columns ?: emptyList())
-
-    /** By default, a [NAryLogicalOperatorNode]'s output is unordered. */
-    override val sortOn: List<Pair<ColumnDef<*>, SortOrder>>
-        get() = emptyList()
 
     /** By default, a [NAryLogicalOperatorNode] doesn't have any requirement. */
     override val requires: List<ColumnDef<*>>
@@ -118,17 +111,6 @@ abstract class NAryLogicalOperatorNode(vararg inputs: Logical) : org.vitrivr.cot
         val copy = this.copy()
         input.forEach { copy.addInput(it) }
         return (this.output?.copyWithOutput(copy) ?: copy).root
-    }
-
-    /**
-     * By default, the [NAryLogicalOperatorNode] simply propagates [bind] calls to its inpus.
-     *
-     * However, some implementations must propagate the call to inner [Node]s.
-     *
-     * @param context The [BindingContext] to bind this [NAryLogicalOperatorNode] to.
-     */
-    override fun bind(context: BindingContext) {
-        this.inputs.forEach { it.bind(context) }
     }
 
     /**

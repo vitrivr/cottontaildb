@@ -2,15 +2,17 @@ package org.vitrivr.cottontail.dbms.execution.operators.sources
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.predicates.Predicate
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
-import org.vitrivr.cottontail.core.values.types.Value
-import org.vitrivr.cottontail.dbms.execution.TransactionContext
+import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.index.Index
 import org.vitrivr.cottontail.dbms.index.IndexTx
 
@@ -29,9 +31,14 @@ class IndexScanOperator(
     private val partitions: Int = 1
 ) : Operator.SourceOperator(groupId) {
 
+    companion object {
+        /** [Logger] instance used by [IndexScanOperator]. */
+        private val LOGGER: Logger = LoggerFactory.getLogger(IndexScanOperator::class.java)
+    }
+
     /** The [ColumnDef] produced by this [IndexScanOperator]. */
     override val columns: List<ColumnDef<*>> = this.fetch.map {
-        require(this.index.dbo.produces.contains(it.second)) { "The given column $it is not produced by the selected index ${this.index.dbo}. This is a programmer's error!"}
+        require(this.index.columnsFor(this.predicate).contains(it.second)) { "The given column $it is not produced by the selected index ${this.index.dbo}. This is a programmer's error!"}
         it.first.column
     }
 
@@ -43,17 +50,23 @@ class IndexScanOperator(
      */
     override fun toFlow(context: TransactionContext): Flow<Record> = flow {
         val columns = this@IndexScanOperator.fetch.map { it.first.column }.toTypedArray()
-        val values = arrayOfNulls<Value>(columns.size)
-        val iterator = if (this@IndexScanOperator.partitions == 1) {
+        val cursor = if (this@IndexScanOperator.partitions == 1) {
             this@IndexScanOperator.index.filter(this@IndexScanOperator.predicate)
         } else {
-            this@IndexScanOperator.index.filterRange(this@IndexScanOperator.predicate, this@IndexScanOperator.partitionIndex, this@IndexScanOperator.partitions)
+            val entityTx = this@IndexScanOperator.index.context.getTx(this@IndexScanOperator.index.dbo.parent) as EntityTx
+            this@IndexScanOperator.index.filter(this@IndexScanOperator.predicate, entityTx.partitionFor(this@IndexScanOperator.partitionIndex, this@IndexScanOperator.partitions))
         }
-        for (record in iterator) {
-            for (i in values.indices) values[i] = record[i]
-            val rec = StandaloneRecord(record.tupleId, columns, values)
-            this@IndexScanOperator.fetch.first().first.context.update(rec)
-            emit(rec)
+        var read = 0
+        while (cursor.moveNext()) {
+            val record = cursor.value() as StandaloneRecord
+            for ((i,c) in columns.withIndex()) {
+                record.columns[i] = c
+            }
+            this@IndexScanOperator.fetch.first().first.context.update(record)
+            emit(record)
+            read += 1
         }
+        cursor.close()
+        LOGGER.debug("Read $read entries from ${this@IndexScanOperator.index.dbo.name}.")
     }
 }

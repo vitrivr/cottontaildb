@@ -1,15 +1,18 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.sources
 
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.binding.Binding
-import org.vitrivr.cottontail.core.queries.binding.BindingContext
+import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
+import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
+import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.execution.operators.sources.EntityCountOperator
-import org.vitrivr.cottontail.dbms.queries.QueryContext
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.physical.NullaryPhysicalOperatorNode
-import org.vitrivr.cottontail.dbms.statistics.entity.RecordStatistics
+import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
 
 /**
  * A [NullaryPhysicalOperatorNode] that formalizes the counting entries in a physical [Entity].
@@ -39,14 +42,14 @@ class EntityCountPhysicalOperatorNode(override val groupId: Int, val entity: Ent
     /** [EntityCountPhysicalOperatorNode] is always executable. */
     override val executable: Boolean = true
 
-    /** [EntityCountPhysicalOperatorNode] cannot be partitioned. */
-    override val canBePartitioned: Boolean = false
-
-    /** The estimated [Cost] of sampling the [Entity]. */
+    /** The estimated [Cost] of incurred by this [EntityCountPhysicalOperatorNode]. */
     override val cost = Cost.DISK_ACCESS_READ + Cost.MEMORY_ACCESS
 
-    /** The [RecordStatistics] is taken from the underlying [Entity]. [RecordStatistics] are used by the query planning for [Cost] estimation. */
-    override val statistics: RecordStatistics = this.entity.dbo.statistics
+    /** [ValueStatistics] are taken from the underlying [Entity]. The query planner uses statistics for [Cost] estimation. */
+    override val statistics = Object2ObjectLinkedOpenHashMap<ColumnDef<*>, ValueStatistics<*>>()
+
+    /** The [EntityCountOperator] cannot be partitioned. */
+    override val traits: Map<TraitType<*>, Trait> = mapOf(NotPartitionableTrait to NotPartitionableTrait)
 
     /**
      * Creates and returns a copy of this [EntityCountPhysicalOperatorNode] without any children or parents.
@@ -56,20 +59,17 @@ class EntityCountPhysicalOperatorNode(override val groupId: Int, val entity: Ent
     override fun copy() = EntityCountPhysicalOperatorNode(this.groupId, this.entity, this.out)
 
     /**
-     * Propagates the [bind] call to all [Binding.Column] processed by this [EntityScanPhysicalOperatorNode].
-     *
-     * @param context The new [BindingContext]
-     */
-    override fun bind(context: BindingContext) {
-        this.out.bind(context)
-    }
-
-    /**
      * Converts this [EntityCountPhysicalOperatorNode] to a [EntityCountOperator].
      *
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(ctx: QueryContext) = EntityCountOperator(this.groupId, this.entity, this.out)
+    override fun toOperator(ctx: QueryContext): EntityCountOperator {
+        /* Bind all column bindings to context. */
+        this.out.bind(ctx.bindings)
+
+        /* Generate and return EntityCountOperator. */
+        return EntityCountOperator(this.groupId, this.entity, this.out)
+    }
 
     /** Generates and returns a [String] representation of this [EntityCountPhysicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.columns.joinToString(",") { it.name.toString() }}]"

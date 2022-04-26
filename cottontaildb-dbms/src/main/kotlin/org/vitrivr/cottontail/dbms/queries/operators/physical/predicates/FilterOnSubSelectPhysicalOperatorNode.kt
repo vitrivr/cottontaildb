@@ -1,16 +1,16 @@
 package org.vitrivr.cottontail.dbms.queries.operators.physical.predicates
 
 import org.vitrivr.cottontail.core.database.ColumnDef
-import org.vitrivr.cottontail.core.queries.binding.BindingContext
+import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
+import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
 import org.vitrivr.cottontail.core.queries.predicates.ProximityPredicate
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.operators.predicates.FilterOnSubselectOperator
-import org.vitrivr.cottontail.dbms.queries.QueryContext
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.logical.BinaryLogicalOperatorNode
-import org.vitrivr.cottontail.dbms.queries.operators.logical.predicates.FilterOnSubSelectLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.NAryPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.statistics.selectivity.NaiveSelectivityCalculator
 import org.vitrivr.cottontail.dbms.statistics.selectivity.Selectivity
@@ -48,6 +48,10 @@ class FilterOnSubSelectPhysicalOperatorNode(val predicate: BooleanPredicate, var
     override val cost: Cost
         get() = this.predicate.cost * (this.inputs.firstOrNull()?.outputSize ?: 0)
 
+    /** The [FilterOnSubSelectPhysicalOperatorNode] inherits its traits from its left most input. */
+    override val traits: Map<TraitType<*>, Trait>
+        get() = super.inputs[0].traits
+
     /**
      * Creates and returns a copy of this [FilterOnSubSelectPhysicalOperatorNode] without any children or parents.
      *
@@ -56,28 +60,19 @@ class FilterOnSubSelectPhysicalOperatorNode(val predicate: BooleanPredicate, var
     override fun copy() = FilterOnSubSelectPhysicalOperatorNode(predicate = this.predicate.copy())
 
     /**
-     * Binds the provided [BindingContext] to this [BooleanPredicate].
-     *
-     * @param context The new [BindingContext].
-     */
-    override fun bind(context: BindingContext) {
-        super.bind(context)
-        this.predicate.bind(context)
-    }
-
-    /**
-     * Converts this [FilterPhysicalOperatorNode] to a [FilterOnSubselectOperator].
+     * Converts this [FilterOnSubSelectPhysicalOperatorNode] to a [FilterOnSubselectOperator].
      *
      * @param ctx The [QueryContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(ctx: QueryContext): Operator = FilterOnSubselectOperator(
-        this.inputs[0].toOperator(ctx),
-        ctx.bindings,
-        this.inputs.drop(1).map { it.toOperator(ctx) },
-        this.predicate
-    )
+    override fun toOperator(ctx: QueryContext): Operator {
+        /* Bind predicate to context. */
+        this.predicate.bind(ctx.bindings)
 
-    /** Generates and returns a [String] representation of this [FilterOnSubSelectLogicalOperatorNode]. */
+        /* Generate and return FilterOnSubselectOperator. */
+        return FilterOnSubselectOperator(this.inputs[0].toOperator(ctx), this.inputs.drop(1).map { it.toOperator(ctx) }, this.predicate)
+    }
+
+    /** Generates and returns a [String] representation of this [FilterOnSubSelectPhysicalOperatorNode]. */
     override fun toString() = "${super.toString()}[${this.predicate}]"
 
     override fun equals(other: Any?): Boolean {

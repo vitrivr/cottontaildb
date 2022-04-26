@@ -2,7 +2,6 @@ package org.vitrivr.cottontail.dbms.queries.operators.logical.sources
 
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.binding.Binding
-import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.queries.operators.logical.NullaryLogicalOperatorNode
@@ -36,15 +35,6 @@ class EntityScanLogicalOperatorNode(override val groupId: Int, val entity: Entit
      * @return Copy of this [EntityScanLogicalOperatorNode].
      */
     override fun copy() = EntityScanLogicalOperatorNode(this.groupId, this.entity, this.fetch.map { it.first.copy() to it.second })
-
-    /**
-     * Propagates the [bind] call to all [Binding.Column] processed by this [EntityScanLogicalOperatorNode].
-     *
-     * @param context The new [BindingContext]
-     */
-    override fun bind(context: BindingContext) {
-        this.fetch.forEach { it.first.bind(context) }
-    }
 
     /**
      * Returns a [EntityScanPhysicalOperatorNode] representation of this [EntityScanLogicalOperatorNode]

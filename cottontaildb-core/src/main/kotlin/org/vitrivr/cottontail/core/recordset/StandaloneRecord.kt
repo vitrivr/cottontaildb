@@ -35,6 +35,9 @@ class StandaloneRecord(override var tupleId: TupleId, override val columns: Arra
         }
     }
 
+    /** Internal cache to speed-up access to pointers. */
+    private val map = Object2ObjectArrayMap<ColumnDef<*>,Value?>(this.columns, this.values)
+
     /**
      * Copies this [StandaloneRecord] and returns the copy. Creates a physical copy of the [values] array.
      *
@@ -71,7 +74,7 @@ class StandaloneRecord(override var tupleId: TupleId, override val columns: Arra
      * @param column The [ColumnDef] for which to retrieve the value.
      * @return The value for the [ColumnDef]
      */
-    override fun get(column: ColumnDef<*>): Value? = this[this.columns.indexOf(column)]
+    override fun get(column: ColumnDef<*>): Value? = this.map[column]
 
     /**
      * Retrieves the value for the specified column index from this [StandaloneRecord].
@@ -90,7 +93,7 @@ class StandaloneRecord(override var tupleId: TupleId, override val columns: Arra
      * @param column The [ColumnDef] for which to set the value.
      * @param value The new value for the [ColumnDef]
      */
-    override fun set(column: ColumnDef<*>, value: Value?) = this.set(this.columns.indexOf(column), value)
+    override fun set(column: ColumnDef<*>, value: Value?) = this.map.set(column, value)
 
     /**
      * Sets the value for the specified column index  in this [StandaloneRecord].

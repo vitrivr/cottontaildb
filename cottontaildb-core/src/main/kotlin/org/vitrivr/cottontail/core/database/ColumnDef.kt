@@ -8,7 +8,7 @@ import org.vitrivr.cottontail.core.values.types.Value
  * of such and facilitates validation of [Value]s with respect to the [ColumnDef].
  *
  * @author Ralph Gasser
- * @version 1.5.1
+ * @version 1.6.0
  */
 data class ColumnDef<T : Value>(val name: Name.ColumnName, val type: Types<T>, val nullable: Boolean = true, val primary: Boolean = false) {
     /**
@@ -18,7 +18,7 @@ data class ColumnDef<T : Value>(val name: Name.ColumnName, val type: Types<T>, v
      * @return True if value passes validation, false otherwise.
      */
     fun validate(value: Value?): Boolean
-        = ((value == null && this.nullable) || (value != null && this.type.compatible(value)))
+        = ((value == null && this.nullable) || (value != null && this.type == value.type))
 
     /**
      * Creates and returns a [String] representation of this [ColumnDef].

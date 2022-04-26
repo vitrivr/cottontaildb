@@ -1,10 +1,15 @@
 package org.vitrivr.cottontail.dbms.statistics.columns
 
-import org.mapdb.DataInput2
-import org.mapdb.DataOutput2
-import org.vitrivr.cottontail.core.values.types.Types
+import jetbrains.exodus.bindings.BooleanBinding
+import jetbrains.exodus.bindings.IntegerBinding
+import jetbrains.exodus.bindings.LongBinding
+import jetbrains.exodus.bindings.SignedDoubleBinding
+import jetbrains.exodus.util.LightOutputStream
+import org.vitrivr.cottontail.core.values.DoubleValue
 import org.vitrivr.cottontail.core.values.IntValue
-import org.vitrivr.cottontail.core.values.types.Value
+import org.vitrivr.cottontail.core.values.types.Types
+import org.vitrivr.cottontail.storage.serializers.statistics.xodus.XodusBinding
+import java.io.ByteArrayInputStream
 import java.lang.Integer.max
 import java.lang.Integer.min
 
@@ -12,56 +17,70 @@ import java.lang.Integer.min
  * A [ValueStatistics] implementation for [IntValue]s.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.2.0
  */
-class IntValueStatistics : ValueStatistics<IntValue>(Types.Int) {
+class IntValueStatistics : AbstractValueStatistics<IntValue>(Types.Int), RealValueStatistics<IntValue> {
 
     /**
-     * Serializer for [LongValueStatistics].
+     * Xodus serializer for [IntValueStatistics]
      */
-    companion object Serializer : org.mapdb.Serializer<IntValueStatistics> {
-        override fun serialize(out: DataOutput2, value: IntValueStatistics) {
-            out.writeInt(value.min)
-            out.writeInt(value.max)
+    object Binding: XodusBinding<IntValueStatistics> {
+        override fun read(stream: ByteArrayInputStream): IntValueStatistics {
+            val stat = IntValueStatistics()
+            stat.fresh = BooleanBinding.BINDING.readObject(stream)
+            stat.numberOfNullEntries = LongBinding.readCompressed(stream)
+            stat.numberOfNonNullEntries = LongBinding.readCompressed(stream)
+            stat.min = IntValue(IntegerBinding.BINDING.readObject(stream))
+            stat.max = IntValue(IntegerBinding.BINDING.readObject(stream))
+            stat.sum = DoubleValue(SignedDoubleBinding.BINDING.readObject(stream))
+            return stat
         }
 
-        override fun deserialize(input: DataInput2, available: Int): IntValueStatistics {
-            val stat = IntValueStatistics()
-            stat.min = input.readInt()
-            stat.max = input.readInt()
-            return stat
+        override fun write(output: LightOutputStream, statistics: IntValueStatistics) {
+            BooleanBinding.BINDING.writeObject(output, statistics.fresh)
+            LongBinding.writeCompressed(output, statistics.numberOfNullEntries)
+            LongBinding.writeCompressed(output, statistics.numberOfNonNullEntries)
+            IntegerBinding.BINDING.writeObject(output, statistics.min.value)
+            IntegerBinding.BINDING.writeObject(output, statistics.max.value)
+            SignedDoubleBinding.BINDING.writeObject(output, statistics.sum.value)
         }
     }
 
-    /** Minimum value for this [IntValueStatistics]. */
-    var min: Int = Int.MAX_VALUE
+    /** Minimum value seen by this [IntValueStatistics]. */
+    override var min: IntValue = IntValue.MAX_VALUE
+        private set
 
-    /** Minimum value for this [IntValueStatistics]. */
-    var max: Int = Int.MIN_VALUE
+    /** Minimum value seen by this [IntValueStatistics]. */
+    override var max: IntValue = IntValue.MIN_VALUE
+        private set
+
+    /** Sum of all [IntValue]s seen by this [IntValueStatistics]. */
+    override var sum: DoubleValue = DoubleValue.ZERO
+        private set
 
     /**
-     * Updates this [LongValueStatistics] with an inserted [IntValue]
+     * Updates this [IntValueStatistics] with an inserted [IntValue]
      *
-     * @param inserted The [Value] that was deleted.
+     * @param inserted The [IntValue] that was inserted.
      */
     override fun insert(inserted: IntValue?) {
         super.insert(inserted)
         if (inserted != null) {
-            this.min = min(inserted.value, this.min)
-            this.max = max(inserted.value, this.max)
+            this.min = IntValue(min(inserted.value, this.min.value))
+            this.max = IntValue(max(inserted.value, this.max.value))
         }
     }
 
     /**
-     * Updates this [LongValueStatistics] with a deleted [IntValue]
+     * Updates this [IntValueStatistics] with a deleted [IntValue]
      *
-     * @param deleted The [Value] that was deleted.
+     * @param deleted The [IntValue] that was deleted.
      */
     override fun delete(deleted: IntValue?) {
         super.delete(deleted)
 
         /* We cannot create a sensible estimate if a value is deleted. */
-        if (this.min == deleted?.value || this.max == deleted?.value) {
+        if (this.min == deleted || this.max == deleted) {
             this.fresh = false
         }
     }
@@ -71,8 +90,8 @@ class IntValueStatistics : ValueStatistics<IntValue>(Types.Int) {
      */
     override fun reset() {
         super.reset()
-        this.min = Int.MAX_VALUE
-        this.max = Int.MIN_VALUE
+        this.min = IntValue.MAX_VALUE
+        this.max = IntValue.MIN_VALUE
     }
 
     /**

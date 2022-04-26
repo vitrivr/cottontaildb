@@ -1,7 +1,7 @@
 plugins {
     id "org.jetbrains.kotlin.jvm" version "$version_kotlin"
     id "org.jetbrains.kotlin.plugin.serialization" version "$version_kotlin"
-    id "com.github.johnrengelman.shadow" version "6.1.0"
+    id "com.github.johnrengelman.shadow" version "7.1.2"
     id 'idea'
 }
 
@@ -12,7 +12,7 @@ allprojects {
     group = 'org.vitrivr'
 
     /* Our current version, on dev branch this should always be release+1-SNAPSHOT */
-    version = '0.14.1'
+    version = '0.15.0'
 
     /* Repositories for build script. */
     buildscript {
@@ -39,6 +39,7 @@ subprojects {
     apply plugin: 'kotlin'
     apply plugin: 'idea'
     apply plugin: 'java-library'
+    apply plugin: 'java-test-fixtures'
 
     compileKotlin {
         kotlinOptions.jvmTarget = "1.8"
@@ -53,6 +54,12 @@ subprojects {
     java {
         withJavadocJar()
         withSourcesJar()
+    }
+
+    /** Increase heap size for all unit tests. */
+    test {
+        minHeapSize = "256M"
+        maxHeapSize = "2G"
     }
 
     javadoc {
