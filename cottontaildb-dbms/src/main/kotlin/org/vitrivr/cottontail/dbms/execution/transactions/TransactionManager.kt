@@ -14,10 +14,8 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.slf4j.LoggerFactory
 import org.vitrivr.cottontail.core.basics.Record
-import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TransactionId
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
-import org.vitrivr.cottontail.dbms.events.DataEvent
 import org.vitrivr.cottontail.dbms.events.Event
 import org.vitrivr.cottontail.dbms.execution.ExecutionManager
 import org.vitrivr.cottontail.dbms.execution.locking.Lock
@@ -28,6 +26,7 @@ import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager.TransactionImpl
 import org.vitrivr.cottontail.dbms.general.DBO
 import org.vitrivr.cottontail.dbms.general.Tx
+import java.lang.ref.SoftReference
 import java.util.*
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.coroutines.CoroutineContext
@@ -74,7 +73,9 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
      * @param observer [TransactionObserver] to register.
      * @return True on success, false otherwise.
      */
-    fun register(observer: TransactionObserver) = this.observers.add(observer)
+    fun register(observer: TransactionObserver) {
+        this.observers.add(observer)
+    }
 
     /**
      * De-registers the given [TransactionObserver] with this [TransactionManager].
@@ -82,7 +83,9 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
      * @param observer [TransactionObserver] to de-register.
      * @return True on success, false otherwise.
      */
-    fun deregister(observer: TransactionObserver) = this.observers.remove(observer)
+    fun deregister(observer: TransactionObserver) {
+        this.observers.remove(observer)
+    }
 
     /**
      * A concrete [TransactionImpl] used for executing a query.
@@ -92,7 +95,7 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
      * @author Ralph Gasser
      * @version 1.5.0
      */
-    inner class TransactionImpl(override val type: TransactionType, private val trackDataEventFor: Set<Name.EntityName> = emptySet()) : LockHolder<DBO>(this@TransactionManager.tidCounter.getAndIncrement()), Transaction, TransactionContext {
+    inner class TransactionImpl(override val type: TransactionType) : LockHolder<DBO>(this@TransactionManager.tidCounter.getAndIncrement()), Transaction, TransactionContext {
 
         /** The [TransactionStatus] of this [TransactionImpl]. */
         @Volatile
@@ -106,7 +109,15 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
             this@TransactionManager.catalogue.environment.beginTransaction()
         }
 
-        /** Map of all [Tx] that have been created as part of this [TransactionImpl]. */
+        /**
+         * A [MutableMap] of all [TransactionObserver] and the [Event]s that were collected for them.
+         *
+         * Since a lot of [Event]s can build-up during a [Transaction], the [MutableList] is wrapped in a [SoftReference],
+         * which can be
+         */
+        private val localObservers: MutableMap<TransactionObserver, SoftReference<MutableList<Event>>> = Object2ObjectMaps.synchronize(Object2ObjectLinkedOpenHashMap())
+
+        /** A [MutableMap] of all [Tx] that have been created as part of this [TransactionImpl]. */
         private val txns: MutableMap<DBO, Tx> = Object2ObjectMaps.synchronize(Object2ObjectLinkedOpenHashMap())
 
         /** A [Mutex] data structure used for synchronisation on the [TransactionImpl]. */
@@ -137,9 +148,6 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
         /** A [HashSet] containing ALL [CoroutineContext] instances associated with execution in this [TransactionImpl], */
         private val activeContexts = HashSet<CoroutineContext>()
 
-        /** List of [Event]s that were collected in the context of this [TransactionImpl]. */
-        private val events: MutableList<Event> = Collections.synchronizedList(LinkedList())
-
         /** Number of ongoing queries in this [TransactionImpl]. */
         val numberOfOngoing: Int
             get() = this.activeContexts.size
@@ -158,6 +166,11 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
             this@TransactionManager.transactionHistory.add(this)
             if (this@TransactionManager.transactionHistory.size >= this@TransactionManager.transactionHistorySize) {
                 this@TransactionManager.transactionHistory.removeAt(0)
+            }
+
+            /** Create transaction, local snapshot of the registered transaction observers. */
+            for (observer in this@TransactionManager.observers) {
+                this.localObservers[observer] = SoftReference(LinkedList<Event>())
             }
         }
 
@@ -182,13 +195,18 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
         override fun requestLock(dbo: DBO, mode: LockMode) = this@TransactionManager.lockManager.lock(this, dbo, mode)
 
         /**
-         * Signals an [Event to this [TransactionImpl].s
+         * Signals an [Event] to this [TransactionImpl].
+         *
+         * Those [Event]s are stored, if any of the registered [localObservers]s signal interest in the [Event].
          *
          * @param event The [Event] that has been reported.
          */
         override fun signalEvent(event: Event) {
-            if (event !is DataEvent || event.entity in this.trackDataEventFor) {
-                this.events.add(event) /* TODO: Collection of DataEvents can use a lot of memory! */
+            for ((observer, listRef) in this.localObservers) {
+                val list = listRef.get()
+                if (list != null && observer.isRelevant(event)) {
+                    list.add(event)
+                }
             }
         }
 
@@ -307,15 +325,20 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
             this@TransactionManager.transactions.remove(this@TransactionImpl.txId)
             if (committed) {
                 this@TransactionImpl.state = TransactionStatus.COMMIT
-                for (observer in this@TransactionManager.observers) { /* Signal COMMIT to observers. */
-                    observer.didCommit(this.txId, this.events)
+                for ((observer, listRef) in this.localObservers) {
+                    val list = listRef.get()
+                    if (list != null) {
+                        observer.onCommit(this.txId, list)    /* Signal COMMIT to local observers. */
+                    } else {
+                        observer.onDeliveryFailure(this.txId) /* Signal DELIVERY FAILURE to local observers. */
+                    }
                 }
             } else {
                 this@TransactionImpl.state = TransactionStatus.ROLLBACK
-                for (observer in this@TransactionManager.observers) { /* Signal ROLLBACK to observers. */
-                    observer.didAbort(this.txId, this.events)
-                }
             }
+
+            /* Clear local observers to release memory. */
+            this.localObservers.clear()
         }
     }
 }

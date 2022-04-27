@@ -33,17 +33,24 @@ class AutoAnalyzerService(val catalogue: Catalogue, val manager: TransactionMana
     }
 
     /**
+     * The [AutoAnalyzerService] is only interested int [ColumnEvent.Stale].
+     *
+     * @param event The [Event] to check.
+     * @return True if [Event] is a [ColumnEvent.Stale]
+     */
+    override fun isRelevant(event: Event): Boolean
+        = event is ColumnEvent.Stale
+
+    /**
      * Processes incoming [IndexEvent] and determines which [Index] require re-building.
      *
      * @param txId [TransactionId] that signals its [Event]s.
      * @param events The list of [Event]s in order at which they were applied.
      */
-    override fun didCommit(txId: TransactionId, events: List<Event>) {
+    override fun onCommit(txId: TransactionId, events: List<Event>) {
         val set = ObjectOpenHashSet<Name.ColumnName>()
         for (event in events) {
-            if (event is ColumnEvent.Stale) {
-                set.add(event.column)
-            }
+            set.add((event as ColumnEvent.Stale).column)
         }
 
         /* Schedule task for each index that needs rebuilding. */
@@ -53,9 +60,11 @@ class AutoAnalyzerService(val catalogue: Catalogue, val manager: TransactionMana
     }
 
     /**
-     * The [AutoAnalyzerService] has nothing to do after a transaction has been aborted.
+     * The [AutoAnalyzerService] cannot do anything if there is a delivery failure.
      */
-    override fun didAbort(txId: TransactionId, events: List<Event>) { /* No op. */ }
+    override fun onDeliveryFailure(txId: TransactionId) {
+        /* No op. */
+    }
 
     /**
      * The actual [Runnable] that executes [Column] analysis.

@@ -14,18 +14,26 @@ import org.vitrivr.cottontail.dbms.events.Event
  */
 interface TransactionObserver {
     /**
+     * Called to determine, whether this [TransactionObserver] is interested in the given [Event].
+     *
+     * @param event [Event] to check.
+     * @return True if this [TransactionObserver] is interested in the given [Event]
+     */
+    fun isRelevant(event: Event): Boolean
+
+    /**
      * Called when the [Transaction] with the [TransactionId] committed and all [Event]s have manifested.
      *
      * @param txId [TransactionId] that signals its [Event]s.
      * @param events The list of [Event]s in order at which they were applied.
      */
-    fun didCommit(txId: TransactionId, events: List<Event>)
+    fun onCommit(txId: TransactionId, events: List<Event>)
 
     /**
-     * Called when the [Transaction] with the [TransactionId] aborts and all [Event]s were dropped.
+     * Called when the [Transaction] with the [TransactionId] failed to deliver all [Event]s.
+     * Usually, this can be attributed to an OOM situation
      *
-     * @param txId [TransactionId] that signals its [Event]s.
-     * @param events The list of [Event]s in order at which they were applied.
+     * @param txId [TransactionId] that signals failure to deliver
      */
-    fun didAbort(txId: TransactionId, events: List<Event>)
+    fun onDeliveryFailure(txId: TransactionId)
 }
