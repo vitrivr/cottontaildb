@@ -1,10 +1,12 @@
 package org.vitrivr.cottontail.dbms.index
 
+import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TransactionId
 import org.vitrivr.cottontail.dbms.events.DataEvent
 import org.vitrivr.cottontail.dbms.events.Event
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionObserver
+import java.io.Closeable
 import java.util.*
 
 /**
@@ -20,15 +22,19 @@ import java.util.*
  * @author Ralph Gasser
  * @version 1.0.0
  */
-abstract class AbstractIndexRebuilder(context: TransactionContext): TransactionObserver {
-    /** The [TransactionId] that created and owns this [TransactionId]. */
-    val ownerTx: TransactionId = context.txId
+abstract class AbstractIndexRebuilder(val index: Index): TransactionObserver, Closeable {
 
-    /** The [TransactionContext] that created and owns this [TransactionId]. */
-    abstract val index: Index
+    /**
+     * The [Name.EntityName] the [Index] rebuilt by this [AbstractIndexRebuilder] works with.
+     *
+     * Used for [Event] filtering.
+     */
+    protected val entityName: Name.EntityName = this.index.name.entity()
 
     /** Internal [LinkedList] of [DataEvent]s that should be processed. */
     protected val events = LinkedList<DataEvent>()
+
+
 
     /**
      * Merges this [AbstractIndexRebuilder] with its [IndexTx] using the given [TransactionContext].
@@ -38,13 +44,19 @@ abstract class AbstractIndexRebuilder(context: TransactionContext): TransactionO
     abstract fun merge(context: TransactionContext)
 
     /**
+     * An [AbstractIndexRebuilder] is only interested in [DataEvent]s that concrent the
+     */
+    override fun isRelevant(event: Event): Boolean
+        = event is DataEvent && event.entity == this.entityName
+
+    /**
      * Processes incoming [DataEvent]s and stores them for later reference.
      *
      * The implementation of this method strictly assumes that it only receives [DataEvent]s that
      * affect the entity hosting the [Index] rebuilt by this [AbstractIndexRebuilder].
      */
     @Synchronized
-    override fun didCommit(txId: TransactionId, events: List<Event>) {
+    override fun onCommit(txId: TransactionId, events: List<Event>) {
         for (event in events) {
             when(event) {
                 is DataEvent.Insert -> {
@@ -68,7 +80,7 @@ abstract class AbstractIndexRebuilder(context: TransactionContext): TransactionO
 
     /** No op. */
     @Synchronized
-    override fun didAbort(txId: TransactionId, events: List<Event>) {
-        /* No op. */
+    override fun onDeliveryFailure(txId: TransactionId) {
+
     }
 }

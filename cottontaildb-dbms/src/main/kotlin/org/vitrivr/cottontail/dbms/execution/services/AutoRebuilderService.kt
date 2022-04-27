@@ -7,6 +7,7 @@ import org.vitrivr.cottontail.core.database.TransactionId
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.entity.EntityTx
+import org.vitrivr.cottontail.dbms.events.ColumnEvent
 import org.vitrivr.cottontail.dbms.events.Event
 import org.vitrivr.cottontail.dbms.events.IndexEvent
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
@@ -34,12 +35,21 @@ class AutoRebuilderService(val catalogue: Catalogue, val manager: TransactionMan
     }
 
     /**
+     * The [AutoRebuilderService] is only interested int [IndexEvent]s.
+     *
+     * @param event The [Event] to check.
+     * @return True if [Event] is an [IndexEvent]
+     */
+    override fun isRelevant(event: Event): Boolean
+        = event is IndexEvent
+
+    /**
      * Processes incoming [IndexEvent] and determines which [Index] require re-building.
      *
      * @param txId [TransactionId] that signals its [Event]s.
      * @param events The list of [Event]s in order at which they were applied.
      */
-    override fun didCommit(txId: TransactionId, events: List<Event>) {
+    override fun onCommit(txId: TransactionId, events: List<Event>) {
         val set = ObjectOpenHashSet<Pair<Name.IndexName, IndexType>>()
         for (event in events) {
             when (event) {
@@ -61,9 +71,11 @@ class AutoRebuilderService(val catalogue: Catalogue, val manager: TransactionMan
     }
 
     /**
-     * The [AutoRebuilderService] has nothing to do after a transaction has been aborted.
+     * The [AutoRebuilderService] cannot do anything if there is a delivery failure.
      */
-    override fun didAbort(txId: TransactionId, events: List<Event>) { /* No op. */ }
+    override fun onDeliveryFailure(txId: TransactionId) {
+        /* No op. */
+    }
 
 
     /**
@@ -74,10 +86,10 @@ class AutoRebuilderService(val catalogue: Catalogue, val manager: TransactionMan
             val duration = measureTimeMillis {
                 if (this.type.descriptor.supportsAsyncRebuild && this.type.descriptor.supportsIncrementalUpdate) {
                     LOGGER.info("Starting index auto-rebuilding for $index.")
-                    this.performSynchronousRebuild()
+                    this.performAsynchronousRebuild()
                 } else {
                     LOGGER.info("Starting asynchronous index auto-rebuilding for $index.")
-                    this.performAsynchronousRebuild()
+                    this.performSynchronousRebuild()
                 }
             }
             LOGGER.info("Index auto-rebuilding for $index completed (took ${duration}ms).")
