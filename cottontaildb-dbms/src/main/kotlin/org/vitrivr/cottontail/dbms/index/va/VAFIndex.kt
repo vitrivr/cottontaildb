@@ -11,7 +11,6 @@ import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.database.TransactionId
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.queries.functions.Signature
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.*
@@ -29,7 +28,6 @@ import org.vitrivr.cottontail.dbms.column.ColumnTx
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.events.DataEvent
-import org.vitrivr.cottontail.dbms.events.Event
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.execution.operators.sort.RecordComparator
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
@@ -523,15 +521,19 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
                     cursor.getSearchKey(partition.first.toKey())
 
                     /* Calculate a few values for future reference. */
+                    val invalid = VAFSignature.invalid(this@Tx.columns[0].type.logicalSize)
                     val columns = this@Tx.columns
                     val produces = this@Tx.columnsFor(predicate).toTypedArray()
                     var tupleId: TupleId
-                    var threshold = Double.MAX_VALUE
+                    var threshold = when(this.predicate) {
+                        is ProximityPredicate.NNS -> Double.MAX_VALUE
+                        is ProximityPredicate.FNS -> Double.MIN_VALUE
+                    }
                     while (cursor.next) {
                         tupleId = LongBinding.compressedEntryToLong(cursor.key)
                         if (tupleId > partition.last) break
                         val signature = VAFSignature.Binding.entryToValue(cursor.value)
-                        if (this.selection.added < this.predicate.k || this.bounds.isVASSACandidate(signature, threshold)) {
+                        if (this.selection.added < this.predicate.k || signature == invalid || this.bounds.isVASSACandidate(signature, threshold)) {
                             val value = this.entityTx.read(tupleId, columns)[0] as VectorValue<*>
                             val distance = this.predicate.distance(this.query, value)!!
                             threshold = when (this.predicate) {
