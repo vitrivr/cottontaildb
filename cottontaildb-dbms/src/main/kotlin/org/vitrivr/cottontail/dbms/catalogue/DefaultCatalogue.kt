@@ -76,9 +76,15 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
     /** A lock used to mediate access to this [DefaultCatalogue]. This is an internal variable and not part of the official interface. */
     internal val closeLock = StampedLock()
 
-    /** The Xodus [Environment] used by Cottontail DB. This is an internal variable and not part of the official interface. */
+    /** The main Xodus [Environment] used by Cottontail DB. This is an internal variable and not part of the official interface. */
     internal val environment: Environment = Environments.newInstance(
         this.config.root.resolve("xodus").toFile(),
+        this.config.xodus.toEnvironmentConfig()
+    )
+
+    /** The Xodus [Environment] used by Cottontail DB to offload temporary data. This is an internal variable and not part of the official interface. */
+    internal val temporaryEnvironment: Environment = Environments.newInstance(
+        this.config.root.resolve("tmp").toFile(),
         this.config.xodus.toEnvironmentConfig()
     )
 
@@ -122,6 +128,9 @@ class DefaultCatalogue(override val config: Config) : Catalogue {
             tx.abort()
             throw e
         }
+
+        /* Clears the temporary environment. */
+        this.temporaryEnvironment.clear()
 
         /* Initialize function registry. */
         this.functions.initialize()
