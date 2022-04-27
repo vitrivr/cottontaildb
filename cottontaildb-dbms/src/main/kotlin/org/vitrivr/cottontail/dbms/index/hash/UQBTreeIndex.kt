@@ -220,6 +220,8 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
          * (Re-)builds the [UQBTreeIndex].
          */
         override fun rebuild() = this.txLatch.withLock {
+            LOGGER.debug("Rebuilding Unique BTree index {}", this@UQBTreeIndex.name)
+
             /* Obtain Tx for parent [Entity. */
             val entityTx = this.context.getTx(this.dbo.parent) as EntityTx
 
@@ -237,6 +239,10 @@ class UQBTreeIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(
 
             /* Close cursor. */
             cursor.close()
+
+            /* Update state of this index. */
+            this.updateState(IndexState.CLEAN)
+            LOGGER.debug("Rebuilding Unique BTree index {} completed!", this@UQBTreeIndex.name)
         }
 
         /**

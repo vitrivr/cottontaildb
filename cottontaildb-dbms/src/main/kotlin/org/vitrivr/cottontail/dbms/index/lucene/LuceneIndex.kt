@@ -369,7 +369,7 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
          * (Re-)builds the [LuceneIndex].
          */
         override fun rebuild() = this.txLatch.withLock {
-            LOGGER.debug("Rebuilding Lucene Index {}", this@LuceneIndex.name)
+            LOGGER.debug("Rebuilding Lucene index {}", this@LuceneIndex.name)
 
             /* Obtain Tx for parent entity. */
             val entityTx = this.context.getTx(this.dbo.parent) as EntityTx
@@ -388,7 +388,7 @@ class LuceneIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractIndex(n
 
             /* Update index state for index. */
             this.updateState(IndexState.CLEAN)
-            LOGGER.debug("Rebuilding Lucene Index {} completed!", this@LuceneIndex.name)
+            LOGGER.debug("Rebuilding Lucene index {} completed!", this@LuceneIndex.name)
         }
 
         /**
