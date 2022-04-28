@@ -289,7 +289,7 @@ object GrpcQueryBinder {
                 EntityScanLogicalOperatorNode(context.nextGroupId(), entityTx, fetch)
             }
             CottontailGrpc.From.FromCase.SAMPLE -> {
-                val entity = parseAndBindEntity(from.scan.entity, context)
+                val entity = parseAndBindEntity(from.sample.entity, context)
                 val entityTx = context.txn.getTx(entity) as EntityTx
                 val fetch = entityTx.listColumns().map { def ->
                     val name = columns.entries.singleOrNull { c -> c.value is Name.ColumnName && c.value.matches(def.name) }
