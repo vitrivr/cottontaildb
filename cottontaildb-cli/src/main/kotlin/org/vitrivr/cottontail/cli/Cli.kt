@@ -18,6 +18,10 @@ import org.jline.reader.LineReaderBuilder
 import org.jline.reader.UserInterruptException
 import org.jline.reader.impl.completer.ArgumentCompleter
 import org.jline.terminal.TerminalBuilder
+import org.vitrivr.cottontail.cli.basics.AbstractEntityCommand
+import org.vitrivr.cottontail.cli.basics.AbstractQueryCommand
+import org.vitrivr.cottontail.cli.basics.AbstractSchemaCommand
+import org.vitrivr.cottontail.cli.benchmarks.HDIndexBenchmark
 import org.vitrivr.cottontail.cli.entity.*
 import org.vitrivr.cottontail.cli.query.CountEntityCommand
 import org.vitrivr.cottontail.cli.query.ExecuteQueryCommand
@@ -166,11 +170,11 @@ class Cli(private val host: String = "localhost", private val port: Int = 1865) 
         val nodes = this.clikt.registeredSubcommands().map { ocmd -> /* Outer command. */
             node(ocmd.commandName, *ocmd.registeredSubcommands().map { icmd -> /* Inner command. */
                 when {
-                    icmd is AbstractCottontailCommand.Schema && icmd.expand -> {
+                    icmd is AbstractSchemaCommand && icmd.expand -> {
                         node(icmd.commandName, *schemata.map { node(it) }.toTypedArray())
                     }
-                    icmd is AbstractCottontailCommand.Query && icmd.expand ||
-                    icmd is AbstractCottontailCommand.Entity && icmd.expand -> {
+                    icmd is AbstractQueryCommand && icmd.expand ||
+                    icmd is AbstractEntityCommand && icmd.expand -> {
                         node(icmd.commandName, *entities.map { node(it) }.toTypedArray())
                     }
                     else -> {
@@ -316,6 +320,17 @@ class Cli(private val host: String = "localhost", private val port: Int = 1865) 
                     PreviewEntityCommand(this@Cli.client),
                     FindInEntityCommand(this@Cli.client),
                     ExecuteQueryCommand(this@Cli.client)
+                ),
+
+                /* Transaction related commands. */
+                object : NoOpCliktCommand(
+                    name = "benchmark",
+                    help = "Groups commands that perform system-level benchmarks.",
+                    epilog = "Benchmark related commands usually have the form: benchmark <command>.",
+                    invokeWithoutSubcommand = true,
+                    printHelpOnEmptyArgs = true
+                ){}.subcommands(
+                    HDIndexBenchmark(this@Cli.client)
                 ),
 
                 /* Transaction related commands. */

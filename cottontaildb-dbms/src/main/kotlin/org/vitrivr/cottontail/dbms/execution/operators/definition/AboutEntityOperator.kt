@@ -73,7 +73,7 @@ class AboutEntityOperator(private val tx: CatalogueTx, private val name: Name.En
                 StringValue(it.toString()),
                 StringValue("INDEX"),
                 StringValue(index.type.toString()),
-                null,
+                IntValue(indexTx.count()),
                 null,
                 null,
                 StringValue(indexTx.state.toString())

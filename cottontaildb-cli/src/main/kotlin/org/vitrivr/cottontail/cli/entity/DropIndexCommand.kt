@@ -6,7 +6,7 @@ import com.github.ajalt.clikt.parameters.arguments.convert
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import io.grpc.StatusException
-import org.vitrivr.cottontail.cli.AbstractCottontailCommand
+import org.vitrivr.cottontail.cli.basics.AbstractEntityCommand
 import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.language.ddl.DropIndex
 import org.vitrivr.cottontail.core.database.Name
@@ -21,7 +21,7 @@ import kotlin.time.measureTimedValue
  * @version 2.0.0
  */
 @ExperimentalTime
-class DropIndexCommand(client: SimpleClient) : AbstractCottontailCommand.Entity(client, name = "drop-index", help = "Drops the index on an entity. Usage: entity drop-index <schema>.<entity> <index>") {
+class DropIndexCommand(client: SimpleClient) : AbstractEntityCommand(client, name = "drop-index", help = "Drops the index on an entity. Usage: entity drop-index <schema>.<entity> <index>") {
 
     /** Name of the index to drop. */
     private val indexName: Name.IndexName by argument(

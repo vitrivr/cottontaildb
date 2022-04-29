@@ -4,7 +4,7 @@ import com.github.ajalt.clikt.output.TermUi
 import com.jakewharton.picnic.table
 import io.grpc.Status
 import io.grpc.StatusRuntimeException
-import org.vitrivr.cottontail.cli.AbstractCottontailCommand
+import org.vitrivr.cottontail.cli.basics.AbstractEntityCommand
 import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.language.ddl.ListEntities
 import org.vitrivr.cottontail.grpc.CottontailGrpc
@@ -20,7 +20,7 @@ import kotlin.time.measureTimedValue
  * @version 2.0.0
  */
 @ExperimentalTime
-class CreateEntityCommand(client: SimpleClient) : AbstractCottontailCommand.Entity(client, name = "create", help = "Creates a new entity in the database. Usage: entity create <schema>.<entity>") {
+class CreateEntityCommand(client: SimpleClient) : AbstractEntityCommand(client, name = "create", help = "Creates a new entity in the database. Usage: entity create <schema>.<entity>") {
 
     override fun exec() {
         /* Perform sanity check. */
