@@ -15,7 +15,7 @@ import org.xerial.snappy.Snappy
 value class VAFSignature(val cells: ByteArray): Comparable<VAFSignature> {
 
     companion object {
-        fun invalid(d: Int) = VAFSignature(ByteArray(d) { -1 })
+        val INVALID = VAFSignature(ByteArray(1) { -1 })
     }
 
     /**
@@ -52,7 +52,5 @@ value class VAFSignature(val cells: ByteArray): Comparable<VAFSignature> {
      *
      * @return True if [VAFSignature] is invalid, false otherwise.
      */
-    fun invalid(): Boolean = this.cells.any { it < 0 }
-
-
+    fun invalid(): Boolean = this.cells[0] == INVALID[0]
 }
