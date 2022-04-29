@@ -14,5 +14,6 @@ enum class PlaceholderType {
 
     /** [DBO] was just dropped and cannot be used anymore. */
     BROKEN
+
     /** [DBO] is broken and cannot be used. */
 }

@@ -2,25 +2,28 @@ package org.vitrivr.cottontail.dbms.queries.operators
 
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.GroupId
-import org.vitrivr.cottontail.core.queries.Node
+import org.vitrivr.cottontail.core.queries.nodes.Node
+import org.vitrivr.cottontail.core.queries.nodes.NodeWithCost
+import org.vitrivr.cottontail.core.queries.nodes.NodeWithTrait
+import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
+import org.vitrivr.cottontail.core.queries.planning.cost.CostPolicy
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
-import org.vitrivr.cottontail.dbms.queries.QueryContext
-import org.vitrivr.cottontail.dbms.queries.sort.SortOrder
-import org.vitrivr.cottontail.dbms.statistics.entity.RecordStatistics
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
+import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
 import java.io.PrintStream
 
 /**
  * [OperatorNode]s are [Node]s in a Cottontail DB query execution plan and represent flow and processing of information a query gets executed.
  *
- * Conceptually, [OperatorNode]s take [Record]s as input and transform them into [Record] output. The relationship of input to output can be m to n.
+ * Conceptually, [OperatorNode]s take [org.vitrivr.cottontail.core.basics.Record]s as input and transform them into [org.vitrivr.cottontail.core.basics.Record] output. The relationship of input to output can be m to n.
  *
  * [OperatorNode]s allow for reasoning and transformation of the execution plan during query optimization and are manipulated by the query planner.
  *
  * @author Ralph Gasser
- * @version 2.4.0
+ * @version 2.5.0
  */
-sealed class OperatorNode : Node {
+sealed class OperatorNode : NodeWithTrait {
     /** The arity of this [OperatorNode], i.e., the number of parents or inputs allowed. */
     abstract val inputArity: Int
 
@@ -44,9 +47,6 @@ sealed class OperatorNode : Node {
 
     /** The [ColumnDef]s required by this [OperatorNode] in order to be able to function. */
     abstract val requires: List<ColumnDef<*>>
-
-    /** The [ColumnDef]s by which the output of this [OperatorNode] is sorted. By default, there is no particular order. */
-    abstract val sortOn: List<Pair<ColumnDef<*>, SortOrder>>
 
     /**
      * Creates and returns a copy of this [OperatorNode] without any children or parents.
@@ -78,33 +78,29 @@ sealed class OperatorNode : Node {
      * are transformed into equivalent representations of [OperatorNode.Logical]s.
      *
      * @author Ralph Gasser
-     * @version 2.2.0
+     * @version 2.5.0
      */
     abstract class Logical : OperatorNode() {
 
         /** The [OperatorNode.Logical] that receives the results produced by this [OperatorNode.Logical] as input. May be null, which makes this [OperatorNode.Logical] the root of the tree. */
-        var output: OperatorNode.Logical? = null
+        var output: Logical? = null
 
         /** The root of this [OperatorNode.Logical], i.e., the final [OperatorNode.Logical] in terms of operation that usually produces the output. */
-        val root: OperatorNode.Logical
+        val root: Logical
             get() = this.output?.root ?: this
 
         /** The base of this [OperatorNode], i.e., the starting point(s) in terms of operation. Depending on the tree structure, multiple bases may exist. */
-        abstract val base: Collection<OperatorNode.Logical>
+        abstract val base: Collection<Logical>
 
         /** [OperatorNode.Logical]s are never executable. */
         override val executable: Boolean = false
-
-        /** An estimation of the [Cost] incurred by this [OperatorNode.Logical], which is always zero, because these nodes cannot be executed. */
-        final override val cost: Cost
-            get() = Cost.ZERO
 
         /**
          * Creates and returns a copy of this [OperatorNode.Logical] without any children or parents.
          *
          * @return Copy of this [OperatorNode.Logical].
          */
-        abstract override fun copy(): OperatorNode.Logical
+        abstract override fun copy(): Logical
 
         /**
          * Creates and returns a copy of this [OperatorNode.Logical] and all its inputs that belong to the same [GroupId],
@@ -112,7 +108,7 @@ sealed class OperatorNode : Node {
          *
          * @return Copy of this [OperatorNode.Logical].
          */
-        abstract fun copyWithGroupInputs(): OperatorNode.Logical
+        abstract fun copyWithGroupInputs(): Logical
 
         /**
          * Creates and returns a copy of this [OperatorNode.Logical] and all its inputs up and until the base of the tree,
@@ -120,7 +116,7 @@ sealed class OperatorNode : Node {
          *
          * @return Copy of this [OperatorNode.Logical].
          */
-        abstract fun copyWithInputs(): OperatorNode.Logical
+        abstract fun copyWithInputs(): Logical
 
         /**
          * Creates and returns a copy of this [OperatorNode.Logical] with its output reaching down to the [root] of the tree.
@@ -129,14 +125,14 @@ sealed class OperatorNode : Node {
          * @param input The [Logical]s that act as input.
          * @return Copy of this [OperatorNode.Logical] with its output.
          */
-        abstract fun copyWithOutput(vararg input: OperatorNode.Logical): OperatorNode.Logical
+        abstract fun copyWithOutput(vararg input: Logical): Logical
 
         /**
          * Creates and returns an implementation of this [OperatorNode.Logical]
          *
          * @return [OperatorNode.Physical] representing this [OperatorNode.Logical].
          */
-        abstract fun implement(): OperatorNode.Physical
+        abstract fun implement(): Physical
     }
 
     /**
@@ -147,46 +143,50 @@ sealed class OperatorNode : Node {
      * by [OperatorNode.Physical]s to generate an executable plan.
      *
      * As opposed to [OperatorNode.Logical]s, [OperatorNode.Physical]s are associated concrete implementations
-     * and a cost model that allows  the query planner to select the optimal plan.
+     * and a cost model that allows the query planner to select the optimal plan.
      *
      * @author Ralph Gasser
-     * @version 2.2.0
+     * @version 2.5.0
      *
      * @see OperatorNode
      */
-    abstract class Physical : OperatorNode() {
+    abstract class Physical : OperatorNode(), NodeWithCost {
 
         /** The [OperatorNode.Logical] that receives the results produced by this [OperatorNode.Logical] as input. May be null, which makes this [OperatorNode.Logical] the root of the tree. */
-        var output: OperatorNode.Physical? = null
+        var output: Physical? = null
 
         /** The root of this [OperatorNode.Physical], i.e., the final [OperatorNode.Physical] in terms of operation that usually produces the output. */
-        val root: OperatorNode.Physical
+        val root: Physical
             get() = this.output?.root ?: this
 
         /** The base of this [OperatorNode], i.e., the starting point(s) in terms of operation. Depending on the tree structure, multiple bases may exist. */
-        abstract val base: Collection<OperatorNode.Physical>
+        abstract val base: Collection<Physical>
 
-        /** [RecordStatistics] about the [ColumnDef]s contained in this [OperatorNode.Physical]. */
-        abstract val statistics: RecordStatistics
+        /** Map containing all [ValueStatistics] about the [ColumnDef]s processed in this [OperatorNode.Physical]. */
+        abstract val statistics: Map<ColumnDef<*>, ValueStatistics<*>>
 
         /** The estimated number of rows this [OperatorNode.Physical] generates. */
         abstract val outputSize: Long
 
-        /** An estimation of the [Cost] incurred by the tree up and until this [OperatorNode.Physical]. */
+        /** An estimation of the [Cost] incurred by the query plan up and until this [OperatorNode.Physical]. */
         abstract val totalCost: Cost
+
+        /** An estimation of the [Cost] incurred by the parallelizable portion of the query plan up and until this [OperatorNode.Physical]. */
+        abstract val parallelizableCost: Cost
+
+        /** An estimation of the [Cost] incurred by the sequential portion of the query plan up and until this [OperatorNode.Physical]. */
+        val sequentialCost: Cost
+            get() = this.totalCost - this.parallelizableCost
 
         /** Most [OperatorNode.Physical]s are executable by default. */
         override val executable: Boolean = true
-
-        /** True, if this [OperatorNode.Physical] can be partitioned, false otherwise. */
-        abstract val canBePartitioned: Boolean
 
         /**
          * Creates and returns a copy of this [OperatorNode.Physical] with all its inputs reaching up to the [base] of the tree.
          *
          * @return Copy of this [OperatorNode.Physical].
          */
-        abstract fun copyWithInputs(): OperatorNode.Physical
+        abstract fun copyWithInputs(): Physical
 
         /**
          * Creates and returns a copy of this [OperatorNode.Physical] and all its inputs that belong to the same [GroupId],
@@ -194,7 +194,7 @@ sealed class OperatorNode : Node {
          *
          * @return Copy of this [OperatorNode.Physical].
          */
-        abstract fun copyWithGroupInputs(): OperatorNode.Physical
+        abstract fun copyWithGroupInputs(): Physical
 
         /**
          * Creates and returns a copy of this [OperatorNode.Physical] with all its outputs reaching down to the [root] of the tree.
@@ -203,7 +203,7 @@ sealed class OperatorNode : Node {
          * @param input The [Physical]s that act as input. Replacement takes place based on the [GroupId]
          * @return Copy of this [OperatorNode.Physical] with its output.
          */
-        abstract fun copyWithOutput(vararg input: OperatorNode.Physical): OperatorNode.Physical
+        abstract fun copyWithOutput(vararg input: Physical): Physical
 
         /**
          * Converts this [OperatorNode.Physical] to the corresponding [Operator].
@@ -215,16 +215,26 @@ sealed class OperatorNode : Node {
         abstract fun toOperator(ctx: QueryContext): Operator
 
         /**
-         * Tries to create a partitioned version of this [OperatorNode.Physical] and its parents.
+         * Tries to create a partitioned version of the query plan by using this [OperatorNode.Physical] as partition point.
          *
-         * By default, a call to this method propagates up a  tree until a [OperatorNode.Physical]
-         * that allows for partitioning (see [canBePartitioned]) or the end of the tree has been reached.
-         * In the former case, this method return a partitioned copy of this [OperatorNode.Physical].
+         * By default, a call to this method propagates up a tree until a [OperatorNode.Physical] that allows for
+         * partitioning (i.e. lacks the [NotPartitionableTrait]) or the end of the tree has been reached.
          *
-         * @param partitions The number of partitions.
-         * @param p The partition number. If this value is set, then partitioning has already taken place downstream.
-         * @return Array of [OperatorNode.Physical]s.
+         * @param policy The [CostPolicy] to use for partitioning.
+         * @param max The maximum number of partitions. Usually determined by the available threads.
+         * @return [OperatorNode.Physical] that represents the base of a new, partitioned query plan or null.
          */
-        abstract fun tryPartition(partitions: Int, p: Int? = null): OperatorNode.Physical?
+        abstract fun tryPartition(policy: CostPolicy, max: Int): Physical?
+
+        /**
+         * Generates a partitioned version of this [OperatorNode.Physical].
+         *
+         * Not to be confused with [tryPartition].
+         *
+         * @param partitions The total number of partitions.
+         * @param p The partition number.
+         * @return [OperatorNode.Physical]
+         */
+        abstract fun partition(partitions: Int, p: Int): Physical
     }
 }

@@ -11,9 +11,9 @@ import org.vitrivr.cottontail.core.values.LongValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
-import org.vitrivr.cottontail.dbms.execution.TransactionContext
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
 import org.vitrivr.cottontail.dbms.execution.operators.predicates.FilterOperator
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 
 /**
  * An [Operator.MergingPipelineOperator] used during query execution. Deletes all entries in an
@@ -43,7 +43,7 @@ class DeleteOperator(parent: Operator, val entity: EntityTx) : Operator.Pipeline
      * @param context The [TransactionContext] used for execution
      * @return [Flow] representing this [FilterOperator]
      */
-    override fun toFlow(context: org.vitrivr.cottontail.dbms.execution.TransactionContext): Flow<Record> {
+    override fun toFlow(context: TransactionContext): Flow<Record> {
         var deleted = 0L
         val parent = this.parent.toFlow(context)
         val columns = this.columns.toTypedArray()

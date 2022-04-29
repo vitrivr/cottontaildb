@@ -1,31 +1,34 @@
 package org.vitrivr.cottontail.core.values
 
-import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.NumericValue
 import org.vitrivr.cottontail.core.values.types.RealValue
+import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
-import org.vitrivr.cottontail.utilities.extensions.nextShort
-import java.util.*
 
 /**
  * This is an abstraction over a [Short].
  *
  * @author Ralph Gasser
- * @version 1.6.0
+ * @version 1.7.0
  */
 @JvmInline
 value class ShortValue(override val value: Short): RealValue<Short> {
     companion object {
-        val ZERO = ShortValue(0.toShort())
-        val ONE = ShortValue(1.toShort())
-
         /**
-         * Generates a random [ShortValue].
+         * The minimum value that can be held by a [ShortValue].
          *
-         * @param rnd A [SplittableRandom] to generate the random numbers.
-         * @return Random [ShortValue]
+         * Is larger than [Short.MIN_VALUE] because [Short.MIN_VALUE] is reserved to signify null.
          */
-        fun random(rnd: SplittableRandom = Value.RANDOM) = ShortValue(rnd.nextShort())
+        val MIN_VALUE = ShortValue(Short.MIN_VALUE + 1.toShort())
+
+        /** The maximum value that can be held by a [ShortValue]. */
+        val MAX_VALUE = ShortValue(Short.MAX_VALUE)
+
+        /** The zero [ShortValue]. */
+        val ZERO = ShortValue(0.toShort())
+
+        /** The one [ShortValue]. */
+        val ONE = ShortValue(1.toShort())
     }
 
     /**

@@ -5,9 +5,9 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
-import org.vitrivr.cottontail.dbms.execution.TransactionContext
+import org.vitrivr.cottontail.core.queries.sort.SortOrder
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
-import org.vitrivr.cottontail.dbms.queries.sort.SortOrder
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 
 /**
  * An [Operator.PipelineOperator] used during query execution. Performs sorting on the specified [ColumnDef]s and
@@ -27,7 +27,7 @@ open class HeapSortOperator(parent: Operator, sortOn: List<Pair<ColumnDef<*>, So
         val parentFlow = this.parent.toFlow(context)
         return flow {
             val queue = ObjectHeapPriorityQueue(this@HeapSortOperator.queueSize, this@HeapSortOperator.comparator)
-            parentFlow.collect { queue.enqueue(it.copy()) } /* Important: Materialization! */
+            parentFlow.collect { queue.enqueue(it) }
             while (!queue.isEmpty) {
                 emit(queue.dequeue())
             }

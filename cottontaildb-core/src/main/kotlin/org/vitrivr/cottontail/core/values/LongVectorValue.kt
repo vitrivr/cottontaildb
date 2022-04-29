@@ -12,31 +12,6 @@ import kotlin.math.pow
  */
 @JvmInline
 value class LongVectorValue(val data: LongArray) : RealVectorValue<Long> {
-
-    companion object {
-        /**
-         * Generates a [LongVectorValue] of the given size initialized with random numbers.
-         *
-         * @param size Size of the new [LongVectorValue]
-         * @param rnd A [SplittableRandom] to generate the random numbers.
-         */
-        fun random(size: Int, rnd: SplittableRandom = Value.RANDOM) = LongVectorValue(LongArray(size) { rnd.nextLong() })
-
-        /**
-         * Generates a [LongVectorValue] of the given size initialized with ones.
-         *
-         * @param size Size of the new [LongVectorValue]
-         */
-        fun one(size: Int) = LongVectorValue(LongArray(size) { 1L })
-
-        /**
-         * Generates a [IntVectorValue] of the given size initialized with zeros.
-         *
-         * @param size Size of the new [LongVectorValue]
-         */
-        fun zero(size: Int) = LongVectorValue(LongArray(size))
-    }
-
     constructor(input: List<Number>) : this(LongArray(input.size) { input[it].toLong() })
     constructor(input: Array<Number>) : this(LongArray(input.size) { input[it].toLong() })
 
@@ -45,7 +20,7 @@ value class LongVectorValue(val data: LongArray) : RealVectorValue<Long> {
         get() = this.data.size
 
     /** The [Types] of this [LongVectorValue]. */
-    override val type: Types<*>
+    override val type: Types.Vector<LongVectorValue, LongValue>
         get() = Types.LongVector(this.logicalSize)
 
     /**
@@ -277,5 +252,5 @@ value class LongVectorValue(val data: LongArray) : RealVectorValue<Long> {
      *
      * @return The [LongVectorValue] representing the sub-vector.
      */
-    override fun subvector(start: Int, length: Int) = LongVectorValue(this.data.copyOfRange(start, start + length))
+    override fun slice(start: Int, length: Int) = LongVectorValue(this.data.copyOfRange(start, start + length))
 }

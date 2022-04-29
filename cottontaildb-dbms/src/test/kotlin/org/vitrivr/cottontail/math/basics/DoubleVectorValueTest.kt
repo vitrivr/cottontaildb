@@ -1,28 +1,29 @@
 package org.vitrivr.cottontail.math.basics
 
 import org.apache.commons.math3.linear.ArrayRealVector
+import org.apache.commons.math3.random.JDKRandomGenerator
 import org.junit.jupiter.api.RepeatedTest
 import org.vitrivr.cottontail.core.values.DoubleVectorValue
+import org.vitrivr.cottontail.core.values.generators.DoubleVectorValueGenerator
 import org.vitrivr.cottontail.math.isApproximatelyTheSame
-import java.util.*
 import kotlin.math.pow
 
 /**
  * Some basic test cases that test for correctness of [DoubleVectorValue] arithmetic operations.
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.1.0
  */
 class DoubleVectorValueTest {
 
-    private val random = SplittableRandom()
+    private val random = JDKRandomGenerator()
 
     @RepeatedTest(25)
     fun testAdd() {
-        val size = random.nextInt(2048)
+        val size = this.random.nextInt(2048)
 
-        val c1 = DoubleVectorValue.random(size, this.random)
-        val c2 = DoubleVectorValue.random(size, this.random)
+        val c1 = DoubleVectorValueGenerator.random(size, this.random)
+        val c2 = DoubleVectorValueGenerator.random(size, this.random)
 
         val c1p = ArrayRealVector(DoubleArray(c1.data.size) { c1.data[it] })
         val c2p = ArrayRealVector(DoubleArray(c2.data.size) { c2.data[it]})
@@ -37,10 +38,10 @@ class DoubleVectorValueTest {
 
     @RepeatedTest(25)
     fun testSub() {
-        val size = random.nextInt(2048)
+        val size = this.random.nextInt(2048)
 
-        val c1 = DoubleVectorValue.random(size, this.random)
-        val c2 = DoubleVectorValue.random(size, this.random)
+        val c1 = DoubleVectorValueGenerator.random(size, this.random)
+        val c2 = DoubleVectorValueGenerator.random(size, this.random)
 
         val c1p = ArrayRealVector(DoubleArray(c1.data.size) { c1.data[it] })
         val c2p = ArrayRealVector(DoubleArray(c2.data.size) { c2.data[it] })
@@ -55,10 +56,10 @@ class DoubleVectorValueTest {
 
     @RepeatedTest(25)
     fun testMul() {
-        val size = random.nextInt(2048)
+        val size = this.random.nextInt(2048)
 
-        val c1 = DoubleVectorValue.random(size, this.random)
-        val c2 = DoubleVectorValue.random(size, this.random)
+        val c1 = DoubleVectorValueGenerator.random(size, this.random)
+        val c2 = DoubleVectorValueGenerator.random(size, this.random)
 
         val c1p = ArrayRealVector(DoubleArray(c1.data.size) { c1.data[it] })
         val c2p = ArrayRealVector(DoubleArray(c2.data.size) { c2.data[it] })
@@ -73,10 +74,10 @@ class DoubleVectorValueTest {
 
     @RepeatedTest(25)
     fun testDiv() {
-        val size = random.nextInt(2048)
+        val size = this.random.nextInt(2048)
 
-        val c1 = DoubleVectorValue.random(size, this.random)
-        val c2 = DoubleVectorValue.random(size, this.random)
+        val c1 = DoubleVectorValueGenerator.random(size, this.random)
+        val c2 = DoubleVectorValueGenerator.random(size, this.random)
 
         val c1p = ArrayRealVector(DoubleArray(c1.data.size) { c1.data[it] })
         val c2p = ArrayRealVector(DoubleArray(c2.data.size) { c2.data[it] })
@@ -91,10 +92,10 @@ class DoubleVectorValueTest {
 
     @RepeatedTest(25)
     fun testPow() {
-        val size = random.nextInt(2048)
-        val exp = random.nextInt(10)
+        val size = this.random.nextInt(2048)
+        val exp = this.random.nextInt(10)
 
-        val c1 = DoubleVectorValue.random(size, this.random)
+        val c1 = DoubleVectorValueGenerator.random(size, this.random)
         val c1p = ArrayRealVector(DoubleArray(c1.data.size) { c1.data[it] })
 
         val pow = c1.pow(exp)
@@ -107,9 +108,9 @@ class DoubleVectorValueTest {
 
     @RepeatedTest(25)
     fun testSqrt() {
-        val size = random.nextInt(2048)
+        val size = this.random.nextInt(2048)
 
-        val c1 = DoubleVectorValue.random(size, this.random)
+        val c1 = DoubleVectorValueGenerator.random(size, this.random)
         val c1p = ArrayRealVector(DoubleArray(c1.data.size) { c1.data[it] })
 
         val sqrt = c1.sqrt()
@@ -122,10 +123,10 @@ class DoubleVectorValueTest {
 
     @RepeatedTest(25)
     fun testL1() {
-        val size = random.nextInt(2048)
+        val size = this.random.nextInt(2048)
 
-        val c1 = DoubleVectorValue.random(size, this.random)
-        val c2 = DoubleVectorValue.random(size, this.random)
+        val c1 = DoubleVectorValueGenerator.random(size, this.random)
+        val c2 = DoubleVectorValueGenerator.random(size, this.random)
 
         val c1p = ArrayRealVector(DoubleArray(c1.data.size) { c1.data[it] })
         val c2p = ArrayRealVector(DoubleArray(c2.data.size) { c2.data[it] })
@@ -138,10 +139,10 @@ class DoubleVectorValueTest {
 
     @RepeatedTest(10)
     fun testL2() {
-        val size = random.nextInt(2048)
+        val size = this.random.nextInt(2048)
 
-        val c1 = DoubleVectorValue.random(size, this.random)
-        val c2 = DoubleVectorValue.random(size, this.random)
+        val c1 = DoubleVectorValueGenerator.random(size, this.random)
+        val c2 = DoubleVectorValueGenerator.random(size, this.random)
 
         val c1p = ArrayRealVector(DoubleArray(c1.data.size) { c1.data[it] })
         val c2p = ArrayRealVector(DoubleArray(c2.data.size) { c2.data[it] })
@@ -154,10 +155,10 @@ class DoubleVectorValueTest {
 
     @RepeatedTest(10)
     fun testDot() {
-        val size = random.nextInt(2048)
+        val size = this.random.nextInt(2048)
 
-        val c1 = DoubleVectorValue.random(size, this.random)
-        val c2 = DoubleVectorValue.random(size, this.random)
+        val c1 = DoubleVectorValueGenerator.random(size, this.random)
+        val c2 = DoubleVectorValueGenerator.random(size, this.random)
 
         val c1p = ArrayRealVector(DoubleArray(c1.data.size) { c1.data[it] })
         val c2p = ArrayRealVector(DoubleArray(c2.data.size) { c2.data[it] })
@@ -170,9 +171,9 @@ class DoubleVectorValueTest {
 
     @RepeatedTest(10)
     fun testNorm2() {
-        val size = random.nextInt(2048)
+        val size = this.random.nextInt(2048)
 
-        val c1 = DoubleVectorValue.random(size, this.random)
+        val c1 = DoubleVectorValueGenerator.random(size, this.random)
 
         val c1p = ArrayRealVector(DoubleArray(c1.data.size) { c1.data[it] })
 

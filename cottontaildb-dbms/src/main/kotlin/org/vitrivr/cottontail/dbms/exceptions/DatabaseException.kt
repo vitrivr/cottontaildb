@@ -1,17 +1,18 @@
 package org.vitrivr.cottontail.dbms.exceptions
 
 import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.dbms.column.Column
+import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.general.DBOVersion
 
 open class DatabaseException(message: String, cause: Throwable? = null) : Throwable(message, cause) {
-
     /**
      * Thrown when trying to access a [DBO] with an older, unsupported [DBOVersion].
      *
-     * @param found: Int Found [DBOVersion] of [DBO]
      * @param expected: Int Expected [DBOVersion] of [DBO]
+     * @param found: Int Found [DBOVersion] of [DBO]
      */
-    class VersionMismatchException(found: DBOVersion, expected: DBOVersion) : DatabaseException("Version mismatch for DBO: Expected $expected but found $found.")
+    class VersionMismatchException(val expected: DBOVersion, val found: DBOVersion) : DatabaseException("Version mismatch for DBO: Expected $expected but found $found.")
 
     /**
      * Thrown when trying to create a [Schema][org.vitrivr.cottontail.dbms.schema.DefaultSchema]
@@ -69,13 +70,19 @@ open class DatabaseException(message: String, cause: Throwable? = null) : Throwa
     class IndexNotSupportedException(val index: Name.IndexName, val reason: String) : DatabaseException("Index '$index' could not be created: $reason")
 
     /**
-     * Thrown upon creation of an [Entity][org.vitrivr.cottontail.dbms.entity.DefaultEntity]
-     * if the definition contains duplicate column names.
+     * Thrown upon creation of an [Entity] if the definition contains no column.
      *
      * @param entity [Name] of the affected [Entity][org.vitrivr.cottontail.dbms.entity.DefaultEntity]
-     * @param columns [Name] of the [Column][org.vitrivr.cottontail.dbms.column.Column]s in the definition.
      */
-    class DuplicateColumnException(entity: Name.EntityName, columns: Collection<Name>) : DatabaseException("Entity '$entity' could not be created because it contains duplicate column names (c=[${columns.joinToString(",")}])!")
+    class NoColumnException(entity: Name.EntityName) : DatabaseException("Entity '$entity' could not be created because it does not contain a column.")
+
+    /**
+     * Thrown upon creation of an [Entity] if the definition contains duplicate column names.
+     *
+     * @param entity [Name.EntityName] of the affected [Entity]
+     * @param name [Name.ColumnName] of the duplicate [Column] in the definition.
+     */
+    class DuplicateColumnException(entity: Name.EntityName, name: Name.ColumnName) : DatabaseException("Entity '$entity' could not be created because it contains duplicate column names '$name'.")
 
     /**
      * Thrown whenever trying to access a [Column][org.vitrivr.cottontail.dbms.column.Column]
@@ -98,6 +105,13 @@ open class DatabaseException(message: String, cause: Throwable? = null) : Throwa
      * @param message Description of the issue.
      */
     class DataCorruptionException(message: String) : DatabaseException(message)
+
+    /**
+     * Thrown when the Cottontail DB engine cannot write data because written value is reserved. Used mainly for nullable columns.
+     *
+     * @param message Description of the issue.
+     */
+    class ReservedValueException(message: String): DatabaseException(message)
 }
 
 

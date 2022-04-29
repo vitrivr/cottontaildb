@@ -5,8 +5,10 @@ import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
 import org.vitrivr.cottontail.core.queries.predicates.ComparisonOperator
+import org.vitrivr.cottontail.dbms.index.IndexState
 import org.vitrivr.cottontail.dbms.index.IndexTx
-import org.vitrivr.cottontail.dbms.queries.QueryContext
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
+import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.predicates.FilterLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.sources.EntityScanLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.physical.predicates.FilterPhysicalOperatorNode
@@ -20,24 +22,32 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
  * [EntityScanLogicalOperatorNode] through a single [IndexScanPhysicalOperatorNode].
  *
  * @author Ralph Gasser
- * @version 1.2.1
+ * @version 1.3.0
  */
 object BooleanIndexScanRule : RewriteRule {
-    override fun canBeApplied(node: org.vitrivr.cottontail.dbms.queries.operators.OperatorNode): Boolean =
+    override fun canBeApplied(node: OperatorNode, ctx: QueryContext): Boolean =
         node is FilterPhysicalOperatorNode && node.input is EntityScanPhysicalOperatorNode
 
-    override fun apply(node: org.vitrivr.cottontail.dbms.queries.operators.OperatorNode, ctx: QueryContext): org.vitrivr.cottontail.dbms.queries.operators.OperatorNode? {
+    /**
+     * Applies this [BooleanIndexScanRule] and tries to replace a [EntityScanPhysicalOperatorNode] followed by a [FilterLogicalOperatorNode]
+     *
+     */
+    override fun apply(node: OperatorNode, ctx: QueryContext): OperatorNode? {
         if (node is FilterPhysicalOperatorNode) {
             val parent = node.input
             if (parent is EntityScanPhysicalOperatorNode) {
                 val fetch = parent.fetch.toMap()
                 val normalizedPredicate = this.normalize(node.predicate, fetch)
                 val indexes = parent.entity.listIndexes()
-                val candidate = indexes.find { it.canProcess(normalizedPredicate) }
+                val candidate = indexes.map {
+                    parent.entity.context.getTx(parent.entity.indexForName(it)) as IndexTx
+                }.find {
+                    it.state != IndexState.DIRTY && it.canProcess(normalizedPredicate)
+                }
                 if (candidate != null) {
-                    val newFetch = parent.fetch.filter { candidate.produces.contains(it.second) }
-                    val delta = parent.fetch.filter { !candidate.produces.contains(it.second) }
-                    var p: org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Physical = IndexScanPhysicalOperatorNode(node.groupId, ctx.txn.getTx(candidate) as IndexTx, node.predicate, newFetch)
+                    val newFetch = parent.fetch.filter { candidate.columnsFor(normalizedPredicate).contains(it.second) }
+                    val delta = parent.fetch.filter { !candidate.columnsFor(normalizedPredicate).contains(it.second) }
+                    var p: OperatorNode.Physical = IndexScanPhysicalOperatorNode(node.groupId, candidate, node.predicate, newFetch)
                     if (delta.isNotEmpty()) {
                         p = FetchPhysicalOperatorNode(p, parent.entity, delta)
                     }
@@ -86,7 +96,7 @@ object BooleanIndexScanRule : RewriteRule {
                         }
                     )
                 }
-                else -> emptyList<Binding>()
+                else -> emptyList()
             }
 
             /* Return new operator. */
@@ -102,7 +112,7 @@ object BooleanIndexScanRule : RewriteRule {
                 is ComparisonOperator.In -> op /* IN operators only support literal bindings. */
                 is ComparisonOperator.IsNull -> ComparisonOperator.IsNull(left)
             }
-            BooleanPredicate.Atomic(newOp, predicate.not, predicate.dependsOn)
+            BooleanPredicate.Atomic(newOp, predicate.not)
         }
         is BooleanPredicate.Compound.And -> BooleanPredicate.Compound.And(normalize(predicate.p1, fetch), normalize(predicate.p2, fetch))
         is BooleanPredicate.Compound.Or -> BooleanPredicate.Compound.Or(normalize(predicate.p1, fetch), normalize(predicate.p2, fetch))

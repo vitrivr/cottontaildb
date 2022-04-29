@@ -51,16 +51,15 @@ sealed interface Signature<T: Argument> {
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
             if (other !is Closed<*>) return false
-
-            if (name != other.name) return false
-            if (!arguments.contentEquals(other.arguments)) return false
-            if (returnType != other.returnType) return false
+            if (this.name != other.name) return false
+            if (this.returnType != other.returnType) return false
+            if (!this.arguments.contentEquals(other.arguments)) return false
             return true
         }
         override fun hashCode(): Int {
-            var result = name.hashCode()
-            result = 31 * result + arguments.contentHashCode()
-            result = 31 * result + returnType.hashCode()
+            var result = this.name.hashCode()
+            result = 31 * result + this.returnType.hashCode()
+            result = 31 * result + this.arguments.contentHashCode()
             return result
         }
     }
@@ -73,13 +72,13 @@ sealed interface Signature<T: Argument> {
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
             if (other !is SemiClosed) return false
-            if (name != other.name) return false
-            if (!arguments.contentEquals(other.arguments)) return false
+            if (this.name != other.name) return false
+            if (!this.arguments.contentEquals(other.arguments)) return false
             return true
         }
         override fun hashCode(): Int {
-            var result = name.hashCode()
-            result = 31 * result + arguments.contentHashCode()
+            var result = this.name.hashCode()
+            result = 31 * result + this.arguments.contentHashCode()
             return result
         }
     }
@@ -92,13 +91,13 @@ sealed interface Signature<T: Argument> {
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
             if (other !is Open) return false
-            if (name != other.name) return false
-            if (!arguments.contentEquals(other.arguments)) return false
+            if (this.name != other.name) return false
+            if (!this.arguments.contentEquals(other.arguments)) return false
             return true
         }
         override fun hashCode(): Int {
             var result = name.hashCode()
-            result = 31 * result + arguments.contentHashCode()
+            result = 31 * result + this.arguments.contentHashCode()
             return result
         }
     }

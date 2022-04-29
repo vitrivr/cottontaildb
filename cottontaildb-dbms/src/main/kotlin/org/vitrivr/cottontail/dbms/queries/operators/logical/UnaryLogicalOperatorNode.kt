@@ -3,17 +3,16 @@ package org.vitrivr.cottontail.dbms.queries.operators.logical
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
-import org.vitrivr.cottontail.core.queries.Node
-import org.vitrivr.cottontail.core.queries.binding.BindingContext
+import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
+import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
-import org.vitrivr.cottontail.dbms.queries.sort.SortOrder
 import java.io.PrintStream
 
 /**
  * An abstract [OperatorNode.Logical] implementation that has a single [OperatorNode] as input.
  *
  * @author Ralph Gasser
- * @version 2.5.0
+ * @version 2.6.0
  */
 abstract class UnaryLogicalOperatorNode(input: Logical? = null) : OperatorNode.Logical() {
     /** Input arity of [UnaryLogicalOperatorNode] is always one. */
@@ -49,13 +48,13 @@ abstract class UnaryLogicalOperatorNode(input: Logical? = null) : OperatorNode.L
     override val columns: List<ColumnDef<*>>
         get() = this.input?.columns ?: emptyList()
 
-    /** By default, a [UnaryLogicalOperatorNode]'s order is retained. */
-    override val sortOn: List<Pair<ColumnDef<*>, SortOrder>>
-        get() = this.input?.sortOn ?: emptyList()
-
     /** By default, a [UnaryLogicalOperatorNode]'s requirements are unspecified. */
     override val requires: List<ColumnDef<*>>
         get() = emptyList()
+
+    /** By default, a [UnaryLogicalOperatorNode] inherits its traits from its parent. */
+    override val traits: Map<TraitType<*>,Trait>
+        get() = this.input?.traits ?: emptyMap()
 
     init {
         this.input = input
@@ -100,17 +99,6 @@ abstract class UnaryLogicalOperatorNode(input: Logical? = null) : OperatorNode.L
         val copy = this.copy()
         copy.input = input.getOrNull(0)
         return (this.output?.copyWithOutput(copy) ?: copy).root
-    }
-
-    /**
-     * By default, the [UnaryLogicalOperatorNode] simply propagates [bind] calls to its input.
-     *
-     * However, some implementations must propagate the call to inner [Node]s.
-     *
-     * @param context The [BindingContext] to bind this [UnaryLogicalOperatorNode] to.
-     */
-    override fun bind(context: BindingContext) {
-        this.input?.bind(context)
     }
 
     /**

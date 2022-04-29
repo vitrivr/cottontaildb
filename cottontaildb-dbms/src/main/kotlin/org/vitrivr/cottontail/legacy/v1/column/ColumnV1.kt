@@ -2,42 +2,44 @@ package org.vitrivr.cottontail.legacy.v1.column
 
 import org.mapdb.CottontailStoreWAL
 import org.mapdb.DBException
+import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
+import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.column.Column
 import org.vitrivr.cottontail.dbms.column.ColumnEngine
 import org.vitrivr.cottontail.dbms.column.ColumnTx
-import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.exceptions.TxException
+import org.vitrivr.cottontail.dbms.exceptions.TransactionException
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.general.AbstractTx
 import org.vitrivr.cottontail.dbms.general.DBOVersion
-import org.vitrivr.cottontail.dbms.general.TxAction
-import org.vitrivr.cottontail.dbms.general.TxSnapshot
-import org.vitrivr.cottontail.storage.serializers.ValueSerializerFactory
+import org.vitrivr.cottontail.dbms.statistics.columns.ValueStatistics
+
+import org.vitrivr.cottontail.legacy.v1.entity.EntityV1
+import org.vitrivr.cottontail.storage.serializers.values.ValueSerializerFactory
+import org.vitrivr.cottontail.storage.serializers.values.mapdb.MapDBSerializer
 import org.vitrivr.cottontail.utilities.extensions.write
 import java.nio.file.Path
-import java.util.*
 import java.util.concurrent.locks.StampedLock
 
 /**
- * Represents a single column in the Cottontail DB model. A [ColumnV1] record is identified by a tuple ID (long)
- * and can hold an arbitrary value. Usually, multiple [ColumnV1]s make up an [Entity].
+ * Represents a single column in the Cottontail DB model.
  *
- * @see Entity
+ * A [ColumnV1] record can be identified by a tuple ID (long) and can hold an arbitrary value.
+ * Usually, multiple [ColumnV1]s make up an [EntityV1].
+ *
+ * @see EntityV1
  *
  * @param <T> Type of the value held by this [ColumnV1].
  *
  * @author Ralph Gasser
- * @version 1.4.0
+ * @version 2.0.0
  */
-class ColumnV1<T : Value>(
-    override val name: Name.ColumnName,
-    override val parent: Entity
-) : Column<T> {
+class ColumnV1<T : Value>(override val name: Name.ColumnName, override val parent: EntityV1) : Column<T>, AutoCloseable {
 
     /**
      * Companion object with some important constants.
@@ -47,18 +49,18 @@ class ColumnV1<T : Value>(
         private const val HEADER_RECORD_ID: Long = 1L
     }
 
-    /** The [Path] to the [Entity]'s main folder. */
-    override val path: Path = parent.path.resolve("col_${name.simple}.db")
+    /** The [Path] to the [ColumnV1]'s data file. */
+    val path: Path = parent.path.resolve("col_${name.simple}.db")
 
-    /** Internal reference to the [Store] underpinning this [ColumnV1]. */
+    /** Internal reference to the [CottontailStoreWAL] underpinning this [ColumnV1]. */
     private var store: CottontailStoreWAL = try {
         this.parent.parent.parent.config.mapdb.store(this.path)
     } catch (e: DBException) {
         throw DatabaseException("Failed to open column at '$path': ${e.message}'")
     }
 
-    /** Internal reference to the [Header] of this [ColumnV1]. */
-    private val header
+    /** Internal reference to the [ColumnV1Header] of this [ColumnV1]. */
+    private val header: ColumnV1Header
         get() = this.store.get(HEADER_RECORD_ID, ColumnV1Header.Serializer)
             ?: throw DatabaseException.DataCorruptionException("Failed to open header of column '$name'!'")
 
@@ -71,19 +73,17 @@ class ColumnV1<T : Value>(
     override val columnDef: ColumnDef<T> =
         this.header.let { ColumnDef(this.name, it.type as Types<T>, it.nullable) }
 
+    /** The [Catalogue] this [ColumnV1] belongs to. */
+    override val catalogue: Catalogue
+        get() = this.parent.catalogue
+
     /** The [DBOVersion] of this [ColumnV1]. */
     override val version: DBOVersion
         get() = DBOVersion.V1_0
 
     /** The [ColumnEngine] of this [ColumnV1]. */
-    override val engine: ColumnEngine
+    val engine: ColumnEngine
         get() = ColumnEngine.MAPDB
-
-    /**
-     * The maximum tuple ID used by this [Column].
-     */
-    override val maxTupleId: Long
-        get() = this.store.maxRecid
 
     /**
      * Status indicating whether this [ColumnV1] is open or closed.
@@ -107,49 +107,35 @@ class ColumnV1<T : Value>(
     /**
      * Creates a new [ColumnV1.Tx] and returns it.
      *
-     * @param readonly True, if the resulting [ColumnV1.Tx] should be a read-only transaction.
-     * @param tid The ID for the new [ColumnV1.Tx]
+     * @param context [TransactionContext]
      *
-     * @return A new [ColumnTransaction] object.
+     * @return A new [ColumnTx] object.
      */
-    override fun newTx(context: org.vitrivr.cottontail.dbms.execution.TransactionContext): ColumnTx<T> = Tx(context)
+    override fun newTx(context: TransactionContext): ColumnTx<T> = Tx(context)
 
     /**
-     * A [Transaction] that affects this [ColumnV1].
+     * A [ColumnTx] that affects this [ColumnV1].
      */
-    inner class Tx constructor(override val context: org.vitrivr.cottontail.dbms.execution.TransactionContext) : AbstractTx(context), ColumnTx<T> {
-        /**
-         * The [ColumnDef] of the [Column] underlying this [ColumnTransaction].
-         *
-         * @return [ColumnTransaction]
-         */
+    inner class Tx constructor(context: TransactionContext) : AbstractTx(context), ColumnTx<T> {
+        /** The [ColumnDef] of the [Column] underlying this [ColumnTx]. */
         override val columnDef: ColumnDef<T>
             get() = this@ColumnV1.columnDef
 
         override val dbo: Column<T>
             get() = this@ColumnV1
 
-        /** The [Serializer] used for de-/serialization of [ColumnV1] entries. */
-        private val serializer = ValueSerializerFactory.mapdb(this@ColumnV1.type)
+        /** The [MapDBSerializer] used for de-/serialization of [ColumnV1] entries. */
+        private val serializer: MapDBSerializer<T> = ValueSerializerFactory.mapdb(this@ColumnV1.type)
 
         /** Obtains a global (non-exclusive) read-lock on [ColumnV1]. Prevents enclosing [ColumnV1] from being closed while this [ColumnV1.Tx] is still in use. */
         private val closeStamp = this@ColumnV1.closeLock.readLock()
 
-        /** Tries to acquire a global read-lock on the [ColumnV1]. */
         init {
+            /* Tries to acquire a global read-lock on the column. */
             if (this@ColumnV1.closed) {
                 this@ColumnV1.closeLock.unlockRead(this.closeStamp)
-                throw TxException.TxDBOClosedException(this.context.txId, this@ColumnV1)
+                throw TransactionException.DBOClosed(this.context.txId, this@ColumnV1)
             }
-        }
-
-        /** The [TxSnapshot] for this [ColumnV1.Tx] */
-        override val snapshot: TxSnapshot = object : TxSnapshot {
-            override val actions: List<TxAction> = emptyList()
-            override fun commit() = throw UnsupportedOperationException("Operation not supported on legacy DBO.")
-            override fun rollback() = throw UnsupportedOperationException("Operation not supported on legacy DBO.")
-            override fun record(action: TxAction): Boolean = throw UnsupportedOperationException("Operation not supported on legacy DBO.")
-
         }
 
         /**
@@ -160,8 +146,8 @@ class ColumnV1<T : Value>(
          *
          * @throws DatabaseException If the tuple with the desired ID doesn't exist OR is invalid.
          */
-        override fun read(tupleId: Long): T? = this.withReadLock {
-            this@ColumnV1.store.get(tupleId, this.serializer)
+        override fun get(tupleId: TupleId): T? {
+            return this@ColumnV1.store.get(tupleId, this.serializer)
         }
 
         /**
@@ -169,9 +155,23 @@ class ColumnV1<T : Value>(
          *
          * @return The number of entries in this [ColumnV1].
          */
-        override fun count(): Long = this.withReadLock {
-            this@ColumnV1.header.count
+        override fun count(): Long {
+            return this@ColumnV1.header.count
         }
+
+        /**
+         * The smallest [TupleId] contained in this [ColumnV1].
+         *
+         * @return [TupleId]
+         */
+        override fun smallestTupleId(): TupleId = 1L
+
+        /**
+         * The largest [TupleId] contained in this [ColumnV1].
+         *
+         * @return [TupleId]
+         */
+        override fun largestTupleId(): TupleId = this@ColumnV1.store.maxRecid
 
         /**
          * Creates and returns a new [Iterator] for this [ColumnV1.Tx] that returns
@@ -179,7 +179,7 @@ class ColumnV1<T : Value>(
          *
          * @return [Iterator]
          */
-        override fun scan() = this.scan(1L..this@ColumnV1.maxTupleId)
+        fun scan() = this.scan(this.smallestTupleId()..this.largestTupleId())
 
         /**
          * Creates and returns a new [Iterator] for this [ColumnV1.Tx] that returns
@@ -188,29 +188,31 @@ class ColumnV1<T : Value>(
          * @param range The [LongRange] that should be scanned.
          * @return [Iterator]
          */
-        override fun scan(range: LongRange) = this.withReadLock {
-            object : Iterator<TupleId> {
+        fun scan(range: LongRange) = object : Iterator<TupleId> {
 
-                /** Wraps a [RecordIdIterator] from the [ColumnV1]. */
-                private val wrapped = this@ColumnV1.store.RecordIdIterator(range)
+            /** Wraps a [CottontailStoreWAL.RecordIdIterator] from the [ColumnV1]. */
+            private val wrapped: CottontailStoreWAL.RecordIdIterator = this@ColumnV1.store.RecordIdIterator(range)
 
-                /**
-                 * Returns the next element in the iteration.
-                 */
-                override fun next(): TupleId {
-                    return this.wrapped.next()
-                }
+            /**
+             * Returns the next element in the iteration.
+             */
+            override fun next(): TupleId {
+                return this.wrapped.next()
+            }
 
-                /**
-                 * Returns `true` if the iteration has more elements.
-                 */
-                override fun hasNext(): Boolean {
-                    return this.wrapped.hasNext()
-                }
+            /**
+             * Returns `true` if the iteration has more elements.
+             */
+            override fun hasNext(): Boolean {
+                return this.wrapped.hasNext()
             }
         }
 
-        override fun insert(record: T?): TupleId {
+        override fun contains(tupleId: TupleId): Boolean {
+            throw UnsupportedOperationException("Operation not supported on legacy DBO.")
+        }
+
+        override fun add(tupleId: TupleId, value: T?): Boolean {
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
         }
 
@@ -218,16 +220,24 @@ class ColumnV1<T : Value>(
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
         }
 
-        override fun compareAndUpdate(tupleId: Long, value: T?, expected: T?): Boolean {
+        override fun delete(tupleId: Long): T? {
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
         }
 
-        override fun delete(tupleId: Long): T? {
+        override fun statistics(): ValueStatistics<T> {
             throw UnsupportedOperationException("Operation not supported on legacy DBO.")
         }
 
         override fun cleanup() {
             this@ColumnV1.closeLock.unlockRead(this.closeStamp)
+        }
+
+        override fun cursor(): Cursor<T?> {
+            throw UnsupportedOperationException("Operation not supported on legacy DBO.")
+        }
+
+        override fun cursor(partition: LongRange): Cursor<T?> {
+            throw UnsupportedOperationException("Operation not supported on legacy DBO.")
         }
     }
 }

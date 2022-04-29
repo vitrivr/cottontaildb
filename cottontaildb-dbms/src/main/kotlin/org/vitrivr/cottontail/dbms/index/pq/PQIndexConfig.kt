@@ -1,86 +1,82 @@
 package org.vitrivr.cottontail.dbms.index.pq
 
-import org.mapdb.DataInput2
-import org.mapdb.DataOutput2
+import jetbrains.exodus.bindings.ComparableBinding
+import jetbrains.exodus.bindings.IntegerBinding
+import jetbrains.exodus.bindings.LongBinding
+import jetbrains.exodus.bindings.StringBinding
+import jetbrains.exodus.util.LightOutputStream
+import org.vitrivr.cottontail.core.database.Name
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.CosineDistance
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.EuclideanDistance
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.ManhattanDistance
+import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.SquaredEuclideanDistance
 import org.vitrivr.cottontail.dbms.index.IndexConfig
+import org.xerial.snappy.Snappy
+import java.io.ByteArrayInputStream
 
 /**
  * Configuration class for [PQIndex].
  *
  * @author Gabriel Zihlmann & Ralph Gasser
- * @version 1.1.0
+ * @version 1.2.0
  */
-data class PQIndexConfig(
-    val numSubspaces: Int,
-    val numCentroids: Int,
-    val sampleSize: Int,
-    val seed: Long
-) : IndexConfig {
+data class PQIndexConfig(val distance: Name.FunctionName, val sampleSize: Int, val numCentroids: Int, val numSubspaces: Int? = null, val seed: Long = System.currentTimeMillis(), val centroids: List<DoubleArray> = emptyList()) : IndexConfig<PQIndex> {
 
-    companion object Serializer : org.mapdb.Serializer<PQIndexConfig> {
+    companion object {
+        /** Configuration key for the number of subspaces. */
+        const val KEY_DISTANCE = "distance"
 
-        const val AUTO_VALUE = -1
-        const val NUM_SUBSPACES_KEY = "num_subspaces"
-        const val NUM_CENTROIDS_KEY = "num_centroids"
-        const val SAMPLE_SIZE = "sample_size"
-        const val SEED_KEY = "seed"
+        /** Configuration key for the number of subspaces. */
+        const val KEY_NUM_SUBSPACES = "num_subspaces"
 
-        /**
-         * Serializes the content of the given value into the given
-         * [DataOutput2].
-         *
-         * @param out DataOutput2 to save object into
-         * @param value Object to serialize
-         *
-         * @throws IOException in case of an I/O error
-         */
-        override fun serialize(out: DataOutput2, value: PQIndexConfig) {
-            out.packInt(value.numSubspaces)
-            out.packInt(value.numCentroids)
-            out.packInt(value.sampleSize)
-            out.packLong(value.seed)
-        }
+        /** Configuration key for the number of centroids. */
+        const val KEY_NUM_CENTROIDS = "num_centroids"
 
-        /**
-         * Deserializes and returns the content of the given [DataInput2].
-         *
-         * @param input DataInput2 to de-serialize data from
-         * @param available how many bytes that are available in the DataInput2 for
-         * reading, may be -1 (in streams) or 0 (null).
-         *
-         * @return the de-serialized content of the given [DataInput2]
-         * @throws IOException in case of an I/O error
-         */
-        override fun deserialize(input: DataInput2, available: Int) = PQIndexConfig(
-            input.unpackInt(),
-            input.unpackInt(),
-            input.unpackInt(),
-            input.unpackLong()
-        )
+        /** Configuration key for the sample size. */
+        const val KEY_SAMPLE_SIZE = "sample_size"
 
-        /**
-         * Constructs a [PQIndexConfig] from a parameter map.
-         *
-         * @param params The parameter map.
-         * @return [PQIndexConfig]
-         */
-        fun fromParamMap(params: Map<String, String>) = PQIndexConfig(
-            params[NUM_SUBSPACES_KEY]?.toInt() ?: AUTO_VALUE,
-            params[NUM_CENTROIDS_KEY]?.toInt() ?: 100,
-            params[SAMPLE_SIZE]?.toInt() ?: 1500,
-            params[SEED_KEY]?.toLongOrNull() ?: System.currentTimeMillis()
-        )
+        /** Set of supported distances. */
+        val SUPPORTED_DISTANCES: Set<Name.FunctionName> = setOf(ManhattanDistance.FUNCTION_NAME, EuclideanDistance.FUNCTION_NAME, SquaredEuclideanDistance.FUNCTION_NAME, CosineDistance.FUNCTION_NAME)
     }
 
     /**
-     * Converts this [PQIndexConfig] to a [Map] representation.
-     *
-     * @return [Map] representation of this [PQIndexConfig].
+     * [ComparableBinding] for [PQIndexConfig].
      */
-    override fun toMap(): Map<String, String> = mapOf(
-        NUM_SUBSPACES_KEY to this.numSubspaces.toString(),
-        NUM_CENTROIDS_KEY to this.numCentroids.toString(),
-        SAMPLE_SIZE to this.sampleSize.toString(),
-        SEED_KEY to this.seed.toString()
-    )
+    object Binding: ComparableBinding() {
+        override fun readObject(stream: ByteArrayInputStream): Comparable<PQIndexConfig> {
+            val distance = Name.FunctionName(StringBinding.BINDING.readObject(stream))
+            val sampleSize = IntegerBinding.readCompressed(stream)
+            val numCentroids = IntegerBinding.readCompressed(stream)
+            val numSubspaces = IntegerBinding.readCompressed(stream)
+            val seed = LongBinding.readCompressed(stream)
+            val actualNumberOfCentroids = IntegerBinding.readCompressed(stream)
+            val centroids = (0 until actualNumberOfCentroids).map {
+                Snappy.uncompressDoubleArray(stream.readNBytes(IntegerBinding.readCompressed(stream)))
+            }
+            return PQIndexConfig(distance, sampleSize, numCentroids, if (numSubspaces == -1) { null } else { numSubspaces }, seed, centroids)
+        }
+
+        override fun writeObject(output: LightOutputStream, `object`: Comparable<PQIndexConfig>) {
+            require(`object` is PQIndexConfig) { "PQIndexConfig.Binding can only be used to serialize instances of PQIndexConfig." }
+            StringBinding.BINDING.writeObject(output, `object`.distance.simple)
+            IntegerBinding.writeCompressed(output, `object`.sampleSize)
+            IntegerBinding.writeCompressed(output, `object`.numCentroids)
+            IntegerBinding.writeCompressed(output, `object`.numSubspaces ?: -1)
+            LongBinding.writeCompressed(output, `object`.seed)
+            IntegerBinding.writeCompressed(output, `object`.centroids.size)
+            for (c in `object`.centroids) {
+                val compressed = Snappy.compress(c)
+                IntegerBinding.writeCompressed(output, compressed.size)
+                output.write(compressed)
+            }
+        }
+    }
+
+    init {
+        /* Range of sanity checks. */
+        require(this.numCentroids > 0) { "PQIndex requires at least one centroid." }
+        require(this.numSubspaces == null || this.numSubspaces > 0) { "PQIndex requires at least one sub space." }
+        require(this.numCentroids <= Short.MAX_VALUE) { "PQIndex supports a maximum number of ${Short.MAX_VALUE} centroids." }
+        require(this.distance in SUPPORTED_DISTANCES) { "PQIndex only support L1, L2, L2SQUARED, COSINE and INNERPRODUCT distance."}
+    }
 }

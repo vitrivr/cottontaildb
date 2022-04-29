@@ -4,7 +4,6 @@ import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
-import org.vitrivr.cottontail.core.queries.GroupId
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
@@ -51,7 +50,7 @@ sealed interface BooleanPredicate : Predicate {
      * @author Ralph Gasser
      * @version 1.3.0
      */
-    data class Atomic(val operator: ComparisonOperator, val not: Boolean, val dependsOn: GroupId = 0) : BooleanPredicate {
+    data class Atomic(val operator: ComparisonOperator, val not: Boolean) : BooleanPredicate {
 
         /** The [Cost] of evaluating this [Atomic]. */
         override val cost: Cost
@@ -109,7 +108,7 @@ sealed interface BooleanPredicate : Predicate {
          *
          * @return Copy of this [Atomic]
          */
-        override fun copy(): Atomic = Atomic(this.operator.copy(), this.not, this.dependsOn)
+        override fun copy(): Atomic = Atomic(this.operator.copy(), this.not)
 
         /**
          * Binds all [Binding]s contained in this [BooleanPredicate.Atomic] to the new [BindingContext].

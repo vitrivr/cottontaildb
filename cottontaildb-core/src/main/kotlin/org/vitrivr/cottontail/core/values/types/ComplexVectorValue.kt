@@ -26,7 +26,7 @@ interface ComplexVectorValue<T: Number> : VectorValue<T>, Iterable<ComplexValue<
      * @param length how many elements, including start, to return
      * @return The subvector starting at index start containing length elements.
      */
-    override fun subvector(start: Int, length: Int): ComplexVectorValue<T>
+    override fun slice(start: Int, length: Int): ComplexVectorValue<T>
 
     /**
      * Gets the real part of the i-th entry of this [ComplexVectorValue].

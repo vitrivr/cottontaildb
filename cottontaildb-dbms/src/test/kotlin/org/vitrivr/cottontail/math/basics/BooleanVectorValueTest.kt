@@ -1,30 +1,31 @@
 package org.vitrivr.cottontail.math.basics
 
 import org.apache.commons.math3.linear.ArrayRealVector
+import org.apache.commons.math3.random.JDKRandomGenerator
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.RepeatedTest
 import org.vitrivr.cottontail.core.values.BooleanVectorValue
+import org.vitrivr.cottontail.core.values.generators.BooleanVectorValueGenerator
 import org.vitrivr.cottontail.math.isApproximatelyTheSame
 import org.vitrivr.cottontail.utilities.extensions.toDouble
-import java.util.*
 import kotlin.math.pow
 
 /**
  * Some basic test cases that test for correctness of [BooleanVectorValue] arithmetic operations.
  *
  * @author Ralph Gasser
- * @version 1.0
+ * @version 1.1.0
  */
 class BooleanVectorValueTest {
 
-    private val random = SplittableRandom()
+    private val random = JDKRandomGenerator()
 
     @RepeatedTest(25)
     fun testAdd() {
         val size = random.nextInt(2048)
 
-        val c1 = BooleanVectorValue.random(size, this.random)
-        val c2 = BooleanVectorValue.random(size, this.random)
+        val c1 = BooleanVectorValueGenerator.random(size, this.random)
+        val c2 = BooleanVectorValueGenerator.random(size, this.random)
 
         val c1p = ArrayRealVector(DoubleArray(c1.data.size) { c1.data[it].toDouble() })
         val c2p = ArrayRealVector(DoubleArray(c2.data.size) { c2.data[it].toDouble() })
@@ -41,8 +42,8 @@ class BooleanVectorValueTest {
     fun testSub() {
         val size = random.nextInt(2048)
 
-        val c1 = BooleanVectorValue.random(size, this.random)
-        val c2 = BooleanVectorValue.random(size, this.random)
+        val c1 = BooleanVectorValueGenerator.random(size, this.random)
+        val c2 = BooleanVectorValueGenerator.random(size, this.random)
 
         val c1p = ArrayRealVector(DoubleArray(c1.data.size) { c1.data[it].toDouble() })
         val c2p = ArrayRealVector(DoubleArray(c2.data.size) { c2.data[it].toDouble() })
@@ -59,8 +60,8 @@ class BooleanVectorValueTest {
     fun testMul() {
         val size = random.nextInt(2048)
 
-        val c1 = BooleanVectorValue.random(size, this.random)
-        val c2 = BooleanVectorValue.random(size, this.random)
+        val c1 = BooleanVectorValueGenerator.random(size, this.random)
+        val c2 = BooleanVectorValueGenerator.random(size, this.random)
 
         val c1p = ArrayRealVector(DoubleArray(c1.data.size) { c1.data[it].toDouble() })
         val c2p = ArrayRealVector(DoubleArray(c2.data.size) { c2.data[it].toDouble() })
@@ -78,7 +79,7 @@ class BooleanVectorValueTest {
         val size = random.nextInt(2048)
         val exp = random.nextInt(10)
 
-        val c1 = BooleanVectorValue.random(size, this.random)
+        val c1 = BooleanVectorValueGenerator.random(size, this.random)
         val c1p = ArrayRealVector(DoubleArray(c1.data.size) { c1.data[it].toDouble() })
 
         val pow = c1.pow(exp)
@@ -93,7 +94,7 @@ class BooleanVectorValueTest {
     fun testSqrt() {
         val size = random.nextInt(2048)
 
-        val c1 = BooleanVectorValue.random(size, this.random)
+        val c1 = BooleanVectorValueGenerator.random(size, this.random)
         val c1p = ArrayRealVector(DoubleArray(c1.data.size) { c1.data[it].toDouble() })
 
         val sqrt = c1.sqrt()
@@ -108,8 +109,8 @@ class BooleanVectorValueTest {
     fun testL1() {
         val size = random.nextInt(2048)
 
-        val c1 = BooleanVectorValue.random(size, this.random)
-        val c2 = BooleanVectorValue.random(size, this.random)
+        val c1 = BooleanVectorValueGenerator.random(size, this.random)
+        val c2 = BooleanVectorValueGenerator.random(size, this.random)
 
         val c1p = ArrayRealVector(DoubleArray(c1.data.size) { c1.data[it].toDouble() })
         val c2p = ArrayRealVector(DoubleArray(c2.data.size) { c2.data[it].toDouble() })
@@ -124,8 +125,8 @@ class BooleanVectorValueTest {
     fun testL2() {
         val size = random.nextInt(2048)
 
-        val c1 = BooleanVectorValue.random(size, this.random)
-        val c2 = BooleanVectorValue.random(size, this.random)
+        val c1 = BooleanVectorValueGenerator.random(size, this.random)
+        val c2 = BooleanVectorValueGenerator.random(size, this.random)
 
         val c1p = ArrayRealVector(DoubleArray(c1.data.size) { c1.data[it].toDouble() })
         val c2p = ArrayRealVector(DoubleArray(c2.data.size) { c2.data[it].toDouble() })
@@ -140,8 +141,8 @@ class BooleanVectorValueTest {
     fun testDot() {
         val size = random.nextInt(2048)
 
-        val c1 = BooleanVectorValue.random(size, this.random)
-        val c2 = BooleanVectorValue.random(size, this.random)
+        val c1 = BooleanVectorValueGenerator.random(size, this.random)
+        val c2 = BooleanVectorValueGenerator.random(size, this.random)
 
         val c1p = ArrayRealVector(DoubleArray(c1.data.size) { c1.data[it].toDouble() })
         val c2p = ArrayRealVector(DoubleArray(c2.data.size) { c2.data[it].toDouble() })
@@ -156,7 +157,7 @@ class BooleanVectorValueTest {
     fun testNorm2() {
         val size = random.nextInt(2048)
 
-        val c1 = BooleanVectorValue.random(size, this.random)
+        val c1 = BooleanVectorValueGenerator.random(size, this.random)
 
         val c1p = ArrayRealVector(DoubleArray(c1.data.size) { c1.data[it].toDouble() })
 

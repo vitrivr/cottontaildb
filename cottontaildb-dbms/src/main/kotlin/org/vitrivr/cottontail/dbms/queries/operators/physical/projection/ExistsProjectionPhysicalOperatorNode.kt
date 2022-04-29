@@ -2,9 +2,13 @@ package org.vitrivr.cottontail.dbms.queries.operators.physical.projection
 
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.binding.Binding
+import org.vitrivr.cottontail.core.queries.nodes.traits.NotPartitionableTrait
+import org.vitrivr.cottontail.core.queries.nodes.traits.Trait
+import org.vitrivr.cottontail.core.queries.nodes.traits.TraitType
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
-import org.vitrivr.cottontail.dbms.execution.TransactionContext
 import org.vitrivr.cottontail.dbms.execution.operators.projection.ExistsProjectionOperator
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.physical.UnaryPhysicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.projection.Projection
 
@@ -31,8 +35,9 @@ class ExistsProjectionPhysicalOperatorNode(input: Physical? = null, val out: Bin
     override val cost: Cost
         get() = Cost.MEMORY_ACCESS
 
-    /**The [ExistsProjectionPhysicalOperatorNode] cannot be partitioned. */
-    override val canBePartitioned: Boolean = false
+    /** The [CountProjectionPhysicalOperatorNode] cannot be partitioned. */
+    override val traits: Map<TraitType<*>, Trait>
+        get() = (this.input?.traits ?: emptyMap()) + (NotPartitionableTrait to NotPartitionableTrait)
 
     /**
      * Creates and returns a copy of this [ExistsProjectionPhysicalOperatorNode] without any children or parents.
@@ -46,7 +51,7 @@ class ExistsProjectionPhysicalOperatorNode(input: Physical? = null, val out: Bin
      *
      * @param ctx The [TransactionContext] used for the conversion (e.g. late binding).
      */
-    override fun toOperator(ctx: org.vitrivr.cottontail.dbms.queries.QueryContext) = ExistsProjectionOperator(
+    override fun toOperator(ctx: QueryContext) = ExistsProjectionOperator(
         this.input?.toOperator(ctx) ?: throw IllegalStateException("Cannot convert disconnected OperatorNode to Operator (node = $this)"),
         this.out
     )

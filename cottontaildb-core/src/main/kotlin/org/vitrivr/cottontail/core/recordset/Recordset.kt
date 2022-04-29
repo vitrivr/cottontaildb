@@ -3,18 +3,18 @@ package org.vitrivr.cottontail.core.recordset
 import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap
 import it.unimi.dsi.fastutil.objects.Object2ObjectArrayMap
 import it.unimi.dsi.fastutil.objects.ObjectBigArrayBigList
-import org.vitrivr.cottontail.core.database.ColumnDef
-import org.vitrivr.cottontail.core.queries.predicates.Predicate
-import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
+import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.basics.Filterable
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.basics.Scanable
+import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.TupleId
+import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
+import org.vitrivr.cottontail.core.queries.predicates.Predicate
 import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.utilities.extensions.read
 import org.vitrivr.cottontail.utilities.extensions.write
 import java.util.concurrent.locks.StampedLock
-import kotlin.math.min
 
 /**
  * A [Recordset] as returned and processed by Cottontail DB. [Recordset]s are tables held in memory.
@@ -31,6 +31,9 @@ class Recordset(val columns: Array<ColumnDef<*>>, capacity: Long = 250L) : Scana
 
     /** [StampedLock] that mediates access to this [Recordset]. */
     private val lock = StampedLock()
+
+    /** True, since [Recordset] does support partitioning. */
+    override val supportsPartitioning: Boolean = true
 
     /** The number of columns contained in this [Recordset]. */
     val columnCount: Int
@@ -164,13 +167,6 @@ class Recordset(val columns: Array<ColumnDef<*>>, capacity: Long = 250L) : Scana
                 predicate.columns.all { this.columns.contains(it) }
 
     /**
-     *
-     */
-    override fun filter(predicate: Predicate): Iterator<Record> {
-        TODO("Not yet implemented")
-    }
-
-    /**
      * Returns the [ColumnDef] for the specified column index.
      *
      * @param column The index of the desired [ColumnDef]
@@ -195,66 +191,72 @@ class Recordset(val columns: Array<ColumnDef<*>>, capacity: Long = 250L) : Scana
     fun toList(): List<Record> = this.list.toList()
 
     /**
-     * Returns an [Iterator] for this [Recordset]. The [Iterator] is NOT thread safe.
-     *
-     * @return [Iterator] of this [Recordset].
-     */
-    fun iterator() = this.scan(this.columns)
-
-    /**
      * Returns an [Iterator] for this [Recordset] for the given [columns]. The [Iterator] is NOT thread safe.
      *
      * @param columns The [ColumnDef] to include in the iteration.
      * @return [Iterator] of this [Recordset].
      */
-    override fun scan(columns: Array<ColumnDef<*>>): Iterator<Record> = this.scan(columns, 0, 1)
+    override fun cursor(columns: Array<ColumnDef<*>>): Cursor<Record> = this.cursor(columns, 1 until this.list.size64())
 
     /**
      * Returns an [Iterator] for this [Recordset] for the given [columns] and the given [range].
      * The [Iterator] is NOT thread safe.
      *
      * @param columns The [ColumnDef] to include in the iteration.
-     * @param partitionIndex The [partitionIndex] for this [scan] call.
-     * @param partitions The total number of partitions for this [scan] call.
      * @return [Iterator] of this [Recordset].
      */
-    override fun scan(columns: Array<ColumnDef<*>>, partitionIndex: Int, partitions: Int) = object : Iterator<Record> {
-
-        /** The [LongRange] to iterate over. */
-        private val range: LongRange
+    override fun cursor(columns: Array<ColumnDef<*>>, partition: LongRange) = object : Cursor<Record> {
 
         init {
-            val maximum: Long = this@Recordset.rowCount
-            val partitionSize: Long = Math.floorDiv(maximum, partitions.toLong()) + 1L
-            val start: Long = partitionIndex * partitionSize
-            val end = min(((partitionIndex + 1) * partitionSize), maximum)
-            this.range = start until end
+            require(partition.last < this@Recordset.list.size64()) { "Requested partition $partition exceeds size ${this@Recordset.list.size64()} of recordset." }
         }
 
         /** Internal pointer kept as reference to the next [Record]. */
         @Volatile
-        private var pointer = range.first
+        private var pointer: TupleId = (partition.first - 1)
 
         /**
-         * Returns true if the next invocation of [Iterator#next()] returns a value and false otherwise.
-         *
-         * @return Boolean indicating, whether this [Iterator] will return a value.
+         * Returns the [Record] this [Cursor] is currently pointing to.
          */
-        override fun hasNext(): Boolean {
-            return this.pointer < this@Recordset.list.size64()
-        }
+        override fun value(): Record = this@Recordset.list[this.pointer]
 
         /**
-         * Returns the next value of this [Iterator].
-         *
-         * @return Next [Record] of this [Iterator].
+         * Returns the [TupleId] this [Cursor] is currently pointing to.
          */
-        override fun next(): Record {
-            val record = this@Recordset.list[this.pointer]
-            this.pointer += 1
-            return record
-        }
+        override fun key(): TupleId = this.pointer
+
+        /**
+         * Increases this [pointer] by one and checks if it is still within the bounds of the [List].
+         *
+         * @return True, if this [Cursor] has another entry.
+         */
+        override fun moveNext(): Boolean = (++this.pointer) < partition.last
+
+        /**
+         * Closes this [Cursor]; this is a no-op.
+         */
+        override fun close() { /* No op. */ }
     }
+
+    /**
+     * Filters this [Recordset] thereby creating and returning a new [Cursor] for all the [Record]s it contains
+     *
+     * @param predicate [Predicate] to filter with.
+     * @return New [Cursor]
+     */
+    override fun filter(predicate: Predicate): Cursor<Record> {
+        TODO("Not yet implemented")
+    }
+
+    /**
+     * Filters this [Recordset] thereby creating and returning a new [Cursor] for all the [Record]s it contains
+     *
+     * @param predicate [Predicate] to filter with.
+     * @param partition The [LongRange] specifying the [TupleId]s that should be considered.
+     * @return New [Cursor]
+     *
+     */
+    override fun filter(predicate: Predicate, partition: LongRange): Cursor<Record> = throw UnsupportedOperationException("Recordset does not support partitioned filtering.")
 
     /**
      * A [Record] implementation that depends on the existence of the enclosing [Recordset].

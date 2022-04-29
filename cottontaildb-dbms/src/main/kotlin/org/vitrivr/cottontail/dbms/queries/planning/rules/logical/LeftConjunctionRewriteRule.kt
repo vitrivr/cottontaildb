@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.dbms.queries.planning.rules.logical
 
 import org.vitrivr.cottontail.core.queries.predicates.BooleanPredicate
-import org.vitrivr.cottontail.dbms.queries.QueryContext
+import org.vitrivr.cottontail.dbms.queries.context.QueryContext
 import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
 import org.vitrivr.cottontail.dbms.queries.operators.logical.predicates.FilterLogicalOperatorNode
 import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
@@ -10,7 +10,7 @@ import org.vitrivr.cottontail.dbms.queries.planning.rules.RewriteRule
  * Decomposes a [FilterLogicalOperatorNode] that contains a [BooleanPredicate.Compound.And] into a sequence of two [FilterLogicalOperatorNode]s.
  *
  * @author Ralph Gasser
- * @version 1.1.0
+ * @version 1.2.0
  */
 object LeftConjunctionRewriteRule : RewriteRule {
 
@@ -20,9 +20,8 @@ object LeftConjunctionRewriteRule : RewriteRule {
      * @param node The input [OperatorNode] to check.
      * @return True if [RewriteRule] can be applied, false otherwise.
      */
-    override fun canBeApplied(node: org.vitrivr.cottontail.dbms.queries.operators.OperatorNode): Boolean =
+    override fun canBeApplied(node: OperatorNode, ctx: QueryContext): Boolean =
         node is FilterLogicalOperatorNode && node.predicate is BooleanPredicate.Compound.And
-
 
     /**
      * Decomposes the provided [FilterLogicalOperatorNode] with a conjunction into two consecutive
@@ -34,12 +33,13 @@ object LeftConjunctionRewriteRule : RewriteRule {
      *
      * @return The output [OperatorNode] or null, if no rewrite was done.
      */
-    override fun apply(node: org.vitrivr.cottontail.dbms.queries.operators.OperatorNode, ctx: QueryContext): org.vitrivr.cottontail.dbms.queries.operators.OperatorNode? {
-        if (node is FilterLogicalOperatorNode && node.predicate is BooleanPredicate.Compound) {
-            val parent = node.input?.copyWithInputs() ?: throw IllegalStateException("Encountered null node in logical operator node tree (node = $node). This is a programmer's error!")
-            val ret = FilterLogicalOperatorNode(FilterLogicalOperatorNode(parent, node.predicate.p1), node.predicate.p2)
-            return node.output?.copyWithOutput(ret) ?: ret
-        }
-        return null
+    override fun apply(node: OperatorNode, ctx: QueryContext): OperatorNode {
+        /* Make sure, that node is a LeftConjunctionRewriteRule. */
+        require(node is FilterLogicalOperatorNode) { "Called LeftConjunctionRewriteRule.apply() with node of type ${node.javaClass.simpleName}. This is a programmer's error!"}
+        require(node.predicate is BooleanPredicate.Compound.And) { "Called LeftConjunctionRewriteRule.apply() with node a predicate that is not a conjunction. This is a programmer's error!" }
+
+        val parent = node.input?.copyWithInputs() ?: throw IllegalStateException("Encountered null node in logical operator node tree (node = $node). This is a programmer's error!")
+        val ret = FilterLogicalOperatorNode(FilterLogicalOperatorNode(parent, node.predicate.p1), node.predicate.p2)
+        return node.output?.copyWithOutput(ret) ?: ret
     }
 }

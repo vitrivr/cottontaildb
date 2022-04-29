@@ -1,8 +1,8 @@
 package org.vitrivr.cottontail.dbms.index.va.bounds
 
-import org.vitrivr.cottontail.dbms.index.va.signature.Marks
-import org.vitrivr.cottontail.dbms.index.va.signature.VAFSignature
 import org.vitrivr.cottontail.core.values.types.RealVectorValue
+import org.vitrivr.cottontail.dbms.index.va.signature.VAFMarks
+import org.vitrivr.cottontail.dbms.index.va.signature.VAFSignature
 import kotlin.math.max
 import kotlin.math.pow
 import kotlin.math.sqrt
@@ -17,7 +17,7 @@ import kotlin.math.sqrt
  * @author Ralph Gasser
  * @version 1.0.0
  */
-class L2Bounds(query: RealVectorValue<*>, marks: Marks) : Bounds {
+class L2Bounds(query: RealVectorValue<*>, marks: VAFMarks) : Bounds {
 
     /** Lower bound of this [L2Bounds]. */
     override var lb = 0.0
@@ -28,7 +28,7 @@ class L2Bounds(query: RealVectorValue<*>, marks: Marks) : Bounds {
         private set
 
     /** Cells for the query [RealVectorValue]. */
-    private val rq = marks.getCells(query)
+    private val rq = marks.getSignature(query)
 
     /** Internal lookup table for pre-calculated values used in bounds calculation. */
     private val lat = Array(marks.marks.size) { j ->
@@ -55,13 +55,13 @@ class L2Bounds(query: RealVectorValue<*>, marks: Marks) : Bounds {
             when {
                 rij < this.rq[j] -> {
                     this.lb += this.lat[j][rij + 1]
-                    this.ub += this.lat[j][rij]
+                    this.ub += this.lat[j][rij.toInt()]
                 }
                 rij == this.rq[j] -> {
-                    this.ub += max(this.lat[j][rij], this.lat[j][rij + 1])
+                    this.ub += max(this.lat[j][rij.toInt()], this.lat[j][rij + 1])
                 }
                 rij > this.rq[j] -> {
-                    this.lb += this.lat[j][rij]
+                    this.lb += this.lat[j][rij.toInt()]
                     this.ub += this.lat[j][rij + 1]
                 }
             }
@@ -80,18 +80,15 @@ class L2Bounds(query: RealVectorValue<*>, marks: Marks) : Bounds {
      * @return True if [VAFSignature] is a candidate, false otherwise.
      */
     override fun isVASSACandidate(signature: VAFSignature, threshold: Double): Boolean {
-        val tsquared = threshold.pow(2)
-        var lb = 0.0
+        var lb = threshold.pow(2)
         for ((j, rij) in signature.cells.withIndex()) {
-            if (rij < this.rq[j]) {
-                lb += this.lat[j][rij + 1]
-            } else if (rij > this.rq[j]) {
-                lb += this.lat[j][rij]
+            if (rij < this.rq.cells[j]) {
+                lb -= this.lat[j][rij + 1]
+            } else if (rij > this.rq.cells[j]) {
+                lb -= this.lat[j][rij.toInt()]
             }
-            if (lb >= tsquared) {
-                return false
-            }
+            if (lb < 0) return false
         }
-        return lb < tsquared
+        return true
     }
 }

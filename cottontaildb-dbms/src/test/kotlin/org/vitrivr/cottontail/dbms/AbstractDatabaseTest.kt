@@ -1,22 +1,16 @@
 package org.vitrivr.cottontail.dbms
 
-import org.junit.jupiter.api.AfterAll
-import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.BeforeEach
+import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import org.vitrivr.cottontail.TestConstants
 import org.vitrivr.cottontail.config.Config
-import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
 import org.vitrivr.cottontail.dbms.catalogue.CatalogueTest
-import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.catalogue.DefaultCatalogue
-import org.vitrivr.cottontail.dbms.column.ColumnEngine
-import org.vitrivr.cottontail.dbms.entity.Entity
-import org.vitrivr.cottontail.dbms.execution.TransactionManager
-import org.vitrivr.cottontail.dbms.execution.TransactionType
-import org.vitrivr.cottontail.dbms.index.Index
-import org.vitrivr.cottontail.dbms.schema.Schema
-import org.vitrivr.cottontail.dbms.schema.SchemaTx
+import org.vitrivr.cottontail.dbms.execution.ExecutionManager
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionManager
+import org.vitrivr.cottontail.test.TestConstants
 import org.vitrivr.cottontail.utilities.io.TxFileUtilities
 import java.nio.file.Files
 
@@ -24,11 +18,11 @@ import java.nio.file.Files
  * Abstract class for unit tests that require a Cottontail DB database.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
 abstract class AbstractDatabaseTest {
     companion object {
-        private val LOGGER = LoggerFactory.getLogger(AbstractDatabaseTest::class.java)
+        protected val LOGGER: Logger = LoggerFactory.getLogger(AbstractDatabaseTest::class.java)
     }
     
     /** [Config] used for this [AbstractDatabaseTest]. */
@@ -45,75 +39,38 @@ abstract class AbstractDatabaseTest {
     /** [Name.SchemaName] of the test schema. */
     protected val schemaName = Name.SchemaName("test")
 
-    /** [Name.EntityName] of the test schema. */
-    protected abstract val entities: List<Pair<Name.EntityName, List<ColumnDef<*>>>>
     /** Catalogue used for testing. */
     protected var catalogue: DefaultCatalogue = DefaultCatalogue(this.config)
 
+    /** The [ExecutionManager] used for tests. */
+    private val execution = ExecutionManager(this.config)
+
     /** The [TransactionManager] used for this [CatalogueTest] instance. */
-    protected val manager = org.vitrivr.cottontail.dbms.execution.TransactionManager(
+    protected val manager = TransactionManager(
+        this.execution,
         this.config.execution.transactionTableSize,
-        this.config.execution.transactionHistorySize
+        this.config.execution.transactionHistorySize,
+        this.catalogue
     )
 
+    /** The [Logger] instance used by this [AbstractDatabaseTest]. */
+    protected val logger = LOGGER
+
     /**
-     * Initializes this [AbstractDatabaseTest] and prepares required [Entity] and [Index].
+     * Initializes this [AbstractDatabaseTest].
      */
-    @BeforeAll
-    protected fun initialize() {
-        /* Update the index. */
-        LOGGER.info("Preparing database...")
+    @BeforeEach
+    protected open fun initialize() {
 
-        /* Prepare data structures. */
-        prepareSchema()
-        prepareEntity()
-
-        /* Populate database with data. */
-        this.populateDatabase()
-
-        /* Update the index. */
-        LOGGER.info("Starting test...")
     }
-
 
     /**
      * Tears down this [AbstractDatabaseTest].
      */
-    @AfterAll
-    protected fun teardown() {
+    @AfterEach
+    protected open fun teardown() {
         this.catalogue.close()
         TxFileUtilities.delete(this.config.root)
+        this.execution.shutdownAndWait()
     }
-
-    /**
-     * Prepares and returns an empty test [Schema].
-     */
-    protected fun prepareSchema(): Schema {
-        LOGGER.info("Creating schema ${this.schemaName}.")
-        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM)
-        val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
-        val ret = catalogueTx.createSchema(this.schemaName)
-        txn.commit()
-        return ret
-    }
-
-    /**
-     * Prepares and returns an empty test [Entity].
-     */
-    protected fun prepareEntity() {
-        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM)
-        for (e in this.entities) {
-            LOGGER.info("Creating schema ${e.first}.")
-            val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
-            val schema = catalogueTx.schemaForName(this.schemaName)
-            val schemaTx = txn.getTx(schema) as SchemaTx
-            schemaTx.createEntity(e.first, *e.second.map { it to ColumnEngine.MAPDB }.toTypedArray())
-        }
-        txn.commit()
-    }
-
-    /**
-     * Populates database with test data.
-     */
-    protected abstract fun populateDatabase()
 }

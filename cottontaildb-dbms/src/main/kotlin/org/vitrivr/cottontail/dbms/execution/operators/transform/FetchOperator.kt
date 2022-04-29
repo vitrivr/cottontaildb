@@ -8,8 +8,8 @@ import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.recordset.StandaloneRecord
 import org.vitrivr.cottontail.dbms.entity.Entity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
-import org.vitrivr.cottontail.dbms.execution.TransactionContext
 import org.vitrivr.cottontail.dbms.execution.operators.basics.Operator
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 
 /**
  * An [Operator.PipelineOperator] used during query execution. Fetches the specified [ColumnDef] from

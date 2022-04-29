@@ -4,29 +4,32 @@ import org.vitrivr.cottontail.core.values.types.NumericValue
 import org.vitrivr.cottontail.core.values.types.RealValue
 import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.core.values.types.Value
-import org.vitrivr.cottontail.utilities.extensions.nextByte
-import java.util.*
 
 /**
  * This is an abstraction over a [Byte].
  *
  * @author Ralph Gasser
- * @version 1.6.0
+ * @version 1.7.0
  */
 @JvmInline
 value class ByteValue(override val value: Byte): RealValue<Byte> {
 
     companion object {
-        val ZERO = ByteValue(0.toByte())
-        val ONE = ByteValue(1.toByte())
-
         /**
-         * Generates a random [ByteValue].
+         * The minimum value that can be held by a [ByteValue].
          *
-         * @param rnd A [SplittableRandom] to generate the random numbers.
-         * @return Random [ByteValue]
+         * Is larger than [Byte.MIN_VALUE] because [Byte.MIN_VALUE] is reserved to signify null.
          */
-        fun random(rnd: SplittableRandom = Value.RANDOM) = ByteValue(rnd.nextByte())
+        val MIN_VALUE = ByteValue(Byte.MIN_VALUE + 1)
+
+        /** The maximum value that can be held by a [ByteValue]. */
+        val MAX_VALUE = ByteValue(Byte.MAX_VALUE)
+
+        /** The zero [ByteValue]. */
+        val ZERO = ByteValue(0.toByte())
+
+        /** The one [ByteValue]. */
+        val ONE = ByteValue(1.toByte())
     }
 
     /**

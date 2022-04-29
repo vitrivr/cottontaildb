@@ -2,6 +2,9 @@ package org.vitrivr.cottontail.dbms.locking
 
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.RepeatedTest
+import org.vitrivr.cottontail.dbms.execution.locking.LockHolder
+import org.vitrivr.cottontail.dbms.execution.locking.LockManager
+import org.vitrivr.cottontail.dbms.execution.locking.LockMode
 import java.util.*
 
 /**

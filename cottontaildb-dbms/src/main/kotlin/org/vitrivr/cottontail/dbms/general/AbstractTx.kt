@@ -1,104 +1,44 @@
 package org.vitrivr.cottontail.dbms.general
 
-import org.vitrivr.cottontail.dbms.exceptions.TxException
-import org.vitrivr.cottontail.dbms.execution.TransactionContext
-import org.vitrivr.cottontail.dbms.index.AbstractIndex
-import org.vitrivr.cottontail.dbms.locking.LockMode
-import java.util.concurrent.locks.ReentrantReadWriteLock
-import kotlin.concurrent.read
-import kotlin.concurrent.write
+import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
+import java.util.concurrent.locks.ReentrantLock
 
 /**
  * An abstract [Tx] implementation that provides some basic functionality.
  *
  * @author Ralph Gasser
- * @version 1.4.0
+ * @version 3.0.0
  */
-abstract class AbstractTx(override val context: org.vitrivr.cottontail.dbms.execution.TransactionContext) : Tx {
-    /** Flag indicating whether or not this [IndexTx] was closed */
-    @Volatile
-    final override var status: TxStatus = TxStatus.CLEAN
-        protected set
+abstract class AbstractTx(final override val context: TransactionContext) : Tx {
+    /**
+     * This is a [ReentrantLock] that makes sure that only one thread at a time can access this [AbstractTx] instance.
+     *
+     * While access by different [TransactionContext]s is handled by the respective lock manager, it is still possible that
+     * different threads with the same [TransactionContext] try to access this [Tx], e.g., for intra query parallelism.
+     * This requires synchronisation.
+     */
+    val txLatch: ReentrantLock = ReentrantLock()
 
     /**
-     * This is a [ReentrantReadWriteLock] that makes sure that only one thread at a time can access this [AbstractTx] instance.
+     * Called when the global transaction is committed.
      *
-     * While access by different [TransactionContext]s is handled by the respective lock manager,
-     * it is still possible that different threads with the same [TransactionContext] try to access
-     * this [Tx]. This needs synchronisation.
+     * This implementation only calls the [cleanup] method, which can be implemented by subclasses.
      */
-    val txLatch: ReentrantReadWriteLock = ReentrantReadWriteLock()
-
-    /**
-     * Commits all changes made through this [AbstractTx] and releases all locks obtained.
-     *
-     * This implementation only makes structural changes to the [AbstractTx] (updates status,
-     * sanity checks etc). Implementing classes need to implement [TxSnapshot] to execute the
-     * actual commit.
-     */
-    final override fun commit() {
-        try {
-            if (this.status == TxStatus.DIRTY) {
-                this.snapshot.commit()
-            } else if (this.status == TxStatus.ERROR) {
-                throw IllegalArgumentException("Transaction ${this.context.txId} cannot be committed, because it is is an error state.")
-            }
-        } finally {
-            this.status = TxStatus.CLOSED
-            this.cleanup()
-        }
+    override fun beforeCommit() {
+        this.cleanup()
     }
 
     /**
-     * Makes a rollback on all made through this [AbstractTx] and releases all locks obtained.
+     * Called when the global transaction is rolled back.
      *
-     * This implementation only makes structural changes to the [AbstractTx] (updates status,
-     * sanity checks etc). Implementing classes need to implement [TxSnapshot] to execute the actual
-     * commit.
+     * This implementation only calls the [cleanup] method, which can be implemented by subclasses.
      */
-    final override fun rollback() {
-        try {
-            if (this.status == TxStatus.DIRTY || this.status == TxStatus.ERROR) {
-                this.snapshot.rollback()
-            }
-        } finally {
-            this.status = TxStatus.CLOSED
-            this.cleanup()
-        }
+    override fun beforeRollback() {
+        this.cleanup()
     }
 
     /**
-     * Cleans all local resources obtained by this [AbstractTx] implementation. Called as part of and
-     * prior to finalizing the [close] operation
-     *
-     * Implementers of this method may safely assume that upon reaching this method, all necessary locks on
-     * Cottontail DB's data structures have been obtained to safely perform the CLOSE operation.
+     * Used to perform cleanup-operations necessary after a transaction concludes.
      */
-    protected abstract fun cleanup()
-
-    /**
-     * Checks if this [AbstractIndex.Tx] is in a valid state for write operations to happen and sets its
-     * [status] to [TxStatus.DIRTY]
-     */
-    protected inline fun <T> withWriteLock(block: () -> (T)): T {
-        if (this.status == TxStatus.CLOSED) throw TxException.TxClosedException(this.context.txId)
-        if (this.status == TxStatus.ERROR) throw TxException.TxInErrorException(this.context.txId)
-        this.context.requestLock(this.dbo, LockMode.EXCLUSIVE)
-        this.status = TxStatus.DIRTY
-        return this.txLatch.write {
-            block()
-        }
-    }
-
-    /**
-     * Checks if this [AbstractIndex.Tx] is in a valid state for read operations to happen.
-     */
-    protected inline fun <T> withReadLock(block: () -> (T)): T {
-        if (this.status == TxStatus.CLOSED) throw TxException.TxClosedException(this.context.txId)
-        if (this.status == TxStatus.ERROR) throw TxException.TxInErrorException(this.context.txId)
-        this.context.requestLock(this.dbo, LockMode.SHARED)
-        return this.txLatch.read {
-            block()
-        }
-    }
+    abstract fun cleanup()
 }

@@ -1,5 +1,7 @@
 package org.vitrivr.cottontail.data.importer
 
+import org.vitrivr.cottontail.core.database.ColumnDef
+import org.vitrivr.cottontail.core.values.types.Value
 import org.vitrivr.cottontail.data.Format
 import org.vitrivr.cottontail.grpc.CottontailGrpc
 import java.io.Closeable
@@ -10,9 +12,9 @@ import java.nio.file.Path
  * and extended [Iterator] for [CottontailGrpc.InsertMessage]s.
  *
  * @author Ralph Gasser
- * @version 1.0.0
+ * @version 1.1.0
  */
-interface DataImporter : Iterator<CottontailGrpc.InsertMessage.Builder>, Closeable {
+interface DataImporter : Iterator<Map<ColumnDef<*>, Value?>>, Closeable {
     /** The [Path] to the import file. */
     val path: Path
 
@@ -21,4 +23,7 @@ interface DataImporter : Iterator<CottontailGrpc.InsertMessage.Builder>, Closeab
 
     /** Indicator whether this [DataImporter] has been closed. */
     val closed: Boolean
+
+    /** The [ColumnDef] that are populated by this [DataImporter]  */
+    val schema: List<ColumnDef<*>>
 }

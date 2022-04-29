@@ -3,17 +3,14 @@ package org.vitrivr.cottontail.dbms.queries.operators.logical
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.queries.Digest
 import org.vitrivr.cottontail.core.queries.GroupId
-import org.vitrivr.cottontail.core.queries.Node
-import org.vitrivr.cottontail.core.queries.binding.BindingContext
 import org.vitrivr.cottontail.dbms.queries.operators.OperatorNode
-import org.vitrivr.cottontail.dbms.queries.sort.SortOrder
 import java.io.PrintStream
 
 /**
  * An abstract [OperatorNode.Logical] implementation that has exactly two [OperatorNode.Logical]s as input.
  *
  * @author Ralph Gasser
- * @version 2.5.0
+ * @version 2.6.0
  */
 abstract class BinaryLogicalOperatorNode(left: Logical? = null, right: Logical? = null) : org.vitrivr.cottontail.dbms.queries.operators.OperatorNode.Logical() {
 
@@ -62,10 +59,6 @@ abstract class BinaryLogicalOperatorNode(left: Logical? = null, right: Logical? 
     /** By default, the [BinaryLogicalOperatorNode] outputs the [ColumnDef] of its input. */
     override val columns: List<ColumnDef<*>>
         get() = (this.left?.columns ?: emptyList())
-
-    /** By default, a [BinaryLogicalOperatorNode]'s order is unspecified. */
-    override val sortOn: List<Pair<ColumnDef<*>, SortOrder>>
-        get() = emptyList()
 
     /** By default, a [BinaryLogicalOperatorNode]'s requirements are empty. */
     override val requires: List<ColumnDef<*>>
@@ -119,18 +112,6 @@ abstract class BinaryLogicalOperatorNode(left: Logical? = null, right: Logical? 
         copy.left = input.getOrNull(0)
         copy.right = input.getOrNull(1)
         return (this.output?.copyWithOutput(copy) ?: copy).root
-    }
-
-    /**
-     * By default, the [BinaryLogicalOperatorNode] simply propagates [bind] calls to its inpus.
-     *
-     * However, some implementations must propagate the call to inner [Node]s.
-     *
-     * @param context The [BindingContext] to bind this [BinaryLogicalOperatorNode] to.
-     */
-    override fun bind(context: BindingContext) {
-        this.left?.bind(context)
-        this.right?.bind(context)
     }
 
     /**

@@ -2,9 +2,10 @@ package org.vitrivr.cottontail.core.queries.predicates
 
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet
 import org.vitrivr.cottontail.core.queries.Digest
-import org.vitrivr.cottontail.core.queries.Node
 import org.vitrivr.cottontail.core.queries.binding.Binding
 import org.vitrivr.cottontail.core.queries.binding.BindingContext
+import org.vitrivr.cottontail.core.queries.nodes.BindableNode
+import org.vitrivr.cottontail.core.queries.nodes.NodeWithCost
 import org.vitrivr.cottontail.core.queries.planning.cost.Cost
 import org.vitrivr.cottontail.core.values.StringValue
 import org.vitrivr.cottontail.core.values.pattern.LikePatternValue
@@ -14,9 +15,9 @@ import org.vitrivr.cottontail.core.values.types.Value
  * A [ComparisonOperator] is used as part of a [BooleanPredicate] to
  *
  * @author Ralph Gasser
- * @version 1.3.0
+ * @version 1.5.0
  */
-sealed interface ComparisonOperator: Node {
+sealed interface ComparisonOperator: BindableNode, NodeWithCost {
     /** The [Binding] that acts as left operand for this [ComparisonOperator]. */
     val left: Binding
 
@@ -161,28 +162,40 @@ sealed interface ComparisonOperator: Node {
     }
 
     /**
-     * A [ComparisonOperator] that expresses a IN comparison (i.e. left IN right).
+     * A [ComparisonOperator] that expresses an IN comparison (i.e. left IN right).
      */
-    class In(override val left: Binding, val right: MutableList<Binding.Literal>) : ComparisonOperator {
-        private var rightSet: ObjectOpenHashSet<Value>? = null /* To speed-up IN operation. */
+    class In(override val left: Binding, val right: List<Binding>) : ComparisonOperator {
+
+        /** Internal [ObjectOpenHashSet] used to speed-up actual comparison.*/
+        private var lookupSet: ObjectOpenHashSet<Value>? = null
+
+        /** Cost of executing this [ComparisonOperator.In]*/
         override val cost: Cost
             get() = Cost.MEMORY_ACCESS * 2 * this.right.size
-        override fun match(): Boolean {
-            if (this.rightSet == null) {
-                this.rightSet = ObjectOpenHashSet()
-                this.right.forEach { this.rightSet!!.add(it.value) }
-            }
-            return this.left.value in this.rightSet!!
+
+        init {
+            /* Sanity check + initialization of values list. */
+            require(this.right.isNotEmpty()) { "Right-hand side of IN operator cannot be empty." }
+            require(this.right.all { it !is Binding.Column }) { "Right-hand side of IN operator cannot be a column reference." }
         }
 
         /**
-         * Adds a [Binding.Literal] to this [In] operator.
+         * Compares [left] to [right] for this [ComparisonOperator.In] and returns true on match and false otherwise,
          *
-         * @param ref [Binding.Literal] to add.
+         * @return True on match, false otherwise.
          */
-        fun addRef(ref: Binding.Literal) {
-            this.right.add(ref)
-            this.rightSet = null
+        override fun match(): Boolean {
+            if (this.lookupSet == null) {
+                this.lookupSet = ObjectOpenHashSet()
+                for (r in this.right) {
+                    if (r is Binding.Subquery) {
+                        this.lookupSet!!.addAll(r.values)
+                    } else {
+                        this.lookupSet!!.add(r.value)
+                    }
+                }
+            }
+            return this.left.value in this.lookupSet!!
         }
 
         /**
@@ -193,7 +206,7 @@ sealed interface ComparisonOperator: Node {
         override fun bind(context: BindingContext) {
             this.left.bind(context)
             this.right.forEach { it.bind(context) }
-            this.rightSet = null
+            this.lookupSet = null
         }
 
         override fun copy() = In(this.left.copy(), this.right.map { it.copy() }.toMutableList())
