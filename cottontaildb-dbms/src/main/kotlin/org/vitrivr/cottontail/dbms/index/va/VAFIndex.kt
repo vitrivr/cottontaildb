@@ -11,7 +11,6 @@ import org.vitrivr.cottontail.core.basics.Cursor
 import org.vitrivr.cottontail.core.basics.Record
 import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.database.TransactionId
 import org.vitrivr.cottontail.core.database.TupleId
 import org.vitrivr.cottontail.core.queries.functions.Signature
 import org.vitrivr.cottontail.core.queries.functions.math.distance.binary.*
@@ -29,7 +28,6 @@ import org.vitrivr.cottontail.dbms.column.ColumnTx
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.entity.EntityTx
 import org.vitrivr.cottontail.dbms.events.DataEvent
-import org.vitrivr.cottontail.dbms.events.Event
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
 import org.vitrivr.cottontail.dbms.execution.operators.sort.RecordComparator
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
@@ -72,10 +70,10 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
         private val LOGGER: Logger = LoggerFactory.getLogger(VAFIndex::class.java)
 
         /** False since [VAFIndex] currently doesn't support incremental updates. */
-        override val supportsIncrementalUpdate: Boolean = false
+        override val supportsIncrementalUpdate: Boolean = true
 
         /** False since [VAFIndex] doesn't support asynchronous rebuilds. */
-        override val supportsAsyncRebuild: Boolean = false
+        override val supportsAsyncRebuild: Boolean = true
 
         /** True since [VAFIndex] supports partitioning. */
         override val supportsPartitioning: Boolean = true
@@ -385,7 +383,7 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
             require(value is RealVectorValue<*>) { "Only real vector values can be stored in a VAFIndex. This is a programmer's error!" }
             for (i in value.indices) {
                 if (value[i].value.toDouble() < this.marks!!.minimum[i] || value[i].value.toDouble() > this.marks!!.maximum[i]) {
-                    this.dataStore.put(this.context.xodusTx, event.tupleId.toKey(), VAFSignature.Binding.valueToEntry(VAFSignature.invalid(value.logicalSize)))
+                    this.dataStore.put(this.context.xodusTx, event.tupleId.toKey(), VAFSignature.Binding.valueToEntry(VAFSignature.INVALID))
                     return false
                 }
             }
@@ -403,8 +401,8 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
             val value = event.data[this.column]?.second
             require(value is RealVectorValue<*>) { "Only real vector values can be stored in a VAFIndex. This is a programmer's error!" }
             for (i in value.indices) {
-                if (value[i].value.toDouble() < this.marks!!.minimum[i] || value[i].value.toDouble() >  this.marks!!.maximum[i]) {
-                    this.dataStore.put(this.context.xodusTx, event.tupleId.toKey(), VAFSignature.Binding.valueToEntry(VAFSignature.invalid(value.logicalSize)))
+                if (value[i].value.toDouble() < this.marks!!.minimum[i] || value[i].value.toDouble() > this.marks!!.maximum[i]) {
+                    this.dataStore.put(this.context.xodusTx, event.tupleId.toKey(), VAFSignature.Binding.valueToEntry(VAFSignature.INVALID))
                     return false
                 }
             }
@@ -526,12 +524,15 @@ class VAFIndex(name: Name.IndexName, parent: DefaultEntity) : AbstractHDIndex(na
                     val columns = this@Tx.columns
                     val produces = this@Tx.columnsFor(predicate).toTypedArray()
                     var tupleId: TupleId
-                    var threshold = Double.MAX_VALUE
+                    var threshold = when(this.predicate) {
+                        is ProximityPredicate.NNS -> Double.MAX_VALUE
+                        is ProximityPredicate.FNS -> Double.MIN_VALUE
+                    }
                     while (cursor.next) {
                         tupleId = LongBinding.compressedEntryToLong(cursor.key)
                         if (tupleId > partition.last) break
                         val signature = VAFSignature.Binding.entryToValue(cursor.value)
-                        if (this.selection.added < this.predicate.k || this.bounds.isVASSACandidate(signature, threshold)) {
+                        if (this.selection.added < this.predicate.k || signature.invalid() || this.bounds.isVASSACandidate(signature, threshold)) {
                             val value = this.entityTx.read(tupleId, columns)[0] as VectorValue<*>
                             val distance = this.predicate.distance(this.query, value)!!
                             threshold = when (this.predicate) {

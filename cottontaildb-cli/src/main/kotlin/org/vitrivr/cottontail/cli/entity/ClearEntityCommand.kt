@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.cli.entity
 
 import com.github.ajalt.clikt.output.TermUi
-import org.vitrivr.cottontail.cli.AbstractCottontailCommand
+import org.vitrivr.cottontail.cli.basics.AbstractEntityCommand
 import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.language.dml.Delete
 import org.vitrivr.cottontail.utilities.TabulationUtilities
@@ -15,7 +15,7 @@ import kotlin.time.measureTimedValue
  * @version 2.0.0
  */
 @ExperimentalTime
-class ClearEntityCommand(client: SimpleClient) : AbstractCottontailCommand.Entity(client, name = "clear", help = "Clears the given entity, i.e., deletes all data it contains. Usage: entity clear <schema>.<entity>") {
+class ClearEntityCommand(client: SimpleClient) : AbstractEntityCommand(client, name = "clear", help = "Clears the given entity, i.e., deletes all data it contains. Usage: entity clear <schema>.<entity>") {
     override fun exec() {
         if (TermUi.confirm("Do you really want to delete all data from entity ${this.entityName} (y/N)?", default = false, showDefault = false) == true) {
             val time = measureTimedValue {

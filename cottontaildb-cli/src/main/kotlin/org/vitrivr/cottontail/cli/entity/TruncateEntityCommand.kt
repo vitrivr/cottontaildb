@@ -4,7 +4,7 @@ import com.github.ajalt.clikt.output.TermUi
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import io.grpc.StatusException
-import org.vitrivr.cottontail.cli.AbstractCottontailCommand
+import org.vitrivr.cottontail.cli.basics.AbstractEntityCommand
 import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.language.ddl.TruncateEntity
 import org.vitrivr.cottontail.core.database.Name
@@ -19,7 +19,7 @@ import kotlin.time.measureTimedValue
  * @version 2.0.0
  */
 @ExperimentalTime
-class TruncateEntityCommand(client: SimpleClient) : AbstractCottontailCommand.Entity(client, name = "truncate", help = "Truncates the given entity. Usage: entity truncate <schema>.<entity>") {
+class TruncateEntityCommand(client: SimpleClient) : AbstractEntityCommand(client, name = "truncate", help = "Truncates the given entity. Usage: entity truncate <schema>.<entity>") {
 
     companion object{
         /**

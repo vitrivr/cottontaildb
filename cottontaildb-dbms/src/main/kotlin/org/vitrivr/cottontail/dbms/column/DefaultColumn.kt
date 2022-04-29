@@ -120,15 +120,13 @@ class DefaultColumn<T : Value>(override val columnDef: ColumnDef<T>, override va
             while (cursor.moveNext()) {
                 (newEntry.statistics as ValueStatistics<T>).insert(cursor.value())
             }
+            cursor.close()
 
             /* Update statistics entry.*/
             if (StatisticsCatalogueEntry.write(newEntry, this@DefaultColumn.catalogue, this.context.xodusTx)) {
-                this.statistics = StatisticsCatalogueEntry(this@DefaultColumn.columnDef).statistics as ValueStatistics<T>
+                this.statistics = newEntry.statistics as ValueStatistics<T>
                 this.updateStatistics = false
             }
-
-            /* Close cursor. */
-            cursor.close()
         }
 
         /**

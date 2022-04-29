@@ -1,7 +1,7 @@
 package org.vitrivr.cottontail.cli.entity
 
 import io.grpc.StatusException
-import org.vitrivr.cottontail.cli.AbstractCottontailCommand
+import org.vitrivr.cottontail.cli.basics.AbstractEntityCommand
 import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.language.ddl.AboutEntity
 import org.vitrivr.cottontail.utilities.TabulationUtilities
@@ -15,7 +15,7 @@ import kotlin.time.measureTimedValue
  * @version 2.0.0
  */
 @ExperimentalTime
-class AboutEntityCommand(client: SimpleClient) : AbstractCottontailCommand.Entity(client, name = "about", help = "Gives an overview of the entity and its columns.") {
+class AboutEntityCommand(client: SimpleClient) : AbstractEntityCommand(client, name = "about", help = "Gives an overview of the entity and its columns.") {
     override fun exec() {
         try {
             val timedTable = measureTimedValue {

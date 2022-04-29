@@ -84,10 +84,10 @@ class AutoRebuilderService(val catalogue: Catalogue, val manager: TransactionMan
         override fun run() {
             val duration = measureTimeMillis {
                 if (this.type.descriptor.supportsAsyncRebuild && this.type.descriptor.supportsIncrementalUpdate) {
-                    LOGGER.info("Starting index auto-rebuilding for $index.")
+                    LOGGER.info("Starting asynchronous index auto-rebuilding for $index.")
                     this.performAsynchronousRebuild()
                 } else {
-                    LOGGER.info("Starting asynchronous index auto-rebuilding for $index.")
+                    LOGGER.info("Starting index auto-rebuilding for $index.")
                     this.performSynchronousRebuild()
                 }
             }

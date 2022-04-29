@@ -5,13 +5,10 @@ import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.types.enum
-import org.vitrivr.cottontail.cli.AbstractCottontailCommand
+import org.vitrivr.cottontail.cli.basics.AbstractEntityCommand
 import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.language.basics.Constants
-import org.vitrivr.cottontail.client.language.ddl.AboutEntity
-import org.vitrivr.cottontail.core.database.ColumnDef
 import org.vitrivr.cottontail.core.database.Name
-import org.vitrivr.cottontail.core.values.types.Types
 import org.vitrivr.cottontail.data.Format
 import org.vitrivr.cottontail.grpc.CottontailGrpc.BatchInsertMessage
 import org.vitrivr.cottontail.utilities.extensions.proto
@@ -29,7 +26,7 @@ import kotlin.time.measureTime
  * @version 2.0.0
  */
 @ExperimentalTime
-class ImportDataCommand(client: SimpleClient) : AbstractCottontailCommand.Entity(client, name = "import", help = "Used to import data into Cottontail DB.") {
+class ImportDataCommand(client: SimpleClient) : AbstractEntityCommand(client, name = "import", help = "Used to import data into Cottontail DB.") {
 
     companion object {
         /**
@@ -43,7 +40,7 @@ class ImportDataCommand(client: SimpleClient) : AbstractCottontailCommand.Entity
          */
         fun importData(entityName: Name.EntityName, input: Path, format: Format, client: SimpleClient, singleTransaction: Boolean) {
             /* Read schema and prepare Iterator. */
-            val schema = readSchema(entityName, client)
+            val schema = client.readSchema(entityName)
             val iterator = format.newImporter(input, schema)
 
             /** Begin transaction (if single transaction option has been set). */
@@ -101,33 +98,6 @@ class ImportDataCommand(client: SimpleClient) : AbstractCottontailCommand.Entity
             } finally {
                 iterator.close()
             }
-        }
-
-        /**
-         * Reads the column definitions for the specified schema and returns it.
-         *
-         * @param entityName The [Name.EntityName] of the entity to read.
-         * @param client The [SimpleClient] to use.
-         * @return List of [ColumnDef] for the current [Name.EntityName]
-         */
-        private fun readSchema(entityName: Name.EntityName, client: SimpleClient): List<ColumnDef<*>> {
-            val columns = mutableListOf<ColumnDef<*>>()
-            val schemaInfo = client.about(AboutEntity(entityName.toString()))
-            schemaInfo.forEach {
-                if (it.asString(1) == "COLUMN") {
-                    val split = it.asString(0)!!.split(Name.DELIMITER).toTypedArray()
-                    val name = when(split.size) {
-                        3 -> Name.ColumnName(split[0], split[1], split[2])
-                        4 -> {
-                            require(split[0] == Name.ROOT) { "Invalid root qualifier ${split[0]}!" }
-                            Name.ColumnName(split[1], split[2], split[3])
-                        }
-                        else -> throw IllegalArgumentException("'$it' is not a valid column name.")
-                    }
-                    columns.add(ColumnDef(name = name, type = Types.forName(it.asString(2)!!, it.asInt(4)!!), nullable =  it.asBoolean(5)!!))
-                }
-            }
-            return columns
         }
     }
 

@@ -2,7 +2,7 @@ package org.vitrivr.cottontail.cli.query
 
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.convert
-import org.vitrivr.cottontail.cli.AbstractCottontailCommand
+import org.vitrivr.cottontail.cli.basics.AbstractQueryCommand
 import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.language.dql.Query
 import org.vitrivr.cottontail.core.database.Name
@@ -15,7 +15,7 @@ import kotlin.time.ExperimentalTime
  * @version 1.0.2
  */
 @ExperimentalTime
-class CountEntityCommand(client: SimpleClient): AbstractCottontailCommand.Query(client, name = "count", help = "Counts the number of entries in the given entity. Usage: entity count <schema>.<entity>") {
+class CountEntityCommand(client: SimpleClient): AbstractQueryCommand(client, name = "count", help = "Counts the number of entries in the given entity. Usage: entity count <schema>.<entity>") {
 
     private val entityName: Name.EntityName by argument(name = "entity", help = "The fully qualified entity name targeted by the command. Has the form of [\"warren\"].<schema>.<entity>").convert {
         val split = it.split(Name.DELIMITER)

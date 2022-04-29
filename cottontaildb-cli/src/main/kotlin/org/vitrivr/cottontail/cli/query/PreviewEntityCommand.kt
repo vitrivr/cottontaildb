@@ -6,7 +6,7 @@ import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.validate
 import com.github.ajalt.clikt.parameters.types.long
-import org.vitrivr.cottontail.cli.AbstractCottontailCommand
+import org.vitrivr.cottontail.cli.basics.AbstractQueryCommand
 import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.language.dql.Query
 import org.vitrivr.cottontail.core.database.Name
@@ -19,7 +19,7 @@ import kotlin.time.ExperimentalTime
  * @version 2.0.0
  */
 @ExperimentalTime
-class PreviewEntityCommand(client: SimpleClient): AbstractCottontailCommand.Query(client, name = "preview", help = "Gives a preview of the entity specified") {
+class PreviewEntityCommand(client: SimpleClient): AbstractQueryCommand(client, name = "preview", help = "Gives a preview of the entity specified") {
 
     private val entityName: Name.EntityName by argument(name = "entity", help = "The fully qualified entity name targeted by the command. Has the form of [\"warren\"].<schema>.<entity>").convert {
         val split = it.split(Name.DELIMITER)

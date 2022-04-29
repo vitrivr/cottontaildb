@@ -5,7 +5,7 @@ import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.enum
 import io.grpc.StatusException
-import org.vitrivr.cottontail.cli.AbstractCottontailCommand
+import org.vitrivr.cottontail.cli.basics.AbstractEntityCommand
 import org.vitrivr.cottontail.client.SimpleClient
 import org.vitrivr.cottontail.client.language.ddl.CreateIndex
 import org.vitrivr.cottontail.grpc.CottontailGrpc.IndexType
@@ -20,7 +20,7 @@ import kotlin.time.measureTimedValue
  * @version 2.0.1
  */
 @ExperimentalTime
-class CreateIndexCommand(client: SimpleClient) : AbstractCottontailCommand.Entity(client, name = "create-index", help = "Creates an index on the given entity and rebuilds the newly created index. Usage: entity createIndex <schema>.<entity> <column> <index>") {
+class CreateIndexCommand(client: SimpleClient) : AbstractEntityCommand(client, name = "create-index", help = "Creates an index on the given entity and rebuilds the newly created index. Usage: entity createIndex <schema>.<entity> <column> <index>") {
 
     private val attribute by argument(
         name = "column",
@@ -44,7 +44,7 @@ class CreateIndexCommand(client: SimpleClient) : AbstractCottontailCommand.Entit
                 create.rebuild()
             }
             val timedTable = measureTimedValue {
-                TabulationUtilities.tabulate(this.client.create(create.rebuild()))
+                TabulationUtilities.tabulate(this.client.create(create))
             }
             println("Successfully created index for ${this.entityName.fqn} (took ${timedTable.duration}).")
             print(timedTable.value)
