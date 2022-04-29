@@ -265,8 +265,8 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
         override val xodusTx: jetbrains.exodus.env.Transaction
             get() = throw UnsupportedOperationException("Xodus transaction not available for LegacyMigrationContext.")
 
-        /** The [TransactionType] of a [MigrationManager] is always [TransactionType.SYSTEM]. */
-        override val type: TransactionType = TransactionType.SYSTEM
+        /** The [TransactionType] of a [MigrationManager] is always [TransactionType.SYSTEM_EXCLUSIVE]. */
+        override val type: TransactionType = TransactionType.SYSTEM_EXCLUSIVE
 
         /** [LegacyMigrationContext] do not provide any query workers. */
         override val availableQueryWorkers = 0
@@ -349,8 +349,8 @@ abstract class AbstractMigrationManager(private val batchSize: Int, logFile: Pat
         /** The [TransactionId] of the [MigrationContext]. */
         override val txId: TransactionId = transactionIdCounter.getAndIncrement()
 
-        /** The [TransactionType] of a [MigrationManager] is always [TransactionType.SYSTEM]. */
-        override val type: TransactionType = TransactionType.SYSTEM
+        /** The [TransactionType] of a [MigrationManager] is always [TransactionType.SYSTEM_EXCLUSIVE]. */
+        override val type: TransactionType = TransactionType.SYSTEM_EXCLUSIVE
 
         /** The [TransactionStatus] of this [MigrationContext]. */
         @Volatile

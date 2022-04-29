@@ -104,10 +104,10 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
             private set
 
         /** The Xodus [Transaction] associated with this [TransactionContext]. */
-        override val xodusTx: jetbrains.exodus.env.Transaction = if (this.type.readonly) {
-            this@TransactionManager.catalogue.environment.beginReadonlyTransaction()
-        } else {
-            this@TransactionManager.catalogue.environment.beginTransaction()
+        override val xodusTx: jetbrains.exodus.env.Transaction = when {
+            this.type.readonly -> this@TransactionManager.catalogue.environment.beginReadonlyTransaction()   /* Read-only transaction. */
+            this.type.exclusive -> this@TransactionManager.catalogue.environment.beginExclusiveTransaction() /* Exclusive write transaction. */
+            else -> this@TransactionManager.catalogue.environment.beginTransaction()                         /* Optimistic write transaction. */
         }
 
         /**

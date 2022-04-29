@@ -70,7 +70,7 @@ class VAFDoubleIndexTest : AbstractIndexTest() {
     @MethodSource("kernels")
     @ExperimentalTime
     fun test(distance: Name.FunctionName) {
-        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM)
+        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
         val k = 100L
         val query = DoubleVectorValueGenerator.random(this.indexColumn.type.logicalSize, this.random)
         val function = this.catalogue.functions.obtain(Signature.Closed(distance, arrayOf(Argument.Typed(query.type), Argument.Typed(query.type)), Types.Double)) as VectorDistance<*>

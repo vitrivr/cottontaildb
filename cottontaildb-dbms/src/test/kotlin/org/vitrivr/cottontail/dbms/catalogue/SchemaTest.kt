@@ -38,7 +38,7 @@ class SchemaTest: AbstractDatabaseTest() {
         val entityNames = arrayOf(this.schemaName.entity("one"), this.schemaName.entity("two"), this.schemaName.entity("three"))
 
         /* Transaction 1: Create entity. */
-        val txn1 = this.manager.TransactionImpl(TransactionType.SYSTEM)
+        val txn1 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
 
         try {
             val catalogueTx1 = txn1.getTx(this.catalogue) as CatalogueTx
@@ -54,7 +54,7 @@ class SchemaTest: AbstractDatabaseTest() {
         }
 
         /* Transaction 2: Query. */
-        val txn2 = this.manager.TransactionImpl(TransactionType.SYSTEM)
+        val txn2 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
         try {
             val catalogueTx2 = txn2.getTx(this.catalogue) as CatalogueTx
             val schema = catalogueTx2.schemaForName(this.schemaName)
@@ -83,7 +83,7 @@ class SchemaTest: AbstractDatabaseTest() {
         val entityNames = arrayOf(this.schemaName.entity("one"), this.schemaName.entity("two"), this.schemaName.entity("three"))
 
         /* Transaction 1: Create entity. */
-        val txn1 = this.manager.TransactionImpl(TransactionType.SYSTEM)
+        val txn1 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
         try {
             val catalogueTx1 = txn1.getTx(this.catalogue) as CatalogueTx
             val schema = catalogueTx1.createSchema(this.schemaName)
@@ -108,7 +108,7 @@ class SchemaTest: AbstractDatabaseTest() {
         }
 
         /* Transaction 2: Query. */
-        val txn2 = this.manager.TransactionImpl(TransactionType.SYSTEM)
+        val txn2 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
         try {
             val catalogueTx2 = txn2.getTx(this.catalogue) as CatalogueTx
             val schema = catalogueTx2.schemaForName(this.schemaName)
@@ -134,7 +134,7 @@ class SchemaTest: AbstractDatabaseTest() {
     @Test
     fun createEntityWithRollbackTest() {
         /* Transaction 0: Create schema (as preparation). */
-        val txn0 = this.manager.TransactionImpl(TransactionType.SYSTEM)
+        val txn0 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
         try {
             val catalogueTx0 = txn0.getTx(this.catalogue) as CatalogueTx
             catalogueTx0.createSchema(this.schemaName)
@@ -143,7 +143,7 @@ class SchemaTest: AbstractDatabaseTest() {
         }
 
         /* Transaction 1: Create entity. */
-        val txn1 = this.manager.TransactionImpl(TransactionType.SYSTEM)
+        val txn1 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
         try {
             val catalogueTx1 = txn1.getTx(this.catalogue) as CatalogueTx
             val schema = catalogueTx1.schemaForName(this.schemaName)
@@ -156,7 +156,7 @@ class SchemaTest: AbstractDatabaseTest() {
         }
 
         /* Transaction 2: Query. */
-        val txn2 = this.manager.TransactionImpl(TransactionType.SYSTEM)
+        val txn2 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
         try {
             val catalogueTx2 = txn2.getTx(this.catalogue) as CatalogueTx
             val schema = catalogueTx2.schemaForName(this.schemaName)
@@ -177,7 +177,7 @@ class SchemaTest: AbstractDatabaseTest() {
     @Test
     fun replaceEntityWithCommitTest() {
         /* Transaction 1: Create entity. */
-        val txn1 = this.manager.TransactionImpl(TransactionType.SYSTEM)
+        val txn1 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
         try {
             val catalogueTx1 = txn1.getTx(this.catalogue) as CatalogueTx
             val schema = catalogueTx1.createSchema(this.schemaName)
@@ -190,7 +190,7 @@ class SchemaTest: AbstractDatabaseTest() {
         }
 
         /* Transaction 2: Truncate. */
-        val txn2 = this.manager.TransactionImpl(TransactionType.SYSTEM)
+        val txn2 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
         try {
             val catalogueTx2 = txn2.getTx(this.catalogue) as CatalogueTx
             val schema = catalogueTx2.schemaForName(this.schemaName)
@@ -211,7 +211,7 @@ class SchemaTest: AbstractDatabaseTest() {
         }
 
         /* Transaction 2: Truncate. */
-        val txn3 = this.manager.TransactionImpl(TransactionType.SYSTEM)
+        val txn3 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
         try {
             val catalogueTx3 = txn3.getTx(this.catalogue) as CatalogueTx
             val schema = catalogueTx3.schemaForName(this.schemaName)

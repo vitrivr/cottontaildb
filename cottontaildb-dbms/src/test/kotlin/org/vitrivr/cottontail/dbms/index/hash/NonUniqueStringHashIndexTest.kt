@@ -54,7 +54,7 @@ class NonUniqueStringHashIndexTest : AbstractIndexTest() {
     @RepeatedTest(3)
     fun testFilterEqualPositive() {
         /* Obtain necessary transactions. */
-        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM)
+        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
         try {
             val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
             val schema = catalogueTx.schemaForName(this.schemaName)
@@ -97,7 +97,7 @@ class NonUniqueStringHashIndexTest : AbstractIndexTest() {
     @RepeatedTest(3)
     fun testFilterEqualNegative() {
         /* Obtain necessary transactions. */
-        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM)
+        val txn = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
         val catalogueTx = txn.getTx(this.catalogue) as CatalogueTx
         val schema = catalogueTx.schemaForName(this.schemaName)
         val schemaTx = txn.getTx(schema) as SchemaTx

@@ -65,7 +65,7 @@ internal interface TransactionalGrpcService {
             if (readOnly) { /* Start new transaction. */
                 this.manager.TransactionImpl(TransactionType.USER_IMPLICIT_READONLY)
             } else {
-                this.manager.TransactionImpl(TransactionType.USER_IMPLICIT)
+                this.manager.TransactionImpl(TransactionType.USER_IMPLICIT_EXCLUSIVE)
             }
         } else { /* Reuse existing transaction. */
             val txn = this.manager[metadata.transactionId]

@@ -6,10 +6,12 @@ package org.vitrivr.cottontail.dbms.execution.transactions
  * @author Ralph Gasser
  * @version 1.1.0
  */
-enum class TransactionType(val autoCommit: Boolean, val autoRollback: Boolean, val readonly: Boolean) {
-    USER(false, false, false),                  /* A [Transaction] created by a user. */
-    USER_IMPLICIT(true, true, false),           /* A [Transaction] created by a user that, is bound to the context of a single query. */
-    USER_IMPLICIT_READONLY(true, true, true),   /* A [Transaction] created by a user that, is bound to the context of a single query and is used in a read-only fashion. */
-    SYSTEM(false, false, false),                /* A [Transaction] created by the system. */
-    SYSTEM_READONLY(false, false, true)         /* A [Transaction] created by the system and is used in a read-only fashion . */
+enum class TransactionType(val autoCommit: Boolean, val autoRollback: Boolean, val readonly: Boolean, val exclusive: Boolean) {
+    USER(false, false, false, false),                  /* An optimistic read/write transaction created by a user.  */
+    USER_EXCLUSIVE(false, false, false, true),         /* An exclusive transaction created by a user.  */
+    USER_READONLY(false, false, true, false),          /* A read-only transaction created by a user.  */
+    USER_IMPLICIT_EXCLUSIVE(true, true, false, true),  /* An exclusive transaction created by a user that is bound to the context of a single query. */
+    USER_IMPLICIT_READONLY(true, true, true, false),   /* A read-only transaction created by a user that is bound to the context of a single query. */
+    SYSTEM_EXCLUSIVE(false, false, false, true),       /* An exclusive transaction created by the system. */
+    SYSTEM_READONLY(false, false, true, false)         /* A read-only transaction created by the system. */
 }

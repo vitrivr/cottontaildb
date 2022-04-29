@@ -37,7 +37,7 @@ class CatalogueTest: AbstractDatabaseTest() {
     @Test
     fun createSchemaCommitTest() {
         /* Transaction 1: Create schema. */
-        val txn1 = this.manager.TransactionImpl(TransactionType.SYSTEM)
+        val txn1 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
         try {
             val catalogueTxn1 = txn1.getTx(this.catalogue) as CatalogueTx
             catalogueTxn1.createSchema(this.schemaName)
@@ -48,7 +48,7 @@ class CatalogueTest: AbstractDatabaseTest() {
         }
 
         /* Transaction 2: Read and compare schema. */
-        val txn2 = this.manager.TransactionImpl(TransactionType.SYSTEM)
+        val txn2 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
         try {
             val catalogueTxn2 = txn2.getTx(this.catalogue) as CatalogueTx
             val schema = catalogueTxn2.schemaForName(this.schemaName)
@@ -67,7 +67,7 @@ class CatalogueTest: AbstractDatabaseTest() {
     @Test
     fun createSchemaRollbackTest() {
         /* Transaction 1: Create schema. */
-        val txn1 = this.manager.TransactionImpl(TransactionType.SYSTEM)
+        val txn1 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
         try {
             val catalogueTxn1 = txn1.getTx(this.catalogue) as CatalogueTx
             catalogueTxn1.createSchema(this.schemaName)
@@ -76,7 +76,7 @@ class CatalogueTest: AbstractDatabaseTest() {
         }
 
         /* Transaction 2: Read and compare schema. */
-        val txn2 = this.manager.TransactionImpl(TransactionType.SYSTEM)
+        val txn2 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
         try {
             val catalogueTxn2 = txn2.getTx(this.catalogue) as CatalogueTx
 
@@ -97,7 +97,7 @@ class CatalogueTest: AbstractDatabaseTest() {
     @Test
     fun dropSchemaCommitTest() {
         /* Transaction 1: Create schema. */
-        val txn1 = this.manager.TransactionImpl(TransactionType.SYSTEM)
+        val txn1 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
         try {
             val catalogueTxn1 = txn1.getTx(this.catalogue) as CatalogueTx
             catalogueTxn1.createSchema(this.schemaName)
@@ -109,7 +109,7 @@ class CatalogueTest: AbstractDatabaseTest() {
 
 
         /* Transaction 2: Read, check and drop schema. */
-        val txn2 = this.manager.TransactionImpl(TransactionType.SYSTEM)
+        val txn2 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
         try {
             val catalogueTxn2 = txn2.getTx(this.catalogue) as CatalogueTx
             catalogueTxn2.schemaForName(this.schemaName)
@@ -123,7 +123,7 @@ class CatalogueTest: AbstractDatabaseTest() {
         }
 
         /* Transaction 3: Read and compare schema. */
-        val txn3 = this.manager.TransactionImpl(TransactionType.SYSTEM)
+        val txn3 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
         try {
             val catalogueTxn3 = txn3.getTx(this.catalogue) as CatalogueTx
 
@@ -144,7 +144,7 @@ class CatalogueTest: AbstractDatabaseTest() {
     @Test
     fun dropSchemaRollbackTest() {
         /* Transaction 1: Create schema. */
-        val txn1 = this.manager.TransactionImpl(TransactionType.SYSTEM)
+        val txn1 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
         try {
             val catalogueTxn1 = txn1.getTx(this.catalogue) as CatalogueTx
             catalogueTxn1.createSchema(this.schemaName)
@@ -156,7 +156,7 @@ class CatalogueTest: AbstractDatabaseTest() {
 
 
         /* Transaction 2: Read, check and drop schema. */
-        val txn2 = this.manager.TransactionImpl(TransactionType.SYSTEM)
+        val txn2 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
         try {
             val catalogueTxn2 = txn2.getTx(this.catalogue) as CatalogueTx
             Assertions.assertDoesNotThrow {
@@ -171,7 +171,7 @@ class CatalogueTest: AbstractDatabaseTest() {
 
 
         /* Transaction 3: Read and compare schema. */
-        val txn3 = this.manager.TransactionImpl(TransactionType.SYSTEM)
+        val txn3 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
         try {
             val catalogueTxn3 = txn3.getTx(this.catalogue) as CatalogueTx
             Assertions.assertDoesNotThrow {
@@ -190,7 +190,7 @@ class CatalogueTest: AbstractDatabaseTest() {
     @Test
     fun createAndDropSchemaSingleTransactionTest() {
         /* Transaction 1: Create schema. */
-        val txn1 = this.manager.TransactionImpl(TransactionType.SYSTEM)
+        val txn1 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
         try {
             val catalogueTxn1 = txn1.getTx(this.catalogue) as CatalogueTx
             Assertions.assertDoesNotThrow {
@@ -202,7 +202,7 @@ class CatalogueTest: AbstractDatabaseTest() {
         }
 
         /* Transaction 2: Read and compare schema. */
-        val txn3 = this.manager.TransactionImpl(TransactionType.SYSTEM)
+        val txn3 = this.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
         try {
             val catalogueTxn3 = txn3.getTx(this.catalogue) as CatalogueTx
 

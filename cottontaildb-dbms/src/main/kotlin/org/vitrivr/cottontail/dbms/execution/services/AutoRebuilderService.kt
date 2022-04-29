@@ -7,7 +7,6 @@ import org.vitrivr.cottontail.core.database.TransactionId
 import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.entity.EntityTx
-import org.vitrivr.cottontail.dbms.events.ColumnEvent
 import org.vitrivr.cottontail.dbms.events.Event
 import org.vitrivr.cottontail.dbms.events.IndexEvent
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
@@ -101,7 +100,7 @@ class AutoRebuilderService(val catalogue: Catalogue, val manager: TransactionMan
          * Synchronous [Index] rebuilding.
          */
         private fun performSynchronousRebuild() {
-            val transaction = this@AutoRebuilderService.manager.TransactionImpl(TransactionType.SYSTEM)
+            val transaction = this@AutoRebuilderService.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
             try {
                 val catalogueTx = transaction.getTx(this@AutoRebuilderService.catalogue) as CatalogueTx
                 val schema = catalogueTx.schemaForName(this.index.schema())
@@ -157,7 +156,7 @@ class AutoRebuilderService(val catalogue: Catalogue, val manager: TransactionMan
             }
 
             /* Step 2: Merge index (write). */
-            val transaction2 = this@AutoRebuilderService.manager.TransactionImpl(TransactionType.SYSTEM)
+            val transaction2 = this@AutoRebuilderService.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
             try {
                 rebuilder.merge(transaction2)
                 transaction2.commit()

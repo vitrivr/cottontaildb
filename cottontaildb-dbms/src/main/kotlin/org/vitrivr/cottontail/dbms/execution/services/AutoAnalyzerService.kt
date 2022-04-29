@@ -71,7 +71,7 @@ class AutoAnalyzerService(val catalogue: Catalogue, val manager: TransactionMana
      */
     inner class Task(private val column: Name.ColumnName): Runnable {
         override fun run() {
-            val transaction = this@AutoAnalyzerService.manager.TransactionImpl(TransactionType.SYSTEM)
+            val transaction = this@AutoAnalyzerService.manager.TransactionImpl(TransactionType.SYSTEM_EXCLUSIVE)
             try {
                 LOGGER.info("Starting auto-analysis of column $column...")
                 val catalogueTx = transaction.getTx(this@AutoAnalyzerService.catalogue) as CatalogueTx
