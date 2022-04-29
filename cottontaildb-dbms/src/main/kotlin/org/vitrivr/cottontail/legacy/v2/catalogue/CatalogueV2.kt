@@ -10,7 +10,7 @@ import org.vitrivr.cottontail.dbms.catalogue.Catalogue
 import org.vitrivr.cottontail.dbms.catalogue.CatalogueTx
 import org.vitrivr.cottontail.dbms.entity.DefaultEntity
 import org.vitrivr.cottontail.dbms.exceptions.DatabaseException
-import org.vitrivr.cottontail.dbms.exceptions.TxException
+import org.vitrivr.cottontail.dbms.exceptions.TransactionException
 import org.vitrivr.cottontail.dbms.execution.transactions.TransactionContext
 import org.vitrivr.cottontail.dbms.general.*
 import org.vitrivr.cottontail.dbms.schema.Schema
@@ -138,7 +138,7 @@ class CatalogueV2(override val config: Config) : Catalogue {
         init {
             if (this@CatalogueV2.closed) {
                 this@CatalogueV2.closeLock.unlockRead(this.closeStamp)
-                throw TxException.TxDBOClosedException(this.context.txId, this@CatalogueV2)
+                throw TransactionException.DBOClosed(this.context.txId, this@CatalogueV2)
             }
         }
 
