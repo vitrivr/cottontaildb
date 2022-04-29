@@ -217,10 +217,7 @@ class TransactionManager(val executionManager: ExecutionManager, transactionTabl
                         }
                     }
                     commit = this@TransactionImpl.xodusTx.commit()
-                    if (!commit) {
-                        this@TransactionImpl.xodusTx.abort()
-                        throw TransactionException.InConflict(this@TransactionImpl.txId)
-                    }
+                    if (!commit) throw TransactionException.InConflict(this@TransactionImpl.txId)
                 } catch (e: Throwable) {
                     this@TransactionImpl.xodusTx.abort()
                     throw e
